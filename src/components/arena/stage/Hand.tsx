@@ -27,6 +27,7 @@ export function Hand({
   children,
   dragId = null,
   dragFor,
+  chargeable,
 }: {
   cards: CardView[];
   count: number;
@@ -40,6 +41,8 @@ export function Hand({
   dragId?: string | null;
   /** The pointer handlers that make one card draggable, or null when it is not. */
   dragFor?: (id: string) => React.HTMLAttributes<HTMLDivElement> | null;
+  /** In the Charge phase: this card can be charged, so it wears the dashed outline (rd-04). */
+  chargeable?: (id: string) => boolean;
 }) {
   const [open, setOpen] = useState(false);
   // A hand wider than the screen scrolls sideways, and a card that took every
@@ -57,6 +60,7 @@ export function Hand({
     return () => ro.disconnect();
   }, [cards.length, open]);
   const width = open ? 92 : 62;
+  const charging = cards.some((c) => chargeable?.(c.id));
   const middle = (cards.length - 1) / 2;
 
   return (
@@ -97,7 +101,7 @@ export function Hand({
 
       {children}
 
-      <div ref={strip} className={`flex overflow-x-auto pb-1 transition-all duration-200 ${open ? "gap-2 pt-3 sm:gap-3" : "gap-1 sm:gap-2 lg:gap-3"} sm:[justify-content:safe_center]`}>
+      <div ref={strip} className={`flex overflow-x-auto pb-1 transition-all duration-200 ${open ? "gap-2 pt-3 sm:gap-3" : `gap-1 sm:gap-2 lg:gap-3 ${charging ? "pt-1.5" : ""}`} sm:[justify-content:safe_center]`}>
         {cards.map((c, i) => {
           const off = i - middle;
           const handlers = dragFor?.(c.id) ?? null;
@@ -105,7 +109,7 @@ export function Hand({
             <div
               key={c.id}
               {...handlers}
-              className="shrink-0 transition-[opacity,filter] duration-150"
+              className={`shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
               style={{ touchAction: handlers ? (scrolls ? "pan-x" : "none") : undefined, ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null) }}
             >
               <StageCard

@@ -94,6 +94,7 @@ export function ArenaCard({
   state = "plain",
   upsideDown = false,
   onTap,
+  onDoubleTap,
   onInspect,
   onHover,
   badge,
@@ -105,6 +106,7 @@ export function ArenaCard({
   state?: CardState;
   upsideDown?: boolean;
   onTap?: () => void;
+  onDoubleTap?: () => void;
   onInspect?: () => void;
   /**
    * Mouse only: the card's box while the pointer is over it, null when it
@@ -170,6 +172,7 @@ export function ArenaCard({
       <button
         type="button"
         onClick={onTap}
+        onDoubleClick={onDoubleTap}
         onContextMenu={(e) => {
           if (!onInspect) return;
           e.preventDefault();
