@@ -29,16 +29,19 @@ because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` i
 manifest, `/icons/*` and `/sw.js` are exempt too — the browser fetches them without credentials, so
 behind auth the app cannot be installed at all. Removing either variable exposes the whole database.
 
-**Vercel's own deployment protection is ON for Preview** (verified 6 Sep 2026: a preview URL
+**Previews are off (only `main` deploys), so the next note matters only if that is reverted.
+Vercel's own deployment protection is ON for Preview** (verified 6 Sep 2026: a preview URL
 redirects to `vercel.com/sso-api`). A preview therefore needs a Vercel login *as well as* Basic
 Auth, which makes preview URLs awkward to open on a phone — a Cloudflare tunnel to a local
 `npm run build && npm start` is the quicker way to test on a device.
 
 **Neon is one database with a spend limit, so development keeps off it** (owner's instruction,
-14 Sep 2026). Three things follow. `vercel.json` builds through `scripts/vercel-build.mjs`, which
-runs the migrations on *production* deploys only, and skips preview deploys altogether for the
-branches agents push (`feat/*`, `arena-*`, `backlog/*`, `claude/*`, `copilot/*`, `ops/*` —
-`scripts/vercel-ignore-build.mjs`; a hand-pushed branch under another name still previews).
+14 Sep 2026). Three things follow. `vercel.json` (`git.deploymentEnabled`) deploys **`main` only** —
+no branch gets a preview any more; the `web` CI job runs `npm run build` (dummy `DATABASE_URL`)
+as the build check. It builds through `scripts/vercel-build.mjs`, which runs the migrations on
+*production* deploys only, and `scripts/vercel-ignore-build.mjs` skips a production deploy whose
+changed files are all under `docs/`, `.github/`, `.claude/` or root-level `*.md` (any git error
+builds), and still skips agent-branch previews as a fallback.
 `npm test` never touches Neon (PGlite). And an agent session does not run the scripts that need
 `DATABASE_URL` — `arena:diff`, `arena:playthrough`, `arena:reprobe`, `arena:specified`,
 `db:check`, `db:migrate`, `sync:*` — unless the issue's acceptance cannot be met any other way;
