@@ -62,14 +62,21 @@ export function AdminDrawer({
   onClose: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  // The latest onClose, read by the Escape listener. The board passes an
+  // inline function and re-renders on every poll; depending on it would
+  // re-run the focus below each time and pull focus out of the drawer.
+  const closeFn = useRef(onClose);
+  useEffect(() => {
+    closeFn.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     closeRef.current?.focus();
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeFn.current();
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [onClose]);
+  }, []);
 
   const { game, view } = snapshot;
   const versus = game.mode === "versus";
