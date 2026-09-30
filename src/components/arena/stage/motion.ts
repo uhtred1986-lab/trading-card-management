@@ -42,6 +42,15 @@ export function msFor(beat: Beat, pace: Pace = "normal", chain = 0): number {
   return base;
 }
 
+/**
+ * The "YOUR TURN" banner: 1300 ms at 1x, stretched like every other beat in
+ * slow pace. In step pace the walk waits for a tap instead, so this is only
+ * how long the bar's own sweep takes.
+ */
+export function turnBannerMs(pace: Pace = "normal"): number {
+  return pace === "slow" ? Math.round(1300 * 2.4) : 1300;
+}
+
 /** Additions to one battle before they start playing themselves back faster. */
 export const CHAIN_ACCEL_AFTER = 4;
 

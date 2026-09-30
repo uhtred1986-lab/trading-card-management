@@ -6,7 +6,7 @@ import type { PlayerId } from "@/lib/arena/engine";
 import { feel } from "@/lib/arena/feel";
 import type { Pace } from "@/lib/arena/pace";
 import { anchorPoint, type Point } from "./anchors";
-import { addsToChain, arrives, arrivesFrom, battleLink, departs, feelFor, msFor } from "./motion";
+import { addsToChain, arrives, arrivesFrom, battleLink, departs, feelFor, msFor, turnBannerMs } from "./motion";
 
 export interface Ghost {
   key: number;
@@ -20,7 +20,22 @@ export interface Ghost {
   ms: number;
 }
 
+/** A turn boundary the board is announcing ("YOUR TURN"), before the phase that opens it. */
+export interface TurnCall {
+  key: number;
+  player: PlayerId;
+  turn: number;
+}
+
 export interface Playback {
+  /**
+   * The turn change on screen right now, or null. It is its own step: the walk
+   * stands still on it for `turnBannerMs` (or, in step pace, until Next), then
+   * goes on to the turn's first beat.
+   */
+  turnCall: TurnCall | null;
+  /** A turn change is still to be announced, so the phase banner waits for it. */
+  turnAhead: boolean;
   /** True while beats are still being played; the board is read-only then. */
   playing: boolean;
   /** Cards whose arrival has not happened yet, held back until it does. */
@@ -57,6 +72,7 @@ export interface Playback {
 }
 
 const NOTHING: Set<string> = new Set();
+const NOTHING_N: ReadonlySet<number> = new Set();
 
 /**
  * Plays what happened since you last acted.
@@ -87,11 +103,19 @@ export function useBeatPlayer(
    * and never ghosted to the Drop.
    */
   drawn?: ReadonlySet<string>,
+  /** The turn the board was on when it mounted: a reload announces nothing. */
+  turnNow = 0,
 ): Playback {
   const [queue, setQueue] = useState<NumberedBeat[]>([]);
   const [at, setAt] = useState(0);
   const [ghosts, setGhosts] = useState<Ghost[]>([]);
   const [paused, setPaused] = useState(false);
+  const [turnCall, setTurnCall] = useState<TurnCall | null>(null);
+  // The beats (by number) that open a turn nobody has been told about yet, and
+  // the turn the story has got to. Decided once, when the queue is made.
+  const [starts, setStarts] = useState<ReadonlySet<number>>(NOTHING_N);
+  const [ahead, setAhead] = useState(0);
+  const [lastTurn, setLastTurn] = useState(turnNow);
   // Read by the walk rather than closed over, so a pause takes effect on the
   // next beat instead of restarting the story.
   const held = useRef(false);
@@ -124,6 +148,20 @@ export function useBeatPlayer(
     setQueue(fresh);
     setAt(0);
     setGhosts([]);
+    // A turn starts with its Charge Phase beat. Any phase beat that names a
+    // turn the story has not been on yet is the boundary, so a skipped turn
+    // (20-13) is announced too.
+    const opens = new Set<number>();
+    let turn = lastTurn;
+    for (const b of fresh) {
+      if (b.t === "phase" && b.turn !== turn) {
+        opens.add(b.n);
+        turn = b.turn;
+      }
+    }
+    setStarts(opens);
+    setAhead(opens.size);
+    setLastTurn(turn);
   }
 
   /** Let everything waiting go: a pause must never outlive the story it held. */
@@ -139,6 +177,8 @@ export function useBeatPlayer(
     setAt(0);
     setGhosts([]);
     setPaused(false);
+    setTurnCall(null);
+    setAhead(0);
     release();
     waiting.current?.();
     waiting.current = null;
@@ -199,6 +239,16 @@ export function useBeatPlayer(
         if (cancelled) return;
 
         const beat = queue[i];
+        if (beat.t === "phase" && starts.has(beat.n)) {
+          // Its own step: announced, held, then gone before the phase is.
+          setTurnCall({ key: beat.n, player: beat.player, turn: beat.turn });
+          setAhead((n) => Math.max(0, n - 1));
+          if (paceRef.current === "step") await new Promise<void>((r) => (waiting.current = r));
+          else await sleep(turnBannerMs(paceRef.current));
+          setTurnCall(null);
+          await gate();
+          if (cancelled) return;
+        }
         const ms = msFor(beat, paceRef.current === "step" ? "normal" : paceRef.current, chainAt[i]);
         // An arriving ghost lives exactly one beat: the real card takes over
         // as this one starts, so the flight hands over rather than lingering.
@@ -232,7 +282,7 @@ export function useBeatPlayer(
       cancelled = true;
       waiting.current = null;
     };
-  }, [queue, skip, hostRef, viewer]);
+  }, [queue, starts, skip, hostRef, viewer]);
 
   const playing = queue.length > 0;
 
@@ -246,7 +296,7 @@ export function useBeatPlayer(
     }
   }
 
-  return { playing, suppressed, ghosts, current: playing ? (queue[at] ?? null) : null, skip, next, pause, resume, paused: playing && paused, index: playing ? at : 0, total: queue.length };
+  return { turnCall, turnAhead: playing && ahead > 0, playing, suppressed, ghosts, current: playing ? (queue[at] ?? null) : null, skip, next, pause, resume, paused: playing && paused, index: playing ? at : 0, total: queue.length };
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

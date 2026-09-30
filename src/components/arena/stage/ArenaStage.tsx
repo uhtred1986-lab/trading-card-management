@@ -15,6 +15,8 @@ import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
+import { PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
+import type { TurnCall } from "./useBeatPlayer";
 import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/arena/lighting";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
@@ -33,8 +35,6 @@ import {
   SkillSpotlight,
   StatTiles,
   StepBanner,
-  TopStrip,
-  TurnStrip,
   cardsOnTable,
   isGhostAction,
   refusalLine,
@@ -47,7 +47,7 @@ import { DuelBand } from "./DuelBand";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
 import { MarkerFlight } from "./MarkerFlight";
-import { msFor } from "./motion";
+import { msFor, turnBannerMs } from "./motion";
 import { StagingToggle } from "../StagingToggle";
 import type { ArenaStaging } from "@/lib/arena/staging";
 import type { Moment } from "./StageCard";
@@ -102,6 +102,7 @@ export function ArenaStage({
   staging = "band",
   lighting = DEFAULT_LIGHTING,
   server = REAL_SERVER,
+  announceTurn = false,
 }: {
   gameId: number;
   snapshot: Snapshot;
@@ -114,6 +115,8 @@ export function ArenaStage({
    * there goes nowhere instead of to a database that is not there.
    */
   server?: { act: typeof act; advance: typeof advanceGame };
+  /** Fixture preview only: open with the turn banner up, so a shot can catch a turn boundary (#344). */
+  announceTurn?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -197,7 +200,17 @@ export function ArenaStage({
   // like any other card and are never ghosted away to the pile they are in.
   const kept = new Set((shape ? (view.battle?.counters ?? []) : []).map((c) => c.card.id));
 
-  const playback = useBeatPlayer(beats, !still, boardRef, pace, view.you.player, kept);
+  const playback = useBeatPlayer(beats, !still, boardRef, pace, view.you.player, kept, view.turn);
+
+  // The turn banner is the walk's own step; the preview can also ask for one
+  // at mount. Either way it is one banner, and the phase banner waits for it.
+  const [previewCall, setPreviewCall] = useState<TurnCall | null>(() => (announceTurn ? { key: 0, player: view.turnPlayer, turn: view.turn } : null));
+  useEffect(() => {
+    if (!previewCall) return;
+    const t = setTimeout(() => setPreviewCall(null), announceTurn && pace === "step" ? 60000 : turnBannerMs(pace));
+    return () => clearTimeout(t);
+  }, [previewCall, announceTurn, pace]);
+  const turnCall = playback.turnCall ?? previewCall;
 
   /**
    * A staging must never hide a card the player is being asked to tap.
@@ -482,16 +495,9 @@ export function ArenaStage({
   const yourTurn = view.prompt.player === view.you.player;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
-  /**
-   * Whose move the board states (`docs/arena-hud-spec.md` §2.1). One
-   * expression, used once.
-   *
-   * `waitingFor` already means exactly "the prompt belongs to the viewer", so
-   * this is the server's answer and nothing else. There is deliberately no
-   * second opinion about whose move it is anywhere on this screen — that is
-   * what makes §1's contradiction impossible rather than merely fixed.
-   */
-  const yourMove = live.waiting === "you";
+  // Whose move the board states is the turn pill's and the prompt's business,
+  // both read off the live snapshot (`docs/arena-hud-spec.md` §2.1): there is
+  // deliberately no second opinion about it on this screen.
 
   /**
    * The room belongs to whoever is acting (`docs/arena-turn-presence-spec.md`).
@@ -649,29 +655,40 @@ export function ArenaStage({
         {/* Speed lines under an attack — a skin's moment, driven by the beat on
             screen like every other; it draws nothing on the night table. */}
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
-        <StepBanner step={step} />
+        {/* The edge: an inner frame in the acting side's colour, switching with the banner. */}
+        <div className="arena-edge" aria-hidden />
+        <TurnBanner call={turnCall} view={view} lighting={lighting} ms={turnBannerMs(pace)} holdUntilTap={pace === "step"} />
+        <StepBanner step={step} hold={!!turnCall || playback.turnAhead} />
         {/* A skill fired inside a staged battle is said on the card that fired
             it, so the banner would be the same sentence twice over the fight. */}
         <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
         <div className="flex min-w-0 flex-col gap-2 sm:gap-3 lg:col-start-1 lg:row-start-1">
-          <TopStrip view={view} />
+          {/* The top bar: whose turn it is, then where in it we are. On a
+              phone it sticks to the top of the screen so the turn is never
+              scrolled away; from lg the chips move to the left column. */}
+          <div className="arena-topbar flex flex-col gap-1.5 max-sm:sticky max-sm:top-0 max-sm:z-30 max-sm:-mx-1 max-sm:px-1 max-sm:py-1.5 sm:mt-2 sm:flex-row sm:items-center sm:gap-3">
+            <TurnPill view={view} />
+            <PhaseChips view={view} className="lg:hidden" />
+          </div>
 
           {/* Below lg this is one column (them, the board, you). From lg it is
             the desktop review layout: both players' rails stacked on the left,
             the board, and the docked inspector over its tabs on the right. */}
           <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4">
-            <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-1" />
+            {/* The desktop's phase chips: the top of the left column, so they are on screen with the board. */}
+            <PhaseChips view={view} className="hidden lg:col-start-1 lg:row-start-1 lg:flex lg:w-44 xl:w-52" />
+            <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-2" />
 
-            <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
+            <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
               <div className={bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}>
                 <HandBacks count={view.them.handCount} />
-                <BattleRow cards={view.them.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p2:battle" label={`${view.them.name} has no Battle Cards`} />
+                <BattleRow cards={view.them.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p2:battle" label={`${view.them.name} has no Battle Cards`} active={!acting} />
                 <ClashBand view={view} cardProps={cardProps} staged={!!shape} />
-                <BattleRow cards={view.you.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" />
+                <BattleRow cards={view.you.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" active={acting} />
               </div>
               {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
             </section>
@@ -684,7 +701,7 @@ export function ArenaStage({
               narrator={narrator}
               lifted={lifted}
               energyChips={energyChips}
-              className="lg:col-start-1 lg:row-start-2"
+              className="lg:col-start-1 lg:row-start-3"
             />
           </div>
 
@@ -701,7 +718,6 @@ export function ArenaStage({
             than the bar alone: it is what tells the takeover where to stop,
             and the takeover has to clear both. */}
           <div ref={promptRef} className={`z-30 flex flex-col gap-1.5 ${takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"}`}>
-            {playable && !view.over && <TurnStrip view={view} yours={yourMove} moves={moveCount} />}
             <PromptPanel
               view={view}
               playable={playable}
@@ -715,6 +731,7 @@ export function ArenaStage({
               pace={pace}
               playingMine={!!(beat && actorOf(beat) === view.you.player)}
               playingIndex={playback.index}
+              moves={moveCount}
               playingTotal={playback.total}
               yourPlayer={view.you.player}
               isTargeting={isTargeting}

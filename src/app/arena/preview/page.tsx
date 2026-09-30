@@ -29,11 +29,11 @@ function snapshotFixtures(): string[] {
 /**
  * Dev-only: the board drawn from a `contract/fixtures/*.json` snapshot, with no
  * database and no server action behind it (issue #343). `?fixture=play`,
- * `?skin=anime|night`, `?staging=` and `?pace=step` behave as on a game page.
+ * `?skin=anime|night`, `?staging=` and `?pace=step` behave as on a game page; `?turn=banner` opens with the turn banner up.
  * It exists so a review can see the real board in a session that keeps off
  * Neon; production answers 404.
  */
-export default async function ArenaPreviewPage({ searchParams }: { searchParams: Promise<{ fixture?: string; skin?: string; staging?: string; pace?: string }> }) {
+export default async function ArenaPreviewPage({ searchParams }: { searchParams: Promise<{ fixture?: string; skin?: string; staging?: string; pace?: string; turn?: string }> }) {
   if (process.env.NODE_ENV === "production") notFound();
   const q = await searchParams;
   const names = snapshotFixtures();
@@ -56,5 +56,5 @@ export default async function ArenaPreviewPage({ searchParams }: { searchParams:
   }
   const snapshot = JSON.parse(readFileSync(join(DIR, `${name}.json`), "utf8")) as Snapshot;
   const pace: Pace | null = q.pace === "step" || q.pace === "normal" || q.pace === "slow" ? q.pace : null;
-  return <PreviewStage snapshot={snapshot} skin={skinFrom(q.skin)} staging={stagingFrom(q.staging)} pace={pace} />;
+  return <PreviewStage snapshot={snapshot} skin={skinFrom(q.skin)} staging={stagingFrom(q.staging)} pace={pace} announceTurn={q.turn === "banner"} />;
 }

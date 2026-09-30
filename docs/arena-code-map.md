@@ -554,8 +554,9 @@ the same as if it were still in `CLAUDE.md`.
   **Pace** (`src/lib/arena/pace.ts`): how fast a turn plays back is a remembered preference —
   slow (default), normal, or step (tap *Next* between beats); while it plays, the prompt bar's
   headline is the narration sentence and a card from a hidden pile flies in as a ghost.
-  **Whose move** (`docs/arena-hud-spec.md`, §1/§1.1/§2.1 built): `TurnStrip` states it full width
-  above the ask, in colour, words and position at once. One rule holds it together — **everything
+  **Whose move** (`docs/arena-hud-spec.md`, §1/§1.1/§2.1 built): the turn pill (`stage/TurnPresence.tsx`, #344 — it replaced
+  `TurnStrip`) says *whose turn* in words and the acting side's colour, beside a turn-change banner, a board
+  edge and a lit battle row; the prompt bar says *what is open* ("3 moves available — …"). One rule holds it together — **everything
   the board says about who is acting reads `live.waiting`, never the `snapshot` prop**. The prop is
   used for exactly one thing, `useLiveGame`'s `active` argument, because a value read from `live`
   could go false before the first poll returned; collapsing those two expressions back into one is
