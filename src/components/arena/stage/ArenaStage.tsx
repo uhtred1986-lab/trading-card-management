@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { act, advanceGame } from "@/app/arena/actions";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/engine";
@@ -19,20 +19,27 @@ import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/a
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
-import { missingEnergyChips } from "@/lib/arena/wording";
+import { missingEnergyChips, pill } from "@/lib/arena/wording";
 import {
+  ActionRows,
   AttackBeam,
   CardPreview,
   CardSheet,
+  DockedInspector,
+  InPlayList,
+  InspectorColumn,
   SearchSheet,
   Sheet,
   SkillSpotlight,
+  StatTiles,
   StepBanner,
   TopStrip,
   TurnStrip,
   cardsOnTable,
   isGhostAction,
   refusalLine,
+  type InPlaySide,
+  type InspectorChip,
   type SheetMove,
 } from "../shared";
 import { battleShape, BattleVerdict, firedInBattle } from "./BattleParts";
@@ -70,6 +77,24 @@ import { BattleRow, cardIdOf, ClashBand, HandBacks, MenuSection, ReferenceCounts
  */
 const REAL_SERVER = { act, advance: advanceGame };
 
+/**
+ * Whether the board is wide enough for the docked inspector (Tailwind `lg`).
+ * Behaviour only — the column itself is shown by CSS, so there is nothing to
+ * mismatch on hydration. False on the server, which has no pointer to hover.
+ */
+const WIDE = "(min-width: 1024px)";
+function useWide(): boolean {
+  return useSyncExternalStore(
+    (notify) => {
+      const mq = window.matchMedia(WIDE);
+      mq.addEventListener("change", notify);
+      return () => mq.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(WIDE).matches,
+    () => false,
+  );
+}
+
 export function ArenaStage({
   gameId,
   snapshot,
@@ -103,6 +128,17 @@ export function ArenaStage({
   /** The last sentence the story told, kept after playback stops until you act. */
   const [held, setHeld] = useState<{ text: string; n: number; mine: boolean } | null>(null);
   const [hover, setHover] = useState<{ card: CardView; box: DOMRect } | null>(null);
+  /**
+   * The docked inspector (lg and up; `docs/arena-backlog/rd-05`). It follows
+   * hover and keeps the last card so the pointer can travel to its buttons;
+   * a pin (right-click, or a click on an In play row) holds it until another
+   * pin or Escape. Reading is not a pause: only `sheet` stops playback.
+   */
+  const [inspected, setInspected] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<string | null>(null);
+  /** The In play row under the pointer, outlined on the board. */
+  const [rowHover, setRowHover] = useState<string | null>(null);
+  const wide = useWide();
   const [logOpen, setLogOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const asked = useRef(false);
@@ -252,6 +288,16 @@ export function ArenaStage({
     else resume();
   }, [sheet, playback.playing, pause, resume]);
 
+  // Escape lets go of a pinned card; hover takes the inspector back.
+  useEffect(() => {
+    if (!pinned) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPinned(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pinned]);
+
   // A refusal is said once and then gets out of the way; the card it was
   // about keeps its red badge, which is the board saying it before you tap.
   useEffect(() => {
@@ -272,6 +318,7 @@ export function ArenaStage({
 
   const send = (action: Action) => {
     setSheet(null);
+    setPinned(null);
     setSelected(null);
     setHover(null);
     setError(null);
@@ -404,7 +451,17 @@ export function ArenaStage({
     return { contribution: n, total: onAttack ? shape.attack.power : shape.defence.power, side: onAttack ? ("attack" as const) : ("guard" as const) };
   };
 
-  const hoverOf = (c: CardView) => (box: DOMRect | null) => setHover(box ? { card: c, box } : null);
+  const hoverOf = (c: CardView) => (box: DOMRect | null) => {
+    // Wide: the docked inspector takes the card and keeps it when the pointer
+    // leaves, so there is no floating preview to chase. A pin wins over hover.
+    if (wide) {
+      if (box && !pinned) setInspected(c.id);
+      return;
+    }
+    setHover(box ? { card: c, box } : null);
+  };
+  /** Right-click and long press: the sheet, or on a wide board a pin on the inspector. */
+  const inspect = (c: CardView) => (wide ? setPinned(c.id) : setSheet(c));
   /** Whose chair the words are read from, for "until the start of your next turn". */
   const narrator = { viewer: view.you.player, them: view.them.name };
 
@@ -518,7 +575,7 @@ export function ArenaStage({
    */
   const stagedProps = (c: CardView) => {
     const p = cardProps(c);
-    return { ...p, onTap: p.onTap ?? (() => setSheet(c)) };
+    return { ...p, onTap: p.onTap ?? (() => inspect(c)) };
   };
 
   const cardProps = (c: CardView) => ({
@@ -528,13 +585,67 @@ export function ArenaStage({
     nudge: nudging && !!taps.byCard[c.id]?.length,
     moment: momentOf(c.id),
     onTap: taps.byCard[c.id]?.length || whyOf(c.id)?.length || isTargeting ? () => tapCard(c.id) : undefined,
-    onInspect: () => setSheet(c),
+    onInspect: () => inspect(c),
     onHover: hoverOf(c),
+    outlined: rowHover === c.id,
+  });
+
+  // --- The docked inspector's content ----------------------------------------
+  const inspectId = pinned ?? inspected;
+  const inspectCard = inspectId ? cardOf(inspectId) : null;
+  const locate = (id: string) => {
+    for (const side of [view.you, view.them]) {
+      const zones: [string, (CardView | null | undefined)[]][] = [
+        ["leader", [side.leader]],
+        ["unison", [side.unison]],
+        ["battle area", side.battle],
+        ["combo area", side.combo],
+        ["energy area", side.energy],
+        ["hand", side.hand ?? []],
+        ["life", side.lifeFaceUp],
+        ["Z-Deck", side.zDeckFaceUp],
+        ["drop", [side.dropTop]],
+        ["search", side.choices ?? []],
+      ];
+      for (const [zone, cards] of zones) if (cards.some((c) => c?.id === id)) return { side, zone };
+    }
+    return null;
+  };
+  const inspectAt = inspectCard && inspectId ? locate(inspectId) : null;
+  const inspectWhere = inspectAt ? `${inspectAt.side === view.you ? "Your" : `${inspectAt.side.name}'s`} ${inspectAt.zone}` : null;
+  const inspectRejected = inspectId && playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === inspectId) : [];
+  const inspectChips: InspectorChip[] = [];
+  if (inspectCard && inspectId && inspectAt) {
+    if (["leader", "unison", "battle area", "energy area"].includes(inspectAt.zone)) inspectChips.push({ label: inspectCard.mode === "rest" ? "Rested" : "Standing", tone: "plain" });
+    if (playable && !busy && targetsOf(inspectId)) inspectChips.push({ label: "Can attack", tone: "good" });
+    if (isTargeting && targetsOf(selected!)?.[inspectId] != null) inspectChips.push({ label: "Valid target", tone: "good" });
+    const short = inspectRejected.flatMap((r) => r.why).find((w) => w.kind === "energy");
+    if (short) inspectChips.push({ label: pill(short).replace("short", "energy short"), tone: "bad" });
+  }
+  const inspectMoves: SheetMove[] = [];
+  if (inspectId && playable && !busy) {
+    if (isTargeting) {
+      const at = targetsOf(selected!)?.[inspectId];
+      if (at != null) inspectMoves.push({ index: at, legal: legal[at], label: "Attack it" });
+    } else inspectMoves.push(...movesFor(inspectId));
+  }
+  const inPlaySides: InPlaySide[] = [view.them, view.you].map((side) => {
+    const word = (c: CardView) => (c.mode === "rest" ? "rested" : "standing");
+    const rows: InPlaySide["rows"] = [];
+    if (side.leader) rows.push({ card: side.leader, note: `Leader · ${side.life} life · ${word(side.leader)}` });
+    if (side.unison) rows.push({ card: side.unison, note: `Unison · ${word(side.unison)}` });
+    for (const c of side.battle) rows.push({ card: c, note: c.mode === "rest" ? "Rested" : "Standing" });
+    return { name: side.name, rows, battleCount: side.battle.length, battlePower: side.battle.reduce((n, c) => n + (c.power ?? 0), 0) };
   });
 
   return (
     <LayoutGroup>
-      <div ref={boardRef} className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3" data-skin={skin} style={turnStyle}>
+      <div
+        ref={boardRef}
+        className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]"
+        data-skin={skin}
+        style={turnStyle}
+      >
         {/* Speed lines under an attack — a skin's moment, driven by the beat on
             screen like every other; it draws nothing on the night table. */}
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
@@ -542,27 +653,42 @@ export function ArenaStage({
         {/* A skill fired inside a staged battle is said on the card that fired
             it, so the banner would be the same sentence twice over the fight. */}
         <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />
-        <TopStrip view={view} />
+        {/* Everything in the flow but the docked inspector: one column of its own,
+            so the inspector can run the full height of it, hand included. */}
+        <div className="flex min-w-0 flex-col gap-2 sm:gap-3 lg:col-start-1 lg:row-start-1">
+          <TopStrip view={view} />
 
-        <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-start lg:gap-4">
-          <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-3 lg:row-start-1" />
+          {/* Below lg this is one column (them, the board, you). From lg it is
+            the desktop review layout: both players' rails stacked on the left,
+            the board, and the docked inspector over its tabs on the right. */}
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4">
+            <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-1" />
 
-          <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
-            {/* Dimmed and blurred under the band, never hidden: the position
+            <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
+              {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
-            <div className={bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}>
-              <HandBacks count={view.them.handCount} />
-              <BattleRow cards={view.them.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p2:battle" label={`${view.them.name} has no Battle Cards`} />
-              <ClashBand view={view} cardProps={cardProps} staged={!!shape} />
-              <BattleRow cards={view.you.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" />
-            </div>
-            {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
-          </section>
+              <div className={bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}>
+                <HandBacks count={view.them.handCount} />
+                <BattleRow cards={view.them.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p2:battle" label={`${view.them.name} has no Battle Cards`} />
+                <ClashBand view={view} cardProps={cardProps} staged={!!shape} />
+                <BattleRow cards={view.you.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" />
+              </div>
+              {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
+            </section>
 
-          <SideRail side={view.you} active={acting} cardProps={cardProps} hurt={hurting === view.you.player} narrator={narrator} lifted={lifted} energyChips={energyChips} className="lg:col-start-1 lg:row-start-1" />
-        </div>
+            <SideRail
+              side={view.you}
+              active={acting}
+              cardProps={cardProps}
+              hurt={hurting === view.you.player}
+              narrator={narrator}
+              lifted={lifted}
+              energyChips={energyChips}
+              className="lg:col-start-1 lg:row-start-2"
+            />
+          </div>
 
-        {/* The bottom two slots of the header stack (`docs/arena-hud-spec.md`
+          {/* The bottom two slots of the header stack (`docs/arena-hud-spec.md`
             §2): *whose move*, then *what is being asked*, in that order,
             always. They share one positioned wrapper because the strip has to
             stay directly above the ask — a sticky bar with a static strip
@@ -574,98 +700,130 @@ export function ArenaStage({
             other on a short window. `promptRef` measures this wrapper rather
             than the bar alone: it is what tells the takeover where to stop,
             and the takeover has to clear both. */}
-        <div ref={promptRef} className={`z-30 flex flex-col gap-1.5 ${takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"}`}>
-          {playable && !view.over && <TurnStrip view={view} yours={yourMove} moves={moveCount} />}
-          <PromptPanel
-            view={view}
-            playable={playable}
-            yourTurn={yourTurn}
-            waitingOnServer={waitingOnServer}
-            busy={busy}
-            playing={playback.playing}
-            held={held}
-            refusalText={refusal?.text ?? null}
-            error={error}
-            pace={pace}
-            playingMine={!!(beat && actorOf(beat) === view.you.player)}
-            playingIndex={playback.index}
-            playingTotal={playback.total}
-            yourPlayer={view.you.player}
-            isTargeting={isTargeting}
-            onCancelTargeting={() => select(null)}
-            searching={searching}
-            searchOpen={searchOpen}
-            choicesCount={choices.length}
-            onReopenSearch={() => setClosedSearch(null)}
-            inlineBare={inlineBare}
-            primaryBare={primaryBare}
-            onSend={send}
-            onNext={playback.next}
-            onSkip={playback.skip}
-          />
+          <div ref={promptRef} className={`z-30 flex flex-col gap-1.5 ${takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"}`}>
+            {playable && !view.over && <TurnStrip view={view} yours={yourMove} moves={moveCount} />}
+            <PromptPanel
+              view={view}
+              playable={playable}
+              yourTurn={yourTurn}
+              waitingOnServer={waitingOnServer}
+              busy={busy}
+              playing={playback.playing}
+              held={held}
+              refusalText={refusal?.text ?? null}
+              error={error}
+              pace={pace}
+              playingMine={!!(beat && actorOf(beat) === view.you.player)}
+              playingIndex={playback.index}
+              playingTotal={playback.total}
+              yourPlayer={view.you.player}
+              isTargeting={isTargeting}
+              onCancelTargeting={() => select(null)}
+              searching={searching}
+              searchOpen={searchOpen}
+              choicesCount={choices.length}
+              onReopenSearch={() => setClosedSearch(null)}
+              inlineBare={inlineBare}
+              primaryBare={primaryBare}
+              onSend={send}
+              onNext={playback.next}
+              onSkip={playback.skip}
+            />
+          </div>
+
+          {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              {(modal ? bare : bare.slice(3)).map(({ i, l }) => (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => send(l.action)}
+                  className="tap rounded-lg border border-space-600 bg-space-800 px-3 py-1.5 text-xs text-space-100 hover:border-ki-500/60 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <Hand
+            cards={view.you.hand ?? []}
+            count={view.you.handCount}
+            name={view.you.name}
+            cardProps={cardProps}
+            controls={
+              <>
+                <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400 lg:hidden">
+                  {logOpen ? "hide log" : "log"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen(true)}
+                  className="tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-xl leading-none text-space-300 hover:border-ki-500/60 hover:text-ki-300"
+                  aria-label="Open arena settings and counts"
+                >
+                  ⋯
+                </button>
+              </>
+            }
+          >
+            {/* The log no longer replaces the hand: you can read what just
+              happened and look at your cards at the same time. */}
+            {logOpen && (
+              <ol className="mb-2 lg:hidden max-h-40 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed text-space-400 sm:max-h-56 sm:text-xs">
+                {log.slice(-80).map((line, i) => (
+                  <li key={i} className={line.startsWith("—") ? "mt-1 text-space-200" : ""}>
+                    {line}
+                  </li>
+                ))}
+                {log.length === 0 && <li>nothing has happened yet</li>}
+              </ol>
+            )}
+          </Hand>
         </div>
 
-        {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
-          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            {(modal ? bare : bare.slice(3)).map(({ i, l }) => (
-              <button
-                key={i}
-                type="button"
-                disabled={busy}
-                onClick={() => send(l.action)}
-                className="tap rounded-lg border border-space-600 bg-space-800 px-3 py-1.5 text-xs text-space-100 hover:border-ki-500/60 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <Hand
-          cards={view.you.hand ?? []}
-          count={view.you.handCount}
-          name={view.you.name}
-          cardProps={cardProps}
-          controls={
-            <>
-              <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400">
-                {logOpen ? "hide log" : "log"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMoreOpen(true)}
-                className="tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-xl leading-none text-space-300 hover:border-ki-500/60 hover:text-ki-300"
-                aria-label="Open arena settings and counts"
-              >
-                ⋯
-              </button>
-            </>
-          }
-        >
-          {/* The log no longer replaces the hand: you can read what just
-              happened and look at your cards at the same time. */}
-          {logOpen && (
-            <ol className="mb-2 max-h-40 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed text-space-400 sm:max-h-56 sm:text-xs">
-              {log.slice(-80).map((line, i) => (
-                <li key={i} className={line.startsWith("—") ? "mt-1 text-space-200" : ""}>
-                  {line}
-                </li>
-              ))}
-              {log.length === 0 && <li>nothing has happened yet</li>}
-            </ol>
-          )}
-        </Hand>
+        <div className="hidden lg:col-start-2 lg:row-start-1 lg:block">
+          <InspectorColumn
+            inspector={
+              <DockedInspector
+                card={inspectCard}
+                where={inspectWhere}
+                chips={inspectChips}
+                stats={
+                  inspectCard && (
+                    <StatTiles
+                      card={inspectCard}
+                      leader={inspectAt?.zone === "leader" ? { life: inspectAt.side.life, energy: `${inspectAt.side.activeEnergy}/${inspectAt.side.energy.length}` } : null}
+                    />
+                  )
+                }
+                actions={inspectCard && <ActionRows card={inspectCard} side={view.you} moves={inspectMoves} rejected={inspectRejected} onPick={pickMove} narrator={narrator} docked />}
+                pinned={!!pinned}
+                onUnpin={() => setPinned(null)}
+                narrator={narrator}
+                battle={inspectId ? shareOf(inspectId) : null}
+              />
+            }
+            inPlay={
+              <InPlayList
+                sides={inPlaySides}
+                inspected={inspectId}
+                onReview={(id) => {
+                  setRowHover(id);
+                  if (id && !pinned) setInspected(id);
+                }}
+                onPin={setPinned}
+              />
+            }
+            log={log}
+          />
+        </div>
 
         {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
 
         {beatNow?.t === "markers" && beatNow.from && (
-          <MarkerFlight
-            beat={{ ...beatNow, from: beatNow.from }}
-            hostRef={boardRef}
-            art={beats?.art ?? {}}
-            ownerOfTo={ownerOf(beatNow.card) ?? view.turnPlayer}
-            ms={msFor(beatNow, pace)}
-          />
+          <MarkerFlight beat={{ ...beatNow, from: beatNow.from }} hostRef={boardRef} art={beats?.art ?? {}} ownerOfTo={ownerOf(beatNow.card) ?? view.turnPlayer} ms={msFor(beatNow, pace)} />
         )}
 
         {moreOpen && (
@@ -705,7 +863,7 @@ export function ArenaStage({
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 
-        {hover && !sheet && !searchOpen && <CardPreview card={hover.card} box={hover.box} narrator={narrator} />}
+        {hover && !wide && !sheet && !searchOpen && <CardPreview card={hover.card} box={hover.box} narrator={narrator} />}
 
         {sheet && (
           <CardSheet

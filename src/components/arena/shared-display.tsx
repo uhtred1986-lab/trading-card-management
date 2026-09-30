@@ -151,7 +151,11 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
 
   if (!shown) return null;
   return (
-    <div className="fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]" style={{ transform: offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : undefined }} aria-live="polite">
+    <div
+      className="fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]"
+      style={{ transform: offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
+      aria-live="polite"
+    >
       <div className={`arena-drop arena-float relative flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-6 backdrop-blur ${shown.unread ? "border-dbs-yellow" : "border-ki-500"}`}>
         <button
           type="button"
@@ -164,7 +168,13 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
         >
           ×
         </button>
-        <div className="flex min-w-0 flex-1 cursor-grab touch-none select-none gap-2 active:cursor-grabbing" onPointerDown={startDrag} onPointerMove={onDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
+        <div
+          className="flex min-w-0 flex-1 cursor-grab touch-none select-none gap-2 active:cursor-grabbing"
+          onPointerDown={startDrag}
+          onPointerMove={onDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
           {shown.imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
             <img src={shown.imageUrl} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
@@ -242,7 +252,11 @@ export function CardPreview({ card, box, narrator = DEFAULT_NARRATOR }: { card: 
   const edge = lower ? { bottom: gap } : { top: Math.max(gap, box.top - 40) };
 
   return (
-    <div className="arena-float pointer-events-none fixed z-40 hidden max-h-[calc(100dvh-1.75rem)] overflow-hidden rounded-2xl border border-space-600 bg-space-900/95 p-3 backdrop-blur sm:block" style={{ left, width, ...edge }} aria-hidden>
+    <div
+      className="arena-float pointer-events-none fixed z-40 hidden max-h-[calc(100dvh-1.75rem)] overflow-hidden rounded-2xl border border-space-600 bg-space-900/95 p-3 backdrop-blur sm:block"
+      style={{ left, width, ...edge }}
+      aria-hidden
+    >
       {card.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- transient overlay; the board has already loaded this URL.
         <img src={card.imageUrl} alt="" className="card-aspect mb-2 w-full rounded-lg object-cover" />
@@ -259,6 +273,217 @@ export function NarrationRibbon({ text, n, mine, live }: { text: string; n: numb
       <span key={n} className="arena-drop min-w-0 flex-1 truncate">
         {text}
       </span>
+    </div>
+  );
+}
+
+/** One chip on the inspector: a card's state, or what stands in the way of it. */
+export interface InspectorChip {
+  label: string;
+  /** `bad` is red (a refusal), `good` is the ready colour, `plain` is neutral. */
+  tone: "plain" | "good" | "bad";
+}
+
+const CHIP_TONE: Record<InspectorChip["tone"], string> = {
+  plain: "border-space-500 text-space-100",
+  good: "border-gain/70 text-gain",
+  bad: "border-loss/70 text-loss",
+};
+
+/**
+ * The docked card review (desktop, lg and up; `docs/arena-backlog/rd-05`).
+ *
+ * It draws whatever it is given and owns no state: the stage decides which
+ * card is on it (hover, pin, row hover) and what its actions are, so a pager
+ * for the phone (rd-06) can hand the same pieces to a different frame.
+ * `actions` is an `ActionRows` list; `stats` is `StatTiles`.
+ */
+export function DockedInspector({
+  card,
+  where,
+  chips,
+  stats,
+  actions,
+  pinned,
+  onUnpin,
+  narrator = DEFAULT_NARRATOR,
+  battle,
+}: {
+  card: CardView | null;
+  /** "Claude's battle area", "Your hand". */
+  where: string | null;
+  chips: InspectorChip[];
+  stats: React.ReactNode;
+  actions: React.ReactNode;
+  pinned: boolean;
+  onUnpin: () => void;
+  narrator?: Narrator;
+  battle?: Parameters<typeof CardDetail>[0]["battle"];
+}) {
+  if (!card) {
+    return (
+      <div className="grid h-full place-items-center p-4 text-center text-sm text-space-300" data-arena-inspector="empty">
+        Hover any card to review it — no clicks needed.
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2 p-3" data-arena-inspector={card.id}>
+      {card.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- the board has already loaded this URL.
+        <img src={card.imageUrl} alt="" className="card-aspect mx-auto w-40 rounded-lg object-cover xl:w-48" />
+      )}
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
+        {pinned && (
+          <button
+            type="button"
+            onClick={onUnpin}
+            className="shrink-0 rounded-full border border-space-500 px-2 py-px text-[10px] uppercase tracking-wider text-space-200 hover:border-ki-400 hover:text-ki-300"
+          >
+            pinned · esc
+          </button>
+        )}
+      </div>
+      <h3 className="text-lg font-black italic leading-tight text-space-50">{card.name}</h3>
+      {chips.length > 0 && (
+        <p className="flex flex-wrap gap-1">
+          {chips.map((c) => (
+            <span key={c.label} className={`rounded-full border px-2 py-px text-[11px] font-semibold ${CHIP_TONE[c.tone]}`}>
+              {c.label}
+            </span>
+          ))}
+        </p>
+      )}
+      {stats}
+      <div className="space-y-1.5">{actions}</div>
+      <CardDetail card={card} narrator={narrator} battle={battle} figures={false} />
+    </div>
+  );
+}
+
+/** One row of the In play list: art swatch, name, state, power. */
+export interface InPlayRow {
+  card: CardView;
+  /** "Leader · 2 life · standing", "Rested". */
+  note: string;
+}
+
+export interface InPlaySide {
+  name: string;
+  rows: InPlayRow[];
+  /** Battle cards only, as in the reference frame: "2 in battle · 32,000 power". */
+  battleCount: number;
+  battlePower: number;
+}
+
+/**
+ * Every card on both boards, the leader first. A row is hover-and-focus
+ * reviewable (it fills the inspector and outlines the card on the board) and a
+ * click pins it.
+ */
+export function InPlayList({
+  sides,
+  inspected,
+  onReview,
+  onPin,
+}: {
+  sides: InPlaySide[];
+  inspected: string | null;
+  /** The pointer or focus is on a row (id), or left it (null). */
+  onReview: (id: string | null) => void;
+  onPin: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-3 p-2">
+      {sides.map((side) => (
+        <div key={side.name} role="group" aria-label={`${side.name} in play`}>
+          <p className="flex items-baseline justify-between gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-space-300">
+            <span>{side.name}</span>
+            <span className="font-normal normal-case tracking-normal">
+              {side.battleCount} in battle · {side.battlePower.toLocaleString("en")} power
+            </span>
+          </p>
+          <ul className="mt-1 space-y-1">
+            {side.rows.map(({ card, note }) => (
+              <li key={card.id}>
+                <button
+                  type="button"
+                  data-arena-row={card.id}
+                  onClick={() => onPin(card.id)}
+                  onPointerEnter={(e) => e.pointerType === "mouse" && onReview(card.id)}
+                  onPointerLeave={(e) => e.pointerType === "mouse" && onReview(null)}
+                  onFocus={() => onReview(card.id)}
+                  onBlur={() => onReview(null)}
+                  aria-label={`${card.name}, ${note}`}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-1.5 py-1 text-left hover:border-ki-400 ${inspected === card.id ? "border-ki-400 bg-space-800" : "border-space-700 bg-space-800/50"}`}
+                >
+                  {card.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- a list swatch; the board has already loaded this URL.
+                    <img src={card.imageUrl} alt="" className="card-aspect w-7 shrink-0 rounded-[3px] object-cover" />
+                  ) : (
+                    <span className="card-aspect w-7 shrink-0 rounded-[3px] bg-space-700" aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-semibold text-space-50">{card.name}</span>
+                    <span className="block truncate text-[10px] text-space-300">{note}</span>
+                  </span>
+                  <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-ki-300">{card.power != null ? card.power.toLocaleString("en") : ""}</span>
+                </button>
+              </li>
+            ))}
+            {side.rows.length === 0 && <li className="px-1 text-[11px] text-space-400">nothing in play</li>}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The inspector over two tabs — In play, and the battle log. The log is the
+ * one the board already keeps; rd-08 swaps it for the narration log.
+ */
+export function InspectorColumn({ inspector, inPlay, log }: { inspector: React.ReactNode; inPlay: React.ReactNode; log: string[] }) {
+  const [tab, setTab] = useState<"play" | "log">("play");
+  return (
+    <div className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-xl border border-space-700/70 bg-space-900/90 lg:sticky lg:top-16" aria-label="Card review">
+      {/* A fixed height, scrolling inside: the tabs below must not move when a
+          taller card fills it, or a row under the pointer slides away from it. */}
+      <div className="h-[min(20rem,38dvh)] shrink-0 overflow-y-auto xl:h-[min(24rem,40dvh)]">{inspector}</div>
+      <div role="tablist" className="flex shrink-0 gap-1 border-y border-space-700 p-1.5 text-xs font-semibold">
+        {(
+          [
+            ["play", "In play"],
+            ["log", "Battle log"],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            onClick={() => setTab(k)}
+            className={`tap flex-1 rounded-lg border px-2 py-1 ${tab === k ? "border-ki-400 bg-space-800 text-space-50" : "border-transparent text-space-300 hover:text-space-50"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" className="h-[min(12rem,24dvh)] shrink-0 overflow-y-auto xl:h-[min(14rem,24dvh)]">
+        {tab === "play" ? (
+          inPlay
+        ) : (
+          <ol className="space-y-0.5 p-2 font-mono text-[11px] leading-relaxed text-space-300">
+            {log.slice(-80).map((line, i) => (
+              <li key={i} className={line.startsWith("—") ? "mt-1 text-space-100" : ""}>
+                {line}
+              </li>
+            ))}
+            {log.length === 0 && <li>nothing has happened yet</li>}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }

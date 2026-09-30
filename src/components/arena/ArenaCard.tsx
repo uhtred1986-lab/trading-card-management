@@ -97,6 +97,7 @@ export function ArenaCard({
   onInspect,
   onHover,
   badge,
+  outlined = false,
 }: {
   card: CardView;
   width?: number;
@@ -110,6 +111,8 @@ export function ArenaCard({
    */
   onHover?: (box: DOMRect | null) => void;
   badge?: string | null;
+  /** The docked inspector's In play list is on this card's row: outline it on the board. */
+  outlined?: boolean;
 }) {
   // Keyed to the URL that failed: a leader keeps its instance when it awakens
   // and its art switches to the back, so a plain flag would hide the new face.
@@ -172,9 +175,17 @@ export function ArenaCard({
           endPress();
           if (hoverable && e.pointerType === "mouse") onHover!(null);
         }}
+        // Keyboard focus reviews a card the way hover does. `:focus-visible`
+        // keeps a mouse or finger click (which also focuses a button) out of it.
+        onFocus={(e) => {
+          if (hoverable && e.currentTarget.matches(":focus-visible")) onHover!(e.currentTarget.getBoundingClientRect());
+        }}
+        onBlur={() => {
+          if (hoverable) onHover!(null);
+        }}
         disabled={!onTap && !onInspect && !hoverable}
         aria-label={card.hidden ? "Face-down card" : `${card.name}${card.power != null ? `, ${card.power} power` : ""}`}
-        className={`arena-card absolute overflow-hidden rounded-[4px] border border-space-600 bg-space-800 text-left transition-all duration-200 ${RING[state]} ${onTap ? "cursor-pointer" : ""} ${hoverable ? "hover:brightness-125" : ""} ${rested ? "brightness-75 saturate-[0.7]" : ""}`}
+        className={`arena-card absolute overflow-hidden rounded-[4px] border border-space-600 bg-space-800 text-left transition-all duration-200 ${RING[state]} ${onTap ? "cursor-pointer" : ""} ${hoverable ? "hover:brightness-125" : ""} ${outlined ? "outline outline-[3px] outline-offset-2 outline-ki-300" : ""} ${rested ? "brightness-75 saturate-[0.7]" : ""}`}
         style={{ width: px(width), height: px(height), transform: `rotate(${rotation}deg)` }}
       >
         {card.hidden ? (

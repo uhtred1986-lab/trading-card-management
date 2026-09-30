@@ -207,6 +207,39 @@ export class Page {
     }
   }
 
+  private async centre(selector: string, flag: string) {
+    const box = await this.eval<{ x: number; y: number } | null>(`(() => {
+      const el = document.querySelector(${JSON.stringify(selector)});
+      if (!el) return null;
+      // Only scroll a target that is off screen: scrolling a sticky panel moves it under the pointer.
+      let r = el.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth) {
+        el.scrollIntoView({ block: "center", inline: "center" });
+        r = el.getBoundingClientRect();
+      }
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`);
+    if (!box) throw new Error(`${flag}: nothing matches ${selector}`);
+    return box;
+  }
+
+  /** Move the mouse over the first match, without pressing (desktop only: a phone has no hover). */
+  async hover(selector: string) {
+    const { x, y } = await this.centre(selector, "--hover");
+    // A page reused across shots still has the last pointer position: park it
+    // first, or a move to the same spot fires no enter on the new document.
+    await this.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 1, y: 1 });
+    await this.call("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+  }
+
+  /** Right-click the first match (desktop only) — the gesture that pins the docked inspector. */
+  async rightClick(selector: string) {
+    const { x, y } = await this.centre(selector, "--rclick");
+    await this.call("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+    await this.call("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "right", clickCount: 1 });
+    await this.call("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "right", clickCount: 1 });
+  }
+
   async screenshot(fullPage: boolean): Promise<Buffer> {
     const r = await this.call("Page.captureScreenshot", { format: "jpeg", quality: 85, captureBeyondViewport: fullPage });
     return Buffer.from(r.data, "base64");
