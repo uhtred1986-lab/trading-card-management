@@ -47,6 +47,7 @@ export function StageCard({
   moment = null,
   lifts = false,
   onTap,
+  onDoubleTap,
   onInspect,
   onHover,
   outlined = false,
@@ -70,6 +71,8 @@ export function StageCard({
   /** Rises under a mouse. What makes a hand feel like cards rather than a strip. */
   lifts?: boolean;
   onTap?: () => void;
+  /** A mouse double-click (the Charge phase's charge, rd-04). */
+  onDoubleTap?: () => void;
   onInspect?: () => void;
   onHover?: (box: DOMRect | null) => void;
   /** Outlined on the board because its row in the inspector's In play list is hovered. */
@@ -105,7 +108,7 @@ export function StageCard({
         {/* The lift reads the parent hover, not its own: an element that moves
             out from under the cursor un-hovers itself, drops back, and oscillates. */}
         <div key={moment ?? "still"} className={`${MOMENT[moment ?? "none"]} ${lifts ? "transition-transform duration-200 group-hover:-translate-y-2" : ""}`}>
-          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} outlined={outlined} holdLock={holdLock} />
+          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onDoubleTap={onDoubleTap} onInspect={onInspect} onHover={onHover} outlined={outlined} holdLock={holdLock} />
         </div>
       </div>
     </motion.div>

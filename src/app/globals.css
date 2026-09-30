@@ -1085,6 +1085,34 @@ input[type="number"] {
 .arena-chip {
   animation: arena-chip 180ms cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
 }
+/* The Charge phase (rd-04): a hand card that can be charged is outlined dashed
+   (ink on the sky, ki gold on night) and a charge floats "+1 ENERGY" up beside
+   the energy. The float's ground is the ink in both skins so gold stays legible. */
+.arena-chargeable .arena-card {
+  outline: 2px dashed var(--color-ki-400);
+  outline-offset: 1px;
+}
+[data-skin="anime"] .arena-chargeable .arena-card {
+  outline-color: var(--ink);
+}
+@keyframes arena-gain {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-28px);
+  }
+}
+.arena-gain {
+  background: #12161f;
+  color: #ffc128;
+  animation: arena-gain 950ms ease-out forwards;
+}
 
 /* ==========================================================================
  * Anime Sky — the app's skin (docs/arena-skin-spec.md, extended to the whole
@@ -1548,6 +1576,7 @@ html[data-skin="anime"] body::before {
   .arena-hurt,
   .arena-nope,
   .arena-chip,
+  .arena-gain,
   .arena-speedlines,
   .arena-resolving,
   .arena-trigger-lit,

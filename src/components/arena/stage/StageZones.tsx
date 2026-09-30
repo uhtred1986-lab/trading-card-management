@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { untilWords } from "@/lib/arena/effects";
 import type { Action, PlayerId } from "@/lib/arena/engine";
 import type { MissingEnergyChip } from "@/lib/arena/wording";
@@ -189,6 +189,7 @@ export function SideRail({
   energyChips,
   drop = null,
   willRest = 0,
+  gain = null,
   className = "",
 }: {
   side: SideView;
@@ -206,10 +207,17 @@ export function SideRail({
   drop?: DropState | null;
   /** How many of the active energy the dragged card's play would rest. */
   willRest?: number;
+  /** A charge was just sent: "+1 ENERGY" rises beside the energy for `ms` (rd-04). */
+  gain?: { key: number; ms: number } | null;
   className?: string;
 }) {
   const spent = side.energy.length - side.activeEnergy;
   const p = side.player;
+  // A chip that arrives pops in (rd-04). The first render is not an arrival.
+  const [seen, setSeen] = useState<{ ids: string[]; fresh: ReadonlySet<string> }>(() => ({ ids: side.energy.map((c) => c.id), fresh: new Set() }));
+  const nowIds = side.energy.map((c) => c.id);
+  if (nowIds.join("|") !== seen.ids.join("|")) setSeen({ ids: nowIds, fresh: new Set(nowIds.filter((id) => !seen.ids.includes(id))) });
+  const arrived = seen.fresh;
   const activeIds = side.energy.filter((c) => c.mode === "active").map((c) => c.id);
   const resting = new Set(willRest > 0 ? activeIds.slice(-willRest) : []);
   /**
@@ -281,6 +289,11 @@ export function SideRail({
         <ZoneAnchor zone={`${p}:deck`} />
         <ZoneAnchor zone={`${p}:drop`} />
         <ZoneAnchor zone={`${p}:energy`} />
+        {gain && !them && (
+          <span key={gain.key} className="arena-gain pointer-events-none absolute bottom-full right-0 z-10 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[11px] font-bold tracking-wider" style={{ animationDuration: `${gain.ms}ms` }} aria-hidden>
+            +1 ENERGY
+          </span>
+        )}
         <div className="flex flex-wrap items-baseline gap-1 lg:justify-center">
           <span className="font-mono text-base font-bold text-ki-300 sm:text-lg">
             {side.activeEnergy}
@@ -300,7 +313,9 @@ export function SideRail({
         </div>
         <div className="mt-1 flex flex-wrap gap-[2px] lg:justify-center">
           {side.energy.map((c) => (
-            <StageCard key={c.id} {...pile(c)} upsideDown pulse={resting.has(c.id)} />
+            <span key={c.id} className={arrived.has(c.id) ? "arena-chip inline-flex" : "contents"}>
+              <StageCard {...pile(c)} upsideDown pulse={resting.has(c.id)} />
+            </span>
           ))}
           {side.energy.length === 0 && <span className="text-[10px] text-space-600">none charged</span>}
         </div>

@@ -5,6 +5,7 @@ milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
 touches: src/components/arena/stage/ArenaStage.tsx, src/components/arena/stage/Hand.tsx, src/components/arena/stage/PromptPanel.tsx, src/lib/arena/prompt-words.ts, src/app/globals.css
+status: closed
 ---
 **Source:** `docs/arena-board-redesign-spec.md` decision 3; frames `docs/arena-redesign/phone-03-charge-phase.jpg`, `docs/arena-redesign/desk-03-charge-phase.jpg`; `src/components/arena/stage/ArenaStage.tsx` (`tapCard`: the explicit `!== "charge"` guard); `src/lib/arena/prompt-words.ts` (the Charge prompt).
 

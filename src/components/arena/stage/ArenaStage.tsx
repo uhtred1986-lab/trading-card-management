@@ -135,6 +135,14 @@ export function ArenaStage({
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; over: "battle" | "energy" | null; back: boolean } | null>(null);
   const dragRef = useRef<{ id: string; pid: number; sx: number; sy: number; on: boolean } | null>(null);
   const dragEndedAt = useRef(0);
+  // What the last press on a hand card was (rd-04): a finger or a mouse, when
+  // it went down, and the `detail` of the click it made (0 is the keyboard, 2
+  // is the second click of a double-click). A tap reads these, so the Charge
+  // phase can charge on a touch tap and on a mouse double-click alone.
+  const press = useRef({ type: "", at: 0, held: 0, detail: 0 });
+  /** "+1 ENERGY" rising beside your energy after a charge (rd-04); `key` restarts it. */
+  const [gain, setGain] = useState<{ key: number; ms: number } | null>(null);
+  const gainTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const edgeRaf = useRef<number | null>(null);
   const pointerAt = useRef({ x: 0, y: 0 });
@@ -350,6 +358,12 @@ export function ArenaStage({
     setRefusal(null);
     setHeld(null);
     feel("tap");
+    if (action.type === "charge" && action.card) {
+      const ms = pace === "slow" ? Math.round(950 * 2.4) : 950;
+      setGain((g) => ({ key: (g?.key ?? 0) + 1, ms }));
+      if (gainTimer.current) clearTimeout(gainTimer.current);
+      gainTimer.current = setTimeout(() => setGain(null), ms);
+    }
     startTransition(async () => {
       const r = await server.act(gameId, action);
       if (r.error) {
@@ -419,6 +433,11 @@ export function ArenaStage({
     setRefusal({ card: id, text: refusalLine(why, { name: card?.name ?? "That card", reaching: reaching(id), side: view.you, inHand }) ?? "Not now.", at: Date.now() });
   };
 
+  const chargesOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "charge");
+  const inHand = (id: string) => !!view.you.hand?.some((c) => c.id === id);
+  /** The engine is asking you to charge, and this hand card has a legal `charge`. */
+  const chargeGesture = (id: string) => view.prompt.kind === "charge" && view.prompt.player === view.you.player && playable && !busy && inHand(id) && chargesOf(id).length > 0;
+
   const tapCard = (id: string) => {
     if (!playable || busy) return;
     if (isTargeting) {
@@ -426,6 +445,19 @@ export function ArenaStage({
       if (idx != null) return send(legal[idx].action);
       select(null);
       return;
+    }
+    // The Charge phase (rd-04): a touch tap charges, a mouse waits for its
+    // double-click (`doubleTapCard`). Both are read from the engine's prompt and
+    // `legal`; a keyboard Enter, a hold and a drag are not one.
+    if (chargeGesture(id)) {
+      const p = press.current;
+      if (p.detail === 0 || sheet) {
+        // The keyboard cannot double-click: it keeps the sheet, below.
+      } else if (p.type === "mouse") return;
+      else if (p.held < 450) {
+        const list = chargesOf(id);
+        if (list.length === 1) return send(legal[list[0]].action);
+      } else return;
     }
     const options = taps.byCard[id];
     const why = whyOf(id);
@@ -451,6 +483,15 @@ export function ArenaStage({
     const targets = targetsOf(id);
     if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) return select(id);
     if (options.length === 1 && !why?.length && legal[options[0]].action.type !== "charge") return send(legal[options[0]].action);
+    const card = cardOf(id);
+    if (card) setSheet(card);
+  };
+
+  /** A mouse double-click on a hand card in the Charge phase charges it. */
+  const doubleTapCard = (id: string) => {
+    if (!chargeGesture(id) || press.current.type !== "mouse" || sheet) return;
+    const list = chargesOf(id);
+    if (list.length === 1) return send(legal[list[0]].action);
     const card = cardOf(id);
     if (card) setSheet(card);
   };
@@ -611,9 +652,7 @@ export function ArenaStage({
   // Legality is the engine's: a drop sends an action that is already in
   // `legal`, or says why there is none. Nothing here evaluates a rule.
   const playsOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "play");
-  const chargesOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "charge");
   const rejectedFor1 = (id: string, type: "play" | "charge") => rejected.find((r) => cardIdOf(r.action) === id && r.action.type === type)?.why ?? [];
-  const inHand = (id: string) => !!view.you.hand?.some((c) => c.id === id);
   const draggable = (id: string) => playable && !busy && yourTurn && !isTargeting && !searchOpen && !sheet && inHand(id) && (playsOf(id).length > 0 || chargesOf(id).length > 0 || !!whyOf(id)?.length);
 
   /** Which of your zones is under the pointer: the anchors' rectangles, a little generous. */
@@ -701,6 +740,7 @@ export function ArenaStage({
       // A native image drag would cancel the pointer stream on a mouse.
       onDragStart: (e) => e.preventDefault(),
       onPointerDown: (e) => {
+        Object.assign(press.current, { type: e.pointerType, at: e.timeStamp, held: 0, detail: 0 });
         if (e.pointerType === "mouse" && e.button !== 0) return;
         dragRef.current = draggable(id) ? { id, pid: e.pointerId, sx: e.clientX, sy: e.clientY, on: false } : null;
       },
@@ -738,10 +778,15 @@ export function ArenaStage({
       },
       // The click that ends a drag must not be read as a tap.
       onClickCapture: (e) => {
+        press.current.detail = e.detail;
+        press.current.held = e.timeStamp - press.current.at;
         if (Date.now() - dragEndedAt.current < 350) {
           e.stopPropagation();
           e.preventDefault();
         }
+        // The second click of a mouse double-click is the charge's, not a tap
+        // that could open the sheet over the card it is charging.
+        else if (e.detail >= 2 && press.current.type === "mouse" && chargeGesture(id)) e.stopPropagation();
       },
     };
   };
@@ -781,6 +826,7 @@ export function ArenaStage({
   const willRest = drag && !drag.back && dragPlays.length > 0 && dragPrice > 0 ? dragPrice : 0;
   useEffect(
     () => () => {
+      if (gainTimer.current) clearTimeout(gainTimer.current);
       if (snapTimer.current) clearTimeout(snapTimer.current);
       if (edgeRaf.current != null) cancelAnimationFrame(edgeRaf.current);
     },
@@ -794,6 +840,7 @@ export function ArenaStage({
     nudge: nudging && !!taps.byCard[c.id]?.length,
     moment: momentOf(c.id),
     onTap: taps.byCard[c.id]?.length || whyOf(c.id)?.length || isTargeting ? () => tapCard(c.id) : wide ? undefined : () => inspect(c),
+    onDoubleTap: chargeGesture(c.id) ? () => doubleTapCard(c.id) : undefined,
     onInspect: () => inspect(c),
     onHover: hoverOf(c),
     outlined: rowHover === c.id,
@@ -936,6 +983,7 @@ export function ArenaStage({
               energyChips={energyChips}
               drop={energyDrop}
               willRest={willRest}
+              gain={gain}
               className="lg:col-start-1 lg:row-start-3"
             />
           </div>
@@ -1006,6 +1054,7 @@ export function ArenaStage({
             cardProps={cardProps}
             dragId={drag?.id ?? null}
             dragFor={dragFor}
+            chargeable={chargeGesture}
             controls={
               <>
                 <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400 lg:hidden">
