@@ -55,10 +55,11 @@ export function ReferenceCounts({ side }: { side: SideView }) {
 }
 
 /** One player's Battle Area, collapsed until it holds a card. */
-export function BattleRow({ cards, cardProps, zone, label }: { cards: CardView[]; cardProps: CardProps; zone: string; label: string }) {
+/** `active`: it is this side's turn, so the row carries the faint band the frames light (#344). */
+export function BattleRow({ cards, cardProps, zone, label, active = false }: { cards: CardView[]; cardProps: CardProps; zone: string; label: string; active?: boolean }) {
   return (
     <div
-      className={`relative flex items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3 ${cards.length > 0 ? "min-h-[calc(78px*var(--arena,1))]" : "min-h-[30px] justify-center"}`}
+      className={`arena-row ${active ? "arena-row-on" : ""} relative flex items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3 ${cards.length > 0 ? "min-h-[calc(78px*var(--arena,1))]" : "min-h-[30px] justify-center"}`}
     >
       <ZoneAnchor zone={zone} />
       {cards.map((c) => (
@@ -89,7 +90,7 @@ export function ClashBand({ view, cardProps, staged = false }: { view: BoardView
     // Whose turn it was used to be written here — 10 px, grey, centred between
     // two rows where nothing draws the eye — which is how the most important
     // fact on the board came to be ignored, and then contradicted by the
-    // headline beneath it. `TurnStrip` says it now, and two turn indicators is
+    // headline beneath it. The turn pill says it now, and two turn indicators is
     // how the first one came to be ignored (`docs/arena-hud-spec.md` §2.1).
     return (
       <div className="my-2 flex items-center gap-3 sm:my-3" aria-hidden>
