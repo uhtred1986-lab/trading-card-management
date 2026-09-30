@@ -23,6 +23,7 @@ import { shouldSkipBuild, isDocsOnlyChange, changedFiles } from "./vercel-ignore
 import { shouldMigrate } from "./vercel-build.mjs";
 import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import { cardDefFrom } from "../src/lib/arena/load";
+import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-preview";
 import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
 import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
 
@@ -746,6 +747,21 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.equal(reasonOf({ ...row, costUnknown: true }), "specified cost unknown");
   assert.equal(reasonOf({ ...row, status: "confirmed", hasDiff: true }), "compiler reads it differently", "a disagreement is flagged whatever the state");
   assert.match(reasonOf({ ...row, status: "open", unread: ["your opponent skips their next Charge Phase"] }) ?? "", /^(unread: .+|phrasing only)$/);
+
+  // "See the cards" (#368): grouping by zone and card type, open cards first.
+  const pc = (cardId: string, zone: string, cardType: string, state: DeckPreviewCard["state"], name = cardId): DeckPreviewCard => ({ cardId, name, zone, quantity: 4, cardType, colors: [], energyCost: null, imageUrl: null, state });
+  const groups = groupPreview([
+    pc("z1", "z", "Z-BATTLE", "confirmed"),
+    pc("b-conf", "main", "BATTLE", "confirmed", "Aaa"),
+    pc("b-plain", "main", "BATTLE", "plain", "Bbb"),
+    pc("b-open", "main", "BATTLE", "open", "Zzz"),
+    pc("b-draft", "main", "UNISON", "draft", "Ccc"),
+    pc("e1", "main", "EXTRA", "corrected"),
+    pc("l1", "leader", "LEADER", "confirmed"),
+  ]);
+  assert.deepEqual(groups.map((g) => g.label), ["Leader", "Battle", "Extra", "Z-Deck"], "zones in display order, empty ones left out");
+  assert.deepEqual(groups[1].cards.map((c) => c.cardId), ["b-open", "b-draft", "b-conf", "b-plain"], "open first, then draft, corrected, confirmed, plain");
+  assert.equal(groups[1].copies, 16, "copies, not distinct cards");
 
   // Skip and Confirm follow the queue's own order (#361).
   assert.deepEqual(neighbours([4, 7, 9], 7), { prev: 4, next: 9, skip: 9, after: 9 }, "the middle: next is next");

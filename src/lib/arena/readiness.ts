@@ -11,6 +11,7 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { rows } from "@/db/rows";
+import type { CardRuleState, DeckPreviewCard } from "./deck-preview";
 
 export interface ReadinessCard {
   id: string;
@@ -35,6 +36,9 @@ const empty = (deckId: number): DeckReadiness => ({ deckId, total: 0, open: 0, d
 
 const RANK_KEY = ["open", "draft", "corrected", "confirmed"] as const;
 
+/** The worst-state rank of a card's `card_rules` rows: one expression for the counts and for the sheet (#368). */
+const WORST_RANK = sql`min(CASE r.status WHEN 'open' THEN 0 WHEN 'draft' THEN 1 WHEN 'corrected' THEN 2 WHEN 'confirmed' THEN 3 END)`;
+
 const idList = (ids: number[]) =>
   sql.join(
     ids.map((i) => sql`${i}`),
@@ -52,7 +56,7 @@ export async function readiness(db: Db, deckIds: number[]): Promise<Map<number, 
            coalesce(json_agg(json_build_object('id', w.card_id, 'name', w.name) ORDER BY w.name) FILTER (WHERE w.rank = 0), '[]'::json) AS "cards"
     FROM (
       SELECT dc.deck_id, dc.card_id, c.name,
-             min(CASE r.status WHEN 'open' THEN 0 WHEN 'draft' THEN 1 WHEN 'corrected' THEN 2 WHEN 'confirmed' THEN 3 END) AS rank
+             ${WORST_RANK} AS rank
       FROM deck_cards dc
       JOIN cards c ON c.id = dc.card_id
       LEFT JOIN card_rules r ON r.card_id = dc.card_id
@@ -110,4 +114,38 @@ export async function deckCardSets(db: Db, deckIds: number[]): Promise<Map<numbe
   `);
   for (const r of rows<{ deckId: number; cardIds: string[] }>(result)) out.set(Number(r.deckId), new Set(r.cardIds));
   return out;
+}
+
+/**
+ * Every card of one deck with its worst rule state, in one query (#368, the
+ * "See the cards" sheet). The state is the same worst-of-rows rank `readiness`
+ * counts by, so the sheet and the strip above it never disagree. `viewer`
+ * hides a deck owned by someone else the way `getDeck` does: the answer is an
+ * empty list. A card in two zones comes back once per zone.
+ */
+export async function deckCardStates(db: Db, deckId: number, viewer?: string | null): Promise<DeckPreviewCard[]> {
+  const result = await db.execute(sql`
+    SELECT dc.card_id AS "cardId", dc.zone AS "zone", dc.quantity AS "quantity",
+           c.name AS "name", c.card_type AS "cardType", c.colors AS "colors",
+           c.energy_cost AS "energyCost", c.image_url AS "imageUrl", ${WORST_RANK} AS "rank"
+    FROM deck_cards dc
+    JOIN decks d ON d.id = dc.deck_id
+    JOIN cards c ON c.id = dc.card_id
+    LEFT JOIN card_rules r ON r.card_id = dc.card_id
+    WHERE dc.deck_id = ${deckId}
+      ${viewer ? sql`AND (d.owner IS NULL OR d.owner = ${viewer})` : sql``}
+    GROUP BY dc.card_id, dc.zone, dc.quantity, c.name, c.card_type, c.colors, c.energy_cost, c.image_url
+  `);
+  type Row = { cardId: string; zone: string; quantity: number; name: string; cardType: string; colors: string[]; energyCost: string | null; imageUrl: string | null; rank: number | null };
+  return rows<Row>(result).map((r) => ({
+    cardId: r.cardId,
+    zone: r.zone,
+    quantity: Number(r.quantity),
+    name: r.name,
+    cardType: r.cardType,
+    colors: r.colors ?? [],
+    energyCost: r.energyCost,
+    imageUrl: r.imageUrl,
+    state: (r.rank == null ? "plain" : RANK_KEY[Number(r.rank)]) as CardRuleState,
+  }));
 }

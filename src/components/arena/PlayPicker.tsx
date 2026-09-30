@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { CardImage } from "@/components/CardImage";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DeckPreviewSheet } from "./DeckPreviewSheet";
 
 export interface PlayDeck {
   id: number;
@@ -95,6 +96,7 @@ export function PlayPicker({
             <p className="truncate text-xs text-space-400">
               {deck.leaderName ?? "no leader"} · {deck.mainCount} cards · {index + 1} of {decks.length}
             </p>
+            <DeckPreviewSheet deckId={deck.id} deckName={deck.name} className="mt-2" />
           </div>
           <button type="button" onClick={() => step(1)} disabled={decks.length < 2} aria-label="Next deck" className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg disabled:opacity-40">
             ›
@@ -134,6 +136,8 @@ export function PlayPicker({
           ))}
         </ul>
         <Readiness deck={deck} />
+        {/* Desktop: the phone carousel carries its own button. */}
+        <DeckPreviewSheet deckId={deck.id} deckName={deck.name} className="hidden sm:inline-flex" />
         <p className="text-[11px] text-space-500">Fusion World decks are not listed: the arena plays the original game&rsquo;s rules only.</p>
       </section>
 

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
-import { deckCardSets, readiness } from "../src/lib/arena/readiness.ts";
+import { deckCardSets, deckCardStates, readiness } from "../src/lib/arena/readiness.ts";
 import { startGame } from "../src/lib/arena/games.ts";
 import { joinMatch, openMatch } from "../src/lib/arena/matches.ts";
 
@@ -57,6 +57,28 @@ export async function verifyReadiness(db: Db): Promise<void> {
   assert.deepEqual(r.get(locked)!.openCards, [{ id: "BT18-904", name: "Open Card" }]);
   assert.equal((await readiness(db, [])).size, 0);
   assert.equal((await deckCardSets(db, [ok, locked])).get(locked)!.size, 3);
+
+  // The "See the cards" sheet (#368): one row per card and zone, the same worst state as the counts.
+  const sheet = await deckCardStates(db, ok);
+  const stateOf = (id: string) => sheet.find((c) => c.cardId === id)?.state;
+  assert.deepEqual(
+    ["BT18-900", "BT18-901", "BT18-902", "BT18-903", "BT18-905"].map(stateOf),
+    ["confirmed", "confirmed", "draft", "plain", "corrected"],
+    "a draft + confirmed card is a draft, no rows is plain",
+  );
+  assert.equal(sheet.length, 5);
+  assert.equal(sheet.find((c) => c.cardId === "BT18-900")!.zone, "leader");
+  assert.equal(sheet.find((c) => c.cardId === "BT18-905")!.zone, "z");
+  assert.equal(sheet.find((c) => c.cardId === "BT18-901")!.quantity, 4);
+  const counts = { open: 0, draft: 0, corrected: 0, confirmed: 0, plain: 0 };
+  for (const c of await deckCardStates(db, locked)) counts[c.state]++;
+  const rl = r.get(locked)!;
+  assert.deepEqual(counts, { open: rl.open, draft: rl.draft, corrected: rl.corrected, confirmed: rl.confirmed, plain: rl.plain }, "the sheet's states add up to the strip's counts");
+  await db.update(schema.decks).set({ owner: "alice" }).where(eq(schema.decks.id, locked));
+  assert.equal((await deckCardStates(db, locked, "bob")).length, 0, "another login's deck is hidden");
+  assert.equal((await deckCardStates(db, locked, "alice")).length, 3);
+  assert.equal((await deckCardStates(db, locked, null)).length, 3, "running open sees every deck");
+  await db.update(schema.decks).set({ owner: null }).where(eq(schema.decks.id, locked));
 
   // The block, on every path that starts a game.
   await assert.rejects(startGame(db, locked, ok, "hotseat"), /"Locked Deck" has 1 card with no rule yet/, "the first deck is refused, named, with its count");
