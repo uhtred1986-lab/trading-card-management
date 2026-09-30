@@ -828,6 +828,7 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
 
 // Issue #379: syncs write less (own file, own ids).
 await (await import("./verify-db-sync-writes.mts")).verifySyncWrites(db, client);
+await (await import("./verify-ai-runs.mts")).verifyAiRuns(db);
 
 await client.close();
 console.log("verify-db: all checks passed");

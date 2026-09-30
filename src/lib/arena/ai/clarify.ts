@@ -115,7 +115,7 @@ export async function clarifyRule(db: Db, rule: RuleToClarify, explanation: stri
     ],
   });
 
-  const { output } = await recordRun<Clarification>(db, "arena_referee", { ruleId: rule.id, cardId: rule.cardId, explanation: said || null }, res, undefined, MODEL);
+  const { output } = await recordRun<Clarification>(db, "arena_clarify", { ruleId: rule.id, cardId: rule.cardId, explanation: said || null }, res, undefined, MODEL);
 
   let parsed: unknown = [];
   try {
