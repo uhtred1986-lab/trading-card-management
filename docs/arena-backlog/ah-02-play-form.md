@@ -5,6 +5,7 @@ milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:arena-home, model:sonnet-5
 stage: ui
 touches: src/app/arena/page.tsx, src/app/arena/actions.ts, src/components/arena/PlayPicker.tsx, src/lib/arena/engine-setting.ts
+status: closed
 ---
 **Source:** `docs/arena-home-spec.md` §1 decisions 2 and 4, §2; `src/app/arena/page.tsx`; `startGameForm` in `src/app/arena/actions.ts`; `engineForMode` in `src/lib/arena/games.ts`; canvas frames `PlayPhone`, `PlayDesktop`.
 

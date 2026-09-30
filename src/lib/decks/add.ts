@@ -49,19 +49,20 @@ export async function addCardsToDeck(db: Db, deckId: number, entries: { cardId: 
   const deck = await db.query.decks.findFirst({ where: eq(decks.id, deckId), columns: { game: true } });
   const game = gameOr(deck?.game);
   const meta = await db.select({ id: cards.id, cardType: cards.cardType }).from(cards).where(inArray(cards.id, ids));
-  let added = 0;
-  for (const m of meta) {
-    const zone = zoneForType(m.cardType, game);
-    const want = totals.get(m.id)!;
+  // One multi-row insert. `totals` is already summed per card, so no two rows
+  // share a (deck, card, zone) key — a card has exactly one zone — which is what
+  // on-conflict needs. Existing rows gain, never cap or replace.
+  const values = meta.map((m) => ({ deckId, cardId: m.id, zone: zoneForType(m.cardType, game), quantity: totals.get(m.id)! }));
+  if (values.length > 0) {
     await db
       .insert(deckCards)
-      .values({ deckId, cardId: m.id, zone, quantity: want })
+      .values(values)
       .onConflictDoUpdate({
         target: [deckCards.deckId, deckCards.cardId, deckCards.zone],
-        set: { quantity: sql`${deckCards.quantity} + ${want}` },
+        set: { quantity: sql`${deckCards.quantity} + excluded.quantity` },
       });
-    added += want;
   }
+  const added = values.reduce((n, v) => n + v.quantity, 0);
   await db.update(decks).set({ updatedAt: new Date() }).where(eq(decks.id, deckId));
   return { added };
 }

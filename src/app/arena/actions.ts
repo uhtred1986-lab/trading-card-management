@@ -10,7 +10,6 @@ import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction, type Action, type GameState } from "@/lib/arena/engine";
 import { printRule, readRule } from "@/lib/arena/lang";
 import { defaultEngine } from "@/lib/arena/engine-setting";
-import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, clearBeatsForTurn, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentUser } from "@/lib/auth";
@@ -326,33 +325,33 @@ export async function explainRuleAction(id: number, explanation: string): Promis
 }
 
 export async function startGameForm(formData: FormData) {
-  const p1 = Number(formData.get("p1"));
-  const p2 = Number(formData.get("p2"));
-  const mode = String(formData.get("mode") ?? "hotseat") as ArenaMode;
-  const debug = formData.get("debug") != null;
-  // The form offers every engine; one it did not name, or named wrongly, falls
-  // back to the setting — which since #166 is the rules engine unless the owner
-  // has put it back (Settings → Arena engine). `startGame`/`openMatch` refuse an
-  // engine that cannot play at all.
-  //
-  // Then the mode has its say: a 1 v 1 is not built on the rules engine (#162),
-  // and with the default flipped that combination is the ordinary path rather
-  // than an odd request, so it resolves to the legacy engine instead of
-  // throwing. The form says the same thing before it is submitted; this is the
-  // half that has to hold when it is.
-  const { engine } = engineForMode(engineOr(formData.get("engine"), await defaultEngine(db)), mode);
-  if (!Number.isInteger(p1)) throw new Error("pick a deck");
+  const deck = Number(formData.get("deck"));
+  const opponent = String(formData.get("opponent") ?? "sparring");
+  if (!(["sparring", "tournament", "versus", "hotseat"] as string[]).includes(opponent)) throw new Error("pick an opponent");
+  const mode = opponent as ArenaMode;
+  // The engine is not a question the player is asked (owner's decision, 30 Sep
+  // 2026): the setting's default (the rules engine since #166) and then the
+  // mode's say. A 1 v 1 is not built on it (#162), so it resolves to legacy
+  // instead of throwing.
+  const { engine } = engineForMode(await defaultEngine(db), mode);
+  if (!Number.isInteger(deck)) throw new Error("pick a deck");
+
+  // Every game is recorded; who may *read* the record is the admin gate (#350).
+  const debug = true;
 
   // A 1 v 1 cannot be created here: the other player picks their own deck, and
   // they are not at this keyboard. This opens the invitation and waits.
   if (isVersus(mode)) {
-    const matchId = await openMatch(db, await currentUser(), p1, debug, engine);
+    const matchId = await openMatch(db, await currentUser(), deck, debug, engine);
     revalidatePath("/arena");
     redirect(`/arena/match/${matchId}`);
   }
 
-  if (!Number.isInteger(p2)) throw new Error("pick two decks");
-  const id = await startGame(db, p1, p2, mode, debug, undefined, engine);
+  // The other side's deck: Claude's in a Claude game, the second player's in
+  // pass-and-play. `claudeDeck` names both, since the form shows one select.
+  const other = Number(formData.get("claudeDeck"));
+  if (!Number.isInteger(other)) throw new Error("pick the deck the other side plays");
+  const id = await startGame(db, deck, other, mode, debug, undefined, engine);
   revalidatePath("/arena");
   redirect(`/arena/${id}`);
 }

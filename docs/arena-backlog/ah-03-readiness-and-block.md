@@ -5,6 +5,7 @@ milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, area:arena-workbench, phase:arena-home, model:sonnet-5
 stage: ui
 touches: src/lib/arena/rules-store.ts, src/lib/arena/readiness.ts, src/app/arena/page.tsx, src/app/arena/actions.ts, src/lib/arena/games.ts, src/lib/arena/matches.ts, scripts/verify-db.mts
+status: closed
 ---
 **Source:** `docs/arena-home-spec.md` §1 decisions 3 and 6, and §3; `coverageFor` in `src/app/arena/page.tsx`; the deck loop in `src/app/arena/rules/page.tsx`; `src/lib/arena/vm/flow.ts` (on this engine an unread skill is a note: played as blank); canvas frames `PlayPhone` (switch to *Azure Sage Control*), `PlayDesktop`.
 

@@ -44,6 +44,11 @@ jobs:
       # No DATABASE_URL and no network: verify-rules and verify-arena are pure,
       # and verify-db runs the migrations on PGlite in-process.
       - run: npm test
+      # The only build check now that Vercel builds `main` alone. DATABASE_URL points
+      # nowhere: the build never connects (src/db/index.ts only reads it at import).
+      - run: npm run build
+        env:
+          DATABASE_URL: postgres://build:build@localhost:5432/build
       - name: arena backlog drift
         run: npx tsx scripts/sync-arena-backlog.mts --check
         env:

@@ -20,6 +20,7 @@ import { ENGINE_INFO, engineFor, engineOr, FALLBACK_ENGINE, isVmState, playableE
 import { NOT_YET_REASON_PREFIX } from "./vm";
 import { recordDecision } from "./ai/debug";
 import { cardDefFrom, deckInputFor } from "./load";
+import { assertDecksPlayable } from "./readiness";
 import { rulesFor } from "./rules-store";
 import type { StoredSnapshot } from "./snapshot";
 import { gameOr, type Game } from "@/lib/catalog/games";
@@ -233,6 +234,12 @@ export async function startGame(
   if (!a) throw new Error("the first deck has no leader or is not a Dragon Ball Super deck, so it cannot be played");
   if (!b) throw new Error("the second deck has no leader or is not a Dragon Ball Super deck, so it cannot be played");
   if (a.game !== b.game) throw new Error("the two decks belong to different games");
+  // Owner's ruling (30 Sep 2026): a deck with an open rule is not played, on
+  // either side and in every mode (`joinMatch` reaches it through here).
+  await assertDecksPlayable(db, [
+    { id: p1DeckId, name: a.input.name },
+    { id: p2DeckId, name: b.input.name },
+  ]);
   const rows = await db
     .select()
     .from(cardsTable)
@@ -540,6 +547,33 @@ export async function listGames(db: Db, limit = 20, user: string | null = null) 
     .filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null)
     .slice(0, limit)
     .map(({ snapshot, ...g }) => ({ ...g, archived: snapshot != null }));
+}
+
+/**
+ * The decks this viewer last played with, read off their newest games so the
+ * Play form needs no storage of its own (#356).
+ *
+ * `deckIds` are the viewer's own playable decks (`listDecks` already hides
+ * anyone else's), which is what ties a row to a person: only a 1 v 1 stamps
+ * `p1_user`, so every other mode is attributed by the deck, not the login.
+ * `own` is the deck on the first seat; `claude` the deck Claude last played
+ * against them (the second seat of a sparring or tournament game).
+ */
+export async function lastPlayedDecks(db: Db, deckIds: number[], user: string | null): Promise<{ own: number | null; claude: number | null }> {
+  if (!deckIds.length) return { own: null, claude: null };
+  const ids = new Set(deckIds);
+  const rows = await db
+    .select({ p1: arenaGames.p1DeckId, p2: arenaGames.p2DeckId, mode: arenaGames.mode, p1User: arenaGames.p1User })
+    .from(arenaGames)
+    .orderBy(desc(arenaGames.updatedAt))
+    .limit(60);
+  let own: number | null = null;
+  let claude: number | null = null;
+  for (const r of rows) {
+    if (own == null && r.p1 != null && ids.has(r.p1) && (!isVersus(r.mode) || r.p1User === user)) own = r.p1;
+    if (claude == null && (r.mode === "sparring" || r.mode === "tournament") && r.p2 != null && ids.has(r.p2)) claude = r.p2;
+  }
+  return { own, claude };
 }
 
 export async function abandonGame(db: Db, id: number): Promise<void> {

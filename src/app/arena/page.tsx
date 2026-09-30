@@ -1,76 +1,57 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { listDecks } from "@/lib/decks/queries";
-import { defaultEngine } from "@/lib/arena/engine-setting";
-import { ENGINE_IDS, ENGINE_INFO, engineOr } from "@/lib/arena/engines";
-import { listGames, modeLabel, modeRefusal } from "@/lib/arena/games";
+import { ENGINE_INFO, engineOr } from "@/lib/arena/engines";
+import { lastPlayedDecks, listGames, modeLabel } from "@/lib/arena/games";
 import { listOpenMatches } from "@/lib/arena/matches";
 import { currentOwner, currentUser } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
-import { deckInputFor } from "@/lib/arena/load";
-import { loadRules } from "@/lib/arena/rules-store";
+import { isLocked, readiness } from "@/lib/arena/readiness";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
+import { PlayPicker } from "@/components/arena/PlayPicker";
 import { SubmitButton } from "@/components/SubmitButton";
 import { cancelMatchAction, joinMatchForm, startGameForm } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-/** How much of a deck's card text the engine reads on its own (proposal §6). */
-async function coverageFor(deckId: number): Promise<{ cards: number; referee: number } | null> {
-  const input = await deckInputFor(db, deckId);
-  if (!input) return null;
-  const ids = [...new Set(input.cardIds)];
-  // A card with an open rule row is played as blank or put to the referee.
-  const open = new Set((await loadRules(db, ids)).filter((r) => r.status === "open").map((r) => r.cardId));
-  return { cards: ids.length, referee: open.size };
-}
-
 export default async function ArenaPage() {
   // The engine reads the original game's rule manual and nothing else, so
   // Fusion World decks are simply not offered here (owner's decision).
   const me = await currentUser();
-  const [decks, games, matches, users, engine] = await Promise.all([
+  const [decks, games, matches, users] = await Promise.all([
     listDecks(db, { game: "dbs", viewer: await currentOwner() }),
     listGames(db, 20, me),
     listOpenMatches(db),
     listUsers(db).catch(() => []),
-    defaultEngine(db),
   ]);
   // A 1 v 1 is two people, and a person here is an `app_users` row. Without a
   // second one the form would only throw, so it says so instead.
   const canVersus = users.filter((u) => u.isActive).length >= 2 && !!me;
   // What games of each kind have actually cost, rather than an estimate.
-  const spent: Record<string, string | null> = { sparring: null, tournament: null };
+  const costs = { sparring: "~12¢ a game", tournament: "~25¢ a game" };
   for (const mode of ["sparring", "tournament"] as const) {
     const done = games.filter((g) => g.mode === mode && g.status !== "playing" && g.costMicros > 0);
     if (!done.length) continue;
-    const avg = done.reduce((n, g) => n + g.costMicros, 0) / done.length / 1_000_000;
-    spent[mode] = `Your games so far: $${avg.toFixed(2)} on average.`;
+    const avg = done.reduce((n, g) => n + g.costMicros, 0) / done.length / 10_000;
+    costs[mode] = `your average ~${Math.round(avg)}¢`;
   }
   const playable = decks.filter((d) => d.leader && d.mainCount >= 50);
-  const coverage = new Map<number, { cards: number; referee: number } | null>();
-  for (const d of playable) coverage.set(d.id, await coverageFor(d.id));
+  // One query for every deck's rule readiness (#357).
+  const ready = await readiness(db, playable.map((d) => d.id));
 
-  // A 1 v 1 is not built on the rules engine (#162), so with the default
-  // flipped (#166) the form says which mode does not get it before anyone
-  // submits — `startGameForm` resolves the same rule rather than refusing.
-  // Capitalised here rather than in `modeRefusal`, whose other reader is a
-  // thrown message and wants it lower-case mid-sentence.
-  const why = modeRefusal(engine, "versus");
-  const versusNote = why ? `${why[0].toUpperCase()}${why.slice(1)}.` : null;
+  // Preselected from the newest games, but always a *ready* deck: a locked one
+  // cannot be played, so the last-played ready one wins, then the first ready.
+  const last = await lastPlayedDecks(db, playable.map((d) => d.id), me);
+  const readyIds = playable.filter((d) => !isLocked(ready.get(d.id))).map((d) => d.id);
+  const pick = (id: number | null, fallback: number) => (id != null && readyIds.includes(id) ? id : fallback);
+  const initialDeck = pick(last.own, readyIds[0] ?? playable[0]?.id ?? 0);
+  const initialClaudeDeck = pick(last.claude, readyIds.find((id) => id !== initialDeck) ?? readyIds[0] ?? playable[0]?.id ?? 0);
 
   const select = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-2 text-sm text-space-100";
 
   return (
     <div className="space-y-5">
       <ArenaHeader side="play" />
-      <div>
-        <p className="mt-1 text-sm text-space-300">
-          Play a full game against Claude, hot-seat against yourself, or 1 v 1 against someone else on their own phone. The rules are enforced by the engine, so only legal moves are ever offered — an
-          opponent, human or Claude, picks from the same list you do and never sees your hand.
-        </p>
-      </div>
-
       {playable.length < 1 ? (
         <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
           No deck is ready to play yet. A deck needs a leader, at least 50 cards, and the original game&rsquo;s rules — the arena does not play Fusion World.{" "}
@@ -80,125 +61,15 @@ export default async function ArenaPage() {
           .
         </p>
       ) : (
-        <form action={startGameForm} className="space-y-3 rounded-xl border border-space-700/70 bg-space-900/50 p-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-sm">
-              <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">First player&rsquo;s deck</span>
-              <select name="p1" className={select} defaultValue={playable[0]?.id}>
-                {playable.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} — {d.leader?.name ?? "no leader"}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Second player&rsquo;s deck (ignored in a 1 v 1 — they pick their own)</span>
-              <select name="p2" className={select} defaultValue={playable[1]?.id ?? playable[0]?.id}>
-                {playable.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} — {d.leader?.name ?? "no leader"}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <fieldset>
-            <legend className="mb-1 block text-xs uppercase tracking-wider text-space-400">Opponent</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {[
-                { value: "hotseat", title: "Hot-seat", note: "Both sides are yours, on this device. Free." },
-                {
-                  value: "versus",
-                  title: "1 v 1",
-                  note: canVersus
-                    ? "Someone else, on their own phone. They join and pick their own deck. Free, apart from rulings on card text the engine cannot read."
-                    : "Needs a second login — add one under Settings → Users. Until then, hot-seat is the two-player game.",
-                  disabled: !canVersus,
-                },
-                { value: "sparring", title: "Sparring", note: `Claude on Haiku 4.5. ${spent.sparring ?? "Measured at about 10 to 15 cents a game."}` },
-                { value: "tournament", title: "Tournament", note: `Claude on Opus 5 for the turns that decide things. ${spent.tournament ?? "Measured at about 20 to 30 cents a game."}` },
-              ].map((o, i) => (
-                <label
-                  key={o.value}
-                  className={`tap flex flex-col rounded-lg border border-space-600 bg-space-900 p-2 text-sm has-[:checked]:border-ki-500 has-[:checked]:bg-space-800 ${
-                    o.disabled ? "opacity-60" : "cursor-pointer"
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <input type="radio" name="mode" value={o.value} defaultChecked={i === 0} disabled={o.disabled} className="accent-ki-500" />
-                    <span className="font-medium text-space-50">{o.title}</span>
-                  </span>
-                  <span className="mt-0.5 pl-6 text-[11px] text-space-400">{o.note}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend className="mb-1 block text-xs uppercase tracking-wider text-space-400">Engine</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {ENGINE_IDS.map((id) => {
-                const o = ENGINE_INFO[id];
-                return (
-                  <label
-                    key={id}
-                    className={`tap flex flex-col rounded-lg border border-space-600 bg-space-900 p-2 text-sm has-[:checked]:border-ki-500 has-[:checked]:bg-space-800 ${o.available ? "cursor-pointer" : "opacity-60"}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <input type="radio" name="engine" value={id} defaultChecked={id === engine} disabled={!o.available} className="accent-ki-500" />
-                      <span className="font-medium text-space-50">{o.label}</span>
-                    </span>
-                    <span className="mt-0.5 pl-6 text-[11px] text-space-400">{o.note}</span>
-                  </label>
-                );
-              })}
-            </div>
-            <p className="mt-1 text-[11px] text-space-500">
-              A game keeps the engine it was made on. The default is set under{" "}
-              <Link href="/settings" className="text-space-300 hover:text-ki-300">
-                Settings → Arena engine
-              </Link>
-              . {versusNote ?? ""}
-            </p>
-          </fieldset>
-          <label className="flex items-center gap-2 text-xs text-space-300">
-            <input type="checkbox" name="debug" defaultChecked className="accent-ki-500" />
-            Record what Claude was shown for every decision, so the game can be picked apart afterwards
-          </label>
-          <SubmitButton pendingLabel="Flipping…" className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950">
-            Flip the coin
-          </SubmitButton>
-          <p className="text-[11px] text-space-400">
-            A game starts with the coin flip, then each side may mulligan once. Life is 8; the player going second gets one energy marker. Against Claude, the second deck is the one it plays. A 1 v 1
-            waits here until the other player joins and chooses theirs.
-          </p>
-        </form>
-      )}
-
-      {playable.length > 0 && (
-        <section>
-          <div className="mb-2 flex items-baseline gap-2">
-            <h2 className="text-xs uppercase tracking-widest text-space-400">What the engine reads in each deck</h2>
-          </div>
-          <ul className="space-y-1 text-xs">
-            {playable.map((d) => {
-              const c = coverage.get(d.id);
-              return (
-                <li key={d.id} className="flex flex-wrap items-baseline gap-x-2 rounded-lg bg-space-900/50 px-2 py-1.5">
-                  <span className="font-medium text-space-100">{d.name}</span>
-                  {c ? (
-                    <span className="text-space-400">
-                      {c.cards - c.referee} of {c.cards} cards fully read
-                      {c.referee > 0 && <span className="text-dbs-yellow"> · {c.referee} put to Claude when they resolve</span>}
-                    </span>
-                  ) : (
-                    <span className="text-loss">no leader — cannot be played</span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <PlayPicker
+          decks={playable.map((d) => ({ id: d.id, name: d.name, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, ready: ready.get(d.id)! }))}
+          initialDeck={initialDeck}
+          initialClaudeDeck={initialClaudeDeck}
+          costs={costs}
+          canVersus={canVersus}
+          versusNote="Needs a second login: add one under Settings → Users."
+          action={startGameForm}
+        />
       )}
 
       {matches.length > 0 && (
@@ -227,10 +98,11 @@ export default async function ArenaPage() {
                       <input type="hidden" name="match" value={m.id} />
                       <label className="min-w-0 flex-1 text-sm">
                         <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Your deck</span>
-                        <select name="deck" className={select} defaultValue={playable[0]?.id}>
+                        <select name="deck" className={select} defaultValue={readyIds[0] ?? playable[0]?.id}>
                           {playable.map((d) => (
-                            <option key={d.id} value={d.id}>
+                            <option key={d.id} value={d.id} disabled={isLocked(ready.get(d.id))}>
                               {d.name} — {d.leader?.name ?? "no leader"}
+                              {isLocked(ready.get(d.id)) ? ` (${ready.get(d.id)!.open} open, locked)` : ""}
                             </option>
                           ))}
                         </select>

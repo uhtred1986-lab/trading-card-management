@@ -863,7 +863,7 @@ export const aiRuns = pgTable(
   "ai_runs",
   {
     id: serial("id").primaryKey(),
-    /** deck_summary | deck_wizard | set_review | scan_identify | cart_explain */
+    /** A `RunKind` (src/lib/ai/client.ts). */
     kind: text("kind").notNull(),
     deckId: integer("deck_id").references(() => decks.id, { onDelete: "set null" }),
     model: text("model").notNull(),
@@ -871,6 +871,10 @@ export const aiRuns = pgTable(
     output: jsonb("output"),
     inputTokens: integer("input_tokens"),
     outputTokens: integer("output_tokens"),
+    /** `usage.cache_read_input_tokens` — null on rows from before #380 and on calls that did not report it. */
+    cacheReadTokens: integer("cache_read_tokens"),
+    /** `usage.cache_creation_input_tokens`, same caveat. */
+    cacheCreationTokens: integer("cache_creation_tokens"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("ai_runs_deck_idx").on(t.deckId)],

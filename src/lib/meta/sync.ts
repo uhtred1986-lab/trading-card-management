@@ -4,7 +4,7 @@
  * a placement already stored is skipped rather than re-fetching its deck page,
  * so a daily run only does work for genuinely new results.
  */
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cards, metaEvents, metaResultCards, metaResults } from "@/db/schema";
 import { GAMES } from "@/lib/catalog/games";
@@ -50,37 +50,46 @@ export async function syncMeta(db: Db): Promise<MetaSyncSummary> {
         });
       events++;
 
-      for (const p of ev.placements) {
-        const already = await db.query.metaResults.findFirst({
-          where: and(eq(metaResults.eventId, ev.id), eq(metaResults.deckSourceId, p.deckId)),
-          columns: { id: true },
-        });
-        if (already) continue;
+      // One select for what the event already holds, then one insert for the rest.
+      const existing = new Set(
+        (await db.select({ d: metaResults.deckSourceId }).from(metaResults).where(eq(metaResults.eventId, ev.id))).map((r) => r.d),
+      );
+      const fresh = ev.placements.filter((p) => !existing.has(p.deckId) && existing.add(p.deckId));
+      if (fresh.length === 0) continue;
 
-        const leader = leaders.get(p.leaderId);
-        const leaderNumberRaw = leader?.cardNumber ?? p.leaderId;
-        const [leaderCardId] = leader ? [...(await resolveCardIds(db, [leader.cardNumber])).values()] : [];
+      const leaderNumbers = [...new Set(fresh.flatMap((p) => (leaders.get(p.leaderId) ? [leaders.get(p.leaderId)!.cardNumber] : [])))];
+      const leaderIds = await resolveCardIds(db, leaderNumbers);
+      const inserted = await db
+        .insert(metaResults)
+        .values(
+          fresh.map((p) => {
+            const leader = leaders.get(p.leaderId);
+            return {
+              eventId: ev.id,
+              placement: p.placement,
+              leaderCardId: (leader && leaderIds.get(leader.cardNumber)) ?? null,
+              leaderNumberRaw: leader?.cardNumber ?? p.leaderId,
+              deckSourceId: p.deckId,
+              sourceUrl: dashboardDeckUrl(game, p.deckId),
+            };
+          }),
+        )
+        .onConflictDoNothing()
+        .returning({ id: metaResults.id, deckSourceId: metaResults.deckSourceId });
+      newResults += inserted.length;
 
-        const [result] = await db
-          .insert(metaResults)
-          .values({
-            eventId: ev.id,
-            placement: p.placement,
-            leaderCardId: leaderCardId ?? null,
-            leaderNumberRaw,
-            deckSourceId: p.deckId,
-            sourceUrl: dashboardDeckUrl(game, p.deckId),
-          })
-          .returning({ id: metaResults.id });
-        newResults++;
-
-        const deckCards = await fetchDeckCards(game, p.deckId);
+      for (const result of inserted) {
+        const deckCards = await fetchDeckCards(game, result.deckSourceId);
         const resolved = await resolveCardIds(db, [...new Set(deckCards.map((c) => c.cardNumber))]);
         for (const dc of deckCards) {
-          const cardId = resolved.get(dc.cardNumber) ?? null;
-          if (cardId) cardsMatched++;
+          if (resolved.get(dc.cardNumber)) cardsMatched++;
           else cardsUnmatched++;
-          await db.insert(metaResultCards).values({ resultId: result.id, cardId, cardNumberRaw: dc.cardNumber, zone: dc.zone, quantity: dc.quantity }).onConflictDoNothing();
+        }
+        if (deckCards.length > 0) {
+          await db
+            .insert(metaResultCards)
+            .values(deckCards.map((dc) => ({ resultId: result.id, cardId: resolved.get(dc.cardNumber) ?? null, cardNumberRaw: dc.cardNumber, zone: dc.zone, quantity: dc.quantity })))
+            .onConflictDoNothing();
         }
       }
     }
