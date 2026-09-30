@@ -18,13 +18,20 @@ name: checks
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   web:
     name: types, lint and tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,6 +44,10 @@ jobs:
       # No DATABASE_URL and no network: verify-rules and verify-arena are pure,
       # and verify-db runs the migrations on PGlite in-process.
       - run: npm test
+      - name: arena backlog drift
+        run: npx tsx scripts/sync-arena-backlog.mts --check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   contract:
     name: the contract, from the Kotlin side
@@ -53,20 +64,3 @@ jobs:
       # should not pay to build an image.
       - run: gradle --no-daemon :contract:test
         working-directory: android
-
-  backlog:
-    name: arena backlog drift
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx tsx scripts/sync-arena-backlog.mts --check
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
