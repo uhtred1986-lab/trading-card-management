@@ -73,6 +73,7 @@ for compiler work (`move()` replacement prompting, #107 — built 10 and 13 Sep 
 | Arena M13 — Retire the legacy engine (Stage 10) | plan Stage 10 |
 | Arena M14 — Rules language and ruleset documentation | plan "Docs" |
 | Arena M15 — Backlog tooling and CI | review of 12 Sep 2026: the issue sync, the PR template and the ac-check |
+| Arena M16 — Board redesign: play feel and card review | `docs/arena-board-redesign-spec.md` (owner's decisions of 30 Sep 2026) and the frames in `docs/arena-redesign/` |
 
 ## 3. Labels
 
@@ -82,7 +83,8 @@ for compiler work (`move()` replacement prompting, #107 — built 10 and 13 Sep 
 `area:arena-contract`, `area:arena-android`, `area:arena-docs`.
 
 **Phase** — `phase:rules-stage2` … `phase:rules-stage10`, `phase:rules-docs`, and the older
-`phase:hud-workflow`, `phase:battle-staging`, `phase:android-client`, `phase:capability-gap`.
+`phase:hud-workflow`, `phase:battle-staging`, `phase:android-client`, `phase:capability-gap`,
+plus `phase:board-redesign` (M16).
 
 **Workflow** — `backlog`, `ready-for-agent`, `needs-owner-ruling`, `blocked`, `epic` (a stage's
 tracking issue).
@@ -117,6 +119,23 @@ script matches on — change a body freely, keep the title.
 | s2-09 | Arena: the immunity family (20-4) | primitive |
 | s2-10 | Arena: keyword-timing triggers as data (22-5, 22-10) | triggers |
 | s2-11 | Arena: decide primitive or macro for every op — modifyAttr | design table |
+
+### Board redesign — Arena M16 (tracking: `rd-00`)
+
+Owner's decisions of 30 Sep 2026; brief `docs/arena-board-redesign-spec.md`, reference frames
+`docs/arena-redesign/`. rd-01 first (every later PR attaches its screenshots beside the frames).
+
+| File | Title | Kind |
+|---|---|---|
+| rd-01 | Arena: board screenshots from contract fixtures and a contrast audit, both skins (review tooling) | tooling |
+| rd-02 | Arena: unmissable turns — YOUR TURN / CLAUDE'S TURN banner, turn pill and board edge | UI |
+| rd-03 | Arena: drag a card from hand onto the battle area to play it, or onto energy to charge it | UI, input |
+| rd-04 | Arena: in the Charge phase, tap (touch) or double-click (mouse) a hand card to charge it | UI, input |
+| rd-05 | Arena: desktop card review with zero clicks — docked inspector on hover, In play list, right-click pins | UI |
+| rd-06 | Arena: phone card review as a pager — swipe, prev/next, thumbnail strip, and a review-the-board button | UI |
+| rd-07 | Arena: effects that make the play land — reveal on play, explosion on a hit, KO shatter, life break, clash verdict | motion |
+| rd-08 | Arena: move debug and engine internals off the player's board — an admin-only drawer | UI, auth |
+| rd-09 | Arena: admin match review — flag a turn from the board, review flagged turns with Claude's legal moves and reasons | UI, migration (after rd-08) |
 
 ### Stages 3–10 — Arena M6–M13 (tracking: `s3-00` … `s10-00`)
 

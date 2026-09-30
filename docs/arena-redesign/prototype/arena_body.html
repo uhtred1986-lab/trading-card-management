@@ -1,0 +1,182 @@
+<div class="{{rootCls}}" style="width: __W__px; height: __H__px; --k: {{k}}">
+<div class="stars"></div>
+<div class="edge"></div>
+
+<header class="topbar">
+<span class="tp-title desk-only">Arena</span>
+<div class="turnpill"><span class="tdot"></span><span class="tp-who">{{turnWho}}</span><span class="tp-num">Turn {{turn}}</span></div>
+<div class="tp-right">
+<button class="speed" onClick="{{cycleSpeed}}" aria-label="Animation speed">{{speedLabel}}</button>
+<button class="icon-btn phone-only" onClick="{{openReview}}" aria-label="Review cards in play"><svg viewBox="0 0 24 24"><path d="{{icons.eye}}"></path></svg></button>
+<button class="icon-btn desk-only" onClick="{{toggleLog}}" aria-label="Battle log"><svg viewBox="0 0 24 24"><path d="{{icons.log}}"></path></svg></button>
+<sc-if value="{{showShield}}" hint-placeholder-val="{{true}}"><button class="icon-btn adm" onClick="{{toggleAdmin}}" aria-label="Admin review (admins only)"><svg viewBox="0 0 24 24"><path d="{{icons.shield}}"></path></svg></button></sc-if>
+<button class="icon-btn" onClick="{{toggleMenu}}" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="{{icons.menu}}"></path></svg></button>
+</div>
+</header>
+
+<nav class="phases" aria-label="Turn phases">
+<div class="mcard desk-only">
+<div class="col-h">Match</div>
+<sc-for list="{{mrows}}" as="m" hint-placeholder-count="2">
+<div class="{{m.cls}}"><span class="{{m.avCls}}">{{m.av}}</span><span><b>{{m.name}}</b><small>{{m.sub}}</small><sc-if value="{{m.acting}}" hint-placeholder-val="{{false}}"><span class="acting">ACTING</span></sc-if></span><span class="lifen">{{m.life}}</span></div>
+</sc-for>
+<div class="col-h">Phase</div>
+</div>
+<sc-for list="{{phases}}" as="p" hint-placeholder-count="5"><div class="{{p.cls}}"><span class="pd"></span>{{p.label}}</div></sc-for>
+<div class="tip desk-only">Charge phase: double-click a hand card to charge it. Then drag cards onto the board to play them. Hover any card to review it on the right — yours, Claude's, in hand or in play. Right-click pins it. Glowing cards are ready; ties go to the attacker.</div>
+</nav>
+
+<section class="field">
+<div class="strip opp">
+<span class="who"><span class="av av-ai">C</span>Claude<sc-if value="{{aiThinking}}" hint-placeholder-val="{{false}}"><span class="thinking"><i></i><i></i><i></i></span></sc-if></span>
+<span class="lives"><sc-for list="{{ai.lives}}" as="l" hint-placeholder-count="4"><span class="{{l.cls}}"></span></sc-for></span>
+<span class="energy" aria-label="Claude energy {{ai.energyTxt}}"><sc-for list="{{ai.chips}}" as="c" hint-placeholder-count="2"><span class="{{c.cls}}"></span></sc-for></span>
+<span class="meta"><span>hand <b>{{ai.handN}}</b></span><span>deck <b>{{ai.deckN}}</b></span><span class="desk-only">drop <b>{{ai.dropN}}</b></span></span>
+</div>
+<div class="row opp">
+<button class="{{ai.leader.cls}}" style="{{ai.leader.art}}" onClick="{{ai.leader.tap}}" onPointerDown="{{ai.leader.down}}" onPointerUp="{{ai.leader.up}}" onPointerLeave="{{ai.leader.leave}}" onPointerCancel="{{ai.leader.leave}}" onContextMenu="{{ai.leader.ctx}}" onMouseEnter="{{ai.leader.hover}}" aria-label="{{ai.leader.aria}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{ai.leader.path}}"></path></svg></span><span class="ltag">LEADER</span><span class="nm">{{ai.leader.name}}</span><span class="pw">{{ai.leader.pw}}</span><sc-if value="{{ai.leader.boom}}" hint-placeholder-val="{{false}}"><span class="boom"><span class="b-flash"></span><span class="b-ring"></span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></sc-if></button>
+<div class="units">
+<sc-for list="{{ai.units}}" as="u" hint-placeholder-count="2">
+<button class="{{u.cls}}" style="{{u.art}}" onClick="{{u.tap}}" onPointerDown="{{u.down}}" onPointerUp="{{u.up}}" onPointerLeave="{{u.leave}}" onPointerCancel="{{u.leave}}" onContextMenu="{{u.ctx}}" onMouseEnter="{{u.hover}}" aria-label="{{u.aria}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{u.path}}"></path></svg></span><span class="cost">{{u.cost}}</span><span class="nm">{{u.name}}</span><span class="pw">{{u.pw}}</span><sc-if value="{{u.boom}}" hint-placeholder-val="{{false}}"><span class="boom"><span class="b-flash"></span><span class="b-ring"></span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></sc-if></button>
+</sc-for>
+<sc-for list="{{ai.slots}}" as="x" hint-placeholder-count="2"><span class="{{x.cls}}"></span></sc-for>
+</div>
+</div>
+
+<div class="lane"><button class="{{ribbon.cls}}" onClick="{{toggleLog}}" aria-label="Battle log"><span class="rdot"></span><span>{{ribbon.text}}</span></button></div>
+
+<div class="{{rowMeCls}}">
+<sc-if value="{{drag}}" hint-placeholder-val="{{false}}"><span class="{{drag.boardTag}}">{{drag.boardLabel}}</span></sc-if>
+<button class="{{you.leader.cls}}" style="{{you.leader.art}}" onClick="{{you.leader.tap}}" onPointerDown="{{you.leader.down}}" onPointerUp="{{you.leader.up}}" onPointerLeave="{{you.leader.leave}}" onPointerCancel="{{you.leader.leave}}" onContextMenu="{{you.leader.ctx}}" onMouseEnter="{{you.leader.hover}}" aria-label="{{you.leader.aria}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{you.leader.path}}"></path></svg></span><span class="ltag">LEADER</span><span class="nm">{{you.leader.name}}</span><span class="pw">{{you.leader.pw}}</span><sc-if value="{{you.leader.boom}}" hint-placeholder-val="{{false}}"><span class="boom"><span class="b-flash"></span><span class="b-ring"></span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></sc-if></button>
+<div class="units">
+<sc-for list="{{you.units}}" as="u" hint-placeholder-count="2">
+<button class="{{u.cls}}" style="{{u.art}}" onClick="{{u.tap}}" onPointerDown="{{u.down}}" onPointerUp="{{u.up}}" onPointerLeave="{{u.leave}}" onPointerCancel="{{u.leave}}" onContextMenu="{{u.ctx}}" onMouseEnter="{{u.hover}}" aria-label="{{u.aria}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{u.path}}"></path></svg></span><span class="cost">{{u.cost}}</span><span class="nm">{{u.name}}</span><span class="pw">{{u.pw}}</span><sc-if value="{{u.hasTag}}" hint-placeholder-val="{{false}}"><span class="utag">{{u.tag}}</span></sc-if><sc-if value="{{u.boom}}" hint-placeholder-val="{{false}}"><span class="boom"><span class="b-flash"></span><span class="b-ring"></span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></sc-if></button>
+</sc-for>
+<sc-for list="{{you.slots}}" as="x" hint-placeholder-count="2"><span class="{{x.cls}}"></span></sc-for>
+</div>
+</div>
+<div class="{{stripMeCls}}">
+<sc-if value="{{drag}}" hint-placeholder-val="{{false}}"><span class="{{drag.energyTag}}">{{drag.energyLabel}}</span></sc-if>
+<span class="who"><span class="av av-you">Y</span>You</span>
+<span class="lives"><sc-for list="{{you.lives}}" as="l" hint-placeholder-count="4"><span class="{{l.cls}}"></span></sc-for></span>
+<span class="energy" aria-label="Your energy {{you.energyTxt}}"><sc-for list="{{you.chips}}" as="c" hint-placeholder-count="2"><span class="{{c.cls}}"></span></sc-for></span>
+<span class="meta"><span>deck <b>{{you.deckN}}</b></span><span class="desk-only">drop <b>{{you.dropN}}</b></span></span>
+</div>
+
+<sc-if value="{{clash}}" hint-placeholder-val="{{false}}">
+<div class="{{clash.cls}}">
+<div class="cl-lines"></div>
+<div class="cl-burst"></div>
+<sc-if value="{{clash.beam}}" hint-placeholder-val="{{false}}"><div class="cl-beam"></div></sc-if>
+<div class="cl-side cl-top">
+<div class="cl-wrap"><div class="card bigcard cl-card" style="{{clash.top.art}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{clash.top.path}}"></path></svg></span><span class="nm">{{clash.top.name}}</span><span class="pw">{{clash.top.pw}}</span></div><sc-if value="{{clash.heldTop}}" hint-placeholder-val="{{false}}"><div class="shield"></div></sc-if><sc-if value="{{clash.boomTop}}" hint-placeholder-val="{{false}}"><span class="boom big"><span class="b-flash"></span><span class="b-ring"></span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></sc-if></div>
+<div class="cl-meta"><span class="cl-role">{{clash.top.role}}</span><span class="cl-pow">{{clash.top.pow}}</span><div class="cl-combos"><sc-for list="{{clash.top.combos}}" as="c" hint-placeholder-count="0"><span class="{{c.cls}}">{{c.label}}</span></sc-for></div></div>
+</div>
+<div class="cl-vs">VS</div>
+<div class="cl-side cl-bot">
+<div class="cl-wrap"><div class="card bigcard cl-card" style="{{clash.bot.art}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{clash.bot.path}}"></path></svg></span><span class="nm">{{clash.bot.name}}</span><span class="pw">{{clash.bot.pw}}</span></div><sc-if value="{{clash.heldBot}}" hint-placeholder-val="{{false}}"><div class="shield"></div></sc-if><sc-if value="{{clash.boomBot}}" hint-placeholder-val="{{false}}"><span class="boom big"><span class="b-flash"></span><span class="b-ring"></span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></sc-if></div>
+<div class="cl-meta"><span class="cl-role">{{clash.bot.role}}</span><span class="cl-pow">{{clash.bot.pow}}</span><div class="cl-combos"><sc-for list="{{clash.bot.combos}}" as="c" hint-placeholder-count="0"><span class="{{c.cls}}">{{c.label}}</span></sc-for></div></div>
+</div>
+<span class="cl-note">{{clash.note}}</span>
+<sc-if value="{{clash.verdict}}" hint-placeholder-val="{{false}}"><div class="{{clash.verdictCls}}">{{clash.verdict}}</div></sc-if>
+</div>
+</sc-if>
+</section>
+
+<section class="hand" aria-label="Your hand">
+<sc-for list="{{hand}}" as="h" hint-placeholder-count="5">
+<button class="{{h.cls}}" style="{{h.style}}" onClick="{{h.tap}}" onDoubleClick="{{h.dbl}}" onPointerDown="{{h.down}}" onPointerUp="{{h.up}}" onPointerLeave="{{h.leave}}" onPointerMove="{{h.move}}" onPointerCancel="{{h.cancel}}" onContextMenu="{{h.ctx}}" onMouseEnter="{{h.hover}}" aria-label="{{h.aria}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{h.path}}"></path></svg></span><span class="cost">{{h.cost}}</span><span class="cb">+{{h.combo}}</span><span class="nm">{{h.name}}</span><span class="pw">{{h.pw}}</span></button>
+</sc-for>
+</section>
+
+<section class="bar">
+<div class="{{promptCls}}" role="status">{{prompt}}</div>
+<div class="bar-btns">
+<sc-if value="{{showCancelAtk}}" hint-placeholder-val="{{false}}"><button class="btn ghost" onClick="{{cancelAtk}}">Cancel</button></sc-if>
+<sc-if value="{{showDefend}}" hint-placeholder-val="{{false}}"><button class="btn ghost" onClick="{{takeHit}}">Take it</button><button class="btn blue" onClick="{{lockIn}}" disabled="{{lockDisabled}}">{{lockLabel}}</button></sc-if>
+<sc-if value="{{showSkip}}" hint-placeholder-val="{{false}}"><button class="btn ghost" onClick="{{skipCharge}}">Skip charge</button></sc-if>
+<sc-if value="{{showEnd}}" hint-placeholder-val="{{true}}"><button class="{{endCls}}" onClick="{{endTurn}}">End turn</button></sc-if>
+<sc-if value="{{showWaiting}}" hint-placeholder-val="{{false}}"><span class="waiting"><span class="thinking"><i></i><i></i><i></i></span>Claude</span></sc-if>
+</div>
+</section>
+
+<sc-if value="{{sheetOpen}}" hint-placeholder-val="{{false}}"><button class="scrim" onClick="{{closeSheet}}" aria-label="Close card review"></button></sc-if>
+<aside class="side">
+<div class="{{sheetCls}}" onPointerDown="{{swStart}}" onPointerUp="{{swEnd}}" aria-label="Card review">
+<sc-if value="{{insp}}" hint-placeholder-val="{{false}}">
+<div class="grab phone-only"></div>
+<div class="insp-top phone-only"><span class="insp-pos"><small>{{insp.seqTitle}}</small>{{insp.pos}}</span><div class="insp-strip"><sc-for list="{{insp.strip}}" as="t" hint-placeholder-count="5"><button class="{{t.cls}}" style="{{t.art}}" onClick="{{t.go}}" aria-label="{{t.aria}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{t.path}}"></path></svg></span></button></sc-for></div></div>
+<div class="insp-main">
+<div class="insp-cardwrap">
+<div class="card bigcard" style="{{insp.art}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{insp.path}}"></path></svg></span><sc-if value="{{insp.hasCost}}" hint-placeholder-val="{{true}}"><span class="cost">{{insp.cost}}</span></sc-if><span class="nm">{{insp.name}}</span><span class="pw">{{insp.pw}}</span></div>
+<sc-if value="{{insp.hasNav}}" hint-placeholder-val="{{true}}"><button class="navb prev phone-only" onClick="{{insp.prev}}" aria-label="Previous card"><svg viewBox="0 0 24 24"><path d="{{icons.prev}}"></path></svg></button><button class="navb next phone-only" onClick="{{insp.next}}" aria-label="Next card"><svg viewBox="0 0 24 24"><path d="{{icons.next}}"></path></svg></button></sc-if>
+</div>
+<div class="sh-info">
+<span class="{{insp.ownerCls}}">{{insp.owner}}</span>
+<h3>{{insp.name}}</h3>
+<div class="chips"><sc-for list="{{insp.chips}}" as="c" hint-placeholder-count="2"><span class="{{c.cls}}">{{c.label}}</span></sc-for></div>
+<div class="kvs"><sc-for list="{{insp.stats}}" as="st" hint-placeholder-count="3"><div class="kvi"><small>{{st.k}}</small><b>{{st.v}}</b></div></sc-for></div>
+<p class="{{insp.ruleCls}}" style="margin: 0">{{insp.rule}}</p>
+<div class="acts"><sc-for list="{{insp.actions}}" as="a" hint-placeholder-count="2"><button class="{{a.cls}}" onClick="{{a.run}}" disabled="{{a.disabled}}"><span>{{a.label}}</span><small>{{a.note}}</small></button></sc-for></div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{noInsp}}" hint-placeholder-val="{{true}}"><div class="insp-empty desk-only"><b>Hover any card to review it</b><span>Yours or Claude's, in hand or in play — it shows here instantly. No clicks needed.</span></div></sc-if>
+</div>
+<div class="rtabs desk-only"><button class="{{tabPlay}}" onClick="{{showPlay}}">In play</button><button class="{{tabLog}}" onClick="{{showLog}}">Battle log</button></div>
+<div class="{{inplayCls}}">
+<sc-for list="{{inplay}}" as="g" hint-placeholder-count="2">
+<div class="ip-g"><span>{{g.title}}</span><small>{{g.sum}}</small></div>
+<sc-for list="{{g.rows}}" as="r" hint-placeholder-count="3"><button class="{{r.cls}}" onMouseEnter="{{r.hover}}" onFocus="{{r.hover}}" onClick="{{r.pin}}" aria-label="{{r.aria}}"><span class="ip-art" style="{{r.art}}"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{r.path}}"></path></svg></span></span><span class="ip-t"><b>{{r.name}}</b><small>{{r.state}}</small></span><span class="ip-p">{{r.pw}}</span></button></sc-for>
+</sc-for>
+</div>
+<div class="{{logCls}}">
+<div class="log-h"><span>Battle log</span><button class="icon-btn phone-only" onClick="{{closeLog}}" aria-label="Close battle log"><svg viewBox="0 0 24 24"><path d="{{icons.close}}"></path></svg></button></div>
+<div class="log-list"><sc-for list="{{logLines}}" as="l" hint-placeholder-count="4"><div class="{{l.cls}}"><span class="lt">T{{l.turn}}</span><span>{{l.text}}</span></div></sc-for></div>
+</div>
+</aside>
+
+<sc-if value="{{drag}}" hint-placeholder-val="{{false}}"><div class="{{drag.cls}}" style="{{drag.style}}" aria-hidden="true"><span class="art"><svg viewBox="0 0 24 24" class="glyph"><path d="{{drag.path}}"></path></svg></span><span class="cost">{{drag.cost}}</span><span class="nm">{{drag.name}}</span><span class="pw">{{drag.pw}}</span></div></sc-if>
+<sc-if value="{{banner}}" hint-placeholder-val="{{false}}"><div class="{{banner.cls}}"><div class="bn-bar"></div><div class="bn-text">{{banner.text}}</div><div class="bn-sub">{{banner.sub}}</div></div></sc-if>
+<sc-if value="{{flash}}" hint-placeholder-val="{{false}}"><div class="flashfx"></div></sc-if>
+<sc-if value="{{float}}" hint-placeholder-val="{{false}}"><div class="{{float.cls}}">{{float.text}}</div></sc-if>
+
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{false}}">
+<div class="menu">
+<h4>Board</h4>
+<div class="seg"><sc-for list="{{skinSeg}}" as="o" hint-placeholder-count="2"><button class="{{o.cls}}" onClick="{{o.run}}">{{o.label}}</button></sc-for></div>
+<h4>Animation speed</h4>
+<div class="seg"><sc-for list="{{seg}}" as="o" hint-placeholder-count="3"><button class="{{o.cls}}" onClick="{{o.run}}">{{o.label}}</button></sc-for></div>
+<p>Remembered between matches. Reduced motion on your device turns effects off.</p>
+<button class="mbtn" onClick="{{toggleLog}}">Battle log</button>
+<button class="mbtn" onClick="{{restart}}">Restart match</button>
+</div>
+</sc-if>
+
+<sc-if value="{{over}}" hint-placeholder-val="{{false}}">
+<div class="{{over.cls}}"><div class="rays"></div><h2>{{over.title}}</h2><p>{{over.sub}}</p><button class="btn primary" onClick="{{restart}}">Rematch</button></div>
+</sc-if>
+
+<sc-if value="{{adminOpen}}" hint-placeholder-val="{{false}}">
+<div class="admin" role="dialog" aria-label="Admin match review">
+<div class="ad-h"><span class="ad-badge">ADMIN</span><b>Match debug</b><button class="icon-btn" onClick="{{toggleAdmin}}" aria-label="Close admin panel"><svg viewBox="0 0 24 24"><path d="{{icons.close}}"></path></svg></button></div>
+<div class="ad-sub">Visible to admins only — players never see this. Flagged turns go to the review queue with the full beat log.</div>
+<div class="ad-grid">
+<div class="ad-kv">seed<b>{{admin.seed}}</b></div>
+<div class="ad-kv">turn<b>{{admin.turn}}</b></div>
+<div class="ad-kv">phase / AI stage<b>{{admin.phase}}</b></div>
+<div class="ad-kv">speed<b>{{admin.speed}}</b></div>
+<div class="ad-kv">deck (you / Claude)<b>{{admin.youDeck}} / {{admin.aiDeck}}</b></div>
+<div class="ad-kv">flagged<b>{{admin.flagged}}</b></div>
+<div class="ad-kv wide">Claude's hand (hidden info)<b>{{admin.aiHand}}</b></div>
+</div>
+<div class="ad-acts"><button class="ad-btn" onClick="{{flagTurn}}">{{admin.flagLabel}}</button></div>
+<div class="ad-list">
+<div class="ab hd"><span>#</span><span>T</span><span>side</span><span>beat</span><span>detail</span></div>
+<sc-for list="{{admin.beats}}" as="b" hint-placeholder-count="6">
+<div class="{{b.cls}}"><span>{{b.id}}</span><span>{{b.t}}</span><span class="s">{{b.s}}</span><span class="k">{{b.kind}}</span><span>{{b.detail}}</span><sc-if value="{{b.hasWhy}}" hint-placeholder-val="{{false}}"><span class="why">why: {{b.why}}</span></sc-if></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div>
