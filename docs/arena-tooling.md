@@ -520,8 +520,18 @@ npm run arena:shots -- --all                          # every Snapshot fixture
 npm run arena:shots -- --fixtures play --tap "[data-arena-card]" --tag review
 npm run arena:shots -- --fixtures play --hover "[data-arena-card]" --tag hover   # desktop only
 npm run arena:shots -- --fixtures play --rclick "[data-arena-card]" --tag pin     # right-click (pins the inspector)
+npm run arena:shots -- --fixtures hand --drag '[aria-label="Your hand"] [data-arena-card]' --to '[data-arena-zone="p1:battle"]' --tag drag   # a drag held in progress
 npm run arena:shots -- --full --base http://localhost:3001
 ```
+
+`--drag "<selector>" --to "<selector>"` presses on the first match (a finger on the
+phone, the mouse on desk), carries the pointer to the target's middle and **stays
+down** for the shot (`--release` lets go instead). A target above the fold is chased the
+way a hand would: the pointer goes to the top edge, where the board scrolls the page
+under a dragged card. The preview's stubbed `act` records what the board sent in
+`window.__arenaSent`, so a scripted drag can prove a drop played (one `play`) or was
+refused (nothing). Two fixtures exist for it: `hand` (Main Phase, two energy active, a
+hand with three cards you can afford and two you cannot) and `charge` (Charge Phase).
 
 `--tap "<selector>"` taps the first match (touch on the phone, mouse on desk)
 before shooting — a card's review, an opened sheet. `--hover` and `--rclick` do the same with the pointer on

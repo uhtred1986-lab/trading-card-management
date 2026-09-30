@@ -50,6 +50,8 @@ export function StageCard({
   onInspect,
   onHover,
   outlined = false,
+  holdLock = false,
+  pulse = false,
 }: {
   card: CardView;
   state?: CardState;
@@ -72,6 +74,10 @@ export function StageCard({
   onHover?: (box: DOMRect | null) => void;
   /** Outlined on the board because its row in the inspector's In play list is hovered. */
   outlined?: boolean;
+  /** A drag from this card is under way: its long press is cancelled (rd-03). */
+  holdLock?: boolean;
+  /** This energy would be rested by the card being dragged (rd-03). */
+  pulse?: boolean;
 }) {
   return (
     <motion.div
@@ -89,7 +95,7 @@ export function StageCard({
        * layout animation depends on, and the card would fly to the wrong
        * place. A CSS transform inside it is invisible to that machinery.
        */}
-      <div className={`group transition-transform duration-200 ${nudge ? "arena-nudge" : ""}`} style={fan || lift ? { transform: `rotate(${fan}deg) translateY(${lift}px)` } : undefined}>
+      <div className={`group transition-transform duration-200 ${nudge ? "arena-nudge" : ""} ${pulse ? "arena-will" : ""}`} style={fan || lift ? { transform: `rotate(${fan}deg) translateY(${lift}px)` } : undefined}>
         {/*
          * The moment gets its own element and is keyed on which moment it is,
          * so re-mounting restarts the animation — a card attacking twice in a
@@ -99,7 +105,7 @@ export function StageCard({
         {/* The lift reads the parent hover, not its own: an element that moves
             out from under the cursor un-hovers itself, drops back, and oscillates. */}
         <div key={moment ?? "still"} className={`${MOMENT[moment ?? "none"]} ${lifts ? "transition-transform duration-200 group-hover:-translate-y-2" : ""}`}>
-          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} outlined={outlined} />
+          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onInspect={onInspect} onHover={onHover} outlined={outlined} holdLock={holdLock} />
         </div>
       </div>
     </motion.div>

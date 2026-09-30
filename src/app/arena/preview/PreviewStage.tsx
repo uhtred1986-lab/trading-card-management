@@ -13,7 +13,13 @@ import type { ArenaStaging } from "@/lib/arena/staging";
  * fixture describes and the opened sheets, never a server round trip.
  */
 const STUB = {
-  act: async () => ({ error: null }),
+  // What the board sent, kept where a scripted drive can read it: a drag that
+  // plays a card sends one `play`, and a refused one sends nothing (rd-03).
+  act: async (_gameId: number, action: unknown) => {
+    const w = window as unknown as { __arenaSent?: unknown[] };
+    (w.__arenaSent ??= []).push(action);
+    return { error: null };
+  },
   advance: async () => ({ error: null }),
 };
 

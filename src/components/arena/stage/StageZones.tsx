@@ -54,23 +54,52 @@ export function ReferenceCounts({ side }: { side: SideView }) {
   );
 }
 
+/**
+ * What a card being dragged out of the hand is doing to a zone that could take
+ * it (rd-03). `ok` is the engine's verdict (a legal action exists); the board
+ * only draws it. `hot` is the pointer being over the zone now.
+ */
+export interface DropState {
+  ok: boolean;
+  hot: boolean;
+  label: string;
+  /** Whether the pill is said now: always when it could land, and on a refusal only when it is news (hovered, or an energy shortfall). */
+  say: boolean;
+}
+
 /** One player's Battle Area, collapsed until it holds a card. */
 /** `active`: it is this side's turn, so the row carries the faint band the frames light (#344). */
-export function BattleRow({ cards, cardProps, zone, label, active = false }: { cards: CardView[]; cardProps: CardProps; zone: string; label: string; active?: boolean }) {
+export function BattleRow({ cards, cardProps, zone, label, active = false, drop = null }: { cards: CardView[]; cardProps: CardProps; zone: string; label: string; active?: boolean; drop?: DropState | null }) {
   return (
-    <div
-      className={`arena-row ${active ? "arena-row-on" : ""} relative flex items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3 ${cards.length > 0 ? "min-h-[calc(78px*var(--arena,1))]" : "min-h-[30px] justify-center"}`}
-    >
-      <ZoneAnchor zone={zone} />
-      {cards.map((c) => (
-        <StageCard key={c.id} {...cardProps(c)} width={52} />
-      ))}
-      {cards.length === 0 && (
-        <div className="flex w-full items-center gap-2" aria-label={label}>
-          <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
-          <p className="text-[11px] text-space-500">no Battle Cards yet</p>
-          <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
-        </div>
+    // The outline and the pill live outside the row: the row scrolls sideways
+    // and would clip a pill that sits above it.
+    <div className="arena-dropzone relative" data-drop={drop ? (drop.ok ? "ok" : "no") : undefined} data-hot={drop?.hot ? "" : undefined}>
+      <div
+        className={`arena-row ${active ? "arena-row-on" : ""} relative flex items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3 ${cards.length > 0 || drop?.ok ? "min-h-[calc(78px*var(--arena,1))]" : "min-h-[30px] justify-center"}`}
+      >
+        <ZoneAnchor zone={zone} />
+        {cards.map((c) => (
+          <StageCard key={c.id} {...cardProps(c)} width={52} />
+        ))}
+        {/* The next empty slot, pulsing, when the card can land in it. */}
+        {drop?.ok && <span className="arena-slot arena-slot-land shrink-0" style={{ width: "calc(52px * var(--arena, 1))", height: "calc(73px * var(--arena, 1))" }} aria-hidden />}
+        {cards.length === 0 && !drop?.ok && (
+          <div className="flex w-full items-center gap-2" aria-label={label}>
+            <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
+            <p className="text-[11px] text-space-500">no Battle Cards yet</p>
+            <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
+          </div>
+        )}
+      </div>
+      {drop && (
+        <>
+          <span className="arena-drop-ring" aria-hidden />
+          {drop.say && (
+            <span className="arena-droptag" data-ok={drop.ok ? "" : undefined} role="status">
+              {drop.label}
+            </span>
+          )}
+        </>
       )}
     </div>
   );
@@ -158,6 +187,8 @@ export function SideRail({
   narrator,
   lifted,
   energyChips,
+  drop = null,
+  willRest = 0,
   className = "",
 }: {
   side: SideView;
@@ -171,10 +202,16 @@ export function SideRail({
   /** Cards a battle staging is drawing, which this rail must not draw twice. */
   lifted?: ReadonlySet<string>;
   energyChips?: MissingEnergyChip[];
+  /** A card is being dragged and this is the zone it would charge into (rd-03). */
+  drop?: DropState | null;
+  /** How many of the active energy the dragged card's play would rest. */
+  willRest?: number;
   className?: string;
 }) {
   const spent = side.energy.length - side.activeEnergy;
   const p = side.player;
+  const activeIds = side.energy.filter((c) => c.mode === "active").map((c) => c.id);
+  const resting = new Set(willRest > 0 ? activeIds.slice(-willRest) : []);
   /**
    * Energy and face-up life are drawn small because they are nearly always a
    * count rather than a choice. But a prompt can name them — SD5-01's [Awaken]
@@ -240,7 +277,7 @@ export function SideRail({
         )}
       </div>
 
-      <div className="relative ml-auto min-w-0 lg:ml-0">
+      <div className="arena-dropzone relative ml-auto min-w-0 lg:ml-0" data-drop={drop ? (drop.ok ? "ok" : "no") : undefined} data-hot={drop?.hot ? "" : undefined}>
         <ZoneAnchor zone={`${p}:deck`} />
         <ZoneAnchor zone={`${p}:drop`} />
         <ZoneAnchor zone={`${p}:energy`} />
@@ -254,7 +291,7 @@ export function SideRail({
           {energyChips && energyChips.length > 0 && (
             <span className="ml-1 inline-flex flex-wrap items-center gap-1">
               {energyChips.map((chip, i) => (
-                <span key={i} className="rounded border border-loss/30 bg-loss/15 px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none text-loss whitespace-nowrap" title={chip.text}>
+                <span key={i} className={`rounded border ${drop ? "arena-miss border-dashed border-loss" : "border-loss/30"} bg-loss/15 px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none text-loss whitespace-nowrap`} title={chip.text}>
                   {chip.text}
                 </span>
               ))}
@@ -263,11 +300,23 @@ export function SideRail({
         </div>
         <div className="mt-1 flex flex-wrap gap-[2px] lg:justify-center">
           {side.energy.map((c) => (
-            <StageCard key={c.id} {...pile(c)} upsideDown />
+            <StageCard key={c.id} {...pile(c)} upsideDown pulse={resting.has(c.id)} />
           ))}
           {side.energy.length === 0 && <span className="text-[10px] text-space-600">none charged</span>}
         </div>
         {spent > 0 && <p className="mt-0.5 text-[10px] text-space-500 lg:text-center">{spent} rested</p>}
+        {/* Said only when the pointer is over the zone or it could take the
+            card, so the zone does not shout "Already charged" through every play. */}
+        {drop && (
+          <>
+            <span className="arena-drop-ring" aria-hidden />
+            {drop.say && (
+              <span className="arena-droptag arena-droptag-energy" data-ok={drop.ok ? "" : undefined} role="status">
+                {drop.label}
+              </span>
+            )}
+          </>
+        )}
         {/* Rules in force on the player rather than on a card — "can't attack
             with Battle Cards" — which no card on the table could carry. */}
         {side.rules && side.rules.length > 0 && (

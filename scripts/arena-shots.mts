@@ -10,6 +10,7 @@
  *   npm run arena:shots -- --fixtures play --hover "[data-arena-card]" --tag hover   # desktop: pointer over a card
  *   npm run arena:shots -- --fixtures play --rclick "[data-arena-card]" --tag pin     # desktop: right-click
  *   npm run arena:shots -- --fixtures play --query turn=banner --tag turn --settle 500   # extra preview params: the turn banner up
+ *   npm run arena:shots -- --fixtures hand --drag "[data-arena-card]" --to '[data-arena-zone="p1:battle"]' --tag drag   # a drag in progress, held for the shot
  *   npm run arena:shots -- --full     # whole scrolled page, not just the viewport
  *
  * Output: docs/arena-redesign/current/{phone,desk}-<fixture>-<skin>[-<tag>].jpg
@@ -29,6 +30,11 @@ const skins = (arg("skins") ?? "anime,night").split(",");
 const tap = arg("tap");
 const hover = arg("hover");
 const rclick = arg("rclick");
+// A drag held in progress: press on --drag, move to --to, and stay down (rd-03).
+// `--release` lets go there instead, for the state after a drop.
+const drag = arg("drag");
+const dragTo = arg("to");
+const dragRelease = process.argv.includes("--release");
 const tag = arg("tag");
 const settle = Number(arg("settle") ?? 1500);
 const full = process.argv.includes("--full");
@@ -58,7 +64,7 @@ try {
     const page = await browser.page(vp);
     // The preview route pins pace with ?pace=, but a board that read its pace
     // from localStorage before that effect ran would still start slow.
-    if (tap && vp.mobile) await page.clipOverflow();
+    if ((tap || drag) && vp.mobile) await page.clipOverflow();
     await page.beforeLoad(`try { localStorage.setItem("arena.pace", ${JSON.stringify(pace)}); } catch {}`);
     for (const fixture of fixtures) {
       for (const skin of skins) {
@@ -73,6 +79,11 @@ try {
           await page.tap(tap);
           await page.settle(600);
         }
+        if (drag) {
+          if (!dragTo) throw new Error("--drag needs --to <selector>");
+          await page.dragTo(drag, dragTo, { release: dragRelease });
+          await page.settle(300);
+        }
         // Desktop only: a phone has no pointer to hover or right-click with.
         if (hover && !vp.mobile) {
           await page.hover(hover);
@@ -84,6 +95,8 @@ try {
         }
         const file = join(OUT, `${vp.name}-${fixture}-${skin}${tag ? `-${tag}` : ""}.jpg`);
         writeFileSync(file, await page.screenshot(full));
+        // A drag still held would leave a finger down on the next document.
+        if (drag && !dragRelease) await page.pointer("up", 0, 0);
         written++;
         console.log(file);
       }

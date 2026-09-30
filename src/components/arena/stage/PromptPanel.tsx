@@ -60,6 +60,9 @@ export function PromptPanel({
   onNext: () => void;
   onSkip: () => void;
 }) {
+  // This board lets a card be dragged (rd-03), so the hint says so; the
+  // engine's own hint is the classic board's and stays as written.
+  const boardHint = view.prompt.kind === "main" ? "drag a glowing card up to play it, or tap a ready card to attack." : view.prompt.kind === "charge" ? "drag a card onto your energy, tap one, or skip." : view.prompt.hint;
   return (
     <section
       className={`rounded-xl border backdrop-blur ${
@@ -93,7 +96,7 @@ export function PromptPanel({
                 ? view.over.reason
                 : playing
                   ? `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
-                  : (error ?? refusalText ?? (yourTurn && playable && moves > 0 ? `${moves} ${moves === 1 ? "move" : "moves"} available${view.prompt.hint ? ` — ${view.prompt.hint}` : ""}` : (view.prompt.hint ?? "")))}
+                  : (error ?? refusalText ?? (yourTurn && playable && moves > 0 ? `${moves} ${moves === 1 ? "move" : "moves"} available${boardHint ? ` — ${boardHint}` : ""}` : (view.prompt.hint ?? "")))}
             </span>
           </p>
         </div>

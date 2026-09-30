@@ -159,6 +159,21 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     fixtures.play = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
   }
   {
+    // A Main Phase with two energy active and three cards in hand: one the
+    // player can afford (UNIQ, BLOCKER, REVENGE) and two they cannot (COST3, CRIT: one short).
+    // The board's drag-to-play (rd-03) needs both to be shown.
+    const s = arena({ hand: ["UNIQ", "BLOCKER", "COST3", "CRIT", "REVENGE"], energy: ["V1", "V1"] });
+    fixtures.hand = snapshotFor(s, null);
+  }
+  {
+    // The Charge Phase with a hand to charge from: the energy drop is legal.
+    let s = arena({ hand: ["BLOCKER", "COST3", "UNIQ"], energy: ["V1"] });
+    s = play(s, { type: "endMain", player: "p1" });
+    s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+    assert.equal(s.prompt.kind, "charge");
+    fixtures.charge = snapshotFor(s, null);
+  }
+  {
     let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
     const victim = s.players.p2.battle[0];
     s = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") }).state;
@@ -461,6 +476,8 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
   const expectedGhosts: Record<string, number> = {
     activate: 1,
     attack: 1,
+    charge: 1,
+    hand: 1,
     "all-beats": 1,
     ko: 1,
     over: 0,
