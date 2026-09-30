@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
+import { useArenaAdmin } from "./admin-context";
 
 const COLOR_BAR: Record<string, string> = {
   Red: "bg-dbs-red",
@@ -154,6 +155,8 @@ export function ArenaCard({
     }
   }, [holdLock]);
 
+  // The REF badge is an engine internal: an admin's board draws it, a player's does not (#350).
+  const admin = useArenaAdmin();
   const hoverable = !!onHover && !card.hidden;
   // Energy sits upside-down and its cost, power and combo mean nothing there —
   // badges would just be clutter on a 22px card.
@@ -294,7 +297,7 @@ export function ArenaCard({
           ×{card.underCount + 1}
         </span>
       )}
-      {card.referee && chrome && (
+      {admin && card.referee && chrome && (
         <span className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 rounded bg-dbs-yellow px-1 font-bold tracking-wide text-space-950" style={{ fontSize: px(7) }}>
           REF
         </span>

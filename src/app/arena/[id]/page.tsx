@@ -9,9 +9,11 @@ import { cardsOnTable } from "@/components/arena/shared-display";
 import { draftFiredInGame } from "@/lib/arena/game-over";
 import type { GameReview } from "@/lib/arena/ai/review";
 import { ENGINE_INFO, damageTaken, sideName } from "@/lib/arena/engines";
+import { decisionsFor } from "@/lib/arena/ai/debug";
+import { adminDebugOf } from "@/lib/arena/admin-debug";
 import { isVersus, loadArchivedGame, loadGame, modeLabel, seatOf } from "@/lib/arena/games";
-import { currentUser } from "@/lib/auth";
-import { snapshotOfGame } from "@/lib/arena/session";
+import { currentUser, isArenaAdmin } from "@/lib/auth";
+import { artForGame, snapshotOfGame } from "@/lib/arena/session";
 import { archivedSnapshotFor } from "@/lib/arena/snapshot";
 import { LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
@@ -42,6 +44,9 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   // room is painted from the active leader's colour, and a palette read on the
   // client would flash the default one on every load.
   const lighting = lightingFrom(jar.get(LIGHTING_COOKIE)?.value);
+  // Who may see the engine's internals (#350). Decided here, on the server, and
+  // handed down as a boolean: a player's page never carries them at all.
+  const admin = await isArenaAdmin();
 
   // An archived legacy row (issue #335) is checked before `loadGame` — never
   // through it, since `legalActions` must never be reached for one, not
@@ -85,7 +90,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
           {snap.over && (snap.over.winner ? ` ${snap.over.winner === "p1" ? archived.p1Name : archived.p2Name} won — ${snap.over.reason}` : ` A draw — ${snap.over.reason}`)}
         </p>
 
-        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} />
+        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} />
       </div>
     );
   }
@@ -107,6 +112,8 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   // the viewer is derived exactly as it always was.
   const snap = await snapshotOfGame(db, game, isVersus(game.mode) ? seat : null);
   const playing = snap.game.status === "playing";
+  // The drawer's extras — seed, the opponent's hand, the decisions — only for an admin.
+  const adminDebug = admin ? adminDebugOf({ engine: game.engine, ctx: game.ctx, state: game.state, viewer: snap.game.you, images: await artForGame(db, game), decisions: await decisionsFor(db, id) }) : null;
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
   return (
@@ -124,21 +131,23 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
           </span>
         )}
         <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">{modeLabel(game.mode)}</span>
-        {/* Inverted at #166: the rules engine became the default, so what is
+        {/* Admins only (#350): an engine badge and the debug page are internals. Inverted at #166: the rules engine became the default, so what is
             worth saying on a board is that this game is *not* on it — a game
             keeps the engine it was made on, and every game made before the
             flip is a legacy one. Muted rather than accented for the same
             reason: it marks the ordinary older game, not a new thing. */}
-        {game.engine === "legacy" && (
+        {admin && game.engine === "legacy" && (
           <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400" title={ENGINE_INFO.legacy.note}>
             {ENGINE_INFO.legacy.label}
           </span>
         )}
-        <Link href={`/arena/${id}/debug`} className="ml-auto text-sm text-space-400 hover:text-ki-300">
-          {isVersus(game.mode) ? "what the server decided" : "how Claude played"}
-        </Link>
+        {admin && (
+          <Link href={`/arena/${id}/debug`} className="ml-auto text-sm text-space-400 hover:text-ki-300">
+            {isVersus(game.mode) ? "what the server decided" : "how Claude played"}
+          </Link>
+        )}
         {playing && (
-          <form action={abandon.bind(null, id)}>
+          <form action={abandon.bind(null, id)} className={admin ? "" : "ml-auto"}>
             <SubmitButton pendingLabel="Giving up…" className="tap text-sm text-space-400 hover:text-loss">
               give up
             </SubmitButton>
@@ -167,7 +176,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
       {/* The whole snapshot, because the board keeps watching the game while
           the server is deciding and replaces it with what it reads. */}
       <div id="board" className="scroll-mt-2">
-        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} />
+        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} />
       </div>
     </div>
   );

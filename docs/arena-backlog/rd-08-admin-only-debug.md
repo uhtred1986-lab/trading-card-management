@@ -4,6 +4,7 @@ issue: 350
 milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
+status: closed
 touches: src/lib/auth/index.ts, src/app/arena/[id]/page.tsx, src/app/arena/[id]/debug/page.tsx, src/components/arena/ArenaCard.tsx, src/components/arena/shared-sheets.tsx, src/components/arena/stage/ArenaStage.tsx, src/components/arena/stage/Hand.tsx, CLAUDE.md
 ---
 **Source:** `docs/arena-board-redesign-spec.md` decision 8; frames `docs/arena-redesign/phone-11-admin-debug-drawer.jpg`, `docs/arena-redesign/desk-11-admin-debug-drawer.jpg`; `src/lib/auth/index.ts` (`currentUser`); `src/proxy.ts`; `src/components/arena/ArenaCard.tsx` (the REF badge); `src/components/arena/shared-sheets.tsx` (`CardDetail`'s "Engine reads" box); `src/app/arena/[id]/debug/page.tsx`.

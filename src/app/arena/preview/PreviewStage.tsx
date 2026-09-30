@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { GameOver } from "@/components/arena/GameOver";
 import type { Beat, NumberedBeat } from "@/lib/arena/beats";
@@ -8,6 +8,7 @@ import { setPacePref, type Pace } from "@/lib/arena/pace";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import type { ArenaStaging } from "@/lib/arena/staging";
+import type { AdminDebug } from "@/lib/arena/admin-debug";
 
 /**
  * The real board with its two server actions stubbed. A tap goes nowhere: it
@@ -53,7 +54,48 @@ function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
   return { seq: list.length, list, art };
 }
 
-export function PreviewStage({ snapshot, skin, staging, pace, announceTurn, fx }: { snapshot: Snapshot; skin: ArenaSkin; staging: ArenaStaging; pace: Pace | null; announceTurn: boolean; fx: string | null }) {
+/** What the drawer shows beyond the snapshot, made up for the preview: no database is behind it. */
+const PREVIEW_DEBUG: AdminDebug = {
+  seed: 20260930,
+  theirHand: ["Ember Vanguard", "Iron Guardian", "Comet Dancer", "Azure Sage"],
+  decisions: [
+    { seq: 1, turn: 2, player: "p2", promptKind: "charge", decidedBy: "rule", chosenLabel: "Charge Ember Vanguard", how: "lowest-power card; keeps 2+ in hand", say: null, menu: null, chosenIndex: null },
+    {
+      seq: 2,
+      turn: 2,
+      player: "p2",
+      promptKind: "main",
+      decidedBy: "claude",
+      chosenLabel: "Play Nova Lancer (cost 3)",
+      how: "highest cost it can afford",
+      say: "Time to press the attack.",
+      menu: ["Play Nova Lancer (cost 3)", "Play Iron Guardian (cost 2)", "End turn"],
+      chosenIndex: 0,
+    },
+  ],
+};
+
+export function PreviewStage({
+  snapshot: fixture,
+  skin,
+  staging,
+  pace,
+  announceTurn,
+  fx,
+  admin,
+  referee,
+}: {
+  snapshot: Snapshot;
+  skin: ArenaSkin;
+  staging: ArenaStaging;
+  pace: Pace | null;
+  announceTurn: boolean;
+  fx: string | null;
+  admin: boolean;
+  referee: boolean;
+}) {
+  // `?referee=1`: one of your Battle Cards is one the referee rules on, so the badge can be seen.
+  const snapshot = useMemo(() => (referee && fixture.view.you.battle[0] ? { ...fixture, view: { ...fixture.view, you: { ...fixture.view.you, battle: fixture.view.you.battle.map((c, i) => (i === 0 ? { ...c, referee: true } : c)) } } } : fixture), [fixture, referee]);
   useEffect(() => {
     if (pace) setPacePref(pace);
   }, [pace]);
@@ -75,7 +117,7 @@ export function PreviewStage({ snapshot, skin, staging, pace, announceTurn, fx }
   }, [fx, snapshot]);
   return (
     <>
-      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} />
+      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} />
       {fx === "over" && (
         <div className="mx-auto mt-3 max-w-xl px-2">
           <GameOver

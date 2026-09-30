@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
 import { parseBasicUser } from "@/lib/auth-header";
 
+import { isAdminUser } from "./admin";
+
 export { parseBasicAuth, parseBasicUser } from "@/lib/auth-header";
 
 /**
@@ -29,4 +31,14 @@ export async function currentOwner(): Promise<string | null> {
   } catch {
     return username;
   }
+}
+
+/**
+ * Whether this request may see the arena's internals (issue #350). Server-side
+ * only: pass the answer down as a boolean prop, never work it out on the client.
+ * See `./admin.ts` for the rule — listed in `ARENA_ADMINS`, or the app is open.
+ */
+export async function isArenaAdmin(): Promise<boolean> {
+  const { ARENA_ADMINS, BASIC_AUTH_USER, BASIC_AUTH_PASSWORD } = process.env;
+  return isAdminUser(await currentUser(), { ARENA_ADMINS, BASIC_AUTH_USER, BASIC_AUTH_PASSWORD });
 }

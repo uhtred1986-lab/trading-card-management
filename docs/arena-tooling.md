@@ -498,7 +498,7 @@ in the database. Both draw the real `ArenaStage` from a `contract/fixtures/*.jso
 snapshot through **`/arena/preview`** (dev-only: `notFound()` when
 `NODE_ENV === "production"`, so `npm run build` ships nothing reachable). The
 route takes `?fixture=play|attack|ko|…`, `?skin=anime|night`, `?staging=` and
-`?pace=step`; the board's two server actions are stubbed (`ArenaStage`'s
+`?pace=step`; `?admin=0` draws the board as a player sees it (admin is the default, as with Basic Auth off) and `?referee=1` marks your first Battle Card as referee-ruled so the REF badge can be shot (#350); the board's two server actions are stubbed (`ArenaStage`'s
 `server` prop), so a tap goes nowhere. Both scripts drive the installed Chrome
 over the DevTools protocol (`scripts/lib/cdp.mts`, Node's built-in WebSocket) —
 no Playwright dependency. Set `CHROME_PATH` if yours is somewhere unusual.

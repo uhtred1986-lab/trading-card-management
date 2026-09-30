@@ -28,6 +28,7 @@ Preview, and deliberately *not* in `.env.local`, so local dev runs open. `/api/s
 because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` instead. The web-app
 manifest, `/icons/*` and `/sw.js` are exempt too — the browser fetches them without credentials, so
 behind auth the app cannot be installed at all. Removing either variable exposes the whole database.
+The arena's engine internals (REF badge, "Engine reads", raw ids and log, `/arena/[id]/debug`) show only to an admin: `isArenaAdmin()` (`src/lib/auth/admin.ts`) is true for a login listed in `ARENA_ADMINS` (comma-separated, case-insensitive) or whenever Basic Auth is off; with auth on and the list unset, nobody is admin.
 
 **Previews are off (only `main` deploys), so the next note matters only if that is reverted.
 Vercel's own deployment protection is ON for Preview** (verified 6 Sep 2026: a preview URL

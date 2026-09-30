@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { decisionsFor } from "@/lib/arena/ai/debug";
 import { isVersus, loadGame, seatOf } from "@/lib/arena/games";
-import { currentUser } from "@/lib/auth";
+import { currentUser, isArenaAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,9 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();
+  // Engine internals are an admin's (#350): everyone else finds nothing here,
+  // before a single row is read.
+  if (!(await isArenaAdmin())) notFound();
   const [game, rows] = await Promise.all([loadGame(db, id), decisionsFor(db, id)]);
   if (!game) notFound();
   // This page prints the exact prompt the server was given, which for a
