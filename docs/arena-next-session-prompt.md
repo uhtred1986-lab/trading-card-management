@@ -111,8 +111,8 @@ issues' own PR descriptions remain the record of how each got there.
   copy), and `/arena/rules/game` with `rulesets/print-by-file.ts` (every declaration printed back
   from what the loader parsed, one section per file). `/arena/rules/keywords` renders
   `keywords.rules`' own text, and `verify/game-page.ts` holds it equal to `glossary.ts`.
-  `probe.ts` refuses a rules-engine board by name rather than failing several calls deeper, and
-  `contract/probe-rules-status.json` is the fixture that will show the day a family is ported.
+  `probe.ts` stages its boards from the definition on either engine (#161), and
+  `contract/probe-rules-parity.json` records both engines' digests per harness card, each difference with its cause.
   `ai/opponent.ts`'s free-choice shortcuts run on either engine; a real Main Phase decision is
   still refused by name, since `stateText`/`decklistText` read `GameState`.
 - **Tests**: `scripts/verify-arena.ts` runs nineteen suites, in order — `text, setup, battles,

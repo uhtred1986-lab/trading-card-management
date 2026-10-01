@@ -16,9 +16,6 @@
  * pair the narration ribbon reads, so a probe and a game tell one story.
  */
 import {
-  apply,
-  legalActions,
-  rejectedActions,
   skillsOf,
   specifiedCostOf,
   specifiedCostUnknown,
@@ -27,18 +24,20 @@ import {
   type Color,
   type CardScripts,
   type EngineContext,
-  type GameState,
   type Op,
   type PlayerId,
   type Skill,
 } from "./engine";
 import type { Cond, SkillPrice, XCost } from "./engine/script";
 import { parseFilter } from "./engine/filters";
-import { engineFor, FALLBACK_ENGINE, legacyState, type EngineId } from "./engines";
+import { engineFor, FALLBACK_ENGINE, isVmState, type Engine, type EngineId, type EngineState } from "./engines";
+import { leaderOf, zoneOf } from "./engine-state";
 import { addEffect, move, placeUnder } from "./engine/state";
+import { addEffect as vmAddEffect } from "./vm/effects";
+import { moveCard } from "./vm/zones";
 import { sentence } from "./wording";
 import { specifiedCostWords } from "./specified-cost";
-import { assumptionsOf, askedQuestion, boardChanges, candidatesOf, digestOf, emptyProbe, IDLE_PROMPTS, logLines, staticReading, type ProbeStep } from "./probe-report";
+import { assumptionsOf, askedQuestion, boardChanges, candidatesOf, digestOf, emptyProbe, IDLE_PROMPTS, logLines, rulesDefinition, staticReading, type ProbeStep } from "./probe-report";
 import type { ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeVariant } from "./probe-types";
 export type { ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeVariant } from "./probe-types";
 
@@ -331,8 +330,8 @@ function homeOf(def: CardDef): "leader" | "unison" | "battle" | "hand" {
 /** Keywords activated from the hand — the card has to be there or they are never offered. */
 const FROM_HAND: string[] = ["Evolve", "Union", "Over Realm", "Arrival", "Successor", "Revive", "Aegis", "Alliance"];
 
-function drive(ctx: EngineContext, s: GameState, actions: Action[]): GameState {
-  for (const a of actions) s = apply(ctx, s, a).state;
+function drive(impl: Engine, ctx: EngineContext, s: EngineState, actions: Action[]): EngineState {
+  for (const a of actions) s = impl.apply(ctx, s, a).state;
   return s;
 }
 
@@ -340,38 +339,48 @@ function drive(ctx: EngineContext, s: GameState, actions: Action[]): GameState {
  * A game in `actor`'s Main Phase with both players past a first turn, and both
  * hands emptied to the bottom of the deck so only what the probe stages is in
  * them.
+ *
+ * The same walk on either engine — the prompts are one union — and the same
+ * board: what differs is only how the area is read (`zoneOf`, the seam
+ * `engine-state.ts` offers) and how a card is sent to the bottom of the deck,
+ * which on the rules engine is the declared-zone mover (`vm/zones.ts`) rather
+ * than the legacy `move`. Neither is a move a rule makes, so no moment fires.
  */
-function opening(ctx: EngineContext, engine: EngineId, actor: PlayerId): GameState {
-  // #161's own remaining scope: the staging below reads `GameState` (players,
-  // hand, deck) directly rather than through the `zoneOf`/`leaderOf` seam
-  // `src/lib/arena/engine-state.ts` now offers (built for this port), so a
-  // rules-engine board is refused here, clearly and by name, rather than
-  // failing several calls deeper with `legacyState`'s own generic message.
-  if (engine !== "legacy") throw new Error(`probe staging is not ported to the rules engine yet (#161) — every family still builds a legacy board`);
-  let s = legacyState(engineFor(engine).createGame(ctx, { seed: 7, p1: { name: "You", leader: LEADER, main: deck(FILLER) }, p2: { name: "Opponent", leader: THEIR_LEADER, main: deck(FILLER) } }).state);
+function opening(ctx: EngineContext, engine: EngineId, actor: PlayerId): EngineState {
+  const impl = engineFor(engine);
+  let s = impl.createGame(ctx, { seed: 7, p1: { name: "You", leader: LEADER, main: deck(FILLER) }, p2: { name: "Opponent", leader: THEIR_LEADER, main: deck(FILLER) } }).state;
   const chooser = (s.prompt as { player: PlayerId }).player;
-  s = drive(ctx, s, [{ type: "chooseFirst", player: chooser, first: YOU }]);
-  while (s.prompt.kind === "mulligan") s = drive(ctx, s, [{ type: "mulligan", player: s.prompt.player, redraw: false }]);
+  s = drive(impl, ctx, s, [{ type: "chooseFirst", player: chooser, first: YOU }]);
+  while (s.prompt.kind === "mulligan") s = drive(impl, ctx, s, [{ type: "mulligan", player: s.prompt.player, redraw: false }]);
   // Turn 3 is the first turn both players have had one; the opponent's is 4.
   const until = actor === YOU ? 3 : 4;
   for (let i = 0; i < 12; i++) {
-    if (s.prompt.kind === "charge") s = drive(ctx, s, [{ type: "charge", player: s.prompt.player, card: null }]);
+    if (s.prompt.kind === "charge") s = drive(impl, ctx, s, [{ type: "charge", player: s.prompt.player, card: null }]);
     else if (s.prompt.kind === "main") {
       if (s.prompt.player === actor && s.turn >= until) break;
-      s = drive(ctx, s, [{ type: "endMain", player: s.prompt.player }]);
+      s = drive(impl, ctx, s, [{ type: "endMain", player: s.prompt.player }]);
     } else break;
   }
-  for (const p of [YOU, THEM] as PlayerId[]) for (const id of s.players[p].hand.slice()) move(ctx, s, [], id, "deck", p, { position: "bottom" });
+  for (const p of [YOU, THEM] as PlayerId[]) for (const id of zoneOf(s, p, "hand").slice()) send(ctx, s, id, "deck", p, { position: "bottom" });
   return s;
+}
+
+/** Move a card to an area of the board on whichever engine wrote it, with no event and no moment. */
+function send(ctx: EngineContext, s: EngineState, id: string, area: "hand" | "battle" | "energy" | "unison" | "drop" | "combo" | "deck", p: PlayerId, opts: { position?: "top" | "bottom" } = {}): void {
+  if (isVmState(s)) {
+    const r = moveCard(s, rulesDefinition(), id, area, { owner: p, ...opts });
+    if (!r.ok) throw new Error(`the probe could not stage ${id} in the ${area}: ${r.refused}`);
+  } else move(ctx, s, [], id, area, p, opts);
 }
 
 const deck = (id: string) => Array.from({ length: 50 }, () => id);
 
 /** A card of the probe's own from the bottom of the deck, put where the scenario wants it. */
-function put(ctx: EngineContext, s: GameState, p: PlayerId, cardId: string, area: "hand" | "battle" | "energy" | "unison" | "drop" | "combo"): string {
-  const inst = s.players[p].deck[s.players[p].deck.length - 1];
+function put(ctx: EngineContext, s: EngineState, p: PlayerId, cardId: string, area: "hand" | "battle" | "energy" | "unison" | "drop" | "combo"): string {
+  const pile = zoneOf(s, p, "deck");
+  const inst = pile[pile.length - 1];
   s.cards[inst].cardId = cardId;
-  move(ctx, s, [], inst, area, p);
+  send(ctx, s, inst, area, p);
   return inst;
 }
 
@@ -392,7 +401,8 @@ interface Goal {
 
 interface Staged {
   ctx: EngineContext;
-  state: GameState;
+  impl: Engine;
+  state: EngineState;
   /** The instance the rule is on. */
   card: string;
   /** The card was staged in hand, where most skills are not valid (9-1-3). */
@@ -454,7 +464,14 @@ function copiesFrom(ops: Op[]): { side?: string; area?: string } | null {
   return {};
 }
 
+/** 23-2: one card under another, on whichever engine wrote the board. */
+function placeUnderCard(ctx: EngineContext, s: EngineState, id: string, host: string): void {
+  if (isVmState(s)) moveCard(s, rulesDefinition(), id, "drop", { under: host });
+  else placeUnder(ctx, s, [], id, host);
+}
+
 function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Staged {
+  const impl = engineFor(engine);
   const { defs, scripts } = propsFor(rule);
   const ctx: EngineContext = { defs, scripts };
   const family = scenario.family;
@@ -475,7 +492,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
   const where = scenario.variant === "inHand" || reducer ? "hand" : fromHand ? "hand" : home;
   let card: string;
   if (where === "leader") {
-    card = s.players[YOU].leader;
+    card = leaderOf(s, YOU);
     s.cards[card].cardId = rule.def.id;
     if (rule.side === "back" && rule.def.type === "LEADER" && rule.def.back) s.cards[card].flipped = true;
   } else {
@@ -502,7 +519,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
     const area = from.area === "combo" ? "combo" : from.area === "drop" ? "drop" : from.area === "hand" ? "hand" : "battle";
     if (from.area === "under") {
       const beneath = put(ctx, s, YOU, SOURCE, "battle");
-      placeUnder(ctx, s, [], beneath, card);
+      placeUnderCard(ctx, s, beneath, card);
       input.push(`a card under ${rule.def.name} carrying [Blocker], a [Permanent] and an [Auto]`);
     } else {
       put(ctx, s, theirSide ? THEM : YOU, SOURCE, area);
@@ -564,7 +581,9 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
   } else input.push("the opponent has nothing in play");
 
   if (scenario.variant === "negated") {
-    addEffect(s, [], { target: card, kind: "negateSkills", value: 0, until: "turn", master: THEM });
+    const negate = { target: card, kind: "negateSkills", value: 0, until: "turn", master: THEM } as const;
+    if (isVmState(s)) vmAddEffect(s, [], negate);
+    else addEffect(s, [], negate);
     input.push("this card's skills are negated (9-1-5)");
   }
 
@@ -588,16 +607,16 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
       ctx.defs[BODY] = body(BODY, { colors: rule.def.colors, power: 5000 });
       input.push("their Battle Card is rested and weaker, so the attack can take it");
     }
-    const target = kills && theirBody ? theirBody : s.players[THEM].leader;
+    const target = kills && theirBody ? theirBody : leaderOf(s, THEM);
     goals.push({ what: `attack ${target === theirBody ? "their Battle Card" : "the opponent's Leader"}`, by: YOU, at: ["main"], match: (a) => a.type === "attack" && a.attacker === attacker && a.target === target });
   } else if (family === "attack") {
     // "When this card is attacked" needs it rested; the rest of the wordings
     // are about the Leader being attacked (8-1-1 offers no active card).
-    const target = rule.trigger.some((t) => ["attacked", "koed"].includes(t)) ? card : s.players[YOU].leader;
+    const target = rule.trigger.some((t) => ["attacked", "koed"].includes(t)) ? card : leaderOf(s, YOU);
     if (target === card) s.cards[card].mode = "rest";
     goals.push({ what: "the opponent attacks", by: THEM, at: ["main"], match: (a) => a.type === "attack" && a.target === target });
   } else if (family === "combo") {
-    goals.push({ what: "the opponent attacks your Leader", by: THEM, at: ["main"], match: (a) => a.type === "attack" && a.target === s.players[YOU].leader });
+    goals.push({ what: "the opponent attacks your Leader", by: THEM, at: ["main"], match: (a) => a.type === "attack" && a.target === leaderOf(s, YOU) });
     goals.push({ what: `combo with ${rule.def.name}`, by: YOU, at: ["combo"], match: (a) => a.type === "combo" && a.card === card });
   } else if (family === "counter") {
     const theirCard = put(ctx, s, THEM, FILLER, rule.kind === "counter:play" ? "hand" : "battle");
@@ -643,7 +662,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
       void named;
     }
     if (!fromHand) {
-      goals.push({ what: "the opponent attacks your Leader", by: THEM, at: ["main"], match: (a) => a.type === "attack" && a.target === s.players[YOU].leader });
+      goals.push({ what: "the opponent attacks your Leader", by: THEM, at: ["main"], match: (a) => a.type === "attack" && a.target === leaderOf(s, YOU) });
     }
     goals.push({
       what: `use ${keyword ? `[${keyword}]` : "the keyword"}`,
@@ -657,7 +676,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
     goals.push({ what: "run the turn to its end", by: actor, at: ["main"], match: (a) => a.type === "endMain" && a.player === actor });
   }
 
-  return { ctx, state: s, card, inHand: where === "hand", skill, goals, input };
+  return { ctx, impl, state: s, card, inHand: where === "hand", skill, goals, input };
 }
 
 // ── answering, so the run is the same every time ───────────────────────────
@@ -668,7 +687,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): Stag
  * it is among the candidates — and everything else is declined, so what is in
  * the log is the rule and not a second card's opinion of it.
  */
-function answerFor(s: GameState, prefer: string): Action | null {
+function answerFor(s: EngineState, prefer: string): Action | null {
   const pr = s.prompt;
   switch (pr.kind) {
     case "chooseFirst":
@@ -725,12 +744,12 @@ const empty = (scenario: ProbeScenario, outcome: ProbeOutcome, said: string[]): 
  * Run one rule on one board and say what happened.
  *
  * Deterministic: one seed, two fixed decks, one fixed answering policy. The
- * only thing that varies is the rule — and, from here on, which engine plays
- * it. The board is opened through `engineFor`, so when the rules engine can
- * deal one (#139) a probe on it is this argument and nothing else; the
- * staging below is still the legacy state's, which is why an engine that
- * cannot hand one over is reported as the probe's own error rather than
- * crashing the page. #161 is where the fixtures come off the definition.
+ * only thing that varies is the rule — and which engine plays it. The board is
+ * dealt through `engineFor`, and staged through `engine-state.ts`'s zone seam
+ * (and, on the rules engine, the declared-zone mover over the loaded
+ * definition), so the same ten families run on both (#161). A rule the rules
+ * engine cannot play yet answers with its `NotYet` as an `error` outcome, or
+ * with a different conclusion; neither crashes a sweep.
  *
  * The default is `FALLBACK_ENGINE`, not `DEFAULT_ENGINE`: every stored probe
  * answer was taken on the legacy engine, and #166's flip of the default must
@@ -755,20 +774,22 @@ export function probe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId
 function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): ProbeRun {
   const staged = stage(rule, scenario, engine);
   const ctx = staged.ctx;
+  const { impl } = staged;
+  const legalActions = (c: EngineContext, st: EngineState) => impl.legalActions(c, st);
   let s = staged.state;
   const steps: ProbeStep[] = [];
   let goalIndex = 0;
   let testedAt = -1;
   let missed: Goal | null = null;
-  let missedAt: GameState | null = null;
+  let missedAt: EngineState | null = null;
 
-  for (let i = 0; i < 80 && s.phase !== "over"; i++) {
+  for (let i = 0; i < 80 && s.phase !== "over" && s.prompt.kind !== "gameOver"; i++) {
     const goal = staged.goals[goalIndex];
     const asked = "player" in s.prompt ? s.prompt.player : null;
     const hit = goal ? legalActions(ctx, s).find((l) => goal.match(l.action)) : undefined;
     if (goal && hit) {
       const ask = askedQuestion(ctx, s);
-      const r = apply(ctx, s, hit.action);
+      const r = impl.apply(ctx, s, hit.action);
       steps.push({ state: r.state, events: r.events, ask, chose: hit.label, candidates: candidatesOf(s) });
       s = r.state;
       goalIndex++;
@@ -785,13 +806,13 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): P
     const answer = answerFor(s, staged.card);
     if (!answer) break;
     const ask = askedQuestion(ctx, s);
-    const r = apply(ctx, s, answer);
-    steps.push({ state: r.state, events: r.events, ask, chose: label(ctx, s, answer), candidates: candidatesOf(s) });
+    const r = impl.apply(ctx, s, answer);
+    steps.push({ state: r.state, events: r.events, ask, chose: label(impl, ctx, s, answer), candidates: candidatesOf(s) });
     s = r.state;
   }
 
   const from = testedAt < 0 ? steps.length : testedAt;
-  const applied = logLines(ctx, steps, from);
+  const applied = logLines(ctx, steps, from, engine);
   const result = boardChanges(ctx, steps, from);
   const assumptions = assumptionsOf(ctx, s, staged.card, rule, steps);
   const prompts = steps.filter((st) => st.ask).map((st) => ({ ask: st.ask as string, chose: st.chose }));
@@ -800,7 +821,7 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): P
   // moment later is not a [Permanent] that does nothing.
   const statics =
     scenario.variant === "reduced"
-      ? reducedReading(ctx, staged, rule)
+      ? reducedReading(ctx, staged, rule, impl)
       : scenario.family === "permanent" || scenario.family === "keyword"
         ? staticReading(ctx, staged.state, staged.card, rule, scenario.family === "keyword" ? (staged.skill?.keyword?.name ?? null) : null)
         : [];
@@ -826,7 +847,7 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): P
     result: said.length ? said : [outcome === "blank" ? "nothing happened: the skill has no program" : "nothing changed on the board"],
     assumptions,
     prompts,
-    log: logLines(ctx, steps),
+    log: logLines(ctx, steps, 0, engine),
     outcome,
     digest: digestOf(outcome, missed ? [] : applied, said),
   };
@@ -839,14 +860,14 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): P
  * same board, the rule's program taken out — so the line says whether the
  * relaxation is what made the play legal, not merely that a play was legal.
  */
-function reducedReading(ctx: EngineContext, staged: Staged, rule: ProbeRule): string[] {
+function reducedReading(ctx: EngineContext, staged: Staged, rule: ProbeRule, impl: Engine): string[] {
   const s = staged.state;
   const name = rule.def.name;
   const isPlay = (a: Action) => onCard(a, staged.card) && ["play", "playZ", "playUnison"].includes(a.type);
   const bare: EngineContext = { defs: ctx.defs, scripts: Object.fromEntries(Object.entries(ctx.scripts ?? {}).filter(([k]) => k !== rule.def.id && k !== `${rule.def.id}#back`)) };
-  const offered = (c: EngineContext) => legalActions(c, s).filter((l) => isPlay(l.action));
+  const offered = (c: EngineContext) => impl.legalActions(c, s).filter((l) => isPlay(l.action));
   const refused = (c: EngineContext) =>
-    rejectedActions(c, s, legalActions(c, s))
+    impl.rejectedActions(c, s, impl.legalActions(c, s))
       .filter((r) => isPlay(r.action))
       .flatMap((r) => r.why.map((w) => sentence(w, { name, reaching: r.action.type })));
   const price = (o: ReturnType<typeof offered>[number]) => {
@@ -863,15 +884,15 @@ function reducedReading(ctx: EngineContext, staged: Staged, rule: ProbeRule): st
   return out;
 }
 
-function refusals(ctx: EngineContext, state: GameState, staged: Staged, goal: Goal): string[] {
-  const legal = legalActions(ctx, state);
-  const rejected = rejectedActions(ctx, state, legal).filter((r) => goal.match(r.action));
+function refusals(ctx: EngineContext, state: EngineState, staged: Staged, goal: Goal): string[] {
+  const legal = staged.impl.legalActions(ctx, state);
+  const rejected = staged.impl.rejectedActions(ctx, state, legal).filter((r) => goal.match(r.action));
   if (!rejected.length) return [`${goal.what} was never offered, and the engine gives no reason — it does not consider the move at all.`];
   const name = ctx.defs[state.cards[staged.card]?.cardId ?? ""]?.name ?? "this card";
   return rejected.flatMap((r) => r.why.map((w) => sentence(w, { name, reaching: r.action.type })));
 }
 
 /** What the probe answered, as the menu labelled it. */
-function label(ctx: EngineContext, s: GameState, a: Action): string {
-  return legalActions(ctx, s).find((l) => JSON.stringify(l.action) === JSON.stringify(a))?.label ?? a.type;
+function label(impl: Engine, ctx: EngineContext, s: EngineState, a: Action): string {
+  return impl.legalActions(ctx, s).find((l) => JSON.stringify(l.action) === JSON.stringify(a))?.label ?? a.type;
 }
