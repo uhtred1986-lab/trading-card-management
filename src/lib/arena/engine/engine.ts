@@ -707,11 +707,14 @@ function resolvePlay(
     if (old && empower && empower.x > 0 && (empower.color == null || cardNow(ctx, s, old).colors.includes(empower.color))) {
       max = Math.min(empower.x, s.cards[old].markers);
     }
-    // A real choice only when it could go either way. Reached once: the flow
-    // step is requeued with the answer already on it, so `empowerCarry` is
-    // defined the second time through and this does not ask twice.
+    // A real choice only when it could go either way. Reached once: the
+    // prompt carries everything the play needs, and the `empowerCarry`
+    // action requeues this step with the answer on it, so `empowerCarry` is
+    // defined the second time through and this does not ask twice. Nothing
+    // is requeued here: a second copy of the step, still unanswered, would
+    // run after the answered one and ask again about the Unison that had
+    // just arrived, as if it were the one being replaced.
     if (max > 0 && empowerCarry === undefined) {
-      s.flow.unshift({ op: "play.resolve", card, player: p, markers, onto, negated });
       return wait(s, { kind: "empowerCarry", player: p, card, from: old!, max, markers, onto, negated });
     }
     const carried = Math.min(Math.max(0, empowerCarry ?? 0), max);
