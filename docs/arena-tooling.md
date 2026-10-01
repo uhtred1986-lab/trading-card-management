@@ -98,6 +98,15 @@ In order. All must pass; none needs the network. Since #165, `verify-arena.ts` r
 once on the legacy engine (default) and once with `--engine rules` — so both engines are checked
 on every `npm test`, not just on request.
 
+**Both runs stay until Stage 10 finishes (#118).** Its first step moved the shared parts out of
+`engine/` (vocabulary `types.ts`, card text `text/`, compiler `compile/`, interpreter and schema
+`vm/script*.ts`, RNG `vm/rng.ts`, helpers `vm/common.ts`) without changing what either run checks.
+The legacy run cannot go yet: seven suites (`setup`, `compiler`, `readings`, `wordings`,
+`contract`, `language`, `lang`) still stage legacy `GameState` fixtures and skip on `--engine
+rules`, `contract:emit` writes its fixtures from legacy games, and `vm.ts` holds the rules engine
+to the legacy one call for call. Dropping the legacy run before those are rewritten would lose that
+coverage silently, which is the one thing a retirement may not do.
+
 | script | needs | proves |
 |---|---|---|
 | `scripts/verify-rules.ts` | nothing | the pure rules helpers (deck legality, reservations, scan matching) |

@@ -33,7 +33,7 @@ grep -rln "keyword you're chasing" docs/arena-*.md
 
 ## 2. Find code by symbol, not by file
 
-`compile.ts` (4,614 lines), `engine.ts` (3,226), `script.ts` (2,378), `state.ts` (1,838) are too
+`compile/effects.ts` (2,775 lines), `engine/engine.ts` (3,293), `vm/script.ts` (2,223), `engine/state.ts` (2,451) are too
 large to read whole. Grep for the function/type name, then Read with `offset`/`limit` around it.
 
 ## 3. Fast feedback loop

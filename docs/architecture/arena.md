@@ -2,9 +2,16 @@
 
 Read before touching anything under `src/lib/arena/` or `src/components/arena/`. Start with the `arena-work` skill, `docs/arena-tooling.md` and `docs/arena-code-map.md`. Moved unchanged from `CLAUDE.md` (issue #382); the text is verbatim, so a comment that says "see CLAUDE.md" means this file.
 
-- **Arena rules engine** (`src/lib/arena/engine/`): a game is a `GameState` plus an event log;
-  `apply()` is the only mutator. `legalActions()` offers only skills the engine can pay for **and**
-  resolve, and drives both the UI and Claude's move menu. Doc: `docs/arena-code-map.md`.
+- **Arena rules engine** (`src/lib/arena/vm/`, behind the `Engine` interface in `engines.ts`): a
+  game is a state plus an event log; `apply()` is the only mutator. `legalActions()` offers only
+  skills the engine can pay for **and** resolve, and drives both the UI and Claude's move menu.
+  **What both engines share has its own home** (#118, step 1): the vocabulary in `types.ts`, card
+  text in `text/` (`cards.ts`, `filters.ts`, `triggers.ts` — the printed-trigger fallback for a
+  skill with no record), the compiler in `compile.ts` + `compile/`, the record interpreter
+  (`stepScript`) and `OP_SCHEMA`/`COND_SCHEMA` in `vm/script.ts`/`vm/script-schema.ts`, the
+  `ScriptHost` interface in `vm/script-host.ts`, the RNG in `vm/rng.ts`, and the state-free helpers
+  (`programsOf`, token ids, `redirectOf`, `IllegalAction`, …) in `vm/common.ts`. `vm/` imports
+  nothing from `engine/`. Doc: `docs/arena-code-map.md`.
 - **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/keywords`): the only
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
@@ -15,6 +22,14 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   on either way (`engineForMode`, #162 — never a refusal of the default path). A game keeps the
   engine it was made on — `engineFor(id)` is the one switch, and `engineOr`'s own fallback is
   `FALLBACK_ENGINE`, not the default, because an unreadable stored value is an old legacy row.
+  **Retiring `legacy` (Stage 10, #118) is under way, not done**: `engine/` now holds only the
+  legacy engine over `GameState` (`engine.ts`, `state.ts`, `triggers.ts`'s KO and pending,
+  `legacy-host.ts`, `rejections.ts`), and every import of it from outside the directory is a reader
+  the retirement still has to replace — see `docs/arena-history-lessons.md`'s last entry for the
+  list. **Saved legacy games, once it goes: Archive** (owner's ruling on #119, 20 Sep 2026,
+  `docs/arena-ruleset-spec.md` §6; built by #335): a `legacy` row with a stored `snapshot` is
+  listed and shown read-only with a banner, nothing replays, and `legalActions`/`apply` are never
+  called for it. `legacy` stays in `ENGINE_IDS` as the marker those rows carry.
   **One rejection per card per action type, except an activation, which is one per skill line**
   (§3.2). Doc: `docs/arena-code-map.md`.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
@@ -28,9 +43,10 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   #255): the feed carries no cost orbs, so an X-cost card's coloured price is entered by hand. The
   catalog upsert must `coalesce` this column — remove that and the next sync erases every entry.
   Doc: `docs/arena-code-map.md`.
-- **The record's WHEN is the engine's WHEN** (`skillAnswersTo`, `engine/triggers.ts`): an [Auto]
-  skill's trigger comes off `card_rules.trigger`; only a skill with no record falls back to the
-  printed text. Doc: `docs/arena-code-map.md`.
+- **The record's WHEN is the engine's WHEN** (`answersTo`, `vm/triggers.ts`; the legacy
+  `skillAnswersTo`, `engine/triggers.ts`): an [Auto] skill's trigger comes off
+  `card_rules.trigger`; only a skill with no record falls back to the printed text
+  (`autoTriggerMatches`, `text/triggers.ts`). Doc: `docs/arena-code-map.md`.
 - **Arena UI** (`/arena`, `src/components/arena/`, `docs/arena-client-contract.md`): phone-first
   board driven entirely by `legalActions()` and one `Snapshot` — no client evaluates a rule.
   **Everything the board says about who is acting reads `live.waiting`, never the `snapshot`
@@ -60,11 +76,10 @@ Before opening arena docs or engine source for a specific question, start with
 `docs/arena-tooling.md` (what each verify/probe/tally script proves) and
 `docs/arena-next-session-prompt.md` (current state, priority order) — both are short and meant
 as the entry point. There are 20+ other `docs/arena-*.md` files (several 400–900+ lines); grep
-them for the term you need rather than reading multiple specs end to end. `src/lib/arena/engine/`
-is large: the compiler implementation now lives under `src/lib/arena/compile/`,
-`compile.ts` is its stable public barrel, and `engine.ts`, `script.ts` + `script-schema.ts`,
-`state.ts` are each 1,800–4,600 lines — grep for the symbol first and read a line range, don't
-open these files whole. For iterating on pure rule
+them for the term you need rather than reading multiple specs end to end. The compiler lives
+under `src/lib/arena/compile/` (`compile.ts` is its stable public barrel); `vm/script.ts` +
+`vm/script-schema.ts` and the legacy `engine/engine.ts`/`engine/state.ts` are each 2,000–3,300
+lines — grep for the symbol first and read a line range, don't open these files whole. For iterating on pure rule
 logic, `npx tsx scripts/verify-rules.ts` and `npx tsx scripts/verify-arena.ts` are much faster than
 full `npm test` (which also runs `verify-db.mts`, spinning up PGlite + migrations every time); run
 the full suite before finalizing. Never run `sync:catalog`/`sync:prices` just to inspect state —
