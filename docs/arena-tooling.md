@@ -94,24 +94,28 @@ the change working.
 
 ## 2. `npm test` — what it actually runs
 
-In order. All must pass; none needs the network. Since #165, `verify-arena.ts` runs **twice** —
-once on the legacy engine (default) and once with `--engine rules` — so both engines are checked
-on every `npm test`, not just on request.
+In order. All must pass; none needs the network. `verify-arena.ts` runs **twice** — once on the
+legacy engine (default) and, since #459, once with `--rules-only`: every suite on the rules engine,
+with any call into `src/lib/arena/engine/` failing the suite that made it (`verify/legacy-guard.ts`).
+`--engine rules` (#165) is the same run without the guard, and `npm run test:rules` still runs it.
 
-**Both runs stay until Stage 10 finishes (#118).** Its first step moved the shared parts out of
-`engine/` (vocabulary `types.ts`, card text `text/`, compiler `compile/`, interpreter and schema
-`vm/script*.ts`, RNG `vm/rng.ts`, helpers `vm/common.ts`) without changing what either run checks.
-The legacy run cannot go yet: seven suites (`setup`, `compiler`, `readings`, `wordings`,
-`contract`, `language`, `lang`) still stage legacy `GameState` fixtures and skip on `--engine
-rules`, `contract:emit` writes its fixtures from legacy games, and `vm.ts` holds the rules engine
-to the legacy one call for call. Dropping the legacy run before those are rewritten would lose that
-coverage silently, which is the one thing a retirement may not do.
+**Both runs stay until Stage 10 finishes (#118).** Its first step (#456) moved the shared parts out
+of `engine/` (vocabulary `types.ts`, card text `text/`, compiler `compile/`, interpreter and schema
+`vm/script*.ts`, RNG `vm/rng.ts`, helpers `vm/common.ts`). #459 moved the seven suites that staged
+legacy `GameState` fixtures (`setup`, `compiler`, `readings`, `wordings`, `contract`, `language`,
+`lang`) onto the generic harness, so they assert on the rules engine; the contract fixtures are
+emitted from the rules engine (all but `versus.json`, below); `probe`'s digest check runs on the
+rules engine against `probe-digests.json` and `probe-rules-parity.json` as fixed records. What still
+needs the legacy run: **`vm.ts`**, which holds the rules engine to the legacy one call for call and
+is listed, not run, under `--rules-only`; `versus.json` and `state-text.txt`, legacy-only until #458
+and #457; and `engine-default`'s "a saved legacy game opens unchanged", which #118 decides. Every
+case a suite cannot assert on the rules engine is a named `rulesGap`, listed at the end of the run.
 
 | script | needs | proves |
 |---|---|---|
 | `scripts/verify-rules.ts` | nothing | the pure rules helpers (deck legality, reservations, scan matching) |
-| `scripts/verify-arena.ts` | nothing | the arena — fourteen suites, below — on the legacy engine |
-| `scripts/verify-arena.ts --engine rules` | nothing | the same suites again, on the rules engine, with named `skipped case`s where a stage hasn't landed yet (§ below) |
+| `scripts/verify-arena.ts` | nothing | the arena — the suites below — on the legacy engine |
+| `scripts/verify-arena.ts --rules-only` | nothing | the same suites on the rules engine with no legacy call anywhere, `vm` listed as not run, and every case a suite could not assert listed by name |
 | `scripts/verify-db.mts` | nothing (PGlite in memory) | the migrations apply, and the reservation rules hold against real SQL |
 
 `verify-arena.ts` imports fourteen suites from `scripts/verify/`, each on its
@@ -268,17 +272,21 @@ skipped) tells you what you broke:
   to the same events and the same rules in force. Runs the same regardless of
   `--engine`, on purpose (below).
 
-### `--engine legacy|rules` and `npm run test:rules`
+### `--engine legacy|rules`, `npm run test:rules` and `--rules-only`
 
 `scripts/verify/harness.ts` reads `--engine` off the command line (default
-`legacy`) and exports the resolved `ENGINE`. **Since #165, `npm test` runs
-`verify-arena.ts` twice** — once with no flag (legacy) and once with
-`--engine rules` — so both engines are checked on every ordinary test run,
-not just on request. `npm run test:rules` still exists as a standalone
-alias for just the second half (`tsx scripts/verify-arena.ts --engine
-rules` — the same fourteen suites, on the rules engine alone), useful when
-iterating on the rules engine without waiting for the legacy pass, `verify-db`
-and `verify/backlog` too.
+`legacy`) and exports the resolved `ENGINE`. `npm run test:rules` is
+`verify-arena.ts --engine rules`. **`--rules-only` (#459, `npm run
+test:rules-only`, and the second half of `npm test`)** is `--engine rules`
+plus two promises: `verify/legacy-guard.ts` wraps every module under
+`src/lib/arena/engine/` as it loads, so *calling* any legacy function records
+it and throws, and a suite that does is failed (importing is fine —
+`engines.ts` builds its adapter at import time); and nothing is skipped as a
+whole — a `NotYet` or `EngineMismatch` fails the suite. The suites in
+`STILL_ON_THE_ORACLE` (`verify-arena.ts`; `vm` today) are listed as not run.
+The run ends by listing every `rulesGap` and `legacyOnly` case (harness) and
+the legacy calls it saw, which must be none. Once #118 deletes the legacy
+engine this is what `npm test` is, and the guard goes with it.
 
 `vm.ts` and `rulesets.ts` name `legacy` and `rules` explicitly rather than
 reading `ENGINE` (it is the suite proving the switch, so it cannot depend on
@@ -292,6 +300,17 @@ half (`arenaG`/`playG`/… ). What a case in either of them cannot yet prove on
 `rules` is a `skipped case`, printed by name with why, rather than a whole
 suite reading `skipped`; the suite itself still reports `ok` as long as
 nothing it *can* prove fails.
+
+**#459 moved the remaining seven** — `setup`, `compiler`, `readings`,
+`wordings`, `contract`, `language`, `lang` — onto the same half, through
+`stagedG`: `arena()`'s own board on either engine, including its last step
+(the dealt filler goes to the bottom of the deck), so hand counts and
+`hand[0]` mean what they meant. Their legacy-only readers have generic twins
+(`powerIn`, `cardNowG`, `matchesG`, `playCostG`, `forbidsG`, `locateG`,
+`koCardG`, `moveG`, `pendedG`, …), and a case the rules engine cannot pass is
+a `rulesGap(where, what, issue)`. The paragraph below is how every suite
+behaved before that, and how a new suite that reaches for `game()`/`arena()`
+still would:
 
 Every other suite still builds its board through the legacy-only
 `game()`/`arena()`, so on `--engine rules` it hits one of two named errors
@@ -314,6 +333,7 @@ is each suite's own issue to take up, the way #152 took up these two:
 | Stage 8 | words from config, `primer`/`prompts`/`view` | `workflow.ts`'s `assertLabelOnLegacy` cases close; `contract` becomes portable |
 | #165 (done) | `verify-arena` on both engines folded into `npm test`; `arena:fuzz 200 --engine rules` clean | `npm test` runs both engines every time — `test:rules` remains as a standalone alias, no longer the only way to see the rules-engine run |
 | Stage 9, remainder (#164, #165's own `arena:reprobe` bullet, #163's own flip) | every saved game replays on `rules`, `arena:reprobe --engine rules` at 0 moved, the `arena.engine` default flips | the table above still applies suite by suite until every row reads "pass" |
+| #459 | the seven legacy-fixture suites on the generic harness; contract fixtures from the rules engine; `probe`'s digests checked on `rules` against the two fixed files; `--rules-only` | every suite but `vm` passes under `--rules-only` with no legacy call; what each could not assert is a named `rulesGap` |
 
 Making a suite actually pass on `rules` before its stage lands is out of
 scope for the tooling itself — `test:rules` (now folded into `npm test`, and
@@ -341,6 +361,14 @@ has never been printed or parsed once.
 `npm run contract:emit` regenerates `contract/fixtures/*` and
 `contract/probe-digests.json`. These are the contract the planned Android client
 reads, and the probe digests are a regression corpus for card rules.
+
+It runs `verify-arena.ts --emit` twice since #459, once per engine, and each
+file is written by the pass it belongs to: the snapshot fixtures by the rules
+pass (all but `versus.json`, which stays the legacy pass's until a 1 v 1 is
+played on the rules engine, #458), `state-text.txt` and the two probe files by
+the legacy pass (it alone can still run both engines for the parity file;
+`probe-digests.json` is the legacy engine's golden record), and the deck and
+language fixtures, which touch no engine, by both.
 
 Run it when you change a harness card, an `OP_SCHEMA` row, or what the referee
 is told. **Review the diff** — expect exactly the cards you touched. One digest

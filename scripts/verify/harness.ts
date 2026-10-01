@@ -26,6 +26,7 @@ import assert from "node:assert/strict";
 import { defsFrom } from "../../src/lib/arena/vm/common";
 import { seedFrom } from "../../src/lib/arena/vm/rng";
 import { type Action, type CardDef, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "../../src/lib/arena/types";
+import { RULES_ONLY } from "./rules-only";
 import { engineFor, FALLBACK_ENGINE, isEngineId, isVmState, legacyState, type EngineId, type EngineState } from "../../src/lib/arena/engines";
 import { energyMarkersOf, leaderOf, unisonOf, zoneOf, type ZoneArea } from "../../src/lib/arena/engine-state";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -786,6 +787,20 @@ function rulesGap(where: string, what: string, issue: string): boolean {
   return true;
 }
 
+/**
+ * A case about the legacy engine itself — a legacy game made, saved and read
+ * back — which `--rules-only` cannot run because it plays the legacy engine on
+ * purpose. Run on every other pass, `--engine rules` included; listed with the
+ * gaps under `--rules-only`, so the cases #118 has to decide about are named.
+ */
+function legacyOnly(where: string, what: string, issue: string): boolean {
+  if (!RULES_ONLY) return false;
+  const line = `${where}: ${what} (${issue})`;
+  console.log(`  skipped case — ${line}`);
+  RULES_GAPS.push(line);
+  return true;
+}
+
 /** 19-1: is this instance a token — a flag on the legacy card, the id its definition is encoded in on the rules engine. */
 function isTokenG(s: EngineState, id: string): boolean {
   return isVmState(s) ? vmIsTokenCard(s.cards[id].cardId) : s.cards[id].isToken;
@@ -880,6 +895,7 @@ export {
   find,
   findG,
   forbids,
+  legacyOnly,
   settledG,
   passCombosG,
   isTokenG,

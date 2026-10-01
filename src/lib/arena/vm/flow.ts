@@ -920,6 +920,13 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // Where it really went: a rule about what the card *is* may send it
   // somewhere else than asked (19-1-7, a token leaving play is removed).
   const to = result.move.to;
+  // 3-1-4, 20-9: a card that changes area is a new card, so a loan of it is
+  // over — the legacy `move` drops every effect on it, silently. Only the
+  // `control` effect is dropped here: the rest of this engine's per-card
+  // bookkeeping that rides on `effects` is ended by its own rules. A KO left a
+  // borrowed card's loan standing, so it outlived the card (#459,
+  // `verify/keywords.ts`'s TAKER2 case).
+  if (from !== to) state.effects = state.effects.filter((e) => !(e.target === id && e.kind === "control"));
   // 23-2-5: the pile it left behind is shown going first, with no moment of
   // its own — the legacy engine logs these moves and pends nothing for them.
   for (const r of result.move.released ?? []) {
