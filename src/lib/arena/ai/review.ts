@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
-import { MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
+import { SONNET_MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
 import type { PlayerId } from "../engine";
 import { loadGame } from "../games";
 import { legacyState } from "../engines";
@@ -40,7 +40,7 @@ export async function reviewGame(db: Db, gameId: number): Promise<GameReview | n
   // and 1 v 1 both sides are people, so the review is written from p1's chair.
   const human: PlayerId = "p1";
   const res = await anthropic().messages.parse({
-    model: MODEL,
+    model: SONNET_MODEL,
     max_tokens: 6000,
     thinking: { type: "adaptive" },
     output_config: { effort: "medium", format: zodOutputFormat(GameReviewSchema) },
@@ -61,7 +61,7 @@ export async function reviewGame(db: Db, gameId: number): Promise<GameReview | n
     ],
   });
 
-  const { output } = await recordRun<GameReview>(db, "arena_review", { gameId, outcome }, res, game.p1DeckId ?? undefined, MODEL);
+  const { output } = await recordRun<GameReview>(db, "arena_review", { gameId, outcome }, res, game.p1DeckId ?? undefined, SONNET_MODEL);
   await db
     .update(arenaGames)
     .set({ review: JSON.stringify(output), reviewAt: new Date() })

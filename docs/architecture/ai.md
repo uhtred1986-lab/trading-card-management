@@ -10,3 +10,28 @@ Read before touching deck analysis, the wizard, card scanning, the cart explaine
 - **Leaders → "Build a deck with Claude"** (`/leaders`, `src/lib/ai/deck-builder.ts`): the draft
   gets an owned pool and a capped buy pool, runs through `sanitiseDraft`, and becomes a *virtual*
   deck with a shopping list. Owned/buy flags come from the collection, not the model.
+
+## Models and spend (owner's ruling, 1 Oct 2026, #381)
+
+Model ids live in `src/lib/ai/client.ts` (`MODEL` Opus, `SONNET_MODEL`, `FAST_MODEL` Haiku); list
+prices in `PRICES` (`src/lib/arena/ai/run.ts`), which `npm run ai:spend` reads. Always pass the model
+to `recordRun` so `ai_runs.model` is the one that ran.
+
+| Call | Model | Request shape |
+|---|---|---|
+| Cart explain (`cart.ts`) | Haiku 4.5 | no `thinking`, no `effort` (Haiku rejects both); Zod `format` only |
+| Deck summary (`deck.ts`), arena game review (`arena/ai/review.ts`) | Sonnet 5.5 | adaptive thinking, effort `medium` |
+| Scan identify (`scan.ts`) | Sonnet 5.5, Opus fallback | adaptive thinking, effort `medium` |
+| Wizard, set review, deck builder, from-card | Opus, unchanged | |
+| Arena Sparring / Tournament | unchanged (counter and blocker stay on Opus `medium`) | |
+
+**Scan fallback.** `readPhotoTiered` reads on Sonnet first and repeats the read on Opus when
+Sonnet's answer is unparseable (the SDK throws a non-API error, or `parsed_output` is null) or
+low-confidence per `needsOpusFallback` in `scan-match.ts`: any card with no number, any `confidence`
+below `REVIEW_THRESHOLD` (0.8), `unreadable > 0`, or an empty list for a `single` photo. A refusal
+or an API error (key, rate limit) is not retried on Opus. When both reads ran, both are written to
+`ai_runs` (the Opus row's `input` carries `fallbackFrom`), so the fallback rate and its cost show in
+`ai:spend`. Accuracy is verified by `npm run ai:scan-compare -- [--dir <folder>] [--limit 20]`, which
+reads each photo on Opus alone and with the new pipeline and lists any photo whose matched card ids
+differ. It spends real money and needs the key and `DATABASE_URL`, so the owner runs it; saved scan
+photos only exist for batches still open (completed batches drop their bytes), hence `--dir`.
