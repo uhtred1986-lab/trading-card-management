@@ -31,7 +31,13 @@ import { energyMarkersOf, leaderOf, unisonOf, zoneOf, type ZoneArea } from "../.
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { attrsNow } from "../../src/lib/arena/vm/program";
-import { addEffect as vmAddEffect, skillNegated as vmSkillNegated } from "../../src/lib/arena/vm/effects";
+import { addEffect as vmAddEffect, schedule as vmSchedule, skillNegated as vmSkillNegated, skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
+import { forbids as vmForbids } from "../../src/lib/arena/vm/program";
+import { cardPrice as vmCardPrice } from "../../src/lib/arena/vm/costs";
+import { predicateOf as vmPredicateOf } from "../../src/lib/arena/vm/filters";
+import { koCard as vmKoCard } from "../../src/lib/arena/vm/battle";
+import { findCard as vmFindCard } from "../../src/lib/arena/vm/zones";
+import { fire as vmFire, type Moment as VmMoment } from "../../src/lib/arena/vm/events";
 import { hasKeyword as vmHasKeyword } from "../../src/lib/arena/vm/program";
 import { lifeReplacementChoices as vmLifeReplacementChoices } from "../../src/lib/arena/vm/replace";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
@@ -48,7 +54,7 @@ import { addEffect, schedule, move, locate, placeUnder, planPayment, playCost, p
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, priceX, splitClauses } from "../../src/lib/arena/compile";
 import { COND_CLASS, COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_CLASS, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/vm/script";
 import { autoTriggerMatches } from "../../src/lib/arena/text/triggers";
-import { koCard, masterOf } from "../../src/lib/arena/engine/triggers";
+import { koCard, masterOf, pendTriggers } from "../../src/lib/arena/engine/triggers";
 import { masterOf as vmMasterOf } from "../../src/lib/arena/vm/triggers";
 import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
 import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRecords } from "../../src/lib/arena/draft";
@@ -622,6 +628,144 @@ function stageMoveG(s: EngineState, id: string, area: ZoneArea, side: PlayerId):
   zoneOf(s, side, area).push(id);
 }
 
+// ── the legacy-only readers the seven fixture suites used, generically (#459) ─
+//
+// `setup`, `compiler`, `readings`, `wordings`, `contract`, `language` and
+// `lang` read a staged board through the legacy engine's own `engine/state`
+// and `engine/triggers` functions. Each reader below is the same question on
+// whichever engine `--engine` named, so those suites run on the rules engine
+// for real rather than skipping under `EngineMismatch` — the step #118's
+// deletion of the legacy engine waits on. The rules engine's answer is its own
+// declared reading (`attrsNow`, `cardPrice`, `forbids`, `findCard`, …), the
+// one `verify/vm.ts` already asserts agrees with the legacy function by name.
+
+/** `powerOf`'s reading, on either engine, with the context the caller staged (a fixture may compile its own rules). */
+function powerIn(ctx: EngineContext, s: EngineState, id: string): number {
+  return isVmState(s) ? Number(attrsNow(ctx, DBS_DEFINITION, s, id).power ?? 0) : powerOf(ctx, s, id);
+}
+
+/** `has`'s reading with the caller's own context — `hasG` with a context that is not `CTX`. */
+function hasIn(ctx: EngineContext, s: EngineState, id: string, name: KeywordSkill["name"]): boolean {
+  return isVmState(s) ? vmHasKeyword(ctx, DBS_DEFINITION, s, id, name) : has(ctx, s, id, name);
+}
+
+/** The face a card shows now (`cardNow`): the printed values with every layer over them, as the four attributes a fixture reads. */
+function cardNowG(s: EngineState, id: string, ctx: EngineContext = CTX): Pick<CardDef, "name" | "colors" | "traits" | "characters"> {
+  if (!isVmState(s)) return cardNow(ctx, s, id);
+  const a = attrsNow(ctx, DBS_DEFINITION, s, id);
+  return { name: String(a.name ?? ""), colors: (a.colors ?? []) as CardDef["colors"], traits: (a.traits ?? []) as string[], characters: (a.characters ?? []) as string[] };
+}
+
+/** Does this card, as it stands, match the filter — `matches(cardNow(…))` on legacy, the declared predicate over `attrsNow` on rules (`verify/vm.ts` §7 holds the two to the same answer). */
+function matchesG(s: EngineState, id: string, filter: CardFilter, ctx: EngineContext = CTX): boolean {
+  if (!isVmState(s)) return matches(cardNow(ctx, s, id), filter);
+  return vmPredicateOf(filter, DBS_DEFINITION)(attrsNow(ctx, DBS_DEFINITION, s, id));
+}
+
+/** `playCost`'s two halves: the total and the coloured (specified) part, off `cardPrice` on rules. */
+function playCostG(s: EngineState, id: string): { total: number; specified: Partial<Record<string, number>> } {
+  if (!isVmState(s)) return playCost(CTX, s, id);
+  const p = vmCardPrice(CTX, DBS_DEFINITION, s, id);
+  return { total: p.total, specified: p.orbs };
+}
+
+/** 20-21's combo cost in force — `comboCostOf` on legacy, the declared `comboCostOf` attribute on rules. */
+function comboCostOfG(s: EngineState, id: string): number {
+  return isVmState(s) ? Number(attrsNow(CTX, DBS_DEFINITION, s, id).comboCostOf ?? 0) : comboCostOf(CTX, s, id);
+}
+
+/** 20-21's Z-Energy cost in force — `zEnergyCostOf`, or the declared attribute of that name. */
+function zEnergyCostOfG(s: EngineState, id: string): number {
+  return isVmState(s) ? Number(attrsNow(CTX, DBS_DEFINITION, s, id).zEnergyCostOf ?? 0) : zEnergyCostOf(CTX, s, id);
+}
+
+/** 20-14's prohibition reader on either engine. */
+function forbidsG(s: EngineState, what: Parameters<typeof forbids>[2], opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {
+  return isVmState(s) ? vmForbids(CTX, DBS_DEFINITION, s, what, opts) : forbids(CTX, s, what, opts);
+}
+
+/** 9-1-5: are all of this card's skills negated. */
+function skillsNegatedG(s: EngineState, id: string): boolean {
+  return isVmState(s) ? vmSkillsNegated(s, id) : skillsNegated(s, id);
+}
+
+/** Where a card is — which area and where in it — or null for a card under another card or out of every zone. */
+function locateG(s: EngineState, id: string): { area: string; index: number } | null {
+  if (!isVmState(s)) {
+    const at = locate(s, id);
+    return at ? { area: at.area, index: at.index } : null;
+  }
+  const at = vmFindCard(s, id);
+  return at ? { area: at.zone, index: at.index } : null;
+}
+
+/** 5-12: KO a card, the way a rule does — through the engine's own KO, with its moments and replacements. */
+function koCardG(s: EngineState, id: string, ev: GameEvent[] = [], ctx: EngineContext = CTX): void {
+  if (isVmState(s)) vmKoCard(ctx, DBS_DEFINITION, s, ev, id);
+  else koCard(ctx, s, ev, id);
+}
+
+/**
+ * A fixture's own move of one card to a named area of a side: the legacy
+ * engine's `move` (which reads a 9-10 replacement for a card leaving play
+ * itself), or the rules engine's one mover `moveCard`, which records a
+ * replacement and applies none.
+ */
+function moveG(s: EngineState, id: string, area: ZoneArea | "unison", side: PlayerId, opts: { position?: "top" | "bottom"; reason?: "effect" } = {}, ctx: EngineContext = CTX): void {
+  if (!isVmState(s)) {
+    move(ctx, s, [], id, area, side, opts);
+    return;
+  }
+  const r = moveCard(s, DBS_DEFINITION, id, area, { owner: side, position: opts.position });
+  assert.ok(r.ok, `the fixture could not move ${id} to ${side}'s ${area}: ${r.ok ? "" : r.refused}`);
+}
+
+/** 20-15: write a delayed effect down, on either engine — both take the same spec. */
+function scheduleG(s: EngineState, ev: GameEvent[], spec: Parameters<typeof vmSchedule>[2]): void {
+  if (isVmState(s)) vmSchedule(s, ev, spec);
+  else schedule(s, ev, spec);
+}
+
+/**
+ * The moment a legacy trigger name stands for, as `dbs/triggers.rules`
+ * declares it — only the two `verify/lang.ts` fires by hand.
+ */
+const MOMENT_FOR: Partial<Record<Trigger, (card: string, controller: PlayerId) => VmMoment>> = {
+  played: (card, controller) => ({ event: "moved", card, controller, args: { to: "battle", asPlay: true } }),
+  attacks: (card, controller) => ({ event: "attackDeclared", card, controller, args: { role: "attacker" } }),
+};
+
+/** Ask the board whether anything answers to `trigger` happening to `card`, and return how many [Auto] skills were pended — `pendTriggers` on legacy, the declared moment fired on rules. The pending list is cleared first. */
+function pendedG(ctx: EngineContext, s: EngineState, trigger: Trigger, card: string): number {
+  s.pending = [];
+  if (!isVmState(s)) {
+    pendTriggers(ctx, s, trigger, card);
+    return s.pending.length;
+  }
+  const moment = MOMENT_FOR[trigger];
+  assert.ok(moment, `pendedG has no declared moment for ${trigger}`);
+  vmFire(ctx, DBS_DEFINITION, s, moment(card, s.cards[card].owner));
+  return s.pending.length;
+}
+
+/**
+ * Every case a suite could not assert on the rules engine, named where it is
+ * skipped — the generic twin of `keywords.ts`'s own `notYetGap`, for the
+ * suites #459 moved off the legacy engine. Each entry is a rules-engine gap a
+ * real game would hit too (an unread static, a legacy-only field), never a
+ * fixture that merely has not been ported: `verify-arena.ts` prints the list
+ * at the end of a run, so `--rules-only` says exactly which assertions still
+ * stand only on the legacy pass.
+ */
+const RULES_GAPS: string[] = [];
+function rulesGap(where: string, what: string, issue: string): boolean {
+  if (ENGINE !== "rules") return false;
+  const line = `${where}: ${what} (${issue})`;
+  console.log(`  skipped case — ${line}`);
+  RULES_GAPS.push(line);
+  return true;
+}
+
 export {
   COND_CLASS,
   COND_SCHEMA,
@@ -682,6 +826,22 @@ export {
   find,
   findG,
   forbids,
+  rulesGap,
+  RULES_GAPS,
+  pendedG,
+  forbidsG,
+  cardNowG,
+  comboCostOfG,
+  hasIn,
+  koCardG,
+  locateG,
+  matchesG,
+  moveG,
+  playCostG,
+  powerIn,
+  scheduleG,
+  skillsNegatedG,
+  zEnergyCostOfG,
   lifeReplacementChoicesFor,
   lifeReplacementChoicesForG,
   game,

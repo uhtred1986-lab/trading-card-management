@@ -20,12 +20,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
 import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, describeScript, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/vm/script";
-import { pendTriggers } from "../../src/lib/arena/engine/triggers";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
-import type { GameState, KeywordSkill, Trigger } from "../../src/lib/arena/types";
+import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
 import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
-import { CTX, DEFS, arena, find, parseFilter, rulesFromCompiler, skillRecords } from "./harness";
+import { CTX, DEFS, arenaG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords } from "./harness";
 
 /** A rule with nothing but its steps, for the round trips that are about the program. */
 const ruleOf = (ops: Op[], rest: Partial<Rule> = {}): Rule => ({ kind: "auto", trigger: [], cost: null, cond: null, ops, ...rest });
@@ -823,12 +822,9 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   });
 
   const pendedOn = (scripts: Record<string, CardScripts> | undefined, trigger: Trigger): number => {
-    const s: GameState = arena({ battle: ["DRAWER"] });
-    const id = find(s, "p1", "battle", "DRAWER");
-    const ctx = scripts ? { defs: DEFS, scripts } : CTX;
-    s.pending = [];
-    pendTriggers(ctx, s, trigger, id);
-    return s.pending.length;
+    const s = arenaG({ battle: ["DRAWER"] });
+    const id = findG(s, "p1", "battle", "DRAWER");
+    return pendedG(scripts ? { defs: DEFS, scripts } : CTX, s, trigger, id);
   };
 
   assert.equal(pendedOn(undefined, "played"), 1, "with no record the printed text still decides");
