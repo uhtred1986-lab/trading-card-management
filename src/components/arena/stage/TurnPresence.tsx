@@ -53,15 +53,15 @@ export function TurnBanner({ call, view, lighting, ms, holdUntilTap }: { call: T
   );
 }
 
-/** "YOUR TURN · Turn 3", filled with the acting side's colour, with a blinking dot. */
-export function TurnPill({ view }: { view: BoardView }) {
+/** "YOUR TURN  Turn 3" in the impact face, in the acting side's colour, with a blinking dot. */
+export function TurnPill({ view, className = "" }: { view: BoardView; className?: string }) {
   const yours = view.turnPlayer === view.you.player;
   const name = (yours ? view.you : view.them).name;
   return (
-    <div role="status" className="arena-turnpill inline-flex self-start max-w-full items-center gap-2 rounded-full px-3 py-1 sm:px-4 sm:py-1.5" data-turn={yours ? "you" : "them"}>
+    <div role="status" className={`arena-turnpill inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full py-1.5 pl-2 pr-2.5 sm:gap-2 sm:pl-2.5 sm:pr-3 ${className}`} data-turn={yours ? "you" : "them"}>
       <span className="arena-turnpill-dot h-2.5 w-2.5 shrink-0 rounded-full" aria-hidden />
-      <span className="truncate text-xs font-black uppercase italic tracking-wide sm:text-sm">{turnWords(yours, name)}</span>
-      <span className="shrink-0 font-mono text-[11px] tabular-nums sm:text-xs">Turn {view.turn}</span>
+      <span className="arena-turnpill-who truncate px-px text-[15px] uppercase leading-none sm:text-base lg:text-xl">{turnWords(yours, name)}</span>
+      <span className="arena-turnpill-num shrink-0 whitespace-nowrap text-[13px] leading-none tabular-nums">Turn {view.turn}</span>
     </div>
   );
 }
@@ -74,37 +74,41 @@ const CHIPS = [
   { id: "end", label: "End" },
 ] as const;
 
-/** The chip the turn is on. The engine's Charge Phase is where the draw happens, so both light there. */
-function litChips(view: BoardView): ReadonlySet<string> {
-  if (view.battle) return new Set(["battle"]);
+/**
+ * The one chip the turn is on. The engine's Charge Phase is where the draw
+ * happens, but the draw is over by the time a player can act in it, so only
+ * Charge is lit there: one pill, never two (`docs/arena-redesign/` frame 03).
+ */
+function litChip(view: BoardView): string | null {
+  if (view.battle) return "battle";
   switch (view.phase) {
     case "charge":
-      return new Set(["draw", "charge"]);
+      return "charge";
     case "main":
     case "mainEnd":
-      return new Set(["main"]);
+      return "main";
     case "end":
-      return new Set(["end"]);
+      return "end";
     default:
-      return new Set();
+      return null;
   }
 }
 
-/** Draw · Charge · Main · Battle · End, the live one lit: `TopStrip`'s content made legible. */
+/** Draw · Charge · Main · Battle · End as plain words with dots; only the live one is a pill. */
 export function PhaseChips({ view, vertical = false, className = "" }: { view: BoardView; vertical?: boolean; className?: string }) {
-  const lit = litChips(view);
+  const lit = litChip(view);
   const battleStep = view.battle ? (view.battle.step === "declared" ? "attack" : view.battle.step) : null;
   return (
-    <ol className={`arena-phases flex gap-1 sm:gap-1.5 ${vertical ? "flex-col" : "flex-wrap items-center"} ${className}`} aria-label="Phase">
+    <ol className={`arena-phases flex ${vertical ? "arena-phases-col flex-col gap-1.5" : "items-center justify-center gap-0.5 sm:gap-1"} ${className}`} aria-label="Phase">
       {CHIPS.map((c) => (
         <li
           key={c.id}
-          aria-current={lit.has(c.id) ? "step" : undefined}
-          className={`arena-phase ${lit.has(c.id) ? "arena-phase-on" : ""} flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] sm:px-2.5 font-bold uppercase tracking-wider sm:text-xs`}
+          aria-current={lit === c.id ? "step" : undefined}
+          className={`arena-phase ${lit === c.id ? "arena-phase-on" : ""} flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold uppercase tracking-[0.1em] ${vertical ? "rounded-[10px] px-3 py-2 text-sm" : "sm:px-2.5"}`}
         >
-          <span className="arena-phase-dot hidden h-1.5 w-1.5 shrink-0 rounded-full sm:block" aria-hidden />
+          <span className="arena-phase-dot h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden />
           {c.label}
-          {c.id === "battle" && battleStep && <span className="font-mono normal-case tracking-normal">· {battleStep}</span>}
+          {c.id === "battle" && battleStep && <span className="normal-case tracking-normal">· {battleStep}</span>}
         </li>
       ))}
     </ol>
