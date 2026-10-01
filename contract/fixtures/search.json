@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,

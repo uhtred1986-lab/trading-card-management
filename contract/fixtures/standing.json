@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -368,6 +368,13 @@
   "legal": [
     {
       "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
         "type": "attack",
         "player": "p1",
         "attacker": "p1#0",
@@ -419,57 +426,50 @@
         "target": "p2#0"
       },
       "label": "Attack L-BLUE with V1 (15000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "endMain",
-        "player": "p1"
-      },
-      "label": "End turn"
     }
   ],
   "taps": {
     "byCard": {
       "p1#0": [
-        0
-      ],
-      "p1#35": [
         1
       ],
-      "p1#18": [
+      "p1#35": [
         2
       ],
-      "p1#38": [
+      "p1#18": [
         3
       ],
-      "p1#13": [
+      "p1#38": [
         4
       ],
-      "p1#12": [
+      "p1#13": [
         5
+      ],
+      "p1#12": [
+        6
       ]
     },
     "bare": [
-      6
+      0
     ],
     "attackTargets": {
       "p1#0": {
-        "p2#0": 0
-      },
-      "p1#35": {
         "p2#0": 1
       },
-      "p1#18": {
+      "p1#35": {
         "p2#0": 2
       },
-      "p1#38": {
+      "p1#18": {
         "p2#0": 3
       },
-      "p1#13": {
+      "p1#38": {
         "p2#0": 4
       },
-      "p1#12": {
+      "p1#13": {
         "p2#0": 5
+      },
+      "p1#12": {
+        "p2#0": 6
       }
     },
     "whyByCard": {

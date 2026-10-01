@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 4,
@@ -386,7 +386,7 @@
       "dropTop": null
     },
     "turn": 4,
-    "phase": "main",
+    "phase": "battle",
     "turnPlayer": "p2",
     "battle": {
       "attacker": "p2#44",
@@ -414,7 +414,7 @@
         "player": "p1",
         "card": "p1#9"
       },
-      "label": "Combo V1 from hand (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
@@ -422,7 +422,7 @@
         "player": "p1",
         "card": "p1#23"
       },
-      "label": "Combo V1 from hand (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
@@ -430,7 +430,7 @@
         "player": "p1",
         "card": "p1#17"
       },
-      "label": "Combo V1 from hand (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
@@ -438,7 +438,7 @@
         "player": "p1",
         "card": "p1#50"
       },
-      "label": "Combo V1 from hand (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
@@ -446,7 +446,7 @@
         "player": "p1",
         "card": "p1#29"
       },
-      "label": "Combo V1 from hand (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
@@ -454,7 +454,7 @@
         "player": "p1",
         "card": "p1#26"
       },
-      "label": "Combo V1 from hand (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
@@ -462,7 +462,7 @@
         "player": "p1",
         "card": "p1#43"
       },
-      "label": "Combo V1 from hand (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
@@ -470,7 +470,7 @@
         "player": "p1",
         "card": "p1#15"
       },
-      "label": "Combo V1 from hand (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
@@ -478,7 +478,7 @@
         "player": "p1",
         "card": "p1#35"
       },
-      "label": "Combo UNIQ from hand (+5000, cost 0)"
+      "label": "Combo UNIQ"
     },
     {
       "action": {
@@ -486,14 +486,14 @@
         "player": "p1",
         "card": "p1#38"
       },
-      "label": "Combo V1 from the Battle Area (+5000, cost 0)"
+      "label": "Combo V1"
     },
     {
       "action": {
         "type": "pass",
         "player": "p1"
       },
-      "label": "End Defense Step"
+      "label": "Pass"
     }
   ],
   "taps": {

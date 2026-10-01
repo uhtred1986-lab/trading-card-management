@@ -8,34 +8,47 @@ import assert from "node:assert/strict";
 import {
   CTX,
   DEFS,
-  apply,
-  arena,
-  assertConsistent,
+  IMPL,
+  actsG,
+  assertConsistentG,
   autoTriggerMatches,
-  cardNow,
-  comboCostOf,
+  cardNowG,
+  comboCostOfG,
   compileSkill,
   describeScript,
-  find,
-  forbids,
-  has,
-  labels,
-  legalActions,
+  findG,
+  forbidsG,
+  hasIn,
+  isTokenG,
+  koCardG,
+  labelsG,
+  leaderOf,
   matches,
-  move,
+  matchesG,
+  moveG,
   parseFilter,
   parseSkills,
-  play,
+  passCombosG,
+  playCostG,
+  playG,
+  powerIn,
   priceX,
-  playCost,
-  powerOf,
+  rulesGap,
+  sideG,
+  skillNegatedG,
   splitClauses,
-  zEnergyCostOf,
+  stagedG,
+  zEnergyCostOfG,
+  zoneOf,
 } from "./harness";
 import { validateProgram, type Op, type Script } from "../../src/lib/arena/vm/script";
 import { validateRule } from "../../src/lib/arena/lang/validate";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { PlayerId } from "./harness";
+import { isVmState, legacyState } from "../../src/lib/arena/engines";
+
+/** The probe sweep's `rule-processing` cause, for the cases here that lean on it. */
+const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: a Battle Card at 0 power or less stays in play (21-6) — `contract/probe-rules-parity.json`'s rule-processing cause";
 
 // ── the effect compiler ────────────────────────────────────────────────────
 
@@ -115,106 +128,108 @@ import type { PlayerId } from "./harness";
 
 // "When you play this card, draw 1 card" runs without asking anything.
 {
-  let s = arena({ hand: ["DRAWER"], energy: ["V1"] });
-  const c = find(s, "p1", "hand", "DRAWER");
-  const before = s.players.p1.hand.length;
-  s = play(s, { type: "play", player: "p1", card: c });
-  assert.equal(s.players.p1.hand.length, before - 1 + 1, "played one, drew one");
+  let s = stagedG({ hand: ["DRAWER"], energy: ["V1"] });
+  const c = findG(s, "p1", "hand", "DRAWER");
+  const before = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "play", player: "p1", card: c });
+  assert.equal(zoneOf(s, "p1", "hand").length, before - 1 + 1, "played one, drew one");
   assert.equal(s.prompt.kind, "main");
 }
 
 // "choose up to 1 of your opponent's Battle Cards and KO it" asks, then KOs.
 {
-  let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG"] });
-  const c = find(s, "p1", "hand", "KILLER");
-  const victim = find(s, "p2", "battle", "BIG");
-  s = play(s, { type: "play", player: "p1", card: c });
+  let s = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG"] });
+  const c = findG(s, "p1", "hand", "KILLER");
+  const victim = findG(s, "p2", "battle", "BIG");
+  s = playG(s, { type: "play", player: "p1", card: c });
   assert.equal(s.prompt.kind, "chooseCards", "two candidates, so the choice is put to the player");
   assert.equal((s.prompt as { player: PlayerId }).player, "p1");
   assert.equal((s.prompt as { choice: { min: number } }).choice.min, 0, "up to N allows none");
-  s = play(s, { type: "choose", player: "p1", cards: [victim] });
-  assert.ok(s.players.p2.drop.includes(victim), "5-12: the chosen card is KO'd");
+  s = playG(s, { type: "choose", player: "p1", cards: [victim] });
+  assert.ok(zoneOf(s, "p2", "drop").includes(victim), "5-12: the chosen card is KO'd");
   assert.equal(s.prompt.kind, "main");
-  assertConsistent(s);
+  assertConsistentG(s);
 
   // "Up to 1" with a single candidate is still a real decision — taking it or
   // not are different outcomes — so it is put to the player (5-2-4).
-  let single = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["BIG"] });
-  single = play(single, { type: "play", player: "p1", card: find(single, "p1", "hand", "KILLER") });
+  let single = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["BIG"] });
+  single = playG(single, { type: "play", player: "p1", card: findG(single, "p1", "hand", "KILLER") });
   assert.equal(single.prompt.kind, "chooseCards");
 
   // A choice with no "up to" and exactly one candidate is forced, so it is taken silently (5-2-5).
-  let t = arena({ hand: ["FORCEKILL"], energy: ["V1"], oppBattle: ["BIG"] });
-  const only = find(t, "p2", "battle", "BIG");
-  t = play(t, { type: "play", player: "p1", card: find(t, "p1", "hand", "FORCEKILL") });
+  let t = stagedG({ hand: ["FORCEKILL"], energy: ["V1"], oppBattle: ["BIG"] });
+  const only = findG(t, "p2", "battle", "BIG");
+  t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "FORCEKILL") });
   assert.equal(t.prompt.kind, "main", "a forced choice is not put to the player");
-  assert.ok(t.players.p2.drop.includes(only));
+  assert.ok(zoneOf(t, "p2", "drop").includes(only));
 
   // Choosing nothing is allowed and KOs nothing.
-  let u = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG"] });
-  u = play(u, { type: "play", player: "p1", card: find(u, "p1", "hand", "KILLER") }, { type: "choose", player: "p1", cards: [] });
-  assert.equal(u.players.p2.battle.length, 2);
+  let u = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG"] });
+  u = playG(u, { type: "play", player: "p1", card: findG(u, "p1", "hand", "KILLER") }, { type: "choose", player: "p1", cards: [] });
+  assert.equal(zoneOf(u, "p2", "battle").length, 2);
 }
 
 // [Barrier] (22-16) takes a card out of the opponent's choices.
 {
   DEFS.BARRIER = { ...DEFS.BIG, id: "BARRIER", name: "BARRIER", skill: "[Barrier]" };
-  let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["BIG"] });
-  const shielded = find(s, "p2", "battle", "BIG");
+  let s = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["BIG"] });
+  const shielded = findG(s, "p2", "battle", "BIG");
   s.cards[shielded].cardId = "BARRIER";
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "KILLER") });
   assert.equal(s.prompt.kind, "main", "no legal target, so nothing was asked");
-  assert.ok(s.players.p2.battle.includes(shielded), "22-16: not chosen by the opponent's skill");
+  assert.ok(zoneOf(s, "p2", "battle").includes(shielded), "22-16: not chosen by the opponent's skill");
 }
 
 // Tokens (19) are created with the stats the text spells out.
 {
-  let s = arena({ hand: ["SPAWN"], energy: ["V1"] });
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SPAWN") });
-  const tokens = s.players.p1.battle.filter((id) => s.cards[id].isToken);
+  let s = stagedG({ hand: ["SPAWN"], energy: ["V1"] });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SPAWN") });
+  const tokens = zoneOf(s, "p1", "battle").filter((id) => isTokenG(s, id));
   assert.equal(tokens.length, 2, "two tokens entered the Battle Area");
-  assert.equal(powerOf(CTX, s, tokens[0]), 10000);
-  assertConsistent(s);
+  assert.equal(powerIn(CTX, s, tokens[0]), 10000);
+  assertConsistentG(s);
   // 19-1-7: a token that would leave play is removed from the game instead.
   const t0 = tokens[0];
   s.cards[t0].mode = "rest";
-  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  s.effects.push({ id: 999, target: s.players.p2.leader, kind: "power", value: 20000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
-  s = play(s, { type: "attack", player: "p2", attacker: s.players.p2.leader, target: t0 }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
-  assert.ok(s.players.p1.removed.includes(t0), "19-1-7: removed, not dropped");
-  assertConsistent(s);
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s.effects.push({ id: 999, target: leaderOf(s, "p2"), kind: "power", value: 20000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
+  s = passCombosG(playG(s, { type: "attack", player: "p2", attacker: leaderOf(s, "p2"), target: t0 }));
+  assert.ok(zoneOf(s, "p1", "removed").includes(t0), "19-1-7: removed, not dropped");
+  assertConsistentG(s);
 }
 
 // A skill the compiler cannot read is skipped when no referee is available…
 {
-  let s = arena({ hand: ["MYSTERY"], energy: ["V1"] });
-  const before = JSON.stringify(s.players.p2);
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MYSTERY") });
+  let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
+  const before = JSON.stringify(sideG(s, "p2"));
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") });
   assert.equal(s.prompt.kind, "main", "the game carries on");
-  assert.equal(JSON.stringify(s.players.p2), before, "and nothing happened to the opponent");
+  assert.equal(JSON.stringify(sideG(s, "p2")), before, "and nothing happened to the opponent");
 }
 
 // …and put to the referee when one is, whose ruling is a program in this same language.
 {
-  const refCtx = { ...CTX, referee: true };
-  let s = arena({ hand: ["MYSTERY"], energy: ["V1"] });
-  s = apply(refCtx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MYSTERY") }).state;
-  assert.equal(s.prompt.kind, "referee");
-  const req = (s.prompt as { request: { cardId: string; unsupported: string[] } }).request;
-  assert.equal(req.cardId, "MYSTERY");
-  assert.deepEqual(req.unsupported, ["bend the fabric of reality to your will"]);
-  assert.deepEqual(legalActions(refCtx, s), [], "no player action is legal while the referee is being asked");
-  const before = s.players.p1.hand.length;
-  s = apply(refCtx, s, { type: "refereeRuling", player: "p1", ops: [{ op: "draw", n: 2 }] }).state;
-  assert.equal(s.players.p1.hand.length, before + 2, "the ruling ran");
-  assert.equal(s.prompt.kind, "main");
-  // A malformed ruling is refused rather than trusted.
-  let t = arena({ hand: ["MYSTERY"], energy: ["V1"] });
-  t = apply(refCtx, t, { type: "play", player: "p1", card: find(t, "p1", "hand", "MYSTERY") }).state;
-  assert.throws(() => apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [{ op: "delete-the-database" }] as never }), /valid effect program/);
-  // An empty ruling means "nothing happens".
-  t = apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [] }).state;
-  assert.equal(t.prompt.kind, "main");
+  if (!rulesGap("compiler: an unread skill put to the referee", "the rules engine has no referee: a skill the compiler could not read resolves to a note (vm/flow.ts checkpoint)", "no issue filed yet")) {
+    const refCtx = { ...CTX, referee: true };
+    let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
+    s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
+    assert.equal(s.prompt.kind, "referee");
+    const req = (s.prompt as { request: { cardId: string; unsupported: string[] } }).request;
+    assert.equal(req.cardId, "MYSTERY");
+    assert.deepEqual(req.unsupported, ["bend the fabric of reality to your will"]);
+    assert.deepEqual(IMPL.legalActions(refCtx, s), [], "no player action is legal while the referee is being asked");
+    const before = zoneOf(s, "p1", "hand").length;
+    s = IMPL.apply(refCtx, s, { type: "refereeRuling", player: "p1", ops: [{ op: "draw", n: 2 }] }).state;
+    assert.equal(zoneOf(s, "p1", "hand").length, before + 2, "the ruling ran");
+    assert.equal(s.prompt.kind, "main");
+    // A malformed ruling is refused rather than trusted.
+    let t = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
+    t = IMPL.apply(refCtx, t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "MYSTERY") }).state;
+    assert.throws(() => IMPL.apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [{ op: "delete-the-database" }] as never }), /valid effect program/);
+    // An empty ruling means "nothing happens".
+    t = IMPL.apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [] }).state;
+    assert.equal(t.prompt.kind, "main");
+  }
 }
 
 // ── costs the rules make optional or a matter of choice ────────────────────
@@ -223,110 +238,114 @@ import type { PlayerId } from "./harness";
 {
   // A combo cost has no colour (5-6-1-1), so with two colours in energy there
   // is a real choice.
-  let s = arena({ hand: ["BLOCKER"], energy: ["V1", "V-BLUE"], battle: ["V1"] });
-  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
-  const c = find(s, "p1", "hand", "BLOCKER");
-  s = play(s, { type: "combo", player: "p1", card: c });
+  let s = stagedG({ hand: ["BLOCKER"], energy: ["V1", "V-BLUE"], battle: ["V1"] });
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  const c = findG(s, "p1", "hand", "BLOCKER");
+  s = playG(s, { type: "combo", player: "p1", card: c });
   assert.equal(s.prompt.kind, "payCost", "two colours, one generic cost: the player picks");
   const options = (s.prompt as { options: { rest: string[] }[] }).options;
   assert.equal(options.length, 2);
-  assert.ok(labels(s).some((x) => x.startsWith("Rest 1 Red")));
-  assert.ok(labels(s).some((x) => x.startsWith("Rest 1 Blue")));
+  assert.ok(labelsG(s).some((x) => x.startsWith("Rest 1 Red")));
+  assert.ok(labelsG(s).some((x) => x.startsWith("Rest 1 Blue")));
   const blue = options.findIndex((o) => o.rest.some((id) => s.cards[id].cardId === "V-BLUE"));
-  s = play(s, { type: "payCost", player: "p1", option: blue });
-  assert.equal(s.cards[find(s, "p1", "energy", "V-BLUE")].mode, "rest", "the blue energy was rested");
-  assert.equal(s.cards[find(s, "p1", "energy", "V1")].mode, "active", "the red was kept");
-  assert.ok(s.players.p1.combo.includes(c), "and the combo went through");
-  assertConsistent(s);
+  s = playG(s, { type: "payCost", player: "p1", option: blue });
+  assert.equal(s.cards[findG(s, "p1", "energy", "V-BLUE")].mode, "rest", "the blue energy was rested");
+  assert.equal(s.cards[findG(s, "p1", "energy", "V1")].mode, "active", "the red was kept");
+  assert.ok(zoneOf(s, "p1", "combo").includes(c), "and the combo went through");
+  assertConsistentG(s);
 
   // One colour, so no question is asked.
-  let mono = arena({ hand: ["BLOCKER"], energy: ["V1", "V1"], battle: ["V1"] });
-  mono = play(mono, { type: "attack", player: "p1", attacker: mono.players.p1.leader, target: mono.players.p2.leader });
-  mono = play(mono, { type: "combo", player: "p1", card: find(mono, "p1", "hand", "BLOCKER") });
+  let mono = stagedG({ hand: ["BLOCKER"], energy: ["V1", "V1"], battle: ["V1"] });
+  mono = playG(mono, { type: "attack", player: "p1", attacker: leaderOf(mono, "p1"), target: leaderOf(mono, "p2") });
+  mono = playG(mono, { type: "combo", player: "p1", card: findG(mono, "p1", "hand", "BLOCKER") });
   assert.equal(mono.prompt.kind, "combo", "identical energy, so nothing to decide");
 }
 
 // 9-6-4: an [Auto] skill's cost may be declined, and then it does not resolve.
 {
-  let s = arena({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
-  const c = find(s, "p1", "hand", "AUTOCOST");
-  const before = s.players.p1.hand.length;
-  s = play(s, { type: "play", player: "p1", card: c });
-  assert.equal(s.prompt.kind, "optionalCost");
-  assert.equal((s.prompt as { describe: string }).describe, "1 Red energy");
-  s = play(s, { type: "optionalCost", player: "p1", pay: false });
-  assert.equal(s.players.p1.hand.length, before - 1, "declined, so no cards were drawn");
-  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest").length, 1, "only the play itself was paid for");
-  assert.equal(s.prompt.kind, "main");
+  if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
+    let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
+    const c = findG(s, "p1", "hand", "AUTOCOST");
+    const before = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: c });
+    assert.equal(s.prompt.kind, "optionalCost");
+    assert.equal((s.prompt as { describe: string }).describe, "1 Red energy");
+    s = playG(s, { type: "optionalCost", player: "p1", pay: false });
+    assert.equal(zoneOf(s, "p1", "hand").length, before - 1, "declined, so no cards were drawn");
+    assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play itself was paid for");
+    assert.equal(s.prompt.kind, "main");
 
-  // Paying resolves it.
-  let t = arena({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
-  const handBefore = t.players.p1.hand.length;
-  t = play(t, { type: "play", player: "p1", card: find(t, "p1", "hand", "AUTOCOST") }, { type: "optionalCost", player: "p1", pay: true });
-  assert.equal(t.players.p1.hand.length, handBefore - 1 + 2, "paid, so two cards were drawn");
-  assert.equal(t.players.p1.energy.filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
-  assertConsistent(t);
+    // Paying resolves it.
+    let t = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
+    const handBefore = zoneOf(t, "p1", "hand").length;
+    t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "AUTOCOST") }, { type: "optionalCost", player: "p1", pay: true });
+    assert.equal(zoneOf(t, "p1", "hand").length, handBefore - 1 + 2, "paid, so two cards were drawn");
+    assert.equal(zoneOf(t, "p1", "energy").filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
+    assertConsistentG(t);
+  }
 }
 
 // 13-4: a Unison marker skill costs markers, and only one may be used per card per turn.
 {
-  let s = arena({ hand: ["UNI2", "UNI2"], energy: ["V1", "V1", "V1"] });
-  const u = find(s, "p1", "hand", "UNI2");
-  s = play(s, { type: "playUnison", player: "p1", card: u, x: 3 });
+  let s = stagedG({ hand: ["UNI2", "UNI2"], energy: ["V1", "V1", "V1"] });
+  const u = findG(s, "p1", "hand", "UNI2");
+  s = playG(s, { type: "playUnison", player: "p1", card: u, x: 3 });
   assert.equal(s.cards[u].markers, 3);
   assert.ok(
-    labels(s).some((x) => x.startsWith("Activate UNI2")),
+    labelsG(s).some((x) => x.startsWith("Activate UNI2")),
     "the [-1] skill is offered",
   );
-  const handBefore = s.players.p1.hand.length;
-  s = play(s, { type: "activate", player: "p1", card: u, skill: 0 });
+  const handBefore = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "activate", player: "p1", card: u, skill: 0 });
   assert.equal(s.cards[u].markers, 2, "13-4-1-3: one marker was removed as the cost");
-  assert.equal(s.players.p1.hand.length, handBefore + 1, "and the effect ran");
-  assert.ok(!labels(s).some((x) => x.startsWith("Activate UNI2")), "13-4-2: no second marker skill on that card this turn");
-  assertConsistent(s);
+  assert.equal(zoneOf(s, "p1", "hand").length, handBefore + 1, "and the effect ran");
+  assert.ok(!labelsG(s).some((x) => x.startsWith("Activate UNI2")), "13-4-2: no second marker skill on that card this turn");
+  assertConsistentG(s);
 }
 
 // 1-2-2-2-1: with an X cost the player picks the value.
 {
-  let s = arena({ hand: ["XBAT"], energy: ["V1", "V1", "V1"] });
-  const x = find(s, "p1", "hand", "XBAT");
-  const offers = labels(s).filter((l) => l.startsWith("Play XBAT with X ="));
+  let s = stagedG({ hand: ["XBAT"], energy: ["V1", "V1", "V1"] });
+  const x = findG(s, "p1", "hand", "XBAT");
+  const offers = labelsG(s).filter((l) => l.startsWith("Play XBAT with X ="));
   assert.deepEqual(offers, ["Play XBAT with X = 0", "Play XBAT with X = 1", "Play XBAT with X = 2", "Play XBAT with X = 3"]);
-  s = play(s, { type: "play", player: "p1", card: x, x: 2 });
-  assert.ok(s.players.p1.battle.includes(x));
-  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "rest").length, 2, "two energy paid for X = 2");
+  s = playG(s, { type: "play", player: "p1", card: x, x: 2 });
+  assert.ok(zoneOf(s, "p1", "battle").includes(x));
+  assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 2, "two energy paid for X = 2");
 }
 
 // 8-1-7: if the attacker leaves the Battle Area, the battle ends with no damage.
 {
-  let s = arena({ battle: ["V1"], hand: ["E-NEGATE"] });
-  const attacker = s.players.p1.battle[0];
-  s = play(s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
+  // p2 holds a card it could combo with, so the battle waits on a combo
+  // prompt on both engines: the rules engine skips a combo step nobody can
+  // use (`vm/battle.ts`'s `comboWork`), and p1's hand has nothing to combo.
+  let s = stagedG({ battle: ["V1"], hand: ["E-NEGATE"], oppHand: ["BLOCKER"], oppEnergy: ["V-BLUE"] });
+  const attacker = zoneOf(s, "p1", "battle")[0];
+  s = playG(s, { type: "attack", player: "p1", attacker, target: leaderOf(s, "p2") });
   assert.equal(s.prompt.kind, "combo");
   // Something removes the attacker mid-battle.
-  const ctx = CTX;
-  move(ctx, s, [], attacker, "drop", "p1");
-  s = play(s, { type: "pass", player: "p1" });
-  assert.equal(s.players.p2.life.length, 8, "no damage was dealt");
+  moveG(s, attacker, "drop", "p1");
+  s = passCombosG(s);
+  assert.equal(zoneOf(s, "p2", "life").length, 8, "no damage was dealt");
   assert.equal(s.battle, null, "and the battle is over");
   assert.equal(s.prompt.kind, "main");
-  assertConsistent(s);
+  assertConsistentG(s);
 }
 
 // ── [Permanent] skills hold on their own (9-5) ─────────────────────────────
 
 {
   // A power buff applies to every matching card, and stops when the source leaves.
-  let s = arena({ hand: ["AURA"], energy: ["V1"], battle: ["V1"] });
-  const ally = s.players.p1.battle[0];
+  let s = stagedG({ hand: ["AURA"], energy: ["V1"], battle: ["V1"] });
+  const ally = zoneOf(s, "p1", "battle")[0];
   const ctx = CTX;
-  assert.equal(powerOf(ctx, s, ally), 10000, "no buff before it is played");
-  const aura = find(s, "p1", "hand", "AURA");
-  s = play(s, { type: "play", player: "p1", card: aura });
-  assert.equal(powerOf(ctx, s, ally), 15000, "the permanent skill holds while the card is in play");
-  assert.equal(powerOf(ctx, s, s.players.p2.battle[0] ?? s.players.p2.leader), 10000, "and not for the opponent");
-  move(ctx, s, [], aura, "drop", "p1");
-  assert.equal(powerOf(ctx, s, ally), 10000, "9-5-1: it stops when the source leaves play");
+  assert.equal(powerIn(ctx, s, ally), 10000, "no buff before it is played");
+  const aura = findG(s, "p1", "hand", "AURA");
+  s = playG(s, { type: "play", player: "p1", card: aura });
+  assert.equal(powerIn(ctx, s, ally), 15000, "the permanent skill holds while the card is in play");
+  assert.equal(powerIn(ctx, s, zoneOf(s, "p2", "battle")[0] ?? leaderOf(s, "p2")), 10000, "and not for the opponent");
+  moveG(s, aura, "drop", "p1");
+  assert.equal(powerIn(ctx, s, ally), 10000, "9-5-1: it stops when the source leaves play");
 }
 
 {
@@ -334,22 +353,23 @@ import type { PlayerId } from "./harness";
   // even while a [Permanent] has raised it (issue #238). Same scenario as the
   // power-buff test above: V1 prints 10000, AURA raises it to 15000 while in
   // play.
-  let s = arena({ hand: ["AURA"], energy: ["V1"], battle: ["V1"] });
-  const ally = s.players.p1.battle[0];
+  let s = stagedG({ hand: ["AURA"], energy: ["V1"], battle: ["V1"] });
+  const ally = zoneOf(s, "p1", "battle")[0];
   const ctx = CTX;
-  const aura = find(s, "p1", "hand", "AURA");
-  s = play(s, { type: "play", player: "p1", card: aura });
-  assert.equal(powerOf(ctx, s, ally), 15000, "current power is raised by the [Permanent]");
-  const now = cardNow(ctx, s, ally);
-  assert.ok(matches(now, parseFilter("card with an original power of 10000")), "original power still reads the printed 10000");
-  assert.ok(!matches(now, parseFilter("card with an original power of 15000")), "never the raised current power");
-  // The bare measure has the same architecture (`matches` is pure over
-  // `CardDef` and never sees a marker or a [Permanent]'s raise), so it reads
-  // printed power too — not because it means "original", but because a "live"
-  // power filter does not exist yet. Demonstrated, not asserted as intended
-  // behaviour: see the field's own comment in `text/filters.ts`.
-  assert.ok(matches(now, parseFilter("card with 10000 power")), "the bare measure reads the same printed value");
-  assert.ok(!matches(now, parseFilter("card with 15000 power")), "…and not the raised one either");
+  const aura = findG(s, "p1", "hand", "AURA");
+  s = playG(s, { type: "play", player: "p1", card: aura });
+  assert.equal(powerIn(ctx, s, ally), 15000, "current power is raised by the [Permanent]");
+  assert.ok(matchesG(s, ally, parseFilter("card with an original power of 10000")), "original power still reads the printed 10000");
+  assert.ok(!matchesG(s, ally, parseFilter("card with an original power of 15000")), "never the raised current power");
+  // The bare measure is where the two engines part. The legacy `matches` is
+  // pure over `CardDef` and never sees a marker or a [Permanent]'s raise, so
+  // it reads printed power too — not because it means "original", but because
+  // a "live" power filter does not exist there. The rules engine's predicate
+  // reads `attrsNow`, whose `power` carries every layer (9-9-1), so it reads
+  // the raised value — which is the distinction 20-3-1 draws.
+  const live = isVmState(s) ? 15000 : 10000;
+  assert.ok(matchesG(s, ally, parseFilter(`card with ${live} power`)), "the bare measure reads this engine's power");
+  assert.ok(!matchesG(s, ally, parseFilter(`card with ${25000 - live} power`)), "…and not the other one");
 }
 
 {
@@ -379,12 +399,11 @@ import type { PlayerId } from "./harness";
 
 {
   // 9-1-3-3: a cost reducer names the hand, so it applies there and nowhere else.
-  const s = arena({ hand: ["CHEAP"], energy: ["V1", "V1"] });
-  const cheap = find(s, "p1", "hand", "CHEAP");
-  const ctx = CTX;
-  assert.equal(playCost(ctx, s, cheap).total, 2, "printed 3, reduced by 1");
+  const s = stagedG({ hand: ["CHEAP"], energy: ["V1", "V1"] });
+  const cheap = findG(s, "p1", "hand", "CHEAP");
+  assert.equal(playCostG(s, cheap).total, 2, "printed 3, reduced by 1");
   assert.ok(
-    labels(s).some((x) => x.startsWith("Play CHEAP")),
+    labelsG(s).some((x) => x.startsWith("Play CHEAP")),
     "so it is playable with two energy",
   );
 }
@@ -392,9 +411,9 @@ import type { PlayerId } from "./harness";
 {
   // A [Permanent] the compiler cannot read simply does nothing — there is no
   // moment at which the referee could be asked about it.
-  const s = arena({ battle: ["ODDAURA", "V1"] });
+  const s = stagedG({ battle: ["ODDAURA", "V1"] });
   const ctx = CTX;
-  assert.equal(powerOf(ctx, s, find(s, "p1", "battle", "V1")), 10000);
+  assert.equal(powerIn(ctx, s, findG(s, "p1", "battle", "V1")), 10000);
 }
 
 // ── delayed effects (1-7-2-1-1) ────────────────────────────────────────────
@@ -431,51 +450,51 @@ import type { PlayerId } from "./harness";
 
 {
   // The KO happens at the end of the turn, not when the skill resolves.
-  let s = arena({ hand: ["DELAYKO"], energy: ["V1"], oppBattle: ["BIG"] });
-  const victim = find(s, "p2", "battle", "BIG");
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYKO") });
-  assert.ok(s.players.p2.battle.includes(victim), "still there while the turn runs");
+  let s = stagedG({ hand: ["DELAYKO"], energy: ["V1"], oppBattle: ["BIG"] });
+  const victim = findG(s, "p2", "battle", "BIG");
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DELAYKO") });
+  assert.ok(zoneOf(s, "p2", "battle").includes(victim), "still there while the turn runs");
   assert.equal(s.delayed.length, 1, "written down for later");
   assert.equal(s.delayed[0].at, "turnEnd");
-  s = play(s, { type: "endMain", player: "p1" });
-  assert.ok(s.players.p2.drop.includes(victim), "1-7-2-1-1: carried out at the end of the turn");
+  s = playG(s, { type: "endMain", player: "p1" });
+  assert.ok(zoneOf(s, "p2", "drop").includes(victim), "1-7-2-1-1: carried out at the end of the turn");
   assert.equal(s.delayed.length, 0, "and taken off the list");
-  assertConsistent(s);
+  assertConsistentG(s);
 }
 
 {
   // "At the start of your next turn" waits out the opponent's whole turn.
-  let s = arena({ hand: ["DELAYDRAW"], energy: ["V1"] });
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYDRAW") });
+  let s = stagedG({ hand: ["DELAYDRAW"], energy: ["V1"] });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DELAYDRAW") });
   assert.equal(s.delayed.length, 1);
-  s = play(s, { type: "endMain", player: "p1" });
+  s = playG(s, { type: "endMain", player: "p1" });
   assert.equal(s.delayed.length, 1, "the opponent's turn is not yours");
   assert.equal(s.turnPlayer, "p2");
-  const before = s.players.p1.hand.length;
-  s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+  const before = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
   assert.equal(s.turnPlayer, "p1");
-  assert.equal(s.players.p1.hand.length, before + 2 + 1, "two from the skill, one from the draw step");
+  assert.equal(zoneOf(s, "p1", "hand").length, before + 2 + 1, "two from the skill, one from the draw step");
   assert.equal(s.delayed.length, 0);
 }
 
 {
   // The other side of the same rule: the opponent's next turn, not yours.
-  let s = arena({ hand: ["DELAYOPP"], energy: ["V1"], oppHand: ["BIG", "BIG"] });
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYOPP") });
-  const before = s.players.p2.hand.length;
+  let s = stagedG({ hand: ["DELAYOPP"], energy: ["V1"], oppHand: ["BIG", "BIG"] });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DELAYOPP") });
+  const before = zoneOf(s, "p2", "hand").length;
   assert.equal(before, 2);
-  s = play(s, { type: "endMain", player: "p1" });
-  assert.equal(s.players.p2.hand.length, before - 1 + 1, "discarded one as their turn opened, then drew for the turn");
+  s = playG(s, { type: "endMain", player: "p1" });
+  assert.equal(zoneOf(s, "p2", "hand").length, before - 1 + 1, "discarded one as their turn opened, then drew for the turn");
   assert.equal(s.delayed.length, 0);
 }
 
 {
   // An effect waiting for "the end of the turn" that never got there is
   // dropped rather than firing a turn late.
-  let s = arena({ hand: ["DELAYKO"], energy: ["V1"], oppBattle: ["BIG"] });
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DELAYKO") });
+  let s = stagedG({ hand: ["DELAYKO"], energy: ["V1"], oppBattle: ["BIG"] });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DELAYKO") });
   s.delayed[0].at = "battleEnd"; // a timing this turn will never reach
-  s = play(s, { type: "endMain", player: "p1" });
+  s = playG(s, { type: "endMain", player: "p1" });
   assert.equal(s.delayed.length, 0, "its moment passed, so it is gone");
 }
 
@@ -506,54 +525,56 @@ import type { PlayerId } from "./harness";
 
 {
   // The move is not offered, and 0-2-5 means it is refused if sent anyway.
-  let s = arena({ hand: ["LOCKDOWN"], energy: ["V1"], oppBattle: ["BIG"] });
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "LOCKDOWN") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  const attacker = find(s, "p2", "battle", "BIG");
-  assert.ok(!labels(s).some((x) => x.includes("Attack") && x.includes("BIG")), "20-14: their Battle Card is not offered an attack");
+  let s = stagedG({ hand: ["LOCKDOWN"], energy: ["V1"], oppBattle: ["BIG"] });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "LOCKDOWN") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const attacker = findG(s, "p2", "battle", "BIG");
+  assert.ok(!labelsG(s).some((x) => x.includes("Attack") && x.includes("BIG")), "20-14: their Battle Card is not offered an attack");
   assert.ok(
-    labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
+    labelsG(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
     "but their Leader still can — the rule named Battle Cards",
   );
-  assert.throws(() => apply(CTX, s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader }), /illegal attack/);
+  assert.throws(() => IMPL.apply(CTX, s, { type: "attack", player: "p2", attacker, target: leaderOf(s, "p1") }), /illegal attack|that attack is not offered/);
 }
 
 {
   // "It can't switch to Active Mode": the Charge Phase leaves it resting.
-  let s = arena({ hand: ["RESTLOCK"], energy: ["V1"], oppBattle: ["BIG"] });
-  const locked = find(s, "p2", "battle", "BIG");
+  let s = stagedG({ hand: ["RESTLOCK"], energy: ["V1"], oppBattle: ["BIG"] });
+  const locked = findG(s, "p2", "battle", "BIG");
   s.cards[locked].mode = "rest";
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "RESTLOCK") });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "RESTLOCK") });
   assert.equal(s.cards[locked].mode, "rest");
-  s = play(s, { type: "endMain", player: "p1" });
+  s = playG(s, { type: "endMain", player: "p1" });
   assert.equal(s.cards[locked].mode, "rest", "7-2-7 did not stand it up");
   // It ends as the turn comes back round to the player who created it.
-  s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+  s = playG(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
   assert.equal(s.turnPlayer, "p1");
   assert.equal(s.effects.filter((e) => e.kind === "forbid").length, 0, "the rule has expired");
 }
 
 {
   // "You can't play copies of this card" is about the name, not the card.
-  let s = arena({ hand: ["NOCOPIES", "NOCOPIES"], energy: ["V1", "V1"] });
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") });
-  assert.ok(!labels(s).some((x) => x.startsWith("Play NOCOPIES")), "the second copy is not offered");
-  assert.throws(() => apply(CTX, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "NOCOPIES") }), /can't be played/);
+  let s = stagedG({ hand: ["NOCOPIES", "NOCOPIES"], energy: ["V1", "V1"] });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "NOCOPIES") });
+  assert.ok(!labelsG(s).some((x) => x.startsWith("Play NOCOPIES")), "the second copy is not offered");
+  assert.throws(() => IMPL.apply(CTX, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "NOCOPIES") }), /can't be played|Play is refused: forbidden/);
 }
 
 {
   // "Can't be KO'd by your opponent's skills" stops their skill, not the battle.
-  let s = arena({ hand: ["TOUGH"], energy: ["V1", "V1"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "TOUGH") });
-  const tough = find(s, "p1", "battle", "TOUGH");
-  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") });
+  let s = stagedG({ hand: ["TOUGH"], energy: ["V1", "V1"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "TOUGH") });
+  const tough = findG(s, "p1", "battle", "TOUGH");
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = playG(s, { type: "play", player: "p2", card: findG(s, "p2", "hand", "KILLER") });
   assert.equal(s.prompt.kind, "chooseCards", "it is still a legal choice — the KO simply does not happen");
-  s = play(s, { type: "choose", player: "p2", cards: [tough] });
-  assert.ok(s.players.p1.battle.includes(tough), "22-12-like: their skill cannot KO it");
+  s = playG(s, { type: "choose", player: "p2", cards: [tough] });
+  assert.ok(zoneOf(s, "p1", "battle").includes(tough), "22-12-like: their skill cannot KO it");
   // 21-6 still applies: a rule, not a skill, and it ignores even [Indestructible].
-  s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
-  s = play(s, { type: "endMain", player: "p2" });
-  assert.ok(s.players.p1.drop.includes(tough), "21-6: 0 power is a rule, and rules are not skills");
+  if (!rulesGap("compiler: TOUGH at 0 power (21-6)", RULE_PROCESSING, "no issue filed yet")) {
+    s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
+    s = playG(s, { type: "endMain", player: "p2" });
+    assert.ok(zoneOf(s, "p1", "drop").includes(tough), "21-6: 0 power is a rule, and rules are not skills");
+  }
 }
 
 // ── cards under cards (23-2) and modal choice (20-2) ───────────────────────
@@ -561,22 +582,24 @@ import type { PlayerId } from "./harness";
 {
   // "Place it under this card" used to compile to a move to the Drop, which is
   // a different game entirely.
-  let s = arena({ hand: ["STACKER"], energy: ["V1"], battle: ["V1"] });
-  const under = find(s, "p1", "battle", "V1");
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "STACKER") });
+  let s = stagedG({ hand: ["STACKER"], energy: ["V1"], battle: ["V1"] });
+  const under = findG(s, "p1", "battle", "V1");
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "STACKER") });
   assert.equal(s.prompt.kind, "chooseCards", "both Battle Cards are candidates, so it asks");
-  s = play(s, { type: "choose", player: "p1", cards: [under] });
-  const host = find(s, "p1", "battle", "STACKER");
-  assert.ok(!s.players.p1.battle.includes(under), "it is no longer a Battle Card of its own");
-  assert.ok(!s.players.p1.drop.includes(under), "and it did not go to the Drop");
+  s = playG(s, { type: "choose", player: "p1", cards: [under] });
+  const host = findG(s, "p1", "battle", "STACKER");
+  assert.ok(!zoneOf(s, "p1", "battle").includes(under), "it is no longer a Battle Card of its own");
+  assert.ok(!zoneOf(s, "p1", "drop").includes(under), "and it did not go to the Drop");
   assert.deepEqual(s.cards[host].under, [under]);
-  assertConsistent(s);
+  assertConsistentG(s);
 
-  // 23-2-5: when the card on top leaves play, the stack goes with it.
-  s.effects.push({ id: 997, target: host, kind: "power", value: -99000, until: "turn", ownerTurn: "p1", master: "p1", createdTurn: s.turn });
-  s = play(s, { type: "endMain", player: "p1" });
-  assert.ok(s.players.p1.drop.includes(under), "the card underneath followed it to the Drop");
-  assertConsistent(s);
+  // 23-2-5: when the card on top leaves play, the stack goes with it. It
+  // leaves by a KO — the legacy fixture dropped it to 0 power and let 21-6
+  // take it, which the rules engine does not run yet (`RULE_PROCESSING`), and
+  // how it leaves is not what this case is about.
+  koCardG(s, host);
+  assert.ok(zoneOf(s, "p1", "drop").includes(under), "the card underneath followed it to the Drop");
+  assertConsistentG(s);
 }
 
 {
@@ -598,15 +621,15 @@ import type { PlayerId } from "./harness";
 
 {
   // Exactly one option happens, and the player says which.
-  let s = arena({ hand: ["MODAL"], energy: ["V1"], oppHand: ["BIG"] });
-  const myHand = s.players.p1.hand.length;
-  const theirHand = s.players.p2.hand.length;
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "MODAL") });
+  let s = stagedG({ hand: ["MODAL"], energy: ["V1"], oppHand: ["BIG"] });
+  const myHand = zoneOf(s, "p1", "hand").length;
+  const theirHand = zoneOf(s, "p2", "hand").length;
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MODAL") });
   assert.equal(s.prompt.kind, "chooseMode");
-  assert.deepEqual(labels(s), ["Draw 1 card.", "Your opponent discards 1 card."]);
-  s = play(s, { type: "chooseMode", player: "p1", index: 1 });
-  assert.equal(s.players.p2.hand.length, theirHand - 1, "the option taken happened");
-  assert.equal(s.players.p1.hand.length, myHand - 1, "and the one not taken did not");
+  assert.deepEqual(labelsG(s), ["Draw 1 card.", "Your opponent discards 1 card."]);
+  s = playG(s, { type: "chooseMode", player: "p1", index: 1 });
+  assert.equal(zoneOf(s, "p2", "hand").length, theirHand - 1, "the option taken happened");
+  assert.equal(zoneOf(s, "p1", "hand").length, myHand - 1, "and the one not taken did not");
   assert.equal(s.prompt.kind, "main");
 }
 
@@ -806,35 +829,35 @@ import type { PlayerId } from "./harness";
   // The board asks by tapping a card, so a "choose 2" is two questions. It
   // used to be offered as two separate one-card answers to a prompt that
   // demanded both at once, which the engine then refused as illegal.
-  let s = arena({ hand: ["TWOKILL"], energy: ["V1"], oppBattle: ["BIG", "V-BLUE", "BLOCKER"] });
-  const first = find(s, "p2", "battle", "BIG");
-  const second = find(s, "p2", "battle", "BLOCKER");
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "TWOKILL") });
+  let s = stagedG({ hand: ["TWOKILL"], energy: ["V1"], oppBattle: ["BIG", "V-BLUE", "BLOCKER"] });
+  const first = findG(s, "p2", "battle", "BIG");
+  const second = findG(s, "p2", "battle", "BLOCKER");
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "TWOKILL") });
   assert.equal(s.prompt.kind, "chooseCards");
   assert.equal((s.prompt as { choice: { max: number } }).choice.max, 1, "one card per answer");
   // Every candidate is offered, and taking one is legal.
-  assert.equal(labels(s).length, 3);
-  s = play(s, { type: "choose", player: "p1", cards: [first] });
+  assert.equal(labelsG(s).length, 3);
+  s = playG(s, { type: "choose", player: "p1", cards: [first] });
   assert.equal(s.prompt.kind, "chooseCards", "it asks again for the second");
   assert.ok(!(s.prompt as { choice: { candidates: string[] } }).choice.candidates.includes(first), "and not for the same card twice");
-  s = play(s, { type: "choose", player: "p1", cards: [second] });
-  assert.ok(s.players.p2.drop.includes(first) && s.players.p2.drop.includes(second), "both chosen cards were KO'd");
+  s = playG(s, { type: "choose", player: "p1", cards: [second] });
+  assert.ok(zoneOf(s, "p2", "drop").includes(first) && zoneOf(s, "p2", "drop").includes(second), "both chosen cards were KO'd");
   assert.equal(s.prompt.kind, "main");
-  assertConsistent(s);
+  assertConsistentG(s);
 }
 
 {
   // 3-1-2: "your opponent's cards" includes their Leader (20-1-6), but a
   // Leader does not leave the Leader Area — and an empty Leader Area is a
   // state the rest of the engine cannot read.
-  let s = arena({ hand: ["GRABBER"], energy: ["V1"] });
-  const leader = s.players.p2.leader;
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "GRABBER") });
-  assert.equal(s.players.p2.leader, leader, "their Leader is still there");
-  assert.ok(!s.players.p2.drop.includes(leader));
+  let s = stagedG({ hand: ["GRABBER"], energy: ["V1"] });
+  const leader = leaderOf(s, "p2");
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "GRABBER") });
+  assert.equal(leaderOf(s, "p2"), leader, "their Leader is still there");
+  assert.ok(!zoneOf(s, "p2", "drop").includes(leader));
   assert.equal(s.prompt.kind, "main");
-  assert.ok(labels(s).length > 0, "and the game can still be played");
-  assertConsistent(s);
+  assert.ok(labelsG(s).length > 0, "and the game can still be played");
+  assertConsistentG(s);
 }
 
 // ── wordings the compiler learned in the second pattern pass ───────────────
@@ -878,34 +901,32 @@ import type { PlayerId } from "./harness";
   // A [Permanent] holds for as long as the card is where the skill is valid,
   // with no duration to expire — so unlike the same sentence on an [Auto], it
   // is still true next turn, and it stops the moment the card leaves play.
-  const ctx = CTX;
-  let s = arena({ battle: ["PERMTOUGH"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
-  const tough = find(s, "p1", "battle", "PERMTOUGH");
-  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") });
+  let s = stagedG({ battle: ["PERMTOUGH"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const tough = findG(s, "p1", "battle", "PERMTOUGH");
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = playG(s, { type: "play", player: "p2", card: findG(s, "p2", "hand", "KILLER") });
   assert.equal(s.prompt.kind, "chooseCards", "it is still a legal choice; the KO just does not happen");
-  s = play(s, { type: "choose", player: "p2", cards: [tough] });
-  assert.ok(s.players.p1.battle.includes(tough), "9-5-1: the permanent skill holds without being activated");
+  s = playG(s, { type: "choose", player: "p2", cards: [tough] });
+  assert.ok(zoneOf(s, "p1", "battle").includes(tough), "9-5-1: the permanent skill holds without being activated");
   // Take the card off the table and the rule goes with it.
-  move(ctx, s, [], tough, "drop", "p1");
-  assert.ok(!forbids(ctx, s, "beKOdBySkill", { player: "p2", card: tough }), "and stops when the source leaves play");
+  moveG(s, tough, "drop", "p1");
+  assert.ok(!forbidsG(s, "beKOdBySkill", { player: "p2", card: tough }), "and stops when the source leaves play");
 }
 
 {
   // The same thing about a player rather than a card.
-  const ctx = CTX;
-  let s = arena({ battle: ["PERMLOCK"], oppBattle: ["BIG"] });
-  const lock = find(s, "p1", "battle", "PERMLOCK");
-  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  assert.ok(!labels(s).some((x) => x.includes("Attack") && x.includes("BIG")), "their Battle Card cannot attack while the permanent skill is in play");
+  let s = stagedG({ battle: ["PERMLOCK"], oppBattle: ["BIG"] });
+  const lock = findG(s, "p1", "battle", "PERMLOCK");
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  assert.ok(!labelsG(s).some((x) => x.includes("Attack") && x.includes("BIG")), "their Battle Card cannot attack while the permanent skill is in play");
   assert.ok(
-    labels(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
+    labelsG(s).some((x) => x.includes("Attack") && x.includes("L-BLUE")),
     "their Leader still can — the rule named Battle Cards",
   );
   // 9-5-1 again: no duration to end, so removing the card is what ends it.
-  move(ctx, s, [], lock, "drop", "p1");
+  moveG(s, lock, "drop", "p1");
   assert.ok(
-    labels(s).some((x) => x.includes("Attack") && x.includes("BIG")),
+    labelsG(s).some((x) => x.includes("Attack") && x.includes("BIG")),
     "with the source gone, the attack is offered again",
   );
 }
@@ -915,38 +936,47 @@ import type { PlayerId } from "./harness";
 {
   // The card costs 3 and the defender has no energy at all, so the only way
   // it can be played is the one the card itself prints.
-  let s = arena({ oppHand: ["E-LIFE"] });
-  const counter = find(s, "p2", "hand", "E-LIFE");
-  const lifeBefore = s.players.p2.life.length;
-  const handBefore = s.players.p2.hand.length;
-  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  let s = stagedG({ oppHand: ["E-LIFE"] });
+  const counter = findG(s, "p2", "hand", "E-LIFE");
+  const lifeBefore = zoneOf(s, "p2", "life").length;
+  const handBefore = zoneOf(s, "p2", "hand").length;
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
   assert.equal(s.prompt.kind, "counter");
   assert.deepEqual((s.prompt as { candidates: string[] }).candidates, [counter], "offered although the energy is not there");
-  const offers = labels(s).filter((x) => x.startsWith("Counter with"));
+  const offers = labelsG(s).filter((x) => x.startsWith("Counter with"));
   assert.deepEqual(offers, ["Counter with E-LIFE (by adding 1 from your life to your hand)"], "only the cost it can actually pay");
 
-  s = play(s, { type: "counter", player: "p2", card: counter, alt: true });
+  s = playG(s, { type: "counter", player: "p2", card: counter, alt: true });
   assert.equal(s.battle, null, "the counter resolved: the attack was negated");
-  assert.equal(s.players.p2.life.length, lifeBefore - 1, "one life card paid the cost");
+  assert.equal(zoneOf(s, "p2", "life").length, lifeBefore - 1, "one life card paid the cost");
   // The card left the hand for the Drop and one life card came in, so the hand
   // is the size it was. Losing life this way is a cost, not damage (1-13-2).
-  assert.equal(s.players.p2.hand.length, handBefore, "the life card went to the hand");
-  assert.ok(s.players.p2.drop.includes(counter));
-  assert.equal(s.players.p2.damageTaken, 0, "paying a cost is not taking damage");
-  assertConsistent(s);
+  assert.equal(zoneOf(s, "p2", "hand").length, handBefore, "the life card went to the hand");
+  assert.ok(zoneOf(s, "p2", "drop").includes(counter));
+  if (!rulesGap("compiler: E-LIFE's life cost", "the rules engine keeps no damage count (`engines.ts`'s `damageTaken` reads 0), so 'paying a cost is not taking damage' has nothing to read", "no issue filed yet"))
+    assert.equal(legacyState(s).players.p2.damageTaken, 0, "paying a cost is not taking damage");
+  assertConsistentG(s);
 }
 
 {
   // With the energy there, both costs are offered and they are different
   // decisions — 0-2-5 does not choose for the player.
-  let s = arena({ oppHand: ["E-LIFE"], oppEnergy: ["V1", "V1", "V1"] });
-  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
-  const offers = labels(s).filter((x) => x.startsWith("Counter with"));
+  let s = stagedG({ oppHand: ["E-LIFE"], oppEnergy: ["V1", "V1", "V1"] });
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  const offers = labelsG(s).filter((x) => x.startsWith("Counter with"));
   assert.equal(offers.length, 2, "the printed cost and the alternative, both on the menu");
-  const before = s.players.p2.life.length;
-  s = play(s, { type: "counter", player: "p2", card: find(s, "p2", "hand", "E-LIFE") });
-  assert.equal(s.players.p2.life.length, before, "paying with energy leaves the life alone");
-  assert.equal(s.players.p2.energy.filter((id) => s.cards[id].mode === "rest").length, 3, "it was paid with energy instead");
+  const before = zoneOf(s, "p2", "life").length;
+  s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "E-LIFE") });
+  // p2 holds the second player's energy marker (6-2-1-11). The rules engine
+  // offers it as a payer and so asks which to use; the legacy one rests the
+  // three energy without asking. Either way, three energy is a way to pay.
+  if (s.prompt.kind === "payCost") {
+    const option = (s.prompt as { options: { rest: string[] }[] }).options.findIndex((o) => o.rest.length === 3);
+    assert.ok(option >= 0, "resting the three energy is one of the ways to pay");
+    s = playG(s, { type: "payCost", player: "p2", option });
+  }
+  assert.equal(zoneOf(s, "p2", "life").length, before, "paying with energy leaves the life alone");
+  assert.equal(zoneOf(s, "p2", "energy").filter((id) => s.cards[id].mode === "rest").length, 3, "it was paid with energy instead");
 }
 
 // ── what a [Permanent] can say about the card itself (9-1-5, 20-1, 20-21) ──
@@ -954,29 +984,30 @@ import type { PlayerId } from "./harness";
 {
   const ctx = CTX;
   // 9-1-5: one named keyword goes, the card keeps the rest of itself.
-  const s = arena({ battle: ["SELFMUTE"] });
-  const mute = find(s, "p1", "battle", "SELFMUTE");
-  assert.ok(!has(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
+  const s = stagedG({ battle: ["SELFMUTE"] });
+  const mute = findG(s, "p1", "battle", "SELFMUTE");
+  if (!rulesGap("compiler: SELFMUTE negates its own [Blocker] (9-1-5)", "a [Permanent] `negateKeyword` is not read by the rules engine's static layer (`DEFERRED_STATICS.negateKeyword`)", "#153"))
+    assert.ok(!hasIn(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
 }
 
 {
-  const ctx = CTX;
-  // 20-1: a card that gains a trait is that trait to every skill that names
-  // one — this is about what the card *is*, not what it does.
-  let s = arena({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
-  const becomes = find(s, "p2", "battle", "BECOMES");
-  assert.ok(
-    cardNow(ctx, s, becomes).traits.some((t) => t.toLowerCase() === "saiyan"),
-    "it counts as a ≪Saiyan≫",
-  );
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SAIYANKILL") });
-  // Only one card on their side is a Saiyan, so the choice is forced and taken.
-  assert.ok(s.players.p2.drop.includes(becomes), "the ≪Saiyan≫ skill found it");
-  assert.ok(s.players.p2.battle.includes(find(s, "p2", "battle", "BIG")), "and left the card that is not one");
+  if (!rulesGap("compiler: BECOMES gains ≪Saiyan≫ in all areas (20-1)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153")) {
+    // 20-1: a card that gains a trait is that trait to every skill that names
+    // one — this is about what the card *is*, not what it does.
+    let s = stagedG({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
+    const becomes = findG(s, "p2", "battle", "BECOMES");
+    assert.ok(
+      cardNowG(s, becomes).traits.some((t) => t.toLowerCase() === "saiyan"),
+      "it counts as a ≪Saiyan≫",
+    );
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SAIYANKILL") });
+    // Only one card on their side is a Saiyan, so the choice is forced and taken.
+    assert.ok(zoneOf(s, "p2", "drop").includes(becomes), "the ≪Saiyan≫ skill found it");
+    assert.ok(zoneOf(s, "p2", "battle").includes(findG(s, "p2", "battle", "BIG")), "and left the card that is not one");
+  }
 }
 
 {
-  const ctx = CTX;
   // 20-1: the fourth thing a card can be "also treated as" — a whole card
   // name. Eight cards print it ("this card is also treated as {Planet M-2} in
   // all areas") and the compiler read none of them until 9 Sep 2026, so every
@@ -987,17 +1018,18 @@ import type { PlayerId } from "./harness";
 
   // …and the card answers to both names, in any area, to anything that asks
   // what a card *is*.
-  const s = arena({ battle: ["RENAMED"], hand: ["RENAMED"] });
+  const s = stagedG({ battle: ["RENAMED"], hand: ["RENAMED"] });
   const asked = parseFilter("{Planet M-2}");
+  const gained = !rulesGap("compiler: RENAMED also treated as {Planet M-2} (20-1)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153");
   for (const area of ["battle", "hand"] as const) {
-    const id = find(s, "p1", area, "RENAMED");
-    assert.ok(matches(cardNow(ctx, s, id), asked), `the copy in your ${area} is found by its gained name`);
-    assert.ok(matches(cardNow(ctx, s, id), parseFilter("{RENAMED}")), "…and still by its own");
+    const id = findG(s, "p1", area, "RENAMED");
+    if (gained) assert.ok(matchesG(s, id, asked), `the copy in your ${area} is found by its gained name`);
+    assert.ok(matchesG(s, id, parseFilter("{RENAMED}")), "…and still by its own");
   }
   // A card without the skill is not: the gain is this card's, not the name's.
-  assert.ok(!matches(cardNow(ctx, s, s.players.p1.leader), asked));
+  assert.ok(!matchesG(s, leaderOf(s, "p1"), asked));
   // "Other than {Planet M-2}" reads the same list, so the exclusion catches it too.
-  assert.ok(!matches(cardNow(ctx, s, find(s, "p1", "battle", "RENAMED")), parseFilter("card other than {Planet M-2}")));
+  if (gained) assert.ok(!matchesG(s, findG(s, "p1", "battle", "RENAMED"), parseFilter("card other than {Planet M-2}")));
 }
 
 {
@@ -1022,43 +1054,41 @@ import type { PlayerId } from "./harness";
 }
 
 {
-  const ctx = CTX;
   // BT2-001 Vegito, "each <Son Goku> and <Vegeta> in all of your areas gain
   // red, blue, and green colors": what a card counts as does not depend on
   // where it is (20-1), and here the areas that matter are the ones off the
   // table — the colour of a card in your energy is what pays for costs.
-  const s = arena({ battle: ["RECOLOR"], hand: ["RECOLORED"], energy: ["RECOLORED"], oppHand: ["RECOLORED"] });
-  for (const area of ["hand", "energy"] as const) {
-    const id = find(s, "p1", area, "RECOLORED");
-    assert.deepEqual(cardNow(ctx, s, id).colors, ["Yellow", "Red", "Blue", "Green"], `the copy in your ${area} gained the three colours`);
-  }
+  const s = stagedG({ battle: ["RECOLOR"], hand: ["RECOLORED"], energy: ["RECOLORED"], oppHand: ["RECOLORED"] });
+  if (!rulesGap("compiler: RECOLOR's colours in all of your areas (BT2-001)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153"))
+    for (const area of ["hand", "energy"] as const) {
+      const id = findG(s, "p1", area, "RECOLORED");
+      assert.deepEqual(cardNowG(s, id).colors, ["Yellow", "Red", "Blue", "Green"], `the copy in your ${area} gained the three colours`);
+    }
   // "Your" areas, so their copy of the same card is untouched.
-  assert.deepEqual(cardNow(ctx, s, find(s, "p2", "hand", "RECOLORED")).colors, ["Yellow"]);
+  assert.deepEqual(cardNowG(s, findG(s, "p2", "hand", "RECOLORED")).colors, ["Yellow"]);
   // The card printing the skill is not itself a <RECOLORED>.
-  assert.deepEqual(cardNow(ctx, s, find(s, "p1", "battle", "RECOLOR")).colors, ["Red"]);
+  assert.deepEqual(cardNowG(s, findG(s, "p1", "battle", "RECOLOR")).colors, ["Red"]);
 }
 
 {
-  const ctx = CTX;
   // 20-21: a reducer that names the combo cost reduces the combo cost.
-  const s = arena({ hand: ["CHEAPCOMBO"] });
-  const cheap = find(s, "p1", "hand", "CHEAPCOMBO");
+  const s = stagedG({ hand: ["CHEAPCOMBO"] });
+  const cheap = findG(s, "p1", "hand", "CHEAPCOMBO");
   assert.equal(DEFS.CHEAPCOMBO.comboCost, 2, "printed");
-  assert.equal(comboCostOf(ctx, s, cheap), 0, "and free after its own [Permanent]");
+  assert.equal(comboCostOfG(s, cheap), 0, "and free after its own [Permanent]");
 }
 
 {
-  const ctx = CTX;
   // 20-21 with a duration on it. `collectStatics` only ever runs over a
   // [Permanent] (9-5-1), so the same sentence on an [Auto] used to compile to
   // a `costReduction` the interpreter walked straight past — the skill read
   // perfectly and did nothing, which no compile figure can show. Five cards in
   // the catalog print it, XD1-05 among them.
-  let s = arena({ hand: ["CHEAPENER", "BLUECOMBO"], energy: ["V1"] });
-  const blue = find(s, "p1", "hand", "BLUECOMBO");
-  assert.equal(comboCostOf(ctx, s, blue), 2, "printed");
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "CHEAPENER") });
-  assert.equal(comboCostOf(ctx, s, blue), 1, "and 1 less while the skill is in force");
+  let s = stagedG({ hand: ["CHEAPENER", "BLUECOMBO"], energy: ["V1"] });
+  const blue = findG(s, "p1", "hand", "BLUECOMBO");
+  assert.equal(comboCostOfG(s, blue), 2, "printed");
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "CHEAPENER") });
+  assert.equal(comboCostOfG(s, blue), 1, "and 1 less while the skill is in force");
   assert.ok(
     s.effects.some((e) => e.kind === "comboCost" && e.target === blue && e.until === "turn"),
     "as an effect that ends with the turn, not a standing one",
@@ -1066,32 +1096,33 @@ import type { PlayerId } from "./harness";
 }
 
 {
-  const ctx = CTX;
   // 5-4, 20-21: a reducer that names the Z-Energy cost has to lower what
   // `payZEnergy` actually asks for at the board, not just what `zEnergyCostOf`
   // answers in isolation — the failure `state.ts:653` warns about is a rule
   // that compiles, reads correctly, and changes nothing on the board because
   // the five call sites around `payZEnergy` in `engine.ts` still read
   // `d.zEnergyCost` raw.
-  let s = arena({ hand: ["V1"], energy: ["V1", "V1"], z: ["ZCHEAP", "V1"] });
-  const zc = find(s, "p1", "zDeck", "ZCHEAP");
+  let s = stagedG({ hand: ["V1"], energy: ["V1", "V1"], z: ["ZCHEAP", "V1"] });
+  const zc = findG(s, "p1", "zDeck", "ZCHEAP");
   assert.equal(DEFS.ZCHEAP.zEnergyCost, 2, "printed");
-  assert.equal(zEnergyCostOf(ctx, s, zc), 1, "1 less while its own [Permanent] is in force");
-  // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
-  // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
-  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
-  const c = find(s, "p1", "hand", "V1");
-  s = play(s, { type: "combo", player: "p1", card: c }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
-  assert.equal(s.prompt.kind, "zEnergyFromCombo");
-  s = play(s, { type: "zEnergyFromCombo", player: "p1", card: c });
-  assert.deepEqual(s.players.p1.zEnergy, [c]);
-  assert.ok(
-    labels(s).some((x) => x.startsWith("Play Z-Battle ZCHEAP")),
-    "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
-  );
-  s = play(s, { type: "playZ", player: "p1", card: zc });
-  assert.equal(s.players.p1.zEnergy.length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
-  assert.ok(s.players.p1.battle.includes(zc), "and the card actually entered play");
+  assert.equal(zEnergyCostOfG(s, zc), 1, "1 less while its own [Permanent] is in force");
+  if (!rulesGap("compiler: ZCHEAP paid with one Z-Energy made from a combo (5-4, 8-5-2)", "the rules engine does not offer a spent combo card as Z-Energy at the end of a battle — `zEnergyFromCombo` is still listed as not built in vm/index.ts", "#151")) {
+    // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
+    // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
+    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+    const c = findG(s, "p1", "hand", "V1");
+    s = passCombosG(playG(s, { type: "combo", player: "p1", card: c }));
+    assert.equal(s.prompt.kind, "zEnergyFromCombo");
+    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
+    assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
+    assert.ok(
+      labelsG(s).some((x) => x.startsWith("Play Z-Battle ZCHEAP")),
+      "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
+    );
+    s = playG(s, { type: "playZ", player: "p1", card: zc });
+    assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
+    assert.ok(zoneOf(s, "p1", "battle").includes(zc), "and the card actually entered play");
+  }
 }
 
 {
@@ -1113,24 +1144,24 @@ import type { PlayerId } from "./harness";
   // "Only 1 {ONLYONE} can be played in your Battle Area" — the rule switches
   // itself on once one is there, which a [Permanent] can say because the
   // static layer asks again every time.
-  let s = arena({ hand: ["ONLYONE", "ONLYONE"], energy: ["V1", "V1"] });
+  let s = stagedG({ hand: ["ONLYONE", "ONLYONE"], energy: ["V1", "V1"] });
   assert.ok(
-    labels(s).some((x) => x.startsWith("Play ONLYONE")),
+    labelsG(s).some((x) => x.startsWith("Play ONLYONE")),
     "the first is playable",
   );
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONLYONE") });
-  assert.ok(!labels(s).some((x) => x.startsWith("Play ONLYONE")), "the second is not, while the first is in play");
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "ONLYONE") });
+  assert.ok(!labelsG(s).some((x) => x.startsWith("Play ONLYONE")), "the second is not, while the first is in play");
 }
 
 {
   const ctx = CTX;
   // A card's own mode as a condition, re-read every time it is asked.
-  const s = arena({ battle: ["RESTCOND", "V1"] });
-  const cond = find(s, "p1", "battle", "RESTCOND");
-  const ally = find(s, "p1", "battle", "V1");
-  assert.equal(powerOf(ctx, s, ally), 10000, "nothing while it stands");
+  const s = stagedG({ battle: ["RESTCOND", "V1"] });
+  const cond = findG(s, "p1", "battle", "RESTCOND");
+  const ally = findG(s, "p1", "battle", "V1");
+  assert.equal(powerIn(ctx, s, ally), 10000, "nothing while it stands");
   s.cards[cond].mode = "rest";
-  assert.equal(powerOf(ctx, s, ally), 15000, "and +5000 once it is rested");
+  assert.equal(powerIn(ctx, s, ally), 15000, "and +5000 once it is rested");
 }
 
 // ── replacement effects (9-10) ─────────────────────────────────────────────
@@ -1138,25 +1169,25 @@ import type { PlayerId } from "./harness";
 {
   // 9-10-1-1: the move that was about to happen is treated as never having
   // happened, and the card goes where the skill says instead.
-  let s = arena({ battle: ["EXILE"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
-  const exile = find(s, "p1", "battle", "EXILE");
-  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  s = play(s, { type: "play", player: "p2", card: find(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [exile] });
-  assert.ok(!s.players.p1.drop.includes(exile), "it did not go to the Drop");
-  assert.ok(s.players.p1.removed.includes(exile), "9-10: it went where the skill said instead");
-  assertConsistent(s);
+  let s = stagedG({ battle: ["EXILE"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const exile = findG(s, "p1", "battle", "EXILE");
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = playG(s, { type: "play", player: "p2", card: findG(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [exile] });
+  assert.ok(!zoneOf(s, "p1", "drop").includes(exile), "it did not go to the Drop");
+  assert.ok(zoneOf(s, "p1", "removed").includes(exile), "9-10: it went where the skill said instead");
+  assertConsistentG(s);
 }
 
 {
   // "By a skill" is narrower than "would leave": a battle is not a skill.
-  let s = arena({ battle: ["WARPER"], oppBattle: ["BIG"] });
-  const warper = find(s, "p1", "battle", "WARPER");
+  let s = stagedG({ battle: ["WARPER"], oppBattle: ["BIG"] });
+  const warper = findG(s, "p1", "battle", "WARPER");
   s.cards[warper].mode = "rest";
-  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  s = play(s, { type: "attack", player: "p2", attacker: find(s, "p2", "battle", "BIG"), target: warper }, { type: "pass", player: "p2" }, { type: "pass", player: "p1" });
-  assert.ok(s.players.p1.drop.includes(warper), "KO'd in a battle, so the Drop — the skill named a skill");
-  assert.ok(!s.players.p1.warp.includes(warper));
-  assertConsistent(s);
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = passCombosG(playG(s, { type: "attack", player: "p2", attacker: findG(s, "p2", "battle", "BIG"), target: warper }));
+  assert.ok(zoneOf(s, "p1", "drop").includes(warper), "KO'd in a battle, so the Drop — the skill named a skill");
+  assert.ok(!zoneOf(s, "p1", "warp").includes(warper));
+  assertConsistentG(s);
 }
 
 {
@@ -1280,26 +1311,30 @@ import type { PlayerId } from "./harness";
 {
   // With the named card on the table, it plays for nothing — and there is no
   // energy at all here, so nothing else could have paid for it.
-  let s = arena({ hand: ["FREEPLAY"], battle: ["V1"] });
-  assert.equal(s.players.p1.energy.length, 0);
+  let s = stagedG({ hand: ["FREEPLAY"], battle: ["V1"] });
+  assert.equal(zoneOf(s, "p1", "energy").length, 0);
   assert.ok(
-    labels(s).some((x) => x === "Play FREEPLAY (for no energy)"),
+    labelsG(s).some((x) => x === "Play FREEPLAY (for no energy)"),
     "the printed price is offered",
   );
-  const free = find(s, "p1", "hand", "FREEPLAY");
-  s = play(s, { type: "play", player: "p1", card: free, alt: true });
-  assert.ok(s.players.p1.battle.includes(free), "it was played");
-  assert.equal(s.players.p1.energy.length, 0, "and nothing was charged for it");
-  assertConsistent(s);
+  const free = findG(s, "p1", "hand", "FREEPLAY");
+  s = playG(s, { type: "play", player: "p1", card: free, alt: true });
+  assert.ok(zoneOf(s, "p1", "battle").includes(free), "it was played");
+  assert.equal(zoneOf(s, "p1", "energy").length, 0, "and nothing was charged for it");
+  assertConsistentG(s);
 }
 
 {
   // Without the card the skill names, the waiver is not on the menu, and the
   // card costs 2 like anything else.
-  const s = arena({ hand: ["FREEPLAY"], energy: ["V1", "V1"] });
-  assert.ok(!labels(s).some((x) => x.includes("for no energy")), "no waiver without the condition");
+  const s = stagedG({ hand: ["FREEPLAY"], energy: ["V1", "V1"] });
+  assert.ok(!labelsG(s).some((x) => x.includes("for no energy")), "no waiver without the condition");
+  // Read off the action rather than its label: the legacy menu writes the
+  // price in ("Play FREEPLAY (2)"), the rules engine's only when a card has
+  // more than one way to pay.
+  const free = findG(s, "p1", "hand", "FREEPLAY");
   assert.ok(
-    labels(s).some((x) => x === "Play FREEPLAY (2)"),
+    actsG(s).some((a) => a.type === "play" && a.card === free && !a.alt),
     "the printed cost is still there",
   );
 }
@@ -1310,39 +1345,43 @@ import type { PlayerId } from "./harness";
   // Until the window below existed, no [Counter: Counter] card in the game
   // could ever be played: the only window that collects them is the one
   // opened in answer to a counter, and none was ever opened.
-  let s = arena({ hand: ["E-STOP"], energy: ["V1"], oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
+  let s = stagedG({ hand: ["E-STOP"], energy: ["V1"], oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
   // p2 holds a counter that negates attacks; p1 holds one that negates counters.
-  const stop = find(s, "p1", "hand", "E-STOP");
-  const neg = find(s, "p2", "hand", "E-NEGATE");
-  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
+  const stop = findG(s, "p1", "hand", "E-STOP");
+  const neg = findG(s, "p2", "hand", "E-NEGATE");
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
   assert.equal(s.prompt.kind, "counter");
   assert.equal((s.prompt as { player: PlayerId }).player, "p2");
 
-  s = play(s, { type: "counter", player: "p2", card: neg });
-  // 9-7: their counter is now itself open to an answer.
-  assert.equal(s.prompt.kind, "counter", "the counter can be countered");
-  assert.equal((s.prompt as { player: PlayerId }).player, "p1");
-  assert.deepEqual((s.prompt as { candidates: string[] }).candidates, [stop]);
+  if (!rulesGap("compiler: E-STOP counters E-NEGATE (9-7-3)", "the rules engine opens no [Counter: Counter] window over a counter's own resolution — vm/battle.ts's 9-7-3 recursion", "no issue filed yet")) {
+    s = playG(s, { type: "counter", player: "p2", card: neg });
+    // 9-7: their counter is now itself open to an answer.
+    assert.equal(s.prompt.kind, "counter", "the counter can be countered");
+    assert.equal((s.prompt as { player: PlayerId }).player, "p1");
+    assert.deepEqual((s.prompt as { candidates: string[] }).candidates, [stop]);
 
-  s = play(s, { type: "counter", player: "p1", card: stop });
-  // 9-7-3: the last one played resolves first, and it negates the one under it,
-  // so the attack was never negated after all.
-  assert.equal(s.battle?.negated ?? false, false, "9-7-4: the countered counter did nothing");
-  assert.ok(s.players.p2.drop.includes(neg), "22-10-7: it was still paid for and still in the Drop");
-  assert.ok(s.players.p1.drop.includes(stop));
-  assertConsistent(s);
+    s = playG(s, { type: "counter", player: "p1", card: stop });
+    // 9-7-3: the last one played resolves first, and it negates the one under it,
+    // so the attack was never negated after all.
+    assert.equal(s.battle?.negated ?? false, false, "9-7-4: the countered counter did nothing");
+    assert.ok(zoneOf(s, "p2", "drop").includes(neg), "22-10-7: it was still paid for and still in the Drop");
+    assert.ok(zoneOf(s, "p1", "drop").includes(stop));
+  }
+  assertConsistentG(s);
 }
 
 {
   // Declining the answer lets the counter through, as before.
-  let s = arena({ hand: ["E-STOP"], energy: ["V1"], oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
-  const neg = find(s, "p2", "hand", "E-NEGATE");
-  s = play(s, { type: "attack", player: "p1", attacker: s.players.p1.leader, target: s.players.p2.leader });
-  s = play(s, { type: "counter", player: "p2", card: neg });
-  s = play(s, { type: "counter", player: "p1", card: null });
+  let s = stagedG({ hand: ["E-STOP"], energy: ["V1"], oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
+  const neg = findG(s, "p2", "hand", "E-NEGATE");
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  s = playG(s, { type: "counter", player: "p2", card: neg });
+  if (!rulesGap("compiler: declining to answer a counter (9-7)", "the rules engine opens no [Counter: Counter] window over a counter's own resolution — vm/battle.ts's 9-7-3 recursion", "no issue filed yet")) {
+    s = playG(s, { type: "counter", player: "p1", card: null });
+  }
   assert.equal(s.battle, null, "the attack was negated and the battle ended");
-  assert.equal(s.players.p2.life.length, 8);
-  assertConsistent(s);
+  assert.equal(zoneOf(s, "p2", "life").length, 8);
+  assertConsistentG(s);
 }
 
 // ── numbers read off the board, and looking at a deck (20-11) ──────────────
@@ -1442,12 +1481,12 @@ import type { PlayerId } from "./harness";
 {
   // Looking is not revealing (20-11): the cards are bound to a name, not moved.
   DEFS.PEEK = { ...DEFS.V1, id: "PEEK", name: "PEEK", skill: "[Auto] When you play this card, look at the bottom card of your deck." };
-  let s = arena({ hand: ["PEEK"], energy: ["V1"] });
-  const deckSize = s.players.p1.deck.length;
-  const bottom = s.players.p1.deck[deckSize - 1];
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "PEEK") });
-  assert.equal(s.players.p1.deck.length, deckSize, "nothing left the deck");
-  assert.equal(s.players.p1.deck[s.players.p1.deck.length - 1], bottom, "and the bottom card is where it was");
+  let s = stagedG({ hand: ["PEEK"], energy: ["V1"] });
+  const deckSize = zoneOf(s, "p1", "deck").length;
+  const bottom = zoneOf(s, "p1", "deck")[deckSize - 1];
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "PEEK") });
+  assert.equal(zoneOf(s, "p1", "deck").length, deckSize, "nothing left the deck");
+  assert.equal(zoneOf(s, "p1", "deck")[zoneOf(s, "p1", "deck").length - 1], bottom, "and the bottom card is where it was");
 }
 
 // ── a keyword's cost is written after the tag, with no colon ───────────────
@@ -1495,17 +1534,16 @@ import type { PlayerId } from "./harness";
 
 {
   // And it finds cards in both areas at once.
-  const ctx = CTX;
   DEFS.RESTBOTH = { ...DEFS.V1, id: "RESTBOTH", name: "RESTBOTH", skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards or Unisons and switch it to Rest Mode." };
-  let s = arena({ hand: ["RESTBOTH"], energy: ["V1"] });
+  let s = stagedG({ hand: ["RESTBOTH"], energy: ["V1"] });
   // Their only card in either area is a Unison, so the choice is forced.
-  const uni = s.players.p2.deck.find((id) => s.cards[id].cardId === "V-BLUE")!;
+  const uni = zoneOf(s, "p2", "deck").find((id) => s.cards[id].cardId === "V-BLUE")!;
   s.cards[uni].cardId = "U1";
-  move(ctx, s, [], uni, "unison", "p2");
+  moveG(s, uni, "unison", "p2");
   // 21-9: a Unison with no markers is dropped by rule processing before the
   // skill ever gets to look at it.
   s.cards[uni].markers = 2;
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "RESTBOTH") });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "RESTBOTH") });
   assert.equal(s.cards[uni].mode, "rest", "a Unison was found by a phrase that also names Battle Cards");
 }
 
@@ -1515,32 +1553,32 @@ import type { PlayerId } from "./harness";
   // 9-1-5: an effect meant to happen once. The skill is still printed; it
   // simply never triggers again, through the same list of negated skill
   // indexes another card's negation uses.
-  let s = arena({ hand: ["ONCEONLY", "ONCEONLY"], energy: ["V1", "V1"] });
-  const before = s.players.p1.hand.length;
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONCEONLY") });
-  const once = find(s, "p1", "battle", "ONCEONLY");
-  assert.equal(s.players.p1.hand.length, before - 1 + 1, "played one, drew one");
-  assert.deepEqual(s.cards[once].negated, [0], "the skill turned itself off — its own index, on its own instance");
+  let s = stagedG({ hand: ["ONCEONLY", "ONCEONLY"], energy: ["V1", "V1"] });
+  const before = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "ONCEONLY") });
+  const once = findG(s, "p1", "battle", "ONCEONLY");
+  assert.equal(zoneOf(s, "p1", "hand").length, before - 1 + 1, "played one, drew one");
+  assert.ok(skillNegatedG(s, once, 0), "the skill turned itself off — its own index, on its own instance");
 
   // The second copy is a different card, and its own skill still works.
-  const after = s.players.p1.hand.length;
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONCEONLY") });
-  assert.equal(s.players.p1.hand.length, after - 1 + 1, "the other copy still draws");
+  const after = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "ONCEONLY") });
+  assert.equal(zoneOf(s, "p1", "hand").length, after - 1 + 1, "the other copy still draws");
 }
 
 {
   // 3-1-6-1: a Battle Card may sit in either player's Battle Area, so taking
   // control is a move to your own side. The card is not replayed and keeps
   // what it had.
-  let s = arena({ hand: ["STEALER"], energy: ["V1"], oppBattle: ["BIG"] });
-  const prize = find(s, "p2", "battle", "BIG");
+  let s = stagedG({ hand: ["STEALER"], energy: ["V1"], oppBattle: ["BIG"] });
+  const prize = findG(s, "p2", "battle", "BIG");
   s.cards[prize].mode = "rest";
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "STEALER") });
-  assert.ok(s.players.p1.battle.includes(prize), "it is yours now");
-  assert.ok(!s.players.p2.battle.includes(prize));
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "STEALER") });
+  assert.ok(zoneOf(s, "p1", "battle").includes(prize), "it is yours now");
+  assert.ok(!zoneOf(s, "p2", "battle").includes(prize));
   assert.equal(s.cards[prize].mode, "rest", "23-3: the card itself did not change");
   assert.equal(s.cards[prize].owner, "p2", "its owner is still its owner (3-1-6)");
-  assertConsistent(s);
+  assertConsistentG(s);
 }
 
 // ── 20-5: X, from the move list to the cards drawn ─────────────────────────
@@ -1551,11 +1589,11 @@ import type { PlayerId } from "./harness";
   // menu offering one activation per payable X, the energy actually resting,
   // and the hand growing by the number chosen — because each of the three has
   // its own way of being silently wrong.
-  let s = arena({ hand: ["XDRAW"], energy: ["V1", "V1", "V1", "V1"] });
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "XDRAW") });
-  while (s.prompt.kind !== "main") s = play(s, legalActions(CTX, s)[0].action);
+  let s = stagedG({ hand: ["XDRAW"], energy: ["V1", "V1", "V1", "V1"] });
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "XDRAW") });
+  while (s.prompt.kind !== "main") s = playG(s, IMPL.legalActions(CTX, s)[0].action);
 
-  const offers = labels(s).filter((l) => l.startsWith("Activate XDRAW"));
+  const offers = labelsG(s).filter((l) => l.startsWith("Activate XDRAW"));
   // One orb went on playing the card, so three energy are left active and the
   // menu runs X = 0 to 3 — an X the energy cannot settle is never offered.
   assert.deepEqual(
@@ -1564,15 +1602,15 @@ import type { PlayerId } from "./harness";
     "one offer per payable value of X",
   );
 
-  const before = s.players.p1.hand.length;
-  const activeBefore = s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length;
-  const chosen = legalActions(CTX, s).find((a) => a.label.endsWith("with X = 2"))!;
-  s = play(s, chosen.action);
-  while (s.prompt.kind !== "main") s = play(s, legalActions(CTX, s)[0].action);
+  const before = zoneOf(s, "p1", "hand").length;
+  const activeBefore = zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "active").length;
+  const chosen = IMPL.legalActions(CTX, s).find((a) => a.label.endsWith("with X = 2"))!;
+  s = playG(s, chosen.action);
+  while (s.prompt.kind !== "main") s = playG(s, IMPL.legalActions(CTX, s)[0].action);
 
-  assert.equal(s.players.p1.hand.length, before + 2, "it drew X cards");
-  assert.equal(s.players.p1.energy.filter((id) => s.cards[id].mode === "active").length, activeBefore - 2, "…and paid X energy for them");
-  assertConsistent(s);
+  assert.equal(zoneOf(s, "p1", "hand").length, before + 2, "it drew X cards");
+  assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "active").length, activeBefore - 2, "…and paid X energy for them");
+  assertConsistentG(s);
 }
 
 {
@@ -1598,31 +1636,33 @@ import type { PlayerId } from "./harness";
     }),
   };
 
-  let s = arena({ hand: ["ONCE", "V1", "V1"], energy: ["V1"] });
-  s = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "ONCE") }).state;
-  while (s.prompt.kind !== "main") s = apply(ctx, s, legalActions(ctx, s)[0].action).state;
+  if (!rulesGap("compiler: X bound by a price that chooses (20-5)", "#461 charges an [Activate] action price on the rules engine, but the price program's bindX does not reach the effect (\"this program reads X, but nothing bound it\")", "#458")) {
+    let s = stagedG({ hand: ["ONCE", "V1", "V1"], energy: ["V1"] });
+    s = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "ONCE") }).state;
+    while (s.prompt.kind !== "main") s = IMPL.apply(ctx, s, IMPL.legalActions(ctx, s)[0].action).state;
 
-  const before = s.players.p1.hand.length;
-  s = apply(ctx, s, legalActions(ctx, s).find((a) => a.label.startsWith("Activate ONCE"))!.action).state;
-  // The price takes two of the cards in hand and then declines, which is how
-  // an "up to" choice ends early (5-2-4). The price only *chooses* them — it
-  // moves nothing — so the hand grows by exactly X and the assertion cannot be
-  // satisfied by a skill that did nothing.
-  let picked = 0;
-  while (s.prompt.kind === "chooseCards" && picked < 2) {
-    const pick = legalActions(ctx, s).find((a) => a.action.type === "choose" && a.action.cards.length > 0);
-    if (!pick) break;
-    s = apply(ctx, s, pick.action).state;
-    picked++;
+    const before = zoneOf(s, "p1", "hand").length;
+    s = IMPL.apply(ctx, s, IMPL.legalActions(ctx, s).find((a) => a.label.startsWith("Activate ONCE"))!.action).state;
+    // The price takes two of the cards in hand and then declines, which is how
+    // an "up to" choice ends early (5-2-4). The price only *chooses* them — it
+    // moves nothing — so the hand grows by exactly X and the assertion cannot be
+    // satisfied by a skill that did nothing.
+    let picked = 0;
+    while (s.prompt.kind === "chooseCards" && picked < 2) {
+      const pick = IMPL.legalActions(ctx, s).find((a) => a.action.type === "choose" && a.action.cards.length > 0);
+      if (!pick) break;
+      s = IMPL.apply(ctx, s, pick.action).state;
+      picked++;
+    }
+    const decline = IMPL.legalActions(ctx, s).find((a) => a.action.type === "choose" && a.action.cards.length === 0);
+    assert.ok(decline, "an \"up to\" choice can be ended early");
+    s = IMPL.apply(ctx, s, decline.action).state;
+    while (s.prompt.kind !== "main") s = IMPL.apply(ctx, s, IMPL.legalActions(ctx, s)[0].action).state;
+
+    assert.equal(picked, 2, "the price took two cards");
+    assert.equal(zoneOf(s, "p1", "hand").length, before + 2, "X was what the price chose: two chosen, two drawn");
+    assertConsistentG(s);
   }
-  const decline = legalActions(ctx, s).find((a) => a.action.type === "choose" && a.action.cards.length === 0);
-  assert.ok(decline, "an \"up to\" choice can be ended early");
-  s = apply(ctx, s, decline.action).state;
-  while (s.prompt.kind !== "main") s = apply(ctx, s, legalActions(ctx, s)[0].action).state;
-
-  assert.equal(picked, 2, "the price took two cards");
-  assert.equal(s.players.p1.hand.length, before + 2, "X was what the price chose: two chosen, two drawn");
-  assertConsistent(s);
 }
 
 // ── the second half of a sentence, left in the third person ────────────────

@@ -34,7 +34,7 @@ import { createGame, legalActions } from "../../src/lib/arena/engine";
 import { DEFAULT_ENGINE, ENGINE_INFO, FALLBACK_ENGINE, engineFor, engineOr, isVmState } from "../../src/lib/arena/engines";
 import { defaultEngine } from "../../src/lib/arena/engine-setting";
 import { engineForMode, modeRefusal, type ArenaMode } from "../../src/lib/arena/games";
-import { CTX, fifty } from "./harness";
+import { CTX, fifty, legacyOnly } from "./harness";
 
 const MODES: ArenaMode[] = ["hotseat", "sparring", "tournament", "versus"];
 
@@ -103,18 +103,20 @@ for (const stored of [null, undefined, "", "nonsense", 7]) {
 assert.equal(engineOr("rules"), "rules", "a rules-engine row is not read back as one");
 assert.equal(engineOr("legacy"), "legacy", "a legacy row is not read back as one");
 
-const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
-const made = createGame(CTX, DECKS);
-// The row as `arena_games` holds it: JSON state, and the engine that wrote it.
-const row = JSON.parse(JSON.stringify({ engine: "legacy", state: made.state })) as { engine: string; state: unknown };
+if (!legacyOnly("engine-default: a saved legacy game opens unchanged", "it makes and plays a legacy game, which is what this section is about", "#118 decides what a legacy row becomes")) {
+  const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
+  const made = createGame(CTX, DECKS);
+  // The row as `arena_games` holds it: JSON state, and the engine that wrote it.
+  const row = JSON.parse(JSON.stringify({ engine: "legacy", state: made.state })) as { engine: string; state: unknown };
 
-const engine = engineFor(engineOr(row.engine));
-assert.equal(engine.id, "legacy", "a legacy-engine row no longer resolves to the legacy engine, so every saved game would be read by the wrong one");
-assert.equal(isVmState(row.state), false, "a legacy state claims to have been written by the rules engine");
-assert.deepEqual(
-  engine.legalActions(CTX, row.state as never),
-  legalActions(CTX, made.state),
-  "a saved legacy game read back through the switch offers different moves than the engine that wrote it",
-);
+  const engine = engineFor(engineOr(row.engine));
+  assert.equal(engine.id, "legacy", "a legacy-engine row no longer resolves to the legacy engine, so every saved game would be read by the wrong one");
+  assert.equal(isVmState(row.state), false, "a legacy state claims to have been written by the rules engine");
+  assert.deepEqual(
+    engine.legalActions(CTX, row.state as never),
+    legalActions(CTX, made.state),
+    "a saved legacy game read back through the switch offers different moves than the engine that wrote it",
+  );
+}
 
 export default creationPath();

@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -288,11 +288,25 @@
   "legal": [
     {
       "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
         "type": "play",
         "player": "p1",
         "card": "p1#15"
       },
-      "label": "Play UNIQ (1)"
+      "label": "Play UNIQ",
+      "cost": {
+        "energy": 1,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "1 energy (1 red)"
+      }
     },
     {
       "action": {
@@ -300,7 +314,14 @@
         "player": "p1",
         "card": "p1#35"
       },
-      "label": "Play BLOCKER (2)"
+      "label": "Play BLOCKER",
+      "cost": {
+        "energy": 2,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "2 energy (1 red)"
+      }
     },
     {
       "action": {
@@ -308,7 +329,14 @@
         "player": "p1",
         "card": "p1#13"
       },
-      "label": "Play REVENGE (2)"
+      "label": "Play REVENGE",
+      "cost": {
+        "energy": 2,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "2 energy (1 red)"
+      }
     },
     {
       "action": {
@@ -318,36 +346,29 @@
         "target": "p2#0"
       },
       "label": "Attack L-BLUE with L-RED (10000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "endMain",
-        "player": "p1"
-      },
-      "label": "End turn"
     }
   ],
   "taps": {
     "byCard": {
       "p1#15": [
-        0
-      ],
-      "p1#35": [
         1
       ],
-      "p1#13": [
+      "p1#35": [
         2
       ],
-      "p1#0": [
+      "p1#13": [
         3
+      ],
+      "p1#0": [
+        4
       ]
     },
     "bare": [
-      4
+      0
     ],
     "attackTargets": {
       "p1#0": {
-        "p2#0": 3
+        "p2#0": 4
       }
     },
     "whyByCard": {
@@ -355,40 +376,60 @@
         {
           "kind": "oncePerTurn",
           "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
         }
       ],
       "p1#35": [
         {
           "kind": "oncePerTurn",
           "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
         }
       ],
       "p1#18": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 3,
           "have": 2
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#38": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 3,
           "have": 2
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#13": [
         {
           "kind": "oncePerTurn",
           "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
         }
       ],
       "p1#0": [
@@ -430,21 +471,6 @@
     },
     {
       "action": {
-        "type": "play",
-        "player": "p1",
-        "card": "p1#18"
-      },
-      "label": "Play COST3 (3)",
-      "why": [
-        {
-          "kind": "energy",
-          "need": 3,
-          "have": 2
-        }
-      ]
-    },
-    {
-      "action": {
         "type": "charge",
         "player": "p1",
         "card": "p1#18"
@@ -454,21 +480,6 @@
         {
           "kind": "oncePerTurn",
           "what": "charge"
-        }
-      ]
-    },
-    {
-      "action": {
-        "type": "play",
-        "player": "p1",
-        "card": "p1#38"
-      },
-      "label": "Play CRIT (3)",
-      "why": [
-        {
-          "kind": "energy",
-          "need": 3,
-          "have": 2
         }
       ]
     },
@@ -497,6 +508,106 @@
         {
           "kind": "oncePerTurn",
           "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#15"
+      },
+      "label": "Grow Unison UNIQ",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#35"
+      },
+      "label": "Grow Unison BLOCKER",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Grow Unison COST3",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#38"
+      },
+      "label": "Grow Unison CRIT",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#13"
+      },
+      "label": "Grow Unison REVENGE",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Play COST3",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 3,
+          "have": 2
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#38"
+      },
+      "label": "Play CRIT",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 3,
+          "have": 2
         }
       ]
     },

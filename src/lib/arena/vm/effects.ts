@@ -310,6 +310,16 @@ export function endTurnRelativeEffects(state: VmState, ev: GameEvent[]): Continu
 }
 
 /** 3-1-4: a card that changed area is a new card, so nothing that was in force on it still is. */
+/**
+ * "…will not switch to Active Mode during your next Charge Phase": spent by
+ * the Active Step it was written for (7-2-7), on the cards that step covered —
+ * the legacy `endAfterChargeEffects`, which this engine had not carried over,
+ * so the rule outlived its step (#459, `verify/readings.ts`'s LOCKER case).
+ */
+export function endAfterChargeEffects(state: VmState, ev: GameEvent[], cards: string[]): ContinuousEffect[] {
+  return dropEffects(state, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
+}
+
 export function dropEffectsOn(state: VmState, ev: GameEvent[], id: string): void {
   dropEffects(state, ev, (e) => e.target !== id);
 }
@@ -358,7 +368,13 @@ export function dueDelays(state: VmState, at: DelayTiming): ScriptFrame[] {
 
 /** An effect scheduled for "this turn" whose moment has gone never happens. Keeps the list from growing over a long game. */
 export function expireDelayed(state: VmState): void {
-  state.delayed = state.delayed.filter((d) => d.scope !== "thisTurn" || d.createdTurn === state.turn);
+  // Called from `endTurn` (`vm/flow.ts`), *before* the turn number moves on —
+  // the legacy engine's call sits after it, which is why its filter keeps the
+  // effects made on the turn now starting. Here the turn ending is the one
+  // every "this turn" effect was made on, so all of them have missed their
+  // moment; keeping `createdTurn === state.turn` kept exactly the ones that
+  // should go (#459, `verify/compiler.ts`'s DELAYKO case).
+  state.delayed = state.delayed.filter((d) => d.scope !== "thisTurn" || d.createdTurn > state.turn);
 }
 
 // ── negation (9-1-5) ────────────────────────────────────────────────────────
@@ -529,6 +545,12 @@ function collect(
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "immune", target: id, value });
       continue;
     }
+    // 9-1-3-1: a change to a card's power or keywords holds only while its
+    // source is in play — "Your Battle Cards get +5000 power" does nothing
+    // from the hand. The legacy `collectStatics`' `if (!inPlayNow) continue`
+    // before these three, which this walk had not carried over: an aura in
+    // hand raised every Battle Card (#459, `verify/compiler.ts`'s AURA case).
+    if ((op.op === "power" || op.op === "comboPower" || op.op === "modifyAttr" || op.op === "grant") && !inPlayNow) continue;
     if (op.op === "power" || op.op === "comboPower") {
       // "+3000 power for each marker on this card": the same two counted amounts
       // the cost reduction below takes — a [Permanent] binds no variable, so

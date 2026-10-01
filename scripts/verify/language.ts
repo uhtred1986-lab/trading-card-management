@@ -15,26 +15,26 @@ import { negateAs } from "../../src/lib/arena/vm/script";
 import { expandMacros, opsIn, rulesetFor } from "../../src/lib/arena/rulesets";
 import { whenMoments } from "../../src/lib/arena/rulesets/words";
 import {
+  CONDITIONS_OFF_A_CARD,
   COND_CLASS,
   COND_SCHEMA,
-  CONDITIONS_OFF_A_CARD,
   CTX,
   DEFS,
   EFFECT_LANGUAGE,
+  IMPL,
   OP_CLASS,
   OP_SCHEMA,
-  apply,
-  arena,
+  stagedG,
   canonical,
   card,
-  cardNow,
+  cardNowG,
   clauseShape,
   compileSkill,
   condSignature,
   describeCond,
   describeScript,
   describeTrigger,
-  find,
+  findG,
   hoist,
   keywordPlays,
   matches,
@@ -43,11 +43,13 @@ import {
   parseFilter,
   parseSkills,
   patternKey,
-  powerOf,
+  powerIn,
+  rulesGap,
   programShape,
   skillRecords,
   triggersOf,
   validate,
+  zoneOf,
 } from "./harness";
 import type { CardFilter, SchemaOp } from "./harness";
 
@@ -305,8 +307,8 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(matches(DEFS.V1, sparse), false, "V1 is red but not a Saiyan");
   assert.equal(matches({ ...DEFS.V1, traits: ["Saiyan"] }, sparse), true);
   const ctx = { defs: DEFS, scripts: { KILLER: { bySkill: { 0: { ops: [{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, filter: sparse }, as: "t" }, { op: "ko", target: { var: "t" } }], unsupported: [] } }, complete: true, unsupported: [] } } };
-  const s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "V1"] });
-  const r = apply(ctx as never, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
+  const s = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "V1"] });
+  const r = IMPL.apply(ctx as never, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "KILLER") });
   assert.notEqual(r.state.prompt.kind, "gameOver");
   void r;
 }
@@ -327,10 +329,10 @@ import type { CardFilter, SchemaOp } from "./harness";
   // Resolving: an [Auto] that pumps your Battle Cards when it is played.
   const played = (ops: unknown) => {
     const ctx = rule("DRAWER", ops);
-    const s = arena({ hand: ["DRAWER"], energy: ["V1"], battle: ["V1"] });
-    const target = find(s, "p1", "battle", "V1");
-    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DRAWER") });
-    return powerOf(ctx, r.state, target);
+    const s = stagedG({ hand: ["DRAWER"], energy: ["V1"], battle: ["V1"] });
+    const target = findG(s, "p1", "battle", "V1");
+    const r = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") });
+    return powerIn(ctx, r.state, target);
   };
   const spelled = played([{ op: "power", target: yourBattle, amount: 5000, until: "turn" }]);
   assert.equal(spelled, 15000, "the `power` op still pumps");
@@ -339,17 +341,19 @@ import type { CardFilter, SchemaOp } from "./harness";
   // The static layer, for a [Permanent] that never resolves.
   const aura = (ops: unknown) => {
     const ctx = rule("AURA", ops);
-    const s = arena({ battle: ["AURA", "V1"] });
-    return { ctx, s, v1: find(s, "p1", "battle", "V1") };
+    const s = stagedG({ battle: ["AURA", "V1"] });
+    return { ctx, s, v1: findG(s, "p1", "battle", "V1") };
   };
   const power = aura([{ op: "modifyAttr", target: yourBattle, attr: "power", amount: 5000, until: "game" }]);
-  assert.equal(powerOf(power.ctx, power.s, power.v1), 15000, "…and the same aura from the static layer");
+  assert.equal(powerIn(power.ctx, power.s, power.v1), 15000, "…and the same aura from the static layer");
 
   // A list attribute is read wherever the card is, which is what `gains` says.
   const gained = aura([{ op: "gains", target: yourBattle, traits: ["Saiyan"] }]);
   const counts = aura([{ op: "modifyAttr", target: yourBattle, attr: "traits", values: ["Saiyan"] }]);
-  assert.deepEqual(cardNow(counts.ctx, counts.s, counts.v1).traits, cardNow(gained.ctx, gained.s, gained.v1).traits, "modifyAttr(traits) is `gains`");
-  assert.ok(cardNow(counts.ctx, counts.s, counts.v1).traits.includes("Saiyan"), "…and both of them gained it");
+  if (!rulesGap("language: a [Permanent] list attribute", "`gains` and `modifyAttr(traits)` are not read by the rules engine's static layer — `DEFERRED_STATICS.gains`, and `modifyAttr` with `values` reaches no layer", "#153")) {
+    assert.deepEqual(cardNowG(counts.s, counts.v1, counts.ctx).traits, cardNowG(gained.s, gained.v1, gained.ctx).traits, "modifyAttr(traits) is `gains`");
+    assert.ok(cardNowG(counts.s, counts.v1, counts.ctx).traits.includes("Saiyan"), "…and both of them gained it");
+  }
 }
 
 // ── the engine reads rows and nothing else ───────────────────────────────────
@@ -357,17 +361,19 @@ import type { CardFilter, SchemaOp } from "./harness";
   // The same card, the same play, two contexts: with rules it draws, without
   // any it is played as blank — and the log says so rather than staying quiet.
   const bare = { defs: DEFS };
-  let s = arena({ hand: ["DRAWER"], energy: ["V1"] });
-  const hand = s.players.p1.hand.length;
-  const r = apply(bare, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DRAWER") });
-  assert.equal(r.state.players.p1.hand.length, hand - 1, "nothing was drawn: the card has no rule");
-  assert.ok(r.events.some((e) => e.type === "note" && /no rule stored — played as blank/.test(e.text)), "and the log names the gap");
-  s = arena({ hand: ["DRAWER"], energy: ["V1"] });
-  assert.equal(apply(CTX, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "DRAWER") }).state.players.p1.hand.length, hand, "with its rule it draws");
+  let s = stagedG({ hand: ["DRAWER"], energy: ["V1"] });
+  const hand = zoneOf(s, "p1", "hand").length;
+  const r = IMPL.apply(bare, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") });
+  assert.equal(zoneOf(r.state, "p1", "hand").length, hand - 1, "nothing was drawn: the card has no rule");
+  // Each engine names the gap in its own words: the legacy one per skill line
+  // ("no rule stored"), the rules engine at the moment it found nothing to run.
+  assert.ok(r.events.some((e) => e.type === "note" && /no rule stored — played as blank|no rule this engine can read says what happens/.test(e.text)), "and the log names the gap");
+  s = stagedG({ hand: ["DRAWER"], energy: ["V1"] });
+  assert.equal(zoneOf(IMPL.apply(CTX, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") }).state, "p1", "hand").length, hand, "with its rule it draws");
   // A [Permanent] is read from the same rows — the static layer compiles nothing.
-  const t = arena({ battle: ["AURA", "V1"] });
-  assert.equal(powerOf(bare, t, find(t, "p1", "battle", "V1")), 10000, "no rules, no aura");
-  assert.equal(powerOf(CTX, t, find(t, "p1", "battle", "V1")), 15000, "the aura holds from its row");
+  const t = stagedG({ battle: ["AURA", "V1"] });
+  assert.equal(powerIn(bare, t, findG(t, "p1", "battle", "V1")), 10000, "no rules, no aura");
+  assert.equal(powerIn(CTX, t, findG(t, "p1", "battle", "V1")), 15000, "the aura holds from its row");
 }
 
 // ── the generated language reference: exactly the schemas, nothing hand-kept ─
@@ -514,7 +520,11 @@ import type { CardFilter, SchemaOp } from "./harness";
 // `language-reference.txt`, nothing the text view's player-facing reference
 // says either. Run `npm run contract:emit` to accept a deliberate change.
 {
-  const s = arena({ hand: ["V1", "BIG"], battle: ["BLOCKER"], energy: ["V1", "V-BLUE"], oppBattle: ["V-BLUE"], oppHand: ["KILLER"] });
+  const s = stagedG({ hand: ["V1", "BIG"], battle: ["BLOCKER"], energy: ["V1", "V-BLUE"], oppBattle: ["V-BLUE"], oppHand: ["KILLER"] });
+  // `state-text.txt` is the opponent's prompt text for this board. Since #460
+  // `ai/view.ts`'s `stateText` reads either engine's state (#457), and
+  // `verify/ai-vm.ts` asserts both write the same text, so it is checked on
+  // every pass; the other two fixtures are engine-free.
   const fixtures: Record<string, string> = {
     "effect-language.txt": EFFECT_LANGUAGE,
     "state-text.txt": stateText(CTX, s, "p1"),

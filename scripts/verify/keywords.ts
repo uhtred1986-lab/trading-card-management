@@ -12,35 +12,30 @@ import {
   ENGINE,
   IMPL,
   actsG,
-  arena,
   arenaG,
-  assertConsistent,
   assertConsistentG,
   autoTriggerMatches,
   canActivateG,
   compileSkill,
   eitherOrbsIn,
-  find,
   findG,
   hasG,
-  koCard,
-  labels,
+  koCardG,
   labelsG,
   leaderOf,
   lifeReplacementChoicesForG,
   masterOfG,
-  placeUnderG,
+  narrate,
   orbsIn,
   parseConditionClause,
   parseSkills,
+  placeUnderG,
   planPayment,
-  play,
   playG,
   powerOfG,
   priceOf,
   rejectedActionsG,
   sentence,
-  narrate,
   skillNegatedG,
   splitClauses,
   stageMoveG,
@@ -75,24 +70,16 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  * with REVEALER once the rules engine's battle damage asked per life card,
  * #272):
  *
- * - **`notYetGap`**: a case the rules engine answers wrongly, each checked
- *   directly and named at its own gate (a skill-driven KO was `#146`'s
- *   until it landed, and RELKO now runs on both engines; 20-13's skip list
- *   and the [Permanent] skip read live at a battle step — SKIPPER,
- *   NODEFENSE, SKIPNOW, INBATTLE, ATKSKIP, TURNSKIP, SPANSKIP — and
- *   COMBOWATCH, GOTEN, XDRAW, MUTER, COPYCAT, TAKER, CFREE and SKILLCHEAP
- *   all run on both engines since #439). What is left is two harness
- *   fixtures with no rules-engine shape: `continuations` and `koCard`.
+ * - **`notYetGap`**, the last: a case the rules engine answered wrongly, each
+ *   checked directly and named at its own gate. 20-13's skip list and the
+ *   [Permanent] skip read live at a battle step — SKIPPER, NODEFENSE,
+ *   SKIPNOW, INBATTLE, ATKSKIP, TURNSKIP, SPANSKIP — and COMBOWATCH, GOTEN,
+ *   XDRAW, MUTER, COPYCAT, TAKER, CFREE and SKILLCHEAP all run on both
+ *   engines since #439, and the two harness fixtures that had no rules-engine
+ *   shape — the hand-staged `continuations` choice and `koCard`'s TAKER2 —
+ *   since #459. Nothing in this file is skipped on the rules engine now; a
+ *   new gap would use the harness's `rulesGap`, which `verify-arena` lists.
  */
-let skipped = 0;
-// `keywordGap` is gone: since #157 and #155's leftovers (#434) no case here
-// waits on a keyword body.
-function notYetGap(where: string, what: string, issue: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: ${what} (${issue})`);
-  skipped++;
-  return true;
-}
 // ── §22 keywords as engine rules ───────────────────────────────────────────
 
 // Both engines since #157: [Evolve] and [Union] are `keywords.rules`' own moves.
@@ -1074,19 +1061,33 @@ function notYetGap(where: string, what: string, issue: string): boolean {
   }
 }
 
-if (!notYetGap("a prompt for more than one card, answered one at a time", "`continuations` is a legacy-only field of `GameState` — the rules engine's own multi-card choice has no continuation slot to stage this fixture onto", "no issue filed yet")) {
-  // A prompt for more than one card is answered one card at a time, with
-  // "Done choosing" once the minimum is met.
-  let s = arena({ hand: ["V1", "V1", "V1"] });
-  const [a, b, c] = s.players.p1.hand;
-  s.prompt = { kind: "chooseCards", player: "p1", choice: { reason: "test", candidates: [a, b, c], min: 1, max: 2, continuation: "swap" } };
-  s.continuations.swap = { card: a };
-  assert.ok(!labels(s).includes("Choose none"), "one is required");
-  s = play(s, { type: "choose", player: "p1", cards: [a] });
+{
+  // A prompt for more than one card is answered one card at a time: the card
+  // taken leaves the candidates, cannot be taken again, and once the minimum
+  // is met the player may stop. Both engines since #459 — this used to stage
+  // the legacy `GameState`'s own `continuations` slot by hand, which the rules
+  // engine has no copy of, so it is asked through two real skills instead: a
+  // choice of exactly two, and a choice of up to two.
+  DEFS.UPTO2 = { ...DEFS.V1, id: "UPTO2", name: "UPTO2", energyCost: 1, skill: "[Auto] When you play this card, choose up to 2 of your opponent's Battle Cards and KO them." };
+  let s = arenaG({ hand: ["TWOKILL"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG", "V-BLUE"] });
+  const [a, b, c] = zoneOf(s, "p2", "battle");
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "TWOKILL") });
   assert.equal(s.prompt.kind, "chooseCards");
-  assert.deepEqual((s.prompt as { choice: { candidates: string[]; min: number; max: number } }).choice.candidates, [b, c]);
-  assert.ok(labels(s).includes("Done choosing"), "the minimum is met");
-  assert.throws(() => play(s, { type: "choose", player: "p1", cards: [a] }), /invalid choice/, "a card cannot be picked twice");
+  assert.ok(!actsG(s).some((x) => x.type === "choose" && x.cards.length === 0), "one is required");
+  s = playG(s, { type: "choose", player: "p1", cards: [a] });
+  assert.equal(s.prompt.kind, "chooseCards", "and then the second");
+  assert.deepEqual((s.prompt as { choice: { candidates: string[] } }).choice.candidates, [b, c], "the card taken is no longer a candidate");
+  assert.throws(() => playG(s, { type: "choose", player: "p1", cards: [a] }), /invalid choice/, "a card cannot be picked twice");
+
+  let t = arenaG({ hand: ["UPTO2"], energy: ["V1"], oppBattle: ["V-BLUE", "BIG", "V-BLUE"] });
+  const first = zoneOf(t, "p2", "battle")[0];
+  t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "UPTO2") });
+  t = playG(t, { type: "choose", player: "p1", cards: [first] });
+  assert.equal(t.prompt.kind, "chooseCards");
+  assert.ok(actsG(t).some((x) => x.type === "choose" && x.cards.length === 0), "the minimum is met, so stopping is on the menu");
+  // Off the catalog again, so `contract/probe-digests.json` — the golden
+  // record, which every card in `DEFS` gets a row in — stays as it was.
+  delete DEFS.UPTO2;
 }
 
 // Both engines since #154: [Alliance] is `keywords.rules`' own moment.
@@ -2150,22 +2151,25 @@ function opponentSkill(s: EngineState, killer: string, target: string): EngineSt
   assertConsistentG(s);
 }
 
-if (!notYetGap("TAKER2: koCard, a direct low-level KO with no action behind it", "`koCard` is a legacy-only test helper (`engine/triggers.ts`) with no rules-engine equivalent — a real KO on the rules engine goes through an action or a battle, neither of which this fixture stages", "no issue filed yet")) {
+{
   // 5-12-1: a KO is to the card's **owner's** Drop Area, whoever was using it.
   // This is the whole reason the audit had to happen before the operation.
+  // Both engines since #459: `koCardG` is the engine's own KO on either one
+  // (`vm/battle.ts`'s `koCard` on the rules engine), which is what a skill's
+  // KO and a battle's both go through.
   DEFS.TAKER2 = { ...DEFS.TAKER, id: "TAKER2", name: "TAKER2" };
-  let s = arena({ battle: ["TAKER2"], oppBattle: ["LOANED", "V-BLUE"] });
-  const taker = find(s, "p1", "battle", "TAKER2");
-  const theirs = find(s, "p2", "battle", "LOANED");
-  s = play(s, { type: "activate", player: "p1", card: taker, skill: 0 });
-  s = play(s, { type: "choose", player: "p1", cards: [theirs] });
-  assert.ok(s.players.p1.battle.includes(theirs));
+  let s = arenaG({ battle: ["TAKER2"], oppBattle: ["LOANED", "V-BLUE"] });
+  const taker = findG(s, "p1", "battle", "TAKER2");
+  const theirs = findG(s, "p2", "battle", "LOANED");
+  s = playG(s, { type: "activate", player: "p1", card: taker, skill: 0 });
+  s = playG(s, { type: "choose", player: "p1", cards: [theirs] });
+  assert.ok(zoneOf(s, "p1", "battle").includes(theirs));
 
-  koCard(CTX, s, [], theirs);
-  assert.ok(s.players.p2.drop.includes(theirs), "5-12-1: KO'd out of your Battle Area, into its owner's Drop");
-  assert.ok(!s.players.p1.drop.includes(theirs));
+  koCardG(s, theirs);
+  assert.ok(zoneOf(s, "p2", "drop").includes(theirs), "5-12-1: KO'd out of your Battle Area, into its owner's Drop");
+  assert.ok(!zoneOf(s, "p1", "drop").includes(theirs));
   assert.equal(s.effects.filter((e) => e.kind === "control").length, 0, "and the loan went with it");
-  assertConsistent(s);
+  assertConsistentG(s);
 }
 
 {
@@ -2818,4 +2822,3 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   assertConsistentG(taken.state);
 }
 
-if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap comments`);

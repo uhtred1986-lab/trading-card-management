@@ -659,6 +659,15 @@ function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
  * that showed "Go first" on one board and "Choose to go first" on the other
  * would be a client reading the engine rather than the contract.
  */
+/** The name a card shows, as a menu says it: the legacy `face(…).name` — "Hidden card" in Hidden Mode (23-5-2), the awakened name once flipped (1-9). */
+function shownName(ctx: EngineContext, state: VmState, id: string): string {
+  const inst = state.cards[id];
+  const def = inst ? ctx.defs[inst.cardId] : undefined;
+  if (!inst || !def) return id;
+  if (inst.hidden) return "Hidden card";
+  return inst.flipped && def.back ? def.back.name : def.name;
+}
+
 function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
   const game = definitionFor(state.game);
   const pr = state.prompt;
@@ -709,7 +718,10 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     // the engine rather than the contract.
     case "chooseCards":
       return [
-        ...pr.choice.candidates.map((card) => ({ action: { type: "choose" as const, player: pr.player, cards: [card] }, label: `Choose ${card}` })),
+        // The name on the face showing — the legacy `face(…).name` — where
+        // this said the instance id ("Choose p2#10") until #459 compared the
+        // two menus in `verify/probe.ts`.
+        ...pr.choice.candidates.map((card) => ({ action: { type: "choose" as const, player: pr.player, cards: [card] }, label: `Choose ${shownName(ctx, state, card)}` })),
         ...(pr.choice.min === 0 ? [{ action: { type: "choose" as const, player: pr.player, cards: [] }, label: "Choose none" }] : []),
       ];
     // 22-45-3: every amount from none to the cap, in the legacy engine's words.
