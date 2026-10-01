@@ -171,13 +171,13 @@ skipped) tells you what you broke:
   already is); `stageMoveG` is a new test-only fixture rig beside
   `stageOnRules`'s own, for relocating a card into a zone as pure setup
   (no event, no moment) where `move(CTX, …)`'s reason and event log are not
-  what the case is testing. Four gate functions name what is still skipped
+  what the case is testing. Three gate functions name what is still skipped
   on `--engine rules`, each printing the reason rather than doing nothing:
   `keywordGap` (a keyword's own `DEFINE KEYWORD` carries no `HOOK` body for
   what the case needs — most of the 39, `docs/arena-backlog/s7-0{2,3,4,5}-
-  *.md`), `staticGap` (a [Permanent] reads to a static kind
-  `vm/effects.ts`'s own `DEFERRED_STATICS` names as unread — `immune`,
-  `negateKeyword`; `altCost` and `payWith` are read since #148), `replaceGap` (the 9-10 family: `vm/host.ts`'s
+  *.md`; a fourth, `staticGap`, left with its last cases at #154, which reads
+  a [Permanent]'s `immune` op as #148 reads `altCost` and `payWith`),
+  `replaceGap` (the 9-10 family: `vm/host.ts`'s
   `replacementsFor` answers `[]` unconditionally — a skill-driven KO is real
   since #146, but no [Permanent]'s replacement is collected to stand in
   front of it), and `notYetGap` for everything else

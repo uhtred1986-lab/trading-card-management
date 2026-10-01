@@ -71,18 +71,15 @@ import { legacyState } from "../../src/lib/arena/engines";
  * `move(CTX, …)`'s reason and event log are not what the assertion is about.
  *
  * What is still skipped on `--engine rules`, and why — every case below is
- * one of four shapes, named at its own gate call rather than silently doing
- * nothing:
+ * one of three shapes, named at its own gate call rather than silently doing
+ * nothing (a fourth, `staticGap` — a [Permanent] static `DEFERRED_STATICS`
+ * names as unread — left with its last cases, IMMUNE/IMMANY, at #154):
  *
  * - **`keywordGap`**: the keyword's own `DEFINE KEYWORD` in `keywords.rules`
  *   carries no `HOOK` body or `DO` for what this case needs (`docs/arena-backlog/
  *   s7-0{2,3,4,5}-*.md` — Stage 7's four hook groups, `src/lib/arena/
  *   rulesets/dbs/keywords.rules`'s own header names which keywords still read
  *   `-- Stage 7 (#153–#157)`).
- * - **`staticGap`**: the [Permanent] reads to a static kind `vm/effects.ts`'s
- *   own `DEFERRED_STATICS` names — a legality a
- *   [Permanent] can print and this engine does not yet collect into anything
- *   a reader sees, each already citing the issue that closes it.
  * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
  *   `ScriptHost` implementation still throws `NotYet` for by name (a
  *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
@@ -97,12 +94,6 @@ let skipped = 0;
 function keywordGap(keyword: string, doc: string): boolean {
   if (ENGINE !== "rules") return false;
   console.log(`  skipped case — [${keyword}]'s keyword body is not built on the rules engine yet (${doc})`);
-  skipped++;
-  return true;
-}
-function staticGap(where: string, what: string, why: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: [Permanent] reads to a "${what}" static, which vm/effects.ts's DEFERRED_STATICS names as unread — ${why}`);
   skipped++;
   return true;
 }
@@ -2301,13 +2292,9 @@ if (!notYetGap("SPANSKIP: three `skip` entries under one name (20-13)", "`addSki
 
 // ── 9-1-4: a card no skill may touch ───────────────────────────────────────
 
-if (
-  !staticGap(
-    "IMMUNE: a [Permanent] saying this card isn't affected by an opponent's skills",
-    "immune",
-    "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing (`chooseable`) is Stage 7's; the query hook Barrier itself uses does not cover a board-wide reading not tied to a keyword",
-  )
-) {
+// Both engines since #154: the rules engine collects a [Permanent]'s `immune`
+// op (`vm/effects.ts`) and every selector asks it (`immunityRefusing`).
+{
   // The acceptance board for #128. Everything the family claims is one
   // question asked of one pair — this card, that skill — so every case below
   // is the same two cards with the asking side changed.
@@ -2388,13 +2375,7 @@ if (
   assert.equal(powerOfG(own, findG(own, "p2", "battle", "IMMUNE")), 15000, "immunity to your opponent's skills is not immunity to your own");
 }
 
-if (
-  !staticGap(
-    "IMMANY: a [Permanent] naming no side at all ('non-<Gogeta: GT> skills')",
-    "immune",
-    "#154 — the same DEFERRED_STATICS entry as IMMUNE above, over a filter with no side named",
-  )
-) {
+{
   // The other half of the family, and the reason the rule is asked of the
   // stored `from` rather than of who owns the card: "isn't affected by
   // non-<Gogeta: GT> skills" (BT18-019) names no side at all, so it blocks
@@ -2598,4 +2579,4 @@ if (!replaceGap("REVEALER: a life card's own departure, replaced by a [Permanent
   assertConsistentG(taken.state);
 }
 
-if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own keywordGap/staticGap/notYetGap/replaceGap comments`);
+if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own keywordGap/notYetGap/replaceGap comments`);

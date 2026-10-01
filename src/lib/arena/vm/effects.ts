@@ -50,7 +50,7 @@
 import type { EngineContext, GameEvent } from "../engine";
 import { costModifierAs, modifyAttrAs, negateAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
 import type { AltCost } from "../engine/state";
-import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix } from "../engine/types";
+import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix } from "../engine/types";
 import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import type { AttrValue, Attrs } from "./cards";
@@ -154,7 +154,7 @@ export interface VmStatic {
   kind: ContinuousEffect["kind"];
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | AltCost;
+  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | AltCost | Immunity;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
@@ -167,12 +167,11 @@ export interface PayerGrant {
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "payWith", "altCost", "if"] as const;
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "immune", "payWith", "altCost", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {
   permit: "#150 — 8-1-1 the other way round: a permission widens what may be *attacked*, and the battle is Stage 6's",
-  immune: "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   negateKeyword: "#153 — keywords are Stage 7's",
   gains: "#153",
   replaceLeave: "#146 — a replacement stands in front of a move; a skill's KO and moves are real since #146, but no [Permanent]'s replacement is collected yet, so `vm/host.ts`'s replacementsFor answers []",
@@ -404,6 +403,8 @@ export function permanents(
   targets: (frame: ScriptFrame, op: Op) => string[],
   holds: (frame: ScriptFrame, op: Op) => boolean,
   measure: (frame: ScriptFrame, amount: Amount) => number,
+  /** Walk only the programs this accepts — the immunity pass (`vm/program.ts`) skips every [Permanent] that grants none, on a path taken once per candidate of every selector. */
+  only?: (ops: Op[]) => boolean,
 ): VmStatic[] {
   const out: VmStatic[] = [];
   const inPlay = new Set(inPlayZones(game));
@@ -418,7 +419,7 @@ export function permanents(
           if (sk.kind !== "permanent") continue;
           if (skillNegated(state, src, sk.index, sk.kind)) continue;
           const program = showing.scripts.bySkill[sk.index];
-          if (!program || program.unsupported.length) continue;
+          if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p }, program.ops, inPlay.has(zone), targets, holds, measure);
         }
       }
@@ -472,6 +473,21 @@ function collect(
         const name = op.sameNameAsSelf ? faceName(ctx, state, frame.card) : undefined;
         out.push({ source: frame.card, master: frame.master, kind: "forbid", target: "", value: { ...forbid, filter: op.filter, name } });
       }
+      continue;
+    }
+    // 9-1-4: a card no skill may touch, printed as a [Permanent] on most of
+    // the cards that have it — stored the way `forbid` is, in play only, with
+    // `op.until` unused for the same reason. Whose skills it blocks is the
+    // rule's own (`from`, a player; absent for "non-<Gogeta: GT> skills",
+    // which names no side) and `immunityRefusing` (`vm/program.ts`) asks it
+    // of every chooser — the legacy `collectStatics`' reading, word for word.
+    if (op.op === "immune") {
+      if (!inPlayNow) continue;
+      const value: Immunity = {
+        ...(op.from && op.from !== "both" ? { from: op.from === "opponent" ? otherPlayer(frame.master) : frame.master } : {}),
+        ...(op.fromFilter ? { fromFilter: op.fromFilter } : {}),
+      };
+      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "immune", target: id, value });
       continue;
     }
     if (op.op === "power" || op.op === "comboPower") {

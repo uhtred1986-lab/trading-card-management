@@ -44,7 +44,7 @@
 import type { EngineContext } from "../engine";
 import { coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../engine/cards";
 import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "../engine/script";
-import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
+import type { EffectUntil, ForbiddenAction, Immunity, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
 import { other } from "../engine/types";
 import { parseFilter, powerRelOk } from "../engine/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
@@ -70,14 +70,14 @@ export const NAMED_ZONES = {
  * Where a reading is narrower or wider than the manual, and the issue that
  * closes it.
  *
- * One entry today. `battled` left this list at #152 (see the module doc);
- * `immune` stays, narrower now: a skill's KO reaches `koByEffect` since #146,
- * so what is left unread is a [Permanent] that *grants* immunity — the
- * `immune` op, `DEFERRED_STATICS`' own entry.
+ * Empty today. `battled` left this list at #152 (see the module doc), and
+ * `immune` at #154: a [Permanent]'s `immune` op is collected
+ * (`immunityStatics` below) and every selector asks it (`immunityRefusing`),
+ * the legacy reading. What 9-1-4 still covers and neither engine catches — an
+ * effect that names no card at all — is the glossary's own "A card no skill
+ * may touch" entry, the same on both, so it is no difference between them.
  */
-export const NARROWER: Record<string, string> = {
-  immune: "#154 — 9-1-4 immunity granted by a [Permanent]'s `immune` op is not collected (DEFERRED_STATICS); a keyword's own `koByEffect` is read since #146 gave a skill's KO a caller",
-};
+export const NARROWER: Record<string, string> = {};
 
 /**
  * The one recursion guard, the legacy `computingStatics` by another name.
@@ -87,6 +87,16 @@ export const NARROWER: Record<string, string> = {
  * reading a static's own selector must not ask for the statics again.
  */
 let readingStatics = false;
+
+/**
+ * The second guard, the legacy `computingImmunities`: immunity is the one
+ * static kind that must be readable *while* the statics are being read,
+ * because it decides whether another [Permanent]'s change lands at all — a
+ * card unaffected by the opponent's skills is not powered down by the
+ * opponent's [Permanent] either (9-1-4). One level is enough here too:
+ * granting a card immunity is not an effect any immunity is meant to stop.
+ */
+let readingImmunities = false;
 
 /** 1-12 and 5-2: which players a `Side` word means, from the point of view of the skill's master. */
 export function sideOf(master: PlayerId, side: Side | undefined): PlayerId[] {
@@ -128,6 +138,65 @@ function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmSt
  */
 export function staticsNow(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   return statics(ctx, game, state);
+}
+
+/** Does this [Permanent] program grant an immunity anywhere in it, `if` branches included? The legacy `grantsImmunity`. */
+function grantsImmunity(ops: Op[]): boolean {
+  return ops.some((o) => (o.op === "if" ? grantsImmunity(o.then) || grantsImmunity(o.else ?? []) : o.op === "immune"));
+}
+
+/**
+ * The [Permanent] immunities alone (9-1-4), readable while `statics` is
+ * running — see `readingImmunities`. Only the programs that grant one are
+ * walked, because this is asked once per candidate of every selector.
+ */
+function immunityStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
+  if (readingImmunities) return [];
+  readingImmunities = true;
+  try {
+    return permanents(
+      ctx,
+      game,
+      state,
+      (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
+      (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
+      (frame, a) => amount(ctx, game, state, frame, a),
+      grantsImmunity,
+    ).filter((e) => e.kind === "immune");
+  } finally {
+    readingImmunities = false;
+  }
+}
+
+/** An immunity in force on a card, and where it comes from — what a refusal names. */
+export interface ImmunityInForce {
+  rule: Immunity;
+  source: string | null;
+  until: EffectUntil;
+}
+
+/**
+ * 9-1-4: the immunity that refuses a skill whose source card is `source` and
+ * whose master is `chooser`, or null when none does — the legacy
+ * `immunityRefusing`, read for read. Asked of every chooser, the card's own
+ * controller included, because whose skills are blocked is written on the
+ * rule: "your opponent's skills" stores that player, "non-<Gogeta: GT>
+ * skills" names no side and blocks every skill, and a `fromFilter` needs a
+ * source card to match, so a skill with no card behind it gets through. A
+ * skill's timed immunity (`state.effects`, the shared interpreter's `immune`
+ * case) and a [Permanent]'s are one list.
+ */
+export function immunityRefusing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, source: string | undefined, chooser: PlayerId): ImmunityInForce | null {
+  const rules: ImmunityInForce[] = [];
+  for (const e of state.effects) if (e.kind === "immune" && e.target === id && e.immune) rules.push({ rule: e.immune, source: e.source ?? null, until: e.until });
+  for (const e of immunityStatics(ctx, game, state)) if (e.target === id) rules.push({ rule: e.value as Immunity, source: e.source, until: "permanent" });
+  return (
+    rules.find(
+      (im) =>
+        (im.rule.from === undefined || im.rule.from === chooser) &&
+        (!im.rule.fromFilter || (!!source && !!state.cards[source] && predicateOf(im.rule.fromFilter, game)(attrsNow(ctx, game, state, source)))),
+    ) ?? null
+  );
 }
 
 /**
@@ -794,6 +863,13 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // not re-applied here without its own exemptions.
     if (!sel.special && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id, hooks: false }))
       return false;
+    // 9-1-4: a card no skill may touch (#154). The one place immunity is
+    // enforced, as on the legacy engine — every op reaches a card through a
+    // selector, a [Permanent]'s board-wide change included, so a new op
+    // inherits the check. Which skills it refuses is the stored rule's
+    // business (`immunityRefusing`), and `self` is kept out: a card's own
+    // skill naming itself is the skill working, not a skill touching it.
+    if (sel.special !== "self" && immunityRefusing(ctx, game, state, id, frame.card, frame.master)) return false;
     return true;
   });
 }
