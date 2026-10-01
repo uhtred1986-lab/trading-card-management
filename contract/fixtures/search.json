@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -32,12 +32,10 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
-        "keywords": [
-          "Awaken"
-        ],
+        "comboPower": null,
+        "keywords": [],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "draw 1",
+        "reading": "",
         "referee": false
       },
       "unison": null,
@@ -62,7 +60,7 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
-          "reading": "choose up to 1 <v1> in your deck, move the chosen cards to hand, shuffle",
+          "reading": "",
           "referee": false
         }
       ],
@@ -1048,7 +1046,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
+        "comboPower": null,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -1100,7 +1098,7 @@
           "p1#18"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#18"
     },
     {
       "action": {
@@ -1110,7 +1108,7 @@
           "p1#38"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#38"
     },
     {
       "action": {
@@ -1120,7 +1118,7 @@
           "p1#13"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#13"
     },
     {
       "action": {
@@ -1130,7 +1128,7 @@
           "p1#12"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#12"
     },
     {
       "action": {
@@ -1140,7 +1138,7 @@
           "p1#45"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#45"
     },
     {
       "action": {
@@ -1150,7 +1148,7 @@
           "p1#2"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#2"
     },
     {
       "action": {
@@ -1160,7 +1158,7 @@
           "p1#49"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#49"
     },
     {
       "action": {
@@ -1170,7 +1168,7 @@
           "p1#36"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#36"
     },
     {
       "action": {
@@ -1180,7 +1178,7 @@
           "p1#42"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#42"
     },
     {
       "action": {
@@ -1190,7 +1188,7 @@
           "p1#28"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#28"
     },
     {
       "action": {
@@ -1200,7 +1198,7 @@
           "p1#5"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#5"
     },
     {
       "action": {
@@ -1210,7 +1208,7 @@
           "p1#6"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#6"
     },
     {
       "action": {
@@ -1220,7 +1218,7 @@
           "p1#27"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#27"
     },
     {
       "action": {
@@ -1230,7 +1228,7 @@
           "p1#37"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#37"
     },
     {
       "action": {
@@ -1240,7 +1238,7 @@
           "p1#32"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#32"
     },
     {
       "action": {
@@ -1250,7 +1248,7 @@
           "p1#10"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#10"
     },
     {
       "action": {
@@ -1260,7 +1258,7 @@
           "p1#46"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#46"
     },
     {
       "action": {
@@ -1270,7 +1268,7 @@
           "p1#41"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#41"
     },
     {
       "action": {
@@ -1280,7 +1278,7 @@
           "p1#14"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#14"
     },
     {
       "action": {
@@ -1290,7 +1288,7 @@
           "p1#8"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#8"
     },
     {
       "action": {
@@ -1300,7 +1298,7 @@
           "p1#20"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#20"
     },
     {
       "action": {
@@ -1310,7 +1308,7 @@
           "p1#30"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#30"
     },
     {
       "action": {
@@ -1320,7 +1318,7 @@
           "p1#7"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#7"
     },
     {
       "action": {
@@ -1330,7 +1328,7 @@
           "p1#44"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#44"
     },
     {
       "action": {
@@ -1340,7 +1338,7 @@
           "p1#31"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#31"
     },
     {
       "action": {
@@ -1350,7 +1348,7 @@
           "p1#24"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#24"
     },
     {
       "action": {
@@ -1360,7 +1358,7 @@
           "p1#11"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#11"
     },
     {
       "action": {
@@ -1370,7 +1368,7 @@
           "p1#21"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#21"
     },
     {
       "action": {
@@ -1380,7 +1378,7 @@
           "p1#19"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#19"
     },
     {
       "action": {
@@ -1390,7 +1388,7 @@
           "p1#25"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#25"
     },
     {
       "action": {
@@ -1400,7 +1398,7 @@
           "p1#34"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#34"
     },
     {
       "action": {
@@ -1410,7 +1408,7 @@
           "p1#48"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#48"
     },
     {
       "action": {
@@ -1420,7 +1418,7 @@
           "p1#4"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#4"
     },
     {
       "action": {
@@ -1430,7 +1428,7 @@
           "p1#9"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#9"
     },
     {
       "action": {
@@ -1440,7 +1438,7 @@
           "p1#23"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#23"
     },
     {
       "action": {
@@ -1450,7 +1448,7 @@
           "p1#17"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#17"
     },
     {
       "action": {
@@ -1460,7 +1458,7 @@
           "p1#50"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#50"
     },
     {
       "action": {
@@ -1470,7 +1468,7 @@
           "p1#29"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#29"
     },
     {
       "action": {
@@ -1480,7 +1478,7 @@
           "p1#26"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#26"
     },
     {
       "action": {
@@ -1490,7 +1488,7 @@
           "p1#43"
         ]
       },
-      "label": "Choose V1"
+      "label": "Choose p1#43"
     },
     {
       "action": {

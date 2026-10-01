@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 5,
@@ -32,12 +32,10 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
-        "keywords": [
-          "Awaken"
-        ],
+        "comboPower": null,
+        "keywords": [],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "draw 1",
+        "reading": "",
         "referee": false
       },
       "unison": null,
@@ -87,9 +85,7 @@
           "cost": "2",
           "comboCost": 1,
           "comboPower": 10000,
-          "keywords": [
-            "Blocker"
-          ],
+          "keywords": [],
           "text": "[Blocker]",
           "reading": "",
           "referee": false
@@ -135,9 +131,7 @@
           "cost": "1",
           "comboCost": 0,
           "comboPower": 5000,
-          "keywords": [
-            "Unique"
-          ],
+          "keywords": [],
           "text": "[Unique]",
           "reading": "",
           "referee": false
@@ -199,7 +193,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
+        "comboPower": null,
         "keywords": [],
         "text": null,
         "reading": "",

@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -32,12 +32,10 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
-        "keywords": [
-          "Awaken"
-        ],
+        "comboPower": null,
+        "keywords": [],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "draw 1",
+        "reading": "",
         "referee": false
       },
       "unison": {
@@ -55,12 +53,10 @@
         "markers": 3,
         "underCount": 0,
         "isToken": false,
-        "cost": "X",
+        "cost": null,
         "comboCost": null,
-        "comboPower": 0,
-        "keywords": [
-          "Empower"
-        ],
+        "comboPower": null,
+        "keywords": [],
         "text": "[Empower Red 2]",
         "reading": "",
         "referee": false
@@ -211,12 +207,10 @@
         "markers": 0,
         "underCount": 0,
         "isToken": false,
-        "cost": "X",
+        "cost": null,
         "comboCost": null,
         "comboPower": null,
-        "keywords": [
-          "Blocker"
-        ],
+        "keywords": [],
         "text": "[Blocker]",
         "reading": "",
         "referee": false
@@ -242,7 +236,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
+        "comboPower": null,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -281,6 +275,13 @@
   "legal": [
     {
       "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
         "type": "attack",
         "player": "p1",
         "attacker": "p1#0",
@@ -296,33 +297,26 @@
         "target": "p2#0"
       },
       "label": "Attack L-BLUE with CONTRACTEMP (5000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "endMain",
-        "player": "p1"
-      },
-      "label": "End turn"
     }
   ],
   "taps": {
     "byCard": {
       "p1#0": [
-        0
+        1
       ],
       "p1#35": [
-        1
+        2
       ]
     },
     "bare": [
-      2
+      0
     ],
     "attackTargets": {
       "p1#0": {
-        "p2#0": 0
+        "p2#0": 1
       },
       "p1#35": {
-        "p2#0": 1
+        "p2#0": 2
       }
     },
     "whyByCard": {

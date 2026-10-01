@@ -527,6 +527,25 @@ function arenaG(opts: ArenaOpts = {}): EngineState {
   return ENGINE === "rules" ? arenaOnRules(opts) : arena(opts);
 }
 
+/**
+ * `arena()`'s board on whichever engine `--engine` named, hand included (#459).
+ *
+ * `arenaG`'s rules branch leaves the dealt filler in both hands, and
+ * `battles.ts`/`workflow.ts`/`keywords.ts` were written against that. `arena()`
+ * itself ends by putting p1's dealt V1s on the bottom of the deck (unless V1
+ * was asked for) and every one of p2's dealt V-BLUEs — and the seven suites
+ * that moved off the legacy engine count hands, read `hand[0]` and draw the
+ * contract fixtures from those boards. This is that board on the rules engine:
+ * the same staging, the same last step, the same card ids in the same places.
+ */
+function stagedG(opts: ArenaOpts = {}): EngineState {
+  if (ENGINE !== "rules") return arena(opts);
+  const r = arenaOnRules(opts);
+  for (const id of r.sides.p1.zones.hand.slice()) if (r.cards[id].cardId === "V1" && !(opts.hand ?? []).includes("V1")) moveCard(r, DBS_DEFINITION, id, "deck", { position: "bottom" });
+  for (const id of r.sides.p2.zones.hand.slice()) if (r.cards[id].cardId === "V-BLUE") moveCard(r, DBS_DEFINITION, id, "deck", { position: "bottom" });
+  return r;
+}
+
 /** Every card instance is in exactly one area (3-1) — `assertConsistent` above, generic over the area names `zoneOf` reads. */
 function assertConsistentG(s: EngineState): void {
   const seen = new Map<string, number>();
@@ -790,6 +809,7 @@ export {
   apply,
   arena,
   arenaG,
+  stagedG,
   assertConsistent,
   assertConsistentAfterDrop,
   assertConsistentAfterDropG,

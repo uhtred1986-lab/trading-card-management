@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -32,12 +32,10 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
-        "keywords": [
-          "Awaken"
-        ],
+        "comboPower": null,
+        "keywords": [],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "draw 1",
+        "reading": "",
         "referee": false
       },
       "unison": null,
@@ -46,7 +44,7 @@
           "id": "p1#35",
           "cardId": "AURA",
           "name": "AURA",
-          "power": 15000,
+          "power": 10000,
           "colors": [
             "Red"
           ],
@@ -62,33 +60,14 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Permanent] Your Battle Cards get +5000 power.",
-          "reading": "all in your battle +5000 power",
-          "referee": false,
-          "basePower": 10000,
-          "effects": [
-            {
-              "kind": "power",
-              "label": "+5,000 power",
-              "until": "permanent",
-              "source": "p1#35",
-              "sourceName": "AURA",
-              "by": "p1"
-            }
-          ],
-          "permanents": [
-            {
-              "index": 0,
-              "text": "Your Battle Cards get +5000 power.",
-              "state": "on",
-              "reading": "all in your battle +5000 power"
-            }
-          ]
+          "reading": "",
+          "referee": false
         },
         {
           "id": "p1#18",
           "cardId": "RESTCOND",
           "name": "RESTCOND",
-          "power": 15000,
+          "power": 10000,
           "colors": [
             "Red"
           ],
@@ -104,33 +83,14 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power.",
-          "reading": "if there are 1 or more this card: all in your battle +5000 power",
-          "referee": false,
-          "basePower": 10000,
-          "effects": [
-            {
-              "kind": "power",
-              "label": "+5,000 power",
-              "until": "permanent",
-              "source": "p1#35",
-              "sourceName": "AURA",
-              "by": "p1"
-            }
-          ],
-          "permanents": [
-            {
-              "index": 0,
-              "text": "If this card is in Rest Mode, your Battle Cards get +5000 power.",
-              "state": "off",
-              "reading": "if there are 1 or more this card: all in your battle +5000 power"
-            }
-          ]
+          "reading": "",
+          "referee": false
         },
         {
           "id": "p1#38",
           "cardId": "ODDAURA",
           "name": "ODDAURA",
-          "power": 15000,
+          "power": 10000,
           "colors": [
             "Red"
           ],
@@ -147,32 +107,13 @@
           "keywords": [],
           "text": "[Permanent] Your Battle Cards resonate with the will of the universe.",
           "reading": "",
-          "referee": false,
-          "basePower": 10000,
-          "effects": [
-            {
-              "kind": "power",
-              "label": "+5,000 power",
-              "until": "permanent",
-              "source": "p1#35",
-              "sourceName": "AURA",
-              "by": "p1"
-            }
-          ],
-          "permanents": [
-            {
-              "index": 0,
-              "text": "Your Battle Cards resonate with the will of the universe.",
-              "state": "unread",
-              "reading": ""
-            }
-          ]
+          "referee": false
         },
         {
           "id": "p1#13",
           "cardId": "INERTPERM",
           "name": "INERTPERM",
-          "power": 15000,
+          "power": 10000,
           "colors": [
             "Red"
           ],
@@ -188,33 +129,14 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Permanent] Draw 1 card.",
-          "reading": "draw 1",
-          "referee": false,
-          "basePower": 10000,
-          "effects": [
-            {
-              "kind": "power",
-              "label": "+5,000 power",
-              "until": "permanent",
-              "source": "p1#35",
-              "sourceName": "AURA",
-              "by": "p1"
-            }
-          ],
-          "permanents": [
-            {
-              "index": 0,
-              "text": "Draw 1 card.",
-              "state": "inert",
-              "reading": "draw 1"
-            }
-          ]
+          "reading": "",
+          "referee": false
         },
         {
           "id": "p1#12",
           "cardId": "V1",
           "name": "V1",
-          "power": 15000,
+          "power": 10000,
           "colors": [
             "Red"
           ],
@@ -231,18 +153,7 @@
           "keywords": [],
           "text": null,
           "reading": "",
-          "referee": false,
-          "basePower": 10000,
-          "effects": [
-            {
-              "kind": "power",
-              "label": "+5,000 power",
-              "until": "permanent",
-              "source": "p1#35",
-              "sourceName": "AURA",
-              "by": "p1"
-            }
-          ]
+          "referee": false
         }
       ],
       "combo": [],
@@ -305,7 +216,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
+        "comboPower": null,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -368,6 +279,13 @@
   "legal": [
     {
       "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
         "type": "attack",
         "player": "p1",
         "attacker": "p1#0",
@@ -419,57 +337,50 @@
         "target": "p2#0"
       },
       "label": "Attack L-BLUE with V1 (15000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "endMain",
-        "player": "p1"
-      },
-      "label": "End turn"
     }
   ],
   "taps": {
     "byCard": {
       "p1#0": [
-        0
-      ],
-      "p1#35": [
         1
       ],
-      "p1#18": [
+      "p1#35": [
         2
       ],
-      "p1#38": [
+      "p1#18": [
         3
       ],
-      "p1#13": [
+      "p1#38": [
         4
       ],
-      "p1#12": [
+      "p1#13": [
         5
+      ],
+      "p1#12": [
+        6
       ]
     },
     "bare": [
-      6
+      0
     ],
     "attackTargets": {
       "p1#0": {
-        "p2#0": 0
-      },
-      "p1#35": {
         "p2#0": 1
       },
-      "p1#18": {
+      "p1#35": {
         "p2#0": 2
       },
-      "p1#38": {
+      "p1#18": {
         "p2#0": 3
       },
-      "p1#13": {
+      "p1#38": {
         "p2#0": 4
       },
-      "p1#12": {
+      "p1#13": {
         "p2#0": 5
+      },
+      "p1#12": {
+        "p2#0": 6
       }
     },
     "whyByCard": {

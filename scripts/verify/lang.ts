@@ -24,7 +24,7 @@ import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
 import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
-import { CTX, DEFS, arenaG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords } from "./harness";
+import { CTX, DEFS, stagedG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords } from "./harness";
 
 /** A rule with nothing but its steps, for the round trips that are about the program. */
 const ruleOf = (ops: Op[], rest: Partial<Rule> = {}): Rule => ({ kind: "auto", trigger: [], cost: null, cond: null, ops, ...rest });
@@ -822,7 +822,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   });
 
   const pendedOn = (scripts: Record<string, CardScripts> | undefined, trigger: Trigger): number => {
-    const s = arenaG({ battle: ["DRAWER"] });
+    const s = stagedG({ battle: ["DRAWER"] });
     const id = findG(s, "p1", "battle", "DRAWER");
     return pendedG(scripts ? { defs: DEFS, scripts } : CTX, s, trigger, id);
   };

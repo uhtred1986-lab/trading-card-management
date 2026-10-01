@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -32,12 +32,10 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
-        "keywords": [
-          "Awaken"
-        ],
+        "comboPower": null,
+        "keywords": [],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "draw 1",
+        "reading": "",
         "referee": false
       },
       "unison": null,
@@ -46,7 +44,7 @@
           "id": "p1#35",
           "cardId": "PUMPCRIT",
           "name": "PUMPCRIT",
-          "power": 15000,
+          "power": 10000,
           "colors": [
             "Red"
           ],
@@ -60,13 +58,10 @@
           "cost": "1",
           "comboCost": 0,
           "comboPower": 5000,
-          "keywords": [
-            "Critical"
-          ],
+          "keywords": [],
           "text": "[Activate: Main] This card gets +5000 power and [Critical] for the turn.",
-          "reading": "this card +5000 power for the turn, this card gains [Critical] for the turn",
+          "reading": "",
           "referee": false,
-          "basePower": 10000,
           "effects": [
             {
               "kind": "power",
@@ -148,7 +143,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
+        "comboPower": null,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -187,16 +182,19 @@
   "legal": [
     {
       "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
         "type": "activate",
         "player": "p1",
         "card": "p1#35",
         "skill": 0
       },
-      "label": "Activate PUMPCRIT: This card gets +5000 power and [Critical",
-      "cost": {
-        "energy": 0,
-        "describe": "free"
-      }
+      "label": "Activate PUMPCRIT: This card gets +5000 power and [Critical"
     },
     {
       "action": {
@@ -215,34 +213,27 @@
         "target": "p2#0"
       },
       "label": "Attack L-BLUE with PUMPCRIT (15000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "endMain",
-        "player": "p1"
-      },
-      "label": "End turn"
     }
   ],
   "taps": {
     "byCard": {
       "p1#35": [
-        0,
-        2
+        1,
+        3
       ],
       "p1#0": [
-        1
+        2
       ]
     },
     "bare": [
-      3
+      0
     ],
     "attackTargets": {
       "p1#0": {
-        "p2#0": 1
+        "p2#0": 2
       },
       "p1#35": {
-        "p2#0": 2
+        "p2#0": 3
       }
     },
     "whyByCard": {

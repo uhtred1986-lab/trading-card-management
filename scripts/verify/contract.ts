@@ -16,31 +16,32 @@ import {
   DEFAULT_LIGHTING,
   DEFS,
   ENGINE,
+  IMPL,
   LEADER_COLOURS,
   LIGHTING_VERSION,
   RIVAL,
   TONES,
   appendBeats,
-  apply,
-  arena,
-  boardView,
   buildSnapshot,
   colourOf,
   encodeLighting,
-  find,
-  legalActions,
+  findG,
+  leaderOf,
   lightingFrom,
   maskBeats,
   mix,
   narrate,
-  play,
+  playG,
+  rulesGap,
+  stagedG,
   toBeats,
   toneFor,
   turnVars,
   unisonOf,
   waitingFor,
+  zoneOf,
 } from "./harness";
-import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from "./harness";
+import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from "./harness";
 
 // ── the client contract: beats, and the snapshot both clients render ───────
 //
@@ -54,14 +55,14 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
 
   // A charge is one card leaving the hand for the Energy Area.
   {
-    let s = arena({ hand: ["V1"] });
-    const card = find(s, "p1", "hand", "V1");
-    s = play(s, { type: "endMain", player: "p1" });
+    let s = stagedG({ hand: ["V1"] });
+    const card = findG(s, "p1", "hand", "V1");
+    s = playG(s, { type: "endMain", player: "p1" });
     // p2's turn, then back to p1's charge prompt.
-    s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+    s = playG(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
     assert.equal(s.prompt.kind, "charge");
-    const { state, events } = apply(ctx, s, { type: "charge", player: "p1", card });
-    const beats = toBeats(ctx, state, events, 0);
+    const { state, events } = IMPL.apply(ctx, s, { type: "charge", player: "p1", card });
+    const beats = IMPL.toBeats(ctx, state, events, 0);
     const moved = beats.list.find((b) => b.t === "move");
     assert.ok(moved && moved.t === "move" && moved.from === "hand" && moved.to === "energy", "charging is a move from hand to energy");
     assert.ok(beats.art[card], "a beat names its card, and carries the face it had at the time");
@@ -70,13 +71,13 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
 
   // Events with no picture collapse on purpose, and produce no beats at all.
   {
-    const s = arena();
-    const quiet = toBeats(
+    const s = stagedG();
+    const quiet = IMPL.toBeats(
       ctx,
       s,
       [
         { type: "note", text: "anything" },
-        { type: "hidden", card: s.players.p1.deck[0], hidden: true },
+        { type: "hidden", card: zoneOf(s, "p1", "deck")[0], hidden: true },
         { type: "energyMarker", player: "p1", delta: 1 },
       ],
       0,
@@ -87,13 +88,13 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
 
   // A KO carries its own face, because the card is gone from any later view.
   {
-    let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
-    const victim = s.players.p2.battle[0];
-    const r1 = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") });
+    let s = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
+    const victim = zoneOf(s, "p2", "battle")[0];
+    const r1 = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "KILLER") });
     s = r1.state;
     assert.equal(s.prompt.kind, "chooseCards", "KILLER asks which card to KO");
-    const r2 = apply(ctx, s, { type: "choose", player: "p1", cards: [victim] });
-    const beats = toBeats(ctx, r2.state, r2.events, 0);
+    const r2 = IMPL.apply(ctx, s, { type: "choose", player: "p1", cards: [victim] });
+    const beats = IMPL.toBeats(ctx, r2.state, r2.events, 0);
     assert.ok(
       beats.list.some((b) => b.t === "ko" && b.card === victim),
       `the KO is a beat — events were ${r2.events.map((e) => e.type).join(", ")}`,
@@ -103,19 +104,19 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
 
   // A token is pushed straight into the Battle Area with no `move` event.
   {
-    const s = arena({ hand: ["SPAWN"], energy: ["V1"] });
-    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SPAWN") });
-    const beats = toBeats(ctx, r.state, r.events, 0);
+    const s = stagedG({ hand: ["SPAWN"], energy: ["V1"] });
+    const r = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SPAWN") });
+    const beats = IMPL.toBeats(ctx, r.state, r.events, 0);
     assert.equal(beats.list.filter((b) => b.t === "token").length, 2, "both Saibamen get a beat of their own");
   }
 
   // Numbering climbs across batches, which is how one opponent turn — several
   // applies — replays in order and a client knows what it has not seen.
   {
-    const s = arena({ hand: ["V1"], energy: ["V1"] });
-    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "V1") });
-    const first = toBeats(ctx, r.state, r.events, 0);
-    const second = toBeats(ctx, r.state, r.events, first.seq);
+    const s = stagedG({ hand: ["V1"], energy: ["V1"] });
+    const r = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "V1") });
+    const first = IMPL.toBeats(ctx, r.state, r.events, 0);
+    const second = IMPL.toBeats(ctx, r.state, r.events, first.seq);
     assert.ok(first.seq > 0 && second.seq === first.seq * 2, "the second batch continues where the first stopped");
     assert.equal(second.list[0].n, first.seq + 1, "and every beat is numbered, not counted");
     const joined = appendBeats(first, second);
@@ -126,23 +127,24 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     // restarted would make the turn after a long one look already-played, and
     // a client would sit still through it.
     const emptied = { seq: joined.seq, list: [], art: {} };
-    const afterClear = appendBeats(emptied, toBeats(ctx, r.state, r.events, emptied.seq));
+    const afterClear = appendBeats(emptied, IMPL.toBeats(ctx, r.state, r.events, emptied.seq));
     assert.equal(afterClear.list.length, first.list.length, "the beats go, so only the new turn replays");
     assert.ok(afterClear.list[0].n > joined.seq, "but every number is still above everything already played");
   }
 
   // ── golden fixtures ──────────────────────────────────────────────────────
 
-  const snapshotFor = (state: GameState, beats: ReturnType<typeof toBeats> | null) =>
+  const snapshotFor = (state: EngineState, beats: ReturnType<typeof toBeats> | null) =>
     buildSnapshot({
       id: 1,
       mode: "hotseat",
+      engine: ENGINE,
       status: state.phase === "over" ? "over" : "playing",
       p1Name: "You",
       p2Name: "Claude",
       ctx,
       state,
-      legal: legalActions(ctx, state),
+      legal: IMPL.legalActions(ctx, state),
       log: [],
       beats,
       spotlight: null,
@@ -153,70 +155,73 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
 
   const fixtures: Record<string, unknown> = {};
 
+  /** What the rules engine's board does not draw yet — every case it costs is named at its own `rulesGap`. */
+  const VIEW_GAP = "`vm/view.ts`'s `cardView` draws the printed attributes: no layer on `power`, no `basePower`, `keywords` always [], `reading` always \"\", no `permanents`";
+
   {
-    const s = arena({ hand: ["V1"], energy: ["V1"] });
-    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "V1") });
-    fixtures.play = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+    const s = stagedG({ hand: ["V1"], energy: ["V1"] });
+    const r = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "V1") });
+    fixtures.play = snapshotFor(r.state, IMPL.toBeats(ctx, r.state, r.events, 0));
   }
   {
     // A Main Phase with two energy active and three cards in hand: one the
     // player can afford (UNIQ, BLOCKER, REVENGE) and two they cannot (COST3, CRIT: one short).
     // The board's drag-to-play (rd-03) needs both to be shown.
-    const s = arena({ hand: ["UNIQ", "BLOCKER", "COST3", "CRIT", "REVENGE"], energy: ["V1", "V1"] });
+    const s = stagedG({ hand: ["UNIQ", "BLOCKER", "COST3", "CRIT", "REVENGE"], energy: ["V1", "V1"] });
     fixtures.hand = snapshotFor(s, null);
   }
   {
     // The Charge Phase with a hand to charge from: the energy drop is legal.
-    let s = arena({ hand: ["BLOCKER", "COST3", "UNIQ"], energy: ["V1"] });
-    s = play(s, { type: "endMain", player: "p1" });
-    s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+    let s = stagedG({ hand: ["BLOCKER", "COST3", "UNIQ"], energy: ["V1"] });
+    s = playG(s, { type: "endMain", player: "p1" });
+    s = playG(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
     assert.equal(s.prompt.kind, "charge");
     fixtures.charge = snapshotFor(s, null);
   }
   {
-    let s = arena({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
-    const victim = s.players.p2.battle[0];
-    s = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "KILLER") }).state;
-    const r = apply(ctx, s, { type: "choose", player: "p1", cards: [victim] });
-    fixtures.ko = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+    let s = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE"] });
+    const victim = zoneOf(s, "p2", "battle")[0];
+    s = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "KILLER") }).state;
+    const r = IMPL.apply(ctx, s, { type: "choose", player: "p1", cards: [victim] });
+    fixtures.ko = snapshotFor(r.state, IMPL.toBeats(ctx, r.state, r.events, 0));
   }
   {
-    const s = arena({ battle: ["BIG"], oppBattle: ["V-BLUE"] });
-    const r = apply(ctx, s, { type: "attack", player: "p1", attacker: s.players.p1.battle[0], target: s.players.p2.leader! });
-    fixtures.attack = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+    const s = stagedG({ battle: ["BIG"], oppBattle: ["V-BLUE"] });
+    const r = IMPL.apply(ctx, s, { type: "attack", player: "p1", attacker: zoneOf(s, "p1", "battle")[0], target: leaderOf(s, "p2")! });
+    fixtures.attack = snapshotFor(r.state, IMPL.toBeats(ctx, r.state, r.events, 0));
   }
   {
     // `defend` (design frame 07): Claude attacks you. p1 ends the turn, p2 charges and
     // attacks your leader, passes its own combo, and the board stops on *your* defence
     // prompt — with cards in hand that could combo. The preview's `?fx=defend` fakes
     // this by turning `attack` round; this is the real thing, from the engine.
-    let s = arena({ hand: ["V1", "UNIQ", "BLOCKER"], battle: ["V1"], oppBattle: ["BIG"] });
-    s = play(s, { type: "endMain", player: "p1" });
-    s = play(s, { type: "charge", player: "p2", card: null });
-    const attacker = s.players.p2.battle[0];
-    const r1 = apply(ctx, s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader! });
-    const r2 = apply(ctx, r1.state, { type: "pass", player: "p2" });
+    let s = stagedG({ hand: ["V1", "UNIQ", "BLOCKER"], battle: ["V1"], oppBattle: ["BIG"] });
+    s = playG(s, { type: "endMain", player: "p1" });
+    s = playG(s, { type: "charge", player: "p2", card: null });
+    const attacker = zoneOf(s, "p2", "battle")[0];
+    const r1 = IMPL.apply(ctx, s, { type: "attack", player: "p2", attacker, target: leaderOf(s, "p1")! });
+    const r2 = IMPL.apply(ctx, r1.state, { type: "pass", player: "p2" });
     assert.equal(r2.state.prompt.kind, "combo", "the attack waits on a combo");
     assert.equal((r2.state.prompt as { player: PlayerId }).player, "p1", "and it is yours to answer");
-    fixtures.defend = snapshotFor(r2.state, toBeats(ctx, r2.state, [...r1.events, ...r2.events], 0));
+    fixtures.defend = snapshotFor(r2.state, IMPL.toBeats(ctx, r2.state, [...r1.events, ...r2.events], 0));
   }
   {
     // `attack-life` (design frame 09): an attack nobody blocks takes a life, so the
     // pip shatters. The beats are the whole attack — attack, clash, damage — in one batch.
-    let s = arena({ battle: ["BIG"], oppBattle: [] });
-    const lifeBefore = s.players.p2.life.length;
-    let step = apply(ctx, s, { type: "attack", player: "p1", attacker: s.players.p1.battle[0], target: s.players.p2.leader! });
+    let s = stagedG({ battle: ["BIG"], oppBattle: [] });
+    const lifeBefore = zoneOf(s, "p2", "life").length;
+    let step = IMPL.apply(ctx, s, { type: "attack", player: "p1", attacker: zoneOf(s, "p1", "battle")[0], target: leaderOf(s, "p2")! });
     const all = [...step.events];
     s = step.state;
-    for (let i = 0; i < 4 && s.players.p2.life.length === lifeBefore; i++) {
-      const pass = legalActions(ctx, s).find((l) => l.action.type === "pass");
+    for (let i = 0; i < 4 && zoneOf(s, "p2", "life").length === lifeBefore; i++) {
+      const pass = IMPL.legalActions(ctx, s).find((l) => l.action.type === "pass");
       assert.ok(pass, "an unblocked attack only needs both sides to pass");
-      step = apply(ctx, s, pass.action);
+      step = IMPL.apply(ctx, s, pass.action);
       all.push(...step.events);
       s = step.state;
     }
-    assert.equal(s.players.p2.life.length, lifeBefore - 1, "the attack took one life");
-    const beats = toBeats(ctx, s, all, 0);
+    assert.equal(zoneOf(s, "p2", "life").length, lifeBefore - 1, "the attack took one life");
+    const beats = IMPL.toBeats(ctx, s, all, 0);
     assert.ok(beats.list.some((b) => b.t === "damage" && b.amount === 1), "and the life loss is a damage beat");
     fixtures["attack-life"] = snapshotFor(s, beats);
   }
@@ -224,7 +229,7 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     // `refusal` (design frame 05): a card you cannot afford, for the review sheet's
     // "1 energy short" and the disabled Play. `hand` has the same refusal among
     // others; this is the one card the frame is about.
-    const s = arena({ hand: ["COST3", "UNIQ"], energy: ["V1", "V1"] });
+    const s = stagedG({ hand: ["COST3", "UNIQ"], energy: ["V1", "V1"] });
     const snap = snapshotFor(s, null);
     assert.ok(
       snap.rejected?.some((r) => r.action.type === "play" && r.why.some((w) => w.kind === "energy")),
@@ -233,25 +238,25 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     fixtures.refusal = snap;
   }
   {
-    const s = arena();
-    const r = apply(ctx, s, { type: "concede", player: "p1" });
-    fixtures.over = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+    const s = stagedG();
+    const r = IMPL.apply(ctx, s, { type: "concede", player: "p1" });
+    fixtures.over = snapshotFor(r.state, IMPL.toBeats(ctx, r.state, r.events, 0));
   }
   {
     // A search of the deck mid-skill: `choices`, `min`/`max` and `step` on the
     // prompt, so both clients decode the shape a search sheet is built from.
-    const s = arena({ hand: ["SEARCH"], energy: ["V1"] });
-    const r = apply(ctx, s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SEARCH") });
-    fixtures.search = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
+    const s = stagedG({ hand: ["SEARCH"], energy: ["V1"] });
+    const r = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SEARCH") });
+    fixtures.search = snapshotFor(r.state, IMPL.toBeats(ctx, r.state, r.events, 0));
   }
   {
     // A skill activation: exactly one `skill` beat (review §3.2), the two
     // effects it made as beats of their own with their source named (§3.3),
     // and the pumped card carrying `basePower` and `effects` (§3.3c).
-    const s = arena({ battle: ["PUMPCRIT"], energy: ["V1"] });
-    const pump = find(s, "p1", "battle", "PUMPCRIT");
-    const r = apply(ctx, s, { type: "activate", player: "p1", card: pump, skill: 0 });
-    const beats = toBeats(ctx, r.state, r.events, 0);
+    const s = stagedG({ battle: ["PUMPCRIT"], energy: ["V1"] });
+    const pump = findG(s, "p1", "battle", "PUMPCRIT");
+    const r = IMPL.apply(ctx, s, { type: "activate", player: "p1", card: pump, skill: 0 });
+    const beats = IMPL.toBeats(ctx, r.state, r.events, 0);
     assert.deepEqual(
       beats.list.map((b) => b.t),
       ["skill", "effect", "effect"],
@@ -267,8 +272,10 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     );
     const snap = snapshotFor(r.state, beats);
     const cv = snap.view.you.battle.find((c) => c.id === pump)!;
-    assert.equal(cv.power, 15000);
-    assert.equal(cv.basePower, 10000, "the printed power travels with the changed one");
+    if (!rulesGap("contract: activate — the pumped card's power on the board", VIEW_GAP, "no issue filed yet")) {
+      assert.equal(cv.power, 15000);
+      assert.equal(cv.basePower, 10000, "the printed power travels with the changed one");
+    }
     assert.deepEqual(
       cv.effects?.map((e) => [e.kind, e.label, e.until, e.source, e.keyword ?? null]),
       [
@@ -279,10 +286,10 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     assert.equal(cv.effects?.[0].sourceName, "PUMPCRIT");
     fixtures.activate = snap;
     // The turn ending: the effects wear off, and each says so.
-    const r2 = apply(ctx, r.state, { type: "endMain", player: "p1" });
-    const ended = toBeats(ctx, r2.state, r2.events, beats.seq).list.filter((b) => b.t === "effectEnded");
+    const r2 = IMPL.apply(ctx, r.state, { type: "endMain", player: "p1" });
+    const ended = IMPL.toBeats(ctx, r2.state, r2.events, beats.seq).list.filter((b) => b.t === "effectEnded");
     assert.equal(ended.length, 2, "one effectEnded beat per effect that expired");
-    const after = boardView(ctx, r2.state, "p1", {}).you.battle.find((c) => c.id === pump)!;
+    const after = IMPL.boardView(ctx, r2.state, "p1", {}).you.battle.find((c) => c.id === pump)!;
     assert.equal(after.power, 10000);
     assert.equal(after.basePower, undefined, "back to the printed number, nothing to show");
     assert.equal(after.effects, undefined);
@@ -291,21 +298,25 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     // Standing rules on a board (review §3.5): an aura on another card, a
     // conditional [Permanent] that is off, a permanent nothing reads, one that
     // compiles to nothing the static layer applies, and a player-level rule.
-    const s = arena({ battle: ["AURA", "RESTCOND", "ODDAURA", "INERTPERM", "V1"], oppBattle: ["V-BLUE"], energy: ["V1"] });
-    const you = boardView(ctx, s, "p1", {}).you;
+    const s = stagedG({ battle: ["AURA", "RESTCOND", "ODDAURA", "INERTPERM", "V1"], oppBattle: ["V-BLUE"], energy: ["V1"] });
+    const you = IMPL.boardView(ctx, s, "p1", {}).you;
     const byId = (cardId: string) => you.battle.find((c) => c.cardId === cardId)!;
-    assert.equal(byId("AURA").permanents?.[0].state, "on");
-    assert.equal(byId("RESTCOND").permanents?.[0].state, "off", "its condition does not hold: the card is active");
-    assert.equal(byId("ODDAURA").permanents?.[0].state, "unread");
+    if (!rulesGap("contract: standing — each [Permanent]'s on/off/unread/inert state on its card", VIEW_GAP, "no issue filed yet")) {
+      assert.equal(byId("AURA").permanents?.[0].state, "on");
+      assert.equal(byId("RESTCOND").permanents?.[0].state, "off", "its condition does not hold: the card is active");
+      assert.equal(byId("ODDAURA").permanents?.[0].state, "unread");
+      assert.equal(byId("INERTPERM").permanents?.[0].state, "inert", "compiles, but the static layer has no kind for a draw");
+    }
     assert.equal(byId("ODDAURA").referee, false, "a [Permanent] is never the referee's: it never resolves");
-    assert.equal(byId("INERTPERM").permanents?.[0].state, "inert", "compiles, but the static layer has no kind for a draw");
     const v1 = byId("V1");
-    assert.equal(v1.basePower, 10000, "AURA's +5000 is on it, and the card says what the printed number was");
-    assert.equal(v1.power, 15000, "RESTCOND is off (the card is active), so only AURA counts");
-    assert.deepEqual(
-      v1.effects?.map((e) => [e.kind, e.label, e.until, e.sourceName]),
-      [["power", "+5,000 power", "permanent", "AURA"]],
-    );
+    if (!rulesGap("contract: standing — an aura's power, and the effect it names, on the card it reaches", VIEW_GAP, "no issue filed yet")) {
+      assert.equal(v1.basePower, 10000, "AURA's +5000 is on it, and the card says what the printed number was");
+      assert.equal(v1.power, 15000, "RESTCOND is off (the card is active), so only AURA counts");
+      assert.deepEqual(
+        v1.effects?.map((e) => [e.kind, e.label, e.until, e.sourceName]),
+        [["power", "+5,000 power", "permanent", "AURA"]],
+      );
+    }
     fixtures.standing = snapshotFor(s, null);
   }
 
@@ -315,14 +326,15 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     // Everything above is drawn for p1, because that is who every other mode
     // shows. A versus game is the first time the server builds a board for p2,
     // and the three things that must then be true are all checked here.
-    const s = arena({ hand: ["V1"], oppHand: ["KILLER", "BIG"], battle: ["V1"], oppBattle: ["V-BLUE"] });
-    const mine = s.players.p1.hand[0];
-    const theirs = s.players.p2.hand[0];
-    const legal = legalActions(ctx, s);
+    const s = stagedG({ hand: ["V1"], oppHand: ["KILLER", "BIG"], battle: ["V1"], oppBattle: ["V-BLUE"] });
+    const mine = zoneOf(s, "p1", "hand")[0];
+    const theirs = zoneOf(s, "p2", "hand")[0];
+    const legal = IMPL.legalActions(ctx, s);
     const versus = (viewer: PlayerId) =>
       buildSnapshot({
         id: 1,
         mode: "versus",
+        engine: ENGINE,
         status: "playing",
         p1Name: "Red aggro",
         p2Name: "Blue control",
@@ -363,7 +375,7 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     assert.ok(forP2.view.you.hand, "and so does the other chair");
     assert.equal(forP1.view.them.hand, null, "and never the other player's");
     assert.equal(forP2.view.them.hand, null);
-    assert.equal(forP1.view.them.handCount, s.players.p2.hand.length, "only how many");
+    assert.equal(forP1.view.them.handCount, zoneOf(s, "p2", "hand").length, "only how many");
 
     // 2. `waiting` names a person now, not just Claude. It is p1's prompt.
     assert.equal(s.prompt.kind, "main");
@@ -378,9 +390,11 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     assert.equal(forP1.beats!.list.length, 2, "the story is the same on both screens");
     assert.equal(forP2.beats!.list.length, 2);
     assert.ok(forP1.beats!.art[mine], "your own draw shows its face");
-    assert.ok(!forP1.beats!.art[theirs], "their draw does not");
     assert.ok(forP2.beats!.art[theirs], "and the same, the other way round");
-    assert.ok(!forP2.beats!.art[mine]);
+    if (!rulesGap("contract: versus — a draw's face masked from the other chair", "`view.ts`'s `revealedTo` reveals every card of a rules-engine state", "#458")) {
+      assert.ok(!forP1.beats!.art[theirs], "their draw does not");
+      assert.ok(!forP2.beats!.art[mine]);
+    }
 
     fixtures.versus = forP2;
   }
@@ -388,10 +402,10 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
   {
     // A card drawn and then *played* is public, so its beat is not masked —
     // the mask reads the board as it stands, not as it was.
-    const s = arena({ hand: ["V1"], energy: ["V1"] });
-    const card = find(s, "p1", "hand", "V1");
-    const r = apply(ctx, s, { type: "play", player: "p1", card });
-    const beats = toBeats(ctx, r.state, r.events, 0);
+    const s = stagedG({ hand: ["V1"], energy: ["V1"] });
+    const card = findG(s, "p1", "hand", "V1");
+    const r = IMPL.apply(ctx, s, { type: "play", player: "p1", card });
+    const beats = IMPL.toBeats(ctx, r.state, r.events, 0);
     assert.ok(beats.art[card], "the play put a face in the queue");
     assert.ok(maskBeats(r.state, beats, "p2")!.art[card], "and it is in the Battle Area, so the opponent sees it");
     assert.equal(maskBeats(r.state, beats, "p2"), beats, "nothing hidden means the very same queue back");
@@ -415,9 +429,9 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     // attack and an opponent who talks. Without this, a client could get five
     // of the sixteen shapes wrong and nothing would notice — this fixture is
     // what the Kotlin round-trip tests decode to prove they do not.
-    const s = arena({ battle: ["V1"], oppBattle: ["V-BLUE"] });
-    const mine = s.players.p1.battle[0];
-    const theirs = s.players.p2.battle[0];
+    const s = stagedG({ battle: ["V1"], oppBattle: ["V-BLUE"] });
+    const mine = zoneOf(s, "p1", "battle")[0];
+    const theirs = zoneOf(s, "p2", "battle")[0];
     let n = 0;
     const at = (b: Beat): NumberedBeat => ({ ...b, n: ++n }) as NumberedBeat;
     const list: NumberedBeat[] = [
@@ -457,51 +471,56 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
   {
     // Issue #109 — [Empower]'s carry (22-45-3) names both cards in one beat,
     // so the board can fly the markers across rather than count them up in
-    // place. This file's fixtures (`arena`/`play`/`apply`) are legacy-only;
-    // the rules engine logs the same beats for the carry since #157, which
-    // `verify/keywords.ts`'s [Empower] case asserts on both engines.
-    if (ENGINE !== "rules") {
-      DEFS.CONTRACTEMP = { ...DEFS.U1, id: "CONTRACTEMP", name: "CONTRACTEMP", skill: "[Empower Red 2]" };
-      let s = arena({ hand: ["U1", "CONTRACTEMP"], energy: ["V1", "V1", "V1", "V1", "V1"] });
-      s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "U1"), x: 3 });
-      const old = unisonOf(s, "p1")!;
-      s = play(s, { type: "playUnison", player: "p1", card: find(s, "p1", "hand", "CONTRACTEMP"), x: 1 });
-      assert.equal(s.prompt.kind, "empowerCarry", "22-45-3: carrying is asked before the play resolves");
-      const { state, events } = apply(CTX, s, { type: "empowerCarry", player: "p1", amount: 2 });
-      const beats = toBeats(CTX, state, events, 0);
+    // place. Both engines since #459 moved this file onto the generic
+    // fixtures (`verify/keywords.ts` asserts the same carry on both, #157).
+    DEFS.CONTRACTEMP = { ...DEFS.U1, id: "CONTRACTEMP", name: "CONTRACTEMP", skill: "[Empower Red 2]" };
+    let s = stagedG({ hand: ["U1", "CONTRACTEMP"], energy: ["V1", "V1", "V1", "V1", "V1"] });
+    s = playG(s, { type: "playUnison", player: "p1", card: findG(s, "p1", "hand", "U1"), x: 3 });
+    const old = unisonOf(s, "p1")!;
+    s = playG(s, { type: "playUnison", player: "p1", card: findG(s, "p1", "hand", "CONTRACTEMP"), x: 1 });
+    assert.equal(s.prompt.kind, "empowerCarry", "22-45-3: carrying is asked before the play resolves");
+    const { state, events } = IMPL.apply(CTX, s, { type: "empowerCarry", player: "p1", amount: 2 });
+    const beats = IMPL.toBeats(CTX, state, events, 0);
 
-      const moved = beats.list.filter((b): b is Extract<NumberedBeat, { t: "markers" }> & { from: string } => b.t === "markers" && !!b.from);
-      assert.equal(moved.length, 1, "exactly one markers-with-from beat per [Empower] resolution");
-      const beat = moved[0];
-      const newUnison = unisonOf(state, "p1")!;
-      assert.equal(beat.from, old, "names the Unison the markers left");
-      assert.equal(beat.card, newUnison, "names the Unison they arrived on");
-      assert.equal(beat.delta, 2, "the carried count alone — the 1 marker paid for as part of the cost is its own, separate beat with no `from`");
-      assert.equal(beat.total, 3, "1 paid plus 2 carried, same as 22-45-2's own arithmetic");
-      assert.equal(beats.list.filter((b) => b.t === "markers").length, 2, "the paid marker and the carried markers are two beats, not one conflating both");
+    const moved = beats.list.filter((b): b is Extract<NumberedBeat, { t: "markers" }> & { from: string } => b.t === "markers" && !!b.from);
+    assert.equal(moved.length, 1, "exactly one markers-with-from beat per [Empower] resolution");
+    const beat = moved[0];
+    const newUnison = unisonOf(state, "p1")!;
+    assert.equal(beat.from, old, "names the Unison the markers left");
+    assert.equal(beat.card, newUnison, "names the Unison they arrived on");
+    assert.equal(beat.delta, 2, "the carried count alone — the 1 marker paid for as part of the cost is its own, separate beat with no `from`");
+    assert.equal(beat.total, 3, "1 paid plus 2 carried, same as 22-45-2's own arithmetic");
+    assert.equal(beats.list.filter((b) => b.t === "markers").length, 2, "the paid marker and the carried markers are two beats, not one conflating both");
 
-      assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }), `2 markers move from ${beats.art[old].name} to ${beats.art[newUnison].name}.`);
+    assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }), `2 markers move from ${beats.art[old].name} to ${beats.art[newUnison].name}.`);
 
-      // Marker counts on a Unison are public (5-13-2), so `maskBeats` has
-      // nothing to hide here for either side — the very same queue comes
-      // back for the mover and for the opponent watching.
-      assert.equal(maskBeats(state, beats, "p1"), beats, "nothing hidden from the mover");
-      assert.equal(maskBeats(state, beats, "p2"), beats, "nothing hidden from the opponent either — marker counts on a Unison are public");
+    // Marker counts on a Unison are public (5-13-2), so `maskBeats` has
+    // nothing to hide here for either side — the very same queue comes
+    // back for the mover and for the opponent watching.
+    assert.equal(maskBeats(state, beats, "p1"), beats, "nothing hidden from the mover");
+    assert.equal(maskBeats(state, beats, "p2"), beats, "nothing hidden from the opponent either — marker counts on a Unison are public");
 
-      // `empower`: the same carry as a fixture, for the board's marker flight (#447).
-      // The legacy engine only; the rules engine cannot stage this file's cards.
-      assert.equal(state.prompt.kind, "main", "the carry is answered; the board is back on the Main Phase");
-      fixtures.empower = snapshotFor(state, beats);
-    } else {
-      console.log("  skipped case — [Empower]'s carry beat: this file's fixtures are legacy-only (verify/keywords.ts proves the same beats on the rules engine, #157)");
-    }
+    // `empower`: the same carry as a fixture, for the board's marker flight (#447).
+    assert.equal(state.prompt.kind, "main", "the carry is answered; the board is back on the Main Phase");
+    fixtures.empower = snapshotFor(state, beats);
   }
 
   // `npm test` runs from the repo root, which is what makes this path right.
+  //
+  // Each fixture is one engine's, written and compared on that engine's pass
+  // only (#459). Every one is the rules engine's — a new game is made on it
+  // (#166) and the legacy engine is on its way out (#118) — except `versus`:
+  // a 1 v 1 is still played on the legacy engine (`games.ts`'s `modeRefusal`)
+  // because the rules engine's `revealedTo` shows both hands (#458), and the
+  // Kotlin round trip asserts the masking this fixture exists to show. It
+  // moves to the rules engine with #458.
+  const LEGACY_FIXTURES = new Set(["versus"]);
   const dir = path.join(process.cwd(), "contract", "fixtures");
   const emit = process.argv.includes("--emit");
+  const mine = Object.entries(fixtures).filter(([name]) => LEGACY_FIXTURES.has(name) === (ENGINE === "legacy"));
+  if (ENGINE === "rules") for (const name of LEGACY_FIXTURES) rulesGap(`contract: contract/fixtures/${name}.json`, "written and compared on the legacy pass: a 1 v 1 is not played on the rules engine yet", "#458");
   if (emit) fs.mkdirSync(dir, { recursive: true });
-  for (const [name, snapshot] of Object.entries(fixtures)) {
+  for (const [name, snapshot] of mine) {
     const file = path.join(dir, `${name}.json`);
     const text = JSON.stringify(snapshot, null, 2) + "\n";
     if (emit) {
@@ -515,7 +534,7 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
       `the shape clients receive has changed (contract/fixtures/${name}.json). If that is deliberate, run \`npm run contract:emit\` and review the diff.`,
     );
   }
-  if (emit) console.log(`verify-arena: wrote ${Object.keys(fixtures).length} contract fixtures`);
+  if (emit) console.log(`verify-arena: wrote ${mine.length} contract fixtures (${ENGINE})`);
 
   // The bare-button tone on both clients (`docs/arena-hud-spec.md` §2.3): an
   // action that declines, skips, passes, ends or cancels is rendered as a
@@ -536,7 +555,7 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     defend: 1,
     "attack-life": 1,
     refusal: 1,
-    ...(ENGINE === "rules" ? {} : { empower: 1 }),
+    empower: 1,
   };
   for (const [name, snap] of Object.entries(fixtures)) {
     const sn = snap as Snapshot;
@@ -637,8 +656,8 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
   const ctx = CTX;
   // A main phase belonging to p1 with real moves in it — the shape of the
   // charge step in that screenshot, which is where the contradiction showed.
-  const s = arena({ hand: ["BIG"], energy: ["V1", "V1"] });
-  const legal = legalActions(ctx, s);
+  const s = stagedG({ hand: ["BIG"], energy: ["V1", "V1"] });
+  const legal = IMPL.legalActions(ctx, s);
   assert.ok(legal.length > 0, "the fixture's prompt has moves in it");
   assert.equal((s.prompt as { player: PlayerId }).player, "p1");
   assert.equal(waitingFor({ ai: null, state: s, status: "playing", viewer: "p1" }), "you", "a prompt that is the viewer's is never the opponent's move");
@@ -647,6 +666,7 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
   const snap = buildSnapshot({
     id: 1,
     mode: "hotseat",
+    engine: ENGINE,
     status: "playing",
     p1Name: "You",
     p2Name: "Claude",

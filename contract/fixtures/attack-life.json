@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -32,12 +32,10 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
-        "keywords": [
-          "Awaken"
-        ],
+        "comboPower": null,
+        "keywords": [],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "draw 1",
+        "reading": "",
         "referee": false
       },
       "unison": null,
@@ -102,7 +100,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
+        "comboPower": null,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -141,33 +139,33 @@
   "legal": [
     {
       "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
         "type": "attack",
         "player": "p1",
         "attacker": "p1#0",
         "target": "p2#0"
       },
       "label": "Attack L-BLUE with L-RED (10000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "endMain",
-        "player": "p1"
-      },
-      "label": "End turn"
     }
   ],
   "taps": {
     "byCard": {
       "p1#0": [
-        0
+        1
       ]
     },
     "bare": [
-      1
+      0
     ],
     "attackTargets": {
       "p1#0": {
-        "p2#0": 0
+        "p2#0": 1
       }
     },
     "whyByCard": {
@@ -207,7 +205,7 @@
         "type": "attack",
         "player": "p1",
         "attacker": "p1#15",
-        "target": "p2#0"
+        "target": "p1#15"
       },
       "label": "Attack with BIG",
       "why": [
@@ -299,6 +297,11 @@
       "p2#0": {
         "cardId": "L-BLUE",
         "name": "L-BLUE",
+        "imageUrl": null
+      },
+      "p2#32": {
+        "cardId": "V-BLUE",
+        "name": "V-BLUE",
         "imageUrl": null
       }
     }

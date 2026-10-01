@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "hotseat",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -32,12 +32,10 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
-        "keywords": [
-          "Awaken"
-        ],
+        "comboPower": null,
+        "keywords": [],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "draw 1",
+        "reading": "",
         "referee": false
       },
       "unison": null,
@@ -288,7 +286,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": 0,
+        "comboPower": null,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -327,6 +325,13 @@
   "legal": [
     {
       "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
         "type": "attack",
         "player": "p1",
         "attacker": "p1#0",
@@ -342,38 +347,39 @@
         "target": "p2#0"
       },
       "label": "Attack L-BLUE with V1 (10000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "endMain",
-        "player": "p1"
-      },
-      "label": "End turn"
     }
   ],
   "taps": {
     "byCard": {
       "p1#0": [
-        0
+        1
       ],
       "p1#9": [
-        1
+        2
       ]
     },
     "bare": [
-      2
+      0
     ],
     "attackTargets": {
       "p1#0": {
-        "p2#0": 0
+        "p2#0": 1
       },
       "p1#9": {
-        "p2#0": 1
+        "p2#0": 2
       }
     },
     "whyByCard": {
       "p1#23": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 1,
           "have": 0
@@ -383,14 +389,18 @@
           "colour": "Red",
           "need": 1,
           "have": 0
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#17": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 1,
           "have": 0
@@ -400,14 +410,18 @@
           "colour": "Red",
           "need": 1,
           "have": 0
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#50": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 1,
           "have": 0
@@ -417,14 +431,18 @@
           "colour": "Red",
           "need": 1,
           "have": 0
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#29": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 1,
           "have": 0
@@ -434,14 +452,18 @@
           "colour": "Red",
           "need": 1,
           "have": 0
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#26": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 1,
           "have": 0
@@ -451,14 +473,18 @@
           "colour": "Red",
           "need": 1,
           "have": 0
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#43": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 1,
           "have": 0
@@ -468,14 +494,18 @@
           "colour": "Red",
           "need": 1,
           "have": 0
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#15": [
         {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        },
+        {
           "kind": "energy",
           "need": 1,
           "have": 0
@@ -485,10 +515,6 @@
           "colour": "Red",
           "need": 1,
           "have": 0
-        },
-        {
-          "kind": "oncePerTurn",
-          "what": "charge"
         }
       ],
       "p1#0": [
@@ -502,27 +528,6 @@
   "rejected": [
     {
       "action": {
-        "type": "play",
-        "player": "p1",
-        "card": "p1#23"
-      },
-      "label": "Play V1 (1)",
-      "why": [
-        {
-          "kind": "energy",
-          "need": 1,
-          "have": 0
-        },
-        {
-          "kind": "energyColour",
-          "colour": "Red",
-          "need": 1,
-          "have": 0
-        }
-      ]
-    },
-    {
-      "action": {
         "type": "charge",
         "player": "p1",
         "card": "p1#23"
@@ -532,27 +537,6 @@
         {
           "kind": "oncePerTurn",
           "what": "charge"
-        }
-      ]
-    },
-    {
-      "action": {
-        "type": "play",
-        "player": "p1",
-        "card": "p1#17"
-      },
-      "label": "Play V1 (1)",
-      "why": [
-        {
-          "kind": "energy",
-          "need": 1,
-          "have": 0
-        },
-        {
-          "kind": "energyColour",
-          "colour": "Red",
-          "need": 1,
-          "have": 0
         }
       ]
     },
@@ -572,27 +556,6 @@
     },
     {
       "action": {
-        "type": "play",
-        "player": "p1",
-        "card": "p1#50"
-      },
-      "label": "Play V1 (1)",
-      "why": [
-        {
-          "kind": "energy",
-          "need": 1,
-          "have": 0
-        },
-        {
-          "kind": "energyColour",
-          "colour": "Red",
-          "need": 1,
-          "have": 0
-        }
-      ]
-    },
-    {
-      "action": {
         "type": "charge",
         "player": "p1",
         "card": "p1#50"
@@ -602,27 +565,6 @@
         {
           "kind": "oncePerTurn",
           "what": "charge"
-        }
-      ]
-    },
-    {
-      "action": {
-        "type": "play",
-        "player": "p1",
-        "card": "p1#29"
-      },
-      "label": "Play V1 (1)",
-      "why": [
-        {
-          "kind": "energy",
-          "need": 1,
-          "have": 0
-        },
-        {
-          "kind": "energyColour",
-          "colour": "Red",
-          "need": 1,
-          "have": 0
         }
       ]
     },
@@ -642,27 +584,6 @@
     },
     {
       "action": {
-        "type": "play",
-        "player": "p1",
-        "card": "p1#26"
-      },
-      "label": "Play V1 (1)",
-      "why": [
-        {
-          "kind": "energy",
-          "need": 1,
-          "have": 0
-        },
-        {
-          "kind": "energyColour",
-          "colour": "Red",
-          "need": 1,
-          "have": 0
-        }
-      ]
-    },
-    {
-      "action": {
         "type": "charge",
         "player": "p1",
         "card": "p1#26"
@@ -672,27 +593,6 @@
         {
           "kind": "oncePerTurn",
           "what": "charge"
-        }
-      ]
-    },
-    {
-      "action": {
-        "type": "play",
-        "player": "p1",
-        "card": "p1#43"
-      },
-      "label": "Play V1 (1)",
-      "why": [
-        {
-          "kind": "energy",
-          "need": 1,
-          "have": 0
-        },
-        {
-          "kind": "energyColour",
-          "colour": "Red",
-          "need": 1,
-          "have": 0
         }
       ]
     },
@@ -712,11 +612,123 @@
     },
     {
       "action": {
-        "type": "play",
+        "type": "charge",
         "player": "p1",
         "card": "p1#15"
       },
-      "label": "Play V1 (1)",
+      "label": "Charge V1",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#23"
+      },
+      "label": "Grow Unison V1",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#17"
+      },
+      "label": "Grow Unison V1",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#50"
+      },
+      "label": "Grow Unison V1",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#29"
+      },
+      "label": "Grow Unison V1",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#26"
+      },
+      "label": "Grow Unison V1",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#43"
+      },
+      "label": "Grow Unison V1",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#15"
+      },
+      "label": "Grow Unison V1",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#23"
+      },
+      "label": "Play V1",
       "why": [
         {
           "kind": "energy",
@@ -733,15 +745,127 @@
     },
     {
       "action": {
-        "type": "charge",
+        "type": "play",
+        "player": "p1",
+        "card": "p1#17"
+      },
+      "label": "Play V1",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#50"
+      },
+      "label": "Play V1",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#29"
+      },
+      "label": "Play V1",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#26"
+      },
+      "label": "Play V1",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#43"
+      },
+      "label": "Play V1",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "play",
         "player": "p1",
         "card": "p1#15"
       },
-      "label": "Charge V1",
+      "label": "Play V1",
       "why": [
         {
-          "kind": "oncePerTurn",
-          "what": "charge"
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        },
+        {
+          "kind": "energyColour",
+          "colour": "Red",
+          "need": 1,
+          "have": 0
         }
       ]
     },

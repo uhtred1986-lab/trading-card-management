@@ -25,7 +25,7 @@ import {
   IMPL,
   OP_CLASS,
   OP_SCHEMA,
-  arenaG,
+  stagedG,
   canonical,
   card,
   cardNowG,
@@ -308,7 +308,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(matches(DEFS.V1, sparse), false, "V1 is red but not a Saiyan");
   assert.equal(matches({ ...DEFS.V1, traits: ["Saiyan"] }, sparse), true);
   const ctx = { defs: DEFS, scripts: { KILLER: { bySkill: { 0: { ops: [{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, filter: sparse }, as: "t" }, { op: "ko", target: { var: "t" } }], unsupported: [] } }, complete: true, unsupported: [] } } };
-  const s = arenaG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "V1"] });
+  const s = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "V1"] });
   const r = IMPL.apply(ctx as never, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "KILLER") });
   assert.notEqual(r.state.prompt.kind, "gameOver");
   void r;
@@ -330,7 +330,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   // Resolving: an [Auto] that pumps your Battle Cards when it is played.
   const played = (ops: unknown) => {
     const ctx = rule("DRAWER", ops);
-    const s = arenaG({ hand: ["DRAWER"], energy: ["V1"], battle: ["V1"] });
+    const s = stagedG({ hand: ["DRAWER"], energy: ["V1"], battle: ["V1"] });
     const target = findG(s, "p1", "battle", "V1");
     const r = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") });
     return powerIn(ctx, r.state, target);
@@ -342,7 +342,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   // The static layer, for a [Permanent] that never resolves.
   const aura = (ops: unknown) => {
     const ctx = rule("AURA", ops);
-    const s = arenaG({ battle: ["AURA", "V1"] });
+    const s = stagedG({ battle: ["AURA", "V1"] });
     return { ctx, s, v1: findG(s, "p1", "battle", "V1") };
   };
   const power = aura([{ op: "modifyAttr", target: yourBattle, attr: "power", amount: 5000, until: "game" }]);
@@ -362,17 +362,17 @@ import type { CardFilter, SchemaOp } from "./harness";
   // The same card, the same play, two contexts: with rules it draws, without
   // any it is played as blank — and the log says so rather than staying quiet.
   const bare = { defs: DEFS };
-  let s = arenaG({ hand: ["DRAWER"], energy: ["V1"] });
+  let s = stagedG({ hand: ["DRAWER"], energy: ["V1"] });
   const hand = zoneOf(s, "p1", "hand").length;
   const r = IMPL.apply(bare, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") });
   assert.equal(zoneOf(r.state, "p1", "hand").length, hand - 1, "nothing was drawn: the card has no rule");
   // Each engine names the gap in its own words: the legacy one per skill line
   // ("no rule stored"), the rules engine at the moment it found nothing to run.
   assert.ok(r.events.some((e) => e.type === "note" && /no rule stored — played as blank|no rule this engine can read says what happens/.test(e.text)), "and the log names the gap");
-  s = arenaG({ hand: ["DRAWER"], energy: ["V1"] });
+  s = stagedG({ hand: ["DRAWER"], energy: ["V1"] });
   assert.equal(zoneOf(IMPL.apply(CTX, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") }).state, "p1", "hand").length, hand, "with its rule it draws");
   // A [Permanent] is read from the same rows — the static layer compiles nothing.
-  const t = arenaG({ battle: ["AURA", "V1"] });
+  const t = stagedG({ battle: ["AURA", "V1"] });
   assert.equal(powerIn(bare, t, findG(t, "p1", "battle", "V1")), 10000, "no rules, no aura");
   assert.equal(powerIn(CTX, t, findG(t, "p1", "battle", "V1")), 15000, "the aura holds from its row");
 }
@@ -521,7 +521,7 @@ import type { CardFilter, SchemaOp } from "./harness";
 // `language-reference.txt`, nothing the text view's player-facing reference
 // says either. Run `npm run contract:emit` to accept a deliberate change.
 {
-  const s = arenaG({ hand: ["V1", "BIG"], battle: ["BLOCKER"], energy: ["V1", "V-BLUE"], oppBattle: ["V-BLUE"], oppHand: ["KILLER"] });
+  const s = stagedG({ hand: ["V1", "BIG"], battle: ["BLOCKER"], energy: ["V1", "V-BLUE"], oppBattle: ["V-BLUE"], oppHand: ["KILLER"] });
   // `state-text.txt` is the opponent's prompt text for this board, which
   // `ai/view.ts`'s `stateText` writes from a legacy state only — its port is
   // #457's. Until then it is checked on the legacy pass alone and named here
