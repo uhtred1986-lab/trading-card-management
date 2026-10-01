@@ -24,10 +24,11 @@
  *                                     `withTokens`). `placeUnder` (23-2) is
  *                                     real too (#152), wired to `moveCard`'s
  *                                     own `under` option.
- *   `replacementsFor`                 9-10: a [Permanent] standing in front
- *                                     of a departure is not collected yet
- *                                     (`DEFERRED_STATICS.replaceLeave`), so
- *                                     nothing stands in front of a move. The
+ *   `replacementsFor`                 9-10 is real (1 Oct 2026): a
+ *                                     [Permanent] standing in front of a
+ *                                     departure is collected and read by
+ *                                     `vm/replace.ts`, asked here and applied
+ *                                     by every mover. The
  *                                     play being resolved (9-6) is real since
  *                                     #150 opened the [Counter: Play] window:
  *                                     `resolvingCard`, the two `setPlay*` and
@@ -53,7 +54,7 @@
  */
 import type { EngineContext, GameEvent } from "../engine";
 import type { ScriptHost } from "../engine/script-host";
-import type { Area, CardDef, KeywordSkill, Mode, MoveReason, PlayerId, Prompt } from "../engine/types";
+import type { Area, CardDef, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { tokenCardId } from "../engine/state";
@@ -65,6 +66,7 @@ import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, hostOf, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
+import { leaveRoute, replacementChoices } from "./replace";
 import type { VmState } from "./state";
 
 /**
@@ -146,18 +148,18 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       return drawn;
     },
     move: (id, to, owner, opts) => {
-      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason });
+      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
     // prohibition it reads, the `ko` event and the moments it fires cannot
     // differ by what caused it. The interpreter has already skipped
     // [Indestructible] and "can't be KO'd by skills" (`stepScript`'s `ko`
-    // case, shared). `opts.replaced` is always absent or `null` here:
-    // `replacementsFor` finds nothing on this engine yet (9-10, below), so
-    // there is no route to honour.
-    ko: (id, by) => {
-      koCard(ctx, game, state, ev, id, by);
+    // case, shared). `opts.replaced` is the route the interpreter's `ko`
+    // loop settled on — asked, or the one replacement there was — and
+    // `null` when none answers; the KO honours it rather than looking again.
+    ko: (id, by, opts) => {
+      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined);
     },
     // 23-2: `moveCard`'s own `under` option already carries 23-2-2 through
     // 23-2-6 (#152 taught it 23-2-5's "different area → Drop" half, which it
@@ -279,10 +281,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     },
 
     // ── replacements and the play being resolved (9-10, 9-6) ─────────────
-    // No replacement is in force to find: `replaceLeave` is a [Permanent]
-    // static this engine does not read yet (`DEFERRED_STATICS`), so the honest
-    // answer is that nothing stands in front of the move.
-    replacementsFor: () => [],
+    // Every [Permanent] replacement standing in front of this departure, for
+    // the interpreter's two loops that can ask 9-10-2/9-10-3's question
+    // (`vm/replace.ts`, the legacy `replacementChoicesFor`).
+    replacementsFor: (id, reason, opts) => replacementChoices(ctx, game, state, id, reason, opts ?? {}),
     // 9-6: a play *being resolved* — declared and paid for, not landed — is
     // `state.resolving`, which `vm/battle.ts`'s `openPlayCounterWindow` writes
     // when a [Counter: Play] could answer it (#150). Null outside that window,
@@ -459,9 +461,14 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason },
+  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null },
 ): void {
   const from = zoneOf(state, id);
+  // 9-10: what stands in front of a card leaving play (`vm/replace.ts`) — a
+  // redirect changes `to`, a substitute keeps the card where it is.
+  const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}) });
+  if (route.stays) return;
+  to = route.to;
   const fromOwner = from ? ownerOfZone(state, id) : null;
   // 23-2-2-2: a card under another is in the area of the card on top, and
   // taking it out is shown as a move out of that area followed by the pile
@@ -469,7 +476,7 @@ function moveTo(
   // before the move, while the card is still in the pile.
   const host = from ? null : hostOf(state, id);
   const hostZone = host ? zoneOf(state, host) : null;
-  const placed = moveCard(state, game, id, to, { owner, position: opts.position, carry: opts.carry });
+  const placed = moveCard(state, game, id, to, { owner, position: opts.position, carry: opts.carry, ...(route.mode ? { mode: route.mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     return;

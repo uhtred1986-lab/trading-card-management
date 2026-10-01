@@ -585,6 +585,14 @@ move is about **one printed line** rather than about a card a `FOR` found:
     its `DO` may: `color: $color` fills an enum field. Before, only an amount could name one. A
     parameter the printed keyword leaves empty (`null`, [Empower 2]'s colour) is absent, so an
     optional field it fills is left out.
+- The 9-10 replacements on the rules engine (1 Oct 2026) added one hook point and no op:
+  - A seventeenth hook point, `wouldLeave` (group B, query): what `self` does *instead* of
+    leaving a place it is held in (in play, or a combo) for one it is not, read before it goes
+    anywhere. Its leaf is the `replace` op a [Permanent] already prints,
+    `replace(event: leave, with: { moveTo(target: [self], to: removed) })`, read as the same
+    redirect, after any [Permanent]'s replacement, and never offered as a 9-10-2 choice.
+    [Ultimate] (22-14-3) is the one body. `onLeave` stays an effect hook, run after the card has
+    landed (owner's decision, 1 Oct 2026; `docs/arena-ruleset-spec.md` §4).
 
 ```
 DEFINE KEYWORD Overlord

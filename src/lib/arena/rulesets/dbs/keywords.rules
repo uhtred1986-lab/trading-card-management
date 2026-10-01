@@ -6,8 +6,9 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Eighteen HOOK bodies over seventeen keywords, written by Stage 7's four hook
--- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
+-- Nineteen HOOK bodies over eighteen keywords, written by Stage 7's four hook
+-- groups (#154-#157) against the contract #153 built, and [Ultimate]'s
+-- wouldLeave (1 Oct 2026): [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
 -- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
 -- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s and
@@ -260,17 +261,20 @@ DEFINE KEYWORD "Warrior of Universe 7"
 DEFINE KEYWORD Ultimate
   TAKES ()
   text: "A deck may hold at most one card with [Ultimate], and a card with it that leaves play is removed from the game rather than going anywhere else."
-  -- #156 looked and left it unwritten. 22-14-3 is a replacement (9-10): the
-  -- card leaving play or a Combo Area for anywhere but another of those goes
-  -- to `removed` *instead* — one move, and the moments of that move, as the
-  -- legacy `move` folds it into 14-1-4's Z-card line (printed keyword only;
-  -- the cards under it are not redirected). `onLeave` cannot say it: it is an
-  -- effect hook, run after the card has landed, so a body there would log a
-  -- second move and fire the Drop's moments (`koed`) first. It needs a
-  -- leave-time query — `onLeave` read declaratively before `moveCard` picks
-  -- the zone, with a leaf naming the destination — or the 9-10 replacements
-  -- `vm/host.ts`'s `replacementsFor` does not collect yet. The deck limit is
-  -- `legality`'s, on both engines.
+  -- 22-14-3 is a replacement (9-10): the card leaving play or a Combo Area
+  -- for anywhere but another of those goes to `removed` *instead* — one move,
+  -- and the moments of that move. Owner's decision of 1 Oct 2026: it rides on
+  -- the 9-10 replacements (`vm/replace.ts`), not on an `onLeave` query. The
+  -- `wouldLeave` hook is read before the card goes anywhere, its leaf the
+  -- same `replace` record a [Permanent] prints, applied after any
+  -- [Permanent]'s replacement as the card's own rule — the legacy `move`
+  -- folds it into 14-1-4's Z-card line. The cards under it are not
+  -- redirected. The deck limit is `legality`'s, on both engines.
+  HOOK wouldLeave {
+    replace(event: leave, with: {
+      moveTo(target: [self], to: removed)
+    })
+  }
 
 -- 22-17
 DEFINE KEYWORD "Super Combo"

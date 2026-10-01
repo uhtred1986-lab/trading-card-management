@@ -71,6 +71,12 @@ the same as if it were still in `CLAUDE.md`.
   declared attributes read off the catalog by `vm/cards.ts`, and a `CardFilter` becomes a predicate
   over those attributes through the one adapter in `vm/filters.ts` — so the compiler, `card_rules`
   and the drafter are untouched (#139).
+  **9-10's leave replacements** (1 Oct 2026) are `vm/replace.ts`: a [Permanent]'s `replaceLeave`/
+  `replace` is collected as a `replaceLeave` static (`vm/effects.ts`), `replacementChoices` answers
+  the shared interpreter's `replacementsFor` (the `ko`/`moveTo` loops that ask), and `leaveRoute` is
+  asked by both movers (`vm/flow.ts`'s `moved`, `vm/host.ts`'s `moveTo`) before `moveCard` — the
+  caller's route or the first mandatory, question-free match, then a keyword's `wouldLeave` body
+  ([Ultimate]) as the card's own rule.
   **The turn is a program** (`vm/flow.ts`, #140): `state.flow` is a stack of `{phase, index}`
   frames over the `DEFINE PHASE`/`DEFINE STEP` declarations, the frame *is* the suspension (so a
   game is storable mid-decision and reproducible from seed plus actions), a step's `prompt:` is

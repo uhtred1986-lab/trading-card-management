@@ -56,7 +56,7 @@ import type { GameState, Trigger } from "./harness";
 {
   // 22-14-3: a card with [Ultimate] leaving a Battle Area is removed from the
   // game instead of going wherever it was headed.
-  DEFS.ULT = { ...DEFS.V1, id: "ULT", name: "ULT", skill: "[Ultimate]" };
+  // `verify/keywords.ts` defines ULT, and proves the same on both engines.
   const s = arena({ battle: ["ULT"] });
   const ult = s.players.p1.battle[0];
   koCard(CTX, s, [], ult);

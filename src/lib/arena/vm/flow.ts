@@ -39,7 +39,7 @@
 import { IllegalAction, type Action, type EngineContext, type GameEvent } from "../engine";
 import { AREAS, PHASES } from "../engine/script";
 import { nextRandom, shuffle } from "../engine/rng";
-import { PLAYERS, other, type Area, type Phase, type PlayerId, type Prompt } from "../engine/types";
+import { PLAYERS, other, type Area, type MoveReason, type Phase, type PlayerId, type Prompt, type ReplacementResult } from "../engine/types";
 import type { Cond, Selector, Side } from "../engine/script";
 import type { PatternValue } from "../lang";
 import type { GameDefinition, StepDef, WinDef } from "../rulesets";
@@ -56,6 +56,7 @@ import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
 import { fireHook, queryHookStatics } from "./hooks";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
+import { leaveRoute } from "./replace";
 import type { VmFrame, VmState } from "./state";
 
 // `other` is the engine's own: a game of two is what `DEFINE GAME players: 2`
@@ -837,6 +838,10 @@ export interface MoveCause {
   byOpponent?: boolean;
   /** It arrives on top of this card, which goes under it next (`MoveOptions.onto`, 22-46-6). */
   onto?: string;
+  /** Why it moves, in the shared interpreter's words — what a 9-10 replacement's `by` is matched against (`"ko"` for a KO). A step of the procedure gives none. */
+  reason?: MoveReason;
+  /** A 9-10 replacement the caller already decided on (`vm/replace.ts`): `null` for none, absent to look one up. */
+  replaced?: ReplacementResult | null;
 }
 
 /**
@@ -849,7 +854,11 @@ export interface MoveCause {
  */
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
   const from = fromZone(state, id);
-  const result = moveCard(state, game, id, asked, opts);
+  // 9-10: a replacement stands in front of a card leaving play, and a
+  // substitute keeps it where it is (9-10-1-1) — nothing below happens then.
+  const route = leaveRoute(ctx, game, state, ev, id, from, asked, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}) });
+  if (route.stays) return;
+  const result = moveCard(state, game, id, route.to, { ...opts, ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
   // Where it really went: a rule about what the card *is* may send it
   // somewhere else than asked (19-1-7, a token leaving play is removed).

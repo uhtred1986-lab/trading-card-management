@@ -15,14 +15,14 @@
  * (`condHolds`, `amount`, `keywordsInForce`), the way `resolveSelector`/
  * `resolveRef`/`amount`/`condHolds` already are. All #153's.
  *
- * **Sixteen points, four groups** — the plan's own split, and the four
+ * **Seventeen points, four groups** — the plan's own split, and the four
  * `docs/arena-backlog/s7-0{2,3,4,5}-*.md` issues that each take one:
  *
  *   A. choosing, immunity, KO by effect  — `chooseable`, `koByEffect`, `attrBonus`
- *   B. entering, leaving, after a skill  — `onEnter`, `onLeave`, `afterSkill`, `activeStep`
+ *   B. entering, leaving, after a skill  — `onEnter`, `onLeave`, `afterSkill`, `activeStep`, `wouldLeave`
  *   C. battle: blocking, counters, attack, damage, battle end
  *                                        — `block`, `counterWindow`, `onAttackDeclared`, `beforeDamage`, `battleEnd`
- *   D. playing, charging, alternative payment — `playRefused`, `chargeLimit`, `altPayment`
+ *   D. playing, charging, alternative payment — `playRefused`, `chargeLimit`, `altPayment`, `markerCarry`
  *
  * **Two kinds of hook, not fifteen special cases.** A body is either *read* or
  * *run*, and which is the hook point's own property (`HookSpec.answer`):

@@ -946,7 +946,7 @@ if (dbs.ok) {
 // of the 39 real keywords carrying a body yet, which stays #153's own line.
 {
   const doc = fs.readFileSync(path.join(__dirname, "../../docs/arena-ruleset-spec.md"), "utf8").replace(/\r\n/g, "\n");
-  const start = doc.indexOf("### 4.1 The sixteen hook points");
+  const start = doc.indexOf("### 4.1 The seventeen hook points");
   const end = doc.indexOf("### 4.2 One worked example per hook", start);
   assert.ok(start >= 0 && end > start, "§4.1 is missing from the ruleset spec");
   const table = doc.slice(start, end);
@@ -1045,11 +1045,16 @@ if (dbs.ok) {
       granted: { name: "Empower", color: null, x: 2 },
       def: 'DEFINE KEYWORD Empower\n  TAKES (color: color, x: number)\n  text: "x"\n  HOOK markerCarry {\n    carryMarkers(upTo: $x, color: $color)\n  }',
     },
+    // The seventeenth (1 Oct 2026): what the card does instead of leaving play.
+    wouldLeave: {
+      keyword: "Ultimate",
+      def: 'DEFINE KEYWORD Ultimate\n  TAKES ()\n  text: "x"\n  HOOK wouldLeave {\n    replace(event: leave, with: { moveTo(target: [self], to: hand) })\n  }',
+    },
   };
   assert.deepEqual(Object.keys(KEYWORD_AT).sort(), [...HOOK_POINTS].sort(), "this test does not cover every hook point");
 
   const keywordsRules = lines(...Object.values(KEYWORD_AT).map((k) => k.def).filter(Boolean));
-  // The three attributes the sixteen worked hook bodies above write through
+  // The three attributes the seventeen worked hook bodies above write through
   // `modifyAttr` — `WHOLE` declares none, so #328's check needs its own
   // fixture rather than one shared with the "resolves" assertions above,
   // which count `WHOLE`'s declarations exactly.
@@ -1061,7 +1066,7 @@ if (dbs.ok) {
     'DEFINE ATTRIBUTE markers\n  of: card\n  value: number\n  text: "the markers on this card"',
   );
   const loaded = loadRuleset({ ...WHOLE, "keywords.rules": keywordsRules, "attributes.rules": hookAttrs });
-  assert.ok(loaded.ok, `the sixteen worked hook bodies did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors, null, 2)}`);
+  assert.ok(loaded.ok, `the seventeen worked hook bodies did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors, null, 2)}`);
   if (!loaded.ok) throw new Error("unreachable");
   const def = loaded.definition;
 

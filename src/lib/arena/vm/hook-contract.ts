@@ -1,5 +1,5 @@
 /**
- * `HOOK_CONTRACT` — the sixteen hook points' pure data: which group owns a
+ * `HOOK_CONTRACT` — the seventeen hook points' pure data: which group owns a
  * body there, whether it is read or run, what it binds, what it means.
  *
  * A leaf on purpose, with no dependency beyond `rulesets/hooks.ts`'s name
@@ -15,7 +15,7 @@
  * back from `vm/hooks.ts` would be the cycle this file exists to avoid.
  *
  * See `vm/hooks.ts` for the full account of the contract — the two kinds of
- * hook, the four groups, the sixteen points, one worked example each
+ * hook, the four groups, the seventeen points, one worked example each
  * (`docs/arena-ruleset-spec.md` §4).
  */
 import { HOOK_POINTS, type HookPoint } from "../rulesets";
@@ -134,6 +134,12 @@ export const HOOK_CONTRACT: Record<HookPoint, HookSpec> = {
     answer: "query",
     vars: [],
     doc: "A Unison is being played into an area that already holds one (13-2, 3-11-5), and `self` — the card being played — is asked, before the one it replaces leaves (leaving clears its markers, 5-13-3), whether markers may come across. A body ends in `carryMarkers(upTo: <amount>, color: <colour>)`, read declaratively: the master is asked how many of the replaced card's markers, from 0 up to the least of `upTo` and what it has, to carry onto `self` (a `color` the replaced card must have; none, any). The play waits on the answer (`vm/host.ts`'s `playThen`), and the carried markers land after the ones paid for it, naming the card they left. [Empower]'s “up to Y” (22-45-3, #157) is the worked example.",
+  },
+  wouldLeave: {
+    group: "B",
+    answer: "query",
+    vars: [],
+    doc: "`self` would leave a place it is held in — a zone in play, or a pile it may sit on (a combo) — for one it is not, and is asked what it does instead (9-10), before it goes anywhere: the leave-time half `onLeave` cannot be, since that one runs after the card has landed. A body ends in `replace(event: leave, with: { moveTo(target: [self], to: <zone>) })`, read declaratively by `vm/replace.ts`'s `leaveRoute` as the same redirect a [Permanent]'s `replace` is — after any [Permanent]'s replacement, as the card's own rule, and never offered as a 9-10-2 choice (the legacy `move` folds it in with a token's and a Z-card's removal). [Ultimate]'s \"removed from the game instead\" (22-14-3) is the worked example; the owner's decision of 1 Oct 2026 that [Ultimate] rides on the 9-10 replacements rather than on an `onLeave` query.",
   },
 };
 

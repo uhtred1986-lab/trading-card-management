@@ -148,6 +148,7 @@ export function promptView(state: VmState): PromptView {
     return withStep(state, reason, { kind: pr.kind, player: pr.player, question: reason, hint: `Choose ${min === max ? min : `${min} to ${max}`}.`, min, max });
   }
   if (pr.kind === "chooseMode") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("chooseMode") });
+  if (pr.kind === "replaceMove") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("replaceMove") });
   const words = fixedPrompt(pr.kind) ?? { question: "…", hint: null };
   return { kind: pr.kind, player: "player" in pr ? pr.player : null, question: words.question, hint: words.hint };
 }

@@ -49,7 +49,7 @@
  */
 import type { EngineContext, GameEvent } from "../engine";
 import { costModifierAs, modifyAttrAs, negateAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
-import type { AltCost } from "../engine/state";
+import { redirectOf, type AltCost, type Replacement } from "../engine/state";
 import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix } from "../engine/types";
 import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
@@ -153,10 +153,11 @@ export interface VmStatic {
   source: string;
   /** Whose skill it is (9-1-2). */
   master: PlayerId;
-  kind: ContinuousEffect["kind"];
+  /** `replaceLeave` is 9-10's standing offer (`vm/replace.ts`), a [Permanent]'s only — no resolved skill puts one in force for a duration. */
+  kind: ContinuousEffect["kind"] | "replaceLeave";
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity;
+  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
@@ -177,14 +178,13 @@ export interface PayerGrant {
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "immune", "payWith", "altCost", "if"] as const;
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {
   permit: "#150 — 8-1-1 the other way round: a permission widens what may be *attacked*, and the battle is Stage 6's",
   negateKeyword: "#153 — keywords are Stage 7's",
   gains: "#153",
-  replaceLeave: "#146 — a replacement stands in front of a move; a skill's KO and moves are real since #146, but no [Permanent]'s replacement is collected yet, so `vm/host.ts`'s replacementsFor answers []",
 };
 
 /**
@@ -601,6 +601,32 @@ function collect(
       const rest = op.pay === "energy" && op.rest ? targets(frame, { ...op, target: { sel: op.rest } }) : null;
       const value: VmAltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}), ...(rest ? { rest } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "altCost", target: id, value });
+      continue;
+    }
+    // 9-10: a standing offer read when a departure comes (`vm/replace.ts`),
+    // only while the card is where its skill is valid — a replacement on a
+    // card in the hand has nothing to replace. `replaceLeave` is a redirect;
+    // `replace` of a departure (`leave`, `ko`, `life`) is a redirect when its
+    // `with` is one move of the card itself and a substitute otherwise, and
+    // of the play is not standing at all (it resolves). The legacy
+    // `collectStatics`' reading, word for word, under its one kind.
+    if (op.op === "replaceLeave") {
+      if (!inPlayNow) continue;
+      const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
+      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, optional: op.optional };
+      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
+      continue;
+    }
+    if (op.op === "replace") {
+      if (op.event === "play" || !inPlayNow) continue;
+      const isLife = op.event === "life";
+      const redirect = redirectOf(op.with);
+      const by = op.event === "ko" ? ("ko" as const) : isLife ? undefined : op.by;
+      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : {};
+      const value: Replacement = redirect
+        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional, ...lifeFields }
+        : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields };
+      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }
     // 20-19: a card that may be rested in the Energy Area's place, for every

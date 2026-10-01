@@ -14,7 +14,7 @@
  * them (`docs/arena-ruleset-spec.md` §4 has the full site-by-site table):
  *
  *   A. choosing, immunity, KO by effect  — `chooseable`, `koByEffect`, `attrBonus`
- *   B. entering, leaving, after a skill  — `onEnter`, `onLeave`, `afterSkill`, `activeStep`
+ *   B. entering, leaving, after a skill  — `onEnter`, `onLeave`, `afterSkill`, `activeStep`, `wouldLeave` (1 Oct 2026)
  *   C. battle                            — `block`, `counterWindow`, `onAttackDeclared`, `beforeDamage`, `battleEnd`
  *   D. playing, charging, alt payment    — `playRefused`, `chargeLimit`, `altPayment`, `markerCarry` (#157's own)
  *
@@ -48,6 +48,9 @@ export const HOOK_POINTS = [
   // #157: the sixteenth, [Empower]'s — a Unison played over another may carry
   // markers across (22-45-3), asked before the one it replaces leaves.
   "markerCarry",
+  // The seventeenth, [Ultimate]'s (group B, 1 Oct 2026): what a card does
+  // *instead* of leaving play (9-10, 22-14-3), read before it goes anywhere.
+  "wouldLeave",
 ] as const;
 
 export type HookPoint = (typeof HOOK_POINTS)[number];

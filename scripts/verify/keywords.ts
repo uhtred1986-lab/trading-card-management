@@ -30,8 +30,7 @@ import {
   leaderOf,
   lifeReplacementChoicesFor,
   masterOfG,
-  move,
-  placeUnder,
+  placeUnderG,
   orbsIn,
   parseConditionClause,
   parseSkills,
@@ -80,11 +79,11 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  *   `ScriptHost` implementation still throws `NotYet` for by name (a
  *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
  *   landed, and RELKO now runs on both engines).
- * - **`replaceGap`**: the case is 9-10's own family — a [Permanent] standing
- *   in front of a departure. `vm/host.ts`'s `replacementsFor` answers `[]`
- *   unconditionally (`replaceLeave` is exactly `DEFERRED_STATICS`' own entry,
- *   `#146`), so every case that stages one is the same gap under its own name
- *   rather than four unrelated ones.
+ * - **`lifeGap`**: 9-10's `life` event (#272), a life card's own departure.
+ *   The rest of the family — a [Permanent] standing in front of a card
+ *   leaving play, `replaceGap`'s six cases until 1 Oct 2026 — runs on both
+ *   engines (`vm/replace.ts`); the life half is collected but battle damage
+ *   does not ask about it yet.
  */
 let skipped = 0;
 // `keywordGap` is gone: since #157 and #155's leftovers (#434) no case here
@@ -95,13 +94,12 @@ function notYetGap(where: string, what: string, issue: string): boolean {
   skipped++;
   return true;
 }
-function replaceGap(where: string): boolean {
+function lifeGap(where: string): boolean {
   if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: a [Permanent] standing in front of a departure (9-10) is DEFERRED_STATICS' own "replaceLeave" — vm/host.ts's replacementsFor answers [] unconditionally — the KO by skill is real since #146, but no [Permanent]'s replacement is collected to stand in front of it`);
+  console.log(`  skipped case — ${where}: a life card's own departure (9-10's \`life\` event, #272) — the rules engine collects the replacement (\`vm/replace.ts\`), but its battle damage (\`vm/battle.ts\`) does not ask about it per life card yet`);
   skipped++;
   return true;
 }
-
 // ── §22 keywords as engine rules ───────────────────────────────────────────
 
 // Both engines since #157: [Evolve] and [Union] are `keywords.rules`' own moves.
@@ -2003,7 +2001,23 @@ if (
 }
 // ── 9-10: a replacement whose substitute is a program (#125) ───────────────
 
-if (!replaceGap("PILEDROP: a KO replaced by moving the pile under it, not the card")) {
+// Both engines since 1 Oct 2026: a [Permanent]'s replacement is collected on
+// the rules engine too (`vm/replace.ts`), and every case below reaches the
+// departure through a real move — an opponent's KO skill (the interpreter's
+// `ko` loop, which can ask) or a battle's KO (a call site that cannot).
+
+/** p1's BIG attacks `target` in p2's Battle Area and wins: a battle's KO, which nobody can be asked about (§1.4). */
+function battleKo(s: EngineState, target: string): EngineState {
+  s.cards[target].mode = "rest";
+  return playG(s, { type: "attack", player: "p1", attacker: findG(s, "p1", "battle", "BIG"), target }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+}
+/** p2 plays `killer` from hand on their own turn and chooses `target` in p1's Battle Area: an opponent's skill. */
+function opponentSkill(s: EngineState, killer: string, target: string): EngineState {
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  return playG(s, { type: "play", player: "p2", card: findG(s, "p2", "hand", killer) }, { type: "choose", player: "p2", cards: [target] });
+}
+
+{
   // BT3-051's shape. The card itself **stays**, and its whole under-stack goes
   // to the Drop in the KO's place — a replacement no redirect can say, because
   // what moves is not the card whose departure was replaced.
@@ -2013,21 +2027,24 @@ if (!replaceGap("PILEDROP: a KO replaced by moving the pile under it, not the ca
     name: "PILEDROP",
     skill: "[Permanent] If this card would be KO'd, place all the cards under this card in its owner's Drop Area instead.",
   };
-  const s = arena({ battle: ["PILEDROP"], hand: ["V1"] });
-  const host = find(s, "p1", "battle", "PILEDROP");
-  const buried = s.players.p1.hand[0];
-  assert.equal(placeUnder(CTX, s, [], buried, host), true);
-  assert.deepEqual(s.cards[host].under, [buried]);
+  for (const how of ["skill", "battle"] as const) {
+    let s = how === "skill" ? arenaG({ battle: ["PILEDROP"], hand: ["V1"], oppHand: ["KILLER"], oppEnergy: ["V1"] }) : arenaG({ battle: ["BIG"], oppBattle: ["PILEDROP"], oppHand: ["V1"] });
+    const side: PlayerId = how === "skill" ? "p1" : "p2";
+    const host = findG(s, side, "battle", "PILEDROP");
+    const buried = findG(s, side, "hand", "V1");
+    assert.equal(placeUnderG(s, buried, host), true);
+    assert.deepEqual(s.cards[host].under, [buried]);
 
-  koCard(CTX, s, [], host);
-  assert.ok(s.players.p1.battle.includes(host), "the KO was replaced, not redirected: the card is still there");
-  assert.ok(!s.players.p1.drop.includes(host));
-  assert.ok(s.players.p1.drop.includes(buried), "and the pile under it went to the Drop instead");
-  assert.deepEqual(s.cards[host].under, []);
-  assertConsistent(s);
+    s = how === "skill" ? opponentSkill(s, "KILLER", host) : battleKo(s, host);
+    assert.ok(zoneOf(s, side, "battle").includes(host), `the KO was replaced, not redirected: the card is still there (${how})`);
+    assert.ok(!zoneOf(s, side, "drop").includes(host));
+    assert.ok(zoneOf(s, side, "drop").includes(buried), `and the pile under it went to the Drop instead (${how})`);
+    assert.deepEqual(s.cards[host].under, []);
+    assertConsistentG(s);
+  }
 }
 
-if (!replaceGap("EXILEKO: a KO replaced by a `replace` record targeting `removed`")) {
+{
   // The primitive's other half, written as a `replace` rather than as the
   // `replaceLeave` macro the compiler still emits for it: a redirect of the KO
   // leaves the card in `removed`. The rule comes off the record rather than
@@ -2041,26 +2058,50 @@ if (!replaceGap("EXILEKO: a KO replaced by a `replace` record targeting `removed
   const record = { ops: [{ op: "replace", event: "ko", with: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }] }], unsupported: [] };
   assert.equal(validateProgram(record.ops), true);
   const ctx = {
-    defs: DEFS,
+    ...CTX,
     scripts: new Proxy({} as Record<string, unknown>, {
       get: (_, key) => (key === "EXILEKO" ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
     }),
   } as typeof CTX;
+  const run = (st: EngineState, ...actions: Parameters<typeof IMPL.apply>[2][]) => actions.reduce((x, a) => IMPL.apply(ctx, x, a).state, st);
 
-  const s = arena({ battle: ["EXILEKO"] });
-  const exile = find(s, "p1", "battle", "EXILEKO");
-  koCard(ctx, s, [], exile);
-  assert.ok(s.players.p1.removed.includes(exile), "a KO-to-removed replacement leaves the card out of the game");
-  assert.ok(!s.players.p1.drop.includes(exile));
-  assertConsistent(s);
+  let s = arenaG({ battle: ["EXILEKO"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const exile = findG(s, "p1", "battle", "EXILEKO");
+  s = run(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = run(s, { type: "play", player: "p2", card: findG(s, "p2", "hand", "KILLER") }, { type: "choose", player: "p2", cards: [exile] });
+  assert.ok(zoneOf(s, "p1", "removed").includes(exile), "a KO-to-removed replacement leaves the card out of the game");
+  assert.ok(!zoneOf(s, "p1", "drop").includes(exile));
+  assertConsistentG(s);
 
-  // The event is the one named: the same card returned to hand by a skill is
-  // still returned to hand, because only its KO was replaced.
-  const t = arena({ battle: ["EXILEKO"] });
-  const other = find(t, "p1", "battle", "EXILEKO");
-  move(ctx, t, [], other, "hand", "p1", { reason: "effect" });
-  assert.ok(t.players.p1.hand.includes(other), "a `ko` replacement replaces the KO and nothing else");
-  assertConsistent(t);
+  // The event is the one named: the same card put in the Drop by a skill that
+  // does not KO it goes to the Drop, because only its KO was replaced.
+  let t = arenaG({ battle: ["EXILEKO"], oppHand: ["GRABBER"], oppEnergy: ["V1"] });
+  const other = findG(t, "p1", "battle", "EXILEKO");
+  t = run(t, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  t = run(t, { type: "play", player: "p2", card: findG(t, "p2", "hand", "GRABBER") }, { type: "choose", player: "p2", cards: [other] });
+  assert.ok(zoneOf(t, "p1", "drop").includes(other), "a `ko` replacement replaces the KO and nothing else");
+  assertConsistentG(t);
+}
+
+{
+  // 22-14-3: a card with [Ultimate] leaving play is removed from the game
+  // instead — on the rules engine, its `wouldLeave` body (1 Oct 2026), the
+  // same `replace` record a [Permanent] prints, read after any [Permanent]'s.
+  // Defined here rather than in `verify/wordings.ts` (legacy-only), which
+  // reuses it.
+  DEFS.ULT = { ...DEFS.V1, id: "ULT", name: "ULT", skill: "[Ultimate]" };
+  const byBattle = arenaG({ battle: ["BIG"], oppBattle: ["ULT"] });
+  const ult = findG(byBattle, "p2", "battle", "ULT");
+  const fought = battleKo(byBattle, ult);
+  assert.ok(zoneOf(fought, "p2", "removed").includes(ult), "22-14-3: KO'd in battle, removed from the game");
+  assert.ok(!zoneOf(fought, "p2", "drop").includes(ult), "not the Drop");
+  assertConsistentG(fought);
+
+  const bySkill = arenaG({ battle: ["ULT"], oppHand: ["KILLER"], oppEnergy: ["V1"] });
+  const mine = findG(bySkill, "p1", "battle", "ULT");
+  const killed = opponentSkill(bySkill, "KILLER", mine);
+  assert.ok(zoneOf(killed, "p1", "removed").includes(mine), "KO'd by a skill, removed from the game too");
+  assertConsistentG(killed);
 }
 
 // ── 20-9: gaining control of a card ────────────────────────────────────────
@@ -2616,7 +2657,7 @@ if (!notYetGap("SPANSKIP: three `skip` entries under one name (20-13)", "`addSki
 
 // ── 9-10: a replacement that asks (#107) ───────────────────────────────────
 
-if (!replaceGap("TWOWAY/WARDEN2: two mandatory replacements answering the same departure (9-10-2)")) {
+{
   // 9-10-2: when more than one replacement answers to the same departure, the
   // affected player picks. Two on one card is the prompt; one is not a choice
   // at all and is simply applied, which is what it always did.
@@ -2655,7 +2696,7 @@ if (!replaceGap("TWOWAY/WARDEN2: two mandatory replacements answering the same d
   assertConsistentG(one);
 }
 
-if (!replaceGap("THEIRS/SELFKILL: `bySide` telling an opponent's skill from the controller's own")) {
+{
   // "By an opponent's skill" (19 cards): the same sentence read as "by a
   // skill" would fire on the controller's own skills too, so `bySide` is what
   // separates them and `causeMatches` reads it against who is acting.
@@ -2690,7 +2731,7 @@ if (!replaceGap("THEIRS/SELFKILL: `bySide` telling an opponent's skill from the 
   assertConsistentG(mine);
 }
 
-if (!replaceGap("PILEOFF: an optional replacement whose substitute asks a question (9-10-3)")) {
+{
   // 9-10-3 with a program in the departure's place, and a question inside it:
   // the offer is asked first, and the substitute then runs as a frame of its
   // own so what it asks is asked rather than lost (#107).
@@ -2730,10 +2771,10 @@ if (!replaceGap("PILEOFF: an optional replacement whose substitute asks a questi
   assertConsistentG(answered);
 }
 
-if (!replaceGap("ASKER: the other 46 call sites, which cannot wait for an answer (§1.4)")) {
-  // The other 46 call sites cannot wait for an answer, so a replacement that
-  // would ask one is left unapplied there rather than half-run — the rule the
-  // scoping document's §1.4 demands. `payAltCost` is one of them.
+{
+  // The call sites that cannot wait for an answer — a battle's KO is one —
+  // leave a replacement that would ask unapplied rather than half-run it: the
+  // rule the scoping document's §1.4 demands.
   DEFS.ASKER = {
     ...DEFS.V1,
     id: "ASKER",
@@ -2744,16 +2785,17 @@ if (!replaceGap("ASKER: the other 46 call sites, which cannot wait for an answer
   };
   const asking = compileSkill(parseSkills(DEFS.ASKER.skill!)[0]);
   assert.deepEqual(asking.unsupported, [], "the rule itself is readable — it is the call site that cannot hear it");
-  const s = arena({ battle: ["ASKER"], hand: ["V1"] });
-  const asker = find(s, "p1", "battle", "ASKER");
-  const ev: import("../../src/lib/arena/engine/types").GameEvent[] = [];
-  move(CTX, s, ev, asker, "drop", "p1", { reason: "rule" });
-  assert.ok(s.players.p1.drop.includes(asker), "a departure nobody can be asked about is not replaced");
-  assertConsistent(s);
+  let s = arenaG({ battle: ["BIG"], oppBattle: ["ASKER"], oppHand: ["V1"] });
+  const asker = findG(s, "p2", "battle", "ASKER");
+  const handWas = zoneOf(s, "p2", "hand").length;
+  s = battleKo(s, asker);
+  assert.ok(zoneOf(s, "p2", "drop").includes(asker), "a departure nobody can be asked about is not replaced");
+  assert.equal(zoneOf(s, "p2", "hand").length, handWas, "and nothing was discarded in its place");
+  assertConsistentG(s);
 }
 
 // ── event: "life" (#272) — a life card's own move, not a Battle Area one ────
-if (!replaceGap("REVEALER: a life card's own departure, replaced by a [Permanent] that asks")) {
+if (!lifeGap("REVEALER: a life card's own departure, replaced by a [Permanent] that asks")) {
   // "During your opponent's turn, if you would add a card from your life to
   // your hand or place it in your Drop Area, you may reveal it and add it to
   // your hand instead." (BT10-031, SD18-01's shape).
@@ -2801,4 +2843,4 @@ if (!replaceGap("REVEALER: a life card's own departure, replaced by a [Permanent
   assertConsistentG(taken.state);
 }
 
-if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap/replaceGap comments`);
+if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap/lifeGap comments`);
