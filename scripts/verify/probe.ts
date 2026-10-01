@@ -381,12 +381,6 @@ if (ENGINE !== "legacy") {
         rules.result.some((l) => / goes from the Battle Area to the Drop$/.test(l) && !old.result.includes(l)),
     },
     {
-      id: "immunity-static",
-      says: "9-1-4 immunity granted by a [Permanent]'s `immune` op is not collected on the rules engine (`DEFERRED_STATICS.immune`, #154), so the opponent's KO skill is offered the card and takes it; legacy never offers it as a target.",
-      holds: (_f, old, rules, rule) =>
-        hasOp(rule, (o) => o.op === "immune") && old.result.some((l) => /never among the targets/.test(l)) && rules.result.some((l) => / is KO'd$/.test(l)),
-    },
-    {
       id: "keyword-negation-static",
       says: "A [Permanent] that negates a keyword (`negateKeyword`) is not collected on the rules engine (`DEFERRED_STATICS.negateKeyword`, #153), so the card still reads the keyword in force where legacy reads none.",
       holds: (_f, old, rules, rule) =>

@@ -602,6 +602,13 @@ export type Op =
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
       until?: Duration;
+      /**
+       * With `what: "specified"`: no specified cost at all, every orb, read
+       * after every other change to it — [Warrior of Universe 7]'s "treat as
+       * having no specified cost" (22-19-2). A `DEFINE KEYWORD` body's word,
+       * on no card (`OpField.offCard`, #154); `amount` is not read with it.
+       */
+      all?: boolean;
     }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
@@ -794,7 +801,18 @@ export type Op =
    * ([Victory Strike], 22-18). Read declaratively by `vm/battle.ts`; as a step
    * of a program it does nothing.
    */
-  | { op: "battleDamage"; atLeast?: Amount; to?: "drop"; allMarkers?: boolean; wins?: boolean };
+  | { op: "battleDamage"; atLeast?: Amount; to?: "drop"; allMarkers?: boolean; wins?: boolean }
+  /**
+   * The line's own printed effect, announced as printed and run here, in
+   * this program's frame — so what the keyword's body bound is the printed
+   * effect's to read ([Alliance]'s cards rested as its cost, `rested`,
+   * 22-32-3). A `DEFINE KEYWORD` body's word, on no card (`OpSpec.offCard`,
+   * #154): a keyword whose effect is printed *after* something of its own,
+   * and only when that something happened. Runs what `ScriptFrame.printed`
+   * carries, which only a rules-engine keyword moment's frame does; anywhere
+   * else it does nothing.
+   */
+  | { op: "printedEffect" };
 
 /**
  * The price before the colon, as the record holds it (4-3-3). Both halves are
@@ -972,6 +990,13 @@ export interface ScriptFrame {
    * what the price chose (4-3-3).
    */
   saveVarsAs?: string;
+  /**
+   * The line's printed effect, for a keyword body's `printedEffect` to
+   * announce and run (#154): its program, its words as printed, and whether
+   * a battle was on when the line resolved. Set by the rules engine on a
+   * keyword moment's frame; the legacy engine never sets it.
+   */
+  printed?: { ops: Op[]; text: string; inBattle: boolean };
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
   did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean; may?: boolean };
   /**
@@ -1245,6 +1270,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // the same keywords inline in `battleDamage`. Nothing to do as a step.
       case "battleDamage":
         break;
+
+      // #154: a keyword body's word — the line's printed effect, announced
+      // as printed and spliced in where the body says, so it reads what the
+      // body bound. Taken off the frame as it runs: it happens once.
+      case "printedEffect": {
+        const printed = frame.printed;
+        frame.printed = undefined;
+        if (!printed) break;
+        h.log({ type: "skill", card: frame.card, skill: frame.skillIndex ?? -1, master, text: printed.text, inBattle: printed.inBattle });
+        frame.ops = [...frame.ops.slice(0, frame.ip), ...printed.ops, ...frame.ops.slice(frame.ip + 1)];
+        continue;
+      }
 
       case "look": {
         // 20-11: looking is not revealing — only the player looking sees them,

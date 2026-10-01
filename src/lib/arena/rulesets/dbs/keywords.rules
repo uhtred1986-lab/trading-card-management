@@ -6,11 +6,12 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Fifteen HOOK bodies over fourteen keywords, written by Stage 7's four hook
+-- Sixteen HOOK bodies over fifteen keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
 -- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
--- chargeLimit, [Unique]'s playRefused, [Heroic]/[Villainous]'s afterSkill,
+-- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s
+-- altPayment, [Heroic]/[Villainous]'s afterSkill,
 -- [Critical]/[Strike]/[Victory Strike]'s beforeDamage and [Revenge]/
 -- [Attack]'s battleEnd. Every other keyword's
 -- own moments are still the engine's, and each one's trailing comment says
@@ -18,15 +19,18 @@
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Twelve DO bodies, the whole-keyword activations that are no hook at all
+-- Fourteen DO bodies, the whole-keyword activations that are no hook at all
 -- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
--- [Successor], [Arrival], [Wish] and [Awaken] are moves (`offer:`), each
--- offered as an [Activate: Main] — [Arrival] an [Activate: Battle], [Wish]
--- and [Awaken] both — line with its own REFUSE and menu words ([Wish] and
--- [Awaken] with an AFTER as well), and [Offering], [Z-Stack], [Revive],
--- [Revenge] and [Attack] answer a moment (`at:`), pended like an [Auto] —
--- the last two with an empty DO, announced as the legacy engine announces
--- them, their effect a battleEnd HOOK. The others of that shape —
+-- [Successor], [Arrival], [Aegis], [Wish] and [Awaken] are moves (`offer:`),
+-- each offered as an [Activate: Main] — [Arrival] and [Aegis] an [Activate:
+-- Battle], [Wish] and [Awaken] both — line with its own REFUSE and menu
+-- words ([Wish] and [Awaken] with an AFTER as well), and [Offering],
+-- [Z-Stack], [Revive], [Alliance], [Revenge] and [Attack] answer a moment
+-- (`at:`), pended like an [Auto] — [Alliance] running its printed effect
+-- where its DO says (`printedEffect`), the last two with an empty DO,
+-- announced as the legacy engine announces them, their effect a battleEnd
+-- HOOK. 9-1-4 immunity printed as a [Permanent] is no keyword at all and is
+-- read beside the other statics (`vm/effects.ts`, #154). The others of that shape —
 -- [Rejuvenate], [Z-Awaken], [Over Realm], [Swap] … — are still to write the
 -- same way, each one's trailing comment saying what it is missing.
 -- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
@@ -238,7 +242,18 @@ DEFINE KEYWORD "Victory Strike"
 DEFINE KEYWORD "Warrior of Universe 7"
   TAKES ()
   text: "Treat your ≪Universe 7≫ cards in every area as having no specified cost — the coloured part of a play's price."
-  -- Stage 7 (#153–#157)
+  -- #154: an `altPayment` body, read as a standing change the way a
+  -- [Permanent]'s program is (`vm/program.ts`'s statics): while the card is
+  -- your Leader or in your Battle Area — the legacy `playCost`'s two places —
+  -- your ≪Universe 7≫ cards where a price is asked, the hand and the Z-Deck,
+  -- have no specified cost, after every other change to it (22-19-2). The
+  -- total is untouched. The trait is matched as a trait, where the legacy
+  -- engine looks for "universe 7" anywhere in one.
+  HOOK altPayment {
+    if(cond: any([count([self] IN you.leader) >= 1, count([self] IN you.battle) >= 1]), then: {
+      costReduction(target: "≪Universe 7≫ card" IN you.hand|zDeck, amount: 0, what: specified, all: true)
+    })
+  }
 
 -- 22-14
 DEFINE KEYWORD Ultimate
@@ -438,13 +453,58 @@ DEFINE KEYWORD Arrival
 DEFINE KEYWORD Aegis
   TAKES (colors: colors)
   text: "In the Defense Step of your opponent's turn, drop cards from your hand covering the named colours to switch up to two of your energy from Rest to Active Mode."
-  -- Stage 7 (#153–#157)
+  -- #154: a move, offered as an [Activate: Battle] at the combo prompt — so
+  -- only in a battle, and the one the non-turn player is asked is the
+  -- Defense Step's (22-30-4) — from a card in play, while the hand can cover
+  -- the colours (`covers`), for the line's printed orbs, as the legacy
+  -- `activatable` case gates it. Paying first, then up to two cards of the
+  -- colours one at a time (the legacy prompt's `max` is the colours named,
+  -- and every [Aegis] names two); cards that cover them go to the Drop as the
+  -- cost (22-30-3), then up to two rested energy stand (22-30-5) and the
+  -- combo prompt is put again. Picked wrongly, the orbs are spent and nothing
+  -- happens, as there.
+  offer: "activate:battle"
+  REFUSE timing(window: defense) UNLESS all([isTurnPlayer(who: opponent), asking(prompt: combo)])
+  REFUSE zone(area: battle) UNLESS count([self] IN you.play) >= 1
+  REFUSE condition(text: "{colors:and} cards in your hand to drop") UNLESS covers(sel: IN you.hand, colors: $colors)
+  label: "Aegis {colors}: drop {colors:and} from hand, stand up to 2 energy"
+  DO {
+    choose(sel: UP TO 2 (colors = $colors) IN you.hand, as: "cost", reason: "[Aegis]: drop cards covering the named colours from your hand")
+    if(cond: covers(sel: FROM $cost, colors: $colors), then: {
+      moveTo(target: $cost, to: drop, cause: cost)
+      choose(sel: UP TO 2 IN you.energy rest, as: "stood", reason: "[Aegis]: energy to switch to Active Mode")
+      switchMode(target: $stood, mode: active)
+    }, else: {
+      note(text: "Aegis: the cards dropped did not cover the colours, so nothing happened")
+    })
+  }
 
 -- 22-32
 DEFINE KEYWORD Alliance
   TAKES (colors: colors)
   text: "When this card attacks, you may switch one or more of your other Battle Cards of the named colours to Rest Mode as the cost of the printed effect."
-  -- Stage 7 (#153–#157)
+  -- #154: a moment (`at:`), pended and announced as the card attacks, like
+  -- the legacy `keywordTriggers` case; a condition printed before the colon
+  -- is asked before anyone is asked anything. While the card is the
+  -- attacker, its owner picks any number of their other active Battle Cards
+  -- of the named colours, or none (22-32-3); those are rested as the cost,
+  -- and only then is the printed effect announced and run, with the rested
+  -- cards bound as `rested` — "the total power of the cards switched to Rest
+  -- Mode by this skill" reads them (`printedEffect`). Declined, nothing
+  -- happens. The legacy engine also pends "when this card is switched to
+  -- Rest Mode by an [Alliance] skill" on each rested card; this engine fires
+  -- no `modeSwitched` moment that says what did the switching (`by:`), so
+  -- that trigger, like `restedBySkill`, does not answer here yet.
+  at: [attacks]
+  DO {
+    if(cond: inBattle(sel: [self], role: attacker), then: {
+      choose(sel: UP TO 99 (colors = $colors) IN you.battle active otherThanSelf, as: "rested", reason: "[Alliance]: Battle Cards to switch to Rest Mode, or none")
+      if(cond: count(FROM $rested) >= 1, then: {
+        switchMode(target: $rested, mode: rest)
+        printedEffect()
+      })
+    })
+  }
 
 -- 22-34
 DEFINE KEYWORD Revive

@@ -127,7 +127,7 @@ export const HOOK_CONTRACT: Record<HookPoint, HookSpec> = {
     group: "D",
     answer: "query",
     vars: [],
-    doc: "A price is being planned and is asking what else may pay it, or what it no longer demands. A body ends in `modifyAttr` on the price attribute it changes (`specifiedCost` for a clearing, an energy-shaped grant for a stand-in payer), read declaratively alongside `attributes.rules`' own cost layers. [Warrior of Universe 7]'s specified-cost clearing (22-19) is the worked example.",
+    doc: "A price is being planned and is asking what else may pay it, or what it no longer demands. Read as a standing change, exactly as a [Permanent]'s program is (`vm/effects.ts`'s `keywordStatics`, from `vm/program.ts`'s `statics`), off every card in play that carries the keyword — because the answer is about *other* cards' prices, it is a change the price's own declared layers read (`attributes.rules`), not a fact about `self`. [Warrior of Universe 7]'s specified-cost clearing (22-19, #154) is the worked example: `costReduction(what: specified, all: true)` over your ≪Universe 7≫ cards in the hand and the Z-Deck. [Invoker]'s stand-in payer (22-37) is the other keyword filed here, and is not written yet.",
   },
 };
 

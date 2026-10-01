@@ -840,10 +840,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "a45b0fa4"
+      "digest": "9afdafb5"
     },
-    "same": false,
-    "cause": "immunity-static"
+    "same": true
   },
   "IMMUNE#0": {
     "legacy": {
@@ -852,10 +851,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "193dbdf4"
+      "digest": "9afdafb5"
     },
-    "same": false,
-    "cause": "immunity-static"
+    "same": true
   },
   "INBATTLE#0": {
     "legacy": {

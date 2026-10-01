@@ -50,7 +50,7 @@ import {
   unisonOf,
   zoneOf,
 } from "./harness";
-import { legacyState } from "../../src/lib/arena/engines";
+import { legacyState, type EngineState } from "../../src/lib/arena/engines";
 
 /**
  * #158: this suite runs on both engines now, through the same state-interface
@@ -71,18 +71,15 @@ import { legacyState } from "../../src/lib/arena/engines";
  * `move(CTX, …)`'s reason and event log are not what the assertion is about.
  *
  * What is still skipped on `--engine rules`, and why — every case below is
- * one of four shapes, named at its own gate call rather than silently doing
- * nothing:
+ * one of three shapes, named at its own gate call rather than silently doing
+ * nothing (a fourth, `staticGap` — a [Permanent] static `DEFERRED_STATICS`
+ * names as unread — left with its last cases, IMMUNE/IMMANY, at #154):
  *
  * - **`keywordGap`**: the keyword's own `DEFINE KEYWORD` in `keywords.rules`
  *   carries no `HOOK` body or `DO` for what this case needs (`docs/arena-backlog/
  *   s7-0{2,3,4,5}-*.md` — Stage 7's four hook groups, `src/lib/arena/
  *   rulesets/dbs/keywords.rules`'s own header names which keywords still read
  *   `-- Stage 7 (#153–#157)`).
- * - **`staticGap`**: the [Permanent] reads to a static kind `vm/effects.ts`'s
- *   own `DEFERRED_STATICS` names — a legality a
- *   [Permanent] can print and this engine does not yet collect into anything
- *   a reader sees, each already citing the issue that closes it.
  * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
  *   `ScriptHost` implementation still throws `NotYet` for by name (a
  *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
@@ -97,12 +94,6 @@ let skipped = 0;
 function keywordGap(keyword: string, doc: string): boolean {
   if (ENGINE !== "rules") return false;
   console.log(`  skipped case — [${keyword}]'s keyword body is not built on the rules engine yet (${doc})`);
-  skipped++;
-  return true;
-}
-function staticGap(where: string, what: string, why: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: [Permanent] reads to a "${what}" static, which vm/effects.ts's DEFERRED_STATICS names as unread — ${why}`);
   skipped++;
   return true;
 }
@@ -122,9 +113,7 @@ function replaceGap(where: string): boolean {
 const S7 = {
   invoker: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D's altPayment channel, where #155 moved it: an alternative price on an Extra's activation ([Invoker])",
   empower: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Empower])",
-  aegis: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing, immunity and KO by effect ([Aegis])",
   rejuvenate: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: its marker price is printed as the line's text, so the 13-4 gates have no number to read ([Rejuvenate])",
-  alliance: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing, immunity and KO by effect ([Alliance])",
 };
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
@@ -706,7 +695,8 @@ if (!keywordGap("Empower", S7.empower)) {
   assert.ok(!labelsG(n).some((x) => x.startsWith("Successor")), "4 + 4 is not 5");
 }
 
-if (!keywordGap("Aegis", S7.aegis)) {
+// Both engines since #154: [Aegis] is `keywords.rules`' own move.
+{
   // [Aegis X/Y] (22-30): in the Defense Step of the opponent's turn only; drop
   // one card of each colour from hand, then up to two energy go active.
   DEFS.AEG = { ...DEFS.V1, id: "AEG", name: "AEG", skill: "[Aegis red/blue] {r}" };
@@ -935,7 +925,8 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   assert.throws(() => play(s, { type: "choose", player: "p1", cards: [a] }), /invalid choice/, "a card cannot be picked twice");
 }
 
-if (!keywordGap("Alliance", S7.alliance)) {
+// Both engines since #154: [Alliance] is `keywords.rules`' own moment.
+{
   // [Alliance X/Y] (22-32): as it attacks, its owner may rest other Battle
   // Cards of the named colours; the printed effect then reads "the total
   // power of the cards switched to Rest Mode by this skill" off those cards.
@@ -963,6 +954,9 @@ if (!keywordGap("Alliance", S7.alliance)) {
   assert.equal(s.prompt.kind, "combo");
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
   assert.ok(zoneOf(s, "p2", "drop").includes(big), "10000 + (10000 + 15000) beats 25000");
+  // 8-5: "for the battle" ends with it — on the rules engine too since #154.
+  assert.equal(powerOfG(s, ally), 10000, "the power gained for the battle is gone once it ends");
+  assert.ok(!hasG(s, ally, "Strike"), "and so is the [Double Strike]");
   assertConsistentG(s);
 
   // Declining rests nothing and the attack is what it was.
@@ -992,6 +986,25 @@ if (!keywordGap("Alliance", S7.alliance)) {
   c.cards[zoneOf(c, "p2", "battle")[0]].mode = "rest";
   c = playG(c, { type: "attack", player: "p1", attacker: zoneOf(c, "p1", "battle")[0], target: zoneOf(c, "p2", "battle")[0] });
   assert.equal(c.prompt.kind, "combo", "a red Leader: the skill does not apply");
+}
+
+// Both engines since #154: [Warrior of Universe 7] is `keywords.rules`' own
+// `altPayment` body, read as a standing change (wordings.ts asks the legacy
+// `playCost` the same question directly).
+{
+  // 22-19-2: your ≪Universe 7≫ cards have no specified cost while a card with
+  // [Warrior of Universe 7] is your Leader or in your Battle Area — so a red
+  // one is paid for with blue energy. The total is not touched.
+  DEFS.WU7 = { ...DEFS.V1, id: "WU7", name: "WU7", skill: "[Warrior of Universe 7]" };
+  DEFS.U7GUY = { ...DEFS.V1, id: "U7GUY", name: "U7GUY", energyCost: 1, traits: ["Universe 7"], colors: ["Red"] };
+  DEFS.U7TWO = { ...DEFS.U7GUY, id: "U7TWO", name: "U7TWO", energyCost: 2 };
+  DEFS.RED1 = { ...DEFS.V1, id: "RED1", name: "RED1", energyCost: 1, colors: ["Red"] };
+  const playable = (s: EngineState, id: string) => actsG(s).some((a) => a.type === "play" && a.card === findG(s, "p1", "hand", id));
+  assert.ok(!playable(arenaG({ hand: ["U7GUY"], energy: ["V-BLUE"] }), "U7GUY"), "without it, a red card needs red energy");
+  assert.ok(playable(arenaG({ battle: ["WU7"], hand: ["U7GUY"], energy: ["V-BLUE"] }), "U7GUY"), "22-19-2: with it in play, blue energy pays for a red ≪Universe 7≫ card");
+  assert.ok(!playable(arenaG({ hand: ["U7GUY", "WU7"], energy: ["V-BLUE"] }), "U7GUY"), "in the hand it does nothing");
+  assert.ok(!playable(arenaG({ battle: ["WU7"], hand: ["RED1"], energy: ["V-BLUE"] }), "RED1"), "a card that is not ≪Universe 7≫ still needs its colour");
+  assert.ok(!playable(arenaG({ battle: ["WU7"], hand: ["U7TWO"], energy: ["V-BLUE"] }), "U7TWO"), "and the total is what it was: two energy, not one");
 }
 
 if (!keywordGap("Invoker", S7.invoker)) {
@@ -2301,13 +2314,9 @@ if (!notYetGap("SPANSKIP: three `skip` entries under one name (20-13)", "`addSki
 
 // ── 9-1-4: a card no skill may touch ───────────────────────────────────────
 
-if (
-  !staticGap(
-    "IMMUNE: a [Permanent] saying this card isn't affected by an opponent's skills",
-    "immune",
-    "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing (`chooseable`) is Stage 7's; the query hook Barrier itself uses does not cover a board-wide reading not tied to a keyword",
-  )
-) {
+// Both engines since #154: the rules engine collects a [Permanent]'s `immune`
+// op (`vm/effects.ts`) and every selector asks it (`immunityRefusing`).
+{
   // The acceptance board for #128. Everything the family claims is one
   // question asked of one pair — this card, that skill — so every case below
   // is the same two cards with the asking side changed.
@@ -2388,13 +2397,7 @@ if (
   assert.equal(powerOfG(own, findG(own, "p2", "battle", "IMMUNE")), 15000, "immunity to your opponent's skills is not immunity to your own");
 }
 
-if (
-  !staticGap(
-    "IMMANY: a [Permanent] naming no side at all ('non-<Gogeta: GT> skills')",
-    "immune",
-    "#154 — the same DEFERRED_STATICS entry as IMMUNE above, over a filter with no side named",
-  )
-) {
+{
   // The other half of the family, and the reason the rule is asked of the
   // stored `from` rather than of who owns the card: "isn't affected by
   // non-<Gogeta: GT> skills" (BT18-019) names no side at all, so it blocks
@@ -2598,4 +2601,4 @@ if (!replaceGap("REVEALER: a life card's own departure, replaced by a [Permanent
   assertConsistentG(taken.state);
 }
 
-if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own keywordGap/staticGap/notYetGap/replaceGap comments`);
+if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own keywordGap/notYetGap/replaceGap comments`);

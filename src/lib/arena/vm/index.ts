@@ -48,7 +48,8 @@ import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
 import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt } from "./battle";
-import { forbiddenBy, hasKeyword, spendProhibitionUse } from "./program";
+import { forbiddenBy, hasKeyword, immunityRefusing, spendProhibitionUse } from "./program";
+import { whoseSkills } from "../engine/script";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
@@ -742,13 +743,10 @@ function rejectedActions(ctx: EngineContext, state: VmState, legal: LegalAction[
  * The legacy `rejectedActions`' own `chooseCards` case, in its order: the
  * cards in play on each side, and the asked player's own hand.
  *
- * One branch of the legacy case has no twin here, honestly so: 9-1-4
- * immunity from a skill ("not affected by your opponent's skills"). This
- * engine collects no [Permanent]'s `immune` op yet (`vm/effects.ts`'s
- * `DEFERRED_STATICS`, #154), so it never narrows a choice for that reason
- * and there is no refusal to explain — a card the legacy engine would call
- * `immune` is offered here instead, which `verify/keywords.ts`'s IMMUNE case
- * already names as that gap.
+ * And 9-1-4 (#154): a card unaffected by this skill altogether is refused for
+ * its immunity, said to the player being refused. Immunity is a rule about a
+ * pair — this card, that skill — so the suspended program at the front of the
+ * queue is read for whose skill is asking, the legacy case's `s.flow[0]`.
  */
 function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: VmState, legal: LegalAction[]): RejectedAction[] {
   const pr = state.prompt;
@@ -759,6 +757,7 @@ function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: 
   const seen = new Set<string>();
   const out: RejectedAction[] = [];
   const name = (id: string) => ctx.defs[state.cards[id]?.cardId ?? ""]?.name ?? id;
+  const frame = state.programs[0];
   for (const side of PLAYERS) {
     const zones = state.sides[side].zones;
     const inPlay = [...(zones.leader ?? []), ...(zones.unison ?? []), ...(zones.battle ?? [])];
@@ -768,11 +767,25 @@ function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: 
       // `hooks: false`: [Barrier] is read on its own line below, the way the
       // legacy case reads it, rather than folded into the 20-14 answer.
       const banned = forbiddenBy(ctx, game, state, "beChosen", { card: id, hooks: false });
+      const im = frame ? immunityRefusing(ctx, game, state, id, frame.card, frame.master) : null;
       const why: Requirement[] = banned
         ? [{ kind: "forbidden", ...banned }]
         : hasKeyword(ctx, game, state, id, "Barrier")
           ? [{ kind: "forbidden", by: name(id), until: "permanent" }]
-          : [{ kind: "target", reason: pr.choice.reason }];
+          : im
+            ? [
+                {
+                  kind: "immune",
+                  card: id,
+                  // In the words of `p`, the player the prompt is in front of —
+                  // not the skill's master, who differs once a card says "your
+                  // opponent chooses" (20-7).
+                  whose: whoseSkills(im.rule.from === undefined ? undefined : im.rule.from === p ? "you" : "opponent", im.rule.fromFilter),
+                  by: im.source && im.source !== id && state.cards[im.source] ? name(im.source) : null,
+                  until: im.until,
+                },
+              ]
+            : [{ kind: "target", reason: pr.choice.reason }];
       out.push({ action: { type: "choose", player: p, cards: [id] }, label: `Choose ${name(id)}`, why });
     }
   }

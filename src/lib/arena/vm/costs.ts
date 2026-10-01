@@ -64,12 +64,12 @@
  *    each energy a flat reducer takes off, and on its own for a sentence that
  *    only relaxes a colour (the owner's BT19-039 ruling of 9 Sep 2026).
  *
- * One half of 20-21 is still out, and it is a **keyword** rather than a
- * reduction: 22-19's [Warrior of Universe 7] clears a ≪Universe 7≫ card's
- * specified cost outright, and a keyword's own body is a `DEFINE KEYWORD` hook
- * and Stage 7's (#153–#157). Reading that one keyword by name here would be the
- * branch this module exists to remove. `PRICE_LAYERS` says so in the log of any
- * game that asks how far the reading goes.
+ * The keyword half of 20-21 arrives the same way and is not named here:
+ * 22-19's [Warrior of Universe 7] clears a ≪Universe 7≫ card's specified cost
+ * outright through its own `altPayment` body (#154), which `vm/program.ts`
+ * reads as a standing change of the `specified` layer — so this planner sees
+ * an empty colour list and never the keyword. `PRICE_LAYERS` says how far the
+ * reading goes in the log of any game that asks.
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network,
  * nothing read at request time.
@@ -94,7 +94,7 @@ import type { VmState } from "./state";
  * declared layers — which come to the printed total, because no cost reducer
  * can be in force on this engine yet (see the header).
  */
-export const PRICE_LAYERS = "the cost attribute the price declares, through the layers it declares — every cost reduction in force, flat and coloured, floored at zero (20-21); 22-19's [Warrior of Universe 7] is a keyword body and waits on Stage 7";
+export const PRICE_LAYERS = "the cost attribute the price declares, through the layers it declares — every cost reduction in force, flat and coloured, floored at zero (20-21), and 22-19's [Warrior of Universe 7] through its own altPayment body (#154)";
 
 // ── a declaration, read ─────────────────────────────────────────────────────
 

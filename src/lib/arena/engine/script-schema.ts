@@ -219,6 +219,12 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
+  {
+    name: "all",
+    type: "boolean",
+    offCard:
+      'with what: "specified", no specified cost at all — every orb, after every other change to it, and amount is not read — [Warrior of Universe 7]\'s ≪Universe 7≫ cards (22-19-2), the leaf of its altPayment hook',
+  },
 ];
 /**
  * `costModifier`'s fields — the union of `costReduction`'s and `altCost`'s,
@@ -487,6 +493,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const scoped = op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
         return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}`;
       }
+      if (op.all) return `${describeRef(op.target)} has no specified cost`;
       const counts = new Map<string, number>();
       for (const c of op.colors ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
       const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
@@ -685,6 +692,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     offCard:
       "how the battle damage a card deals by attacking lands (8-4-6), the leaf of a keyword's beforeDamage hook — atLeast raises life damage and the markers taken off a Unison to that much ([Strike], 22-7), to: drop sends the life cards to the Drop face up ([Critical], 22-6), allMarkers takes every marker off a Unison and wins ends the game once life damage lands ([Victory Strike], 22-18)",
   },
+  printedEffect: {
+    fields: [],
+    sentence: "the line's printed effect resolves",
+    offCard:
+      "the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's",
+  },
 };
 
 /**
@@ -763,6 +776,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   note:               "primitive",
   setPlayerAttr:      "primitive",
   battleDamage:       "primitive",
+  printedEffect:      "primitive",
 };
 
 /**

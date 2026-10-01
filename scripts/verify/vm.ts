@@ -2803,10 +2803,10 @@ console.log("verify/vm: ok");
 //
 // What is deliberately *not* here: 22-19's [Warrior of Universe 7], which
 // clears a ≪Universe 7≫ card's specified cost outright. It is a **keyword**
-// rather than a `costReduction` op, so it is a `DEFINE KEYWORD` hook body and
-// Stage 7's (#153–#157) — `keywords.rules` declares no hook bodies at all yet,
-// and reading one keyword by name in `vm/costs.ts` would be the branch this
-// whole module exists to remove.
+// rather than a printed `costReduction`, so it is a `DEFINE KEYWORD` hook body
+// (`altPayment`, #154) and is proven on both engines in `verify/keywords.ts`;
+// reading one keyword by name in `vm/costs.ts` would be the branch this whole
+// module exists to remove.
 {
   const rulesEngine = engineFor("rules");
 

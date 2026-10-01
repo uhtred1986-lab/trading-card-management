@@ -217,6 +217,25 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   // …and [Dual Attack]'s count, with a number and with the keyword's own `$x`.
   tripCond({ kind: "attacked", sel: { special: "self" }, atLeast: 2 }, "attacked");
   tripCond({ kind: "not", cond: { kind: "attacked", sel: { side: "you", area: "battle" }, atLeast: { var: "x" } } }, "NOT attacked, by a variable");
+  // #154: group A's word, a step with no field — alone, and where [Alliance]
+  // writes it, after the cost it rests and under the `if` that asks whether
+  // there was one.
+  tripOps([{ op: "printedEffect" }], "printedEffect");
+  // …and [Warrior of Universe 7]'s leaf, a specified cost cleared outright.
+  tripOps(
+    [{ op: "costReduction", target: { sel: { side: "you", areas: ["hand", "zDeck"], filter: { ...emptyFilter(), traits: ["Universe 7"] } } }, amount: 0, what: "specified", all: true }],
+    "costReduction, every orb of the specified cost",
+  );
+  tripOps(
+    [
+      {
+        op: "if",
+        cond: { kind: "count", sel: { fromVar: "rested" }, atLeast: 1 },
+        then: [{ op: "switchMode", target: { var: "rested" }, mode: "rest" }, { op: "printedEffect" }],
+      },
+    ],
+    "printedEffect after [Alliance]'s cost",
+  );
 
   // A counted, conditional prohibition (20-14): the schema loop above already
   // builds a maximal `forbid`, but it builds one generic value per field type.
