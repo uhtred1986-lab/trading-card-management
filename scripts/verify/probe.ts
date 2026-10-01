@@ -419,16 +419,6 @@ if (ENGINE !== "legacy") {
       holds: (_f, _old, rules) => /cannot read .* text yet/.test(rules.result.join("|")),
     },
     {
-      id: "counter-play-window",
-      says: "[Counter: Play] needs the window between declaring a play and resolving it, which the rules engine has not opened (#150); the opponent's play goes through unanswered.",
-      holds: (f, _old, rules) => f === "counter" && rules.outcome === "didNotFire",
-    },
-    {
-      id: "activate-battle-window",
-      says: "An [Activate: Battle] skill is not on the menu at the rules engine's combo/counter prompts (#150), so it never fires.",
-      holds: (f, _old, rules) => f === "activateBattle" && rules.outcome === "didNotFire",
-    },
-    {
       id: "auto-price",
       says: "An [Auto]'s own price ('{r}:' before the trigger) is not charged on the rules engine: legacy rests the energy a second time, the rules engine does not.",
       holds: (_f, old, rules) => old.applied.filter((l) => /Rest Mode/.test(l)).length > rules.applied.filter((l) => /Rest Mode/.test(l)).length,

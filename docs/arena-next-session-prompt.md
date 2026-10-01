@@ -89,7 +89,15 @@ issues' own PR descriptions remain the record of how each got there.
   the moment it opens rather than reading a live `FOR`. `Work.run` may return `"wait"` for a step
   that sets `state.prompt` itself, and `vm/index.ts` merges the four in beside the declared moves.
   Damage, KO and combo are the generic `dealDamage`/`koCard` primitives (#151); the Z-Energy a
-  spent combo card can become at battle end (`zEnergyFromCombo`) is still `NotYet`.
+  spent combo card can become at battle end (`zEnergyFromCombo`) is still `NotYet`. The
+  **[Counter: Play] window** is #150's too: a declared `play`/`playUnison`/`playZ` the opponent
+  could answer lifts its `DO` frame onto `state.resolving` (`openPlayCounterWindow`), the
+  counter's program runs first, and `vm/flow.ts`'s runner releases the play after it — rested,
+  negated or dropped as the counter said; [Deflect]'s `counterWindow` hook empties the window.
+  **[Activate: Battle]** is offered at the combo prompt by reading `actions.rules`' `activate`
+  against that prompt (`battleActivationDef`), and the frame's `reask` puts the combo question
+  back once the skill has resolved. Not built: 9-7-3's recursion (a [Counter: Counter] over a
+  counter), and the keyword plays' windows ([Successor], [Revive], [Swap] — Stage 7).
 - **A keyword's own moments are a hook contract** (`vm/hooks.ts`, `vm/hook-contract.ts`, #153):
   `HOOK_CONTRACT` is fifteen confirmed hook points, each either a **query** (read declaratively
   and never run — `queryHookStatics`, the way `permanents()` reads a [Permanent]) or an **effect**

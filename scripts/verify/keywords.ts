@@ -1331,13 +1331,10 @@ if (
   );
   assert.equal((cf.ops[1] as { negated?: boolean }).negated, true);
   assert.deepEqual(ops("[Activate: Battle] Use this card from your Drop in a combo."), ["comboFrom"]);
-  if (
-    !notYetGap(
-      "GRAVE: an [Activate: Battle] skill offered from hand during the combo step",
-      "checked directly rather than trusted: the activation is not on the rules engine's menu during the combo prompt the way it is on legacy — an activation window matching a hand card during a native `combo` prompt is not yet wired the way an in-play card's is",
-      "no issue filed yet",
-    )
-  ) {
+  // GRAVE: an [Activate: Battle] skill offered from hand during the combo
+  // step — on the rules engine too since #150 read `actions.rules`' `activate`
+  // against the combo prompt (`vm/battle.ts`).
+  {
     DEFS.GRAVE = { ...DEFS["E-DRAW"], id: "GRAVE", name: "GRAVE", skill: "[Activate: Battle] Use up to 1 card with 5000 combo power from your Drop in a combo with its skills negated for the battle." };
     let s = arenaG({ hand: ["GRAVE"], energy: ["V1"], battle: ["BLOCKER"] });
     const dropped = zoneOf(s, "p1", "deck")[0];
@@ -1355,6 +1352,77 @@ if (
     if (ENGINE === "legacy") assert.equal(legacyState(s).cards[dropped].negated, "all", "with its skills negated");
     assert.equal(s.prompt.kind, "combo");
     assertConsistentG(s);
+  }
+
+  // [Counter: Play] (22-10, 9-6) and [Deflect] (22-20), on both engines: the
+  // window between a play being declared and its resolving, which the rules
+  // engine opens since #150 (`vm/battle.ts`'s `openPlayCounterWindow`).
+  // `readings.ts` proves the same three readings on the legacy engine alone;
+  // these ids are this block's own and are taken out of DEFS again at its
+  // end, so the probe sweep (`verify/probe.ts`, every DEFS card) is
+  // unchanged by them.
+  {
+    const temp = ["CP-STOP", "CP-TIRE", "CP-HUSH", "CP-DEFL"];
+    DEFS["CP-STOP"] = { ...DEFS["E-NEGATE"], id: "CP-STOP", name: "CP-STOP", skill: "[Counter: Play] The Battle Card being played is placed in its owner's Drop Area instead of being played." };
+    DEFS["CP-TIRE"] = { ...DEFS["E-NEGATE"], id: "CP-TIRE", name: "CP-TIRE", skill: "[Counter: Play] The Battle Card being played is played in Rest Mode." };
+    DEFS["CP-HUSH"] = { ...DEFS["E-NEGATE"], id: "CP-HUSH", name: "CP-HUSH", skill: "[Counter: Play] It's played with its skills negated for the turn." };
+    DEFS["CP-DEFL"] = { ...DEFS.V1, id: "CP-DEFL", name: "CP-DEFL", skill: "[Deflect] (This card isn't affected by [Counter: Play] skills.)" };
+    const restedEnergy = (s: ReturnType<typeof arenaG>) => zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length;
+
+    // Replaced: the card goes to the Drop, never reaches the Battle Area, and the energy stays paid.
+    let s = arenaG({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["CP-STOP"], oppEnergy: ["V1"] });
+    let played = findG(s, "p1", "hand", "V1");
+    const battle = zoneOf(s, "p1", "battle").length;
+    s = playG(s, { type: "play", player: "p1", card: played });
+    assert.equal(s.prompt.kind, "counter", "the [Counter: Play] window");
+    assert.equal(s.prompt.kind === "counter" && s.prompt.window, "play");
+    assert.ok(zoneOf(s, "p1", "hand").includes(played), "a play being resolved has not landed");
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "CP-STOP"), skill: 0 });
+    assert.ok(zoneOf(s, "p1", "drop").includes(played), "it went to the Drop");
+    assert.equal(zoneOf(s, "p1", "battle").length, battle, "and never reached the Battle Area");
+    assert.equal(restedEnergy(s), 1, "the energy stays paid");
+    assert.equal(s.prompt.kind, "main", "the Main Phase's question comes back");
+    assertConsistentG(s);
+
+    // Declined: the play resolves as if no window had opened.
+    s = arenaG({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["CP-STOP"], oppEnergy: ["V1"] });
+    played = findG(s, "p1", "hand", "V1");
+    s = playG(s, { type: "play", player: "p1", card: played });
+    s = playG(s, { type: "counter", player: "p2", card: null });
+    assert.ok(zoneOf(s, "p1", "battle").includes(played), "a declined window lets the play land");
+    assert.equal(s.cards[played].mode, "active");
+    assertConsistentG(s);
+
+    // Rest Mode: the play happens, only its manner changes.
+    s = arenaG({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["CP-TIRE"], oppEnergy: ["V1"] });
+    played = findG(s, "p1", "hand", "V1");
+    s = playG(s, { type: "play", player: "p1", card: played });
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "CP-TIRE"), skill: 0 });
+    assert.ok(zoneOf(s, "p1", "battle").includes(played), "the play still happened");
+    assert.equal(s.cards[played].mode, "rest", "but the card arrived rested");
+    assertConsistentG(s);
+
+    // Negated for the turn: a turn-long effect on the card as it lands.
+    s = arenaG({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["CP-HUSH"], oppEnergy: ["V1"] });
+    played = findG(s, "p1", "hand", "V1");
+    s = playG(s, { type: "play", player: "p1", card: played });
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "CP-HUSH"), skill: 0 });
+    assert.ok(zoneOf(s, "p1", "battle").includes(played));
+    assert.ok(
+      s.effects.some((e) => e.target === played && e.kind === "negateSkills" && e.until === "turn"),
+      "played with its skills negated for the turn",
+    );
+    assertConsistentG(s);
+
+    // [Deflect]: the window holds nothing, so it is not opened at all.
+    s = arenaG({ hand: ["CP-DEFL"], energy: ["V1", "V1"], oppHand: ["CP-STOP"], oppEnergy: ["V1"] });
+    played = findG(s, "p1", "hand", "CP-DEFL");
+    s = playG(s, { type: "play", player: "p1", card: played });
+    assert.equal(s.prompt.kind, "main", "no [Counter: Play] window over a [Deflect] card");
+    assert.ok(zoneOf(s, "p1", "battle").includes(played), "and the play lands");
+    assertConsistentG(s);
+
+    for (const id of temp) delete DEFS[id];
   }
 
   // Odds and ends from the same list.

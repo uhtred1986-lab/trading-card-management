@@ -423,7 +423,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "This card isn't affected by your opponent's [Counter: Play] skills. Valid in every area.",
     engine: "While a [Deflect] card is being played the opponent's [Counter: Play] window holds nothing, and the refusal says which card closed it.",
     engineRules:
-      "Not built — reassigned to hook group C's `counterWindow` (docs/arena-backlog/s7-04-keywords-battle.md) once #153's inventory confirmed the real hook, and #156 found it still blocked: it needs the Counter:Play window, which only #150's battle-triggered one exists (`vm/host.ts`'s own `NotYet`).",
+      "Empties the [Counter: Play] window the same way, through its own `counterWindow` hook body (`keywords.rules`: a `forbid(what: activateCounter)` read declaratively, asked of the card being played) once #150 opened that window — so no window is opened over a [Deflect] card's play at all. Naming the card that closed it is not built there: the rules engine gives no rejection reasons at a counter window yet (`nativeRejectionGap` in `verify/workflow.ts`).",
     support: "engine",
   },
   Indestructible: {
@@ -656,7 +656,7 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     tag: "[Activate: Battle]",
     section: "1-5-5",
     meaning: "You declare it during a battle.",
-    engine: "As above, offered in the battle windows.",
+    engine: "As above, offered at the combo prompt of each battle step, Offense and Defense, beside the combo cards — on both engines since #150, which reads the Main Phase's own `activate` paragraph against that prompt.",
   },
   "activate:main/battle": {
     tag: "[Activate: Main/Battle]",
@@ -674,7 +674,8 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     tag: "[Counter: Play]",
     section: "22-10",
     meaning: "Pends when your opponent plays a card, and may be activated from your hand during a counter timing. The card then goes to your Drop Area.",
-    engine: "Offered in the counter window — unless the card being played has [Deflect], which empties it.",
+    engine:
+      "Offered in the counter window between a play being declared and its resolving — unless the card being played has [Deflect], which empties it. The counter resolves first and the play after it: rested, negated or replaced as the counter says, with the energy for the play still paid. On both engines since #150; a play a skill makes opens no window on either.",
   },
   "counter:attack": {
     tag: "[Counter: Attack]",

@@ -317,11 +317,25 @@ export function declaredLegalActions(ctx: EngineContext, game: GameDefinition, s
   const out: LegalAction[] = [];
   for (const def of actionsAt(game, state)) {
     if (def.listed === false) continue;
-    for (const c of candidatesOf(ctx, game, state, def, player)) {
-      if (c.why.length) continue;
-      const cost = actionCostOf(c.price);
-      out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, state, def, c), ...(cost ? { cost } : {}) });
-    }
+    out.push(...legalActionsOf(ctx, game, state, def, player));
+  }
+  return out;
+}
+
+/**
+ * The menu one declaration contributes, for one player.
+ *
+ * Exported for the one caller that asks a declaration about a question it does
+ * not itself name: `vm/battle.ts`'s combo prompt, which offers `activate` over
+ * the battle's own skill kinds (#150, 8-2/8-3) — the same paragraph read
+ * against a different window, rather than a second reading of activation.
+ */
+export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId): LegalAction[] {
+  const out: LegalAction[] = [];
+  for (const c of candidatesOf(ctx, game, state, def, player)) {
+    if (c.why.length) continue;
+    const cost = actionCostOf(c.price);
+    out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, state, def, c), ...(cost ? { cost } : {}) });
   }
   return out;
 }
@@ -492,8 +506,11 @@ export type Applied = "none" | "done" | "asked";
  * else: the contract's "a client picks a move by index" rests on a move that
  * was not offered being refused rather than quietly taken.
  */
-export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): Applied {
-  const def = game.actions[action.type];
+export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action, as?: ActionDef): Applied {
+  // `as` is the declaration read against another window — the combo prompt's
+  // `activate` (`vm/battle.ts`, #150) — and is checked exactly as the
+  // declaration itself would be.
+  const def = as ?? game.actions[action.type];
   if (!def) return "none";
   const player = action.player;
 

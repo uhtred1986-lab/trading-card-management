@@ -6,7 +6,7 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Eight HOOK bodies over seven keywords, written by Stage 7's four hook
+-- Nine HOOK bodies over eight keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Servant]'s
 -- attrBonus and activeStep, [Energy-Exhaust]'s chargeLimit, and
@@ -99,7 +99,13 @@ DEFINE KEYWORD Barrier
 DEFINE KEYWORD Deflect
   TAKES ()
   text: "This card isn't affected by your opponent's [Counter: Play] skills. Valid in every area."
-  -- Stage 7 (#153–#157)
+  -- #150: asked of the card being played when its [Counter: Play] window
+  -- opens (`vm/battle.ts`'s `windowClosedBy`), read declaratively like every
+  -- query hook — a forbid on activating a counter empties the window, the
+  -- legacy `counterCandidates`' own first line.
+  HOOK counterWindow {
+    forbid(what: activateCounter, side: opponent, until: game)
+  }
 
 -- 22-39
 DEFINE KEYWORD Unique

@@ -46,7 +46,7 @@ import { PLAYERS, type PlayerId } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, comboLegalActions, declareAttack, restoreNativePrompt } from "./battle";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, comboLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt } from "./battle";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
@@ -499,6 +499,15 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       if (applyCombo(ctx, game, state, events, action) === "asked") return { state, events };
       break;
     }
+    // #150: an [Activate: Battle] at the combo prompt is the declared
+    // `activate` read against the battle's own window (`vm/battle.ts`); at
+    // every other prompt it is the declaration as written, below.
+    case "activate": {
+      const took = state.prompt.kind === "combo" ? applyBattleActivation(ctx, game, state, events, action) : applyDeclared(ctx, game, state, events, action);
+      if (took === "none") throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, DECLARED_BY[action.type] ?? "#146");
+      if (took === "asked") return { state, events };
+      break;
+    }
     default: {
       // Everything else is a `DEFINE ACTION`: `actions.rules` says when it is
       // offered, for which cards, what it costs and what it does, and
@@ -513,6 +522,10 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       // replace it with the question the step asks, which is how a half-paid
       // move loses its prompt.
       if (took === "asked") return { state, events };
+      // #150, 9-6: a declared play the opponent could answer with a [Counter:
+      // Play] waits on that answer before it resolves — the window is the
+      // question now, so the flow does not run on.
+      if (openPlayCounterWindow(ctx, game, state, action)) return { state, events };
     }
   }
 

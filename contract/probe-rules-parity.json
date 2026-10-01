@@ -594,11 +594,10 @@
       "digest": "480f1206"
     },
     "rules": {
-      "outcome": "didNotFire",
-      "digest": "23db99f7"
+      "outcome": "fired",
+      "digest": "480f1206"
     },
-    "same": false,
-    "cause": "counter-play-window"
+    "same": true
   },
   "E-TIRE#0": {
     "legacy": {
@@ -606,11 +605,10 @@
       "digest": "aa09b91d"
     },
     "rules": {
-      "outcome": "didNotFire",
-      "digest": "23db99f7"
+      "outcome": "fired",
+      "digest": "aa09b91d"
     },
-    "same": false,
-    "cause": "counter-play-window"
+    "same": true
   },
   "EARTHWARP#0": {
     "legacy": {
@@ -788,11 +786,11 @@
       "digest": "215bfc08"
     },
     "rules": {
-      "outcome": "didNotFire",
-      "digest": "23db99f7"
+      "outcome": "fired",
+      "digest": "a486a1fe"
     },
     "same": false,
-    "cause": "activate-battle-window"
+    "cause": "legacy-habits"
   },
   "GRUDGE#0": {
     "legacy": {

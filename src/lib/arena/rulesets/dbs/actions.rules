@@ -310,8 +310,9 @@ DEFINE ACTION playZ                                                       -- §1
 -- (`BoundAmounts`), not a card attribute `xValues` reads, so wiring it up is
 -- separate plumbing in `activate`'s own candidate builder and is not done
 -- here; such a line stays refused `unread`, honestly rather than by
--- omission. [Counter] windows are Stage 6's (#150), and no phase here asks
--- one.
+-- omission. [Counter] windows are native (`vm/battle.ts`, #150), and so is
+-- this paragraph read against the combo prompt for [Activate: Battle]: the
+-- same FOR, COST and again:, asked over the battle's own two kinds.
 
 DEFINE ACTION activate                                                    -- §9-1-2
   WHEN [main]
