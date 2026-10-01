@@ -1509,13 +1509,20 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // every Battle Card in hand is on the *refused* list with the price that
     // stopped it; the charge is refused for every card in hand because its one
     // turn has gone (#145); `growUnison` is refused with no Unison in play
-    // (#269); and `pass` and `concede` are on neither list because a refusal
+    // (#269); the Leader's [Awaken] is refused while its printed condition
+    // does not hold, as the legacy engine refuses it (#156 declared the move);
+    // and `pass` and `concede` are on neither list because a refusal
     // explains a move a player can see.
     const refused = declaredRejectedActions(CTX, DBS, s, menu);
     assert.deepEqual(
       [...new Set(refused.map((r) => r.action.type))].sort(),
-      ["charge", "growUnison", "play"],
-      "an unlisted action reached the list of refusals, or a Main Phase move other than a play, a charge or growUnison was refused",
+      ["activate", "charge", "growUnison", "play"],
+      "an unlisted action reached the list of refusals, or a Main Phase move other than a play, a charge, growUnison or the Leader's [Awaken] was refused",
+    );
+    assert.deepEqual(
+      refused.filter((r) => r.action.type === "activate").map((r) => [(r.action as { card: string }).card, r.why[0]?.kind]),
+      [[s.sides.p1.zones.leader[0], "condition"]],
+      "the one activation refused is the Leader's [Awaken], for its printed condition (life 8 is not 4 or less)",
     );
     assert.ok(
       refused.filter((r) => r.action.type === "play").every((r) => r.why[0]?.kind === "energy"),
@@ -2581,7 +2588,9 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.equal(seen(mine, refusedMine).length, 3, "a card with three [Activate] lines is not answered about three times on the rules engine");
     assert.equal(new Set(seen(mine, refusedMine)).size, 3, "two of a card's three skill lines were answered under one key");
     assert.deepEqual(seen(mine, refusedMine), seen(theirs, refusedTheirs), "the two engines answer about a different set of skill lines");
-    assert.equal(byLine(refusedMine).size, 2, "a card with one playable line and two refused ones does not show two rejections");
+    // The card's own lines only: the Leader's [Awaken] is a refused line of
+    // another card on this board since #156, on both engines.
+    assert.equal([...byLine(refusedMine).keys()].filter((k) => k.startsWith(`${user}#`)).length, 2, "a card with one playable line and two refused ones does not show two rejections");
     assertMenuInvariants(mine, refusedMine, "the activation menu of a card with three skill lines");
     assertMenuInvariants(theirs, refusedTheirs, "the legacy activation menu of a card with three skill lines");
   }

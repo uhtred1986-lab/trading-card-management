@@ -162,7 +162,7 @@ function keywordGap(keyword: string, doc: string): boolean {
 // BT3-103 end to end: a trigger printed at the end of the sentence, a memory of
 // the battle just fought, and an optional price. None of the three is any use
 // without the other two, so the card is played rather than inspected.
-if (!keywordGap("Awaken", S7.battle) && !keywordGap("Blocker's triggered follow-up", S7.battle)) {
+{
   let s = arenaG({ battle: ["BERGAMO"], hand: ["V1"] });
   const berg = findG(s, "p1", "battle", "BERGAMO");
   // Hand it over to p2, so that the block happens on the opponent's turn.
@@ -305,7 +305,7 @@ if (!keywordGap("Dual Attack", S7.battle)) {
 // though the Revenge card itself lost the fight and is already in the Drop
 // by the time its own hook fires — an [Auto] that already triggered on
 // becoming the guard card does not un-trigger by leaving play.
-if (!keywordGap("Revenge", S7.battle)) {
+{
   let s = arenaG({ battle: ["BIG"], oppBattle: ["REVENGE"] });
   const big = zoneOf(s, "p1", "battle")[0];
   const rev = findG(s, "p2", "battle", "REVENGE");
@@ -336,7 +336,7 @@ if (!keywordGap("Revenge", S7.battle)) {
 }
 
 // [Awaken] (22-2): offered only when the printed condition holds, flips the leader.
-if (!keywordGap("Awaken", S7.battle)) {
+{
   let s = arenaG({ battle: [] });
   assert.ok(!labelsG(s).some((x) => x.startsWith("Awaken")), "life 8 > 4");
   zoneOf(s, "p1", "life").splice(4); // drop to 4 life for the test

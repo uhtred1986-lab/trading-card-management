@@ -92,7 +92,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "A Leader's own skill. Meet the printed condition, pay the cost, carry out the effect, then flip the Leader onto its awakened side. [Awaken: Surge] is the same skill under another name, and card text saying “[Awaken] skills” means both.",
     engine:
       "Offered on a face-up Leader in the Main Phase and during a battle, but only while the engine can read the printed condition (“If your life is at 4 or less” and its neighbours). The flip is queued before the effect runs, so it still happens when the effect stops to ask you something.",
-    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-04-keywords-battle.md, hook group C).",
+    engineRules:
+      "Built as its keyword's own move, the same body as [Wish] (`offer: \"activate:main/battle\"` in `keywords.rules`, #156): offered at the Main Phase and at the combo prompt from a face-up Leader that prints an awakened side, while the printed condition holds (the record hoists it into the line's price); the line's printed effect runs and then the Leader flips (`AFTER`), even when the effect stops to ask something. While the condition does not hold the line is refused with it as the reason. [Awaken: Surge] is the same move. The same offer, menu words (“Awaken: <Leader> → <awakened side>”) and log as the legacy engine.",
     support: "engine",
   },
   Wish: {
@@ -103,7 +104,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "The same shape as [Awaken]: a condition, an effect, and then the Leader is flipped over.",
     engine: "Treated as [Awaken] throughout — the same offer, the same queued flip.",
     engineRules:
-      "Built as its keyword's own move (`offer: \"activate:main/battle\"` in `keywords.rules`, #155): offered at the Main Phase and at the combo prompt from a face-up Leader that prints an awakened side, while the printed condition holds (the record hoists it into the line's price); the line's printed effect runs and then the Leader flips (`AFTER`), even when the effect stops to ask something. The same offer, menu words and log as the legacy engine. [Awaken] is the same body, still to declare (hook group C, #156).",
+      "Built as its keyword's own move (`offer: \"activate:main/battle\"` in `keywords.rules`, #155): offered at the Main Phase and at the combo prompt from a face-up Leader that prints an awakened side, while the printed condition holds (the record hoists it into the line's price); the line's printed effect runs and then the Leader flips (`AFTER`), even when the effect stops to ask something. The same offer, menu words and log as the legacy engine. [Awaken] is the same body (#156).",
     support: "engine",
   },
   "Z-Awaken": {
@@ -368,7 +369,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "When this card becomes the guard card, KO the attacking card at the end of the battle.",
     engine: "Marked on the battle when it becomes the guard and carried out when the battle ends, whatever happened in between.",
     engineRules:
-      "The `battleEnd` hook fires on the guard the same way (#156) — the contract's own worked example — but the body is not declared yet, so a Revenge card does not KO the attacker on the rules engine. It is no longer blocked: the `ko` op the body would run is real since #146 (a skill's KO is the battle's own KO, with the same events and moments as the legacy engine), and writing the body is #156's.",
+      "Built (#156) in the legacy engine's two halves: the line answers `attacked` (`at:` in `keywords.rules`), so it is announced as the card becomes the guard — attacked, or blocking — and the KO is the `battleEnd` hook, run on whichever card is the guard at the Battle End Step, after the combo cards go to the Drop, and only on a Battle Card attacker. A Revenge card KO'd by the battle still KOs the attacker. The same KO, cause and moments as the legacy engine. One difference, from the flow rather than the keyword: this engine resolves a “when attacked” skill at the checkpoint before the blocker window, the legacy engine after it, so a Revenge card that is blocked for is announced one step earlier here. Whether the KO happens is read at the end of the battle (the guard then), where the legacy engine reads it as the skill resolves (the guard then) — the same card on every board where the guard changes only by blocking.",
     support: "engine",
   },
   Alliance: {
