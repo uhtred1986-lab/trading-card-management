@@ -525,7 +525,10 @@ move is about **one printed line** rather than about a card a `FOR` found:
     picker.
   - A `HOOK` body may now name its keyword's `TAKES` parameters as `$name`, the way a `DO` does:
     [Strike]'s `$x` is filled from the keyword in force, printed or granted (`hookBodiesFor`).
-- Group A (#154) added one op, on no card either:
+- Group A (#154) added one op and one field, on no card either:
+  - `costReduction(… what: specified, all: true)` — no specified cost at all, every orb, read after
+    every other change to it; `amount` is not read with it. [Warrior of Universe 7]'s `altPayment`
+    leaf (22-19-2). The field is marked `offCard`.
   - `printedEffect()` — the line's own printed effect, announced as printed and run at that point
     of a moment's `DO`, in the same frame, so it reads what the `DO` bound. [Alliance] rests the
     cards it chose as `rested` and only then says `printedEffect()`, under the `if` that asks

@@ -52,7 +52,7 @@ import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "../engine/script-schema";
 import { mirrorSides } from "../engine/state";
 import { HOOK_CONTRACT } from "./hook-contract";
-import { ownProhibitions, permanents, valueOf, type VmStatic } from "./effects";
+import { keywordStatics, ownProhibitions, permanents, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
 import { SETUP_ZONES, hostOf, inPlayZones } from "./zones";
@@ -107,22 +107,53 @@ export function sideOf(master: PlayerId, side: Side | undefined): PlayerId[] {
 
 // ── what a card is, right now ───────────────────────────────────────────────
 
-/** Every [Permanent] standing right now, or nothing while one is being read (see `readingStatics`). */
+/** The keywords of the game that hang a body on `altPayment`, lower-cased — worked out once per definition. */
+const ALT_PAYMENT = new WeakMap<GameDefinition, string[]>();
+function altPaymentKeywords(game: GameDefinition): string[] {
+  let known = ALT_PAYMENT.get(game);
+  if (known === undefined) ALT_PAYMENT.set(game, (known = Object.values(game.keywords).filter((k) => k.hooks?.some((h) => h.at === "altPayment")).map((k) => k.name.toLowerCase())));
+  return known;
+}
+
+/**
+ * Whether this card could carry one of `names` at all: its text prints the
+ * name, on either face, or a resolved effect grants it a keyword. A test on
+ * words rather than a reading, so the statics — asked on every value read —
+ * parse no skills for the cards that cannot answer; `hookBodiesFor` then
+ * reads the ones that can properly.
+ */
+function mayCarry(ctx: EngineContext, state: VmState, id: string, names: string[]): boolean {
+  const def = ctx.defs[state.cards[id]?.cardId ?? ""];
+  const text = `${def?.skill ?? ""} ${def?.back?.skill ?? ""}`.toLowerCase();
+  return names.some((n) => text.includes(n)) || state.effects.some((e) => e.kind === "keyword" && e.target === id);
+}
+
+/** Every [Permanent] standing right now — and every keyword's `altPayment` body — or nothing while one is being read (see `readingStatics`). */
 function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   if (readingStatics) return [];
   readingStatics = true;
   try {
-    return permanents(
-      ctx,
-      game,
-      state,
-      (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
-      (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
-      // "…by 1 for each of your blue Battle Cards": the one amount a standing
-      // change can carry, counted over the board. `readingStatics` is already
-      // true here, so the count reads printed values and cannot recur.
-      (frame, a) => amount(ctx, game, state, frame, a),
-    );
+    const targets = (frame: ScriptFrame, op: Op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref);
+    const holds = (frame: ScriptFrame, op: Op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false);
+    // "…by 1 for each of your blue Battle Cards": the one amount a standing
+    // change can carry, counted over the board. `readingStatics` is already
+    // true here, so the count reads printed values and cannot recur.
+    const measure = (frame: ScriptFrame, a: Amount) => amount(ctx, game, state, frame, a);
+    const standing = permanents(ctx, game, state, targets, holds, measure);
+    // #154: a keyword's `altPayment` body is a standing change of the same
+    // kinds, read off the cards in play that carry it ([Warrior of Universe
+    // 7]'s ≪Universe 7≫ cards with no specified cost, 22-19). Only looked for
+    // when the game declares one, since this runs on every value read. The
+    // keywords found here are the printed and resolved ones: a keyword a
+    // [Permanent] grants is itself a static, and one level is the guard.
+    const names = altPaymentKeywords(game);
+    if (!names.length) return standing;
+    const bodies: { card: string; master: PlayerId; ops: Op[] }[] = [];
+    for (const p of Object.keys(state.sides) as PlayerId[])
+      for (const zone of inPlayZones(game))
+        for (const id of state.sides[p].zones[zone] ?? [])
+          if (mayCarry(ctx, state, id, names)) for (const b of hookBodiesFor(ctx, game, state, id, "altPayment")) bodies.push({ card: id, master: p, ops: b.ops });
+    return bodies.length ? [...standing, ...keywordStatics(ctx, state, bodies, targets, holds, measure)] : standing;
   } finally {
     readingStatics = false;
   }

@@ -699,10 +699,9 @@ pairing an attribute with the effect kind a layer of it reads, a `reduction` lay
 and floors at zero, and `specifiedCost` carrying a `colors` value through its own two layers), and
 `permanents` now reads the `costReduction` op out of a [Permanent]. `verify/vm.ts` §20 stages a
 reducer on both engines and compares the price charged, the refusal, the energy rested and the
-whole log. The half still out is 22-19's [Warrior of Universe 7], which clears a ≪Universe 7≫
-card's specified cost outright: it is a **keyword** rather than a `costReduction`, so it is a
-`DEFINE KEYWORD` hook body and waits with the other twelve (#153–#157) — reading one keyword by
-name in `vm/costs.ts` would be the branch that module exists to remove.
+whole log. 22-19's [Warrior of Universe 7], which clears a ≪Universe 7≫ card's specified cost
+outright, is a **keyword** rather than a printed `costReduction`, so it is a `DEFINE KEYWORD` hook
+body — `altPayment`, read as a standing change since #154 (§4.4) — and `vm/costs.ts` never names it.
 
 ### What the loader does
 
@@ -851,9 +850,9 @@ Every body below parses and validates against the real grammar today (`parseDefi
 discipline §3 of `docs/arena-tooling.md` asks of a card's own reading. Two gaps came out of checking
 rather than assuming: no condition exists yet for "does that card carry this same keyword" (so
 [Heroic]'s real body, #155's to write, needs a `COND_SCHEMA` row this table does not invent), and
-`specifiedCost` is not a `CardAttr` the language can name on `modifyAttr` (so [Warrior of Universe
-7]'s real body needs either a new attribute row or a different primitive — `altPayment`'s example
-below stands in with a syntactically valid placeholder rather than a wrong one).
+`specifiedCost` is not a `CardAttr` the language can name on `modifyAttr` — so [Warrior of Universe
+7]'s real body (#154) took the other road, a `costReduction(what: specified)` that clears every orb
+(`all: true`), and `altPayment`'s example below is now the shipped one.
 
 **chooseable, koByEffect and attrBonus are no longer illustrative — #154 built them for real**
 against [Barrier], [Indestructible] and [Servant]'s power (`rulesets/dbs/keywords.rules`); the
@@ -967,11 +966,13 @@ DEFINE KEYWORD "Energy-Exhaust"
     modifyAttr(target: [self], attr: mode, mode: rest)
   }
 
--- D: altPayment — read declaratively; the real [Warrior of Universe 7] body
--- needs `specifiedCost` as a nameable attribute or a different primitive (see above)
+-- D: altPayment — read as a standing change, the way a [Permanent]'s program
+-- is, off every card in play carrying the keyword (#154: real, `keywords.rules`)
 DEFINE KEYWORD "Warrior of Universe 7"
   HOOK altPayment {
-    modifyAttr(target: [self], attr: markers, amount: 0, until: game)
+    if(cond: any([count([self] IN you.leader) >= 1, count([self] IN you.battle) >= 1]), then: {
+      costReduction(target: "≪Universe 7≫ card" IN you.hand|zDeck, amount: 0, what: specified, all: true)
+    })
   }
 ```
 
@@ -1205,7 +1206,8 @@ a move offered without them would be read wrongly. **[Z-Awaken]** stacks a Z-Lea
 carrying its power effects and its battle role, pays Z-Energy and is once a turn per player: a
 leader-area `stackOnto`, a Z-Energy price on a keyword move and a player-level counter, none of which
 exists. **[Invoker]** is an alternative price on an Extra's activation from the hand — group D's
-`altPayment` channel, beside [Warrior of Universe 7], which `vm/costs.ts` does not ask yet; `DEFINE
+`altPayment` channel, beside [Warrior of Universe 7] (built by #154 as a specified-cost change; a
+stand-in payer is a different change and is not); `DEFINE
 ACTION activate` declares no `alt:` and `payAltCost` has no `invoker` case — so it moves there. **[Wormhole]** only raises [Over Realm]'s
 limit, which is unwritten. **[Dragon Ball]** needs nothing: it is deck legality (`support: "deck"`),
 and no game reads it.
@@ -1236,6 +1238,36 @@ Between them they needed one op, one condition and one change to the contract
 **[Ultimate]** is left unwritten. Its removal (22-14-3) is a replacement: one move to `removed`
 instead. `onLeave` runs after the card has landed, so it cannot say it. It needs a leave-time query
 hook, or the 9-10 replacements `replacementsFor` does not collect yet.
+
+**Group A's keywords (#154).** [Barrier], [Indestructible], [Deflect] and [Servant]'s power were
+already hook bodies (§4.2). #154 built the rest of the group, each against the legacy engine event
+for event, and settled where the §4.3 inventory's "confirm" rows belong: by the shape of their
+bodies, not their hook group.
+
+- **9-1-4 immunity printed as a [Permanent]** ("isn't affected by your opponent's skills",
+  "…non-<Gogeta: GT> skills") is no keyword. The `immune` op is collected beside the other
+  statics (`vm/effects.ts`), read through its own one-level guard while the statics are being read,
+  and asked in `resolveSelector` for every selector but `self` (`immunityRefusing`, the legacy
+  reading). A `chooseCards` prompt's rejected list words it in the refused player's words.
+- **[Aegis]** is a move, `offer: "activate:battle"`, refused unless the non-turn player is asked
+  the combo prompt (the Defense Step), the card is in play and the hand `covers` the colours. Its
+  `DO` takes up to two cards of the colours, drops them as the cost if they cover them, and stands
+  up to two rested energy. The legacy prompt narrows the second pick to the missing colour and
+  will not take none; this one does not (recorded).
+- **[Alliance]** is a moment, `at: [attacks]`. Its `DO` rests any number of the attacker's other
+  active Battle Cards of the colours and only then runs the line's printed effect with them bound,
+  through the new `printedEffect()` op (§2.3). A condition printed before the line's colon is asked
+  before any keyword moment's `DO`.
+- **[Warrior of Universe 7]** is the `altPayment` body, which is read as a standing change exactly
+  as a [Permanent]'s program is, off every card in play carrying the keyword. Its leaf is
+  `costReduction(what: specified, all: true)` — the new `all` field clears every orb after every
+  other change, as the legacy `playCost` clears it last.
+
+Two engine facts came out of it. The rules engine never ended an effect "for the battle"; the
+battle phase now ends them as it closes, after the `battleEnd` hooks' programs. And "when this card
+is switched to Rest Mode by an [Alliance] skill" (and "…by one of your skills") does not answer on
+the rules engine: its `modeSwitched` moment does not say what did the switching. That is trigger
+plumbing beyond this group, recorded in the glossary.
 
 ---
 

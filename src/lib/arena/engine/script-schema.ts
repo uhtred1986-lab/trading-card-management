@@ -219,6 +219,12 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
+  {
+    name: "all",
+    type: "boolean",
+    offCard:
+      'with what: "specified", no specified cost at all — every orb, after every other change to it, and amount is not read — [Warrior of Universe 7]\'s ≪Universe 7≫ cards (22-19-2), the leaf of its altPayment hook',
+  },
 ];
 /**
  * `costModifier`'s fields — the union of `costReduction`'s and `altCost`'s,
@@ -487,6 +493,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const scoped = op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
         return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}`;
       }
+      if (op.all) return `${describeRef(op.target)} has no specified cost`;
       const counts = new Map<string, number>();
       for (const c of op.colors ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
       const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");

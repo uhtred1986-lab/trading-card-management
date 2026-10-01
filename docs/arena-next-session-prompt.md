@@ -109,7 +109,11 @@ issues' own PR descriptions remain the record of how each got there.
   thirty-two is deferred with its own reason in its own trailing comment** rather than left
   blank — most are whole-keyword *activations*, which a `DEFINE KEYWORD` has no `do:` for yet
   (#157's own gap). Hook group C (#156) added [Revenge]'s and [Dual Attack]'s `battleEnd` and
-  made `beforeDamage` a query hook for [Critical], [Strike] and [Victory Strike].
+  made `beforeDamage` a query hook for [Critical], [Strike] and [Victory Strike]. Hook group A
+  (#154) finished the group: [Aegis] (a move), [Alliance] (a moment, with `printedEffect()`),
+  [Warrior of Universe 7] (`altPayment`, read as a standing change), and a [Permanent]'s 9-1-4
+  `immune` op read beside the other statics. "For the battle" effects now end with the battle on
+  the rules engine.
 - **Everything else from config** (Stage 8, #158–#163): `board-words.ts` (one zone/phase/mode/
   colour vocabulary for `wording.ts`, `narration.ts`, `effects.ts` and `lighting.ts`, validated
   against the declarations by `wordsFromRuleset`), `prompt-words.ts` (one question/hint table both

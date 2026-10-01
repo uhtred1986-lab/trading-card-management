@@ -602,6 +602,13 @@ export type Op =
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
       until?: Duration;
+      /**
+       * With `what: "specified"`: no specified cost at all, every orb, read
+       * after every other change to it — [Warrior of Universe 7]'s "treat as
+       * having no specified cost" (22-19-2). A `DEFINE KEYWORD` body's word,
+       * on no card (`OpField.offCard`, #154); `amount` is not read with it.
+       */
+      all?: boolean;
     }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which

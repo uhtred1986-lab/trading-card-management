@@ -50,7 +50,7 @@ import {
   unisonOf,
   zoneOf,
 } from "./harness";
-import { legacyState } from "../../src/lib/arena/engines";
+import { legacyState, type EngineState } from "../../src/lib/arena/engines";
 
 /**
  * #158: this suite runs on both engines now, through the same state-interface
@@ -986,6 +986,25 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   c.cards[zoneOf(c, "p2", "battle")[0]].mode = "rest";
   c = playG(c, { type: "attack", player: "p1", attacker: zoneOf(c, "p1", "battle")[0], target: zoneOf(c, "p2", "battle")[0] });
   assert.equal(c.prompt.kind, "combo", "a red Leader: the skill does not apply");
+}
+
+// Both engines since #154: [Warrior of Universe 7] is `keywords.rules`' own
+// `altPayment` body, read as a standing change (wordings.ts asks the legacy
+// `playCost` the same question directly).
+{
+  // 22-19-2: your ≪Universe 7≫ cards have no specified cost while a card with
+  // [Warrior of Universe 7] is your Leader or in your Battle Area — so a red
+  // one is paid for with blue energy. The total is not touched.
+  DEFS.WU7 = { ...DEFS.V1, id: "WU7", name: "WU7", skill: "[Warrior of Universe 7]" };
+  DEFS.U7GUY = { ...DEFS.V1, id: "U7GUY", name: "U7GUY", energyCost: 1, traits: ["Universe 7"], colors: ["Red"] };
+  DEFS.U7TWO = { ...DEFS.U7GUY, id: "U7TWO", name: "U7TWO", energyCost: 2 };
+  DEFS.RED1 = { ...DEFS.V1, id: "RED1", name: "RED1", energyCost: 1, colors: ["Red"] };
+  const playable = (s: EngineState, id: string) => actsG(s).some((a) => a.type === "play" && a.card === findG(s, "p1", "hand", id));
+  assert.ok(!playable(arenaG({ hand: ["U7GUY"], energy: ["V-BLUE"] }), "U7GUY"), "without it, a red card needs red energy");
+  assert.ok(playable(arenaG({ battle: ["WU7"], hand: ["U7GUY"], energy: ["V-BLUE"] }), "U7GUY"), "22-19-2: with it in play, blue energy pays for a red ≪Universe 7≫ card");
+  assert.ok(!playable(arenaG({ hand: ["U7GUY", "WU7"], energy: ["V-BLUE"] }), "U7GUY"), "in the hand it does nothing");
+  assert.ok(!playable(arenaG({ battle: ["WU7"], hand: ["RED1"], energy: ["V-BLUE"] }), "RED1"), "a card that is not ≪Universe 7≫ still needs its colour");
+  assert.ok(!playable(arenaG({ battle: ["WU7"], hand: ["U7TWO"], energy: ["V-BLUE"] }), "U7TWO"), "and the total is what it was: two energy, not one");
 }
 
 if (!keywordGap("Invoker", S7.invoker)) {

@@ -475,7 +475,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "cost",
     meaning: "Treat your ≪Universe 7≫ cards in every area as having no specified cost — the coloured part of a play's price.",
     engine: "Applied when the price of a play is worked out, while any card you have in play or as your Leader carries the keyword.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-02-keywords-choosing-immunity.md, hook group A.",
+    engineRules:
+      "Built as its keyword's own `altPayment` hook body (`keywords.rules`, #154), read as a standing change the way a [Permanent] is: while the card is your Leader or in your Battle Area, your ≪Universe 7≫ cards in the hand and the Z-Deck have no specified cost — `costReduction(what: specified, all: true)`, applied after every other change to it, as the legacy engine clears it last — and the total is untouched. The same offers, payments and events as the legacy engine. One narrow difference: the trait is matched as a trait, where the legacy engine looks for “universe 7” anywhere inside one. A keyword granted by another card's [Permanent] is not read here (one level of statics is the guard), only a printed one or one a skill granted.",
     support: "engine",
   },
   Invoker: {

@@ -1319,6 +1319,13 @@
           "required": false,
           "nullable": false,
           "type": "duration"
+        },
+        {
+          "name": "all",
+          "required": false,
+          "nullable": false,
+          "offCard": "with what: \"specified\", no specified cost at all — every orb, after every other change to it, and amount is not read — [Warrior of Universe 7]'s ≪Universe 7≫ cards (22-19-2), the leaf of its altPayment hook",
+          "type": "boolean"
         }
       ],
       "sentence": "this card costs 1 less",

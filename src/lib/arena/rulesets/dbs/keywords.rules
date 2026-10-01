@@ -6,11 +6,12 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Fifteen HOOK bodies over fourteen keywords, written by Stage 7's four hook
+-- Sixteen HOOK bodies over fifteen keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
 -- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
--- chargeLimit, [Unique]'s playRefused, [Heroic]/[Villainous]'s afterSkill,
+-- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s
+-- altPayment, [Heroic]/[Villainous]'s afterSkill,
 -- [Critical]/[Strike]/[Victory Strike]'s beforeDamage and [Revenge]/
 -- [Attack]'s battleEnd. Every other keyword's
 -- own moments are still the engine's, and each one's trailing comment says
@@ -241,7 +242,18 @@ DEFINE KEYWORD "Victory Strike"
 DEFINE KEYWORD "Warrior of Universe 7"
   TAKES ()
   text: "Treat your ≪Universe 7≫ cards in every area as having no specified cost — the coloured part of a play's price."
-  -- Stage 7 (#153–#157)
+  -- #154: an `altPayment` body, read as a standing change the way a
+  -- [Permanent]'s program is (`vm/program.ts`'s statics): while the card is
+  -- your Leader or in your Battle Area — the legacy `playCost`'s two places —
+  -- your ≪Universe 7≫ cards where a price is asked, the hand and the Z-Deck,
+  -- have no specified cost, after every other change to it (22-19-2). The
+  -- total is untouched. The trait is matched as a trait, where the legacy
+  -- engine looks for "universe 7" anywhere in one.
+  HOOK altPayment {
+    if(cond: any([count([self] IN you.leader) >= 1, count([self] IN you.battle) >= 1]), then: {
+      costReduction(target: "≪Universe 7≫ card" IN you.hand|zDeck, amount: 0, what: specified, all: true)
+    })
+  }
 
 -- 22-14
 DEFINE KEYWORD Ultimate

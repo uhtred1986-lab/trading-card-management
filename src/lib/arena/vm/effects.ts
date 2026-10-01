@@ -119,6 +119,8 @@ export type DelaySpec = Omit<DelayedEffect, "id" | "createdTurn">;
 export interface SpecifiedChange {
   colors: (Color | "any")[];
   sign: 1 | -1;
+  /** No specified cost at all, after every other change ([Warrior of Universe 7], 22-19-2; `costReduction`'s `all`, #154). */
+  all?: true;
 }
 
 /**
@@ -428,6 +430,28 @@ export function permanents(
   return out;
 }
 
+/**
+ * A keyword's `altPayment` bodies (#154), walked exactly as a [Permanent]'s
+ * program is — the contract's "a query hook body is an always-on [Permanent]
+ * its keyword grants for free" (`docs/arena-ruleset-spec.md` §4.1), for the
+ * one hook whose answer is a change to *other* cards' prices rather than a
+ * fact about its own card. Each body comes with the card in play that carries
+ * the keyword; the caller (`vm/program.ts`'s `statics`) finds them, because
+ * finding a keyword in force asks for the statics too.
+ */
+export function keywordStatics(
+  ctx: EngineContext,
+  state: VmState,
+  bodies: { card: string; master: PlayerId; ops: Op[] }[],
+  targets: (frame: ScriptFrame, op: Op) => string[],
+  holds: (frame: ScriptFrame, op: Op) => boolean,
+  measure: (frame: ScriptFrame, amount: Amount) => number,
+): VmStatic[] {
+  const out: VmStatic[] = [];
+  for (const b of bodies) collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: b.card, master: b.master }, b.ops, true, targets, holds, measure);
+  return out;
+}
+
 /** One [Permanent]'s program, walked for the standing changes a value is read through. */
 function collect(
   ctx: EngineContext,
@@ -521,6 +545,10 @@ function collect(
       // orbs and never a "for each" count, so the sign is read off the number
       // rather than measured.
       if (op.what === "specified") {
+        if (op.all) {
+          for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "specifiedCost", target: id, value: { colors: [], sign: 1, all: true } });
+          continue;
+        }
         if (!op.colors?.length || typeof op.amount !== "number") continue;
         const sign: 1 | -1 = op.amount < 0 ? -1 : 1;
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "specifiedCost", target: id, value: { colors: op.colors, sign } });
@@ -670,6 +698,9 @@ const LAYERS: Record<string, Layer> = {
         }
       }
     }
+    // 22-19-2: "treat as having no specified cost" is read after every other
+    // change, as the legacy `playCost` clears it last.
+    if ([...statics, ...timed].some((c) => !!c && typeof c === "object" && "all" in c && (c as SpecifiedChange).all)) return [];
     return orbs;
   },
 };

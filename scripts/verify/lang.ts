@@ -221,6 +221,11 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   // writes it, after the cost it rests and under the `if` that asks whether
   // there was one.
   tripOps([{ op: "printedEffect" }], "printedEffect");
+  // …and [Warrior of Universe 7]'s leaf, a specified cost cleared outright.
+  tripOps(
+    [{ op: "costReduction", target: { sel: { side: "you", areas: ["hand", "zDeck"], filter: { ...emptyFilter(), traits: ["Universe 7"] } } }, amount: 0, what: "specified", all: true }],
+    "costReduction, every orb of the specified cost",
+  );
   tripOps(
     [
       {
