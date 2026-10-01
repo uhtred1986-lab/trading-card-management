@@ -7,6 +7,7 @@ import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
 import type { CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { useArenaAdmin } from "./admin-context";
+import { cardImage } from "@/lib/catalog/card-image";
 
 /** What a card is putting into the open battle, and the figure it is part of. */
 export interface BattleShare {
@@ -361,7 +362,7 @@ function Thumb({ card, yours, current, index, total, onJump }: { card: CardView;
     >
       {card.imageUrl && !card.hidden ? (
         // eslint-disable-next-line @next/next/no-img-element -- a strip swatch; the board has already loaded this URL.
-        <img src={card.imageUrl} alt="" className={`${face} object-cover`} />
+        <img src={cardImage(card.imageUrl, "thumb")} alt="" className={`${face} object-cover`} />
       ) : (
         <span className={`${face} bg-space-700`} />
       )}
@@ -519,7 +520,7 @@ export function CardSheet({
             <div className="relative w-32 shrink-0 self-start">
               {card.imageUrl && !card.hidden ? (
                 // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
-                <img src={card.imageUrl} alt="" className="card-aspect w-full rounded-lg object-cover" />
+                <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect w-full rounded-lg object-cover" />
               ) : (
                 <span className="card-aspect block w-full rounded-lg bg-space-700" />
               )}
@@ -605,7 +606,7 @@ export function SearchSheet({
           >
             {c.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- a list row; the board has already loaded this URL.
-              <img src={c.imageUrl} alt="" className="card-aspect w-10 shrink-0 rounded object-cover sm:w-12" />
+              <img src={cardImage(c.imageUrl, "thumb")} alt="" className="card-aspect w-10 shrink-0 rounded object-cover sm:w-12" />
             ) : (
               <span className="card-aspect w-10 shrink-0 rounded bg-space-700 sm:w-12" />
             )}
