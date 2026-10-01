@@ -48,7 +48,8 @@
  *
  * **What #150 built of damage, KO and combo, and what #151 still owns.**
  * `dealDamage` here is the generic move a battle needs — the top of the
- * declared `life` zone to the hand, face down, one card per hit — and
+ * declared `life` zone to the hand, face down, one card per hit, stopping to
+ * ask over a life card's own 9-10 replacement (#272) — and
  * `koCard` is the generic KO: the card to its owner's Drop, the `ko` moment
  * fired with both roles. Both are *this* module's, because a battle cannot
  * resolve without them, and read one keyword directly ([Indestructible]
@@ -68,7 +69,7 @@
 import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
 import { canCombo } from "../engine/cards";
 import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../engine/types";
-import type { Op, ScriptFrame } from "../engine/script";
+import { replacementPrompt, routeOf, type Op, type ScriptFrame } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../engine/compile";
@@ -77,6 +78,7 @@ import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
 import { fireHook } from "./hooks";
+import { lifeReplacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import type { VmBattle, VmState } from "./state";
@@ -233,7 +235,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
 
   battleDamage: {
     section: "8-4",
-    waits: "9-10's life replacements (the legacy `damageLife`'s optional question over each life card, #272) — [Strike]/[Critical]/[Victory Strike] are the attacker's `beforeDamage` bodies since #156, and [Indestructible]'s battle-KO half is #154's, read directly in `damageWork` below",
+    waits: "a damage loop as a program: 9-10's life replacements are asked per life card natively since #272 (`dealDamage`'s `replaceMove`, the legacy `damageLife`'s question) — [Strike]/[Critical]/[Victory Strike] are the attacker's `beforeDamage` bodies since #156, and [Indestructible]'s battle-KO half is #154's, read directly in `damageWork` below",
     run: (ctx, game, state, ev) => damageWork(ctx, game, state, ev),
   },
 
@@ -759,8 +761,12 @@ export function restoreNativePrompt(ctx: EngineContext, game: GameDefinition, st
 
 // ── damage and KO (8-4) ──────────────────────────────────────────────────────
 
-function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
+function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void | "wait" {
   const b = state.battle;
+  // #272: the step is back with the answer to one life card's question — it
+  // picks up at that card, without re-reading the battle (the legacy
+  // `battleDamage`'s `resume`, which goes straight to `damageLife`).
+  if (b?.damage) return dealDamage(ctx, game, state, ev, other(state.turnPlayer));
   if (!b || b.negated || !battleIntact(state)) return abortToEnd(game, state);
   b.step = "damage";
   log(ev, { type: "battleStep", step: "damage" });
@@ -779,7 +785,8 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     const how = damageRule(ctx, game, state, b.attacker);
     if (state.sides[defP].zones.leader?.includes(b.guard)) {
       // 8-4-6-1, 22-7: [Strike X] raises the damage to X.
-      dealDamage(ctx, game, state, ev, defP, Math.max(1, how.atLeast ?? 1), how);
+      b.damage = { taken: [], remaining: Math.max(1, how.atLeast ?? 1), critical: how.to === "drop", ...(how.wins ? { wins: true as const } : {}) };
+      return dealDamage(ctx, game, state, ev, defP);
     } else if (state.sides[defP].zones.unison?.includes(b.guard)) {
       // 13-5-2: markers come off instead of a KO — X for [Strike X], every
       // one for [Victory Strike] (13-5-2-2), one otherwise.
@@ -831,26 +838,72 @@ function damageRule(ctx: EngineContext, game: GameDefinition, state: VmState, at
  * 8-4-6-1: the generic move a battle needs — the declared `life` zone's top
  * card to the hand, face down, one per hit; #151's `damage(side, n)` primitive
  * is this same shape, generalised to a program rather than a battle step.
- * `how` is the attacker's own rule (#156): [Critical] sends the cards to the
- * Drop face up instead (22-6), and [Victory Strike] ends the game once one
- * has landed (22-18-2) — after the damage is logged and its moments fired,
- * the legacy `damageLife`'s order.
+ * The attacker's own rule (#156), read once into `state.battle.damage` when
+ * the damage began: [Critical] sends the cards to the Drop face up instead
+ * (22-6), and [Victory Strike] ends the game once one has landed (22-18-2) —
+ * after the damage is logged and its moments fired, the legacy `damageLife`'s
+ * order.
+ *
+ * One life card at a time (#272): each can carry its own `life` replacement
+ * (BT10-031/SD18-01's "you may reveal it and add it to your hand instead",
+ * `vm/replace.ts`'s `lifeReplacementChoices`), and 9-10-2's choice between
+ * several or 9-10-3's "you may" is the one reason this loop stops. It puts
+ * the `replaceMove` question to the life card's owner and says `"wait"`;
+ * the answer (`vm/index.ts`'s `chooseMode`) clears the step's `asking` through
+ * `resumeDamage` below, the runner calls the Damage Step's work again, and
+ * `damageWork` hands straight back here with `awaiting` set, which reads the
+ * answer off `lastMode` rather than asking about the next card — the legacy
+ * `damageLife`'s own re-entry, over the same record.
  */
-export function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], defender: PlayerId, n: number, how: DamageRule = {}): void {
-  const taken: string[] = [];
-  const critical = how.to === "drop";
-  for (let i = 0; i < n; i++) {
+function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], defender: PlayerId): void | "wait" {
+  const b = state.battle!;
+  const d = b.damage!;
+  const dest = d.critical ? "drop" : "hand";
+  while (d.remaining > 0) {
     const id = state.sides[defender].zones.life?.[0];
     if (!id) break;
-    // `reveal` is said either way, as the legacy `damageLife` says it.
-    moved(ctx, game, state, ev, id, critical ? "drop" : "hand", { owner: defender, reveal: critical });
-    taken.push(id);
+    const choices = lifeReplacementChoices(ctx, game, state, id, dest);
+    const allowNone = choices.length > 0 && choices.every((c) => c.optional);
+    let replaced: ReplacementResult | null | undefined;
+    if (d.awaiting) {
+      const index = state.lastMode;
+      state.lastMode = null;
+      delete d.awaiting;
+      replaced = index == null || index < 0 || index >= choices.length ? null : routeOf(choices[index]);
+    } else if (choices.length > 1 || allowNone) {
+      d.awaiting = true;
+      const prompt = replacementPrompt(nameOf(ctx, state, id), dest, choices, allowNone);
+      state.prompt = { kind: "replaceMove", player: defender, card: id, reason: prompt.reason, options: prompt.options };
+      return "wait";
+    } else {
+      replaced = choices.length ? routeOf(choices[0]) : null;
+    }
+    // `reveal` is said either way, as the legacy `damageLife` says it. Never
+    // deferred: neither printed card's substitute (reveal, then to the hand)
+    // asks anything of its own, so `leaveRoute` runs it inline.
+    moved(ctx, game, state, ev, id, dest, { owner: defender, reveal: d.critical, ...(replaced === undefined ? {} : { replaced }) });
+    d.taken.push(id);
+    d.remaining--;
   }
+  delete b.damage;
+  const taken = d.taken;
   if (!taken.length) return;
-  log(ev, { type: "damage", player: defender, amount: taken.length, critical, cards: taken });
-  const attacker = state.battle?.attacker;
-  if (attacker) fire(ctx, game, state, { event: "damage", card: attacker, controller: masterOf(game, state, attacker), args: { role: "source" } });
-  if (how.wins && attacker) endGame(ctx, game, state, ev, other(defender), `[Victory Strike] — ${nameOf(ctx, state, attacker)} dealt damage`);
+  log(ev, { type: "damage", player: defender, amount: taken.length, critical: d.critical, cards: taken });
+  const attacker = b.attacker;
+  fire(ctx, game, state, { event: "damage", card: attacker, controller: masterOf(game, state, attacker), args: { role: "source" } });
+  if (d.wins) endGame(ctx, game, state, ev, other(defender), `[Victory Strike] — ${nameOf(ctx, state, attacker)} dealt damage`);
+}
+
+/**
+ * The answer to a life card's question is in (`vm/index.ts`'s `chooseMode`):
+ * if the Damage Step is the one waiting on it, it is asked to run again, the
+ * way `applyCombo` re-asks the combo step. True when it was.
+ */
+export function resumeDamage(state: VmState): boolean {
+  if (!state.battle?.damage?.awaiting) return false;
+  const top = state.flow[state.flow.length - 1];
+  if (top) delete top.asking;
+  return true;
 }
 
 /**

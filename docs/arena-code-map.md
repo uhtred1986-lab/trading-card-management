@@ -77,6 +77,9 @@ the same as if it were still in `CLAUDE.md`.
   asked by both movers (`vm/flow.ts`'s `moved`, `vm/host.ts`'s `moveTo`) before `moveCard` — the
   caller's route or the first mandatory, question-free match, then a keyword's `wouldLeave` body
   ([Ultimate]) as the card's own rule.
+  The `life` event (#272) is asked by `vm/battle.ts`'s `dealDamage`, one life card at a time
+  (`lifeReplacementChoices`); its `replaceMove` question pauses the Damage Step, whose progress
+  waits on `state.battle.damage` until `chooseMode`'s `resumeDamage` re-runs the step.
   **The turn is a program** (`vm/flow.ts`, #140): `state.flow` is a stack of `{phase, index}`
   frames over the `DEFINE PHASE`/`DEFINE STEP` declarations, the frame *is* the suspension (so a
   game is storable mid-decision and reproducible from seed plus actions), a step's `prompt:` is

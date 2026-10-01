@@ -28,7 +28,7 @@ import {
   labels,
   labelsG,
   leaderOf,
-  lifeReplacementChoicesFor,
+  lifeReplacementChoicesForG,
   masterOfG,
   placeUnderG,
   orbsIn,
@@ -70,20 +70,17 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  * `move(CTX, …)`'s reason and event log are not what the assertion is about.
  *
  * What is still skipped on `--engine rules`, and why — every case below is
- * one of two shapes, named at its own gate call rather than silently doing
- * nothing (a fourth, `staticGap` — a [Permanent] static `DEFERRED_STATICS`
- * names as unread — left with its last cases, IMMUNE/IMMANY, at #154, and a third, `keywordGap`,
- * with its last at #157):
+ * one shape, named at its own gate call rather than silently doing nothing
+ * (a fourth, `staticGap` — a [Permanent] static `DEFERRED_STATICS` names as
+ * unread — left with its last cases, IMMUNE/IMMANY, at #154; a third,
+ * `keywordGap`, with its last at #157; and `lifeGap`, 9-10's `life` event,
+ * with REVEALER once the rules engine's battle damage asked per life card,
+ * #272):
  *
  * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
  *   `ScriptHost` implementation still throws `NotYet` for by name (a
  *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
  *   landed, and RELKO now runs on both engines).
- * - **`lifeGap`**: 9-10's `life` event (#272), a life card's own departure.
- *   The rest of the family — a [Permanent] standing in front of a card
- *   leaving play, `replaceGap`'s six cases until 1 Oct 2026 — runs on both
- *   engines (`vm/replace.ts`); the life half is collected but battle damage
- *   does not ask about it yet.
  */
 let skipped = 0;
 // `keywordGap` is gone: since #157 and #155's leftovers (#434) no case here
@@ -91,12 +88,6 @@ let skipped = 0;
 function notYetGap(where: string, what: string, issue: string): boolean {
   if (ENGINE !== "rules") return false;
   console.log(`  skipped case — ${where}: ${what} (${issue})`);
-  skipped++;
-  return true;
-}
-function lifeGap(where: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: a life card's own departure (9-10's \`life\` event, #272) — the rules engine collects the replacement (\`vm/replace.ts\`), but its battle damage (\`vm/battle.ts\`) does not ask about it per life card yet`);
   skipped++;
   return true;
 }
@@ -2803,7 +2794,9 @@ if (!notYetGap("SPANSKIP: three `skip` entries under one name (20-13)", "`addSki
 }
 
 // ── event: "life" (#272) — a life card's own move, not a Battle Area one ────
-if (!lifeGap("REVEALER: a life card's own departure, replaced by a [Permanent] that asks")) {
+// Both engines since #272's rules-engine half: `vm/battle.ts`'s `dealDamage`
+// asks per life card, as the legacy `damageLife` does.
+{
   // "During your opponent's turn, if you would add a card from your life to
   // your hand or place it in your Drop Area, you may reveal it and add it to
   // your hand instead." (BT10-031, SD18-01's shape).
@@ -2820,7 +2813,7 @@ if (!lifeGap("REVEALER: a life card's own departure, replaced by a [Permanent] t
   // hold, so nothing answers to a departure of their own life at all.
   const own = arenaG({ battle: ["REVEALER"] });
   const ownLife = zoneOf(own, "p1", "life")[0];
-  assert.deepEqual(lifeReplacementChoicesFor(CTX, legacyState(own), ownLife, "drop"), [], "the permanent's own condition is during the opponent's turn, not this one");
+  assert.deepEqual(lifeReplacementChoicesForG(own, ownLife, "drop"), [], "the permanent's own condition is during the opponent's turn, not this one");
 
   // During the opponent's turn — REVEALER defending against a [Critical] hit,
   // so the life card is headed for the Drop (22-6) — the choice is offered.
@@ -2851,4 +2844,4 @@ if (!lifeGap("REVEALER: a life card's own departure, replaced by a [Permanent] t
   assertConsistentG(taken.state);
 }
 
-if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap/lifeGap comments`);
+if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap comments`);

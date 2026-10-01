@@ -1291,8 +1291,15 @@ What was built:
   choice. That is the legacy order: `move` folds [Ultimate] into the line that removes a token and
   a Z-card (19-1-7, 14-1-4), after the replacement. It also answers a card leaving a combo, as the
   legacy `wasCombo` does.
-- **Not built:** the `life` half (#272, BT10-031/SD18-01). It is collected, but the rules engine's
-  battle damage (`vm/battle.ts`) does not yet ask about it per life card.
+- **The `life` half** (#272, BT10-031/SD18-01), built after #436: `vm/battle.ts`'s `dealDamage`
+  takes the life cards one at a time, as the legacy `damageLife` does. For each it asks
+  `vm/replace.ts`'s `lifeReplacementChoices` (the legacy `lifeReplacementChoicesFor`). 9-10-2's
+  choice or 9-10-3's "you may" puts the `replaceMove` prompt to the life card's owner and the
+  Damage Step returns `"wait"`, with its progress on `state.battle.damage` (the legacy flow step's
+  `resume`). The `chooseMode` answer clears the step's `asking` (`resumeDamage`), so the runner
+  calls the step again and it picks up at that card. `leaveRoute` honours a supplied route for a
+  card leaving `life` and looks none up — the legacy `move`'s `wasLife`. No new vocabulary: the
+  `replace` op's `life` event was already in the language.
 
 **Group A's keywords (#154).** [Barrier], [Indestructible], [Deflect] and [Servant]'s power were
 already hook bodies (§4.2). #154 built the rest of the group, each against the legacy engine event
