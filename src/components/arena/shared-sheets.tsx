@@ -54,7 +54,7 @@ export function CardDetail({
   figures?: boolean;
 }) {
   const delta = card.basePower != null && card.power != null ? card.power - card.basePower : 0;
-  // Engine internals — the id, the compile notes, "Engine reads" — are an admin's (#350).
+  // Engine internals — the id and the compile notes — are an admin's (#350); the engine's reading of a card lives in the admin drawer (#446).
   const admin = useArenaAdmin();
   return (
     <div className="space-y-1.5">
@@ -123,12 +123,6 @@ export function CardDetail({
         </p>
       )}
       {card.text && <p className="whitespace-pre-wrap text-xs leading-relaxed text-space-200 sm:text-sm">{plainText(card.text)}</p>}
-      {admin && (
-        <div className={`rounded-lg border-l-2 p-2 text-[11px] sm:text-xs ${card.referee ? "border-dbs-yellow bg-space-800" : "border-gain bg-space-800"}`}>
-          <span className="font-semibold text-space-100">{card.referee ? "Not fully compiled. " : "Engine reads: "}</span>
-          <span className="text-space-300">{card.referee ? "Claude rules on this card's remaining text when it resolves." : card.reading || "no effect of its own"}</span>
-        </div>
-      )}
     </div>
   );
 }

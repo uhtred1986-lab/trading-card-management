@@ -7,6 +7,7 @@ import type { NumberedBeat } from "@/lib/arena/beats";
 import type { Narrator } from "@/lib/arena/narration";
 import { narrate } from "@/lib/arena/narration";
 import type { Snapshot } from "@/lib/arena/snapshot";
+import type { CardView } from "@/lib/arena/view";
 import type { FlagLine } from "@/lib/arena/review-store";
 
 /** The shield in the board's top bar: only ever rendered for an admin. */
@@ -27,22 +28,53 @@ export function AdminShield({ onOpen, className = "" }: { onOpen: () => void; cl
   );
 }
 
-const cell = "border-b border-r border-space-800 px-3 py-2";
-
 function Cell({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className={`${cell} ${wide ? "col-span-2" : ""}`}>
-      <dt className="text-[10px] uppercase tracking-widest text-space-300">{label}</dt>
-      <dd className="mt-0.5 font-mono text-[13px] font-semibold text-space-50">{children}</dd>
+    <div className={`arena-admin-kv ${wide ? "arena-admin-kv-wide" : ""}`}>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
     </div>
   );
 }
 
+/** The player who acted in a beat, when the beat names one. */
+function beatPlayer(b: NumberedBeat): string | null {
+  switch (b.t) {
+    case "phase":
+    case "draw":
+    case "damage":
+      return b.player;
+    case "move":
+    case "token":
+    case "skill":
+    case "effect":
+    case "ko":
+      return b.owner;
+    default:
+      return null;
+  }
+}
+
+/** Every distinct card on the board (and the viewer's hand), for the engine-reading list. */
+function cardsOnBoard(snapshot: Snapshot): CardView[] {
+  const { you, them } = snapshot.view;
+  const seen = new Set<string>();
+  const out: CardView[] = [];
+  for (const c of [you.leader, you.unison, ...you.battle, ...you.combo, ...(you.hand ?? []), them.leader, them.unison, ...them.battle, ...them.combo]) {
+    if (!c || c.hidden || seen.has(c.cardId)) continue;
+    seen.add(c.cardId);
+    out.push(c);
+  }
+  return out;
+}
+
 /**
- * The admin drawer (issue #350, frames `*-11-admin-debug-drawer.jpg`): a right-hand
- * panel on desktop, a full-screen sheet on a phone. It holds what a player's
- * board no longer shows — seed, engine, the opponent's hidden hand, the raw
- * engine log, the beat list and, for Claude's decisions, what was legal and why.
+ * The admin drawer (issue #350, restyled in #446; frames `*-11-admin-debug-drawer.jpg`):
+ * a right-hand panel on desktop, a full-screen sheet on a phone, a dark log table
+ * in both skins. It holds what a player's board no longer shows — seed, the
+ * opponent's hidden hand, the beat log with Claude's reasons, and how the engine
+ * reads the cards in play. The legacy engine's own fields (its name, the raw log)
+ * appear only for a game that is still on it.
  */
 export function AdminDrawer({
   snapshot,
@@ -103,70 +135,82 @@ export function AdminDrawer({
     }
   };
   const versus = game.mode === "versus";
-  const beatRows = [...beats].reverse().slice(0, 120);
+  const legacy = game.engine === "legacy";
+  const youIs = view.you.player;
+  const them = versus ? "THEM" : "CL";
+  const youTurn = view.turnPlayer === youIs;
   const decisions = debug ? [...debug.decisions].reverse() : [];
 
+  // The turn each beat belongs to: the latest phase beat at or before it.
+  let beatTurn: number | null = null;
+  const beatRows = beats
+    .map((b) => {
+      if (b.t === "phase") beatTurn = b.turn;
+      return { b, turn: beatTurn };
+    })
+    .reverse()
+    .slice(0, 120);
+  const readings = cardsOnBoard(snapshot);
+  const waiting = snapshot.waiting;
+
+  const head = (
+    <li className="arena-admin-row arena-admin-row-head" aria-hidden>
+      <span>#</span>
+      <span>T</span>
+      <span>side</span>
+      <span>beat</span>
+      <span>detail</span>
+    </li>
+  );
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Match debug"
-      data-arena-admin="drawer"
-      className="fixed inset-y-0 right-0 z-[95] left-0 flex flex-col overflow-hidden border-space-700 bg-space-950 text-space-100 shadow-2xl sm:left-auto sm:w-[26rem] sm:border-l"
-    >
-      <header className="flex shrink-0 items-center gap-3 border-b border-loss/40 px-4 py-3">
-        <span className="rounded border-2 border-loss px-2 py-0.5 text-[11px] font-black uppercase tracking-widest text-space-50">Admin</span>
-        <h2 className="text-base font-bold text-space-50">Match debug</h2>
-        <button ref={closeRef} type="button" onClick={onClose} aria-label="Close match debug" className="tap ml-auto flex h-10 w-10 items-center justify-center rounded-full text-xl text-space-300 hover:bg-space-800 hover:text-space-50">
+    <div role="dialog" aria-modal="true" aria-label="Match debug" data-arena-admin="drawer" className="arena-admin">
+      <header className="arena-admin-head">
+        <span className="arena-admin-badge">Admin</span>
+        <h2>Match debug</h2>
+        <button ref={closeRef} type="button" onClick={onClose} aria-label="Close match debug" className="arena-admin-close tap">
           ×
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-        <p className="text-xs leading-relaxed text-space-300">Visible to admins only — players never see this.</p>
+      <div className="arena-admin-body">
+        <p className="arena-admin-sub">Visible to admins only — players never see this. Flagged turns go to the review queue with the full beat log.</p>
 
-        <dl className="grid grid-cols-2 overflow-hidden rounded-lg border-l border-t border-space-800 bg-space-900/60">
+        <dl className="arena-admin-grid">
           <Cell label="seed">{debug?.seed ?? "—"}</Cell>
           <Cell label="turn">
-            {view.turn} · {view.turnPlayer === view.you.player ? "you" : "them"}
+            {view.turn} · {youTurn ? "you" : "them"}
           </Cell>
-          <Cell label="phase">{view.phase}</Cell>
-          <Cell label="prompt kind">{view.prompt.kind}</Cell>
-          <Cell label="engine">
-            {game.engine}
+          <Cell label="phase / AI stage">
+            {view.phase}
+            {waiting ? ` · ${waiting}` : ""}
           </Cell>
-          <Cell label="waiting on">{snapshot.waiting ?? "nobody"}</Cell>
+          <Cell label="deck (you / them)">
+            {view.you.deck} / {view.them.deck}
+          </Cell>
+          {legacy && <Cell label="engine · prompt">legacy · {view.prompt.kind}</Cell>}
+          <Cell label="flagged">{flags.length ? flags.map((f) => `T${f.turn}`).join(" ") : "none"}</Cell>
           <Cell label={`${view.them.name}'s hand (hidden info)`} wide>
             {debug?.theirHand ? (debug.theirHand.length ? debug.theirHand.join(", ") : "empty") : "not available"}
           </Cell>
         </dl>
 
-        <section aria-label="Flag this turn" data-arena-admin="flag" className="space-y-2 rounded-lg border border-space-800 bg-space-900/60 p-3">
-          <h3 className="text-[10px] font-semibold uppercase tracking-widest text-space-300">Review later</h3>
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={280}
-            placeholder="Optional one-line note"
-            aria-label="Note for the flag"
-            className="tap w-full rounded border border-space-700 bg-space-950 px-2 py-1.5 text-sm text-space-50 placeholder:text-space-400"
-          />
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={flagThis} disabled={flagging} className="tap rounded-lg bg-loss px-3 py-2 text-sm font-bold text-space-950 disabled:opacity-60">
-              Flag this turn
-            </button>
-            <span role="status" className="text-xs text-space-300">
+        <section aria-label="Flag this turn" data-arena-admin="flag" className="arena-admin-flag">
+          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={280} placeholder="Optional one-line note" aria-label="Note for the flag" className="tap" />
+          <button type="button" onClick={flagThis} disabled={flagging} className="arena-admin-btn tap">
+            Flag turn {view.turn}
+          </button>
+          {flagMsg && (
+            <p role="status" className="arena-admin-sub">
               {flagMsg}
-            </span>
-          </div>
+            </p>
+          )}
           {flags.length > 0 && (
-            <ul className="space-y-0.5 text-xs">
+            <ul className="arena-admin-flags">
               {flags.map((f) => (
                 <li key={f.id}>
-                  <Link href={`/arena/review?game=${f.gameId}&turn=${f.turn}`} className="text-ki-300 hover:underline">
-                    Turn {f.turn}
-                  </Link>{" "}
-                  <span className="text-space-300">
+                  <Link href={`/arena/review?game=${f.gameId}&turn=${f.turn}`}>Turn {f.turn}</Link>{" "}
+                  <span>
                     {f.note ?? "no note"}
                     {f.resolved ? " · resolved" : ""}
                   </span>
@@ -174,76 +218,95 @@ export function AdminDrawer({
               ))}
             </ul>
           )}
-        </section>
-
-        <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-          <Link href={`/arena/${game.id}/debug`} className="text-ki-300 hover:underline">
+          <Link href={`/arena/${game.id}/debug`} className="arena-admin-link">
             {versus ? "what the server decided" : "how Claude played"} →
           </Link>
-        </nav>
+        </section>
 
-        <div>
-          <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-space-300">Beats</h3>
-          {beatRows.length === 0 ? (
-            <p className="text-xs text-space-300">No beats in the queue.</p>
-          ) : (
-            <ol className="space-y-1 font-mono text-[11px] leading-snug">
-              {beatRows.map((b) => (
-                <li key={b.n} className="rounded bg-space-900/60 px-2 py-1">
-                  <span className="text-space-300">#{b.n}</span> <span className="text-ki-300">{b.t}</span> <span className="text-space-200">{narrate(b, narrator) ?? ""}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-
-        <div>
-          <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-space-300">{versus ? "Server decisions" : "Claude's decisions"}</h3>
-          {decisions.length === 0 ? (
-            <p className="text-xs text-space-300">Nothing recorded yet.</p>
-          ) : (
-            <ol className="space-y-1.5 text-[11px] leading-snug">
-              {decisions.map((d) => (
-                <li key={d.seq} className="rounded bg-space-900/60 px-2 py-1.5">
-                  <p className="font-mono">
-                    <span className="text-space-300">#{d.seq}</span> <span className="text-space-300">T{d.turn}</span> <span className="text-ki-300">{d.promptKind}</span> <span className="text-space-300">{d.player}</span>{" "}
-                    <span className={d.decidedBy === "rule" ? "text-space-300" : d.decidedBy === "fallback" ? "text-dbs-yellow" : "text-ki-300"}>{d.decidedBy}</span>
-                  </p>
-                  <p className="text-space-100">
-                    <span className="text-space-300">chose </span>
-                    {d.chosenLabel ?? "—"}
-                  </p>
-                  <p className="text-space-300">why: {d.how}</p>
-                  {d.say && <p className="italic text-ki-300">“{d.say}”</p>}
-                  {d.menu && d.menu.length > 1 && (
-                    <details className="mt-0.5">
-                      <summary className="cursor-pointer text-space-300">the {d.menu.length} moves that were legal</summary>
-                      <ol className="mt-0.5 space-y-0.5 pl-4 font-mono text-space-300">
-                        {d.menu.map((m, i) => (
-                          <li key={i} className={i === d.chosenIndex ? "text-ki-300" : ""}>
-                            {i}. {m}
-                          </li>
-                        ))}
-                      </ol>
-                    </details>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-
-        <div>
-          <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-space-300">Raw engine log</h3>
-          <ol className="max-h-72 space-y-0.5 overflow-y-auto rounded bg-space-900/60 p-2 font-mono text-[10.5px] leading-relaxed text-space-300">
-            {log.slice(-200).map((line, i) => (
-              <li key={i} className={line.startsWith("—") ? "mt-1 text-space-100" : ""}>
-                {line}
+        <h3 className="arena-admin-h">{versus ? "Server decisions" : "Claude's decisions"}</h3>
+        {decisions.length === 0 ? (
+          <p className="arena-admin-sub">Nothing recorded yet.</p>
+        ) : (
+          <ol className="arena-admin-log" data-arena-admin="decisions">
+            {head}
+            {decisions.map((d) => (
+              <li key={d.seq} className={`arena-admin-row ${d.player === youIs ? "arena-admin-you" : "arena-admin-ai"}`}>
+                <span>{d.seq}</span>
+                <span>T{d.turn}</span>
+                <span className="arena-admin-side">{d.player === youIs ? "YOU" : them}</span>
+                <span className="arena-admin-kind">{d.promptKind}</span>
+                <span>
+                  {d.chosenLabel ?? "—"}
+                  {d.menu && d.menu.length > 1 ? ` · legal ${d.menu.length}` : ""}
+                  {d.decidedBy !== "claude" ? <em className={`arena-admin-by-${d.decidedBy}`}> · {d.decidedBy}</em> : null}
+                </span>
+                <span className="arena-admin-why">why: {d.how}</span>
+                {d.say && <span className="arena-admin-say">“{d.say}”</span>}
+                {d.menu && d.menu.length > 1 && (
+                  <details className="arena-admin-menu">
+                    <summary>the {d.menu.length} moves that were legal</summary>
+                    <ol>
+                      {d.menu.map((m, i) => (
+                        <li key={i} className={i === d.chosenIndex ? "arena-admin-chosen" : ""}>
+                          {i}. {m}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
               </li>
             ))}
-            {log.length === 0 && <li>nothing has happened yet</li>}
           </ol>
-        </div>
+        )}
+
+        <h3 className="arena-admin-h">Beats</h3>
+        {beatRows.length === 0 ? (
+          <p className="arena-admin-sub">No beats in the queue.</p>
+        ) : (
+          <ol className="arena-admin-log" data-arena-admin="beats">
+            {head}
+            {beatRows.map(({ b, turn }) => {
+              const p = beatPlayer(b);
+              return (
+                <li key={b.n} className={`arena-admin-row ${p == null ? "" : p === youIs ? "arena-admin-you" : "arena-admin-ai"}`}>
+                  <span>{b.n}</span>
+                  <span>{turn != null ? `T${turn}` : "—"}</span>
+                  <span className="arena-admin-side">{p == null ? "" : p === youIs ? "YOU" : them}</span>
+                  <span className="arena-admin-kind">{b.t}</span>
+                  <span>{narrate(b, narrator) ?? ""}</span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+
+        <h3 className="arena-admin-h">Engine reads — cards in play</h3>
+        {readings.length === 0 ? (
+          <p className="arena-admin-sub">No cards on the board.</p>
+        ) : (
+          <ul className="arena-admin-reads" data-arena-admin="reads">
+            {readings.map((c) => (
+              <li key={c.cardId} className={c.referee ? "arena-admin-ref" : ""}>
+                <b>{c.name}</b>
+                <span>{c.referee ? "Not fully compiled — Claude rules on this card's remaining text when it resolves." : c.reading || "no effect of its own"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {legacy && (
+          <>
+            <h3 className="arena-admin-h">Raw engine log (legacy)</h3>
+            <ol className="arena-admin-raw">
+              {log.slice(-200).map((line, i) => (
+                <li key={i} className={line.startsWith("—") ? "arena-admin-raw-turn" : ""}>
+                  {line}
+                </li>
+              ))}
+              {log.length === 0 && <li>nothing has happened yet</li>}
+            </ol>
+          </>
+        )}
       </div>
     </div>
   );

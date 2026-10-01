@@ -2431,3 +2431,246 @@ html[data-skin="anime"] body::before {
     animation-name: arena-turnfade-in;
   }
 }
+
+/*
+ * The admin drawer (#446, frames `*-11-admin-debug-drawer.jpg`): a dark log
+ * table in both skins, so it does not read the skin's tokens. Full-screen on a
+ * phone, a 460 px panel from `sm` up. Every grid track is `minmax(0, 1fr)` so a
+ * long card name wraps instead of widening the page.
+ */
+.arena-admin {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #070a15;
+  color: #d7ddf2;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 91, 105, 0.35);
+}
+@media (min-width: 640px) {
+  .arena-admin {
+    left: auto;
+    width: 460px;
+  }
+}
+.arena-admin-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px 8px 16px;
+  border-bottom: 1px solid rgba(255, 91, 105, 0.25);
+}
+.arena-admin-badge {
+  font: 800 10px/1 "Barlow Semi Condensed", system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #c62839;
+  padding: 4px 7px;
+  border-radius: 5px;
+}
+.arena-admin-head h2 {
+  font: 700 15px "Barlow Semi Condensed", system-ui, sans-serif;
+  color: #fff;
+}
+.arena-admin-close {
+  margin-left: auto;
+  display: flex;
+  height: 44px;
+  width: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-size: 24px;
+  color: #9aa6c8;
+}
+.arena-admin-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.arena-admin-body {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 12px 24px;
+}
+.arena-admin-sub {
+  padding: 8px 4px;
+  font: 13px/1.35 "Barlow Semi Condensed", system-ui, sans-serif;
+  color: #9aa6c8;
+}
+.arena-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.arena-admin-kv {
+  min-width: 0;
+  background: #0b1020;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #9aa6c8;
+}
+.arena-admin-kv dd {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+.arena-admin-kv-wide {
+  grid-column: span 2;
+}
+.arena-admin-flag {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+.arena-admin .arena-admin-flag input {
+  width: 100%;
+  min-width: 0;
+  /* !important: the anime skin paints every input as paper. */
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 9px;
+  background-color: #0b1020 !important;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #fff !important;
+}
+.arena-admin-btn {
+  height: 44px;
+  border-radius: 9px;
+  border: 0;
+  background: rgba(255, 91, 105, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 91, 105, 0.45);
+  color: #ffc3c9;
+  font: 700 14px "Barlow Semi Condensed", system-ui, sans-serif;
+  cursor: pointer;
+}
+.arena-admin-btn:disabled {
+  opacity: 0.6;
+}
+.arena-admin-flags {
+  font-size: 12px;
+  color: #9aa6c8;
+}
+.arena-admin-flags a,
+.arena-admin-link {
+  color: #8fb4ff;
+  font-size: 12px;
+}
+.arena-admin-h {
+  margin: 14px 0 6px;
+  font: 700 11px "Barlow Semi Condensed", system-ui, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7f8ab0;
+}
+.arena-admin-log {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.arena-admin-row {
+  display: grid;
+  grid-template-columns: 30px 28px 34px 52px minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.arena-admin-row-head {
+  background: transparent;
+  color: #7f8ab0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+.arena-admin-kind {
+  color: #ffd24a;
+}
+.arena-admin-you .arena-admin-side {
+  color: #ffb347;
+}
+.arena-admin-ai .arena-admin-side {
+  color: #8f86ff;
+}
+.arena-admin-why,
+.arena-admin-say,
+.arena-admin-menu {
+  grid-column: 3 / -1;
+  color: #8f9bc2;
+}
+.arena-admin-say {
+  font-style: italic;
+  color: #a9b8ff;
+}
+.arena-admin-menu summary {
+  cursor: pointer;
+}
+.arena-admin-menu ol {
+  padding-left: 12px;
+}
+.arena-admin-chosen {
+  color: #ffd24a;
+}
+.arena-admin-by-fallback {
+  color: #ffd24a;
+}
+.arena-admin-by-rule {
+  color: #7f8ab0;
+}
+.arena-admin-reads {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.arena-admin-reads li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border-left: 2px solid #3ecf8e;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.arena-admin-reads li.arena-admin-ref {
+  border-left-color: #ffd24a;
+}
+.arena-admin-reads b {
+  color: #fff;
+}
+.arena-admin-reads span {
+  color: #8f9bc2;
+}
+.arena-admin-raw {
+  max-height: 18rem;
+  overflow-y: auto;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: #8f9bc2;
+  overflow-wrap: anywhere;
+}
+.arena-admin-raw-turn {
+  margin-top: 4px;
+  color: #d7ddf2;
+}
