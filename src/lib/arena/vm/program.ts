@@ -42,7 +42,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../types";
-import { coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
+import { backCharactersOf, coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
 import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, PlayerId, Prohibition, Skill } from "../types";
 import { other } from "../types";
@@ -291,6 +291,13 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (value === undefined || value === null) delete base[name];
     else base[name] = value;
   }
+  // 1-9, 2-10: a flipped Leader is the character its back side names, not the
+  // front's — BT31-001's back is <Gogeta>, not <Son Goku> and <Vegeta>. The
+  // catalog records characters off the front only, so the back's are read off
+  // its name (`backCharactersOf`), once per definition. Not a `face: true`
+  // overlay: that would also blank a Hidden Mode card's characters, which no
+  // reading has done before and is not this issue's (#464).
+  if (card?.flipped && def.back && game.attributes.characters && shownFace) base.characters = backCharactersOf(def);
   for (const [derived, face] of Object.entries(PRINTED_BASE)) {
     if (!game.attributes[derived] || base[face] === undefined) continue;
     base[derived] = base[face];
@@ -892,8 +899,9 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // A named target that also names an area only matches while it is there: a
     // delayed effect resolves turns later, and by then "this card" may have
     // left the Battle Area, in which case it is no longer the same card (3-1-4).
-    if (sel.special && sel.area) {
-      const wanted = sel.area === "play" ? inPlayZones(game) : [sel.area as string];
+    // "From your hand or Warp" names two (9-1-3-2, #464), either of which will do.
+    if (sel.special && (sel.area || sel.areas?.length)) {
+      const wanted = (sel.areas?.length ? sel.areas : [sel.area as string]).flatMap((a) => (a === "play" ? inPlayZones(game) : [a as string]));
       if (!wanted.includes(zoneOf(state, id) ?? "")) return false;
     }
     // 23-5-2 again: a Hidden Mode card has none of its front-side information.
@@ -1005,8 +1013,11 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const now = attrsNow(ctx, game, state, l);
       if (c.back) {
         // "If your Leader's back side is {Name}": the other face, whichever is up.
-        const back = ctx.defs[state.cards[l].cardId]?.back;
-        return !!back && predicateOf(c.filter, game)({ ...now, name: back.name });
+        // The back side's own name and characters (1-9, 2-10): "a red <Gogeta>
+        // card" asks the characters, which the front's never answer (#464).
+        const def = ctx.defs[state.cards[l].cardId];
+        const back = def?.back;
+        return !!back && predicateOf(c.filter, game)({ ...now, name: back.name, characters: backCharactersOf(def) });
       }
       return predicateOf(c.filter, game)(now);
     }

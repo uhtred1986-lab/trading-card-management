@@ -7,7 +7,7 @@ import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { countWord } from "./shared";
-import { AREA_WORDS, filterFor, parseTarget } from "./targets";
+import { AREA_WORDS, filterFor, parseTarget, selfFrom } from "./targets";
 
 /**
  * The counts a printed price may be spelled out as. Only as far as the
@@ -126,7 +126,8 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   one — which is the same head/tail distinction the pronoun test below
   //   makes, for the same reason.
   const mentions = named.replace(/\b(?:other than|except for|besides) (?:copies of )?this card\b/gi, " ");
-  if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: { special: "self" } };
+  // 9-1-3-2: "play this card from your hand" keeps the area it names (`selfFrom`).
+  if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: selfFrom(mentions) };
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
   // the card the trigger was about ("When you play a <Goku> card, …").
@@ -841,9 +842,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^(?:send|place) (\d+) cards? from your hand (?:to|in|into) your warp$/.exec(t))) return [{ op: "discard", n: Number(m[1]), to: "warp" }];
   if ((m = /^discard (\d+) cards?(?: from your hand)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
   // "Discard this card from your hand" (20-7): the card is named, so nobody
-  // chooses — which is what makes it not the `discard` op.
+  // chooses — which is what makes it not the `discard` op. 9-1-3-2: a discard
+  // is out of the hand by definition (20-7), and "… from your hand" says so
+  // for a placing, so the selector carries the area the line is used from.
   if (/^discard this card(?: from your hand)?$/.test(t) || /^(?:place|put) this card (?:in|into) (?:your|its owner'?s?|the) drop(?: area)?(?: from your hand)?$/.test(t)) {
-    return [{ op: "moveTo", target: { sel: { special: "self" } }, to: "drop", reveal: true }];
+    const fromHand = t.startsWith("discard") || t.endsWith("from your hand");
+    return [{ op: "moveTo", target: { sel: fromHand ? { special: "self", area: "hand" } : { special: "self" } }, to: "drop", reveal: true }];
   }
   // "Discard 1 mono-green card from your hand", "discard 1 ≪Saiyan≫ or
   // ≪Earthling≫ card from your hand": the owner still chooses (20-7), but only
