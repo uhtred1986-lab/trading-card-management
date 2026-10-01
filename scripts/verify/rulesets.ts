@@ -1021,7 +1021,7 @@ if (dbs.ok) {
     },
     beforeDamage: {
       keyword: "Critical",
-      def: 'DEFINE KEYWORD Critical\n  TAKES ()\n  text: "x"\n  HOOK beforeDamage {\n    modifyAttr(target: [self], attr: power, amount: 5000, until: battle)\n  }',
+      def: 'DEFINE KEYWORD Critical\n  TAKES ()\n  text: "x"\n  HOOK beforeDamage {\n    battleDamage(to: drop)\n  }',
     },
     battleEnd: { keyword: "Revenge", def: 'DEFINE KEYWORD Revenge\n  TAKES ()\n  text: "x"\n  HOOK battleEnd {\n    ko(target: [attacker])\n  }' },
     playRefused: {

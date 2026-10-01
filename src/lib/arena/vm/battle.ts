@@ -52,10 +52,10 @@
  * `koCard` is the generic KO: the card to its owner's Drop, the `ko` moment
  * fired with both roles. Both are *this* module's, because a battle cannot
  * resolve without them, and read one keyword directly ([Indestructible]
- * stopping a battle KO, #154) while three more still read the board with none
- * of them in force ([Critical] sending the card to the Drop face up, [Strike]
- * raising the amount, [Victory Strike] ending the game outright) — those are
- * Stage 7's too, just not this issue's. Combo is paid through the same
+ * stopping a battle KO, #154) and ask the attacker's `beforeDamage` bodies
+ * how its damage lands (#156: [Critical] sending the card to the Drop face
+ * up, [Strike] raising the amount, [Victory Strike] ending the game
+ * outright — `damageRule` below). Combo is paid through the same
  * `energy`-priced planner every other move is (`vm/costs.ts`), reading `comboCostOf` — the
  * declared, reduction-aware attribute — rather than a number this module
  * invents; #151 owns the Z-Energy a spent combo card may become at the end
@@ -75,7 +75,7 @@ import { costIsOnlyOrbs } from "../engine/compile";
 import { cardPrice, chargeCost, planCost, priceFor, type BoundAmounts } from "./costs";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
-import { enterPhase, moved, other, requirePrompt, type Work } from "./flow";
+import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
 import { fireHook } from "./hooks";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
@@ -231,7 +231,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
 
   battleDamage: {
     section: "8-4",
-    waits: "[Strike]/[Critical]/[Victory Strike] (Stage 7 keyword bodies) — this reads 8-4-6-1/8-4-6-2 with none of them in force; [Indestructible]'s battle-KO half is #154's, read directly in `damageWork` below",
+    waits: "9-10's life replacements (the legacy `damageLife`'s optional question over each life card, #272) — [Strike]/[Critical]/[Victory Strike] are the attacker's `beforeDamage` bodies since #156, and [Indestructible]'s battle-KO half is #154's, read directly in `damageWork` below",
     run: (ctx, game, state, ev) => damageWork(ctx, game, state, ev),
   },
 
@@ -771,12 +771,17 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const hit = attackPower >= guardPower;
   log(ev, { type: "powerCompare", attacker: b.attacker, guard: b.guard, attackPower, guardPower, hit });
   if (hit) {
+    const how = damageRule(ctx, game, state, b.attacker);
     if (state.sides[defP].zones.leader?.includes(b.guard)) {
-      dealDamage(ctx, game, state, ev, defP, 1);
+      // 8-4-6-1, 22-7: [Strike X] raises the damage to X.
+      dealDamage(ctx, game, state, ev, defP, Math.max(1, how.atLeast ?? 1), how);
     } else if (state.sides[defP].zones.unison?.includes(b.guard)) {
+      // 13-5-2: markers come off instead of a KO — X for [Strike X], every
+      // one for [Victory Strike] (13-5-2-2), one otherwise.
       const inst = state.cards[b.guard];
-      const n = Math.min(1, inst.markers);
-      inst.markers = Math.max(0, inst.markers - 1);
+      const want = how.allMarkers ? inst.markers : (how.atLeast ?? 1);
+      const n = Math.min(want, inst.markers);
+      inst.markers = Math.max(0, inst.markers - want);
       log(ev, { type: "markers", card: b.guard, delta: -n, total: inst.markers });
       fire(ctx, game, state, { event: "markerRemoved", card: b.guard, controller: defP, args: {} });
     } else if (!hasKeyword(ctx, game, state, b.guard, "Indestructible")) {
@@ -790,19 +795,57 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   }
 }
 
-/** 8-4-6-1: the generic move a battle needs — the declared `life` zone's top card to the hand, face down, one per hit. The face-up/[Critical] half is Stage 7's; #151's `damage(side, n)` primitive is this same shape, generalised to a program rather than a battle step. */
-export function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], defender: PlayerId, n: number): void {
+/** How an attacker's battle damage lands: the `beforeDamage` hook bodies in force on it, folded together. */
+interface DamageRule {
+  atLeast?: number;
+  to?: "drop";
+  allMarkers?: boolean;
+  wins?: boolean;
+}
+
+/**
+ * 8-4-6, 22-6/22-7/22-18: the attacker's `beforeDamage` bodies — [Critical],
+ * [Strike X], [Victory Strike] — read declaratively the moment the damage
+ * lands (`queryHookStatics`), the legacy `battleDamage`'s own inline
+ * `has`/`keyword` reads. A keyword granted for the turn counts, as it does
+ * there. Two [Strike]s keep the larger X.
+ */
+function damageRule(ctx: EngineContext, game: GameDefinition, state: VmState, attacker: string): DamageRule {
+  const out: DamageRule = {};
+  for (const f of queryHookStatics(ctx, game, state, attacker, "beforeDamage")) {
+    if (f.op !== "battleDamage") continue;
+    if (f.atLeast !== undefined) out.atLeast = Math.max(out.atLeast ?? 0, f.atLeast);
+    if (f.to) out.to = f.to;
+    if (f.allMarkers) out.allMarkers = true;
+    if (f.wins) out.wins = true;
+  }
+  return out;
+}
+
+/**
+ * 8-4-6-1: the generic move a battle needs — the declared `life` zone's top
+ * card to the hand, face down, one per hit; #151's `damage(side, n)` primitive
+ * is this same shape, generalised to a program rather than a battle step.
+ * `how` is the attacker's own rule (#156): [Critical] sends the cards to the
+ * Drop face up instead (22-6), and [Victory Strike] ends the game once one
+ * has landed (22-18-2) — after the damage is logged and its moments fired,
+ * the legacy `damageLife`'s order.
+ */
+export function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], defender: PlayerId, n: number, how: DamageRule = {}): void {
   const taken: string[] = [];
+  const critical = how.to === "drop";
   for (let i = 0; i < n; i++) {
     const id = state.sides[defender].zones.life?.[0];
     if (!id) break;
-    moved(ctx, game, state, ev, id, "hand", { owner: defender });
+    // `reveal` is said either way, as the legacy `damageLife` says it.
+    moved(ctx, game, state, ev, id, critical ? "drop" : "hand", { owner: defender, reveal: critical });
     taken.push(id);
   }
   if (!taken.length) return;
-  log(ev, { type: "damage", player: defender, amount: taken.length, critical: false, cards: taken });
+  log(ev, { type: "damage", player: defender, amount: taken.length, critical, cards: taken });
   const attacker = state.battle?.attacker;
   if (attacker) fire(ctx, game, state, { event: "damage", card: attacker, controller: masterOf(game, state, attacker), args: { role: "source" } });
+  if (how.wins && attacker) endGame(ctx, game, state, ev, other(defender), `[Victory Strike] — ${nameOf(ctx, state, attacker)} dealt damage`);
 }
 
 /**

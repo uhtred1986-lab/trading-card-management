@@ -66,6 +66,14 @@ export interface OpSpec {
   fields: OpField[];
   sentence: string | ((op: Op, r: RenderOptions) => string);
   doc?: string;
+  /**
+   * A whole op no printed card's record writes — a `DEFINE KEYWORD` body's
+   * word (#156) — and what it does: `OpField.offCard` one level up, the way
+   * `CONDITIONS_OFF_A_CARD` is for a condition. Left out of what the referee
+   * is told and of the workbench's op picker; the language reference lists it
+   * with this line.
+   */
+  offCard?: string;
 }
 
 export interface RenderOptions {
@@ -658,6 +666,25 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: "{side:your opponent's|your} {name} is set",
     doc: 'set a `DEFINE ATTRIBUTE of: player` fact — 13-3\'s growUnison marks its own "grewUnison" true once it resolves, so a later REFUSE reads it rather than the move being asked twice in one turn (issue #269)',
   },
+  battleDamage: {
+    fields: [
+      { name: "atLeast", type: "amount" },
+      { name: "to", type: { enum: ["drop"] } },
+      { name: "allMarkers", type: "boolean" },
+      { name: "wins", type: "boolean" },
+    ],
+    sentence: (raw) => {
+      const op = raw as OpOf<"battleDamage">;
+      const parts: string[] = [];
+      if (op.atLeast !== undefined) parts.push(`at least ${describeAmount(op.atLeast)} life damage, and as many markers off a Unison`);
+      if (op.to) parts.push(`the life cards go to the ${op.to} face up instead of the hand`);
+      if (op.allMarkers) parts.push("every marker off a Unison");
+      if (op.wins) parts.push("its master wins once life damage lands");
+      return `this card's battle damage: ${parts.length ? parts.join("; ") : "as usual"}`;
+    },
+    offCard:
+      "how the battle damage a card deals by attacking lands (8-4-6), the leaf of a keyword's beforeDamage hook — atLeast raises life damage and the markers taken off a Unison to that much ([Strike], 22-7), to: drop sends the life cards to the Drop face up ([Critical], 22-6), allMarkers takes every marker off a Unison and wins ends the game once life damage lands ([Victory Strike], 22-18)",
+  },
 };
 
 /**
@@ -735,6 +762,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   delay:              "primitive",
   note:               "primitive",
   setPlayerAttr:      "primitive",
+  battleDamage:       "primitive",
 };
 
 /**

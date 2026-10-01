@@ -507,6 +507,19 @@ move is about **one printed line** rather than about a card a `FOR` found:
   The two op fields are marked `offCard` in `OP_SCHEMA` and the two conditions are in
   `CONDITIONS_OFF_A_CARD`: none is in what the referee is told, because a ruling on one card's
   skill could only use them wrongly. The generated language reference lists all of them.
+- Group C (#156) added one op, on no card either:
+  - `battleDamage(atLeast: <amount>, to: drop, allMarkers: true, wins: true)`, every field
+    optional — how the battle damage an attacker deals lands (8-4-6). It is the leaf of a
+    `beforeDamage` body, which is a **query** hook: read on the attacker the moment its damage
+    lands, never run, because a queued program would run after the life cards had moved. `atLeast`
+    is [Strike]'s X (the life damage, and the markers off a Unison guard), `to: drop` [Critical]'s
+    destination, face up, and `allMarkers`/`wins` [Victory Strike]'s. A card carrying several folds
+    them together. As a step of a program it does nothing.
+  - The whole op is marked `offCard` on its `OP_SCHEMA` row (`OpSpec.offCard`, the op-level twin of
+    the field marker), so it is left out of what the referee is told and out of the workbench's op
+    picker.
+  - A `HOOK` body may now name its keyword's `TAKES` parameters as `$name`, the way a `DO` does:
+    [Strike]'s `$x` is filled from the keyword in force, printed or granted (`hookBodiesFor`).
 
 ```
 DEFINE KEYWORD Overlord

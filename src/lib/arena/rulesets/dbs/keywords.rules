@@ -88,13 +88,23 @@ DEFINE KEYWORD Blocker
 DEFINE KEYWORD Critical
   TAKES ()
   text: "Life damage this card deals by attacking goes to the opponent's Drop Area instead of their hand."
-  -- Stage 7 (#153–#157)
+  -- #156: read as the attacker's damage lands (`beforeDamage`, a query hook
+  -- so it changes this damage rather than a later one): the life cards go
+  -- to the Drop face up, and "when your life is placed in your Drop" hears
+  -- the move. Battle damage only, as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(to: drop)
+  }
 
 -- 22-7
 DEFINE KEYWORD Strike
   TAKES (x: number)
   text: "When this card would deal less than X life damage by attacking, it deals X instead — 2, 3 or 4."
-  -- Stage 7 (#153–#157)
+  -- #156: the same hook as [Critical]: X life damage to a Leader, and X
+  -- markers off a Unison guard (13-5-2-2), as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(atLeast: $x)
+  }
 
 -- 22-8
 DEFINE KEYWORD Attack
@@ -197,7 +207,12 @@ DEFINE KEYWORD "Energy-Exhaust"
 DEFINE KEYWORD "Victory Strike"
   TAKES ()
   text: "Deal life damage by attacking with this card and you win the game."
-  -- Stage 7 (#153–#157)
+  -- #156: the same hook: once its life damage has landed (and its moments
+  -- fired) the game ends in its master's favour (22-18-2), and against a
+  -- Unison guard it takes every marker (13-5-2-2), as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(allMarkers: true, wins: true)
+  }
 
 -- 22-19
 DEFINE KEYWORD "Warrior of Universe 7"

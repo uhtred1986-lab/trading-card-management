@@ -101,9 +101,9 @@ export const HOOK_CONTRACT: Record<HookPoint, HookSpec> = {
   },
   beforeDamage: {
     group: "C",
-    answer: "effect",
+    answer: "query",
     vars: [],
-    doc: "Battle damage is about to be calculated for the current fight (8-4). `{special:\"attacker\"}`/`{special:\"guard\"}` name the two cards; the body changes what `dealDamage` (`vm/battle.ts`, #151) then does — [Critical]'s Drop-face-up destination and [Strike]'s raised amount (22-6/22-7) are the worked examples.",
+    doc: "The attacker has won its fight (8-4-6) and its battle damage is about to land: asked of the attacker, read declaratively, so the answer changes this damage rather than a later one — a queued program would run after the life cards had already moved (#156). A body ends in `battleDamage` (a keyword's own op, on no card): [Strike]'s `atLeast` (22-7), [Critical]'s `to: drop` (22-6) and [Victory Strike]'s `allMarkers`/`wins` (22-18), folded together when a card carries several. `{special:\"attacker\"}`/`{special:\"guard\"}` name the two cards.",
   },
   battleEnd: {
     group: "C",

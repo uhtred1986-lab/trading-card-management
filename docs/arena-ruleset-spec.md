@@ -192,6 +192,7 @@ disagree or if a row is missing from either.
 | `delay` | primitive | The one op that moves work to a later moment with the variables bound now (1-7-2-1-1). |
 | `note` | primitive | A remark in the log; nothing to lower it to. |
 | `setPlayerAttr` | primitive | Sets a `DEFINE ATTRIBUTE of: player` fact by name (issue #269). Not a `modifyAttr` macro: that op reads and writes a *card's* attribute by a delta or a value list, and a player fact declared boolean has neither — 13-3's `grewUnison` is set once, true, and cleared only by its declaration's own `reset: turnStart`, never added to or subtracted from. |
+| `battleDamage` | primitive | How the battle damage an attacker deals lands (8-4-6) — at least *X*, to the Drop face up, every marker off a Unison, the game won once it lands (#156). A keyword's own word, on no card (`OpSpec.offCard`): the leaf of a `beforeDamage` body, **read** at the moment damage lands rather than run, because a queued program would run after the life cards had moved. Not a `modifyAttr`: what changes is a rule of one battle step, not an attribute any card carries or any other reading asks about. |
 
 ### 2.4 The conditions
 
@@ -830,7 +831,7 @@ has — no new grammar, because none is needed.
 | `block` | C | effect | — | `self` has just been declared the guard card (8-1-2-1) |
 | `counterWindow` | C | query | — | a Counter window is open and asking whether `self` is still offerable |
 | `onAttackDeclared` | C | effect | — | `self` has just been declared the attacker (8-1-1) |
-| `beforeDamage` | C | effect | — | battle damage is about to be calculated for the fight in progress (8-4) |
+| `beforeDamage` | C | query | — | the attacker has won its fight and its battle damage is about to land (8-4-6); a body ends in `battleDamage` (#156) |
 | `battleEnd` | C | effect | — | the battle's steps have run out, one step before `state.battle` clears (8-1-2-2) |
 | `playRefused` | D | query | — | a play is being checked for legality, before cost (5-5, 20-4), and `self` is a card in play whose keyword may refuse it (#157) |
 | `chargeLimit` | D | effect | — | `self` is about to be placed in an Energy Area, from any source (22-31) |
@@ -932,16 +933,23 @@ DEFINE KEYWORD Alliance
     modifyAttr(target: $t, attr: mode, mode: rest)
   }
 
--- C: beforeDamage — changes what `dealDamage` (#151) then does
+-- C: beforeDamage — read declaratively as the attacker's damage lands (#156:
+-- real, `keywords.rules`); a `battleDamage` leaf changes what `dealDamage`
+-- then does. [Strike] writes `battleDamage(atLeast: $x)`, [Victory Strike]
+-- `battleDamage(allMarkers: true, wins: true)`.
 DEFINE KEYWORD Critical
   HOOK beforeDamage {
-    modifyAttr(target: [self], attr: power, amount: 5000, until: battle)
+    battleDamage(to: drop)
   }
 
--- C: battleEnd — a real program, run as the battle's steps run out
+-- C: battleEnd — a real program, run as the battle's steps run out (#156:
+-- real, beside an `at: [attacked]` line that announces the skill, and only
+-- against a Battle Card attacker)
 DEFINE KEYWORD Revenge
   HOOK battleEnd {
-    ko(target: [attacker])
+    if(cond: count([attacker] IN opponent.battle) >= 1, then: {
+      ko(target: [attacker])
+    })
   }
 
 -- D: playRefused — read declaratively off the card already in play (#157:

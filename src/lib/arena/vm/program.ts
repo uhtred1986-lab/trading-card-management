@@ -47,7 +47,7 @@ import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, 
 import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
 import { other } from "../engine/types";
 import { parseFilter, powerRelOk } from "../engine/filters";
-import type { GameDefinition, HookPoint } from "../rulesets";
+import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "../engine/script-schema";
 import { mirrorSides } from "../engine/state";
@@ -344,7 +344,7 @@ export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state:
 // should read `game.keywords[...].hooks` directly (`scripts/verify/
 // rulesets.ts` asserts it).
 
-/** One keyword's body at one hook point, with the keyword instance that carries it (so a body can read its own `TAKES` parameters once a group needs to). */
+/** One keyword's body at one hook point, with the keyword instance that carries it; the body's `$name` parameters are already filled in from it. */
 export interface HookBody {
   keyword: KeywordSkill;
   ops: Op[];
@@ -362,7 +362,10 @@ export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: V
   const out: HookBody[] = [];
   for (const kw of keywordsInForce(ctx, game, state, subject)) {
     const def = game.keywords[kw.name];
-    for (const hook of def?.hooks ?? []) if (hook.at === point) out.push({ keyword: kw, ops: hook.ops });
+    // #156: a body names its keyword's parameters the way a `DO` does —
+    // [Strike]'s `$x` is 2 on a [Double Strike] — bound from the instance in
+    // force, granted or printed.
+    for (const hook of def?.hooks ?? []) if (hook.at === point) out.push({ keyword: kw, ops: bindKeywordParams(hook.ops, def.takes, kw as unknown as Record<string, unknown>, game) });
   }
   return out;
 }
@@ -374,7 +377,8 @@ export function hookFrame(game: GameDefinition, state: VmState, subject: string,
 
 export type QueryFact =
   | { keyword: KeywordSkill; op: "forbid"; forbid: Prohibition }
-  | { keyword: KeywordSkill; op: "modifyAttr"; attr: CardAttr | "energyMarkers" | "guard"; delta: number };
+  | { keyword: KeywordSkill; op: "modifyAttr"; attr: CardAttr | "energyMarkers" | "guard"; delta: number }
+  | { keyword: KeywordSkill; op: "battleDamage"; atLeast?: number; to?: "drop"; allMarkers?: boolean; wins?: boolean };
 
 /**
  * Every fact a query hook's bodies are in force to state right now — read
@@ -442,6 +446,18 @@ function readHookLeaf(ctx: EngineContext, game: GameDefinition, state: VmState, 
     }
     if (op.op === "modifyAttr" && op.attr) {
       out.push({ keyword, op: "modifyAttr", attr: op.attr, delta: op.amount !== undefined ? amount(ctx, game, state, frame, op.amount) : 0 });
+      continue;
+    }
+    // #156: `beforeDamage`'s leaf — how this card's battle damage lands.
+    if (op.op === "battleDamage") {
+      out.push({
+        keyword,
+        op: "battleDamage",
+        ...(op.atLeast !== undefined ? { atLeast: amount(ctx, game, state, frame, op.atLeast) } : {}),
+        ...(op.to ? { to: op.to } : {}),
+        ...(op.allMarkers ? { allMarkers: true } : {}),
+        ...(op.wins ? { wins: true } : {}),
+      });
       continue;
     }
     throw new Error(`vm/program.ts: [${keyword.name}]'s body is a query hook and ends in "${op.op}", which none of the contract's query hooks document`);

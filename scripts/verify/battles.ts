@@ -16,16 +16,12 @@
  * `arenaG`'s own legacy branch is `arena()`, untouched.
  *
  * **What is still skipped on `--engine rules`, and why.** A keyword body is
- * Stage 7's (`docs/arena-backlog/s7-*.md`; the milestone is Arena M10):
- * `battle.ts`'s own header names the three battle-math keywords 8-4-6 reads
- * with none of them in force today — [Critical], [Double Strike] (and its
- * general "extra attack" mechanic, [Dual Attack]), [Indestructible],
- * [Revenge], [Unique] and [Evolve] each wait on their own hook group the
- * same way, and [Z-Stack] — the Z-card test's whole second half — has no
- * `vm/` handling at all yet (`vm/host.ts`'s `placeUnder` is real since #152,
- * but the keyword that would call for it here is not). Each is named at its
- * own `keywordGap` call below, which prints the skip and the doc that builds
- * it rather than silently doing nothing. Everything else in this file is a
+ * Stage 7's (`docs/arena-backlog/s7-*.md`; the milestone is Arena M10).
+ * [Critical], [Strike], [Victory Strike], [Revenge] and [Awaken] are built
+ * since #156, [Indestructible] since #154, [Unique] and [Evolve] since #157
+ * and [Z-Stack] since #155; what is left is named at its own `keywordGap`
+ * call below, which prints the skip and the doc that builds it rather than
+ * silently doing nothing. Everything else in this file is a
  * real assertion on both engines, not a keyword gap dressed as one — #152's
  * own acceptance bullet ("the skipped cases are all keyword cases") is what
  * that split is for.
@@ -48,6 +44,7 @@ import {
   playG,
   powerOfG,
   stageMoveG,
+  unisonOf,
   zoneOf,
 } from "./harness";
 import type { EngineState, PlayerId } from "./harness";
@@ -55,13 +52,7 @@ import type { EngineState, PlayerId } from "./harness";
 // ── keyword gaps: Stage 7, named rather than silently skipped ───────────────
 
 const S7 = {
-  battle: "docs/arena-backlog/s7-04-keywords-battle.md — hook group C: blocking, counters, attack, damage, battle end ([Revenge], [Double/Triple Strike], [Dual Attack], [Awaken])",
-  // [Indestructible]'s battle-KO half is #154's and done (see its own split
-  // block below); [Unique] moved to hook group D (`playRefused`) and is built
-  // (#157). [Critical] stays cited here for now —
-  // reconciling it against `beforeDamage` (group C) is hook group C's own
-  // call to make, not renamed out from under it mid-issue.
-  immunity: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing and immunity ([Critical])",
+  battle: "docs/arena-backlog/s7-04-keywords-battle.md — hook group C: blocking, counters, attack, damage, battle end ([Dual Attack])",
 };
 
 let skipped = 0;
@@ -264,7 +255,7 @@ function keywordGap(keyword: string, doc: string): boolean {
 }
 
 // [Critical] sends life to the Drop (22-6); [Double Strike] deals 2 (22-7).
-if (!keywordGap("Critical", S7.immunity) && !keywordGap("Double Strike", S7.battle)) {
+{
   let s = arenaG({ battle: ["CRIT", "DOUBLE"] });
   const crit = findG(s, "p1", "battle", "CRIT");
   const dbl = findG(s, "p1", "battle", "DOUBLE");
@@ -287,6 +278,32 @@ if (!keywordGap("Dual Attack", S7.battle)) {
   s = playG(s, { type: "attack", player: "p1", attacker: dual, target: leaderOf(s, "p2") }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
   assert.equal(s.cards[dual].mode, "rest", "only X-1 = 1 extra attack per turn");
   assert.equal(zoneOf(s, "p2", "life").length, 6);
+}
+
+// [Victory Strike] (22-18-2): life damage by attacking wins the game; against a
+// Unison it takes every marker, where [Double Strike] takes two and a plain
+// attack one (13-5-2-2/13-5-2-3). Both engines since #156 (`beforeDamage`).
+// `wordings.ts` held the first two on the legacy engine alone.
+{
+  DEFS.VICTORY = { ...DEFS.V1, id: "VICTORY", name: "VICTORY", power: 30000, skill: "[Victory Strike]" };
+  let s = arenaG({ battle: ["VICTORY"] });
+  const vs = findG(s, "p1", "battle", "VICTORY");
+  s = playG(s, { type: "attack", player: "p1", attacker: vs, target: leaderOf(s, "p2") }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  assert.equal(s.prompt.kind, "gameOver", "22-18-2: the game is over");
+  assert.equal(s.winner, "p1");
+  assert.equal(zoneOf(s, "p2", "life").length, 7, "the damage landed first");
+
+  const markersLeft = (attacker: string): number => {
+    let g = arenaG({ hand: ["U1"], energy: ["V1", "V1", "V1"], oppBattle: [attacker] });
+    g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", "U1"), x: 3 });
+    const u = unisonOf(g, "p1")!;
+    g = playG(g, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+    g = playG(g, { type: "attack", player: "p2", attacker: findG(g, "p2", "battle", attacker), target: u }, { type: "pass", player: "p2" });
+    return g.cards[u].markers;
+  };
+  assert.equal(markersLeft("VICTORY"), 0, "13-5-2-2: every marker");
+  assert.equal(markersLeft("DOUBLE"), 1, "22-7: two markers");
+  assert.equal(markersLeft("BIG"), 2, "13-5-2-3: one, without either keyword");
 }
 
 // [Indestructible] survives a losing battle (22-12) — #154's own half, built

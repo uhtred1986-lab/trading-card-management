@@ -336,7 +336,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "Life damage this card deals by attacking goes to the opponent's Drop Area instead of their hand.",
     engine: "Applied during damage processing, and the “when your life is placed in your Drop Area” triggers still fire from it.",
     engineRules:
-      "Not built — docs/arena-backlog/s7-04-keywords-battle.md, hook group C (`beforeDamage`). #156 found it blocked: reading a life-damage amount or destination before `dealDamage` moves the card is a synchronous decision the `beforeDamage` hook's deferred effect queue cannot make in time as contracted.",
+      "Built (#156): a `beforeDamage` body (`battleDamage(to: drop)`), read on the attacker the moment its battle damage lands — `beforeDamage` is a query hook for exactly this, since a queued program would run after the life cards had moved. The life cards go to the Drop face up, granted or printed, and the same moves, damage event and “life placed in your Drop” moments follow as on the legacy engine. Battle damage to a Leader only.",
     support: "engine",
   },
   Strike: {
@@ -347,7 +347,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card would deal less than X life damage by attacking, it deals X instead — 2, 3 or 4.",
     engine: "One keyword with an X. Against a Unison Card it takes X markers off instead of one.",
-    engineRules: "Not built — the same `beforeDamage` gap as [Critical] above (docs/arena-backlog/s7-04-keywords-battle.md, hook group C), and `verify/battles.ts`'s own [Double Strike] case is a named keyword gap.",
+    engineRules:
+      "Built (#156): the same `beforeDamage` hook as [Critical], `battleDamage(atLeast: $x)` with X bound off the printed keyword. X life damage to a Leader, and X markers off a Unison guard, as on the legacy engine. One difference in the log only: against a Unison with fewer than X markers, the markers event here says how many actually came off, where the legacy engine says X.",
     support: "engine",
   },
   Attack: {
@@ -399,7 +400,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "Deal life damage by attacking with this card and you win the game.",
     engine: "The game ends there, with the card named as the reason. Against a Unison Card it takes every marker instead.",
-    engineRules: "Not built — the same `beforeDamage` gap as [Critical] above (docs/arena-backlog/s7-04-keywords-battle.md, hook group C, #156's own reassignment from group A).",
+    engineRules:
+      "Built (#156): the same `beforeDamage` hook as [Critical], `battleDamage(allMarkers: true, wins: true)`. Once its life damage has landed and its moments have fired, the game ends with the card named as the reason; against a Unison guard it takes every marker. The same events and result as the legacy engine.",
     support: "engine",
   },
   Servant: {
