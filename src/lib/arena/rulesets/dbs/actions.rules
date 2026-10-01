@@ -311,9 +311,13 @@ DEFINE ACTION playZ                                                       -- §1
 --
 -- A keyword's own activation — [Awaken], [Evolve], [Union], [Over Realm],
 -- [Swap], [Arrival], [Successor], [Aegis], [Rejuvenate], [Overlord], [Field],
--- [Z-Awaken] — is a `DEFINE KEYWORD` hook body and is Stage 7's (#153–#157);
--- such a line is refused `unread` rather than left off both lists, because a
--- player reaching for it is owed an answer. An action price (4-3-3) is
+-- [Z-Awaken] — is its `DEFINE KEYWORD`'s `DO`, offered here by `offer:`
+-- (`keywords.rules`; [Overlord] is the first, Stage 7 writes the rest one
+-- keyword at a time): the line is then a candidate of this paragraph as an
+-- `activate:main` line, with the keyword's own `REFUSE`s among its gates. A
+-- printed [Activate] line carrying a keyword whose `DO` is not written is
+-- refused `unread`, because a player reaching for it is owed an answer. An
+-- action price (4-3-3) is
 -- refused the same way and for the same reason 22-39's [Unique] is unread:
 -- the value or the identity is not a fixed wording. An X price (20-5) is
 -- issue #270's `x: true` in principle — the price is a skill line's own

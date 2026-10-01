@@ -41,7 +41,7 @@ import { AREA_NAMES, CARD_ATTRIBUTES, COLORS, KEYWORD_NAMES, OP_CLASS, OP_SCHEMA
 import type { CounterWindow, KeywordSkill, PlayerId } from "../../src/lib/arena/engine/types";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import { deepEqual, parseDefinitions, parseRule, printDefinitions, validateRule } from "../../src/lib/arena/lang";
-import { loadRuleset, loadDbs, rulesetFor, DBS_FILES, MacroError, expandMacros, opsIn, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
+import { bindKeywordParams, loadRuleset, loadDbs, rulesetFor, DBS_FILES, MacroError, expandMacros, opsIn, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
 import { optionsFor, whenMoments, words } from "../../src/lib/arena/rulesets/words";
 import { RULES } from "../../src/lib/arena/vm";
 import { HOOK_CONTRACT, fireHook, hookBodiesFor, queryHookStatics } from "../../src/lib/arena/vm/hooks";
@@ -265,6 +265,49 @@ assert.match(unknownHook.message, /KEYWORD "Blocker"/, "the error does not name 
 assert.match(unknownHook.message, /hook point/, "the error does not say what a hook point is");
 assert.ok(unknownHook.expected.length === HOOK_POINTS.length, "the error does not offer the hook points there are");
 assert.equal(unknownHook.clause, "KEYWORD");
+
+// ── a keyword's own `DO`: a move (`offer:`) or a moment (`at:`), Stage 7 ─────
+//
+// The whole-keyword activations — [Overlord] a move, [Offering] a moment — are
+// a program and the one field that says when it runs. What loads, what binds,
+// and one fixture per refusal, the same as every other loader check here.
+{
+  const ACTIVATE = lines("DEFINE ACTION activate", "  WHEN [main]", "  prompts: [main]", "  FOR 1 IN you.battle", '  BIND "card"', '  skills: ["activate:main"]', "  DO {}");
+  const keyword = (...body: string[]): Record<string, string> => ({ ...WHOLE, "activate.rules": ACTIVATE, "keywords.rules": lines("DEFINE KEYWORD Swap", "  TAKES (x: number)", '  text: "return this card and play one costing X (22-22)"', ...body) });
+
+  // A move, with a requirement, words of its own and a parameter in its program.
+  const move = loadRuleset(keyword('  offer: "activate:main"', '  REFUSE target(reason: "nothing in your hand") UNLESS count(IN you.hand) >= 1', '  label: "Swap {card}"', "  DO {", "    moveTo(target: TOP $x IN you.hand, to: battle)", "  }"));
+  assert.ok(move.ok, `a keyword's move did not load: ${move.ok ? "" : JSON.stringify(move.errors)}`);
+  if (move.ok) {
+    const swap = move.definition.keywords.Swap;
+    assert.equal(swap.offer, "activate:main");
+    assert.equal(swap.refusals?.length, 1);
+    // `[Swap 3]`: the printed keyword's own `x` is the program's `$x`.
+    const bound = bindKeywordParams(swap.do ?? [], swap.takes, { name: "Swap", x: 3 }, move.definition);
+    assert.deepEqual(bound, [{ op: "moveTo", target: { sel: { take: 3, side: "you", area: "hand" } }, to: "battle" }], "the printed keyword's parameter is not what the program reads");
+    assert.throws(() => bindKeywordParams(swap.do ?? [], swap.takes, { name: "Swap", x: "three" }, move.definition), MacroError, "a parameter of the wrong shape is bound anyway");
+    assert.throws(() => bindKeywordParams(swap.do ?? [], swap.takes, { name: "Swap" }, move.definition), MacroError, "a parameter the printed keyword does not carry is bound as nothing");
+  }
+  // A moment, by a name the game declares.
+  const moment = loadRuleset(keyword("  at: [played]", "  DO {", "    draw(n: 1)", "  }"));
+  assert.ok(moment.ok, `a keyword's moment did not load: ${moment.ok ? "" : JSON.stringify(moment.errors)}`);
+
+  // …and what is refused, each naming the keyword and pointed at its line.
+  const refusedKeyword = (body: string[], needle: string, what: string): void => {
+    const e = says(refused(keyword(...body), what), needle, what);
+    assert.match(e.message, /KEYWORD "Swap"/, `${what}: the error does not name the keyword`);
+    assert.equal(e.clause, "KEYWORD", `${what}: the error is not reported against the keyword`);
+  };
+  refusedKeyword(["  DO {", "    draw(n: 1)", "  }"], "nothing runs", "a DO with neither offer: nor at:");
+  refusedKeyword(['  offer: "activate:main"'], "no DO to run", "a move with no DO");
+  refusedKeyword(["  at: [played]"], "no DO to run", "a moment with no DO");
+  refusedKeyword(['  offer: "activate:main"', "  at: [played]", "  DO {}"], "both a move", "a move that also answers a moment");
+  refusedKeyword(["  at: [played]", '  label: "Swap"', "  DO {}"], "does not offer", "a label on a keyword that offers no move");
+  refusedKeyword(["  at: [played]", '  REFUSE other() UNLESS isTurnPlayer()', "  DO {}"], "does not offer", "a refusal on a keyword that offers no move");
+  refusedKeyword(["  at: [whenever]", "  DO {}"], '"whenever"', "a moment nothing declares");
+  refusedKeyword(['  offer: "counter:play"', "  DO {}"], "no DEFINE ACTION takes a line", "a move of a kind no action is about");
+  refusedKeyword(["  at: [played]", "  DO {", "    moveTo(target: TOP $y IN you.hand, to: battle)", "  }"], "$y", "a hole that is not a parameter it TAKES");
+}
 
 // ── the macro expander ──────────────────────────────────────────────────────
 

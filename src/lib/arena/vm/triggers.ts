@@ -40,13 +40,16 @@
  *   *9-6-6 — the turn player's pending skills resolve first* is `nextPending`,
  *   copied from the legacy `checkpoint` rather than re-derived.
  *
- * **What answers is an [Auto], and only an [Auto].** A keyword skill's own
- * moments (§22) are not read off the record on either engine — the legacy
- * engine has them as a `switch` in `keywordTriggers`, and here they arrive as
- * the `DEFINE KEYWORD` hook bodies of Stage 7 (#153). Pending them off a
- * `keywordTriggers` call copied into this file would be the wrong answer twice:
+ * **What answers is an [Auto] — or a keyword that says so.** A keyword
+ * skill's own moments (§22) are not read off the record on either engine —
+ * the legacy engine has them as a `switch` in `keywordTriggers`, and here they
+ * arrive from the `DEFINE KEYWORD` itself: a `HOOK` body (Stage 7, #153), or a
+ * `DO` whose `at:` names the declared moments its line answers to ([Offering]
+ * at `played`, `docs/arena-ruleset-spec.md` §4.4), which this file pends
+ * exactly as it pends an [Auto] whose record names them. Copying the
+ * `keywordTriggers` switch in here instead would be the wrong answer twice:
  * the wrong place for it, and a second copy of a list that is about to stop
- * being a list. `docs/arena-ruleset-spec.md` §4 says so.
+ * being a list.
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
@@ -64,6 +67,7 @@ import type { Moment } from "./events";
 import type { VmState } from "./state";
 import { findCard, inPlayZones } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
+import { keywordMomentOf } from "./keyword-do";
 
 /**
  * One [Auto] waiting to resolve (9-6-2).
@@ -234,11 +238,15 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
     // every card in play hears would otherwise parse each of them twice.
     const showing = skillsShowing(ctx, state, match.card);
     for (const sk of showing.skills) {
-      if (sk.kind !== "auto") continue;
+      // An [Auto] answers through its record; a keyword's own line answers
+      // through its declaration's `at:` (Stage 7 — [Offering] at `played`),
+      // which is the one place a keyword's moment is written down.
+      const keyword = sk.kind === "keyword" ? keywordMomentOf(game, sk, match.trigger) : undefined;
+      if (sk.kind !== "auto" && !keyword) continue;
       // 9-1-5: one skill of a card switched off — by index, or a whole kind at
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
-      if (!answersTo(showing.scripts, sk, match.trigger)) continue;
+      if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
       const subject = match.subject !== undefined ? { subject: match.subject } : {};
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject };
       state.pending.push(pending);

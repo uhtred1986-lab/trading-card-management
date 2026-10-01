@@ -70,6 +70,30 @@ export function expandMacros(program: Op[], def: GameDefinition): Op[] {
 const expandOps = (ops: Op[], def: GameDefinition, chain: string[]): Op[] => (Array.isArray(ops) ? ops.flatMap((op) => expandOp(op, def, chain)) : ops);
 
 /**
+ * A `DEFINE KEYWORD`'s own `DO`, with its parameters filled in from the
+ * printed keyword — `[Swap 3]` binds `x` to 3 — exactly as a macro's body is
+ * filled from its call (#273): the same substitution, the same refusal of a
+ * hole whose value is missing or of the wrong shape. `values` is the keyword
+ * as the card prints it (`KeywordSkill`, `engine/types.ts`), whose fields are
+ * the parameters `TAKES` declares (`scripts/verify/rulesets.ts` holds the two
+ * equal). A keyword that takes nothing gets its body back untouched.
+ *
+ * Nothing here expands a macro the body calls: the interpreter runs every op
+ * the language has (`stepScript`), so a keyword's program is run as written,
+ * the way an action's `DO` and a card's record are.
+ */
+export function bindKeywordParams(ops: Op[], takes: readonly { name: string; type: ParamType }[] | undefined, values: Readonly<Record<string, unknown>>, def: GameDefinition): Op[] {
+  if (!takes?.length) return ops;
+  const args: Args = new Map();
+  for (const param of takes) {
+    const value = values[param.name];
+    if (value !== undefined && !argHolds(param.type, value, def)) throw new MacroError(`the printed keyword's ${param.name} is ${JSON.stringify(value)}, and the keyword takes ${param.name} as ${param.type}`);
+    args.set(param.name, { type: param.type, value });
+  }
+  return substOps(ops, args);
+}
+
+/**
  * One step. `chain` is the macros being expanded around this one, so a macro
  * that reaches itself — directly or through another — is named in full rather
  * than filling the stack.

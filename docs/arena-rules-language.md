@@ -426,16 +426,76 @@ DEFINE TRIGGER played
 ```
 
 **KEYWORD** — a keyword skill: what it means, what it takes, and the hook points it hangs on (manual
-§22). `TAKES` its parameters, `text:` what it means (required), `section:` the manual section, and
-one `HOOK` line per hook point it hangs on. A keyword with no `HOOK` is a declaration of the name
-and its meaning and nothing more, which is what Stage 3 writes: the bodies are Stage 7.
+§22). `TAKES` its parameters, `text:` what it means (required), `section:` the manual section,
+`offer:` the skill kind its line is offered as when it is a move, `at:` the moments its line answers
+to when it is not, one `REFUSE` line per requirement of its move, `label:` the words its move shows on
+the menu, `DO` the program the keyword runs, and one `HOOK` line per hook point it hangs on. A keyword
+with none of these is a declaration of the name and its meaning and nothing more, which is what
+Stage 3 wrote; the bodies are Stage 7's.
+
+A keyword is one of two shapes, and the fields say which. A **hook** keyword changes how the game
+reads a card at a moment the interpreter already has — [Barrier] is asked whether its card may be
+chosen, [Servant] whether it stands up — and writes `HOOK` bodies against the contract in
+`docs/arena-ruleset-spec.md` §4. A **whole-keyword activation** is the keyword's own line doing
+something of its own — [Overlord] is a move a player makes, [Offering] something that happens when its
+card is played — and writes a `DO`, with exactly one of two fields saying when it runs:
+
+- `offer:` — the line is **a move**. It is offered exactly as a printed line of that skill kind
+  would be: `offer: "activate:main"` makes it a candidate of the `ACTION` whose `skills:` takes
+  `activate` lines, at the Main Phase question, with every gate that move reads (negation, 20-14, a
+  once-per-turn ceiling, the window, the price printed on the line) and then the keyword's own
+  `REFUSE` lines, read in order and no further than the first that fails — the same grammar and the
+  same reading as an action's. Taking it charges the line's price and runs `DO` in place of the card's
+  record, because the keyword's rules are the effect (22-1). `label:` is the menu's words for it
+  (`{card}` is the card's name); a refused line keeps the generic `Activate <card>: [<keyword>]` row.
+  It is also the moment `keywordActivated(keyword: <name>)`, which "when you activate an [Overlord]
+  skill" answers.
+- `at:` — the line **answers to moments**, the `DEFINE TRIGGER` names, exactly as an [Auto] whose
+  record said that WHEN would: it pends, it resolves at the checkpoint in 9-6-6's order, it is
+  announced as printed, and it runs `DO`.
+
+`DO` may write `$name` for a parameter the keyword `TAKES`, in the positions a `DEFINE OP` body may
+(#273); the value comes off the keyword as printed (`[Swap 3]` binds `x` to 3) when the program runs.
+`REFUSE` and `label:` belong to a move and are refused on anything else; a `DO` with neither `offer:`
+nor `at:`, either of them with no `DO`, and both at once are refused too (§3b's loader list below).
 
 ```
-DEFINE KEYWORD Blocker
+DEFINE KEYWORD Overlord
   TAKES ()
-  text: "switch this card to Active Mode and make it the attack target (22-4)"
-  section: "22-4"
-  HOOK attackDeclared {}
+  text: "put a Battle Card with [Servant] at the bottom of your deck, and draw 1 (22-41)"
+  offer: "activate:main"
+  REFUSE target(reason: "no [Servant] in your Battle Area") UNLESS count("card with [Servant]" IN you.battle) >= 1
+  label: "Overlord: return a Servant to the deck, draw 1"
+  DO {
+    choose(sel: 1 "card with [Servant]" IN you.battle, as: "servant")
+    moveTo(target: $servant, to: deck, position: bottom, cause: cost)
+    draw(n: 1)
+  }
+
+DEFINE KEYWORD Offering
+  TAKES ()
+  text: "when played, the opponent may drop a life card; if they don't, draw 2 (22-33)"
+  at: [played]
+  DO {
+    if(cond: count(IN opponent.life) >= 1, then: {
+      may(ops: {
+        moveTo(target: TOP 1 IN opponent.life, to: drop, reveal: true)
+      }, chooser: opponent)
+      if(cond: NOT did(what: may), then: {
+        draw(n: 2)
+      })
+    }, else: {
+      draw(n: 2)
+    })
+  }
+
+DEFINE KEYWORD Barrier
+  TAKES ()
+  text: "this card can't be chosen by the skills of cards your opponent masters (22-16)"
+  section: "22-16"
+  HOOK chooseable {
+    forbid(what: beChosen, until: game, side: opponent)
+  }
 ```
 
 **COST** — a price the game knows how to charge, named so an action can ask for it. `TAKES` its
@@ -583,7 +643,10 @@ own line, with `clause` naming the kind, exactly as a rule's missing argument fa
 (§5). Everything that needs a second declaration to check is the loader's, not the grammar's: a
 **dangling reference** (an `ACTION` naming a `COST` nothing declares, a `TRIGGER` — or any program
 — naming an unknown zone, or a `modifyAttr` naming an attribute nothing declares, #328), a
-**duplicate name**, and an **unknown hook point**. Those are the ruleset loader's
+**duplicate name**, an **unknown hook point**, and a keyword's `DO` that cannot run: one with neither
+`offer:` nor `at:`, an `offer:` or `at:` with no `DO`, both at once, `REFUSE`/`label:` on a keyword
+that offers no move, an `at:` naming a moment nothing declares, an `offer:` of a kind no `ACTION`'s
+`skills:` takes, and a `$name` in its `DO` that is not a parameter it `TAKES`. Those are the ruleset loader's
 (`rulesets/load.ts`, built 12 Sep 2026), in the same `LangError` shape plus the file, pointed at the
 line and column of the offending word.
 `docs/arena-ruleset-spec.md` §3 lists them one by one.

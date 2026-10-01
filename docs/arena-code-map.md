@@ -220,6 +220,13 @@ the same as if it were still in `CLAUDE.md`.
   (moved to the leaf `vm/hook-contract.ts` by #154 so `vm/program.ts` — where `queryHookStatics`
   actually lives — and `vm/hooks.ts` can both read the table without importing each other). Writing
   the 39 real bodies is `s7-02` through `s7-05`.
+  **A keyword that is an activation of its own rather than a hook** — [Overlord], [Offering], [Swap],
+  [Evolve] and a dozen more — is a `DO` on its `DEFINE KEYWORD` with `offer:` (a move: a candidate of
+  the `activate` paragraph, gated by the line's own gates and the keyword's `REFUSE`s, `vm/activate.ts`)
+  or `at:` (a moment: pended like an [Auto] by `vm/triggers.ts`, run by `vm/flow.ts`'s checkpoint);
+  `vm/keyword-do.ts` is the leaf both read, and `rulesets/expand.ts`'s `bindKeywordParams` fills a
+  `$x` from the printed keyword (`docs/arena-ruleset-spec.md` §4.4). [Overlord] and [Offering] are
+  the two built so far.
   **#154 built hook group A for real** — [Barrier] (`chooseable`), [Indestructible]'s battle-KO half
   (`koByEffect`, read directly in `vm/battle.ts` for the "as a result of battle" clause, since that
   is not an effect) and [Servant]'s power (`attrBonus`) — and found the contract's own `chooseable`/

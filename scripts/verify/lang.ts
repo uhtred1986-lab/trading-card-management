@@ -355,6 +355,12 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     assert.equal(parseRule("WHEN [auto] played\nTHEN\n  power(target: [self], amount: 1, until: $until)").ok, false, "a card's program read a hole");
     assert.equal(parseDefinitions("DEFINE STEP s\n  phase: \"main\"\n  DO {\n    power(target: [self], amount: 1, until: $until)\n  }").ok, false, "a step's program read a hole");
     assert.equal(parseDefinitions("DEFINE KEYWORD k\n  text: \"t\"\n  HOOK played {\n    power(target: [self], amount: 1, until: $until)\n  }").ok, false, "a keyword's hook read a hole");
+    // …except a keyword's own `DO` (Stage 7), whose parameters come off the
+    // printed keyword the way a macro's come off its call: `[Swap 3]`'s `x`.
+    tripDefs(
+      [{ define: "KEYWORD", name: "Swap", takes: [{ name: "x", type: "number" }], text: "t", offer: "activate:main", do: [{ op: "moveTo", target: { sel: { take: hole("x"), area: "hand" } }, to: "battle" } as unknown as Op] }],
+      "a keyword's DO with a hole naming its parameter",
+    );
     // The parameter types the rows need, all readable.
     const params = parseDefinitions("DEFINE OP p\n  TAKES (a: strings, b: word, c: mode)\n  DO {}");
     assert.equal(params.ok, false, "`mode` is not a parameter type — a closed list is `word`");

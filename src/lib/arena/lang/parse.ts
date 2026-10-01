@@ -790,8 +790,11 @@ class Parser {
         out[f.name] = refusals;
       } else {
         if (out[f.name] !== undefined) this.fail(`${JSON.stringify(f.name)} is said twice`, []);
-        // A macro's body is the one text a parameter may stand in (#273).
-        this.holes = kind === "OP" && f.name === "do";
+        // A macro's body is the one text a parameter may stand in (#273) — and
+        // a keyword's own `DO`, whose parameters come off the printed keyword
+        // (`[Swap 3]`'s `x`) when it runs. A keyword's `HOOK` bodies stay
+        // closed: a hook is read at a moment the interpreter owns, not bound.
+        this.holes = (kind === "OP" || kind === "KEYWORD") && f.name === "do";
         try {
           out[f.name] = this.defineValue(f);
         } finally {

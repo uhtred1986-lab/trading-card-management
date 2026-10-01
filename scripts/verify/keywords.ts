@@ -75,7 +75,7 @@ import { legacyState } from "../../src/lib/arena/engines";
  * nothing:
  *
  * - **`keywordGap`**: the keyword's own `DEFINE KEYWORD` in `keywords.rules`
- *   carries no `HOOK` body for what this case needs (`docs/arena-backlog/
+ *   carries no `HOOK` body or `DO` for what this case needs (`docs/arena-backlog/
  *   s7-0{2,3,4,5}-*.md` — Stage 7's four hook groups, `src/lib/arena/
  *   rulesets/dbs/keywords.rules`'s own header names which keywords still read
  *   `-- Stage 7 (#153–#157)`).
@@ -753,6 +753,90 @@ if (!keywordGap("Rejuvenate", S7.rejuvenate)) {
   assert.ok(zoneOf(s, "p1", "life").includes(top));
   assert.ok(!canActivateG(s, u), "13-4-2: one marker skill per card per turn");
   assertConsistentG(s);
+}
+
+// ── a keyword's own `DO` (`DEFINE KEYWORD … offer:` / `at:`) ────────────────
+//
+// The two whole-keyword activations Stage 7's groundwork proved end to end,
+// one of each shape, on both engines with no gate: [Overlord] is a move
+// (`offer: "activate:main"`), [Offering] answers a moment (`at: [played]`).
+// Each asserts what the legacy engine — the oracle — does, and both engines
+// log the same events for it event for event (the one difference, [Offering]'s
+// prompt kind, is said where it is asserted). This case used to live in
+// `wordings.ts`, which only the legacy engine runs.
+{
+  // 22-41: [Overlord] costs a [Servant] Battle Card, sent to the bottom of its
+  // owner's deck, and draws 1.
+  DEFS.OVER = { ...DEFS.V1, id: "OVER", name: "OVER", skill: "[Overlord]" };
+  DEFS.SERV2 = { ...DEFS.V1, id: "SERV2", name: "SERV2", skill: "[Servant]" };
+  let s = arenaG({ battle: ["OVER"] });
+  const over = findG(s, "p1", "battle", "OVER");
+  assert.ok(!canActivateG(s, over), "22-41-2: no [Servant] to pay with");
+  assert.deepEqual(
+    rejectedActionsG(s).find((r) => r.action.type === "activate" && r.action.card === over),
+    { action: { type: "activate", player: "p1", card: over, skill: 0 }, label: "Activate OVER: [Overlord]", why: [{ kind: "target", reason: "no [Servant] in your Battle Area" }] },
+    "…and the refusal says so, in the same words on both engines",
+  );
+  s = arenaG({ battle: ["OVER", "SERV2"] });
+  const over2 = findG(s, "p1", "battle", "OVER");
+  const servant = findG(s, "p1", "battle", "SERV2");
+  const hand = zoneOf(s, "p1", "hand").length;
+  assert.ok(canActivateG(s, over2));
+  assert.ok(labelsG(s).includes("Overlord: return a Servant to the deck, draw 1"), "the menu wears the keyword's own words");
+  s = playG(s, { type: "activate", player: "p1", card: over2, skill: 0 });
+  const deck = zoneOf(s, "p1", "deck");
+  assert.equal(deck[deck.length - 1], servant, "22-41-2: to the bottom of the deck");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand + 1, "22-41-3: and draw 1");
+  assert.equal(s.prompt.kind, "main", "the Main Phase goes on");
+  assertConsistentG(s);
+
+  // 22-41: four cards watch the keyword being used rather than anything it
+  // does — "when you activate an [Overlord] skill".
+  DEFS.OVERWATCH = { ...DEFS.V1, id: "OVERWATCH", name: "OVERWATCH", skill: "[Auto] When you activate an [Overlord] skill, draw 1 card." };
+  let w = arenaG({ battle: ["OVER", "SERV2", "OVERWATCH"] });
+  const o3 = findG(w, "p1", "battle", "OVER");
+  const before = zoneOf(w, "p1", "hand").length;
+  w = playG(w, { type: "activate", player: "p1", card: o3, skill: 0 });
+  assert.equal(zoneOf(w, "p1", "hand").length, before + 2, "the keyword's own draw, and the watcher's");
+  assertConsistentG(w);
+}
+
+{
+  // 22-33: [Offering] — when this Battle Card is played, its master's
+  // opponent may put one of their life cards in their Drop Area; if they
+  // don't, its master draws 2. The question is the opponent's, with the two
+  // answers in the legacy engine's own words. The prompt *kind* is the one
+  // difference: legacy asks its own `offering` prompt, the rules engine the
+  // general `chooseMode` its keyword's `DO` writes — so the answer is picked
+  // off the menu here, by label, the way a client picks one.
+  DEFS.OFFERER = { ...DEFS.V1, id: "OFFERER", name: "OFFERER", energyCost: 1, skill: "[Offering]" };
+  for (const keep of [true, false]) {
+    let s = arenaG({ hand: ["OFFERER"], energy: ["V1"] });
+    const off = findG(s, "p1", "hand", "OFFERER");
+    const hand = zoneOf(s, "p1", "hand").length;
+    const life = zoneOf(s, "p2", "life").length;
+    const topLife = zoneOf(s, "p2", "life")[0];
+    s = playG(s, { type: "play", player: "p1", card: off });
+    assert.ok(zoneOf(s, "p1", "battle").includes(off), "the card is played");
+    assert.equal((s.prompt as { player?: string }).player, "p2", "22-33-2: the opponent is asked");
+    const answers = IMPL.legalActions(CTX, s);
+    assert.deepEqual(
+      answers.map((a) => a.label),
+      ["Drop 1 life (deny the draw)", "Keep life (opponent draws 2)"],
+      "the same two answers, in the same order, on both engines",
+    );
+    s = playG(s, answers[keep ? 1 : 0].action);
+    if (keep) {
+      assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 2, "22-33-3: they kept their life, so its master draws 2");
+      assert.equal(zoneOf(s, "p2", "life").length, life);
+    } else {
+      assert.equal(zoneOf(s, "p2", "life").length, life - 1, "22-33-2: one life card to the Drop");
+      assert.ok(zoneOf(s, "p2", "drop").includes(topLife), "the top one");
+      assert.equal(zoneOf(s, "p1", "hand").length, hand - 1, "and nothing is drawn");
+    }
+    assert.equal(s.prompt.kind, "main", "the Main Phase goes on");
+    assertConsistentG(s);
+  }
 }
 
 if (!notYetGap("a prompt for more than one card, answered one at a time", "`continuations` is a legacy-only field of `GameState` — the rules engine's own multi-card choice has no continuation slot to stage this fixture onto", "no issue filed yet")) {

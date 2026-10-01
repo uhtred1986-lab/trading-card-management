@@ -8,12 +8,21 @@
 --
 -- Nine HOOK bodies over eight keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
--- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Servant]'s
--- attrBonus and activeStep, [Energy-Exhaust]'s chargeLimit, and
--- [Heroic]/[Villainous]'s afterSkill. Every other keyword's own moments are
--- still the engine's, and each one's trailing comment says which group looked
--- at it and why it is deferred — the header used to say "no HOOK bodies yet",
--- which stopped being true at #154 and was found by #166's pre-flip review.
+-- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
+-- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
+-- chargeLimit, and [Heroic]/[Villainous]'s afterSkill. Every other keyword's
+-- own moments are still the engine's, and each one's trailing comment says
+-- which group looked at it and why it is deferred — the header used to say
+-- "no HOOK bodies yet", which stopped being true at #154 and was found by
+-- #166's pre-flip review.
+--
+-- Two DO bodies, the whole-keyword activations that are no hook at all
+-- (docs/arena-ruleset-spec.md §4.4): [Overlord] is a move (`offer:`), offered
+-- as an [Activate: Main] line with its own REFUSE and menu words, and
+-- [Offering] answers a moment (`at:`), pended like an [Auto]. The other dozen
+-- of that shape — [Arrival], [Wish], [Revive], [Successor], [Rejuvenate],
+-- [Z-Awaken], [Z-Stack], [Evolve], [Union], [Over Realm], [Swap] … — are the
+-- hook-group issues' to write the same way, one at a time.
 
 -- 22-2
 DEFINE KEYWORD Awaken
@@ -206,7 +215,26 @@ DEFINE KEYWORD Villainous
 DEFINE KEYWORD Offering
   TAKES ()
   text: "When this Battle Card is played, your opponent may put one of their life cards in their Drop Area. If they don't, you draw 2 cards."
-  -- Stage 7 (#153–#157)
+  -- A whole-keyword activation that answers a moment (`at:`): the line pends
+  -- at `played` as an [Auto] whose record said so would, and its `DO` runs as
+  -- it resolves. The question is the opponent's, worded as the legacy
+  -- engine's own `offering` prompt words its two answers, and the life card
+  -- that goes is the top one, as it is there; with no life left there is
+  -- nothing to ask and the draw simply happens (the legacy engine's own
+  -- shortcut). One difference, recorded rather than matched: the question
+  -- is the general `chooseMode` prompt here, not a prompt kind of its own.
+  at: [played]
+  DO {
+    if(cond: count(IN opponent.life) >= 1, then: {
+      chooseMode(modes: ["Drop 1 life (deny the draw)" {
+        moveTo(target: TOP 1 IN opponent.life, to: drop, reveal: true)
+      }, "Keep life (opponent draws 2)" {
+        draw(n: 2)
+      }], reason: "[Offering]: drop 1 life, or your opponent draws 2", chooser: opponent)
+    }, else: {
+      draw(n: 2)
+    })
+  }
 
 -- 22-5
 DEFINE KEYWORD Evolve
@@ -266,7 +294,22 @@ DEFINE KEYWORD Successor
 DEFINE KEYWORD Overlord
   TAKES ()
   text: "Put one of your Battle Cards with [Servant] at the bottom of your deck as the cost, and draw 1 card."
-  -- Stage 7 (#153–#157)
+  -- A whole-keyword activation that is a move (`offer:`): the line is an
+  -- [Activate: Main] in every sense the `activate` paragraph's gates read
+  -- (negation, 20-14, the window), plus the one requirement 22-41-2 adds.
+  -- The card that pays is chosen; with one [Servant] in play that choice is
+  -- forced and taken without a question, and with several the player picks —
+  -- 22-41-2 says "one of your Battle Cards", where the legacy engine takes
+  -- the first. "when you activate an [Overlord] skill" is the move's
+  -- `keywordActivated` moment (`triggers.rules`' `overlordActivated`).
+  offer: "activate:main"
+  REFUSE target(reason: "no [Servant] in your Battle Area") UNLESS count("card with [Servant]" IN you.battle) >= 1
+  label: "Overlord: return a Servant to the deck, draw 1"
+  DO {
+    choose(sel: 1 "card with [Servant]" IN you.battle, as: "servant", reason: "[Overlord]: the [Servant] to put at the bottom of your deck")
+    moveTo(target: $servant, to: deck, position: bottom, cause: cost)
+    draw(n: 1)
+  }
 
 -- 22-42
 DEFINE KEYWORD Rejuvenate
