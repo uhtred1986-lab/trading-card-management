@@ -17,6 +17,7 @@
     "db:studio": "drizzle-kit studio",
     "db:check": "tsx scripts/db-check.mts",
     "ai:spend": "tsx scripts/ai-spend.mts",
+    "ai:scan-compare": "tsx scripts/ai-scan-compare.mts",
     "db:migrate:http": "tsx scripts/db-migrate.mts",
     "sync:catalog": "tsx scripts/sync-catalog.mts",
     "sync:prices": "tsx scripts/sync-prices.mts",

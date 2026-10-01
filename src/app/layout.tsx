@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Kanit } from "next/font/google";
+import { Barlow_Semi_Condensed, Kanit } from "next/font/google";
 import { cookies } from "next/headers";
 import { AppShell } from "@/components/AppShell";
 import { ServiceWorker } from "@/components/ServiceWorker";
@@ -7,11 +7,16 @@ import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import "./globals.css";
 
 /**
- * The one display face, used only by the arena's anime skin for numerals and
- * banners (`docs/arena-skin-spec.md` §3.5). Two weights, italic only; the
- * rest of the app keeps the default stack.
+ * The arena's two faces (`docs/arena-redesign/prototype/arena.css`), both
+ * loaded the one way the app loads fonts: `next/font`, self-hosted at build.
+ *
+ * - Kanit, the impact face: the board's numerals, the turn pill and the
+ *   banners, in both skins (`.arena-impact`, `.arena-num`). Italic only.
+ * - Barlow Semi Condensed, the board's text face, set on `.arena` alone; the
+ *   rest of the app keeps the default stack.
  */
 const impact = Kanit({ subsets: ["latin"], weight: ["800", "900"], style: ["italic"], variable: "--font-impact", display: "swap" });
+const arenaText = Barlow_Semi_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-arena", display: "swap" });
 
 export const metadata: Metadata = {
   title: "DBS Card Companion",
@@ -32,7 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // the markup the server sends is already the right colour and nothing flashes.
   const skin = skinFrom((await cookies()).get(SKIN_COOKIE)?.value);
   return (
-    <html lang="en" className={`h-full antialiased ${impact.variable}`} data-skin={skin}>
+    <html lang="en" className={`h-full antialiased ${impact.variable} ${arenaText.variable}`} data-skin={skin}>
       <body className="flex min-h-full flex-col">
         <AppShell>{children}</AppShell>
         <ServiceWorker />

@@ -16,7 +16,7 @@ import { hashPassword, passwordProblem, usernameProblem, verifyPassword } from "
 import { normaliseSpeech, parseSpoken, spokenQuantity } from "../src/lib/scan/voice";
 import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
-import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
+import { assessMatch, cleanBox, nameSimilarity, needsOpusFallback, normaliseNumber } from "../src/lib/ai/scan-match";
 import { parseViewMode, viewHref } from "../src/lib/view-mode";
 import { needsInstall } from "./session-start-check.mjs";
 import { shouldSkipBuild, isDocsOnlyChange, changedFiles } from "./vercel-ignore-build.mjs";
@@ -26,6 +26,7 @@ import { cardDefFrom } from "../src/lib/arena/load";
 import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-preview";
 import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
 import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
+import { cardImage, cardImageSizeFor } from "../src/lib/catalog/card-image";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
 assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
@@ -527,6 +528,19 @@ assert.equal(assessMatch(seen, { name: "Omega Shenron" }, false).matchedBy, "nam
 assert.equal(assessMatch(seen, { name: "Omega Shenron" }, false).confidence, 0.54, "name-only match is capped");
 assert.equal(assessMatch(seen, { name: "Omega Shenron, Ultimate Shadow Dragon Form" }, false).confidence, 0.36, "weak name match is capped harder");
 assert.deepEqual(assessMatch(seen, null, false), { matchedBy: null, confidence: 0, nameSimilarity: 0 });
+// Sonnet → Opus fallback rule (#381)
+{
+  const ok = { number: "BT18-020", confidence: 0.95 };
+  assert.equal(needsOpusFallback({ cards: [ok, ok], unreadable: 0 }, "batch"), false, "all clear: stay on Sonnet");
+  assert.equal(needsOpusFallback({ cards: [ok, { number: "BT18-021", confidence: 0.79 }], unreadable: 0 }, "batch"), true, "below REVIEW_THRESHOLD");
+  assert.equal(needsOpusFallback({ cards: [{ number: "BT18-021", confidence: 0.8 }], unreadable: 0 }, "single"), false, "at the threshold is fine");
+  assert.equal(needsOpusFallback({ cards: [{ number: null, confidence: 0.95 }], unreadable: 0 }, "single"), true, "no number");
+  assert.equal(needsOpusFallback({ cards: [{ number: "  ", confidence: 0.95 }], unreadable: 0 }, "single"), true, "blank number");
+  assert.equal(needsOpusFallback({ cards: [ok], unreadable: 1 }, "batch"), true, "model counted an unreadable card");
+  assert.equal(needsOpusFallback({ cards: [], unreadable: 0 }, "single"), true, "single photo, nothing listed");
+  assert.equal(needsOpusFallback({ cards: [], unreadable: 0 }, "batch"), false, "empty batch photo is plausible");
+  assert.equal(needsOpusFallback({ cards: [{ number: "P-181", confidence: Number.NaN }], unreadable: 0 }, "single"), true, "NaN confidence");
+}
 assert.deepEqual(cleanBox({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }), { x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
 assert.deepEqual(cleanBox({ x: 0.9, y: 0.9, w: 0.5, h: 0.5 }), { x: 0.9, y: 0.9, w: 0.1, h: 0.1 }, "clamped to the image");
 assert.equal(cleanBox({ x: 0.5, y: 0.5, w: 0.001, h: 0.5 }), null, "degenerate boxes are dropped");
@@ -770,4 +784,25 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.deepEqual(neighbours([4, 7, 9], 99), { prev: null, next: 4, skip: 4, after: 4 }, "a rule opened by id starts at the top of the queue");
   assert.deepEqual(neighbours([4], 4), { prev: null, next: null, skip: null, after: null }, "a queue of one has nowhere to go");
   assert.deepEqual(neighbours([], null), { prev: null, next: null, skip: null, after: null });
+}
+
+// ── small card art (issue #384) ────────────────────────────────────────────
+{
+  const big = "https://tcgplayer-cdn.tcgplayer.com/product/123456_in_1000x1000.jpg";
+  assert.equal(cardImage(big, "thumb"), "https://tcgplayer-cdn.tcgplayer.com/product/123456_200w.jpg");
+  assert.equal(cardImage(big, "medium"), "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg");
+  assert.equal(cardImage(big, "full"), big);
+  const small = "https://tcgplayer-cdn.tcgplayer.com/product/123456_200w.jpg";
+  assert.equal(cardImage(small, "medium"), "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg", "any TCGplayer size maps to any other");
+  assert.equal(cardImage(small, "full"), big);
+  for (const u of [
+    "https://storage.googleapis.com/deckplanet_card_images/BT18-020.png",
+    "https://www.dbs-cardgame.com/fw/images/cards/card/en/FB01-001.webp",
+    "https://www.cardtrader.com/uploads/blueprints/image/1/x.jpg",
+    "https://example.com/product/123456_in_1000x1000.jpg",
+  ]) assert.equal(cardImage(u, "thumb"), u, `unchanged: ${u}`);
+  assert.equal(cardImage(null, "thumb"), null);
+  assert.equal(cardImage(undefined, "thumb"), undefined);
+  assert.equal(cardImageSizeFor(56), "thumb");
+  assert.equal(cardImageSizeFor(128), "medium");
 }

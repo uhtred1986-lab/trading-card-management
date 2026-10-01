@@ -97,6 +97,13 @@ Checked in the tree on 7 Sep 2026.
    where the player loses sight of the position being fought over while the fight resolves, and
    Runeterra's most-cited mobile complaint is that the centre of the screen runs out of room. The
    takeover stays available because it is better for the fights that decide a game.
+   **Superseded 1 Oct 2026 by the board redesign** (`docs/arena-redesign/` frames 07–08, review
+   finding 13): `takeover` is the default, and it now covers the **battle field only** — Claude's
+   card on top, yours below, huge figures, combos as chips under the power — so the hand and the
+   prompt stay on screen and tappable under it. It still stands down to the band whenever the
+   prompt asks for a card on the field it would be covering (a blocker, an energy); a combo chosen
+   from the hand keeps it up. The verdict is one unboxed word over the field (BREAK THROUGH / K.O. /
+   HELD!) with a starburst and the ki beam, and the prompt says "Clash!" while it is up.
 3. **A cookie, not `localStorage`.** Read server-side in `src/app/arena/[id]/page.tsx`, same as the
    deleted `boardStyle` cookie, so a reload does not flash the wrong staging.
 4. **Additions lay out on one axis and are numbered.** Each side's chain runs outward from its card,
@@ -225,7 +232,7 @@ broken.
 
 ### 3.6 The preference
 
-Cookie `arenaStaging` ∈ `inplace | band | takeover`, default `band`. A three-way control beside
+Cookie `arenaStaging` ∈ `inplace | band | takeover`, default `takeover` (was `band` until 1 Oct 2026; decision 2). A three-way control beside
 `FeelToggle`; `?staging=` as a one-load override for screenshots. Server-read in `page.tsx`.
 
 ## 4. What must not change

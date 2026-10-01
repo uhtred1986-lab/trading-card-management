@@ -174,7 +174,7 @@ disagree or if a row is missing from either.
 | `costModifier` | primitive | A price is not a number (#277): `pay` present replaces it entirely (`altCost`'s shape — none, life, a program, a reduced energy price); absent, `amount`/`what`/`colors`/`skillKind` change its number (`costReduction`'s shape). `costModifierAs` reads a call back as whichever it stands for, at the one dispatch point `stepScript` reads `negate` at. |
 | `costReduction` | macro over `costModifier` | Which cost (energy, skill, evolve, combo, Z-Energy, specified) is an argument, not six mechanisms — that was #96 and #97's finding before it was this table's. |
 | `gains` | macro over `modifyAttr` | Attributes `colors`, `characters`, `traits` and `names`, in every area (20-1). |
-| `replace` | primitive | An event is named (`leave`, `ko`, `play`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` name events the engine still resolves in their own cases. |
+| `replace` | primitive | An event is named (`leave`, `ko`, `play`, `life`, `attack`, `counter`) and a program stands in its place (9-10). Built by #125. `replaceLeave` and the `instead` half of `resolvingPlay` run through it today; `negateAttack` and `negateCounter` lower to `attack`/`counter` replaced by nothing, which `replaceAs` reads back as those two spellings so their own cases stay the one reading (#137). |
 | `replaceLeave` | macro over `replace` | Event: a card leaving the Battle Area (9-10). |
 | `control` | primitive | Whose card it is now (20-9). Not a `move`: the move is how control is *taken* in an engine where the area is the master (0-3-4-1), but the loan that gives it back, the refusal of a Leader or a Unison, and the KO that still finds the **owner's** Drop (5-12-1) are none of `move`'s business. Built by #126. |
 | `skip` | primitive | A phase or a step does not happen (20-13). Nothing else can say it: an `if` skips a *program*, not the turn's own steps, and no prohibition (20-14) can stop a phase from beginning — `forbid` refuses an action a player would declare, and 20-13-3 is the stronger claim that there is no free timing to declare one in. Built by #126. |
@@ -259,8 +259,13 @@ for the macros above to be writable; none of them is built by #130, which delive
    declared over it: `draw`, `discard`, `damage`, `mill` and `addLife` all take `n` as an `amount` —
    X included — while a selector's `TOP n` (and its plain count) is typed a bare `number`
    (`rulesets/holes.ts`), so declaring them over a `moveTo(target: TOP $n IN …)` would throw on the
-   first X-priced call it met. A selector that counts by an expression is #122's fifth requirement,
-   not this one's; `ops.rules`'s own `count` entry carries the note.
+   first X-priced call it met. **Answered for the four by #137 (1 Oct 2026):** a selector's count
+   and `TOP n` are one hole type, `count`, that takes a `number` or an `amount`; `draw`, `damage`
+   and `addLife` lower to one `moveTo` of the top `n` cards and `discard` to a `choose` and a
+   `moveTo`, and `moveAs`/`discardAs` read each lowered shape back as its own spelling before an
+   engine runs it — so no selector is ever *resolved* counted by an expression, and X is still
+   evaluated where it always was. `mill` stays native (its `as` names cards for a later clause,
+   which a hole cannot make a binding of) and `lifeDownTo` waits on subtraction, requirement 5.
 3. **Filters must name the attributes the engine keeps in code.** `flipped`, `markers`, the
    battle's roles and "battled this turn" are what five condition rows lower to. Selectors already
    carry `mode` and `hidden`; filters already carry power, cost, `faceUp`, keywords and type.

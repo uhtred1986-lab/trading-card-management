@@ -8,7 +8,7 @@ import { coversColors, eachNamedHolds, hasKeyword, keywordOf, printedNames, skil
 import { matches, powerRelOk } from "./filters";
 import { asksAQuestion, describeCond, describeScript } from "./script-schema";
 import { legacyHost } from "./script-host";
-import { NO_RULES, costModifierAs, modifyAttrAs, negateAs, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { NO_RULES, costModifierAs, modifyAttrAs, negateAs, replaceAs, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type {
   Area,
   CardDef,
@@ -1157,7 +1157,7 @@ let computingStatics = false;
 const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "modifyAttr", "grant", "costReduction", "replaceLeave", "replace", "gains", "negateKeyword", "forbid", "permit", "immune", "altCost"]);
 
 export function emitsStatic(ops: Op[]): boolean {
-  return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(costModifierAs(negateAs(modifyAttrAs(o))).op)));
+  return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(replaceAs(costModifierAs(negateAs(modifyAttrAs(o)))).op)));
 }
 
 function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], source: string, master: PlayerId, ops: Op[], inPlayNow: boolean): void {
@@ -1169,7 +1169,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
   // `costReduction` branch, and "this card gains [Blocker]" written as
   // `modifyAttr(attr: keywords, …)` the `grant` branch below, whichever way
   // the row was written.
-  for (const op of ops.map((o) => costModifierAs(negateAs(modifyAttrAs(o))))) {
+  for (const op of ops.map((o) => replaceAs(costModifierAs(negateAs(modifyAttrAs(o)))))) {
     if (op.op === "if") {
       if (condHolds(ctx, s, frame, op.cond)) collectStatics(ctx, s, out, source, master, op.then, inPlayNow);
       else if (op.else) collectStatics(ctx, s, out, source, master, op.else, inPlayNow);

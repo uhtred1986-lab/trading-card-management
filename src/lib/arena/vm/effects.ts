@@ -48,7 +48,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../engine";
-import { costModifierAs, modifyAttrAs, negateAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
+import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
 import { redirectOf, type AltCost, type Replacement } from "../engine/state";
 import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../engine/types";
 import { other as otherPlayer } from "../engine/types";
@@ -484,7 +484,7 @@ function collect(
   // written as the primitive is deferred by the same name `DEFERRED_STATICS`
   // gives it, a `modifyAttr(attr: keywords, …)` reads as the `grant` case
   // below, and nothing else.
-  for (const op of ops.map((o) => costModifierAs(negateAs(modifyAttrAs(o))))) {
+  for (const op of ops.map((o) => replaceAs(costModifierAs(negateAs(modifyAttrAs(o)))))) {
     if (op.op === "if") {
       // A [Permanent] under a condition holds only while the condition does
       // (9-5-1-1), so the branch is taken afresh on every reading.

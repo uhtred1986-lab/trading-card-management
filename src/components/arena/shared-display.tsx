@@ -8,12 +8,13 @@ import { CardDetail, ChipRow, type InspectorChip } from "./shared-sheets";
 export type { InspectorChip };
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { newestFirst, type StoryLine } from "@/lib/arena/story";
+import { cardImage } from "@/lib/catalog/card-image";
 
 export function Counter({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-baseline gap-1 rounded bg-space-950/50 px-1.5 py-0.5">
       <dt className="text-space-500">{label}</dt>
-      <dd className="font-mono font-bold text-space-100">{value}</dd>
+      <dd className="arena-num text-space-100">{value}</dd>
     </div>
   );
 }
@@ -154,7 +155,7 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
         >
           {shown.imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
-            <img src={shown.imageUrl} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
+            <img src={cardImage(shown.imageUrl, "thumb")} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-space-50">{shown.name}</p>
@@ -236,7 +237,7 @@ export function CardPreview({ card, box, narrator = DEFAULT_NARRATOR }: { card: 
     >
       {card.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- transient overlay; the board has already loaded this URL.
-        <img src={card.imageUrl} alt="" className="card-aspect mb-2 w-full rounded-lg object-cover" />
+        <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect mb-2 w-full rounded-lg object-cover" />
       )}
       <CardDetail card={card} withName narrator={narrator} />
     </div>
@@ -314,7 +315,7 @@ export function DockedInspector({
     <div className="space-y-2 p-3" data-arena-inspector={card.id}>
       {card.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- the board has already loaded this URL.
-        <img src={card.imageUrl} alt="" className="card-aspect mx-auto w-40 rounded-lg object-cover xl:w-48" />
+        <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect mx-auto w-40 rounded-lg object-cover xl:w-48" />
       )}
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
@@ -395,7 +396,7 @@ export function InPlayList({
                 >
                   {card.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- a list swatch; the board has already loaded this URL.
-                    <img src={card.imageUrl} alt="" className="card-aspect w-7 shrink-0 rounded-[3px] object-cover" />
+                    <img src={cardImage(card.imageUrl, "thumb")} alt="" className="card-aspect w-7 shrink-0 rounded-[3px] object-cover" />
                   ) : (
                     <span className="card-aspect w-7 shrink-0 rounded-[3px] bg-space-700" aria-hidden />
                   )}
@@ -403,7 +404,7 @@ export function InPlayList({
                     <span className="block truncate text-xs font-semibold text-space-50">{card.name}</span>
                     <span className="block truncate text-[10px] text-space-300">{note}</span>
                   </span>
-                  <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-ki-300">{card.power != null ? card.power.toLocaleString("en") : ""}</span>
+                  <span className="shrink-0 arena-num text-xs tabular-nums text-ki-300">{card.power != null ? card.power.toLocaleString("en") : ""}</span>
                 </button>
               </li>
             ))}

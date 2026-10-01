@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { useArenaAdmin } from "./admin-context";
+import { cardImage, cardImageSizeFor } from "@/lib/catalog/card-image";
 
 const COLOR_BAR: Record<string, string> = {
   Red: "bg-dbs-red",
@@ -211,7 +212,7 @@ export function ArenaCard({
             <span className="block h-[62%] w-[62%] rounded-full border border-ki-400/35" />
           </span>
         ) : showArt ? (
-          <Image src={card.imageUrl!} alt={card.name} fill sizes={`${width * 3}px`} className="object-cover" onError={() => setFailedSrc(card.imageUrl)} unoptimized />
+          <Image src={cardImage(card.imageUrl!, cardImageSizeFor(width))} alt={card.name} fill sizes={`${width * 3}px`} className="object-cover" onError={() => setFailedSrc(card.imageUrl)} unoptimized />
         ) : (
           <>
             <span className={`block h-[18%] ${COLOR_BAR[card.colors[0] ?? "Colorless"]}`} />
@@ -228,7 +229,7 @@ export function ArenaCard({
         )}
         {chrome && card.power != null && (
           <span
-            className={`arena-power absolute inset-x-0 bottom-0 bg-space-950/85 px-[3px] py-[1px] text-center font-mono font-bold ${delta > 0 ? "arena-power-up text-gain" : delta < 0 ? "arena-power-down text-loss" : "text-space-50"}`}
+            className={`arena-power absolute inset-x-0 bottom-0 bg-space-950/85 px-[3px] py-[1px] text-center arena-num ${delta > 0 ? "arena-power-up text-gain" : delta < 0 ? "arena-power-down text-loss" : "text-space-50"}`}
             style={{ fontSize: px(9) }}
             title={delta ? `${card.basePower!.toLocaleString("en")} printed, ${delta > 0 ? "+" : ""}${delta.toLocaleString("en")} in force` : undefined}
           >
@@ -238,7 +239,7 @@ export function ArenaCard({
         )}
         {card.cost && chrome && (
           <span
-            className={`arena-cost absolute left-[2px] top-[2px] grid place-items-center rounded-full font-mono font-bold leading-none ${state === "dead" ? "bg-loss text-space-50" : "bg-ki-500 text-space-950"}`}
+            className={`arena-cost absolute left-[2px] top-[2px] grid place-items-center rounded-full arena-num leading-none ${state === "dead" ? "bg-loss text-space-50" : "bg-ki-500 text-space-950"}`}
             style={{ fontSize: px(8), width: px(13), height: px(13) }}
           >
             {card.cost}
@@ -272,7 +273,7 @@ export function ArenaCard({
         {held && !holdLock && <span className="arena-hold pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left bg-ki-400" aria-hidden />}
         {/* Combo is the number that decides a battle from hand — worth its own badge. */}
         {card.comboPower != null && card.comboPower > 0 && chrome && (
-          <span className="absolute right-[2px] top-[2px] rounded-full bg-dbs-blue/90 px-[3px] font-mono font-bold leading-none text-space-50" style={{ fontSize: px(7), paddingBlock: px(2) }}>
+          <span className="absolute right-[2px] top-[2px] rounded-full bg-dbs-blue/90 px-[3px] arena-num leading-none text-space-50" style={{ fontSize: px(7), paddingBlock: px(2) }}>
             +{Math.round(card.comboPower / 1000)}k
           </span>
         )}
@@ -286,14 +287,14 @@ export function ArenaCard({
             <span key={i} className="arena-chip rounded-full border border-space-950 bg-ki-400" style={{ width: px(9), height: px(9), animationDelay: `${i * 40}ms` }} />
           ))}
           {card.markers > 6 && (
-            <span className="font-mono text-ki-300" style={{ fontSize: px(8) }}>
+            <span className="arena-num text-ki-300" style={{ fontSize: px(8) }}>
               +{card.markers - 6}
             </span>
           )}
         </span>
       )}
       {card.underCount > 0 && (
-        <span className="pointer-events-none absolute -bottom-1 -left-1 rounded bg-space-700 px-1 font-mono text-space-100" style={{ fontSize: px(8) }}>
+        <span className="pointer-events-none absolute -bottom-1 -left-1 rounded bg-space-700 px-1 arena-num text-space-100" style={{ fontSize: px(8) }}>
           ×{card.underCount + 1}
         </span>
       )}

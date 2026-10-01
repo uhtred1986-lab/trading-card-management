@@ -2,7 +2,7 @@
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { act, advanceGame, flagThisTurn } from "@/app/arena/actions";
+import { act, advanceGame, flagThisTurn, rematch } from "@/app/arena/actions";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/engine";
 import type { NumberedBeat } from "@/lib/arena/beats";
@@ -46,7 +46,7 @@ import {
   type InspectorChip,
   type SheetMove,
 } from "../shared";
-import { battleShape, BattleVerdict, firedInBattle } from "./BattleParts";
+import { battleShape, BattleVerdict, ClashBeam, firedInBattle } from "./BattleParts";
 import { DuelBand } from "./DuelBand";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
@@ -54,15 +54,17 @@ import type { DropState } from "./StageZones";
 import { MarkerFlight } from "./MarkerFlight";
 import { fxVars, msFor, turnBannerMs } from "./motion";
 import { StagingToggle } from "../StagingToggle";
-import type { ArenaStaging } from "@/lib/arena/staging";
+import { DEFAULT_STAGING, type ArenaStaging } from "@/lib/arena/staging";
 import type { Moment } from "./StageCard";
 import { Takeover } from "./Takeover";
+import { GameEnd } from "./GameEnd";
 import { useBeatPlayer } from "./useBeatPlayer";
 import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
 import { PromptPanel } from "./PromptPanel";
 import { StoryList } from "../shared-display";
-import { BattleRow, cardIdOf, ClashBand, HandBacks, MenuSection, ReferenceCounts, SideRail } from "./StageZones";
+import { BattleRow, cardIdOf, Lane, MenuSection, PlayerStrip, ReferenceCounts } from "./StageZones";
+import { SpeedButton } from "./SpeedButton";
 
 /**
  * The motion board.
@@ -81,7 +83,7 @@ import { BattleRow, cardIdOf, ClashBand, HandBacks, MenuSection, ReferenceCounts
  * cards out of their rows so each card is drawn once — a card's `layoutId` is
  * what flies it there and back, so it may exist in exactly one place.
  */
-const REAL_SERVER = { act, advance: advanceGame, flag: flagThisTurn };
+const REAL_SERVER = { act, advance: advanceGame, flag: flagThisTurn, rematch };
 
 /**
  * Whether the board is wide enough for the docked inspector (Tailwind `lg`).
@@ -105,12 +107,13 @@ export function ArenaStage({
   gameId,
   snapshot,
   skin = "night",
-  staging = "band",
+  staging = DEFAULT_STAGING,
   lighting = DEFAULT_LIGHTING,
   server = REAL_SERVER,
   announceTurn = false,
   admin = false,
   adminDebug = null,
+  menu = null,
 }: {
   gameId: number;
   snapshot: Snapshot;
@@ -122,7 +125,7 @@ export function ArenaStage({
    * the fixture preview (`/arena/preview`, dev-only) injects stubs, so a tap
    * there goes nowhere instead of to a database that is not there.
    */
-  server?: { act: typeof act; advance: typeof advanceGame; flag: typeof flagThisTurn };
+  server?: { act: typeof act; advance: typeof advanceGame; flag: typeof flagThisTurn; rematch: typeof rematch };
   /** Fixture preview only: open with the turn banner up, so a shot can catch a turn boundary (#344). */
   announceTurn?: boolean;
   /**
@@ -134,6 +137,12 @@ export function ArenaStage({
   admin?: boolean;
   /** What only the server can say — seed, the opponent's hand, the decisions. Present only for an admin. */
   adminDebug?: AdminDebug | null;
+  /**
+   * The game page's own links (back to the Arena, give up, and for an admin
+   * the debug view), drawn in the menu sheet's Game section. The page used to
+   * put them in a row above the board; the board has the screen now.
+   */
+  menu?: React.ReactNode;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +150,7 @@ export function ArenaStage({
   /** The card whose action sheet is open — from a tap, a long press or a right-click. */
   const [sheet, setSheet] = useState<CardView | null>(null);
   /** The last refused tap: which card, and the sentence the rules gave for it. */
-  const [refusal, setRefusal] = useState<{ card: string; text: string; at: number } | null>(null);
+  const [refusal, setRefusal] = useState<{ card: string; text: string } | null>(null);
   const [shaking, setShaking] = useState<string | null>(null);
   /**
    * A card being dragged out of the hand (rd-03). `x`/`y` are the pointer in
@@ -183,9 +192,10 @@ export function ArenaStage({
   /** The narration log (#350): what `NarrationRibbon` said, kept, oldest first. */
   const [story, setStory] = useState<StoryLine[]>([]);
   const [moreOpen, setMoreOpen] = useState(false);
+  /** The end screen was put away to look at the final board. */
+  const [endDismissed, setEndDismissed] = useState(false);
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
-  const promptRef = useRef<HTMLDivElement | null>(null);
 
   /**
    * Whether to start polling — and the **only** thing still derived from the
@@ -254,17 +264,22 @@ export function ArenaStage({
   /**
    * A staging must never hide a card the player is being asked to tap.
    *
-   * The takeover covers the board, and a combo, a counter and a blocker are all
-   * chosen from cards it is covering — so a fight it had taken over asked
-   * "Combo? Tap a glowing card" over a screen with no glowing card on it. When
-   * the prompt names anything the fight is not already drawing, the takeover
-   * stands down and the band takes it, which leaves the board legible
-   * underneath (owner's report, 7 Sep 2026).
+   * The takeover covers the battle field, and a blocker or an energy to pay
+   * with is chosen from cards it is covering — so a fight it had taken over
+   * asked "Tap a glowing card" over a screen with no glowing card on it. When
+   * the prompt names anything on the field the fight is not already drawing,
+   * the takeover stands down and the band takes it, which leaves the board
+   * legible underneath (owner's report, 7 Sep 2026). The hand is not the
+   * field: it stays on screen under a takeover, so a combo chosen from it
+   * keeps the fight up (redesign frame 07).
    *
    * The band dims the board rather than covering it, so it only has to stop
    * dimming so hard.
    */
-  const asksForBoard = playable && !playback.playing && view.prompt.player === view.you.player && Object.keys(taps.byCard).some((id) => !lifted.has(id));
+  const yourAsk = playable && !playback.playing && view.prompt.player === view.you.player;
+  const handIds = new Set((view.you.hand ?? []).map((c) => c.id));
+  const asksForBoard = yourAsk && Object.keys(taps.byCard).some((id) => !lifted.has(id) && !handIds.has(id));
+  const asksForHand = yourAsk && Object.keys(taps.byCard).some((id) => handIds.has(id));
   const takeoverOn = !!shape && staging === "takeover" && !asksForBoard;
   const bandOn = !!shape && !takeoverOn;
 
@@ -313,26 +328,6 @@ export function ArenaStage({
       if (r.error) setError(r.error);
     });
   }, [serverDecides, gameId, server]);
-
-  /**
-   * How tall the prompt bar is, published as a CSS variable on the board.
-   *
-   * The takeover is anchored to the viewport and the prompt bar was anchored
-   * to the document, so on a short window the bar landed across the middle of
-   * the two cards. The bar is fixed while a takeover is open (below) and the
-   * takeover ends where it begins — but only this can say where that is, since
-   * the bar grows a line whenever a question is long or its buttons wrap.
-   */
-  useEffect(() => {
-    const bar = promptRef.current;
-    const board = boardRef.current;
-    if (!bar || !board) return;
-    const measure = () => board.style.setProperty("--arena-prompt-h", `${Math.round(bar.getBoundingClientRect().height)}px`);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(bar);
-    return () => ro.disconnect();
-  }, []);
 
   /**
    * Reading a card stops the fight (`docs/arena-battle-staging-spec.md`
@@ -455,7 +450,7 @@ export function ArenaStage({
     feel("illegal");
     setShaking(id);
     const inHand = !!view.you.hand?.some((c) => c.id === id);
-    setRefusal({ card: id, text: refusalLine(why, { name: card?.name ?? "That card", reaching: reaching(id), side: view.you, inHand }) ?? "Not now.", at: Date.now() });
+    setRefusal({ card: id, text: refusalLine(why, { name: card?.name ?? "That card", reaching: reaching(id), side: view.you, inHand }) ?? "Not now." });
   };
 
   const chargesOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "charge");
@@ -732,7 +727,7 @@ export function ArenaStage({
     const src = boardRef.current?.querySelector(`[data-arena-card="${CSS.escape(id)}"]`)?.getBoundingClientRect();
     setDrag((d) => (d ? { ...d, back: true, over: null, ...(src ? { x: src.left + src.width / 2, y: src.top + src.height * 0.64 } : null) } : d));
     feel("illegal");
-    if (say) setRefusal({ card: id, text: say, at: Date.now() });
+    if (say) setRefusal({ card: id, text: say });
     if (snapTimer.current) clearTimeout(snapTimer.current);
     snapTimer.current = setTimeout(() => {
       setDrag(null);
@@ -959,7 +954,9 @@ export function ArenaStage({
     <LayoutGroup>
       <div
         ref={boardRef}
-        className="arena relative mx-auto flex w-full max-w-7xl flex-col gap-2 sm:gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]"
+        // Below sm the board runs to the screen's edges (the page keeps a
+        // 0.5 rem gutter for everything else), so its edge line is flush.
+        className="arena relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)] lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]"
         data-skin={skin}
         style={{ ...turnStyle, ...fxVars(pace) }}
       >
@@ -971,7 +968,7 @@ export function ArenaStage({
         {beat?.t === "move" && beat.from === "hand" && beat.to === "battle" && (
           <div key={beat.n} className="arena-fx-flash absolute inset-0 z-[35]" aria-hidden />
         )}
-        {/* The edge: an inner frame in the acting side's colour, switching with the banner. */}
+        {/* The edge: a thin line in the acting side's colour, switching with the banner. */}
         <div className="arena-edge" aria-hidden />
         <TurnBanner call={turnCall} view={view} lighting={lighting} ms={turnBannerMs(pace)} holdUntilTap={pace === "step"} />
         <StepBanner step={step} hold={!!turnCall || playback.turnAhead} />
@@ -980,69 +977,147 @@ export function ArenaStage({
         <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
-        <div className="flex min-w-0 flex-col gap-2 sm:gap-3 lg:col-start-1 lg:row-start-1">
-          {/* The top bar: whose turn it is, then where in it we are. On a
-              phone it sticks to the top of the screen so the turn is never
-              scrolled away; from lg the chips move to the left column. */}
-          <div className="arena-topbar flex flex-col gap-1.5 max-sm:sticky max-sm:top-0 max-sm:z-30 max-sm:-mx-1 max-sm:px-1 max-sm:py-1.5 sm:mt-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex min-w-0 flex-1 flex-col lg:col-start-1 lg:row-start-1">
+          {/* The top bar, one row (`docs/arena-redesign/` frame 01): whose turn
+              it is, then speed, review, the admin shield and the menu. It sticks
+              to the top of a phone's screen so the turn is never scrolled away. */}
+          <div className="arena-topbar sticky top-0 z-30 flex h-[52px] min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:h-[60px] lg:pl-4">
             <TurnPill view={view} />
-            <PhaseChips view={view} className="lg:hidden" />
-            {/* Admins only, and rendered only for them: the shield that opens the drawer (#350). */}
-            {admin && <AdminShield onOpen={() => setAdminOpen(true)} className="max-sm:absolute max-sm:right-3 max-sm:top-1.5 sm:ml-auto" />}
+            <div className="ml-auto flex shrink-0 items-center gap-0.5">
+              <SpeedButton />
+              <button
+                type="button"
+                onClick={() => view.them.leader && setSheet(view.them.leader)}
+                disabled={!view.them.leader}
+                className="arena-iconbtn tap flex h-11 w-11 items-center justify-center disabled:opacity-40 lg:hidden"
+                aria-label="Review cards in play"
+              >
+                <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              {/* Admins only, and rendered only for them: the shield that opens the drawer (#350). */}
+              {admin && <AdminShield onOpen={() => setAdminOpen(true)} />}
+              <button type="button" onClick={() => setMoreOpen(true)} className="arena-iconbtn tap flex h-11 w-11 items-center justify-center" aria-label="Open arena settings and counts">
+                <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+              </button>
+            </div>
           </div>
+          {/* The phase words under the bar; from lg they are the left column's list. */}
+          <PhaseChips view={view} className="arena-phases-row h-8 shrink-0 overflow-hidden px-2 lg:hidden" />
 
-          {/* Below lg this is one column (them, the board, you). From lg it is
-            the desktop review layout: both players' rails stacked on the left,
-            the board, and the docked inspector over its tabs on the right. */}
           {/* The shake is on this block and not on the board: a transform on the
               board would become the containing block of the takeover and the
               drag ghost, which are `fixed`. Nothing fixed is inside this one. */}
-          <div className={`flex flex-col gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4 ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
-            {/* The desktop's phase chips: the top of the left column, so they are on screen with the board. */}
-            <PhaseChips view={view} className="hidden lg:col-start-1 lg:row-start-1 lg:flex lg:w-44 xl:w-52" />
-            <SideRail side={view.them} them active={!acting} cardProps={cardProps} hurt={hurting === view.them.player} hit={hitOf(view.them.player)} narrator={narrator} lifted={lifted} className="lg:col-start-1 lg:row-start-2" />
+          <div className={`flex min-w-0 flex-1 flex-col lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4 ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
+            {/* The desktop's phase list: the top of the left column, so it is on screen with the board. */}
+            <PhaseChips view={view} vertical className="hidden lg:flex lg:w-44 lg:pl-3 lg:pt-4 xl:w-52" />
 
-            <section className="arena-stage relative rounded-xl border border-space-700/70 p-2 sm:rounded-2xl sm:p-3 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:p-4" aria-label="Battle Areas">
+            {/* The field: their strip, their row with their leader first, the
+                lane, your row, your strip. Open sky — no panel round it. */}
+            {/* The field is also what a takeover covers and what the verdict slams
+                over; the hand and the prompt are outside it and stay usable. */}
+            <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 ${takeoverOn ? "min-h-[440px] lg:min-h-[560px]" : ""}`} aria-label="Battle Areas">
+              <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} narrator={narrator} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
-              <div className={bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}>
-                <HandBacks count={view.them.handCount} />
-                <BattleRow cards={view.them.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p2:battle" label={`${view.them.name} has no Battle Cards`} active={!acting} />
-                <ClashBand view={view} cardProps={cardProps} staged={!!shape} />
-                <BattleRow cards={view.you.battle.filter((c) => !lifted.has(c.id))} cardProps={cardProps} zone="p1:battle" label="You have no Battle Cards" active={acting} drop={battleDrop} />
+              <div className={`flex min-w-0 flex-1 flex-col ${bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}`}>
+                <BattleRow
+                  side={view.them}
+                  cards={view.them.battle.filter((c) => !lifted.has(c.id))}
+                  cardProps={cardProps}
+                  zone="p2:battle"
+                  label={`${view.them.name}'s Battle Area`}
+                  active={!acting}
+                  lifted={lifted}
+                  hurt={hurting === view.them.player}
+                  hit={hitOf(view.them.player)}
+                />
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => setLogOpen((x) => !x)} logOpen={logOpen}>
+                  {logOpen && (
+                    <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-space-300">Battle log</span>
+                        <button type="button" onClick={() => setLogOpen(false)} className="arena-iconbtn tap -my-2 -mr-2 flex h-11 w-11 items-center justify-center" aria-label="Close battle log">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                            <path d="M6 6l12 12M18 6 6 18" />
+                          </svg>
+                        </button>
+                      </div>
+                      <ol className="max-h-56 space-y-0.5 overflow-y-auto text-xs leading-relaxed text-space-200">
+                        <StoryList story={story} />
+                      </ol>
+                    </div>
+                  )}
+                </Lane>
+                <BattleRow
+                  side={view.you}
+                  cards={view.you.battle.filter((c) => !lifted.has(c.id))}
+                  cardProps={cardProps}
+                  zone="p1:battle"
+                  label="Your Battle Area"
+                  active={acting}
+                  drop={battleDrop}
+                  lifted={lifted}
+                  hurt={hurting === view.you.player}
+                  hit={hitOf(view.you.player)}
+                />
               </div>
               {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
+              <PlayerStrip
+                side={view.you}
+                cardProps={cardProps}
+                hit={hitOf(view.you.player)}
+                narrator={narrator}
+                energyChips={energyChips}
+                drop={energyDrop}
+                willRest={willRest}
+                gain={gain}
+                className="mx-2"
+              />
+              {takeoverOn && (
+                <Takeover
+                  shape={shape}
+                  cardProps={stagedProps}
+                  beat={beat}
+                  progress={playback.playing ? { index: playback.index, total: playback.total } : null}
+                  note={asksForHand ? "Tap hand cards to combo" : null}
+                  yourPick={asksForHand}
+                  desk={wide}
+                />
+              )}
+              {/* Who won the fight, named. Outside the stagings on purpose: it must
+                  appear on all three, and a battle that has already closed by the
+                  time the beats arrive has no staging left to carry it. */}
+              <BattleVerdict beat={beat} sideOf={sideOf} leaders={[view.you.leader?.id, view.them.leader?.id]} />
             </section>
-
-            <SideRail
-              side={view.you}
-              active={acting}
-              cardProps={cardProps}
-              hurt={hurting === view.you.player}
-              hit={hitOf(view.you.player)}
-              narrator={narrator}
-              lifted={lifted}
-              energyChips={energyChips}
-              drop={energyDrop}
-              willRest={willRest}
-              gain={gain}
-              className="lg:col-start-1 lg:row-start-3"
-            />
           </div>
 
-          {/* The bottom two slots of the header stack (`docs/arena-hud-spec.md`
-            §2): *whose move*, then *what is being asked*, in that order,
-            always. They share one positioned wrapper because the strip has to
-            stay directly above the ask — a sticky bar with a static strip
-            above it comes apart the moment the board scrolls.
+          {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
+            <div className="flex flex-wrap gap-1.5 px-3 pt-2 sm:gap-2">
+              {(modal ? bare : bare.slice(3)).map(({ i, l }) => (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => send(l.action)}
+                  className="tap rounded-lg border border-space-600 bg-space-800 px-3 py-1.5 text-xs text-space-100 hover:border-ki-500/60 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          )}
 
-            While a takeover has the screen the pair is pinned to the viewport
-            with it, because a sticky bar and a fixed overlay are measured
-            against two different things and will always end up on top of each
-            other on a short window. `promptRef` measures this wrapper rather
-            than the bar alone: it is what tells the takeover where to stop,
-            and the takeover has to clear both. */}
-          <div ref={promptRef} className={`z-30 flex flex-col gap-1.5 ${takeoverOn ? "fixed inset-x-2 bottom-2 mx-auto max-w-7xl sm:inset-x-4" : "sticky bottom-2"}`}>
+          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} />
+
+          {/* The prompt bar: one line and its buttons, the last thing on the
+            board. A takeover covers the field only, so the bar stays where it
+            is and stays usable while the fight is up. */}
+          <div className="sticky bottom-0 z-30">
             <PromptPanel
               view={view}
               playable={playable}
@@ -1050,7 +1125,6 @@ export function ArenaStage({
               waitingOnServer={waitingOnServer}
               busy={busy}
               playing={playback.playing}
-              held={held}
               refusalText={refusal?.text ?? null}
               error={error}
               pace={pace}
@@ -1072,67 +1146,6 @@ export function ArenaStage({
               onSkip={playback.skip}
             />
           </div>
-
-          {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {(modal ? bare : bare.slice(3)).map(({ i, l }) => (
-                <button
-                  key={i}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => send(l.action)}
-                  className="tap rounded-lg border border-space-600 bg-space-800 px-3 py-1.5 text-xs text-space-100 hover:border-ki-500/60 disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
-                >
-                  {l.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <Hand
-            cards={view.you.hand ?? []}
-            count={view.you.handCount}
-            name={view.you.name}
-            cardProps={cardProps}
-            dragId={drag?.id ?? null}
-            dragFor={dragFor}
-            chargeable={chargeGesture}
-            controls={
-              <>
-                <button type="button" onClick={() => setLogOpen((x) => !x)} className="tap uppercase tracking-widest text-ki-300 hover:text-ki-400 lg:hidden">
-                  {logOpen ? "hide log" : "log"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => view.them.leader && setSheet(view.them.leader)}
-                  disabled={!view.them.leader}
-                  className="tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-space-300 hover:border-ki-500/60 hover:text-ki-300 disabled:opacity-40 lg:hidden"
-                  aria-label="Review cards in play"
-                >
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMoreOpen(true)}
-                  className="tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-xl leading-none text-space-300 hover:border-ki-500/60 hover:text-ki-300"
-                  aria-label="Open arena settings and counts"
-                >
-                  ⋯
-                </button>
-              </>
-            }
-          >
-            {/* The log no longer replaces the hand: you can read what just
-              happened and look at your cards at the same time. */}
-            {logOpen && (
-              <ol className="mb-2 lg:hidden max-h-40 space-y-0.5 overflow-y-auto text-[11px] leading-relaxed text-space-300 sm:max-h-56 sm:text-xs">
-                <StoryList story={story} />
-              </ol>
-            )}
-          </Hand>
         </div>
 
         <div className="hidden lg:col-start-2 lg:row-start-1 lg:block">
@@ -1180,6 +1193,24 @@ export function ArenaStage({
 
         {moreOpen && (
           <Sheet title="Board controls" onClose={() => setMoreOpen(false)}>
+            {/* The game page's own links — back, give up, the debug view — live
+                here now that the board has the screen (the page passes them). */}
+            {menu && <MenuSection title="Game">{menu}</MenuSection>}
+            {/* From lg the log is the right column's second tab. */}
+            <div className="lg:hidden">
+              <MenuSection title="Log">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setLogOpen(true);
+                  }}
+                  className="tap text-[11px] uppercase tracking-widest text-ki-300 hover:text-ki-400 sm:text-xs"
+                >
+                  battle log
+                </button>
+              </MenuSection>
+            </div>
             <MenuSection title="Feel">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
                 <FeelToggle />
@@ -1208,12 +1239,23 @@ export function ArenaStage({
 
         {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={(note) => server.flag(gameId, note)} onClose={() => setAdminOpen(false)} />}
 
-        {takeoverOn && <Takeover shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
+        {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
+        <ClashBeam beat={beat} hostRef={boardRef} />
 
-        {/* Who won the fight, named. Outside the stagings on purpose: it must
-            appear on all three, and a battle that has already closed by the
-            time the beats arrive has no band left to carry it. */}
-        <BattleVerdict beat={beat} art={beats?.art ?? {}} sideOf={sideOf} hostRef={boardRef} leaders={[view.you.leader?.id, view.them.leader?.id]} />
+        {/* The end of the game, on the board (redesign frame 10): once the last
+            beat has played, never over it. */}
+        {view.over && !playback.playing && !turnCall && !endDismissed && (
+          <GameEnd
+            over={view.over}
+            you={view.you.player}
+            them={view.them.name}
+            turn={view.turn}
+            canRematch={!live.game.archived}
+            versus={live.game.mode === "versus"}
+            onRematch={() => server.rematch(gameId)}
+            onDismiss={() => setEndDismissed(true)}
+          />
+        )}
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 

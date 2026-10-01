@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { GameOver } from "@/components/arena/GameOver";
@@ -26,7 +27,39 @@ const STUB = {
   advance: async () => ({ error: null }),
   // Flagging, answered without a database: the flag the drawer would get back.
   flag: async (gameId: number, note: string | null) => ({ error: null, created: true, flag: { id: 1, gameId, turn: 4, beatIndex: 0, note, flaggedBy: null, reviewerNote: null, resolved: false } }),
+  // The end screen's Rematch: answered, never redirected — there is no game to start.
+  rematch: async () => ({ error: null }),
 };
+
+/**
+ * `?fx=defend` (preview only): the `attack` fixture turned round, so the
+ * takeover can be shot the way frame 07 draws it — Claude's Battle Card
+ * attacking your leader, five cards in your hand that could combo, and one
+ * combo already added. Every fixture is one of your attacks; this is the only
+ * way to see the other side of a fight without a database.
+ */
+function defendView(snap: Snapshot): Snapshot {
+  const v = snap.view;
+  const atk = v.them.battle[0] ?? v.them.leader;
+  const guard = v.you.leader;
+  if (!atk || !guard) return snap;
+  const card = (n: number, name: string, power: number, combo: number) => ({ ...atk, id: `${v.you.player}#9${n}`, cardId: `C-${n}`, name, power, comboPower: combo, comboCost: 1, mode: "active" as const });
+  const hand = [card(1, "Nova Lancer", 20000, 5000), card(2, "Azure Sage", 12000, 10000), card(3, "Comet Dancer", 8000, 10000), card(4, "Storm Striker", 15000, 5000)];
+  const picked = card(5, "Ember Vanguard", 10000, 5000);
+  const attacker = { ...atk, mode: "rest" as const, power: 20000 };
+  return {
+    ...snap,
+    view: {
+      ...v,
+      turnPlayer: v.them.player,
+      prompt: { ...v.prompt, kind: "combo", player: v.you.player, question: "Combo? Tap a glowing card.", hint: "Each adds its combo power and costs its combo cost." },
+      battle: { attacker: attacker.id, guard: guard.id, step: "defense", attackPower: 20000, guardPower: 20000, contributions: { [attacker.id]: 20000, [guard.id]: 15000, [picked.id]: 5000 } },
+      them: { ...v.them, battle: v.them.battle.map((c) => (c.id === attacker.id ? attacker : c)) },
+      you: { ...v.you, hand, handCount: hand.length, combo: [picked] },
+    },
+    taps: { ...snap.taps, byCard: Object.fromEntries(hand.map((c) => [c.id, [0]])) },
+  };
+}
 
 /**
  * `?fx=` (preview only, rd-07): play one effect on the fixture's board. A fixture
@@ -38,7 +71,10 @@ const STUB = {
  *   damage | damage-you   a hit on the opponent's / your leader (1 life)
  *   clash-hit | clash-ko | clash-held   a verdict on the open battle (`attack`)
  *   attack                the staged fight arriving (`attack`): cards in from the corners, VS
- *   over                  the end screen's title (`over`)
+ *   over                  the end screen on the board (`over`), and the result card under it
+ *   victory               the same, won by you (frame 10)
+ *   defend                the `attack` fixture turned round (`defendView`)
+ *   finish                the clash and the damage that end the game, then the end screen
  */
 function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
   const own = snap.beats?.list ?? [];
@@ -55,6 +91,17 @@ function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
   }
   return { seq: list.length, list, art };
 }
+
+/** The game page's menu links as the preview draws them: inert, since no game is behind them. */
+const PREVIEW_MENU = (
+  <div className="flex flex-wrap items-center gap-x-5 text-sm text-space-400">
+    <Link href="/arena" className="tap inline-flex items-center text-space-300 hover:text-ki-300">
+      ← Arena
+    </Link>
+    <span className="tap inline-flex items-center">how Claude played</span>
+    <span className="tap inline-flex items-center">give up</span>
+  </div>
+);
 
 /** What the drawer shows beyond the snapshot, made up for the preview: no database is behind it. */
 const PREVIEW_DEBUG: AdminDebug = {
@@ -104,10 +151,44 @@ export function PreviewStage({
   }, [pace]);
   // `attack` opens on the board before the fight, so the staged fight's entrance plays.
   const [shown, setShown] = useState<Snapshot>(() =>
-    fx && fx !== "over" ? { ...snapshot, view: fx === "attack" ? { ...snapshot.view, battle: null } : snapshot.view, beats: { seq: 0, list: [], art: snapshot.beats?.art ?? {} } } : snapshot,
+    fx === "defend"
+      ? defendView(snapshot)
+      : fx === "victory"
+        ? // `?fx=victory`: the `over` fixture won by you, as frame 10 draws it.
+          { ...snapshot, view: { ...snapshot.view, turn: 5, over: { winner: snapshot.view.you.player, reason: `${snapshot.view.them.name} has no life left` } } }
+      : fx && fx !== "over"
+        ? { ...snapshot, view: fx === "attack" ? { ...snapshot.view, battle: null } : fx === "finish" ? { ...snapshot.view, them: { ...snapshot.view.them, life: 1 } } : snapshot.view, beats: { seq: 0, list: [], art: snapshot.beats?.art ?? {} } }
+        : snapshot,
   );
+  // `?fx=finish`: the attack lands on the leader's last life, then the game ends —
+  // the clash over the open fight, then the damage and the end screen on the board.
   useEffect(() => {
-    if (!fx || fx === "over") return;
+    if (fx !== "finish") return;
+    const v = snapshot.view;
+    const b = v.battle;
+    if (!b) return;
+    const art = snapshot.beats?.art ?? {};
+    const clash = { t: "clash", attacker: b.attacker, guard: b.guard, attackPower: b.attackPower, guardPower: b.guardPower, hit: true, n: 1 } as NumberedBeat;
+    const damage = { t: "damage", player: v.them.player, amount: 1, critical: false, cards: [], n: 2 } as NumberedBeat;
+    const t1 = setTimeout(() => setShown((s) => ({ ...s, beats: { seq: 1, list: [clash], art } })), 1200);
+    const t2 = setTimeout(
+      () =>
+        setShown((s) => ({
+          ...s,
+          game: { ...s.game, status: "over" },
+          over: { winner: v.you.player, reason: `${v.them.name} has no life left` },
+          view: { ...s.view, battle: null, them: { ...s.view.them, life: 0 }, over: { winner: v.you.player, reason: `${v.them.name} has no life left` } },
+          beats: { seq: 2, list: [clash, damage], art },
+        })),
+      4200,
+    );
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [fx, snapshot]);
+  useEffect(() => {
+    if (!fx || fx === "over" || fx === "victory" || fx === "defend" || fx === "finish") return;
     const beats = fxBeats(fx, snapshot);
     // The fixture's board is the moment *before* the play; a beat plays over the
     // board *after* it, so the card the reveal brings in is put in its row.
@@ -120,7 +201,7 @@ export function PreviewStage({
   }, [fx, snapshot]);
   return (
     <>
-      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} />
+      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} menu={PREVIEW_MENU} />
       {fx === "over" && (
         <div className="mx-auto mt-3 max-w-xl px-2">
           <GameOver

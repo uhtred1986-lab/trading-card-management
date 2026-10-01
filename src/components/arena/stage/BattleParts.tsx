@@ -3,7 +3,7 @@
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
 import { Sheet } from "../shared";
-import type { BeatArt, NumberedBeat } from "@/lib/arena/beats";
+import type { NumberedBeat } from "@/lib/arena/beats";
 import type { BoardView, CardView } from "@/lib/arena/view";
 import { StageCard } from "./StageCard";
 import type { CardState } from "../ArenaCard";
@@ -349,61 +349,62 @@ export function TriggerLine({ beat, name }: { beat: NumberedBeat | null; name: s
 /**
  * Who won the fight, said out loud.
  *
- * A clash used to be a starburst and two numbers changing, which said *that*
- * it was decided and left the player to work out *who had won it* by comparing
- * them. This names the card — the attacker when the attack hits, the guard
- * when it is repelled — at a size that cannot be missed, and holds long enough
- * to be read (owner's decision, 7 Sep 2026).
+ * One word slammed over the fight, unboxed, with a starburst behind it
+ * (`docs/arena-redesign/` frame 08): BREAK THROUGH when the attack hits a
+ * leader, K.O. when it hits anything else, HELD! when it is repelled. The
+ * numbers are already on screen in the fight and the prompt says "Clash!", so
+ * the word is all this has to say (owner's decision, 7 Sep 2026, and the
+ * redesign's review, 1 Oct 2026).
  *
- * Rendered by the board rather than by a staging, so it appears whichever of
- * the three is chosen — and, more to the point, whether or not a band is open:
- * a whole turn of Claude's plays back against a snapshot in which the battle
- * has already closed, so the band is not there to carry it.
+ * Rendered by the board over the field rather than by a staging, so it appears
+ * whichever of the three is chosen — and, more to the point, whether or not a
+ * staging is open: a whole turn of Claude's plays back against a snapshot in
+ * which the battle has already closed, so there is no fight left to carry it.
  *
- * It decides nothing. `hit` is the engine's verdict (8-4-5), and the two names
- * are the faces the beat brought with it. `sideOf` answers null for a card the
- * board can no longer see, and the banner is then simply uncoloured — saying
- * "theirs" because a card had left would be worse than saying nothing.
+ * It decides nothing. `hit` is the engine's verdict (8-4-5), and the colour is
+ * whose card won. `sideOf` answers null for a card the board can no longer
+ * see, and the word is then the neutral one — saying "theirs" because a card
+ * had left would be worse than saying nothing.
  */
 export function BattleVerdict({
   beat,
-  art,
   sideOf,
-  hostRef,
   leaders = [],
 }: {
   beat: NumberedBeat | null;
-  art: Record<string, BeatArt>;
   sideOf: (card: string) => "yours" | "theirs" | null;
-  /** The board, so the ki beam and the barrier can be drawn between the two cards (rd-07). */
-  hostRef?: React.RefObject<HTMLDivElement | null>;
   /** Both leaders' instance ids: a hit on one of them is a BREAK THROUGH, on anything else a K.O. */
   leaders?: readonly (string | undefined)[];
 }) {
   if (!beat || (beat.t !== "clash" && beat.t !== "negated")) return null;
-
-  if (beat.t === "negated") {
-    return <Banner key={beat.n} eyebrow="the attack is negated" tone="neutral" name="No battle" line="It ends here — no Offense Step, no Defense Step." />;
-  }
+  if (beat.t === "negated") return <VerdictWord key={beat.n} word="NO BATTLE" tone="calm" line="The attack is negated — it ends here." />;
   const winner = beat.hit ? beat.attacker : beat.guard;
-  const name = art[winner]?.name ?? "That card";
   // The word is only a name for the engine's verdict (`hit`) and for who the
   // guard was; it decides nothing.
   const word = !beat.hit ? "HELD!" : leaders.includes(beat.guard) ? "BREAK THROUGH" : "K.O.";
+  const side = sideOf(winner);
+  return <VerdictWord key={beat.n} word={word} tone={side === "yours" ? "good" : !beat.hit || side !== "theirs" ? "calm" : "bad"} />;
+}
+
+/** The word, its starburst, and — for a negated attack only — the one line it needs. */
+function VerdictWord({ word, tone, line }: { word: string; tone: "good" | "bad" | "calm"; line?: string }) {
   return (
-    <>
-      {hostRef && <ClashFx key={`fx-${beat.n}`} from={beat.attacker} to={beat.guard} held={!beat.hit} hostRef={hostRef} />}
-      <Banner
-        key={beat.n}
-        eyebrow={beat.hit ? "the attack hits" : "the attack is repelled"}
-        tone={sideOf(winner) ?? "neutral"}
-        name={name}
-        line={`${beat.attackPower.toLocaleString("en")} vs ${beat.guardPower.toLocaleString("en")}`}
-        won
-        word={word}
-      />
-    </>
+    <div className={`arena-verdict-slot arena-verdict-${tone}`} aria-live="polite">
+      <span className="arena-verdict-burst" aria-hidden />
+      <span className="arena-fx-word arena-verdict-word arena-impact">{word}</span>
+      {line && <span className="arena-verdict-line">{line}</span>}
+    </div>
   );
+}
+
+/**
+ * The ki beam and the barrier for the clash on screen, drawn between the two
+ * cards wherever they are right now (rd-07). Rendered at the board's root,
+ * which is what the measurement is relative to.
+ */
+export function ClashBeam({ beat, hostRef }: { beat: NumberedBeat | null; hostRef: React.RefObject<HTMLDivElement | null> }) {
+  if (!beat || beat.t !== "clash") return null;
+  return <ClashFx key={`fx-${beat.n}`} from={beat.attacker} to={beat.guard} held={!beat.hit} hostRef={hostRef} />;
 }
 
 /**
@@ -450,24 +451,6 @@ export function ClashBackdrop() {
       <span className="arena-fx-lines" />
       <span className="arena-fx-burst" />
     </span>
-  );
-}
-
-/** The verdict's one shape, so the three outcomes cannot drift apart. */
-function Banner({ eyebrow, tone, name, line, won = false, word }: { eyebrow: string; tone: "yours" | "theirs" | "neutral"; name: string; line: string; won?: boolean; word?: string }) {
-  const colour = tone === "yours" ? "text-ki-300" : tone === "theirs" ? "text-loss" : "text-space-200";
-  return (
-    <div className="pointer-events-none fixed inset-x-0 top-[33%] z-40 flex justify-center px-3" aria-live="polite">
-      <div className="arena-verdict max-w-[92vw] rounded-2xl border border-ki-500/40 px-5 py-3 text-center sm:px-8 sm:py-5">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-space-300 sm:text-xs">{eyebrow}</p>
-        {word && <span className={`arena-fx-word arena-impact mt-1 whitespace-nowrap font-black leading-none text-[clamp(1.6rem,9vw,2.9rem)] sm:text-[clamp(2.75rem,5.5vw,5rem)] ${colour}`}>{word}</span>}
-        <p className={`arena-verdict-name arena-impact mt-1 font-black leading-tight ${word ? "text-lg sm:text-2xl" : "text-2xl sm:text-4xl"} ${colour}`}>
-          {name}
-          {won && <span className="ml-2 align-middle text-base sm:text-xl">WINS</span>}
-        </p>
-        <p className="mt-1 font-mono text-xs tabular-nums text-space-300 sm:text-base">{line}</p>
-      </div>
-    </div>
   );
 }
 

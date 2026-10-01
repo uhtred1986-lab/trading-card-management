@@ -285,13 +285,19 @@ function substRef(ref: Ref, args: Args): Ref {
  * $side.$area` — each filled as a required field of its own type, and the
  * host selector under it walked the same way. `fromVar` names a binding, the
  * way `MINUS` does, and is left alone.
+ *
+ * A count is filled with the call's argument as it is (#137): a number when
+ * the call printed one, and the call's expression — X, `handUpTo(4)` — when
+ * it did not. Only the lowered `draw`, `discard`, `damage` and `addLife`
+ * carry the second, and each is read back as its own spelling before an
+ * engine resolves it (`moveAs`, `discardAs`).
  */
 function substSelector(sel: Selector, args: Args): Selector {
   if (!sel || typeof sel !== "object") return sel;
   const out: Record<string, unknown> = { ...sel };
   for (const [slot, type] of [
-    ["count", "number"],
-    ["take", "number"],
+    ["count", "amount"],
+    ["take", "amount"],
     ["side", "side"],
     ["area", "area"],
   ] as const) {

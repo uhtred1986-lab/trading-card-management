@@ -328,7 +328,10 @@ export const isHole = (v: unknown): v is Hole => typeof v === "object" && v !== 
  * the colours), a list of strings is `strings` (or `colors`). The selector's
  * own slots are the same question asked by `load.ts` with a scalar type.
  */
-export function paramTypesFor(type: FieldType | "number" | "side" | "area"): ParamType[] {
+export function paramTypesFor(type: FieldType | "count" | "side" | "area"): ParamType[] {
+  // A selector's count and `TOP n` take a printed number or a whole amount,
+  // X included (#137): `TOP $n` is how `draw(n: X)` lowers.
+  if (type === "count") return ["number", "amount"];
   if (typeof type === "object") {
     if ("enum" in type) return isColorList(type.enum) ? ["word", "color"] : ["word"];
     return typeof type.list === "object" && isColorList(type.list.enum) ? ["strings", "colors"] : ["strings"];
