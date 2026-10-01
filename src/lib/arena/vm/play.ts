@@ -42,7 +42,7 @@ import { log } from "./events";
 import { moved } from "./flow";
 import type { VmState } from "./state";
 import { attrsNow, queryHookStatics } from "./program";
-import { moveCard } from "./zones";
+import { SETUP_ZONES, findCard, moveCard } from "./zones";
 
 /**
  * The in-play area a card of each base type is played into (3-6-1, 3-11-4).
@@ -167,7 +167,14 @@ export function resolvePlay(
   const def = inst && ctx.defs[inst.cardId];
   if (!def) throw new RulesetBroken(state.game, `there is no card ${card} to play`);
   const printed = String(attrsOf(def, game).attrs.type ?? "");
-  const to = PLAY_ZONES[baseTypeOf(printed)];
+  // 22-46-6: a card played *onto* another goes where its host stands — a
+  // Z-Leader by [Z-Awaken] onto the Leader, which is the one way a card joins
+  // the Leader Area (6-1-4); the old Leader goes under it and does not leave
+  // the area (3-5-3). [Evolve] and [Union-Absorb]'s hosts are in the area
+  // their type is played into anyway (#155).
+  const host = opts.onto;
+  const hostZone = host !== undefined && host !== card ? (findCard(state, host)?.zone ?? null) : null;
+  const to = hostZone && hostZone === SETUP_ZONES.leader ? hostZone : PLAY_ZONES[baseTypeOf(printed)];
   // A `NotYet` and not a `RulesetBroken`: the only way here is a skill whose
   // program plays a card of a type no area receives (a Leader, 3-5-3), and the
   // runner catches a `NotYet` and stops that one skill rather than the game.
@@ -188,7 +195,7 @@ export function resolvePlay(
   // card sends the card already in it to the Drop when a second is played.
   if (game.zones[to]?.single === true) {
     for (const id of (state.sides[player].zones[to] ?? []).slice()) {
-      if (id !== card) moved(ctx, game, state, ev, id, DISPLACED_TO, { owner: player });
+      if (id !== card && id !== host) moved(ctx, game, state, ev, id, DISPLACED_TO, { owner: player });
     }
   }
 
@@ -197,7 +204,6 @@ export function resolvePlay(
   // as it arrives. 22-13-6-3 / 22-5-5: played *onto* another card, it takes
   // that card's place and the card goes under it (`stackOnto`); with the host
   // gone from the area, it is an ordinary play beside it — the legacy reading.
-  const host = opts.onto;
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to);
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true });
 
@@ -248,7 +254,7 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   const list = state.sides[player].zones[to];
   const slot = list.indexOf(host);
   const mode = state.cards[host].mode;
-  moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true });
+  moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, onto: host });
   const under = moveCard(state, game, host, to, { under: card });
   if (!under.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${card}: ${under.refused}`);
   list.splice(list.indexOf(card), 1);

@@ -232,6 +232,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `covers` | primitive | Do the cards a selector finds carry every one of these colours between them (22-29-3, 22-30-3, 22-34-3)? [Arrival]'s Combo Area and [Revive]'s hand, with `colors: $colors` bound off the printed keyword (#155). One count per colour would say it only for a fixed list; the list is the keyword's parameter. |
 | `sumsTo` | primitive | Can some of the cards a selector finds — at least one, and a total above 0 — be picked so that one measure of theirs adds up to exactly an amount (22-38-2)? [Successor]'s check before it is offered (#155); `choose … sumTo` picks that set. A subset sum, which no bound on a count or a total says. |
 | `attacked` | macro over `count` | Has a card declared at least *n* attacks this turn, the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s X−1 stands a turn (22-8-3), `NOT attacked(sel: [self], atLeast: $x)` (#156). A count the rules engine keeps on the card (`attacksThisTurn`) beside `battled`'s flag; the legacy engine reads the keyword inline and counts no attacks, so there the word does not hold. |
+| `markerSkillUsed` | macro over `count` | Has a card used a skill with a marker price this turn (13-4-2: one a turn per card)? [Rejuvenate]'s gate, `NOT markerSkillUsed(sel: [self])` (#155); a keyword move refused by it on its own card is a marker skill itself, so using it spends the lock. Both engines keep the flag on the card (`usedMarkerSkill`). |
 
 ### 2.5 What the tables ask for
 
@@ -1203,18 +1204,40 @@ DEFINE KEYWORD Successor
   }
 ```
 
-The rest of group B, each with what it is missing: **[Rejuvenate]**'s marker price is printed as the
-line's text ("Remove 2 markers from this card"), which the record compiles into an effect — the
-legacy order is sayable now (`DO` drops the card from beneath, the printed effect removes the
-markers, `AFTER` adds the life), but the 13-4 gates (enough markers, one marker skill a turn) have
-no number to read until the keyword carries it or the price is read as the line's marker price, and
-a move offered without them would be read wrongly. **[Z-Awaken]** stacks a Z-Leader on the Leader from the Z-Deck,
-carrying its power effects and its battle role, pays Z-Energy and is once a turn per player: a
-leader-area `stackOnto`, a Z-Energy price on a keyword move and a player-level counter, none of which
-exists. **[Invoker]** is an alternative price on an Extra's activation from the hand — group D's
-`altPayment` channel, beside [Warrior of Universe 7] (built by #154 as a specified-cost change; a
-stand-in payer is a different change and is not); `DEFINE
-ACTION activate` declares no `alt:` and `payAltCost` has no `invoker` case — so it moves there. **[Wormhole]** only raises [Over Realm]'s
+**[Rejuvenate]** (#155, the leftovers) is a move, `offer: "activate:main"`. Its marker price is
+printed as the line's text ("Remove 2 markers from this card", 22-42-2), so the card parser carries
+the number as the keyword's `markers` parameter (and any life ceiling as `lifeAtMost`), and the
+13-4 gates read it: refused off the Unison Area, with nothing beneath, short of `$markers`, and once
+`markerSkillUsed(sel: [self])` holds — a move refused by that condition on its own card is a marker
+skill, so using it spends the lock. `DO` drops the topmost card beneath, the printed effect removes
+the markers, and `AFTER` adds the top card of the deck to life: the legacy order, event for event
+(a card taken from beneath is now logged as a move out of its host's area and the pile after it,
+`vm/host.ts`'s `moveTo`).
+
+**[Invoker]** (#155, the leftovers) is an `altPayment` body beside [Warrior of Universe 7]'s:
+`altCost(target: <Red/Blue multicolour Extras> IN you.hand, pay: energy, orbs: [any], for: play,
+rest: <Red/Blue multicolour> IN you.energy active)` — a one-energy price only the cards `rest`
+finds may pay, rested where they stand (the first of them, the legacy `invokerEnergy`). `DEFINE
+ACTION activate` now declares `alt: "play"`, since using an Extra from the hand is playing it
+(4-2): an Extra's line in the hand gets a second candidate at the card's alternative price, as the
+legacy `activatable(…, alt)` does, and still pays the line's own orbs out of what the alternative
+left. Any alternative a card has for a play reaches its activation this way, on both engines.
+Its [Counter]-from-hand half waits for the counter window to read an alternative price (#150).
+
+**[Z-Awaken]** (#155, the leftovers) is a move, `offer: "activate:main"`, from the Z-Deck. Three
+pieces of plumbing, no new word: `DEFINE ACTION activate` reads `IN you.…|zDeck`, and a card there
+offers only a keyword's own move (`vm/activate.ts`'s `activationsOf`); its `COST` gains `zEnergy`
+after `energy`, bound to 0 for every line but one used from the Z-Deck, which pays its card's
+Z-Energy cost as a Z-card played from there does; and `play … onto` puts a card where its host
+stands when the host is the Leader (`vm/play.ts`), the Leader Area's one slot taking the card that
+arrives on top (`MoveOptions.onto`). Its `DO` is `play(target: [self], onto: IN you.leader)`:
+`stackOnto` carries the old Leader, its pile, its power effects and its battle role, and
+`leaderPlaced` hears it — event for event with the legacy engine. 22-46-4's once a turn needs no
+counter, since a resolved [Z-Awaken] leaves a Z-Leader the `REFUSE` already refuses (recorded: the
+reason given differs from the legacy `oncePerTurn`). The legacy menu never lists a Z-Deck line, though
+its `apply` takes one; that legacy bug is recorded, not copied.
+
+The rest of group B, each with what it is missing: **[Wormhole]** only raises [Over Realm]'s
 limit, which is unwritten. **[Dragon Ball]** needs nothing: it is deck legality (`support: "deck"`),
 and no game reads it.
 

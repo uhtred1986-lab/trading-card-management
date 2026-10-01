@@ -6,12 +6,13 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Seventeen HOOK bodies over sixteen keywords, written by Stage 7's four hook
+-- Eighteen HOOK bodies over seventeen keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
 -- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
--- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s
--- altPayment, [Empower]'s markerCarry, [Heroic]/[Villainous]'s afterSkill,
+-- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s and
+-- [Invoker]'s altPayment, [Empower]'s markerCarry, [Heroic]/[Villainous]'s
+-- afterSkill,
 -- [Critical]/[Strike]/[Victory Strike]'s beforeDamage and [Revenge]/
 -- [Attack]'s battleEnd. Every other keyword's
 -- own moments are still the engine's, and each one's trailing comment says
@@ -19,10 +20,10 @@
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Sixteen DO bodies, the whole-keyword activations that are no hook at all
+-- Eighteen DO bodies, the whole-keyword activations that are no hook at all
 -- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
--- [Successor], [Arrival], [Aegis], [Wish], [Awaken], [Over Realm] and [Swap]
--- are moves (`offer:`),
+-- [Successor], [Arrival], [Aegis], [Rejuvenate], [Z-Awaken], [Wish],
+-- [Awaken], [Over Realm] and [Swap] are moves (`offer:`),
 -- each offered as an [Activate: Main] — [Arrival] and [Aegis] an [Activate:
 -- Battle], [Wish] and [Awaken] both — line with its own REFUSE and menu
 -- words ([Wish] and [Awaken] with an AFTER as well), and [Offering],
@@ -31,9 +32,8 @@
 -- where its DO says (`printedEffect`), the last two with an empty DO,
 -- announced as the legacy engine announces them, their effect a battleEnd
 -- HOOK. 9-1-4 immunity printed as a [Permanent] is no keyword at all and is
--- read beside the other statics (`vm/effects.ts`, #154). The others of that shape —
--- [Rejuvenate], [Z-Awaken] … — are still to write the
--- same way, each one's trailing comment saying what it is missing.
+-- read beside the other statics (`vm/effects.ts`, #154). Any other of that
+-- shape still to write says what it is missing in its trailing comment.
 -- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
 
 -- 22-2
@@ -289,18 +289,25 @@ DEFINE KEYWORD "Dragon Ball"
 DEFINE KEYWORD Wormhole
   TAKES ()
   text: "[Over Realm] and [Dark Over Realm] may be activated twice a turn between them instead of once."
-  -- #155 left it with [Over Realm]: its only effect is that keyword's limit,
-  -- and [Over Realm] is unwritten (a counted, shared once-a-turn player
-  -- attribute, above).
+  -- #157: no body of its own. Its only effect is [Over Realm]'s limit, and
+  -- that keyword's `REFUSE oncePerTurn` reads it — a second use is allowed
+  -- while a card with [Wormhole] is in your Leader, Battle or Unison Area
+  -- (`count("card with [Wormhole]" IN you.play)`), as on the legacy engine.
 
 -- 22-37
 DEFINE KEYWORD Invoker
   TAKES ()
   text: "A Red/Blue multicolour Extra Card in your hand may be activated by switching one active Red/Blue multicolour energy to Rest Mode instead of paying its energy cost."
-  -- #155 looked and moved it to the payment hooks: an alternative price on an
-  -- Extra's activation is the `altPayment` channel (hook group D), and
-  -- `DEFINE ACTION activate` declares no `alt:`, `vm/costs.ts`' `altCostFor`
-  -- reads no `altPayment` body and `payAltCost` has no `invoker` case.
+  -- #155: an `altPayment` body, read as a standing change the way [Warrior
+  -- of Universe 7]'s is, off the card while it is in play (the legacy
+  -- `cardsInPlay`): your Red/Blue multicolour Extra Cards in the hand may be
+  -- played — which is how an Extra is used from there (4-2), so `DEFINE
+  -- ACTION activate` says `alt: "play"` — for one energy that only an active
+  -- Red/Blue multicolour card in your Energy Area may pay, rested where it
+  -- stands (`rest`). The line's own orbs are still paid, out of what is left.
+  HOOK altPayment {
+    altCost(target: (type = EXTRA AND colors = [Red, Blue] AND multiColor = true AND notColors = [Green, Yellow, Black, White, Colorless]) IN you.hand, pay: energy, orbs: [any], for: play, rest: (colors = [Red, Blue] AND multiColor = true AND notColors = [Green, Yellow, Black, White, Colorless]) IN you.energy active)
+  }
 
 -- 22-35
 DEFINE KEYWORD Heroic
@@ -614,13 +621,32 @@ DEFINE KEYWORD Overlord
 
 -- 22-42
 DEFINE KEYWORD Rejuvenate
-  TAKES ()
+  TAKES (markers: number, lifeAtMost: number)
   text: "A Unison Card with cards beneath it: drop one of them and pay the skill cost, then add the top card of your deck to your life."
-  -- #155 looked and left it unwritten: its price ("Remove N markers from this
-  -- card") is printed as the line's text, which the record reads as an effect,
-  -- so the 13-4 gates (enough markers, one marker skill a turn) have no number
-  -- to read. The order is sayable — DO drops the card from beneath, the
-  -- printed effect removes the markers, AFTER adds the life — the gate is not.
+  -- #155: a move, offered at the Main Phase from the Unison Area while a card
+  -- is beneath it. 22-42-2 prints the skill cost after the tag, so the card
+  -- parser carries its two numbers as the keyword's parameters: `markers`
+  -- ("Remove N markers from this card") and `lifeAtMost` ("if your life is at
+  -- N or less", left out when the line prints none, and the gate then asks
+  -- nothing). The gates are 13-4's, in the legacy order: enough markers, and
+  -- one marker skill a turn — a move refused by `markerSkillUsed` on its own
+  -- card is a marker skill, so using it spends the lock. The order is the
+  -- legacy one too: DO drops the topmost card from beneath (the legacy
+  -- engine's stated approximation of the master's pick, kept), the line's
+  -- printed effect removes the markers, and AFTER adds the life (22-42-4).
+  offer: "activate:main"
+  REFUSE zone(area: unison) UNLESS count([self] IN you.unison) >= 1
+  REFUSE other(detail: "no card under it to drop") UNLESS count(UNDER ([self]) IN under) >= 1
+  REFUSE other(detail: "needs {markers} markers") UNLESS markers(sel: [self], atLeast: $markers)
+  REFUSE oncePerTurn(what: "marker skill") UNLESS NOT markerSkillUsed(sel: [self])
+  REFUSE condition(text: "your life is at {lifeAtMost} or less") UNLESS life(side: you, atMost: $lifeAtMost)
+  label: "Rejuvenate: {markers} markers and a card from under {card} → +1 life"
+  DO {
+    moveTo(target: UNDER ([self]) TOP 1 IN under, to: drop, cause: cost)
+  }
+  AFTER {
+    moveTo(target: TOP 1 IN you.deck, to: life)
+  }
 
 -- 22-43
 DEFINE KEYWORD "Spirit Boost"
@@ -649,10 +675,26 @@ DEFINE KEYWORD Empower
 DEFINE KEYWORD "Z-Awaken"
   TAKES ()
   text: "From the Z-Deck, once a turn: pay the Z-Energy cost and the skill cost and place this Z-Leader on top of your already-awakened Leader, which has to match the printed description. The stack is one card from then on."
-  -- #155 looked and left it unwritten: a stack onto the Leader Area carrying
-  -- the old Leader's power effects and battle role (`stackOnto` knows the
-  -- Battle Area), a Z-Energy price on a keyword move, and a once-a-turn
-  -- counter per player — none of which the language or `vm/` has yet.
+  -- #155: a move, offered at the Main Phase (the legacy window; 22-46-1 also
+  -- allows a battle) from the Z-Deck, where `DEFINE ACTION activate` reads a
+  -- keyword's own move and nothing else, and paying the card's Z-Energy cost
+  -- after the line's orbs (the activation's `zEnergy` price, bound only from
+  -- the Z-Deck). Refused unless the Leader is awakened and no Z-card yet, and
+  -- matches the description the line prints (`asPrinted`). DO plays the card
+  -- onto the Leader: it takes the Leader Area, the old Leader and its pile go
+  -- under it, power effects and a battle role carry over (22-46-6-1), and
+  -- "when your Leader is placed" hears it (22-46-6-3). 22-46-4's once a turn
+  -- needs no count: once it has resolved the Leader is a Z-card, which the
+  -- third REFUSE already refuses, so a second [Z-Awaken] that turn is refused
+  -- by that reason rather than by the legacy `oncePerTurn` one.
+  offer: "activate:main"
+  REFUSE zone(area: zDeck) UNLESS count([self] IN you.zDeck) >= 1
+  REFUSE condition(text: "your Leader is awakened and not yet a Z-Leader") UNLESS all([leaderFlipped(), NOT count("Z-card" IN you.leader) >= 1])
+  REFUSE target(reason: "your Leader is not {line}") UNLESS count(IN you.leader asPrinted) >= 1
+  label: "Z-Awaken: {card} on your Leader"
+  DO {
+    play(target: [self], onto: IN you.leader)
+  }
 
 -- 22-47
 DEFINE KEYWORD "Z-Stack"

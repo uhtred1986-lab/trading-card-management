@@ -362,11 +362,16 @@ if (ENGINE !== "legacy") {
     {
       id: "rule-processing",
       says: "Rule processing (21) does not run on the rules engine: a Battle Card at 0 power or less (21-6) and a Unison with no markers left (21-9) stay where they are, where legacy puts them in the Drop with no KO. A skill's KO itself is real since #146; this state-based half is not built on that branch.",
-      holds: (_f, old, rules) =>
+      // The card under test can be the one processed, before the probe ever
+      // reaches its goal — a [Rejuvenate] Unison staged with no markers goes
+      // to the Drop as the opponent attacks (#155), which only the log says,
+      // and the rules engine then reaches its move and names the first gate.
+      holds: (_f, old, rules, rule) =>
         old.result.some((line) => {
           const m = /^(.*) goes from the (?:Battle|Unison) Area to the Drop$/.exec(line);
           return !!m && !old.applied.some((a) => a.endsWith(`${m[1]} is KO'd.`)) && !rules.result.includes(line);
-        }),
+        }) ||
+        (old.log.includes(`${rule.def.name} goes to the Drop.`) && !rules.log.includes(`${rule.def.name} goes to the Drop.`) && !old.log.some((l) => l.startsWith(`${rule.def.name} is KO'd`))),
     },
     {
       id: "skip",

@@ -91,12 +91,8 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  *   rather than four unrelated ones.
  */
 let skipped = 0;
-function keywordGap(keyword: string, doc: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — [${keyword}]'s keyword body is not built on the rules engine yet (${doc})`);
-  skipped++;
-  return true;
-}
+// `keywordGap` is gone: since #157 and #155's leftovers (#434) no case here
+// waits on a keyword body.
 function notYetGap(where: string, what: string, issue: string): boolean {
   if (ENGINE !== "rules") return false;
   console.log(`  skipped case — ${where}: ${what} (${issue})`);
@@ -109,11 +105,6 @@ function replaceGap(where: string): boolean {
   skipped++;
   return true;
 }
-
-const S7 = {
-  invoker: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D's altPayment channel, where #155 moved it: an alternative price on an Extra's activation ([Invoker])",
-  rejuvenate: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: its marker price is printed as the line's text, so the 13-4 gates have no number to read ([Rejuvenate])",
-};
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
 
@@ -343,10 +334,9 @@ const S7 = {
 if (
   !notYetGap(
     "CFREE: free [Counter] from hand",
-    "the [Permanent]'s `altCost` is collected (`vm/effects.ts`' `permanents`) and `vm/costs.ts`' `altCostFor` offers it for a play (#148), but the [Counter] window's own price is `vm/battle.ts`'s, which reads no alternative price yet",
+    "the [Permanent]'s `altCost` is collected (`vm/effects.ts`' `permanents`) and `vm/costs.ts`' `altCostFor` offers it for a play (#148), but the [Counter] window's own price is `vm/battle.ts`'s, which reads no alternative price yet — nor, so, [Invoker]'s for a [Counter] from the hand (its activation half is built, #155)",
     "#150",
-  ) &&
-  !keywordGap("Invoker", S7.invoker)
+  )
 ) {
   // Free [Counter] from hand is a timing of its own.
   DEFS.CFREE = {
@@ -924,9 +914,10 @@ if (
   assert.equal(zoneOf(d, "p1", "hand").length, kept);
 }
 
-if (!keywordGap("Rejuvenate", S7.rejuvenate)) {
+{
   // [Rejuvenate] (22-42): a Unison drops a card from beneath itself and pays
-  // the printed marker cost; the top card of the deck becomes life.
+  // the printed marker cost; the top card of the deck becomes life. Both
+  // engines since #155 (`keywords.rules`' move).
   DEFS.REJ = { ...DEFS.U1, id: "REJ", name: "REJ", skill: "[Rejuvenate] Remove 2 markers from this card." };
   let s = arenaG({ hand: ["REJ", "REJ"], energy: ["V1", "V1", "V1"] });
   s = playG(s, { type: "playUnison", player: "p1", card: findG(s, "p1", "hand", "REJ"), x: 3 });
@@ -970,6 +961,51 @@ if (!keywordGap("Rejuvenate", S7.rejuvenate)) {
   assert.ok(!canActivateG(s, leader), "an awakened Leader does not wish again");
   assertConsistentG(s);
   delete DEFS["L-WISH"];
+}
+
+{
+  // [Z-Awaken] (22-46): from the Z-Deck, onto an awakened Leader the line's
+  // description matches, paying the orbs and the Z-Energy cost; the Z-Leader
+  // takes the Leader Area with the old Leader under it. Both engines since
+  // #155 (`keywords.rules`' move). The legacy menu never lists a line in the
+  // Z-Deck (its `mainActions` reads the hand and the cards in play), though
+  // its `apply` takes one — a legacy bug, recorded rather than copied — so the
+  // offer is checked on the rules engine and the refusals and the result on
+  // both. Taken out of DEFS again at the end, so the probe sweep is unchanged.
+  DEFS["L-ZAW"] = { ...DEFS["L-RED"], id: "L-ZAW", name: "L-ZAW", characters: ["Son Goku"], back: { name: "L-ZAW awakened", power: 15000, skill: null } };
+  DEFS.ZL = { ...DEFS.ZB, id: "ZL", name: "ZL", type: "Z-LEADER", energyCost: null, zEnergyCost: 1, power: 25000, skill: "[Z-Awaken] {1} : <Son Goku>" };
+  const board = (z: string, awakened: boolean, zEnergy: boolean) => {
+    const b = arenaG({ energy: ["V1"], z: [z] });
+    b.cards[leaderOf(b, "p1")!].cardId = "L-ZAW";
+    b.cards[leaderOf(b, "p1")!].flipped = awakened;
+    if (zEnergy) stageMoveG(b, zoneOf(b, "p1", "deck")[0], "zEnergy", "p1");
+    return b;
+  };
+  const refused = (b: ReturnType<typeof arenaG>, z: string, why: string) => {
+    const id = findG(b, "p1", "zDeck", z);
+    assert.ok(!canActivateG(b, id), why);
+    assert.throws(() => playG(b, { type: "activate", player: "p1", card: id, skill: 0 }), why);
+  };
+  refused(board("ZL", false, true), "ZL", "22-46-3: the Leader is not awakened yet");
+  refused(board("ZL", true, false), "ZL", "5-4: no Z-Energy to pay with");
+  let s = board("ZL", true, true);
+  const leader = leaderOf(s, "p1")!;
+  const zl = findG(s, "p1", "zDeck", "ZL");
+  const spent = zoneOf(s, "p1", "zEnergy")[0];
+  if (ENGINE === "rules") assert.ok(canActivateG(s, zl), "awakened, matching, with the Z-Energy and the orb");
+  s = playG(s, { type: "activate", player: "p1", card: zl, skill: 0 });
+  assert.equal(leaderOf(s, "p1"), zl, "22-46-6: the Z-Leader is the Leader");
+  assert.deepEqual(s.cards[zl].under, [leader], "with the old Leader under it");
+  assert.ok(zoneOf(s, "p1", "drop").includes(spent), "5-4-3: the Z-Energy is spent");
+  assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "and the orb paid");
+  assertConsistentG(s);
+
+  // The description has to match the Leader.
+  DEFS.ZL2 = { ...DEFS.ZL, id: "ZL2", name: "ZL2", skill: "[Z-Awaken] {1} : <Vegeta>" };
+  refused(board("ZL2", true, true), "ZL2", "a <Vegeta> Z-Leader does not go on a <Son Goku>");
+  delete DEFS["L-ZAW"];
+  delete DEFS.ZL;
+  delete DEFS.ZL2;
 }
 
 // ── a keyword's own `DO` (`DEFINE KEYWORD … offer:` / `at:`) ────────────────
@@ -1170,20 +1206,22 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   assert.ok(!playable(arenaG({ battle: ["WU7"], hand: ["U7TWO"], energy: ["V-BLUE"] }), "U7TWO"), "and the total is what it was: two energy, not one");
 }
 
-if (!keywordGap("Invoker", S7.invoker)) {
+{
   // [Invoker] (22-37): a Red/Blue multicolour Extra can be paid for by resting
-  // one active Red/Blue multicolour energy instead of its energy cost.
+  // one active Red/Blue multicolour energy instead of its energy cost. Both
+  // engines since #155 (`keywords.rules`' `altPayment` body); the row's exact
+  // words are the legacy engine's own and checked there only — the rules
+  // engine's menu names the card it rests (Stage 8 owns the words).
   DEFS.INVK = { ...DEFS.V1, id: "INVK", name: "INVK", colors: ["Red", "Blue"], skill: "[Invoker]" };
   DEFS["E-RB"] = { ...DEFS["E-DRAW"], id: "E-RB", name: "E-RB", colors: ["Red", "Blue"], energyCost: 2 };
   DEFS.RB = { ...DEFS.V1, id: "RB", name: "RB", colors: ["Red", "Blue"] };
+  const altOffered = (s: ReturnType<typeof arenaG>, id: string) => actsG(s).some((a) => a.type === "activate" && a.card === id && a.alt === true);
   let s = arenaG({ hand: ["E-RB"], battle: ["INVK"], energy: ["RB"] });
   const e = findG(s, "p1", "hand", "E-RB");
   const l = labelsG(s);
   assert.ok(!l.includes("Activate E-RB (2)"), "one energy cannot pay 2");
-  assert.ok(
-    l.some((x) => x.startsWith("Activate E-RB by resting a Red/Blue energy")),
-    "22-37: [Invoker] in play and a Red/Blue energy active",
-  );
+  assert.ok(altOffered(s, e), "22-37: [Invoker] in play and a Red/Blue energy active");
+  if (ENGINE === "legacy") assert.ok(l.some((x) => x.startsWith("Activate E-RB by resting a Red/Blue energy")), "in the legacy engine's own words");
   const hand = zoneOf(s, "p1", "hand").length;
   s = playG(s, { type: "activate", player: "p1", card: e, skill: 0, alt: true });
   assert.equal(s.cards[zoneOf(s, "p1", "energy")[0]].mode, "rest", "the Red/Blue energy was rested");
@@ -1191,9 +1229,12 @@ if (!keywordGap("Invoker", S7.invoker)) {
   assert.ok(zoneOf(s, "p1", "drop").includes(e));
   assertConsistentG(s);
 
-  assert.ok(!labelsG(arenaG({ hand: ["E-RB"], energy: ["RB"] })).some((x) => x.includes("Invoker")), "no [Invoker] in play, no offer");
-  assert.ok(!labelsG(arenaG({ hand: ["E-RB"], battle: ["INVK"], energy: ["V1"] })).some((x) => x.includes("Invoker")), "a mono-red energy will not do");
-  assert.ok(!labelsG(arenaG({ hand: ["E-DRAW"], battle: ["INVK"], energy: ["RB"] })).some((x) => x.includes("Invoker")), "nor a mono-red Extra");
+  const without = arenaG({ hand: ["E-RB"], energy: ["RB"] });
+  assert.ok(!altOffered(without, findG(without, "p1", "hand", "E-RB")), "no [Invoker] in play, no offer");
+  const mono = arenaG({ hand: ["E-RB"], battle: ["INVK"], energy: ["V1"] });
+  assert.ok(!altOffered(mono, findG(mono, "p1", "hand", "E-RB")), "a mono-red energy will not do");
+  const monoExtra = arenaG({ hand: ["E-DRAW"], battle: ["INVK"], energy: ["RB"] });
+  assert.ok(!altOffered(monoExtra, findG(monoExtra, "p1", "hand", "E-DRAW")), "nor a mono-red Extra");
 }
 
 {

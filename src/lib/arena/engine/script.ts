@@ -322,7 +322,15 @@ export type Cond =
    * `DEFINE KEYWORD` body's word, on no card (#156); only the rules engine
    * counts attacks.
    */
-  | { kind: "attacked"; sel: Selector; atLeast: Amount };
+  | { kind: "attacked"; sel: Selector; atLeast: Amount }
+  /**
+   * Has a card among `sel` used a marker skill this turn (13-4-2)? The
+   * one-a-turn lock a skill with a marker price spends. [Rejuvenate]'s
+   * second gate, `NOT markerSkillUsed(sel: [self])` — and a keyword move
+   * refused by it on its own card is a marker skill, so using it spends the
+   * lock (22-42-2). A `DEFINE KEYWORD` body's word, on no card (#155).
+   */
+  | { kind: "markerSkillUsed"; sel: Selector };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous
@@ -695,6 +703,12 @@ export type Op =
       ops?: Op[];
       /** The reduced energy price, one entry per orb, for `pay: "energy"` — "by paying {1}" is `["any"]` (BT18-088). */
       orbs?: (Color | "any")[];
+      /**
+       * With `pay: "energy"`: the only cards that may pay it, one per orb,
+       * rested where they stand — [Invoker]'s active Red/Blue multicolour
+       * energy (22-37). A `DEFINE KEYWORD` body's word, on no card (#155).
+       */
+      rest?: Selector;
       /** Omit for "this card"; a filter offers the alternative to other cards it names. */
       target?: Ref;
       /** Omit only for the permanent, self-only form printed as [Permanent]. */

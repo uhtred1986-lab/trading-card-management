@@ -117,7 +117,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Offered when the Leader matches the description (read by card description or by character), the Z-Energy is there and the turn's one Z-Awaken is unspent. Only in the Main Phase, though 22-46-1 also allows it during a battle.",
     engineRules:
-      "Not built yet (#155 looked and left it unwritten): the move stacks a Z-Leader from the Z-Deck onto the Leader, carrying the old Leader's power effects and its place in a battle in progress, pays a Z-Energy price beside the line's orbs, and is once a turn per player — a stack onto the Leader Area (`vm/play.ts`'s `stackOnto` knows the Battle Area), a Z-Energy price on a keyword move and a player-level counter, none of which the language or `vm/` has yet. Never offered on the rules engine.",
+      "Built as its keyword's own move (`offer: \"activate:main\"` in `keywords.rules`, #155), offered from the Z-Deck at the Main Phase — `DEFINE ACTION activate` reads the Z-Deck for a keyword's own move and nothing else — while the Leader is awakened and no Z-card yet and matches the line's description. It pays the line's orbs and then the card's Z-Energy cost (the activation's `zEnergy` price, bound only for a line used from the Z-Deck), and plays the card onto the Leader (`play … onto`): the Z-Leader takes the Leader Area, the old Leader and its pile go under it, power effects and a battle role carry over, and “when your Leader is placed” hears it — the same events as the legacy engine. Three differences: the rules engine lists the move on the menu, where the legacy menu never lists a Z-Deck line though its `apply` takes one (a legacy bug, not copied); 22-46-4's once a turn is not counted, because a resolved [Z-Awaken] leaves a Z-Leader that the description gate already refuses, so a second one that turn is refused for that reason instead of “once per turn”; and the description is matched as a card filter only, without the legacy fallback to the Leader's printed characters.",
     support: "partial",
   },
   "Z-Stack": {
@@ -297,7 +297,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "A Unison Card with cards beneath it: drop one of them and pay the skill cost, then add the top card of your deck to your life.",
     engine: "Offered on a Unison in play with the markers to pay and any printed life condition met. The card that goes is the top one beneath rather than your pick.",
     engineRules:
-      "Not built yet (#155 looked and left it unwritten): its price, “Remove N markers from this card”, is printed as the line's text, which the record reads as an effect rather than as the line's marker price — so the 13-4 gates the legacy engine applies (enough markers on the Unison, one marker skill a card a turn) have no number to read. The order of its effect is sayable (`DO` drops the card from beneath, the printed effect removes the markers, `AFTER` adds the life), the gate is not, and a move offered without it would be read wrongly rather than left unread. Needs the count as the line's marker price or as a keyword parameter. Not offered on the rules engine.",
+      "Built as its keyword's own move (`offer: \"activate:main\"` in `keywords.rules`, #155). 22-42-2 prints the skill cost after the tag, so the card parser carries its numbers as the keyword's parameters — the markers “Remove N markers from this card” takes and any “if your life is at N or less” ceiling — and the move is refused, in the legacy order, off the Unison Area, with nothing beneath, short of the markers, once the card has used a marker skill this turn (`markerSkillUsed`, a move refused by it on its own card spends the lock, 13-4-2) and above the life ceiling. The topmost card beneath goes to the Drop, the printed effect removes the markers, and the top card of the deck goes to life — the same menu words and events as the legacy engine, the legacy approximation kept (the top card beneath, not your pick). Two differences, both moments the legacy engine does not pend: the card from beneath arriving in the Drop is a `moved` moment, and the markers coming off are “when a marker is removed from this card” (5-13). A refusal for want of markers does not say how many are on the card, which the legacy words do.",
     support: "partial",
   },
   Empower: {
@@ -488,7 +488,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Offered as a separate second entry in the menu, so the ordinary price is still there. The skill's own orbs are still paid, and paid out of what is left after the energy [Invoker] is about to rest.",
     engineRules:
-      "Not built yet, and moved to the payment hooks (#155 looked and left it unwritten): it is an alternative price on an Extra's activation from the hand, which is hook group D's `altPayment` channel — `DEFINE ACTION activate` declares no `alt:`, `vm/costs.ts`' `altCostFor` reads no `altPayment` body (the same gap as [Warrior of Universe 7]) and `payAltCost` has no `invoker` case (rest one active Red/Blue energy, then pay the skill's orbs out of the rest). No alternate offer reaches the menu on the rules engine.",
+      "Built as its keyword's own `altPayment` hook body (`keywords.rules`, #155), read as a standing change while the card is in play: your Red/Blue multicolour Extra Cards in the hand may be played for one energy that only an active Red/Blue multicolour card in your Energy Area may pay, rested where it stands (`altCost … rest:`). `DEFINE ACTION activate` says `alt: \"play\"` — using an Extra from the hand is playing it (4-2) — so the line gets a second menu entry beside the ordinary price, and the line's own orbs are still paid out of what is left. The same offers and events as the legacy engine; the row names the card it rests (“Activate X (by resting Y)”) where the legacy row says “by resting a Red/Blue energy ([Invoker])”. Not yet for a [Counter] from the hand: the counter window reads no alternative price on the rules engine (#150).",
     support: "engine",
   },
   Wormhole: {
@@ -498,7 +498,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "cost",
     meaning: "[Over Realm] and [Dark Over Realm] may be activated twice a turn between them instead of once.",
     engine: "Raises the count while any card you have in play carries it, and a refused second [Over Realm] says which limit it hit.",
-    engineRules: "Not built yet: it only raises [Over Realm]'s once-a-turn limit to two, and [Over Realm] itself is still unwritten on the rules engine (hook group D, a counted player attribute) — #155 left it with that keyword.",
+    engineRules:
+      "Read by [Over Realm]'s own move (#157): its once-a-turn refusal allows a second use while a card with [Wormhole] is in play, counted in the `overRealms` player fact, and a refused third says which limit it hit (“oncePerTurn: Over Realm”), as on the legacy engine. The keyword needs no body of its own.",
     support: "engine",
   },
   "Spirit Boost": {

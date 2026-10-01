@@ -127,7 +127,7 @@ export const HOOK_CONTRACT: Record<HookPoint, HookSpec> = {
     group: "D",
     answer: "query",
     vars: [],
-    doc: "A price is being planned and is asking what else may pay it, or what it no longer demands. Read as a standing change, exactly as a [Permanent]'s program is (`vm/effects.ts`'s `keywordStatics`, from `vm/program.ts`'s `statics`), off every card in play that carries the keyword — because the answer is about *other* cards' prices, it is a change the price's own declared layers read (`attributes.rules`), not a fact about `self`. [Warrior of Universe 7]'s specified-cost clearing (22-19, #154) is the worked example: `costReduction(what: specified, all: true)` over your ≪Universe 7≫ cards in the hand and the Z-Deck. [Invoker]'s stand-in payer (22-37) is the other keyword filed here, and is not written yet.",
+    doc: "A price is being planned and is asking what else may pay it, or what it no longer demands. Read as a standing change, exactly as a [Permanent]'s program is (`vm/effects.ts`'s `keywordStatics`, from `vm/program.ts`'s `statics`), off every card in play that carries the keyword — because the answer is about *other* cards' prices, it is a change the price's own declared layers read (`attributes.rules`), not a fact about `self`. [Warrior of Universe 7]'s specified-cost clearing (22-19, #154) is the worked example: `costReduction(what: specified, all: true)` over your ≪Universe 7≫ cards in the hand and the Z-Deck. [Invoker]'s stand-in payer (22-37, #155) is the other: `altCost(pay: energy, orbs: [any], for: play, rest: …)` over your Red/Blue multicolour Extras in the hand, a one-energy price only an active Red/Blue multicolour energy may pay, rested where it stands.",
   },
   markerCarry: {
     group: "D",

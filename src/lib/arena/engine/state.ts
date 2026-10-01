@@ -947,6 +947,10 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     // `playerAttr`'s "charged" sets above.
     case "attacked":
       return false;
+    // #155: 13-4-2's lock, which this engine keeps on the card as well — the
+    // flag its own marker-skill gates read.
+    case "markerSkillUsed":
+      return resolveSelector(ctx, s, frame, c.sel).some((id) => !!s.cards[id]?.usedMarkerSkill);
   }
 }
 

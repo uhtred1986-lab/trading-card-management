@@ -36,13 +36,13 @@
  * nothing read at request time.
  */
 import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
-import type { AltCost } from "../engine/state";
+import type { VmAltCost } from "./effects";
 import { other, type Action, type PlayerId, type Prompt, type Requirement } from "../engine/types";
 import type { Cond, Selector } from "../engine/script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, keywordActivationMoments, resolveActivation, type ActivationLine } from "./activate";
-import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, xValues, type BoundAmounts, type Price } from "./costs";
+import { activationAlt, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, keywordActivationMoments, resolveActivation, type ActivationLine } from "./activate";
+import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { answered } from "./flow";
@@ -88,7 +88,7 @@ export interface Candidate {
    * "Play X (for no energy)" row beside "Play X (2)". Its `price` is then
    * nothing: the alternative is the whole of what is paid.
    */
-  alt?: AltCost;
+  alt?: VmAltCost;
   why: Requirement[];
   /**
    * What the move costs this candidate, read once (#148). The menu wears it and
@@ -141,7 +141,7 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
   // a move declared `skills:` is about a **line** of each of those cards rather
   // than about the card, so a card with three of them is asked about three
   // times and answered three times (#147).
-  if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card, game).map((line) => activation(ctx, game, state, def, player, line))));
+  if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card, game).flatMap((line) => activation(ctx, game, state, def, player, line))));
   return (
     cards
       .flatMap((card): Candidate[] => {
@@ -199,12 +199,13 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
  * the card being paid for, and no attribute of a card says what one of its nine
  * skill lines charges.
  */
-function activation(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, line: ActivationLine): Candidate {
+function activation(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, line: ActivationLine): Candidate[] {
   // A keyword's own move (Stage 7) brings its own `REFUSE` lines, which the
   // gates read in the place the legacy twin asks its keyword's `case`.
   const keywordRefusals = () => keywordRefusalsOf(ctx, game, state, player, line);
   const gates = activationRefusals(ctx, game, state, def, player, line, keywordRefusals);
   const why = [...refusedBy(ctx, game, state, def, player, line.card), ...gates.before];
+  const open = !why.length && !gates.after.length;
   const bound: BoundAmounts = boundFor(ctx, game, state, player, line);
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
   if (!why.length && def.cost?.length) {
@@ -212,7 +213,27 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     if (!plan.ok) why.push(...plan.why);
   }
   why.push(...gates.after);
-  return { card: line.card, skill: line.skillIndex, why, price };
+  const out: Candidate[] = [{ card: line.card, skill: line.skillIndex, why, price }];
+  // 5-3 / 22-37: an Extra's line from the hand may also be bought at the
+  // card's alternative price — a second candidate for the same line, as the
+  // legacy menu's "Activate X by resting a Red/Blue energy ([Invoker])" row
+  // sits beside "Activate X (2)". Asked only of a line every other gate lets
+  // through, and offered only when the line's own orbs can be paid out of
+  // what the alternative leaves (#155).
+  const alt = open ? activationAlt(ctx, game, state, def, player, line) : null;
+  if (alt) {
+    const altPrice = def.cost?.length ? priceFor(ctx, game, state, def, line.card, alt.bound) : freePrice();
+    if (!def.cost?.length || planCost(ctx, game, restedAlready(state, alt.resting), player, altPrice, line.card).ok) out.push({ card: line.card, skill: line.skillIndex, alt: alt.alt, why: [], price: altPrice });
+  }
+  return out;
+}
+
+/** The board as it will be once these cards are rested — what a price paid after an alternative that rests them has left to pay with (22-37). Nothing is changed: the copy shares every card but these. */
+function restedAlready(state: VmState, ids: string[]): VmState {
+  if (!ids.length) return state;
+  const cards = { ...state.cards };
+  for (const id of ids) if (cards[id]) cards[id] = { ...cards[id], mode: "rest" };
+  return { ...state, cards };
 }
 
 /** The line a candidate is, re-read from the board — the one place a `skill` index becomes the record it stands for. */
@@ -472,7 +493,7 @@ function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, c: Ca
   // does not say which of its nine the player reached for (#147).
   if (shape === "cardSkill") {
     if (c.skill === undefined) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} is about a skill line and this candidate names none`);
-    return { type: def.name, player, card, skill: c.skill } as unknown as Action;
+    return { type: def.name, player, card, skill: c.skill, ...(c.alt ? { alt: true } : {}) } as unknown as Action;
   }
   // 1-2-2-2: an X-cost card carries the value it was offered at (issue #270);
   // a fixed-cost card played by the same declaration carries none, exactly as
@@ -546,6 +567,10 @@ function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def:
   // the legacy engine's own label gives a Battle Card.
   if (c.x !== undefined) return `${label} ${name} with X = ${c.x}`;
   // 5-3: the row says which price it is — the legacy engine's own words.
+  // A `rest` price names the cards it rests (22-37's [Invoker], #155), where
+  // the legacy row says "by resting a Red/Blue energy ([Invoker])".
+  const resting = c.alt ? restingFor(c.alt) : [];
+  if (c.alt && resting.length) return `${label} ${name} (by resting ${resting.map((id) => ctx.defs[state.cards[id]?.cardId ?? ""]?.name ?? id).join(" and ")})`;
   if (c.alt) return `${label} ${name} (${c.alt.pay === "none" ? "for no energy" : `by adding ${c.alt.n} from your life to your hand`})`;
   if (c.skill === undefined) return `${label} ${name}`;
   const line = lineOf(ctx, game, state, def, card, c.skill);
@@ -640,6 +665,14 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // exactly as it would have (the legacy `payAltCost`).
     if (early) announce(state, ev, player, early);
     payAltCost(ctx, game, state, ev, player, chosen.alt);
+    // 22-37: a line bought at its card's alternative still pays its own orbs,
+    // out of what the alternative left — the legacy `payOrbs()` after
+    // `payAltCost`, planned without a question as it is there (#155).
+    if (line && def.cost?.length) {
+      const plan = planCost(ctx, game, state, player, chosen.price, card);
+      if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);
+      chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
+    }
   } else if (def.cost?.length && !declining(def, card)) {
     const explicit = (action as { pay?: string[] }).pay;
     const plan = planCost(ctx, game, state, player, chosen.price, card, explicit);
