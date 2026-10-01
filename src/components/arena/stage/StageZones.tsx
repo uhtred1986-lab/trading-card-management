@@ -271,7 +271,7 @@ export function SideRail({
             it left keeps its shape so the rail does not collapse under it. */}
         {side.leader &&
           (lifted?.has(side.leader.id) ? (
-            <span className="arena-slot" style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }} aria-hidden />
+            <span className="arena-slot arena-slot-lifted" style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }} aria-hidden />
           ) : (
             /* The footprint is reserved and the scale happens inside it, so
                the rail does not reflow when the turn flips — the same rule

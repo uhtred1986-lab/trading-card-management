@@ -29,7 +29,7 @@ function snapshotFixtures(): string[] {
 /**
  * Dev-only: the board drawn from a `contract/fixtures/*.json` snapshot, with no
  * database and no server action behind it (issue #343). `?fixture=play`,
- * `?skin=anime|night`, `?staging=` and `?pace=step` behave as on a game page; `?turn=banner` opens with the turn banner up; `?admin=0` draws it as a player sees it (admin is the default, as with Basic Auth off), `?referee=1` marks your first Battle Card as one the referee rules on so the REF badge can be shot (#350); `?fx=reveal|damage|ko|clash-hit|clash-held|over` plays one effect (rd-07).
+ * `?skin=anime|night`, `?staging=` and `?pace=step` behave as on a game page; `?turn=banner` opens with the turn banner up; `?admin=0` draws it as a player sees it (admin is the default, as with Basic Auth off), `?referee=1` marks your first Battle Card as one the referee rules on so the REF badge can be shot (#350); `?fx=reveal|damage|ko|clash-hit|clash-held|over` plays one effect (rd-07); `?fx=defend` turns the `attack` fixture round, `?fx=victory` makes `over` a win and `?fx=finish` plays an attack that takes the last life and ends the game.
  * It exists so a review can see the real board in a session that keeps off
  * Neon; production answers 404.
  */

@@ -358,12 +358,6 @@ input[type="number"] {
     opacity 200ms ease-out;
 }
 
-/* The takeover: the same fight with the whole screen. */
-.arena-takeover {
-  background: radial-gradient(90% 60% at 50% 45%, color-mix(in srgb, var(--color-ki-500) 10%, transparent), transparent 70%), color-mix(in srgb, var(--color-space-950) 92%, transparent);
-  backdrop-filter: blur(10px);
-}
-
 /*
  * The card resolving right now. A separate channel from the ordinal badge on
  * purpose: when it was added and whether it is resolving are two different
@@ -400,77 +394,6 @@ input[type="number"] {
   }
   100% {
     transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/*
- * The verdict: who won the fight, at a size that cannot be missed.
- *
- * The entrance only — it slams in, overshoots, settles, and then simply sits
- * there. Nothing fades it out, because the beat's length is a preference (the
- * slow pace stretches it 2.4×) and an animation that timed its own exit would
- * disagree with the story. The board unmounts it when the next beat starts.
- */
-.arena-verdict {
-  background: radial-gradient(120% 160% at 50% 50%, color-mix(in srgb, var(--color-ki-500) 18%, transparent), transparent 72%), color-mix(in srgb, var(--color-space-900) 96%, transparent);
-  backdrop-filter: blur(8px);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--color-ki-500) 25%, transparent),
-    0 24px 70px color-mix(in srgb, var(--color-space-950) 75%, transparent);
-  animation: arena-verdict-in 520ms cubic-bezier(0.2, 1.1, 0.3, 1) both;
-}
-@keyframes arena-verdict-in {
-  0% {
-    opacity: 0;
-    transform: scale(1.7);
-    filter: blur(6px);
-  }
-  45% {
-    opacity: 1;
-    transform: scale(0.93);
-    filter: blur(0);
-  }
-  72% {
-    transform: scale(1.04);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-/* The name lands a beat after the panel, so it reads as the answer to it. */
-.arena-verdict-name {
-  animation: arena-verdict-name 620ms cubic-bezier(0.2, 1.1, 0.3, 1) both;
-  animation-delay: 90ms;
-}
-@keyframes arena-verdict-name {
-  0% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.8);
-    letter-spacing: 0.2em;
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(0) scale(1.06);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    letter-spacing: normal;
-  }
-}
-
-/* The wave between the two clusters in a takeover. */
-.arena-wave {
-  animation: arena-wave 1.6s ease-in-out infinite;
-}
-@keyframes arena-wave {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
     opacity: 1;
   }
 }
@@ -1378,28 +1301,54 @@ input[type="number"] {
     filter: grayscale(1) brightness(0.5);
   }
 }
-@keyframes arena-fx-crack {
+@keyframes arena-fx-ko-burn {
   0%,
-  10% {
+  35% {
+    opacity: 1;
+  }
+  100% {
     opacity: 0;
   }
-  30%,
-  100% {
+}
+@keyframes arena-fx-ko-glow {
+  0% {
+    transform: scale(0.3);
     opacity: 1;
+  }
+  35% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
   }
 }
 .arena-fx-ko {
   position: relative;
   animation: arena-fx-ko var(--fx-ko, 780ms) ease-in both;
 }
+/* The card burns white from the inside (fx-lab "burn white"), then cools as it falls. */
 .arena-fx-ko::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(112deg, transparent 44%, #fff 45% 47%, transparent 48%), linear-gradient(68deg, transparent 58%, #fff 59% 60.5%, transparent 61.5%);
-  animation: arena-fx-crack var(--fx-ko, 780ms) linear both;
+  background: radial-gradient(circle at 50% 45%, #fff 0 35%, color-mix(in srgb, #fff 70%, var(--color-ki-300)) 70%, color-mix(in srgb, var(--color-ki-400) 60%, transparent));
+  animation: arena-fx-ko-burn var(--fx-ko, 780ms) ease-out both;
+}
+/* And the glow around it: a sun behind the card, wider than the card it burns. */
+.arena-fx-ko-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(150px * var(--arena, 1));
+  aspect-ratio: 1;
+  margin: calc(-75px * var(--arena, 1)) 0 0 calc(-75px * var(--arena, 1));
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, #fff 0 18%, color-mix(in srgb, #fff 55%, var(--color-ki-300)) 30%, color-mix(in srgb, var(--color-ki-400) 70%, transparent) 46%, color-mix(in srgb, var(--color-ki-500) 35%, transparent) 60%, transparent 72%);
+  animation: arena-fx-ko-glow var(--fx-ko, 780ms) ease-out both;
 }
 
 /* The staged fight: cards in from opposite corners, VS slams, then the verdict. */
@@ -1546,6 +1495,403 @@ input[type="number"] {
 .arena-fx-title {
   display: block;
   animation: arena-fx-slam var(--fx-title, 640ms) cubic-bezier(0.2, 1.6, 0.35, 1) both;
+}
+
+/* ==========================================================================
+ * The clash (`docs/arena-redesign/` frames 07–08, prototype `.clash`): the
+ * fight takes over the battle field — never the hand or the prompt. Claude's
+ * card on top, yours below, a huge impact-face figure beside each, the combos
+ * under it, VS slammed between; then the verdict word over the top.
+ *
+ * The figures set the impact face themselves rather than leaning on
+ * `.arena-impact` alone, which only paints under the sky: a fight's numbers are
+ * the drama in both skins.
+ * ========================================================================== */
+@keyframes arena-clash-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes arena-clash-in-top {
+  from {
+    transform: translate(-120%, -40px) rotate(-8deg);
+    opacity: 0;
+  }
+}
+@keyframes arena-clash-in-bot {
+  from {
+    transform: translate(120%, 40px) rotate(8deg);
+    opacity: 0;
+  }
+}
+@keyframes arena-clash-pop {
+  0% {
+    transform: translateY(-20px) scale(2.2);
+    filter: brightness(3);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+.arena-clash {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  gap: 6px;
+  padding: 10px 8px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: radial-gradient(90% 70% at 50% 50%, #161e4e, #03050e);
+  animation: arena-clash-fade var(--fx-vs-delay, 180ms) ease-out both;
+}
+/* From lg the field is a grid with the players' rails in the left column; the
+   fight takes the board's column, the way frame 07 keeps the MATCH column. */
+@media (min-width: 1024px) {
+  .arena-clash,
+  .arena-verdict-slot {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+}
+/* Night draws the prototype's ring of rays and faint speed lines here too: the
+   quiet ring it uses over a band is too little for a fight that has the field. */
+.arena-clash .arena-fx-burst {
+  width: 280px;
+  border: 0;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--color-ki-300) 60%, transparent) 0 8deg, transparent 8deg 22deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 34%, #000 36%, #000 58%, transparent 70%);
+  mask-image: radial-gradient(circle, transparent 34%, #000 36%, #000 58%, transparent 70%);
+  animation: arena-fx-spin 6s linear infinite reverse;
+}
+.arena-clash .arena-fx-lines {
+  display: block;
+  position: absolute;
+  inset: -60%;
+  background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 255, 255, 0.1) 0 1.2deg, transparent 1.2deg 9deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 16%, #000 50%);
+  mask-image: radial-gradient(circle, transparent 16%, #000 50%);
+  animation: arena-fx-spin 10s linear infinite;
+}
+.arena-clash-side {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 100%;
+}
+.arena-clash-top {
+  --glow: var(--color-dbs-blue);
+  animation: arena-clash-in-top var(--fx-card-in, 460ms) cubic-bezier(0.2, 0.9, 0.2, 1.15) both;
+}
+.arena-clash-bot {
+  --glow: var(--color-ki-500);
+  animation: arena-clash-in-bot var(--fx-card-in, 460ms) cubic-bezier(0.2, 0.9, 0.2, 1.15) both;
+}
+.arena-clash-meta {
+  display: flex;
+  min-width: 0;
+  max-width: 13.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.arena-clash-role {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-space-300);
+}
+.arena-clash-pow,
+.arena-clash-vs,
+.arena-verdict-word,
+.arena-end-title {
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  line-height: 1;
+  paint-order: stroke fill;
+}
+.arena-clash-pow {
+  font-size: 38px;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  -webkit-text-stroke: 1.5px #000;
+  text-shadow: 0 0 20px var(--glow);
+}
+.arena-clash-combos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.arena-clash-combo {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 3px 7px;
+  border-radius: 6px;
+  text-align: left;
+  color: var(--color-space-100);
+  background: color-mix(in srgb, var(--color-dbs-blue) 22%, var(--color-space-900));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-dbs-blue) 70%, #fff);
+  animation: arena-clash-pop calc(var(--fx-vs, 520ms)) cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+/* Picked while you are still choosing: dashed, the way frame 07 draws it. */
+.arena-clash-combo-pending {
+  background: transparent;
+  box-shadow: none;
+  outline: 2px dashed var(--color-ki-300);
+  outline-offset: -2px;
+  color: var(--color-ki-300);
+}
+.arena-clash-counter {
+  margin-right: 4px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: var(--color-loss);
+}
+.arena-clash-vs {
+  position: relative;
+  z-index: 3;
+  font-size: 46px;
+  color: #fff;
+  -webkit-text-stroke: 2px #000;
+  text-shadow: 0 0 30px var(--color-ki-500);
+}
+.arena-clash-note {
+  position: relative;
+  z-index: 3;
+  min-height: 1.2em;
+  max-width: 100%;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-space-300);
+}
+.arena-clash-boom {
+  transform: scale(2.1);
+}
+/* The place a card left for the fight keeps its shape but is not a dashed box:
+   nothing is missing there, the card is in the fight. */
+.arena .arena-slot.arena-slot-lifted {
+  border-color: transparent;
+  background: none;
+}
+@media (min-width: 1024px) {
+  .arena-clash .arena-fx-burst {
+    width: 440px;
+  }
+  .arena-clash-pow {
+    font-size: 60px;
+  }
+  .arena-clash-vs {
+    font-size: 80px;
+  }
+  .arena-clash-meta {
+    max-width: 22rem;
+  }
+  .arena-clash-boom {
+    transform: scale(2.8);
+  }
+}
+
+/* The verdict: one word slammed over the fight, unboxed, a starburst behind it. */
+@keyframes arena-verdict-burst {
+  0% {
+    transform: scale(0.2) rotate(0deg);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(25deg);
+    opacity: 1;
+  }
+}
+.arena-verdict-slot {
+  position: absolute;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  overflow: hidden;
+  pointer-events: none;
+  /* The word is sized to the field it slams over, never wider. */
+  container-type: inline-size;
+}
+.arena-verdict-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 340px;
+  aspect-ratio: 1;
+  margin: -170px 0 0 -170px;
+  border-radius: 50%;
+  --burst: var(--color-ki-300);
+  background:
+    radial-gradient(circle, color-mix(in srgb, #fff 90%, transparent) 0 6%, color-mix(in srgb, var(--burst) 70%, transparent) 20%, transparent 46%),
+    repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--burst) 60%, transparent) 0 8deg, transparent 8deg 22deg);
+  -webkit-mask-image: radial-gradient(circle, #000 28%, transparent 68%);
+  mask-image: radial-gradient(circle, #000 28%, transparent 68%);
+  animation: arena-verdict-burst var(--fx-word, 640ms) cubic-bezier(0.2, 1.2, 0.35, 1) var(--fx-beam, 360ms) both;
+}
+.arena-verdict-calm .arena-verdict-burst {
+  --burst: color-mix(in srgb, var(--color-dbs-blue) 70%, #fff);
+}
+.arena-verdict-bad .arena-verdict-burst {
+  --burst: var(--color-loss);
+}
+.arena-verdict-word {
+  position: relative;
+  max-width: 100%;
+  white-space: nowrap;
+  text-align: center;
+  letter-spacing: 0.01em;
+  font-size: min(46px, 11cqw);
+  -webkit-text-stroke: 2px #000;
+}
+.arena-verdict-good .arena-verdict-word {
+  color: var(--color-ki-300);
+  text-shadow: 0 0 34px var(--color-ki-500);
+}
+.arena-verdict-bad .arena-verdict-word {
+  color: #ff9aa4;
+  text-shadow: 0 0 34px var(--color-loss);
+}
+.arena-verdict-calm .arena-verdict-word {
+  color: #bdefff;
+  text-shadow: 0 0 34px var(--color-dbs-blue);
+}
+.arena-verdict-line {
+  position: relative;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-space-200);
+}
+@media (min-width: 1024px) {
+  .arena-verdict-word {
+    font-size: min(84px, 11cqw);
+  }
+  .arena-verdict-burst {
+    width: 560px;
+    margin: -280px 0 0 -280px;
+  }
+}
+
+/* The end of the game (frame 10): VICTORY or DEFEAT over slow rays, and Rematch. */
+.arena-end {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px;
+  overflow: hidden;
+  background: color-mix(in srgb, #03050e 82%, transparent);
+  animation: arena-clash-fade 400ms ease-out both;
+}
+.arena-end-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: 900px;
+  height: 900px;
+  margin: -450px 0 0 -450px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 210, 74, 0.2) 0 10deg, transparent 10deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 62%);
+  mask-image: radial-gradient(circle, #000 18%, transparent 62%);
+  animation: arena-fx-spin 24s linear infinite;
+}
+.arena-end-lose .arena-end-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(63, 198, 255, 0.16) 0 10deg, transparent 10deg 20deg);
+}
+.arena-end-title {
+  position: relative;
+  margin: 0;
+  font-size: 66px;
+  color: #fff;
+  -webkit-text-stroke: 2.5px #000;
+  animation: arena-fx-slam var(--fx-title, 640ms) cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+.arena-end-win .arena-end-title {
+  color: var(--color-ki-300);
+  text-shadow: 0 0 40px var(--color-ki-500);
+}
+.arena-end-lose .arena-end-title {
+  color: #c6f1ff;
+  text-shadow: 0 0 40px var(--color-dbs-blue);
+}
+.arena-end-sub {
+  position: relative;
+  margin: 0;
+  max-width: 28rem;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-space-300);
+}
+.arena-end-rematch {
+  position: relative;
+  min-width: 9rem;
+  padding: 12px 26px;
+  border-radius: 14px;
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--color-space-950);
+  background: var(--color-ki-500);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--color-ki-500) 50%, transparent);
+}
+.arena-end-rematch:disabled {
+  opacity: 0.6;
+}
+.arena-end-look {
+  position: relative;
+  font-size: 13px;
+  color: var(--color-space-300);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.arena-end-error {
+  position: relative;
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-loss);
+}
+@media (min-width: 1024px) {
+  .arena-end-title {
+    font-size: 120px;
+  }
+  .arena-end-rays {
+    width: 1500px;
+    height: 1500px;
+    margin: -750px 0 0 -750px;
+  }
 }
 
 /* ==========================================================================
@@ -2038,6 +2384,91 @@ html[data-skin="anime"] body::before {
   background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--color-ki-300) 55%, transparent) 0 10deg, transparent 10deg 20deg);
 }
 
+/* The fight, the verdict and the end, under the sky: a manga panel (prototype `.arena.sky`). */
+[data-skin="anime"] .arena-clash {
+  background: radial-gradient(60% 50% at 50% 50%, #fffbe6 0%, #ffe58a 30%, #8fd3fb 72%, #4fb4ee 100%);
+}
+[data-skin="anime"] .arena-clash .arena-fx-burst {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.95) 0 8deg, transparent 8deg 22deg);
+}
+[data-skin="anime"] .arena-clash .arena-fx-lines {
+  background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(18, 22, 31, 0.2) 0 1deg, transparent 1deg 7deg);
+}
+[data-skin="anime"] .arena-clash-role,
+[data-skin="anime"] .arena-clash-note {
+  color: var(--ink);
+}
+[data-skin="anime"] .arena-clash-pow {
+  color: #fff;
+  -webkit-text-stroke: 3px var(--ink);
+  text-shadow: 3px 4px 0 var(--ink);
+}
+[data-skin="anime"] .arena-clash-vs {
+  color: #fff;
+  -webkit-text-stroke: 3px var(--ink);
+  text-shadow: 4px 5px 0 var(--ink);
+}
+[data-skin="anime"] .arena-clash-combo {
+  background: #fff;
+  color: var(--ink);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    2px 3px 0 var(--ink);
+}
+[data-skin="anime"] .arena-clash-combo-pending {
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: none;
+  outline: 2px dashed var(--ink);
+  color: var(--ink);
+}
+[data-skin="anime"] .arena-verdict-burst {
+  --burst: #fff;
+}
+[data-skin="anime"] .arena-verdict-word {
+  -webkit-text-stroke: 3px var(--ink);
+  text-shadow: 4px 5px 0 var(--ink);
+}
+[data-skin="anime"] .arena-verdict-good .arena-verdict-word {
+  color: var(--ki-gold);
+}
+[data-skin="anime"] .arena-verdict-bad .arena-verdict-word {
+  color: #ff6b77;
+}
+[data-skin="anime"] .arena-verdict-calm .arena-verdict-word {
+  color: #fff;
+}
+[data-skin="anime"] .arena-verdict-line,
+[data-skin="anime"] .arena-end-sub {
+  color: var(--ink);
+}
+[data-skin="anime"] .arena-end {
+  background: rgba(234, 247, 255, 0.9);
+}
+[data-skin="anime"] .arena-end-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 192, 46, 0.45) 0 10deg, transparent 10deg 20deg);
+}
+[data-skin="anime"] .arena-end-lose .arena-end-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(124, 92, 255, 0.3) 0 10deg, transparent 10deg 20deg);
+}
+[data-skin="anime"] .arena-end-title {
+  color: #fff;
+  -webkit-text-stroke: 3px var(--ink);
+  text-shadow: 5px 6px 0 var(--ink);
+}
+[data-skin="anime"] .arena-end-win .arena-end-title {
+  color: var(--ki-gold);
+}
+[data-skin="anime"] .arena-end-rematch {
+  color: var(--ink);
+  background: linear-gradient(#ffd54a, #ffb12e);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    3px 4px 0 var(--ink);
+}
+[data-skin="anime"] .arena-end-look {
+  color: var(--ink);
+}
+
 /* Reduced motion zeroes every animation, the skin's included — kept after the skin so it wins. */
 @media (prefers-reduced-motion: reduce) {
   .arena-fx-reveal,
@@ -2052,6 +2483,17 @@ html[data-skin="anime"] body::before {
   .arena-lifefloat,
   .arena-fx-ko,
   .arena-fx-ko::after,
+  .arena-fx-ko-glow,
+  .arena-clash,
+  .arena-clash .arena-fx-burst,
+  .arena-clash .arena-fx-lines,
+  .arena-clash-top,
+  .arena-clash-bot,
+  .arena-clash-combo,
+  .arena-verdict-burst,
+  .arena-end,
+  .arena-end-rays,
+  .arena-end-title,
   .arena-fx-in-l,
   .arena-fx-in-r,
   .arena-fx-vs,
@@ -2070,7 +2512,9 @@ html[data-skin="anime"] body::before {
   .arena-pip-shatter,
   .arena-lifefloat,
   .arena-fx-beam,
-  .arena-fx-shield {
+  .arena-fx-shield,
+  .arena-fx-ko-glow,
+  .arena-fx-ko::after {
     display: none;
   }
   .arena-banner,
@@ -2092,9 +2536,6 @@ html[data-skin="anime"] body::before {
   .arena-speedlines,
   .arena-resolving,
   .arena-trigger-lit,
-  .arena-wave,
-  .arena-verdict,
-  .arena-verdict-name,
   [data-skin="anime"] .arena-ring-legal,
   [data-skin="anime"] .arena-clash::before {
     animation-duration: 0.01ms;
