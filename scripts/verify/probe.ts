@@ -395,7 +395,7 @@ if (ENGINE !== "legacy") {
     },
     {
       id: "unreadable-price",
-      says: "An [Activate] with a price the rules engine's activation cannot read yet (a cost program, an X) is refused as 'cannot read this text yet'; legacy offers it, or names what it could not pay. [Burst X] (#148) and [Spirit Boost X] (#157) are declared prices and no longer among them.",
+      says: "An [Activate] with a price the rules engine's activation cannot read yet (a cost program; an X price is read since #439) is refused as 'cannot read this text yet'; legacy offers it, or names what it could not pay. [Burst X] (#148) and [Spirit Boost X] (#157) are declared prices and no longer among them.",
       holds: (_f, _old, rules) => /cannot read .* text yet/.test(rules.result.join("|")),
     },
     {

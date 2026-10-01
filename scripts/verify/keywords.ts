@@ -522,13 +522,7 @@ if (
   delete DEFS.THEIRRESTER;
 }
 
-if (
-  !notYetGap(
-    "COMBOWATCH: \"when you use a card in a combo\" (5-7)",
-    "checked directly rather than trusted: the watcher's [Auto] does not pend on the rules engine when a card is combo'd — the trigger moment this wording compiles to is not yet one `dbs/triggers.rules` matches the way the `combo` native move's own `moved()` beat does",
-    "no issue filed yet",
-  )
-) {
+{
   // 5-7: "when you use a card in a combo" is the board's moment, watched by
   // your own cards in play — not the combo card's own skill, which is
   // `comboed` and fires when it leaves the Combo Area (8-5-8).
@@ -671,15 +665,13 @@ if (
     "2 blue is not met by 1 blue, whatever the player picks for X",
   );
   // `rejections.ts` words a card in hand as one "play" refusal whatever its
-  // type, so that is where a Unison's answer arrives.
-  if (
-    !notYetGap(
-      "GOTEN: a Unison priced entirely out of reach carries a \"play\" rejection",
-      "checked directly rather than trusted: `rejectedActionsG` finds no rejection at all for the card here, where the legacy engine's own `rejections.ts` words a Unison's shortfall as a \"play\" refusal — a real gap in the rules engine's rejection reasoning for `playUnison`, not this issue's to fix",
-      "no issue filed yet",
-    )
-  ) {
-    const refused = rejectedActionsG(s).find((r) => r.action.type === "play" && r.action.card === cold);
+  // type, so that is where a Unison's answer arrives on the legacy engine;
+  // the rules engine files it under the move it declares for a Unison,
+  // `playUnison` (`actions.rules`), with the same reason (#439: the skip
+  // this replaced looked for "play" only, and so found nothing there).
+  {
+    const unisonMove = ENGINE === "legacy" ? "play" : "playUnison";
+    const refused = rejectedActionsG(s).find((r) => r.action.type === unisonMove && r.action.card === cold);
     assert.ok(refused, "and the move is refused rather than silently absent");
     const colour = refused.why.find((r) => r.kind === "energyColour");
     assert.ok(colour, `the reason is the colour it is short of, not the total (got ${JSON.stringify(refused.why)})`);
@@ -707,13 +699,9 @@ if (
   // "free" on the action sheet while three energy was charged. Driven through
   // `legalActions` rather than `priceOf` alone, because the defect was in what
   // the engine handed over, not in how the sentence was assembled.
-  if (
-    !notYetGap(
-      "XDRAW: an X *skill* price (20-5)",
-      "`actions.rules`'s own header names this gap: an X price on a skill line is refused `unread` for the same reason a play's X cost is, so no X = 3 offer reaches the menu",
-      "no issue filed yet",
-    )
-  ) {
+  // Both engines since #439: `activate` is declared `x: true`, and an X line
+  // is one candidate per payable X on the rules engine too.
+  {
     let xs = arenaG({ hand: ["XDRAW"], energy: ["V1", "V1", "V1", "V1"] });
     xs = playG(xs, { type: "play", player: "p1", card: findG(xs, "p1", "hand", "XDRAW") });
     while (xs.prompt.kind !== "main") xs = playG(xs, IMPL.legalActions(CTX, xs)[0].action);
@@ -728,6 +716,15 @@ if (
     // "always name a number".
     const none = paid.find((a) => (a.action as { x?: number }).x === 0)!;
     assert.equal(priceOf(none.action, xView, none.label, none.cost), "free");
+    // And the X paid is the X the effect reads: two energy rested, two drawn.
+    const two = paid.find((a) => (a.action as { x?: number }).x === 2)!;
+    const hand = zoneOf(xs, "p1", "hand").length;
+    const active = zoneOf(xs, "p1", "energy").filter((id) => xs.cards[id].mode === "active").length;
+    xs = playG(xs, two.action);
+    while (xs.prompt.kind !== "main") xs = playG(xs, IMPL.legalActions(CTX, xs)[0].action);
+    assert.equal(zoneOf(xs, "p1", "hand").length, hand + 2, "it drew X cards");
+    assert.equal(zoneOf(xs, "p1", "energy").filter((id) => xs.cards[id].mode === "active").length, active - 2, "…and paid X energy for them");
+    assertConsistentG(xs);
   }
 
   // 13-2-1-3: the markers are the **total** paid, not the coloured part — pay

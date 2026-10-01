@@ -737,10 +737,13 @@ export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmSt
   chargeCost(ctx, game, state, ev, action.player, plan.payment, action.card, ["energy"]);
   moved(ctx, game, state, ev, action.card, "combo", { owner: action.player, reveal: true });
   fire(ctx, game, state, { event: "comboUsed", card: action.card, controller: action.player, args: {} });
-  // The step is asked again — a player may combo more than one card — by
-  // clearing this frame's `asking` so the runner re-invokes the work above.
+  // The step is asked again — a player may combo more than one card — once
+  // the checkpoint has run: "when you combo" (5-7) has just pended, and the
+  // legacy flow resolves it before the next combo offer (#439). `reask` is
+  // the runner's own "ask this step again after the checkpoint", the one an
+  // [Activate: Battle] taken at the same prompt uses.
   const top = state.flow[state.flow.length - 1];
-  if (top) delete top.asking;
+  if (top) top.reask = true;
   return "done";
 }
 

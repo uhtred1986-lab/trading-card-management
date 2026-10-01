@@ -207,6 +207,28 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   const why = [...refusedBy(ctx, game, state, def, player, line.card), ...gates.before];
   const open = !why.length && !gates.after.length;
   const bound: BoundAmounts = boundFor(ctx, game, state, player, line);
+  // 20-5: a line priced "Pay X energy" is one candidate per value of X the
+  // player can settle, from the record's floor upward — the legacy
+  // `xValuesFor`. Affordability only falls as X grows, so the first value
+  // that cannot be paid ends the list. Only for a line every gate lets
+  // through: a refused line is refused at its floor, said once.
+  const xPrice = def.x ? line.script?.price?.x : undefined;
+  if (xPrice && open && def.cost?.length) {
+    const out: Candidate[] = [];
+    let short: Requirement[] = [];
+    for (let n = xPrice.min ?? 0; n <= (xPrice.max ?? Infinity); n++) {
+      const energy = bound.energy ?? { total: 0, orbs: {}, either: [] };
+      const withX: BoundAmounts = { ...bound, energy: { ...energy, total: (energy.total ?? 0) + n } };
+      const price = priceFor(ctx, game, state, def, line.card, withX);
+      const plan = planCost(ctx, game, state, player, price, line.card);
+      if (!plan.ok) {
+        short = plan.why;
+        break;
+      }
+      out.push({ card: line.card, skill: line.skillIndex, why: [], price, x: n });
+    }
+    return out.length ? out : [{ card: line.card, skill: line.skillIndex, why: short, price: priceFor(ctx, game, state, def, line.card, bound) }];
+  }
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
   if (!why.length && def.cost?.length) {
     const plan = planCost(ctx, game, state, player, price, line.card);
@@ -412,7 +434,9 @@ export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: 
   const out: LegalAction[] = [];
   for (const c of candidatesOf(ctx, game, state, def, player)) {
     if (c.why.length) continue;
-    const cost = actionCostOf(c.price);
+    // 20-5: an X line's row names the X it charges even at X = 0, which is
+    // a real offer and really is free — the legacy `activationCost`.
+    const cost = actionCostOf(c.price) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
     out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, game, state, def, c, true), ...(cost ? { cost } : {}) });
   }
   return out;
@@ -493,7 +517,7 @@ function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, c: Ca
   // does not say which of its nine the player reached for (#147).
   if (shape === "cardSkill") {
     if (c.skill === undefined) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} is about a skill line and this candidate names none`);
-    return { type: def.name, player, card, skill: c.skill, ...(c.alt ? { alt: true } : {}) } as unknown as Action;
+    return { type: def.name, player, card, skill: c.skill, ...(c.alt ? { alt: true } : {}), ...(c.x !== undefined ? { x: c.x } : {}) } as unknown as Action;
   }
   // 1-2-2-2: an X-cost card carries the value it was offered at (issue #270);
   // a fixed-cost card played by the same declaration carries none, exactly as
@@ -641,7 +665,9 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // 5-3: an alternative price is a second candidate for the same card, and
   // `alt: true` on the action is which one was meant.
   const alt = def.alt !== undefined && (action as { alt?: boolean }).alt === true;
-  const chosen = candidates.find((c) => c.card === card && c.skill === skill && !!c.alt === alt && (x === undefined || c.x === x || c.price.energy === x));
+  // A candidate that carries its own X is matched by that X alone: an X
+  // line's rows differ by X while their energy also counts the line's orbs.
+  const chosen = candidates.find((c) => c.card === card && c.skill === skill && !!c.alt === alt && (x === undefined || (c.x !== undefined ? c.x === x : c.price.energy === x)));
   if (!chosen) throw new IllegalAction(card === null ? `${def.label ?? def.name} is not offered now` : `${card} is not one of the cards ${def.label ?? def.name} is offered for`);
   // The candidate's own reasons rather than a second reading of them: an
   // activation's gates are read off the line and the price sits inside them, so
@@ -710,7 +736,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // A keyword's own move is a second moment as well — "when you activate an
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
     const keywordMoments = keywordActivationMoments(state, player, line);
-    resolveActivation(ctx, game, state, ev, player, line);
+    resolveActivation(ctx, game, state, ev, player, line, chosen.x);
     fire(ctx, game, state, moment);
     for (const m of keywordMoments) fire(ctx, game, state, m);
   } else {

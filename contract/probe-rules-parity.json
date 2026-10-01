@@ -2055,11 +2055,10 @@
       "digest": "84cae7d2"
     },
     "rules": {
-      "outcome": "notOffered",
-      "digest": "0dd73a0b"
+      "outcome": "fired",
+      "digest": "84cae7d2"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "XENERGY#0": {
     "legacy": {

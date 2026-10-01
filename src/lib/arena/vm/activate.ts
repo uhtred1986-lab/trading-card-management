@@ -320,8 +320,10 @@ function chargeablePrice(line: ActivationLine): boolean {
   if (costIsOnlyOrbs(line.skill.cost)) return true;
   const price = line.script?.price;
   if (!price) return false;
-  if (price.ops?.length || price.x) return false;
-  if (price.payWith?.length) return true;
+  if (price.ops?.length) return false;
+  // 20-5: an X price is chargeable once X is named, which the menu does —
+  // one candidate per payable value (`vm/actions.ts`'s `activation`, #439).
+  if (price.x || price.payWith?.length) return true;
   return price.condition !== null;
 }
 
@@ -477,7 +479,7 @@ const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim()
  * counter window around it is not opened: the legacy engine opens it with no
  * candidates at all, so there is nothing to answer it with.
  */
-export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine): void {
+export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number): void {
   const { card, skill: sk } = line;
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
@@ -499,7 +501,8 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // `AFTER` (#155) is the keyword's last word, after that printed effect:
   // [Wish]'s flip of the Leader (22-25-4).
   const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []);
-  if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index });
+  // 20-5: the X the price was paid at is what the effect reads as `X`.
+  if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, ...(x === undefined ? {} : { x }) });
 }
 
 /**
