@@ -313,7 +313,7 @@ offer — it is one candidate per legal value, floored at the coloured requireme
 already carries and ceilinged at what the player could pay, each checked affordable before it is
 offered (`vm/costs.ts`'s `xValues`). A card with a fixed price is unaffected — `x:` only changes what
 happens when the price really is X. Every `DO` that spends the chosen value already reads it as the
-bare word `X` (`playUnison`'s `addMarker(target: $card, n: X)`); `x: true` is what guarantees a value
+bare word `X` (`playUnison`'s `play(target: $card, markers: X)`); `x: true` is what guarantees a value
 is actually there to read when the program runs. `xMin:` raises the floor past the coloured
 requirement for a move where zero is not a real answer — `playUnison`'s `xMin: 1`, since 13-2-2 never
 lets a Unison arrive with no markers at all (3-11-3), which a Unison with no printed colours would
