@@ -674,6 +674,9 @@ class Parser {
   }
 
   private filterValue(kind: FilterFieldType): unknown {
+    // #155: a `DEFINE KEYWORD`/`DEFINE OP` body may leave a field to the call
+    // — `(colors = $colors)` — the slot `filterSlot` names.
+    if (this.holes && this.isPunct("$")) return this.hole();
     switch (kind) {
       case "strings":
       case "keywords":

@@ -16,13 +16,14 @@
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Four DO bodies, the whole-keyword activations that are no hook at all
--- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve] and [Union] are
--- moves (`offer:`), each offered as an [Activate: Main] line with its own
--- REFUSE and menu words, and [Offering] answers a moment (`at:`), pended like
--- an [Auto]. The others of that shape — [Arrival], [Wish], [Revive],
--- [Successor], [Rejuvenate], [Z-Awaken], [Z-Stack], [Over Realm], [Swap] … —
--- are the hook-group issues' to write the same way, one at a time.
+-- Eight DO bodies, the whole-keyword activations that are no hook at all
+-- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
+-- [Successor] and [Arrival] are moves (`offer:`), each offered as an
+-- [Activate: Main] — [Arrival] an [Activate: Battle] — line with its own
+-- REFUSE and menu words, and [Offering], [Z-Stack] and [Revive] answer a
+-- moment (`at:`), pended like an [Auto]. The others of that shape — [Wish],
+-- [Rejuvenate], [Z-Awaken], [Over Realm], [Swap] … — are still to write the
+-- same way, each one's trailing comment saying what it is missing.
 -- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
 
 -- 22-2
@@ -329,7 +330,18 @@ DEFINE KEYWORD Swap
 DEFINE KEYWORD Arrival
   TAKES (colors: colors)
   text: "During a battle, when the original colours of the Battle Cards in your Combo Area cover every colour named, pay the cost and play this card from hand."
-  -- Stage 7 (#153–#157)
+  -- #155: a move, offered as an [Activate: Battle] at the combo prompt
+  -- (22-29-4) from the hand, once the cards in your Combo Area carry every
+  -- colour it names between them (`covers`, 22-29-3). The price is the line's
+  -- printed orbs; the effect is the play itself (22-29-5), through the
+  -- [Counter: Play] window a declared play opens, as on the legacy engine.
+  offer: "activate:battle"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE condition(text: "{colors:and} Battle Cards in your Combo Area") UNLESS covers(sel: IN you.combo, colors: $colors)
+  label: "Arrival {colors}: play {card}"
+  DO {
+    play(target: [self], counterWindow: true)
+  }
 
 -- 22-30
 DEFINE KEYWORD Aegis
@@ -347,13 +359,53 @@ DEFINE KEYWORD Alliance
 DEFINE KEYWORD Revive
   TAKES (colors: colors)
   text: "When this Battle Card is KO'd, drop cards from hand whose original colours cover both named colours to play it back from your Drop Area. [Revive] is then negated on it for the turn."
-  -- Stage 7 (#153–#157)
+  -- #155: a moment (`at:`), pended as the card is KO'd, like the legacy
+  -- `keywordTriggers` case. Asked only while the card is still in the Drop
+  -- and the hand can cover both colours (`covers`); the owner picks up to two
+  -- cards of those colours (`colors = $colors`) or none (22-34-3). Cards that
+  -- cover both go to the Drop as the cost, and the card is played back
+  -- through the [Counter: Play] window (22-34-4). The legacy engine remembers
+  -- the revival for the rest of the turn; here [Revive] is negated on the
+  -- card for the turn, as 22-34-4 says, so a second KO that turn pends
+  -- nothing — where the legacy engine announces the skill and does nothing.
+  at: [koed]
+  DO {
+    if(cond: all([count([self] IN you.drop) >= 1, covers(sel: IN you.hand, colors: $colors)]), then: {
+      choose(sel: UP TO 2 (colors = $colors) IN you.hand, as: "cost", reason: "[Revive]: drop cards covering both colours to play this card back, or none")
+      if(cond: count(FROM $cost) >= 1, then: {
+        if(cond: all([covers(sel: FROM $cost, colors: $colors), count([self] IN you.drop) >= 1]), then: {
+          moveTo(target: $cost, to: drop, cause: cost)
+          negateOwnSkill(until: turn)
+          play(target: [self], counterWindow: true)
+        }, else: {
+          note(text: "Revive: the cards chosen did not cover the colours, so it stays in the Drop")
+        })
+      })
+    })
+  }
 
 -- 22-38
 DEFINE KEYWORD Successor
   TAKES ()
   text: "Drop any number of mono-green, mono-yellow or Green/Yellow Battle Cards from your Battle Area whose energy costs add up to exactly this card's printed cost, and play it from hand."
-  -- Stage 7 (#153–#157)
+  -- #155: a move, offered as an [Activate: Main] from the hand while the
+  -- green/yellow cards in your Battle Area can make the card's energy cost
+  -- exactly (`sumsTo`, 22-38-2). The cards are picked one at a time, and only
+  -- those that still leave a way to the exact sum are offered (`choose …
+  -- sumTo`, the legacy `successorAsk`); they go to the Drop as the cost and
+  -- the card is played through the [Counter: Play] window (22-38-3/4). The
+  -- price is the line's printed orbs.
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE target(reason: "no green/yellow Battle Cards adding up to its energy cost") UNLESS sumsTo(sel: (colors = [Green, Yellow] AND notColors = [Red, Blue, Black, White, Colorless]) IN you.battle, attr: energyCost, total: attr([self], energyCost))
+  label: "Successor: play {card} by dropping green/yellow Battle Cards"
+  DO {
+    choose(sel: (colors = [Green, Yellow] AND notColors = [Red, Blue, Black, White, Colorless]) IN you.battle, as: "paid", reason: "[Successor]: green/yellow Battle Cards to drop", sumTo: attr([self], energyCost))
+    if(cond: count(FROM $paid) >= 1, then: {
+      moveTo(target: $paid, to: drop, cause: cost)
+      play(target: [self], counterWindow: true)
+    })
+  }
 
 -- 22-41
 DEFINE KEYWORD Overlord
@@ -411,4 +463,14 @@ DEFINE KEYWORD "Z-Awaken"
 DEFINE KEYWORD "Z-Stack"
   TAKES (x: number)
   text: "When this Z-Card is placed on your Leader or into a Battle or Unison Area, put up to X cards matching the printed description from your Z-Deck underneath it. They become part of the card on top."
-  -- Stage 7 (#153–#157)
+  -- #155: a moment (`at:`), pended as the card is played and as it is placed
+  -- on the Leader, like the legacy `keywordTriggers` case. The candidates are
+  -- the Z-Deck cards the line's description matches (`asPrinted`), up to X of
+  -- them or none. One difference, recorded rather than copied: each card goes
+  -- straight under (23-2), where the legacy engine logs a move to the Battle
+  -- Area first and then lifts it out of the area again.
+  at: [played, leaderPlaced]
+  DO {
+    choose(sel: UP TO $x IN you.zDeck asPrinted, as: "stack", reason: "[Z-Stack]: cards from your Z-Deck to place under this card")
+    moveTo(target: $stack, to: under, under: [self])
+  }

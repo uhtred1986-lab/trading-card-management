@@ -54,11 +54,13 @@ export interface RefField {
   listOf?: "string" | "enum";
   /** What the interpreter assumes when the field is left out, printed as JSON — `undefined` itself is not a value, so its absence here means there is no default. */
   defaultText?: string;
+  /** A `DEFINE KEYWORD` body's own field (`OpField.offCard`): what it does. No card's record writes it, and the referee is not told it. */
+  offCard?: string;
 }
 
 function refField(f: OpField): RefField {
   const t = f.type;
-  const base = { name: f.name, required: !!f.required, nullable: !!f.nullable, defaultText: f.default === undefined ? undefined : JSON.stringify(f.default) };
+  const base = { name: f.name, required: !!f.required, nullable: !!f.nullable, defaultText: f.default === undefined ? undefined : JSON.stringify(f.default), ...(f.offCard ? { offCard: f.offCard } : {}) };
   if (typeof t === "object") {
     if ("enum" in t) return { ...base, type: "enum", enumValues: [...t.enum] };
     return t.list === "string" ? { ...base, type: "list", listOf: "string" } : { ...base, type: "list", listOf: "enum", enumValues: [...t.list.enum] };

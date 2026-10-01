@@ -169,6 +169,7 @@ export function printSelector(sel: Selector): string {
 const EMPTY = emptyFilter();
 
 function printFilterValue(kind: FilterFieldType, v: unknown): string {
+  if (isHole(v)) return `$${v.hole}`;
   switch (kind) {
     case "strings":
     case "keywords":
@@ -198,7 +199,10 @@ function printFilterValue(kind: FilterFieldType, v: unknown): string {
  * than it went in — the silent widening ground rule 5 forbids.
  */
 export function printFilter(f: CardFilter): string {
-  const words = describeFilter(f);
+  // A filter a body leaves a field of open (`colors = $colors`, #155) has no
+  // words that could say the hole, so it is written field by field.
+  const open = FILTER_FIELD_NAMES.some((name) => isHole(f[name]));
+  const words = open ? null : describeFilter(f);
   if (words && deepEqual(parseFilter(words), f)) return JSON.stringify(words);
   const bits: string[] = [];
   for (const name of FILTER_FIELD_NAMES) {

@@ -13,7 +13,7 @@
  * fail `npm run typecheck` until it is described.
  */
 import type { CardFilter } from "../engine/filters";
-import type { Amount, AmountAttr, Cond, CostRecord, FieldType, Op, OpField, Selector, Side } from "../engine/script";
+import { COLORS, type Amount, type AmountAttr, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector, type Side } from "../engine/script";
 import type { Requirement, SkillKind, Trigger } from "../engine/types";
 
 /**
@@ -136,6 +136,30 @@ const _everyFilterFieldWritten: FilterFieldMissing extends never ? true : never 
 void _everyFilterFieldWritten;
 
 export const FILTER_FIELD_NAMES = Object.keys(FILTER_FIELDS) as (keyof CardFilter)[];
+
+/**
+ * The slot a `$name` stands in when a `DEFINE KEYWORD` or `DEFINE OP` body
+ * writes it as a filter field's value — `(colors = $colors)`, [Revive]'s
+ * cards of the colours the printed keyword names (#155) — so the loader can
+ * check it against the parameter's type and the expander fill it, as for a
+ * selector's own count, side and area. A filter written in words has no
+ * such slot: only the field-by-field form can leave one open.
+ */
+export function filterSlot(kind: FilterFieldType): FieldType {
+  switch (kind) {
+    case "colors":
+      return { list: { enum: COLORS } };
+    case "strings":
+    case "keywords":
+      return { list: "string" };
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    default:
+      return "string";
+  }
+}
 
 // ── expressions ─────────────────────────────────────────────────────────────
 

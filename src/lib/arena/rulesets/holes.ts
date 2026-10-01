@@ -20,7 +20,7 @@
  * Pure and client-safe.
  */
 import { COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../engine/script";
-import { isHole } from "../lang/ast";
+import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isHole } from "../lang/ast";
 
 /** What a slot holds: an op or condition field's type, or one of a selector's three scalar slots. */
 export type SlotType = FieldType | "number" | "side" | "area";
@@ -118,6 +118,8 @@ function walkSelector(sel: Selector | undefined, where: string, out: HoleAt[]): 
   slot("take", sel.take, "number");
   slot("side", sel.side, "side");
   slot("area", sel.area, "area");
+  // #155: a field of the card filter, written open — `(colors = $colors)`.
+  if (sel.filter) for (const name of FILTER_FIELD_NAMES) slot(`filter.${name}`, sel.filter[name], filterSlot(FILTER_FIELDS[name]));
   walkSelector(sel.underHost, `${where}.underHost`, out);
 }
 

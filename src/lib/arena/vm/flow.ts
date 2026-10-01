@@ -834,6 +834,11 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // Where it really went: a rule about what the card *is* may send it
   // somewhere else than asked (19-1-7, a token leaving play is removed).
   const to = result.move.to;
+  // 23-2-5: the pile it left behind is shown going first, with no moment of
+  // its own — the legacy engine logs these moves and pends nothing for them.
+  for (const r of result.move.released ?? []) {
+    if (r.from && isAreaWord(r.from) && isAreaWord(r.to)) log(ev, { type: "move", card: r.card, from: r.from, to: r.to, owner: r.owner });
+  }
   const shown: GameEvent | null =
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
@@ -847,13 +852,10 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // nothing else. Queued onto `state.programs` rather than run inline, the
   // same as any other triggered program, so a body that asks a question does
   // not need this call site to know how to hold one. [Z-Stack] and [Revive]
-  // are candidates for these same two hooks that #155 did not build: neither
-  // is one universal rule a keyword body can state once for every card that
-  // prints it — [Z-Stack]'s "matching the printed description" is a filter
-  // that varies card to card, which `TAKES (x: number)` carries no room for,
-  // and [Revive]'s "covers both named colours" is the covering-set choice
-  // `CardChoice.cover` reads for [Aegis], which no op in the language can
-  // yet ask for. Reading either wrong would be worse than not reading it.
+  // are not these hooks: each is the keyword's own line answering a declared
+  // moment (`at: [played, leaderPlaced]`, `at: [koed]` in `keywords.rules`,
+  // #155), pended and announced as printed like an [Auto], with the printed
+  // description and colours read off the line (`asPrinted`, `$colors`).
   const places = inPlayZones(game);
   if (from && places.includes(from)) fireHook(ctx, game, state, id, "onLeave");
   if (places.includes(to)) fireHook(ctx, game, state, id, "onEnter");

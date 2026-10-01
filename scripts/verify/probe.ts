@@ -401,8 +401,14 @@ if (ENGINE !== "legacy") {
       },
     },
     {
+      id: "empty-combo-prompt",
+      says: "The defender's combo prompt with nothing to combo: legacy always asks it (`battle.promptCombo`), so a keyword probe that waits for the defender to act stops there and reads a combo refusal for the card; the rules engine skips a combo step nobody can use (`vm/battle.ts`'s `comboWork`) and the probe runs on to the next Main Phase, where nothing is refused either. Not the keyword: [Z-Stack] is a moment, not a move, and is built since #155 (ZB's own line pends as the card is played, which this board never does).",
+      holds: (_f, old, rules) =>
+        old.result.some((l) => / is not a Battle Card with a combo cost\.$/.test(l)) && /never offered, and the engine gives no reason/.test(rules.result.join("|")) && old.log[old.log.length - 1] === "Defense Step." && rules.log.includes("Damage Step."),
+    },
+    {
       id: "keyword-moves",
-      says: "A keyword's own move that is not built on the rules engine yet — [Awaken] (hook group C, #156) and [Z-Stack] (hook group B, #155) — is never offered and `rejectedActions` names no reason; legacy names the board it was missing. [Evolve] and [Union] are built (#157).",
+      says: "A keyword's own move that is not built on the rules engine yet — [Awaken] (hook group C, #156) — is never offered and `rejectedActions` names no reason; legacy names the board it was missing. [Evolve] and [Union] are built (#157), and [Arrival] and [Successor] (#155).",
       holds: (_f, _old, rules) => /never offered, and the engine gives no reason/.test(rules.result.join("|")),
     },
     {

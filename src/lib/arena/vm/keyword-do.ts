@@ -84,11 +84,16 @@ export function keywordRefusalCond(game: GameDefinition, def: KeywordDef, sk: Sk
  */
 export function keywordWords(text: string, def: KeywordDef, sk: Skill, card: string): string {
   const values = (sk.keyword ?? {}) as Record<string, unknown>;
-  return text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+  return text.replace(/\{(\w+)(:and)?\}/g, (whole, name: string, and?: string) => {
     if (name === "card") return card;
     if (name === "line") return printedDescription(sk);
     if (name === "names") return printedNames(sk).join(" and ");
-    if (def.takes?.some((p) => p.name === name) && values[name] !== undefined) return String(values[name]);
+    if (def.takes?.some((p) => p.name === name) && values[name] !== undefined) {
+      // A list parameter ([Arrival]'s colours) is written as printed,
+      // "Red/Blue" — or "Red and Blue" as `{colors:and}`.
+      const v = values[name];
+      return Array.isArray(v) ? v.join(and ? " and " : "/") : String(v);
+    }
     return whole;
   });
 }

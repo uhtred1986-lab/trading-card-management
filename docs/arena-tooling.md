@@ -141,8 +141,10 @@ skipped) tells you what you broke:
 - **`battles.ts`** — combos, blockers, counters, the keywords that decide a
   battle. **Runs on both engines since #152.** On `--engine rules` every case
   is a real assertion except the ones a Stage 7 keyword body still owns
-  ([Awaken], [Critical], [Dual Attack], [Indestructible], [Revenge],
-  [Z-Stack]; [Unique] and [Evolve] are built since #157) — each prints `skipped case` by name, citing the
+  ([Awaken], [Critical], [Dual Attack], [Indestructible], [Revenge];
+  [Unique] and [Evolve] are built since #157, [Z-Stack] since #155, whose
+  case stages its Z-Energy directly on `rules` because 8-5-2's Z-Energy offer
+  is still #151's) — each prints `skipped case` by name, citing the
   `docs/arena-backlog/s7-*.md` hook-group doc that builds it, and the suite
   still reports `ok`. Proves, on the rules engine as much as the legacy one:
   combo power deciding a battle and combo cards reaching the Drop, [Blocker]

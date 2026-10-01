@@ -57,7 +57,7 @@ import type { Area, CardDef, KeywordSkill, Mode, MoveReason, PlayerId, Prompt } 
 import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { tokenCardId } from "../engine/state";
-import { koCard } from "./battle";
+import { koCard, openKeywordPlayWindow } from "./battle";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, log } from "./events";
 import { fireHook } from "./hooks";
@@ -380,6 +380,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // question this must learn to hold, and `resolvePlay` names the two that
     // would.
     playThen: (cards, opts, frame) => {
+      // #155, 9-6: a keyword's own play ([Arrival], [Revive], [Successor]) is
+      // declared, and the opponent may answer it with a [Counter: Play] before
+      // it lands — the window `vm/battle.ts` opens over a declared play. With
+      // no counter they could use, nothing is asked and the play lands now.
+      if (opts.counterWindow && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
       for (const id of cards) {
         // 9-6: the play a [Counter: Play] window was open over lands here, in
         // the manner the counter left it (5-5) — and is no longer being

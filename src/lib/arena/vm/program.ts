@@ -42,7 +42,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../engine";
-import { eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames } from "../engine/cards";
+import { coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../engine/cards";
 import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "../engine/script";
 import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
 import { other } from "../engine/types";
@@ -939,8 +939,22 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       });
       return eachNamedHolds(printedNames(sk), pool, !!c.samePower);
     }
+    // #155: [Arrival]/[Revive]'s colours and [Successor]'s exact sum, read
+    // through the shared readings `engine/cards.ts` gives both engines.
+    case "covers":
+      return coversColors(
+        resolveSelector(ctx, game, state, frame, c.sel).map((id) => list(attrsNow(ctx, game, state, id).colors)),
+        c.colors,
+      );
+    case "sumsTo": {
+      const each = (id: string) => amount(ctx, game, state, { ...frame, vars: { ...frame.vars, [ONE_CARD]: [id] } }, { attr: { var: ONE_CARD }, name: c.attr });
+      return sumReachable(resolveSelector(ctx, game, state, frame, c.sel).map(each), amount(ctx, game, state, frame, c.total));
+    }
   }
 }
+
+/** The name `sumsTo` binds one card to while it reads that card's measure through `amount`. */
+const ONE_CARD = "__one";
 
 /** The skill line a frame belongs to — the one `asPrinted` and `eachNamed` read their description off. Undefined for a frame that carries no line (a hook body, an action's `DO`). */
 function lineOf(ctx: EngineContext, state: VmState, frame: ScriptFrame): Skill | undefined {

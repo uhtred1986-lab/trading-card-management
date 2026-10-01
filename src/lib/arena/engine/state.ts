@@ -4,7 +4,7 @@
  * how much power it has, and paying costs. Everything mutates the state it
  * is given; `engine.ts` clones before calling.
  */
-import { eachNamedHolds, hasKeyword, keywordOf, printedNames, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
+import { coversColors, eachNamedHolds, hasKeyword, keywordOf, printedNames, skillsOf, specifiedCostOf, sumReachable, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
 import { asksAQuestion, describeCond, describeScript } from "./script-schema";
 import { legacyHost } from "./script-host";
@@ -925,8 +925,22 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       const pool = resolveSelector(ctx, s, frame, c.sel).map((id) => ({ id, characters: def(ctx, s, id).characters, power: def(ctx, s, id).power ?? 0 }));
       return eachNamedHolds(printedNames(sk), pool, !!c.samePower);
     }
+    // #155: two more of a keyword body's own words, read the way the rules
+    // engine reads them so the shared word means one thing.
+    case "covers":
+      return coversColors(
+        resolveSelector(ctx, s, frame, c.sel).map((id) => cardNow(ctx, s, id).colors),
+        c.colors,
+      );
+    case "sumsTo": {
+      const each = (id: string) => amount(ctx, s, { ...frame, vars: { ...frame.vars, [ONE_CARD]: [id] } }, { attr: { var: ONE_CARD }, name: c.attr });
+      return sumReachable(resolveSelector(ctx, s, frame, c.sel).map(each), amount(ctx, s, frame, c.total));
+    }
   }
 }
+
+/** The name `sumsTo` binds one card to while it reads that card's measure through `amount`. */
+const ONE_CARD = "__one";
 
 // ── static effects from [Permanent] skills (9-5, 9-9) ──────────────────────
 

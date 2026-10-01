@@ -469,7 +469,9 @@ move is about **one printed line** rather than about a card a `FOR` found:
   write `$name` for a parameter too, the comparison sugar included (`count(IN you.drop) >= $x`).
 - `label:` and a requirement's string arguments may name the line's own words: `{card}` the card's
   name, `{line}` the description the line prints after its tag ("<Nail>"), `{names}` the characters
-  it names in ‹…› joined by "and", and `{<param>}` a parameter as printed (`{variant}`, `{x}`).
+  it names in ‹…› joined by "and", and `{<param>}` a parameter as printed (`{variant}`, `{x}`). A
+  list parameter is written as printed, `{colors}` → "Red/Blue", or joined by "and" as
+  `{colors:and}` → "Red and Blue" (#155).
 - The line's own printed effect, if it has one, runs after `DO` — [Union-Absorb]'s whole effect is
   its printed text, and a bare [Evolve] or [Overlord] has none. A line printed with the very kind
   the move is offered as (`[Union-Absorb][Activate: Main] …`) is the keyword's move too.
@@ -478,6 +480,28 @@ move is about **one printed line** rather than about a card a `FOR` found:
   `oneOf(value: $variant, of: [...])` condition (tells the variants of one keyword apart), and the
   `eachNamed(sel: …, samePower: true)` condition (every character the line names stands on a
   different card among `sel`, of one power — [Union]'s check, 22-13).
+- Group B (#155) added five more, each on no card either:
+  - `covers(sel: …, colors: $colors)` — the cards among `sel` carry every one of the colours
+    between them, one card of each or one multicolour card for two ([Arrival]'s Combo Area,
+    [Revive]'s hand; 22-29-3, 22-34-3).
+  - `sumsTo(sel: …, attr: energyCost, total: attr([self], energyCost))` — some of the cards among
+    `sel`, at least one and a total above 0, have measures that add up to exactly `total`
+    ([Successor]'s check, 22-38-2).
+  - `choose(…, sumTo: <amount>, sumAttr: <measure>)` — picks that set one card at a time,
+    offering only the cards that still leave a way to the exact sum, asking even a forced pick,
+    and binding nothing when the set cannot be finished, so the effect that pays with it lapses.
+    The selector's count is not read; `sumAttr` is `energyCost` when left out.
+  - `play(target: [self], counterWindow: true)` — the play a keyword's own move makes opens the
+    [Counter: Play] window a declared play opens (9-6, 22-10) before the card lands, which a play a
+    card's skill makes never does (5-5-3). [Arrival], [Revive] and [Successor] say it; the window
+    holds the running program at its `play` and lets it go once the answer has run.
+  - A **filter field written open**: `(colors = $colors)`, `(costMin = $x AND costMax = $x)` — a
+    parameter in a card filter, only in the field-by-field form (words have nothing to say a hole
+    with), checked against the parameter's type and filled like a selector's own count or side.
+
+  The two op fields are marked `offCard` in `OP_SCHEMA` and the two conditions are in
+  `CONDITIONS_OFF_A_CARD`: none is in what the referee is told, because a ruling on one card's
+  skill could only use them wrongly. The generated language reference lists all of them.
 
 ```
 DEFINE KEYWORD Overlord

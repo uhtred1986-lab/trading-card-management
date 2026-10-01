@@ -121,11 +121,8 @@ function replaceGap(where: string): boolean {
 
 const S7 = {
   invoker: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering, leaving and after a skill ([Invoker])",
-  arrival: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering, leaving and after a skill ([Arrival])",
   empower: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Empower])",
-  successor: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering, leaving and after a skill ([Successor])",
   aegis: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing, immunity and KO by effect ([Aegis])",
-  revive: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering, leaving and after a skill ([Revive])",
   rejuvenate: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering, leaving and after a skill ([Rejuvenate])",
   alliance: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing, immunity and KO by effect ([Alliance])",
 };
@@ -464,7 +461,7 @@ if (
   assertConsistentG(s);
 }
 
-if (!keywordGap("Arrival", S7.arrival)) {
+{
   // [Arrival X/Y] (22-29): from hand during a battle, once cards of both
   // colours are in the Combo Area; the effect is playing the card.
   DEFS.ARRIVER = { ...DEFS.V1, id: "ARRIVER", name: "ARRIVER", energyCost: 4, power: 20000, skill: "[Arrival red/blue] {r}" };
@@ -674,7 +671,7 @@ if (!keywordGap("Empower", S7.empower)) {
   if (ENGINE === "legacy") assert.equal(planPayment(CTX, legacyState(s), "p1", 1, { Blue: 2 }), null, "a price demanding more orbs than it charges is unpayable, not cheap");
 }
 
-if (!keywordGap("Successor", S7.successor)) {
+{
   // [Successor] (22-38): from hand by dropping green/yellow Battle Cards
   // whose costs add up exactly to this card's cost; picked one at a time,
   // and only cards that still leave a way to the exact sum are offered.
@@ -749,7 +746,7 @@ if (!keywordGap("Aegis", S7.aegis)) {
   assertConsistentG(s);
 }
 
-if (!keywordGap("Revive", S7.revive)) {
+{
   // [Revive X/Y] (22-34): KO'd, its owner may drop cards from hand covering
   // both colours to play it back from the Drop — once per card per turn.
   DEFS.REV = { ...DEFS.V1, id: "REV", name: "REV", skill: "[Revive red/blue]" };
@@ -1565,6 +1562,21 @@ if (
     s = playG(s, { type: "play", player: "p1", card: played });
     assert.equal(s.prompt.kind, "main", "no [Counter: Play] window over a [Deflect] card");
     assert.ok(zoneOf(s, "p1", "battle").includes(played), "and the play lands");
+    assertConsistentG(s);
+
+    // #155: a keyword's own play goes through the same window — [Successor]'s
+    // (22-38-4), the legacy `{op:"counter", window:"play"}` in front of its
+    // play and, on the rules engine, `play(target: [self], counterWindow: true)`.
+    s = arenaG({ hand: ["SUCC"], battle: ["G2", "Y3"], energy: ["G2", "Y3"], oppHand: ["CP-TIRE"], oppEnergy: ["V1"] });
+    played = findG(s, "p1", "hand", "SUCC");
+    const [k2, k3] = zoneOf(s, "p1", "battle");
+    s = playG(s, { type: "activate", player: "p1", card: played, skill: 0 }, { type: "choose", player: "p1", cards: [k2] }, { type: "choose", player: "p1", cards: [k3] });
+    assert.equal(s.prompt.kind, "counter", "22-38-4: the [Counter: Play] window over the keyword's play");
+    assert.ok(zoneOf(s, "p1", "drop").includes(k2) && zoneOf(s, "p1", "hand").includes(played), "the cost is paid and the card has not landed");
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "CP-TIRE"), skill: 0 });
+    assert.ok(zoneOf(s, "p1", "battle").includes(played), "the keyword's play still happened");
+    assert.equal(s.cards[played].mode, "rest", "in the manner the counter left it");
+    assert.equal(s.prompt.kind, "main");
     assertConsistentG(s);
 
     for (const id of temp) delete DEFS[id];

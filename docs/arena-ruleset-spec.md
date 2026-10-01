@@ -225,6 +225,8 @@ can name the attributes the engine keeps in code (§2.5).
 | `sameCard` | primitive | Do two selectors each resolve to a card of the same printed identity? Not a filter, because the identity being matched is another *selected* card's, not a fixed wording (`FILTER_FIELDS` names no "same as" field) — 13-3's "a copy of the Unison Card" is this, over the candidate and the Unison Area. |
 | `oneOf` | primitive | Is a word one of these words? A `DEFINE KEYWORD` body's, not a card's: with `$variant` bound off the printed keyword (#157) it tells [Xeno-Evolve] from [Evolve] and [Union-Fusion] from [Union-Absorb] inside one declaration. A comparison of two words, not a count of cards. |
 | `eachNamed` | primitive | Does every character a keyword line prints in ‹…› stand on a *different* card the selector finds — and, with `samePower`, are those cards of one power (22-13-4, 22-13-5)? A matching of names to distinct cards, which no single count can say: two Gokus count to two and still name no Vegeta. Read off the line its program belongs to, like the `asPrinted` selector flag (#157). |
+| `covers` | primitive | Do the cards a selector finds carry every one of these colours between them (22-29-3, 22-30-3, 22-34-3)? [Arrival]'s Combo Area and [Revive]'s hand, with `colors: $colors` bound off the printed keyword (#155). One count per colour would say it only for a fixed list; the list is the keyword's parameter. |
+| `sumsTo` | primitive | Can some of the cards a selector finds — at least one, and a total above 0 — be picked so that one measure of theirs adds up to exactly an amount (22-38-2)? [Successor]'s check before it is offered (#155); `choose … sumTo` picks that set. A subset sum, which no bound on a count or a total says. |
 
 ### 2.5 What the tables ask for
 
@@ -889,7 +891,10 @@ DEFINE KEYWORD Field
     moveTo(target: $t, to: drop)
   }
 
--- B: onLeave — a real program, run once as the card departs
+-- B: onLeave — a real program, run once as the card departs. (Illustrative
+-- only: the [Revive] #155 built is the keyword's own line answering `koed`,
+-- `at: [koed]` with a `DO` (§4.4), because it is announced like an [Auto] and
+-- asks its owner which cards to drop; no keyword body hangs on onLeave yet.)
 DEFINE KEYWORD Revive
   HOOK onLeave {
     play(target: [self])
@@ -1138,10 +1143,58 @@ in the place its `DO` names. Three are still to write, each recorded with what i
 `play` op cannot suspend for an answer on either interpreter's shared `stepScript`, and on this engine
 the paid markers are a later step of `playUnison`'s `DO`, so the carry belongs to the move (an op of
 its own, or a `play` field) rather than to `play`; [Swap] and [Over Realm] play a card through a
-[Counter: Play] window, which only a declared play opens today (`vm/battle.ts`'s
-`openPlayCounterWindow`), and [Swap]'s "energy cost of X" is a parameter inside a card filter, which
-the filter grammar has no slot for; [Over Realm] also needs a counted, shared once-a-turn player
-attribute that [Wormhole] raises to two.
+[Counter: Play] window, and [Swap]'s "energy cost of X" is a parameter inside a card filter — both
+are sayable since #155 (`play … counterWindow: true`, a filter field written open), so what is left
+of them is the body itself; [Over Realm] also needs a counted, shared once-a-turn player attribute
+that [Wormhole] raises to two.
+
+**Group B's keywords (#155).** Four are built, each against the legacy engine event for event, and
+they needed five words the shapes above did not have (`docs/arena-rules-language.md` §3b): the
+`covers` and `sumsTo` conditions, `choose`'s `sumTo`, `play`'s `counterWindow`, and a filter field
+written open (`colors = $colors`).
+
+- **[Z-Stack]** is a moment: `at: [played, leaderPlaced]`, the legacy `keywordTriggers` case; its `DO`
+  offers up to X Z-Deck cards the line's description matches (`asPrinted`) and puts them under the
+  card. The legacy engine logs a move into the Battle Area before each card goes under; this engine
+  does not (recorded). A card leaving play now leaves its pile in the Drop (23-2-5, `vm/zones.ts`),
+  which the rules engine had not done for any pile.
+- **[Arrival]** is a move, `offer: "activate:battle"`, refused unless the Combo Area `covers` the
+  colours; its `DO` is `play(target: [self], counterWindow: true)`.
+- **[Successor]** is a move, `offer: "activate:main"`, refused unless `sumsTo` holds; its `DO` picks
+  the cards with `choose … sumTo`, drops them as the cost and plays through the window.
+- **[Revive]** is a moment, `at: [koed]`; its `DO` asks for up to two cards of the named colours
+  (`colors = $colors`) while the hand `covers` them, drops them, negates its own line for the turn
+  (22-34-4) and plays the card back through the window. The legacy engine remembers the revival
+  instead of negating, and announces a second [Revive] that does nothing; this engine pends none
+  (recorded).
+
+```
+DEFINE KEYWORD Successor
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE target(reason: "…") UNLESS sumsTo(sel: (colors = [Green, Yellow] AND notColors = […]) IN you.battle, attr: energyCost, total: attr([self], energyCost))
+  DO {
+    choose(sel: (…) IN you.battle, as: "paid", sumTo: attr([self], energyCost))
+    if(cond: count(FROM $paid) >= 1, then: {
+      moveTo(target: $paid, to: drop, cause: cost)
+      play(target: [self], counterWindow: true)
+    })
+  }
+```
+
+The rest of group B, each with what it is missing: **[Rejuvenate]**'s marker price is printed as the
+line's text ("Remove 2 markers from this card"), which the record compiles into an effect that runs
+*after* a keyword move's `DO` — so neither the legacy order (markers, then the life card) nor the
+13-4 gates (enough markers, one marker skill a turn) can be said until the keyword carries the number
+(`TAKES (markers: number)`) or the price is read as a price. **[Wish]** (and group C's [Awaken]) flips
+the Leader *after* the printed effect, and a keyword move's `DO` runs *before* it — it needs a field
+for what follows the line's effect. **[Z-Awaken]** stacks a Z-Leader on the Leader from the Z-Deck,
+carrying its power effects and its battle role, pays Z-Energy and is once a turn per player: a
+leader-area `stackOnto`, a Z-Energy price on a keyword move and a player-level counter, none of which
+exists. **[Invoker]** is an `altPayment` hook on the play price, which `vm/costs.ts` does not ask
+yet (group D's channel, beside [Warrior of Universe 7]). **[Wormhole]** only raises [Over Realm]'s
+limit, which is unwritten. **[Dragon Ball]** needs nothing: it is deck legality (`support: "deck"`),
+and no game reads it.
 
 ---
 

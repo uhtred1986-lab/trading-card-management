@@ -125,7 +125,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning:
       "When this Z-Card is placed on your Leader or into a Battle or Unison Area, put up to X cards matching the printed description from your Z-Deck underneath it. They become part of the card on top.",
     engine: "Fires on both placements; the description picks the candidates and you choose up to X of them, or none at all.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B (confirmed absent: `verify/battles.ts`'s own Z-Stack case is a named keyword gap).",
+    engineRules:
+      "Built as its keyword's own `DO` (`at: [played, leaderPlaced]` in `keywords.rules`, #155): pended as the Z-Card is played and as it is placed on the Leader, announced as printed, and the Z-Deck cards the line's description matches (`asPrinted`) are offered, up to X or none, and go under it. The same answer as the legacy engine; one difference in the log, recorded rather than copied: each card goes straight under (23-2), where the legacy engine logs a move into the Battle Area first and one `stack` beat for all of them. When the Z-Card leaves play the cards under it go to the Drop (23-2-5), as on the legacy engine.",
     support: "engine",
   },
 
@@ -204,7 +205,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "During a battle, when the original colours of the Battle Cards in your Combo Area cover every colour named, pay the cost and play this card from hand.",
     engine: "The colours are read off the Combo Area as it stands; playing the card then runs through the ordinary play, counter window and all.",
     engineRules:
-      "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly (not merely trusted from the doc): a card printing [Arrival] never reaches the menu on the rules engine.",
+      "Built as its keyword's own `DO` (`offer: \"activate:battle\"` in `keywords.rules`, #155): offered from the hand at the combo prompt once the cards in your Combo Area carry every colour it names between them (the `covers` condition), for the line's printed orbs; the effect is the play itself, through the [Counter: Play] window a declared play opens (`play … counterWindow: true`). The same offer, the same refusals and the same log as the legacy engine.",
     support: "engine",
   },
   Successor: {
@@ -214,7 +215,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "Drop any number of mono-green, mono-yellow or Green/Yellow Battle Cards from your Battle Area whose energy costs add up to exactly this card's printed cost, and play it from hand.",
     engine: "Only offered when some set of your Battle Cards really does add up; the cards are then chosen one at a time until the sum is met.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly: not offered on the rules engine.",
+    engineRules:
+      "Built as its keyword's own `DO` (`offer: \"activate:main\"` in `keywords.rules`, #155): offered from the hand while the mono-green, mono-yellow and Green/Yellow cards in your Battle Area can make its energy cost exactly (the `sumsTo` condition); they are then picked one at a time, offered only while they still leave a way to the exact sum (`choose … sumTo`), dropped as the cost, and the card is played through the [Counter: Play] window. The same choices and the same log as the legacy engine; its refusal says “adding up to its energy cost” where the legacy one names the number.",
     support: "engine",
   },
   Revive: {
@@ -224,7 +226,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "When this Battle Card is KO'd, drop cards from hand whose original colours cover both named colours to play it back from your Drop Area. [Revive] is then negated on it for the turn.",
     engine: "Offered on the KO, once a turn per card, and only when the hand can actually cover the colours.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly: not offered on the rules engine.",
+    engineRules:
+      "Built as its keyword's own `DO` (`at: [koed]` in `keywords.rules`, #155): pended as the card is KO'd and announced as printed; asked only while it is still in the Drop and the hand can cover both colours (`covers`), the owner picks up to two cards of those colours (a filter field bound off the keyword, `colors = $colors`) or none, and cards that cover both are dropped as the cost and the card is played back through the [Counter: Play] window. One difference, recorded rather than copied: [Revive] is then negated on the card for the turn, as 22-34-4 says — logged as an effect and a note — so a second KO that turn pends nothing, where the legacy engine remembers the revival, announces the skill again and does nothing.",
     support: "engine",
   },
   Offering: {

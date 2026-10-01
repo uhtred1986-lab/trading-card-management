@@ -9,7 +9,7 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { skillsOf } from "./cards";
+import { skillsOf, sumReachable } from "./cards";
 import type { CardFilter } from "./filters";
 import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector, modifyAttrAs, negateAs } from "./script-schema";
 import { resolveSelector, sideOf, type AltCost } from "./state";
@@ -296,7 +296,22 @@ export type Cond =
    * <Vegeta>" needs a Goku and a Vegeta, two cards and not one, and Fusion's
    * two of equal power. Read off the frame's own line, like `asPrinted`.
    */
-  | { kind: "eachNamed"; sel: Selector; samePower?: boolean };
+  | { kind: "eachNamed"; sel: Selector; samePower?: boolean }
+  /**
+   * Do the cards among `sel` carry every one of these colours between them —
+   * one card of each, or one multicolour card for two (22-29-3, 22-30-3,
+   * 22-34-3)? [Arrival]'s Combo Area and [Revive]'s hand, the colours bound
+   * off the printed keyword (`covers(sel: IN you.combo, colors: $colors)`). No
+   * card's record says this; a `DEFINE KEYWORD` body's word (Stage 7, #155).
+   */
+  | { kind: "covers"; sel: Selector; colors: Color[] }
+  /**
+   * Can some of the cards among `sel` be picked so that their `attr` values
+   * add up to exactly `total` — at least one card, and `total` above 0
+   * (22-38-2)? [Successor]'s check before it is offered, the same set a
+   * `choose` with `sumTo` then picks one card at a time (#155).
+   */
+  | { kind: "sumsTo"; sel: Selector; attr: AmountAttr; total: Amount };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous
@@ -342,7 +357,7 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -373,7 +388,7 @@ export type Op =
    * read. Without it the card is played beside the host instead of onto it.
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
-  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game" }
+  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true }
   | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
   /**
    * 20-9: gaining control of a card is moving it into your own area and
@@ -1047,6 +1062,9 @@ function substituteFrame(h: ScriptHost, id: string, r: ReplacementResult): Scrip
   return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? h.masterOf(id), subject: id, replacing: id };
 }
 
+/** The name a `choose … sumTo` binds one card to while it reads that card's measure through `amount`. */
+const SUM_ONE = "__one";
+
 /**
  * Run a program until it finishes or needs a decision. Returns "wait" with a
  * prompt set and the frame pushed back onto the flow; "done" when the program
@@ -1240,6 +1258,43 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         };
         // Cards picked so far, while a multi-card choice is part-answered.
         const sofar = frame.awaiting === op.as ? (frame.vars[op.as] ?? []) : [];
+
+        // 22-38-3 (#155): a set whose measures add up to exactly `sumTo`,
+        // picked one card at a time, and only cards that still leave a way to
+        // the exact sum are offered — so the choice can never dead-end, the
+        // legacy `successorAsk`. Every pick is asked, even a forced one, as
+        // there. A set that cannot be finished binds nothing: the effect that
+        // pays with it lapses rather than paying with part of it.
+        if (op.sumTo !== undefined) {
+          const attr = op.sumAttr ?? "energyCost";
+          const one = (id: string) => h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: attr });
+          const answer = frame.awaiting === op.as ? h.lastChoice() : null;
+          if (answer) h.clearLastChoice();
+          const pool = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id));
+          const pick = answer?.find((id) => pool.includes(id));
+          const picked = pick ? [...sofar, pick] : sofar;
+          const left = h.amount(frame, op.sumTo) - picked.reduce((n, id) => n + one(id), 0);
+          const rest = pool.filter((id) => id !== pick);
+          const cands = rest.filter((id) => {
+            const v = one(id);
+            return v > 0 && v <= left && (v === left || sumReachable(rest.filter((o) => o !== id).map(one), left - v));
+          });
+          if (left === 0 || (answer && !pick) || !cands.length) {
+            frame.awaiting = undefined;
+            take(left === 0 && picked.length ? picked : []);
+            break;
+          }
+          frame.awaiting = op.as;
+          frame.vars[op.as] = picked;
+          h.resume(frame);
+          h.ask({
+            kind: "chooseCards",
+            player: op.chooser ? sideOf(master, op.chooser)[0] : master,
+            choice: { reason: `${op.reason ?? `${h.nameOf(frame.card)}: choose`} (${left} more)`, candidates: cands, min: 1, max: 1, continuation: op.as },
+          });
+          return "wait";
+        }
+
         const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id));
 
         const answer = h.lastChoice();
@@ -1922,8 +1977,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const onto = op.onto ? h.resolveRef(frame, op.onto)[0] : undefined;
         (frame.did ??= {}).play = true;
         frame.ip++;
-        h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated }, frame);
-        return "done";
+        // A keyword's own play (#155) goes through the [Counter: Play] window
+        // a declared play opens (9-6); the host says whether it stopped to ask.
+        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.counterWindow ? { counterWindow: true } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":
