@@ -35,7 +35,7 @@
  * Pure, synchronous and client-safe, like the rest of `rulesets/`.
  */
 import { COLORS, COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type OpField, type Ref, type Selector } from "../engine/script";
-import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isHole, type Hole, type ParamType } from "../lang/ast";
+import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isGuard, isHole, isNegHole, type Guard, type Hole, type ParamType } from "../lang/ast";
 import type { GameDefinition, OpDef } from "./types";
 
 /**
@@ -179,7 +179,23 @@ function expandCond(cond: Cond, def: GameDefinition, chain: string[]): Cond {
 
 // ── substituting: a macro's parameters, wherever its body writes them ────────
 
-const substOps = (ops: Op[], args: Args): Op[] => (Array.isArray(ops) ? ops.map((op) => (op && typeof op === "object" ? mapFields(op, (f, v) => substValue(f, v, args)) : op)) : ops);
+const substOps = (ops: Op[], args: Args): Op[] =>
+  Array.isArray(ops) ? ops.flatMap((op) => (isGuard(op) ? (keeps(op, args) ? substOps(op.ops, args) : []) : [op && typeof op === "object" ? mapFields(op, (f, v) => substValue(f, v, args)) : op])) : ops;
+
+/**
+ * Whether a guarded run of steps is kept for this call (#137): `GIVEN $p`
+ * when the call gave `p` — after the schema's default — and not `false`,
+ * `GIVEN $p = word` when it gave that word, `UNLESS` the other way. A guard
+ * is settled here, before the body is a program, so no expansion ever holds
+ * one; a guard on a parameter the macro does not take is the loader's refusal
+ * (`load.ts`), and the expander's too.
+ */
+function keeps(guard: Guard, args: Args): boolean {
+  const arg = args.get(guard.given);
+  if (!arg) throw new MacroError(`this macro guards a step on $${guard.given}, which is not a parameter it takes`);
+  const holds = guard.is === undefined ? arg.value !== undefined && arg.value !== false : arg.value === guard.is;
+  return holds !== (guard.unless === true);
+}
 
 /**
  * One field of the body. A hole is filled whatever the field's type (#273);
@@ -260,12 +276,21 @@ function argOf(name: string, args: Args): { value: unknown } | null {
 function substAmount(amount: Amount, args: Args): Amount {
   if (!amount || typeof amount !== "object") return amount;
   if ("var" in amount) return (argOf(amount.var, args)?.value as Amount) ?? amount;
-  if ("plus" in amount) return { ...amount, plus: [substAmount(amount.plus[0], args), amount.plus[1]] };
+  if ("plus" in amount) return { ...amount, plus: [substAmount(amount.plus[0], args), substOperand(amount.plus[1], args)] };
+  // `life($side)` (#137).
+  if ("life" in amount && isHole(amount.life)) return { ...amount, life: fill(amount.life.hole, { name: "life", type: "side", required: true }, args) as typeof amount.life };
   if ("count" in amount) return { ...amount, count: substSelector(amount.count, args) };
   if ("markers" in amount) return { ...amount, markers: substSelector(amount.markers, args) };
   if ("sumOf" in amount) return { ...amount, sumOf: substSelector(amount.sumOf, args) };
   if ("attr" in amount) return { ...amount, attr: substRef(amount.attr, args) };
   return amount;
+}
+
+/** The right of `+`/`-`: a printed number, or the call's number for `+ $n` and its negation for `- $n` (#137). */
+function substOperand(v: unknown, args: Args): number {
+  if (isHole(v)) return fill(v.hole, { name: "plus", type: "number", required: true }, args) as number;
+  if (isNegHole(v)) return -(fill(v.neg.hole, { name: "plus", type: "number", required: true }, args) as number);
+  return v as number;
 }
 
 /**
@@ -303,6 +328,8 @@ function substSelector(sel: Selector, args: Args): Selector {
   ] as const) {
     if (isHole(out[slot])) out[slot] = fill((out[slot] as Hole).hole, { name: slot, type, required: true }, args);
   }
+  // `TOP (life($side) - $n)` — an expression written in the slot (#137).
+  if (out.take !== undefined && typeof out.take === "object" && !isHole(out.take)) out.take = substAmount(out.take as Amount, args);
   // #155: a filter field left open — `(colors = $colors)` — filled the same way.
   const filter = sel.filter;
   if (filter && FILTER_FIELD_NAMES.some((name) => isHole(filter[name]))) {

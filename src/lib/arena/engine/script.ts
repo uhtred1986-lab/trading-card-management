@@ -11,7 +11,7 @@
  */
 import { skillsOf, sumReachable } from "./cards";
 import type { CardFilter } from "./filters";
-import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs } from "./script-schema";
+import { asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { resolveSelector, sideOf, type AltCost } from "./state";
 import type { ScriptHost } from "./script-host";
 import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
@@ -392,8 +392,12 @@ export type Op =
    * "Reveal the top card of your opponent's deck" (20-11-2): both players see
    * it, so the name is logged, and the cards stay where they are — bound to
    * `as` for the clauses that act on what was seen.
+   *
+   * `audience` (20-11, #137) is who sees them: `"both"`, the default, is a
+   * reveal; `"you"` is the master looking alone — no log, nothing public — the
+   * act `look` is the macro over (`revealAs`, `script-schema.ts`).
    */
-  | { op: "reveal"; sel: Selector; as: string }
+  | { op: "reveal"; sel: Selector; as: string; audience?: "you" | "both" }
   | { op: "ko"; target: Ref }
   /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
   /**
@@ -1186,16 +1190,19 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
     // `discard`'s two lowered steps (#137) are folded back into the one step
     // they stand for before anything reads them, the way `discard`'s own case
     // below splices itself out into a choice and a move.
-    const folded = discardAs(frame.ops, frame.ip);
-    if (folded) frame.ops = [...frame.ops.slice(0, frame.ip), folded, ...frame.ops.slice(frame.ip + 2)];
+    // `comboFrom`'s move and its optional `negate` are folded the same way.
+    const folded = discardAs(frame.ops, frame.ip) ?? comboFromAs(frame.ops, frame.ip);
+    if (folded) frame.ops = [...frame.ops.slice(0, frame.ip), folded.op, ...frame.ops.slice(frame.ip + folded.span)];
     // The `negate` (9-1-5, #276), `costModifier` (spec §2.5-4, #277) and the
     // nine `modifyAttr` widenings (spec §2.5-1/§2.5-3, #275) are run as the
     // spelling each stands for, and so are the `replace` of an attack or a
-    // counter and the three moves `draw`, `damage` and `addLife` lower to
-    // (#137): one dispatch, so the cases below are the only reading of any of
-    // them on either engine. None of them ever reads an op another produces,
-    // so the order of the composition is immaterial.
-    const op = moveAs(replaceAs(costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip])))));
+    // counter and the four moves `draw`, `damage`, `addLife` and
+    // `lifeDownTo` lower to, the replaced play `resolvingPlay` lowers to, and
+    // the reveal to the master alone `look` lowers to (#137): one dispatch, so
+    // the cases below are the only reading of any of them on either engine.
+    // None of them ever reads an op another produces, so the order of the
+    // composition is immaterial.
+    const op = revealAs(moveAs(replaceAs(costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip]))))));
 
     switch (op.op) {
       case "note":
@@ -1358,9 +1365,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "reveal": {
         // 20-11-2: revealing shows the cards to both players and leaves them
         // where they are. The log is how the other player gets to see them.
+        // Shown to the master alone (`audience: "you"`, 20-11) is a look:
+        // bound the same, logged nowhere.
         const shown = h.resolveSelector(frame, op.sel);
         frame.vars[op.as] = shown;
-        if (shown.length) h.note(`revealed ${shown.map((id) => h.nameOf(id)).join(", ")}`);
+        if (shown.length && op.audience !== "you") h.note(`revealed ${shown.map((id) => h.nameOf(id)).join(", ")}`);
         break;
       }
 

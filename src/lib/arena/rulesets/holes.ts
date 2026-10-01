@@ -28,7 +28,7 @@
  * Pure and client-safe.
  */
 import { COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../engine/script";
-import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isHole } from "../lang/ast";
+import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isGuard, isHole, isNegHole, type Guard } from "../lang/ast";
 
 /** What a slot holds: an op or condition field's type, or one of a selector's three scalar slots — its count (and `TOP n`), its side, its area. */
 export type SlotType = FieldType | "count" | "side" | "area";
@@ -58,6 +58,29 @@ export function holesInCond(cond: Cond | undefined, where = ""): HoleAt[] {
   return out;
 }
 
+/** Every guard in a macro body (#137), nested ones included — `GIVEN $p { … }` names a parameter as surely as a hole does. */
+export function guardsIn(ops: Op[] | undefined): Guard[] {
+  const out: Guard[] = [];
+  const walk = (list: unknown): void => {
+    if (!Array.isArray(list)) return;
+    for (const op of list) {
+      if (isGuard(op)) {
+        out.push(op);
+        walk(op.ops);
+        continue;
+      }
+      const spec = op && typeof op === "object" ? OP_SCHEMA[(op as Op).op] : undefined;
+      for (const f of spec?.fields ?? []) {
+        const v = (op as unknown as Record<string, unknown>)[f.name];
+        if (f.type === "ops") walk(v);
+        else if (f.type === "modes" && Array.isArray(v)) for (const m of v) walk((m as { ops?: unknown })?.ops);
+      }
+    }
+  };
+  walk(ops);
+  return out;
+}
+
 function walkOps(ops: unknown, where: string, out: HoleAt[]): void {
   if (isHole(ops)) {
     out.push({ name: ops.hole, slot: "ops", form: "hole", where });
@@ -65,6 +88,10 @@ function walkOps(ops: unknown, where: string, out: HoleAt[]): void {
   }
   if (!Array.isArray(ops)) return;
   for (const op of ops as Op[]) {
+    if (isGuard(op)) {
+      walkOps(op.ops, where, out);
+      continue;
+    }
     if (!op || typeof op !== "object") continue;
     const spec = OP_SCHEMA[op.op];
     if (!spec) continue;
@@ -124,6 +151,8 @@ function walkSelector(sel: Selector | undefined, where: string, out: HoleAt[]): 
   };
   slot("count", sel.count, "count");
   slot("take", sel.take, "count");
+  // `TOP (life($side) - $n)` — an expression written in the slot (#137).
+  if (sel.take !== undefined && typeof sel.take === "object" && !isHole(sel.take)) walkAmount(sel.take as unknown as Amount, `${where}.take`, out);
   slot("side", sel.side, "side");
   slot("area", sel.area, "area");
   // #155: a field of the card filter, written open — `(colors = $colors)`.
@@ -138,7 +167,15 @@ function walkAmount(amount: Amount | undefined, where: string, out: HoleAt[]): v
     out.push({ name: amount.var, slot: "amount", form: "var", where });
     return;
   }
-  if ("plus" in amount) return walkAmount(amount.plus[0], where, out);
+  if ("plus" in amount) {
+    // `+ $n` / `- $n` (#137): the right of the operator is a printed number.
+    const right: unknown = amount.plus[1];
+    const hole = isHole(right) ? right : isNegHole(right) ? right.neg : null;
+    if (hole) out.push({ name: hole.hole, slot: "number", form: "hole", where: `${where}.plus` });
+    return walkAmount(amount.plus[0], where, out);
+  }
+  // `life($side)` (#137).
+  if ("life" in amount && isHole(amount.life)) out.push({ name: amount.life.hole, slot: "side", form: "hole", where: `${where}.life` });
   if ("count" in amount) return walkSelector(amount.count, `${where}.count`, out);
   if ("markers" in amount) return walkSelector(amount.markers, `${where}.markers`, out);
   if ("sumOf" in amount) return walkSelector(amount.sumOf, `${where}.sumOf`, out);

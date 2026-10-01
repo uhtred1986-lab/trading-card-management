@@ -529,6 +529,50 @@ assert.equal(unknownHook.clause, "KEYWORD");
     // A hole is a `DEFINE OP` body's alone: anywhere else, `$name` is not a value.
     const elsewhere = parseDefinitions(lines("DEFINE STEP s", '  phase: "main"', "  DO {", "    power(target: [self], amount: 1, until: $until)", "  }"));
     assert.ok(!elsewhere.ok, "a hole was read outside a DEFINE OP body");
+
+    // #137: a guard names a parameter the macro takes, and compares only a
+    // parameter that is one word — and is a `DEFINE OP` body's alone.
+    assert.match(refused(lines("DEFINE OP comboFrom", "  TAKES (target: ref)", "  DO {", "    GIVEN $negated {", "      negate(target: $target, what: skills)", "    }", "  }")), /guards a step on \$negated, which is not a parameter it TAKES/);
+    assert.match(refused(lines("DEFINE OP comboFrom", "  TAKES (target: ref, negated: boolean)", "  DO {", "    GIVEN $negated = true {", "      negate(target: $target, what: skills)", "    }", "  }")), /compares \$negated to "true", and a boolean is not one word/);
+    assert.match(refused(lines("DEFINE OP lifeDownTo", "  TAKES (n: side, side: side)", "  DO {", "    moveTo(target: TOP (life($side) - $n) IN $side.life, to: hand)", "  }")), /\$n in moveTo.target.sel.take.plus, which holds a number, but TAKES it as side/);
+    const guardedStep = parseDefinitions(lines("DEFINE STEP s", '  phase: "main"', "  DO {", "    GIVEN $x {", "      shuffle()", "    }", "  }"));
+    assert.ok(!guardedStep.ok && /GIVEN/.test(guardedStep.error.message), "a guard was read outside a DEFINE OP body");
+    const inKeyword = parseDefinitions(lines("DEFINE KEYWORD Blocker", "  DO {", "    GIVEN $x {", "      shuffle()", "    }", "  }"));
+    assert.ok(!inKeyword.ok && /GIVEN/.test(inKeyword.error.message), "a guard was read in a keyword's DO");
+    // …and settled by the call: kept, dropped, compared, the other way, nested.
+    const guarded = withMacros(
+      lines(
+        "DEFINE OP look",
+        "  TAKES (n: amount, as: string, from: word, area: area)",
+        "  DO {",
+        "    GIVEN $area = deck {",
+        "      GIVEN $from = bottom {",
+        "        shuffle()",
+        "      }",
+        "      UNLESS $from = bottom {",
+        '        reveal(sel: TOP $n IN you.deck, as: $as)',
+        "      }",
+        "    }",
+        "    UNLESS $area = deck {",
+        '      reveal(sel: IN you.$area, as: $as)',
+        "    }",
+        "    GIVEN $n {",
+        '      note(text: "given")',
+        "    }",
+        "  }",
+      ),
+    );
+    const lowered = (o: Record<string, unknown>) => expandMacros([{ op: "look", as: "a", ...o } as unknown as Op], guarded).map((x) => x.op);
+    assert.deepEqual(lowered({ n: 1 }), ["reveal", "note"], "a guard on a defaulted word, or on a given amount, was not kept");
+    assert.deepEqual(lowered({ n: 1, from: "bottom" }), ["shuffle", "note"]);
+    assert.deepEqual(lowered({ n: 1, area: "hand" }), ["reveal", "note"]);
+    assert.deepEqual((expandMacros([{ op: "look", as: "a", n: 1, area: "hand" } as unknown as Op], guarded)[0] as unknown as { sel: unknown }).sel, { side: "you", area: "hand" }, "an area hole under a guard was not filled");
+    // A guard prints back as it was written.
+    const text = printDefinitions(guarded.definitions);
+    assert.match(text, /GIVEN \$area = deck \{/);
+    assert.match(text, /UNLESS \$from = bottom \{/);
+    const back = parseDefinitions(text);
+    assert.ok(back.ok && deepEqual(back.value, guarded.definitions), "a guarded body does not round-trip");
   }
 
   // The three programs that cannot be lowered, each named rather than hung on.
@@ -623,9 +667,13 @@ if (dbs.ok) {
   // #274 (a move told apart by its cause) adds only `ko`. #276 (one
   // primitive under the four negation spellings) adds four more, #277 (a
   // price is not a number) two, and #275 (a player and the battle in
-  // progress, as subjects) ten. #137 adds the last seven: `draw`, `discard`,
+  // progress, as subjects) ten. #137 adds the last eleven: `draw`, `discard`,
   // `damage` and `addLife` once a selector's count could take an `amount`,
-  // and `replaceLeave`, `negateAttack` and `negateCounter` over `replace`.
+  // `replaceLeave`, `negateAttack` and `negateCounter` over `replace`, and —
+  // once a body could guard a step on an argument, a reveal name its
+  // audience and an amount subtract — `resolvingPlay`, `comboFrom`, `look`
+  // and `lifeDownTo`. `mill` is the one macro row left native (its header
+  // entry, `bind`).
   assert.ok("ops.rules" in DBS_FILES, "ops.rules is not in the set the app loads");
   assert.deepEqual(
     Object.keys(def.ops).sort(),
@@ -633,6 +681,7 @@ if (dbs.ok) {
       "addLife",
       "addMarker",
       "altCost",
+      "comboFrom",
       "comboPower",
       "costReduction",
       "damage",
@@ -645,6 +694,8 @@ if (dbs.ok) {
       "grant",
       "hidden",
       "ko",
+      "lifeDownTo",
+      "look",
       "may",
       "negateAttack",
       "negateCounter",
@@ -656,9 +707,15 @@ if (dbs.ok) {
       "redirectAttack",
       "removeMarker",
       "replaceLeave",
+      "resolvingPlay",
       "switchMode",
     ],
     "ops.rules declares a different set of macros than the tests expect",
+  );
+  assert.deepEqual(
+    Object.keys(OP_CLASS).filter((op) => OP_CLASS[op as keyof typeof OP_CLASS] !== "primitive" && !(op in def.ops)),
+    ["mill"],
+    "a macro row other than mill is undeclared — or mill was declared, and its header entry (bind) no longer says why it is native",
   );
   for (const name of Object.keys(def.ops)) {
     assert.ok(name in OP_SCHEMA, `ops.rules declares ${name}, which is no op`);

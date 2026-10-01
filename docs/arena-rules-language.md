@@ -70,7 +70,7 @@ IF     := "IF" cond
 THEN   := "THEN" ( stmt )*                         one per line
 stmt   := name "(" ( value | field ":" value ) ( "," field ":" value )* ")"
 cond   := comparison | name "(" … ")" | "NOT" cond | cond "AND" cond | cond "OR" cond | "(" cond ")"
-expr   := term ( "+" number )*                     left-associative; the right side is always printed
+expr   := term ( ( "+" | "-" ) number )*           left-associative; the right side is always printed
 term   := number | "$" name | call ( "*" number )?
 call   := "count" "(" SEL ")" | "markers" "(" SEL ")" | "sumPower" "(" "$" name ")"
         | "handUpTo" "(" number ")" | "X" | "life" "(" side ")"
@@ -91,8 +91,10 @@ item   := "{" colour "}"+ | "{" colour "/" colour "}" | ±n "marker" | "burst" n
 **The expression calls are a table, not a list of cases.** `EXPR_SCHEMA` (`lang/ast.ts`) says each
 one's call name, its arguments and whether it takes a `* n`; `printAmount` and the parser's
 `amount()` both walk it, so a shape added to `Amount` is one row there and no new parsing. Only the
-two literals (a number, `$name`) and the one operator (`+ n`) are written out by hand, because they
-have no call name to put in a table.
+two literals (a number, `$name`) and the one operator (`+ n`, and its other sign `- n`) are written
+out by hand, because they have no call name to put in a table. **`- n` is `+ -n`** (#137): the
+same `plus` node with a negative right side, so subtraction adds no shape any interpreter evaluates
+— `life(you) - 2` is "your life, less 2", and the printer writes a negative right side that way.
 
 `X` is the value this skill's price was paid at (20-5). A price says it charges one with the `X`
 item above; the effect then reads it back. **A program that says `X` without a price that binds it
@@ -101,7 +103,7 @@ does nothing. A `choose` step carrying `bindX: true` binds it instead, to how ma
 and only the steps *after* that step may use it. A `bindX` in the price's own program binds X for
 the effect that follows it, which is how "discard any number of cards: … X cards" is written.
 
-The right-hand side of `*` and `+` is always a printed number. No card multiplies one reading of the
+The right-hand side of `*`, `+` and `-` is always a printed number. No card multiplies one reading of the
 board by another, and allowing it would leave the printed form ambiguous about which was read first.
 
 `PAYWITH` names cards this price may be settled with instead of energy (20-19). Each one is rested
@@ -167,6 +169,8 @@ field   := name ":" value                           the fields written as a pair
 value   := every value form of §3 — an amount, a selector, a cond, a program "{ … }",
            a list, a quoted text, a number, a flag
          | "$" name                                 a hole — inside a DEFINE OP body only
+guard   := ( "GIVEN" | "UNLESS" ) "$" name ( "=" word )? "{" stmt* "}"
+                                                    a step of a DEFINE OP's DO only (#137)
 pattern := event ( "(" field ":" plain ( "," field ":" plain )* ")" )?
 params  := "(" ( name ":" type ( "," name ":" type )* )? ")"
 type    := amount | ref | selector | side | area | duration | cond | conds | ops
@@ -749,6 +753,33 @@ was declared as (a duration where a side was, an expression where a number was),
 a cycle, and leaves an **optional** field out of the expansion when its hole is a parameter the
 call did not give — the interpreter then assumes for the expansion what it would have assumed for
 the call — while a required one is refused by name.
+
+**A body can depend on its arguments** (#137, 1 Oct 2026). Some macros mean a different *act*
+depending on what the call gave — `resolvingPlay` is a play replaced by a move with `instead` and
+the same play in another manner without it (9-6), `comboFrom` negates only when `negated`, `look`
+takes the top or the bottom of a deck or a whole other area — and a step of a `DEFINE OP`'s `DO`
+may be a **guard** that says so:
+
+```
+GIVEN $negated {                 kept when the call gave negated, and it is not false
+  negate(target: $target, what: skills)
+}
+GIVEN $from = bottom { … }       kept when from is that word (after the schema's default)
+UNLESS $instead { … }            the same tests, the other way
+```
+
+A guard holds steps, nests, and may sit in a nested program (`replace`'s `with: { … }`). The
+parser makes one only while it reads a `DEFINE OP`'s own `DO` — not a keyword's, not a card's — so
+`Op` stays closed and no expansion ever holds one: `rulesets/expand.ts` settles every guard against
+the call's arguments (after the schema's defaults) before the body is a program. The loader refuses
+a guard on a parameter the macro does not take, and `= word` on a parameter that is not one word (a
+closed list, an area or a side). It prints back as written, so `parse(print(x))` holds over it.
+
+Three more template positions arrived with it, for `lifeDownTo` ("until you have n life"): the
+right of `+`/`-` may be a parameter (`life($side) - $n`), `life()` may take `$side`, and `TOP` (or
+`BOTTOM`) may hold a whole expression in brackets — `TOP (life($side) - $n) IN $side.life`. A count
+slot holding an expression is never *resolved*: the lowered move is read back as `lifeDownTo` first
+(`moveAs`), whose case evaluates it and takes "both players" one pile at a time.
 
 **WORDS** — the word a board shows for a zone, a phase or beat, a mode or a colour, and the phrases a
 requirement and a rule in force are said in: the vocabulary `wording.ts`, `narration.ts`, `effects.ts`

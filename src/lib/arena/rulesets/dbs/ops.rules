@@ -8,12 +8,11 @@
 -- says only what it *means*, and `rulesets/expand.ts` is what lowers a program
 -- written in these ops to a program written in the primitives.
 --
--- **Five rows are not declared yet, and the table below is why.** Writing one
--- that silently dropped an argument would be worse than none: it would
--- validate, it would expand, the sweep in `scripts/verify/language.ts` would
--- pass, and the rule it claimed to explain would be wrong. Each row names the
--- one thing it waits on. The expander is built and tested against fixtures, so
--- the first row that becomes writable is a declaration here and nothing else.
+-- **Thirty of the thirty-one are declared; `mill` stays a native op, and the
+-- table below is why.** Writing a row that silently dropped an argument would
+-- be worse than none: it would validate, it would expand, the sweep in
+-- `scripts/verify/language.ts` would pass, and the rule it claimed to explain
+-- would be wrong. Each entry names what a row waited on and what answered it.
 --
 -- ── what each row waits on ────────────────────────────────────────────────
 --
@@ -38,29 +37,29 @@
 --             (`energyMarkers`) and the *battle in progress* (`guard`) as
 --             well as a card, and the card's own six new attributes are
 --             declared in `attributes.rules` (spec §2.5-1, §2.5-3).
---   branch    a template's body is the same steps whichever arguments the
---             call gave, and three rows mean different *acts* depending on
---             which they gave. `resolvingPlay` with `instead` is a replaced
---             play — `replace(event: play, with: { moveTo(target:
---             [resolving], to: $instead, position: $position) })`, exactly
---             what its own case already hands `replaceResolvingPlay` — but
---             with `mode: rest` or `negated: true` the play *happens*, only
---             in another manner (9-6), and that body's required `to` would
---             refuse the call. `comboFrom` is a move to the Combo Area plus
---             a `negate` only when `negated` is true. `look` takes a `TOP` or
---             a `BOTTOM` by `from`, and a whole area with no count at all
---             when `area` is not the deck. Each needs a body that can depend
---             on an argument — a step kept only when a parameter is given or
---             true, or one body per value of a closed list — which is a
---             grammar change to `DEFINE OP` (§3b), not a declaration here.
---   audience  `reveal` shows a card to both players; `look` is the same act
---             with a narrower audience (20-11), and the field that says which
---             does not exist: `reveal` needs an `audience` (`you | both`,
---             default `both`) its case reads as "no log, no public reveal".
---   maths     an amount cannot subtract with a parameter on its right, so
---             "until you have n life" — `TOP life($side) - $n IN
---             $side.life` — cannot be written (spec §2.5-5): `plus`'s right
---             side is a printed number, and no hole can stand there.
+--   branch    answered (#137): three rows mean different *acts* depending
+--             on which arguments the call gave, and a body may now say so —
+--             `GIVEN $p { … }` keeps its steps when the call gave `p` and it
+--             is not `false`, `GIVEN $p = word { … }` when `p` is that word,
+--             `UNLESS …` the other way (§3b; `Guard`, `lang/ast.ts`). The
+--             expander settles every guard before the body is a program.
+--             `resolvingPlay` is a replaced play with `instead` and the same
+--             play in another manner without it (9-6); `comboFrom` negates
+--             only when `negated`; `look` takes a `TOP` or a `BOTTOM` by
+--             `from`, and a whole area when `area` is not the deck.
+--   audience  answered (#137): `reveal` takes an `audience` (`you | both`,
+--             default `both`, 20-11) — `you` binds the cards and logs
+--             nothing — and `revealAs` reads the three shapes `look` lowers
+--             to back as `look`, whose case evaluates the count and takes one
+--             player's pile.
+--   maths     answered (#137): an amount subtracts — `a - n` is `a + -n`,
+--             the one operator's other sign, so nothing new is evaluated —
+--             and in a body the right of `+`/`-` may be a parameter, `life()`
+--             may take `$side`, and `TOP (…)` may hold a whole expression.
+--             "Until you have n life" is `TOP (life($side) - $n) IN
+--             $side.life`; `moveAs` reads that move back as `lifeDownTo`,
+--             whose case evaluates it and takes "both players" one pile at a
+--             time, which the count alone cannot.
 --   bind      `mill`'s `as` names the milled cards for a later clause outside
 --             the call ("if that card is red"). A string hole can carry the
 --             name into a `choose` or a `reveal` (`as: $as`), but the move
@@ -68,10 +67,12 @@
 --             in a ref position is replaced by the argument — the string,
 --             not `{ var }` of it. The row waits on nothing this file's
 --             grammar could answer, so it stays a native op.
---   cause     answered (#274) for `ko`; `comboFrom` would also need a
---             `moveAs` shape for its 5-7-2 guard (a battle on its master's
---             side) and its `youCombo`/`opponentCombos` moments, which a
---             plain `moveTo(cause: combo)` neither checks nor pends.
+--   cause     answered (#274) for `ko`, and (#137) for `comboFrom`: a move
+--             with the cause `combo` to the Combo Area, and the `negate`
+--             after it when the call said so, are folded back into one
+--             `comboFrom` by `comboFromAs` — its case is what checks 5-7-2
+--             (a battle on its master's side) and pends `youCombo` and
+--             `opponentCombos`, which a plain move neither checks nor pends.
 --
 -- ── the thirty-one macros ─────────────────────────────────────────────────
 --
@@ -79,11 +80,11 @@
 --   draw                 move                     declared (#137)
 --   discard              choose + move            declared (#137)
 --   damage               move                     declared (#137)
---   mill                 move                     bind
+--   mill                 move                     bind — stays native
 --   addLife              move                     declared (#137)
---   lifeDownTo           move                     maths
+--   lifeDownTo           move                     declared (#137)
 --   energyMarker         modifyAttr               declared (#275)
---   look                 reveal                   audience, branch
+--   look                 reveal                   declared (#137)
 --   ko                   move                     declared (#274)
 --   switchMode           modifyAttr               declared (#275)
 --   power                modifyAttr               declared (#273)
@@ -93,7 +94,7 @@
 --   negateSkillsOfKind   negate                   declared (#276)
 --   hidden               modifyAttr               declared (#275)
 --   redirectAttack       modifyAttr               declared (#275)
---   comboFrom            move + negate            branch, cause
+--   comboFrom            move + negate            declared (#137)
 --   flip                 modifyAttr               declared (#275)
 --   faceUp               modifyAttr               declared (#275)
 --   addMarker            modifyAttr               declared (#275)
@@ -103,15 +104,14 @@
 --   gains                modifyAttr               declared (#275)
 --   replaceLeave         replace                  declared (#137)
 --   altCost              costModifier             declared (#277)
---   resolvingPlay        replace                  branch
+--   resolvingPlay        replace                  declared (#137)
 --   negateAttack         replace                  declared (#137)
 --   negateCounter        replace                  declared (#137)
 --   negateOwnSkill       negate                   declared (#276)
 --   may                  chooseMode               declared (#273)
 --
--- `branch` is the one grammar question left: three of the five rows still
--- out wait on it (`look` also on `audience`), `lifeDownTo` on `maths`, and
--- `mill` on `bind`, which no grammar change here would answer.
+-- `mill` is the one row out, on `bind`, which no grammar change here would
+-- answer: it is a native op, and the record of why is the entry above.
 
 -- ── the two numbers a card changes (§2.3, 20-5) ────────────────────────────
 --
@@ -168,7 +168,9 @@ DEFINE OP may
 -- of *each* pile) are what those cases know and a plain move does not.
 -- `discard` is 20-7 written out: the hand's owner chooses, and the cards go —
 -- `discardAs` folds the two steps back into the one `discard` whose case asks
--- each player in turn. `mill` waits on `bind`, `lifeDownTo` on `maths`.
+-- each player in turn. `lifeDownTo` is the top `life - n` of a life, to the
+-- hand with no cause (1-13-2) — `moveAs` reads it back as the op whose case
+-- takes "both players" one pile at a time. `mill` stays native (`bind`).
 
 -- §20-5 — "draw 1 card", "your opponent draws 2 cards", "draw X cards",
 -- "draw cards until you have 4 cards in your hand"
@@ -209,6 +211,30 @@ DEFINE OP addLife
   text: "the top cards of the player's deck move to their life"
   doc: "what `addLife` means: the general move, from the top of the deck to the Life Area"
 
+-- §21-3-2 — "add cards from your life to your hand until you have 3 life"
+DEFINE OP lifeDownTo
+  TAKES (n: number, side: side)
+  DO {
+    moveTo(target: TOP (life($side) - $n) IN $side.life, to: hand)
+  }
+  text: "the player's life cards go to their hand until that many remain"
+  doc: "what `lifeDownTo` means: the general move, from the top of the life, of as many cards as are over the count — never damage (1-13-2)"
+
+-- §5-7 — "use it in a combo from your Drop Area (with its skills negated)".
+-- The move carries the cause a combo does; the negate is kept only when the
+-- call says `negated`. `comboFromAs` folds the two back into the one step
+-- whose case checks 5-7-2 and pends the combo moments.
+DEFINE OP comboFrom
+  TAKES (target: ref, negated: boolean)
+  DO {
+    moveTo(target: $target, to: combo, reveal: true, cause: combo)
+    GIVEN $negated {
+      negate(target: $target, what: skills)
+    }
+  }
+  text: "the card joins the battle as a combo, its skills negated when the call says so"
+  doc: "what `comboFrom` means: a move to the Combo Area with the cause a combo carries, and a negate of the card's skills only when `negated`"
+
 -- §1-13, §21-3-3 — "KO 1 of your opponent's Battle Cards." To the owner's
 -- Drop with the cause "when you KO'd a card" (20-16's `did`) and "when this
 -- card is KO'd" (9-6) both read. [Indestructible], "can't be KO'd by
@@ -232,8 +258,7 @@ DEFINE OP ko
 -- the four — and each row here is built to invert it exactly, so a program
 -- written the declared way and one written the primitive's own way say the
 -- same thing (`verify/vm.ts`'s existing macro/primitive parity block).
--- `comboFrom`'s negate half stays out: it needs `cause` too (#274), not
--- declared on this branch.
+-- `comboFrom`'s negate half is declared beside the moves, above (#137).
 
 -- §9-1-5 — "negate that card's skills for the turn"
 DEFINE OP negateSkills
@@ -430,7 +455,12 @@ DEFINE OP gains
 -- offer: `replaceAs` reads the call back as the spelling it stands for, so
 -- their own cases — 20-16's "if you negated a Leader Card's attack", 9-7's
 -- counter in flight — stay the one reading of either.
--- `resolvingPlay` waits on `branch` (the header).
+--
+-- `resolvingPlay` is the play being resolved (9-6), replaced: by a move of
+-- the card elsewhere when the call names `instead`, and otherwise by the same
+-- play in another manner — rested, or its skills negated for the turn. The
+-- `GIVEN`/`UNLESS` guards are the header's `branch`; `replaceAs` reads both
+-- shapes back as `resolvingPlay`, whose case is the one reading.
 
 -- §9-10 — "if this card would be KO'd, place it in your Warp instead", "…
 -- would be removed from the Battle Area by your opponent's skill, you may
@@ -460,3 +490,50 @@ DEFINE OP negateCounter
   }
   text: "the [Counter] this one answers resolves to nothing"
   doc: "what `negateCounter` means: the counter being answered, replaced by nothing (9-7)"
+
+-- §9-6 — "negate the play of that card and place it at the bottom of its
+-- owner's deck", "it's played in Rest Mode", "…with its skills negated"
+DEFINE OP resolvingPlay
+  TAKES (instead: area, position: word, mode: word, negated: boolean)
+  DO {
+    GIVEN $instead {
+      replace(event: play, with: { moveTo(target: [resolving], to: $instead, position: $position) })
+    }
+    UNLESS $instead {
+      GIVEN $negated {
+        replace(event: play, with: { play(target: [resolving], mode: $mode, negated: turn) })
+      }
+      UNLESS $negated {
+        replace(event: play, with: { play(target: [resolving], mode: $mode) })
+      }
+    }
+  }
+  text: "the play being resolved goes elsewhere instead, or happens in another manner"
+  doc: "what `resolvingPlay` means: the play replaced — by a move of the card with `instead`, by the same play rested or negated for the turn without it ([Counter: Play] only, 9-6)"
+
+-- ── what a player sees (§2.2, 20-11, #137) ──────────────────────────────────
+--
+-- Looking is revealing to one player. `reveal`'s `audience: you` binds the
+-- cards and logs nothing; `revealAs` reads each of the three shapes below
+-- back as `look`, whose case evaluates the count and takes one player's pile.
+-- A whole area's count is not read — the area is the cards.
+
+-- §20-11 — "look at the top 3 cards of your deck", "…the bottom card…",
+-- "look at your opponent's hand"
+DEFINE OP look
+  TAKES (n: amount, as: string, side: side, from: word, area: area)
+  DO {
+    GIVEN $area = deck {
+      GIVEN $from = top {
+        reveal(sel: TOP $n IN $side.deck, as: $as, audience: you)
+      }
+      GIVEN $from = bottom {
+        reveal(sel: BOTTOM $n IN $side.deck, as: $as, audience: you)
+      }
+    }
+    UNLESS $area = deck {
+      reveal(sel: IN $side.$area, as: $as, audience: you)
+    }
+  }
+  text: "the cards are shown to the player alone, and stay where they are"
+  doc: "what `look` means: a reveal whose audience is you — the top or bottom of a deck, or a whole other area (20-11)"

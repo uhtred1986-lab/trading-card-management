@@ -29,7 +29,7 @@ import {
   type Selector,
 } from "../engine/script";
 import type { KeywordSkill } from "../engine/types";
-import { EXPR_SCHEMA, FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, isHole, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type Rule } from "./ast";
+import { EXPR_SCHEMA, FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, isGuard, isHole, isNegHole, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type Rule } from "./ast";
 
 /**
  * Key-sorted JSON with `undefined` dropped, so "the same object" means the
@@ -89,7 +89,7 @@ export const atom = (s: string) => (WORD.test(s) ? s : JSON.stringify(s));
  */
 export function printAmount(a: Amount): string {
   if (typeof a === "number") return String(a);
-  if ("plus" in a) return `${printAmount(a.plus[0])} + ${a.plus[1]}`;
+  if ("plus" in a) return `${printAmount(a.plus[0])} ${printOperand(a.plus[1])}`;
   if ("var" in a) return `$${a.var}`;
   const bag = a as Record<string, unknown>;
   for (const spec of EXPR_SCHEMA) {
@@ -109,6 +109,13 @@ export function printAmount(a: Amount): string {
   return JSON.stringify(a);
 }
 
+/** The right of `+`: `+ 2`, `- 2` for a negative (#137), and in a macro body `+ $n` or `- $n`. */
+function printOperand(v: unknown): string {
+  if (isHole(v)) return `+ $${v.hole}`;
+  if (isNegHole(v)) return `- $${v.neg.hole}`;
+  return (v as number) < 0 ? `- ${-(v as number)}` : `+ ${v as number}`;
+}
+
 function printExprArg(kind: ExprArg, v: unknown): string {
   switch (kind) {
     case "selector":
@@ -120,6 +127,7 @@ function printExprArg(kind: ExprArg, v: unknown): string {
     case "number":
       return String(v as number);
     case "side":
+      return slot(v);
     case "attr":
       return String(v as string);
   }
@@ -149,7 +157,8 @@ export function printSelector(sel: Selector): string {
   if (sel.underHost !== undefined) parts.push(`UNDER (${printSelector(sel.underHost)})`);
   if (sel.upTo) parts.push(sel.count === undefined ? "UP TO" : `UP TO ${slot(sel.count)}`);
   else if (sel.count !== undefined) parts.push(slot(sel.count));
-  if (sel.take !== undefined) parts.push(`${sel.fromEnd ? "BOTTOM" : "TOP"} ${slot(sel.take)}`);
+  // An expression in `TOP` is a macro body's (#137), in brackets.
+  if (sel.take !== undefined) parts.push(`${sel.fromEnd ? "BOTTOM" : "TOP"} ${typeof sel.take === "object" && !isHole(sel.take) ? `(${printAmount(sel.take as unknown as Amount)})` : slot(sel.take)}`);
   else if (sel.fromEnd) parts.push("fromEnd");
   if (sel.filter !== undefined) parts.push(printFilter(sel.filter));
   const zones = sel.areas !== undefined ? (sel.areas.length === 1 ? `ANY(${sel.areas[0]})` : sel.areas.join("|")) : sel.area === undefined ? undefined : slot(sel.area);
@@ -323,6 +332,8 @@ function args(fields: OpField[], o: Record<string, unknown>, indent: number): st
 }
 
 export function printOp(op: Op, indent = 0): string {
+  // A macro body's guard (#137): `GIVEN $p { … }`, `GIVEN $p = word { … }`, `UNLESS …`.
+  if (isGuard(op)) return `${op.unless ? "UNLESS" : "GIVEN"} $${op.given}${op.is === undefined ? "" : ` = ${atom(op.is)}`} ${printBlock(op.ops, indent)}`;
   const spec = OP_SCHEMA[op.op];
   if (!spec) return `${op.op}()`;
   return `${op.op}(${args(spec.fields, op as unknown as Record<string, unknown>, indent)})`;

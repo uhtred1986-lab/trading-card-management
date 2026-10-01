@@ -446,6 +446,10 @@ import type { CardFilter, SchemaOp } from "./harness";
       "replaceLeave",
       "negateAttack",
       "negateCounter",
+      "lifeDownTo",
+      "comboFrom",
+      "resolvingPlay",
+      "look",
     ])
       assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
     // What a declared macro must lower into — read off `OP_CLASS`, the same
@@ -473,6 +477,18 @@ import type { CardFilter, SchemaOp } from "./harness";
         // the row, held here to no record ever reaching it.
         const leave = JSON.stringify(rec.ops).match(/"op":"replaceLeave","to":"(play|under)"/);
         assert.equal(leave, null, `${where}: a replaceLeave to ${leave?.[1]} lowers to a substitute, not the native redirect`);
+        // #137: `resolvingPlay`, `comboFrom` and `look` lower to shapes their
+        // read-backs claim (`replaceAs`, `comboFromAs`, `revealAs`) — a
+        // replaced play, a move caused by a combo, a reveal to you alone. No
+        // record writes any of the three itself, so the claim never takes a
+        // record's own reading away from the primitive's case.
+        const raw = JSON.stringify(rec.ops);
+        for (const [shape, what] of [
+          [/"op":"replace","event":"play"/, "a replace of the play"],
+          [/"cause":"combo"/, "a move caused by a combo"],
+          [/"audience":/, "a reveal naming its audience"],
+        ] as const)
+          assert.equal(shape.test(raw), false, `${where}: the record writes ${what} itself, which a macro's read-back would take as its spelling`);
         if (!used.length) assert.deepEqual(lowered, rec.ops, `${where}: a program with no macro in it did not come back unchanged`);
         else {
           withMacro++;

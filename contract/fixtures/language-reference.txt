@@ -292,7 +292,7 @@
     {
       "name": "reveal",
       "class": "primitive",
-      "signature": "{\"op\":\"reveal\",\"sel\":SELECTOR,\"as\":\"…\"}",
+      "signature": "{\"op\":\"reveal\",\"sel\":SELECTOR,\"as\":\"…\",\"audience\"?:\"you\"|\"both\"}",
       "fields": [
         {
           "name": "sel",
@@ -305,10 +305,21 @@
           "required": true,
           "nullable": false,
           "type": "string"
+        },
+        {
+          "name": "audience",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"both\"",
+          "type": "enum",
+          "enumValues": [
+            "you",
+            "both"
+          ]
         }
       ],
       "sentence": "reveal 1 in your battle",
-      "doc": "shown to both players; the cards stay where they are (20-11-2)"
+      "doc": "shown to both players; the cards stay where they are (20-11-2). \"audience\":\"you\" is a look — shown to you alone, nothing logged (20-11); prefer \"look\", the spelling it means"
     },
     {
       "name": "ko",
@@ -3368,6 +3379,10 @@
     {
       "key": "plus",
       "syntax": "count(SELECTOR) + 1"
+    },
+    {
+      "key": "minus",
+      "syntax": "life(you) - 2"
     }
   ],
   "exprAttrs": [

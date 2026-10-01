@@ -343,7 +343,19 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: "look at the top {n}",
     doc: "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)",
   },
-  reveal: { fields: [{ name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }], sentence: "reveal {sel}", doc: "shown to both players; the cards stay where they are (20-11-2)" },
+  // `audience` (#137): who sees the cards. "you" is a look — 20-11's same
+  // act with the narrower audience — and reads as the `look` it stands for
+  // when it is exactly the shape `ops.rules`'s `look` lowers to (`revealAs`).
+  reveal: {
+    fields: [{ name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }, { name: "audience", type: { enum: ["you", "both"] }, default: "both" }],
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"reveal">;
+      const as = revealAs(op);
+      if (as.op !== "reveal") return describeScript([as], r);
+      return renderTemplate(`${op.audience === "you" ? "look at" : "reveal"} {sel}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.reveal.fields, r);
+    },
+    doc: 'shown to both players; the cards stay where they are (20-11-2). "audience":"you" is a look — shown to you alone, nothing logged (20-11); prefer "look", the spelling it means',
+  },
   ko: { fields: [TARGET], sentence: "KO {target}" },
   moveTo: {
     fields: [
@@ -357,7 +369,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "faceUp", type: "boolean" },
       { name: "cause", type: { enum: MOVE_REASONS }, default: "effect" },
     ],
-    sentence: "move {target} to {to}{faceUp? face up}",
+    // A move a macro lowered to reads as the spelling it stands for (#137,
+    // `moveAs`) — "life down to 3", not a selector counted by an expression.
+    sentence: (raw, r) => {
+      const as = moveAs(raw as Op);
+      if (as.op !== "moveTo" && as.op !== "note") return describeScript([as], r);
+      return renderTemplate("move {target} to {to}{faceUp? face up}", raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
+    },
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
   play: {
@@ -1308,9 +1326,39 @@ const only = (o: object, keys: readonly string[]): boolean => Object.keys(o).eve
  * own business and comes back as it was.
  */
 export function replaceAs(op: Op): Op {
+  if (op.op === "replace" && op.event === "play") return resolvingPlayOf(op) ?? op;
   if (op.op !== "replace" || (op.event !== "attack" && op.event !== "counter")) return op;
   if (op.with.length || !only(op, ["op", "event", "with"])) return { op: "note", text: `replace: ${op.event === "attack" ? "the attack" : "the counter being answered"} can only be replaced by nothing` };
   return op.event === "attack" ? { op: "negateAttack" } : { op: "negateCounter" };
+}
+
+/** `[resolving]`, exactly: the card being played and nothing said about it. */
+const isResolving = (ref: unknown): boolean => {
+  const sel = (ref as { sel?: Record<string, unknown> } | undefined)?.sel;
+  return !!sel && only(sel, ["special"]) && sel.special === "resolving";
+};
+
+/**
+ * The play being resolved, replaced (9-6, #137): the two shapes `ops.rules`'s
+ * `resolvingPlay` lowers to, read back as that op so its own case — the one
+ * that hands `replaceResolvingPlay` its move, or marks the arrival rested or
+ * negated for the turn — stays the one reading on both engines.
+ *
+ * - `with: { moveTo(target: [resolving], to, position?) }` is the play not
+ *   happening, the card going elsewhere: `resolvingPlay(instead: to)`.
+ * - `with: { play(target: [resolving], mode?: rest, negated?: turn) }` is the
+ *   same play in another manner: `resolvingPlay(mode, negated: true)`.
+ *
+ * Anything else in a play's place is the primitive's own business (`null`).
+ */
+function resolvingPlayOf(op: OpOf<"replace">): Op | null {
+  if (!only(op, ["op", "event", "with"]) || op.with.length !== 1) return null;
+  const step = op.with[0];
+  if (step.op === "moveTo" && only(step, ["op", "target", "to", "position"]) && isResolving(step.target))
+    return { op: "resolvingPlay", instead: step.to, ...(step.position ? { position: step.position } : {}) };
+  if (step.op === "play" && only(step, ["op", "target", "mode", "negated"]) && isResolving(step.target) && step.mode !== "active" && step.negated !== "game" && (step.mode || step.negated))
+    return { op: "resolvingPlay", ...(step.mode ? { mode: step.mode } : {}), ...(step.negated ? { negated: true } : {}) };
+  return null;
 }
 
 /**
@@ -1338,8 +1386,65 @@ export function moveAs(op: Op): Op {
     if (op.cause === "draw" && sel.area === "deck" && op.to === "hand") return { op: "draw", n, side: sel.side };
     if (op.cause === "damage" && sel.area === "life" && op.to === "hand") return { op: "damage", n, side: sel.side };
     if (op.cause === undefined && sel.area === "deck" && op.to === "life") return { op: "addLife", n, side: sel.side };
+    // `lifeDownTo` (21-3-2): the top `life(side) - n` of a life, to the hand,
+    // with no cause — losing life this way is not damage (1-13-2). The case
+    // reads "both players" one pile at a time, which the count cannot.
+    const down = lifeDownCount(n, sel.side);
+    if (op.cause === undefined && sel.area === "life" && op.to === "hand" && down !== null) return { op: "lifeDownTo", n: down, side: sel.side };
   }
   return counted ? { op: "note", text: "moveTo: a selector counts by a number" } : op;
+}
+
+/** `life(side) - n`, exactly, as `lifeDownTo` lowers its count: the `n`, or `null` for any other expression. */
+function lifeDownCount(n: Amount, side: Side): number | null {
+  if (typeof n !== "object" || !("plus" in n) || typeof n.plus[1] !== "number") return null;
+  const life = n.plus[0];
+  if (typeof life !== "object" || !("life" in life) || !only(life, ["life"]) || life.life !== side) return null;
+  return -n.plus[1];
+}
+
+/**
+ * The `reveal` primitive, read as the spelling it stands for (#137). `look` is
+ * a reveal to the master alone (20-11), and lowers to one of three shapes —
+ * `TOP $n IN $side.deck`, `BOTTOM $n IN $side.deck`, or a whole area that is
+ * not the deck — each read back here, so `look`'s own case stays the one
+ * reading: it evaluates the count (an expression, often), and it takes one
+ * player's pile even for "both". Its count is not read for a whole area, so
+ * the call's own is lost in the lowering and given back as the area's size.
+ * Any other reveal — to both players, or of cards chosen some other way —
+ * comes back as it was.
+ */
+export function revealAs(op: Op): Op {
+  if (op.op !== "reveal" || op.audience !== "you" || !only(op, ["op", "sel", "as", "audience"])) return op;
+  const sel = op.sel as Selector & Record<string, unknown>;
+  if (!sel.side || !sel.area) return op;
+  if (sel.area === "deck" && sel.take !== undefined && only(sel, ["take", "side", "area", "fromEnd"]))
+    return { op: "look", n: sel.take as unknown as Amount, as: op.as, side: sel.side, ...(sel.fromEnd ? { from: "bottom" as const } : {}) };
+  if (sel.area !== "deck" && only(sel, ["side", "area"])) return { op: "look", n: { count: { side: sel.side, area: sel.area } }, as: op.as, side: sel.side, area: sel.area };
+  return op;
+}
+
+/** One lowered step or a run of them, read back as the one step they stand for: the op, and how many steps it takes the place of. */
+export interface Folded {
+  op: Op;
+  span: number;
+}
+
+/**
+ * `comboFrom`'s lowering, read back as the one step it stands for (5-7, #137):
+ * `moveTo(target: $target, to: combo, reveal: true, cause: combo)`, and — when
+ * the call said `negated` — `negate(target: $target, what: skills)` right
+ * after it. `comboFrom`'s own case is what checks 5-7-2 (a battle on its
+ * master's side) and pends `youCombo`/`opponentCombos`, one card at a time,
+ * negating only the cards it moved; a plain move with the cause `combo`
+ * neither checks nor pends. `null` when the step at `ip` is not that move.
+ */
+export function comboFromAs(ops: readonly Op[], ip: number): Folded | null {
+  const move = ops[ip];
+  if (move?.op !== "moveTo" || move.cause !== "combo" || move.to !== "combo" || move.reveal !== true || !only(move, ["op", "target", "to", "reveal", "cause"])) return null;
+  const next = ops[ip + 1];
+  const negated = next?.op === "negate" && next.what === "skills" && only(next, ["op", "target", "what"]) && JSON.stringify(next.target) === JSON.stringify(move.target);
+  return { op: { op: "comboFrom", target: move.target, ...(negated ? { negated: true } : {}) }, span: negated ? 2 : 1 };
 }
 
 /** The name `ops.rules`'s `discard` binds its choice to, read back below. */
@@ -1354,9 +1459,9 @@ export const DISCARDED = "discarded";
  * evaluates an X there. This is the one read-back that spans two steps, so
  * `stepScript` calls it on the program rather than on one op: the pair at `ip`
  * comes back as the `discard` it stands for, or `null` when it is not that
- * pair exactly.
+ * pair exactly. (`comboFromAs` above is the other.)
  */
-export function discardAs(ops: readonly Op[], ip: number): Op | null {
+export function discardAs(ops: readonly Op[], ip: number): Folded | null {
   const choose = ops[ip];
   const move = ops[ip + 1];
   if (choose?.op !== "choose" || move?.op !== "moveTo") return null;
@@ -1364,7 +1469,7 @@ export function discardAs(ops: readonly Op[], ip: number): Op | null {
   if (choose.sel.area !== "hand" || !choose.sel.side || choose.sel.side !== choose.chooser || choose.sel.count === undefined) return null;
   if (!only(move, ["op", "target", "to", "reveal"]) || move.reveal !== true || (move.to !== "drop" && move.to !== "warp")) return null;
   if (!("var" in move.target) || move.target.var !== DISCARDED || move.target.minus !== undefined) return null;
-  return { op: "discard", n: choose.sel.count as unknown as Amount, side: choose.sel.side, ...(move.to === "warp" ? { to: "warp" as const } : {}) };
+  return { op: { op: "discard", n: choose.sel.count as unknown as Amount, side: choose.sel.side, ...(move.to === "warp" ? { to: "warp" as const } : {}) }, span: 2 };
 }
 
 export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is Op[] {
@@ -1410,6 +1515,8 @@ export function asksAQuestion(ops: unknown): boolean {
     if (!raw || typeof raw !== "object") return false;
     const o = raw as Record<string, unknown>;
     if (typeof o.op === "string" && PROMPTING_OPS.has(o.op as Op["op"])) return true;
+    // A reveal to the master alone is the `look` it lowers from (#137).
+    if (o.op === "reveal" && o.audience === "you") return true;
     if (asksAQuestion(o.ops) || asksAQuestion(o.then) || asksAQuestion(o.else) || asksAQuestion(o.with)) return true;
     return Array.isArray(o.modes) && o.modes.some((m) => asksAQuestion((m as { ops?: unknown }).ops));
   });
@@ -1729,7 +1836,7 @@ const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", originalPower: 
 function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
-    if ("plus" in a) return `${describeAmount(a.plus[0], noun)} and ${a.plus[1]} more`;
+    if ("plus" in a) return `${describeAmount(a.plus[0], noun)} and ${a.plus[1] < 0 ? `${-a.plus[1]} less` : `${a.plus[1]} more`}`;
     if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
     if ("markers" in a) return `+${a.times ?? 1} ${noun} for each marker on ${describeEach(a.markers)}`;
     if ("x" in a) return a.times === undefined ? `+X ${noun}` : `+${a.times} ${noun} for each X`;
@@ -1739,7 +1846,7 @@ function describeAmount(a: Amount, noun?: string): string {
     return `+that many ${noun}`;
   }
   if (typeof a === "number") return `${a}`;
-  if ("plus" in a) return `${describeAmount(a.plus[0])} and ${a.plus[1]} more`;
+  if ("plus" in a) return a.plus[1] < 0 ? `${describeAmount(a.plus[0])} less ${-a.plus[1]}` : `${describeAmount(a.plus[0])} and ${a.plus[1]} more`;
   if ("var" in a) return "that many";
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
