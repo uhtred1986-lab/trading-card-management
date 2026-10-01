@@ -24,7 +24,7 @@
  * Pure: no database, no images. `session.ts` fills in the image URLs, which is
  * what keeps this testable in `npm test`.
  */
-import type { EngineContext, GameEvent } from "../engine";
+import type { EngineContext, GameEvent } from "../types";
 import type { Beat, BeatArt, Beats, NumberedBeat } from "../beats";
 import { SKILL_LABELS } from "../beats";
 import { describeEffect } from "../effects";

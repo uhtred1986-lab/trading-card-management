@@ -34,7 +34,7 @@
  *
  * Pure, synchronous and client-safe, like the rest of `rulesets/`.
  */
-import { COLORS, COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type OpField, type Ref, type Selector } from "../engine/script";
+import { COLORS, COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type OpField, type Ref, type Selector } from "../vm/script";
 import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isGuard, isHole, isNegHole, type Guard, type Hole, type ParamType } from "../lang/ast";
 import type { GameDefinition, OpDef } from "./types";
 
@@ -74,7 +74,7 @@ const expandOps = (ops: Op[], def: GameDefinition, chain: string[]): Op[] => (Ar
  * printed keyword — `[Swap 3]` binds `x` to 3 — exactly as a macro's body is
  * filled from its call (#273): the same substitution, the same refusal of a
  * hole whose value is missing or of the wrong shape. `values` is the keyword
- * as the card prints it (`KeywordSkill`, `engine/types.ts`), whose fields are
+ * as the card prints it (`KeywordSkill`, `types.ts`), whose fields are
  * the parameters `TAKES` declares (`scripts/verify/rulesets.ts` holds the two
  * equal). A keyword that takes nothing gets its body back untouched.
  *

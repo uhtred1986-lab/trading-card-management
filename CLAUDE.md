@@ -147,8 +147,9 @@ default — which would put the Atlantic in the middle of every database round-t
   stale first — if a keyword's entry says the engine does something it no longer does, the page is
   worse than nothing. The typecheck only catches a *missing* keyword; nothing catches a
   description that has quietly become untrue, which is why this is a rule rather than a test.
-  Files in scope: `src/lib/arena/engine/{cards,compile,filters,engine,state,triggers,script}.ts`,
-  `src/lib/arena/lang/*.ts`.
+  Files in scope: `src/lib/arena/text/{cards,filters,triggers}.ts`, `src/lib/arena/compile.ts` and
+  `compile/*.ts`, `src/lib/arena/vm/*.ts` (`script.ts` is the interpreter), `src/lib/arena/lang/*.ts`,
+  and the legacy `src/lib/arena/engine/{engine,state,triggers}.ts` while it exists (#118).
 - After a PR merges, delete the merged remote branch (`gh pr merge --delete-branch`, or the
   "Delete branch" button on GitHub) — do this unasked, but never delete a branch that hasn't
   merged (`--no-merged` in `git branch -r --merged main`). There is one Neon database for dev,

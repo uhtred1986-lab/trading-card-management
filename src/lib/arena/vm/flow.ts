@@ -36,11 +36,12 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { IllegalAction, type Action, type EngineContext, type GameEvent } from "../engine";
-import { AREAS, PHASES } from "../engine/script";
-import { nextRandom, shuffle } from "../engine/rng";
-import { PLAYERS, other, type Area, type MoveReason, type Phase, type PlayerId, type Prompt, type ReplacementResult } from "../engine/types";
-import type { Cond, Selector, Side } from "../engine/script";
+import { IllegalAction } from "./common";
+import { type Action, type EngineContext, type GameEvent } from "../types";
+import { AREAS, PHASES } from "./script";
+import { nextRandom, shuffle } from "./rng";
+import { PLAYERS, other, type Area, type MoveReason, type Phase, type PlayerId, type Prompt, type ReplacementResult } from "../types";
+import type { Cond, Selector, Side } from "./script";
 import type { PatternValue } from "../lang";
 import type { GameDefinition, StepDef, WinDef } from "../rulesets";
 import { RulesetBroken } from "./errors";
@@ -50,8 +51,8 @@ import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
-import { stepScript, type ScriptFrame } from "../engine/script";
-import type { Trigger } from "../engine/types";
+import { stepScript, type ScriptFrame } from "./script";
+import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
 import { fireHook, queryHookStatics } from "./hooks";
 import { playerAttributes } from "./cards";
@@ -446,7 +447,7 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     //
     // #151: a program is exactly where a card's own `damage`/`addLife`/
     // `lifeDownTo` can bring a life pile to 0 (`stepScript`'s own cases,
-    // `engine/script.ts`) — a skill's effect, not a battle step's native
+    // `vm/script.ts`) — a skill's effect, not a battle step's native
     // `dealDamage`, so the two checkpoints above (`run`'s own opening call and
     // the one beside a step's `STEP_WORK`) never see it: this frame's step
     // stays the current one, `top.asking` is left exactly as it was, and

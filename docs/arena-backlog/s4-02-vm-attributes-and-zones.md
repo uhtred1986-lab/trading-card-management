@@ -7,7 +7,7 @@ stage: 4
 status: closed
 closed_at: 2026-09-13
 ---
-**Source:** plan Stage 4 ("`CardDef.attrs` + predicate filters (adapter from `CardFilter`); `zones: Record<string, string[]>`"); `attributes.rules` and `zones.rules` from Stage 3; `src/lib/arena/engine/filters.ts` and `types.ts` (`CardFilter`, `PlayerState`); `src/lib/arena/load.ts` (`defsForCards`).
+**Source:** plan Stage 4 ("`CardDef.attrs` + predicate filters (adapter from `CardFilter`); `zones: Record<string, string[]>`"); `attributes.rules` and `zones.rules` from Stage 3; `src/lib/arena/text/filters.ts` and `types.ts` (`CardFilter`, `PlayerState`); `src/lib/arena/load.ts` (`defsForCards`).
 
 **Problem.** The legacy engine has `colors`, `energyCost`, `power`, `comboCost`, `characters`, `traits` as fields on every type, and one `PlayerState` with a named field per area. A configuration-driven engine cannot know those names: a card is a bag of **declared attributes** and a side is a map of **declared zones**.
 

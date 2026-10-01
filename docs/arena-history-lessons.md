@@ -3101,3 +3101,68 @@ nothing on its own — it only stops the other two from compiling half a rule.
   one.** The compiler cannot tell which call site will move a card, so the
   refusal has to be where the site is known. `replacementFor` skipping what it
   cannot ask about is what let the compiler stop refusing the wording.
+
+## Retiring the legacy engine, step 1 — the shared parts get their own homes (#118, 1 Oct 2026)
+
+The owner said on 1 Oct 2026 to take the old engine out. The saved-games question was already
+settled: **Archive** (#119, 20 Sep 2026, `docs/arena-ruleset-spec.md` §6), built by #335 — a
+`legacy` row with a stored `snapshot` lists and opens read-only, nothing replays. So `legacy` stays
+in `ENGINE_IDS` as the marker those rows carry.
+
+**What moved.** Everything `vm/` imported from `engine/` now lives somewhere that is not the legacy
+engine, and `vm/` imports nothing from `engine/`:
+
+| was | now |
+|---|---|
+| `engine/types.ts` (+ `EngineContext`, `GameContext`, `DeckInput`, `GameOptions`, `LegalAction`, `ActionCost`, `Replacement`, `AltCost`, `Payment`, `Payer`, `MoveOptions` from `engine.ts`/`state.ts`) | `types.ts` |
+| `engine/cards.ts`, `engine/filters.ts` | `text/cards.ts`, `text/filters.ts` |
+| `autoTriggerMatches`, `keywordTriggers` (`engine/triggers.ts`) | `text/triggers.ts` |
+| `engine/compile.ts`, `engine/compile/` | `compile.ts`, `compile/` — the drafter of records |
+| `engine/script.ts`, `engine/script-schema.ts` (`stepScript`, `OP_SCHEMA`, `COND_SCHEMA`) | `vm/script.ts`, `vm/script-schema.ts` |
+| `engine/script-host.ts` | `vm/script-host.ts` (the interface); `legacyHost` → `engine/legacy-host.ts` |
+| `engine/rng.ts` | `vm/rng.ts` |
+| `programsOf`, the copied-skill index, `tokenCardId`/`tokenDefOf`, `redirectOf`, `sideOf`, `mirrorSides`, `IllegalAction`, `defsFrom` | `vm/common.ts` |
+
+`engine/index.ts` exports only the legacy engine now, so `grep -rn "arena/engine\|\./engine\b"`
+outside the directory *is* the list of what the retirement still has to replace. No behaviour
+moved: `verify-arena` 21/21 on legacy and 14/21 + 7 skipped on rules before and after,
+`contract:emit` unchanged.
+
+**Ledger** (`src/lib/arena`, `docs/arena-rules-workbench-spec.md` §3.8): 45,607 → 45,554 lines
+(+1,147 / −1,200 in the move commit, git counting the moved files as renames). Before Stage 0
+(`e42a62c5^`) the tree was **18,857** lines, so the issue's "fewer lines than before Stage 0" is
+out of reach even with all of `engine/` (6,361 lines left) deleted: the rules engine, the language,
+the rulesets and the workbench that replaced it are bigger than it was.
+
+**Why it stopped there.** Deleting `engine.ts`, `state.ts`'s DBS content and the legacy adapter
+today would break things that still run only on it, and lose coverage nothing else holds:
+
+- **Claude's own move and the referee.** `ai/opponent.ts` refuses a real API call on a rules-engine
+  game by name (`stateText`/`decklistText` in `ai/view.ts` read `GameState` only), and
+  `ai/run.ts`'s referee and debug search aside, `ai/review.ts` and `fired.ts` narrow with
+  `legacyState`. On the rules engine, Sparring and Tournament against Claude already stop at the
+  first real decision; legacy is the only engine they play through on.
+- **1 v 1.** `games.ts`'s `modeRefusal` sends a `versus` game to `FALLBACK_ENGINE` because
+  `view.ts`'s `revealedTo` (and so `beats.ts`'s `maskBeats`) reveals every card of a `VmState`.
+- **Action prices** (#149): `vm/activate.ts`'s `chargeablePrice` refuses a price with ops, so
+  `workflow`'s PRICED case still skips on rules.
+- **Tests.** Seven `verify-arena` suites (`setup`, `compiler`, `readings`, `wordings`, `contract`,
+  `language`, `lang` — about 7,500 lines) stage legacy `GameState` fixtures and skip on rules;
+  `contract:emit` writes `contract/fixtures/` from legacy games; `vm.ts` (4,857 lines) is parity
+  against legacy call for call, and `keywords`'s two skipped cases (`continuations`, `koCard`) have
+  no rules-engine fixture. Each has to become a fixed, checked-in expectation — and
+  `contract/probe-digests.json` stays the golden record — before the legacy run can go.
+- **The rest of the app's legacy branches**: `view.ts`'s and `beats.ts`'s legacy halves,
+  `probe.ts`/`probe-report.ts` (the probe still defaults to `FALLBACK_ENGINE`, and its digests are
+  legacy outputs), `engine-state.ts`, `snapshot.ts`, `matches.ts`, and the scripts
+  `arena-diff`, `arena-fuzz`, `arena-playthrough`, `arena-probe`, `arena-coverage`, `arena-gaps`
+  (`emitsStatic`, whose `STATIC_OPS` describes the legacy static layer).
+
+### Lessons
+
+- **Move first, delete second.** With the shared parts in their own homes, the import graph says
+  exactly what still depends on the legacy engine; before, every `../engine` import looked the
+  same, whether it wanted `PlayerId` or `apply`.
+- **An exit criterion is only as good as its blockers' list.** Stage 9 closed with the rules engine
+  the default, but "the default" is not "the only one": three product paths (Claude's move, 1 v 1,
+  action prices) and a third of `verify-arena` still lean on the oracle.

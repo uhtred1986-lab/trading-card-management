@@ -18,10 +18,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
-import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, describeScript, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/engine/script";
+import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
+import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, describeScript, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/vm/script";
 import { pendTriggers } from "../../src/lib/arena/engine/triggers";
-import type { CardScripts, GameState, KeywordSkill, Trigger } from "../../src/lib/arena/engine";
+import type { CardScripts } from "../../src/lib/arena/vm/script";
+import type { GameState, KeywordSkill, Trigger } from "../../src/lib/arena/types";
 import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
 import { CTX, DEFS, arena, find, parseFilter, rulesFromCompiler, skillRecords } from "./harness";
@@ -638,7 +639,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { powerMax: 15000 },
     // "An original power of 500" (20-3-1): the printed value, a separate
     // measure from the bare one above even though both are read off `d.power`
-    // today — see the field's own comment in `engine/filters.ts`.
+    // today — see the field's own comment in `text/filters.ts`.
     { originalPowerMin: 500, originalPowerMax: 500 },
     { originalPowerMin: 10000 },
     { originalPowerMax: 15000 },

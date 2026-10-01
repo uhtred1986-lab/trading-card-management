@@ -15,9 +15,9 @@
  */
 import { fetchDeckplanet, shapeCatalog } from "../src/lib/catalog/deckplanet";
 import { cardDefFrom } from "../src/lib/arena/load";
-import { parseSkills } from "../src/lib/arena/engine/cards";
-import { compileSkill } from "../src/lib/arena/engine/compile";
-import { describeScript } from "../src/lib/arena/engine/script";
+import { parseSkills } from "../src/lib/arena/text/cards";
+import { compileSkill } from "../src/lib/arena/compile";
+import { describeScript } from "../src/lib/arena/vm/script";
 
 const args = process.argv.slice(2);
 const value = (name: string) => {

@@ -2,7 +2,7 @@
  * The **specified** cost — the coloured half of a play's price — and the cards
  * whose baseline nobody can state.
  *
- * `specifiedCostOf` (`engine/cards.ts`) fills a fixed cost's orbs by
+ * `specifiedCostOf` (`text/cards.ts`) fills a fixed cost's orbs by
  * convention: one of each of the card's colours, capped by the total. An X
  * cost has no total to cap, so the convention says nothing — and the catalog
  * says nothing either. This script is that claim, checked rather than
@@ -25,7 +25,7 @@
  */
 import { fetchDeckplanet, shapeCatalog } from "../src/lib/catalog/deckplanet";
 import { cardDefFrom } from "../src/lib/arena/load";
-import { specifiedCostUnknown } from "../src/lib/arena/engine/cards";
+import { specifiedCostUnknown } from "../src/lib/arena/text/cards";
 import { parseSpecifiedCost, SPECIFIED_CLAUSE, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import type { Game } from "../src/lib/catalog/games";
 

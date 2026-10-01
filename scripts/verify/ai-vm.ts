@@ -16,7 +16,9 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`.
  */
 import assert from "node:assert/strict";
-import { defsFrom, seedFrom, type CardDef, type EngineContext } from "../../src/lib/arena/engine";
+import { defsFrom } from "../../src/lib/arena/vm/common";
+import { seedFrom } from "../../src/lib/arena/vm/rng";
+import { type CardDef, type EngineContext } from "../../src/lib/arena/types";
 import { engineFor } from "../../src/lib/arena/engines";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { chooseMove } from "../../src/lib/arena/ai/opponent";

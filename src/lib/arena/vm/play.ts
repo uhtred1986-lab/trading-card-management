@@ -32,8 +32,8 @@
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
-import type { EngineContext, GameEvent } from "../engine";
-import type { Mode, PlayerId } from "../engine/types";
+import type { EngineContext, GameEvent } from "../types";
+import type { Mode, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
 import { addEffect } from "./effects";

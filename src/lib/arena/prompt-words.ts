@@ -22,7 +22,7 @@
  * declaration's (`promptHint`).
  */
 import { loadDbs, type GameDefinition, type PromptDef } from "./rulesets";
-import type { Prompt } from "./engine/types";
+import type { Prompt } from "./types";
 
 export interface PromptWords {
   question: string;

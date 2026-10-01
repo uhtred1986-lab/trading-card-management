@@ -21,8 +21,8 @@
  * (#131).
  */
 import type { Game } from "../../catalog/games";
-import { CARD_ATTRS, COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../engine/script";
-import type { SkillKindPrefix } from "../engine/types";
+import { CARD_ATTRS, COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../vm/script";
+import type { SkillKindPrefix } from "../types";
 // Deep imports, not the `lang` barrel: the barrel binds `parseRule` to *this*
 // module's own output (the game's words, #137), and the loader is what
 // produces them. Reading the grammar directly is the one way round that

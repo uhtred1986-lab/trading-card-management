@@ -27,7 +27,7 @@
 --             because `draw`, `discard`, `damage` and `addLife` take `n` as
 --             an amount. No selector *runs* counted by an expression: the
 --             lowered move or choice is read back as the spelling it stands
---             for first (`moveAs`, `discardAs`, `engine/script-schema.ts`).
+--             for first (`moveAs`, `discardAs`, `vm/script-schema.ts`).
 --   replace   answered (#125, #232, #436, and #137 for the two moments it
 --             added): `replace` is an op, its `event` names `attack` and
 --             `counter` beside the departures, and `replaceAs` reads an
@@ -162,7 +162,7 @@ DEFINE OP may
 -- which. `ko` came first (#274): its `target` is a `ref`. `draw`, `damage`
 -- and `addLife` followed once a selector's count could be handed an `amount`
 -- (#137, the `count` entry above): each is the top `n` cards of one pile,
--- moved, and `moveAs` (`engine/script-schema.ts`) reads each of the three
+-- moved, and `moveAs` (`vm/script-schema.ts`) reads each of the three
 -- shapes back as its own spelling before either engine runs it — a draw from
 -- an empty deck, damage's own moments (21-3) and "both players" (the top `n`
 -- of *each* pile) are what those cases know and a plain move does not.
@@ -253,7 +253,7 @@ DEFINE OP ko
 -- Four spellings, one primitive: `negate(target, what: skills | kind | keyword
 -- | own, kind?, keyword?, until?)` reads a card's skills, a printed kind of
 -- them, a named keyword everywhere, or the skill resolving now, and stops it
--- for a duration. `negateAs` (`engine/script-schema.ts`) is the interpreter's
+-- for a duration. `negateAs` (`vm/script-schema.ts`) is the interpreter's
 -- own reading in the other direction — a `negate(…)` call read back as one of
 -- the four — and each row here is built to invert it exactly, so a program
 -- written the declared way and one written the primitive's own way say the
@@ -300,7 +300,7 @@ DEFINE OP negateOwnSkill
 --
 -- `costModifier(target, amount?, what?, colors?, skillKind?, pay?, n?, for?,
 -- alt?, orbs?, until?)` is the one primitive under both spellings —
--- `costModifierAs` (`engine/script-schema.ts`) reads a call back as whichever
+-- `costModifierAs` (`vm/script-schema.ts`) reads a call back as whichever
 -- it stands for, and each row here is built to invert it exactly: `pay`
 -- present means `altCost` (the price replaced), absent means `costReduction`
 -- (the price's number changed). The rules engine reads only the reduction
@@ -337,7 +337,7 @@ DEFINE OP altCost
 -- as the value being set rather than a locator — there is only one), and
 -- once `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped` were
 -- declared card attributes (`attributes.rules`). `modifyAttrAs`
--- (`engine/script-schema.ts`) is the one reading of each spelling, so a
+-- (`vm/script-schema.ts`) is the one reading of each spelling, so a
 -- program written either way runs the same case, puts the same effect in
 -- force (or none) and reads in the same words — the precedent `negateAs`
 -- and `costModifierAs` set for their own primitives.

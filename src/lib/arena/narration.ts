@@ -11,7 +11,7 @@
  * Pure and React-free — covered by `npm test`, and the table the Android app
  * carries in Kotlin.
  */
-import type { PlayerId } from "./engine";
+import type { PlayerId } from "./types";
 import type { Beat, BeatArt } from "./beats";
 import { untilWords } from "./effects";
 import { dbsWords, type BoardWords } from "./board-words";

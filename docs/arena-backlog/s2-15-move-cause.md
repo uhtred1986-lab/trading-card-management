@@ -7,7 +7,7 @@ issue: 274
 status: closed
 closed_at: 2026-09-14
 ---
-**Source:** #137 (owner's decision of 13 Sep 2026: each §2.5 primitive is its own issue); `docs/arena-ruleset-spec.md` §2.5-2; `src/lib/arena/rulesets/dbs/ops.rules` (the rows waiting on `cause`: `draw`, `discard`, `damage`, `mill`, `addLife`, `lifeDownTo`, `ko`, `comboFrom`); the `moveTo` row in `src/lib/arena/engine/script-schema.ts`; the legacy `move()` and `MoveOptions.reason` in `src/lib/arena/engine/state.ts`; `moveCard` in `src/lib/arena/vm/zones.ts`; `src/lib/arena/rulesets/dbs/triggers.rules` (`moved(from:, asPlay:)`).
+**Source:** #137 (owner's decision of 13 Sep 2026: each §2.5 primitive is its own issue); `docs/arena-ruleset-spec.md` §2.5-2; `src/lib/arena/rulesets/dbs/ops.rules` (the rows waiting on `cause`: `draw`, `discard`, `damage`, `mill`, `addLife`, `lifeDownTo`, `ko`, `comboFrom`); the `moveTo` row in `src/lib/arena/vm/script-schema.ts`; the legacy `move()` and `MoveOptions.reason` in `src/lib/arena/engine/state.ts`; `moveCard` in `src/lib/arena/vm/zones.ts`; `src/lib/arena/rulesets/dbs/triggers.rules` (`moved(from:, asPlay:)`).
 
 **Problem.** `damage`, `ko`, `combo`, `effect` and a plain draw are one move told apart by its cause, and the triggers read the cause — the legacy `move()` already takes one. `moveTo` has no such field, so none of the eight rows above can lower to it without saying something the card does not.
 

@@ -17,7 +17,8 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { arenaGames } from "../src/db/schema";
-import { IllegalAction, type Action, type EngineContext, type GameState } from "../src/lib/arena/engine";
+import { IllegalAction } from "../src/lib/arena/vm/common";
+import { type Action, type EngineContext, type GameState } from "../src/lib/arena/types";
 import { engineFor, engineOr, isEngineId, legacyState, type EngineId } from "../src/lib/arena/engines";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
 import { rulesFor } from "../src/lib/arena/rules-store";

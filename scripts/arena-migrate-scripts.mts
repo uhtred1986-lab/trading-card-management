@@ -21,11 +21,11 @@ loadEnvConfig(process.cwd());
 const { eq, sql } = await import("drizzle-orm");
 const { db } = await import("../src/db/index.ts");
 const { cardRules, cards: cardsTable } = await import("../src/db/schema.ts");
-const { describeScript, validateProgram } = await import("../src/lib/arena/engine/script.ts");
+const { describeScript, validateProgram } = await import("../src/lib/arena/vm/script.ts");
 const { catalogIds, draftCards, skillRecords } = await import("../src/lib/arena/draft.ts");
 const { cardDefFrom } = await import("../src/lib/arena/load.ts");
 const { rows } = await import("../src/db/rows.ts");
-type Op = import("../src/lib/arena/engine/script.ts").Op;
+type Op = import("../src/lib/arena/vm/script.ts").Op;
 
 /** `cannotAttack` was the word before `forbid` existed; the same thing. The old rows are read loosely — the op is no longer in the language. */
 type Loose = Record<string, unknown> & { op: string };

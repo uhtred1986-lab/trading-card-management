@@ -7,7 +7,7 @@ issue: 276
 status: closed
 closed_at: 2026-09-14
 ---
-**Source:** #137 (owner's decision of 13 Sep 2026); `docs/arena-ruleset-spec.md` §2.2; `src/lib/arena/rulesets/dbs/ops.rules` (the rows waiting on `negate`: `negateSkills`, `negateSkillsOfKind`, `negateKeyword`, `negateOwnSkill`, and `comboFrom`'s negate half); the four rows in `src/lib/arena/engine/script-schema.ts`; the legacy `stepScript` cases in `src/lib/arena/engine/script.ts`; `src/lib/arena/vm/effects.ts` (continuous effects); `src/lib/arena/effects.ts` (the label a rule in force gets).
+**Source:** #137 (owner's decision of 13 Sep 2026); `docs/arena-ruleset-spec.md` §2.2; `src/lib/arena/rulesets/dbs/ops.rules` (the rows waiting on `negate`: `negateSkills`, `negateSkillsOfKind`, `negateKeyword`, `negateOwnSkill`, and `comboFrom`'s negate half); the four rows in `src/lib/arena/vm/script-schema.ts`; the legacy `stepScript` cases in `src/lib/arena/vm/script.ts`; `src/lib/arena/vm/effects.ts` (continuous effects); `src/lib/arena/effects.ts` (the label a rule in force gets).
 
 **Problem.** Four ops say "negate" with a different scope each, and `negate` — the one primitive they are — is not an op, so none can be declared as a macro.
 

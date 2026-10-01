@@ -1,6 +1,6 @@
 "use client";
 
-import type { Action, LegalAction, PlayerId } from "@/lib/arena/engine";
+import type { Action, LegalAction, PlayerId } from "@/lib/arena/types";
 import type { BoardView } from "@/lib/arena/view";
 import { isGhostAction, shortLabel } from "../shared";
 

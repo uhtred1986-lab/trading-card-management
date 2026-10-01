@@ -35,10 +35,11 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network, and
  * nothing read at request time.
  */
-import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
+import { IllegalAction } from "./common";
+import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import type { VmAltCost } from "./effects";
-import { other, type Action, type PlayerId, type Prompt, type Requirement } from "../engine/types";
-import type { Cond, Selector } from "../engine/script";
+import { other, type Action, type PlayerId, type Prompt, type Requirement } from "../types";
+import type { Cond, Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { activationAlt, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, keywordActivationMoments, resolveActivation, type ActivationLine } from "./activate";
@@ -398,7 +399,7 @@ function requirementOf(state: VmState, kind: Requirement["kind"], args: Record<s
   return out as unknown as Requirement;
 }
 
-/** The requirement kinds whose shape carries the card they are about (`engine/types.ts`). */
+/** The requirement kinds whose shape carries the card they are about (`types.ts`). */
 const ABOUT_A_CARD = new Set<Requirement["kind"]>(["mode", "zone", "cardType", "immune", "unread"]);
 
 // ── the two lists ───────────────────────────────────────────────────────────

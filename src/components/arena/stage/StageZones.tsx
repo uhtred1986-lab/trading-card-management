@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { untilWords } from "@/lib/arena/effects";
-import type { Action, PlayerId } from "@/lib/arena/engine";
+import type { Action, PlayerId } from "@/lib/arena/types";
 import type { MissingEnergyChip } from "@/lib/arena/wording";
 import type { BoardView, CardView, SideView } from "@/lib/arena/view";
 import type { CardState } from "../ArenaCard";

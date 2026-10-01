@@ -7,7 +7,7 @@ issue: 272
 status: closed
 closed_at: 2026-09-14
 ---
-**Source:** #107 (owner's decision of 13 Sep 2026: "own scope"); `docs/arena-move-replacement-scope.md` §2.7 (`opts.reveal`) and §6 (why these two cards are not a Battle Area departure); the `replace` op in `src/lib/arena/engine/script-schema.ts` (`event` is the closed list `leave`, `ko`, `play`); `replacementFor` and the two suspendable `move()` sites in `src/lib/arena/engine/state.ts`; `docs/arena-backlog/s2-06-replace-event.md`; rule manual 9-10, 20-11.
+**Source:** #107 (owner's decision of 13 Sep 2026: "own scope"); `docs/arena-move-replacement-scope.md` §2.7 (`opts.reveal`) and §6 (why these two cards are not a Battle Area departure); the `replace` op in `src/lib/arena/vm/script-schema.ts` (`event` is the closed list `leave`, `ko`, `play`); `replacementFor` and the two suspendable `move()` sites in `src/lib/arena/engine/state.ts`; `docs/arena-backlog/s2-06-replace-event.md`; rule manual 9-10, 20-11.
 
 **Problem.** BT10-031 and SD18-01 print "During your opponent's turn, if you would add a card from your life to your hand or place it in your Drop Area, you may reveal it and add it to your hand instead." That replaces a **life** card's move, not a departure from the Battle Area, and `replace`'s `event` has no such moment. Both cards are correctly refused today; this is the capability gap, not a wrong reading.
 

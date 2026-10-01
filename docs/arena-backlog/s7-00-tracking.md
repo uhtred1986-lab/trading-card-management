@@ -5,7 +5,7 @@ labels: epic, backlog, area:arena-vm, area:arena-rulesets, phase:rules-stage7
 stage: 7
 tracking: true
 ---
-Stage 7 of the rules-language programme (Opus 5, size XL). The 39 keyword skills the parser knows (`KEYWORD_NAMES` in `src/lib/arena/engine/script.ts`) become **bodies in `keywords.rules`** written against a fixed contract of interpreter **hook points** (`src/lib/arena/vm/hooks.ts`), replacing the legacy engine's 27+ inline `has()` sites. One hook group per commit; `scripts/verify/keywords.ts` (958 lines) and `battles.ts` on the rules engine green after each.
+Stage 7 of the rules-language programme (Opus 5, size XL). The 39 keyword skills the parser knows (`KEYWORD_NAMES` in `src/lib/arena/vm/script.ts`) become **bodies in `keywords.rules`** written against a fixed contract of interpreter **hook points** (`src/lib/arena/vm/hooks.ts`), replacing the legacy engine's 27+ inline `has()` sites. One hook group per commit; `scripts/verify/keywords.ts` (958 lines) and `battles.ts` on the rules engine green after each.
 
 **Exit criterion:** every keyword's body is written; `verify/keywords.ts` is green on both engines; the glossary's `engine` line for each keyword is true of the rules engine (and says where the two engines still differ, if anywhere); `arena:reprobe --engine rules` on the keyword families = 0 moved.
 

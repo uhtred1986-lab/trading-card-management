@@ -4,7 +4,8 @@
  */
 import { db } from "../src/db";
 import { decks } from "../src/db/schema";
-import { nextRandom, type GameState, type PlayerId } from "../src/lib/arena/engine";
+import { nextRandom } from "../src/lib/arena/vm/rng";
+import { type GameState, type PlayerId } from "../src/lib/arena/types";
 import { engineFor, isEngineId, legacyState } from "../src/lib/arena/engines";
 import { isVmState, type VmState } from "../src/lib/arena/vm";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";

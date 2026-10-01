@@ -1,5 +1,6 @@
-import type { CardDef, Op } from "./engine";
-import type { SkillPrice } from "./engine/script";
+import type { CardDef } from "./types";
+import type { Op } from "./vm/script";
+import type { SkillPrice } from "./vm/script";
 
 /** The rule under test, as the row holds it. */
 export interface ProbeRule {

@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { chooseSchema, fail, ok, readJson, seatFor } from "@/lib/arena/api";
-import { IllegalAction } from "@/lib/arena/engine";
+import { IllegalAction } from "@/lib/arena/vm/common";
 import { isVersus, loadGame, StaleGame } from "@/lib/arena/games";
 import { applyAction, snapshotOfGame } from "@/lib/arena/session";
 

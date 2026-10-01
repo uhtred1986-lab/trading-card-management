@@ -13,8 +13,8 @@
  * place that difference is bridged, rather than each caller reaching into
  * `players`/`sides` for itself.
  */
-import type { CardDef } from "./engine";
-import type { PlayerId } from "./engine/types";
+import type { CardDef } from "./types";
+import type { PlayerId } from "./types";
 import type { EngineState } from "./engines";
 import { isVmState } from "./vm/state";
 

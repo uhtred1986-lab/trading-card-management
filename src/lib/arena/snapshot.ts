@@ -11,7 +11,7 @@
  * lets `npm test` build snapshots and compare them against golden fixtures.
  * `session.ts` is the half that reaches the database.
  */
-import type { EngineContext, LegalAction, PlayerId, RejectedAction } from "./engine";
+import type { EngineContext, LegalAction, PlayerId, RejectedAction } from "./types";
 import { engineFor, FALLBACK_ENGINE, type EngineId, type EngineState } from "./engines";
 import { tappable, viewerOf, type BoardView, type CardArt, type Tappable } from "./view";
 import { maskBeats, type Beats } from "./beats";

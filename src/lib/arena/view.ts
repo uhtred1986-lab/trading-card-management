@@ -5,24 +5,10 @@
  * what a player may tap. This turns one state plus the legal moves into a view
  * for one side of the table, hiding what that player may not see (3-1-3).
  */
-import {
-  areaOf,
-  comboPowerOf,
-  describeScript,
-  scriptsOfInstance,
-  copiedSkillsOn,
-  face,
-  keywordsInForce,
-  powerOf,
-  skillsOf,
-  staticEffects,
-  type EngineContext,
-  type GameState,
-  type LegalAction,
-  type PlayerId,
-  type RejectedAction,
-  type Requirement,
-} from "./engine";
+import { areaOf, comboPowerOf, scriptsOfInstance, copiedSkillsOn, face, keywordsInForce, powerOf, staticEffects } from "./engine";
+import { describeScript } from "./vm/script";
+import { skillsOf } from "./text/cards";
+import { type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "./types";
 import { def, emitsStatic, locate, masterOf, permanentStatics, type StaticEffect } from "./engine/state";
 import { describeEffect, describeStatic, type EffectView } from "./effects";
 import type { EngineState } from "./engines";

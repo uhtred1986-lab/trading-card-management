@@ -18,7 +18,7 @@
  * lower to a selector counted by it. No selector *runs* counted by an
  * expression: the three moves and the one choice those four lower to are
  * read back as the spelling they stand for before an engine resolves them
- * (`moveAs`, `discardAs` in `engine/script-schema.ts`).
+ * (`moveAs`, `discardAs` in `vm/script-schema.ts`).
  *
  * The `amount` and `ref` positions are the two the grammar could already write
  * `$name` in, and there a parameter is a `{ var }` — the same node a program's
@@ -27,7 +27,7 @@
  *
  * Pure and client-safe.
  */
-import { COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../engine/script";
+import { COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../vm/script";
 import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isGuard, isHole, isNegHole, type Guard } from "../lang/ast";
 
 /** What a slot holds: an op or condition field's type, or one of a selector's three scalar slots — its count (and `TOP n`), its side, its area. */

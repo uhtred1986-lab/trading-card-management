@@ -18,7 +18,8 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { cards as cardsTable, cardRules } from "@/db/schema";
 import { MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
-import { parseSkills, validateProgram, type Op } from "../engine";
+import { parseSkills } from "../text/cards";
+import { validateProgram, type Op } from "../vm/script";
 import { clauseShape } from "../gaps";
 import { EFFECT_LANGUAGE } from "./opponent";
 import { saveRule, setBrief, type RuleRow } from "../rules-store";
@@ -32,7 +33,7 @@ export const ClarificationSchema = z.object({
 });
 export type Clarification = z.infer<typeof ClarificationSchema>;
 
-const BRIEF_SPEC = `The brief is a work item handed to Claude Code, which will edit \`src/lib/arena/engine/compile.ts\`. That file turns printed card text into the effect language by matching one clause at a time in \`compileClause\`, and \`parseTarget\` turns a phrase like "up to 2 of your opponent's Battle Cards in Rest Mode" into a selector. Write the brief in markdown with exactly these sections:
+const BRIEF_SPEC = `The brief is a work item handed to Claude Code, which will edit \`src/lib/arena/compile.ts\`. That file turns printed card text into the effect language by matching one clause at a time in \`compileClause\`, and \`parseTarget\` turns a phrase like "up to 2 of your opponent's Battle Cards in Rest Mode" into a selector. Write the brief in markdown with exactly these sections:
 
 ## Wording
 The shape of the clause to recognise, with the parts that vary written as placeholders. Quote one real example.

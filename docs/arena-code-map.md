@@ -301,7 +301,7 @@ the same as if it were still in `CLAUDE.md`.
   activations with no `do:` a `DEFINE KEYWORD` can carry yet, and their Group D half (cost math,
   once-a-turn limits, legality checks) is part of the same unbuilt activation, not separable from
   it; [Spirit Boost] already resolves through the price grammar directly
-  (`engine/compile/effects.ts`), needing no hook at all; and [Empower]'s "asked, not assumed" carry
+  (`compile/effects.ts`), needing no hook at all; and [Empower]'s "asked, not assumed" carry
   choice (owner's ruling, 9 Sep 2026) is a suspended prompt mid-play that no candidate hook's shape
   covers. **[Unique]'s own reassignment to `playRefused` (#154) turned out mistaken**, found while
   writing its body: the contract's own worked example (`count("a card with the same name" IN
@@ -309,7 +309,7 @@ the same as if it were still in `CLAUDE.md`.
   all — `parseFilter` has no such phrase, so it silently parses to an empty, match-anything filter
   (checked directly: `names: []`), which would make the compiled rule forbid *every* play the
   moment any card is in the Battle Area. The real primitive for "no one may play a card sharing my
-  name" is `forbid`'s own `sameNameAsSelf` (`engine/script.ts`), but it is a *targetless, board-wide
+  name" is `forbid`'s own `sameNameAsSelf` (`vm/script.ts`), but it is a *targetless, board-wide
   [Permanent]-style static* — read through `statics()`'s own zone-gated `forbid` case (`!inPlayNow`
   continues), naturally matching "while a card with [Unique] is in play" — not a per-candidate
   query asked of the *hand card being checked*, which is what `playRefused` actually binds `self`
@@ -318,7 +318,7 @@ the same as if it were still in `CLAUDE.md`.
   against its own, which is always true). [Unique] fits none of the fifteen hook points as
   contracted; left undeclared, named here rather than forced.
   **The interpreter is shared** (#142): `stepScript` runs on a `ScriptHost`
-  (`engine/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
+  (`vm/script-host.ts`) rather than on a `GameState`, `legacyHost` is that interface over the
   old state and `vm/host.ts` over the new one, so one `card_rules` row means one thing on both
   engines. What the rules engine reads a program *against* is `vm/program.ts` — the four readings
   `resolveSelector`, `resolveRef`, `amount`, `condHolds`, over declared attributes and the one
@@ -407,7 +407,7 @@ the same as if it were still in `CLAUDE.md`.
   `dbs/costs.rules`'s `DEFINE COST zEnergy` (5-4), per the one comment on issue #151 itself ("PR
   #266 … brought this issue's third build item forward … the rest of this issue is untouched") —
   confirmed, not rebuilt. `damage`/`addLife`/`lifeDownTo` are not new primitives either:
-  `stepScript` (`engine/script.ts`) has carried a full `case` for each since #142, and `vmHost`
+  `stepScript` (`vm/script.ts`) has carried a full `case` for each since #142, and `vmHost`
   implements every `ScriptHost` method those cases call — none of them `NotYet` — so a card's own
   skill program reaching one of these ops was already possible before this issue, through the same
   shared interpreter the battle sub-flow's `dealDamage`/`koCard` do not even call (they move cards
@@ -705,7 +705,7 @@ the same as if it were still in `CLAUDE.md`.
   (`draftCards`, and `reviewOpenRules`, which asks Claude about what the compiler left open,
   within the `arena.reviewBudget` setting). A row a person confirmed or corrected is never
   rewritten by a script: the compiler's newer reading lands beside it as `compiler_diff`. The
-  effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`engine/script-schema.ts`): the
+  effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`vm/script-schema.ts`): the
   validator, the plain reading, the referee's prompt and the workbench's chip editor read them, so
   a new operation or condition kind is one interpreter case and one row. The workbench has one
   queue over the records, `/arena/rules` (`lib/arena/queue.ts` is its query string): *Cards in* (all

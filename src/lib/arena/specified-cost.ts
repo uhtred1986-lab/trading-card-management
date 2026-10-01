@@ -26,8 +26,8 @@
  * Pure; no database, no engine state. `orbsIn` is the same reader the
  * compiler uses on skill text, so the column and the card speak one notation.
  */
-import { orbsIn } from "./engine/cards";
-import type { Color } from "./engine/types";
+import { orbsIn } from "./text/cards";
+import type { Color } from "./types";
 
 export type SpecifiedCost = Partial<Record<Color, number>>;
 

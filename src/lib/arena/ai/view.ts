@@ -11,23 +11,13 @@
  * The text form is deliberately terse: it is sent on every decision, so every
  * word is paid for.
  */
-import {
-  areaOf,
-  comboPowerOf,
-  programsOf,
-  describeScript,
-  face,
-  keywordsInForce,
-  powerOf,
-  skillsOf,
-  type CardDef,
-  type EngineContext,
-  type GameState,
-  type LegalAction,
-  type PlayerId,
-} from "../engine";
+import { areaOf, comboPowerOf, face, keywordsInForce, powerOf } from "../engine";
+import { programsOf } from "../vm/common";
+import { describeScript } from "../vm/script";
+import { skillsOf } from "../text/cards";
+import { type CardDef, type EngineContext, type GameState, type LegalAction, type PlayerId } from "../types";
 import { def } from "../engine/state";
-import { other } from "../engine";
+import { other } from "../types";
 
 export const money = (n: number) => n.toLocaleString("en");
 

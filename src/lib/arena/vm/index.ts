@@ -39,17 +39,18 @@
  * definition arrives as a generated constant (`rulesets/dbs/files.ts`), so
  * nothing here reads a file at request time.
  */
-import { IllegalAction, type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../engine";
+import { IllegalAction } from "./common";
+import { type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../types";
 import type { Beats } from "../beats";
 import type { BoardView, CardArt } from "../view";
-import { isZ } from "../engine/cards";
-import { PLAYERS, type PlayerId, type Requirement } from "../engine/types";
+import { isZ } from "../text/cards";
+import { PLAYERS, type PlayerId, type Requirement } from "../types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
 import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, spendProhibitionUse } from "./program";
-import { whoseSkills } from "../engine/script";
+import { whoseSkills } from "./script";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";

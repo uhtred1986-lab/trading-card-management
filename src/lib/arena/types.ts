@@ -1,15 +1,17 @@
 /**
- * Arena rules engine — shared types.
+ * The arena's shared vocabulary — what the client contract, both engines, the
+ * compiler and the rules language all speak: actions, events, prompts, card
+ * definitions, skills, areas, and the context an engine is handed
+ * (`EngineContext`, at the end). Moved out of `engine/` by #118.
  *
- * Pure data: no React, no database. A game is a `GameState` plus the list of
- * `GameEvent`s that produced it; `apply()` in `engine.ts` is the only thing
- * that changes a state. Section numbers in comments refer to the official
- * Rule Manual v4.00 (`docs/rules/rulemanual.txt`).
+ * Pure data: no React, no database. `GameState` and its parts are the legacy
+ * engine's state shape and leave with it; the rules engine's is `VmState`
+ * (`vm/state.ts`). Section numbers in comments refer to the official Rule
+ * Manual v4.00 (`docs/rules/rulemanual.txt`).
  */
 
-import type { CardFilter } from "./filters";
-import type { Cond, Op, ScriptFrame } from "./script";
-import type { AltCost, Payment } from "./state";
+import type { CardFilter } from "./text/filters";
+import type { CardScripts, Cond, Op, ScriptFrame } from "./vm/script";
 
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];
@@ -1033,4 +1035,187 @@ export interface CardFace {
   name: string;
   power: number | null;
   skill: string | null;
+}
+
+// ── what every engine is handed and hands back (moved from engine.ts/state.ts, #118) ──
+
+export interface GameContext {
+  defs: Record<string, CardDef>;
+  /**
+   * The rules the cards play by, from `card_rules`: keyed by catalog id for a
+   * front and `<id>#back` for a leader's awakened side. Nothing in the engine
+   * compiles text — a card with no entry here has no rules and is played as
+   * blank, and the log says so.
+   */
+  scripts?: Record<string, CardScripts>;
+}
+
+/**
+ * A replacement effect on a card leaving the Battle Area (9-10): where it goes
+ * instead. `by` narrows it to departures caused by a skill.
+ */
+export interface Replacement {
+  /**
+   * Where the card goes instead — a **redirect**. Absent on a *substitute*,
+   * whose `ops` happen in the departure's place while the card stays put
+   * ("place all the cards under this card in the Drop Area instead").
+   */
+  to?: Area;
+  /**
+   * Which departures it replaces. Absent is any of them ("would leave the
+   * Battle Area"); `"skill"` is only an effect putting the card out; `"ko"`
+   * only the KO; `"skillOrKo"` is what BT30-016 prints — "would be removed
+   * from a Battle Area by a skill **or KO'd**", which is both causes and still
+   * not a card leaving for a rule.
+   */
+  by?: "skill" | "ko" | "skillOrKo";
+  /**
+   * 9-10 with the cause narrowed to *whose* skill it was: "if this card would
+   * be removed from your Battle Area **by an opponent's skill**" (19 cards).
+   * `by` says a skill did it; this says whose, and the two are read together.
+   * Only the two suspendable call sites know the answer, so a departure with
+   * no known actor never matches — see `docs/arena-move-replacement-scope.md`
+   * §1.4.
+   */
+  bySide?: "opponent";
+  /**
+   * #272: this is a `"life"` moment — a life card's own move to the hand or
+   * the Drop Area (8-4-6-1's damage), not a Battle Area departure. Absent
+   * means "leave"/"ko"/"play", every existing effect; `by`/`bySide` are not
+   * asked when this is set, and `lifeReplacementsFor` is the reader instead
+   * of `causeMatches`.
+   */
+  kind?: "life";
+  /** For `kind: "life"`: narrows to the one destination named, or answers to either when absent — both cards print "to your hand or … your Drop Area". */
+  lifeTo?: "hand" | "drop";
+  /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
+  mode?: "active" | "rest";
+  /** 9-10-3: the affected player may choose not to apply it. */
+  optional?: boolean;
+  /**
+   * The program that happens instead of the departure (`replace`'s substitute
+   * form). The card stays where it is; this runs in place of its move, with
+   * the card bound as `subject`.
+   */
+  ops?: Op[];
+  /** The card whose skill said so, so the substitute's program has a source. */
+  source?: string;
+  /** Whose skill it is, so the substitute's program runs for the right player. */
+  master?: PlayerId;
+}
+
+/** Another way to pay for a card's [Counter] skill (5-3). */
+export interface AltCost {
+  /**
+   * `invoker`: rest one active Red/Blue multicolour energy instead (22-37).
+   * `program`: an action the card names — "by choosing 1 other black card in
+   * your hand and placing it in your Drop" — compiled by the same reader as an
+   * ordinary action price (4-3-3) and charged the same way, through the flow,
+   * because most of them need the player to pick a card. `energy`: a reduced
+   * but still-energy price — "by paying {1} instead of its energy cost"
+   * (BT18-088) — read the same way a printed cost's orbs are (`orbs`).
+   */
+  pay: "none" | "life" | "invoker" | "program" | "energy";
+  /** Cards to add from your life to your hand, for `pay: "life"`. */
+  n: number;
+  /** Which cost it replaces: the [Counter] skill's, or playing the card. */
+  for: "counter" | "play";
+  /** The price to run, for `pay: "program"`. */
+  ops?: Op[];
+  /** The orbs to rest, one entry per orb, for `pay: "energy"`. */
+  orbs?: (Color | "any")[];
+}
+
+export interface Payment {
+  /**
+   * Cards to switch to Rest Mode. Energy, and since 20-19 the cards outside
+   * the Energy Area a rule lets stand in for one (`payersFor`) — they are
+   * rested where they are and never move, so one list covers both and
+   * `pay` needs no second case.
+   */
+  rest: string[];
+  /** Energy markers to remove (1-14-2). */
+  markers: number;
+}
+
+/**
+ * A card that may be rested to pay an energy cost although it is not in the
+ * Energy Area (20-19), and what it counts as while it does.
+ *
+ * `colors` is already settled: the card's own for "use this card as energy",
+ * or the single colour a rule names. The planner then treats it as one more
+ * active energy card of those colours, which is exactly what the rule says it
+ * is — no new kind of requirement, the same answer `planPayment` already knows
+ * how to give.
+ */
+export interface Payer {
+  id: string;
+  colors: Color[];
+}
+
+export interface EngineContext extends GameContext {
+  /**
+   * When set, a skill whose text did not compile stops the game and asks the
+   * referee (Claude) for a program in the effect language. Without it — tests,
+   * fuzzing, a hot-seat game with no API key — such a skill is logged and skipped.
+   */
+  referee?: boolean;
+}
+
+export interface DeckInput {
+  name: string;
+  leader: string;
+  main: string[];
+  z?: string[];
+}
+
+export interface GameOptions {
+  seed: number;
+  p1: DeckInput;
+  p2: DeckInput;
+}
+
+export interface LegalAction {
+  action: Action;
+  /** One line for menus and Claude: "Play Son Goku (3)". */
+  label: string;
+  /**
+   * What the move costs, for the row it sits on (`docs/arena-workflow-spec.md`
+   * Phase 2: every action with its price on it). Set for skill activations
+   * and counters, whose price is not in the card's own numbers; a play's
+   * price is its printed cost and a client reads that off the card.
+   */
+  cost?: ActionCost;
+}
+
+export interface ActionCost {
+  /** Energy to rest, orbs of the skill included. */
+  energy: number;
+  /** Which of those must be a colour. */
+  orbs?: Partial<Record<Color, number>>;
+  /** Unison markers added (positive) or removed (negative) as the price (13-4). */
+  markers?: number;
+  /**
+   * The price in words, as the row shows it: "2 energy", "{r}{r}", "free",
+   * "3 markers" — **except on a play**, where it is the coloured requirement
+   * alone ("1 blue"). A play's total is printed on the card and the row reads
+   * it there; only the specified cost can have been relaxed out from under the
+   * print (owner's ruling on BT19-039), so that is the half the engine has to
+   * hand over, and `priceOf` in `wording.ts` is still the one place the two
+   * halves become a sentence.
+   */
+  describe: string;
+}
+
+export interface MoveOptions {
+  /** "top" is the default: new cards go on top of Drop/Warp/Life (3-4-3, 3-9-2, 3-10-2). Deck bottom is used by some skills. */
+  position?: "top" | "bottom";
+  /** Entering an open area from a secret one shows the card. */
+  reveal?: boolean;
+  /** Keep mode/markers/effects (3-1-4-1: battle→combo, combo→battle, gaining control). */
+  carry?: boolean;
+  /** A rule- or effect-caused move whose cause matters for triggers (KO). */
+  reason?: MoveReason;
+  /** A caller-decided replacement, or null to suppress replacement lookup entirely. */
+  replaced?: ReplacementResult | null;
 }

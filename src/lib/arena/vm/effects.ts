@@ -4,7 +4,7 @@
  * Three kinds of thing outlive the step that made them, and the legacy engine
  * keeps all three on its `GameState`. They are here for the rules engine, in
  * the **same shapes** (`ContinuousEffect`, `DelayedEffect` from
- * `../engine/types.ts`), because `src/lib/arena/effects.ts` is the one place a
+ * `../types.ts`), because `src/lib/arena/effects.ts` is the one place a
  * rule in force becomes a label on the board and it may not learn a second
  * spelling — the `effect` and `effectEnded` events a client draws the surge and
  * the settle from are the same events on both engines, or the board is reading
@@ -47,11 +47,12 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext, GameEvent } from "../engine";
-import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
-import { redirectOf, type AltCost, type Replacement } from "../engine/state";
-import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../engine/types";
-import { other as otherPlayer } from "../engine/types";
+import type { EngineContext, GameEvent } from "../types";
+import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Op, type ScriptFrame } from "./script";
+import { redirectOf } from "./common";
+import { type AltCost, type Replacement } from "../types";
+import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
+import { other as otherPlayer } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { AttrValue, Attrs } from "./cards";
 import { log } from "./events";

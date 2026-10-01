@@ -4,7 +4,7 @@ import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { act, advanceGame, flagThisTurn, rematch } from "@/app/arena/actions";
 
-import type { Action, PlayerId, Requirement } from "@/lib/arena/engine";
+import type { Action, PlayerId, Requirement } from "@/lib/arena/types";
 import type { NumberedBeat } from "@/lib/arena/beats";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";

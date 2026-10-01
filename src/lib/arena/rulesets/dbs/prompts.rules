@@ -1,4 +1,4 @@
--- One DEFINE PROMPT per Prompt["kind"] (PROMPT_KINDS, engine/script-schema.ts,
+-- One DEFINE PROMPT per Prompt["kind"] (PROMPT_KINDS, vm/script-schema.ts,
 -- 18 entries, in that order), with the question template questionFor
 -- (view.ts, shared with vm/view.ts on the rules engine) uses today.
 --

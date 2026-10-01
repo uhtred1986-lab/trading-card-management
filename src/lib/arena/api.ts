@@ -11,7 +11,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { currentUser } from "@/lib/auth";
-import type { PlayerId } from "./engine";
+import type { PlayerId } from "./types";
 import { ENGINE_IDS } from "./engines";
 import { isVersus, seatOf, type Seats } from "./games";
 import { CONTRACT_VERSION } from "./snapshot";

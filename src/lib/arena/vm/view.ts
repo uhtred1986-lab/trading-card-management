@@ -29,8 +29,8 @@
  *
  * Pure and client-safe: no database, no network.
  */
-import type { EngineContext } from "../engine";
-import type { CardDef, PlayerId, Prohibition } from "../engine/types";
+import type { EngineContext } from "../types";
+import type { CardDef, PlayerId, Prohibition } from "../types";
 import type { BattleView, BoardView, CardArt, CardView, PromptView, SideView } from "../view";
 import { describeEffect, describeStatic, type EffectView } from "../effects";
 import { attrsOf, type Attrs } from "./cards";

@@ -15,22 +15,12 @@
  * The words are the board's own: the log is `toBeats` → `narrate`, the same
  * pair the narration ribbon reads, so a probe and a game tell one story.
  */
-import {
-  skillsOf,
-  specifiedCostOf,
-  specifiedCostUnknown,
-  type Action,
-  type CardDef,
-  type Color,
-  type CardScripts,
-  type EngineContext,
-  type Op,
-  type PlayerId,
-  type Skill,
-} from "./engine";
-import type { Cond, SkillPrice, XCost } from "./engine/script";
-import { isZ } from "./engine/cards";
-import { parseFilter } from "./engine/filters";
+import { skillsOf, specifiedCostOf, specifiedCostUnknown } from "./text/cards";
+import { type Action, type CardDef, type Color, type EngineContext, type PlayerId, type Skill } from "./types";
+import { type CardScripts, type Op } from "./vm/script";
+import type { Cond, SkillPrice, XCost } from "./vm/script";
+import { isZ } from "./text/cards";
+import { parseFilter } from "./text/filters";
 import { engineFor, FALLBACK_ENGINE, isVmState, type Engine, type EngineId, type EngineState } from "./engines";
 import { leaderOf, zoneOf } from "./engine-state";
 import { addEffect, move, placeUnder } from "./engine/state";

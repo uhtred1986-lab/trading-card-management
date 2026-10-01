@@ -32,9 +32,9 @@ import {
   splitClauses,
   zEnergyCostOf,
 } from "./harness";
-import { validateProgram, type Op, type Script } from "../../src/lib/arena/engine/script";
+import { validateProgram, type Op, type Script } from "../../src/lib/arena/vm/script";
 import { validateRule } from "../../src/lib/arena/lang/validate";
-import type { CardScripts } from "../../src/lib/arena/engine";
+import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { PlayerId } from "./harness";
 
 // ── the effect compiler ────────────────────────────────────────────────────
@@ -347,7 +347,7 @@ import type { PlayerId } from "./harness";
   // `CardDef` and never sees a marker or a [Permanent]'s raise), so it reads
   // printed power too — not because it means "original", but because a "live"
   // power filter does not exist yet. Demonstrated, not asserted as intended
-  // behaviour: see the field's own comment in `engine/filters.ts`.
+  // behaviour: see the field's own comment in `text/filters.ts`.
   assert.ok(matches(now, parseFilter("card with 10000 power")), "the bare measure reads the same printed value");
   assert.ok(!matches(now, parseFilter("card with 15000 power")), "…and not the raised one either");
 }

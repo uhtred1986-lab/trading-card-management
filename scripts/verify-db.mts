@@ -14,7 +14,7 @@ import { allocationForCards, buildConflicts } from "../src/lib/decks/reservation
 import { pricesForPrints, priceForFinish } from "../src/lib/pricing/queries.ts";
 import { expand } from "../src/lib/collection/lots.ts";
 import type { ArenaMode } from "../src/lib/arena/games.ts";
-import type { PlayerId } from "../src/lib/arena/engine/index.ts";
+import type { PlayerId } from "../src/lib/arena/types.ts";
 import type { BoardView, SideView } from "../src/lib/arena/view.ts";
 import type { Snapshot } from "../src/lib/arena/snapshot.ts";
 
@@ -574,7 +574,7 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const { eq } = await import("drizzle-orm");
   const { importCatalog } = await import("../src/lib/catalog/deckplanet.ts");
   const { cardDefFrom } = await import("../src/lib/arena/load.ts");
-  const { specifiedCostOf, specifiedCostUnknown } = await import("../src/lib/arena/engine/cards.ts");
+  const { specifiedCostOf, specifiedCostUnknown } = await import("../src/lib/arena/text/cards.ts");
 
   const feedCard = (id: string, name: string, skill: string | null = null) => ({
     id,

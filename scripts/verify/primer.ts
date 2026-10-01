@@ -13,7 +13,7 @@ import { areasLine, generatedPrimer, turnStructure, winCondition, zoneNames } fr
 import { FIXED_PROMPT_KINDS, fixedPrompt, promptHint } from "../../src/lib/arena/prompt-words";
 import { questionFor } from "../../src/lib/arena/view";
 import { promptView } from "../../src/lib/arena/vm/view";
-import type { GameState } from "../../src/lib/arena/engine";
+import type { GameState } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
 const dbs = loadDbs();

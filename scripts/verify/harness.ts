@@ -23,20 +23,9 @@
  * happens to be selected.
  */
 import assert from "node:assert/strict";
-import {
-  defsFrom,
-  seedFrom,
-  type Action,
-  type CardDef,
-  type EngineContext,
-  type GameEvent,
-  type GameOptions,
-  type GameState,
-  type LegalAction,
-  type PlayerId,
-  type RejectedAction,
-  type Requirement,
-} from "../../src/lib/arena/engine";
+import { defsFrom } from "../../src/lib/arena/vm/common";
+import { seedFrom } from "../../src/lib/arena/vm/rng";
+import { type Action, type CardDef, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "../../src/lib/arena/types";
 import { engineFor, FALLBACK_ENGINE, isEngineId, isVmState, legacyState, type EngineId, type EngineState } from "../../src/lib/arena/engines";
 import { energyMarkersOf, leaderOf, unisonOf, zoneOf, type ZoneArea } from "../../src/lib/arena/engine-state";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -52,15 +41,16 @@ import { boardView } from "../../src/lib/arena/view";
 import { missingEnergyChip, missingEnergyChips, pill, priceOf, refusal, sentence, stepText } from "../../src/lib/arena/wording";
 import { narrate } from "../../src/lib/arena/narration";
 import { colourOf, DEFAULT_LIGHTING, encodeLighting, LEADER_COLOURS, lightingFrom, LIGHTING_VERSION, mix, RIVAL, toneFor, TONES, turnVars } from "../../src/lib/arena/lighting";
-import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../../src/lib/arena/engine/cards";
+import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../../src/lib/arena/text/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../../src/lib/arena/glossary";
-import { parseFilter, matches, parseCondition, type CardFilter } from "../../src/lib/arena/engine/filters";
+import { parseFilter, matches, parseCondition, type CardFilter } from "../../src/lib/arena/text/filters";
 import { addEffect, schedule, move, locate, placeUnder, planPayment, playCost, powerOf, forbids, has, cardNow, comboCostOf, zEnergyCostOf, skillNegated, skillsNegated, lifeReplacementChoicesFor } from "../../src/lib/arena/engine/state";
-import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, priceX, splitClauses } from "../../src/lib/arena/engine/compile";
-import { COND_CLASS, COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_CLASS, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/engine/script";
-import { autoTriggerMatches, koCard, masterOf } from "../../src/lib/arena/engine/triggers";
+import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, priceX, splitClauses } from "../../src/lib/arena/compile";
+import { COND_CLASS, COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_CLASS, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/vm/script";
+import { autoTriggerMatches } from "../../src/lib/arena/text/triggers";
+import { koCard, masterOf } from "../../src/lib/arena/engine/triggers";
 import { masterOf as vmMasterOf } from "../../src/lib/arena/vm/triggers";
-import type { KeywordSkill, Trigger } from "../../src/lib/arena/engine/types";
+import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
 import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRecords } from "../../src/lib/arena/draft";
 import { keywordPlays } from "../../src/lib/arena/glossary";
 import { EFFECT_LANGUAGE } from "../../src/lib/arena/ai/opponent";

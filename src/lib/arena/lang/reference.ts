@@ -6,7 +6,7 @@
  * rules-language.md` §3 deliberately leaves unanswered ("statements and conditions
  * are not listed here and never will be: they are generated from `OP_SCHEMA` and
  * `COND_SCHEMA`"). Every row below comes off a table the interpreter, the printer
- * and the parser already read: `OP_SCHEMA`/`COND_SCHEMA` (`engine/script-schema.ts`,
+ * and the parser already read: `OP_SCHEMA`/`COND_SCHEMA` (`vm/script-schema.ts`,
  * the legacy engine's own vocabulary — still the truth for what an op or a
  * condition *is*), the selector/filter/expression/cost tables in `lang/ast.ts`
  * and `lang/parse.ts`, and the areas, durations, sides, keyword names and WHEN
@@ -18,7 +18,7 @@
  *
  * Pure and client-safe, like the rest of `lang/` (see `lang/index.ts`).
  */
-import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
+import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
 import {
   COND_CLASS,
   COND_SCHEMA,
@@ -35,7 +35,7 @@ import {
   type Op,
   type OpClass,
   type OpField,
-} from "../engine/script";
+} from "../vm/script";
 import { whenMoments, words } from "../rulesets/words";
 import { COST_ITEMS, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, FILTER_FIELDS, SELECTOR_FIELDS, filterSlot, paramTypesFor, type FilterFieldType, type ParamType } from "./ast";
 import { SELECTOR_FLAGS } from "./parse";
@@ -280,7 +280,7 @@ export interface RefLiteral {
  * a selector against, and the keyword names it reads `[…]` against — except
  * `SPECIAL_TARGETS`, the one list with no `Vocabulary` field and no `DEFINE`
  * kind that could declare it, which stays the engine's own
- * (`engine/script-schema.ts`). Where the row is pure syntax with no table
+ * (`vm/script-schema.ts`). Where the row is pure syntax with no table
  * behind it (a keyword's parameters, a bound variable, a text/null/true/list
  * literal) the syntax is written out, the same way `EXPR_LITERALS` writes out
  * the two expression literals no call name covers.

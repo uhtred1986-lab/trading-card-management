@@ -1,4 +1,4 @@
-import type { Action } from "@/lib/arena/engine";
+import type { Action } from "@/lib/arena/types";
 
 export function isGhostAction(action: Action): boolean {
   switch (action.type) {

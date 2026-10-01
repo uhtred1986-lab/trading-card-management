@@ -4,11 +4,11 @@
  * how much power it has, and paying costs. Everything mutates the state it
  * is given; `engine.ts` clones before calling.
  */
-import { coversColors, eachNamedHolds, hasKeyword, keywordOf, printedNames, skillsOf, specifiedCostOf, sumReachable, isZ, baseType } from "./cards";
-import { matches, powerRelOk } from "./filters";
-import { asksAQuestion, describeCond, describeScript } from "./script-schema";
-import { legacyHost } from "./script-host";
-import { NO_RULES, costModifierAs, modifyAttrAs, negateAs, replaceAs, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { coversColors, eachNamedHolds, hasKeyword, keywordOf, printedNames, skillsOf, specifiedCostOf, sumReachable, isZ, baseType } from "../text/cards";
+import { matches, powerRelOk } from "../text/filters";
+import { asksAQuestion, describeCond, describeScript } from "../vm/script-schema";
+import { legacyHost } from "./legacy-host";
+import { costModifierAs, modifyAttrAs, negateAs, replaceAs, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector } from "../vm/script";
 import type {
   Area,
   CardDef,
@@ -37,39 +37,10 @@ import type {
   SkillKindPrefix,
   MoveActor,
   MoveReason,
-} from "./types";
-import { PLAYERS, other } from "./types";
-
-export interface GameContext {
-  defs: Record<string, CardDef>;
-  /**
-   * The rules the cards play by, from `card_rules`: keyed by catalog id for a
-   * front and `<id>#back` for a leader's awakened side. Nothing in the engine
-   * compiles text — a card with no entry here has no rules and is played as
-   * blank, and the log says so.
-   */
-  scripts?: Record<string, CardScripts>;
-}
-
-/** The programs of one card face, as the game was given them. */
-export function programsOf(ctx: GameContext, d: CardDef, side: "front" | "back"): CardScripts {
-  return ctx.scripts?.[side === "back" ? `${d.id}#back` : d.id] ?? NO_RULES;
-}
-
-/**
- * Where a copied skill's index starts (20-18). A skill's own index is its line
- * number times ten (`parseSkills`), so a copy needs an index of its own or it
- * would answer to — and be silenced with — a skill the target really prints.
- * The effect's id makes it unique and stable: the same copy keeps the same
- * index for as long as it is in force, so an activation recorded in the action
- * log replays onto the same skill.
- */
-export const COPIED_SKILL_BASE = 100000;
-
-export const copiedSkillIndex = (effectId: number, sourceIndex: number): number => COPIED_SKILL_BASE + effectId * 1000 + sourceIndex;
-
-/** Whether a skill index names a copy rather than something the card prints. */
-export const isCopiedSkill = (index: number): boolean => index >= COPIED_SKILL_BASE;
+} from "../types";
+import { PLAYERS, other } from "../types";
+import type { AltCost, GameContext, MoveOptions, Payer, Payment, Replacement } from "../types";
+import { copiedSkillIndex, mirrorSides, programsOf, redirectOf, sideOf, tokenDefOf } from "../vm/common";
 
 /** The face a copy was taken from, by catalog id — the source instance may be long gone. */
 function faceOfCardId(ctx: GameContext, cardId: string): CardDef | null {
@@ -118,34 +89,6 @@ export function scriptsOfInstance(ctx: GameContext, s: GameState, id: string): C
 export const LIFE_AT_START = 8;
 export const OPENING_HAND = 6;
 
-/**
- * Tokens (19) are made by effects and have no catalog row, so their whole
- * definition lives in the card id. Encoding it there rather than in a context
- * that only lives for one request keeps a saved game reloadable.
- */
-export function tokenCardId(name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[]): string {
-  return `TOKEN:${encodeURIComponent(name)}:${power}:${comboCost ?? ""}:${comboPower ?? ""}:${colors.join(",")}`;
-}
-
-export function tokenDefOf(cardId: string): CardDef {
-  const [, name, power, comboCost, comboPower, colors] = cardId.split(":");
-  const num = (x: string) => (x === "" ? null : Number(x));
-  return {
-    id: cardId,
-    name: decodeURIComponent(name ?? "Token"),
-    type: "TOKEN",
-    colors: (colors ? colors.split(",") : []).filter(Boolean) as Color[],
-    energyCost: null,
-    zEnergyCost: null,
-    power: num(power ?? "") ?? 0,
-    comboCost: num(comboCost ?? ""),
-    comboPower: num(comboPower ?? ""),
-    skill: null,
-    characters: [],
-    traits: [],
-  };
-}
-
 export function def(ctx: GameContext, s: GameState, id: string): CardDef {
   const inst = s.cards[id];
   if (!inst) throw new Error(`unknown card instance ${id}`);
@@ -153,60 +96,6 @@ export function def(ctx: GameContext, s: GameState, id: string): CardDef {
   const d = ctx.defs[inst.cardId];
   if (!d) throw new Error(`no definition for ${inst.cardId}`);
   return d;
-}
-
-/**
- * A replacement effect on a card leaving the Battle Area (9-10): where it goes
- * instead. `by` narrows it to departures caused by a skill.
- */
-export interface Replacement {
-  /**
-   * Where the card goes instead — a **redirect**. Absent on a *substitute*,
-   * whose `ops` happen in the departure's place while the card stays put
-   * ("place all the cards under this card in the Drop Area instead").
-   */
-  to?: Area;
-  /**
-   * Which departures it replaces. Absent is any of them ("would leave the
-   * Battle Area"); `"skill"` is only an effect putting the card out; `"ko"`
-   * only the KO; `"skillOrKo"` is what BT30-016 prints — "would be removed
-   * from a Battle Area by a skill **or KO'd**", which is both causes and still
-   * not a card leaving for a rule.
-   */
-  by?: "skill" | "ko" | "skillOrKo";
-  /**
-   * 9-10 with the cause narrowed to *whose* skill it was: "if this card would
-   * be removed from your Battle Area **by an opponent's skill**" (19 cards).
-   * `by` says a skill did it; this says whose, and the two are read together.
-   * Only the two suspendable call sites know the answer, so a departure with
-   * no known actor never matches — see `docs/arena-move-replacement-scope.md`
-   * §1.4.
-   */
-  bySide?: "opponent";
-  /**
-   * #272: this is a `"life"` moment — a life card's own move to the hand or
-   * the Drop Area (8-4-6-1's damage), not a Battle Area departure. Absent
-   * means "leave"/"ko"/"play", every existing effect; `by`/`bySide` are not
-   * asked when this is set, and `lifeReplacementsFor` is the reader instead
-   * of `causeMatches`.
-   */
-  kind?: "life";
-  /** For `kind: "life"`: narrows to the one destination named, or answers to either when absent — both cards print "to your hand or … your Drop Area". */
-  lifeTo?: "hand" | "drop";
-  /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
-  mode?: "active" | "rest";
-  /** 9-10-3: the affected player may choose not to apply it. */
-  optional?: boolean;
-  /**
-   * The program that happens instead of the departure (`replace`'s substitute
-   * form). The card stays where it is; this runs in place of its move, with
-   * the card bound as `subject`.
-   */
-  ops?: Op[];
-  /** The card whose skill said so, so the substitute's program has a source. */
-  source?: string;
-  /** Whose skill it is, so the substitute's program runs for the right player. */
-  master?: PlayerId;
 }
 
 /**
@@ -311,22 +200,6 @@ export function lifeReplacementChoicesFor(ctx: GameContext, s: GameState, id: st
     out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
   }
   return out;
-}
-
-/**
- * Is this `with` block a plain **redirect** — the card itself going somewhere
- * else — rather than a program standing in for the departure? One move of the
- * card whose event it is, to an area a card can be in, is the shape
- * `replaceLeave` prints and the only one `move()` can honour by changing a
- * destination. Everything else is a substitute, and runs.
- */
-export function redirectOf(ops: Op[]): { to: Area; mode?: "active" | "rest" } | null {
-  if (ops.length !== 1) return null;
-  const only = ops[0];
-  if (only.op !== "moveTo" || only.under || only.owner || only.to === "under" || only.to === "play") return null;
-  const sel = "sel" in only.target ? only.target.sel : null;
-  if (!sel || (sel.special !== "self" && sel.special !== "subject")) return null;
-  return { to: only.to as Area, ...(only.mode ? { mode: only.mode } : {}) };
 }
 
 let applyingReplacement = false;
@@ -623,12 +496,6 @@ export function comboPowerOf(ctx: GameContext, s: GameState, id: string): number
 }
 
 // ── selectors ──────────────────────────────────────────────────────────────
-
-export function sideOf(master: PlayerId, side: Side | undefined): PlayerId[] {
-  if (side === "opponent") return [other(master)];
-  if (side === "both") return [master, other(master)];
-  return [master];
-}
 
 function areaCards(s: GameState, p: PlayerId, area: ScriptArea, frame: ScriptFrame): string[] {
   const ps = s.players[p];
@@ -958,28 +825,6 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
 const ONE_CARD = "__one";
 
 // ── static effects from [Permanent] skills (9-5, 9-9) ──────────────────────
-
-/** Another way to pay for a card's [Counter] skill (5-3). */
-export interface AltCost {
-  /**
-   * `invoker`: rest one active Red/Blue multicolour energy instead (22-37).
-   * `program`: an action the card names — "by choosing 1 other black card in
-   * your hand and placing it in your Drop" — compiled by the same reader as an
-   * ordinary action price (4-3-3) and charged the same way, through the flow,
-   * because most of them need the player to pick a card. `energy`: a reduced
-   * but still-energy price — "by paying {1} instead of its energy cost"
-   * (BT18-088) — read the same way a printed cost's orbs are (`orbs`).
-   */
-  pay: "none" | "life" | "invoker" | "program" | "energy";
-  /** Cards to add from your life to your hand, for `pay: "life"`. */
-  n: number;
-  /** Which cost it replaces: the [Counter] skill's, or playing the card. */
-  for: "counter" | "play";
-  /** The price to run, for `pay: "program"`. */
-  ops?: Op[];
-  /** The orbs to rest, one entry per orb, for `pay: "energy"`. */
-  orbs?: (Color | "any")[];
-}
 
 export interface StaticEffect {
   source: string;
@@ -1422,19 +1267,6 @@ export function detach(s: GameState, id: string): Location | null {
   return loc;
 }
 
-export interface MoveOptions {
-  /** "top" is the default: new cards go on top of Drop/Warp/Life (3-4-3, 3-9-2, 3-10-2). Deck bottom is used by some skills. */
-  position?: "top" | "bottom";
-  /** Entering an open area from a secret one shows the card. */
-  reveal?: boolean;
-  /** Keep mode/markers/effects (3-1-4-1: battle→combo, combo→battle, gaining control). */
-  carry?: boolean;
-  /** A rule- or effect-caused move whose cause matters for triggers (KO). */
-  reason?: MoveReason;
-  /** A caller-decided replacement, or null to suppress replacement lookup entirely. */
-  replaced?: ReplacementResult | null;
-}
-
 /**
  * Move a card to an area. Applies: the card is new in its new area (3-1-4),
  * cards under it go to Drop when it leaves play (23-2-5), tokens leaving play
@@ -1779,23 +1611,6 @@ export function immunityRefusing(ctx: GameContext, s: GameState, id: string, sou
   );
 }
 
-/**
- * The same condition said from another chair. `describeCond` has no viewer —
- * "you" and "your opponent" in the language are always the script's own master
- * — but a refusal is read by whoever was refused, who is usually the *other*
- * player when a card forbids something. Every `side` in the language means the
- * one thing, so mirroring is flipping that word wherever it appears.
- */
-export function mirrorSides<T>(x: T): T {
-  if (Array.isArray(x)) return x.map(mirrorSides) as unknown as T;
-  if (!x || typeof x !== "object") return x;
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(x as Record<string, unknown>)) {
-    out[k] = k === "side" && (v === "you" || v === "opponent") ? (v === "you" ? "opponent" : "you") : mirrorSides(v);
-  }
-  return out as T;
-}
-
 /** A prohibition's escape clause in the words of the player it is refusing. */
 function unlessInWords(f: Prohibition, viewer: PlayerId | undefined): string {
   const cond = f.unless!;
@@ -2136,33 +1951,6 @@ export function activeEnergy(s: GameState, p: PlayerId): string[] {
 export function leaderColors(ctx: GameContext, s: GameState, p: PlayerId): Color[] {
   const l = s.players[p].leader;
   return l ? def(ctx, s, l).colors : [];
-}
-
-export interface Payment {
-  /**
-   * Cards to switch to Rest Mode. Energy, and since 20-19 the cards outside
-   * the Energy Area a rule lets stand in for one (`payersFor`) — they are
-   * rested where they are and never move, so one list covers both and
-   * `pay` needs no second case.
-   */
-  rest: string[];
-  /** Energy markers to remove (1-14-2). */
-  markers: number;
-}
-
-/**
- * A card that may be rested to pay an energy cost although it is not in the
- * Energy Area (20-19), and what it counts as while it does.
- *
- * `colors` is already settled: the card's own for "use this card as energy",
- * or the single colour a rule names. The planner then treats it as one more
- * active energy card of those colours, which is exactly what the rule says it
- * is — no new kind of requirement, the same answer `planPayment` already knows
- * how to give.
- */
-export interface Payer {
-  id: string;
-  colors: Color[];
 }
 
 /**

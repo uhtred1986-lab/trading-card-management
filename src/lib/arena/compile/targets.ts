@@ -1,5 +1,5 @@
-import { parseFilter, type CardFilter } from "../filters";
-import type { ScriptArea, Selector, Side } from "../script";
+import { parseFilter, type CardFilter } from "../text/filters";
+import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
 
 // ── target phrases ─────────────────────────────────────────────────────────

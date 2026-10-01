@@ -6,7 +6,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
 import { gameOr, type Game } from "@/lib/catalog/games";
-import type { CardDef, CardType, Color, DeckInput } from "./engine";
+import type { CardDef, CardType, Color, DeckInput } from "./types";
 import { parseSpecifiedCost } from "./specified-cost";
 
 /** The columns a card definition is read from — a catalog record straight off deckplanet has the same ones. */

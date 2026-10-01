@@ -7,7 +7,7 @@ stage: 3
 status: closed
 closed_at: 2026-09-12
 ---
-**Source:** plan Stage 3; rule manual `docs/rules/rulemanual.txt` (setup §5, areas §3, card information §4); `src/lib/arena/engine/types.ts` (`PlayerState`, `Area`, `CardDef`), `state.ts` (`playCost`, `specifiedCostOf`).
+**Source:** plan Stage 3; rule manual `docs/rules/rulemanual.txt` (setup §5, areas §3, card information §4); `src/lib/arena/types.ts` (`PlayerState`, `Area`, `CardDef`), `state.ts` (`playCost`, `specifiedCostOf`).
 
 **Problem.** The game's shape lives in TypeScript types and in the phase switch. Stage 4's engine needs it as data, and the only honest way to find out whether the language can say a whole game is to write one.
 

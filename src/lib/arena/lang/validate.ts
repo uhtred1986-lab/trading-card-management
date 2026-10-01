@@ -17,7 +17,7 @@
  * The moments a WHEN may name are the **game's** (`rulesets/words.ts`, #137),
  * off `triggers.rules`, rather than a constant of the engine's.
  */
-import { OP_SCHEMA, validateProgram, type Cond, type CostRecord, type Op } from "../engine/script";
+import { OP_SCHEMA, validateProgram, type Cond, type CostRecord, type Op } from "../vm/script";
 import { whenMoments } from "../rulesets/words";
 import type { Rule } from "./ast";
 

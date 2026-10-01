@@ -6,8 +6,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransiti
 import { createPortal } from "react-dom";
 import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, reopenRuleAction, saveRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
 import { keywordPlays } from "@/lib/arena/glossary";
-import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/engine/script";
-import type { Trigger } from "@/lib/arena/engine";
+import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/vm/script";
+import type { Trigger } from "@/lib/arena/types";
 import { describeTrigger } from "@/lib/arena/gaps";
 import { parseRule, printRule, validateRule, type LangError, type Rule } from "@/lib/arena/lang";
 import { loadDbs } from "@/lib/arena/rulesets";

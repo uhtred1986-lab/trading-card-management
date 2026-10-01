@@ -6,7 +6,7 @@
  * Pure — the game page fetches the decision rows and hands them in.
  */
 import { engineFor, type EngineId, type EngineState } from "./engines";
-import type { EngineContext, PlayerId } from "./engine";
+import type { EngineContext, PlayerId } from "./types";
 import type { CardArt } from "./view";
 import type { FlagLine } from "./review-store";
 

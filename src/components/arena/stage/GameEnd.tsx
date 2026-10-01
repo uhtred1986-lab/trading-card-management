@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { PlayerId } from "@/lib/arena/engine";
+import type { PlayerId } from "@/lib/arena/types";
 
 /**
  * The end of the game, on the board (`docs/arena-redesign/` frame 10,

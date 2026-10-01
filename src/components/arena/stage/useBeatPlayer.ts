@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Beats, NumberedBeat } from "@/lib/arena/beats";
-import type { PlayerId } from "@/lib/arena/engine";
+import type { PlayerId } from "@/lib/arena/types";
 import { feel } from "@/lib/arena/feel";
 import type { Pace } from "@/lib/arena/pace";
 import { anchorPoint, type Point } from "./anchors";

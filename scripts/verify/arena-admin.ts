@@ -11,7 +11,7 @@ import { foldStory, newestFirst } from "../../src/lib/arena/story";
 import type { Beats } from "../../src/lib/arena/beats";
 import { CTX, fifty } from "./harness";
 import { engineFor, type EngineId } from "../../src/lib/arena/engines";
-import type { Action } from "../../src/lib/arena/engine";
+import type { Action } from "../../src/lib/arena/types";
 import { replayForReview } from "../../src/lib/arena/review";
 import { cleanNote } from "../../src/lib/arena/review-store";
 

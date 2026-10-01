@@ -13,9 +13,9 @@
  * Pure: no database, no React. Covered by `npm test`, and the table the
  * Android app carries in Kotlin.
  */
-import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, whoseSkills, type Op } from "./engine/script";
+import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, whoseSkills, type Op } from "./vm/script";
 import type { StaticEffect } from "./engine/state";
-import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "./engine/types";
+import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "./types";
 import { dbsWords, type BoardWords } from "./board-words";
 
 export type EffectKind = "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other";

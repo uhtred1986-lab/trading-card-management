@@ -1,4 +1,4 @@
-import type { Op, Ref, Selector } from "../script";
+import type { Op, Ref, Selector } from "../vm/script";
 
 export interface Ctx {
   /** The variable the last `choose` bound. */

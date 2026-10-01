@@ -19,7 +19,7 @@ mandatory rule for filing new work.
 ## 1. What the arena is, in one paragraph
 
 The arena plays Dragon Ball Super Card Game games from the printed text of real
-cards. `src/lib/arena/engine/compile/` reads a card's skill into a program in a
+cards. `src/lib/arena/compile/` reads a card's skill into a program in a
 small effect language, with `compile.ts` kept as its stable public barrel; the
 engine runs it; anything the compiler cannot read
 goes to a referee. **The engine never compiles card text at game time** — rules
@@ -53,8 +53,8 @@ issues' own PR descriptions remain the record of how each got there.
   legacy engine (`games.ts`'s `engineForMode`) instead of refusing. #166's own remaining bullets —
   the owner's confirmation and the `arena:diff`/`arena:reprobe` parity runs (#164, #165) — need the
   shared database and are the owner's.
-- **The effect language's tables**: `src/lib/arena/engine/script-schema.ts` (`OP_SCHEMA`,
-  `COND_SCHEMA`, the closed word lists) — `engine/script.ts` re-exports them, so existing imports
+- **The effect language's tables**: `src/lib/arena/vm/script-schema.ts` (`OP_SCHEMA`,
+  `COND_SCHEMA`, the closed word lists) — `vm/script.ts` re-exports them, so existing imports
   still work.
 - **The rules language**: `src/lib/arena/lang/` (`parse.ts`/`print.ts`/`validate.ts`/`ast.ts`,
   table-driven from the schema above), since 9 Sep. `DEFINE …` grammar for a game's own
@@ -233,7 +233,7 @@ confirm, then `git checkout -- contract/`.
 ### (a) Keep hunting wrongly-read clauses — the best value per hour
 
 Two systematic passes have run and both paid. The method: take every regex in
-`engine/compile/` and `filters.ts` that anchors on a literal phrase and grep the
+`compile/` and `filters.ts` that anchors on a literal phrase and grep the
 catalog for **near-misses** — contractions, reversed word order, singular
 against plural, passive against active, synonyms. Two of the best finds were a
 word order ("25000 or less power" against "25000 power or less", 41 lines with
@@ -325,7 +325,7 @@ summed exactly. **Neither outcome was predictable**, and only the merged
 measurement distinguishes them. Verify each stream's headline cards in the
 *merged* tree, not in its own.
 
-Expect conflicts in `engine/compile/` (different functions, usually additive),
+Expect conflicts in `compile/` (different functions, usually additive),
 `glossary.ts` (two streams appending to the same entry), and the generated
 `contract/fixtures/*` — regenerate those with `contract:emit` rather than
 merging them by hand.

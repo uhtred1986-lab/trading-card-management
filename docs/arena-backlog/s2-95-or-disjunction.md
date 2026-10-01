@@ -6,7 +6,7 @@ stage: 2
 status: closed
 closed_at: 2026-09-10
 ---
-**Source:** `docs/arena-next-session-prompt.md` §4(c), first bullet; `parseConditionClause` in `src/lib/arena/engine/compile.ts`; the `any`/`all` condition kinds in `COND_SCHEMA`.
+**Source:** `docs/arena-next-session-prompt.md` §4(c), first bullet; `parseConditionClause` in `src/lib/arena/compile.ts`; the `any`/`all` condition kinds in `COND_SCHEMA`.
 
 **Problem.** "If you have a green X **or** a yellow Y in play" is merged into **one** filter carrying both colours and both descriptions as an AND across fields, which is *wider* than printed in one direction (a green Y satisfies it) and narrower in another. Found while fixing something else and deliberately not fixed there. Ground rule 5 (`docs/arena-next-stage-spec.md` §2) forbids a silent widening.
 

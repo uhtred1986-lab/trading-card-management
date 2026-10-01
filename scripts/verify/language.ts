@@ -11,7 +11,7 @@ import { stateText } from "../../src/lib/arena/ai/view";
 import { COST_ITEMS, FILTER_FIELDS, SELECTOR_FIELDS } from "../../src/lib/arena/lang/ast";
 import { languageReference } from "../../src/lib/arena/lang/reference";
 import { SELECTOR_FLAGS } from "../../src/lib/arena/lang/parse";
-import { negateAs } from "../../src/lib/arena/engine/script";
+import { negateAs } from "../../src/lib/arena/vm/script";
 import { expandMacros, opsIn, rulesetFor } from "../../src/lib/arena/rulesets";
 import { whenMoments } from "../../src/lib/arena/rulesets/words";
 import {

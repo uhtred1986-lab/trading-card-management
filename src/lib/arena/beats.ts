@@ -16,8 +16,10 @@
  * up — and `session.ts` fills in the image URLs, which is what keeps this
  * testable in `npm test`.
  */
-import { copiedSkillsOn, face, scriptsOfInstance, skillsOf, type EngineContext, type GameEvent, type GameState, type PlayerId } from "./engine";
-import type { Area, EffectUntil } from "./engine";
+import { copiedSkillsOn, face, scriptsOfInstance } from "./engine";
+import { skillsOf } from "./text/cards";
+import { type EngineContext, type GameEvent, type GameState, type PlayerId } from "./types";
+import type { Area, EffectUntil } from "./types";
 import { def } from "./engine/state";
 import { describeEffect, type EffectKind } from "./effects";
 import { revealedTo } from "./view";

@@ -7,7 +7,7 @@ issue: 278
 status: closed
 closed_at: 2026-09-14
 ---
-**Source:** #126 (owner's decision of 13 Sep 2026: "close as delivered, open follow-up"); the `skip(what, side, when)` op in `src/lib/arena/engine/script-schema.ts` and `PlayerState.skips` consumed by `exec()` in `src/lib/arena/engine/engine.ts`; the `skipped` flag on the `phase`/`battleStep` beats (`src/lib/arena/beats.ts`, Kotlin contract); `permanents` and the statics readers in `src/lib/arena/vm/effects.ts` and `src/lib/arena/effects.ts`; `npm run arena:tally -- --show "skip"`; the glossary's skip entry; rule manual 20-13.
+**Source:** #126 (owner's decision of 13 Sep 2026: "close as delivered, open follow-up"); the `skip(what, side, when)` op in `src/lib/arena/vm/script-schema.ts` and `PlayerState.skips` consumed by `exec()` in `src/lib/arena/engine/engine.ts`; the `skipped` flag on the `phase`/`battleStep` beats (`src/lib/arena/beats.ts`, Kotlin contract); `permanents` and the statics readers in `src/lib/arena/vm/effects.ts` and `src/lib/arena/effects.ts`; `npm run arena:tally -- --show "skip"`; the glossary's skip entry; rule manual 20-13.
 
 **Problem.** The one-shot phase flag from #126 compiles no card: all four that print the word need more. BT18-001 and BT18-019 print the step skip as a [Permanent] conditioned on a battle in progress — a standing rule read at the step, not a flag set once. BT31-097 skips a whole *turn*. BT21-104 skips a *span* of phases.
 

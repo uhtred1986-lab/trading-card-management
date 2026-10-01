@@ -83,7 +83,7 @@ DEFINE ACTION charge                                                      -- §7
 -- happens or it does not; there is no window that closes on its own. The
 -- per-card gate needs "a copy of the Unison Card in play", which the filter
 -- grammar cannot name (another card's identity is not a fixed wording) —
--- `sameCard` reads it as two selectors instead (`engine/script-schema.ts`).
+-- `sameCard` reads it as two selectors instead (`vm/script-schema.ts`).
 DEFINE ACTION growUnison                                                  -- §13-3
   WHEN [main]
   prompts: [main]

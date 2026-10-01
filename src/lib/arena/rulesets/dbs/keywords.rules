@@ -1,6 +1,6 @@
--- Every keyword skill KEYWORD_NAMES (engine/script-schema.ts) lists, in that
--- order. TAKES is the arity KeywordSkill (engine/types.ts) carries and
--- keywordOf (engine/cards.ts) reads back; scripts/verify/rulesets.ts checks
+-- Every keyword skill KEYWORD_NAMES (vm/script-schema.ts) lists, in that
+-- order. TAKES is the arity KeywordSkill (types.ts) carries and
+-- keywordOf (text/cards.ts) reads back; scripts/verify/rulesets.ts checks
 -- both against this file. text: is the glossary's meaning line, verbatim
 -- (src/lib/arena/glossary.ts) — /arena/rules/keywords renders it from here
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts

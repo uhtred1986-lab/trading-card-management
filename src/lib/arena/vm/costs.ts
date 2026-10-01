@@ -74,10 +74,10 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network,
  * nothing read at request time.
  */
-import type { EngineContext, GameEvent, ActionCost, Payer, Payment } from "../engine";
-import type { AltCost } from "../engine/state";
-import type { Color, PlayerId, Requirement, Skill } from "../engine/types";
-import type { Op, Selector } from "../engine/script";
+import type { EngineContext, GameEvent, ActionCost, Payer, Payment } from "../types";
+import type { AltCost } from "../types";
+import type { Color, PlayerId, Requirement, Skill } from "../types";
+import type { Op, Selector } from "./script";
 import type { CostAsks, CostConsumes } from "../lang";
 import type { ActionDef, CostDef, GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
