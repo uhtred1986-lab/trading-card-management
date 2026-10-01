@@ -353,19 +353,60 @@ if (ENGINE !== "legacy") {
   // rows it covered stop differing and this fails until `npm run contract:emit`
   // records the new, smaller list. `--explain` prints both engines' reading of
   // every differing rule.
-  const CAUSES: { id: string; says: string; holds: (f: string, old: ProbeRun, rules: ProbeRun) => boolean }[] = [
+  // The ops a rule's program carries, through its `if`s — what a cause about
+  // one kind of [Permanent] reads, so it names the rule rather than guessing
+  // from the log.
+  const opsIn = (ops: ProbeRule["ops"]): ProbeRule["ops"] => ops.flatMap((o) => (o.op === "if" ? [o, ...opsIn(o.then), ...opsIn(o.else ?? [])] : [o]));
+  const hasOp = (rule: ProbeRule, test: (o: ProbeRule["ops"][number]) => boolean) => opsIn(rule.ops).some(test);
+  const CAUSES: { id: string; says: string; holds: (f: string, old: ProbeRun, rules: ProbeRun, rule: ProbeRule) => boolean }[] = [
     {
-      id: "ko-by-skill",
-      says: "A KO — by a skill, or the state-based one at 0 power — is a NotYet on the rules engine (#146, `vm/host.ts`), so the card is not KO'd and a probe that reaches one ends the game as a draw.",
-      holds: (_f, old, rules) => {
-        const said = (r: ProbeRun) => [...r.applied, ...r.result].join("|");
-        return /cannot KO/.test(said(rules)) || (/KO'd/.test(said(old)) && !/KO'd/.test(said(rules))) || (/to the Drop\./.test(old.applied.join("|")) && !/to the Drop\./.test(rules.applied.join("|")));
-      },
+      id: "rule-processing",
+      says: "Rule processing (21) does not run on the rules engine: a Battle Card at 0 power or less (21-6) and a Unison with no markers left (21-9) stay where they are, where legacy puts them in the Drop with no KO. A skill's KO itself is real since #146; this state-based half is not built on that branch.",
+      holds: (_f, old, rules) =>
+        old.result.some((line) => {
+          const m = /^(.*) goes from the (?:Battle|Unison) Area to the Drop$/.exec(line);
+          return !!m && !old.applied.some((a) => a.endsWith(`${m[1]} is KO'd.`)) && !rules.result.includes(line);
+        }),
     },
     {
-      id: "skip-or-token",
-      says: "'Skip a turn/step' (20-13) and 'make a token' (19-1) are NotYet on the rules engine (#146).",
-      holds: (_f, _old, rules) => /cannot skip|cannot make a/.test(rules.applied.join("|")),
+      id: "skip",
+      says: "'Skip a turn/step' (20-13) is NotYet on the rules engine — the flow's skip list is #145's.",
+      holds: (_f, _old, rules) => /cannot skip/.test(rules.applied.join("|")),
+    },
+    {
+      id: "leave-replacement",
+      says: "A [Permanent] replacement for leaving play or a KO (9-10 — `replaceLeave`, or `replace` of `leave`/`ko`) is not collected on the rules engine: `vm/host.ts`'s `replacementsFor` answers [] (`DEFERRED_STATICS.replaceLeave`, #146's replacement half, not on the KO branch), so a KO'd card goes to the Drop where legacy sends it to the Warp, out of the game, or replaces the move altogether.",
+      holds: (_f, old, rules, rule) =>
+        hasOp(rule, (o) => o.op === "replaceLeave" || (o.op === "replace" && (o.event === "leave" || o.event === "ko"))) &&
+        rules.result.some((l) => / goes from the Battle Area to the Drop$/.test(l) && !old.result.includes(l)),
+    },
+    {
+      id: "z-card-leaves-play",
+      says: "14-1-4: a Z-card leaving play is removed from the game. Legacy's `move` redirects it; the rules engine's `moveCard` redirects only a token (19-1-7), so a KO'd Z-card goes to the Drop. No issue builds this on the rules engine yet ([Ultimate]'s 22-14-3 half is Stage 7's).",
+      holds: (_f, old, rules, rule) =>
+        rule.def.type.startsWith("Z-") &&
+        old.result.some((l) => / goes from the Battle Area to out of the game$/.test(l)) &&
+        rules.result.some((l) => / goes from the Battle Area to the Drop$/.test(l)),
+    },
+    {
+      id: "immunity-static",
+      says: "9-1-4 immunity granted by a [Permanent]'s `immune` op is not collected on the rules engine (`DEFERRED_STATICS.immune`, #154), so the opponent's KO skill is offered the card and takes it; legacy never offers it as a target.",
+      holds: (_f, old, rules, rule) =>
+        hasOp(rule, (o) => o.op === "immune") && old.result.some((l) => /never among the targets/.test(l)) && rules.result.some((l) => / is KO'd$/.test(l)),
+    },
+    {
+      id: "counted-power-static",
+      says: "A [Permanent]'s power change counted over the board ('+3000 power for each marker on it') is skipped by the rules engine's `collect` (`vm/effects.ts` reads only a fixed number for `power`), so the card reads its printed power where legacy adds the count. No issue names this gap yet.",
+      holds: (_f, old, rules, rule) =>
+        hasOp(rule, (o) => (o.op === "power" || o.op === "comboPower") && typeof o.amount !== "number") &&
+        old.result.some((l) => /^power on the board: .* without this rule$/.test(l)) &&
+        rules.result.some((l) => /^power on the board: \d+$/.test(l)),
+    },
+    {
+      id: "keyword-negation-static",
+      says: "A [Permanent] that negates a keyword (`negateKeyword`) is not collected on the rules engine (`DEFERRED_STATICS.negateKeyword`, #153), so the card still reads the keyword in force where legacy reads none.",
+      holds: (_f, old, rules, rule) =>
+        hasOp(rule, (o) => o.op === "negateKeyword") && rules.result.some((l) => /^keywords in force: /.test(l) && !old.result.includes(l)),
     },
     {
       id: "keyword-moves",
@@ -417,7 +458,7 @@ if (ENGINE !== "legacy") {
       let cause: string | undefined;
       if (!same) {
         const old = probe(rule, scenario);
-        cause = CAUSES.find((c) => c.holds(scenario.family, old, rules))?.id;
+        cause = CAUSES.find((c) => c.holds(scenario.family, old, rules, rule))?.id;
         if (!cause) unexplained.push(key);
         // `--explain` prints what each engine concluded for every rule that differs.
         if (process.argv.includes("--explain")) {
