@@ -123,7 +123,8 @@ function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmSt
  * makes, for the two that are not a card attribute (#148): a payer for every
  * energy price (20-19) and another price for a card (5-3), which `vm/costs.ts`
  * reads where a price is planned. One reading, so the recursion guard above is
- * the one guard either path goes through.
+ * the one guard either path goes through. `vm/view.ts` reads it too, for the
+ * board's own picture of the rules in force on a player (#152).
  */
 export function staticsNow(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   return statics(ctx, game, state);
@@ -565,6 +566,41 @@ export function forbiddenBy(
     };
   }
   return null;
+}
+
+/**
+ * The card-only half of 20-14: a rule in force that names **this card** as its
+ * target. The legacy `forbiddenForCard`, test for test — no filter, no player,
+ * a spent-down budget and an escape clause read the same way — and asked by
+ * the one refusal that needs it: a rested card whose "can't switch to Active
+ * Mode" lock (7-2-7 lifted by 20-14) makes the `mode` requirement `locked`.
+ */
+export function forbiddenForCard(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, card: string): boolean {
+  for (const rule of prohibitions(ctx, game, state, card, { hooks: false })) {
+    if (rule.target !== card || rule.forbid.what !== what || (rule.forbid.uses ?? 0) > 0) continue;
+    if (escapeHolds(ctx, game, state, rule.forbid, { card }, rule.source)) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 20-14: a counted prohibition ("…can't attack more than once", `uses`) spends
+ * one of its uses on each action of the kind it names that it applies to.
+ *
+ * The legacy `spendProhibitionUse`, test for test: only the timed effects carry
+ * a budget to spend (a [Permanent]'s is re-read fresh each time, so there is
+ * nothing on it to count down), `ruleApplies` is the same matcher `forbiddenBy`
+ * reads, and the budget never goes below zero. `forbiddenBy` above skips a rule
+ * whose budget is still unspent, so the action that spends the last use is the
+ * one that turns the rule on.
+ */
+export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): void {
+  for (const e of state.effects) {
+    if (e.kind !== "forbid" || !e.forbid || (e.forbid.uses ?? 0) <= 0) continue;
+    if (!ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid }, opts)) continue;
+    e.forbid.uses = Math.max(0, (e.forbid.uses ?? 0) - 1);
+  }
 }
 
 // ── selectors (5-2) ─────────────────────────────────────────────────────────

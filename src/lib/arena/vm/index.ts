@@ -43,11 +43,12 @@ import { IllegalAction, type Action, type EngineContext, type GameEvent, type Ga
 import type { Beats } from "../beats";
 import type { BoardView, CardArt } from "../view";
 import { isZ } from "../engine/cards";
-import { PLAYERS, type PlayerId } from "../engine/types";
+import { PLAYERS, type PlayerId, type Requirement } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, comboLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt } from "./battle";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt } from "./battle";
+import { forbiddenBy, hasKeyword, spendProhibitionUse } from "./program";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
@@ -482,10 +483,12 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
     // `declareAttack` pushes is what `run` below steps into.
     case "attack": {
       declareAttack(ctx, game, state, events, action);
+      spendUses(ctx, game, state, action);
       break;
     }
     case "block": {
       applyBlock(ctx, game, state, events, action);
+      spendUses(ctx, game, state, action);
       break;
     }
     // `counter` and `combo` can each stop mid-move to ask which energy to
@@ -494,10 +497,12 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
     // returns immediately rather than running the flow on.
     case "counter": {
       if (applyCounter(ctx, game, state, events, action) === "asked") return { state, events };
+      spendUses(ctx, game, state, action);
       break;
     }
     case "combo": {
       if (applyCombo(ctx, game, state, events, action) === "asked") return { state, events };
+      spendUses(ctx, game, state, action);
       break;
     }
     // #150: an [Activate: Battle] at the combo prompt is the declared
@@ -507,6 +512,7 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       const took = state.prompt.kind === "combo" ? applyBattleActivation(ctx, game, state, events, action) : applyDeclared(ctx, game, state, events, action);
       if (took === "none") throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, DECLARED_BY[action.type] ?? "#146");
       if (took === "asked") return { state, events };
+      spendUses(ctx, game, state, action);
       break;
     }
     default: {
@@ -523,6 +529,7 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       // replace it with the question the step asks, which is how a half-paid
       // move loses its prompt.
       if (took === "asked") return { state, events };
+      spendUses(ctx, game, state, action);
       // #150, 9-6: a declared play the opponent could answer with a [Counter:
       // Play] waits on that answer before it resolves — the window is the
       // question now, so the flow does not run on.
@@ -532,6 +539,50 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
 
   run(ctx, game, state, events);
   return { state, events };
+}
+
+/**
+ * 20-14: the use a counted prohibition ("…can't attack more than once") spends
+ * on the move just taken — the legacy engine's `spendProhibitionUse` calls,
+ * one per move and with the same subjects: a charge spends `placeEnergy`, a
+ * play from the hand (`play`, `playUnison`, `playZ`) spends `play` "except by
+ * skills", an activation `activateSkill`, an attack both `attack` and the
+ * target's `beAttacked`, and a combo, a block and a counter their own. Asked
+ * once the move is taken and never for a move that stopped to ask which energy
+ * to rest (3-8-2): that move is taken again, whole, when the answer comes, and
+ * is counted then — so a move is counted once however it was paid for.
+ * A decline (`card: null`) spends nothing, because nothing was done.
+ */
+function spendUses(ctx: EngineContext, game: GameDefinition, state: VmState, action: Action): void {
+  const p = action.player;
+  switch (action.type) {
+    case "charge":
+      if (action.card) spendProhibitionUse(ctx, game, state, "placeEnergy", { player: p });
+      return;
+    case "play":
+    case "playUnison":
+    case "playZ":
+      spendProhibitionUse(ctx, game, state, "play", { player: p, card: action.card, bySkill: false });
+      return;
+    case "activate":
+      spendProhibitionUse(ctx, game, state, "activateSkill", { player: p, card: action.card });
+      return;
+    case "attack":
+      spendProhibitionUse(ctx, game, state, "attack", { player: p, card: action.attacker });
+      spendProhibitionUse(ctx, game, state, "beAttacked", { player: other(p), card: action.target });
+      return;
+    case "combo":
+      spendProhibitionUse(ctx, game, state, "combo", { player: p, card: action.card });
+      return;
+    case "block":
+      if (action.card) spendProhibitionUse(ctx, game, state, "block", { player: p, card: action.card });
+      return;
+    case "counter":
+      if (action.card) spendProhibitionUse(ctx, game, state, "activateCounter", { player: p, card: action.card });
+      return;
+    default:
+      return;
+  }
 }
 
 /**
@@ -658,23 +709,74 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
  * There is no `whyNot*` twin to keep in step, because there is no second
  * reading of the rule to drift from the first.
  *
- * The answers `promptAnswers` still gives are not explained, and honestly so:
- * each is the only answer to its question, so there is no move a player could
- * reach for and miss.
+ * The native moves are the exception: `attack`, `combo`, `counter`, `block`
+ * and a `chooseCards` answer each have a card a player can tap and find no
+ * button for, so each has its `whyNot` reading here, the legacy engine's own
+ * (#152). The other answers `promptAnswers` gives (who goes first, a
+ * mulligan, which energy, which mode) are not explained, and honestly so:
+ * each is the only answer to its question, so there is no move a player
+ * could reach for and miss.
  */
 function rejectedActions(ctx: EngineContext, state: VmState, legal: LegalAction[]): RejectedAction[] {
   const game = definitionFor(state.game);
   const declared = declaredRejectedActions(ctx, game, state, legal);
   // `attack` is native (`vm/battle.ts`), so its own `whyNotAttack` reading is
   // merged in beside the declared ones — offered only at the "main" prompt,
-  // the one question it answers. `block` and `counter` carry no rejection
-  // reading of their own, matching the legacy engine: a card not among a
-  // blocker or counter window's frozen candidates was never a card reaching
-  // for the move could see a button for, so there is no "why not" to give it.
+  // the one question it answers.
   if (state.prompt.kind === "main" && "player" in state.prompt && state.prompt.player) {
     declared.push(...attackRejectedActions(ctx, game, state, state.prompt.player));
   }
+  // `combo`, `counter` and `block` are native too, and each has its own
+  // rejected list beside its menu — the legacy engine's three cases, read
+  // gate for gate (#152). The combo prompt's [Activate: Battle] rejections
+  // come with it, since that is where the battle window's `activate` is read.
+  declared.push(...battleRejectedActions(ctx, game, state, legal));
+  if (state.prompt.kind === "chooseCards") declared.push(...chooseRejectedActions(ctx, game, state, legal));
   return declared;
+}
+
+/**
+ * A card on the table that a `chooseCards` prompt does not offer, and why: a
+ * rule keeps it from being chosen (20-14), [Barrier] does (22-16), or it is
+ * simply not what the skill asks for — the prompt's own reason says what is.
+ * The legacy `rejectedActions`' own `chooseCards` case, in its order: the
+ * cards in play on each side, and the asked player's own hand.
+ *
+ * One branch of the legacy case has no twin here, honestly so: 9-1-4
+ * immunity from a skill ("not affected by your opponent's skills"). This
+ * engine collects no [Permanent]'s `immune` op yet (`vm/effects.ts`'s
+ * `DEFERRED_STATICS`, #154), so it never narrows a choice for that reason
+ * and there is no refusal to explain — a card the legacy engine would call
+ * `immune` is offered here instead, which `verify/keywords.ts`'s IMMUNE case
+ * already names as that gap.
+ */
+function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: VmState, legal: LegalAction[]): RejectedAction[] {
+  const pr = state.prompt;
+  if (pr.kind !== "chooseCards") return [];
+  const p = pr.player;
+  const offered = new Set(pr.choice.candidates);
+  const taken = new Set(legal.flatMap((l) => (l.action.type === "choose" && l.action.cards.length === 1 ? [l.action.cards[0]] : [])));
+  const seen = new Set<string>();
+  const out: RejectedAction[] = [];
+  const name = (id: string) => ctx.defs[state.cards[id]?.cardId ?? ""]?.name ?? id;
+  for (const side of PLAYERS) {
+    const zones = state.sides[side].zones;
+    const inPlay = [...(zones.leader ?? []), ...(zones.unison ?? []), ...(zones.battle ?? [])];
+    for (const id of [...inPlay, ...(side === p ? (zones.hand ?? []) : [])]) {
+      if (offered.has(id) || taken.has(id) || seen.has(id) || !state.cards[id] || state.cards[id].hidden) continue;
+      seen.add(id);
+      // `hooks: false`: [Barrier] is read on its own line below, the way the
+      // legacy case reads it, rather than folded into the 20-14 answer.
+      const banned = forbiddenBy(ctx, game, state, "beChosen", { card: id, hooks: false });
+      const why: Requirement[] = banned
+        ? [{ kind: "forbidden", ...banned }]
+        : hasKeyword(ctx, game, state, id, "Barrier")
+          ? [{ kind: "forbidden", by: name(id), until: "permanent" }]
+          : [{ kind: "target", reason: pr.choice.reason }];
+      out.push({ action: { type: "choose", player: p, cards: [id] }, label: `Choose ${name(id)}`, why });
+    }
+  }
+  return out;
 }
 
 /** The board, drawn from the declarations for one side of the table. */
