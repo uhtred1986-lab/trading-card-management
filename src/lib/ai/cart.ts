@@ -6,7 +6,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Db } from "@/db";
 import type { Plan } from "@/lib/marketplace/optimizer";
-import { MODEL, anthropic, recordRun } from "./client";
+import { FAST_MODEL, anthropic, recordRun } from "./client";
 
 export const CartExplanationSchema = z.object({
   recommendation: z.string().describe("2–4 sentences: which plan to pick and why"),
@@ -27,10 +27,11 @@ function planText(label: string, p: Plan | null): string {
 
 export async function explainCart(db: Db, best: Plan, fewestSellers: Plan | null, preferences: string): Promise<{ runId: number; explanation: CartExplanation }> {
   const res = await anthropic().messages.parse({
-    model: MODEL,
+    // Haiku 4.5 (#381): prose over numbers the optimiser already computed. It
+    // rejects adaptive thinking and `output_config.effort`, so neither is sent.
+    model: FAST_MODEL,
     max_tokens: 4000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "low", format: zodOutputFormat(CartExplanationSchema) },
+    output_config: { format: zodOutputFormat(CartExplanationSchema) },
     system:
       "You help a Dragon Ball Super card collector in Austria choose between shopping-cart plans computed by a deterministic optimiser. Do not recompute totals; reason about the trade-offs given. Prices are EUR.",
     messages: [
@@ -40,6 +41,6 @@ export async function explainCart(db: Db, best: Plan, fewestSellers: Plan | null
       },
     ],
   });
-  const { id, output } = await recordRun<CartExplanation>(db, "cart_explain", { preferences }, res);
+  const { id, output } = await recordRun<CartExplanation>(db, "cart_explain", { preferences }, res, undefined, FAST_MODEL);
   return { runId: id, explanation: output };
 }

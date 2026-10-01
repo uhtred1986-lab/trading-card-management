@@ -28,7 +28,7 @@ import {
   labels,
   labelsG,
   leaderOf,
-  lifeReplacementChoicesFor,
+  lifeReplacementChoicesForG,
   masterOfG,
   placeUnderG,
   orbsIn,
@@ -70,20 +70,17 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  * `move(CTX, …)`'s reason and event log are not what the assertion is about.
  *
  * What is still skipped on `--engine rules`, and why — every case below is
- * one of two shapes, named at its own gate call rather than silently doing
- * nothing (a fourth, `staticGap` — a [Permanent] static `DEFERRED_STATICS`
- * names as unread — left with its last cases, IMMUNE/IMMANY, at #154, and a third, `keywordGap`,
- * with its last at #157):
+ * one shape, named at its own gate call rather than silently doing nothing
+ * (a fourth, `staticGap` — a [Permanent] static `DEFERRED_STATICS` names as
+ * unread — left with its last cases, IMMUNE/IMMANY, at #154; a third,
+ * `keywordGap`, with its last at #157; and `lifeGap`, 9-10's `life` event,
+ * with REVEALER once the rules engine's battle damage asked per life card,
+ * #272):
  *
  * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
  *   `ScriptHost` implementation still throws `NotYet` for by name (a
  *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
  *   landed, and RELKO now runs on both engines).
- * - **`lifeGap`**: 9-10's `life` event (#272), a life card's own departure.
- *   The rest of the family — a [Permanent] standing in front of a card
- *   leaving play, `replaceGap`'s six cases until 1 Oct 2026 — runs on both
- *   engines (`vm/replace.ts`); the life half is collected but battle damage
- *   does not ask about it yet.
  */
 let skipped = 0;
 // `keywordGap` is gone: since #157 and #155's leftovers (#434) no case here
@@ -91,12 +88,6 @@ let skipped = 0;
 function notYetGap(where: string, what: string, issue: string): boolean {
   if (ENGINE !== "rules") return false;
   console.log(`  skipped case — ${where}: ${what} (${issue})`);
-  skipped++;
-  return true;
-}
-function lifeGap(where: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: a life card's own departure (9-10's \`life\` event, #272) — the rules engine collects the replacement (\`vm/replace.ts\`), but its battle damage (\`vm/battle.ts\`) does not ask about it per life card yet`);
   skipped++;
   return true;
 }
@@ -603,6 +594,12 @@ if (
   assert.equal(s.cards[emp].cardId, "EMP");
   assert.ok(zoneOf(s, "p1", "drop").includes(old), "13-2-3: the old Unison went to the Drop");
   assert.equal(s.cards[emp].markers, 3, "22-45-2: 1 paid plus 2 carried over (of the 3 it had)");
+  // Asked once, answered once: the play resolves a single time, so the
+  // question does not come back about the Unison that just arrived (it once
+  // did on the legacy engine, the play being queued twice).
+  assert.equal(s.prompt.kind, "main", "22-45-3: once the carry is answered, the main phase resumes");
+  assert.equal((s.prompt as { player?: string }).player, "p1");
+  assert.ok(!IMPL.legalActions(CTX, s).some((a) => a.action.type === "empowerCarry"), "no second [Empower] carry is offered");
   assertConsistentG(s);
 
   // 22-45-3-1: an [Empower] naming no colour takes them from a Unison of any
@@ -615,6 +612,7 @@ if (
     g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", id), x: 1 });
     assert.equal(g.prompt.kind === "empowerCarry", asked, `${id}: asked only when the replaced Unison's colour matches`);
     if (asked) g = playG(g, { type: "empowerCarry", player: "p1", amount: 1 });
+    assert.equal(g.prompt.kind, "main", `${id}: the carry is asked at most once`);
     assert.equal(g.cards[unisonOf(g, "p1")!].markers, asked ? 2 : 1);
     assertConsistentG(g);
   }
@@ -634,6 +632,7 @@ if (
   s = playG(s, { type: "empowerCarry", player: "p1", amount: 0 });
   const emp2 = unisonOf(s, "p1")!;
   assert.equal(s.cards[emp2].markers, 1, "22-45-3: declining the carry leaves only the marker paid for");
+  assert.equal(s.prompt.kind, "main", "declining is an answer too: the question is not asked again");
   assertConsistentG(s);
 }
 
@@ -2795,7 +2794,9 @@ if (!notYetGap("SPANSKIP: three `skip` entries under one name (20-13)", "`addSki
 }
 
 // ── event: "life" (#272) — a life card's own move, not a Battle Area one ────
-if (!lifeGap("REVEALER: a life card's own departure, replaced by a [Permanent] that asks")) {
+// Both engines since #272's rules-engine half: `vm/battle.ts`'s `dealDamage`
+// asks per life card, as the legacy `damageLife` does.
+{
   // "During your opponent's turn, if you would add a card from your life to
   // your hand or place it in your Drop Area, you may reveal it and add it to
   // your hand instead." (BT10-031, SD18-01's shape).
@@ -2812,7 +2813,7 @@ if (!lifeGap("REVEALER: a life card's own departure, replaced by a [Permanent] t
   // hold, so nothing answers to a departure of their own life at all.
   const own = arenaG({ battle: ["REVEALER"] });
   const ownLife = zoneOf(own, "p1", "life")[0];
-  assert.deepEqual(lifeReplacementChoicesFor(CTX, legacyState(own), ownLife, "drop"), [], "the permanent's own condition is during the opponent's turn, not this one");
+  assert.deepEqual(lifeReplacementChoicesForG(own, ownLife, "drop"), [], "the permanent's own condition is during the opponent's turn, not this one");
 
   // During the opponent's turn — REVEALER defending against a [Critical] hit,
   // so the life card is headed for the Drop (22-6) — the choice is offered.
@@ -2843,4 +2844,4 @@ if (!lifeGap("REVEALER: a life card's own departure, replaced by a [Permanent] t
   assertConsistentG(taken.state);
 }
 
-if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap/lifeGap comments`);
+if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap comments`);

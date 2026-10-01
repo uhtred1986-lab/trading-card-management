@@ -15,8 +15,9 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { cardPrints } from "@/db/schema";
 import { quickSearch } from "@/lib/catalog/queries";
-import { MODEL, anthropic, recordRun } from "./client";
-import { assessMatch, cleanBox, normaliseNumber, type Box, type MatchedBy } from "./scan-match";
+import Anthropic from "@anthropic-ai/sdk";
+import { MODEL, SONNET_MODEL, anthropic, recordRun } from "./client";
+import { assessMatch, cleanBox, needsOpusFallback, normaliseNumber, type Box, type MatchedBy } from "./scan-match";
 
 /** Longest edge sent to the model; keeps image tokens bounded (~1.2k per image). */
 const MAX_EDGE = 1568;
@@ -89,36 +90,69 @@ export async function prepareImage(buf: Buffer): Promise<PreparedImage> {
   return { data: out.toString("base64"), mediaType: "image/jpeg", buffer: out, width: info.width, height: info.height };
 }
 
+const SCAN_SYSTEM =
+  "You identify Dragon Ball Super Card Game cards (Bandai). Both of Bandai's lines are in scope and a photo may mix them: the original game numbers cards like BT18-020, SD22-02, EX13-16, P-181, TB1-005, DB2-010, and Fusion World like FB07-021, FS01-01, FP-060, SB01-046, ST01-014. Report numbers exactly as printed; if unsure of a digit, lower the confidence rather than guess. For every card also give a bounding box (fractions of the image) around its face so the user can compare it with the catalog art.";
+
+function scanInstruction(mode: "single" | "batch"): string {
+  return mode === "single"
+    ? "This photo shows one Dragon Ball Super Card Game card, from either the original game or Fusion World. Identify it: read the card number printed in the bottom corner and the name."
+    : "This photo shows several Dragon Ball Super Card Game cards (a binder page, a spread, or a pile), from either the original game or Fusion World, possibly mixed. List every distinct card you can see, reading each card number and name. Work systematically across the image, left to right then top to bottom.";
+}
+
+/** One read of one photo on the given model. Sonnet 5.5 and Opus take the same request shape. */
+export function readPhoto(model: string, prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch") {
+  return anthropic().messages.parse({
+    model,
+    max_tokens: 8000,
+    thinking: { type: "adaptive" },
+    output_config: { effort: "medium", format: zodOutputFormat(ScanSchema) },
+    system: SCAN_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: prepared.mediaType, data: prepared.data } },
+          { type: "text", text: scanInstruction(mode) },
+        ],
+      },
+    ],
+  });
+}
+
+type ScanRead = Awaited<ReturnType<typeof readPhoto>>;
+
+/**
+ * Sonnet first, Opus only when Sonnet's answer is unparseable (the SDK throws
+ * a non-API error, or `parsed_output` is null) or low-confidence
+ * ({@link needsOpusFallback}). A refusal, or an API error such as a rejected
+ * key or a rate limit, is not retried on Opus. Returns every read that came
+ * back, in order, so the caller can record each one; the last is the answer.
+ */
+export async function readPhotoTiered(prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch"): Promise<{ model: string; res: ScanRead; fallbackFrom?: string }[]> {
+  let first: ScanRead | null = null;
+  try {
+    first = await readPhoto(SONNET_MODEL, prepared, mode);
+  } catch (err) {
+    if (err instanceof Anthropic.APIError) throw err;
+  }
+  if (first?.stop_reason === "refusal") return [{ model: SONNET_MODEL, res: first }];
+  if (first?.parsed_output && !needsOpusFallback(first.parsed_output, mode)) return [{ model: SONNET_MODEL, res: first }];
+  const second = { model: MODEL, res: await readPhoto(MODEL, prepared, mode), fallbackFrom: SONNET_MODEL };
+  return first?.parsed_output ? [{ model: SONNET_MODEL, res: first }, second] : [second];
+}
+
 export async function identifyCards(
   db: Db,
   image: Buffer | PreparedImage,
   mode: "single" | "batch",
 ): Promise<{ runId: number; result: ScanResult; detections: ScanDetection[]; prepared: PreparedImage }> {
   const prepared = Buffer.isBuffer(image) ? await prepareImage(image) : image;
-  const { data, mediaType } = prepared;
-  const instruction =
-    mode === "single"
-      ? "This photo shows one Dragon Ball Super Card Game card, from either the original game or Fusion World. Identify it: read the card number printed in the bottom corner and the name."
-      : "This photo shows several Dragon Ball Super Card Game cards (a binder page, a spread, or a pile), from either the original game or Fusion World, possibly mixed. List every distinct card you can see, reading each card number and name. Work systematically across the image, left to right then top to bottom.";
 
-  const res = await anthropic().messages.parse({
-    model: MODEL,
-    max_tokens: 8000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "medium", format: zodOutputFormat(ScanSchema) },
-    system:
-      "You identify Dragon Ball Super Card Game cards (Bandai). Both of Bandai's lines are in scope and a photo may mix them: the original game numbers cards like BT18-020, SD22-02, EX13-16, P-181, TB1-005, DB2-010, and Fusion World like FB07-021, FS01-01, FP-060, SB01-046, ST01-014. Report numbers exactly as printed; if unsure of a digit, lower the confidence rather than guess. For every card also give a bounding box (fractions of the image) around its face so the user can compare it with the catalog art.",
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data } },
-          { type: "text", text: instruction },
-        ],
-      },
-    ],
-  });
-  const { id, output } = await recordRun<ScanResult>(db, "scan_identify", { mode }, res);
+  let id = 0;
+  let output!: ScanResult;
+  for (const r of await readPhotoTiered(prepared, mode)) {
+    ({ id, output } = await recordRun<ScanResult>(db, "scan_identify", { mode, ...(r.fallbackFrom ? { fallbackFrom: r.fallbackFrom } : {}) }, r.res, undefined, r.model));
+  }
 
   const detections: ScanDetection[] = [];
   for (const [index, card] of output.cards.entries()) {
@@ -130,7 +164,7 @@ export async function identifyCards(
   return { runId: id, result: output, detections, prepared };
 }
 
-async function matchDetection(db: Db, seen: { name: string; number: string | null }): Promise<{ list: ScanCandidate[]; exact: boolean }> {
+export async function matchDetection(db: Db, seen: { name: string; number: string | null }): Promise<{ list: ScanCandidate[]; exact: boolean }> {
   const number = normaliseNumber(seen.number);
   const base = number?.split("_")[0] ?? null;
   const found = new Map<string, ScanCandidate>();

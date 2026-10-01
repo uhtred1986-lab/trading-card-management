@@ -17,9 +17,9 @@ export function AdminShield({ onOpen, className = "" }: { onOpen: () => void; cl
       onClick={onOpen}
       aria-label="Open match debug (admin)"
       data-arena-admin="shield"
-      className={`tap flex h-9 w-9 items-center justify-center rounded-full border border-space-600 bg-space-900/80 text-space-200 hover:border-loss/70 hover:text-space-50 ${className}`}
+      className={`arena-iconbtn arena-iconbtn-admin tap flex h-11 w-11 items-center justify-center ${className}`}
     >
-      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6L12 3Z" />
         <path d="m9 12 2.2 2.2L15.5 10" />
       </svg>

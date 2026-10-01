@@ -90,6 +90,14 @@ input[type="number"] {
    * do to you.
    */
   overscroll-behavior: contain;
+  /*
+   * The turn wash (`.arena::after`) is drawn 14 % past every edge so its blur
+   * has no rim — which made a 390 px phone's page 445 px wide, sideways
+   * scroll and all (review of 1 Oct 2026, finding 11). `clip` rather than
+   * `hidden`: it makes no scroll container, so the sticky top bar and prompt
+   * bar still stick, and the vertical axis stays visible.
+   */
+  overflow-x: clip;
 }
 @media (min-width: 640px) {
   .arena {
@@ -104,6 +112,29 @@ input[type="number"] {
 @media (min-width: 1280px) {
   .arena {
     --arena: 1.95;
+  }
+}
+/*
+ * The resting field — both Battle Areas with their leaders, the strips and the
+ * hand — is drawn at the redesign's phone sizes (leader 80, Battle Card 68,
+ * hand 84; `StageZones.tsx`, `Hand.tsx`), about a third larger than the old
+ * board's. Its scale steps up more gently, so a laptop lands near the
+ * prototype's desktop sizes (120 / 104 / 112) instead of a third past them.
+ * Scoped to the field: the battle stagings keep the board's own `--arena`.
+ */
+@media (min-width: 640px) {
+  .arena-field {
+    --arena: 1.2;
+  }
+}
+@media (min-width: 1024px) {
+  .arena-field {
+    --arena: 1.4;
+  }
+}
+@media (min-width: 1280px) {
+  .arena-field {
+    --arena: 1.5;
   }
 }
 
@@ -476,25 +507,19 @@ input[type="number"] {
 }
 
 /*
- * The stage the two Battle Areas face each other across. A little depth and a
- * warm floor so the middle of the screen reads as a table rather than a gap.
+ * The night table: the board is one open field, deep blue at the middle and
+ * near-black at the rim (the prototype's `.arena`). No panel round the
+ * Battle Areas — the rows sit on the field. The sky skin keeps the page's sky.
  */
-.arena-stage {
-  background:
-    radial-gradient(120% 80% at 50% 50%, color-mix(in srgb, var(--color-ki-500) 7%, transparent), transparent 70%),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-space-950) 75%, transparent),
-      color-mix(in srgb, var(--color-space-800) 55%, transparent) 50%,
-      color-mix(in srgb, var(--color-space-950) 75%, transparent)
-    );
+.arena[data-skin="night"] {
+  background: radial-gradient(120% 60% at 50% 50%, #121d47 0%, #070b1c 55%, #04060d 100%);
 }
 
-/* An empty Battle Area still holds its shape, so the board never jumps. */
+/* An empty Battle Area slot keeps its shape, so the field never jumps. */
 .arena-slot {
-  border: 1px dashed var(--color-space-700);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--color-space-50) 1.2%, transparent);
+  border: 1.5px dashed rgba(160, 180, 255, 0.16);
+  border-radius: 6px;
+  background: transparent;
 }
 
 /* ==========================================================================
@@ -606,6 +631,24 @@ input[type="number"] {
  * ========================================================================== */
 .arena {
   --turn-ink: #12161f;
+  /* The board's text face (layout.tsx); the rest of the app keeps its stack. */
+  font-family: var(--font-arena), var(--font-sans, system-ui), sans-serif;
+}
+/* The impact face for the board's numbers and shouts, in both skins. The sky
+   adds its ink stroke below; night keeps the face and its own colours. */
+.arena-impact {
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+}
+/* Small numerals (a count, a cost, a power on a card face): the same face,
+   no stroke, figures that line up. What `font-mono` was doing, minus the debug look. */
+.arena-num {
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 /* The turn banner: a skewed bar sweeps in, the stroked type slides through,
@@ -729,93 +772,362 @@ input[type="number"] {
   text-shadow: 5px 6px 0 var(--turn-ink);
 }
 
-/* The turn pill: "YOUR TURN · Turn 3", filled with the acting side's colour.
-   Dark ink on a tint lightened toward white, so every leader colour clears 4.5:1. */
+/* The turn pill: "YOUR TURN  Turn 3" in the impact face, in the acting
+   side's colour (`docs/arena-redesign/prototype/arena.css`, `.turnpill`).
+   Night: a glass pill ringed in the side's colour. The sky fills it and
+   strokes the words, below. */
 .arena-turnpill {
-  background: color-mix(in srgb, var(--turn-tint) 62%, #fff);
-  color: var(--turn-ink);
-  border: 2px solid var(--turn-tint);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--turn-ink) 25%, transparent);
+  background: color-mix(in srgb, var(--turn-tint) 18%, transparent);
+  color: #fff;
+  box-shadow:
+    0 0 0 1.5px var(--turn-tint),
+    0 0 18px color-mix(in srgb, var(--turn-tint) 40%, transparent);
   transition:
     background var(--turn-ms),
-    border-color var(--turn-ms);
+    box-shadow var(--turn-ms);
 }
 .arena-turnpill-dot {
-  background: var(--turn-ink);
+  background: var(--turn-tint);
+  box-shadow: 0 0 10px var(--turn-tint);
   animation: arena-breathe 1.2s ease-in-out infinite;
 }
+.arena-turnpill-who {
+  font-family: var(--font-impact), "Kanit", sans-serif;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.arena-turnpill-num {
+  color: var(--color-space-300);
+  font-weight: 600;
+}
 [data-skin="anime"] .arena-turnpill {
-  border: 2px solid var(--turn-ink);
-  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
+  background: var(--turn-tint);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    2px 3px 0 var(--ink);
 }
-/* Sticky under a phone's bar it needs a ground, or the board scrolls through it. */
-.arena-topbar {
-  background: transparent;
+[data-skin="anime"] .arena-turnpill-dot {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--ink);
 }
-@media (max-width: 639px) {
-  .arena-topbar {
-    background: color-mix(in srgb, var(--color-space-950) 80%, transparent);
-    backdrop-filter: blur(6px);
-  }
+[data-skin="anime"] .arena-turnpill-who {
+  color: #fff;
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+}
+[data-skin="anime"] .arena-turnpill-num {
+  color: var(--ink);
+  font-weight: 700;
 }
 
-/* The phase chips: the live one lit, the others quiet. */
-.arena-phase {
-  background: color-mix(in srgb, var(--color-space-900) 85%, transparent);
+/* The top bar: one row, the pill at the left and the controls at the right.
+   On a phone it sticks to the top of the screen, so it needs a ground. */
+.arena-topbar {
+  background: color-mix(in srgb, var(--color-space-950) 72%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+  backdrop-filter: blur(6px);
+}
+[data-skin="anime"] .arena-topbar {
+  background: #fff;
+  border-bottom: 2px solid var(--ink);
+  backdrop-filter: none;
+}
+/* The speed button: "1×", a small round sticker. */
+.arena-speed {
+  min-width: 42px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-space-300) 30%, transparent);
+  background: color-mix(in srgb, var(--color-space-50) 4%, transparent);
+  color: var(--color-space-50);
+  font-weight: 700;
+  font-size: 14px;
+}
+[data-skin="anime"] .arena-speed {
+  background: #fff;
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.arena-iconbtn {
   color: var(--color-space-300);
-  border: 1px solid color-mix(in srgb, var(--color-space-500) 45%, transparent);
+  border-radius: 12px;
+}
+.arena-iconbtn:hover {
+  background: color-mix(in srgb, var(--color-space-50) 7%, transparent);
+  color: var(--color-space-50);
+}
+[data-skin="anime"] .arena-iconbtn {
+  color: var(--ink);
+}
+.arena-iconbtn-admin {
+  color: #ff9aa4;
+}
+[data-skin="anime"] .arena-iconbtn-admin {
+  color: #b3202e;
+}
+
+/* The phase chips: plain small-caps words with dots; only the live one is a pill. */
+.arena-phases {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-space-300) 14%, transparent);
+}
+[data-skin="anime"] .arena-phases {
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 2px solid var(--ink);
+}
+.arena-phase {
+  color: color-mix(in srgb, var(--color-space-200) 55%, transparent);
 }
 .arena-phase-dot {
-  background: var(--color-space-500);
+  background: currentColor;
 }
 .arena-phase-on {
-  background: color-mix(in srgb, var(--turn-tint) 62%, #fff);
-  color: var(--turn-ink);
-  border-color: var(--turn-tint);
+  color: #fff;
+  background: color-mix(in srgb, var(--turn-tint) 24%, transparent);
+  box-shadow: 0 0 0 1px var(--turn-tint);
 }
 .arena-phase-on .arena-phase-dot {
-  background: var(--turn-ink);
+  background: var(--turn-tint);
+  box-shadow: 0 0 8px var(--turn-tint);
 }
 [data-skin="anime"] .arena-phase {
-  background: rgba(255, 255, 255, 0.88);
-  color: #3b475c;
-  border-color: rgba(18, 22, 31, 0.45);
+  color: #5a6b80;
 }
 [data-skin="anime"] .arena-phase-on {
-  background: color-mix(in srgb, var(--turn-tint) 62%, #fff);
-  color: var(--turn-ink);
-  border: 2px solid var(--turn-ink);
-  box-shadow: 1px 2px 0 rgba(18, 22, 31, 0.85);
+  background: #fff;
+  color: var(--ink);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    2px 3px 0 var(--ink);
+}
+[data-skin="anime"] .arena-phase-on .arena-phase-dot {
+  background: var(--turn-tint);
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+/* The desktop's vertical list: no rule under it. */
+.arena-phases-col {
+  border: 0;
+  background: none;
+}
+[data-skin="anime"] .arena-phases-col {
+  border: 0;
+  background: none;
 }
 
-/* The board edge: an inner frame in the acting side's colour, round the stage
-   root rather than <html>. It switches with the banner. */
+/* The board edge: a thin line in the acting side's colour, flush to the board,
+   with a soft glow inward. It switches with the banner. Inset 0, never
+   negative: anything outside the board widens the page on a phone. */
 .arena-edge {
   position: absolute;
-  inset: -4px;
+  inset: 0;
   z-index: 15;
   pointer-events: none;
-  border-radius: 18px;
   box-shadow:
-    inset 0 0 0 5px var(--turn-tint),
-    inset 0 0 28px 2px color-mix(in srgb, var(--turn-glow) 45%, transparent);
+    inset 0 0 0 2px color-mix(in srgb, var(--turn-tint) 60%, transparent),
+    inset 0 0 70px color-mix(in srgb, var(--turn-tint) 22%, transparent);
   transition: box-shadow var(--turn-ms);
 }
 [data-skin="anime"] .arena-edge {
   box-shadow:
-    inset 0 0 0 5px var(--turn-tint),
-    inset 0 0 0 7px var(--turn-ink),
-    0 0 0 2px var(--turn-ink);
+    inset 0 0 0 3px var(--turn-tint),
+    inset 0 0 0 4px color-mix(in srgb, var(--ink) 70%, transparent),
+    inset 0 0 60px color-mix(in srgb, var(--turn-tint) 26%, transparent);
+}
+@media (min-width: 640px) {
+  .arena-edge {
+    border-radius: 14px;
+  }
 }
 
-/* The acting side's Battle Area: a faint band under the row. */
+/* The acting side's Battle Area: a faint radial wash and a 1 px outline. */
 .arena-row {
-  border-radius: 10px;
-  transition: background var(--turn-ms);
+  position: relative;
 }
-.arena-row-on {
-  background: color-mix(in srgb, var(--turn-tint) 16%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--turn-tint) 35%, transparent);
+.arena-row::before {
+  content: "";
+  position: absolute;
+  inset: 2px 0;
+  border-radius: 16px;
+  pointer-events: none;
+  transition:
+    background var(--turn-ms),
+    box-shadow var(--turn-ms);
+}
+.arena-row-on::before {
+  background: radial-gradient(70% 100% at 50% 50%, color-mix(in srgb, var(--turn-tint) 14%, transparent), transparent 72%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--turn-tint) 32%, transparent);
+}
+[data-skin="anime"] .arena-row-on::before {
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 0 0 2px var(--turn-tint);
+}
+
+/* A player's strip: avatar, name, life pips, energy chips, counts — one line. */
+.arena-pstrip {
+  color: var(--color-space-300);
+}
+[data-skin="anime"] .arena-pstrip {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 2px var(--ink),
+    2px 3px 0 var(--ink);
+  color: #46566a;
+}
+.arena-avatar {
+  font-family: var(--font-impact), "Kanit", sans-serif;
+  font-style: italic;
+  font-weight: 800;
+  color: #06101f;
+  background: linear-gradient(135deg, #ffd24a, #ff9a2e);
+}
+.arena-avatar[data-them] {
+  background: linear-gradient(135deg, #3fc6ff, #9d7dff);
+}
+/* Life: skewed chips, gold for you and blue for them; an emptied one is an outline. */
+.arena-lp {
+  position: relative;
+  transform: skewX(-12deg);
+  border-radius: 3px;
+  background: linear-gradient(#ffe07a, #ff8a1e);
+  box-shadow: 0 0 8px rgba(255, 160, 40, 0.6);
+}
+.arena-lp[data-them] {
+  background: linear-gradient(#b6f0ff, #4a82ff);
+  box-shadow: 0 0 8px rgba(63, 198, 255, 0.6);
+}
+.arena-lp[data-gone] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.22);
+}
+[data-skin="anime"] .arena-lp {
+  background: linear-gradient(#ffe07a, #f2711c);
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+[data-skin="anime"] .arena-lp[data-them] {
+  background: linear-gradient(#d2c4ff, #6a4cff);
+}
+[data-skin="anime"] .arena-lp[data-gone] {
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px rgba(18, 22, 31, 0.35);
+}
+/* Energy: upright chips for active, a turned grey chip for rested. */
+.arena-ec {
+  border-radius: 2px;
+  background: linear-gradient(#ffe38a, #f59e0b);
+  box-shadow: 0 0 6px rgba(255, 190, 60, 0.55);
+  transition:
+    transform 0.3s,
+    background 0.3s;
+}
+.arena-ec[data-them] {
+  background: linear-gradient(#c4f3ff, #3fa6ff);
+  box-shadow: 0 0 6px rgba(63, 198, 255, 0.5);
+}
+.arena-ec[data-off] {
+  background: #353d5e;
+  box-shadow: none;
+  transform: rotate(90deg) scale(0.8);
+}
+[data-skin="anime"] .arena-ec {
+  background: linear-gradient(#ffe38a, #ffc02e);
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+[data-skin="anime"] .arena-ec[data-them] {
+  background: linear-gradient(#e6ddff, #8b6cff);
+}
+[data-skin="anime"] .arena-ec[data-off] {
+  background: #c3cad6;
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+.arena-ec-miss {
+  border: 1.5px dashed var(--color-loss);
+  color: var(--color-loss);
+  animation: arena-blink 0.9s ease-in-out infinite;
+}
+
+/* The lane between the two Battle Areas: a line, and the narration pill on it. */
+.arena-lane::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--turn-tint), transparent);
+  opacity: 0.6;
+}
+[data-skin="anime"] .arena-lane::before {
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 10px, transparent 10px 18px);
+  opacity: 0.3;
+}
+.arena-lanepill {
+  background: color-mix(in srgb, var(--color-space-950) 92%, transparent);
+  color: var(--color-space-50);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-space-300) 22%, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+}
+[data-skin="anime"] .arena-lanepill {
+  background: #fff;
+  color: var(--ink);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    3px 4px 0 var(--ink);
+}
+.arena-lanepill-dot {
+  background: var(--color-space-300);
+}
+.arena-lanepill-dot[data-mine] {
+  background: #ff9a2e;
+  box-shadow: 0 0 8px #ff9a2e;
+}
+.arena-lanepill-dot[data-them] {
+  background: #3fc6ff;
+  box-shadow: 0 0 8px #3fc6ff;
+}
+[data-skin="anime"] .arena-lanepill-dot {
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+[data-skin="anime"] .arena-lanepill-dot[data-mine] {
+  background: #f2711c;
+}
+[data-skin="anime"] .arena-lanepill-dot[data-them] {
+  background: #6a4cff;
+}
+
+/* The prompt bar: one line and its buttons, across the bottom of the board. */
+.arena-bar {
+  background: color-mix(in srgb, var(--color-space-950) 88%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+  backdrop-filter: blur(6px);
+}
+[data-skin="anime"] .arena-bar {
+  background: #fff;
+  border-top: 2px solid var(--ink);
+  backdrop-filter: none;
+}
+/* The battle log, opened from the lane pill or the menu (phone; lg has its tab). */
+.arena-logpop {
+  background: var(--color-space-900);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-space-300) 25%, transparent),
+    0 12px 30px rgba(0, 0, 0, 0.45);
+}
+[data-skin="anime"] .arena-logpop {
+  background: #fff;
+  box-shadow:
+    0 0 0 2px var(--ink),
+    4px 6px 0 var(--ink);
+}
+/* The bar's buttons (End turn, Next, Cancel): the impact face. */
+.arena-bar .arena-btn {
+  font-family: var(--font-impact), "Kanit", sans-serif;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 /* The step banner: the one moment of theatre, on every phase and battle step. */
@@ -1691,9 +2003,9 @@ html[data-skin="anime"] body::before {
   color: #fff;
 }
 [data-skin="anime"] .arena-slot {
-  border: 2px dashed rgba(18, 22, 31, 0.45);
+  border: 2px dashed rgba(18, 22, 31, 0.3);
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Ki aura: a playable card is not ringed, it glows, on a slow breath. Board
@@ -1748,22 +2060,10 @@ html[data-skin="anime"] body::before {
   box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.6);
 }
 
-/* The strips, the stage, the prompt bar, the hand and every button become
-   inked stickers: white paper, ink edge, hard shadow. */
-[data-skin="anime"] .arena :is(aside, section, .arena-stage) {
-  background: rgba(255, 255, 255, 0.92);
-  border: 2px solid var(--ink);
-  box-shadow: 2px 3px 0 rgba(18, 22, 31, 0.85);
-  backdrop-filter: none;
-}
-[data-skin="anime"] .arena-stage {
-  background: rgba(255, 255, 255, 0.55);
-}
-[data-skin="anime"] .arena-prompt-live {
-  box-shadow:
-    3px 4px 0 rgba(18, 22, 31, 0.85),
-    0 0 0 3px rgba(255, 213, 74, 0.9);
-}
+/* The field is open sky (`docs/arena-redesign/`): no panel round the Battle
+   Areas, the hand or the bar. Only the strips, the turn pill, the narration
+   pill and the buttons are inked stickers — each has its own rule above. A
+   sheet or drawer that wants paper says so with its own background. */
 /* Buttons that look like buttons — the ones with a shape — become stickers;
    a `.tap` that is only a word stays a word. Links styled as buttons too. */
 [data-skin="anime"] :is(button, a).tap:is(.rounded-md, .rounded-lg, .rounded-xl),
@@ -1881,9 +2181,6 @@ html[data-skin="anime"] body::before {
 /* Impact type: the numbers are the drama in this genre. Sizes do not change;
    only the treatment — heavy italic, ink stroke, gold for the winning figure. */
 [data-skin="anime"] .arena-impact {
-  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
-  font-style: italic;
-  font-weight: 900;
   color: #fff;
   -webkit-text-stroke: 2px var(--ink);
   paint-order: stroke fill;

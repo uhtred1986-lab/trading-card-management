@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { GameOver } from "@/components/arena/GameOver";
@@ -55,6 +56,17 @@ function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
   }
   return { seq: list.length, list, art };
 }
+
+/** The game page's menu links as the preview draws them: inert, since no game is behind them. */
+const PREVIEW_MENU = (
+  <div className="flex flex-wrap items-center gap-x-5 text-sm text-space-400">
+    <Link href="/arena" className="tap inline-flex items-center text-space-300 hover:text-ki-300">
+      ← Arena
+    </Link>
+    <span className="tap inline-flex items-center">how Claude played</span>
+    <span className="tap inline-flex items-center">give up</span>
+  </div>
+);
 
 /** What the drawer shows beyond the snapshot, made up for the preview: no database is behind it. */
 const PREVIEW_DEBUG: AdminDebug = {
@@ -120,7 +132,7 @@ export function PreviewStage({
   }, [fx, snapshot]);
   return (
     <>
-      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} />
+      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} menu={PREVIEW_MENU} />
       {fx === "over" && (
         <div className="mx-auto mt-3 max-w-xl px-2">
           <GameOver
