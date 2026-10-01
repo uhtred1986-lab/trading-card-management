@@ -30,7 +30,7 @@ import { attrsOf, type Attrs } from "./cards";
 import { attrsNow } from "./program";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
-import { PROMPT_QUESTIONS } from "../prompt-words";
+import { fixedPrompt, promptHint } from "../prompt-words";
 
 /**
  * Which declared zone each field of a `SideView` is drawn from.
@@ -130,8 +130,8 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
  */
 export function promptView(state: VmState): PromptView {
   const pr = state.prompt;
-  if (pr.kind === "payCost") return { kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: "The colours you keep active decide what you can still do this turn.", cost: pr.describe };
-  const words = PROMPT_QUESTIONS[pr.kind] ?? { question: "…", hint: null };
+  if (pr.kind === "payCost") return { kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: promptHint("payCost"), cost: pr.describe };
+  const words = fixedPrompt(pr.kind) ?? { question: "…", hint: null };
   return { kind: pr.kind, player: "player" in pr ? pr.player : null, question: words.question, hint: words.hint };
 }
 

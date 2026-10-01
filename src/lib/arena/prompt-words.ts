@@ -2,28 +2,26 @@
  * The prompt bar's fixed questions, shared by `view.ts` (legacy) and
  * `vm/view.ts` (rules) — Stage 8, issue #160.
  *
- * `prompts.rules` (`rulesets/dbs/prompts.rules`, #135) now declares a
- * `DEFINE PROMPT` for every one of `PROMPT_KINDS` — the owner's decision on
- * #131/#135 (20 Sep 2026) made `DEFINE PROMPT` a declaration of its own, the
- * same as `board-words.ts`'s `DEFINE WORDS`. Declared, not consumed:
- * `questionFor` still reads `PROMPT_QUESTIONS` below, not the ruleset —
- * wiring the two together is Stage 8's own follow-up (CLAUDE.md: "declare
- * only; do not move any consumer Stage 8 did not already move"). What moves
- * here instead is the *sharing*: both engines answer the same `Prompt` union
- * (`vm/flow.ts`'s own comment: "one union for both engines... a second
- * spelling of the same question would make one client unable to answer
- * both"), so a prompt kind that asks a fixed question — no card, no number,
- * nothing to interpolate — belongs in one table rather than two copies that
- * can drift, which `vm/view.ts`'s own `QUESTIONS` table used to be, five
- * entries out of the eleven a hot-seat rules-engine game can actually reach
- * today (`combo`/`blocker`/`counter` fell through to a bare "…").
+ * The words are `prompts.rules`' (`rulesets/dbs/prompts.rules`, #135): one
+ * `DEFINE PROMPT` per `Prompt["kind"]`, read from the loaded definition, so a
+ * question edited there reaches the player's prompt bar without a code change.
+ * Nothing reads a file at request time — the definition is the generated
+ * `files.ts`, parsed once.
+ *
+ * Both engines answer the same `Prompt` union (`vm/flow.ts`'s own comment:
+ * "one union for both engines... a second spelling of the same question would
+ * make one client unable to answer both"), so a prompt kind that asks a fixed
+ * question — no card, no number, nothing to interpolate — is read in one place
+ * rather than two.
  *
  * A prompt whose text names a card, a cost or a count (`chooseCards`,
- * `optionalCost`, `payCost`, `empowerCarry`, `referee`, …) is not here: that
- * text is built from the action being asked about, in each engine's own
- * `questionFor`/`promptView`, the same way it always was — a table cannot
- * hold a sentence that has not been asked yet.
+ * `optionalCost`, `payCost`, `empowerCarry`, `referee`, …) has a *template* in
+ * its declaration, in prose, not a hole a program could fill: that question is
+ * built from the action being asked about, in each engine's own
+ * `questionFor`/`promptView`. Its fixed *hint*, where it has one, is still the
+ * declaration's (`promptHint`).
  */
+import { loadDbs, type GameDefinition, type PromptDef } from "./rulesets";
 import type { Prompt } from "./engine/types";
 
 export interface PromptWords {
@@ -31,17 +29,24 @@ export interface PromptWords {
   hint: string | null;
 }
 
-/** Every prompt kind whose question and hint are the same words regardless of the situation. */
-export const PROMPT_QUESTIONS: Partial<Record<Prompt["kind"], PromptWords>> = {
-  chooseFirst: { question: "You won the flip. Who goes first?", hint: "The second player starts with one energy marker." },
-  mulligan: { question: "Keep this hand?", hint: "You may redraw six cards once (6-2-1-9)." },
-  charge: { question: "Charge one card as energy?", hint: "Tap a card in hand, or skip." },
-  main: { question: "Your Main Phase.", hint: "Play cards, attack, or end the turn." },
-  combo: { question: "Combo? Tap a glowing card.", hint: "Each adds its combo power and costs its combo cost." },
-  blocker: { question: "Block with one of these?", hint: "[Blocker] rests the card and makes it the guard instead." },
-  counter: { question: "Play a counter?", hint: "Counter cards are activated from hand and go to the Drop." },
-  zEnergyFromCombo: { question: "Send one combo card to Z-Energy?", hint: "At the end of a battle, one card may go there instead of the Drop." },
-  offering: { question: "[Offering]: drop one life, or let them draw two?", hint: null },
-  orderPending: { question: "Which skill resolves first?", hint: "Several of your skills triggered at once." },
-  gameOver: { question: "The game is over.", hint: null },
-};
+/** The kinds whose question and hint are the same words regardless of the situation. Which kinds those are is a fact about the engine's prompts, not the game's words, so it is a list here; what they say is the definition's. */
+export const FIXED_PROMPT_KINDS = ["chooseFirst", "mulligan", "charge", "main", "combo", "blocker", "counter", "zEnergyFromCombo", "offering", "orderPending", "gameOver"] as const satisfies readonly Prompt["kind"][];
+
+function declared(kind: string, from?: GameDefinition): PromptDef | undefined {
+  if (from) return from.prompts[kind];
+  const loaded = loadDbs();
+  if (!loaded.ok) throw new Error(`the DBS ruleset does not load, so the prompt bar has no words: ${JSON.stringify(loaded.errors[0])}`);
+  return loaded.definition.prompts[kind];
+}
+
+/** A fixed-question prompt's words (from `from` when a test asks the question of another definition), or undefined for a kind whose question is built at the table. */
+export function fixedPrompt(kind: Prompt["kind"], from?: GameDefinition): PromptWords | undefined {
+  if (!(FIXED_PROMPT_KINDS as readonly string[]).includes(kind)) return undefined;
+  const d = declared(kind, from);
+  return d ? { question: d.question, hint: d.hint ?? null } : undefined;
+}
+
+/** The hint a declaration carries for a kind whose question is built at the table (null when it carries none). */
+export function promptHint(kind: Prompt["kind"]): string | null {
+  return declared(kind)?.hint ?? null;
+}

@@ -750,8 +750,9 @@ export interface DefWords extends Declaration<"WORDS"> {
  * a count interpolated in — still gets a declaration: `question:` carries
  * the same template `questionFor` (`view.ts`) writes today, in prose naming
  * the value the way a `DEFINE OP`'s own `text:` names a parameter ("the
- * amount") rather than as a hole a program could fill. Turning it into a
- * hole a client could read is Stage 8's own wiring, not this declaration.
+ * amount") rather than as a hole a program could fill. `prompt-words.ts`
+ * reads the eleven fixed questions and every fixed hint from here (#160); the
+ * interpolated question stays the engine's `questionFor`/`promptView`.
  */
 export interface DefPrompt extends Declaration<"PROMPT"> {
   question: string;
