@@ -32,10 +32,12 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
-        "keywords": [],
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "",
+        "reading": "draw 1",
         "referee": false
       },
       "unison": {
@@ -55,8 +57,10 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
-        "keywords": [],
+        "comboPower": 0,
+        "keywords": [
+          "Empower"
+        ],
         "text": "[Empower Red 2]",
         "reading": "",
         "referee": false
@@ -210,7 +214,9 @@
         "cost": null,
         "comboCost": null,
         "comboPower": null,
-        "keywords": [],
+        "keywords": [
+          "Blocker"
+        ],
         "text": "[Blocker]",
         "reading": "",
         "referee": false
@@ -236,7 +242,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
+        "comboPower": 0,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -362,6 +368,7 @@
         "from": "hand",
         "to": "unison",
         "owner": "p1",
+        "reveal": true,
         "n": 2
       },
       {

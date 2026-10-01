@@ -1054,15 +1054,13 @@ import {
   let s = stagedG({ battle: ["TIRED"] });
   const tired = zoneOf(s, "p1", "battle")[0];
   const hand = zoneOf(s, "p1", "hand").length;
-  if (!rulesGap("readings: TIRED's rest price (4-3-3)", "an [Activate] price that is an action is not charged on the rules engine — vm/activate.ts refuses a price with ops", "#458")) {
-    assert.ok(canActivateG(s, tired), "it is active, so the price can be paid");
-    s = playG(s, { type: "activate", player: "p1", card: tired, skill: 0 });
-    assert.equal(s.cards[tired].mode, "rest", "the price was charged");
-    assert.equal(zoneOf(s, "p1", "hand").length, hand + 1, "and the effect happened");
-    // A price that cannot be paid twice is not offered twice.
-    assert.ok(!canActivateG(s, tired), "already rested: nothing left to pay with");
-    assertConsistentG(s);
-  }
+  assert.ok(canActivateG(s, tired), "it is active, so the price can be paid");
+  s = playG(s, { type: "activate", player: "p1", card: tired, skill: 0 });
+  assert.equal(s.cards[tired].mode, "rest", "the price was charged");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand + 1, "and the effect happened");
+  // A price that cannot be paid twice is not offered twice.
+  assert.ok(!canActivateG(s, tired), "already rested: nothing left to pay with");
+  assertConsistentG(s);
 }
 
 {
@@ -1072,16 +1070,14 @@ import {
   let s = stagedG({ battle: ["TITHE"], hand: ["BIG", "BIG"] });
   const tithe = zoneOf(s, "p1", "battle")[0];
   const hand = zoneOf(s, "p1", "hand").length;
-  if (!rulesGap("readings: TITHE's discard price (4-3-3)", "an [Activate] price that is an action is not charged on the rules engine — vm/activate.ts refuses a price with ops", "#458")) {
-    assert.ok(canActivateG(s, tithe));
-    s = playG(s, { type: "activate", player: "p1", card: tithe, skill: 0 });
-    assert.equal(s.prompt.kind, "chooseCards", "the price is a choice");
-    const paid = zoneOf(s, "p1", "hand")[0];
-    s = playG(s, { type: "choose", player: "p1", cards: [paid] });
-    assert.ok(zoneOf(s, "p1", "drop").includes(paid), "4-3-3: the price was charged");
-    assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 2, "one paid, two drawn");
-    assertConsistentG(s);
-  }
+  assert.ok(canActivateG(s, tithe));
+  s = playG(s, { type: "activate", player: "p1", card: tithe, skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards", "the price is a choice");
+  const paid = zoneOf(s, "p1", "hand")[0];
+  s = playG(s, { type: "choose", player: "p1", cards: [paid] });
+  assert.ok(zoneOf(s, "p1", "drop").includes(paid), "4-3-3: the price was charged");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 2, "one paid, two drawn");
+  assertConsistentG(s);
 
   // With an empty hand there is nothing to pay with, so it is not offered.
   const t = stagedG({ battle: ["TITHE"] });
@@ -1134,16 +1130,14 @@ import {
   let s = stagedG({ battle: ["BOTHPAY"], hand: ["BIG", "BIG"] });
   const both2 = zoneOf(s, "p1", "battle")[0];
   const hand = zoneOf(s, "p1", "hand").length;
-  if (!rulesGap("readings: BOTHPAY's condition-and-discard price (9-1-3, 4-3-3)", "an [Activate] price that is an action is not charged on the rules engine — vm/activate.ts refuses a price with ops", "#458")) {
-    assert.ok(canActivateG(s, both2), "the leader is red and there is a card to discard");
-    s = playG(s, { type: "activate", player: "p1", card: both2, skill: 0 });
-    assert.equal(s.prompt.kind, "chooseCards", "20-7: the discard is the owner's choice");
-    const paid = zoneOf(s, "p1", "hand")[0];
-    s = playG(s, { type: "choose", player: "p1", cards: [paid] });
-    assert.ok(zoneOf(s, "p1", "drop").includes(paid), "the action half was charged");
-    assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 2, "one discarded, two drawn");
-    assertConsistentG(s);
-  }
+  assert.ok(canActivateG(s, both2), "the leader is red and there is a card to discard");
+  s = playG(s, { type: "activate", player: "p1", card: both2, skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards", "20-7: the discard is the owner's choice");
+  const paid = zoneOf(s, "p1", "hand")[0];
+  s = playG(s, { type: "choose", player: "p1", cards: [paid] });
+  assert.ok(zoneOf(s, "p1", "drop").includes(paid), "the action half was charged");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 2, "one discarded, two drawn");
+  assertConsistentG(s);
 
   // Empty the hand and the same skill is no longer on offer.
   const t = stagedG({ battle: ["BOTHPAY"] });

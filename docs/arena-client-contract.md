@@ -257,10 +257,9 @@ inherits the workflow model rather than retrofitting it.
 
 `versus` is a 1 v 1 between two human beings on two phones. It is the first
 mode where **the same game is rendered twice**, and that is the only thing that
-makes it different from hot-seat — the engine, the flow and the legal-move list
-are untouched.
+makes it different from hot-seat — the engine and the flow are untouched.
 
-Three properties, all the server's job:
+Four properties, all the server's job:
 
 - **A snapshot is built for a stated viewer.** `buildSnapshot` takes an optional
   `viewer`; `snapshotOfGame`/`snapshotOf`/`applyAction`/`advanceSession`/
@@ -281,6 +280,15 @@ Three properties, all the server's job:
   stands — a card drawn and then played is public, so its beat is not masked.
   **A client must never reconstruct a masked face**, from a previous snapshot or
   anywhere else; that is §1 in the one place it now costs a real secret.
+  Since #458 the rule is read on both engines (`vm/view.ts`'s `vmRevealedTo`
+  reads the rules engine's zone declarations), and it names the whole Drop, the
+  Warp, removed cards, the viewer's own Z-Deck and the cards under a readable
+  card — open areas, not only what the board draws.
+- **`legal` is the viewer's own** (#458). A seat that is not being asked gets
+  `legal: []` and empty `taps`: the asked player's move labels name the cards in
+  their hand ("Play Son Goku"), and the server refuses a move from the wrong
+  seat (`not_your_turn`) anyway. Only a snapshot built with a stated `viewer`
+  is filtered, so every other mode's payload is unchanged.
 
 Seats live on `arena_games.p1_user`/`p2_user` (`app_users.username`, null in
 every other mode). A 1 v 1 belongs to its two seats and to nobody else, over as
@@ -387,7 +395,7 @@ The built shape, `src/lib/arena/beats.ts`:
 export type Beat =
   | { t: "phase"; phase: string; player: PlayerId; turn: number }
   | { t: "draw"; player: PlayerId; card: string | null }
-  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId }
+  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId; reveal?: true }
   | { t: "mode"; card: string; mode: "active" | "rest" }
   | { t: "flip"; card: string }
   | { t: "markers"; card: string; delta: number; total: number; from?: string }
@@ -395,10 +403,10 @@ export type Beat =
   | { t: "attack"; attacker: string; target: string }
   | { t: "block"; guard: string; by: string }
   | { t: "clash"; attacker: string; guard: string; attackPower: number; guardPower: number; hit: boolean }
-  | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[] }
+  | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[]; by?: string }
   | { t: "ko"; card: string }
   | { t: "negated" }
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean }
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true }
   | { t: "effect"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; until: Duration | "permanent"; source: string | null; owner: PlayerId }
   | { t: "effectEnded"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; source: string | null }
   | { t: "say"; text: string }
@@ -455,6 +463,24 @@ Four things the build settled that the first draft of this section had wrong:
   (`vm/host.ts`'s own comment on `resolvePlay`), so only the legacy engine ever emits `from` today;
   `vmToBeats` still forwards the field so the two engines' `Beat` shapes stay identical the day it
   does.
+- **Four optional flags for the narration** (1 Oct 2026, issue #463), all additive — a client that
+  ignores them draws exactly what it drew before, and the Kotlin mirror defaults each (`false` /
+  `null`), so a fixture without them still decodes strictly:
+  - `move.reveal` — the card was shown to both players as it moved (a play, an Extra, a
+    [Critical] life card, a life card revealed into a hand by BT10-031/SD18-01). The narration
+    names a card that went between two areas the viewer cannot see *only* on this flag. Before,
+    it took "`art` has a face" as the signal, and `art` is masked against the board *now*, so a
+    card public by now produced false "Claude reveals X" lines for a moment nobody saw.
+  - `damage.by` — the attacker whose won clash dealt this damage, when the clash is in the same
+    batch, so a battle's result is one sentence ("Son Goku hits — Claude takes 1 damage").
+  - `skill.extra` — an Extra used from the hand (its own `move` to the Drop came first in the
+    batch), so it is told as used rather than discarded.
+  - `skill.noEffect` — nothing followed it, outside a battle, before the game came back to a Main
+    Phase prompt: it found nothing to act on.
+
+  All four are set in one shared pass, `relateBeats` (`beats.ts`), that both engines' translations
+  end with. **`maskBeats` also blanks a `skill` beat's `label` and `text`** (to `"Skill"` and `""`)
+  when the viewer may not see its card: the printed text names the card as surely as its face.
 
 Three properties the clients depend on, all of which are the server's job:
 
@@ -650,6 +676,11 @@ changes; adding an optional field is not a bump.
   Optional and only ever `true`, so a client that has never heard of it renders an archived row
   exactly as a finished live one — `legal: []`, `waiting: null` — minus the one banner it cannot
   yet show. No fixture changed: nothing emitted by `contract:emit` is archived.
+
+- **1 Oct 2026 — narrowing, no bump.** In a 1 v 1, the seat that is not being asked is sent
+  `legal: []` and empty `taps` (§3.3, #458) — the same narrowing of what a payload carries as the
+  7 Sep `beats.art` filter, and the same shape a finished game already sends. `versus.json` was
+  re-emitted: p2's board on p1's turn, with no moves. A 1 v 1 may now be made on the rules engine.
 
 - `GET /api/v1/health` returns `minClient`, the oldest Android `versionCode` the server will still
   talk to. Below it the app refuses to play and offers the update (`docs/arena-android-spec.md` §8).

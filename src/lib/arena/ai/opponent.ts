@@ -13,7 +13,8 @@
  *      pays a tenth of the price for them.
  *   3. Only the state delta is sent per decision, and only the text of cards
  *      that can actually act.
- *   4. The answer is a number plus at most one line of table talk.
+ *   4. The answer is a number plus at most one line of table talk, which
+ *      must not name a hidden card of Claude's (#463, `table-talk.ts`).
  *   5. Two tiers: Sparring runs everything on Haiku 4.5; Tournament sends the
  *      Main Phase and counter windows to Opus 5 (the owner's choice).
  */
@@ -21,18 +22,17 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
-import { comboPowerOf, face, powerOf } from "../engine";
-import { other, type EngineContext, type GameState, type LegalAction, type PlayerId } from "../types";
+import { other, type EngineContext, type LegalAction, type PlayerId } from "../types";
 import { validateProgram, type Op } from "../vm/script";
 import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../vm/script";
 import { words, type Words } from "../rulesets/words";
 import { loadDbs } from "../rulesets";
-import { has } from "../engine/state";
-import { decklistText, money, movesText, stateText } from "./view";
+import { decklistText, money, movesText, shownName, stateText } from "./view";
+import { tableOf } from "./table";
 import { generatedPrimer } from "./primer";
 import type { EngineState } from "../engines";
 import { isVmState } from "../vm/state";
-import { catalogDefOf, leaderOf, zoneOf } from "../engine-state";
+import { catalogDefOf, leaderOf, nameOf, zoneOf } from "../engine-state";
 
 export type Tier = "sparring" | "tournament";
 
@@ -76,7 +76,13 @@ const RULES_PRIMER = primer();
 
 const MoveSchema = z.object({
   move: z.number().int().describe("The number of the move you choose, from the list"),
-  say: z.string().max(120).describe("At most one short sentence of table talk, in character. May be empty."),
+  // #463: the opponent reads this line. Told here and in the question below,
+  // and checked after the move by `table-talk.ts`, which drops a line that
+  // names a card still in Claude's hand, life or deck.
+  say: z
+    .string()
+    .max(120)
+    .describe("At most one short sentence of table talk, in character. Never name or hint at a card in your hand, your life or your deck — your opponent cannot see them. May be empty."),
 });
 
 /**
@@ -91,12 +97,12 @@ const MoveSchema = z.object({
  * fifth of Opus's, so a Sparring decision still costs less; padding the prompt
  * to trip the threshold would be a worse trade than paying for it.
  */
-function systemBlocks(ctx: EngineContext, s: GameState, p: PlayerId) {
+function systemBlocks(ctx: EngineContext, s: EngineState, p: PlayerId) {
   return [
     { type: "text" as const, text: RULES_PRIMER },
     {
       type: "text" as const,
-      text: `YOUR DECK (${s.players[p].name}):\n${decklistText(ctx, s, p)}`,
+      text: `YOUR DECK (${nameOf(s, p)}):\n${decklistText(ctx, s, p)}`,
       cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
     },
   ];
@@ -177,7 +183,7 @@ function freeChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p:
 }
 
 /** Tournament sends the decisions that shape a turn to the stronger model. */
-function modelFor(tier: Tier, s: GameState): { model: string; effort?: "low" | "medium" } {
+function modelFor(tier: Tier, s: EngineState): { model: string; effort?: "low" | "medium" } {
   if (tier === "sparring") return { model: FAST_MODEL };
   // `combo` joined the list after a Tournament game in which Claude spent
   // three cards on a turn-3 attack it was already winning: how much of a hand
@@ -194,15 +200,11 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
   const free = freeChoice(ctx, s, legal, p);
   if (free) return { index: free.index, say: null, spend: null, how: free.how };
   if (!hasAnthropic()) return { index: 0, say: null, spend: null, how: "no API key — took the first legal move" };
-  // #162's own remaining scope: `stateText`/`decklistText`/`systemBlocks`
-  // below read `GameState` (players, hand, deck) directly rather than through
-  // the `zoneOf`/`catalogDefOf` seam the shortcuts above just used, so a real
-  // API call on a rules-engine game is refused here, clearly and by name,
-  // rather than failing a few calls deeper reading `undefined` off `.players`.
-  if (isVmState(s)) throw new Error(`Claude's own move is not built on the rules engine yet (#162) — only the free-choice shortcuts (one legal move, the coin flip, mulligan, charge) run there today`);
-
+  // Everything below reads the table through `tableOf` (`./table.ts`, #457),
+  // so a real decision is put to Claude on either engine, in the same words
+  // for the same position.
   const { model, effort } = modelFor(tier, s);
-  const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence.`;
+  const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence of table talk. Your opponent reads that sentence, so never name or hint at a card in your hand, your life or your deck.`;
 
   const res = await anthropic().messages.parse({
     model,
@@ -239,19 +241,20 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
  * would change the outcome — the doctrine for weighing that against the cards
  * is in the cached primer.
  */
-function comboQuestion(ctx: EngineContext, s: GameState, p: PlayerId): string {
-  const b = s.battle;
+function comboQuestion(ctx: EngineContext, s: EngineState, p: PlayerId): string {
+  const t = tableOf(ctx, s);
+  const b = t.battle;
   if (!b) return "whether to add combo power to this battle";
-  const atkP = s.turnPlayer;
+  const atkP = t.turnPlayer;
   const defP = other(atkP);
-  const total = (who: PlayerId, card: string) => powerOf(ctx, s, card) + s.players[who].combo.reduce((n, id) => n + comboPowerOf(ctx, s, id), 0);
+  const total = (who: PlayerId, card: string) => t.power(card) + t.zone(who, "combo").reduce((n, id) => n + t.comboPower(id), 0);
   const attack = total(atkP, b.attacker);
   const guard = total(defP, b.guard);
   const attacking = p === atkP;
-  const guardIsLeader = b.guard === s.players[defP].leader;
+  const guardIsLeader = b.guard === t.leader(defP);
   // 8-4: the attack lands on a tie, so the defender has to beat it outright.
   const lands = attack >= guard;
-  const stake = guardIsLeader ? `${defP === p ? "you lose" : "they lose"} 1 life${has(ctx, s, b.attacker, "Critical") ? " to the Drop ([Critical])" : ""}` : `${face(ctx, s, b.guard).name} is KO'd`;
+  const stake = guardIsLeader ? `${defP === p ? "you lose" : "they lose"} 1 life${t.keywords(b.attacker).includes("Critical") ? " to the Drop ([Critical])" : ""}` : `${shownName(t, b.guard)} is KO'd`;
   const advice = attacking
     ? lands
       ? `you are already winning this exchange — they would need ${money(attack + 1)} to hold it, and they answer after you, so every point you add now is one they can see before deciding`
@@ -261,12 +264,12 @@ function comboQuestion(ctx: EngineContext, s: GameState, p: PlayerId): string {
       : "you are already holding it; anything more is spent for nothing";
   return [
     `whether to add combo power in the ${attacking ? "Offense" : "Defense"} Step`,
-    `${face(ctx, s, b.attacker).name} attacks ${face(ctx, s, b.guard).name}: ${money(attack)} against ${money(guard)}, so as it stands ${lands ? `the attack lands and ${stake}` : "it bounces off"}`,
+    `${shownName(t, b.attacker)} attacks ${shownName(t, b.guard)}: ${money(attack)} against ${money(guard)}, so as it stands ${lands ? `the attack lands and ${stake}` : "it bounces off"}`,
     advice,
   ].join(". ");
 }
 
-function promptQuestion(ctx: EngineContext, s: GameState, p: PlayerId): string {
+function promptQuestion(ctx: EngineContext, s: EngineState, p: PlayerId): string {
   switch (s.prompt.kind) {
     case "main":
       return "what to do in your Main Phase";

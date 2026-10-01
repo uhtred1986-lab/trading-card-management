@@ -9,17 +9,15 @@
  * those fields, and `VIEW_ZONES` below is where that crossing is written down
  * once.
  *
- * Everything on a card here is read through the **printed** declared attributes
- * (`./cards.ts`): a name, a power, a cost, the colours. What is not here is
- * everything that comes from a card's *skills* — the power a continuous effect
- * has changed, the keywords in force, the engine's reading of its text, whether
- * the referee will be asked, the rules a [Permanent] emits. The effects
- * themselves are in force and correct on the state (#142, and #147 puts them
- * there from a skill a player used); what is missing is this module reading
- * them through `attrsNow` the way `vm/costs.ts` reads a price, so a client
- * would draw the printed number. That is parity work and is #149's — until it
- * lands the board draws a card that simply does nothing yet rather than a wrong
- * claim about what it does.
+ * A card in play is read through `attrsNow` (`./program.ts`), so its power is the
+ * one every layer in force leaves (9-9-1) with the printed one beside it as
+ * `basePower`; a card anywhere else shows its printed face. The keywords in
+ * force (`keywordsInForce`), the engine's reading of each line off its record,
+ * whether the referee would be asked, the [Permanent]s and what they are doing,
+ * and the rules in force on the card (timed and standing) are the legacy
+ * `cardView`'s, field for field (#465; `verify/vm.ts` §30 holds the two to it).
+ * The one difference is deliberate: a card in Hidden Mode has its reading
+ * withheld here, where the legacy builder reads it before checking the cut.
  *
  * Two things on a *side* are read from the board rather than printed, since
  * #152: the cards a search shows the player being asked (`you.choices`), and
@@ -31,12 +29,15 @@
  */
 import type { EngineContext } from "../types";
 import type { CardDef, PlayerId, Prohibition } from "../types";
-import type { BattleView, BoardView, CardArt, CardView, PromptView, SideView } from "../view";
+import type { StaticEffect } from "../engine/state";
+import type { BattleView, BoardView, CardArt, CardView, PermanentView, PromptView, SideView } from "../view";
 import { describeEffect, describeStatic, type EffectView } from "../effects";
 import { attrsOf, type Attrs } from "./cards";
-import { attrsNow, staticsNow } from "./program";
-import { masterOf } from "./triggers";
-import { findCard, hostOf, isTokenCard } from "./zones";
+import { attrsNow, keywordsInForce, permanentStaticsOf, staticsNow } from "./program";
+import { DEFERRED_STATICS, STATIC_OPS } from "./effects";
+import { costModifierAs, describeScript, modifyAttrAs, negateAs, replaceAs, type Op } from "./script";
+import { masterOf, skillsShowing } from "./triggers";
+import { findCard, hostOf, inPlayZones, isTokenCard } from "./zones";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
 import { fixedPrompt, promptHint } from "../prompt-words";
@@ -215,14 +216,34 @@ function effectView(ctx: EngineContext, state: VmState) {
 }
 
 /**
- * The timed effects on one card — the legacy `effectsOn`'s first half, worded
- * by the same `describeEffect`, so "controlled by its owner's opponent" (20-9)
- * or "+5000 power" reads the same on both boards (#439). The [Permanent]
- * half is not drawn per card on this engine yet.
+ * Every rule in force on one card — the legacy `effectsOn`: the timed effects
+ * first, then the standing changes [Permanent] skills put on it, each worded
+ * by the same `describeEffect`/`describeStatic` so "+5000 power" or
+ * "[Blocker]" reads the same on both boards (#439, #465). A standing change
+ * `describeStatic` has no words for is left out rather than given a label
+ * nobody wrote.
  */
-function effectsOn(ctx: EngineContext, state: VmState, id: string): EffectView[] {
+function effectsOn(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): EffectView[] {
   const view = effectView(ctx, state);
-  return state.effects.filter((e) => e.target === id).map((e) => view(describeEffect(e), e.until, e.source, e.master ?? null));
+  const out = state.effects.filter((e) => e.target === id).map((e) => view(describeEffect(e), e.until, e.source, e.master ?? null));
+  for (const e of staticsNow(ctx, game, state)) {
+    if (e.target !== id || !DESCRIBED_STATICS.has(e.kind)) continue;
+    // 20-9: whose rule it is follows the card, so the chair a label's side
+    // words are said from is its source's *master*, not its owner.
+    const by = state.cards[e.source] ? masterOf(game, state, e.source) : null;
+    const as = { source: e.source, kind: e.kind, target: e.target, value: e.value, ...(e.skillKind ? { skillKind: e.skillKind } : {}), ...(e.colors ? { colors: e.colors } : {}) } as StaticEffect;
+    out.push(view(describeStatic(as, by), "permanent", e.source, by));
+  }
+  return out;
+}
+
+/** The kinds of standing change `describeStatic` has words for. */
+const DESCRIBED_STATICS = new Set<string>(["power", "comboPower", "keyword", "cost", "skillCost", "evolveCost", "comboCost", "zEnergy", "specifiedCost", "negateKeyword", "forbid", "permit", "immune", "gains", "replaceLeave", "altCost", "payer", "skip"]);
+
+/** The ops that stand for a standing change, spelling variants folded the way the compiler reads them — the legacy `emitsStatic`. */
+const STANDING_OPS = new Set<string>([...STATIC_OPS.filter((o) => o !== "if"), ...Object.keys(DEFERRED_STATICS)]);
+function emitsStatic(ops: Op[]): boolean {
+  return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STANDING_OPS.has(replaceAs(costModifierAs(negateAs(modifyAttrAs(o)))).op)));
 }
 
 /**
@@ -292,19 +313,58 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
 function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, images: Record<string, CardArt>): CardView {
   const inst = state.cards[id];
   const def: CardDef | undefined = ctx.defs[inst.cardId];
-  const attrs: Attrs = def ? attrsOf(def, game).attrs : {};
-  const text = str(attrs.skill);
+  const printed: Attrs = def ? attrsOf(def, game).attrs : {};
   // 23-5-2: a card in Hidden Mode has none of its front-side information, for
   // either player. Everything readable is withheld here rather than at each
   // caller, the same cut the legacy view makes.
   const hidden = inst.hidden;
-  const effects = hidden ? [] : effectsOn(ctx, state, id);
+  // A card in an area where it is in play is read through every layer in
+  // force (9-9-1); anywhere else it shows its printed face, as the legacy
+  // view's `powerOf`/`f.power` split does (#465).
+  const at = findCard(state, id);
+  const inPlay = !!at && inPlayZones(game).includes(at.zone);
+  const now: Attrs = inPlay && !hidden ? attrsNow(ctx, game, state, id) : printed;
+  // The face showing: a flipped Leader answers with its awakened side (1-9).
+  const text = str(now.skill);
+  const power = hidden ? null : num(now.power);
+  // `originalPower` is the face value before any layer (20-3-1).
+  const faceValue = num(inPlay ? (now.originalPower ?? printed.power) : printed.power);
+  const effects = hidden ? [] : effectsOn(ctx, game, state, id);
+  // The engine's reading of each line off its record (`card_rules`), and what
+  // each [Permanent] is doing now — the legacy builder's loop, over the same
+  // skills a card has taken on (20-18) that `skillsShowing` already includes.
+  let reading = "";
+  let referee = false;
+  const permanents: PermanentView[] = [];
+  if (def && !hidden) {
+    const showing = skillsShowing(ctx, state, id);
+    for (const sk of showing.skills) {
+      const sc = showing.scripts.bySkill[sk.index];
+      if (!sc) continue;
+      if (sk.kind === "permanent") {
+        const standing: PermanentView["state"] = sc.unsupported.length ? "unread" : !emitsStatic(sc.ops) ? "inert" : (permanentStaticsOf(ctx, game, state, id, sk.index)?.length ?? 0) > 0 ? "on" : "off";
+        permanents.push({
+          index: sk.index,
+          text: sk.raw
+            .replace(/^\s*(?:\[[^\]]*\]\s*)+/, "")
+            .replace(/\s+/g, " ")
+            .trim(),
+          state: standing,
+          reading: sc.unsupported.length ? "" : describeScript(sc.ops, { permanent: true }),
+        });
+        if (!sc.unsupported.length && sc.ops.length) reading += (reading ? " · " : "") + describeScript(sc.ops, { permanent: true });
+        continue;
+      }
+      if (sc.unsupported.length) referee = true;
+      else if (sc.ops.length) reading += (reading ? " · " : "") + describeScript(sc.ops);
+    }
+  }
   return {
     id,
     cardId: inst.cardId,
-    name: hidden ? "Face-down card" : (str(attrs.name) ?? inst.cardId),
-    power: hidden ? null : num(attrs.power),
-    colors: hidden ? [] : strings(attrs.colors),
+    name: hidden ? "Face-down card" : (str(now.name) ?? inst.cardId),
+    power,
+    colors: hidden ? [] : strings(printed.colors),
     imageUrl: hidden ? null : (images[inst.cardId]?.front ?? null),
     // The contract's `mode` is one of two words; a card in a zone that
     // declares no mode is drawn the way an unrested card is.
@@ -319,19 +379,60 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     // An X cost has no `energyCost` attribute at all — 1-2-2-2 says it counts
     // as 0 except while it is being paid, and the value being paid is named at
     // the moment of payment (#139's reading, and #146's payment). So a card
-    // whose cost is X shows none here rather than a number nobody chose.
-    cost: hidden || num(attrs.energyCost) === null ? null : String(num(attrs.energyCost)),
-    comboCost: hidden ? null : num(attrs.comboCost),
-    comboPower: hidden ? null : num(attrs.comboPower),
-    // Skills are read by the compiler into `card_rules`, and playing one is
-    // #141 and #142. A card on this engine has no rule in force, and these
-    // four say exactly that rather than guessing.
-    keywords: [],
+    // whose cost is X shows none here rather than a number nobody chose. The
+    // printed cost, as the legacy view sends it.
+    cost: hidden || num(printed.energyCost) === null ? null : String(num(printed.energyCost)),
+    comboCost: hidden ? null : num(printed.comboCost),
+    // In play, a card with no printed combo power is worth 0 to a combo (the legacy `comboPowerOf`), not nothing.
+    comboPower: hidden ? null : inPlay ? (num(now.comboPower) ?? 0) : num(printed.comboPower),
+    keywords: hidden ? [] : keywordsInForce(ctx, game, state, id).map((k) => k.name),
     text: hidden ? null : (text ?? null),
-    reading: "",
-    referee: false,
+    reading,
+    referee,
+    ...(inPlay && power != null && faceValue != null && power !== faceValue ? { basePower: faceValue } : {}),
     ...(effects.length ? { effects } : {}),
+    ...(permanents.length ? { permanents } : {}),
   };
+}
+
+/**
+ * Every card instance whose identity `viewer` may know right now — the legacy
+ * `revealedTo` (`../view.ts`), read off the zone declarations rather than a
+ * list of field names (#458).
+ *
+ * A zone's declared `visibility` (3-1-3) is the rule: `all` is an open area
+ * either player reads (the Battle, Combo, Energy, Leader and Unison Areas, the
+ * Drop, the Warp, Z-Energy, a card removed from the game); `owner` is a secret
+ * area only its own player reads (the hand, the Z-Deck, 3-3, 3-12-2);
+ * `none` is a secret area nobody reads (the deck and life, 3-2-2, 3-9-2).
+ * Three things cut across a zone's declaration, exactly as on the legacy side:
+ *  - a card turned face up (3-9-2-1, and a life card revealed on its way to a
+ *    hand, #272) is public wherever it sits;
+ *  - a card in Hidden Mode (23-5-2) is nobody's to read, even in an open area;
+ *  - the cards a search shows the player being asked are that player's, and
+ *    only theirs, to see.
+ * The cards under a card that is itself readable are face up (23-2-2), and
+ * follow it only when the `under` zone is declared open.
+ */
+export function vmRevealedTo(game: GameDefinition, state: VmState, viewer: PlayerId): Set<string> {
+  const out = new Set<string>();
+  const underOpen = game.zones.under?.visibility === "all";
+  const add = (id: string) => {
+    const inst = state.cards[id];
+    if (!inst || inst.hidden || out.has(id)) return;
+    out.add(id);
+    if (underOpen) for (const u of inst.under) add(u);
+  };
+  for (const p of ["p1", "p2"] as PlayerId[]) {
+    for (const [zone, ids] of Object.entries(state.sides[p].zones)) {
+      const seen = game.zones[zone]?.visibility ?? "none";
+      const open = seen === "all" || (seen === "owner" && p === viewer) || (seen === "opponent" && p !== viewer);
+      for (const id of ids ?? []) if (open || state.cards[id]?.faceUp) add(id);
+    }
+  }
+  const pr = state.prompt;
+  if (pr.kind === "chooseCards" && pr.player === viewer) for (const id of pr.choice.candidates) add(id);
+  return out;
 }
 
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);

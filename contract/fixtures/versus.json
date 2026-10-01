@@ -3,7 +3,7 @@
   "game": {
     "id": 1,
     "mode": "versus",
-    "engine": "legacy",
+    "engine": "rules",
     "game": "dbs",
     "status": "playing",
     "turn": 3,
@@ -211,53 +211,11 @@
     },
     "over": null
   },
-  "legal": [
-    {
-      "action": {
-        "type": "attack",
-        "player": "p1",
-        "attacker": "p1#0",
-        "target": "p2#0"
-      },
-      "label": "Attack L-BLUE with L-RED (10000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "attack",
-        "player": "p1",
-        "attacker": "p1#35",
-        "target": "p2#0"
-      },
-      "label": "Attack L-BLUE with V1 (10000 vs 10000)"
-    },
-    {
-      "action": {
-        "type": "endMain",
-        "player": "p1"
-      },
-      "label": "End turn"
-    }
-  ],
+  "legal": [],
   "taps": {
-    "byCard": {
-      "p1#0": [
-        0
-      ],
-      "p1#35": [
-        1
-      ]
-    },
-    "bare": [
-      2
-    ],
-    "attackTargets": {
-      "p1#0": {
-        "p2#0": 0
-      },
-      "p1#35": {
-        "p2#0": 1
-      }
-    }
+    "byCard": {},
+    "bare": [],
+    "attackTargets": {}
   },
   "beats": {
     "seq": 2,

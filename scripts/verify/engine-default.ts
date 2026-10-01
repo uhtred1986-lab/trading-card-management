@@ -11,12 +11,10 @@
  *     `engineForMode`. Both are asserted here against a settings table stood
  *     up by hand, because that is the whole of what `/arena`'s form action and
  *     `POST /api/v1/games` decide before they call `startGame`.
- *  2. **A mode the rules engine is not built for still works.** A 1 v 1's
- *     hidden-hand masking is legacy-only (#162). Before the flip that was a
- *     refusal nobody met by accident; after it, "a 1 v 1, engine unspecified"
- *     is the ordinary path, so it resolves to `FALLBACK_ENGINE` and carries
- *     the reason rather than throwing. An engine a caller *named* is still
- *     refused — `modeRefusal` is the one rule behind both.
+ *  2. **Every mode is built on both engines.** A 1 v 1's hidden-hand masking
+ *     was legacy-only (#162) and resolved to `FALLBACK_ENGINE` with a reason;
+ *     since #458 the rules engine masks its own state and a 1 v 1 stays on
+ *     it. `modeRefusal` is still the one rule a refusal would go through.
  *  3. **Existing legacy games open unchanged.** A saved row's engine is read
  *     with `engineOr`, whose fallback is deliberately `FALLBACK_ENGINE` and
  *     not `DEFAULT_ENGINE`: a value that cannot be read is an old row, and
@@ -55,11 +53,9 @@ assert.notEqual(DEFAULT_ENGINE, FALLBACK_ENGINE, "the default and the fallback a
 // The fallback earns its name: it is refused for nothing.
 for (const mode of MODES) assert.equal(modeRefusal(FALLBACK_ENGINE, mode), null, `the fallback engine is not built for ${mode}, so a mode the default cannot play has nowhere to go`);
 
-for (const mode of MODES) {
-  const why = modeRefusal("rules", mode);
-  if (mode === "versus") assert.ok(why && why.includes(ENGINE_INFO.legacy.label), "a 1 v 1 on the rules engine is allowed, or does not say which engine plays it instead (#162)");
-  else assert.equal(why, null, `the rules engine is refused for ${mode}, which #162 let through`);
-}
+// #458: and so is the rules engine, a 1 v 1 included, now that its masking
+// reads its own state.
+for (const mode of MODES) assert.equal(modeRefusal("rules", mode), null, `the rules engine is refused for ${mode}, which #162 and #458 let through`);
 
 // ── 3. the creation path, with no choice made ──────────────────────────────
 
@@ -85,11 +81,10 @@ async function creationPath(): Promise<void> {
     assert.equal(resolved.note, null, `a new ${mode} game explains an engine it did not fall back from`);
   }
 
-  // A 1 v 1 resolves rather than refusing: the default path never fails for a
-  // reason the person creating the game did not choose.
+  // A 1 v 1 too since #458: both engines keep the two hands hidden.
   const versus = engineForMode(await defaultEngine(settingsDb(undefined)), "versus");
-  assert.equal(versus.engine, "legacy", "a 1 v 1 with no choice made is not on the legacy engine, whose masking is the only one that keeps two hands hidden (#162)");
-  assert.equal(versus.note, modeRefusal("rules", "versus"), "a 1 v 1 fell back to the legacy engine without saying why");
+  assert.equal(versus.engine, "rules", "a 1 v 1 with no choice made is not on the rules engine (#458)");
+  assert.equal(versus.note, null, "a 1 v 1 explains an engine it did not fall back from");
 
   // The setting's own answer is honoured for the modes it can be honoured for.
   assert.equal(engineForMode("legacy", "hotseat").engine, "legacy", "the setting's choice of the legacy engine was overridden by the default");

@@ -32,10 +32,12 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
-        "keywords": [],
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "",
+        "reading": "draw 1",
         "referee": false
       },
       "unison": null,
@@ -44,7 +46,7 @@
           "id": "p1#35",
           "cardId": "AURA",
           "name": "AURA",
-          "power": 10000,
+          "power": 15000,
           "colors": [
             "Red"
           ],
@@ -60,14 +62,33 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Permanent] Your Battle Cards get +5000 power.",
-          "reading": "",
-          "referee": false
+          "reading": "all in your battle +5000 power",
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ],
+          "permanents": [
+            {
+              "index": 0,
+              "text": "Your Battle Cards get +5000 power.",
+              "state": "on",
+              "reading": "all in your battle +5000 power"
+            }
+          ]
         },
         {
           "id": "p1#18",
           "cardId": "RESTCOND",
           "name": "RESTCOND",
-          "power": 10000,
+          "power": 15000,
           "colors": [
             "Red"
           ],
@@ -83,14 +104,33 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Permanent] If this card is in Rest Mode, your Battle Cards get +5000 power.",
-          "reading": "",
-          "referee": false
+          "reading": "if there are 1 or more this card: all in your battle +5000 power",
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ],
+          "permanents": [
+            {
+              "index": 0,
+              "text": "If this card is in Rest Mode, your Battle Cards get +5000 power.",
+              "state": "off",
+              "reading": "if there are 1 or more this card: all in your battle +5000 power"
+            }
+          ]
         },
         {
           "id": "p1#38",
           "cardId": "ODDAURA",
           "name": "ODDAURA",
-          "power": 10000,
+          "power": 15000,
           "colors": [
             "Red"
           ],
@@ -107,13 +147,32 @@
           "keywords": [],
           "text": "[Permanent] Your Battle Cards resonate with the will of the universe.",
           "reading": "",
-          "referee": false
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ],
+          "permanents": [
+            {
+              "index": 0,
+              "text": "Your Battle Cards resonate with the will of the universe.",
+              "state": "unread",
+              "reading": ""
+            }
+          ]
         },
         {
           "id": "p1#13",
           "cardId": "INERTPERM",
           "name": "INERTPERM",
-          "power": 10000,
+          "power": 15000,
           "colors": [
             "Red"
           ],
@@ -129,14 +188,33 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Permanent] Draw 1 card.",
-          "reading": "",
-          "referee": false
+          "reading": "draw 1",
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ],
+          "permanents": [
+            {
+              "index": 0,
+              "text": "Draw 1 card.",
+              "state": "inert",
+              "reading": "draw 1"
+            }
+          ]
         },
         {
           "id": "p1#12",
           "cardId": "V1",
           "name": "V1",
-          "power": 10000,
+          "power": 15000,
           "colors": [
             "Red"
           ],
@@ -153,7 +231,18 @@
           "keywords": [],
           "text": null,
           "reading": "",
-          "referee": false
+          "referee": false,
+          "basePower": 10000,
+          "effects": [
+            {
+              "kind": "power",
+              "label": "+5,000 power",
+              "until": "permanent",
+              "source": "p1#35",
+              "sourceName": "AURA",
+              "by": "p1"
+            }
+          ]
         }
       ],
       "combo": [],
@@ -216,7 +305,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
+        "comboPower": 0,
         "keywords": [],
         "text": null,
         "reading": "",

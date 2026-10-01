@@ -32,10 +32,12 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
-        "keywords": [],
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "",
+        "reading": "draw 1",
         "referee": false
       },
       "unison": null,
@@ -44,7 +46,7 @@
           "id": "p1#35",
           "cardId": "PUMPCRIT",
           "name": "PUMPCRIT",
-          "power": 10000,
+          "power": 15000,
           "colors": [
             "Red"
           ],
@@ -58,10 +60,13 @@
           "cost": "1",
           "comboCost": 0,
           "comboPower": 5000,
-          "keywords": [],
+          "keywords": [
+            "Critical"
+          ],
           "text": "[Activate: Main] This card gets +5000 power and [Critical] for the turn.",
-          "reading": "",
+          "reading": "this card +5000 power for the turn, this card gains [Critical] for the turn",
           "referee": false,
+          "basePower": 10000,
           "effects": [
             {
               "kind": "power",
@@ -143,7 +148,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
+        "comboPower": 0,
         "keywords": [],
         "text": null,
         "reading": "",

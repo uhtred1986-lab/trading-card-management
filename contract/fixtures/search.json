@@ -32,10 +32,12 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
-        "keywords": [],
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "",
+        "reading": "draw 1",
         "referee": false
       },
       "unison": null,
@@ -60,7 +62,7 @@
           "comboPower": 5000,
           "keywords": [],
           "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
-          "reading": "",
+          "reading": "choose up to 1 <v1> in your deck, move the chosen cards to hand, shuffle",
           "referee": false
         }
       ],
@@ -1046,7 +1048,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
+        "comboPower": 0,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -1712,6 +1714,7 @@
         "from": "hand",
         "to": "battle",
         "owner": "p1",
+        "reveal": true,
         "n": 2
       },
       {

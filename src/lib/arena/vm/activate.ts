@@ -48,13 +48,14 @@
  *   read against the combo prompt — `vm/battle.ts` hands `activate` the
  *   battle's kinds and the gates below are the same gates.
  *
- *   *An X price* (20-5) and *an action price* (4-3-3, "switch this card to Rest
- *   Mode:") are the two halves of a skill's cost this stage did not reach. The
- *   first is a value 1-2-2-2 makes an answer to a question and a candidate is a
- *   card and a number and nothing else; the second needs the payability of a
- *   whole program, which is `canPayCostProgram` in the legacy engine and has no
- *   reading over declared prices. Both are refused as the printed price rather
- *   than charged as nothing (#149).
+ *   *An action price* (4-3-3, "choose 1 card in your hand and place it in the
+ *   Drop Area:") is charged as the legacy engine charges it (#458): offered only
+ *   when `canPayPriceProgram` — the legacy `canPayCostProgram`, op for op — says
+ *   the program can be paid, run as its own frame in front of the effect, and
+ *   the effect announced and started from what it chose once it is paid
+ *   (`resolveActivation`). *An X price* (20-5) is one candidate per value
+ *   (`vm/actions.ts`, #439). A keyword's own move with an action price is still
+ *   refused as the printed price rather than charged as nothing.
  *
  *   *[Spirit Boost X]* (22-43) is a price in markers off a Unison with moments
  *   of its own to fire (sixteen cards watch the payment itself); it is refused
@@ -89,7 +90,7 @@ import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { forbiddenBy, resolveSelector } from "./program";
+import { forbiddenBy, resolveRef, resolveSelector } from "./program";
 import { vmHost } from "./host";
 import type { VmState } from "./state";
 import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
@@ -312,15 +313,18 @@ function payWithPayers(ctx: EngineContext, game: GameDefinition, state: VmState,
  * Card is red: Draw 1 card". 20-19's own `payWith` items, yes too (#149) —
  * `payWithPayers` above is what reads them, and a line naming one is no more
  * unread than a line naming orbs. Everything else, no: an action price
- * (4-3-3) needs the payability of a program, an X price (20-5) a value nobody
- * has named, and a skill with **no record at all** has no price to read in the
- * first place (the 8 Sep 2026 precedent).
+ * (4-3-3) is charged since #458, on a printed line only, and a skill with **no
+ * record at all** has no price to read in the first place (the 8 Sep 2026
+ * precedent).
  */
 function chargeablePrice(line: ActivationLine): boolean {
   if (costIsOnlyOrbs(line.skill.cost)) return true;
   const price = line.script?.price;
   if (!price) return false;
-  if (price.ops?.length) return false;
+  // 4-3-3: an action price is charged by `resolveActivation` (#458) — on a
+  // printed line. A keyword's own move runs its `DO` in place of the record
+  // and has nowhere to charge one, so it stays refused.
+  if (price.ops?.length) return !line.keyword;
   // 20-5: an X price is chargeable once X is named, which the menu does —
   // one candidate per payable value (`vm/actions.ts`'s `activation`, #439).
   if (price.x || price.payWith?.length) return true;
@@ -422,6 +426,11 @@ export function activationRefusals(
   if (condition && !vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, condition)) {
     before.push({ kind: "condition", text: sk.cost });
   }
+  // 4-3-3: an action price that cannot be paid on this board, asked where the
+  // legacy `whyNotActivate` asks it — after the condition, before the energy —
+  // and in its words (#458).
+  const priceOps = actionPriceOf(line);
+  if (priceOps && !canPayPriceProgram(ctx, game, state, player, card, priceOps)) before.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
 
   // …the price goes here, and `vm/actions.ts` puts it there.
 
@@ -492,7 +501,11 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   }
   // `inBattle` is the legacy `!!s.battle`: an [Activate: Battle] taken at the
   // combo prompt (`vm/battle.ts`, #150) is a skill used in a battle.
-  if (!announcesBeforePrice(line)) announce(state, ev, player, line);
+  // 4-3-3: a line with an action price is announced once the price is paid —
+  // the legacy `skill.resolve`, which runs after the price — so it is the
+  // price's frame finishing that announces it (`vm/host.ts`'s `saveVars`).
+  const priceOps = actionPriceOf(line);
+  if (!announcesBeforePrice(line) && !priceOps) announce(state, ev, player, line);
   // A keyword's own move runs the keyword's `DO` — the keyword's rules are the
   // effect (22-1), and the record of a line like "[Overlord]" says nothing —
   // and then whatever effect the line prints beyond the keyword, which is
@@ -502,7 +515,87 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // [Wish]'s flip of the Leader (22-25-4).
   const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []);
   // 20-5: the X the price was paid at is what the effect reads as `X`.
-  if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, ...(x === undefined ? {} : { x }) });
+  const effect: ScriptFrame = { ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, ...(x === undefined ? {} : { x }) };
+  if (priceOps) {
+    // 4-3-3: the action price is paid on activation, as a program of its own in
+    // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
+    // what it chose ("the chosen card") is handed on under one key. The effect
+    // frame is queued even when it does nothing, because it is what is
+    // announced when the price is paid.
+    const key = costVarsKey(card, sk.index);
+    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
+    return;
+  }
+  if (program.length) state.programs.unshift(effect);
+}
+
+/** Where a line's action price leaves what it chose for the effect — the legacy key, word for word. */
+const costVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${skillIndex}`;
+
+/**
+ * The action price (4-3-3) this line charges, or null: the record's price
+ * program, read only when the printed cost is more than orbs — the legacy
+ * `priceFor(…).ops` behind its `!costIsOrbsOnly` — and never for a keyword's
+ * own move, which has no place to charge one.
+ */
+function actionPriceOf(line: ActivationLine): Script["ops"] | null {
+  if (line.keyword || costIsOnlyOrbs(line.skill.cost)) return null;
+  const ops = line.script?.price?.ops;
+  return ops?.length ? ops : null;
+}
+
+/**
+ * Can this action price be paid right now? The legacy `canPayCostProgram`
+ * (`engine/state.ts`), op for op, over the declared zones.
+ *
+ * Deliberately a whitelist: an op that is not on it means "no", so the line
+ * stays unoffered rather than offered with a price that then half-runs. A
+ * target named by a variable is whatever the `choose` in front of it binds,
+ * and that choice has already been checked.
+ */
+export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, ops: Script["ops"]): boolean {
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: player };
+  const hand = zone(state, player, ACTIVATION_ZONES.hand);
+  // The activating card leaves the hand as part of the activation (12-2-2),
+  // so it is not also there to be discarded.
+  const inHand = hand.includes(card) ? 1 : 0;
+  for (const op of ops) {
+    switch (op.op) {
+      case "choose":
+        // "Up to" can always be paid with nothing (5-2-4).
+        if (op.sel.upTo) break;
+        if (resolveSelector(ctx, game, state, frame, op.sel).length < (op.sel.count ?? 1)) return false;
+        break;
+      case "discard":
+        if (typeof op.n !== "number" || hand.length - inHand < op.n) return false;
+        break;
+      case "mill":
+        if (typeof op.n !== "number" || zone(state, player, ACTIVATION_ZONES.burst).length < op.n) return false;
+        break;
+      case "switchMode": {
+        if ("var" in op.target) break;
+        const cards = resolveRef(ctx, game, state, frame, op.target);
+        if (!cards.length || cards.some((id) => state.cards[id].mode === op.mode)) return false;
+        break;
+      }
+      case "moveTo":
+        // "Under" needs a host and "play" is not an area (3-1).
+        if (op.to === "under" || op.to === "play") return false;
+        if ("var" in op.target) break;
+        if (!resolveRef(ctx, game, state, frame, op.target).length) return false;
+        break;
+      case "removeMarker": {
+        if (typeof op.n !== "number") return false;
+        if ("var" in op.target) break;
+        const cards = resolveRef(ctx, game, state, frame, op.target);
+        if (!cards.length || cards.some((id) => state.cards[id].markers < (op.n as number))) return false;
+        break;
+      }
+      default:
+        return false;
+    }
+  }
+  return true;
 }
 
 /**

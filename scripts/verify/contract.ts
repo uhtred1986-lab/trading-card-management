@@ -32,7 +32,6 @@ import {
   mix,
   narrate,
   playG,
-  rulesGap,
   stagedG,
   toBeats,
   toneFor,
@@ -155,9 +154,6 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
 
   const fixtures: Record<string, unknown> = {};
 
-  /** What the rules engine's board does not draw yet — every case it costs is named at its own `rulesGap`. */
-  const VIEW_GAP = "`vm/view.ts`'s `cardView` draws the printed attributes: no layer on `power`, no `basePower`, `keywords` always [], `reading` always \"\", no `permanents`";
-
   {
     const s = stagedG({ hand: ["V1"], energy: ["V1"] });
     const r = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "V1") });
@@ -272,10 +268,8 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
     );
     const snap = snapshotFor(r.state, beats);
     const cv = snap.view.you.battle.find((c) => c.id === pump)!;
-    if (!rulesGap("contract: activate — the pumped card's power on the board", VIEW_GAP, "no issue filed yet")) {
-      assert.equal(cv.power, 15000);
-      assert.equal(cv.basePower, 10000, "the printed power travels with the changed one");
-    }
+    assert.equal(cv.power, 15000);
+    assert.equal(cv.basePower, 10000, "the printed power travels with the changed one");
     assert.deepEqual(
       cv.effects?.map((e) => [e.kind, e.label, e.until, e.source, e.keyword ?? null]),
       [
@@ -301,22 +295,18 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
     const s = stagedG({ battle: ["AURA", "RESTCOND", "ODDAURA", "INERTPERM", "V1"], oppBattle: ["V-BLUE"], energy: ["V1"] });
     const you = IMPL.boardView(ctx, s, "p1", {}).you;
     const byId = (cardId: string) => you.battle.find((c) => c.cardId === cardId)!;
-    if (!rulesGap("contract: standing — each [Permanent]'s on/off/unread/inert state on its card", VIEW_GAP, "no issue filed yet")) {
-      assert.equal(byId("AURA").permanents?.[0].state, "on");
-      assert.equal(byId("RESTCOND").permanents?.[0].state, "off", "its condition does not hold: the card is active");
-      assert.equal(byId("ODDAURA").permanents?.[0].state, "unread");
-      assert.equal(byId("INERTPERM").permanents?.[0].state, "inert", "compiles, but the static layer has no kind for a draw");
-    }
+    assert.equal(byId("AURA").permanents?.[0].state, "on");
+    assert.equal(byId("RESTCOND").permanents?.[0].state, "off", "its condition does not hold: the card is active");
+    assert.equal(byId("ODDAURA").permanents?.[0].state, "unread");
+    assert.equal(byId("INERTPERM").permanents?.[0].state, "inert", "compiles, but the static layer has no kind for a draw");
     assert.equal(byId("ODDAURA").referee, false, "a [Permanent] is never the referee's: it never resolves");
     const v1 = byId("V1");
-    if (!rulesGap("contract: standing — an aura's power, and the effect it names, on the card it reaches", VIEW_GAP, "no issue filed yet")) {
-      assert.equal(v1.basePower, 10000, "AURA's +5000 is on it, and the card says what the printed number was");
-      assert.equal(v1.power, 15000, "RESTCOND is off (the card is active), so only AURA counts");
-      assert.deepEqual(
-        v1.effects?.map((e) => [e.kind, e.label, e.until, e.sourceName]),
-        [["power", "+5,000 power", "permanent", "AURA"]],
-      );
-    }
+    assert.equal(v1.basePower, 10000, "AURA's +5000 is on it, and the card says what the printed number was");
+    assert.equal(v1.power, 15000, "RESTCOND is off (the card is active), so only AURA counts");
+    assert.deepEqual(
+      v1.effects?.map((e) => [e.kind, e.label, e.until, e.sourceName]),
+      [["power", "+5,000 power", "permanent", "AURA"]],
+    );
     fixtures.standing = snapshotFor(s, null);
   }
 
@@ -383,6 +373,9 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
     assert.equal(forP1.waiting, "you");
     assert.equal(forP2.waiting, "opponent", "the other device is told to sit still and watch");
     assert.ok(!forP2.rejected?.length, "and is never told why it cannot move: the prompt is not its");
+    // #458: nor handed p1's moves, whose labels name the cards in p1's hand.
+    assert.deepEqual(forP2.legal, [], "the other device is sent the asked player's moves");
+    assert.equal(forP1.legal, legal, "the asked player is not sent their own moves");
 
     // 3. The beat queue is one queue, but a face is only in the copy that may
     //    see it. Both beats survive in both — that a card moved is public —
@@ -391,10 +384,8 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
     assert.equal(forP2.beats!.list.length, 2);
     assert.ok(forP1.beats!.art[mine], "your own draw shows its face");
     assert.ok(forP2.beats!.art[theirs], "and the same, the other way round");
-    if (!rulesGap("contract: versus — a draw's face masked from the other chair", "`view.ts`'s `revealedTo` reveals every card of a rules-engine state", "#458")) {
-      assert.ok(!forP1.beats!.art[theirs], "their draw does not");
-      assert.ok(!forP2.beats!.art[mine]);
-    }
+    assert.ok(!forP1.beats!.art[theirs], "their draw does not");
+    assert.ok(!forP2.beats!.art[mine]);
 
     fixtures.versus = forP2;
   }
@@ -492,7 +483,9 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
     assert.equal(beat.total, 3, "1 paid plus 2 carried, same as 22-45-2's own arithmetic");
     assert.equal(beats.list.filter((b) => b.t === "markers").length, 2, "the paid marker and the carried markers are two beats, not one conflating both");
 
-    assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }), `2 markers move from ${beats.art[old].name} to ${beats.art[newUnison].name}.`);
+    // #463: a marker count is on the board for all to see, so the table hears nothing; the full log still says it.
+    assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }), null);
+    assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }, undefined, { full: true }), `2 markers move from ${beats.art[old].name} to ${beats.art[newUnison].name}.`);
 
     // Marker counts on a Unison are public (5-13-2), so `maskBeats` has
     // nothing to hide here for either side — the very same queue comes
@@ -507,18 +500,13 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
 
   // `npm test` runs from the repo root, which is what makes this path right.
   //
-  // Each fixture is one engine's, written and compared on that engine's pass
-  // only (#459). Every one is the rules engine's — a new game is made on it
-  // (#166) and the legacy engine is on its way out (#118) — except `versus`:
-  // a 1 v 1 is still played on the legacy engine (`games.ts`'s `modeRefusal`)
-  // because the rules engine's `revealedTo` shows both hands (#458), and the
-  // Kotlin round trip asserts the masking this fixture exists to show. It
-  // moves to the rules engine with #458.
-  const LEGACY_FIXTURES = new Set(["versus"]);
+  // Every fixture is the rules engine's, written and compared on the rules
+  // pass only (#459): a new game is made on it (#166) and the legacy engine is
+  // on its way out (#118). `versus` joined them when #461 played a 1 v 1 on the
+  // rules engine with its own `vmRevealedTo` masking (#458).
   const dir = path.join(process.cwd(), "contract", "fixtures");
   const emit = process.argv.includes("--emit");
-  const mine = Object.entries(fixtures).filter(([name]) => LEGACY_FIXTURES.has(name) === (ENGINE === "legacy"));
-  if (ENGINE === "rules") for (const name of LEGACY_FIXTURES) rulesGap(`contract: contract/fixtures/${name}.json`, "written and compared on the legacy pass: a 1 v 1 is not played on the rules engine yet", "#458");
+  const mine = ENGINE === "rules" ? Object.entries(fixtures) : [];
   if (emit) fs.mkdirSync(dir, { recursive: true });
   for (const [name, snapshot] of mine) {
     const file = path.join(dir, `${name}.json`);
@@ -550,7 +538,8 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
     play: 1,
     search: 1,
     standing: 1,
-    versus: 1,
+    // #458: the 1 v 1 fixture is p2's board on p1's turn, which lists none of p1's moves.
+    versus: 0,
     // #447: "End Defense Step" (defend), the End Main Phase button (the rest).
     defend: 1,
     "attack-life": 1,

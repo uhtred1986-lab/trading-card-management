@@ -39,14 +39,13 @@ export async function openMatch(db: Db, hostUser: string | null, hostDeckId: num
   if (!hostUser) throw new Error("a 1 v 1 needs two logins — add one at Settings → Users, or play hot-seat");
   // Refused now rather than when the other player joins, which is the wrong moment to learn it.
   playableEngine(engine);
-  // A 1 v 1 is the one mode the rules engine cannot play yet (#149): its
-  // hidden-hand masking (`beats.ts`'s `maskBeats`) reveals everything for a
-  // rules-engine game, which is harmless with one viewer and a real leak with
-  // two. The rule itself is `games.ts`'s `modeRefusal`, asked here once rather
-  // than written out a second time — and asked at the invitation rather than
-  // when the second player already has a deck picked. Since #166 a caller with
-  // no engine of its own resolves through `engineForMode` before it gets here,
-  // so what this refuses is an engine someone actually named.
+  // Whether this engine plays a 1 v 1 is `games.ts`'s `modeRefusal`, asked here
+  // once rather than written out a second time — and asked at the invitation
+  // rather than when the second player already has a deck picked. Both engines
+  // do since #458 (the rules engine's hidden-hand masking is `vm/view.ts`'s
+  // `vmRevealedTo`); the question stays so a mode refused again is refused here
+  // too. Since #166 a caller with no engine of its own resolves through
+  // `engineForMode` before it gets here.
   const why = modeRefusal(engine, "versus");
   if (why) throw new Error(why);
   // The host's deck is refused now too: nobody should wait on an invitation to a game that cannot start.

@@ -32,10 +32,12 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
-        "keywords": [],
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "",
+        "reading": "draw 1",
         "referee": false
       },
       "unison": null,
@@ -85,7 +87,9 @@
           "cost": "2",
           "comboCost": 1,
           "comboPower": 10000,
-          "keywords": [],
+          "keywords": [
+            "Blocker"
+          ],
           "text": "[Blocker]",
           "reading": "",
           "referee": false
@@ -131,7 +135,9 @@
           "cost": "1",
           "comboCost": 0,
           "comboPower": 5000,
-          "keywords": [],
+          "keywords": [
+            "Unique"
+          ],
           "text": "[Unique]",
           "reading": "",
           "referee": false
@@ -193,7 +199,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
+        "comboPower": 0,
         "keywords": [],
         "text": null,
         "reading": "",

@@ -17,11 +17,11 @@
   },
   "ALTC#0": {
     "outcome": "fired",
-    "digest": "d748b6c2"
+    "digest": "738af41f"
   },
   "ALTC#10": {
     "outcome": "inForce",
-    "digest": "bc0aaf7c"
+    "digest": "49f36b12"
   },
   "ARRIVES#0": {
     "outcome": "didNotFire",
@@ -49,11 +49,11 @@
   },
   "BERGAMO#10": {
     "outcome": "fired",
-    "digest": "3a2de619"
+    "digest": "2620d020"
   },
   "BLOCK-HUNTER#0": {
     "outcome": "fired",
-    "digest": "75a6d628"
+    "digest": "ce1782c9"
   },
   "BLUEWATCH#0": {
     "outcome": "noScenario",
@@ -85,7 +85,7 @@
   },
   "CHEAPENER#0": {
     "outcome": "fired",
-    "digest": "2f5d4118"
+    "digest": "0989bd66"
   },
   "COMBOWATCH#0": {
     "outcome": "didNotFire",
@@ -101,7 +101,7 @@
   },
   "CONDDRAW#0": {
     "outcome": "fired",
-    "digest": "6b1bf429"
+    "digest": "04b0e7d5"
   },
   "CONDOR#0": {
     "outcome": "fired",
@@ -125,31 +125,31 @@
   },
   "COUNTER_RR#0": {
     "outcome": "fired",
-    "digest": "434bb13f"
+    "digest": "097b53ca"
   },
   "COUNTER_UU#0": {
     "outcome": "fired",
-    "digest": "4ae186db"
+    "digest": "29e89f8e"
   },
   "DELAYDRAW#0": {
     "outcome": "fired",
-    "digest": "d3e0d48b"
+    "digest": "8f4ec7dc"
   },
   "DELAYKO#0": {
     "outcome": "fired",
-    "digest": "da83601c"
+    "digest": "a3b362b4"
   },
   "DELAYOPP#0": {
     "outcome": "fired",
-    "digest": "569fdba3"
+    "digest": "5b47bf7b"
   },
   "DIDDRAW#0": {
     "outcome": "fired",
-    "digest": "122fb39f"
+    "digest": "e680957a"
   },
   "DIGGER#0": {
     "outcome": "fired",
-    "digest": "ceec9c86"
+    "digest": "d9da05de"
   },
   "DISCOUNT#0": {
     "outcome": "inForce",
@@ -165,7 +165,7 @@
   },
   "DROPCALLER#0": {
     "outcome": "fired",
-    "digest": "a10071f5"
+    "digest": "aaff8769"
   },
   "DROUGHT#0": {
     "outcome": "inForce",
@@ -177,23 +177,23 @@
   },
   "E-COSTLY#0": {
     "outcome": "fired",
-    "digest": "63d560ec"
+    "digest": "a5d57c61"
   },
   "E-DECOY#0": {
     "outcome": "fired",
-    "digest": "daaea49b"
+    "digest": "ee4545e2"
   },
   "E-DRAW#0": {
     "outcome": "fired",
-    "digest": "f6573d6b"
+    "digest": "39a3f21c"
   },
   "E-LIFE#0": {
     "outcome": "fired",
-    "digest": "8b3fe4de"
+    "digest": "09375137"
   },
   "E-LIFE#10": {
     "outcome": "inForce",
-    "digest": "bc0aaf7c"
+    "digest": "49f36b12"
   },
   "E-MYSTERY#0": {
     "outcome": "notOffered",
@@ -201,23 +201,23 @@
   },
   "E-NEGATE#0": {
     "outcome": "fired",
-    "digest": "af5daf46"
+    "digest": "26fc371b"
   },
   "E-PUMP#0": {
     "outcome": "fired",
-    "digest": "25d7d4ed"
+    "digest": "33326d36"
   },
   "E-RB#0": {
     "outcome": "fired",
-    "digest": "172db48f"
+    "digest": "3100e46c"
   },
   "E-STOP#0": {
     "outcome": "fired",
-    "digest": "480f1206"
+    "digest": "a7db0301"
   },
   "E-TIRE#0": {
     "outcome": "fired",
-    "digest": "aa09b91d"
+    "digest": "0df05f5a"
   },
   "EARTHWARP#0": {
     "outcome": "inForce",
@@ -237,7 +237,7 @@
   },
   "EXILE#0": {
     "outcome": "fired",
-    "digest": "cd0b2a6a"
+    "digest": "b663cc62"
   },
   "EXILEKO#0": {
     "outcome": "inForce",
@@ -245,7 +245,7 @@
   },
   "FETCH#0": {
     "outcome": "fired",
-    "digest": "30465fd6"
+    "digest": "c02c8607"
   },
   "FLIPPER#0": {
     "outcome": "fired",
@@ -281,7 +281,7 @@
   },
   "GRAVE#0": {
     "outcome": "fired",
-    "digest": "215bfc08"
+    "digest": "13cd596c"
   },
   "GRUDGE#0": {
     "outcome": "noScenario",
@@ -289,7 +289,7 @@
   },
   "HIDER#0": {
     "outcome": "fired",
-    "digest": "0bc84a47"
+    "digest": "01b938f5"
   },
   "HUNTER#0": {
     "outcome": "fired",
@@ -301,11 +301,11 @@
   },
   "IMMANY#0": {
     "outcome": "inForce",
-    "digest": "9afdafb5"
+    "digest": "995c53ef"
   },
   "IMMUNE#0": {
     "outcome": "inForce",
-    "digest": "9afdafb5"
+    "digest": "995c53ef"
   },
   "INBATTLE#0": {
     "outcome": "inForce",
@@ -329,11 +329,11 @@
   },
   "LEADERGRAB#0": {
     "outcome": "fired",
-    "digest": "cc3e8b84"
+    "digest": "a82f3e74"
   },
   "LEADERWATCH#0": {
     "outcome": "fired",
-    "digest": "09a4fa50"
+    "digest": "2990a125"
   },
   "LEADS#0": {
     "outcome": "notOffered",
@@ -341,7 +341,7 @@
   },
   "LIFEGIVER#0": {
     "outcome": "fired",
-    "digest": "fa8473c5"
+    "digest": "fe016e46"
   },
   "LIFEWATCH#0": {
     "outcome": "noScenario",
@@ -397,7 +397,7 @@
   },
   "MUZZLE#0": {
     "outcome": "fired",
-    "digest": "9117674b"
+    "digest": "da93357e"
   },
   "MYEND#0": {
     "outcome": "fired",
@@ -405,7 +405,7 @@
   },
   "MYSTERY#0": {
     "outcome": "blank",
-    "digest": "34dcf27a"
+    "digest": "c3822172"
   },
   "NOCOPIES#0": {
     "outcome": "fired",
@@ -465,11 +465,11 @@
   },
   "PEEK#0": {
     "outcome": "fired",
-    "digest": "d382bd59"
+    "digest": "ed6cb588"
   },
   "PEEP#0": {
     "outcome": "fired",
-    "digest": "36efed50"
+    "digest": "325785a5"
   },
   "PERMLOCK#0": {
     "outcome": "inForce",
@@ -557,15 +557,15 @@
   },
   "SAIYANKILL#0": {
     "outcome": "fired",
-    "digest": "8b0fa7d9"
+    "digest": "6df4b6ba"
   },
   "SAIYANWATCH#0": {
     "outcome": "fired",
-    "digest": "4ccccaad"
+    "digest": "7dc41913"
   },
   "SEARCH#0": {
     "outcome": "fired",
-    "digest": "6039b1e2"
+    "digest": "2fabfcbf"
   },
   "SELFKILL#0": {
     "outcome": "fired",
@@ -589,7 +589,7 @@
   },
   "SKILLCHEAP#0": {
     "outcome": "fired",
-    "digest": "46c155f6"
+    "digest": "7711420b"
   },
   "SKIPNOW#0": {
     "outcome": "notOffered",
@@ -601,7 +601,7 @@
   },
   "SPANSKIP#0": {
     "outcome": "fired",
-    "digest": "2840f09c"
+    "digest": "bc0ac2a4"
   },
   "SPAWN#0": {
     "outcome": "fired",
@@ -617,7 +617,7 @@
   },
   "STACKER#0": {
     "outcome": "fired",
-    "digest": "7f95d72c"
+    "digest": "d79988e6"
   },
   "STEALER#0": {
     "outcome": "fired",
@@ -629,7 +629,7 @@
   },
   "SUMMON#0": {
     "outcome": "fired",
-    "digest": "f9b544a8"
+    "digest": "08e62634"
   },
   "SWAPPER#0": {
     "outcome": "fired",
@@ -681,7 +681,7 @@
   },
   "TURNSKIP#0": {
     "outcome": "fired",
-    "digest": "950f50a1"
+    "digest": "c35301cd"
   },
   "TWOKILL#0": {
     "outcome": "fired",
@@ -741,7 +741,7 @@
   },
   "XDRAW#0": {
     "outcome": "fired",
-    "digest": "84cae7d2"
+    "digest": "75fef3bd"
   },
   "XENERGY#0": {
     "outcome": "fired",

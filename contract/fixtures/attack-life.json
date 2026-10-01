@@ -32,10 +32,12 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
-        "keywords": [],
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
-        "reading": "",
+        "reading": "draw 1",
         "referee": false
       },
       "unison": null,
@@ -100,7 +102,7 @@
         "isToken": false,
         "cost": null,
         "comboCost": null,
-        "comboPower": null,
+        "comboPower": 0,
         "keywords": [],
         "text": null,
         "reading": "",
@@ -278,7 +280,8 @@
         "cards": [
           "p2#32"
         ],
-        "n": 8
+        "n": 8,
+        "by": "p1#15"
       },
       {
         "t": "phase",
@@ -297,11 +300,6 @@
       "p2#0": {
         "cardId": "L-BLUE",
         "name": "L-BLUE",
-        "imageUrl": null
-      },
-      "p2#32": {
-        "cardId": "V-BLUE",
-        "name": "V-BLUE",
         "imageUrl": null
       }
     }

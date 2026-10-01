@@ -8,34 +8,42 @@
  * your life cards, your deck order, or your decklist — the strings are not in
  * the request at all, so no instruction can leak them.
  *
+ * Either engine's state is read the same way, through `tableOf` (`./table.ts`,
+ * #457), so the same position is the same text on both.
+ *
  * The text form is deliberately terse: it is sent on every decision, so every
  * word is paid for.
  */
-import { areaOf, comboPowerOf, face, keywordsInForce, powerOf } from "../engine";
 import { programsOf } from "../vm/common";
 import { describeScript } from "../vm/script";
 import { skillsOf } from "../text/cards";
-import { type CardDef, type EngineContext, type GameState, type LegalAction, type PlayerId } from "../types";
-import { def } from "../engine/state";
+import { type CardDef, type EngineContext, type LegalAction, type PlayerId } from "../types";
 import { other } from "../types";
+import type { EngineState } from "../engines";
+import type { ZoneArea } from "../engine-state";
+import { tableOf, type Table } from "./table";
 
 export const money = (n: number) => n.toLocaleString("en");
 
-function cardLine(ctx: EngineContext, s: GameState, id: string, withText: boolean): string {
-  const inst = s.cards[id];
-  if (inst.hidden) return "face-down card";
-  const d = def(ctx, s, id);
-  const f = face(ctx, s, id);
+/** A card's name for a sentence — the legacy `face()`'s own word for a hidden one. */
+export const shownName = (t: Table, id: string): string => t.face(id)?.name ?? "Hidden card";
+
+function cardLine(t: Table, id: string, withText: boolean): string {
+  const f = t.face(id);
+  if (!f) return "face-down card";
+  const d = t.def(id);
   const bits: string[] = [`${f.name} (${d.id})`];
-  if (areaOf(s, id) === "battle" || areaOf(s, id) === "leader" || areaOf(s, id) === "unison") {
-    bits.push(`${money(powerOf(ctx, s, id))} power`, inst.mode);
+  const area = t.area(id);
+  if (area === "battle" || area === "leader" || area === "unison") {
+    bits.push(`${money(t.power(id))} power`, String(t.mode(id)));
   } else if (f.power != null) {
     bits.push(`${money(f.power)} power`);
   }
   if (d.energyCost != null) bits.push(`cost ${d.energyCost}`);
-  if (d.comboCost != null && d.comboPower != null) bits.push(`combo +${money(comboPowerOf(ctx, s, id))} for ${d.comboCost}`);
-  if (inst.markers) bits.push(`${inst.markers} markers`);
-  const kw = keywordsInForce(ctx, s, id).map((k) => k.name);
+  if (d.comboCost != null && d.comboPower != null) bits.push(`combo +${money(t.comboPower(id))} for ${d.comboCost}`);
+  const markers = t.markers(id);
+  if (markers) bits.push(`${markers} markers`);
+  const kw = t.keywords(id);
   if (kw.length) bits.push(`[${kw.join("][")}]`);
   let line = bits.join(", ");
   // Full text only for cards that can act: in play, or in Claude's own hand.
@@ -47,71 +55,77 @@ function cardLine(ctx: EngineContext, s: GameState, id: string, withText: boolea
   return line;
 }
 
-function energyLine(ctx: EngineContext, s: GameState, p: PlayerId): string {
-  const ps = s.players[p];
+function energyLine(t: Table, p: PlayerId): string {
   const byColour = new Map<string, { active: number; rest: number }>();
-  for (const id of ps.energy) {
-    const key = def(ctx, s, id).colors.join("/") || "Colourless";
+  for (const id of t.zone(p, "energy")) {
+    const key = t.def(id).colors.join("/") || "Colourless";
     const e = byColour.get(key) ?? { active: 0, rest: 0 };
-    if (s.cards[id].mode === "active") e.active++;
+    if (t.mode(id) === "active") e.active++;
     else e.rest++;
     byColour.set(key, e);
   }
   const parts = [...byColour.entries()].map(([c, e]) => `${c} ${e.active} active${e.rest ? ` + ${e.rest} rested` : ""}`);
-  if (ps.energyMarkers) parts.push(`${ps.energyMarkers} energy marker(s)`);
+  const markers = t.energyMarkers(p);
+  if (markers) parts.push(`${markers} energy marker(s)`);
   return parts.join(", ") || "none";
 }
 
-function sideText(ctx: EngineContext, s: GameState, p: PlayerId, own: boolean): string {
-  const ps = s.players[p];
+function sideText(t: Table, p: PlayerId, own: boolean): string {
+  const z = (area: ZoneArea) => t.zone(p, area);
   const lines: string[] = [];
-  lines.push(`${own ? "YOU" : "OPPONENT"} (${ps.name})`);
-  lines.push(`  life ${ps.life.length}, deck ${ps.deck.length}, hand ${ps.hand.length}, drop ${ps.drop.length}${ps.warp.length ? `, warp ${ps.warp.length}` : ""}`);
-  if (ps.zDeck.length || ps.zEnergy.length) lines.push(`  Z-Deck ${ps.zDeck.length}, Z-Energy ${ps.zEnergy.length}`);
-  lines.push(`  energy: ${energyLine(ctx, s, p)}`);
-  if (ps.leader) lines.push(`  leader: ${cardLine(ctx, s, ps.leader, true)}`);
-  if (ps.unison) lines.push(`  unison: ${cardLine(ctx, s, ps.unison, true)}`);
-  lines.push(`  battle area: ${ps.battle.length ? ps.battle.map((id) => cardLine(ctx, s, id, true)).join("\n    · ") : "empty"}`);
-  if (ps.combo.length) lines.push(`  combo area: ${ps.combo.map((id) => cardLine(ctx, s, id, false)).join("; ")}`);
+  lines.push(`${own ? "YOU" : "OPPONENT"} (${t.name(p)})`);
+  lines.push(`  life ${z("life").length}, deck ${z("deck").length}, hand ${z("hand").length}, drop ${z("drop").length}${z("warp").length ? `, warp ${z("warp").length}` : ""}`);
+  if (z("zDeck").length || z("zEnergy").length) lines.push(`  Z-Deck ${z("zDeck").length}, Z-Energy ${z("zEnergy").length}`);
+  lines.push(`  energy: ${energyLine(t, p)}`);
+  const leader = t.leader(p);
+  if (leader) lines.push(`  leader: ${cardLine(t, leader, true)}`);
+  const unison = t.unison(p);
+  if (unison) lines.push(`  unison: ${cardLine(t, unison, true)}`);
+  const battle = z("battle");
+  lines.push(`  battle area: ${battle.length ? battle.map((id) => cardLine(t, id, true)).join("\n    · ") : "empty"}`);
+  const combo = z("combo");
+  if (combo.length) lines.push(`  combo area: ${combo.map((id) => cardLine(t, id, false)).join("; ")}`);
   // Only Claude's own hand is ever described (3-3-3). Its text is left out
   // because the cached decklist above already carries it, keyed by card number.
-  if (own) lines.push(`  your hand:\n    · ${ps.hand.map((id) => cardLine(ctx, s, id, false)).join("\n    · ") || "empty"}`);
-  if (ps.drop.length) lines.push(`  top of drop: ${cardLine(ctx, s, ps.drop[0], false)}`);
+  if (own) lines.push(`  your hand:\n    · ${z("hand").map((id) => cardLine(t, id, false)).join("\n    · ") || "empty"}`);
+  const drop = z("drop");
+  if (drop.length) lines.push(`  top of drop: ${cardLine(t, drop[0], false)}`);
   // 3-9-2-1: a life card a skill turned face up is open to both players, so it
   // is one of the few things either life area may say. The face-down ones stay
   // a number, on both sides.
-  const faceUp = (area: string[]) => area.filter((id) => s.cards[id].faceUp);
-  if (faceUp(ps.life).length)
+  const faceUp = (area: string[]) => area.filter((id) => t.faceUp(id));
+  if (faceUp(z("life")).length)
     lines.push(
-      `  face-up in life: ${faceUp(ps.life)
-        .map((id) => cardLine(ctx, s, id, true))
+      `  face-up in life: ${faceUp(z("life"))
+        .map((id) => cardLine(t, id, true))
         .join("; ")}`,
     );
-  if (faceUp(ps.zDeck).length)
+  if (faceUp(z("zDeck")).length)
     lines.push(
-      `  face-up in Z-Deck: ${faceUp(ps.zDeck)
-        .map((id) => cardLine(ctx, s, id, true))
+      `  face-up in Z-Deck: ${faceUp(z("zDeck"))
+        .map((id) => cardLine(t, id, true))
         .join("; ")}`,
     );
   return lines.join("\n");
 }
 
-/** The whole snapshot for one decision, from the point of view of `p`. */
-export function stateText(ctx: EngineContext, s: GameState, p: PlayerId): string {
+/** The whole snapshot for one decision, from the point of view of `p`, off either engine's state. */
+export function stateText(ctx: EngineContext, s: EngineState, p: PlayerId): string {
+  const t = tableOf(ctx, s);
   const parts: string[] = [];
-  parts.push(`Turn ${s.turn}, ${s.turnPlayer === p ? "your turn" : "opponent's turn"}, phase ${s.phase}.`);
-  if (s.battle) {
-    const atk = s.battle.attacker;
-    const grd = s.battle.guard;
-    const mine = s.players[p].combo.reduce((n, id) => n + comboPowerOf(ctx, s, id), 0);
-    const theirs = s.players[other(p)].combo.reduce((n, id) => n + comboPowerOf(ctx, s, id), 0);
+  parts.push(`Turn ${t.turn}, ${t.turnPlayer === p ? "your turn" : "opponent's turn"}, phase ${t.phase}.`);
+  if (t.battle) {
+    const atk = t.battle.attacker;
+    const grd = t.battle.guard;
+    const mine = t.zone(p, "combo").reduce((n, id) => n + t.comboPower(id), 0);
+    const theirs = t.zone(other(p), "combo").reduce((n, id) => n + t.comboPower(id), 0);
     parts.push(
-      `BATTLE (${s.battle.step}): ${face(ctx, s, atk).name} [${money(powerOf(ctx, s, atk))}] attacks ${face(ctx, s, grd).name} [${money(powerOf(ctx, s, grd))}]. ` +
+      `BATTLE (${t.battle.step}): ${shownName(t, atk)} [${money(t.power(atk))}] attacks ${shownName(t, grd)} [${money(t.power(grd))}]. ` +
         `Combo power so far: yours ${money(mine)}, theirs ${money(theirs)}.`,
     );
   }
-  parts.push(sideText(ctx, s, p, true));
-  parts.push(sideText(ctx, s, other(p), false));
+  parts.push(sideText(t, p, true));
+  parts.push(sideText(t, other(p), false));
   return parts.join("\n\n");
 }
 
@@ -131,8 +145,12 @@ export function movesText(legal: LegalAction[]): string {
  * is paid for once at a tenth of the price thereafter. It also carries the
  * prefix past the 4,096-token minimum that Haiku 4.5 needs before anything
  * caches at all — below that the cache silently never fills.
+ *
+ * Engine-neutral as it stands: it reads only each card's `owner` and
+ * `cardId`, which both engines' card records carry under those names, plus the
+ * catalog rows and compiled rules in `ctx` (#457).
  */
-export function decklistText(ctx: EngineContext, s: GameState, p: PlayerId): string {
+export function decklistText(ctx: EngineContext, s: EngineState, p: PlayerId): string {
   const counts = new Map<string, number>();
   for (const inst of Object.values(s.cards)) {
     if (inst.owner !== p) continue;

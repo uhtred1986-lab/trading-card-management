@@ -1041,6 +1041,14 @@ export interface ScriptFrame {
    */
   saveVarsAs?: string;
   /**
+   * The other end of `saveVarsAs`: this frame is a skill's effect, queued
+   * behind its action price (4-3-3), and `key` is what that price saves its
+   * names under. The price finishing is what hands them on and announces the
+   * line (`text`, as printed) — the legacy `skill.resolve` step, which runs
+   * after the price for the same reason. Set by the rules engine only (#458).
+   */
+  pricedBy?: { key: string; text: string };
+  /**
    * The line's printed effect, for a keyword body's `printedEffect` to
    * announce and run (#154): its program, its words as printed, and whether
    * a battle was on when the line resolved. Set by the rules engine on a

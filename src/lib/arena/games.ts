@@ -20,6 +20,7 @@ import { appendBeats, describeSkillEvent, type Beats, type NumberedBeat } from "
 import { ENGINE_INFO, engineFor, engineOr, FALLBACK_ENGINE, isVmState, playableEngine, sideName, type EngineId, type EngineState } from "./engines";
 import { NOT_YET_REASON_PREFIX } from "./vm";
 import { recordDecision } from "./ai/debug";
+import { tableTalk } from "./ai/table-talk";
 import { cardDefFrom, deckInputFor } from "./load";
 import { assertDecksPlayable } from "./readiness";
 import { rulesFor } from "./rules-store";
@@ -157,19 +158,13 @@ async function defsForState(db: Db, state: EngineState): Promise<Record<string, 
  * The rules engine plays the actions of Stage 5 the same as the legacy one.
  * Two things past those six calls used to still read the legacy `GameState`
  * field for field rather than either engine's shape generically: Claude's
- * side of Sparring and Tournament, and a 1 v 1's hidden-hand masking
- * (`beats.ts`'s `maskBeats`/`view.ts`'s `revealedTo`, which reveal everything
- * to every viewer of a rules-engine game rather than really keeping a hand
- * hidden). #162 closed the first one as far as it goes without a live API
- * call: `ai/run.ts`'s `advance`/`ai/opponent.ts`'s `chooseMove` read the board
- * through the `Engine` interface and the `zoneOf`/`catalogDefOf` seam for the
- * "cannot go wrong" shortcuts (one legal move, the coin flip, mulligan,
- * charge), and refuse a real API call by name — `stateText`'s own rendering
- * is not ported — rather than reading `undefined` off `.players`. So Sparring
- * and Tournament are let through here now; only `versus` still needs the
- * hidden-hand fix, kept off the rules engine at creation rather than left to
- * leak both hands — the same discipline `playableEngine` already applies to
- * the engine itself, one level narrower.
+ * side of Sparring and Tournament, and a 1 v 1's hidden-hand masking. #162
+ * closed the first one as far as it goes without a live API call, and #458
+ * the second: `view.ts`'s `revealedTo` reads the rules engine's own state
+ * (`vm/view.ts`'s `vmRevealedTo`, off the zones' declared visibility), so
+ * `maskBeats` hides the opponent's hand and deck from each seat on either
+ * engine, and a 1 v 1 is let through too. No mode is refused on either engine
+ * today; `REFUSED` below is where one would be named again.
  *
  * Returning the reason instead of throwing it is what #166 needed: with
  * `DEFAULT_ENGINE` flipped to `rules`, "a 1 v 1, engine unspecified" is the
@@ -178,11 +173,12 @@ async function defsForState(db: Db, state: EngineState): Promise<Record<string, 
  * saying no to what was asked for, never to what was merely defaulted.
  */
 export function modeRefusal(engine: EngineId, mode: ArenaMode): string | null {
-  if (engine === "rules" && mode === "versus") {
-    return `the ${ENGINE_INFO.rules.label} does not keep a 1 v 1's hands hidden yet, so a 1 v 1 is played on the ${ENGINE_INFO.legacy.label}`;
-  }
-  return null;
+  const why = REFUSED[engine]?.[mode];
+  return why ? `the ${ENGINE_INFO[engine].label} ${why}, so a ${modeLabel(mode)} game is played on the ${ENGINE_INFO[FALLBACK_ENGINE].label}` : null;
 }
+
+/** The modes an engine is not built for, each with the reason in a few words. Empty since #458 let a 1 v 1 onto the rules engine. */
+const REFUSED: Partial<Record<EngineId, Partial<Record<ArenaMode, string>>>> = {};
 
 /** An engine a caller asked for by name, refused if this mode is not built on it. */
 function assertEngineForMode(engine: EngineId, mode: ArenaMode): void {
@@ -411,7 +407,10 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   // reason for the move that follows. Collecting the whole batch and appending
   // it at the end put a line said on turn 1 under the turn 2 header, which
   // read as if Claude had acted out of turn.
-  const say = told?.say ?? null;
+  // #463: read against the board *after* the move, so a card Claude has just
+  // played is public by now and may be talked about; one still in its hand,
+  // life or deck may not, and the line is dropped (`ai/table-talk.ts`).
+  const say = tableTalk(game.ctx, state, action.player, told?.say);
   // An `aside` is the server disclosing something 3-1-3 would normally keep —
   // what Claude saw in a search. Log only, never a beat: it is a note to the
   // owner, not something the opponent said, and only a `debug` game has any.

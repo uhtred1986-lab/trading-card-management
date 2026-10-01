@@ -50,9 +50,10 @@ const beats: Beats = {
   seq: 3,
   art: {},
   list: [
-    { n: 1, t: "phase", phase: "main", player: "p1", turn: 3 },
+    // #463: a turn beginning is the phase beat the table still hears.
+    { n: 1, t: "phase", phase: "charge", player: "p1", turn: 3 },
     { n: 2, t: "say", text: "Hello" },
-    { n: 3, t: "phase", phase: "battle", player: "p2", turn: 4 },
+    { n: 3, t: "phase", phase: "charge", player: "p2", turn: 4 },
   ],
 };
 const story = foldStory([], beats, narrator, 9, () => "p2");

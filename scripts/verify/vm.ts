@@ -53,7 +53,7 @@ import {
   playableEngine,
   type Engine,
 } from "../../src/lib/arena/engines";
-import { boardView } from "../../src/lib/arena/view";
+import { boardView, type CardView } from "../../src/lib/arena/view";
 import { priceOf, refusal } from "../../src/lib/arena/wording";
 import {
   FilterNeedsAttribute,
@@ -4871,4 +4871,104 @@ console.log("verify/vm: ok");
     assert.deepEqual(done.rEv, done.lEv, "a play paid with life does not log the same events on both engines");
     assert.equal(done.r.sides.p1.zones.life.length, done.l.players.p1.life.length, "the two engines took a different amount of life");
   }
+}
+
+// ── 30. the board's card view, on both engines (#465) ────────────────────────
+//
+// `vm/view.ts` drew the printed card: the printed power, no keywords, no
+// reading, no aura. The same position is staged on each engine (one seed, the
+// same instances relabelled the same way, §28's `board` pattern) and every
+// card the board draws is asked of each engine's `boardView`; the two views
+// must agree **field by field**. The position holds
+//
+// - a **buffed card**: V1 under p1's AURA ([Permanent] +5000, so a standing
+//   change) and with a timed +5000 of its own on top, so the power is the sum,
+//   `basePower` is the printed 10000 and `effects` lists both;
+// - a **keyword card**: BLOCKER ([Blocker]), whose `keywords` and `reading`
+//   the board was missing, and AURA itself, whose `permanents` entry says it
+//   is `on`;
+// - both **leaders**, one of them flipped to its awakened face, and the top
+//   card of p1's Drop (a card out of play shows its printed figures).
+//
+// One difference is legitimate and is kept out of the comparison rather than
+// hidden in it: a card in Hidden Mode (23-5-2) has its `reading` withheld on
+// this engine, while the legacy builder computes the reading before it checks
+// whether the card may be seen. That case is asserted on its own below.
+{
+  const rulesEngine = engineFor("rules");
+  const r0 = rulesEngine.createGame(CTX, SAME).state as VmState;
+  const l0 = createGame(CTX, SAME).state;
+  const r = r0;
+  const l = l0;
+  const place = (p: PlayerId, cardId: string, to: "battle" | "drop", skip: string[]): string => {
+    const id = r.sides[p].zones.deck.find((x) => !skip.includes(x))!;
+    assert.ok(l.players[p].deck.includes(id), `the two engines dealt ${p}'s deck differently, so instance ${id} does not line up`);
+    for (const st of [r.cards[id], l.cards[id]]) {
+      st.cardId = cardId;
+      st.mode = "active";
+    }
+    r.sides[p].zones.deck = r.sides[p].zones.deck.filter((x) => x !== id);
+    l.players[p].deck = l.players[p].deck.filter((x) => x !== id);
+    r.sides[p].zones[to].push(id);
+    l.players[p][to].push(id);
+    return id;
+  };
+  const used: string[] = [];
+  const buffed = place("p1", "V1", "battle", used);
+  used.push(buffed);
+  const aura = place("p1", "AURA", "battle", used);
+  used.push(aura);
+  const blocker = place("p1", "BLOCKER", "battle", used);
+  used.push(blocker);
+  const dropped = place("p1", "V1", "drop", used);
+  used.push(dropped);
+  const theirs = place("p2", "V-BLUE", "battle", []);
+
+  // A timed +5000 on the buffed card, put in force by the same program on each engine.
+  const pump: Op[] = [{ op: "power", target: { var: "t" }, amount: 5000, until: "turn" }];
+  const pumpFrame = (): ScriptFrame => ({ ops: pump, ip: 0, vars: { t: [buffed] }, card: aura, master: "p1" });
+  stepScript(vmHost(withTokens(CTX), DBS, r, []), pumpFrame());
+  stepScript(legacyHost(CTX, l, []), pumpFrame());
+  // p1's Leader flipped to its awakened face (1-9), on both.
+  const leader = r.sides.p1.zones.leader[0];
+  r.cards[leader].flipped = true;
+  l.cards[leader].flipped = true;
+
+  const rView = rulesEngine.boardView(CTX, r, "p1", {});
+  const lView = boardView(CTX, l, "p1", {});
+  const json = (x: unknown): unknown => JSON.parse(JSON.stringify(x));
+  const same = (what: string, a: CardView | null | undefined, b: CardView | null | undefined): void => {
+    assert.ok(a && b, `${what}: a card view is missing (rules ${!!a}, legacy ${!!b})`);
+    const ja = json(a) as Record<string, unknown>;
+    const jb = json(b) as Record<string, unknown>;
+    for (const field of new Set([...Object.keys(ja), ...Object.keys(jb)])) {
+      assert.deepEqual(ja[field], jb[field], `${what}: the engines draw \`${field}\` differently — rules ${JSON.stringify(ja[field])}, legacy ${JSON.stringify(jb[field])}`);
+    }
+  };
+  const mine = (v: typeof rView, id: string): CardView | undefined => v.you.battle.find((c) => c.id === id);
+
+  same("the buffed card", mine(rView, buffed), mine(lView, buffed));
+  same("the aura", mine(rView, aura), mine(lView, aura));
+  same("the keyword card", mine(rView, blocker), mine(lView, blocker));
+  same("p1's flipped leader", rView.you.leader, lView.you.leader);
+  same("p2's leader", rView.them.leader, lView.them.leader);
+  same("p2's battle card", rView.them.battle.find((c) => c.id === theirs), lView.them.battle.find((c) => c.id === theirs));
+  same("the top card of p1's Drop", rView.you.dropTop, lView.you.dropTop);
+
+  // …and the figures are the ones the issue says were missing, not two
+  // matching blanks.
+  const b = mine(rView, buffed)!;
+  assert.equal(b.power, 20000, "printed 10000, the aura's +5000 and a timed +5000 are not the card's power");
+  assert.equal(b.basePower, 10000, "a buffed card does not say what it printed");
+  assert.equal(b.effects?.length, 2, "a buffed card does not list the aura and the timed effect");
+  assert.deepEqual(mine(rView, blocker)!.keywords, ["Blocker"], "a [Blocker] card draws no keyword");
+  assert.ok(mine(rView, blocker)!.reading !== "" || mine(rView, blocker)!.text === "[Blocker]", "a card's reading was not filled");
+  assert.deepEqual(mine(rView, aura)!.permanents?.map((p) => p.state), ["on"], "the aura's [Permanent] is not drawn as standing");
+  assert.equal(rView.you.leader!.power, 15000, "a flipped leader does not show its awakened power");
+  assert.equal(rView.you.dropTop!.comboPower, DEFS.V1.comboPower, "the top of the Drop does not show its printed combo power");
+
+  // Hidden Mode (23-5-2): nothing of the front side, the reading included.
+  r.cards[blocker].hidden = true;
+  const hiddenView = rulesEngine.boardView(CTX, r, "p1", {}).you.battle.find((c) => c.id === blocker)!;
+  assert.deepEqual([hiddenView.reading, hiddenView.keywords, hiddenView.power, hiddenView.permanents], ["", [], null, undefined], "a card in Hidden Mode shows part of its front side");
 }

@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { stateText } from "../../src/lib/arena/ai/view";
-import { legacyState } from "../../src/lib/arena/engines";
 import { COST_ITEMS, FILTER_FIELDS, SELECTOR_FIELDS } from "../../src/lib/arena/lang/ast";
 import { languageReference } from "../../src/lib/arena/lang/reference";
 import { SELECTOR_FLAGS } from "../../src/lib/arena/lang/parse";
@@ -522,14 +521,13 @@ import type { CardFilter, SchemaOp } from "./harness";
 // says either. Run `npm run contract:emit` to accept a deliberate change.
 {
   const s = stagedG({ hand: ["V1", "BIG"], battle: ["BLOCKER"], energy: ["V1", "V-BLUE"], oppBattle: ["V-BLUE"], oppHand: ["KILLER"] });
-  // `state-text.txt` is the opponent's prompt text for this board, which
-  // `ai/view.ts`'s `stateText` writes from a legacy state only — its port is
-  // #457's. Until then it is checked on the legacy pass alone and named here
-  // on the rules one; the other two fixtures are engine-free.
-  const noStateText = rulesGap("language: contract/fixtures/state-text.txt", "`ai/view.ts`'s `stateText` reads a legacy board only", "#457");
+  // `state-text.txt` is the opponent's prompt text for this board. Since #460
+  // `ai/view.ts`'s `stateText` reads either engine's state (#457), and
+  // `verify/ai-vm.ts` asserts both write the same text, so it is checked on
+  // every pass; the other two fixtures are engine-free.
   const fixtures: Record<string, string> = {
     "effect-language.txt": EFFECT_LANGUAGE,
-    ...(noStateText ? {} : { "state-text.txt": stateText(CTX, legacyState(s), "p1") }),
+    "state-text.txt": stateText(CTX, s, "p1"),
     "language-reference.txt": `${JSON.stringify(languageReference(), null, 2)}\n`,
   };
   const dir = path.join(process.cwd(), "contract", "fixtures");

@@ -1636,7 +1636,7 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
     }),
   };
 
-  if (!rulesGap("compiler: X bound by a price that chooses (20-5)", "an [Activate] price program is not run on the rules engine, so its bindX never reaches the effect — the action price vm/activate.ts refuses", "#458")) {
+  if (!rulesGap("compiler: X bound by a price that chooses (20-5)", "#461 charges an [Activate] action price on the rules engine, but the price program's bindX does not reach the effect (\"this program reads X, but nothing bound it\")", "#458")) {
     let s = stagedG({ hand: ["ONCE", "V1", "V1"], energy: ["V1"] });
     s = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "ONCE") }).state;
     while (s.prompt.kind !== "main") s = IMPL.apply(ctx, s, IMPL.legalActions(ctx, s)[0].action).state;

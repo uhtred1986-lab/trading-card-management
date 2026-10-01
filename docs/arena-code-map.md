@@ -643,16 +643,22 @@ the same as if it were still in `CLAUDE.md`.
   `chargeChoice`/`mulliganChoice` now read the board through the `zoneOf`/`catalogDefOf`/`leaderOf`
   seam (`engine-state.ts`, the same one `#161`'s probe uses) instead of `GameState`'s own shape, so
   a rules-engine game's coin flip, mulligan and charge decide themselves exactly as a legacy one's
-  do — proven against a real `VmState` in `scripts/verify/ai-vm.ts`. A real Main Phase decision is
-  not: `stateText`/`decklistText` still read `GameState` directly, so `chooseMove` refuses one by
-  name (`"Claude's own move is not built on the rules engine yet (#162)"`) the moment the
-  shortcuts run out, rather than reading `undefined` off `.players` several calls deeper — the
-  same discipline `#161`'s `opening()` applies. `games.ts`'s `modeRefusal` (then
-  `assertEngineForMode`) now names only `versus` on the rules engine (the 1 v 1 hidden-hand masking
-  is still legacy-only); Sparring and
-  Tournament are let through, since a game that cannot yet make a real decision still ends
-  correctly — `run.ts`'s `advance` catches the refusal the same way it catches any other AI error
-  and reports it to the player rather than crashing. `arena_decisions` does not carry its own
+  do — proven against a real `VmState` in `scripts/verify/ai-vm.ts`. `games.ts`'s `modeRefusal`
+  (then `assertEngineForMode`) now names only `versus` on the rules engine (the 1 v 1 hidden-hand
+  masking is still legacy-only).
+  **#457 put the real decision on both engines.** `ai/table.ts`'s `tableOf` answers the questions
+  Claude's text asks of a position — an area's cards, a card's face, live power and combo power,
+  keywords in force, mode, markers — from each engine's own readers (`powerOf`/`keywordsInForce`
+  on the legacy engine, `attrsNow`/`keywordsInForce` in `vm/program.ts` on the rules engine).
+  `stateText`, the combo question, `searchAside` and the review's result line read it; the
+  refusal in `chooseMove` is gone. `decklistText` was already engine-neutral (owner and `cardId`
+  only), and `fired.ts` now reads `state.cards` off either shape instead of throwing on a
+  rules-engine game. During a battle the rules engine's `phase` is `battle`; the table reports the
+  turn phase beneath it (`main`), as the legacy engine does. `ai-vm.ts` stages one position on
+  both engines and asserts `stateText`/`decklistText` and the whole request to a stubbed model are
+  byte-identical; the one difference is the numbered menu, which is each engine's own
+  `legalActions` (order and labels). The referee stays legacy-only: the rules engine never puts a
+  `referee` prompt. `arena_decisions` does not carry its own
   `engine` column (a schema migration this sandbox could not write without touching the shared
   Neon database Claude Code on the web is configured against here) — `/arena/[id]/debug` shows the
   game's own `engine` instead, which is exactly as much as the column would ever have said, since a

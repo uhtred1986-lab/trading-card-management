@@ -104,11 +104,10 @@ of `engine/` (vocabulary `types.ts`, card text `text/`, compiler `compile/`, int
 `vm/script*.ts`, RNG `vm/rng.ts`, helpers `vm/common.ts`). #459 moved the seven suites that staged
 legacy `GameState` fixtures (`setup`, `compiler`, `readings`, `wordings`, `contract`, `language`,
 `lang`) onto the generic harness, so they assert on the rules engine; the contract fixtures are
-emitted from the rules engine (all but `versus.json`, below); `probe`'s digest check runs on the
+emitted from the rules engine (`versus.json` too since #461 played a 1 v 1 there); `probe`'s digest check runs on the
 rules engine against `probe-digests.json` and `probe-rules-parity.json` as fixed records. What still
 needs the legacy run: **`vm.ts`**, which holds the rules engine to the legacy one call for call and
-is listed, not run, under `--rules-only`; `versus.json` and `state-text.txt`, legacy-only until #458
-and #457; and `engine-default`'s "a saved legacy game opens unchanged", which #118 decides. Every
+is listed, not run, under `--rules-only`; **`ai-vm`** (#460), which holds the rules engine's text for Claude to the legacy engine's and is listed the same way; and `engine-default`'s "a saved legacy game opens unchanged", which #118 decides. Every
 case a suite cannot assert on the rules engine is a named `rulesGap`, listed at the end of the run.
 
 | script | needs | proves |
@@ -222,11 +221,12 @@ skipped) tells you what you broke:
   compiler.
 - **`workflow.ts`** — every rule as a visible workflow: what is refused and why,
   in the words a client shows. Asserts the "one rejection per card per action
-  type" promise. **Runs on both engines since #152**, and on `rules` it skips
-  one case and no more ([Unique] and [Swap], the keyword bodies it used to
-  skip, are built since #157): the first half of `PRICED` — an action price (4-3-3),
-  which `vm/activate.ts`'s `chargeablePrice` refuses and `vm/host.ts`'s
-  `saveVars` gives to #149 (`actionPriceGap`). The four non-keyword gaps the
+  type" promise. **Runs on both engines since #152**, and since #458 it skips
+  nothing on `rules`: `PRICED`'s action price (4-3-3), the last case it
+  skipped, is charged there ([Unique] and [Swap], the keyword bodies it used to
+  skip, are built since #157). It also holds the 1 v 1 masking checks (#458):
+  each seat's board, masked beats and move list hide the other seat's hand,
+  both decks and face-down cards, on both engines. The four non-keyword gaps the
   porting pass found are closed: the combo, counter and blocker prompts have
   their rejected lists (`battleRejectedActions`, `vm/battle.ts`, with the combo
   prompt's [Activate: Battle] lines), and so does a `chooseCards` prompt
@@ -364,11 +364,11 @@ reads, and the probe digests are a regression corpus for card rules.
 
 It runs `verify-arena.ts --emit` twice since #459, once per engine, and each
 file is written by the pass it belongs to: the snapshot fixtures by the rules
-pass (all but `versus.json`, which stays the legacy pass's until a 1 v 1 is
-played on the rules engine, #458), `state-text.txt` and the two probe files by
-the legacy pass (it alone can still run both engines for the parity file;
-`probe-digests.json` is the legacy engine's golden record), and the deck and
-language fixtures, which touch no engine, by both.
+pass (`versus.json` included since #461), the two probe files by the legacy
+pass (it alone can still run both engines for the parity file;
+`probe-digests.json` is the legacy engine's golden record), and `state-text.txt`
+(which reads either engine's state since #460, #457) and the deck and language
+fixtures by both.
 
 Run it when you change a harness card, an `OP_SCHEMA` row, or what the referee
 is told. **Review the diff** — expect exactly the cards you touched. One digest

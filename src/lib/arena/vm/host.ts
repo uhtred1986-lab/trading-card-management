@@ -50,6 +50,10 @@
  *   `addSkip` is real too (#439): an entry on the player's skip list
  *                                     (`vm/skips.ts`), spent by the phase or
  *                                     step it names as the flow reaches it.
+ *   `saveVars`/`saveX` are real (#458): an action price (4-3-3) runs
+ *                                     as its own frame in front of the
+ *                                     effect, and hands what it chose to
+ *                                     the frame marked `pricedBy`.
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
@@ -60,7 +64,8 @@ import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { tokenCardId } from "./common";
 import { koCard, openKeywordPlayWindow } from "./battle";
-import { NotYet, RulesetBroken } from "./errors";
+import { RulesetBroken } from "./errors";
+import { savedXKey } from "./script";
 import { emit, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
@@ -365,14 +370,23 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     },
     // 4-3-3: a price's names, left where the effect can start from them. The
     // continuation is kept on the frame that will read it rather than in a map
-    // of its own — `saveVarsAs` is set by the activation that runs the two, and
-    // an action price and an X price are the two halves of a skill's cost #147
-    // did not reach, so nothing binds either of these yet (#149).
-    saveVars: (key) => {
-      throw new NotYet(`carry the names a price chose into its effect (${key}, 4-3-3) — an action price is charged by nothing yet`, "#149");
+    // of its own: `vm/activate.ts`'s `resolveActivation` queues the price with
+    // `saveVarsAs` and the effect behind it with `pricedBy` under the same key
+    // (#458). The price being paid is also the moment the line is announced —
+    // the legacy `skill.resolve`, which runs after the price for that reason.
+    saveVars: (key, vars) => {
+      const effect = state.programs.find((f) => f.pricedBy?.key === key);
+      if (!effect) throw new RulesetBroken(state.game, `a price finished with no effect waiting for what it chose (${key})`);
+      effect.vars = { ...vars, ...effect.vars };
+      log(ev, { type: "skill", card: effect.card, skill: effect.skillIndex ?? 0, master: effect.master, text: effect.pricedBy!.text, inBattle: !!state.battle });
     },
-    saveX: (key) => {
-      throw new NotYet(`carry the X a price paid into its effect (${key}, 20-5)`, "#149");
+    // 20-5: the X a price chose (a `bindX` choose), for its effect — unless the
+    // activation already charged an energy X, which wins, as in the legacy
+    // `runSkill` (`x ?? paidX`).
+    saveX: (key, x) => {
+      const effect = state.programs.find((f) => f.pricedBy && savedXKey(f.pricedBy.key) === key);
+      if (!effect) throw new RulesetBroken(state.game, `a price finished with no effect waiting for the X it bound (${key})`);
+      if (effect.x === undefined) effect.x = x;
     },
 
     resume: (frame) => {

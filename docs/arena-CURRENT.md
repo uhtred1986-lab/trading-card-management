@@ -23,9 +23,10 @@ Keep it under 200 lines. Update it whenever arena scope, priorities, or the
   executed on the owner's decision ahead of the parity runs). A new game with
   no engine chosen is a rules-engine game; Settings → Arena engine is the way
   back to `legacy` and every saved game keeps the engine it was made on. A
-  **1 v 1 is still made on the legacy engine** — the hidden-hand masking reads
-  the legacy `GameState` (#162) — but that is now a resolution rather than a
-  refusal (`games.ts`'s `engineForMode`, with the reason shown on `/arena` and
+  **1 v 1 is made on the rules engine too** since #458, which read the
+  hidden-hand masking off the rules engine's own state (`vm/view.ts`'s
+  `vmRevealedTo`); a mode an engine is not built for would resolve rather than
+  refuse (`games.ts`'s `engineForMode`, with the reason shown on `/arena` and
   in `POST /api/v1/games`'s `engineNote`). `Snapshot.game.engine` did not
   change shape and the contract fixtures are unchanged; the badge inverted, so
   a **legacy** game is what is marked now. The owner's parity runs (#164, #165:
@@ -33,7 +34,8 @@ Keep it under 200 lines. Update it whenever arena scope, priorities, or the
 - What the rules engine cannot do yet throws `NotYet` naming the issue that
   builds it, and since #149 that **ends the game** rather than playing on —
   a skill's own KO and tokens (#146), the skip list (#145), an action price
-  or an X price on a skill line (#149), the counter:play window (#150), the
+  on an [Auto] or a keyword's own move (an [Activate] line's is charged since
+  #458), the counter:play window (#150), the
   Z-Energy a spent combo card becomes (#151), and most keyword activations
   (#157) are the ones a real game meets.
 - `npm test` runs `verify-arena.ts`'s nineteen suites **once per engine**

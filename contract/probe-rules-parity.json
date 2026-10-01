@@ -46,22 +46,22 @@
   "ALTC#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "d748b6c2"
+      "digest": "738af41f"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "d748b6c2"
+      "digest": "738af41f"
     },
     "same": true
   },
   "ALTC#10": {
     "legacy": {
       "outcome": "inForce",
-      "digest": "bc0aaf7c"
+      "digest": "49f36b12"
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "bc0aaf7c"
+      "digest": "49f36b12"
     },
     "same": true
   },
@@ -135,22 +135,22 @@
   "BERGAMO#10": {
     "legacy": {
       "outcome": "fired",
-      "digest": "3a2de619"
+      "digest": "2620d020"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "3a2de619"
+      "digest": "2620d020"
     },
     "same": true
   },
   "BLOCK-HUNTER#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "75a6d628"
+      "digest": "ce1782c9"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "75a6d628"
+      "digest": "ce1782c9"
     },
     "same": true
   },
@@ -183,10 +183,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "67b68f58"
+      "digest": "7cee2d23"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "BOUNCE#0": {
     "legacy": {
@@ -235,11 +234,11 @@
   "CHEAPENER#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "2f5d4118"
+      "digest": "0989bd66"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "2f5d4118"
+      "digest": "0989bd66"
     },
     "same": true
   },
@@ -279,7 +278,7 @@
   "CONDDRAW#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "6b1bf429"
+      "digest": "04b0e7d5"
     },
     "rules": {
       "outcome": "didNotFire",
@@ -346,77 +345,77 @@
   "COUNTER_RR#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "434bb13f"
+      "digest": "097b53ca"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "434bb13f"
+      "digest": "097b53ca"
     },
     "same": true
   },
   "COUNTER_UU#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "4ae186db"
+      "digest": "29e89f8e"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "4ae186db"
+      "digest": "29e89f8e"
     },
     "same": true
   },
   "DELAYDRAW#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "d3e0d48b"
+      "digest": "8f4ec7dc"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "d3e0d48b"
+      "digest": "8f4ec7dc"
     },
     "same": true
   },
   "DELAYKO#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "da83601c"
+      "digest": "a3b362b4"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "da83601c"
+      "digest": "a3b362b4"
     },
     "same": true
   },
   "DELAYOPP#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "569fdba3"
+      "digest": "5b47bf7b"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "569fdba3"
+      "digest": "5b47bf7b"
     },
     "same": true
   },
   "DIDDRAW#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "122fb39f"
+      "digest": "e680957a"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "122fb39f"
+      "digest": "e680957a"
     },
     "same": true
   },
   "DIGGER#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "ceec9c86"
+      "digest": "d9da05de"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "ceec9c86"
+      "digest": "d9da05de"
     },
     "same": true
   },
@@ -456,11 +455,11 @@
   "DROPCALLER#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "a10071f5"
+      "digest": "aaff8769"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "a10071f5"
+      "digest": "aaff8769"
     },
     "same": true
   },
@@ -489,55 +488,55 @@
   "E-COSTLY#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "63d560ec"
+      "digest": "a5d57c61"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "63d560ec"
+      "digest": "a5d57c61"
     },
     "same": true
   },
   "E-DECOY#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "daaea49b"
+      "digest": "ee4545e2"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "daaea49b"
+      "digest": "ee4545e2"
     },
     "same": true
   },
   "E-DRAW#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "f6573d6b"
+      "digest": "39a3f21c"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "f6573d6b"
+      "digest": "39a3f21c"
     },
     "same": true
   },
   "E-LIFE#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "8b3fe4de"
+      "digest": "09375137"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "8b3fe4de"
+      "digest": "09375137"
     },
     "same": true
   },
   "E-LIFE#10": {
     "legacy": {
       "outcome": "inForce",
-      "digest": "bc0aaf7c"
+      "digest": "49f36b12"
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "bc0aaf7c"
+      "digest": "49f36b12"
     },
     "same": true
   },
@@ -555,55 +554,55 @@
   "E-NEGATE#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "af5daf46"
+      "digest": "26fc371b"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "af5daf46"
+      "digest": "26fc371b"
     },
     "same": true
   },
   "E-PUMP#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "25d7d4ed"
+      "digest": "33326d36"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "25d7d4ed"
+      "digest": "33326d36"
     },
     "same": true
   },
   "E-RB#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "172db48f"
+      "digest": "3100e46c"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "172db48f"
+      "digest": "3100e46c"
     },
     "same": true
   },
   "E-STOP#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "480f1206"
+      "digest": "a7db0301"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "480f1206"
+      "digest": "a7db0301"
     },
     "same": true
   },
   "E-TIRE#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "aa09b91d"
+      "digest": "0df05f5a"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "aa09b91d"
+      "digest": "0df05f5a"
     },
     "same": true
   },
@@ -655,11 +654,11 @@
   "EXILE#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "cd0b2a6a"
+      "digest": "b663cc62"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "cd0b2a6a"
+      "digest": "b663cc62"
     },
     "same": true
   },
@@ -677,11 +676,11 @@
   "FETCH#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "30465fd6"
+      "digest": "c02c8607"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "30465fd6"
+      "digest": "c02c8607"
     },
     "same": true
   },
@@ -758,7 +757,7 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "e59caa2f"
+      "digest": "12145185"
     },
     "same": false,
     "cause": "rule-processing"
@@ -777,11 +776,11 @@
   "GRAVE#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "215bfc08"
+      "digest": "13cd596c"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "a486a1fe"
+      "digest": "6d2e9b52"
     },
     "same": false,
     "cause": "legacy-habits"
@@ -800,11 +799,11 @@
   "HIDER#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "0bc84a47"
+      "digest": "01b938f5"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "0bc84a47"
+      "digest": "01b938f5"
     },
     "same": true
   },
@@ -833,22 +832,22 @@
   "IMMANY#0": {
     "legacy": {
       "outcome": "inForce",
-      "digest": "9afdafb5"
+      "digest": "995c53ef"
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "9afdafb5"
+      "digest": "995c53ef"
     },
     "same": true
   },
   "IMMUNE#0": {
     "legacy": {
       "outcome": "inForce",
-      "digest": "9afdafb5"
+      "digest": "995c53ef"
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "9afdafb5"
+      "digest": "995c53ef"
     },
     "same": true
   },
@@ -910,22 +909,22 @@
   "LEADERGRAB#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "cc3e8b84"
+      "digest": "a82f3e74"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "cc3e8b84"
+      "digest": "a82f3e74"
     },
     "same": true
   },
   "LEADERWATCH#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "09a4fa50"
+      "digest": "2990a125"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "09a4fa50"
+      "digest": "2990a125"
     },
     "same": true
   },
@@ -943,11 +942,11 @@
   "LIFEGIVER#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "fa8473c5"
+      "digest": "fe016e46"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "fa8473c5"
+      "digest": "fe016e46"
     },
     "same": true
   },
@@ -1097,11 +1096,11 @@
   "MUZZLE#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "9117674b"
+      "digest": "da93357e"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "9117674b"
+      "digest": "da93357e"
     },
     "same": true
   },
@@ -1120,7 +1119,7 @@
   "MYSTERY#0": {
     "legacy": {
       "outcome": "blank",
-      "digest": "34dcf27a"
+      "digest": "c3822172"
     },
     "rules": {
       "outcome": "blank",
@@ -1287,22 +1286,22 @@
   "PEEK#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "d382bd59"
+      "digest": "ed6cb588"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "d382bd59"
+      "digest": "ed6cb588"
     },
     "same": true
   },
   "PEEP#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "36efed50"
+      "digest": "325785a5"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "36efed50"
+      "digest": "325785a5"
     },
     "same": true
   },
@@ -1390,10 +1389,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "7c53d2ea"
+      "digest": "95489e0a"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "PUMP#0": {
     "legacy": {
@@ -1542,33 +1540,33 @@
   "SAIYANKILL#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "8b0fa7d9"
+      "digest": "6df4b6ba"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "8b0fa7d9"
+      "digest": "6df4b6ba"
     },
     "same": true
   },
   "SAIYANWATCH#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "4ccccaad"
+      "digest": "7dc41913"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "4ccccaad"
+      "digest": "7dc41913"
     },
     "same": true
   },
   "SEARCH#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "6039b1e2"
+      "digest": "2fabfcbf"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "6039b1e2"
+      "digest": "2fabfcbf"
     },
     "same": true
   },
@@ -1632,11 +1630,11 @@
   "SKILLCHEAP#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "46c155f6"
+      "digest": "7711420b"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "46c155f6"
+      "digest": "7711420b"
     },
     "same": true
   },
@@ -1665,11 +1663,11 @@
   "SPANSKIP#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "2840f09c"
+      "digest": "bc0ac2a4"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "2840f09c"
+      "digest": "bc0ac2a4"
     },
     "same": true
   },
@@ -1709,11 +1707,11 @@
   "STACKER#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "7f95d72c"
+      "digest": "d79988e6"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "7f95d72c"
+      "digest": "d79988e6"
     },
     "same": true
   },
@@ -1742,11 +1740,11 @@
   "SUMMON#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "f9b544a8"
+      "digest": "08e62634"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "f9b544a8"
+      "digest": "08e62634"
     },
     "same": true
   },
@@ -1855,11 +1853,10 @@
       "digest": "4616d25d"
     },
     "rules": {
-      "outcome": "notOffered",
-      "digest": "0dabc277"
+      "outcome": "fired",
+      "digest": "4616d25d"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "TITHE#0": {
     "legacy": {
@@ -1868,10 +1865,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "0e032243"
+      "digest": "7dea9ca0"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "TOUGH#0": {
     "legacy": {
@@ -1887,11 +1883,11 @@
   "TURNSKIP#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "950f50a1"
+      "digest": "c35301cd"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "950f50a1"
+      "digest": "c35301cd"
     },
     "same": true
   },
@@ -2052,11 +2048,11 @@
   "XDRAW#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "84cae7d2"
+      "digest": "75fef3bd"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "84cae7d2"
+      "digest": "75fef3bd"
     },
     "same": true
   },
