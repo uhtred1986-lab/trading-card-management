@@ -2613,8 +2613,9 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     for (const [key, why] of legacyFirst) {
       const got = ours.get(key);
       // The one difference this stage records rather than hides: a keyword's
-      // own activation ([Awaken] and the eleven like it) is a `DEFINE KEYWORD`
-      // hook body, which is Stage 7's (#153–#157) — the legacy engine answers
+      // own activation not declared yet ([Rejuvenate], [Over Realm], [Swap],
+      // [Z-Awaken] …; [Awaken] and the others are since #155–#157) is a
+      // `DEFINE KEYWORD` body still to write — the legacy engine answers
       // about such a line and this one does not name it at all.
       if (!got) {
         const [cardOf, indexOf] = key.split("#").slice(-2);
