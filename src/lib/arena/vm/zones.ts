@@ -120,11 +120,19 @@ export interface VmCard {
    * with `usedThisTurn`/`usedMarkerSkill`.
    */
   battledThisTurn: boolean;
+  /**
+   * 14-1-4: this card is a Z-card, which `moveCard` removes from the game when
+   * it leaves play. Set by `newCard` from the definition's type and left off
+   * for every other card, so a state without a Z-card is byte-for-byte what it
+   * was; `moveCard` has no `ctx.defs`, which is why the fact rides on the copy
+   * the way a token's does in its `cardId`.
+   */
+  zCard?: true;
 }
 
-/** A fresh card, in no zone yet: its caller moves it somewhere with `moveCard`. */
-export function newCard(id: string, cardId: string, owner: PlayerId): VmCard {
-  return { id, cardId, owner, mode: null, markers: 0, under: [], faceUp: false, flipped: false, hidden: false, usedThisTurn: [], usedMarkerSkill: false, battledThisTurn: false };
+/** A fresh card, in no zone yet: its caller moves it somewhere with `moveCard`. `isZ` is 14-1-4's flag, for the caller that has the definition. */
+export function newCard(id: string, cardId: string, owner: PlayerId, isZ = false): VmCard {
+  return { ...(isZ ? { zCard: true as const } : {}), id, cardId, owner, mode: null, markers: 0, under: [], faceUp: false, flipped: false, hidden: false, usedThisTurn: [], usedMarkerSkill: false, battledThisTurn: false };
 }
 
 /**
@@ -283,11 +291,13 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   }
 
   // ── into a zone ─────────────────────────────────────────────────────────
-  // 19-1-7: a token leaving play or a combo for anywhere else is removed from
+  // 19-1-7: a token (or 14-1-4: a Z-card) leaving play or a combo for anywhere else is removed from
   // the game instead — the legacy `move`'s own first redirect, read off the
   // same two declared flags 3-1-6-1's clamp below reads ("in play, or a pile a
   // card may sit on"), so the rule names no area but the one it sends to.
-  if (isTokenCard(card.cardId) && from && heldInPlay(game, from.zone) && !heldInPlay(game, to) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
+  // 14-1-4 is the same redirect for a Z-card ([Ultimate]'s 22-14-3 half, which
+  // the legacy `move` folds into the same line, is Stage 7's and not read here).
+  if ((isTokenCard(card.cardId) || card.zCard === true) && from && heldInPlay(game, from.zone) && !heldInPlay(game, to) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
   const zone = game.zones[to];
   if (!zone) return { ok: false, refused: `the ${game.id} ruleset declares no zone called ${JSON.stringify(to)}` };
   if (zone.place === false) return { ok: false, refused: `the ${to} is not a place a card is put (${zone.text ?? "no card sits in it"})` };

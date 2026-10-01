@@ -2098,10 +2098,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "d1cd5e38"
+      "digest": "eb1581bf"
     },
-    "same": false,
-    "cause": "counted-power-static"
+    "same": true
   },
   "ZB#0": {
     "legacy": {
@@ -2122,9 +2121,8 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "2bede6a5"
+      "digest": "ba649c79"
     },
-    "same": false,
-    "cause": "z-card-leaves-play"
+    "same": true
   }
 }

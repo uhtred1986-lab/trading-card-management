@@ -29,6 +29,7 @@ import {
   type Skill,
 } from "./engine";
 import type { Cond, SkillPrice, XCost } from "./engine/script";
+import { isZ } from "./engine/cards";
 import { parseFilter } from "./engine/filters";
 import { engineFor, FALLBACK_ENGINE, isVmState, type Engine, type EngineId, type EngineState } from "./engines";
 import { leaderOf, zoneOf } from "./engine-state";
@@ -380,6 +381,11 @@ function put(ctx: EngineContext, s: EngineState, p: PlayerId, cardId: string, ar
   const pile = zoneOf(s, p, "deck");
   const inst = pile[pile.length - 1];
   s.cards[inst].cardId = cardId;
+  // The relabel is a new card as far as 14-1-4 goes: the rules engine's flag for a Z-card was set from the card this copy was dealt as.
+  if (isVmState(s)) {
+    if (isZ(ctx.defs[cardId])) s.cards[inst].zCard = true;
+    else delete s.cards[inst].zCard;
+  }
   send(ctx, s, inst, area, p);
   return inst;
 }

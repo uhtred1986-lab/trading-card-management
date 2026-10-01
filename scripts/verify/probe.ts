@@ -381,26 +381,10 @@ if (ENGINE !== "legacy") {
         rules.result.some((l) => / goes from the Battle Area to the Drop$/.test(l) && !old.result.includes(l)),
     },
     {
-      id: "z-card-leaves-play",
-      says: "14-1-4: a Z-card leaving play is removed from the game. Legacy's `move` redirects it; the rules engine's `moveCard` redirects only a token (19-1-7), so a KO'd Z-card goes to the Drop. No issue builds this on the rules engine yet ([Ultimate]'s 22-14-3 half is Stage 7's).",
-      holds: (_f, old, rules, rule) =>
-        rule.def.type.startsWith("Z-") &&
-        old.result.some((l) => / goes from the Battle Area to out of the game$/.test(l)) &&
-        rules.result.some((l) => / goes from the Battle Area to the Drop$/.test(l)),
-    },
-    {
       id: "immunity-static",
       says: "9-1-4 immunity granted by a [Permanent]'s `immune` op is not collected on the rules engine (`DEFERRED_STATICS.immune`, #154), so the opponent's KO skill is offered the card and takes it; legacy never offers it as a target.",
       holds: (_f, old, rules, rule) =>
         hasOp(rule, (o) => o.op === "immune") && old.result.some((l) => /never among the targets/.test(l)) && rules.result.some((l) => / is KO'd$/.test(l)),
-    },
-    {
-      id: "counted-power-static",
-      says: "A [Permanent]'s power change counted over the board ('+3000 power for each marker on it') is skipped by the rules engine's `collect` (`vm/effects.ts` reads only a fixed number for `power`), so the card reads its printed power where legacy adds the count. No issue names this gap yet.",
-      holds: (_f, old, rules, rule) =>
-        hasOp(rule, (o) => (o.op === "power" || o.op === "comboPower") && typeof o.amount !== "number") &&
-        old.result.some((l) => /^power on the board: .* without this rule$/.test(l)) &&
-        rules.result.some((l) => /^power on the board: \d+$/.test(l)),
     },
     {
       id: "keyword-negation-static",
