@@ -1425,13 +1425,7 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   assertConsistentG(d);
 }
 
-if (
-  !notYetGap(
-    "MUTER: \"negate its skills for the turn\" on another card (9-1-5)",
-    "checked directly rather than trusted: `hasKeyword` (`vm/program.ts`) still reads [Blocker] after the `negateSkills` op runs — a `keyword`-kind effect's own negation is not among the sources `hasKeyword` reads yet (it checks a printed skill still showing, a `keyword`-kind grant, and a [Permanent] static, but not a `negateSkills`/`negateSkill` continuous effect the way legacy `has` does)",
-    "no issue filed yet",
-  )
-) {
+{
   // Negation for a duration (9-1-5) is a continuous effect: it was being
   // written into the state and never read, so "negate its skills for the
   // turn" did nothing — and the card was marked negated for the game as well.
@@ -1884,13 +1878,7 @@ if (
 // the target plays it as its own — a [Permanent] stands on the target, a
 // keyword is in force on the target, an [Auto] answers to the target's own
 // moment — and all of it ends when the duration does.
-if (
-  !notYetGap(
-    "COPYCAT/COPYSRC/COPYKW: 20-18, a card taking on another card's skills",
-    "checked directly rather than trusted: after `copySkills` runs, the copied [Permanent]'s power does not apply to the target (10000, not 13000) — `copySkills` grants the keyword and [Auto] halves but the copied [Permanent] itself is not read as a static in force on the target yet",
-    "no issue filed yet",
-  )
-) {
+{
   DEFS.COPYSRC = {
     ...DEFS.V1,
     id: "COPYSRC",
@@ -1945,12 +1933,19 @@ if (
   // A copied [Auto] answers to the *target's* moment, not the source's: this
   // is COPYCAT attacking, and the source is not in the battle at all.
   const handBefore = zoneOf(s, "p1", "hand").length;
-  s = playG(s, { type: "attack", player: "p1", attacker: cat, target: leaderOf(s, "p2") });
-  assert.deepEqual(
-    s.pending.map((p) => [p.card, p.trigger]),
-    [[cat, "attacks"]],
-    "the copied [Auto] pended on the target's own attack, under the target's own id",
-  );
+  const attacked = IMPL.apply(CTX, s, { type: "attack", player: "p1", attacker: cat, target: leaderOf(s, "p2") });
+  s = attacked.state;
+  // When it resolves is the engines' own ordering, not the copy's: the legacy
+  // engine asks the [Blocker] question before the checkpoint, so the [Auto]
+  // is still pending there; the rules engine runs the checkpoint after the
+  // declaration step (`vm/flow.ts`), so it has already resolved.
+  if (ENGINE === "legacy")
+    assert.deepEqual(
+      s.pending.map((p) => [p.card, p.trigger]),
+      [[cat, "attacks"]],
+      "the copied [Auto] pended on the target's own attack, under the target's own id",
+    );
+  else assert.ok(attacked.events.some((e) => e.type === "skill" && e.card === cat), "the copied [Auto] answered the target's own attack, under the target's own id");
   // The defence answers first (8-3); the pended [Auto] resolves after it.
   s = playG(s, { type: "block", player: "p2", card: null });
   assert.equal(zoneOf(s, "p1", "hand").length, handBefore + 1, "…and drew the card the copied [Auto] says to draw");
@@ -2105,13 +2100,7 @@ function opponentSkill(s: EngineState, killer: string, target: string): EngineSt
 
 // ── 20-9: gaining control of a card ────────────────────────────────────────
 
-if (
-  !notYetGap(
-    "TAKER: gaining control of a card (20-9)",
-    "checked directly rather than trusted: the card's markers are reset to 0 by the `control` op's move to the new side's Battle Area, where 20-9-2 says nothing about the card should change — the rules engine's `control` handling does not yet preserve markers (or, likely, mode/other per-card state) across the move the way LEADERGRAB's own board-wide refusal already reads the op correctly",
-    "no issue filed yet",
-  )
-) {
+{
   // A loan: the card crosses the table, fights for its new master, and goes
   // home when the duration does. Nothing about the card changes (20-9-2) and
   // its owner never does (0-3-3-1).

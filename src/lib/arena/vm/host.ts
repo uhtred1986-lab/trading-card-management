@@ -55,7 +55,7 @@
  */
 import type { EngineContext, GameEvent } from "../engine";
 import type { ScriptHost } from "../engine/script-host";
-import type { Area, CardDef, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../engine/types";
+import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { tokenCardId } from "../engine/state";
@@ -514,6 +514,22 @@ function moveTo(
   // not answer here, which is the same edge the legacy site's own comment
   // about a granted (not printed) [Energy-Exhaust] already names.
   if (to === "energy") fireHook(ctx, game, state, id, "chargeLimit");
+}
+
+/**
+ * 20-9 with a duration on it: the loan is over, so the card walks back — the
+ * legacy `dropEffects`' own tail, for the effects a duration just ended
+ * (#439). Only a card still in a Battle Area on the side it was taken to: one
+ * KO'd or bounced lost the effect with the rest of them, and one in a Combo
+ * Area is not somewhere control can return it from. The move carries, as the
+ * one that took it did (20-9-2).
+ */
+export function returnLoans(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], ended: ContinuousEffect[]): void {
+  for (const e of ended) {
+    if (e.kind !== "control" || !e.control) continue;
+    if (zoneOf(state, e.target) !== "battle" || ownerOfZone(state, e.target) === e.control.from) continue;
+    moveTo(ctx, game, state, ev, e.target, "battle", e.control.from, { carry: true, reason: "effect" });
+  }
 }
 
 function ownerOfZone(state: VmState, id: string): PlayerId | null {

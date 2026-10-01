@@ -48,7 +48,7 @@ import { emit, log, type Moment } from "./events";
 import { nextPending, skillsShowing } from "./triggers";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
-import { vmHost } from "./host";
+import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { stepScript, type ScriptFrame } from "../engine/script";
 import type { Trigger } from "../engine/types";
@@ -194,8 +194,8 @@ const STEP_WORK: Record<string, Work> = {
   chargeContinuousEnd: {
     section: "7-2-4",
     waits: "an `until:` a duration expiry can be declared against, rather than the closed `DURATIONS` list the language carries",
-    run: (_ctx, _game, state, ev) => {
-      endTurnRelativeEffects(state, ev);
+    run: (ctx, game, state, ev) => {
+      returnLoans(ctx, game, state, ev, endTurnRelativeEffects(state, ev));
     },
   },
   mainPending: {
@@ -221,10 +221,10 @@ const STEP_WORK: Record<string, Work> = {
   endEffects: {
     section: "7-4-5",
     waits: "the same `until:` declaration `chargeContinuousEnd` waits on",
-    run: (_ctx, _game, state, ev) => {
+    run: (ctx, game, state, ev) => {
       // 7-4-5/6: "for the turn" effects end, and 20-15's last timing is the
       // one that happens as the turn closes over them.
-      endEffectsOfDuration(state, ev, "turn");
+      returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "turn"));
       state.programs.push(...dueDelays(state, "turnCleanup"));
     },
   },
@@ -376,7 +376,7 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // ends them after [Revenge]'s KO and [Dual Attack]'s stand (#154 found
       // the rules engine never ending them at all, through [Alliance]).
       if (top.phase === "battle") {
-        endEffectsOfDuration(state, ev, "battle");
+        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battle"));
         state.battle = null;
       }
       // 7-3: a phase running out of steps is the moment "at the end of your

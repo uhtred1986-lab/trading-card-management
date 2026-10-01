@@ -55,7 +55,7 @@
  */
 import { autoTriggerMatches } from "../engine/triggers";
 import { parseSkills } from "../engine/cards";
-import { programsOf } from "../engine/state";
+import { copiedSkillIndex, programsOf } from "../engine/state";
 import { NO_RULES, type CardScripts } from "../engine/script";
 import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../engine/types";
 import type { EngineContext } from "../engine";
@@ -291,7 +291,30 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
   const def = inst ? ctx.defs[inst.cardId] : undefined;
   if (!def) return { skills: [], scripts: NO_RULES };
   const back = inst.flipped && def.back != null;
-  return { skills: parseSkills((back ? def.back?.skill : def.skill) ?? null), scripts: programsOf(ctx, def, back ? "back" : "front") };
+  const own = { skills: parseSkills((back ? def.back?.skill : def.skill) ?? null), scripts: programsOf(ctx, def, back ? "back" : "front") };
+  // 20-18: the skills this card has taken on from another, each under the
+  // index the legacy `copiedSkillsOn` gives it and played from the *source's*
+  // record — so a copied [Permanent] stands on the target, a copied [Auto]
+  // answers to the target's moments and a copied line's keyword is in force
+  // on it, every reader of this function at once (#439). A copied pure
+  // keyword line is not here: it is granted as a `keyword` effect.
+  const copies = state.effects.filter((e) => e.kind === "copiedSkills" && e.target === id && e.copied);
+  if (!copies.length) return own;
+  const skills = own.skills.slice();
+  const bySkill = { ...own.scripts.bySkill };
+  for (const e of copies) {
+    const c = e.copied!;
+    const src = ctx.defs[c.cardId];
+    if (!src) continue;
+    const scripts = programsOf(ctx, src, c.side);
+    for (const sk of parseSkills((c.side === "back" ? src.back?.skill : src.skill) ?? null)) {
+      if (!c.skills.includes(sk.index)) continue;
+      const index = copiedSkillIndex(e.id, sk.index);
+      skills.push({ ...sk, index });
+      if (scripts.bySkill[sk.index]) bySkill[index] = scripts.bySkill[sk.index];
+    }
+  }
+  return { skills, scripts: { ...own.scripts, bySkill } };
 }
 
 // ── the checkpoint's queue (4-2-2, 9-6-6) ───────────────────────────────────
