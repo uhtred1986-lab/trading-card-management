@@ -117,44 +117,51 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   const adminDebug = admin ? adminDebugOf({ engine: game.engine, ctx: game.ctx, state: game.state, viewer: snap.game.you, images: await artForGame(db, game), decisions: await decisionsFor(db, id), flags: await flagsForGame(db, id) }) : null;
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
-  return (
-    <div className="mx-auto w-full max-w-7xl space-y-3">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <Link href="/arena" className="text-sm text-space-300 hover:text-ki-300">
-          ← Arena
-        </Link>
-        <span className="text-sm font-medium text-space-100 sm:text-base">
-          {game.p1Name} <span className="text-space-500">vs</span> {game.p2Name}
-        </span>
+  // The game's own links, in the board's menu sheet rather than a row above
+  // it: the board has the whole screen (`docs/arena-redesign/` frame 01), and
+  // that row wrapped to two lines on a phone, about 75 px over the turn pill.
+  const menu = (
+    <div className="space-y-2 text-sm">
+      <p className="text-space-100">
+        {game.p1Name} <span className="text-space-500">vs</span> {game.p2Name}
         {game.p1User && game.p2User && (
-          <span className="text-xs text-space-400">
+          <span className="ml-2 text-xs text-space-400">
             {game.p1User} v {game.p2User}
           </span>
         )}
-        <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">{modeLabel(game.mode)}</span>
-        {/* Admins only (#350): an engine badge and the debug page are internals. Inverted at #166: the rules engine became the default, so what is
-            worth saying on a board is that this game is *not* on it — a game
-            keeps the engine it was made on, and every game made before the
-            flip is a legacy one. Muted rather than accented for the same
-            reason: it marks the ordinary older game, not a new thing. */}
+        <span className="ml-2 rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400">{modeLabel(game.mode)}</span>
+        {/* Admins only (#350): an engine badge is an internal. Inverted at
+            #166: what is worth saying is that this game is *not* on the rules
+            engine — a game keeps the engine it was made on. */}
         {admin && game.engine === "legacy" && (
-          <span className="rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400" title={ENGINE_INFO.legacy.note}>
+          <span className="ml-2 rounded-full border border-space-700 px-2 py-0.5 text-[11px] uppercase tracking-wider text-space-400" title={ENGINE_INFO.legacy.note}>
             {ENGINE_INFO.legacy.label}
           </span>
         )}
+      </p>
+      <div className="flex flex-wrap items-center gap-x-5">
+        <Link href="/arena" className="tap inline-flex items-center text-space-300 hover:text-ki-300">
+          ← Arena
+        </Link>
+        {/* Admins only (#350): the debug page is an internal. */}
         {admin && (
-          <Link href={`/arena/${id}/debug`} className="ml-auto text-sm text-space-400 hover:text-ki-300">
+          <Link href={`/arena/${id}/debug`} className="tap inline-flex items-center text-space-400 hover:text-ki-300">
             {isVersus(game.mode) ? "what the server decided" : "how Claude played"}
           </Link>
         )}
         {playing && (
-          <form action={abandon.bind(null, id)} className={admin ? "" : "ml-auto"}>
-            <SubmitButton pendingLabel="Giving up…" className="tap text-sm text-space-400 hover:text-loss">
+          <form action={abandon.bind(null, id)}>
+            <SubmitButton pendingLabel="Giving up…" className="tap text-space-400 hover:text-loss">
               give up
             </SubmitButton>
           </form>
         )}
       </div>
+    </div>
+  );
+
+  return (
+    <div className="mx-auto w-full max-w-7xl space-y-3">
 
       {game.status === "over" && (
         <GameOver
@@ -177,7 +184,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
       {/* The whole snapshot, because the board keeps watching the game while
           the server is deciding and replaces it with what it reads. */}
       <div id="board" className="scroll-mt-2">
-        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} />
+        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} menu={menu} />
       </div>
     </div>
   );

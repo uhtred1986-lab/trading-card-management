@@ -13,7 +13,7 @@ export function Counter({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-baseline gap-1 rounded bg-space-950/50 px-1.5 py-0.5">
       <dt className="text-space-500">{label}</dt>
-      <dd className="font-mono font-bold text-space-100">{value}</dd>
+      <dd className="arena-num text-space-100">{value}</dd>
     </div>
   );
 }
@@ -403,7 +403,7 @@ export function InPlayList({
                     <span className="block truncate text-xs font-semibold text-space-50">{card.name}</span>
                     <span className="block truncate text-[10px] text-space-300">{note}</span>
                   </span>
-                  <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-ki-300">{card.power != null ? card.power.toLocaleString("en") : ""}</span>
+                  <span className="shrink-0 arena-num text-xs tabular-nums text-ki-300">{card.power != null ? card.power.toLocaleString("en") : ""}</span>
                 </button>
               </li>
             ))}
