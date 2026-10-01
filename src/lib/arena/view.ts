@@ -27,7 +27,7 @@ import { def, emitsStatic, locate, masterOf, permanentStatics, type StaticEffect
 import { describeEffect, describeStatic, type EffectView } from "./effects";
 import type { EngineState } from "./engines";
 import { isVmState } from "./vm/state";
-import { PROMPT_QUESTIONS } from "./prompt-words";
+import { fixedPrompt, promptHint } from "./prompt-words";
 
 export interface CardView {
   id: string;
@@ -515,7 +515,7 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
     case "combo":
     case "blocker":
     case "counter": {
-      const words = PROMPT_QUESTIONS[pr.kind]!;
+      const words = fixedPrompt(pr.kind)!;
       return { kind: pr.kind, player: pr.player, question: words.question, hint: words.hint };
     }
     case "chooseCards":
@@ -528,12 +528,12 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
         max: pr.choice.max,
       });
     case "chooseMode":
-      return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: "The card offers these; exactly one happens (20-2)." });
+      return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("chooseMode") });
     case "replaceMove":
-      return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: "Choose one replacement, or let the original move happen." });
+      return withStep({ kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("replaceMove") });
     case "zEnergyFromCombo":
     case "offering": {
-      const words = PROMPT_QUESTIONS[pr.kind]!;
+      const words = fixedPrompt(pr.kind)!;
       return { kind: pr.kind, player: pr.player, question: words.question, hint: words.hint };
     }
     case "empowerCarry":
@@ -541,7 +541,7 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
         kind: pr.kind,
         player: pr.player,
         question: `[Empower]: carry up to ${pr.max} marker${pr.max === 1 ? "" : "s"} from ${nameOf(pr.from)} to ${nameOf(pr.card)}?`,
-        hint: "You may carry fewer than the maximum, or none at all (22-45-3).",
+        hint: promptHint("empowerCarry"),
         min: 0,
         max: pr.max,
       };
@@ -550,7 +550,7 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
         kind: pr.kind,
         player: pr.player,
         question: `Pay ${pr.describe} for ${nameOf(pr.card)}?`,
-        hint: "An [Auto] skill's cost may be declined; then it does not resolve.",
+        hint: promptHint("optionalCost"),
         cost: pr.describe,
       });
     case "payCost":
@@ -558,17 +558,17 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
         kind: pr.kind,
         player: pr.player,
         question: `Which energy do you rest to ${pr.describe}?`,
-        hint: "The colours you keep active decide what you can still do this turn.",
+        hint: promptHint("payCost"),
         cost: pr.describe,
       });
     case "referee":
       return { kind: pr.kind, player: pr.player, question: `Claude is ruling on ${pr.request.cardName}…`, hint: pr.request.unsupported.join(" · ") };
     case "orderPending": {
-      const words = PROMPT_QUESTIONS[pr.kind]!;
+      const words = fixedPrompt(pr.kind)!;
       return { kind: pr.kind, player: pr.player, question: words.question, hint: words.hint };
     }
     case "gameOver": {
-      const words = PROMPT_QUESTIONS[pr.kind]!;
+      const words = fixedPrompt(pr.kind)!;
       return { kind: pr.kind, player: null, question: words.question, hint: words.hint };
     }
   }

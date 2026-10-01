@@ -4,14 +4,13 @@
 --
 -- Declared rather than hand-written by the owner's decision on #131/#135
 -- (20 Sep 2026): DEFINE PROMPT is a declaration of its own, not a field of
--- DEFINE ACTION. Declared, not consumed — `prompt-words.ts`'s own
--- PROMPT_QUESTIONS table still stands unchanged and `questionFor` still reads
--- it, not this file; wiring the two together is Stage 8's own follow-up
--- (CLAUDE.md: "declare only; do not move any consumer Stage 8 did not
--- already move").
+-- DEFINE ACTION. Consumed since #160: `prompt-words.ts` reads the question and
+-- hint of the eleven fixed kinds from here, and `questionFor`/`promptView`
+-- read the hint of the others, so a word edited here is a word the prompt bar
+-- says.
 --
--- Eleven kinds ask a question that never varies — PROMPT_QUESTIONS'
--- own eleven entries, copied in verbatim. The other seven build their
+-- Eleven kinds ask a question that never varies (FIXED_PROMPT_KINDS in
+-- prompt-words.ts) — read from here verbatim. The other seven build their
 -- question from the situation (a card's name, a cost, a count): `question:`
 -- carries the same template questionFor writes, in prose naming the value
 -- the way a DEFINE OP's own text: names a parameter ("the amount") rather

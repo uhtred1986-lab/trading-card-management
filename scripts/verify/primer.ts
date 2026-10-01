@@ -8,9 +8,9 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`.
  */
 import assert from "node:assert/strict";
-import { loadDbs } from "../../src/lib/arena/rulesets";
+import { DBS_FILES, loadDbs, loadRuleset } from "../../src/lib/arena/rulesets";
 import { areasLine, generatedPrimer, turnStructure, winCondition, zoneNames } from "../../src/lib/arena/ai/primer";
-import { PROMPT_QUESTIONS } from "../../src/lib/arena/prompt-words";
+import { FIXED_PROMPT_KINDS, fixedPrompt, promptHint } from "../../src/lib/arena/prompt-words";
 import { questionFor } from "../../src/lib/arena/view";
 import { promptView } from "../../src/lib/arena/vm/view";
 import type { GameState } from "../../src/lib/arena/engine";
@@ -49,18 +49,55 @@ assert.ok(turnStructure(def).startsWith("How a turn goes: "));
 assert.ok(winCondition(def).startsWith("Winning: "));
 
 // Build item 2: `questionFor` (legacy) and `promptView` (rules) answer a
-// fixed-question prompt kind with the same words, from the one table.
+// fixed-question prompt kind with the same words, and those words are the
+// definition's (`prompts.rules`). The literals below are the hand-written
+// table `prompt-words.ts` used to hold, kept as the byte-for-byte fixture: a
+// change to a question now has to be made here on purpose.
+const FIXTURE: Record<string, [string, string | null]> = {
+  chooseFirst: ["You won the flip. Who goes first?", "The second player starts with one energy marker."],
+  mulligan: ["Keep this hand?", "You may redraw six cards once (6-2-1-9)."],
+  charge: ["Charge one card as energy?", "Tap a card in hand, or skip."],
+  main: ["Your Main Phase.", "Play cards, attack, or end the turn."],
+  combo: ["Combo? Tap a glowing card.", "Each adds its combo power and costs its combo cost."],
+  blocker: ["Block with one of these?", "[Blocker] rests the card and makes it the guard instead."],
+  counter: ["Play a counter?", "Counter cards are activated from hand and go to the Drop."],
+  zEnergyFromCombo: ["Send one combo card to Z-Energy?", "At the end of a battle, one card may go there instead of the Drop."],
+  offering: ["[Offering]: drop one life, or let them draw two?", null],
+  orderPending: ["Which skill resolves first?", "Several of your skills triggered at once."],
+  gameOver: ["The game is over.", null],
+};
+assert.deepEqual([...FIXED_PROMPT_KINDS].sort(), Object.keys(FIXTURE).sort());
 const fakeCtx = {} as Parameters<typeof questionFor>[0];
-for (const [kind, words] of Object.entries(PROMPT_QUESTIONS)) {
+for (const kind of FIXED_PROMPT_KINDS) {
+  const [question, hint] = FIXTURE[kind];
+  const words = fixedPrompt(kind);
+  assert.deepEqual(words, { question, hint }, `prompts.rules' "${kind}" moved`);
+
   const legacyState = { prompt: { kind, player: "p1" }, flow: [] } as unknown as GameState;
   const legacy = questionFor(fakeCtx, legacyState);
-  assert.equal(legacy.question, words!.question, `view.ts's questionFor("${kind}") does not read prompt-words.ts`);
-  assert.equal(legacy.hint, words!.hint, `view.ts's questionFor("${kind}") hint does not read prompt-words.ts`);
+  assert.equal(legacy.question, question, `view.ts's questionFor("${kind}") question`);
+  assert.equal(legacy.hint, hint, `view.ts's questionFor("${kind}") hint`);
 
   const rulesState = { prompt: { kind, player: "p1" } } as unknown as VmState;
   const rules = promptView(rulesState);
-  assert.equal(rules.question, words!.question, `vm/view.ts's promptView("${kind}") does not read prompt-words.ts`);
-  assert.equal(rules.hint, words!.hint, `vm/view.ts's promptView("${kind}") hint does not read prompt-words.ts`);
+  assert.equal(rules.question, question, `vm/view.ts's promptView("${kind}") question`);
+  assert.equal(rules.hint, hint, `vm/view.ts's promptView("${kind}") hint`);
+}
+
+// The fixed hints of the kinds whose question is built at the table, byte for byte as they were hard-coded.
+assert.equal(promptHint("chooseMode"), "The card offers these; exactly one happens (20-2).");
+assert.equal(promptHint("replaceMove"), "Choose one replacement, or let the original move happen.");
+assert.equal(promptHint("empowerCarry"), "You may carry fewer than the maximum, or none at all (22-45-3).");
+assert.equal(promptHint("optionalCost"), "An [Auto] skill's cost may be declined; then it does not resolve.");
+assert.equal(promptHint("payCost"), "The colours you keep active decide what you can still do this turn.");
+assert.equal(promptHint("offering"), null);
+
+// The definition is the source: a question edited in `prompts.rules` is the question asked.
+const edited = loadRuleset({ ...DBS_FILES, "prompts.rules": DBS_FILES["prompts.rules"].replace('"Keep this hand?"', '"Keep these seven?"') }, "dbs");
+assert.ok(edited.ok, "the edited ruleset did not load");
+if (edited.ok) {
+  assert.equal(fixedPrompt("mulligan", edited.definition)?.question, "Keep these seven?");
+  assert.equal(fixedPrompt("mulligan")?.question, "Keep this hand?");
 }
 
 // The one prompt kind reachable on the rules engine whose text is not fixed:
@@ -73,4 +110,4 @@ assert.equal(promptView(payCostState).cost, "activate «Kamehameha»");
 const unknownState = { prompt: { kind: "chooseCards", player: "p1" } } as unknown as VmState;
 assert.equal(promptView(unknownState).question, "…");
 
-console.log("  primer: generatedPrimer names every declared zone; questionFor/promptView share one word table");
+console.log("  primer: generatedPrimer names every declared zone; prompt questions come from prompts.rules");
