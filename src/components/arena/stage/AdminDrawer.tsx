@@ -142,14 +142,9 @@ export function AdminDrawer({
   const decisions = debug ? [...debug.decisions].reverse() : [];
 
   // The turn each beat belongs to: the latest phase beat at or before it.
-  let beatTurn: number | null = null;
-  const beatRows = beats
-    .map((b) => {
-      if (b.t === "phase") beatTurn = b.turn;
-      return { b, turn: beatTurn };
-    })
-    .reverse()
-    .slice(0, 120);
+  const beatRows: { b: NumberedBeat; turn: number | null }[] = [];
+  for (const b of beats) beatRows.push({ b, turn: b.t === "phase" ? b.turn : (beatRows[beatRows.length - 1]?.turn ?? null) });
+  beatRows.reverse().splice(120);
   const readings = cardsOnBoard(snapshot);
   const waiting = snapshot.waiting;
 
