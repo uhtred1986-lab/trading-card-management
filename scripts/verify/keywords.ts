@@ -113,9 +113,7 @@ function replaceGap(where: string): boolean {
 const S7 = {
   invoker: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D's altPayment channel, where #155 moved it: an alternative price on an Extra's activation ([Invoker])",
   empower: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Empower])",
-  aegis: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing, immunity and KO by effect ([Aegis])",
   rejuvenate: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: its marker price is printed as the line's text, so the 13-4 gates have no number to read ([Rejuvenate])",
-  alliance: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing, immunity and KO by effect ([Alliance])",
 };
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
@@ -697,7 +695,8 @@ if (!keywordGap("Empower", S7.empower)) {
   assert.ok(!labelsG(n).some((x) => x.startsWith("Successor")), "4 + 4 is not 5");
 }
 
-if (!keywordGap("Aegis", S7.aegis)) {
+// Both engines since #154: [Aegis] is `keywords.rules`' own move.
+{
   // [Aegis X/Y] (22-30): in the Defense Step of the opponent's turn only; drop
   // one card of each colour from hand, then up to two energy go active.
   DEFS.AEG = { ...DEFS.V1, id: "AEG", name: "AEG", skill: "[Aegis red/blue] {r}" };
@@ -926,7 +925,8 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   assert.throws(() => play(s, { type: "choose", player: "p1", cards: [a] }), /invalid choice/, "a card cannot be picked twice");
 }
 
-if (!keywordGap("Alliance", S7.alliance)) {
+// Both engines since #154: [Alliance] is `keywords.rules`' own moment.
+{
   // [Alliance X/Y] (22-32): as it attacks, its owner may rest other Battle
   // Cards of the named colours; the printed effect then reads "the total
   // power of the cards switched to Rest Mode by this skill" off those cards.
@@ -954,6 +954,9 @@ if (!keywordGap("Alliance", S7.alliance)) {
   assert.equal(s.prompt.kind, "combo");
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
   assert.ok(zoneOf(s, "p2", "drop").includes(big), "10000 + (10000 + 15000) beats 25000");
+  // 8-5: "for the battle" ends with it — on the rules engine too since #154.
+  assert.equal(powerOfG(s, ally), 10000, "the power gained for the battle is gone once it ends");
+  assert.ok(!hasG(s, ally, "Strike"), "and so is the [Double Strike]");
   assertConsistentG(s);
 
   // Declining rests nothing and the attack is what it was.

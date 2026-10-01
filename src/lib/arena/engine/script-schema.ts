@@ -685,6 +685,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     offCard:
       "how the battle damage a card deals by attacking lands (8-4-6), the leaf of a keyword's beforeDamage hook — atLeast raises life damage and the markers taken off a Unison to that much ([Strike], 22-7), to: drop sends the life cards to the Drop face up ([Critical], 22-6), allMarkers takes every marker off a Unison and wins ends the game once life damage lands ([Victory Strike], 22-18)",
   },
+  printedEffect: {
+    fields: [],
+    sentence: "the line's printed effect resolves",
+    offCard:
+      "the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's",
+  },
 };
 
 /**
@@ -763,6 +769,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   note:               "primitive",
   setPlayerAttr:      "primitive",
   battleDamage:       "primitive",
+  printedEffect:      "primitive",
 };
 
 /**

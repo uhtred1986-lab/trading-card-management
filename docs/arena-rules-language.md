@@ -525,6 +525,17 @@ move is about **one printed line** rather than about a card a `FOR` found:
     picker.
   - A `HOOK` body may now name its keyword's `TAKES` parameters as `$name`, the way a `DO` does:
     [Strike]'s `$x` is filled from the keyword in force, printed or granted (`hookBodiesFor`).
+- Group A (#154) added one op, on no card either:
+  - `printedEffect()` — the line's own printed effect, announced as printed and run at that point
+    of a moment's `DO`, in the same frame, so it reads what the `DO` bound. [Alliance] rests the
+    cards it chose as `rested` and only then says `printedEffect()`, under the `if` that asks
+    whether it chose any (22-32-3): "the total power of the cards switched to Rest Mode by this
+    skill" reads `rested`. A moment's line otherwise runs its `DO` and nothing printed; `AFTER`
+    stays a move's. The rules engine puts the effect on the frame; elsewhere the step does nothing.
+  - Marked `offCard` on its `OP_SCHEMA` row, like `battleDamage`.
+  - A moment's line with a condition printed before its colon ("[Alliance Red/Green] If your Leader
+    Card is blue: …") has it asked before its `DO` runs, after the announcement, as the legacy
+    keyword case asks it.
 
 ```
 DEFINE KEYWORD Overlord

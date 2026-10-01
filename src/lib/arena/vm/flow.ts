@@ -363,7 +363,14 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // more loop passes later — is the battle really over, which is the
       // contract's own claim ("`{special:\"attacker\"}`/`{special:\"guard\"}`
       // still resolve here, one step before `state.battle` clears").
-      if (top.phase === "battle") state.battle = null;
+      // 8-5: and every effect "for the battle" ends with it — after the
+      // `battleEnd` hooks' programs have run, as the legacy `battleCleanup`
+      // ends them after [Revenge]'s KO and [Dual Attack]'s stand (#154 found
+      // the rules engine never ending them at all, through [Alliance]).
+      if (top.phase === "battle") {
+        endEffectsOfDuration(state, ev, "battle");
+        state.battle = null;
+      }
       // 7-3: a phase running out of steps is the moment "at the end of your
       // Main Phase" names. No client draws a phase *ending* and the legacy
       // engine logs none, so it is a moment with no picture — which is exactly
@@ -619,7 +626,15 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const keyword = skill?.kind === "keyword" ? keywordMomentOf(game, skill, next.trigger) : undefined;
   if (skill && keyword) {
     log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill.raw, inBattle: !!state.battle });
-    state.programs.unshift({ ...frame, ops: keywordProgram(game, keyword, skill) });
+    // #154: a condition printed before the line's colon ("[Alliance Red/Green]
+    // If your Leader Card is blue: …") is asked before the keyword does
+    // anything, as the legacy keyword case asks it — silently, after the
+    // announcement, where it does.
+    if (program?.price?.condition && !vmHost(ctx, game, state, ev).condHolds(frame, program.price.condition)) return true;
+    // The line's printed effect rides on the frame, for the body's
+    // `printedEffect` to announce and run where it says (#154).
+    const printed = program && !program.unsupported.length && program.ops.length ? { ops: program.ops, text: skill.raw, inBattle: !!state.battle } : undefined;
+    state.programs.unshift({ ...frame, ops: keywordProgram(game, keyword, skill), ...(printed ? { printed } : {}) });
     return true;
   }
   if (!program || program.unsupported.length) {

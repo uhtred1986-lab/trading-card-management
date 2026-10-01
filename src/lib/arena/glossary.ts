@@ -381,7 +381,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card attacks, you may switch one or more of your other Battle Cards of the named colours to Rest Mode as the cost of the printed effect.",
     engine: "The printed condition is checked before anyone is asked to rest anything, and the cards rested are bound so the effect can talk about them.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-02-keywords-choosing-immunity.md, hook group A. Checked directly: not offered on the rules engine.",
+    engineRules:
+      "Built as its keyword's own `DO` (`at: [attacks]` in `keywords.rules`, #154): announced as the card attacks, a condition printed before the colon asked first, then any number of your other active Battle Cards of the named colours, or none, are rested as the cost, and only then is the printed effect announced and run with them bound as `rested` (`printedEffect`) — the same events as the legacy engine, and an effect “for the battle” now ends with the battle on this engine too. Two differences: the question reads “(99 more)”, the language's word for any number of cards, and a card rested this way does not answer “when this card is switched to Rest Mode by an [Alliance] skill” — the rules engine's mode switch does not say what did the switching yet, the same gap as “…by one of your skills”, which it notes in the log instead.",
     support: "engine",
   },
   Aegis: {
@@ -391,7 +392,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "In the Defense Step of your opponent's turn, drop cards from your hand covering the named colours to switch up to two of your energy from Rest to Active Mode.",
     engine: "Only offered in the Defense Step, and only cards that can still be part of a set covering every named colour are offered — so a pick cannot dead-end after the orbs are already spent.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-02-keywords-choosing-immunity.md, hook group A. Checked directly: not offered on the rules engine, even in the Defense Step.",
+    engineRules:
+      "Built as its keyword's own `DO` (`offer: \"activate:battle\"` in `keywords.rules`, #154): offered at the combo prompt the non-turn player is asked — the Defense Step — from a card in play while the hand can cover the colours (`covers`), for the line's printed orbs; up to two cards of the colours are picked one at a time, dropped as the cost if they cover them, and then up to two rested energy stand. The same offer, refusals and events as the legacy engine. One difference in the question, not the outcome: the legacy prompt narrows the second pick to the colour still missing and will not take none, where this one offers any card of the colours and a cover picked wrongly spends the orbs for nothing, with the legacy engine's own note.",
     support: "engine",
   },
   "Victory Strike": {
