@@ -614,11 +614,14 @@ function specialCard(state: VmState, frame: ScriptFrame, special: NonNullable<Se
       return state.battle?.attacker ?? null;
     case "guard":
       return state.battle?.guard ?? null;
-    // 9-6: a play being resolved is a moment this engine does not have — a
-    // play resolves inside the op that makes it (`vm/play.ts`'s own
-    // docstring), so there is no separate "resolving" card to name. Stage 5's.
+    // 9-6: the card whose play a [Counter: Play] window is open over (#150),
+    // off `state.resolving` — null outside the window and once a counter has
+    // replaced the play, the legacy `s.resolving?.card` reading. The legacy
+    // engine also names an activated skill's own card here while it resolves;
+    // no rule reads `resolving` outside a [Counter: Play], so this engine
+    // does not keep that half.
     case "resolving":
-      return null;
+      return state.resolving && !state.resolving.replaced ? state.resolving.card : null;
   }
 }
 

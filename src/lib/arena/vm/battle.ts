@@ -68,14 +68,15 @@
 import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
 import { canCombo } from "../engine/cards";
 import type { Action, PlayerId, Prompt, Requirement, Skill } from "../engine/types";
-import type { GameDefinition } from "../rulesets";
+import type { ActionDef, GameDefinition } from "../rulesets";
+import { applyDeclared, legalActionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../engine/compile";
 import { cardPrice, chargeCost, planCost, priceFor, type BoundAmounts } from "./costs";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { enterPhase, moved, other, requirePrompt, type Work } from "./flow";
 import { fireHook } from "./hooks";
-import { attrsNow, forbiddenBy, forbids, hasKeyword } from "./program";
+import { attrsNow, forbiddenBy, forbids, hasKeyword, queryHookStatics } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import type { VmBattle, VmState } from "./state";
 
@@ -184,7 +185,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
   // answers the attack itself rather than whatever guards it in the end.
   battleCounterAttack: {
     section: "8-1-4",
-    waits: "a second counter window (Stage 6 opens only the attack one; the play and skill windows named in `vm/host.ts`'s and `vm/play.ts`'s own docstrings are a separate piece of work)",
+    waits: "9-7-3's recursion — a [Counter: Counter] answering the counter just taken (the legacy `counter` window); this engine opens the attack window and, since #150, the play window (`openPlayCounterWindow`), but neither over its own resolution",
     run: (ctx, game, state) => openCounterWindow(ctx, game, state),
   },
 
@@ -314,7 +315,7 @@ function abortToEnd(game: GameDefinition, state: VmState): void {
   if (at >= 0) top.index = at - 1;
 }
 
-// ── the counter window (8-1-4, 9-7) ─────────────────────────────────────────
+// ── the counter windows (8-1-4, 9-7, 22-10) ─────────────────────────────────
 
 interface CounterCandidate {
   card: string;
@@ -323,10 +324,41 @@ interface CounterCandidate {
 }
 
 /**
- * Hand cards whose printed [Counter: Attack] (or [Counter: Battle Card
- * Attack], narrowed to a Battle Card attacker) this engine can both pay for
- * and resolve — the legacy `counterCandidates`' own reading (`playCost(id) +
- * orbTotals(id, sk)`), minus [Deflect] and an alt cost (5-3, Stage 7).
+ * The two windows this engine opens, and the legacy engine's word for each
+ * (`CounterWindow`): the one after an attack is declared (8-1-4) and the one
+ * between a play being declared and its resolving (9-6, #150's second). The
+ * other two legacy words are not opened here — `counter` (a [Counter:
+ * Counter] answering a counter, 9-7-3's recursion) and `skill`, which the
+ * legacy engine opens with no candidates at all.
+ */
+type OpenWindow = "attack" | "play";
+
+/** Is this printed line one the window offers? The legacy `counterCandidates`' own `want`. */
+function wantsLine(ctx: EngineContext, state: VmState, window: OpenWindow, sk: Skill): boolean {
+  if (window === "play") return sk.kind === "counter:play";
+  const b = state.battle;
+  if (!b) return false;
+  return sk.kind === "counter:attack" || (sk.kind === "counter:battle card attack" && baseTypeOf(ctx, state, b.attacker) === "BATTLE");
+}
+
+/**
+ * 22-20: a card being played that is "not affected by [Counter: Play] skills"
+ * empties the window outright — [Deflect]'s own `counterWindow` hook body
+ * (`keywords.rules`), read the declarative way every query hook is
+ * (`queryHookStatics`), asked of the card whose play opened the window. The
+ * legacy `counterCandidates`' first line, `has(playing, "Deflect")`.
+ */
+function windowClosedBy(ctx: EngineContext, game: GameDefinition, state: VmState, window: OpenWindow): boolean {
+  if (window !== "play") return false;
+  const playing = state.resolving?.card;
+  if (!playing) return true;
+  return queryHookStatics(ctx, game, state, playing, "counterWindow").some((f) => f.op === "forbid" && f.forbid.what === "activateCounter");
+}
+
+/**
+ * Hand cards whose printed [Counter] of the window's kind this engine can both
+ * pay for and resolve — the legacy `counterCandidates`' own reading
+ * (`playCost(id) + orbTotals(id, sk)`), minus an alt cost (5-3, Stage 7).
  *
  * Deliberately **not** `vm/activate.ts`'s `boundFor`: that function's "an
  * Extra used from the hand pays its own energy cost too" (12-2-2) is
@@ -339,16 +371,14 @@ interface CounterCandidate {
  * would double an Extra counter's price, since its own Extra-in-hand
  * addition and this module's card price would both count the same cost.
  */
-function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, responder: PlayerId): CounterCandidate[] {
-  const b = state.battle;
-  if (!b) return [];
-  const attackerIsBattleCard = baseTypeOf(ctx, state, b.attacker) === "BATTLE";
+function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, responder: PlayerId, window: OpenWindow = "attack"): CounterCandidate[] {
+  if (window === "attack" && !state.battle) return [];
+  if (windowClosedBy(ctx, game, state, window)) return [];
   const out: CounterCandidate[] = [];
   for (const card of state.sides[responder].zones.hand ?? []) {
     const showing = skillsShowing(ctx, state, card);
     for (const sk of showing.skills) {
-      const wants = sk.kind === "counter:attack" || (sk.kind === "counter:battle card attack" && attackerIsBattleCard);
-      if (!wants) continue;
+      if (!wantsLine(ctx, state, window, sk)) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card })) continue;
       if (!costIsOnlyOrbs(sk.cost)) continue;
@@ -370,6 +400,54 @@ function openCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmSt
   state.prompt = { kind: "counter", player: responder, window: "attack", candidates: candidates.map((c) => c.card) };
   return "wait";
 }
+
+/**
+ * The moves that declare a play a [Counter: Play] may answer — the legacy
+ * engine's three action handlers that put `{op:"counter", window:"play"}` in
+ * front of their `play.resolve` (`engine/engine.ts`). A play a *skill* makes
+ * (5-5-3, the `play` op) opens no window on either engine, and the keyword
+ * plays the legacy engine also opens one over ([Successor], [Revive], [Swap],
+ * [Evolve], [Union]) are Stage 7's keyword moves, not built here yet.
+ */
+const PLAY_MOVES: readonly Action["type"][] = ["play", "playUnison", "playZ"];
+
+/**
+ * 9-6, 22-10: the window between a play being declared and its resolving.
+ *
+ * Called by `vm/index.ts` once a declared play has been paid for and its `DO`
+ * queued, and before the flow runs on. With no [Counter: Play] the opponent
+ * could use, nothing changes: the play resolves inside its own `DO` the way it
+ * always has, which is the legacy engine's own "a window with no candidates is
+ * not opened". With one, the move's `DO` frame is lifted off the queue onto
+ * `state.resolving` — the play is now *being resolved* — and the opponent is
+ * asked. `vm/flow.ts`'s runner puts the frame back once the answer (and any
+ * counter's own program) has run, so the counter resolves first and the play
+ * after it: 9-7-3's descending order, the order the legacy flow stack gives
+ * the same two steps.
+ */
+export function openPlayCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmState, action: Action): boolean {
+  if (!PLAY_MOVES.includes(action.type)) return false;
+  const card = (action as { card?: string }).card;
+  const frame = state.programs[0];
+  // The declared move's own `DO` is the frame `runProgram` just put at the
+  // front, bound to the card it plays; anything else there is not a play this
+  // window could stand in front of.
+  if (!card || !frame || frame.card !== card || frame.skillIndex !== undefined) return false;
+  state.resolving = { card, player: action.player };
+  const responder = other(action.player);
+  const candidates = counterCandidates(ctx, game, state, responder, "play");
+  if (!candidates.length) {
+    state.resolving = null;
+    return false;
+  }
+  state.programs.shift();
+  state.resolving.frame = frame;
+  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card) };
+  return true;
+}
+
+/** Which window the counter prompt on the table (or the one a `payCost` interrupted) belongs to: a play being resolved, or the battle's. */
+const windowNow = (state: VmState): OpenWindow => (state.resolving?.frame ? "play" : "attack");
 
 const canResolveLine = (sk: Skill, script: { unsupported: unknown[] } | undefined): boolean => (!sk.effect.trim() ? true : !!script && script.unsupported.length === 0);
 
@@ -414,9 +492,9 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   if (!action.card) return "done";
   if (!pr.candidates.includes(action.card)) throw new IllegalAction("that card can't counter now");
   const card = action.card;
+  const window: OpenWindow = pr.window === "play" ? "play" : "attack";
   const showing = skillsShowing(ctx, state, card);
-  const attackerIsBattleCard = baseTypeOf(ctx, state, state.battle!.attacker) === "BATTLE";
-  const sk = showing.skills.find((s) => s.kind === "counter:attack" || (s.kind === "counter:battle card attack" && attackerIsBattleCard));
+  const sk = showing.skills.find((s) => s.index === action.skill && wantsLine(ctx, state, window, s)) ?? showing.skills.find((s) => wantsLine(ctx, state, window, s));
   if (!sk) throw new IllegalAction("no counter skill on that card");
   const combined = counterPrice(cardPrice(ctx, game, state, card), sk);
   const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
@@ -428,11 +506,14 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     return "asked";
   }
   chargeCost(ctx, game, state, ev, action.player, plan.payment, card, ["energy"]);
-  const b = state.battle!;
-  (b.counters ??= []).push({ card, by: action.player, after: state.sides[action.player].zones.combo?.length ?? 0 });
+  // 22-10-7: the battle writes the counter down before it is lost in the
+  // Drop (staging spec §3.1) — the battle's own record, so a [Counter: Play]
+  // answered outside one is written nowhere, as on the legacy engine.
+  const b = state.battle;
+  if (b) (b.counters ??= []).push({ card, by: action.player, after: state.sides[action.player].zones.combo?.length ?? 0 });
   moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
   fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: true } });
-  log(ev, { type: "skill", card, skill: sk.index, master: action.player, text: sk.raw, inBattle: true });
+  log(ev, { type: "skill", card, skill: sk.index, master: action.player, text: sk.raw, inBattle: !!b });
   const program = showing.scripts.bySkill[sk.index]?.ops ?? [];
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index });
   return "done";
@@ -510,7 +591,7 @@ function comboWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   // half a Defense Step instead of none (#152, found by staging it).
   if (side === "defense" && state.sides[other(state.turnPlayer)].zones.unison?.includes(b.guard)) return;
   const player = comboSide(ctx, state, side);
-  if (!comboEligible(ctx, game, state, player).length) return;
+  if (!comboEligible(ctx, game, state, player).length && !battleActivations(ctx, game, state, player).length) return;
   state.prompt = { kind: "combo", player, side };
   return "wait";
 }
@@ -518,7 +599,66 @@ function comboWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
 export function comboLegalActions(ctx: EngineContext, game: GameDefinition, state: VmState): LegalAction[] {
   const pr = state.prompt;
   if (pr.kind !== "combo") return [];
-  return comboEligible(ctx, game, state, pr.player).map((card) => ({ action: { type: "combo", player: pr.player, card }, label: `Combo ${nameOf(ctx, state, card)}` }));
+  return [
+    ...comboEligible(ctx, game, state, pr.player).map((card) => ({ action: { type: "combo" as const, player: pr.player, card }, label: `Combo ${nameOf(ctx, state, card)}` })),
+    ...battleActivations(ctx, game, state, pr.player),
+  ];
+}
+
+// ── [Activate: Battle] at the combo prompt (1-5-5, 8-2, 8-3) ───────────────
+
+/**
+ * The skill kinds the battle's own window offers: [Activate: Battle], and the
+ * lines usable in either window. `actions.rules`' `activate` declares the
+ * Main Phase's pair; this is the same paragraph's other window, which its own
+ * comment anticipates ("the window this move offers is the one its kinds
+ * share") — `windowOf` reads `battle` off these two the way it reads `main`
+ * off the declared ones, so a Main-only line asked about here is owed the
+ * `timing` requirement naming its window, with no second table.
+ */
+const BATTLE_SKILL_KINDS: NonNullable<ActionDef["skills"]> = ["activate:battle", "activate:main/battle"];
+
+/**
+ * `actions.rules`' `activate`, read against the combo prompt (#150).
+ *
+ * A declaration's name is the action type a client sends (`vm/actions.ts`), so
+ * the battle window cannot be a second `DEFINE ACTION activate` — the loader
+ * keys declarations by name. It is the one paragraph with its window moved:
+ * the same `FOR`, the same price (`COST [marker, energy, payWith, text]`), the
+ * same `again:`, asked in the battle phase at the combo prompt, about the
+ * battle's own kinds. The legacy twin is the combo case of its `legalActions`,
+ * which offers `activatable(…, "battle")` over the hand and the cards in play.
+ */
+function battleActivationDef(game: GameDefinition): ActionDef | null {
+  const declared = game.actions.activate;
+  if (!declared) return null;
+  return { ...declared, when: ["battle"], prompts: ["combo"], skills: BATTLE_SKILL_KINDS };
+}
+
+function battleActivations(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId): LegalAction[] {
+  const def = battleActivationDef(game);
+  return def ? legalActionsOf(ctx, game, state, def, player) : [];
+}
+
+/**
+ * Take an [Activate: Battle] at the combo prompt: the declared move, checked
+ * and charged exactly as at the Main Phase (`applyDeclared`), and then the
+ * combo step asked **again** once the skill has resolved — the legacy
+ * `battle.promptCombo` pushed behind `activate()`. `reask` rather than
+ * clearing `asking` the way `applyCombo` does, because clearing it would
+ * re-run the step before the program it just queued (`vm/flow.ts`'s runner
+ * works a fresh step before it drains the queue), and a skill that puts a
+ * card in the Combo Area has to have done so before the next offer is read.
+ */
+export function applyBattleActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): "done" | "asked" {
+  requirePrompt(state, action, ["combo"]);
+  const def = battleActivationDef(game);
+  if (!def) throw new IllegalAction("nothing declares using a skill");
+  const took = applyDeclared(ctx, game, state, ev, action, def);
+  if (took === "asked") return "asked";
+  const top = state.flow[state.flow.length - 1];
+  if (top) top.reask = true;
+  return "done";
 }
 
 export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): "done" | "asked" {
@@ -567,10 +707,13 @@ export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmSt
 export function restoreNativePrompt(ctx: EngineContext, game: GameDefinition, state: VmState, action: Action): Prompt | null {
   if (action.type === "counter") {
     const responder = action.player;
-    const candidates = counterCandidates(ctx, game, state, responder).map((c) => c.card);
-    return { kind: "counter", player: responder, window: "attack", candidates };
+    const window = windowNow(state);
+    const candidates = counterCandidates(ctx, game, state, responder, window).map((c) => c.card);
+    return { kind: "counter", player: responder, window, candidates };
   }
-  if (action.type === "combo") {
+  // An [Activate: Battle] is asked at the combo prompt and nowhere else in
+  // the battle phase (#150), so an activation interrupted there is that one.
+  if (action.type === "combo" || (action.type === "activate" && state.phase === "battle")) {
     const side: "offense" | "defense" = action.player === state.turnPlayer ? "offense" : "defense";
     return { kind: "combo", player: action.player, side };
   }

@@ -91,7 +91,7 @@ export const HOOK_CONTRACT: Record<HookPoint, HookSpec> = {
     group: "C",
     answer: "query",
     vars: [],
-    doc: "A play or a battle is opening a Counter window and asking whether `self` (a candidate in hand) is still offerable. A body ends in `forbid` (what: \"counter\") read declaratively, the way [Deflect] empties the window outright for the card being played (22-20) — the worked example.",
+    doc: "A play is opening its [Counter: Play] window (9-6, #150) and asks `self` — the card being played — whether anything may answer it. A body ends in `forbid` (what: \"activateCounter\") read declaratively, and a fact of that shape empties the window outright: [Deflect] (22-20), the worked example and so far the only body (`vm/battle.ts`'s `windowClosedBy`). Not asked of a candidate in hand, nor at a battle's own window — no keyword yet closes either.",
   },
   onAttackDeclared: {
     group: "C",

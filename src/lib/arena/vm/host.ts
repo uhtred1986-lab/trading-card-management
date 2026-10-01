@@ -24,13 +24,16 @@
  *                                     `withTokens`). `placeUnder` (23-2) is
  *                                     real too (#152), wired to `moveCard`'s
  *                                     own `under` option.
- *   `replacementsFor`, the two
- *   `setPlay*` and `replaceResolving` 9-10 and 9-6 both stand between a play
- *                                     being *declared* and its landing, and on
- *                                     this engine there is no such gap: a play
- *                                     resolves inside the op that makes it,
- *                                     because the counter window the legacy
- *                                     engine opens there is Stage 6's (#150).
+ *   `replacementsFor`                 9-10: a [Permanent] standing in front
+ *                                     of a departure is not collected yet
+ *                                     (`DEFERRED_STATICS.replaceLeave`), so
+ *                                     nothing stands in front of a move. The
+ *                                     play being resolved (9-6) is real since
+ *                                     #150 opened the [Counter: Play] window:
+ *                                     `resolvingCard`, the two `setPlay*` and
+ *                                     `replaceResolvingPlay` read and write
+ *                                     `state.resolving`, which `vm/play.ts`
+ *                                     reads as the card lands.
  *   `negateCounterInFlight`           9-8: a [Counter] negating the [Counter]
  *                                     it is answering, inside the *same*
  *                                     window (9-7-4) — #150 opens the
@@ -272,21 +275,39 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // static this engine does not read yet (`DEFERRED_STATICS`), so the honest
     // answer is that nothing stands in front of the move.
     replacementsFor: () => [],
-    resolvingCard: () => null,
-    // 9-6: a play *being resolved* is a play that has been declared and has not
-    // landed yet, which on this engine is a moment that does not exist — a play
-    // resolves inside the op that makes it (`playThen` above), because the
-    // counter window the legacy engine opens between the two is Stage 6's.
-    // `resolvingCard` answering null is what keeps the two `setPlay*` below
-    // unreachable rather than wrong, and `stepScript` already breaks on it.
-    setPlayRest: () => {
-      throw new NotYet("play a card in Rest Mode (5-5) — the window between declaring a play and resolving it is a counter:play window this stage did not open (#150 opened only the battle's own, over an attack)", "#150");
+    // 9-6: a play *being resolved* — declared and paid for, not landed — is
+    // `state.resolving`, which `vm/battle.ts`'s `openPlayCounterWindow` writes
+    // when a [Counter: Play] could answer it (#150). Null outside that window,
+    // and null again once a counter has replaced the play, the legacy
+    // `s.resolving = null` in its own `replaceResolvingPlay`.
+    resolvingCard: () => (state.resolving && !state.resolving.replaced ? state.resolving.card : null),
+    // 5-5: the manner of the arrival, read by `playThen` below as the card
+    // lands — the legacy `continuations.playRest`/`playNegated`, kept on the
+    // one record the window opened.
+    setPlayRest: (id) => {
+      if (state.resolving?.card === id) state.resolving.rest = true;
     },
-    setPlayNegated: () => {
-      throw new NotYet("play a card with its skills negated (5-5) — the same counter:play window", "#150");
+    setPlayNegated: (id) => {
+      if (state.resolving?.card === id) state.resolving.negated = true;
     },
-    replaceResolvingPlay: () => {
-      throw new NotYet("put a program in the place of the play being resolved (9-6) — the same counter:play window", "#150");
+    // 9-6: the play happens differently — this program in its place. The
+    // legacy reading exactly: the one shape it can put in a play's place is a
+    // single move of the card itself, which goes where the program says from
+    // wherever it was being played from, and the energy stays paid. The move's
+    // `DO` frame is dropped unrun (`vm/flow.ts`'s runner, on `replaced`), which
+    // is the legacy engine filtering its `play.resolve` step out of the flow.
+    replaceResolvingPlay: (ops) => {
+      const r = state.resolving;
+      if (!r || r.replaced) return;
+      const only = ops.length === 1 ? ops[0] : null;
+      if (!only || only.op !== "moveTo") return;
+      const id = r.card;
+      log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} is not played` });
+      // "Under" is not an area a card can simply be put in (23-2), and no card
+      // says so here; the Drop is the printed default — the legacy mapping.
+      const dest = only.to === "play" ? "battle" : only.to === "under" ? "drop" : only.to;
+      moveTo(ctx, game, state, ev, id, dest, card(id).owner, { reason: "effect", position: only.position, reveal: true });
+      r.replaced = true;
     },
 
     // ── the battle (8-1) ─────────────────────────────────────────────────
@@ -359,7 +380,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // question this must learn to hold, and `resolvePlay` names the two that
     // would.
     playThen: (cards, opts, frame) => {
-      for (const id of cards) resolvePlay(ctx, game, state, ev, id, opts.player, { mode: opts.mode, onto: opts.onto, negated: opts.negated });
+      for (const id of cards) {
+        // 9-6: the play a [Counter: Play] window was open over lands here, in
+        // the manner the counter left it (5-5) — and is no longer being
+        // resolved once it has, the legacy `s.resolving = null`.
+        const r = state.resolving?.card === id && !state.resolving.replaced ? state.resolving : null;
+        resolvePlay(ctx, game, state, ev, id, opts.player, { mode: r?.rest ? "rest" : opts.mode, onto: opts.onto, negated: opts.negated, ...(r?.negated ? { negatedForTurn: true } : {}) });
+        if (r) state.resolving = null;
+      }
       state.programs.unshift(frame);
     },
   };

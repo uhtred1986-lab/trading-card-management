@@ -38,9 +38,11 @@
  *   because a player reaching for it is owed an answer; it is simply not an
  *   answer this engine can give yet.
  *
- *   *A [Counter] window* is Stage 6's (#150). No phase of `game.rules` asks a
- *   counter question, so no declaration offers those kinds and nothing here
- *   knows the word.
+ *   *A [Counter]* is not an activation at all: its windows (an attack's,
+ *   a play's) are `vm/battle.ts`'s native `counter` move (#150), and no
+ *   declaration offers those kinds. *An [Activate: Battle]* is this paragraph
+ *   read against the combo prompt — `vm/battle.ts` hands `activate` the
+ *   battle's kinds and the gates below are the same gates.
  *
  *   *An X price* (20-5) and *an action price* (4-3-3, "switch this card to Rest
  *   Mode:") are the two halves of a skill's cost this stage did not reach. The
@@ -397,8 +399,9 @@ const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim()
  *
  * The program goes on the queue rather than running here, exactly as a pended
  * [Auto]'s does (`flow.ts`'s checkpoint): a skill that stops to ask is storable
- * mid-decision, and the frame is the whole of its continuation. 9-7's counter
- * window around it is Stage 6's (#150) and is not opened.
+ * mid-decision, and the frame is the whole of its continuation. 9-7's `skill`
+ * counter window around it is not opened: the legacy engine opens it with no
+ * candidates at all, so there is nothing to answer it with.
  */
 export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine): void {
   const { card, skill: sk } = line;
@@ -411,7 +414,9 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   if (findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
     moved(ctx, game, state, ev, card, ACTIVATION_ZONES.drop, { owner: player, reveal: true });
   }
-  log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: false });
+  // `inBattle` is the legacy `!!s.battle`: an [Activate: Battle] taken at the
+  // combo prompt (`vm/battle.ts`, #150) is a skill used in a battle.
+  log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!state.battle });
   const program = line.script?.ops ?? [];
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index });
 }

@@ -108,8 +108,42 @@ export interface VmBattle {
  * own per-copy memory of a battle already played this turn, ported rather
  * than left `NARROWER`. A version-8 state read `battled` as always false —
  * harmless, since no saved rules-engine game predates this field.
+ * 10: #150's [Counter: Play] window (`resolving`, `VmResolving`) and the
+ * battle frame's `reask` (an [Activate: Battle] taken at the combo prompt).
+ * A version-9 state is a game in which no play ever waited on a counter, so
+ * both fields are simply absent — optional on load, the `battle` convention.
  */
-export const VM_STATE_VERSION = 9;
+export const VM_STATE_VERSION = 10;
+
+/**
+ * The play being resolved (9-6, 22-10): declared and paid for, not yet landed.
+ *
+ * The legacy engine's own `s.resolving` plus the two `continuations` it reads
+ * at `play.resolve` (`playRest`, `playNegated`), kept on one record because on
+ * this engine they are one fact. It exists only while a [Counter: Play] window
+ * is open over a play or the counter it let in is resolving — a play nobody
+ * can answer resolves inside its own `DO` exactly as before, so a game in
+ * which no [Counter: Play] was ever payable never writes this field.
+ *
+ * `frame` is the declared move's own `DO` program (`play(target: $card)`),
+ * held here rather than on `programs` while the window is open, so the
+ * counter's program runs first and a counter that replaces the play
+ * (`replaced`) can drop it by name rather than by finding it in the queue —
+ * a frame has no identity a stored state keeps. `vm/flow.ts`'s runner puts it
+ * back on the queue once the counter's programs have run.
+ */
+export interface VmResolving {
+  card: string;
+  player: PlayerId;
+  /** The `DO` frame of the move that declared the play, until the runner releases it. */
+  frame?: ScriptFrame;
+  /** 5-5: "is played in Rest Mode" (`setPlayRest`). */
+  rest?: boolean;
+  /** 9-1-5: "played with its skills negated for the turn" (`setPlayNegated`). */
+  negated?: boolean;
+  /** 9-6: the play was replaced (`replaceResolvingPlay`) — the card has already gone elsewhere, and the frame is dropped unrun. */
+  replaced?: boolean;
+}
 
 /** One player, as the definition describes one: a name, a map of zones, and the attributes a *player* has (1-14). */
 export interface VmSide {
@@ -144,6 +178,14 @@ export interface VmFrame {
    * "not started" from "started and answered by everyone".
    */
   asking?: (PlayerId | null)[];
+  /**
+   * Ask the step at `index` again once the programs queued in front of it and
+   * the checkpoint after them have run (#150). Set by a move taken at a native
+   * prompt that does not end the step — an [Activate: Battle] at the combo
+   * prompt (5-7, 8-2) — where clearing `asking` outright would re-run the step
+   * before the skill it just used had resolved.
+   */
+  reask?: boolean;
 }
 
 export interface VmState {
@@ -232,6 +274,8 @@ export interface VmState {
   overReason: string | null;
   /** 8-1: the battle in progress, or null between battles — #150's field, absent on a state saved before it existed. */
   battle?: VmBattle | null;
+  /** 9-6: the play a [Counter: Play] window is open over, or null — #150's second field, absent on a state saved before it existed. */
+  resolving?: VmResolving | null;
 }
 
 /**

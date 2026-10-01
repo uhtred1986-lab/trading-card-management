@@ -102,6 +102,14 @@ export interface PlayOptions {
   onto?: string;
   /** 9-1-5: "played with its skills negated". */
   negated?: "turn" | "game";
+  /**
+   * 9-1-5 again, the shape a [Counter: Play] leaves on the play it answers
+   * ("it's played with its skills negated for the turn", #150): the same
+   * turn-long effect, but no note — the legacy `continuations.playNegated`,
+   * which `resolvePlay` applies silently where its own `negated` argument
+   * says so in the log.
+   */
+  negatedForTurn?: boolean;
 }
 
 /**
@@ -176,6 +184,7 @@ export function resolvePlay(
   // durations rather than a mark on the instance, which is how this engine
   // keeps negation everywhere (`vm/effects.ts`, `host.negateAll`) — one reading
   // of the rule, for every reader of it.
+  if (opts.negatedForTurn) addEffect(state, ev, { target: card, kind: "negateSkills", value: 0, until: "turn", source: card });
   if (opts.negated) {
     addEffect(state, ev, { target: card, kind: "negateSkills", value: 0, until: opts.negated, source: card });
     log(ev, { type: "note", text: `${def.name} was played with its skills negated` });

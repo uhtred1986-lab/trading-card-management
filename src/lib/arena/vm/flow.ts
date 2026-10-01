@@ -441,11 +441,28 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       continue;
     }
 
+    // #150, 9-6: the play a [Counter: Play] window was open over resolves
+    // once the answer — and the counter's own program, which went in front
+    // of it — has run, and before the checkpoint: the legacy flow's
+    // `play.resolve` sits after `counter.resolve` and before the checkpoint
+    // `resolvePlay` pushes.
+    if (releaseResolvingPlay(state)) continue;
+
     // 4-2-2: a checkpoint, here and nowhere else. Between one step and the
     // next, and before any question is put — which is where the legacy
     // engine's own `{ op: "checkpoint" }` entries sit, because those are the
     // two places a player is about to be asked to act (9-6-6).
     if (checkpoint(ctx, game, state, ev)) continue;
+
+    // #150: a move taken at a native prompt that does not end its step (an
+    // [Activate: Battle] at the combo prompt) asks the step again — now, with
+    // its program run and the checkpoint after it drained, which is the
+    // legacy engine's `battle.promptCombo` coming back behind the skill.
+    if (top.reask) {
+      delete top.reask;
+      delete top.asking;
+      continue;
+    }
 
     if (top.asking.length) {
       state.prompt = promptFor(state, step, top.asking[0]);
@@ -457,6 +474,31 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A flow that has run out with no prompt is a definition whose last phase
   // leads nowhere. Said rather than left as a game that answers nothing.
   throw new RulesetBroken(state.game, `the ${state.phase} phase ran out of steps and nothing follows it, so the game has no next moment`);
+}
+
+/**
+ * 9-6: the play a [Counter: Play] window held back, let go (#150).
+ *
+ * `vm/battle.ts`'s `openPlayCounterWindow` lifted the declared move's `DO`
+ * frame onto `state.resolving` while the window was open; once nothing is left
+ * on the queue in front of it, it goes back — or, when a counter replaced the
+ * play, it is dropped unrun, the legacy engine filtering `play.resolve` out of
+ * its flow. A `resolving` with no frame left is a play whose `DO` has finished
+ * without landing it (a 20-14 prohibition the `play` op honours), and is
+ * cleared so no later program reads it as still being resolved.
+ */
+function releaseResolvingPlay(state: VmState): boolean {
+  const r = state.resolving;
+  if (!r) return false;
+  if (!r.frame) {
+    state.resolving = null;
+    return false;
+  }
+  const frame = r.frame;
+  delete r.frame;
+  if (r.replaced) state.resolving = null;
+  else state.programs.push(frame);
+  return true;
 }
 
 /** The phases of a turn, in the order `DEFINE GAME` declares them. */
