@@ -458,8 +458,12 @@ function collect(
       continue;
     }
     if (op.op === "power" || op.op === "comboPower") {
-      if (typeof op.amount !== "number") continue;
-      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: op.op, target: id, value: op.amount });
+      // "+3000 power for each marker on this card": the same two counted amounts
+      // the cost reduction below takes — a [Permanent] binds no variable, so
+      // only a count over the board can be read.
+      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
+      if (value == null) continue;
+      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: op.op, target: id, value });
       continue;
     }
     if (op.op === "modifyAttr") {

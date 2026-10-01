@@ -42,6 +42,7 @@
 import { IllegalAction, type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../engine";
 import type { Beats } from "../beats";
 import type { BoardView, CardArt } from "../view";
+import { isZ } from "../engine/cards";
 import { PLAYERS, type PlayerId } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
@@ -272,7 +273,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
     const add = (cardId: string, zone: string): string => {
       if (!ctx.defs[cardId]) throw new Error(`unknown card ${cardId}`);
       const id = `${p}#${n++}`;
-      state.cards[id] = newCard(id, cardId, p);
+      state.cards[id] = newCard(id, cardId, p, isZ(ctx.defs[cardId]));
       const placed = moveCard(state, game, id, zone, { owner: p });
       if (!placed.ok) throw new RulesetBroken(ARENA_GAME, `a card cannot be placed in the ${zone}: ${placed.refused}`);
       // 6-2-4: a card arriving somewhere is a `moved` moment even here, which
