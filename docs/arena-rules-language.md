@@ -539,6 +539,13 @@ move is about **one printed line** rather than about a card a `FOR` found:
   - A moment's line with a condition printed before its colon ("[Alliance Red/Green] If your Leader
     Card is blue: …") has it asked before its `DO` runs, after the announcement, as the legacy
     keyword case asks it.
+- Group D's remainder (#157) added these, on no card either:
+  - `switchMode(…, by: <keyword>)` — the switch is that keyword's skill's, so the card answers
+    "switched to Rest Mode by an [Alliance] skill" (22-32-3) rather than "…by one of your skills"
+    (1-10). Left out, the switch is the running skill's own. The rules engine's `modeSwitched`
+    moment carries `by: skill | <keyword>`, `byOpponent` (the skill is not the card's master's) and
+    `in` (where the card is), which `triggers.rules`' three rested-by triggers read. The field is
+    marked `offCard`.
 
 ```
 DEFINE KEYWORD Overlord

@@ -173,7 +173,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
       return true;
     },
-    setMode: (id, mode) => {
+    setMode: (id, mode, by) => {
       const at = zoneOf(state, id);
       const declared = at ? game.zones[at] : undefined;
       if (!declared?.modes?.includes(mode)) return false;
@@ -182,7 +182,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // a change that did not happen is a beat the board plays over nothing.
       if (inst.mode === mode) return false;
       inst.mode = mode;
-      emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller: masterOf(game, state, id), args: { mode } }, { type: "mode", card: id, mode });
+      // 1-10-1: a skill doing the switching is part of the moment — `by:
+      // skill`, or the keyword whose skill it is (`by: Alliance`, 22-32-3) —
+      // and so is whose skill it was against whose card, and where the card
+      // is: "when this card is switched to Rest Mode by one of your skills",
+      // "when your skill rests an opponent's Battle Card or energy" (#157).
+      const controller = masterOf(game, state, id);
+      const cause: Record<string, string | boolean> = by ? { by: by.keyword ?? "skill", byOpponent: by.master !== controller } : {};
+      emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller, args: { mode, in: at ?? "", ...cause } }, { type: "mode", card: id, mode });
       return true;
     },
     setFaceUp: (id, faceUp) => {
@@ -508,6 +515,10 @@ function shuffle(state: VmState, p: PlayerId): void {
  * its own is a note rather than a silent miss.
  */
 function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string): void {
+  // A switch to Rest Mode by a skill is `setMode`'s own moment, fired as the
+  // card switched and saying what switched it (#157); the name the program
+  // also says is that same happening, already answered.
+  if (FIRED_BY_SET_MODE.has(trigger)) return;
   const controller = state.cards[id] ? masterOf(game, state, id) : state.turnPlayer;
   const moment = MOMENT_OF[trigger];
   if (!moment) {
@@ -538,6 +549,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
   leftBattleToDrop: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
 };
+
+/** The names `stepScript`'s `switchMode` pends whose moment `setMode` has already fired as `modeSwitched(by: …)` (`dbs/triggers.rules`). */
+const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "restedByAlliance"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */
 export { sideOf, arrivalMode };

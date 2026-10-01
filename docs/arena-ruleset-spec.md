@@ -1265,9 +1265,13 @@ bodies, not their hook group.
 
 Two engine facts came out of it. The rules engine never ended an effect "for the battle"; the
 battle phase now ends them as it closes, after the `battleEnd` hooks' programs. And "when this card
-is switched to Rest Mode by an [Alliance] skill" (and "…by one of your skills") does not answer on
-the rules engine: its `modeSwitched` moment does not say what did the switching. That is trigger
-plumbing beyond this group, recorded in the glossary.
+is switched to Rest Mode by an [Alliance] skill" (and "…by one of your skills") did not answer on
+the rules engine: its `modeSwitched` moment did not say what did the switching. #157 closed it. A
+program's switch hands the host its cause (`ScriptHost.setMode`'s `by`), and the rules engine's
+`setMode` fires `modeSwitched(by: skill | <keyword>, byOpponent, in, mode)`. [Alliance]'s body
+names its keyword (`switchMode … by: Alliance`), so its cards answer the [Alliance] moment and not
+the general one, as on the legacy engine. `restedTheirsBySkill` now also says
+`byOpponent: true, in: [battle, energy]`, the legacy engine's own narrowing.
 
 ---
 

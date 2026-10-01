@@ -362,7 +362,19 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: "play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}",
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
   },
-  switchMode: { fields: [TARGET, { name: "mode", type: MODE, required: true }], sentence: "switch {target} to {mode} mode" },
+  switchMode: {
+    fields: [
+      TARGET,
+      { name: "mode", type: MODE, required: true },
+      {
+        name: "by",
+        type: { enum: KEYWORD_NAMES },
+        offCard:
+          "the keyword whose skill does the switching — [Alliance]'s rest-as-cost (22-32-3) is the moment \"switched to Rest Mode by an [Alliance] skill\" and not \"…by one of your skills\" (1-10); left out, the switch is the skill's own",
+      },
+    ],
+    sentence: "switch {target} to {mode} mode{by? by a [{by}] skill}",
+  },
   skip: {
     fields: [
       { name: "what", type: { enum: SKIP_WHATS }, required: true },

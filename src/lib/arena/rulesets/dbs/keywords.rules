@@ -491,16 +491,15 @@ DEFINE KEYWORD Alliance
   -- and only then is the printed effect announced and run, with the rested
   -- cards bound as `rested` — "the total power of the cards switched to Rest
   -- Mode by this skill" reads them (`printedEffect`). Declined, nothing
-  -- happens. The legacy engine also pends "when this card is switched to
-  -- Rest Mode by an [Alliance] skill" on each rested card; this engine fires
-  -- no `modeSwitched` moment that says what did the switching (`by:`), so
-  -- that trigger, like `restedBySkill`, does not answer here yet.
+  -- happens. Each rested card answers "when this card is switched to Rest
+  -- Mode by an [Alliance] skill" and not "…by one of your skills", as on the
+  -- legacy engine: the switch names the keyword (`by: Alliance`, #157).
   at: [attacks]
   DO {
     if(cond: inBattle(sel: [self], role: attacker), then: {
       choose(sel: UP TO 99 (colors = $colors) IN you.battle active otherThanSelf, as: "rested", reason: "[Alliance]: Battle Cards to switch to Rest Mode, or none")
       if(cond: count(FROM $rested) >= 1, then: {
-        switchMode(target: $rested, mode: rest)
+        switchMode(target: $rested, mode: rest, by: Alliance)
         printedEffect()
       })
     })

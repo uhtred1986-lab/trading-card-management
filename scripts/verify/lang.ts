@@ -236,6 +236,8 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     ],
     "printedEffect after [Alliance]'s cost",
   );
+  // #157: the switch that names its keyword — [Alliance]'s rest-as-cost.
+  tripOps([{ op: "switchMode", target: { var: "rested" }, mode: "rest", by: "Alliance" }], "switchMode by a keyword's skill");
 
   // A counted, conditional prohibition (20-14): the schema loop above already
   // builds a maximal `forbid`, but it builds one generic value per field type.

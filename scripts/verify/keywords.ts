@@ -409,13 +409,9 @@ if (
   assertConsistentG(s);
 }
 
-if (
-  !notYetGap(
-    "RESTWATCH/RESTER: \"switched to Rest Mode by one of your skills\" (1-10)",
-    "checked directly rather than trusted: the watcher's [Auto] does not pend on the rules engine when a skill program switches another card to Rest Mode — the trigger-moment pattern this wording compiles to is not yet one `dbs/triggers.rules` matches the same way `moveTo`'s own moments are",
-    "no issue filed yet",
-  )
-) {
+// Both engines since #157: the rules engine's switch says what switched it
+// (`modeSwitched(by: …)`, `vm/host.ts`'s `setMode`).
+{
   // 1-10: "when this card is switched to Rest Mode by one of your skills" —
   // your skill and your card, so an opponent resting it is a different moment
   // and this does not fire.
@@ -429,6 +425,26 @@ if (
   assert.equal(s.cards[watcher].mode, "rest");
   assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "one played, one drawn by the rested card");
   assertConsistentG(s);
+
+  // The other end: your skill resting one of *their* Battle Cards is watched
+  // by your cards in play ("when your skill switches your opponent's Battle
+  // Card to Rest Mode"), and is not the rested card's own "by one of your
+  // skills" — the skill is not its master's.
+  DEFS.THEIRWATCH = { ...DEFS.V1, id: "THEIRWATCH", name: "THEIRWATCH", skill: "[Auto] When your skill switches your opponent's Battle Card to Rest Mode, draw 1 card." };
+  DEFS.THEIRRESTER = { ...DEFS.V1, id: "THEIRRESTER", name: "THEIRRESTER", energyCost: 1, skill: "[Auto] When you play this card, switch up to 1 of your opponent's Battle Cards to Rest Mode." };
+  let t = arenaG({ hand: ["THEIRRESTER"], battle: ["THEIRWATCH"], energy: ["V1"], oppBattle: ["RESTWATCH"] });
+  const theirs = zoneOf(t, "p2", "battle")[0];
+  const mine = zoneOf(t, "p1", "hand").length;
+  const oppHand = zoneOf(t, "p2", "hand").length;
+  t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "THEIRRESTER") });
+  t = playG(t, { type: "choose", player: "p1", cards: [theirs] });
+  assert.equal(t.cards[theirs].mode, "rest");
+  assert.equal(zoneOf(t, "p1", "hand").length, mine - 1 + 1, "the watcher of your skill draws");
+  assert.equal(zoneOf(t, "p2", "hand").length, oppHand, "the rested card's own 'by one of your skills' does not fire: the skill is not its master's");
+  assertConsistentG(t);
+  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  delete DEFS.THEIRWATCH;
+  delete DEFS.THEIRRESTER;
 }
 
 if (
@@ -953,6 +969,23 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   assert.equal(zoneOf(s, "p1", "hand").length, hand + 1, "then draw 1 card");
   assert.equal(s.prompt.kind, "combo");
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+
+  // 22-32-3: a card rested as [Alliance]'s cost answers "switched to Rest
+  // Mode by an [Alliance] skill" — and not "…by one of your skills", which
+  // the legacy engine's own [Alliance] case never pends (#157).
+  DEFS.ALLYWATCH = { ...DEFS.GRN, id: "ALLYWATCH", name: "ALLYWATCH", skill: "[Auto] When this card is switched to Rest Mode by an [Alliance] skill, draw 1 card." };
+  DEFS.SKILLWATCH = { ...DEFS.GRN, id: "SKILLWATCH", name: "SKILLWATCH", skill: "[Auto] When this card is switched to Rest Mode by one of your skills, draw 1 card." };
+  let r = arenaG({ battle: ["ALLY", "ALLYWATCH", "SKILLWATCH"], oppBattle: ["BIG"] });
+  const [ally2, allyWatch, skillWatch] = zoneOf(r, "p1", "battle");
+  r.cards[zoneOf(r, "p2", "battle")[0]].mode = "rest";
+  const before = zoneOf(r, "p1", "hand").length;
+  r = playG(r, { type: "attack", player: "p1", attacker: ally2, target: zoneOf(r, "p2", "battle")[0] });
+  r = playG(r, { type: "choose", player: "p1", cards: [allyWatch] }, { type: "choose", player: "p1", cards: [skillWatch] });
+  assert.equal(r.cards[skillWatch].mode, "rest");
+  assert.equal(zoneOf(r, "p1", "hand").length, before + 2, "[Alliance]'s own draw, and the [Alliance] watcher's — not the other one's");
+  assertConsistentG(r);
+  delete DEFS.ALLYWATCH;
+  delete DEFS.SKILLWATCH;
   assert.ok(zoneOf(s, "p2", "drop").includes(big), "10000 + (10000 + 15000) beats 25000");
   // 8-5: "for the battle" ends with it — on the rules engine too since #154.
   assert.equal(powerOfG(s, ally), 10000, "the power gained for the battle is gone once it ends");

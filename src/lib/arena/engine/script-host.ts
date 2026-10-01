@@ -179,8 +179,13 @@ export interface ScriptHost {
   ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced">): void;
   /** 23-2: put a card under another. */
   placeUnder(id: string, host: string): boolean;
-  /** 1-10: switch a card's mode. Returns whether it moved. */
-  setMode(id: string, mode: Mode): boolean;
+  /**
+   * 1-10: switch a card's mode. Returns whether it moved. `by` is the skill
+   * doing it when a program does, with the keyword whose skill it is (#157):
+   * the rules engine fires "…by one of your skills" off it, where the legacy
+   * engine pends that moment by name and ignores it.
+   */
+  setMode(id: string, mode: Mode, by?: { card: string; master: PlayerId; keyword?: KeywordSkill["name"] }): boolean;
   /** 3-9-2-1: turn a card face up or face down where it stands. */
   setFaceUp(id: string, faceUp: boolean): void;
   /** 23-5: switch a Battle Card between Hidden and Revealed Mode. */
