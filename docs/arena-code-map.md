@@ -176,9 +176,13 @@ the same as if it were still in `CLAUDE.md`.
   both come from. One gap was named rather than charged as nothing: the amounts of marker, life and
   20-19's payWith are all bound from a skill's own line by an activation (#147, and payWith #149),
   so a price named by an action that binds nothing is refused by name rather than charged as free.
-  `payWith` here is the record's own per-price form — a [Permanent]'s whole-board grant of the same
-  permission (BT3-039, "you can use this card to pay energy costs…") is still unread on this engine
-  (`vm/effects.ts`'s `DEFERRED_STATICS`), and no card yet compiles to the per-price form itself.
+  `payWith` here is the record's own per-price form; a [Permanent]'s whole-board grant of the same
+  permission (BT3-039, "you can use this card to pay energy costs…") is a standing `payer` static
+  that `vm/costs.ts`'s `payersFor` adds to every energy price, and 5-3's printed alternative price
+  ("…without paying its energy cost") a standing `altCost` that `altCostFor` offers as a second
+  `play` candidate (`DEFINE ACTION play`'s `alt: "play"`) — both since #148, and no card yet
+  compiles to the per-price form itself. [Burst X] is `DEFINE COST burst` (cards off the top of the
+  deck, bound from the line's tag) and a skill line's own orbs have one reduction layer, `skillOrbs`.
   **20-21's reductions are read, and read as layers** (#148 Build 2): `permanents` reads the
   `costReduction` op out of a [Permanent] — which could only matter once a card could be put in
   play (#146) — and `attributes.rules` declares `costOf` as `[printed, reduction]` and

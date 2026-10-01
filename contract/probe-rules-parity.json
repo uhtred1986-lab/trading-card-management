@@ -207,11 +207,10 @@
       "digest": "e9b44d26"
     },
     "rules": {
-      "outcome": "notOffered",
-      "digest": "7e284eb6"
+      "outcome": "fired",
+      "digest": "e9b44d26"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "BUUEAT#0": {
     "legacy": {

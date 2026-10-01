@@ -75,12 +75,14 @@
  * nothing read at request time.
  */
 import type { EngineContext, GameEvent, ActionCost, Payer, Payment } from "../engine";
-import type { Color, PlayerId, Requirement } from "../engine/types";
+import type { AltCost } from "../engine/state";
+import type { Color, PlayerId, Requirement, Skill } from "../engine/types";
 import type { Op, Selector } from "../engine/script";
 import type { CostAsks, CostConsumes } from "../lang";
 import type { ActionDef, CostDef, GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
-import { attrsNow } from "./program";
+import type { PayerGrant } from "./effects";
+import { attrsNow, staticsNow } from "./program";
 import { NotYet, RulesetBroken } from "./errors";
 import { SETUP_ZONES, moved } from "./flow";
 import { log } from "./events";
@@ -117,7 +119,12 @@ export interface Charge {
    */
   amount: string | null;
   asks: CostAsks;
-  from: { side: string; area: string; mode?: string } | null;
+  /**
+   * The pool, read off the op's target: which side's zone, in which mode, and
+   * which end the cards come off — `fromEnd` for the far end, last placed
+   * first (5-4's Z-Energy), and the top otherwise (22-27's deck).
+   */
+  from: { side: string; area: string; mode?: string; fromEnd?: boolean } | null;
   does: Op | null;
 }
 
@@ -151,12 +158,16 @@ function chargeOf(game: GameDefinition, name: string, def: CostDef): Charge {
     throw new RulesetBroken(game.id, `DEFINE COST ${JSON.stringify(name)} reads its amount off ${JSON.stringify(def.amount)}, which is not an attribute a card has`);
   }
   const from = poolOf(game, name, does);
-  // A price that takes *so many* of something has to say how many, and the only
-  // place the number can come from is the card being paid for. Without it the
-  // amount would read as zero and the move would be taken for free, which is
-  // the one outcome this whole module exists to prevent — so it is refused when
-  // the game is made rather than the first time a card asks for it.
-  if (def.amount === undefined && (def.consumes === "energy" || (def.consumes === "cards" && from))) {
+  // An energy price has to say how many, and the only place the number can
+  // come from is the card being paid for. Without it the amount would read as
+  // zero and the move would be taken for free, which is the one outcome this
+  // whole module exists to prevent — so it is refused when the game is made
+  // rather than the first time a card asks for it. A `cards` price out of a
+  // pool may name no attribute (22-27's [Burst X] is printed on a skill line,
+  // not on the card): its amount is then *bound* by the move that names it,
+  // and `priceFor` refuses by name a move that binds nothing, exactly as it
+  // refuses an unbound `marker` or `life`.
+  if (def.amount === undefined && def.consumes === "energy") {
     throw new RulesetBroken(game.id, `DEFINE COST ${JSON.stringify(name)} takes ${def.consumes} and names no amount:, so a move asking for it would be charged nothing`);
   }
   return { name, consumes: def.consumes, amount: def.amount ?? null, asks: def.asks ?? "nothing", from, does };
@@ -172,7 +183,7 @@ function poolOf(game: GameDefinition, name: string, op: Op | null): Charge["from
   const sel = target && "sel" in target ? target.sel : undefined;
   if (!sel || sel.area === undefined) return null;
   if (!game.zones[sel.area]) throw new RulesetBroken(game.id, `the price ${name} is paid out of ${JSON.stringify(sel.area)}, which nothing declares`);
-  return { side: sel.side ?? "you", area: sel.area, ...(sel.mode === undefined ? {} : { mode: sel.mode }) };
+  return { side: sel.side ?? "you", area: sel.area, ...(sel.mode === undefined ? {} : { mode: sel.mode }), ...(sel.fromEnd ? { fromEnd: true } : {}) };
 }
 
 // ── the price of one move ───────────────────────────────────────────────────
@@ -214,13 +225,15 @@ export interface Price {
   unpriced: string | null;
 }
 
-/** One price paid out of a declared place: which cards, and how many (5-4). */
+/** One price paid out of a declared place: which cards, and how many (5-4, 22-27). */
 export interface PooledPrice {
   /** The `DEFINE COST` that takes them, so the charge does to them what that declaration's `DO` says. */
   cost: string;
   side: string;
   area: string;
   n: number;
+  /** Off the far end of the pool rather than the top — the declaration's `fromEnd`. */
+  fromEnd?: boolean;
 }
 
 /** A price of nothing — what a move with no `COST` costs, and the value every reading is built up from. */
@@ -261,12 +274,21 @@ export interface BoundAmounts {
    * something to fill it in from a record rather than from nothing. An
    * activation reads it off the record's own `payWith` (`vm/activate.ts`'s
    * `boundFor`), scoped to the skill whose price carries it — never off a
-   * [Permanent]'s standing grant, which is `DEFERRED_STATICS`' `payWith` and a
-   * wider reading `permanents` does not make yet. Absent (not an empty array)
+   * [Permanent]'s standing grant, which is no one price's and is added to
+   * every energy price by `payersFor` instead (#148). Absent (not an empty array)
    * is "nothing bound this price", which is what leaves the `unread` `NotYet`
    * for a caller that names `payWith` and binds nothing.
    */
   payers?: Payer[];
+  /**
+   * `consumes: cards` out of a declared pool whose declaration names no
+   * `amount:` — 22-27's [Burst X], printed on one skill line rather than on the
+   * card — keyed by the **pool** the declaration's `DO` takes them from, never
+   * by its name. A pool left out is a price with nothing bound to it, which
+   * `priceFor` refuses by name; a pool bound to 0 is a line that pays nothing
+   * out of it.
+   */
+  pooled?: Partial<Record<string, number>>;
   /** `consumes: unreadable` — the printed price, or `null` for a price this engine can charge after all. */
   unreadable?: string | null;
 }
@@ -307,17 +329,25 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
           // stand. An activation binds them from the record's own `payWith`
           // (`vm/activate.ts`'s `boundFor`, the #147 precedent); a caller that
           // names this price and binds nothing is refused by name rather than
-          // charged as nothing — the [Permanent] standing-grant reading
-          // (`DEFERRED_STATICS`' wider `payWith`) is still such a caller.
+          // charged as nothing. A [Permanent]'s standing grant is not bound
+          // here at all: it is every energy price's (`payersFor`, #148).
           if (!bound?.payers) {
             throw new NotYet(`charge the price ${name}, whose cards are named by the skill asking for it and have nothing to bind them to`, "#149");
           }
           price.payers.push(...bound.payers);
           break;
         }
-        const read = card === null ? null : amountOn(ctx, game, state, charge, card);
+        // 22-27: a pool whose amount is the *line's* — [Burst X] — is bound by
+        // the move, keyed by the pool; one read off the card is the
+        // declaration's `amount:` (5-4's Z-Energy). Neither is a price taken
+        // for nothing.
+        const bind = bound?.pooled?.[charge.from.area];
+        if (bind === undefined && charge.amount === null) {
+          throw new NotYet(`charge the price ${name}, whose amount is on the skill line asking for it and has nothing to bind it to`, "#148");
+        }
+        const read = bind !== undefined ? { total: bind } : card === null ? null : amountOn(ctx, game, state, charge, card);
         if (read && read.total === null) price.unpriced = charge.name;
-        if (read?.total) price.pooled.push({ cost: charge.name, side: charge.from.side, area: charge.from.area, n: read.total });
+        if (read?.total) price.pooled.push({ cost: charge.name, side: charge.from.side, area: charge.from.area, n: read.total, ...(charge.from.fromEnd ? { fromEnd: true } : {}) });
         break;
       }
       case "mode":
@@ -536,8 +566,9 @@ export function planCost(ctx: EngineContext, game: GameDefinition, state: VmStat
     life: price.life ? lifeZone.slice(0, price.life) : [],
     // 5-4: the Z-Energy is spent from the end of the pile, one at a time, which
     // is the order the legacy `payZEnergy` takes it in and therefore the order
-    // the Drop Area ends up in.
-    pooled: price.pooled.map((p) => ({ cost: p.cost, cards: poolCards(state, player, p).slice(-p.n).reverse() })),
+    // the Drop Area ends up in — the declaration's `fromEnd`. 22-27's [Burst]
+    // takes the top of the deck, first card first, as `payKeywordCosts` does.
+    pooled: price.pooled.map((p) => ({ cost: p.cost, cards: p.fromEnd ? poolCards(state, player, p).slice(-p.n).reverse() : poolCards(state, player, p).slice(0, p.n) })),
     restsSelf: price.rest,
   };
   const charges = chargesOf(game);
@@ -569,7 +600,10 @@ function whyNot(ctx: EngineContext, game: GameDefinition, state: VmState, player
   if (price.unpriced !== null) return [{ kind: "other", detail: `the amount of the price ${price.unpriced} has not been named` }];
 
   const active = activeEnergy(game, state, player);
-  const extra = price.payers.filter((x) => !active.includes(x.id));
+  // 20-19: a card that may stand in for energy is energy for the purpose of
+  // this count — the price's own and every one a rule puts in force for the
+  // whole board — or the refusal says "1 short" of a price the menu offers.
+  const extra = payersFor(ctx, game, state, player, price.payers).filter((x) => !active.includes(x.id));
   const colours = new Map(extra.map((x) => [x.id, x.colors]));
   const pool = extra.length ? [...active, ...extra.map((x) => x.id)] : active;
   const markers = Number(state.sides[player].attrs.energyMarkers ?? 0);
@@ -644,7 +678,7 @@ function payEnergy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   if (orbCount(price.orbs) > price.energy) return null;
 
   const energy = activeEnergy(game, state, player);
-  const extra = price.payers.filter((x) => !energy.includes(x.id));
+  const extra = payersFor(ctx, game, state, player, price.payers).filter((x) => !energy.includes(x.id));
   const colours = new Map(extra.map((x) => [x.id, x.colors]));
   const all = extra.length ? [...energy, ...extra.map((x) => x.id)] : energy;
   const markersLeft = Number(state.sides[player].attrs.energyMarkers ?? 0);
@@ -723,7 +757,7 @@ export function paymentOptions(ctx: EngineContext, game: GameDefinition, state: 
   const markersLeft = Number(state.sides[player].attrs.energyMarkers ?? 0);
   const leader = leaderColors(ctx, game, state, player);
   const energy = activeEnergy(game, state, player);
-  const extra = price.payers.filter((x) => !energy.includes(x.id));
+  const extra = payersFor(ctx, game, state, player, price.payers).filter((x) => !energy.includes(x.id));
   const colours = new Map(extra.map((x) => [x.id, x.colors]));
   const colorsOf = (id: string) => colours.get(id) ?? cardColors(ctx, game, state, id);
   const byColors = new Map<string, string[]>();
@@ -857,7 +891,12 @@ export function chargeCost(
         }
         const to = (charge.does as { to?: string } | null)?.to;
         if (!to) throw new RulesetBroken(state.game, `the price ${name} takes cards out of the ${charge.from.area} and says nowhere to put them`);
-        for (const id of payment.pooled.find((x) => x.cost === name)?.cards ?? []) moved(ctx, game, state, ev, id, to, { owner: player, asPlay: false });
+        // A card paid out of a pool nobody can see (22-27's deck) is shown as
+        // it goes, which is what the shared `move` event's `reveal` says; one
+        // out of an open pool (5-4's Z-Energy) was never hidden. Read off the
+        // zone's declared visibility, never off the price's name.
+        const reveal = game.zones[charge.from.area]?.visibility === "all" ? {} : { reveal: true };
+        for (const id of payment.pooled.find((x) => x.cost === name)?.cards ?? []) moved(ctx, game, state, ev, id, to, { owner: player, asPlay: false, ...reveal });
         break;
       }
       case "markers": {
@@ -901,6 +940,201 @@ function setMode(state: VmState, ev: GameEvent[], id: string, mode: string): voi
   if (!inst || inst.mode === mode) return;
   inst.mode = mode;
   if (mode === "active" || mode === "rest") log(ev, { type: "mode", card: id, mode });
+}
+
+// ── who may pay, and at what (20-19, 4-3-3, 5-3) ─────────────────────────────
+
+/**
+ * The cards this player may pay an energy price with from outside the Energy
+ * Area right now (20-19) — the legacy `payersFor`, source for source.
+ *
+ * Two sources a rule puts in force for the **whole board**, read for every
+ * energy price rather than bound to one: a [Permanent] saying it of a card
+ * (`kind: "payer"`, collected by `permanents` while the card is in play) and a
+ * resolved skill granting it for a span (`state.effects`, the same kind). Then
+ * `extra`, the payers *this price* names for itself (`BoundAmounts.payers`),
+ * whose colours are already settled and are kept rather than re-read.
+ *
+ * A payer is rested exactly as an energy card is, so it has to be the
+ * player's own and in the mode the declared energy price takes cards in
+ * (5-3-3), and a card already in the Energy Area is counted there instead.
+ */
+export function payersFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, extra: Payer[] = []): Payer[] {
+  const energy = Object.values(chargesOf(game)).find((c) => c.consumes === "energy")?.from ?? null;
+  const out: Payer[] = [];
+  const seen = new Set<string>();
+  const add = (id: string, as: "energy" | Color) => {
+    const inst = state.cards[id];
+    if (!inst || seen.has(id)) return;
+    if (inst.owner !== player || (energy?.mode !== undefined && inst.mode !== energy.mode)) return;
+    if (energy && zoneOf(state, id) === energy.area) return;
+    seen.add(id);
+    out.push({ id, colors: as === "energy" ? cardColors(ctx, game, state, id) : [as] });
+  };
+  for (const e of state.effects) if (e.kind === "payer" && e.target) add(e.target, e.payAs ?? "energy");
+  for (const e of staticsNow(ctx, game, state)) if (e.kind === "payer" && e.target) add(e.target, (e.value as PayerGrant).payAs);
+  for (const x of extra) add(x.id, x.colors[0] ?? "energy");
+  for (const x of extra) {
+    const at = out.find((o) => o.id === x.id);
+    if (at) at.colors = x.colors;
+  }
+  return out;
+}
+
+/**
+ * One skill line's own orbs, after every change in force to them (4-3-3) — the
+ * legacy `orbTotals`, change for change.
+ *
+ * A line's price is printed in front of the line and belongs to no card
+ * attribute, so no declared `layers:` reach it; this is its one reduction
+ * layer, read where the line's price is bound (`vm/activate.ts`'s `boundFor`)
+ * and nowhere else. The changes are a [Permanent]'s standing ones first, then
+ * the ones a resolved skill put in force for a span, each scoped to a kind of
+ * line (`skillKind`, "your [Activate: Main] skills") or to every line. A change
+ * that names a colour takes that colour's orb off, or an either-orb carrying
+ * it; one that names none (`{1}`) takes the first coloured orb, then an
+ * either-orb, then a colourless one — and a change with nothing left to take
+ * does nothing, which is 20-21-2's floor for an orb price. A negative change
+ * adds orbs the same way round.
+ */
+export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill): { total: number; orbs: Partial<Record<Color, number>>; either: Color[][] } {
+  const orbs: Partial<Record<Color, number>> = {};
+  let total = 0;
+  for (const [key, n] of Object.entries(sk.energyCost)) {
+    if (!n) continue;
+    total += n;
+    // "{1}" is an orb of no colour (1-2-3): part of the total, asking for no
+    // colour, which is what `any` means and what the planner counts by total.
+    if (key !== "any") orbs[key as Color] = (orbs[key as Color] ?? 0) + n;
+  }
+  // 22-13: "{r}/{u}" is one orb payable with either, and one energy of the total.
+  const either = sk.energyEither.map((one) => [...one]);
+  total += either.length;
+  const generic = { n: Math.max(0, total - orbCount(orbs) - either.length) };
+  const applies = (kind: string | undefined) => !kind || sk.kind.startsWith(kind);
+  const changes = [
+    ...staticsNow(ctx, game, state).filter((e) => e.kind === "skillCost" && e.target === card && applies(e.skillKind)),
+    ...state.effects.filter((e) => e.kind === "skillCost" && e.target === card && applies(e.skillKind)),
+  ];
+  for (const e of changes) {
+    const by = e.value as number;
+    if (!Number.isFinite(by) || by === 0) continue;
+    const colours = e.colors?.length ? e.colors : null;
+    if (by > 0) {
+      for (let i = 0; i < by; i++) {
+        const want = colours?.[i % colours.length];
+        const cut = !want || want === "any" ? takeAnyOrb(orbs, either, generic) : takeColourOrb(orbs, either, want);
+        if (cut) total = Math.max(0, total - 1);
+      }
+      continue;
+    }
+    for (let i = 0; i < -by; i++) {
+      const want = colours?.[i % colours.length];
+      total += 1;
+      if (!want || want === "any") generic.n += 1;
+      else orbs[want] = (orbs[want] ?? 0) + 1;
+    }
+  }
+  return { total, orbs, either };
+}
+
+/** One orb of no named colour off a line's price: the first coloured one, then an either-orb, then a colourless one. The legacy `reduceAnyOrb`. */
+function takeAnyOrb(orbs: Partial<Record<Color, number>>, either: Color[][], generic: { n: number }): boolean {
+  const c = (Object.keys(orbs) as Color[]).find((k) => (orbs[k] ?? 0) > 0);
+  if (c) {
+    orbs[c] = orbs[c]! - 1;
+    if (!orbs[c]) delete orbs[c];
+    return true;
+  }
+  if (either.length) {
+    either.pop();
+    return true;
+  }
+  if (generic.n > 0) {
+    generic.n--;
+    return true;
+  }
+  return false;
+}
+
+/** One orb of this colour off a line's price, or an either-orb that could have been paid with it. The legacy `reduceColorOrb`. */
+function takeColourOrb(orbs: Partial<Record<Color, number>>, either: Color[][], colour: Color): boolean {
+  if ((orbs[colour] ?? 0) > 0) {
+    orbs[colour] = orbs[colour]! - 1;
+    if (!orbs[colour]) delete orbs[colour];
+    return true;
+  }
+  const at = either.findIndex((pick) => pick.includes(colour));
+  if (at < 0) return false;
+  either.splice(at, 1);
+  return true;
+}
+
+/**
+ * The other price this card may be bought at for this kind of move, when it
+ * has one the player can meet right now (5-3) — the legacy `altCostFor`,
+ * candidate for candidate.
+ *
+ * Two sources, read together the way `payersFor` reads its own: a card's
+ * [Permanent] about itself (collected by `permanents`, read in the hand
+ * because that is where it applies) and a resolved skill granting it for a
+ * span (`state.effects`, `altCost` on the effect). `which` is the move the
+ * price is for — the record's own `for:` word, `play` or `counter`, which is
+ * the declaration's `alt:` (`DEFINE ACTION play`).
+ *
+ * Three prices are met by what is on the board: none at all, life (that many
+ * cards in it), and a smaller energy price (`orbs`, planned the way any other
+ * energy price is). An action price (`program`) is never an offer for a play —
+ * the legacy engine's play sites pay inline and have nowhere to ask — and a
+ * [Counter]'s, the one move that charges one, is the counter window's (#150);
+ * so it is refused here rather than waived. 22-37's [Invoker] is a keyword's
+ * own body and Stage 7's (#156).
+ */
+export function altCostFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId, which: string): AltCost | null {
+  const candidates: AltCost[] = [];
+  for (const e of state.effects) if (e.kind === "altCost" && e.target === card && e.altCost) candidates.push(e.altCost);
+  for (const e of staticsNow(ctx, game, state)) if (e.kind === "altCost" && e.target === card) candidates.push(e.value as AltCost);
+  for (const alt of candidates) {
+    if ((alt.for ?? "counter") !== which) continue;
+    if (alt.pay === "life" && (state.sides[player].zones[SETUP_ZONES.life] ?? []).length < alt.n) continue;
+    if (alt.pay === "energy" && !planCost(ctx, game, state, player, altEnergy(alt), null).ok) continue;
+    if (alt.pay === "program" || alt.pay === "invoker") continue;
+    return alt;
+  }
+  return null;
+}
+
+/** A `pay: "energy"` alternative as the energy price it is: that many orbs, the coloured ones asked for by colour. */
+function altEnergy(alt: AltCost): Price {
+  const orbs: Partial<Record<Color, number>> = {};
+  for (const o of alt.orbs ?? []) if (o !== "any") orbs[o] = (orbs[o] ?? 0) + 1;
+  return { ...freePrice(), energy: (alt.orbs ?? []).length, orbs };
+}
+
+/**
+ * Pay the alternative instead of the printed price — the legacy `payAltCost`,
+ * event for event. Nothing for a waiver; the energy it names, planned and
+ * rested as any energy price is; or that many cards from the top of life to
+ * the hand (1-13-2: adding life to the hand is not damage).
+ */
+export function payAltCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, alt: AltCost): void {
+  if (alt.pay === "none") return;
+  if (alt.pay === "energy") {
+    const plan = planCost(ctx, game, state, player, altEnergy(alt), null);
+    if (!plan.ok) throw new RulesetBroken(state.game, "an alternative price that was offered can no longer be paid");
+    const energy = Object.values(chargesOf(game)).find((c) => c.consumes === "energy");
+    if (energy) chargeCost(ctx, game, state, ev, player, plan.payment, null, [energy.name]);
+    return;
+  }
+  if (alt.pay === "life") {
+    for (let i = 0; i < alt.n; i++) {
+      const top = (state.sides[player].zones[SETUP_ZONES.life] ?? [])[0];
+      if (!top) throw new RulesetBroken(state.game, "an alternative price in life that was offered can no longer be paid");
+      moved(ctx, game, state, ev, top, SETUP_ZONES.hand, { owner: player });
+    }
+    return;
+  }
+  throw new NotYet(`pay the alternative price ${alt.pay}`, "#150");
 }
 
 // ── reading the board ───────────────────────────────────────────────────────
