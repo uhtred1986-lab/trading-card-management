@@ -63,6 +63,7 @@ import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, P
 import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
 import { tokenCardId } from "./common";
+import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow } from "./battle";
 import { RulesetBroken } from "./errors";
 import { savedXKey } from "./script";
@@ -461,7 +462,7 @@ function faceOf(ctx: EngineContext, state: VmState, id: string): CardDef {
   const def = inst ? ctx.defs[inst.cardId] : undefined;
   if (!def) throw new Error(`unknown card ${id}`);
   if (!inst.flipped || !def.back) return def;
-  return { ...def, ...def.back, back: def.back };
+  return { ...def, ...def.back, characters: backCharactersOf(def), back: def.back };
 }
 
 /**

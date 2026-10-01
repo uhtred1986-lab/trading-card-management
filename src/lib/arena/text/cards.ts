@@ -562,6 +562,91 @@ export function canCombo(def: CardDef): boolean {
   return baseType(def) === "BATTLE" && def.comboCost != null && def.comboPower != null && def.comboCost >= 0 && def.comboPower >= 0;
 }
 
+/**
+ * The words a card name puts in front of a character to say which form it is
+ * in — "SS Gogeta", "SSB Kaio-Ken Son Goku", "Great Ape Son Gohan" — which are
+ * part of the card name (2-2) and not of the character's (2-10). Matched as
+ * whole words from the front of the phrase, any number of them in a row.
+ */
+const FORM_WORDS = /^(?:(?:SS(?:GSS|[234BG])?|SS Rose|Rose|Super Saiyan(?: (?:God(?: Super Saiyan)?|Blue|Rose|[234]))?|Golden|Great Ape|Ultra Instinct|Kaio-Ken|Full-Power)\s+)+/i;
+
+/** "Son Goku: GT" → { base: "Son Goku", era: ": GT" }; a name with no era has an empty one. */
+function splitEra(character: string): { base: string; era: string } {
+  const m = /^(.*?)(\s*:\s*\S.*)$/.exec(character);
+  return m ? { base: m[1].trim(), era: m[2].replace(/^\s*:\s*/, ": ") } : { base: character.trim(), era: "" };
+}
+
+const backCharactersCache = new WeakMap<CardDef, string[]>();
+
+/**
+ * 1-9, 2-10: the character names a Leader's **back side** carries.
+ *
+ * The catalog records a card's characters once, off the front (the feed's
+ * `card_character`; there is no back-side column), so the back's are read off
+ * the back side's own name. A Leader's card name is the character's name with
+ * the form in front and the epithet after the last comma —
+ * "SS Gogeta, Situation Reversal Fusion" is <Gogeta>, "Son Goku, Pan, &
+ * Trunks, Space Adventurers" is <Son Goku>, <Pan> and <Trunks> — so the reading
+ * is: drop the epithet, split the people on "&", "," and "and", and for each
+ * one take
+ *   - a front character the phrase contains as whole words ("SS Son Goku" →
+ *     <Son Goku>), era and all, since the back of a <Son Goku: GT> Leader is
+ *     still that Son Goku;
+ *   - otherwise the phrase with its form words (`FORM_WORDS`) taken off the
+ *     front ("SSB Vegito" → <Vegito>), which carries the front's era only when
+ *     every front character shares it and there are two or more — the fusion
+ *     of <Son Goku: GT> and <Vegeta: GT> is <Gogeta: GT>, while the partner
+ *     Android 18 beside a lone <Son Goku: GT> is not <Android 18: GT>.
+ * A name with no comma has no epithet to tell the character from, so there a
+ * phrase is read only when it is one of those two; "Miracle Strike Gogeta"
+ * is neither, and is left alone rather than guessed at.
+ * Pure and read once per definition, like `skillsOf`. Empty for a card with
+ * no back; a back whose name reads to nothing keeps the front's characters,
+ * which is what was read before this existed.
+ */
+export function backCharactersOf(def: CardDef): string[] {
+  if (!def.back?.name) return [];
+  const cached = backCharactersCache.get(def);
+  if (cached) return cached;
+  const name = def.back.name.replace(/[\u3000\s]+/g, " ").trim();
+  const comma = name.lastIndexOf(", ");
+  const front = def.characters.map(splitEra);
+  const eras = [...new Set(front.map((f) => f.era))];
+  const sharedEra = front.length >= 2 && eras.length === 1 ? eras[0] : "";
+  /**
+   * One phrase's characters, and whether any of them is one the front carries.
+   * `bare` is a phrase with no epithet beside it, where a person that is
+   * neither a front character nor a form word and a name is not read at all.
+   */
+  const read = (phrase: string, bare: boolean): { characters: string[]; known: boolean } => {
+    const characters: string[] = [];
+    let known = false;
+    for (const raw of phrase.split(/\s*,\s*&\s*|\s*&\s*|\s*,\s*|\s+and\s+/)) {
+      const person = raw.replace(/\s+Returns$/i, "").trim();
+      if (!person) continue;
+      const words = ` ${person.toLowerCase()} `;
+      // Whole words, and not the start of a longer name: <Cell Jr.> is not
+      // <Cell> (2-10-1-1).
+      const holds = (base: string) => words.includes(` ${base} `) && !words.includes(` ${base} jr. `);
+      const same = front.filter((f) => f.base && holds(f.base.toLowerCase())).sort((x, y) => y.base.length - x.base.length)[0];
+      const bareName = person.replace(FORM_WORDS, "");
+      if (!same && bare && (bareName === person || !bareName)) continue;
+      const character = same ? same.base + same.era : (bareName || person) + sharedEra;
+      if (same) known = true;
+      if (!characters.some((c) => c.toLowerCase() === character.toLowerCase())) characters.push(character);
+    }
+    return { characters, known };
+  };
+  // The epithet is after the last comma — except on the few names printed the
+  // other way round ("Going All In, SSB Vegito"), which the front's own
+  // characters give away.
+  const title = read(comma > 0 ? name.slice(0, comma) : name, comma < 0);
+  const tail = comma > 0 && !title.known ? read(name.slice(comma + 2), false) : null;
+  const result = tail?.known ? tail.characters : title.characters.length ? title.characters : def.characters;
+  backCharactersCache.set(def, result);
+  return result;
+}
+
 /** Character names are `<Name>` in text; a card "has" a character when it is in `characters`. */
 export function hasCharacter(def: CardDef, name: string): boolean {
   const n = name.toLowerCase();

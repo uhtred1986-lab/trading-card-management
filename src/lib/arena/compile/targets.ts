@@ -4,6 +4,36 @@ import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
 
 // ── target phrases ─────────────────────────────────────────────────────────
 
+/** 9-1-3-2: the area words "this card from your …" names, as the areas a `self` selector carries. */
+const SELF_FROM: Record<string, ScriptArea> = { hand: "hand", drop: "drop", deck: "deck", life: "life", warp: "warp", energy: "energy", combo: "combo", "z-deck": "zDeck", "z-energy": "zEnergy" };
+
+/** One area word "this card from …" may name. */
+const SELF_AREA = "(hand|drop(?: area)?|deck|life|warp|energy(?: area)?|combo area|z-deck|z-energy)";
+/**
+ * "this card [in Rest Mode | with N markers on it] from your|its owner's
+ * <area> [or (from) <area>]" — "our hand" is a misprint the feed carries
+ * (BT28-086, BT26-016) and is read as the hand it means.
+ */
+const SELF_FROM_RE = new RegExp(
+  `\\bthis card (?:in (?:rest|active) mode |with \\d+ markers? on it )?from (?:your|its owner's|our) ${SELF_AREA}(?: or (?:from )?(?:your |its owner's )?${SELF_AREA})?\\b`,
+  "i",
+);
+
+/**
+ * "This card", with the area the phrase takes it out of when it names one
+ * outside play (9-1-3-2) — `{ special: "self", area: "hand" }` for "play this
+ * card from your hand", `areas: ["hand", "warp"]` for "… from your hand or
+ * Warp". The one reading of it, for `parseTarget` and the effect compiler's
+ * `refFor` alike. "From under a Unison Card" names no area a skill is used
+ * from (the card is in another's pile, 23-2), and is left as it was.
+ */
+export function selfFrom(phrase: string): Selector {
+  const m = SELF_FROM_RE.exec(phrase);
+  if (!m) return { special: "self" };
+  const areas = [m[1], m[2]].filter((a): a is string => !!a).map((a) => SELF_FROM[a.toLowerCase().replace(/ area$/, "")]);
+  return areas.length === 1 ? { special: "self", area: areas[0] } : { special: "self", areas };
+}
+
 export const AREA_WORDS: [RegExp, ScriptArea][] = [
   // "In your opponent's Drop" was the one possessive this line did not admit —
   // `in your` matched, then `drop` did not follow — so "up to 1 Battle Card in
@@ -266,7 +296,17 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // this shortcut: BT1-086's "place all Rest Mode Battle Cards except for this
   // card in the Drop Area" came back as *self*, so the card dropped itself and
   // left every card it was aimed at standing.
-  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b|\bbesides\b/.test(t)) return { special: "self" };
+  if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b|\bbesides\b/.test(t)) {
+    // 9-1-3-2: "play this card **from your hand**", "discard this card from
+    // your hand", "place this card from your Z-Energy …" — the text names the
+    // area the card is taken out of, and the skill can only be used while the
+    // card is there. The area goes on the selector, so the record carries it:
+    // `resolveSelector` matches a named target only while it is in that area,
+    // and `usableFrom` (`vm/activate.ts`) reads it as where the line is used
+    // from, instead of 9-1-3-1's Battle Area. Only the areas outside play are
+    // read — "from your Battle Area" is 9-1-3-1's own answer already.
+    return selfFrom(t);
+  }
   if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one

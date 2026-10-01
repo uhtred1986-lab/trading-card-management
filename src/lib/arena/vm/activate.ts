@@ -81,7 +81,7 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
-import type { Cond, Script, ScriptFrame } from "./script";
+import type { Cond, Op, Script, ScriptFrame, Selector } from "./script";
 import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
@@ -443,8 +443,70 @@ export function activationRefusals(
   // match.
   // A keyword's own move says where it is used from in its own `REFUSE` lines
   // instead — [Evolve] from the hand (22-5-2), [Overlord] from the Battle Area.
-  if (at === ACTIVATION_ZONES.hand && !isExtra(ctx, game, state, card) && !line.keyword) after.push({ kind: "zone", card, area: "battle" });
+  // 9-1-3-2: a line whose own price or effect takes *this card* out of an area
+  // — "Draw 1 card and play this card from your hand" — is used from that
+  // area and nowhere else, read off the record (`usableFrom`), never the text.
+  // An Extra is used from the hand whatever its effect then does with it (4-2,
+  // 12-2-2), so it is not asked.
+  const from = line.keyword || isExtra(ctx, game, state, card) ? [] : usableFrom(line.script);
+  if (from.length) {
+    if (!from.includes(at as Area)) after.push({ kind: "zone", card, area: from[0] });
+  } else if (at === ACTIVATION_ZONES.hand && !isExtra(ctx, game, state, card) && !line.keyword) after.push({ kind: "zone", card, area: "battle" });
   return { before, after };
+}
+
+/** The ops that take a card out of the area it is in: a move, a play, a combo use, a KO (9-1-3-2's "play this card from your hand", "send this card from your Drop to your Warp"). */
+const MOVES_A_CARD = new Set<Op["op"]>(["moveTo", "play", "comboFrom", "ko"]);
+
+/**
+ * 9-1-3-2: the areas a line of this record is used from, when its own price
+ * or effect names one — empty for every other line, which 9-1-3-1 answers.
+ *
+ * Read off the record and nothing else: the **first** op of the line — its
+ * price first, then its effect — that moves *this card*, directly as its
+ * target or through the variable a `choose` of it binds. When that op's
+ * `self` selector names an area (`{ special: "self", area: "hand" }`, which
+ * the compiler writes for "this card from your hand", `compile/targets.ts`'s
+ * `selfFrom`), the line takes the card out of that area as it is used, and
+ * that is where it is used from ("from your hand or Warp" names two, either
+ * will do). Only the first, because a later move of the
+ * same card starts wherever the first one left it — "KO this card, then add
+ * this card from your Drop to your hand" is still used from the Battle Area.
+ * A selector that only *asks* where the card is ("if this card is in your
+ * hand") is a condition, not 9-1-3-2's area; a delayed program moves the card
+ * later, from wherever it then is. Neither is read.
+ */
+export function usableFrom(script: Script | undefined): Area[] {
+  if (!script) return [];
+  const out = new Set<Area>();
+  const bound = new Map<string, Area[]>();
+  /** The areas outside play a `self` selector names — empty for one naming none; `undefined` for a selector that is not this card. */
+  const selfArea = (sel: Selector | undefined): Area[] | undefined =>
+    sel?.special !== "self" ? undefined : ((sel.areas ?? (sel.area ? [sel.area] : [])).filter((a) => a !== "play" && a !== "under") as Area[]);
+  /** Walks one run of ops; true once this card has been moved in it. Branches are alternatives, each read up to its own first move. */
+  const walk = (ops: Op[]): boolean => {
+    for (const op of ops) {
+      if (op.op === "choose") {
+        const a = selfArea(op.sel);
+        if (a !== undefined) bound.set(op.as, a);
+      }
+      if (MOVES_A_CARD.has(op.op) && "target" in op && op.target) {
+        const a = "sel" in op.target ? selfArea(op.target.sel) : bound.get(op.target.var);
+        if (a !== undefined) {
+          for (const area of a) out.add(area);
+          return true;
+        }
+      }
+      let moved = false;
+      if (op.op === "if") moved = [walk(op.then), walk(op.else ?? [])].some(Boolean);
+      else if (op.op === "may") moved = walk(op.ops);
+      else if (op.op === "chooseMode") moved = op.modes.map((m) => walk(m.ops)).some(Boolean);
+      if (moved) return true;
+    }
+    return false;
+  };
+  if (!walk(script.price?.ops ?? [])) walk(script.ops);
+  return [...out];
 }
 
 /** 22-44-3: how many more times this line may be used this turn, or null for a line with no ceiling. The legacy `usesLeft`. */
