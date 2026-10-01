@@ -171,6 +171,40 @@ export function staticsNow(ctx: EngineContext, game: GameDefinition, state: VmSt
   return statics(ctx, game, state);
 }
 
+/**
+ * What one [Permanent] line of one card is putting on the board right now —
+ * the legacy `permanentStatics`, which the board reads to say whether the line
+ * is `on` or `off`. Null while the statics are already being read (the one
+ * level of recursion the guard allows); an empty list when the line is
+ * unreadable, negated, or the card is not in an area where its skills count.
+ * The line is found by its record's identity, so two [Permanent]s on one card
+ * are told apart even though a standing change carries no skill index.
+ */
+export function permanentStaticsOf(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, skillIndex: number): VmStatic[] | null {
+  if (readingStatics) return null;
+  const card = state.cards[id];
+  if (!card || card.hidden || skillsNegated(state, id)) return [];
+  const showing = skillsShowing(ctx, state, id);
+  const sk = showing.skills.find((k) => k.index === skillIndex);
+  if (!sk || sk.kind !== "permanent" || skillNegated(state, id, sk.index, sk.kind)) return [];
+  const program = showing.scripts.bySkill[skillIndex];
+  if (!program || program.unsupported.length) return [];
+  readingStatics = true;
+  try {
+    return permanents(
+      ctx,
+      game,
+      state,
+      (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
+      (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
+      (frame, a) => amount(ctx, game, state, frame, a),
+      (ops) => ops === program.ops,
+    ).filter((e) => e.source === id);
+  } finally {
+    readingStatics = false;
+  }
+}
+
 /** Does this [Permanent] program grant an immunity anywhere in it, `if` branches included? The legacy `grantsImmunity`. */
 function grantsImmunity(ops: Op[]): boolean {
   return ops.some((o) => (o.op === "if" ? grantsImmunity(o.then) || grantsImmunity(o.else ?? []) : o.op === "immune"));
