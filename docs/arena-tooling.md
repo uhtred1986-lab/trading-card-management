@@ -141,8 +141,8 @@ skipped) tells you what you broke:
 - **`battles.ts`** — combos, blockers, counters, the keywords that decide a
   battle. **Runs on both engines since #152.** On `--engine rules` every case
   is a real assertion except the ones a Stage 7 keyword body still owns
-  ([Awaken], [Critical], [Dual Attack], [Indestructible], [Revenge], [Unique],
-  [Evolve], [Z-Stack]) — each prints `skipped case` by name, citing the
+  ([Awaken], [Critical], [Dual Attack], [Indestructible], [Revenge],
+  [Z-Stack]; [Unique] and [Evolve] are built since #157) — each prints `skipped case` by name, citing the
   `docs/arena-backlog/s7-*.md` hook-group doc that builds it, and the suite
   still reports `ok`. Proves, on the rules engine as much as the legacy one:
   combo power deciding a battle and combo cards reaching the Drop, [Blocker]
@@ -186,7 +186,8 @@ skipped) tells you what you broke:
   (`actions.rules`'s own gap), and several real, individually-diagnosed
   gaps this porting pass turned up and none of the other suites had reason
   to exercise: [Spirit Boost]'s own keyword-shaped marker amount not
-  reaching the cost planner though the price grammar is declared; two
+  reaching the cost planner though the price grammar is declared (closed by
+  #157: `DEFINE COST spiritBoost`); two
   trigger-moment wordings ("switched to Rest Mode by one of your skills",
   "when you use a card in a combo") that do not yet pend on this engine;
   `copySkills` granting a keyword and an [Auto] but not the copied
@@ -206,7 +207,8 @@ skipped) tells you what you broke:
 - **`workflow.ts`** — every rule as a visible workflow: what is refused and why,
   in the words a client shows. Asserts the "one rejection per card per action
   type" promise. **Runs on both engines since #152**, and on `rules` it skips
-  three cases and no more: [Unique] and [Swap], Stage 7 keyword bodies
+  two cases and no more: [Swap], a Stage 7 keyword body ([Unique] is built
+  since #157)
   (`keywordGap`), and the first half of `PRICED` — an action price (4-3-3),
   which `vm/activate.ts`'s `chargeablePrice` refuses and `vm/host.ts`'s
   `saveVars` gives to #149 (`actionPriceGap`). The four non-keyword gaps the

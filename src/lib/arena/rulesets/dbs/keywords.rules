@@ -6,23 +6,24 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Nine HOOK bodies over eight keywords, written by Stage 7's four hook
+-- Ten HOOK bodies over nine keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
 -- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
--- chargeLimit, and [Heroic]/[Villainous]'s afterSkill. Every other keyword's
+-- chargeLimit, [Unique]'s playRefused, and [Heroic]/[Villainous]'s afterSkill. Every other keyword's
 -- own moments are still the engine's, and each one's trailing comment says
 -- which group looked at it and why it is deferred — the header used to say
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Two DO bodies, the whole-keyword activations that are no hook at all
--- (docs/arena-ruleset-spec.md §4.4): [Overlord] is a move (`offer:`), offered
--- as an [Activate: Main] line with its own REFUSE and menu words, and
--- [Offering] answers a moment (`at:`), pended like an [Auto]. The other dozen
--- of that shape — [Arrival], [Wish], [Revive], [Successor], [Rejuvenate],
--- [Z-Awaken], [Z-Stack], [Evolve], [Union], [Over Realm], [Swap] … — are the
--- hook-group issues' to write the same way, one at a time.
+-- Four DO bodies, the whole-keyword activations that are no hook at all
+-- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve] and [Union] are
+-- moves (`offer:`), each offered as an [Activate: Main] line with its own
+-- REFUSE and menu words, and [Offering] answers a moment (`at:`), pended like
+-- an [Auto]. The others of that shape — [Arrival], [Wish], [Revive],
+-- [Successor], [Rejuvenate], [Z-Awaken], [Z-Stack], [Over Realm], [Swap] … —
+-- are the hook-group issues' to write the same way, one at a time.
+-- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
 
 -- 22-2
 DEFINE KEYWORD Awaken
@@ -309,13 +310,20 @@ DEFINE KEYWORD Union
 DEFINE KEYWORD "Over Realm"
   TAKES (x: number, dark: boolean)
   text: "With X or more cards in your Drop Area — X or more black cards, for the dark one — send your whole Drop Area to the Warp as the cost and play this card from hand. The two share one activation a turn. A card played with [Over Realm] goes to the Warp at the end of that turn."
-  -- Stage 7 (#153–#157)
+  -- #157 looked and left it unwritten: its play goes through a [Counter: Play]
+  -- window, which only a declared play opens today (`vm/battle.ts`'s
+  -- `openPlayCounterWindow`), and "one activation a turn between them, two
+  -- with [Wormhole]" is a counted player attribute (`playerAttr` reads
+  -- booleans only). docs/arena-ruleset-spec.md §4.4.
 
 -- 22-22
 DEFINE KEYWORD Swap
   TAKES (x: number)
   text: "Return this Battle Card to your hand and play a named Battle Card with an energy cost of X from your hand in its place."
-  -- Stage 7 (#153–#157)
+  -- #157 looked and left it unwritten: the chosen card is played through a
+  -- [Counter: Play] window (as [Over Realm]'s is), and "an energy cost of X"
+  -- is a parameter inside a card filter, which the filter grammar has no
+  -- slot for. docs/arena-ruleset-spec.md §4.4.
 
 -- 22-29
 DEFINE KEYWORD Arrival
@@ -387,7 +395,11 @@ DEFINE KEYWORD "Spirit Boost"
 DEFINE KEYWORD Empower
   TAKES (color: color, x: number)
   text: "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour."
-  -- Stage 7 (#153–#157)
+  -- #157 looked and left it unwritten: the carry is a question asked in the
+  -- middle of a play, before the replaced Unison leaves, and the `play` op
+  -- cannot suspend for an answer; the markers paid for the Unison are a later
+  -- step of `playUnison`'s DO here, so the carry belongs to that move rather
+  -- than to `play`. docs/arena-ruleset-spec.md §4.4.
 
 -- 22-46
 DEFINE KEYWORD "Z-Awaken"

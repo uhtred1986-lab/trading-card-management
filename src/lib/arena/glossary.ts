@@ -180,7 +180,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "With X or more cards in your Drop Area — X or more black cards, for the dark one — send your whole Drop Area to the Warp as the cost and play this card from hand. The two share one activation a turn. A card played with [Over Realm] goes to the Warp at the end of that turn.",
     engine:
       "The count, the whole-Drop cost and the shared limit, which [Wormhole] raises to two. Cards that watch “played with [Over Realm]” fire here rather than on the ordinary play. The end-of-turn return to the Warp is scheduled for the dark variant too, which 22-23 does not ask for.",
-    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D).",
+    engineRules:
+      "Not built yet (#157 looked and left it): its play goes through a [Counter: Play] window, which only a declared play opens on this engine, and the shared once-a-turn limit that [Wormhole] raises to two is a counted player attribute the language cannot read yet. The line is never offered.",
     support: "partial",
   },
   Swap: {
@@ -192,7 +193,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Offered from the Battle Area, and the swap happens. 22-22-3 is honoured: with no cost-X Battle Card in hand it is refused before it is offered, rather than taking its orbs and then finding nothing to choose. The choice is still filtered by energy cost only — a [Swap] that names a character offers every cost-X Battle Card in hand, not just that character's.",
     engineRules:
-      "Not built yet — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D. Confirmed absent: `verify/workflow.ts`'s own [Swap] case (22-22-3's own refusal) is a named keyword gap.",
+      "Not built yet (#157 looked and left it): the chosen card is played through a [Counter: Play] window, which only a declared play opens on this engine, and “an energy cost of X” is a parameter inside a card filter, which the filter grammar has no slot for. `verify/workflow.ts`'s own [Swap] case is a named keyword gap.",
     support: "partial",
   },
   Arrival: {
@@ -302,7 +303,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour.",
     engine:
       "Read before the old Unison leaves play, because leaving clears its markers (5-13-3). “Up to Y” is asked, not assumed — the master is prompted for how many to carry, from 0 to the cap `resolvePlay` works out (colour checked, capped by what the outgoing Unison actually has), and the play does not finish until it is answered (owner's ruling, 9 Sep 2026).",
-    engineRules: "Not built yet — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D (\"markers on arrival and the carry prompt\"). Confirmed absent: gated in `verify/keywords.ts`.",
+    engineRules:
+      "Not built yet (#157 looked and left it): the carry is a question asked in the middle of a play, before the replaced Unison leaves, and the `play` op cannot suspend for an answer; the markers paid for the Unison are a later step of `playUnison`'s `DO` on this engine, so the carry belongs to that move rather than to `play`. Playing a Unison over another works; nothing is carried and nothing is asked. Gated in `verify/keywords.ts`.",
     support: "engine",
   },
 

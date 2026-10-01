@@ -407,7 +407,8 @@ function openCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmSt
  * front of their `play.resolve` (`engine/engine.ts`). A play a *skill* makes
  * (5-5-3, the `play` op) opens no window on either engine, and the keyword
  * plays the legacy engine also opens one over ([Successor], [Revive], [Swap],
- * [Evolve], [Union]) are Stage 7's keyword moves, not built here yet.
+ * [Over Realm], [Arrival]) are Stage 7's keyword moves, not built here yet ([Evolve]
+ * and [Union] open none on either engine, #157).
  */
 const PLAY_MOVES: readonly Action["type"][] = ["play", "playUnison", "playZ"];
 
