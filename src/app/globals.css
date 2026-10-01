@@ -606,6 +606,24 @@ input[type="number"] {
  * ========================================================================== */
 .arena {
   --turn-ink: #12161f;
+  /* The board's text face (layout.tsx); the rest of the app keeps its stack. */
+  font-family: var(--font-arena), var(--font-sans, system-ui), sans-serif;
+}
+/* The impact face for the board's numbers and shouts, in both skins. The sky
+   adds its ink stroke below; night keeps the face and its own colours. */
+.arena-impact {
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 900;
+}
+/* Small numerals (a count, a cost, a power on a card face): the same face,
+   no stroke, figures that line up. What `font-mono` was doing, minus the debug look. */
+.arena-num {
+  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
+  font-style: italic;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 /* The turn banner: a skewed bar sweeps in, the stroked type slides through,
@@ -1881,9 +1899,6 @@ html[data-skin="anime"] body::before {
 /* Impact type: the numbers are the drama in this genre. Sizes do not change;
    only the treatment — heavy italic, ink stroke, gold for the winning figure. */
 [data-skin="anime"] .arena-impact {
-  font-family: var(--font-impact), "Kanit", var(--font-sans, system-ui), sans-serif;
-  font-style: italic;
-  font-weight: 900;
   color: #fff;
   -webkit-text-stroke: 2px var(--ink);
   paint-order: stroke fill;
