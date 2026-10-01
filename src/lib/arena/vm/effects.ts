@@ -50,7 +50,7 @@
 import type { EngineContext, GameEvent } from "../engine";
 import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
 import { redirectOf, type AltCost, type Replacement } from "../engine/state";
-import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix } from "../engine/types";
+import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../engine/types";
 import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import type { AttrValue, Attrs } from "./cards";
@@ -154,10 +154,10 @@ export interface VmStatic {
   /** Whose skill it is (9-1-2). */
   master: PlayerId;
   /** `replaceLeave` is 9-10's standing offer (`vm/replace.ts`), a [Permanent]'s only — no resolved skill puts one in force for a duration. */
-  kind: ContinuousEffect["kind"] | "replaceLeave";
+  kind: ContinuousEffect["kind"] | "replaceLeave" | "skip";
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement;
+  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement | StandingSkip;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
@@ -172,13 +172,19 @@ export interface VmStatic {
  */
 export type VmAltCost = AltCost & { rest?: string[] };
 
+/** 20-13: a step a [Permanent] skips while its condition holds, and whose step it is (`vm/skips.ts`'s `stepSkippedByPermanent`). */
+export interface StandingSkip {
+  what: SkipWhat;
+  player: PlayerId;
+}
+
 /** 20-19: what a standing payer counts as while it pays — one energy of its own colours, or of the one colour named. The legacy `StaticEffect`'s value, word for word. */
 export interface PayerGrant {
   payAs: "energy" | Color;
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "if"] as const;
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {
@@ -637,6 +643,16 @@ function collect(
       if (op.until || !inPlayNow) continue;
       const value: PayerGrant = { payAs: op.as ?? "energy" };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "payer", target: id, value });
+      continue;
+    }
+    // 20-13 printed as a [Permanent] (#278): "when this card is in a battle,
+    // you skip your Offense Step" — a standing rule the step itself asks
+    // (`vm/skips.ts`), in play only, never spent. The legacy
+    // `collectStatics`' reading, word for word.
+    if (op.op === "skip") {
+      if (!inPlayNow) continue;
+      const players = op.side === "both" ? [frame.master, otherPlayer(frame.master)] : [op.side === "opponent" ? otherPlayer(frame.master) : frame.master];
+      for (const player of players) out.push({ source: frame.card, master: frame.master, kind: "skip", target: "", value: { what: op.what, player } });
     }
   }
 }

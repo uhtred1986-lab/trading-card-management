@@ -1669,10 +1669,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "9d50db87"
+      "digest": "2840f09c"
     },
-    "same": false,
-    "cause": "skip"
+    "same": true
   },
   "SPAWN#0": {
     "legacy": {
@@ -1892,10 +1891,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "38667dbd"
+      "digest": "950f50a1"
     },
-    "same": false,
-    "cause": "skip"
+    "same": true
   },
   "TWOKILL#0": {
     "legacy": {
@@ -2057,11 +2055,10 @@
       "digest": "84cae7d2"
     },
     "rules": {
-      "outcome": "notOffered",
-      "digest": "0dd73a0b"
+      "outcome": "fired",
+      "digest": "84cae7d2"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "XENERGY#0": {
     "legacy": {

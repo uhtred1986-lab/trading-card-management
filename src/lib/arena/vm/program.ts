@@ -52,7 +52,7 @@ import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "../engine/script-schema";
 import { mirrorSides } from "../engine/state";
 import { HOOK_CONTRACT } from "./hook-contract";
-import { keywordStatics, ownProhibitions, permanents, valueOf, type VmStatic } from "./effects";
+import { keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
 import { SETUP_ZONES, hostOf, inPlayZones } from "./zones";
@@ -408,10 +408,25 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
 export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"]): boolean {
   const card = state.cards[id];
   if (!card) return false;
-  for (const sk of skillsShowing(ctx, state, id).skills) if (sk.keyword?.name === name) return true;
+  for (const k of printedKeywords(ctx, state, id)) if (k.name === name) return true;
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
   return false;
+}
+
+/**
+ * The keywords a card's own printed face carries right now: none while it is
+ * in Hidden Mode or has its skills negated, and not the lines negated one at a
+ * time or by kind (9-1-5) — the legacy `keywordsInForce`'s printed half, which
+ * is why "negate its skills for the turn" takes [Blocker] off a card here too
+ * (#439). A grant, by an effect or a [Permanent], is not printed and is not
+ * negated by this: the legacy engine reads it the same way.
+ */
+function printedKeywords(ctx: EngineContext, state: VmState, id: string): KeywordSkill[] {
+  if (state.cards[id].hidden || skillsNegated(state, id)) return [];
+  return skillsShowing(ctx, state, id)
+    .skills.filter((sk) => sk.keyword && !skillNegated(state, id, sk.index, sk.kind))
+    .map((sk) => sk.keyword!);
 }
 
 /**
@@ -424,8 +439,7 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
 export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordSkill[] {
   const card = state.cards[id];
   if (!card) return [];
-  const out: KeywordSkill[] = [];
-  for (const sk of skillsShowing(ctx, state, id).skills) if (sk.keyword) out.push(sk.keyword);
+  const out: KeywordSkill[] = printedKeywords(ctx, state, id);
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   return out;

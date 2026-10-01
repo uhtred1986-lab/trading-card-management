@@ -463,6 +463,16 @@ export interface DefPhase extends Declaration<"PHASE"> {
    * announced.
    */
   announce?: boolean;
+  /**
+   * 20-13: the word a `skip` entry names this phase by (the effect language's
+   * own `SkipWhat`). A phase whose word has an entry waiting for the turn
+   * player is announced as skipped and its steps are not performed, except
+   * the ones declared `always:`; the phases straight after it that declare
+   * the same word go with it, which is how DBS's Main Phase End Step (7-3-5,
+   * run as a phase of its own) is skipped with the Main Phase. A phase with
+   * no `skip:` is never skipped by name — only by a whole turn's (`turn`).
+   */
+  skip?: "charge" | "main" | "end";
   text?: string;
 }
 
@@ -480,6 +490,12 @@ export interface DefStep extends Declaration<"STEP"> {
    * game that declares the repeat is the one that knows how far it may go.
    */
   limit?: number;
+  /**
+   * 20-13-5: the step still runs when its phase is skipped — a continuous
+   * effect that ends in a phase ends as soon as that phase is skipped, and
+   * the turn still passes at the end of a skipped End Phase. Default false.
+   */
+  always?: boolean;
   text?: string;
 }
 
@@ -915,6 +931,7 @@ export const DEFINE_SCHEMA = {
       { name: "actions", type: { list: "string" } },
       { name: "auto", type: "boolean" },
       { name: "announce", type: "boolean", default: true },
+      { name: "skip", type: { enum: ["charge", "main", "end"] } },
       TEXT,
     ],
   },
@@ -926,6 +943,7 @@ export const DEFINE_SCHEMA = {
       { name: "optional", type: "boolean" },
       { name: "prompt", type: "string" },
       { name: "limit", type: "number", word: "LIMIT" },
+      { name: "always", type: "boolean" },
       TEXT,
     ],
   },

@@ -326,8 +326,9 @@ DEFINE ACTION playZ                                                       -- §1
 -- issue #270's `x: true` in principle — the price is a skill line's own
 -- (`BoundAmounts`), not a card attribute `xValues` reads, so wiring it up is
 -- separate plumbing in `activate`'s own candidate builder and is not done
--- here; such a line stays refused `unread`, honestly rather than by
--- omission. [Counter] windows are native (`vm/battle.ts`, #150), and so is
+-- here — it is since #439: `x: true` below makes such a line one candidate
+-- per payable X (`vm/actions.ts`'s `activation`, the legacy `xValuesFor`),
+-- and the X paid is what the effect reads as `X`. [Counter] windows are native (`vm/battle.ts`, #150), and so is
 -- this paragraph read against the combo prompt for [Activate: Battle]: the
 -- same FOR, COST and again:, asked over the battle's own two kinds.
 
@@ -338,6 +339,7 @@ DEFINE ACTION activate                                                    -- §9
   BIND "card"
   skills: ["activate:main", "activate:main/battle"]
   COST [marker, burst, spiritBoost, energy, zEnergy, payWith, text]       -- zEnergy: bound to 0 but from the Z-Deck (22-46-3)
+  x: true                                                                 -- 20-5: a line priced "Pay X energy" is offered once per payable X
   alt: "play"                                                             -- 5-3, 22-37: an Extra used from the hand is played (4-2)
   DO {}
   again: true

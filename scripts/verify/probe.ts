@@ -374,11 +374,6 @@ if (ENGINE !== "legacy") {
         (old.log.includes(`${rule.def.name} goes to the Drop.`) && !rules.log.includes(`${rule.def.name} goes to the Drop.`) && !old.log.some((l) => l.startsWith(`${rule.def.name} is KO'd`))),
     },
     {
-      id: "skip",
-      says: "'Skip a turn/step' (20-13) is NotYet on the rules engine — the flow's skip list is #145's.",
-      holds: (_f, _old, rules) => /cannot skip/.test(rules.applied.join("|")),
-    },
-    {
       id: "keyword-negation-static",
       says: "A [Permanent] that negates a keyword (`negateKeyword`) is not collected on the rules engine (`DEFERRED_STATICS.negateKeyword`, #153), so the card still reads the keyword in force where legacy reads none.",
       holds: (_f, old, rules, rule) =>
@@ -400,7 +395,7 @@ if (ENGINE !== "legacy") {
     },
     {
       id: "unreadable-price",
-      says: "An [Activate] with a price the rules engine's activation cannot read yet (a cost program, an X) is refused as 'cannot read this text yet'; legacy offers it, or names what it could not pay. [Burst X] (#148) and [Spirit Boost X] (#157) are declared prices and no longer among them.",
+      says: "An [Activate] with a price the rules engine's activation cannot read yet (a cost program; an X price is read since #439) is refused as 'cannot read this text yet'; legacy offers it, or names what it could not pay. [Burst X] (#148) and [Spirit Boost X] (#157) are declared prices and no longer among them.",
       holds: (_f, _old, rules) => /cannot read .* text yet/.test(rules.result.join("|")),
     },
     {

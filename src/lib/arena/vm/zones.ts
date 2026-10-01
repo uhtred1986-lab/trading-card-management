@@ -348,7 +348,11 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   if (!opts.carry) reset(card, zone);
   else if (zone.modes && !zone.modes.includes(card.mode ?? "")) card.mode = arrivalMode(zone);
   if (opts.mode !== undefined) card.mode = opts.mode;
-  if (zone.markers !== true) card.markers = 0;
+  // 20-9-2: a carrying move (gaining control) keeps the card's markers as it
+  // keeps everything else about it — the legacy `move`'s `carry`, which skips
+  // the whole 3-1-4 reset, markers included (#439). A card arriving any other
+  // way already lost them in `reset`.
+  if (zone.markers !== true && !opts.carry) card.markers = 0;
   if (opts.position === "top") list.unshift(id);
   else list.push(id);
   return { ok: true, move: { ...record(id, from, to, toOwner, opts, null), ...(released.length ? { released } : {}) } };

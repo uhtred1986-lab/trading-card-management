@@ -205,6 +205,26 @@ function hiddenChoices(state: VmState, p: PlayerId, viewer: PlayerId, mine: bool
   });
 }
 
+/** One rule in force as the board draws it: its words, how long for, and whose card it came from. */
+function effectView(ctx: EngineContext, state: VmState) {
+  return (d: Pick<EffectView, "kind" | "label" | "keyword">, until: EffectView["until"], source: string | null | undefined, by: PlayerId | null): EffectView => {
+    const src = source && state.cards[source] ? source : null;
+    const name = src ? (ctx.defs[state.cards[src].cardId]?.name ?? null) : null;
+    return { ...d, until, source: src, sourceName: name, by };
+  };
+}
+
+/**
+ * The timed effects on one card — the legacy `effectsOn`'s first half, worded
+ * by the same `describeEffect`, so "controlled by its owner's opponent" (20-9)
+ * or "+5000 power" reads the same on both boards (#439). The [Permanent]
+ * half is not drawn per card on this engine yet.
+ */
+function effectsOn(ctx: EngineContext, state: VmState, id: string): EffectView[] {
+  const view = effectView(ctx, state);
+  return state.effects.filter((e) => e.target === id).map((e) => view(describeEffect(e), e.until, e.source, e.master ?? null));
+}
+
 /**
  * The rules in force on this *player* rather than on a card — a player-level
  * prohibition, timed or standing (20-14). The legacy `rulesOn`, rule for rule:
@@ -215,11 +235,7 @@ function hiddenChoices(state: VmState, p: PlayerId, viewer: PlayerId, mine: bool
 function rulesOn(ctx: EngineContext, game: GameDefinition, state: VmState, p: PlayerId): EffectView[] {
   const out: EffectView[] = [];
   const about = (player: PlayerId | undefined) => !player || player === p;
-  const view = (d: Pick<EffectView, "kind" | "label" | "keyword">, until: EffectView["until"], source: string | null | undefined, by: PlayerId | null): EffectView => {
-    const src = source && state.cards[source] ? source : null;
-    const name = src ? (ctx.defs[state.cards[src].cardId]?.name ?? null) : null;
-    return { ...d, until, source: src, sourceName: name, by };
-  };
+  const view = effectView(ctx, state);
   for (const e of state.effects) if (!e.target && e.kind === "forbid" && e.forbid && about(e.forbid.player)) out.push(view(describeEffect(e), e.until, e.source, e.master ?? null));
   for (const e of staticsNow(ctx, game, state)) {
     if (e.target || e.kind !== "forbid" || !about((e.value as Prohibition).player)) continue;
@@ -282,6 +298,7 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
   // either player. Everything readable is withheld here rather than at each
   // caller, the same cut the legacy view makes.
   const hidden = inst.hidden;
+  const effects = hidden ? [] : effectsOn(ctx, state, id);
   return {
     id,
     cardId: inst.cardId,
@@ -313,6 +330,7 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     text: hidden ? null : (text ?? null),
     reading: "",
     referee: false,
+    ...(effects.length ? { effects } : {}),
   };
 }
 

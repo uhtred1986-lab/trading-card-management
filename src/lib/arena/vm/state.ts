@@ -47,7 +47,7 @@
 import type { VmPending } from "./triggers";
 import type { Game } from "../../catalog/games";
 import type { ScriptFrame } from "../engine/script";
-import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt } from "../engine/types";
+import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, SkipWhat } from "../engine/types";
 import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
 
@@ -85,6 +85,8 @@ export interface VmBattle {
    * word. Absent on every battle that never asked, so no stored state changes.
    */
   damage?: VmDamage;
+  /** 20-13: the battle steps skipped in this battle, so the combo offer that belongs to a skipped step is not made either. */
+  skipped?: ("offense" | "defense")[];
 }
 
 /** What `vm/battle.ts`'s `damageLife` needs to pick up where it stopped: the legacy `battleDamage`'s `resume`, plus [Victory Strike]'s ending (the attacker's rule, read once when the damage began). */
@@ -171,6 +173,19 @@ export interface VmSide {
   zones: Zones;
   /** The declared `of: player` attributes — `energyMarkers` in DBS. */
   attrs: Record<string, AttrValue>;
+  /**
+   * 20-13: the phases and steps this player is to skip, one entry per
+   * occurrence — the legacy `PlayerState.skips`, word for word (`vm/skips.ts`).
+   * Made on demand, so a state saved before it existed reads as none.
+   */
+  skips?: VmSkip[];
+}
+
+/** One 20-13 skip entry: what is skipped, whether this turn's occurrence or the next one, and the turn it was made on. */
+export interface VmSkip {
+  what: SkipWhat;
+  when: "this" | "next";
+  turn: number;
 }
 
 /**
@@ -204,6 +219,12 @@ export interface VmFrame {
    * before the skill it just used had resolved.
    */
   reask?: boolean;
+  /**
+   * 20-13: this phase is skipped — the `skip:` word that skipped it, or
+   * `"turn"` for a whole turn. Its steps are not performed, save those
+   * declared `always:`, and neither its start nor its end is a moment.
+   */
+  skipped?: string;
 }
 
 export interface VmState {
@@ -300,6 +321,8 @@ export interface VmState {
    * absent on a state saved before it existed.
    */
   carried?: { card: string; n: number } | null;
+  /** 20-13: the turn being skipped whole ("skip your turn"), by number — every phase of it is entered skipped. Absent the rest of the time. */
+  skippedTurn?: number;
 }
 
 /**

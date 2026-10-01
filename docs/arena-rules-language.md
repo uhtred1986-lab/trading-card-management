@@ -267,7 +267,16 @@ DEFINE ZONE battle
 **PHASE** — a phase of the turn, in the order the game declares (`DEFINE GAME`'s `phases:`).
 `steps:` is required; `actions:` lists what a player may do in it, `auto:` says it passes with no
 prompt, `announce:` whether entering it is a moment of its own in the log (default true, so a phase
-nobody narrates says `announce: false`), `text:` what it is.
+nobody narrates says `announce: false`), `skip:` the word a 20-13 `skip` entry names it by
+(`charge`, `main` or `end` — the effect language's own `SkipWhat`), `text:` what it is.
+
+`skip:` (#439) is 20-13: a phase whose word has an entry waiting for the turn player is announced as
+skipped and its steps are not performed — no work, no question, no checkpoint, and neither its start
+nor its end is a moment — except the steps declared `always:`. A phase straight after a skipped one
+that declares the same word is skipped with it, which is how DBS's Main Phase End Step (7-3-5, run as
+a phase of its own) goes with the Main Phase. A whole turn (`skip(what: turn)`) is spent as the turn's
+first phase is entered, and every phase of that turn is then entered skipped; a phase that declares no
+`skip:` is skipped only that way.
 
 ```
 DEFINE PHASE main
@@ -279,7 +288,9 @@ DEFINE PHASE main
 
 **STEP** — one step of a phase, and the program it runs. `phase:` is required; `DO` is the program
 the step runs, `optional:` whether it may be skipped, `prompt:` what is asked, `LIMIT` how many
-times it may send its phase round again, `text:` what it is.
+times it may send its phase round again, `always:` that it runs even when its phase is skipped
+(20-13-5: a continuous effect that ends in a phase ends when the phase is skipped, and the turn still
+passes at the end of a skipped End Phase — #439), `text:` what it is.
 
 `LIMIT` is the bounded loop of §7-4-4: a step that carries one may restart its own phase when the
 moment it names comes round again, and the number is the ceiling. The bound lives in the

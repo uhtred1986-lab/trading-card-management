@@ -12,7 +12,6 @@ import {
   ENGINE,
   IMPL,
   actsG,
-  apply,
   arena,
   arenaG,
   assertConsistent,
@@ -45,7 +44,6 @@ import {
   skillNegatedG,
   splitClauses,
   stageMoveG,
-  toBeats,
   unisonOf,
   zoneOf,
 } from "./harness";
@@ -77,10 +75,14 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  * with REVEALER once the rules engine's battle damage asked per life card,
  * #272):
  *
- * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
- *   `ScriptHost` implementation still throws `NotYet` for by name (a
- *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
- *   landed, and RELKO now runs on both engines).
+ * - **`notYetGap`**: a case the rules engine answers wrongly, each checked
+ *   directly and named at its own gate (a skill-driven KO was `#146`'s
+ *   until it landed, and RELKO now runs on both engines; 20-13's skip list
+ *   and the [Permanent] skip read live at a battle step — SKIPPER,
+ *   NODEFENSE, SKIPNOW, INBATTLE, ATKSKIP, TURNSKIP, SPANSKIP — and
+ *   COMBOWATCH, GOTEN, XDRAW, MUTER, COPYCAT, TAKER, CFREE and SKILLCHEAP
+ *   all run on both engines since #439). What is left is two harness
+ *   fixtures with no rules-engine shape: `continuations` and `koCard`.
  */
 let skipped = 0;
 // `keywordGap` is gone: since #157 and #155's leftovers (#434) no case here
@@ -316,13 +318,7 @@ function notYetGap(where: string, what: string, issue: string): boolean {
   for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK"]) delete DEFS[id];
 }
 
-if (
-  !notYetGap(
-    "CFREE: free [Counter] from hand",
-    "the [Permanent]'s `altCost` is collected (`vm/effects.ts`' `permanents`) and `vm/costs.ts`' `altCostFor` offers it for a play (#148), but the [Counter] window's own price is `vm/battle.ts`'s, which reads no alternative price yet — nor, so, [Invoker]'s for a [Counter] from the hand (its activation half is built, #155)",
-    "#150",
-  )
-) {
+{
   // Free [Counter] from hand is a timing of its own.
   DEFS.CFREE = {
     ...DEFS["E-NEGATE"],
@@ -381,20 +377,16 @@ if (
   const invokerCounter = IMPL.legalActions(CTX, s).find((a) => a.action.type === "counter" && a.action.card === findG(s, "p1", "hand", "CINVK") && a.action.alt);
   assert.ok(invokerCounter, "the [Invoker] counter offer is present");
   assert.equal(invokerCounter.cost?.energy, 1, "the [Invoker] counter metadata says it rests 1 energy");
-  assert.equal(invokerCounter.cost?.describe, "[Invoker]");
+  // The legacy engine's own wording for the price; the rules engine's is its
+  // generic price sentence (Stage 8's, as every exact label is).
+  if (ENGINE === "legacy") assert.equal(invokerCounter.cost?.describe, "[Invoker]");
   delete DEFS.CINVK;
   delete DEFS.INVK;
   delete DEFS.RB;
   delete DEFS.CFREE;
 }
 
-if (
-  !notYetGap(
-    "SKILLCHEAP: a scoped reduction of a [Counter]'s own printed orbs",
-    "a skill line's own orbs have their reduction layer since #148 (`vm/costs.ts`' `skillOrbs`, read by an [Activate]'s price in `vm/activate.ts`), but a [Counter]'s price is built by the counter window in `vm/battle.ts`, which does not read it yet; neither COUNTER_RR nor COUNTER_UU is affordable without the reduction, so the counter window offers neither and play falls straight through to the combo step",
-    "#150",
-  )
-) {
+{
   // Skill-cost modifiers: a red-scoped reduction lowers a red [Counter] skill's
   // orbs, does not lower a blue one, and ends at its printed `until`.
   DEFS.COUNTER_RR = { ...DEFS["E-NEGATE"], id: "COUNTER_RR", name: "COUNTER_RR", colors: ["Red"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
@@ -522,13 +514,7 @@ if (
   delete DEFS.THEIRRESTER;
 }
 
-if (
-  !notYetGap(
-    "COMBOWATCH: \"when you use a card in a combo\" (5-7)",
-    "checked directly rather than trusted: the watcher's [Auto] does not pend on the rules engine when a card is combo'd — the trigger moment this wording compiles to is not yet one `dbs/triggers.rules` matches the way the `combo` native move's own `moved()` beat does",
-    "no issue filed yet",
-  )
-) {
+{
   // 5-7: "when you use a card in a combo" is the board's moment, watched by
   // your own cards in play — not the combo card's own skill, which is
   // `comboed` and fires when it leaves the Combo Area (8-5-8).
@@ -671,15 +657,13 @@ if (
     "2 blue is not met by 1 blue, whatever the player picks for X",
   );
   // `rejections.ts` words a card in hand as one "play" refusal whatever its
-  // type, so that is where a Unison's answer arrives.
-  if (
-    !notYetGap(
-      "GOTEN: a Unison priced entirely out of reach carries a \"play\" rejection",
-      "checked directly rather than trusted: `rejectedActionsG` finds no rejection at all for the card here, where the legacy engine's own `rejections.ts` words a Unison's shortfall as a \"play\" refusal — a real gap in the rules engine's rejection reasoning for `playUnison`, not this issue's to fix",
-      "no issue filed yet",
-    )
-  ) {
-    const refused = rejectedActionsG(s).find((r) => r.action.type === "play" && r.action.card === cold);
+  // type, so that is where a Unison's answer arrives on the legacy engine;
+  // the rules engine files it under the move it declares for a Unison,
+  // `playUnison` (`actions.rules`), with the same reason (#439: the skip
+  // this replaced looked for "play" only, and so found nothing there).
+  {
+    const unisonMove = ENGINE === "legacy" ? "play" : "playUnison";
+    const refused = rejectedActionsG(s).find((r) => r.action.type === unisonMove && r.action.card === cold);
     assert.ok(refused, "and the move is refused rather than silently absent");
     const colour = refused.why.find((r) => r.kind === "energyColour");
     assert.ok(colour, `the reason is the colour it is short of, not the total (got ${JSON.stringify(refused.why)})`);
@@ -707,13 +691,9 @@ if (
   // "free" on the action sheet while three energy was charged. Driven through
   // `legalActions` rather than `priceOf` alone, because the defect was in what
   // the engine handed over, not in how the sentence was assembled.
-  if (
-    !notYetGap(
-      "XDRAW: an X *skill* price (20-5)",
-      "`actions.rules`'s own header names this gap: an X price on a skill line is refused `unread` for the same reason a play's X cost is, so no X = 3 offer reaches the menu",
-      "no issue filed yet",
-    )
-  ) {
+  // Both engines since #439: `activate` is declared `x: true`, and an X line
+  // is one candidate per payable X on the rules engine too.
+  {
     let xs = arenaG({ hand: ["XDRAW"], energy: ["V1", "V1", "V1", "V1"] });
     xs = playG(xs, { type: "play", player: "p1", card: findG(xs, "p1", "hand", "XDRAW") });
     while (xs.prompt.kind !== "main") xs = playG(xs, IMPL.legalActions(CTX, xs)[0].action);
@@ -728,6 +708,15 @@ if (
     // "always name a number".
     const none = paid.find((a) => (a.action as { x?: number }).x === 0)!;
     assert.equal(priceOf(none.action, xView, none.label, none.cost), "free");
+    // And the X paid is the X the effect reads: two energy rested, two drawn.
+    const two = paid.find((a) => (a.action as { x?: number }).x === 2)!;
+    const hand = zoneOf(xs, "p1", "hand").length;
+    const active = zoneOf(xs, "p1", "energy").filter((id) => xs.cards[id].mode === "active").length;
+    xs = playG(xs, two.action);
+    while (xs.prompt.kind !== "main") xs = playG(xs, IMPL.legalActions(CTX, xs)[0].action);
+    assert.equal(zoneOf(xs, "p1", "hand").length, hand + 2, "it drew X cards");
+    assert.equal(zoneOf(xs, "p1", "energy").filter((id) => xs.cards[id].mode === "active").length, active - 2, "…and paid X energy for them");
+    assertConsistentG(xs);
   }
 
   // 13-2-1-3: the markers are the **total** paid, not the coloured part — pay
@@ -1425,13 +1414,7 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   assertConsistentG(d);
 }
 
-if (
-  !notYetGap(
-    "MUTER: \"negate its skills for the turn\" on another card (9-1-5)",
-    "checked directly rather than trusted: `hasKeyword` (`vm/program.ts`) still reads [Blocker] after the `negateSkills` op runs — a `keyword`-kind effect's own negation is not among the sources `hasKeyword` reads yet (it checks a printed skill still showing, a `keyword`-kind grant, and a [Permanent] static, but not a `negateSkills`/`negateSkill` continuous effect the way legacy `has` does)",
-    "no issue filed yet",
-  )
-) {
+{
   // Negation for a duration (9-1-5) is a continuous effect: it was being
   // written into the state and never read, so "negate its skills for the
   // turn" did nothing — and the card was marked negated for the game as well.
@@ -1884,13 +1867,7 @@ if (
 // the target plays it as its own — a [Permanent] stands on the target, a
 // keyword is in force on the target, an [Auto] answers to the target's own
 // moment — and all of it ends when the duration does.
-if (
-  !notYetGap(
-    "COPYCAT/COPYSRC/COPYKW: 20-18, a card taking on another card's skills",
-    "checked directly rather than trusted: after `copySkills` runs, the copied [Permanent]'s power does not apply to the target (10000, not 13000) — `copySkills` grants the keyword and [Auto] halves but the copied [Permanent] itself is not read as a static in force on the target yet",
-    "no issue filed yet",
-  )
-) {
+{
   DEFS.COPYSRC = {
     ...DEFS.V1,
     id: "COPYSRC",
@@ -1945,12 +1922,19 @@ if (
   // A copied [Auto] answers to the *target's* moment, not the source's: this
   // is COPYCAT attacking, and the source is not in the battle at all.
   const handBefore = zoneOf(s, "p1", "hand").length;
-  s = playG(s, { type: "attack", player: "p1", attacker: cat, target: leaderOf(s, "p2") });
-  assert.deepEqual(
-    s.pending.map((p) => [p.card, p.trigger]),
-    [[cat, "attacks"]],
-    "the copied [Auto] pended on the target's own attack, under the target's own id",
-  );
+  const attacked = IMPL.apply(CTX, s, { type: "attack", player: "p1", attacker: cat, target: leaderOf(s, "p2") });
+  s = attacked.state;
+  // When it resolves is the engines' own ordering, not the copy's: the legacy
+  // engine asks the [Blocker] question before the checkpoint, so the [Auto]
+  // is still pending there; the rules engine runs the checkpoint after the
+  // declaration step (`vm/flow.ts`), so it has already resolved.
+  if (ENGINE === "legacy")
+    assert.deepEqual(
+      s.pending.map((p) => [p.card, p.trigger]),
+      [[cat, "attacks"]],
+      "the copied [Auto] pended on the target's own attack, under the target's own id",
+    );
+  else assert.ok(attacked.events.some((e) => e.type === "skill" && e.card === cat), "the copied [Auto] answered the target's own attack, under the target's own id");
   // The defence answers first (8-3); the pended [Auto] resolves after it.
   s = playG(s, { type: "block", player: "p2", card: null });
   assert.equal(zoneOf(s, "p1", "hand").length, handBefore + 1, "…and drew the card the copied [Auto] says to draw");
@@ -2105,13 +2089,7 @@ function opponentSkill(s: EngineState, killer: string, target: string): EngineSt
 
 // ── 20-9: gaining control of a card ────────────────────────────────────────
 
-if (
-  !notYetGap(
-    "TAKER: gaining control of a card (20-9)",
-    "checked directly rather than trusted: the card's markers are reset to 0 by the `control` op's move to the new side's Battle Area, where 20-9-2 says nothing about the card should change — the rules engine's `control` handling does not yet preserve markers (or, likely, mode/other per-card state) across the move the way LEADERGRAB's own board-wide refusal already reads the op correctly",
-    "no issue filed yet",
-  )
-) {
+{
   // A loan: the card crosses the table, fights for its new master, and goes
   // home when the duration does. Nothing about the card changes (20-9-2) and
   // its owner never does (0-3-3-1).
@@ -2229,63 +2207,67 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   } as typeof CTX;
 }
 
-if (!notYetGap("SKIPPER: the [Activate]-driven `skip` op (20-13)", "`addSkip` throws `NotYet` unconditionally — the flow's skip list is #145's own remainder", "#145")) {
+/** 20-13's skip list, on either engine: the legacy `PlayerState.skips`, or the rules engine's `VmSide.skips` (#439). */
+function skipsOf(s: EngineState, p: PlayerId): string[] {
+  const list = "sides" in s ? s.sides[p].skips : s.players[p].skips;
+  return (list ?? []).map((e) => `${e.what}:${e.when}`);
+}
+
+{
   // 7-2 refused whole: no Active Step, no Draw Step, no charge prompt, and no
   // [Auto] answering "at the start of the Charge Phase" (20-13-2..4). The
   // phase is still announced, so the board can say what did not happen.
+  // Both engines since #439: the rules engine's charge phase declares
+  // `skip: charge` (`game.rules`), and its flow spends the entry.
   DEFS.SKIPPER = { ...DEFS.V1, id: "SKIPPER", name: "SKIPPER", skill: "[Activate: Main] Your opponent skips their next Charge Phase." };
   const ctx = withRecord("SKIPPER", { ops: [{ op: "skip", what: "charge", side: "opponent" }], unsupported: [] });
 
-  let s = arena({ battle: ["SKIPPER"], oppBattle: ["V-BLUE"] });
-  const skipper = find(s, "p1", "battle", "SKIPPER");
-  const theirs = s.players.p2.battle[0];
+  let s = arenaG({ battle: ["SKIPPER"], oppBattle: ["V-BLUE"] });
+  const skipper = findG(s, "p1", "battle", "SKIPPER");
+  const theirs = zoneOf(s, "p2", "battle")[0];
   s.cards[theirs].mode = "rest";
 
-  s = apply(ctx, s, { type: "activate", player: "p1", card: skipper, skill: 0 }).state;
-  assert.deepEqual(
-    (s.players.p2.skips ?? []).map((e) => `${e.what}:${e.when}`),
-    ["charge:next"],
-    "the operation writes a flag; the flow runner is what spends it",
-  );
+  s = IMPL.apply(ctx, s, { type: "activate", player: "p1", card: skipper, skill: 0 }).state;
+  assert.deepEqual(skipsOf(s, "p2"), ["charge:next"], "the operation writes a flag; the flow runner is what spends it");
 
-  const handBefore = s.players.p2.hand.length;
-  const r = apply(ctx, s, { type: "endMain", player: "p1" });
+  const handBefore = zoneOf(s, "p2", "hand").length;
+  const r = IMPL.apply(ctx, s, { type: "endMain", player: "p1" });
   s = r.state;
 
   assert.equal(s.phase, "main", "20-13-1: play proceeds from the phase after the skipped one");
   assert.equal(s.prompt.kind, "main");
   assert.equal((s.prompt as { player: string }).player, "p2");
-  assert.equal(s.players.p2.hand.length, handBefore, "7-2-9 did not happen");
+  assert.equal(zoneOf(s, "p2", "hand").length, handBefore, "7-2-9 did not happen");
   assert.equal(s.cards[theirs].mode, "rest", "7-2-7 did not happen either");
-  assert.deepEqual(s.players.p2.skips, [], "and the entry is spent, not standing");
+  assert.deepEqual(skipsOf(s, "p2"), [], "and the entry is spent, not standing");
 
   const phases = r.events.filter((e) => e.type === "phase");
   const charge = phases.find((e) => e.type === "phase" && e.phase === "charge");
   assert.ok(charge && charge.type === "phase" && charge.skipped === true, "the phase event says it was skipped");
-  const beat = toBeats(ctx, s, r.events, 0).list.find((b) => b.t === "phase" && b.phase === "charge");
+  const beat = IMPL.toBeats(ctx, s, r.events, 0).list.find((b) => b.t === "phase" && b.phase === "charge");
   assert.ok(beat && beat.t === "phase" && beat.skipped === true, "and so does the beat a client draws");
   assert.equal(narrate(beat, { viewer: "p1" as PlayerId, them: "Claude", art: {} }), "Claude skips the Charge Phase.");
-  assertConsistent(s);
+  assertConsistentG(s);
 }
 
-if (!notYetGap("NODEFENSE: the [Activate]-driven `skip` op over a battle step (20-13)", "`addSkip` throws `NotYet` unconditionally — the flow's skip list is #145's own remainder", "#145")) {
+{
   // "Your opponent skips their Defense Step" (BT18-001's shape): the guard's
   // side gets no moment and no combo, and the battle goes straight to damage.
   DEFS.NODEFENSE = { ...DEFS.V1, id: "NODEFENSE", name: "NODEFENSE", power: 30000, skill: "[Activate: Main] Your opponent skips their Defense Step this turn." };
   const ctx = withRecord("NODEFENSE", { ops: [{ op: "skip", what: "defense", side: "opponent", when: "this" }], unsupported: [] });
 
-  let s = arena({ battle: ["NODEFENSE"] });
-  const attacker = find(s, "p1", "battle", "NODEFENSE");
-  s = apply(ctx, s, { type: "activate", player: "p1", card: attacker, skill: 0 }).state;
+  let s = arenaG({ battle: ["NODEFENSE"] });
+  const attacker = findG(s, "p1", "battle", "NODEFENSE");
+  s = IMPL.apply(ctx, s, { type: "activate", player: "p1", card: attacker, skill: 0 }).state;
 
-  const life = s.players.p2.life.length;
-  let r = apply(ctx, s, { type: "attack", player: "p1", attacker, target: s.players.p2.leader });
+  const life = zoneOf(s, "p2", "life").length;
+  let r = IMPL.apply(ctx, s, { type: "attack", player: "p1", attacker, target: leaderOf(s, "p2") });
   const events = [...r.events];
   // The Offense Step still happens, so its combo window is still offered; the
   // Defense Step's is not, which is the whole of what was skipped.
   assert.equal(r.state.prompt.kind, "combo");
   assert.equal((r.state.prompt as { side: string }).side, "offense");
-  r = apply(ctx, r.state, { type: "pass", player: "p1" });
+  r = IMPL.apply(ctx, r.state, { type: "pass", player: "p1" });
   events.push(...r.events);
 
   const steps = events.filter((e) => e.type === "battleStep");
@@ -2295,38 +2277,32 @@ if (!notYetGap("NODEFENSE: the [Activate]-driven `skip` op over a battle step (2
     steps.some((e) => e.type === "battleStep" && e.step === "damage"),
     "20-13-1: play proceeds from the step after it",
   );
-  assert.equal(r.state.players.p2.life.length, life - 1, "and the attack landed");
-  assert.deepEqual(r.state.players.p2.skips, [], "one entry, one step");
-  assertConsistent(r.state);
+  assert.equal(zoneOf(r.state, "p2", "life").length, life - 1, "and the attack landed");
+  assert.deepEqual(skipsOf(r.state, "p2"), [], "one entry, one step");
+  assertConsistentG(r.state);
 }
 
-if (!notYetGap("SKIPNOW: a `this`-scoped skip entry dropped with the turn (20-13)", "`addSkip` throws `NotYet` unconditionally — the flow's skip list is #145's own remainder", "#145")) {
+{
   // "This turn's" and "the next" are different phases, and an unspent "this"
   // entry does not become a "next" one when the turn passes.
   DEFS.SKIPNOW = { ...DEFS.V1, id: "SKIPNOW", name: "SKIPNOW", skill: "[Activate: Main] You skip this turn's End Phase." };
   const ctx = withRecord("SKIPNOW", { ops: [{ op: "skip", what: "charge", side: "you", when: "this" }], unsupported: [] });
 
-  let s = arena({ battle: ["SKIPNOW"] });
-  const card = find(s, "p1", "battle", "SKIPNOW");
-  s = apply(ctx, s, { type: "activate", player: "p1", card, skill: 0 }).state;
-  assert.equal((s.players.p1.skips ?? []).length, 1);
+  let s = arenaG({ battle: ["SKIPNOW"] });
+  const card = findG(s, "p1", "battle", "SKIPNOW");
+  s = IMPL.apply(ctx, s, { type: "activate", player: "p1", card, skill: 0 }).state;
+  assert.equal(skipsOf(s, "p1").length, 1);
   // This turn's Charge Phase is long past, so the entry never comes round…
-  s = apply(ctx, s, { type: "endMain", player: "p1" }).state;
-  assert.deepEqual(s.players.p1.skips, [], "…and is dropped with the turn rather than eating the next one");
-  assertConsistent(s);
+  s = IMPL.apply(ctx, s, { type: "endMain", player: "p1" }).state;
+  assert.deepEqual(skipsOf(s, "p1"), [], "…and is dropped with the turn rather than eating the next one");
+  assertConsistentG(s);
 }
 
-if (
-  !notYetGap(
-    "INBATTLE: a standing [Permanent] read live at the step (\"stepSkippedByPermanent\", 20-13)",
-    "checked directly rather than trusted: the Offense Step still runs on the rules engine — the battle sub-flow's own steps (`vm/battle.ts`) do not yet read a [Permanent]'s live step-skip condition the way the legacy engine's `stepSkippedByPermanent` does; distinct from `addSkip`'s own `NotYet` (#145) above, since this card compiles to no `skip` op at all",
-    "no issue filed yet",
-  )
-) {
+{
   // "When this card is in a battle, you skip your Offense Step" (BT18-019's
   // shape, #278): a standing [Permanent] rule, read live at the step rather
-  // than spent once (`stepSkippedByPermanent`), and true only while this card
-  // is one of the battle's own two cards.
+  // than spent once (`stepSkippedByPermanent`, on both engines since #439),
+  // and true only while this card is one of the battle's own two cards.
   DEFS.INBATTLE = { ...DEFS.V1, id: "INBATTLE", name: "INBATTLE", power: 30000, skill: "[Permanent] When this card is in a battle, you skip your Offense Step." };
   const rule = compileSkill(parseSkills(DEFS.INBATTLE.skill!)[0]);
   assert.deepEqual(rule.unsupported, [], "the condition and the skip both read");
@@ -2351,13 +2327,7 @@ if (
   assertConsistentG(r2.state);
 }
 
-if (
-  !notYetGap(
-    "ATKSKIP: a standing [Permanent] read live at the step, off the attacker's role (20-13)",
-    "the same gap as INBATTLE above — the battle sub-flow does not yet read a [Permanent]'s live step-skip condition",
-    "no issue filed yet",
-  )
-) {
+{
   // "When your <X> cards attack your opponent's Battle Cards, your opponent
   // skips their Defense Step" (BT18-001's shape, #278): the attacker's own
   // role rather than either end of the battle — the active-voice twin of
@@ -2382,33 +2352,35 @@ if (
   assertConsistentG(r.state);
 }
 
-if (!notYetGap("TURNSKIP: skip your whole next turn (20-13)", "`addSkip` throws `NotYet` unconditionally — the flow's skip list is #145's own remainder", "#145")) {
+{
   // "Skip your turn and begin your opponent's Charge Phase" (BT31-097's
   // shape, #278): every phase of the *next* turn refused at once, checked
   // once at that turn's own start rather than at any one phase — and the
   // turn still counts for turn-number bookkeeping (owner's ruling, 14 Sep
   // 2026: `turn.next` advances `s.turn` once per turn transition whether or
-  // not the turn it is leaving did anything).
+  // not the turn it is leaving did anything). On the rules engine the entry
+  // is spent as the turn's first phase is entered (`vm/flow.ts`'s
+  // `skippedAs`), and every phase of that turn is entered skipped.
   DEFS.TURNSKIP = { ...DEFS.V1, id: "TURNSKIP", name: "TURNSKIP", skill: "[Activate: Main] Skip your turn and begin your opponent's Charge Phase." };
   const rule = compileSkill(parseSkills(DEFS.TURNSKIP.skill!)[0]);
   assert.deepEqual(rule.ops, [{ op: "skip", what: "turn" }], "the trailing clause names the same rule's own destination and adds nothing");
   assert.deepEqual(rule.unsupported, []);
 
-  let s = arena({ battle: ["TURNSKIP"] });
-  const card = find(s, "p1", "battle", "TURNSKIP");
-  s = play(s, { type: "activate", player: "p1", card, skill: 0 });
-  assert.deepEqual((s.players.p1.skips ?? []).map((e) => `${e.what}:${e.when}`), ["turn:next"]);
+  let s = arenaG({ battle: ["TURNSKIP"] });
+  const card = findG(s, "p1", "battle", "TURNSKIP");
+  s = playG(s, { type: "activate", player: "p1", card, skill: 0 });
+  assert.deepEqual(skipsOf(s, "p1"), ["turn:next"]);
 
   const turnBefore = s.turn;
-  s = play(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
   assert.equal(s.turnPlayer, "p2");
   assert.equal(s.prompt.kind, "main");
 
-  const r = apply(CTX, s, { type: "endMain", player: "p2" });
+  const r = IMPL.apply(CTX, s, { type: "endMain", player: "p2" });
   s = r.state;
   assert.equal(s.turnPlayer, "p2", "p1's whole next turn produced no turn of p1's own to land on (20-13-1)");
   assert.equal(s.turn, turnBefore + 3, "p2's own turn and p1's empty one both counted");
-  assert.deepEqual(s.players.p1.skips, [], "the entry is spent, not standing");
+  assert.deepEqual(skipsOf(s, "p1"), [], "the entry is spent, not standing");
 
   const skipped = r.events.filter((e) => e.type === "phase" && e.player === "p1");
   assert.equal(skipped.length, 3, "all three of the refused turn's phases are announced");
@@ -2416,10 +2388,10 @@ if (!notYetGap("TURNSKIP: skip your whole next turn (20-13)", "`addSkip` throws 
     skipped.every((e) => e.type === "phase" && e.skipped === true),
     "and every one says it was skipped",
   );
-  assertConsistent(s);
+  assertConsistentG(s);
 }
 
-if (!notYetGap("SPANSKIP: three `skip` entries under one name (20-13)", "`addSkip` throws `NotYet` unconditionally — the flow's skip list is #145's own remainder", "#145")) {
+{
   // "Skip all phases until the Charge Phase in your next turn, then start
   // your Main Phase" (BT21-104's shape, #278): the rest of this turn, the
   // opponent's whole next turn, and this player's own next Charge Phase —
@@ -2430,23 +2402,19 @@ if (!notYetGap("SPANSKIP: three `skip` entries under one name (20-13)", "`addSki
   const rule = compileSkill(parseSkills(DEFS.SPANSKIP.skill!)[0]);
   assert.deepEqual(rule.unsupported, []);
 
-  let s = arena({ hand: ["SPANSKIP"], energy: ["V1"] });
+  let s = arenaG({ hand: ["SPANSKIP"], energy: ["V1"] });
   const turnBefore = s.turn;
-  s = play(s, { type: "play", player: "p1", card: find(s, "p1", "hand", "SPANSKIP") });
-  assert.deepEqual(
-    (s.players.p1.skips ?? []).map((e) => `${e.what}:${e.when}`).sort(),
-    ["charge:next", "end:this"],
-    "this turn's End Phase and this player's own next Charge Phase",
-  );
-  assert.deepEqual((s.players.p2.skips ?? []).map((e) => `${e.what}:${e.when}`), ["turn:next"], "the opponent's whole next turn");
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SPANSKIP") });
+  assert.deepEqual(skipsOf(s, "p1").sort(), ["charge:next", "end:this"], "this turn's End Phase and this player's own next Charge Phase");
+  assert.deepEqual(skipsOf(s, "p2"), ["turn:next"], "the opponent's whole next turn");
 
-  const r = apply(CTX, s, { type: "endMain", player: "p1" });
+  const r = IMPL.apply(CTX, s, { type: "endMain", player: "p1" });
   s = r.state;
   assert.equal(s.turnPlayer, "p1", "the opponent's whole turn was skipped too, landing back on this player (20-13-1)");
   assert.equal(s.turn, turnBefore + 2, "both turns passed and both counted");
   assert.equal(s.prompt.kind, "main", "charge, the active step and the draw never happened for this player either — straight to Main");
-  assert.deepEqual(s.players.p1.skips, []);
-  assert.deepEqual(s.players.p2.skips, []);
+  assert.deepEqual(skipsOf(s, "p1"), []);
+  assert.deepEqual(skipsOf(s, "p2"), []);
 
   const mine = r.events.filter((e) => e.type === "phase" && e.player === "p1");
   const theirs = r.events.filter((e) => e.type === "phase" && e.player === "p2");

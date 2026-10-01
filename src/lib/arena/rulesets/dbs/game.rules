@@ -52,6 +52,15 @@ DEFINE GAME dbs                                                           -- §6
 -- rules language existed, so it is declared as one here. The history entry of
 -- 12 Sep 2026 records the difference.
 --
+-- `skip:` is 20-13: the word a skill's `skip` entry names the phase by. A
+-- skipped phase is announced as skipped and then not performed (20-13-1..4),
+-- except for the steps declared `always:` — a continuous effect that ends in
+-- a phase ends when it is skipped (20-13-5), and the turn still passes at the
+-- end of a skipped End Phase. The Main Phase End Step says `skip: main` too,
+-- so a skipped Main Phase takes it along, as the manual's own 7-3-5 has it.
+-- The battle's Offense and Defense Steps are skipped by `vm/battle.ts`'s own
+-- native step work, beside the rest of what that work still does natively.
+--
 -- `actions:` is left off every phase: the moves a player may declare (7-3-4)
 -- are `DEFINE ACTION`s, and the loader refuses a phase naming one that
 -- nothing declares. They arrive with `play.rules`.
@@ -66,24 +75,28 @@ DEFINE PHASE charge                                                       -- §7
   steps: [chargeTurnEffects, chargeContinuousEnd, chargePending, chargeActivate, chargeDraw, chargeEnergy]
   auto: false
   announce: true
+  skip: charge
   text: "the rules processing at the start of a turn, with a checkpoint after each step (7-2-1, 7-2-6, 7-2-8, 7-2-10, 7-2-12)"
 
 DEFINE PHASE main                                                         -- §7-3
   steps: [mainPending, mainActions]
   auto: false
   announce: true
+  skip: main
   text: "the phase the turn player takes their moves in, returning to a checkpoint after each one (7-3-1, 7-3-4)"
 
 DEFINE PHASE mainEnd                                                      -- §7-3-5
   steps: [mainEndPending, mainEndEffects]
   auto: true
   announce: false
+  skip: main
   text: "the Main Phase End Step, which the manual counts as a step of the Main Phase and this engine runs as a phase (7-3-5)"
 
 DEFINE PHASE end                                                          -- §7-4
   steps: [endPending, endRepeat, endEffects, endTurn]
   auto: true
   announce: true
+  skip: end
   text: "the end of the turn: what answers to it is made pending, what lasted for the turn ends, and the other player becomes the turn player (7-4-1, 7-4-7)"
 
 DEFINE PHASE over                                                         -- §0-1-3
@@ -161,6 +174,7 @@ DEFINE STEP chargeTurnEffects                                             -- §7
 DEFINE STEP chargeContinuousEnd                                           -- §7-2-4
   phase: "charge"
   optional: false
+  always: true
   text: "continuous effects that last \"until the start of your opponent's turn\" end (7-2-4)"
 
 DEFINE STEP chargePending                                                 -- §7-2-5
@@ -223,11 +237,13 @@ DEFINE STEP endRepeat                                                     -- §7
 DEFINE STEP endEffects                                                    -- §7-4-5
   phase: "end"
   optional: false
+  always: true
   text: "every effect that lasts \"for the turn\" or \"until the end of the turn\" ends, for the turn player and then for the non-turn player (7-4-5, 7-4-6)"
 
 DEFINE STEP endTurn                                                       -- §7-4-7
   phase: "end"
   optional: false
+  always: true
   text: "the turn ends, the non-turn player becomes the turn player, and play proceeds to the next turn's Charge Phase (7-4-7)"
 
 -- ── the game is over (§0-1-3) ─────────────────────────────────────────────

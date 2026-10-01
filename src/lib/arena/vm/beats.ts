@@ -61,12 +61,12 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
   for (const e of events) {
     switch (e.type) {
       case "phase":
-        push({ t: "phase", phase: e.phase, player: e.player, turn: e.turn });
+        push({ t: "phase", phase: e.phase, player: e.player, turn: e.turn, ...(e.skipped ? { skipped: true as const } : {}) });
         break;
       // A battle step is a named step like a phase is (`beats.ts`'s own
       // reading) — the same `t: "phase"` beat, narrated without a side.
       case "battleStep":
-        push({ t: "phase", phase: e.step, player: state.turnPlayer, turn: state.turn });
+        push({ t: "phase", phase: e.step, player: state.turnPlayer, turn: state.turn, ...(e.skipped ? { skipped: true as const } : {}) });
         break;
       case "draw":
         remember(e.card);

@@ -181,25 +181,27 @@ skipped) tells you what you broke:
   once the rules engine's battle damage asked per life card; the rest of the
   9-10 family, `replaceGap`'s six cases, went on 1 Oct 2026), and
   `notYetGap` for everything else
-  found empirically rather than guessed at from a doc — the `addSkip` queue
-  (#145; a skill-driven KO, `h.ko`, was #146's until it landed), an X price on a skill line
-  (`actions.rules`'s own gap), and several real, individually-diagnosed
-  gaps this porting pass turned up and none of the other suites had reason
-  to exercise: [Spirit Boost]'s own keyword-shaped marker amount not
-  reaching the cost planner though the price grammar is declared (closed by
-  #157: `DEFINE COST spiritBoost`); two
-  trigger-moment wordings ("switched to Rest Mode by one of your skills",
-  closed by #157's `modeSwitched(by: …)`, and "when you use a card in a
-  combo", which does not yet pend on this engine);
-  `copySkills` granting a keyword and an [Auto] but not the copied
-  [Permanent] itself (20-18); an [Activate: Battle] skill not reaching the
-  menu from hand during the combo step; `control` (20-9) not preserving a
-  card's markers across the move; and a [Permanent]'s live per-step skip
-  condition (`stepSkippedByPermanent`, distinct from `addSkip`) not read by
-  the battle sub-flow at all. Every one of these was found by running the
+  found empirically rather than guessed at from a doc. Since #439 it holds
+  two cases, both about the harness rather than the engine: a multi-card
+  prompt staged on the legacy-only `continuations` field, and TAKER2's
+  legacy-only `koCard` helper. What #439 closed, each found by running the
+  ported case and reading what actually happened: 20-13's skip list and the
+  [Permanent] skip read live at a battle step (`vm/skips.ts`; SKIPPER,
+  NODEFENSE, SKIPNOW, INBATTLE, ATKSKIP, TURNSKIP, SPANSKIP); "when you use
+  a card in a combo" resolving before the next combo offer (COMBOWATCH); a
+  Unison's refusal, which was there all along under `playUnison` (GOTEN); an
+  X price on a skill line (XDRAW); 9-1-5 negation taking a printed keyword
+  away (MUTER); a copied [Permanent], [Auto] and keyword (COPYCAT); control
+  keeping a card's markers and the loan walking it back (TAKER); a
+  [Counter]'s alternative price and [Invoker] in the counter window (CFREE);
+  and a skill-cost reduction reaching a [Counter]'s orbs (SKILLCHEAP).
+  Earlier passes closed [Spirit Boost]'s marker amount (#157: `DEFINE COST
+  spiritBoost`, which contradicted an earlier note that it needed no hook
+  at all), "switched to Rest Mode by one of your skills" (#157's
+  `modeSwitched(by: …)`) and an [Activate: Battle] skill reaching the menu
+  from hand during the combo step. Every one was found by running the
   ported case and reading what actually happened, not by trusting a claim
-  already on file — one of them (Spirit Boost) contradicted an earlier
-  note that it needed no hook at all. The suite still reports `ok` on both
+  already on file. The suite still reports `ok` on both
   engines; what moved is *how much of it* is a real assertion on `rules`
   today, printed at the top of the run.
 - **`readings.ts` / `wordings.ts`** — the wordings learned after the keywords.
