@@ -7,7 +7,7 @@ stage: 3
 status: closed
 closed_at: 2026-09-12
 ---
-**Source:** plan Stage 3; the `DEFINE` grammar issue (this one depends on it); `src/lib/arena/engine/script.ts` (`AREAS`, `KEYWORD_NAMES`, the `Trigger` union in `types.ts`).
+**Source:** plan Stage 3; the `DEFINE` grammar issue (this one depends on it); `src/lib/arena/vm/script.ts` (`AREAS`, `KEYWORD_NAMES`, the `Trigger` union in `types.ts`).
 
 **Problem.** A parsed `DEFINE` list is text made into a tree; the engine, the editor and the referee need it as a typed **definition** with cross-references resolved (a trigger names a zone, a keyword names a hook, an action names a cost) and a **vocabulary** — the closed word lists the language is checked against today by hand-written constants.
 

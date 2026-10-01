@@ -7,7 +7,7 @@ issue: 255
 status: closed
 closed_at: 2026-09-14
 ---
-**Source:** `docs/arena-backlog/s2-96-specified-cost.md` (the findings of 12 Sep 2026, which this issue is split out of); `specifiedCostOf` and `specifiedCostUnknown` in `src/lib/arena/engine/cards.ts`; `scripts/arena-specified-cost.mts`; `src/lib/catalog/errata.ts` (the precedent for data the feed gets wrong); the owner's ruling of 9 Sep 2026 recorded with `npm run arena:rule -- --list`.
+**Source:** `docs/arena-backlog/s2-96-specified-cost.md` (the findings of 12 Sep 2026, which this issue is split out of); `specifiedCostOf` and `specifiedCostUnknown` in `src/lib/arena/text/cards.ts`; `scripts/arena-specified-cost.mts`; `src/lib/catalog/errata.ts` (the precedent for data the feed gets wrong); the owner's ruling of 9 Sep 2026 recorded with `npm run arena:rule -- --list`.
 
 **Problem.** The specified-cost mechanism is built and inert on the catalog. #96 established that the reducer relaxes only the coloured requirement, wired every caller to read it, and then found there is nothing to read: the deckplanet feed carries **no cost orbs at all**. `card_energy_cost` is a bare number, `"X"`, `""` or null across all 6,493 cards of the original game; the orb images appear only inside skill text; no other field carries a cost. So `specifiedCostOf` refuses a baseline for an X cost rather than guessing one, and seven cards read their own clause correctly and change nothing on the board:
 

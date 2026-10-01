@@ -5,7 +5,7 @@ milestone: Arena M7 — Rules engine core (Stage 4)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage4, model:opus-5
 stage: 4
 ---
-**Source:** plan Stage 4 ("effect layers, delayed effects, checkpoints, prompts; `stepScript` shared with the old engine where the op is generic"); `src/lib/arena/engine/script.ts` (`stepScript`, `ScriptFrame`, `OP_SCHEMA`), `state.ts` (`ContinuousEffect`, `DelayedEffect`, `staticEffects`); `src/lib/arena/effects.ts` (the one place a rule in force becomes a label).
+**Source:** plan Stage 4 ("effect layers, delayed effects, checkpoints, prompts; `stepScript` shared with the old engine where the op is generic"); `src/lib/arena/vm/script.ts` (`stepScript`, `ScriptFrame`, `OP_SCHEMA`), `state.ts` (`ContinuousEffect`, `DelayedEffect`, `staticEffects`); `src/lib/arena/effects.ts` (the one place a rule in force becomes a label).
 
 **Problem.** A skill's program must run on the rules engine with the same semantics as on the legacy one — the same `Op` tree from the same `card_rules` row — or the record stops meaning one thing. The plan's answer is to **share** `stepScript` for every generic op and give it an abstract state interface, so the two engines diverge only where the game does.
 

@@ -7,7 +7,7 @@ issue: 277
 status: closed
 closed_at: 2026-09-14
 ---
-**Source:** #137 (owner's decision of 13 Sep 2026); `docs/arena-ruleset-spec.md` §2.5-4 ("a price is not a number"); `src/lib/arena/rulesets/dbs/ops.rules` (`costReduction`, `altCost` waiting on `cost`); the `costReduction` row in `src/lib/arena/engine/script-schema.ts` (its `doc` carries the owner's BT19-039 ruling) and `altCost`; `src/lib/arena/vm/costs.ts` (`LAYER_KINDS`, `costLayerGaps`) and `permanents` in `src/lib/arena/vm/effects.ts`; the legacy `playCost`/`orbTotals` in `src/lib/arena/engine/state.ts`; #96, #97, #255.
+**Source:** #137 (owner's decision of 13 Sep 2026); `docs/arena-ruleset-spec.md` §2.5-4 ("a price is not a number"); `src/lib/arena/rulesets/dbs/ops.rules` (`costReduction`, `altCost` waiting on `cost`); the `costReduction` row in `src/lib/arena/vm/script-schema.ts` (its `doc` carries the owner's BT19-039 ruling) and `altCost`; `src/lib/arena/vm/costs.ts` (`LAYER_KINDS`, `costLayerGaps`) and `permanents` in `src/lib/arena/vm/effects.ts`; the legacy `playCost`/`orbTotals` in `src/lib/arena/engine/state.ts`; #96, #97, #255.
 
 **Problem.** A cost is structured — orbs, a life payment, or a whole program — and the specified cost never touches a total (owner's ruling of 9 Sep 2026), which is why it is not a `modifyAttr`. The primitive that carries that structure does not exist, so `costReduction` and `altCost` cannot be declared.
 

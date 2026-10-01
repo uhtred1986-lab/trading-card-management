@@ -7,7 +7,7 @@ stage: 3
 status: closed
 closed_at: 2026-09-12
 ---
-**Source:** plan Stage 3 ("completeness against the old engine's unions"); `scripts/verify-arena.ts` and `scripts/verify/*.ts` (the twelve suites `docs/arena-tooling.md` §2 explains); `src/lib/arena/engine/types.ts` (`Area`, `Phase`, `Trigger`, `Prompt`), `script.ts` (`AREAS`, `KEYWORD_NAMES`).
+**Source:** plan Stage 3 ("completeness against the old engine's unions"); `scripts/verify-arena.ts` and `scripts/verify/*.ts` (the twelve suites `docs/arena-tooling.md` §2 explains); `src/lib/arena/types.ts` (`Area`, `Phase`, `Trigger`, `Prompt`), `script.ts` (`AREAS`, `KEYWORD_NAMES`).
 
 **Problem.** Nothing would notice a zone, a trigger or a keyword the definition forgot until Stage 4 fails to play a card that uses it. The legacy engine's unions are the ground truth for what the game *has*; the definition must declare all of it and nothing else.
 

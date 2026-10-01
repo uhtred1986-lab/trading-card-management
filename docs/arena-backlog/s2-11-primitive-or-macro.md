@@ -7,7 +7,7 @@ stage: 2
 status: closed
 closed_at: 2026-09-12
 ---
-**Source:** plan Stage 2 rule: *a primitive "says something no combination of others can"; otherwise it is re-declared as a macro in Stage 3*; the plan's `modifyAttr(target, attr, delta|value, until, scope?)` and `costModifier` rows; `OP_SCHEMA` in `src/lib/arena/engine/script.ts` (44 op kinds today).
+**Source:** plan Stage 2 rule: *a primitive "says something no combination of others can"; otherwise it is re-declared as a macro in Stage 3*; the plan's `modifyAttr(target, attr, delta|value, until, scope?)` and `costModifier` rows; `OP_SCHEMA` in `src/lib/arena/vm/script.ts` (44 op kinds today).
 
 **Problem.** Stage 3 will write the DBS game as configuration, and Stage 4's engine will interpret *primitives*. Today's 44 ops are DBS-shaped: `power`, `comboPower` and `gains` are three spellings of "change an attribute", `costReduction`/`altCost` two of "change a cost". Without a written decision per op, Stage 3 cannot write `DEFINE OP` macros and Stage 4 will re-implement every DBS op by hand — the outcome the owner rejected.
 

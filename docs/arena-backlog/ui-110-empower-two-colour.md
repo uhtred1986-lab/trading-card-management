@@ -4,12 +4,12 @@ milestone: Arena M5 — Engine capability gaps and advanced mechanics
 labels: backlog, blocked, enhancement, area:arena-compiler, phase:capability-gap, model:sonnet-5
 stage: ui
 ---
-**Source:** `docs/arena-markers-stage-scope.md` §2 item 2 and §4 step D; rule manual 22-45-3-1; `keywordOf` in `src/lib/arena/engine/cards.ts` (~line 217, `^empower(?: ([a-z]+))?(?: (\d+))?$`).
+**Source:** `docs/arena-markers-stage-scope.md` §2 item 2 and §4 step D; rule manual 22-45-3-1; `keywordOf` in `src/lib/arena/text/cards.ts` (~line 217, `^empower(?: ([a-z]+))?(?: (\d+))?$`).
 
 **Problem.** The two-colour form `[Empower XY/ZY]` fails on the slash. 22-45-3-1 defines it and says the player chooses one of the colours when the keyword resolves.
 
 **Blocked, on purpose:** no card in the catalog prints it.
-- **Status check (9 Sep 2026):** Confirmed with `npm run arena:tally -- --show "Empower"`. Out of 4 cards printing "Empower" (`P-378`, `P-377`, `BT27-002`, `P-733`), none print the two-colour `[Empower XY/ZY]` form. Added code comment on line 217 in `src/lib/arena/engine/cards.ts` referencing this issue.
+- **Status check (9 Sep 2026):** Confirmed with `npm run arena:tally -- --show "Empower"`. Out of 4 cards printing "Empower" (`P-378`, `P-377`, `BT27-002`, `P-733`), none print the two-colour `[Empower XY/ZY]` form. Added code comment on line 217 in `src/lib/arena/text/cards.ts` referencing this issue.
 - Build will proceed when a card in the catalog prints this keyword variant.
 
 **Build, when unblocked.**

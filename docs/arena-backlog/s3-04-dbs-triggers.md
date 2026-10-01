@@ -7,7 +7,7 @@ stage: 3
 status: closed
 closed_at: 2026-09-12
 ---
-**Source:** plan Stage 3; the `Trigger` union in `src/lib/arena/engine/types.ts` (~41 names) and `pendTriggers`/`skillAnswersTo` in `engine/triggers.ts`; rule manual 9-6 ([Auto] timing) and 9-6-9 (area-movement triggers); `docs/arena-rules-language.md` §7.
+**Source:** plan Stage 3; the `Trigger` union in `src/lib/arena/types.ts` (~41 names) and `pendTriggers`/`skillAnswersTo` in `engine/triggers.ts`; rule manual 9-6 ([Auto] timing) and 9-6-9 (area-movement triggers); `docs/arena-rules-language.md` §7.
 
 **Problem.** A trigger is a name today, matched by TypeScript against the event log. The rules engine will match **event patterns**: "played" is *a card moves from a non-in-play area to battle or unison* (9-6-9-4), "attacks" is *an attack event whose attacker is the subject*. Writing the 41 names as patterns is what lets a new game declare its own moments without code — and what shows whether the engine's current moments are the manual's.
 

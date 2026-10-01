@@ -13,8 +13,8 @@ closed_at: 2026-09-09
 - **BT16-088** prints "non-<Zamasu> **and** non-<Goku Black>" and "for the game".
 
 **Verification Checklist:**
-- [x] 1. In `src/lib/arena/engine/compile.ts` lines 632-649 (`AREAS_OTHER_THAN_RE`), "areas other than A, B or C" is parsed into the complement over `ALL_AREAS` (`leader`, `battle`, `unison`, `combo`, `energy`, `drop`, `warp`, `zDeck`, `zEnergy`), cleanly excluding deck, hand, and life.
-- [x] 2. In `src/lib/arena/engine/compile.ts` line 29 (`NAME_AFTER_AND`) and `filters.ts`, "non-X and non-Y" prevents clause splitting across negated name conjunctions and merges both into `notCharacters` (`["zamasu", "goku black"]`).
+- [x] 1. In `src/lib/arena/compile.ts` lines 632-649 (`AREAS_OTHER_THAN_RE`), "areas other than A, B or C" is parsed into the complement over `ALL_AREAS` (`leader`, `battle`, `unison`, `combo`, `energy`, `drop`, `warp`, `zDeck`, `zEnergy`), cleanly excluding deck, hand, and life.
+- [x] 2. In `src/lib/arena/compile.ts` line 29 (`NAME_AFTER_AND`) and `filters.ts`, "non-X and non-Y" prevents clause splitting across negated name conjunctions and merges both into `notCharacters` (`["zamasu", "goku black"]`).
 - [x] 3. "for the game" on BT16-088 duration parsed as `until: "game"` (`compile.ts` `durationOf`).
 - [x] 4. Tests added in `scripts/verify/wordings.ts` asserting exact readings and exclusion filters for BT7-129 and BT16-088.
 - [x] 5. Glossary entry in `src/lib/arena/glossary.ts` documents the negated-name conjunction rule.

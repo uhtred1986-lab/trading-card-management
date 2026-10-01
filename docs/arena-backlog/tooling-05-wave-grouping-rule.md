@@ -7,7 +7,7 @@ issue: 284
 status: closed
 closed_at: 2026-09-14
 ---
-**Source:** the orchestrator's token review of 13 Sep 2026 (the wave of five sessions over #255, #269–#279 was grouped by hot file — `src/lib/arena/engine/script-schema.ts`, `src/lib/arena/rulesets/dbs/ops.rules`, `src/lib/arena/rulesets/dbs/actions.rules`, `CLAUDE.md`, `src/db/schema.ts` and the `drizzle/` migrations — with the issues that share one run sequentially in one session); `docs/arena-backlog.md`; `docs/arena-backlog/_README.md`; `scripts/lib/arena-backlog.ts` (the front-matter parser).
+**Source:** the orchestrator's token review of 13 Sep 2026 (the wave of five sessions over #255, #269–#279 was grouped by hot file — `src/lib/arena/vm/script-schema.ts`, `src/lib/arena/rulesets/dbs/ops.rules`, `src/lib/arena/rulesets/dbs/actions.rules`, `CLAUDE.md`, `src/db/schema.ts` and the `drizzle/` migrations — with the issues that share one run sequentially in one session); `docs/arena-backlog.md`; `docs/arena-backlog/_README.md`; `scripts/lib/arena-backlog.ts` (the front-matter parser).
 
 **Problem.** Two sessions editing `script-schema.ts` or `ops.rules` at once produce merge conflicts that each costs a re-read of the file and a re-run of the gate; two migrations generated in parallel collide on their number. The rule that avoids it was applied by hand on 13 Sep and lives nowhere.
 
