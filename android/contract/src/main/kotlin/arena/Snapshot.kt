@@ -417,9 +417,10 @@ sealed class Beat {
     @SerialName("draw")
     data class Draw(override val n: Int, val player: String, val card: String? = null) : Beat()
 
+    /** `reveal` (#463): the card was shown to both players as it moved — the only time a narration names a card that went into a hidden area. */
     @Serializable
     @SerialName("move")
-    data class Move(override val n: Int, val card: String, val from: String, val to: String, val owner: String) : Beat()
+    data class Move(override val n: Int, val card: String, val from: String, val to: String, val owner: String, val reveal: Boolean = false) : Beat()
 
     @Serializable
     @SerialName("mode")
@@ -465,6 +466,8 @@ sealed class Beat {
         val amount: Int,
         val critical: Boolean,
         val cards: List<String>,
+        /** #463: the attacker whose won clash dealt it, so the battle's result is one sentence. */
+        val by: String? = null,
     ) : Beat()
 
     /** `owner` is null only if the card left the game entirely. */
@@ -479,7 +482,19 @@ sealed class Beat {
     /** `owner` is whose skill resolved, so a narration can say whose ability it was. */
     @Serializable
     @SerialName("skill")
-    data class Skill(override val n: Int, val card: String, val label: String, val text: String, val unread: Boolean, val owner: String, val inBattle: Boolean = false) : Beat()
+    data class Skill(
+        override val n: Int,
+        val card: String,
+        val label: String,
+        val text: String,
+        val unread: Boolean,
+        val owner: String,
+        val inBattle: Boolean = false,
+        /** #463: an Extra used from the hand — narrated as used, not discarded. */
+        val extra: Boolean = false,
+        /** #463: nothing followed it before the game came back to a Main Phase prompt. */
+        val noEffect: Boolean = false,
+    ) : Beat()
 
     /** A rule coming into force on `card`, or on `player` when it is about a player rather than a card. */
     @Serializable

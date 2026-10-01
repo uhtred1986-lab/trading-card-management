@@ -483,7 +483,9 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
       assert.equal(beat.total, 3, "1 paid plus 2 carried, same as 22-45-2's own arithmetic");
       assert.equal(beats.list.filter((b) => b.t === "markers").length, 2, "the paid marker and the carried markers are two beats, not one conflating both");
 
-      assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }), `2 markers move from ${beats.art[old].name} to ${beats.art[newUnison].name}.`);
+      // #463: a marker count is on the board for all to see, so the table hears nothing; the full log still says it.
+      assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }), null);
+      assert.equal(narrate(beat, { viewer: "p1", them: "Claude", art: beats.art }, undefined, { full: true }), `2 markers move from ${beats.art[old].name} to ${beats.art[newUnison].name}.`);
 
       // Marker counts on a Unison are public (5-13-2), so `maskBeats` has
       // nothing to hide here for either side — the very same queue comes

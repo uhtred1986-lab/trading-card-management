@@ -81,7 +81,7 @@ export function logLines(ctx: EngineContext, steps: ProbeStep[], from = 0, engin
   for (const step of steps.slice(from)) {
     const beats = engineFor(engine).toBeats(ctx, step.state, step.events, 0);
     for (const b of beats.list) {
-      const said = narrate(b, { viewer: YOU, them: "Opponent", art: beats.art, ownerOf: (id) => step.state.cards[id]?.owner ?? null });
+      const said = narrate(b, { viewer: YOU, them: "Opponent", art: beats.art, ownerOf: (id) => step.state.cards[id]?.owner ?? null }, undefined, { full: true });
       if (said) out.push(said);
     }
   }

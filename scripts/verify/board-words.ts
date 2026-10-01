@@ -155,23 +155,28 @@ for (const until of UNTILS) {
 }
 
 // `narration.ts`: every move between every pair of areas, every phase, both modes.
+// The full log (#463): the table's own narration says too little of these to compare them by.
+const FULL = { full: true };
 const n: Narrator = { viewer: "p1", them: "Claude", art: { c1: { cardId: "BT1-001", name: "BT1-001", imageUrl: null } } };
 const areas = Object.keys(LEGACY_AREA) as Area[];
 for (const from of areas) {
   for (const to of areas) {
     for (const owner of ["p1", "p2"] as const) {
       const b = { t: "move" as const, card: "c1", from, to, owner };
-      assert.equal(narrate(b, n), narrate(b, n, fromDef));
+      assert.equal(narrate(b, n, undefined, FULL), narrate(b, n, fromDef, FULL));
     }
   }
 }
 for (const phase of Object.keys(LEGACY_PHASE)) {
   const b = { t: "phase" as const, phase, player: "p1" as const, turn: 1 };
-  assert.equal(narrate(b as never, n), narrate(b as never, n, fromDef));
+  assert.equal(narrate(b as never, n, undefined, FULL), narrate(b as never, n, fromDef, FULL));
 }
-assert.equal(narrate({ t: "phase", phase: "charge", player: "p1", turn: 1 }, n), "Your Charge Phase.");
-assert.equal(narrate({ t: "mode", card: "c1", mode: "rest" }, n), "BT1-001 switches to Rest Mode.");
-assert.equal(narrate({ t: "mode", card: "c1", mode: "active" }, n), "BT1-001 switches to Active Mode.");
+assert.equal(narrate({ t: "phase", phase: "charge", player: "p1", turn: 1 }, n, undefined, FULL), "Your Charge Phase.");
+assert.equal(narrate({ t: "mode", card: "c1", mode: "rest" }, n, undefined, FULL), "BT1-001 switches to Rest Mode.");
+assert.equal(narrate({ t: "mode", card: "c1", mode: "active" }, n, undefined, FULL), "BT1-001 switches to Active Mode.");
+// What the table hears of the same three: the turn beginning, and nothing for a mode switch it can see.
+assert.equal(narrate({ t: "phase", phase: "charge", player: "p1", turn: 1 }, n), "Your turn begins.");
+assert.equal(narrate({ t: "mode", card: "c1", mode: "rest" }, n), null);
 
 // `describeStatic`'s "skip": every phase word it can say.
 for (const what of ["offense", "defense", "charge", "main", "end", "turn", "span"]) {

@@ -368,6 +368,7 @@
         "from": "hand",
         "to": "unison",
         "owner": "p1",
+        "reveal": true,
         "n": 2
       },
       {

@@ -29,7 +29,14 @@ export type Beat =
   /** A named step of the game: a phase, or a step within a battle. */
   | { t: "phase"; phase: string; player: PlayerId; turn: number; skipped?: true }
   | { t: "draw"; player: PlayerId; card: string | null }
-  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId }
+  /**
+   * `reveal` is the engine's word that the card was shown to both players as
+   * it moved (#463) — a life card revealed into a hand (BT10-031/SD18-01), an
+   * Extra or a play going face up. The narration names a card that went into
+   * a hidden area only on this flag, never because its face happens to be in
+   * `art` (which is masked against the board as it stands *now*).
+   */
+  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId; reveal?: true }
   | { t: "mode"; card: string; mode: "active" | "rest" }
   | { t: "flip"; card: string }
   /** `from` is the Unison these markers were carried over from ([Empower], 22-45-3) — the count on a Unison is public, so this rides through `maskBeats` unchanged. */
@@ -39,8 +46,13 @@ export type Beat =
   | { t: "attack"; attacker: string; target: string }
   | { t: "block"; guard: string; by: string }
   | { t: "clash"; attacker: string; guard: string; attackPower: number; guardPower: number; hit: boolean }
-  /** `cards` are the life cards taken, so they can be flown to hand or Drop. */
-  | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[] }
+  /**
+   * `cards` are the life cards taken, so they can be flown to hand or Drop.
+   * `by` is the attacker whose hit dealt it, when a won clash in the same batch
+   * did (#463) — so the battle's result is one sentence ("Son Goku hits —
+   * Claude takes 1 damage") rather than a clash line and a damage line.
+   */
+  | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[]; by?: string }
   /** `owner` because a KO'd card is gone: a client must know which side to draw it leaving from. */
   | { t: "ko"; card: string; owner: PlayerId | null }
   | { t: "negated" }
@@ -49,8 +61,13 @@ export type Beat =
    * was. `inBattle` is the engine's word that this skill fired as part of the
    * open battle, so a battle staging can spotlight it on the card that fired
    * rather than sliding a banner over the fight (staging spec §3.2).
+   * `extra` (#463): the card is an Extra used from the hand — its own `move`
+   * to the Drop came first in the same batch — so it is narrated as used, not
+   * discarded. `noEffect`: nothing followed it, outside a battle, before the
+   * game came back to a Main Phase prompt — the skill found nothing to act on.
+   * `maskBeats` blanks `label` and `text` when the viewer may not see `card`.
    */
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean }
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true }
   /**
    * A rule coming into force (9-9): "+5000 power", "[Critical]", "can't
    * attack" on `card`, or on `player` when it is about a player rather than a
@@ -180,7 +197,7 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
         break;
       case "move":
         remember(e.card);
-        push({ t: "move", card: e.card, from: e.from, to: e.to, owner: e.owner });
+        push({ t: "move", card: e.card, from: e.from, to: e.to, owner: e.owner, ...(revealedMove(e, state.cards[e.card]?.faceUp) ? { reveal: true as const } : {}) });
         break;
       case "mode":
         remember(e.card);
@@ -277,7 +294,19 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
     }
   }
 
+  relateBeats(list, state.prompt.kind);
   return { seq: n, list, art };
+}
+
+/**
+ * Was this move shown to both players (#463)? The event's own `reveal` says so
+ * for a play, an Extra or a Critical life card; a life card revealed on its way
+ * into a hand (#272, BT10-031/SD18-01's "reveal it and add it to your hand
+ * instead") is the one that arrives `faceUp` in a hidden area, which is how
+ * both engines mark it.
+ */
+export function revealedMove(e: Extract<GameEvent, { type: "move" }>, faceUpNow: boolean | undefined): boolean {
+  return !!e.reveal || (e.from === "life" && e.to === "hand" && !!faceUpNow);
 }
 
 /**
@@ -292,6 +321,36 @@ function ownerOf(state: GameState, id: string): PlayerId | null {
     if (ps.drop.includes(id) || ps.battle.includes(id) || ps.removed.includes(id) || ps.warp.includes(id)) return p;
   }
   return null;
+}
+
+/**
+ * What one batch's beats can only say by looking at each other (#463), shared
+ * by both engines' translations so they stay the same shape:
+ *
+ * - a `damage` beat that a won clash dealt carries that clash's `attacker` as
+ *   `by` — only the life cards leaving in between may separate them;
+ * - a `skill` beat whose card moved from the hand to the Drop earlier in the
+ *   batch is an Extra being used (12-2-2), `extra`;
+ * - a `skill` beat that is the batch's last, outside a battle, with the game
+ *   back at a Main Phase prompt, did nothing anyone can see, `noEffect`.
+ *
+ * Mutates `list` in place; called once at the end of `toBeats`/`vmToBeats`.
+ */
+export function relateBeats(list: NumberedBeat[], promptKind: string): void {
+  let hit: string | null = null;
+  const toDrop = new Set<string>();
+  list.forEach((b, i) => {
+    if (b.t === "clash") hit = b.hit ? b.attacker : null;
+    else if (b.t === "damage") {
+      if (hit) b.by = hit;
+      hit = null;
+    } else if (!(b.t === "move" && b.from === "life")) hit = null;
+    if (b.t === "move" && b.from === "hand" && b.to === "drop") toDrop.add(b.card);
+    if (b.t === "skill") {
+      if (toDrop.has(b.card)) b.extra = true;
+      if (i === list.length - 1 && !b.inBattle && promptKind === "main") b.noEffect = true;
+    }
+  });
 }
 
 /** Add a batch to a game's queue, keeping it bounded. */
@@ -325,6 +384,12 @@ export function maskBeats(state: EngineState, beats: Beats | null, viewer: Playe
   const seen = revealedTo(state, viewer);
   const art: Beats["art"] = {};
   for (const [id, a] of Object.entries(beats.art)) if (seen.has(id)) art[id] = a;
-  if (Object.keys(art).length === Object.keys(beats.art).length) return beats;
-  return { ...beats, art };
+  // #463: a `skill` beat carries the printed text and tag of the card that
+  // fired it, which names the card as surely as its face does. Blanked on the
+  // same rule; the beat stays, so the moment still plays.
+  const hiddenSkill = (b: NumberedBeat) => b.t === "skill" && !seen.has(b.card) && (b.text !== "" || b.label !== "Skill");
+  const masksSkill = beats.list.some(hiddenSkill);
+  if (!masksSkill && Object.keys(art).length === Object.keys(beats.art).length) return beats;
+  const list = masksSkill ? beats.list.map((b) => (hiddenSkill(b) ? { ...b, label: "Skill", text: "" } : b)) : beats.list;
+  return { ...beats, list, art };
 }

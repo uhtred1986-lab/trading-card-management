@@ -20,6 +20,7 @@ import { appendBeats, describeSkillEvent, type Beats, type NumberedBeat } from "
 import { ENGINE_INFO, engineFor, engineOr, FALLBACK_ENGINE, isVmState, playableEngine, sideName, type EngineId, type EngineState } from "./engines";
 import { NOT_YET_REASON_PREFIX } from "./vm";
 import { recordDecision } from "./ai/debug";
+import { tableTalk } from "./ai/table-talk";
 import { cardDefFrom, deckInputFor } from "./load";
 import { assertDecksPlayable } from "./readiness";
 import { rulesFor } from "./rules-store";
@@ -406,7 +407,10 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   // reason for the move that follows. Collecting the whole batch and appending
   // it at the end put a line said on turn 1 under the turn 2 header, which
   // read as if Claude had acted out of turn.
-  const say = told?.say ?? null;
+  // #463: read against the board *after* the move, so a card Claude has just
+  // played is public by now and may be talked about; one still in its hand,
+  // life or deck may not, and the line is dropped (`ai/table-talk.ts`).
+  const say = tableTalk(game.ctx, state, action.player, told?.say);
   // An `aside` is the server disclosing something 3-1-3 would normally keep —
   // what Claude saw in a search. Log only, never a beat: it is a note to the
   // owner, not something the opponent said, and only a `debug` game has any.

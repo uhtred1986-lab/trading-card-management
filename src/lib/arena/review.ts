@@ -151,7 +151,7 @@ export function replayForReview(input: {
     const picked = pickedAt >= 0 ? pool.splice(pickedAt, 1)[0] : null;
     const told = engine.toBeats(input.ctx, after, events, 0);
     const narrator: Narrator = { viewer, them: input.names.p2, art: told.art, ownerOf: (id) => after.cards[id]?.owner ?? null };
-    const story = told.list.map((b: NumberedBeat) => narrate(b, narrator)).filter((s): s is string => !!s);
+    const story = told.list.map((b: NumberedBeat) => narrate(b, narrator, undefined, { full: true })).filter((s): s is string => !!s);
     const refused = engine
       .rejectedActions(input.ctx, before, legal)
       .slice(0, 6)

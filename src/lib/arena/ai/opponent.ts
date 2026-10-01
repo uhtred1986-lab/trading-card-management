@@ -13,7 +13,8 @@
  *      pays a tenth of the price for them.
  *   3. Only the state delta is sent per decision, and only the text of cards
  *      that can actually act.
- *   4. The answer is a number plus at most one line of table talk.
+ *   4. The answer is a number plus at most one line of table talk, which
+ *      must not name a hidden card of Claude's (#463, `table-talk.ts`).
  *   5. Two tiers: Sparring runs everything on Haiku 4.5; Tournament sends the
  *      Main Phase and counter windows to Opus 5 (the owner's choice).
  */
@@ -75,7 +76,13 @@ const RULES_PRIMER = primer();
 
 const MoveSchema = z.object({
   move: z.number().int().describe("The number of the move you choose, from the list"),
-  say: z.string().max(120).describe("At most one short sentence of table talk, in character. May be empty."),
+  // #463: the opponent reads this line. Told here and in the question below,
+  // and checked after the move by `table-talk.ts`, which drops a line that
+  // names a card still in Claude's hand, life or deck.
+  say: z
+    .string()
+    .max(120)
+    .describe("At most one short sentence of table talk, in character. Never name or hint at a card in your hand, your life or your deck — your opponent cannot see them. May be empty."),
 });
 
 /**
@@ -197,7 +204,7 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
   // so a real decision is put to Claude on either engine, in the same words
   // for the same position.
   const { model, effort } = modelFor(tier, s);
-  const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence.`;
+  const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence of table talk. Your opponent reads that sentence, so never name or hint at a card in your hand, your life or your deck.`;
 
   const res = await anthropic().messages.parse({
     model,

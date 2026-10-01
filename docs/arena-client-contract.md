@@ -395,7 +395,7 @@ The built shape, `src/lib/arena/beats.ts`:
 export type Beat =
   | { t: "phase"; phase: string; player: PlayerId; turn: number }
   | { t: "draw"; player: PlayerId; card: string | null }
-  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId }
+  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId; reveal?: true }
   | { t: "mode"; card: string; mode: "active" | "rest" }
   | { t: "flip"; card: string }
   | { t: "markers"; card: string; delta: number; total: number; from?: string }
@@ -403,10 +403,10 @@ export type Beat =
   | { t: "attack"; attacker: string; target: string }
   | { t: "block"; guard: string; by: string }
   | { t: "clash"; attacker: string; guard: string; attackPower: number; guardPower: number; hit: boolean }
-  | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[] }
+  | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[]; by?: string }
   | { t: "ko"; card: string }
   | { t: "negated" }
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean }
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true }
   | { t: "effect"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; until: Duration | "permanent"; source: string | null; owner: PlayerId }
   | { t: "effectEnded"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; source: string | null }
   | { t: "say"; text: string }
@@ -463,6 +463,24 @@ Four things the build settled that the first draft of this section had wrong:
   (`vm/host.ts`'s own comment on `resolvePlay`), so only the legacy engine ever emits `from` today;
   `vmToBeats` still forwards the field so the two engines' `Beat` shapes stay identical the day it
   does.
+- **Four optional flags for the narration** (1 Oct 2026, issue #463), all additive — a client that
+  ignores them draws exactly what it drew before, and the Kotlin mirror defaults each (`false` /
+  `null`), so a fixture without them still decodes strictly:
+  - `move.reveal` — the card was shown to both players as it moved (a play, an Extra, a
+    [Critical] life card, a life card revealed into a hand by BT10-031/SD18-01). The narration
+    names a card that went between two areas the viewer cannot see *only* on this flag. Before,
+    it took "`art` has a face" as the signal, and `art` is masked against the board *now*, so a
+    card public by now produced false "Claude reveals X" lines for a moment nobody saw.
+  - `damage.by` — the attacker whose won clash dealt this damage, when the clash is in the same
+    batch, so a battle's result is one sentence ("Son Goku hits — Claude takes 1 damage").
+  - `skill.extra` — an Extra used from the hand (its own `move` to the Drop came first in the
+    batch), so it is told as used rather than discarded.
+  - `skill.noEffect` — nothing followed it, outside a battle, before the game came back to a Main
+    Phase prompt: it found nothing to act on.
+
+  All four are set in one shared pass, `relateBeats` (`beats.ts`), that both engines' translations
+  end with. **`maskBeats` also blanks a `skill` beat's `label` and `text`** (to `"Skill"` and `""`)
+  when the viewer may not see its card: the printed text names the card as surely as its face.
 
 Three properties the clients depend on, all of which are the server's job:
 

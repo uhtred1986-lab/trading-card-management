@@ -808,38 +808,73 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     { t: "say", text: "Your move." },
     { t: "over", winner: "p2", reason: "no life left" },
   ];
+  // Every beat kind has a sentence in the full log (#463: the admin drawer,
+  // the probe and the review), and it is one sentence.
+  const FULL = { full: true };
   for (const b of all) {
-    const s = narrate(b, me);
+    const s = narrate(b, me, undefined, FULL);
     assert.ok(s && s.length > 6, `${b.t} has a sentence`);
     assert.ok(/[.!”]$/.test(s!), `${b.t} ends a sentence: ${s}`);
+  }
+  // The table hears only decisions and outcomes (#463): these restate what
+  // the board already shows, and narrate nothing.
+  const quiet = new Set(["phase", "draw", "mode", "markers", "token", "clash", "effectEnded"]);
+  for (const b of all) {
+    const s = narrate(b, me);
+    if (quiet.has(b.t)) assert.equal(s, null, `${b.t} is not narrated at the table`);
+    else assert.ok(s && /[.!”]$/.test(s), `${b.t} is narrated at the table: ${s}`);
   }
   // Whose ability it was comes from `owner`, which is what Phase 1 added the field for.
   assert.equal(narrate(all[13], me), "Claude uses 《Union-Absorb》 on Son Goku — Place a card under it, then search.");
   assert.equal(narrate({ ...(all[13] as Extract<Beat, { t: "skill" }>), owner: "p1" }, me), "You use 《Union-Absorb》 on Son Goku — Place a card under it, then search.");
+  // #463: an Extra is used, not discarded, and one that found nothing says so.
+  const extra = { ...(all[13] as Extract<Beat, { t: "skill" }>), owner: "p1" as PlayerId, extra: true as const };
+  assert.equal(narrate(extra, me), "You use Son Goku (Extra) — Place a card under it, then search.");
+  assert.equal(narrate({ ...extra, noEffect: true }, me), "You use Son Goku (Extra) — no target, so nothing happens.");
+  // #463: a skill whose card the viewer may not see (`maskBeats` took its face) names nothing.
+  assert.equal(narrate({ ...(all[13] as Extract<Beat, { t: "skill" }>), card: "zz", label: "Skill", text: "" }, me), "Claude uses a skill.");
   // Perspective: the same beat reads differently from the other chair.
   assert.equal(narrate(all[2], me), "Claude plays Son Goku.");
   assert.equal(narrate(all[2], { ...me, viewer: "p2" }), "You play Son Goku.");
-  assert.equal(narrate(all[0], me), "Claude's Main Phase.");
+  // #463: a turn is told as it begins; the other phases only in the full log.
+  assert.equal(narrate(all[0], me), null);
+  assert.equal(narrate(all[0], me, undefined, FULL), "Claude's Main Phase.");
+  assert.equal(narrate({ t: "phase", phase: "charge", player: "p2", turn: 4 }, me), "Claude's turn begins.");
   assert.equal(narrate(all[10], me), "You take 1 damage — Critical.");
+  // #463: one result line per battle — a hit is told by the damage it dealt.
+  assert.equal(narrate({ ...(all[10] as Extract<Beat, { t: "damage" }>), by: "a" }, me), "Son Goku hits — you take 1 damage — Critical.");
+  assert.equal(narrate({ ...(all[10] as Extract<Beat, { t: "damage" }>), player: "p2", critical: false, by: "b" }, me), "Frieza hits — Claude takes 1 damage.");
   assert.equal(narrate(all[11], me), "Your Frieza is KO'd.");
-  // The winner is named, and named first (owner's decision, 7 Sep 2026).
-  assert.equal(narrate(all[9], me), "Son Goku wins the clash — 20,000 vs 10,000. The attack hits.");
-  assert.equal(narrate({ ...(all[9] as Extract<Beat, { t: "clash" }>), hit: false }, me), "Frieza wins the clash — 20,000 vs 10,000. The attack is repelled.");
+  // The winner is named, and named first (owner's decision, 7 Sep 2026) — in the full log.
+  assert.equal(narrate(all[9], me, undefined, FULL), "Son Goku wins the clash — 20,000 vs 10,000. The attack hits.");
+  assert.equal(narrate({ ...(all[9] as Extract<Beat, { t: "clash" }>), hit: false }, me, undefined, FULL), "Frieza wins the clash — 20,000 vs 10,000. The attack is repelled.");
+  // At the table a miss is the battle's one result line.
+  assert.equal(narrate({ ...(all[9] as Extract<Beat, { t: "clash" }>), hit: false }, me), "Son Goku's attack is repelled — 20,000 vs 10,000.");
   assert.equal(narrate(all[17], me), "Claude wins — no life left.");
   // A rule coming into force and wearing off (review §3.3), from the viewer's chair.
   assert.equal(narrate(all[14], me), "Son Goku gets +5000 power until the end of the turn (Frieza).");
-  assert.equal(narrate(all[15], me), "+5000 power on Son Goku wears off.");
+  assert.equal(narrate(all[15], me), null);
+  assert.equal(narrate(all[15], me, undefined, FULL), "+5000 power on Son Goku wears off.");
   assert.equal(
     narrate({ t: "effect", card: "a", player: null, kind: "keyword", label: "[Critical]", until: "nextTurn", source: null, owner: "p2" }, me),
     "Son Goku gains [Critical] until the start of Claude's next turn.",
   );
-  assert.equal(
-    narrate({ t: "effect", card: null, player: "p1", kind: "forbid", label: "can't attack with battle cards", until: "opponentTurn", source: "b", owner: "p2" }, me),
-    "You can't attack with battle cards until the start of your next turn (Frieza).",
-  );
+  // #463: an effect that is neither power nor a keyword is the full log's only.
+  const forbid: Beat = { t: "effect", card: null, player: "p1", kind: "forbid", label: "can't attack with battle cards", until: "opponentTurn", source: "b", owner: "p2" };
+  assert.equal(narrate(forbid, me), null);
+  assert.equal(narrate(forbid, me, undefined, FULL), "You can't attack with battle cards until the start of your next turn (Frieza).");
   // A hidden card is "a card", never a name the viewer may not know.
-  assert.equal(narrate({ t: "move", card: "zz", from: "deck", to: "hand", owner: "p2" }, me), "Claude adds a card from the deck to hand.");
-  assert.equal(narrate({ t: "draw", player: "p1", card: "a" }, me), "You draw Son Goku.");
+  assert.equal(narrate({ t: "move", card: "zz", from: "deck", to: "hand", owner: "p2" }, me, undefined, FULL), "Claude adds a card from the deck to hand.");
+  assert.equal(narrate({ t: "draw", player: "p1", card: "a" }, me, undefined, FULL), "You draw Son Goku.");
+  // #463: nor a card whose face `art` has *now* — public since — but that went
+  // between two hidden areas unrevealed (a mulligan, a life card set out).
+  assert.equal(narrate({ t: "move", card: "a", from: "hand", to: "deck", owner: "p2" }, me, undefined, FULL), "A card goes back into the deck.");
+  assert.equal(narrate({ t: "move", card: "a", from: "deck", to: "life", owner: "p1" }, me, undefined, FULL), "A card becomes a life card.");
+  // #463: a life card is said to be revealed only on the beat's own flag.
+  const lifeToHand: Beat = { t: "move", card: "a", from: "life", to: "hand", owner: "p2" };
+  assert.equal(narrate(lifeToHand, me), null, "an ordinary life card to hand is the damage line's to tell");
+  assert.equal(narrate(lifeToHand, me, undefined, FULL), "Claude takes a life card into hand.", "art present is not a reveal");
+  assert.equal(narrate({ ...lifeToHand, reveal: true }, me), "Claude reveals Son Goku and takes it into hand.");
 }
 
 // ── 1 v 1: what each seat may see, on both engines (#458) ──────────────────
