@@ -123,7 +123,8 @@ function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmSt
  * makes, for the two that are not a card attribute (#148): a payer for every
  * energy price (20-19) and another price for a card (5-3), which `vm/costs.ts`
  * reads where a price is planned. One reading, so the recursion guard above is
- * the one guard either path goes through.
+ * the one guard either path goes through. `vm/view.ts` reads it too, for the
+ * board's own picture of the rules in force on a player (#152).
  */
 export function staticsNow(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   return statics(ctx, game, state);
@@ -600,11 +601,6 @@ export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, st
     if (!ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid }, opts)) continue;
     e.forbid.uses = Math.max(0, (e.forbid.uses ?? 0) - 1);
   }
-}
-
-/** Every [Permanent] standing right now — `statics` above, for the board's own picture of the rules in force on a player (`vm/view.ts`). */
-export function staticsNow(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
-  return statics(ctx, game, state);
 }
 
 // ── selectors (5-2) ─────────────────────────────────────────────────────────
