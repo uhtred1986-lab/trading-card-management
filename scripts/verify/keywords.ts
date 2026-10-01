@@ -603,6 +603,12 @@ if (
   assert.equal(s.cards[emp].cardId, "EMP");
   assert.ok(zoneOf(s, "p1", "drop").includes(old), "13-2-3: the old Unison went to the Drop");
   assert.equal(s.cards[emp].markers, 3, "22-45-2: 1 paid plus 2 carried over (of the 3 it had)");
+  // Asked once, answered once: the play resolves a single time, so the
+  // question does not come back about the Unison that just arrived (it once
+  // did on the legacy engine, the play being queued twice).
+  assert.equal(s.prompt.kind, "main", "22-45-3: once the carry is answered, the main phase resumes");
+  assert.equal((s.prompt as { player?: string }).player, "p1");
+  assert.ok(!IMPL.legalActions(CTX, s).some((a) => a.action.type === "empowerCarry"), "no second [Empower] carry is offered");
   assertConsistentG(s);
 
   // 22-45-3-1: an [Empower] naming no colour takes them from a Unison of any
@@ -615,6 +621,7 @@ if (
     g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", id), x: 1 });
     assert.equal(g.prompt.kind === "empowerCarry", asked, `${id}: asked only when the replaced Unison's colour matches`);
     if (asked) g = playG(g, { type: "empowerCarry", player: "p1", amount: 1 });
+    assert.equal(g.prompt.kind, "main", `${id}: the carry is asked at most once`);
     assert.equal(g.cards[unisonOf(g, "p1")!].markers, asked ? 2 : 1);
     assertConsistentG(g);
   }
@@ -634,6 +641,7 @@ if (
   s = playG(s, { type: "empowerCarry", player: "p1", amount: 0 });
   const emp2 = unisonOf(s, "p1")!;
   assert.equal(s.cards[emp2].markers, 1, "22-45-3: declining the carry leaves only the marker paid for");
+  assert.equal(s.prompt.kind, "main", "declining is an answer too: the question is not asked again");
   assertConsistentG(s);
 }
 
