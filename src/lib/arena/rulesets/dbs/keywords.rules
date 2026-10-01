@@ -19,9 +19,9 @@
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Fourteen DO bodies, the whole-keyword activations that are no hook at all
+-- Fifteen DO bodies, the whole-keyword activations that are no hook at all
 -- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
--- [Successor], [Arrival], [Aegis], [Wish] and [Awaken] are moves (`offer:`),
+-- [Successor], [Arrival], [Aegis], [Rejuvenate], [Wish] and [Awaken] are moves (`offer:`),
 -- each offered as an [Activate: Main] — [Arrival] and [Aegis] an [Activate:
 -- Battle], [Wish] and [Awaken] both — line with its own REFUSE and menu
 -- words ([Wish] and [Awaken] with an AFTER as well), and [Offering],
@@ -31,7 +31,7 @@
 -- announced as the legacy engine announces them, their effect a battleEnd
 -- HOOK. 9-1-4 immunity printed as a [Permanent] is no keyword at all and is
 -- read beside the other statics (`vm/effects.ts`, #154). The others of that shape —
--- [Rejuvenate], [Z-Awaken], [Over Realm], [Swap] … — are still to write the
+-- [Z-Awaken], [Over Realm], [Swap] … — are still to write the
 -- same way, each one's trailing comment saying what it is missing.
 -- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
 
@@ -582,13 +582,32 @@ DEFINE KEYWORD Overlord
 
 -- 22-42
 DEFINE KEYWORD Rejuvenate
-  TAKES ()
+  TAKES (markers: number, lifeAtMost: number)
   text: "A Unison Card with cards beneath it: drop one of them and pay the skill cost, then add the top card of your deck to your life."
-  -- #155 looked and left it unwritten: its price ("Remove N markers from this
-  -- card") is printed as the line's text, which the record reads as an effect,
-  -- so the 13-4 gates (enough markers, one marker skill a turn) have no number
-  -- to read. The order is sayable — DO drops the card from beneath, the
-  -- printed effect removes the markers, AFTER adds the life — the gate is not.
+  -- #155: a move, offered at the Main Phase from the Unison Area while a card
+  -- is beneath it. 22-42-2 prints the skill cost after the tag, so the card
+  -- parser carries its two numbers as the keyword's parameters: `markers`
+  -- ("Remove N markers from this card") and `lifeAtMost` ("if your life is at
+  -- N or less", left out when the line prints none, and the gate then asks
+  -- nothing). The gates are 13-4's, in the legacy order: enough markers, and
+  -- one marker skill a turn — a move refused by `markerSkillUsed` on its own
+  -- card is a marker skill, so using it spends the lock. The order is the
+  -- legacy one too: DO drops the topmost card from beneath (the legacy
+  -- engine's stated approximation of the master's pick, kept), the line's
+  -- printed effect removes the markers, and AFTER adds the life (22-42-4).
+  offer: "activate:main"
+  REFUSE zone(area: unison) UNLESS count([self] IN you.unison) >= 1
+  REFUSE other(detail: "no card under it to drop") UNLESS count(UNDER ([self]) IN under) >= 1
+  REFUSE other(detail: "needs {markers} markers") UNLESS markers(sel: [self], atLeast: $markers)
+  REFUSE oncePerTurn(what: "marker skill") UNLESS NOT markerSkillUsed(sel: [self])
+  REFUSE condition(text: "your life is at {lifeAtMost} or less") UNLESS life(side: you, atMost: $lifeAtMost)
+  label: "Rejuvenate: {markers} markers and a card from under {card} → +1 life"
+  DO {
+    moveTo(target: UNDER ([self]) TOP 1 IN under, to: drop, cause: cost)
+  }
+  AFTER {
+    moveTo(target: TOP 1 IN you.deck, to: life)
+  }
 
 -- 22-43
 DEFINE KEYWORD "Spirit Boost"

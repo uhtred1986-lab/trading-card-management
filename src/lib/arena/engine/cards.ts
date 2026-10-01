@@ -343,9 +343,24 @@ export function parseSkills(text: string | null | undefined): Skill[] {
     // never names the skill it sits on, which keeps its own [Activate] type.
     const primary = keywords.find((k) => k.name !== "Spirit Boost") ?? null;
     const { cost, effect } = splitCost(body);
-    out.push(makeSkill(index * 10, tags, primary, cost, effect, line));
+    out.push(makeSkill(index * 10, tags, primary?.name === "Rejuvenate" ? rejuvenateOf(cost || effect) : primary, cost, effect, line));
   }
   return out;
+}
+
+/**
+ * 22-42-2: "[Rejuvenate] skill cost" — what follows the tag is the line's price,
+ * not an effect, and the keyword carries its two numbers as parameters so a
+ * `DEFINE KEYWORD` can gate on them (#155): the markers "Remove N markers from
+ * this card" takes, and the ceiling "if your life is at N or less" adds. The
+ * legacy engine reads the same two numbers off the text with the same words
+ * (`rejuvenateCost`); a cost in other words carries neither.
+ */
+function rejuvenateOf(text: string): KeywordSkill {
+  const t = text.toLowerCase();
+  const markers = /remove (\d+) markers? from this card/.exec(t);
+  const life = /your life is at (\d+) or less/.exec(t);
+  return { name: "Rejuvenate", ...(markers ? { markers: Number(markers[1]) } : {}), ...(life ? { lifeAtMost: Number(life[1]) } : {}) };
 }
 
 function tagFor(kw: KeywordSkill): string {

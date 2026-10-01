@@ -2613,8 +2613,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     for (const [key, why] of legacyFirst) {
       const got = ours.get(key);
       // The one difference this stage records rather than hides: a keyword's
-      // own activation not declared yet ([Rejuvenate], [Over Realm], [Swap],
-      // [Z-Awaken] …; [Awaken] and the others are since #155–#157) is a
+      // own activation not declared yet ([Over Realm], [Swap], [Z-Awaken] …;
+      // [Awaken], [Rejuvenate] and the others are since #155–#157) is a
       // `DEFINE KEYWORD` body still to write — the legacy engine answers
       // about such a line and this one does not name it at all.
       if (!got) {

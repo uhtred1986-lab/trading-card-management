@@ -113,7 +113,6 @@ function replaceGap(where: string): boolean {
 const S7 = {
   invoker: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D's altPayment channel, where #155 moved it: an alternative price on an Extra's activation ([Invoker])",
   empower: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Empower])",
-  rejuvenate: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: its marker price is printed as the line's text, so the 13-4 gates have no number to read ([Rejuvenate])",
 };
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
@@ -778,9 +777,10 @@ if (!keywordGap("Empower", S7.empower)) {
   assert.equal(zoneOf(d, "p1", "hand").length, kept);
 }
 
-if (!keywordGap("Rejuvenate", S7.rejuvenate)) {
+{
   // [Rejuvenate] (22-42): a Unison drops a card from beneath itself and pays
-  // the printed marker cost; the top card of the deck becomes life.
+  // the printed marker cost; the top card of the deck becomes life. Both
+  // engines since #155 (`keywords.rules`' move).
   DEFS.REJ = { ...DEFS.U1, id: "REJ", name: "REJ", skill: "[Rejuvenate] Remove 2 markers from this card." };
   let s = arenaG({ hand: ["REJ", "REJ"], energy: ["V1", "V1", "V1"] });
   s = playG(s, { type: "playUnison", player: "p1", card: findG(s, "p1", "hand", "REJ"), x: 3 });

@@ -1454,9 +1454,10 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "15a11623"
+      "digest": "ec50cf84"
     },
-    "same": true
+    "same": false,
+    "cause": "rule-processing"
   },
   "RELKO#0": {
     "legacy": {

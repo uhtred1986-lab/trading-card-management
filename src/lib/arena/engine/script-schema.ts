@@ -1074,6 +1074,14 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "has one of these cards declared at least this many attacks this turn, the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s X−1 stands a turn (22-8-3): `NOT attacked(sel: [self], atLeast: $x)`. A `DEFINE KEYWORD` body's word (#156)",
   },
+  markerSkillUsed: {
+    fields: [SEL],
+    sentence: (raw) => {
+      const c = raw as CondOf<"markerSkillUsed">;
+      return `${describeSelector(c.sel, "any of")} has used a marker skill this turn`;
+    },
+    doc: "has one of these cards used a skill with a marker price this turn (13-4-2: one a turn per card)? [Rejuvenate]'s gate, `NOT markerSkillUsed(sel: [self])`; a keyword move refused by it on its own card is a marker skill itself, and using it spends the card's one (22-42-2). A `DEFINE KEYWORD` body's word (#155)",
+  },
 };
 
 /** Primitive or macro for a condition — `docs/arena-ruleset-spec.md` §2.4, and see `OP_CLASS` above. */
@@ -1105,6 +1113,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   covers:         "primitive",
   sumsTo:         "primitive",
   attacked:       "macro over `count`",
+  markerSkillUsed: "macro over `count`",
 };
 
 /**
@@ -1127,7 +1136,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
  * Not a validation rule — `validateProgram` accepts every schema row, because a
  * stored program is checked against the language and not against this list.
  */
-export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "oneOf", "eachNamed", "covers", "sumsTo", "attacked"];
+export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "oneOf", "eachNamed", "covers", "sumsTo", "attacked", "markerSkillUsed"];
 
 // ── validation, for programs that did not come from the compiler ───────────
 

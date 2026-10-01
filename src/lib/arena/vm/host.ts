@@ -62,7 +62,7 @@ import { NotYet, RulesetBroken } from "./errors";
 import { emit, log } from "./events";
 import { fireHook } from "./hooks";
 import { resolvePlay } from "./play";
-import { SETUP_ZONES, arrivalMode, moveCard, newCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, hostOf, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import type { VmState } from "./state";
@@ -437,6 +437,12 @@ function moveTo(
 ): void {
   const from = zoneOf(state, id);
   const fromOwner = from ? ownerOfZone(state, id) : null;
+  // 23-2-2-2: a card under another is in the area of the card on top, and
+  // taking it out is shown as a move out of that area followed by the pile
+  // as it now stands — the legacy [Rejuvenate]'s two events (#155). Read
+  // before the move, while the card is still in the pile.
+  const host = from ? null : hostOf(state, id);
+  const hostZone = host ? zoneOf(state, host) : null;
   const placed = moveCard(state, game, id, to, { owner, position: opts.position, carry: opts.carry });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
@@ -451,6 +457,9 @@ function moveTo(
   if (!opts.carry && from !== to) dropEffectsOn(state, ev, id);
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
+  } else if (host && hostZone) {
+    log(ev, { type: "move", card: id, from: hostZone as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
+    log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
   }
   // `cause` is the field the two interpreters share a name for (`MoveOptions.reason`
   // on the legacy side): "damage", "ko", "combo", "effect" and a plain draw are one
@@ -537,6 +546,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   removedFromBattle: { event: "moved", args: { from: "battle", asPlay: false } },
   droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
   leftBattleToDrop: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
+  // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
+  // first keyword to run one), and `triggers.rules` declares the moment.
+  markerRemoved: { event: "markerRemoved", args: {} },
 };
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */

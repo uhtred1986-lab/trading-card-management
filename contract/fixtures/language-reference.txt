@@ -2764,6 +2764,21 @@
       ],
       "sentence": "1 in your battle has attacked 1 or more times this turn",
       "doc": "has one of these cards declared at least this many attacks this turn, the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s X−1 stands a turn (22-8-3): `NOT attacked(sel: [self], atLeast: $x)`. A `DEFINE KEYWORD` body's word (#156)"
+    },
+    {
+      "kind": "markerSkillUsed",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"markerSkillUsed\",\"sel\":SELECTOR}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        }
+      ],
+      "sentence": "1 in your battle has used a marker skill this turn",
+      "doc": "has one of these cards used a skill with a marker price this turn (13-4-2: one a turn per card)? [Rejuvenate]'s gate, `NOT markerSkillUsed(sel: [self])`; a keyword move refused by it on its own card is a marker skill itself, and using it spends the card's one (22-42-2). A `DEFINE KEYWORD` body's word (#155)"
     }
   ],
   "selectorFields": [

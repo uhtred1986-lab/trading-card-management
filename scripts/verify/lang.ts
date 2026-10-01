@@ -217,6 +217,7 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   // …and [Dual Attack]'s count, with a number and with the keyword's own `$x`.
   tripCond({ kind: "attacked", sel: { special: "self" }, atLeast: 2 }, "attacked");
   tripCond({ kind: "not", cond: { kind: "attacked", sel: { side: "you", area: "battle" }, atLeast: { var: "x" } } }, "NOT attacked, by a variable");
+  tripCond({ kind: "not", cond: { kind: "markerSkillUsed", sel: { special: "self" } } }, "NOT markerSkillUsed");
   // #154: group A's word, a step with no field — alone, and where [Alliance]
   // writes it, after the cost it rests and under the `if` that asks whether
   // there was one.
@@ -639,6 +640,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { name: "Arrival", colors: ["Red", "Blue"] },
     { name: "Empower", color: null, x: 2 },
     { name: "Z-Stack", x: 1 },
+    { name: "Rejuvenate", markers: 2, lifeAtMost: 3 },
   ] as KeywordSkill[])
     tripOps([{ op: "grant", target: { var: "t" }, keyword, until: "game" }], `keyword [${keyword.name}] with its parameters`);
 }

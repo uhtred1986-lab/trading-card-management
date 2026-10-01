@@ -151,7 +151,10 @@ export type KeywordSkill =
   | { name: "Revive"; colors: Color[] }
   | { name: "Successor" }
   | { name: "Overlord" }
-  | { name: "Rejuvenate" }
+  // 22-42-2: "[Rejuvenate] skill cost" — the markers the printed cost removes
+  // and the life ceiling it may add, read off the line by `parseSkills`
+  // (#155). Absent on a bare tag and on a granted [Rejuvenate].
+  | { name: "Rejuvenate"; markers?: number; lifeAtMost?: number }
   | { name: "Spirit Boost"; x: number }
   | { name: "Empower"; color: Color | null; x: number }
   | { name: "Z-Awaken" }

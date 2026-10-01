@@ -80,7 +80,7 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../engine";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../engine/types";
-import type { Script, ScriptFrame } from "../engine/script";
+import type { Cond, Script, ScriptFrame } from "../engine/script";
 import { costIsOnlyOrbs } from "../engine/compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
@@ -449,7 +449,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
-  if (sk.markerCost != null) inst.usedMarkerSkill = true;
+  if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
   if (findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
@@ -467,6 +467,20 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // [Wish]'s flip of the Leader (22-25-4).
   const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []);
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index });
+}
+
+/**
+ * 13-4-2: is a keyword's own move a marker skill — one whose use spends its
+ * card's one marker skill of the turn? It is when the move is refused once that
+ * card has used one, `REFUSE … UNLESS NOT markerSkillUsed(sel: [self])`: a
+ * price printed as the line's text ([Rejuvenate]'s "Remove 2 markers from this
+ * card", 22-42-2) is no `[-2]` tag `markerCost` reads, so the declaration's own
+ * gate is what says the move is one (#155).
+ */
+function isMarkerSkill(def: KeywordDef): boolean {
+  const onSelf = (c: Cond): boolean =>
+    c.kind === "markerSkillUsed" ? c.sel.special === "self" : c.kind === "not" ? onSelf(c.cond) : c.kind === "all" || c.kind === "any" ? c.conds.some(onSelf) : false;
+  return (def.refusals ?? []).some((r) => onSelf(r.unless));
 }
 
 /**
