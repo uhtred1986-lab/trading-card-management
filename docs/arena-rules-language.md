@@ -539,6 +539,23 @@ move is about **one printed line** rather than about a card a `FOR` found:
   - A moment's line with a condition printed before its colon ("[Alliance Red/Green] If your Leader
     Card is blue: …") has it asked before its `DO` runs, after the announcement, as the legacy
     keyword case asks it.
+- Group B's leftovers (#155) added one condition and one field, on no card either, and one reach:
+  - `altCost(pay: energy, orbs: […], rest: <selector>)` — the reduced energy price may be paid
+    only by the cards `rest` finds, one per orb, rested where they stand. [Invoker]'s `altPayment`
+    leaf (22-37): one active Red/Blue multicolour energy in place of an Extra's energy cost. The
+    field is marked `offCard`.
+  - `markerSkillUsed(sel: …)` — a card among `sel` has used a skill with a marker price this turn
+    (13-4-2's one a turn). [Rejuvenate]'s gate is `NOT markerSkillUsed(sel: [self])`, and a keyword
+    move refused by it on its own card **is** a marker skill: using it spends the lock, the way a
+    `[-2]` tag's line does. It is in `CONDITIONS_OFF_A_CARD`.
+  - [Rejuvenate]'s parameters, `markers` and `lifeAtMost`, are read by the card parser off the
+    skill cost 22-42-2 prints after the tag ("Remove 2 markers from this card", "if your life is
+    at 2 or less"). A parameter the line does not print is left out, and a condition field filled
+    from it is left out with it, so `life(side: you, atMost: $lifeAtMost)` asks nothing of a line
+    with no ceiling.
+  - `play(target: [self], onto: IN you.leader)` — no new word, a new reach: a card played onto
+    the Leader goes into the Leader Area on top of it, the old Leader and its pile under it
+    ([Z-Awaken], 22-46-6). Onto anything else the card still goes where its type is played.
 
 ```
 DEFINE KEYWORD Overlord

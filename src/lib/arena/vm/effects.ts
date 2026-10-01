@@ -156,12 +156,20 @@ export interface VmStatic {
   kind: ContinuousEffect["kind"];
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | AltCost | Immunity;
+  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
   colors?: (Color | "any")[];
 }
+
+/**
+ * 5-3: another price for a card, as this engine reads one — the shared
+ * `AltCost`, and for a `pay: "energy"` price written with `altCost`'s `rest`
+ * selector, the cards it found: the only ones that may pay it, rested where
+ * they stand ([Invoker], 22-37, #155).
+ */
+export type VmAltCost = AltCost & { rest?: string[] };
 
 /** 20-19: what a standing payer counts as while it pays — one energy of its own colours, or of the one colour named. The legacy `StaticEffect`'s value, word for word. */
 export interface PayerGrant {
@@ -588,7 +596,10 @@ function collect(
     // word, and `altCostFor` is what offers it.
     if (op.op === "altCost") {
       if (op.until) continue;
-      const value: AltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}) };
+      // #155: the only cards that may pay a `rest` price, found from the
+      // body's own chair as it is read — [Invoker]'s Red/Blue energy.
+      const rest = op.pay === "energy" && op.rest ? targets(frame, { ...op, target: { sel: op.rest } }) : null;
+      const value: VmAltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}), ...(rest ? { rest } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "altCost", target: id, value });
       continue;
     }

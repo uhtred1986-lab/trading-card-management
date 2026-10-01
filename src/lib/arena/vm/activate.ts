@@ -80,12 +80,12 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../engine";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../engine/types";
-import type { Script, ScriptFrame } from "../engine/script";
+import type { Cond, Script, ScriptFrame } from "../engine/script";
 import { costIsOnlyOrbs } from "../engine/compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { cardColors, cardPrice, skillOrbs, type BoundAmounts } from "./costs";
-import { skillNegated, skillsNegated } from "./effects";
+import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
@@ -130,7 +130,7 @@ export interface ActivationLine {
  * rather than reading a keyword's price off nothing. What would replace them is
  * `DEFINE KEYWORD` bodies naming their own pools, which is Stage 7's (#153).
  */
-export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison" } as const;
+export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison", zDeck: "zDeck", zEnergy: "zEnergy" } as const;
 
 /** Every zone this module names, for the check `createGame` makes against the declarations. */
 export const ACTIVATION_ZONE_NAMES = [...new Set(Object.values(ACTIVATION_ZONES))];
@@ -198,6 +198,11 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     const keyword = game ? keywordMoveOf(game, skill) : undefined;
     const kind = keyword?.offer ?? skill.kind;
     if (!families.has(familyOf(kind))) continue;
+    // 22-46-5: the Z-Deck is where a keyword's own move may be used from
+    // ([Z-Awaken], #155), and nothing else is: a Z-card's printed lines are
+    // valid once it is in play, so a line there that is no keyword's move is
+    // no candidate at all — the legacy menu never asks about one.
+    if (!keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.zDeck) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   return out;
@@ -220,14 +225,17 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
  *
  * 12-2-2: an Extra Card used from the hand pays its **energy cost as well**,
  * because using one is how an Extra is played (4-2). The two halves are added
- * here rather than charged separately, since a player pays once.
+ * here rather than charged separately, since a player pays once — unless
+ * `withCardPrice` is false, for the line bought at its alternative price
+ * (`activationAlt`), which stands in for the energy cost and leaves the
+ * skill's own orbs to pay.
  */
-export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): BoundAmounts {
+export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true): BoundAmounts {
   const sk = line.skill;
   const own = skillOrbs(ctx, game, state, line.card, sk);
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
-  if (inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
+  if (withCardPrice && inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
     const play = cardPrice(ctx, game, state, line.card);
     total += play.total;
     for (const [colour, n] of Object.entries(play.orbs)) orbs[colour as Color] = (orbs[colour as Color] ?? 0) + (n ?? 0);
@@ -237,13 +245,38 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     markers: sk.markerCost ?? 0,
     // 22-27-2: [Burst X]'s cards, by the pool the declared price takes them out
     // of. Bound to 0 on a line with no tag, so the price asks nothing of it.
-    pooled: { [ACTIVATION_ZONES.burst]: sk.burst ?? 0 },
+    // 22-46-3: a line used from the Z-Deck pays its card's Z-Energy cost, read
+    // off the card as a Z-card played from there pays it (16-2) — [Z-Awaken]
+    // (#155); bound to 0 everywhere else, so no line in play pays it again.
+    pooled: { [ACTIVATION_ZONES.burst]: sk.burst ?? 0, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
     // 22-43: [Spirit Boost X]'s markers come off the Unison Card, the place
     // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
     markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(sk.spiritBoost ?? 0), by: "Spirit Boost" } },
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : sk.cost,
   };
+}
+
+/**
+ * 5-3 / 22-37: the other price an Extra Card's line may be used at from the
+ * hand — the card's alternative to its energy cost, read for a play (4-2:
+ * using an Extra from the hand is how it is played), which is the action's
+ * `alt:` word, as the legacy `activatable(…, alt)` reads `altCostFor(…,
+ * "play")`. The line's own orbs are still paid: `bound` is the line's price
+ * without the card's energy cost, and `resting` the cards the alternative
+ * would rest, which that price may not be paid with (#155, [Invoker]).
+ */
+export function activationAlt(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  def: ActionDef,
+  player: PlayerId,
+  line: ActivationLine,
+): { alt: VmAltCost; bound: BoundAmounts; resting: string[] } | null {
+  if (def.alt === undefined || !inHand(state, line.card) || !isExtra(ctx, game, state, line.card)) return null;
+  const alt = altCostFor(ctx, game, state, line.card, player, def.alt);
+  return alt ? { alt, bound: boundFor(ctx, game, state, player, line, false), resting: restingFor(alt) } : null;
 }
 
 /**
@@ -449,7 +482,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
-  if (sk.markerCost != null) inst.usedMarkerSkill = true;
+  if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
   if (findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
@@ -467,6 +500,20 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // [Wish]'s flip of the Leader (22-25-4).
   const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []);
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index });
+}
+
+/**
+ * 13-4-2: is a keyword's own move a marker skill — one whose use spends its
+ * card's one marker skill of the turn? It is when the move is refused once that
+ * card has used one, `REFUSE … UNLESS NOT markerSkillUsed(sel: [self])`: a
+ * price printed as the line's text ([Rejuvenate]'s "Remove 2 markers from this
+ * card", 22-42-2) is no `[-2]` tag `markerCost` reads, so the declaration's own
+ * gate is what says the move is one (#155).
+ */
+function isMarkerSkill(def: KeywordDef): boolean {
+  const onSelf = (c: Cond): boolean =>
+    c.kind === "markerSkillUsed" ? c.sel.special === "self" : c.kind === "not" ? onSelf(c.cond) : c.kind === "all" || c.kind === "any" ? c.conds.some(onSelf) : false;
+  return (def.refusals ?? []).some((r) => onSelf(r.unless));
 }
 
 /**

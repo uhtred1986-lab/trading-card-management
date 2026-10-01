@@ -833,6 +833,8 @@ export interface MoveCause {
   by?: string;
   /** 3-1-5: was the cause the other player's? Only meaningful beside `by`. */
   byOpponent?: boolean;
+  /** It arrives on top of this card, which goes under it next (`MoveOptions.onto`, 22-46-6). */
+  onto?: string;
 }
 
 /**

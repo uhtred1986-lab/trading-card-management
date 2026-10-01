@@ -1080,6 +1080,10 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const n = amount(ctx, game, state, frame, c.atLeast);
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => (state.cards[id]?.attacksThisTurn ?? 0) >= n);
     }
+    // #155: 13-4-2's lock, `VmCard.usedMarkerSkill`, set when a marker skill
+    // is used and cleared with the turn.
+    case "markerSkillUsed":
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => !!state.cards[id]?.usedMarkerSkill);
   }
 }
 

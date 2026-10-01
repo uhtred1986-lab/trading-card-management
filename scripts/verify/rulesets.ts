@@ -853,7 +853,10 @@ const KEYWORD_ARITY: Record<(typeof KEYWORD_NAMES)[number], { name: string; type
   Revive: [{ name: "colors", type: "colors" }],
   Successor: [],
   Overlord: [],
-  Rejuvenate: [],
+  Rejuvenate: [
+    { name: "markers", type: "number" },
+    { name: "lifeAtMost", type: "number" },
+  ],
   "Spirit Boost": [{ name: "x", type: "number" }],
   Empower: [
     { name: "color", type: "color" },
