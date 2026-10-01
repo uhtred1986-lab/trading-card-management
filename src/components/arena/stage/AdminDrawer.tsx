@@ -43,9 +43,6 @@ function Cell({ label, children, wide = false }: { label: string; children: Reac
  * panel on desktop, a full-screen sheet on a phone. It holds what a player's
  * board no longer shows — seed, engine, the opponent's hidden hand, the raw
  * engine log, the beat list and, for Claude's decisions, what was legal and why.
- *
- * Positioned inline: the unlayered `.arena > *` rule beats Tailwind's `fixed`
- * and `z-*` on a direct child of the board (#412).
  */
 export function AdminDrawer({
   snapshot,
@@ -115,8 +112,7 @@ export function AdminDrawer({
       aria-modal="true"
       aria-label="Match debug"
       data-arena-admin="drawer"
-      className="left-0 flex flex-col overflow-hidden border-space-700 bg-space-950 text-space-100 shadow-2xl sm:left-auto sm:w-[26rem] sm:border-l"
-      style={{ position: "fixed", top: 0, bottom: 0, right: 0, zIndex: 95 }}
+      className="fixed inset-y-0 right-0 z-[95] left-0 flex flex-col overflow-hidden border-space-700 bg-space-950 text-space-100 shadow-2xl sm:left-auto sm:w-[26rem] sm:border-l"
     >
       <header className="flex shrink-0 items-center gap-3 border-b border-loss/40 px-4 py-3">
         <span className="rounded border-2 border-loss px-2 py-0.5 text-[11px] font-black uppercase tracking-widest text-space-50">Admin</span>

@@ -967,9 +967,9 @@ export function ArenaStage({
             screen like every other; it draws nothing on the night table. */}
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
         {/* A card revealed from the hand: a brief flash over the whole board (rd-07).
-            Positioned inline, because `.arena > *` beats a class on a direct child (#412). */}
+            */}
         {beat?.t === "move" && beat.from === "hand" && beat.to === "battle" && (
-          <div key={beat.n} className="arena-fx-flash" style={{ position: "absolute", inset: 0, zIndex: 35 }} aria-hidden />
+          <div key={beat.n} className="arena-fx-flash absolute inset-0 z-[35]" aria-hidden />
         )}
         {/* The edge: an inner frame in the acting side's colour, switching with the banner. */}
         <div className="arena-edge" aria-hidden />
@@ -1217,16 +1217,15 @@ export function ArenaStage({
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 
-        {/* The card in the air. Positioned inline: the unlayered `.arena > *`
-            rule beats Tailwind's `fixed` and `z-*` on a direct child (#412). */}
+        {/* The card in the air. */}
         {drag && dragCard && (
           <div
             aria-hidden
-            className="arena-dragghost"
+            className="arena-dragghost fixed z-[90]"
             data-over={drag.over && !drag.back ? "" : undefined}
             data-bad={drag.over && !drag.back && !(drag.over === "battle" ? dragPlays.length > 0 : dragCharges.length > 0) ? "" : undefined}
             data-back={drag.back ? "" : undefined}
-            style={{ position: "fixed", left: drag.x, top: drag.y, zIndex: 90, pointerEvents: "none" }}
+            style={{ left: drag.x, top: drag.y, pointerEvents: "none" }}
           >
             <ArenaCard card={dragCard} width={66} />
           </div>
