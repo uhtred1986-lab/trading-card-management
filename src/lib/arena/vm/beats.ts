@@ -77,6 +77,7 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         push({ t: "move", card: e.card, from: e.from, to: e.to, owner: e.owner });
         break;
       case "mode":
+        remember(e.card);
         push({ t: "mode", card: e.card, mode: e.mode });
         break;
       case "flip":

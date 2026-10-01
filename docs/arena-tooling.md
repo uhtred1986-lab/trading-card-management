@@ -293,7 +293,7 @@ is each suite's own issue to take up, the way #152 took up these two:
 
 | stage | what's built | `test:rules` today |
 |---|---|---|
-| through #151 (Stage 6, the rules engine plays a battle) | zones/attributes, the turn, costs, the play family, the battle sub-flow, damage/life/Z-Energy/WIN | `vm`, `rulesets`, `text`, `deck-api` pass; `probe`'s fixture digest is skipped (needs every suite's cards); everything else is `skipped` with `EngineMismatch` |
+| through #151 (Stage 6, the rules engine plays a battle) | zones/attributes, the turn, costs, the play family, the battle sub-flow, damage/life/Z-Energy/WIN | `vm`, `rulesets`, `text`, `deck-api` pass; `probe`'s fixture digest is skipped under `--engine rules` (needs every suite's cards; the legacy pass also writes the cross-engine parity file); everything else is `skipped` with `EngineMismatch` |
 | #152 (this doc's own build item) | the state-interface half of `harness.ts` | `battles`, `workflow` pass too, real assertions with named `skipped case`s for what Stage 7's keywords still own (plus a handful of real, non-keyword gaps `workflow.ts`'s own entry above names) |
 | #158 | `keywords` ported onto the same state interface | `keywords` passes too, real assertions with named `skipped case`s — most of them Stage 7 keyword gaps, the rest real gaps this porting pass found and diagnosed on its own (`keywords.ts`'s own entry above names each) |
 | Stage 7 (`docs/arena-backlog/s7-*.md`) | keyword bodies over four hook groups | the `keywordGap` cases in `battles`/`workflow`/`keywords` close one by one; `readings`/`wordings` are the suites most of Stage 7's own remaining value lands in, and are candidates to port next |
@@ -407,10 +407,14 @@ plays the move, and reports Input / Applied rule / Result / Assumptions with a
 digest over the conclusion. `arena:reprobe` re-runs every stored probe and lists
 the rules whose answer *moved* — the regression suite the rules never had.
 Both take `--engine legacy|rules` (default `legacy`), threaded into
-`src/lib/arena/probe.ts`'s own `engineFor` switch; `probe()` never throws, so a
-rule tried on an engine that cannot yet stage or play it comes back with
-outcome `error` rather than crashing the sweep — which is what running either
-of these on `rules` mostly reports today, and is itself the honest reading.
+`src/lib/arena/probe.ts`'s own `engineFor` switch. Since #161 the staged board is built on either
+engine (the rules board from the loaded definition, through `engine-state.ts`'s zone seam), so a
+rules-engine probe plays the rule rather than refusing it. `probe()` never throws: a rule the
+rules engine cannot play yet comes back as outcome `error` (a `NotYet`) or as a different
+conclusion, and `arena:reprobe --engine rules` lists those as moved. The same comparison without a
+database is `contract/probe-rules-parity.json`, written by `verify/probe.ts` beside
+`probe-digests.json`: one row per harness card, both digests, and a named cause for each
+difference (`npx tsx scripts/verify-arena.ts --explain` prints them).
 
 **Its blind spot is worth knowing**: the staged board is built in the card's
 favour, and it only stages what it has been taught to stage. It staged no
