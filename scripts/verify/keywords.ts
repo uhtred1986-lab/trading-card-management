@@ -79,8 +79,10 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  *   directly and named at its own gate (a skill-driven KO was `#146`'s
  *   until it landed, and RELKO now runs on both engines; 20-13's skip list
  *   and the [Permanent] skip read live at a battle step — SKIPPER,
- *   NODEFENSE, SKIPNOW, INBATTLE, ATKSKIP, TURNSKIP, SPANSKIP — since
- *   #439).
+ *   NODEFENSE, SKIPNOW, INBATTLE, ATKSKIP, TURNSKIP, SPANSKIP — and
+ *   COMBOWATCH, GOTEN, XDRAW, MUTER, COPYCAT, TAKER, CFREE and SKILLCHEAP
+ *   all run on both engines since #439). What is left is two harness
+ *   fixtures with no rules-engine shape: `continuations` and `koCard`.
  */
 let skipped = 0;
 // `keywordGap` is gone: since #157 and #155's leftovers (#434) no case here
@@ -316,13 +318,7 @@ function notYetGap(where: string, what: string, issue: string): boolean {
   for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK"]) delete DEFS[id];
 }
 
-if (
-  !notYetGap(
-    "CFREE: free [Counter] from hand",
-    "the [Permanent]'s `altCost` is collected (`vm/effects.ts`' `permanents`) and `vm/costs.ts`' `altCostFor` offers it for a play (#148), but the [Counter] window's own price is `vm/battle.ts`'s, which reads no alternative price yet — nor, so, [Invoker]'s for a [Counter] from the hand (its activation half is built, #155)",
-    "#150",
-  )
-) {
+{
   // Free [Counter] from hand is a timing of its own.
   DEFS.CFREE = {
     ...DEFS["E-NEGATE"],
@@ -381,20 +377,16 @@ if (
   const invokerCounter = IMPL.legalActions(CTX, s).find((a) => a.action.type === "counter" && a.action.card === findG(s, "p1", "hand", "CINVK") && a.action.alt);
   assert.ok(invokerCounter, "the [Invoker] counter offer is present");
   assert.equal(invokerCounter.cost?.energy, 1, "the [Invoker] counter metadata says it rests 1 energy");
-  assert.equal(invokerCounter.cost?.describe, "[Invoker]");
+  // The legacy engine's own wording for the price; the rules engine's is its
+  // generic price sentence (Stage 8's, as every exact label is).
+  if (ENGINE === "legacy") assert.equal(invokerCounter.cost?.describe, "[Invoker]");
   delete DEFS.CINVK;
   delete DEFS.INVK;
   delete DEFS.RB;
   delete DEFS.CFREE;
 }
 
-if (
-  !notYetGap(
-    "SKILLCHEAP: a scoped reduction of a [Counter]'s own printed orbs",
-    "a skill line's own orbs have their reduction layer since #148 (`vm/costs.ts`' `skillOrbs`, read by an [Activate]'s price in `vm/activate.ts`), but a [Counter]'s price is built by the counter window in `vm/battle.ts`, which does not read it yet; neither COUNTER_RR nor COUNTER_UU is affordable without the reduction, so the counter window offers neither and play falls straight through to the combo step",
-    "#150",
-  )
-) {
+{
   // Skill-cost modifiers: a red-scoped reduction lowers a red [Counter] skill's
   // orbs, does not lower a blue one, and ends at its printed `until`.
   DEFS.COUNTER_RR = { ...DEFS["E-NEGATE"], id: "COUNTER_RR", name: "COUNTER_RR", colors: ["Red"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };

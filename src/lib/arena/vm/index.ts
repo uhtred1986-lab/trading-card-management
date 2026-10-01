@@ -47,7 +47,7 @@ import { PLAYERS, type PlayerId, type Requirement } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, spendProhibitionUse } from "./program";
 import { whoseSkills } from "../engine/script";
 import { chargesOf, describePayment } from "./costs";
@@ -679,7 +679,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
       ];
     case "counter":
       return [
-        ...pr.candidates.map((card) => ({ action: { type: "counter" as const, player: pr.player, card }, label: `Counter with ${ctx.defs[state.cards[card]?.cardId ?? ""]?.name ?? card}` })),
+        ...counterLegalActions(ctx, game, state),
         { action: { type: "counter" as const, player: pr.player, card: null }, label: "Don't counter" },
       ];
     // `combo` carries no candidates of its own — read fresh every time,

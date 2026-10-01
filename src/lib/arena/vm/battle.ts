@@ -73,7 +73,8 @@ import { replacementPrompt, routeOf, type Op, type ScriptFrame } from "../engine
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../engine/compile";
-import { cardPrice, chargeCost, planCost, priceFor, type BoundAmounts } from "./costs";
+import { altCostFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import type { VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
@@ -407,11 +408,55 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card })) continue;
       if (!costIsOnlyOrbs(sk.cost)) continue;
-      const combined = counterPrice(cardPrice(ctx, game, state, card), sk);
+      const combined = counterPrice(ctx, game, state, card, sk);
       const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
-      if (!planCost(ctx, game, state, responder, price, card).ok) continue;
+      // 5-3: a card printing another way to pay for its [Counter] is a
+      // candidate on that price alone when the energy is not there — the
+      // legacy `counterCandidates`' own `altCostFor` (#439).
+      if (!planCost(ctx, game, state, responder, price, card).ok && !counterAlt(ctx, game, state, card, responder)) continue;
       out.push({ card, skill: sk, bound: combined });
     }
+  }
+  return out;
+}
+
+/**
+ * 5-3: the other price a [Counter] in the hand may be activated at — one its
+ * own skills or a skill in force give it for a counter, or 22-37's [Invoker]:
+ * an Extra used from the hand is played (4-2), so the resting price
+ * [Invoker]'s `altPayment` body offers for a play stands for its [Counter]
+ * too, as the legacy `altCostFor` offers its `invoker` price there (#439).
+ */
+function counterAlt(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId): VmAltCost | null {
+  const own = altCostFor(ctx, game, state, card, player, "counter");
+  if (own) return own;
+  const asPlay = baseTypeOf(ctx, state, card) === "EXTRA" ? altCostFor(ctx, game, state, card, player, "play") : null;
+  return asPlay && asPlay.pay === "energy" && asPlay.rest ? asPlay : null;
+}
+
+/**
+ * The counter prompt's menu: each candidate at its price when the energy
+ * covers it, and again at its printed alternative (5-3) when it has one — a
+ * second, separate offer, the legacy menu's "Counter with X (for no
+ * energy)" row (#439). The paid row keeps the shape it always had.
+ */
+export function counterLegalActions(ctx: EngineContext, game: GameDefinition, state: VmState): LegalAction[] {
+  const pr = state.prompt;
+  if (pr.kind !== "counter") return [];
+  const window: OpenWindow = pr.window === "play" ? "play" : "attack";
+  const out: LegalAction[] = [];
+  for (const card of pr.candidates) {
+    const sk = skillsShowing(ctx, state, card).skills.find((s) => wantsLine(ctx, state, window, s));
+    const paid = sk ? planCost(ctx, game, state, pr.player, priceFor(ctx, game, state, game.actions.play!, card, counterPrice(ctx, game, state, card, sk)), card).ok : false;
+    if (paid) out.push({ action: { type: "counter", player: pr.player, card }, label: `Counter with ${nameOf(ctx, state, card)}` });
+    const alt = counterAlt(ctx, game, state, card, pr.player);
+    if (!alt) continue;
+    const resting = restingFor(alt);
+    const orbs = (alt.orbs ?? []).map((o) => `{${o}}`).join("");
+    const how = alt.pay === "none" ? "for no energy" : alt.pay === "life" ? `by adding ${alt.n} from your life to your hand` : resting.length ? `by resting ${resting.map((id) => nameOf(ctx, state, id)).join(" and ")}` : `for ${orbs}`;
+    const energy = alt.pay === "energy" ? (alt.orbs ?? []).length || 1 : 0;
+    const cost = alt.pay === "none" ? { energy: 0, describe: "free" } : alt.pay === "energy" ? { energy, describe: orbs || "free" } : { energy: 0, describe: "alternative cost" };
+    out.push({ action: { type: "counter", player: pr.player, card, ...(sk ? { skill: sk.index } : {}), alt: true }, label: `Counter with ${nameOf(ctx, state, card)} (${how})`, cost });
   }
   return out;
 }
@@ -514,16 +559,14 @@ function mergeOrbs(a: Partial<Record<string, number>>, b: Partial<Record<string,
 }
 
 /** A [Counter]'s price: the card's own play price plus whatever orbs are printed in front of the skill line itself (5-3, legacy `playCost(id) + orbTotals(id, sk)`). */
-function counterPrice(play: { total: number; orbs: Partial<Record<string, number>> }, sk: Skill): BoundAmounts {
-  const orbs: Partial<Record<string, number>> = {};
-  let total = 0;
-  for (const [key, n] of Object.entries(sk.energyCost)) {
-    if (!n) continue;
-    total += n;
-    if (key !== "any") orbs[key] = (orbs[key] ?? 0) + n;
-  }
-  total += sk.energyEither.length;
-  return { energy: { total: play.total + total, orbs: mergeOrbs(play.orbs, orbs), either: sk.energyEither.map((one) => [...one]) }, markers: 0, unreadable: null };
+function counterPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill): BoundAmounts {
+  const play = cardPrice(ctx, game, state, card);
+  // 20-21: the line's own orbs through their reduction layer — "reduce the
+  // skill cost of your red cards in your hand by {r}" reaches a [Counter]'s
+  // orbs as it reaches an [Activate]'s (`skillOrbs`, #148; #439 for this
+  // window), the legacy `orbTotals` every counter price is read through.
+  const own = skillOrbs(ctx, game, state, card, sk);
+  return { energy: { total: play.total + own.total, orbs: mergeOrbs(play.orbs, own.orbs), either: own.either }, markers: 0, unreadable: null };
 }
 
 /** The base printed type, Z- stripped — the same reading `vm/play.ts`'s `PLAY_ZONES` and `vm/filters.ts` make of the `type` attribute. */
@@ -552,23 +595,32 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const showing = skillsShowing(ctx, state, card);
   const sk = showing.skills.find((s) => s.index === action.skill && wantsLine(ctx, state, window, s)) ?? showing.skills.find((s) => wantsLine(ctx, state, window, s));
   if (!sk) throw new IllegalAction("no counter skill on that card");
-  const combined = counterPrice(cardPrice(ctx, game, state, card), sk);
-  const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
-  const plan = planCost(ctx, game, state, action.player, price, card, action.pay);
-  if (!plan.ok) throw new IllegalAction(`can't pay the counter's cost: ${plan.why[0]?.kind}`);
-  if (action.pay === undefined && plan.asks && plan.options.length > 1) {
-    const describe = `activate ${nameOf(ctx, state, card)}'s counter`;
-    state.prompt = { kind: "payCost", player: action.player, action, options: plan.options, describe };
-    return "asked";
+  // 5-3: the printed alternative is paid *instead of* the card's energy cost
+  // and the line's orbs — the legacy `payAltCost` on `action.alt` (#439).
+  const alt = action.alt ? counterAlt(ctx, game, state, card, action.player) : null;
+  if (action.alt && !alt) throw new IllegalAction("that card has no other cost to pay");
+  if (alt) payAltCost(ctx, game, state, ev, action.player, alt);
+  else {
+    const combined = counterPrice(ctx, game, state, card, sk);
+    const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
+    const plan = planCost(ctx, game, state, action.player, price, card, action.pay);
+    if (!plan.ok) throw new IllegalAction(`can't pay the counter's cost: ${plan.why[0]?.kind}`);
+    if (action.pay === undefined && plan.asks && plan.options.length > 1) {
+      const describe = `activate ${nameOf(ctx, state, card)}'s counter`;
+      state.prompt = { kind: "payCost", player: action.player, action, options: plan.options, describe };
+      return "asked";
+    }
+    chargeCost(ctx, game, state, ev, action.player, plan.payment, card, ["energy"]);
   }
-  chargeCost(ctx, game, state, ev, action.player, plan.payment, card, ["energy"]);
   // 22-10-7: the battle writes the counter down before it is lost in the
   // Drop (staging spec §3.1) — the battle's own record, so a [Counter: Play]
   // answered outside one is written nowhere, as on the legacy engine.
   const b = state.battle;
   if (b) (b.counters ??= []).push({ card, by: action.player, after: state.sides[action.player].zones.combo?.length ?? 0 });
   moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
-  fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: true } });
+  // "Without paying its energy cost" is the waiver alone, as on the legacy
+  // engine (`counterFreeFromHand` pends for `pay: "none"` only).
+  fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: alt?.pay !== "none" } });
   log(ev, { type: "skill", card, skill: sk.index, master: action.player, text: sk.raw, inBattle: !!b });
   const program = showing.scripts.bySkill[sk.index]?.ops ?? [];
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index });
@@ -1087,7 +1139,7 @@ function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   const counters = showing.skills.filter((sk) => sk.kind.startsWith("counter:"));
   if (!counters.length) return null;
   const priceOf = (sk: Skill): Requirement[] => {
-    const price = priceFor(ctx, game, state, game.actions.play!, card, counterPrice(cardPrice(ctx, game, state, card), sk));
+    const price = priceFor(ctx, game, state, game.actions.play!, card, counterPrice(ctx, game, state, card, sk));
     const plan = planCost(ctx, game, state, player, price, card);
     return plan.ok ? [] : plan.why;
   };
