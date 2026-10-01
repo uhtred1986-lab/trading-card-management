@@ -207,6 +207,16 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   tripOps([{ op: "play", target: { sel: { special: "self" } }, counterWindow: true }], "play through a [Counter: Play] window");
   tripCond({ kind: "covers", sel: { side: "you", area: "combo" }, colors: ["Red", "Blue"] }, "covers");
   tripCond({ kind: "sumsTo", sel: { side: "you", area: "battle" }, attr: "energyCost", total: { attr: { sel: { special: "self" } }, name: "energyCost" } }, "sumsTo");
+  // #156: group C's `beforeDamage` leaf, once per keyword that writes it and
+  // once with every field at once.
+  tripOps([{ op: "battleDamage", to: "drop" }], "battleDamage — [Critical]");
+  tripOps([{ op: "battleDamage", atLeast: 3 }], "battleDamage — [Triple Strike]");
+  tripOps([{ op: "battleDamage", allMarkers: true, wins: true }], "battleDamage — [Victory Strike]");
+  tripOps([{ op: "battleDamage", atLeast: 2, to: "drop", allMarkers: true, wins: true }], "battleDamage, every field");
+  tripOps([{ op: "battleDamage" }], "battleDamage, no field");
+  // …and [Dual Attack]'s count, with a number and with the keyword's own `$x`.
+  tripCond({ kind: "attacked", sel: { special: "self" }, atLeast: 2 }, "attacked");
+  tripCond({ kind: "not", cond: { kind: "attacked", sel: { side: "you", area: "battle" }, atLeast: { var: "x" } } }, "NOT attacked, by a variable");
 
   // A counted, conditional prohibition (20-14): the schema loop above already
   // builds a maximal `forbid`, but it builds one generic value per field type.

@@ -296,9 +296,12 @@ const RulingSchema = z.object({
 
 /**
  * The operation list is read off `OP_SCHEMA`, so an op the interpreter learns
- * reaches the referee the moment it has a schema row.
+ * reaches the referee the moment it has a schema row — less an op no printed
+ * card says (`OpSpec.offCard`, a keyword body's word, #156), for the reason
+ * the conditions below leave theirs out.
  */
 const OPERATIONS = (Object.keys(OP_SCHEMA) as Op["op"][])
+  .filter((k) => !OP_SCHEMA[k].offCard)
   .map((k) => `  ${opSignature(k)}${OP_SCHEMA[k].doc ? `\n    ${OP_SCHEMA[k].doc}` : ""}`)
   .join("\n");
 

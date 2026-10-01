@@ -2073,6 +2073,43 @@
       ],
       "sentence": "your x is set",
       "doc": "set a `DEFINE ATTRIBUTE of: player` fact — 13-3's growUnison marks its own \"grewUnison\" true once it resolves, so a later REFUSE reads it rather than the move being asked twice in one turn (issue #269)"
+    },
+    {
+      "name": "battleDamage",
+      "class": "primitive",
+      "signature": "{\"op\":\"battleDamage\",\"atLeast\"?:AMOUNT,\"to\"?:\"drop\",\"allMarkers\"?:true|false,\"wins\"?:true|false}",
+      "fields": [
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "to",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "drop"
+          ]
+        },
+        {
+          "name": "allMarkers",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "wins",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "this card's battle damage: as usual",
+      "doc": "A keyword's own word, on no card: how the battle damage a card deals by attacking lands (8-4-6), the leaf of a keyword's beforeDamage hook — atLeast raises life damage and the markers taken off a Unison to that much ([Strike], 22-7), to: drop sends the life cards to the Drop face up ([Critical], 22-6), allMarkers takes every marker off a Unison and wins ends the game once life damage lands ([Victory Strike], 22-18).",
+      "offCard": "how the battle damage a card deals by attacking lands (8-4-6), the leaf of a keyword's beforeDamage hook — atLeast raises life damage and the markers taken off a Unison to that much ([Strike], 22-7), to: drop sends the life cards to the Drop face up ([Critical], 22-6), allMarkers takes every marker off a Unison and wins ends the game once life damage lands ([Victory Strike], 22-18)"
     }
   ],
   "conds": [
@@ -2690,6 +2727,27 @@
       ],
       "sentence": "some of 1 in your battle have a total power of exactly 1",
       "doc": "can some of these cards — at least one, and a total above 0 — be picked so that their measure adds up to exactly this much? [Successor]'s check before it is offered (22-38-2); the `choose` op's `sumTo` then picks that set one card at a time. A `DEFINE KEYWORD` body's word (#155)"
+    },
+    {
+      "kind": "attacked",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"attacked\",\"sel\":SELECTOR,\"atLeast\":AMOUNT}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "atLeast",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        }
+      ],
+      "sentence": "1 in your battle has attacked 1 or more times this turn",
+      "doc": "has one of these cards declared at least this many attacks this turn, the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s X−1 stands a turn (22-8-3): `NOT attacked(sel: [self], atLeast: $x)`. A `DEFINE KEYWORD` body's word (#156)"
     }
   ],
   "selectorFields": [

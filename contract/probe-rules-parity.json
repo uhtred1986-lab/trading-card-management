@@ -908,10 +908,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "d64c085b"
+      "digest": "45a2bd90"
     },
-    "same": false,
-    "cause": "keyword-moves"
+    "same": true
   },
   "LEADERGRAB#0": {
     "legacy": {

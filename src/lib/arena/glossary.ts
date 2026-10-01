@@ -92,7 +92,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "A Leader's own skill. Meet the printed condition, pay the cost, carry out the effect, then flip the Leader onto its awakened side. [Awaken: Surge] is the same skill under another name, and card text saying “[Awaken] skills” means both.",
     engine:
       "Offered on a face-up Leader in the Main Phase and during a battle, but only while the engine can read the printed condition (“If your life is at 4 or less” and its neighbours). The flip is queued before the effect runs, so it still happens when the effect stops to ask you something.",
-    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-04-keywords-battle.md, hook group C).",
+    engineRules:
+      "Built as its keyword's own move, the same body as [Wish] (`offer: \"activate:main/battle\"` in `keywords.rules`, #156): offered at the Main Phase and at the combo prompt from a face-up Leader that prints an awakened side, while the printed condition holds (the record hoists it into the line's price); the line's printed effect runs and then the Leader flips (`AFTER`), even when the effect stops to ask something. While the condition does not hold the line is refused with it as the reason. [Awaken: Surge] is the same move. The same offer, menu words (“Awaken: <Leader> → <awakened side>”) and log as the legacy engine.",
     support: "engine",
   },
   Wish: {
@@ -103,7 +104,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "The same shape as [Awaken]: a condition, an effect, and then the Leader is flipped over.",
     engine: "Treated as [Awaken] throughout — the same offer, the same queued flip.",
     engineRules:
-      "Built as its keyword's own move (`offer: \"activate:main/battle\"` in `keywords.rules`, #155): offered at the Main Phase and at the combo prompt from a face-up Leader that prints an awakened side, while the printed condition holds (the record hoists it into the line's price); the line's printed effect runs and then the Leader flips (`AFTER`), even when the effect stops to ask something. The same offer, menu words and log as the legacy engine. [Awaken] is the same body, still to declare (hook group C, #156).",
+      "Built as its keyword's own move (`offer: \"activate:main/battle\"` in `keywords.rules`, #155): offered at the Main Phase and at the combo prompt from a face-up Leader that prints an awakened side, while the printed condition holds (the record hoists it into the line's price); the line's printed effect runs and then the Leader flips (`AFTER`), even when the effect stops to ask something. The same offer, menu words and log as the legacy engine. [Awaken] is the same body (#156).",
     support: "engine",
   },
   "Z-Awaken": {
@@ -335,7 +336,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "Life damage this card deals by attacking goes to the opponent's Drop Area instead of their hand.",
     engine: "Applied during damage processing, and the “when your life is placed in your Drop Area” triggers still fire from it.",
     engineRules:
-      "Not built — docs/arena-backlog/s7-04-keywords-battle.md, hook group C (`beforeDamage`). #156 found it blocked: reading a life-damage amount or destination before `dealDamage` moves the card is a synchronous decision the `beforeDamage` hook's deferred effect queue cannot make in time as contracted.",
+      "Built (#156): a `beforeDamage` body (`battleDamage(to: drop)`), read on the attacker the moment its battle damage lands — `beforeDamage` is a query hook for exactly this, since a queued program would run after the life cards had moved. The life cards go to the Drop face up, granted or printed, and the same moves, damage event and “life placed in your Drop” moments follow as on the legacy engine. Battle damage to a Leader only.",
     support: "engine",
   },
   Strike: {
@@ -346,7 +347,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card would deal less than X life damage by attacking, it deals X instead — 2, 3 or 4.",
     engine: "One keyword with an X. Against a Unison Card it takes X markers off instead of one.",
-    engineRules: "Not built — the same `beforeDamage` gap as [Critical] above (docs/arena-backlog/s7-04-keywords-battle.md, hook group C), and `verify/battles.ts`'s own [Double Strike] case is a named keyword gap.",
+    engineRules:
+      "Built (#156): the same `beforeDamage` hook as [Critical], `battleDamage(atLeast: $x)` with X bound off the printed keyword. X life damage to a Leader, and X markers off a Unison guard, as on the legacy engine. One difference in the log only: against a Unison with fewer than X markers, the markers event here says how many actually came off, where the legacy engine says X.",
     support: "engine",
   },
   Attack: {
@@ -357,7 +359,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card attacks, it switches back to Active Mode at the end of the battle — X−1 times a turn.",
     engine: "Counted on the card itself, so the extra stands run out after X−1 attacks in the turn.",
-    engineRules: "Not built — docs/arena-backlog/s7-04-keywords-battle.md, hook group C. `verify/battles.ts`'s own [Dual Attack] case is a named keyword gap.",
+    engineRules:
+      "Built (#156) in the legacy engine's two halves: the line answers `attacks` (`at:`), so it is announced as the card attacks, and the stand is the `battleEnd` hook on the attacker — after a guard's [Revenge] — which switches it to Active Mode while it is still in play and has declared fewer than X attacks this turn, the one ending included (`attacked`, a count kept on the card and cleared with the turn or a change of area). The same events as the legacy engine. The legacy engine counts the stands it has granted instead of the attacks, which is the same number unless the card attacked that turn before it had the keyword.",
     support: "engine",
   },
   Revenge: {
@@ -368,7 +371,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "When this card becomes the guard card, KO the attacking card at the end of the battle.",
     engine: "Marked on the battle when it becomes the guard and carried out when the battle ends, whatever happened in between.",
     engineRules:
-      "The `battleEnd` hook fires on the guard the same way (#156) — the contract's own worked example — but the body is not declared yet, so a Revenge card does not KO the attacker on the rules engine. It is no longer blocked: the `ko` op the body would run is real since #146 (a skill's KO is the battle's own KO, with the same events and moments as the legacy engine), and writing the body is #156's.",
+      "Built (#156) in the legacy engine's two halves: the line answers `attacked` (`at:` in `keywords.rules`), so it is announced as the card becomes the guard — attacked, or blocking — and the KO is the `battleEnd` hook, run on whichever card is the guard at the Battle End Step, after the combo cards go to the Drop, and only on a Battle Card attacker. A Revenge card KO'd by the battle still KOs the attacker. The same KO, cause and moments as the legacy engine. One difference, from the flow rather than the keyword: this engine resolves a “when attacked” skill at the checkpoint before the blocker window, the legacy engine after it, so a Revenge card that is blocked for is announced one step earlier here. Whether the KO happens is read at the end of the battle (the guard then), where the legacy engine reads it as the skill resolves (the guard then) — the same card on every board where the guard changes only by blocking.",
     support: "engine",
   },
   Alliance: {
@@ -398,7 +401,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "Deal life damage by attacking with this card and you win the game.",
     engine: "The game ends there, with the card named as the reason. Against a Unison Card it takes every marker instead.",
-    engineRules: "Not built — the same `beforeDamage` gap as [Critical] above (docs/arena-backlog/s7-04-keywords-battle.md, hook group C, #156's own reassignment from group A).",
+    engineRules:
+      "Built (#156): the same `beforeDamage` hook as [Critical], `battleDamage(allMarkers: true, wins: true)`. Once its life damage has landed and its moments have fired, the game ends with the card named as the reason; against a Unison guard it takes every marker. The same events and result as the legacy engine.",
     support: "engine",
   },
   Servant: {
@@ -517,7 +521,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "The removal is enforced, both in play and when the card fails to enter play. The one-per-deck limit is not: no card prints it in a wording the deck checker reads, so a second [Ultimate] card is not flagged.",
     engineRules:
-      "The deck limit is the same deck checker either engine's games are built from — engine-agnostic, so nothing here differs. The in-game removal is not built yet — docs/arena-backlog/s7-04-keywords-battle.md, hook group C.",
+      "The deck limit is the same deck checker either engine's games are built from — engine-agnostic, so nothing here differs. The in-game removal is not built: an [Ultimate] card leaving play goes where it was sent. #156 looked and left it: it is a replacement (the card goes to “removed” instead, one move), and the `onLeave` hook runs after the card has landed, so it needs a leave-time query hook or the 9-10 replacements the rules engine does not collect yet.",
     support: "partial",
   },
   "Super Combo": {

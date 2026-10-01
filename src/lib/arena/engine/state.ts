@@ -936,6 +936,12 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       const each = (id: string) => amount(ctx, s, { ...frame, vars: { ...frame.vars, [ONE_CARD]: [id] } }, { attr: { var: ONE_CARD }, name: c.attr });
       return sumReachable(resolveSelector(ctx, s, frame, c.sel).map(each), amount(ctx, s, frame, c.total));
     }
+    // #156: [Dual Attack]'s count, a keyword body's word. This engine reads
+    // that keyword inline (`extraAttacks`) and counts no attacks, so the word
+    // reads as not holding rather than guessing at a count — the precedent
+    // `playerAttr`'s "charged" sets above.
+    case "attacked":
+      return false;
   }
 }
 

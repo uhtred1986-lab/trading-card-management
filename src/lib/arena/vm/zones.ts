@@ -123,6 +123,16 @@ export interface VmCard {
    */
   battledThisTurn: boolean;
   /**
+   * 8-1: how many attacks this card has declared this turn, the one in
+   * progress included — `vm/program.ts`'s `"attacked"` condition, which
+   * [Dual Attack]/[Triple Attack]'s "X−1 times a turn" reads (22-8-3, #156).
+   * Counted by `declareAttack`, cleared by `endTurn` with the fields above and
+   * by a change of area (3-1-4, the legacy `extraAttacks`'s own reset).
+   * Absent until the card first attacks, so a board nothing attacked on is
+   * byte-for-byte what it was.
+   */
+  attacksThisTurn?: number;
+  /**
    * 14-1-4: this card is a Z-card, which `moveCard` removes from the game when
    * it leaves play. Set by `newCard` from the definition's type and left off
    * for every other card, so a state without a Z-card is byte-for-byte what it
@@ -371,4 +381,5 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   card.faceUp = false;
   card.flipped = false;
   card.hidden = false;
+  delete card.attacksThisTurn;
 }

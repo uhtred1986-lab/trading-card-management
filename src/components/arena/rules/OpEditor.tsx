@@ -110,7 +110,7 @@ export function OpList({ ops, editing, onChange, nested = false }: { ops: Op[]; 
         <span>
           <select className="tap rounded-lg border border-dashed border-space-600 bg-transparent px-2 py-1 text-xs text-space-300" value="" onChange={(e) => e.target.value && onChange([...ops, blankOp(e.target.value as Op["op"])])}>
             <option value="">+ step</option>
-            {(Object.keys(OP_SCHEMA) as Op["op"][]).map((k) => (
+            {(Object.keys(OP_SCHEMA) as Op["op"][]).filter((k) => !OP_SCHEMA[k].offCard).map((k) => (
               <option key={k} value={k}>
                 {k}
               </option>
@@ -184,7 +184,7 @@ export function StepChip({ op, index, editing, first, last, onChange, onMove, on
       ) : (
         <>
           <select className={select} value={op.op} onChange={(e) => onChange(blankOp(e.target.value as Op["op"]))} title="which step">
-            {(Object.keys(OP_SCHEMA) as Op["op"][]).map((k) => (
+            {(Object.keys(OP_SCHEMA) as Op["op"][]).filter((k) => !OP_SCHEMA[k].offCard || k === op.op).map((k) => (
                 <option key={k}>{k}</option>
               ))}
           </select>

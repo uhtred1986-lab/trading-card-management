@@ -6,32 +6,51 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Ten HOOK bodies over nine keywords, written by Stage 7's four hook
+-- Fifteen HOOK bodies over fourteen keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
 -- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
--- chargeLimit, [Unique]'s playRefused, and [Heroic]/[Villainous]'s afterSkill. Every other keyword's
+-- chargeLimit, [Unique]'s playRefused, [Heroic]/[Villainous]'s afterSkill,
+-- [Critical]/[Strike]/[Victory Strike]'s beforeDamage and [Revenge]/
+-- [Attack]'s battleEnd. Every other keyword's
 -- own moments are still the engine's, and each one's trailing comment says
 -- which group looked at it and why it is deferred — the header used to say
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Nine DO bodies, the whole-keyword activations that are no hook at all
+-- Twelve DO bodies, the whole-keyword activations that are no hook at all
 -- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
--- [Successor], [Arrival] and [Wish] are moves (`offer:`), each offered as an
--- [Activate: Main] — [Arrival] an [Activate: Battle], [Wish] both — line
--- with its own REFUSE and menu words ([Wish] with an AFTER as well), and
--- [Offering], [Z-Stack] and [Revive] answer a moment (`at:`), pended like an
--- [Auto]. The others of that shape — [Awaken], [Rejuvenate], [Z-Awaken],
--- [Over Realm], [Swap] … — are still to write the same way, each one's
--- trailing comment saying what it is missing.
+-- [Successor], [Arrival], [Wish] and [Awaken] are moves (`offer:`), each
+-- offered as an [Activate: Main] — [Arrival] an [Activate: Battle], [Wish]
+-- and [Awaken] both — line with its own REFUSE and menu words ([Wish] and
+-- [Awaken] with an AFTER as well), and [Offering], [Z-Stack], [Revive],
+-- [Revenge] and [Attack] answer a moment (`at:`), pended like an [Auto] —
+-- the last two with an empty DO, announced as the legacy engine announces
+-- them, their effect a battleEnd HOOK. The others of that shape —
+-- [Rejuvenate], [Z-Awaken], [Over Realm], [Swap] … — are still to write the
+-- same way, each one's trailing comment saying what it is missing.
 -- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
 
 -- 22-2
 DEFINE KEYWORD Awaken
   TAKES (surge: boolean)
   text: "A Leader's own skill. Meet the printed condition, pay the cost, carry out the effect, then flip the Leader onto its awakened side. [Awaken: Surge] is the same skill under another name, and card text saying “[Awaken] skills” means both."
-  -- Stage 7 (#153–#157)
+  -- #156: [Wish]'s body under its own name (22-2-4 and 22-25-4 are the same
+  -- rule) — a move offered at the Main Phase and at the combo prompt from a
+  -- face-up Leader that prints an awakened side, while the printed condition
+  -- (the record's hoisted price condition) holds; the line's effect runs, and
+  -- `AFTER` flips the Leader once it has, even when the effect stopped to ask
+  -- something. [Awaken: Surge] is the same move: `surge` changes nothing the
+  -- engine does, on either engine, and the menu says "Awaken" for both.
+  offer: "activate:main/battle"
+  REFUSE zone(area: leader) UNLESS count([self] IN you.leader) >= 1
+  REFUSE other(detail: "the Leader is already awakened") UNLESS NOT leaderFlipped()
+  REFUSE other(detail: "the Leader has no awakened side") UNLESS leaderMatches(filter: "card", back: true)
+  label: "Awaken: {card} → {back}"
+  DO {}
+  AFTER {
+    flip(target: [self])
+  }
 
 -- 22-25
 DEFINE KEYWORD Wish
@@ -42,8 +61,8 @@ DEFINE KEYWORD Wish
   -- holds (the record hoists it into the line's price, 9-1-3). The effect is
   -- the line's own; the flip is the keyword's, and comes after it (`AFTER`,
   -- 22-25-4) even when the effect stops to ask something — the legacy engine
-  -- queues it ahead for the same reason. [Awaken] (22-2) is the same body;
-  -- it is hook group C's to declare (#156).
+  -- queues it ahead for the same reason. [Awaken] (22-2) is the same body,
+  -- declared by #156.
   offer: "activate:main/battle"
   REFUSE zone(area: leader) UNLESS count([self] IN you.leader) >= 1
   REFUSE other(detail: "the Leader is already awakened") UNLESS NOT leaderFlipped()
@@ -73,32 +92,67 @@ DEFINE KEYWORD Blocker
 DEFINE KEYWORD Critical
   TAKES ()
   text: "Life damage this card deals by attacking goes to the opponent's Drop Area instead of their hand."
-  -- Stage 7 (#153–#157)
+  -- #156: read as the attacker's damage lands (`beforeDamage`, a query hook
+  -- so it changes this damage rather than a later one): the life cards go
+  -- to the Drop face up, and "when your life is placed in your Drop" hears
+  -- the move. Battle damage only, as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(to: drop)
+  }
 
 -- 22-7
 DEFINE KEYWORD Strike
   TAKES (x: number)
   text: "When this card would deal less than X life damage by attacking, it deals X instead — 2, 3 or 4."
-  -- Stage 7 (#153–#157)
+  -- #156: the same hook as [Critical]: X life damage to a Leader, and X
+  -- markers off a Unison guard (13-5-2-2), as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(atLeast: $x)
+  }
 
 -- 22-8
 DEFINE KEYWORD Attack
   TAKES (x: number)
   text: "When this card attacks, it switches back to Active Mode at the end of the battle — X−1 times a turn."
-  -- Stage 7 (#153–#157)
+  -- #156: two halves, as the legacy engine has them. The line answers
+  -- `attacks` (`at:`), so it is announced as the card attacks, as the legacy
+  -- `keywordTriggers` case is. The stand is the `battleEnd` hook, run on the
+  -- attacker at the Battle End Step after a guard's [Revenge]: while the card
+  -- is still in play and has declared fewer than X attacks this turn — the
+  -- one ending included — it switches to Active Mode (22-8-3). The legacy
+  -- engine counts the stands granted (`extraAttacks`); this counts the
+  -- attacks (`attacked`), which is the same number on a card that has
+  -- attacked only with the keyword.
+  at: [attacks]
+  DO {}
+  HOOK battleEnd {
+    if(cond: all([inBattle(sel: [self], role: attacker), any([count([self] IN you.battle) >= 1, count([self] IN you.leader) >= 1]), NOT attacked(sel: [self], atLeast: $x)]), then: {
+      switchMode(target: [self], mode: active)
+    })
+  }
 
 -- 22-9
 DEFINE KEYWORD Revenge
   TAKES ()
   text: "When this card becomes the guard card, KO the attacking card at the end of the battle."
-  -- #156: the body is exactly the contract's own worked example
-  -- (`HOOK battleEnd { ko(target: [attacker]) }`, docs/arena-ruleset-spec.md
-  -- §4.2) and `vm/battle.ts`'s own `battleEnd` step now fires it (on the
-  -- guard, before `state.battle` clears — see `vm/flow.ts`'s phase-pop
-  -- comment for why the clearing moved there). Still undeclared, but no
-  -- longer blocked: the `ko` op it would run used to throw `NotYet`, and
-  -- since #146 a skill's KO is `vm/battle.ts`'s own `koCard` (`vm/host.ts`).
-  -- Writing the body is #156's, with a `verify/battles.ts` case to show it.
+  -- #156: two halves, as the legacy engine has them. The line answers
+  -- `attacked` (`at:`), so it pends and is announced as the card becomes the
+  -- guard — when it is attacked, or when it blocks — exactly as the legacy
+  -- `keywordTriggers` case is; its `DO` has nothing of its own to do. The KO
+  -- is the contract's own worked example, `HOOK battleEnd`, which
+  -- `vm/battle.ts`'s Battle End Step fires on both cards of the fight — the
+  -- body acts only on the one that is the guard then — after the combo cards
+  -- have gone to the Drop and before
+  -- `state.battle` clears — the legacy `battleCleanup` order. A Battle Card
+  -- attacker only, as there (a Leader is not KO'd by it). The Revenge card
+  -- need not survive the fight: a card KO'd by the battle still answers.
+  at: [attacked]
+  DO {}
+  HOOK battleEnd {
+    if(cond: all([inBattle(sel: [self], role: guard), count([attacker] IN opponent.battle) >= 1]), then: {
+      ko(target: [attacker])
+    })
+  }
 
 -- 22-12
 DEFINE KEYWORD Indestructible
@@ -173,7 +227,12 @@ DEFINE KEYWORD "Energy-Exhaust"
 DEFINE KEYWORD "Victory Strike"
   TAKES ()
   text: "Deal life damage by attacking with this card and you win the game."
-  -- Stage 7 (#153–#157)
+  -- #156: the same hook: once its life damage has landed (and its moments
+  -- fired) the game ends in its master's favour (22-18-2), and against a
+  -- Unison guard it takes every marker (13-5-2-2), as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(allMarkers: true, wins: true)
+  }
 
 -- 22-19
 DEFINE KEYWORD "Warrior of Universe 7"
@@ -185,7 +244,17 @@ DEFINE KEYWORD "Warrior of Universe 7"
 DEFINE KEYWORD Ultimate
   TAKES ()
   text: "A deck may hold at most one card with [Ultimate], and a card with it that leaves play is removed from the game rather than going anywhere else."
-  -- Stage 7 (#153–#157)
+  -- #156 looked and left it unwritten. 22-14-3 is a replacement (9-10): the
+  -- card leaving play or a Combo Area for anywhere but another of those goes
+  -- to `removed` *instead* — one move, and the moments of that move, as the
+  -- legacy `move` folds it into 14-1-4's Z-card line (printed keyword only;
+  -- the cards under it are not redirected). `onLeave` cannot say it: it is an
+  -- effect hook, run after the card has landed, so a body there would log a
+  -- second move and fire the Drop's moments (`koed`) first. It needs a
+  -- leave-time query — `onLeave` read declaratively before `moveCard` picks
+  -- the zone, with a leaf naming the destination — or the 9-10 replacements
+  -- `vm/host.ts`'s `replacementsFor` does not collect yet. The deck limit is
+  -- `legality`'s, on both engines.
 
 -- 22-17
 DEFINE KEYWORD "Super Combo"

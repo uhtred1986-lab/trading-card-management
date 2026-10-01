@@ -311,7 +311,15 @@ export type Cond =
    * (22-38-2)? [Successor]'s check before it is offered, the same set a
    * `choose` with `sumTo` then picks one card at a time (#155).
    */
-  | { kind: "sumsTo"; sel: Selector; attr: AmountAttr; total: Amount };
+  | { kind: "sumsTo"; sel: Selector; attr: AmountAttr; total: Amount }
+  /**
+   * Has a card among `sel` declared at least this many attacks this turn,
+   * the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s
+   * "X−1 times a turn" (22-8-3), `NOT attacked(sel: [self], atLeast: $x)`. A
+   * `DEFINE KEYWORD` body's word, on no card (#156); only the rules engine
+   * counts attacks.
+   */
+  | { kind: "attacked"; sel: Selector; atLeast: Amount };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous
@@ -774,7 +782,19 @@ export type Op =
    * the declaration is what clears it again, at the turn boundary the
    * declaration names, not this op running in reverse.
    */
-  | { op: "setPlayerAttr"; name: string; value?: boolean; side?: Side };
+  | { op: "setPlayerAttr"; name: string; value?: boolean; side?: Side }
+  /**
+   * How the battle damage this card deals by attacking lands (8-4-6) — a
+   * `DEFINE KEYWORD`'s `beforeDamage` body's leaf, never a printed card's
+   * (`OpSpec.offCard`, #156). `atLeast` raises the life damage to that much
+   * and takes that many markers off a Unison guard ([Strike], 22-7); `to`
+   * sends the life cards there face up instead of to the hand ([Critical],
+   * 22-6); `allMarkers` takes every marker off a Unison guard and `wins` ends
+   * the game in the attacker's master's favour once life damage lands
+   * ([Victory Strike], 22-18). Read declaratively by `vm/battle.ts`; as a step
+   * of a program it does nothing.
+   */
+  | { op: "battleDamage"; atLeast?: Amount; to?: "drop"; allMarkers?: boolean; wins?: boolean };
 
 /**
  * The price before the colon, as the record holds it (4-3-3). Both halves are
@@ -1218,6 +1238,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       case "setPlayerAttr":
         for (const p of sideOf(master, op.side)) h.setPlayerAttr(p, op.name, op.value ?? true);
+        break;
+
+      // #156: a `beforeDamage` hook body's leaf, read where the battle deals
+      // its damage (`vm/battle.ts`) rather than run — the legacy engine reads
+      // the same keywords inline in `battleDamage`. Nothing to do as a step.
+      case "battleDamage":
         break;
 
       case "look": {

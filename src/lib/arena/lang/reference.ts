@@ -116,6 +116,8 @@ export interface RefOp {
   /** How a minimal instance reads, in plain English. */
   sentence: string;
   doc?: string;
+  /** A whole op no printed card says (`OpSpec.offCard`, a keyword body's word, #156): what it does. Its `doc` says the same, so the language page shows it without a field of its own. */
+  offCard?: string;
 }
 
 export interface RefCond {
@@ -134,7 +136,8 @@ function refOps(): RefOp[] {
     signature: opSignature(name as Op["op"]),
     fields: spec.fields.map(refField),
     sentence: describeScript([minimalInstance(name, "op", spec) as unknown as Op]),
-    doc: spec.doc,
+    doc: spec.doc ?? (spec.offCard ? `A keyword's own word, on no card: ${spec.offCard}.` : undefined),
+    ...(spec.offCard ? { offCard: spec.offCard } : {}),
   }));
 }
 

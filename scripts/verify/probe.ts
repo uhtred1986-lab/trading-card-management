@@ -407,11 +407,6 @@ if (ENGINE !== "legacy") {
         old.result.some((l) => / is not a Battle Card with a combo cost\.$/.test(l)) && /never offered, and the engine gives no reason/.test(rules.result.join("|")) && old.log[old.log.length - 1] === "Defense Step." && rules.log.includes("Damage Step."),
     },
     {
-      id: "keyword-moves",
-      says: "A keyword's own move that is not built on the rules engine yet — [Awaken] (hook group C, #156) — is never offered and `rejectedActions` names no reason; legacy names the board it was missing. [Evolve] and [Union] are built (#157), and [Arrival] and [Successor] (#155).",
-      holds: (_f, _old, rules) => /never offered, and the engine gives no reason/.test(rules.result.join("|")),
-    },
-    {
       id: "unreadable-price",
       says: "An [Activate] with a price the rules engine's activation cannot read yet (a cost program, an X) is refused as 'cannot read this text yet'; legacy offers it, or names what it could not pay. [Burst X] (#148) and [Spirit Boost X] (#157) are declared prices and no longer among them.",
       holds: (_f, _old, rules) => /cannot read .* text yet/.test(rules.result.join("|")),
