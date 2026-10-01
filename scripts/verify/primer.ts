@@ -106,8 +106,21 @@ const payCostState = { prompt: { kind: "payCost", player: "p1", describe: "activ
 assert.equal(promptView(payCostState).question, "Which energy do you rest to activate «Kamehameha»?");
 assert.equal(promptView(payCostState).cost, "activate «Kamehameha»");
 
+// A program's own question (#152): the choice's reason, its count, and where it
+// sits in the chain — the legacy `questionFor`'s words, field for field.
+const chooseState = { prompt: { kind: "chooseCards", player: "p1", choice: { reason: "Choose up to 1 card", candidates: [], min: 0, max: 1, continuation: "" } }, programs: [] } as unknown as VmState;
+assert.deepEqual(promptView(chooseState), {
+  kind: "chooseCards",
+  player: "p1",
+  question: "Choose up to 1 card",
+  hint: "Choose 0 to 1.",
+  min: 0,
+  max: 1,
+  step: { index: 1, count: 0, label: "Choose up to 1 card" },
+});
+
 // A prompt kind this engine cannot yet reach still shows something honest, not a crash.
-const unknownState = { prompt: { kind: "chooseCards", player: "p1" } } as unknown as VmState;
+const unknownState = { prompt: { kind: "empowerCarry", player: "p1" } } as unknown as VmState;
 assert.equal(promptView(unknownState).question, "…");
 
 console.log("  primer: generatedPrimer names every declared zone; prompt questions come from prompts.rules");

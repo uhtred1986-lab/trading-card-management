@@ -205,18 +205,18 @@ skipped) tells you what you broke:
   compiler.
 - **`workflow.ts`** — every rule as a visible workflow: what is refused and why,
   in the words a client shows. Asserts the "one rejection per card per action
-  type" promise. **Runs on both engines since #152**, mostly — three cases are
-  Stage 7 keyword gaps ([Unique], [Swap], [Barrier], `keywordGap`), and the
-  porting pass found four gaps that are not keyword-shaped at all, each named
-  at its own call rather than hidden beside the keyword ones: `combo`/
-  `counter`/`block` are native moves (`vm/battle.ts`) and `rejectedActions`
-  never grew their `attackRejectedActions` twin (`nativeRejectionGap`); a
-  counted prohibition's `uses` budget is read but never spent on this engine
-  (20-14, `forbidUsesGap`); `vmBoardView` does not build `you.choices` for a
-  deck-search prompt or `them.rules` for a turn-scoped prohibition yet
-  (`viewGap`, Stage 8's "primer/prompts/view"); and one case (`PRICED`)
-  regression-tests a legacy-only historical bug fix with no rules-engine
-  analogue at all (`legacyHistoryOnly`). Every exact **label** string
+  type" promise. **Runs on both engines since #152**, and on `rules` it skips
+  three cases and no more: [Unique] and [Swap], Stage 7 keyword bodies
+  (`keywordGap`), and the first half of `PRICED` — an action price (4-3-3),
+  which `vm/activate.ts`'s `chargeablePrice` refuses and `vm/host.ts`'s
+  `saveVars` gives to #149 (`actionPriceGap`). The four non-keyword gaps the
+  porting pass found are closed: the combo, counter and blocker prompts have
+  their rejected lists (`battleRejectedActions`, `vm/battle.ts`, with the combo
+  prompt's [Activate: Battle] lines), and so does a `chooseCards` prompt
+  (`vm/index.ts`); a counted prohibition spends its `uses` (`spendProhibitionUse`,
+  `vm/program.ts`); and `vmBoardView` draws `you.choices` for a deck search,
+  `them.rules` for a player-level prohibition, and a chooseCards prompt's own
+  words, count and step. Every exact **label** string
   (`"Play BIG (5)"`, a `LegalAction.cost.describe`) is checked on the legacy
   engine only (`assertLabelOnLegacy`) — the rules engine's own labels are a
   generic builder over `actions.rules`' declared `label:`, and matching the
@@ -295,10 +295,10 @@ is each suite's own issue to take up, the way #152 took up these two:
 | stage | what's built | `test:rules` today |
 |---|---|---|
 | through #151 (Stage 6, the rules engine plays a battle) | zones/attributes, the turn, costs, the play family, the battle sub-flow, damage/life/Z-Energy/WIN | `vm`, `rulesets`, `text`, `deck-api` pass; `probe`'s fixture digest is skipped under `--engine rules` (needs every suite's cards; the legacy pass also writes the cross-engine parity file); everything else is `skipped` with `EngineMismatch` |
-| #152 (this doc's own build item) | the state-interface half of `harness.ts` | `battles`, `workflow` pass too, real assertions with named `skipped case`s for what Stage 7's keywords still own (plus a handful of real, non-keyword gaps `workflow.ts`'s own entry above names) |
+| #152 (this doc's own build item) | the state-interface half of `harness.ts`, and the battle prompts' rejections, the board's choices and a counted prohibition's spending on `rules` | `battles`, `workflow` pass too, real assertions with named `skipped case`s for what Stage 7's keywords still own (plus `workflow.ts`'s one action-price case, #149) |
 | #158 | `keywords` ported onto the same state interface | `keywords` passes too, real assertions with named `skipped case`s — most of them Stage 7 keyword gaps, the rest real gaps this porting pass found and diagnosed on its own (`keywords.ts`'s own entry above names each) |
 | Stage 7 (`docs/arena-backlog/s7-*.md`) | keyword bodies over four hook groups | the `keywordGap` cases in `battles`/`workflow`/`keywords` close one by one; `readings`/`wordings` are the suites most of Stage 7's own remaining value lands in, and are candidates to port next |
-| Stage 8 | words from config, `primer`/`prompts`/`view` | `workflow.ts`'s `assertLabelOnLegacy`/`viewGap` cases close; `contract` becomes portable |
+| Stage 8 | words from config, `primer`/`prompts`/`view` | `workflow.ts`'s `assertLabelOnLegacy` cases close; `contract` becomes portable |
 | #165 (done) | `verify-arena` on both engines folded into `npm test`; `arena:fuzz 200 --engine rules` clean | `npm test` runs both engines every time — `test:rules` remains as a standalone alias, no longer the only way to see the rules-engine run |
 | Stage 9, remainder (#164, #165's own `arena:reprobe` bullet, #163's own flip) | every saved game replays on `rules`, `arena:reprobe --engine rules` at 0 moved, the `arena.engine` default flips | the table above still applies suite by suite until every row reads "pass" |
 

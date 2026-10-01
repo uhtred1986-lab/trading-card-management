@@ -12,12 +12,16 @@
  * `gameG`/`assertDisjointG`/`addEffectG`/`rejectedActionsG` in place of their
  * legacy-narrowed twins, and every `buildSnapshot` call passes `engine:
  * ENGINE` explicitly — `snapshot.ts` defaults a missing `engine` to `legacy`,
- * which would draw a rules-engine board through the wrong adapter. [Swap] and
- * [Barrier] are Stage 7 keyword bodies
- * (`docs/arena-backlog/s7-05-keywords-play-charge-pay.md`,
- * `s7-02-keywords-choosing-immunity.md`) and are the only two cases this file
- * skips on `--engine rules`, named at their own `keywordGap` call — everything
- * else here is a real assertion on both engines.
+ * which would draw a rules-engine board through the wrong adapter.
+ *
+ * On `--engine rules` this file skips three cases and no more: [Swap] and
+ * [Unique], Stage 7 keyword bodies named at their own `keywordGap` call
+ * (`docs/arena-backlog/s7-05-keywords-play-charge-pay.md`), and the first half
+ * of PRICED, an action price (4-3-3) the engine's own `NotYet` gives to #149
+ * (`actionPriceGap`). Everything else is a real assertion on both engines —
+ * since #152, the combo, counter, blocker and chooseCards prompts' rejected
+ * lists, the board's `you.choices`/`them.rules` and a chooseCards prompt's
+ * own words, and a counted prohibition spending its uses included.
  */
 import assert from "node:assert/strict";
 import {
@@ -54,8 +58,8 @@ import type { Beat, EngineState, PlayerId, RejectedAction, Requirement } from ".
 
 const S7 = {
   swap: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying ([Swap])",
-  // [Barrier] is done (#154) — see [Barrier]'s own block below, gated on
-  // `chooseRejectionGap` for its rejection-reason half only.
+  // [Barrier] is done (#154), its rejection reason too (#152) — see
+  // [Barrier]'s own block below.
   unique: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying (`playRefused`) — moved out of hook group A once #153's inventory confirmed [Unique]'s real hook",
 };
 let skipped = 0;
@@ -84,97 +88,22 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
 }
 
 /**
- * A real, non-keyword gap found while porting this suite (#152): `combo`,
- * `counter` and `block` are native moves (`vm/battle.ts`'s own header says
- * why — a `Prompt` a `FOR` selector cannot build), and `vm/index.ts`'s
- * `rejectedActions` only ever adds `attackRejectedActions` for the "main"
- * prompt — nothing populates a per-card reason for the three prompts inside
- * a battle. `comboEligible`/`counterCandidates`/`blockerCandidates` already
- * compute the right *legal* list (proven throughout `battles.ts`); what is
- * missing is each one's `rejectedActions` twin, the same shape
- * `attackRejectedActions` already is. Not Stage 7's — no keyword is involved
- * — and not fixed here: building three new `…RejectedActions` functions
- * mid-suite risks exactly the kind of untested engine change this issue is
- * not about. Named so it is never mistaken for a keyword skip.
+ * The one real, non-keyword gap this suite still skips on the rules engine:
+ * an **action price** (4-3-3) — "Choose 1 card in your hand and place it in
+ * the Drop Area:" in front of a skill's colon. `vm/activate.ts`'s
+ * `chargeablePrice` refuses any price whose record carries `ops` (it needs the
+ * payability of a program), and `vm/host.ts`'s `saveVars` — the half that
+ * hands what a price chose on to the effect — throws `NotYet(…, "#149")`. So
+ * the line is refused `unread` rather than offered. Named here with the issue
+ * the engine's own `NotYet` names, so it is never mistaken for a keyword skip.
+ * (Until #152 this whole case was skipped as "legacy-only architecture": it is
+ * not — the rules engine reads `ctx.scripts` through `programsOf` exactly as
+ * the legacy engine does, and the record-without-a-price half below runs and
+ * passes on both engines.)
  */
-/**
- * `declaredRejectedActions` (`vm/actions.ts`) explains a rejected move by
- * iterating `actionsAt`'s own `DEFINE ACTION`s — the top-level "which move"
- * prompts. A `chooseCards` prompt is not one of those: it is a mid-skill
- * answer with no declaration of its own, and nothing populates a per-card
- * reason for it on the rules engine (`rejectedActionsG` returns `[]`
- * outright, checked while wiring [Barrier], #154). The shape it would need —
- * `attackRejectedActions`'s twin for a `choose`, reading the resolved
- * candidates against the full area `resolveSelector` filtered them from — is
- * real and not a keyword's; `CardChoice` (`engine/types.ts`) does not even
- * carry the selector a `choose` opened with, so building it also touches
- * what the prompt stores. Not Stage 7's, and not fixed here for the same
- * reason `nativeRejectionGap` above is not: a prompt-machinery change
- * mid-suite risks exactly the kind of untested engine change this issue is
- * not about.
- */
-function chooseRejectionGap(where: string): boolean {
+function actionPriceGap(where: string): boolean {
   if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: chooseCards prompts have no rejectedActions reasoning on the rules engine yet (real gap, not a keyword — see this file's own comment on chooseRejectionGap)`);
-  skipped++;
-  return true;
-}
-
-function nativeRejectionGap(where: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: combo/counter/block have no rejectedActions reasoning on the rules engine yet (real gap, not a keyword — see this file's own comment on nativeRejectionGap)`);
-  skipped++;
-  return true;
-}
-
-/**
- * A case that tests a fact about the **legacy engine's own history** rather
- * than a rule of the game — the PRICED test below regression-tests a bug fixed
- * 8 Sep 2026 in `activatable`/`canResolve`/`activate` re-reading `CTX.scripts`
- * mid-game instead of the record. The rules engine has no such mid-game
- * re-read to have had the bug in: `skillsShowing` (`vm/triggers.ts`) reads
- * `ctx.defs` fresh every time, never a separate `ctx.scripts` layer, so there
- * is no "record vs. text" distinction for this test to exercise. Not a
- * keyword gap and not a native-rejection gap — a scenario with no rules-engine
- * shape to test at all.
- */
-function legacyHistoryOnly(where: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: regression-tests a legacy-only architecture detail (CTX.scripts) with no rules-engine analogue`);
-  skipped++;
-  return true;
-}
-
-/**
- * A real, non-keyword gap: `vm/view.ts`'s `vmBoardView` does not populate
- * `you.choices`/`taps` the way `view.ts`'s legacy `boardView` does for a
- * `chooseCards` prompt over cards no zone reveals (a deck search). The prompt
- * itself is correct — `state.prompt.choice.candidates` names the right cards,
- * proven above — what is missing is the board's own picture of it, which is
- * client rendering (Stage 8's "primer/prompts/view"), not a rule. Named so it
- * is never mistaken for a keyword skip.
- */
-function viewGap(where: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: the rules engine's boardView does not build you.choices for this prompt yet (real gap, not a keyword — see this file's own comment on viewGap)`);
-  skipped++;
-  return true;
-}
-
-/**
- * A real, non-keyword gap: a counted prohibition's budget (20-14,
- * `forbid.uses`) is read (`vm/program.ts`'s own `if ((rule.forbid.uses ?? 0)
- * > 0) continue` — a budget still to spend forbids nothing yet, matching the
- * legacy reading exactly) but never **spent**. The legacy engine decrements
- * it after the qualifying action resolves (`engine/state.ts`'s own
- * `e.forbid.uses = Math.max(0, (e.forbid.uses ?? 0) - 1)`, called once per
- * action the prohibition's `what:` names); nothing on the rules engine calls
- * its equivalent anywhere. Not Stage 7's — no keyword prints a counted
- * prohibition; it is a plain 20-14 primitive with one half missing.
- */
-function forbidUsesGap(where: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: a counted prohibition's uses budget is read but never spent on the rules engine (real gap, not a keyword — see this file's own comment on forbidUsesGap)`);
+  console.log(`  skipped case — ${where}: an action price (4-3-3) is not charged on the rules engine yet — vm/activate.ts's chargeablePrice refuses a price with ops, and vm/host.ts's saveVars throws NotYet (#149)`);
   skipped++;
   return true;
 }
@@ -282,7 +211,7 @@ function forbidUsesGap(where: string): boolean {
   // In a battle: a card with no combo is the wrong kind of card, a combo the
   // energy cannot pay is an energy shortfall, and an [Activate: Main] skill
   // is refused for its timing — the window in which it *would* work.
-  if (!nativeRejectionGap("combo rejections mid-battle")) {
+  {
     let s = arenaG({ hand: ["BLOCKER", "E-DRAW"], battle: ["V1"], oppBattle: ["V-BLUE"] });
     s = playG(s, { type: "attack", player: "p1", attacker: zoneOf(s, "p1", "battle")[0], target: leaderOf(s, "p2") });
     assert.equal(s.prompt.kind, "combo");
@@ -361,7 +290,7 @@ function forbidUsesGap(where: string): boolean {
   // Reading it changes no answer — the drafter stored what the compiler read —
   // but it moves *when* the reading happens, and these two boards are the
   // difference that proves it.
-  if (!legacyHistoryOnly("PRICED: the record-vs-text bug fix of 8 Sep 2026")) {
+  {
     DEFS.PRICED = {
       ...DEFS.V1,
       id: "PRICED",
@@ -373,18 +302,20 @@ function forbidUsesGap(where: string): boolean {
     const sk = parseSkills(DEFS.PRICED.skill!)[0];
 
     // With the record's price: offered, and paying it really costs the card.
-    assert.ok(
-      IMPL.legalActions(CTX, s).some((l) => l.action.type === "activate" && l.action.card === priced),
-      "an action price the record carries is a price the engine charges",
-    );
-    const before = zoneOf(s, "p1", "hand").length;
-    let after = playG(s, { type: "activate", player: "p1", card: priced, skill: sk.index });
-    while (after.prompt.kind === "chooseCards") {
-      const pick = (after.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
-      after = playG(after, { type: "choose", player: "p1", cards: [pick] });
+    if (!actionPriceGap("PRICED: an action price the record carries is charged")) {
+      assert.ok(
+        IMPL.legalActions(CTX, s).some((l) => l.action.type === "activate" && l.action.card === priced),
+        "an action price the record carries is a price the engine charges",
+      );
+      const before = zoneOf(s, "p1", "hand").length;
+      let after = playG(s, { type: "activate", player: "p1", card: priced, skill: sk.index });
+      while (after.prompt.kind === "chooseCards") {
+        const pick = (after.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
+        after = playG(after, { type: "choose", player: "p1", cards: [pick] });
+      }
+      assert.equal(zoneOf(after, "p1", "hand").length, before, "one card paid, one card drawn");
+      assert.equal(zoneOf(after, "p1", "drop").length, 1, "…and the card paid is in the Drop");
     }
-    assert.equal(zoneOf(after, "p1", "hand").length, before, "one card paid, one card drawn");
-    assert.equal(zoneOf(after, "p1", "drop").length, 1, "…and the card paid is in the Drop");
 
     // The half that matters: a record whose **effect** is perfectly readable
     // but that carries **no price**. The price is then unknown, not free — the
@@ -441,7 +372,7 @@ function forbidUsesGap(where: string): boolean {
     assert.equal(r.state.prompt.kind, "chooseCards", "SEARCH asks which card to add");
     const choice = (r.state.prompt as { choice: { candidates: string[]; min: number; max: number } }).choice;
     assert.ok(choice.candidates.length > 1 && choice.candidates.every((id) => zoneOf(r.state, "p1", "deck").includes(id)), "the candidates are deck cards");
-    if (!viewGap("SEARCH: you.choices over a deck-search prompt")) {
+    {
     const snap = buildSnapshot({
       id: 1,
       engine: ENGINE,
@@ -610,7 +541,7 @@ function forbidUsesGap(where: string): boolean {
   }
 
   // The counter window, a choice and a block have rejections of their own (review §3.7).
-  if (!nativeRejectionGap("the counter window's own rejections")) {
+  {
     // A [Counter: Counter] in hand during an attack window: not this moment.
     // (E-CC rather than E-STOP: an earlier test rewrites E-STOP into a [Counter: Play].)
     let s = arenaG({ battle: ["V1"], oppHand: ["E-NEGATE", "E-CC"], oppEnergy: ["V1"] });
@@ -622,7 +553,7 @@ function forbidUsesGap(where: string): boolean {
     assert.equal(ofCard(rejected, "counter", findG(s, "p2", "hand", "E-NEGATE")), undefined, "the one on the menu is not rejected");
     assert.ok(!rejected.some((r) => IMPL.legalActions(CTX, s).some((l) => JSON.stringify(l.action) === JSON.stringify(r.action))));
   }
-  if (!nativeRejectionGap("the blocker window's own rejections")) {
+  {
     // Two blockers, one resting: the rested one is refused for its mode.
     let s = arenaG({ battle: ["V1"], oppBattle: ["BLOCKER", "BLOCKER"] });
     const tired = zoneOf(s, "p2", "battle")[1];
@@ -636,8 +567,8 @@ function forbidUsesGap(where: string): boolean {
   {
     // A choice: the card with [Barrier] is excluded by its own rule (22-16),
     // and your own card by the target description — the *legality* half,
-    // which `resolveSelector` (#154) settles regardless of whether a prompt
-    // can explain a rejection yet.
+    // which `resolveSelector` (#154) settles, and then the reason each
+    // refused card is given (#152 on the rules engine).
     let s = arenaG({ hand: ["KILLER"], battle: ["V1"], energy: ["V1"], oppBattle: ["V-BLUE", "WALL"] });
     const wall = findG(s, "p2", "battle", "WALL");
     const mine = zoneOf(s, "p1", "battle")[0];
@@ -648,7 +579,7 @@ function forbidUsesGap(where: string): boolean {
     assert.ok(!candidates.includes(wall), "22-16: [Barrier] is still offered as a choice");
     assert.ok(!candidates.includes(mine), "the choice offers your own card, which the skill does not ask for");
     assert.ok(candidates.includes(offered), "the one legal candidate is not offered");
-    if (!chooseRejectionGap("[Barrier]'s own rejection reason")) {
+    {
       const rejected = rejectedActionsG(s);
       assert.deepEqual(first(ofCard(rejected, "choose", wall)), { kind: "forbidden", by: "WALL", until: "permanent" });
       assert.deepEqual(first(ofCard(rejected, "choose", mine)), { kind: "target", reason: "choose up to 1 of your opponent's Battle Cards" });
@@ -668,7 +599,7 @@ function forbidUsesGap(where: string): boolean {
     // "Until the start of your next turn" is `nextTurn`: it ends as the master's next turn begins.
     assert.deepEqual(first(r), { kind: "forbidden", by: "LOCKDOWN", until: "nextTurn" });
     // And the rule is on the player's side of the board, not on any card.
-    if (!viewGap("LOCKDOWN: boardView.them.rules")) {
+    {
       const them = IMPL.boardView(CTX, s, "p1", {}).them;
       assert.deepEqual(
         them.rules?.map((x) => [x.kind, x.label, x.until, x.sourceName]),
@@ -683,7 +614,7 @@ function forbidUsesGap(where: string): boolean {
   // Both halves are asserted from *both* sides of the workflow — the menu
   // (`legalActions`) and the refusal (`rejectedActions`), which `assertDisjoint`
   // holds to one rejection per card per action type (§3.2).
-  if (!forbidUsesGap("counted forbid (uses:1) spending its budget")) {
+  {
     let s = arenaG({ battle: ["V1", "V-BLUE"], oppBattle: ["V1"] });
     addEffectG(s, [], { target: "", kind: "forbid", value: 0, until: "turn", forbid: { what: "attack", player: "p1", filter: parseFilter("battle card"), uses: 1 } });
     const attacker = zoneOf(s, "p1", "battle")[0];
@@ -940,4 +871,4 @@ function forbidUsesGap(where: string): boolean {
   assert.equal(narrate({ t: "draw", player: "p1", card: "a" }, me), "You draw Son Goku.");
 }
 
-if (ENGINE === "rules") console.log(`verify/workflow: ${skipped} case(s) skipped on the rules engine — 3 named keyword gaps, the rest real gaps found while porting this suite (see this file's own keywordGap/nativeRejectionGap/viewGap/forbidUsesGap/legacyHistoryOnly comments)`);
+if (ENGINE === "rules") console.log(`verify/workflow: ${skipped} case(s) skipped on the rules engine — 2 named keyword gaps ([Unique], [Swap]) and PRICED's action price (#149) (see this file's own keywordGap/actionPriceGap comments)`);

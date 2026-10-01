@@ -358,21 +358,34 @@ export function declaredRejectedActions(ctx: EngineContext, game: GameDefinition
   const out: RejectedAction[] = [];
   for (const def of actionsAt(game, state)) {
     if (def.listed === false) continue;
-    for (const c of candidatesOf(ctx, game, state, def, player)) {
-      if (!c.why.length) continue;
-      const action = actionFor(game, def, player, c);
-      // Never both lists, whatever the declaration says: a move already
-      // offered is not refused, which is the invariant every client indexes by
-      // card on.
-      if (offered.has(keyOf(action))) continue;
-      out.push({ action, label: labelFor(ctx, state, def, c), why: c.why });
-    }
+    out.push(...rejectionsOf(ctx, game, state, def, player, offered));
+  }
+  return out;
+}
+
+/**
+ * The rejections one declaration contributes, for one player — the twin of
+ * `legalActionsOf`, exported for the same one caller: `vm/battle.ts`'s combo
+ * prompt, which explains the battle window's `activate` the way it offers it
+ * (#152). `offered` is the menu's own keys (`keyOf`), so a move already on it
+ * is never also refused.
+ */
+export function rejectionsOf(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, offered: ReadonlySet<string>): RejectedAction[] {
+  const out: RejectedAction[] = [];
+  for (const c of candidatesOf(ctx, game, state, def, player)) {
+    if (!c.why.length) continue;
+    const action = actionFor(game, def, player, c);
+    // Never both lists, whatever the declaration says: a move already
+    // offered is not refused, which is the invariant every client indexes by
+    // card on.
+    if (offered.has(keyOf(action))) continue;
+    out.push({ action, label: labelFor(ctx, state, def, c), why: c.why });
   }
   return out;
 }
 
 /** The identity a move is filed under — the legacy engine's, so the one-per-card promise means the same thing on both. */
-const keyOf = (a: Action): string => {
+export const keyOf = (a: Action): string => {
   const x = a as { card?: string | null; skill?: number };
   return `${a.type}:${x.card ?? ""}${a.type === "activate" && typeof x.skill === "number" ? `#${x.skill}` : ""}`;
 };
