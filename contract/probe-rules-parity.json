@@ -1702,10 +1702,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "a1674798"
+      "digest": "a44a2b3a"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "SPIRIT2#0": {
     "legacy": {
@@ -1714,10 +1713,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "3804c2f6"
+      "digest": "a44a2b3a"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "STACKER#0": {
     "legacy": {

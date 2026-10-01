@@ -130,7 +130,7 @@ export interface ActivationLine {
  * rather than reading a keyword's price off nothing. What would replace them is
  * `DEFINE KEYWORD` bodies naming their own pools, which is Stage 7's (#153).
  */
-export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck" } as const;
+export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison" } as const;
 
 /** Every zone this module names, for the check `createGame` makes against the declarations. */
 export const ACTIVATION_ZONE_NAMES = [...new Set(Object.values(ACTIVATION_ZONES))];
@@ -238,6 +238,9 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     // 22-27-2: [Burst X]'s cards, by the pool the declared price takes them out
     // of. Bound to 0 on a line with no tag, so the price asks nothing of it.
     pooled: { [ACTIVATION_ZONES.burst]: sk.burst ?? 0 },
+    // 22-43: [Spirit Boost X]'s markers come off the Unison Card, the place
+    // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
+    markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(sk.spiritBoost ?? 0), by: "Spirit Boost" } },
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : sk.cost,
   };
@@ -347,7 +350,13 @@ export function activationRefusals(
   if (sk.burst != null && zone(state, player, ACTIVATION_ZONES.burst).length < sk.burst) {
     before.push({ kind: "other", detail: `[Burst ${sk.burst}] needs that many cards in the deck` });
   }
-  if (sk.spiritBoost != null) before.push({ kind: "unread", card });
+  // 22-43-2: the same for [Spirit Boost X] — a Unison Card with X markers on it
+  // — asked here for the same reason, in the legacy words (#157). The price is
+  // `DEFINE COST spiritBoost`'s.
+  if (sk.spiritBoost != null) {
+    const unison = zone(state, player, ACTIVATION_ZONES.spiritBoost)[0];
+    if (!unison || (state.cards[unison]?.markers ?? 0) < sk.spiritBoost) before.push({ kind: "other", detail: "[Spirit Boost] needs the markers" });
+  }
   // The window: a line of a kind this move does not offer is still a candidate,
   // and the answer it is owed names the window it belongs to (7-3-4 against
   // 8-6-2). Derived from the declaration, so a battle paragraph says "main" for

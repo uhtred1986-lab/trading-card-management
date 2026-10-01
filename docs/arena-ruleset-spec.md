@@ -830,7 +830,7 @@ has — no new grammar, because none is needed.
 | `onAttackDeclared` | C | effect | — | `self` has just been declared the attacker (8-1-1) |
 | `beforeDamage` | C | effect | — | battle damage is about to be calculated for the fight in progress (8-4) |
 | `battleEnd` | C | effect | — | the battle's steps have run out, one step before `state.battle` clears (8-1-2-2) |
-| `playRefused` | D | query | — | a play of `self` is being checked for legality, before cost (5-5, 20-4) |
+| `playRefused` | D | query | — | a play is being checked for legality, before cost (5-5, 20-4), and `self` is a card in play whose keyword may refuse it (#157) |
 | `chargeLimit` | D | effect | — | `self` is about to be placed in an Energy Area, from any source (22-31) |
 | `altPayment` | D | query | — | a price is being planned and is asking what else may pay it, or what it no longer demands |
 
@@ -939,10 +939,11 @@ DEFINE KEYWORD Revenge
     ko(target: [attacker])
   }
 
--- D: playRefused — read declaratively, a `forbid` leaf under a condition
+-- D: playRefused — read declaratively off the card already in play (#157:
+-- real, `keywords.rules`), a `forbid` leaf with a [Permanent]'s own fields
 DEFINE KEYWORD Unique
   HOOK playRefused {
-    if(cond: count("a card with the same name" IN you.battle) >= 1, then: { forbid(what: play, until: turn) })
+    forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false, until: game)
   }
 
 -- D: chargeLimit — a real program, run once as the card is placed

@@ -120,7 +120,15 @@ DEFINE KEYWORD Deflect
 DEFINE KEYWORD Unique
   TAKES ()
   text: "While a card with [Unique] is in play you can't play another card with the same name. If two are somehow in play at once, their master keeps one and drops the rest."
-  -- Stage 7 (#153–#157)
+  -- #157: asked of every card in play when a play is checked
+  -- (`vm/program.ts`'s `forbiddenBy`) — the rule is the in-play card's, and it
+  -- refuses its master's declared play of a card with its name, as the legacy
+  -- `canPlay`/`whyNotPlay` do; a play a skill makes is not refused here, as it
+  -- is not there. 21-11's half — two in play at once, the master keeps one —
+  -- is rule processing, which the rules engine does not run yet.
+  HOOK playRefused {
+    forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false, until: game)
+  }
 
 -- 22-40
 DEFINE KEYWORD Servant
@@ -371,7 +379,9 @@ DEFINE KEYWORD Rejuvenate
 DEFINE KEYWORD "Spirit Boost"
   TAKES (x: number)
   text: "Part of a skill's cost: remove X markers from your Unison Card. A skill whose [Spirit Boost] can't be paid can't be activated."
-  -- Stage 7 (#153–#157)
+  -- #157: no body — a price, not a move or a hook. `DEFINE COST spiritBoost`
+  -- (costs.rules) is what paying it does, and the `activate` paragraph's COST
+  -- names it; the activation binds X off the line's tag.
 
 -- 22-45
 DEFINE KEYWORD Empower

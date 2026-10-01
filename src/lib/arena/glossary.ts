@@ -268,7 +268,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "The play is blocked, with the card already out named as the reason. When two do end up in play the engine keeps the newest instead of asking which to keep — 21-11 gives that choice to the master.",
     engineRules:
-      "Not built, and fits none of the fifteen contracted hook points (#157's own finding): the worked example a `playRefused` body would need — \"a card with the same name\" as a self-referential comparison — is not a phrase `parseFilter` reads, so forcing [Unique] through `playRefused` would read the wrong card's own keyword. Left undeclared until the contract gains the right shape rather than forced through the wrong one.",
+      "The play half is built (#157) as a `playRefused` hook body in `keywords.rules` — `forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false)` — read off the [Unique] card already in play whenever a play is checked, so the same declared play is refused with the same reason (`forbidden`, by the card already out) and a play a skill makes is not, as on the legacy engine. The 21-11 half is not built: rule processing does not run on the rules engine, so two copies that do end up in play both stay, where the legacy engine keeps the newest.",
     support: "partial",
   },
   Overlord: {
@@ -494,7 +494,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Read off the tag and charged where the orbs are charged, so an unpayable one is neither offered nor resolved. It never names the skill it sits on, which is why the line keeps its own [Activate] or [Auto] type. Paying it is a moment cards watch, and those triggers fire.",
     engineRules:
-      "Not built, though `dbs/costs.rules`'s own `DEFINE COST marker` is declared and shared code once suggested this keyword needed no hook body at all — checked directly rather than trusted: with a Unison carrying enough markers, the skill is still not offered on the rules engine. The bound amount for a keyword-shaped `[Spirit Boost N]` price is not reaching the planner (`vm/costs.ts`'s `BoundAmounts`) the way an activation's own line binds a marker cost for other kinds of skill.",
+      "Built as a declared price (#157): `DEFINE COST spiritBoost` in `dbs/costs.rules` takes X markers off the card in your Unison Area, and the activation binds X off the line's tag and charges it after [Burst] and before the orbs, the legacy order. With no Unison, or too few markers on it, the line is refused with the legacy words (“[Spirit Boost] needs the markers”). Paying it is the `markerRemoved` moment named for the keyword, so cards watching the payment fire — the Unison it came off and your other cards — as on the legacy engine. Activated lines only: an [Auto]'s own price is not charged on this engine yet, [Spirit Boost] or otherwise.",
     support: "engine",
   },
 

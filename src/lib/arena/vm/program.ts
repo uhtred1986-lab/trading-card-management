@@ -424,7 +424,19 @@ function readHookLeaf(ctx: EngineContext, game: GameDefinition, state: VmState, 
       out.push({
         keyword,
         op: "forbid",
-        forbid: { what: op.what, filter: op.filter, player, unless: op.unless, uses: op.uses !== undefined ? amount(ctx, game, state, frame, op.uses) : undefined, master: frame.master },
+        forbid: {
+          what: op.what,
+          filter: op.filter,
+          player,
+          unless: op.unless,
+          uses: op.uses !== undefined ? amount(ctx, game, state, frame, op.uses) : undefined,
+          master: frame.master,
+          // [Unique]'s "a card with the same name" (22-39) and a declared
+          // play's "except by skills" — the two fields a `forbid` leaf names
+          // that a [Permanent]'s own reading (`vm/effects.ts`) already keeps.
+          ...(op.sameNameAsSelf ? { name: nameShowing(ctx, state, frame.card) } : {}),
+          ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
+        },
       });
       continue;
     }
@@ -553,7 +565,7 @@ export function forbiddenBy(
   state: VmState,
   what: ForbiddenAction,
   opts: { player?: PlayerId; card?: string; bySkill?: boolean; hooks?: boolean } = {},
-): { by: string | null; until: EffectUntil; unless?: string } | null {
+): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     if ((rule.forbid.uses ?? 0) > 0) continue;
@@ -564,6 +576,23 @@ export function forbiddenBy(
       until: rule.until,
       ...(rule.forbid.unless ? { unless: sayCond(master && viewer && master !== viewer ? mirrorSides(rule.forbid.unless) : rule.forbid.unless) } : {}),
     };
+  }
+  // 22-39 (#157): a play is refused by a keyword of a card already in play —
+  // [Unique]'s `playRefused` hook, asked of every card in play when a play is
+  // checked, since the rule is the in-play card's ("while a card with [Unique]
+  // is in play you can't play another card with the same name"). The keyword
+  // is the game's own rule rather than an effect, so it names no duration —
+  // the legacy `whyNotPlay`'s own refusal, `{ kind: "forbidden", by }`.
+  if (what === "play" && opts.hooks !== false) {
+    for (const side of [state.sides.p1, state.sides.p2]) {
+      for (const source of inPlayZones(game).flatMap((zone) => side.zones[zone] ?? [])) {
+        for (const fact of queryHookStatics(ctx, game, state, source, "playRefused")) {
+          if (fact.op !== "forbid") continue;
+          if (!ruleApplies(ctx, game, state, what, { target: "", source, until: "permanent", forbid: fact.forbid }, opts)) continue;
+          return { by: nameShowing(ctx, state, source) ?? null };
+        }
+      }
+    }
   }
   return null;
 }

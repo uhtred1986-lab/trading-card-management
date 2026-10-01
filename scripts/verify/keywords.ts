@@ -387,13 +387,9 @@ if (
   assert.ok(!canActivateG(d, zoneOf(d, "p1", "battle")[0]), "22-27-3: one card in the deck is not enough for [Burst 2]");
 }
 
-if (
-  !notYetGap(
-    "SPIRIT: [Spirit Boost 2] over a Unison's own markers",
-    "the marker cost's own `n: amount` (dbs/costs.rules' `DEFINE COST marker`) is bound from an activation's line the same way a skill-line marker cost is (#147) — checked directly rather than trusted: with 3 markers on the Unison the skill is still not offered, so the bound amount for a keyword-shaped [Spirit Boost N] price is not reaching the planner the way explicit price text does",
-    "no issue filed yet",
-  )
-) {
+// Both engines since #157: `DEFINE COST spiritBoost` (dbs/costs.rules) takes
+// the markers off the Unison, bound from the line's tag.
+{
   // [Spirit Boost X] (22-43): X markers off your Unison as a cost.
   DEFS.SPIRIT = { ...DEFS.V1, id: "SPIRIT", name: "SPIRIT", skill: "[Spirit Boost 2][Activate: Main] Draw 1 card." };
   let s = arenaG({ battle: ["SPIRIT"], hand: ["U1"], energy: ["V1", "V1", "V1"] });
@@ -410,7 +406,8 @@ if (
   assertConsistentG(s);
 }
 
-if (!notYetGap("SPIRIT2/BOOSTWATCH/UWATCH: watching a [Spirit Boost] payment", "the same [Spirit Boost] activation gap as SPIRIT above — the skill is never offered, so the payment it would watch never happens", "no issue filed yet")) {
+// Both engines since #157: the payment is the `markerRemoved(by: "Spirit Boost")` moment.
+{
   // 22-43-3: sixteen cards watch the [Spirit Boost] *payment* rather than the
   // marker, from both ends — the Unison the markers came off and the Battle
   // Cards watching it. An attack knocking markers off is not their moment.

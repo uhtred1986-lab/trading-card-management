@@ -295,7 +295,8 @@ DEFINE ACTION playZ                                                       -- §1
 -- the half no engine charges itself, and it is named here so that a price this
 -- engine cannot read refuses the move with `unread` instead of offering it
 -- free. The order is `marker`, then `burst` (22-27's cards off the top of the
--- deck), then `energy`, because that is the order the engine that has been
+-- deck), then `spiritBoost` (22-43's markers off the Unison, #157), then
+-- `energy`, because that is the order the engine that has been
 -- playing charges them in, and the order is what the oracle compares.
 --
 -- **What it refuses and what it cannot.** Negation (9-1-5), the once-per-turn
@@ -334,7 +335,7 @@ DEFINE ACTION activate                                                    -- §9
   FOR 1 IN you.hand|leader|unison|battle
   BIND "card"
   skills: ["activate:main", "activate:main/battle"]
-  COST [marker, burst, energy, payWith, text]
+  COST [marker, burst, spiritBoost, energy, payWith, text]
   DO {}
   again: true
   label: "Activate"
