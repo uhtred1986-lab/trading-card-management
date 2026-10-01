@@ -222,6 +222,19 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   // writes it, after the cost it rests and under the `if` that asks whether
   // there was one.
   tripOps([{ op: "printedEffect" }], "printedEffect");
+  tripOps(
+    [
+      {
+        op: "altCost",
+        target: { sel: { side: "you", area: "hand", filter: { ...emptyFilter(), type: "EXTRA", colors: ["Red", "Blue"], multiColor: true } } },
+        pay: "energy",
+        orbs: ["any"],
+        for: "play",
+        rest: { side: "you", area: "energy", mode: "active", filter: { ...emptyFilter(), colors: ["Red", "Blue"], multiColor: true } },
+      },
+    ],
+    "altCost with rest — [Invoker]",
+  );
   // …and [Warrior of Universe 7]'s leaf, a specified cost cleared outright.
   tripOps(
     [{ op: "costReduction", target: { sel: { side: "you", areas: ["hand", "zDeck"], filter: { ...emptyFilter(), traits: ["Universe 7"] } } }, amount: 0, what: "specified", all: true }],

@@ -1632,6 +1632,13 @@
           ]
         },
         {
+          "name": "rest",
+          "required": false,
+          "nullable": false,
+          "offCard": "with pay: \"energy\", the only cards that may pay that price, one per orb, rested where they stand — [Invoker]'s active Red/Blue multicolour energy in place of an Extra's energy cost (22-37), the leaf of its altPayment hook",
+          "type": "selector"
+        },
+        {
           "name": "target",
           "required": false,
           "nullable": false,

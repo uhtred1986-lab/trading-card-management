@@ -488,7 +488,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Offered as a separate second entry in the menu, so the ordinary price is still there. The skill's own orbs are still paid, and paid out of what is left after the energy [Invoker] is about to rest.",
     engineRules:
-      "Not built yet, and moved to the payment hooks (#155 looked and left it unwritten): it is an alternative price on an Extra's activation from the hand, which is hook group D's `altPayment` channel — `DEFINE ACTION activate` declares no `alt:`, `vm/costs.ts`' `altCostFor` reads no `altPayment` body (the same gap as [Warrior of Universe 7]) and `payAltCost` has no `invoker` case (rest one active Red/Blue energy, then pay the skill's orbs out of the rest). No alternate offer reaches the menu on the rules engine.",
+      "Built as its keyword's own `altPayment` hook body (`keywords.rules`, #155), read as a standing change while the card is in play: your Red/Blue multicolour Extra Cards in the hand may be played for one energy that only an active Red/Blue multicolour card in your Energy Area may pay, rested where it stands (`altCost … rest:`). `DEFINE ACTION activate` says `alt: \"play\"` — using an Extra from the hand is playing it (4-2) — so the line gets a second menu entry beside the ordinary price, and the line's own orbs are still paid out of what is left. The same offers and events as the legacy engine; the row names the card it rests (“Activate X (by resting Y)”) where the legacy row says “by resting a Red/Blue energy ([Invoker])”. Not yet for a [Counter] from the hand: the counter window reads no alternative price on the rules engine (#150).",
     support: "engine",
   },
   Wormhole: {

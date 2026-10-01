@@ -1208,13 +1208,20 @@ the markers, and `AFTER` adds the top card of the deck to life: the legacy order
 (a card taken from beneath is now logged as a move out of its host's area and the pile after it,
 `vm/host.ts`'s `moveTo`).
 
+**[Invoker]** (#155, the leftovers) is an `altPayment` body beside [Warrior of Universe 7]'s:
+`altCost(target: <Red/Blue multicolour Extras> IN you.hand, pay: energy, orbs: [any], for: play,
+rest: <Red/Blue multicolour> IN you.energy active)` — a one-energy price only the cards `rest`
+finds may pay, rested where they stand (the first of them, the legacy `invokerEnergy`). `DEFINE
+ACTION activate` now declares `alt: "play"`, since using an Extra from the hand is playing it
+(4-2): an Extra's line in the hand gets a second candidate at the card's alternative price, as the
+legacy `activatable(…, alt)` does, and still pays the line's own orbs out of what the alternative
+left. Any alternative a card has for a play reaches its activation this way, on both engines.
+Its [Counter]-from-hand half waits for the counter window to read an alternative price (#150).
+
 The rest of group B, each with what it is missing: **[Z-Awaken]** stacks a Z-Leader on the Leader from the Z-Deck,
 carrying its power effects and its battle role, pays Z-Energy and is once a turn per player: a
 leader-area `stackOnto`, a Z-Energy price on a keyword move and a player-level counter, none of which
-exists. **[Invoker]** is an alternative price on an Extra's activation from the hand — group D's
-`altPayment` channel, beside [Warrior of Universe 7] (built by #154 as a specified-cost change; a
-stand-in payer is a different change and is not); `DEFINE
-ACTION activate` declares no `alt:` and `payAltCost` has no `invoker` case — so it moves there. **[Wormhole]** only raises [Over Realm]'s
+exists. **[Wormhole]** only raises [Over Realm]'s
 limit, which is unwritten. **[Dragon Ball]** needs nothing: it is deck legality (`support: "deck"`),
 and no game reads it.
 

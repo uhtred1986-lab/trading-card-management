@@ -336,6 +336,7 @@ DEFINE ACTION activate                                                    -- §9
   BIND "card"
   skills: ["activate:main", "activate:main/battle"]
   COST [marker, burst, spiritBoost, energy, payWith, text]
+  alt: "play"                                                             -- 5-3, 22-37: an Extra used from the hand is played (4-2)
   DO {}
   again: true
   label: "Activate"

@@ -84,8 +84,8 @@ import type { Cond, Script, ScriptFrame } from "../engine/script";
 import { costIsOnlyOrbs } from "../engine/compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { cardColors, cardPrice, skillOrbs, type BoundAmounts } from "./costs";
-import { skillNegated, skillsNegated } from "./effects";
+import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
@@ -220,14 +220,17 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
  *
  * 12-2-2: an Extra Card used from the hand pays its **energy cost as well**,
  * because using one is how an Extra is played (4-2). The two halves are added
- * here rather than charged separately, since a player pays once.
+ * here rather than charged separately, since a player pays once — unless
+ * `withCardPrice` is false, for the line bought at its alternative price
+ * (`activationAlt`), which stands in for the energy cost and leaves the
+ * skill's own orbs to pay.
  */
-export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): BoundAmounts {
+export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true): BoundAmounts {
   const sk = line.skill;
   const own = skillOrbs(ctx, game, state, line.card, sk);
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
-  if (inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
+  if (withCardPrice && inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
     const play = cardPrice(ctx, game, state, line.card);
     total += play.total;
     for (const [colour, n] of Object.entries(play.orbs)) orbs[colour as Color] = (orbs[colour as Color] ?? 0) + (n ?? 0);
@@ -244,6 +247,28 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : sk.cost,
   };
+}
+
+/**
+ * 5-3 / 22-37: the other price an Extra Card's line may be used at from the
+ * hand — the card's alternative to its energy cost, read for a play (4-2:
+ * using an Extra from the hand is how it is played), which is the action's
+ * `alt:` word, as the legacy `activatable(…, alt)` reads `altCostFor(…,
+ * "play")`. The line's own orbs are still paid: `bound` is the line's price
+ * without the card's energy cost, and `resting` the cards the alternative
+ * would rest, which that price may not be paid with (#155, [Invoker]).
+ */
+export function activationAlt(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  def: ActionDef,
+  player: PlayerId,
+  line: ActivationLine,
+): { alt: VmAltCost; bound: BoundAmounts; resting: string[] } | null {
+  if (def.alt === undefined || !inHand(state, line.card) || !isExtra(ctx, game, state, line.card)) return null;
+  const alt = altCostFor(ctx, game, state, line.card, player, def.alt);
+  return alt ? { alt, bound: boundFor(ctx, game, state, player, line, false), resting: restingFor(alt) } : null;
 }
 
 /**

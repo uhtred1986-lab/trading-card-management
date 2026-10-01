@@ -111,7 +111,6 @@ function replaceGap(where: string): boolean {
 }
 
 const S7 = {
-  invoker: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D's altPayment channel, where #155 moved it: an alternative price on an Extra's activation ([Invoker])",
   empower: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Empower])",
 };
 
@@ -242,10 +241,9 @@ const S7 = {
 if (
   !notYetGap(
     "CFREE: free [Counter] from hand",
-    "the [Permanent]'s `altCost` is collected (`vm/effects.ts`' `permanents`) and `vm/costs.ts`' `altCostFor` offers it for a play (#148), but the [Counter] window's own price is `vm/battle.ts`'s, which reads no alternative price yet",
+    "the [Permanent]'s `altCost` is collected (`vm/effects.ts`' `permanents`) and `vm/costs.ts`' `altCostFor` offers it for a play (#148), but the [Counter] window's own price is `vm/battle.ts`'s, which reads no alternative price yet — nor, so, [Invoker]'s for a [Counter] from the hand (its activation half is built, #155)",
     "#150",
-  ) &&
-  !keywordGap("Invoker", S7.invoker)
+  )
 ) {
   // Free [Counter] from hand is a timing of its own.
   DEFS.CFREE = {
@@ -1007,20 +1005,22 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   assert.ok(!playable(arenaG({ battle: ["WU7"], hand: ["U7TWO"], energy: ["V-BLUE"] }), "U7TWO"), "and the total is what it was: two energy, not one");
 }
 
-if (!keywordGap("Invoker", S7.invoker)) {
+{
   // [Invoker] (22-37): a Red/Blue multicolour Extra can be paid for by resting
-  // one active Red/Blue multicolour energy instead of its energy cost.
+  // one active Red/Blue multicolour energy instead of its energy cost. Both
+  // engines since #155 (`keywords.rules`' `altPayment` body); the row's exact
+  // words are the legacy engine's own and checked there only — the rules
+  // engine's menu names the card it rests (Stage 8 owns the words).
   DEFS.INVK = { ...DEFS.V1, id: "INVK", name: "INVK", colors: ["Red", "Blue"], skill: "[Invoker]" };
   DEFS["E-RB"] = { ...DEFS["E-DRAW"], id: "E-RB", name: "E-RB", colors: ["Red", "Blue"], energyCost: 2 };
   DEFS.RB = { ...DEFS.V1, id: "RB", name: "RB", colors: ["Red", "Blue"] };
+  const altOffered = (s: ReturnType<typeof arenaG>, id: string) => actsG(s).some((a) => a.type === "activate" && a.card === id && a.alt === true);
   let s = arenaG({ hand: ["E-RB"], battle: ["INVK"], energy: ["RB"] });
   const e = findG(s, "p1", "hand", "E-RB");
   const l = labelsG(s);
   assert.ok(!l.includes("Activate E-RB (2)"), "one energy cannot pay 2");
-  assert.ok(
-    l.some((x) => x.startsWith("Activate E-RB by resting a Red/Blue energy")),
-    "22-37: [Invoker] in play and a Red/Blue energy active",
-  );
+  assert.ok(altOffered(s, e), "22-37: [Invoker] in play and a Red/Blue energy active");
+  if (ENGINE === "legacy") assert.ok(l.some((x) => x.startsWith("Activate E-RB by resting a Red/Blue energy")), "in the legacy engine's own words");
   const hand = zoneOf(s, "p1", "hand").length;
   s = playG(s, { type: "activate", player: "p1", card: e, skill: 0, alt: true });
   assert.equal(s.cards[zoneOf(s, "p1", "energy")[0]].mode, "rest", "the Red/Blue energy was rested");
@@ -1028,9 +1028,12 @@ if (!keywordGap("Invoker", S7.invoker)) {
   assert.ok(zoneOf(s, "p1", "drop").includes(e));
   assertConsistentG(s);
 
-  assert.ok(!labelsG(arenaG({ hand: ["E-RB"], energy: ["RB"] })).some((x) => x.includes("Invoker")), "no [Invoker] in play, no offer");
-  assert.ok(!labelsG(arenaG({ hand: ["E-RB"], battle: ["INVK"], energy: ["V1"] })).some((x) => x.includes("Invoker")), "a mono-red energy will not do");
-  assert.ok(!labelsG(arenaG({ hand: ["E-DRAW"], battle: ["INVK"], energy: ["RB"] })).some((x) => x.includes("Invoker")), "nor a mono-red Extra");
+  const without = arenaG({ hand: ["E-RB"], energy: ["RB"] });
+  assert.ok(!altOffered(without, findG(without, "p1", "hand", "E-RB")), "no [Invoker] in play, no offer");
+  const mono = arenaG({ hand: ["E-RB"], battle: ["INVK"], energy: ["V1"] });
+  assert.ok(!altOffered(mono, findG(mono, "p1", "hand", "E-RB")), "a mono-red energy will not do");
+  const monoExtra = arenaG({ hand: ["E-DRAW"], battle: ["INVK"], energy: ["RB"] });
+  assert.ok(!altOffered(monoExtra, findG(monoExtra, "p1", "hand", "E-DRAW")), "nor a mono-red Extra");
 }
 
 {

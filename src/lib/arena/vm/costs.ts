@@ -81,7 +81,7 @@ import type { Op, Selector } from "../engine/script";
 import type { CostAsks, CostConsumes } from "../lang";
 import type { ActionDef, CostDef, GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
-import type { PayerGrant } from "./effects";
+import type { PayerGrant, VmAltCost } from "./effects";
 import { attrsNow, staticsNow } from "./program";
 import { NotYet, RulesetBroken } from "./errors";
 import { SETUP_ZONES, moved } from "./flow";
@@ -1147,20 +1147,30 @@ function takeColourOrb(orbs: Partial<Record<Color, number>>, either: Color[][], 
  * the legacy engine's play sites pay inline and have nowhere to ask — and a
  * [Counter]'s, the one move that charges one, is the counter window's (#150);
  * so it is refused here rather than waived. 22-37's [Invoker] is a keyword's
- * own body and Stage 7's (#156).
+ * own `altPayment` body (#155): an energy price only the cards its `rest`
+ * selector found may pay, met when enough of them are there to rest.
  */
-export function altCostFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId, which: string): AltCost | null {
-  const candidates: AltCost[] = [];
+export function altCostFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId, which: string): VmAltCost | null {
+  const candidates: VmAltCost[] = [];
   for (const e of state.effects) if (e.kind === "altCost" && e.target === card && e.altCost) candidates.push(e.altCost);
-  for (const e of staticsNow(ctx, game, state)) if (e.kind === "altCost" && e.target === card) candidates.push(e.value as AltCost);
+  for (const e of staticsNow(ctx, game, state)) if (e.kind === "altCost" && e.target === card) candidates.push(e.value as VmAltCost);
   for (const alt of candidates) {
     if ((alt.for ?? "counter") !== which) continue;
     if (alt.pay === "life" && (state.sides[player].zones[SETUP_ZONES.life] ?? []).length < alt.n) continue;
-    if (alt.pay === "energy" && !planCost(ctx, game, state, player, altEnergy(alt), null).ok) continue;
+    if (alt.pay === "energy" && alt.rest && alt.rest.length < restCount(alt)) continue;
+    if (alt.pay === "energy" && !alt.rest && !planCost(ctx, game, state, player, altEnergy(alt), null).ok) continue;
     if (alt.pay === "program" || alt.pay === "invoker") continue;
     return alt;
   }
   return null;
+}
+
+/** How many cards a `rest` price rests: one per orb, and one when it names none. */
+const restCount = (alt: VmAltCost): number => (alt.orbs ?? []).length || 1;
+
+/** The cards a `rest` price would rest: the first of those it may be paid with, in the order they lie — the legacy `invokerEnergy`'s `find` (22-37). Empty for every other price. */
+export function restingFor(alt: VmAltCost): string[] {
+  return alt.pay === "energy" && alt.rest ? alt.rest.slice(0, restCount(alt)) : [];
 }
 
 /** A `pay: "energy"` alternative as the energy price it is: that many orbs, the coloured ones asked for by colour. */
@@ -1176,8 +1186,16 @@ function altEnergy(alt: AltCost): Price {
  * rested as any energy price is; or that many cards from the top of life to
  * the hand (1-13-2: adding life to the hand is not damage).
  */
-export function payAltCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, alt: AltCost): void {
+export function payAltCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, alt: VmAltCost): void {
   if (alt.pay === "none") return;
+  // #155: [Invoker]'s price — the cards it names, rested where they stand in
+  // the mode the declared energy price rests its cards in (22-37).
+  if (alt.pay === "energy" && alt.rest) {
+    const energy = Object.values(chargesOf(game)).find((c) => c.consumes === "energy");
+    if (!energy) throw new RulesetBroken(state.game, "the game declares no energy price, so nothing says how a card pays one");
+    for (const id of restingFor(alt)) setMode(state, ev, id, modeOf(energy));
+    return;
+  }
   if (alt.pay === "energy") {
     const plan = planCost(ctx, game, state, player, altEnergy(alt), null);
     if (!plan.ok) throw new RulesetBroken(state.game, "an alternative price that was offered can no longer be paid");

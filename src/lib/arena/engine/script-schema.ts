@@ -563,6 +563,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "for", type: { enum: ["counter", "play"] }, default: "counter" },
       { name: "ops", type: "ops" },
       { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
+      {
+        name: "rest",
+        type: "selector",
+        offCard:
+          'with pay: "energy", the only cards that may pay that price, one per orb, rested where they stand — [Invoker]\'s active Red/Blue multicolour energy in place of an Extra\'s energy cost (22-37), the leaf of its altPayment hook',
+      },
       SELF,
       { name: "until", type: "duration" },
     ],
@@ -573,9 +579,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
           ? "for no energy"
           : op.pay === "program"
             ? `by: ${describeScript(op.ops ?? [], r)}`
-            : op.pay === "energy"
-              ? `for ${(op.orbs ?? []).map((o) => (o === "any" ? "{any}" : `{${o}}`)).join("")}`
-              : `by adding ${op.n ?? 1} from your life to your hand`;
+            : op.pay === "energy" && op.rest
+              ? `by switching ${describeSelector({ ...op.rest, count: (op.orbs ?? []).length || 1 })} to Rest Mode`
+              : op.pay === "energy"
+                ? `for ${(op.orbs ?? []).map((o) => (o === "any" ? "{any}" : `{${o}}`)).join("")}`
+                : `by adding ${op.n ?? 1} from your life to your hand`;
       const who = op.target ? describeRef(op.target) : "this card";
       const until = op.until ? ` until ${op.until === "game" ? "the game ends" : op.until}` : "";
       return `${op.for === "play" ? `${who} may be played` : `${who}'s [Counter] may be activated`} ${price}${until}`;

@@ -539,7 +539,11 @@ move is about **one printed line** rather than about a card a `FOR` found:
   - A moment's line with a condition printed before its colon ("[Alliance Red/Green] If your Leader
     Card is blue: …") has it asked before its `DO` runs, after the announcement, as the legacy
     keyword case asks it.
-- Group B's leftovers (#155) added one condition, on no card either:
+- Group B's leftovers (#155) added one condition and one field, on no card either:
+  - `altCost(pay: energy, orbs: […], rest: <selector>)` — the reduced energy price may be paid
+    only by the cards `rest` finds, one per orb, rested where they stand. [Invoker]'s `altPayment`
+    leaf (22-37): one active Red/Blue multicolour energy in place of an Extra's energy cost. The
+    field is marked `offCard`.
   - `markerSkillUsed(sel: …)` — a card among `sel` has used a skill with a marker price this turn
     (13-4-2's one a turn). [Rejuvenate]'s gate is `NOT markerSkillUsed(sel: [self])`, and a keyword
     move refused by it on its own card **is** a marker skill: using it spends the lock, the way a

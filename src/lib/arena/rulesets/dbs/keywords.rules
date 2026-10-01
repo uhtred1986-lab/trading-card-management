@@ -6,12 +6,12 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Sixteen HOOK bodies over fifteen keywords, written by Stage 7's four hook
+-- Seventeen HOOK bodies over sixteen keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
 -- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
--- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s
--- altPayment, [Heroic]/[Villainous]'s afterSkill,
+-- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s and
+-- [Invoker]'s altPayment, [Heroic]/[Villainous]'s afterSkill,
 -- [Critical]/[Strike]/[Victory Strike]'s beforeDamage and [Revenge]/
 -- [Attack]'s battleEnd. Every other keyword's
 -- own moments are still the engine's, and each one's trailing comment says
@@ -296,10 +296,16 @@ DEFINE KEYWORD Wormhole
 DEFINE KEYWORD Invoker
   TAKES ()
   text: "A Red/Blue multicolour Extra Card in your hand may be activated by switching one active Red/Blue multicolour energy to Rest Mode instead of paying its energy cost."
-  -- #155 looked and moved it to the payment hooks: an alternative price on an
-  -- Extra's activation is the `altPayment` channel (hook group D), and
-  -- `DEFINE ACTION activate` declares no `alt:`, `vm/costs.ts`' `altCostFor`
-  -- reads no `altPayment` body and `payAltCost` has no `invoker` case.
+  -- #155: an `altPayment` body, read as a standing change the way [Warrior
+  -- of Universe 7]'s is, off the card while it is in play (the legacy
+  -- `cardsInPlay`): your Red/Blue multicolour Extra Cards in the hand may be
+  -- played — which is how an Extra is used from there (4-2), so `DEFINE
+  -- ACTION activate` says `alt: "play"` — for one energy that only an active
+  -- Red/Blue multicolour card in your Energy Area may pay, rested where it
+  -- stands (`rest`). The line's own orbs are still paid, out of what is left.
+  HOOK altPayment {
+    altCost(target: (type = EXTRA AND colors = [Red, Blue] AND multiColor = true AND notColors = [Green, Yellow, Black, White, Colorless]) IN you.hand, pay: energy, orbs: [any], for: play, rest: (colors = [Red, Blue] AND multiColor = true AND notColors = [Green, Yellow, Black, White, Colorless]) IN you.energy active)
+  }
 
 -- 22-35
 DEFINE KEYWORD Heroic
