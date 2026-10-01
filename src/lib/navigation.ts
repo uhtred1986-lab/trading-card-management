@@ -38,11 +38,12 @@ export function isActive(pathname: string, href: string): boolean {
  * phone the header and the tab bar cost about 114 px, which is most of a card,
  * and neither is any use mid-game — the board has its own way back.
  *
- * Only a game. Everything else under `/arena` — the list, the backlog, the
- * rules, the debug view — keeps its navigation.
+ * Only a game, and its dev-only twin `/arena/preview` (#447): a shot of the
+ * preview has to show what a player sees. Everything else under `/arena` — the
+ * list, the backlog, the rules, the debug view — keeps its navigation.
  */
 export function isFullBleed(pathname: string): boolean {
-  return /^\/arena\/\d+$/.test(pathname);
+  return /^\/arena\/(\d+|preview)$/.test(pathname);
 }
 
 /**

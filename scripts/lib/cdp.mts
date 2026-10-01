@@ -330,6 +330,27 @@ export class Page {
     return Buffer.from(r.data, "base64");
   }
 
+  /**
+   * Record what the page draws (`Page.startScreencast`, `scripts/arena-record.mts`, #447).
+   * Chrome sends a JPEG each time the picture changes, not at a fixed rate, so every frame
+   * carries its own timestamp (seconds) and the caller turns the gaps into durations.
+   * Returns the stop function, which hands the frames back.
+   */
+  async startScreencast(o: { quality?: number } = {}): Promise<() => Promise<Array<{ data: Buffer; t: number }>>> {
+    const frames: Array<{ data: Buffer; t: number }> = [];
+    this.b.on((method, p, sessionId) => {
+      if (sessionId !== this.sid || method !== "Page.screencastFrame") return;
+      frames.push({ data: Buffer.from(p.data, "base64"), t: p.metadata.timestamp });
+      // Chrome sends no further frame until the last one is acknowledged.
+      void this.call("Page.screencastFrameAck", { sessionId: p.sessionId }).catch(() => {});
+    });
+    await this.call("Page.startScreencast", { format: "jpeg", quality: o.quality ?? 85, maxWidth: this.vp.width * (this.vp.mobile ? 2 : 1), maxHeight: this.vp.height * (this.vp.mobile ? 2 : 1), everyNthFrame: 1 });
+    return async () => {
+      await this.call("Page.stopScreencast").catch(() => {});
+      return frames;
+    };
+  }
+
   async close() {
     await this.b.send("Target.closeTarget", { targetId: this.targetId }).catch(() => {});
   }

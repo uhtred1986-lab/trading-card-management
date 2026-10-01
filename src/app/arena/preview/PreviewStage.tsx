@@ -68,6 +68,7 @@ function defendView(snap: Snapshot): Snapshot {
  * beat player walks them. Pair it with `?pace=step` to hold on the beat.
  *
  *   reveal | ko           the fixture's own beats (`play`, `ko`)
+ *   replay                every beat of the fixture, from the first (`?replay=1`)
  *   damage | damage-you   a hit on the opponent's / your leader (1 life)
  *   clash-hit | clash-ko | clash-held   a verdict on the open battle (`attack`)
  *   attack                the staged fight arriving (`attack`): cards in from the corners, VS
@@ -89,7 +90,7 @@ function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
     const guard = fx === "clash-ko" ? (snap.view.them.battle[0]?.id ?? snap.view.battle?.guard ?? "") : (snap.view.battle?.guard ?? "");
     list = number([{ t: "clash", attacker, guard, attackPower: 25000, guardPower: fx === "clash-held" ? 30000 : 10000, hit: fx !== "clash-held" }]);
   }
-  return { seq: list.length, list, art };
+  return { seq: fx === "replay" ? (snap.beats?.seq ?? list.length) : list.length, list, art };
 }
 
 /** The game page's menu links as the preview draws them: inert, since no game is behind them. */
@@ -131,9 +132,10 @@ export function PreviewStage({
   staging,
   pace,
   announceTurn,
-  fx,
+  fx: fxParam,
   admin,
   referee,
+  replay = false,
 }: {
   snapshot: Snapshot;
   skin: ArenaSkin;
@@ -143,7 +145,12 @@ export function PreviewStage({
   fx: string | null;
   admin: boolean;
   referee: boolean;
+  replay?: boolean;
 }) {
+  // `?replay=1` (preview only): the fixture's own beats, played from the start. It is the
+  // `reveal`/`ko` path without a filter — mount the board with an empty queue, then deliver
+  // the beats the way a later snapshot would — so a recording catches the first beat.
+  const fx = fxParam ?? (replay ? "replay" : null);
   // `?referee=1`: one of your Battle Cards is one the referee rules on, so the badge can be seen.
   const snapshot = useMemo(() => (referee && fixture.view.you.battle[0] ? { ...fixture, view: { ...fixture.view, you: { ...fixture.view.you, battle: fixture.view.you.battle.map((c, i) => (i === 0 ? { ...c, referee: true } : c)) } } } : fixture), [fixture, referee]);
   useEffect(() => {

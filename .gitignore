@@ -51,3 +51,6 @@ android/local.properties
 
 # Board screenshots from `npm run arena:shots` (docs/arena-tooling.md)
 docs/arena-redesign/current/
+
+# Evidence clips from `npm run arena:record` (docs/arena-tooling.md)
+docs/arena-redesign/clips/

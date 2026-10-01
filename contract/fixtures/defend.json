@@ -1,0 +1,638 @@
+{
+  "contract": 1,
+  "game": {
+    "id": 1,
+    "mode": "hotseat",
+    "engine": "legacy",
+    "game": "dbs",
+    "status": "playing",
+    "turn": 4,
+    "p1Name": "You",
+    "p2Name": "Claude",
+    "you": "p1"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#38",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [],
+      "hand": [
+        {
+          "id": "p1#9",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#23",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#17",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#50",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#29",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#26",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#43",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#15",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#35",
+          "cardId": "UNIQ",
+          "name": "UNIQ",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Unique"
+          ],
+          "text": "[Unique]",
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#18",
+          "cardId": "BLOCKER",
+          "name": "BLOCKER",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 1,
+          "comboPower": 10000,
+          "keywords": [
+            "Blocker"
+          ],
+          "text": "[Blocker]",
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "handCount": 10,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 31,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "them": {
+      "player": "p2",
+      "name": "Claude",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p2#44",
+          "cardId": "BIG",
+          "name": "BIG",
+          "power": 25000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "rest",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "5",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [],
+      "hand": null,
+      "handCount": 1,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 40,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null
+    },
+    "turn": 4,
+    "phase": "main",
+    "turnPlayer": "p2",
+    "battle": {
+      "attacker": "p2#44",
+      "guard": "p1#0",
+      "step": "defense",
+      "attackPower": 25000,
+      "guardPower": 10000,
+      "contributions": {
+        "p2#44": 25000,
+        "p1#0": 10000
+      }
+    },
+    "prompt": {
+      "kind": "combo",
+      "player": "p1",
+      "question": "Combo? Tap a glowing card.",
+      "hint": "Each adds its combo power and costs its combo cost."
+    },
+    "over": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#9"
+      },
+      "label": "Combo V1 from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#23"
+      },
+      "label": "Combo V1 from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#17"
+      },
+      "label": "Combo V1 from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#50"
+      },
+      "label": "Combo V1 from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#29"
+      },
+      "label": "Combo V1 from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#26"
+      },
+      "label": "Combo V1 from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#43"
+      },
+      "label": "Combo V1 from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#15"
+      },
+      "label": "Combo V1 from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#35"
+      },
+      "label": "Combo UNIQ from hand (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#38"
+      },
+      "label": "Combo V1 from the Battle Area (+5000, cost 0)"
+    },
+    {
+      "action": {
+        "type": "pass",
+        "player": "p1"
+      },
+      "label": "End Defense Step"
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#9": [
+        0
+      ],
+      "p1#23": [
+        1
+      ],
+      "p1#17": [
+        2
+      ],
+      "p1#50": [
+        3
+      ],
+      "p1#29": [
+        4
+      ],
+      "p1#26": [
+        5
+      ],
+      "p1#43": [
+        6
+      ],
+      "p1#15": [
+        7
+      ],
+      "p1#35": [
+        8
+      ],
+      "p1#38": [
+        9
+      ]
+    },
+    "bare": [
+      10
+    ],
+    "attackTargets": {},
+    "whyByCard": {
+      "p1#18": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        }
+      ],
+      "p1#0": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  },
+  "rejected": [
+    {
+      "action": {
+        "type": "combo",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Combo BLOCKER",
+      "why": [
+        {
+          "kind": "energy",
+          "need": 1,
+          "have": 0
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#0",
+        "skill": 0
+      },
+      "label": "Activate L-RED: [Awaken]",
+      "why": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    }
+  ],
+  "beats": {
+    "seq": 4,
+    "list": [
+      {
+        "t": "mode",
+        "card": "p2#44",
+        "mode": "rest",
+        "n": 1
+      },
+      {
+        "t": "attack",
+        "attacker": "p2#44",
+        "target": "p1#0",
+        "n": 2
+      },
+      {
+        "t": "phase",
+        "phase": "offense",
+        "player": "p2",
+        "turn": 4,
+        "n": 3
+      },
+      {
+        "t": "phase",
+        "phase": "defense",
+        "player": "p2",
+        "turn": 4,
+        "n": 4
+      }
+    ],
+    "art": {
+      "p2#44": {
+        "cardId": "BIG",
+        "name": "BIG",
+        "imageUrl": null
+      },
+      "p1#0": {
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "imageUrl": null
+      }
+    }
+  },
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}
