@@ -714,23 +714,31 @@ export interface DefOp extends Declaration<"OP"> {
  * for — `DEFINE WORDS battle` is the words for `DEFINE ZONE battle` — so
  * `of:` says which table the word belongs to rather than a second name.
  *
- * Not every table `board-words.ts` isolates is here: `wording.ts`'s own
- * `VERB`/`WINDOW` (a `Requirement`'s sentence) and `effects.ts`'s
- * `untilWords` (a rule in force) are viewer-dependent sentence templates —
- * "your" versus "Claude's", singular versus plural — and a flat name → word
- * table cannot hold a branch. Giving them a home is real follow-up work, not
- * a gap in this file: either a second declaration shape for a templated
- * sentence, or a further split of `DEFINE WORDS` once one is designed.
+ * The phrases a `Requirement` and a rule in force are said in are here too
+ * (#159): `of: verb` (the verb in "X cannot attack", named `verb<Action>`),
+ * `of: window` (what a timing refusal tells the player to wait for, named
+ * `window<Window>`) and `of: until` (how long a rule holds, named
+ * `until<Duration>`, with `{them}` and `{source}` filled in by
+ * `effects.ts`'s `untilWords`). The sentence *shapes* around them — which
+ * branch a viewer takes, the "cannot ... now" frame — stay in code. Names are
+ * unique across every `of:`, hence the prefixes.
  */
 export interface DefWords extends Declaration<"WORDS"> {
-  of: "zone" | "phase" | "mode" | "color";
+  of: "zone" | "phase" | "mode" | "color" | "verb" | "window" | "until";
   /**
-   * The second-person, possessive form — "your Battle Area" — `wording.ts`'s
-   * refusals use and `narration.ts`'s third-person `text:` does not. Only a
-   * zone carries one; every other category reads the same regardless of
-   * whose it is.
+   * The second-person form. A zone's is the possessive — "your Battle Area" —
+   * `wording.ts`'s refusals use and `narration.ts`'s third-person `text:` does
+   * not. A turn-relative `until` carries the phrase that names the viewer
+   * ("until the start of your next turn") where `text:` names the other
+   * player (`{them}`). Every other category reads the same whoever is looking.
    */
   you?: string;
+  /**
+   * An `until`'s phrase when its `{source}` has nothing to fill — "while its
+   * card is in play" against `text:`'s "while {source} is in play". Only an
+   * `until` carries one.
+   */
+  bare?: string;
   /**
    * This colour lights a room of its own (`lighting.ts`'s `LEADER_COLOURS`)
    * — White and Colorless do not. Only a colour carries this.
@@ -897,8 +905,9 @@ export const DEFINE_SCHEMA = {
   WORDS: {
     doc: "the word a board shows for a zone, a phase or beat, a mode or a colour",
     fields: [
-      { name: "of", type: { enum: ["zone", "phase", "mode", "color"] }, required: true },
+      { name: "of", type: { enum: ["zone", "phase", "mode", "color", "verb", "window", "until"] }, required: true },
       { name: "you", type: "string" },
+      { name: "bare", type: "string" },
       { name: "room", type: "boolean" },
       { name: "text", type: "string", required: true },
     ],

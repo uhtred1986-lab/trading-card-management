@@ -532,11 +532,17 @@ a cycle, and leaves an **optional** field out of the expansion when its hole is 
 call did not give — the interpreter then assumes for the expansion what it would have assumed for
 the call — while a required one is refused by name.
 
-**WORDS** — the word a board shows for a zone, a phase or beat, a mode or a colour: the vocabulary
-`wording.ts` and `narration.ts` read off `board-words.ts`'s `BoardWords` (manual §3, §6, §7, §1-2-3).
-`of:` (zone | phase | mode | color) says which table the word belongs to (required); `you:` the
-second-person, possessive form a zone carries beside its third-person `text:` ("your Battle Area"
-next to "the Battle Area"); `room:` marks a colour that lights a room of its own (`lighting.ts`'s
+**WORDS** — the word a board shows for a zone, a phase or beat, a mode or a colour, and the phrases a
+requirement and a rule in force are said in: the vocabulary `wording.ts`, `narration.ts`, `effects.ts`
+and `lighting.ts` read off `board-words.ts`'s `BoardWords` (manual §3, §6, §7, §1-2-3; read from these
+declarations since #159).
+`of:` (zone | phase | mode | color | verb | window | until) says which table the word belongs to
+(required); `you:` the second-person form a zone carries beside its third-person `text:` ("your
+Battle Area" next to "the Battle Area"), or the phrase naming the viewer on a turn-relative `until`;
+`bare:` an `until`'s phrase when its `{source}` has nothing to fill ("while its card is in play");
+`{them}` and `{source}` in a `text:` are filled in by `effects.ts`. A verb, window or until is named
+with its table as a prefix (`verbAttack`, `windowMain`, `untilNextTurn`), since a name is unique across
+every `of:`. `room:` marks a colour that lights a room of its own (`lighting.ts`'s
 five leader colours, against White and Colorless, which do not); `text:` the word itself (required).
 One declaration per word, named after the zone, phase, mode or colour it is the word for — this is
 the words for `DEFINE ZONE battle`, not a second name for it.
