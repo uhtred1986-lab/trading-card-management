@@ -604,6 +604,16 @@ export interface DefAction extends Declaration<"ACTION"> {
    * no coloured requirement at all. Meaningless without `x: true`.
    */
   xMin?: number;
+  /**
+   * 5-3: the alternative price a card may print for this move — "you can play
+   * this card from your hand without paying its energy cost" — named by the
+   * word a card's own `altCost` record uses for the move (`for: "play"`). A
+   * move that declares it is offered a second time, for the same card, at that
+   * price instead of its `COST`, whenever a [Permanent] or a skill in force
+   * puts one on the card and the board can meet it (`vm/costs.ts`'
+   * `altCostFor`). A move that does not declare it is never bought another way.
+   */
+  alt?: string;
   do: Op[];
   refusals?: DefineRefusal[];
   /**
@@ -857,6 +867,7 @@ export const DEFINE_SCHEMA = {
       { name: "cost", type: { list: "string" }, word: "COST" },
       { name: "x", type: "boolean" },
       { name: "xMin", type: "number" },
+      { name: "alt", type: "string" },
       { name: "do", type: "ops", word: "DO", required: true },
       { name: "refusals", type: "refusals", word: "REFUSE" },
       { name: "again", type: "boolean" },

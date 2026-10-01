@@ -49,7 +49,8 @@
  */
 import type { EngineContext, GameEvent } from "../engine";
 import { costModifierAs, modifyAttrAs, negateAs, type Amount, type Op, type ScriptFrame } from "../engine/script";
-import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
+import type { AltCost } from "../engine/state";
+import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix } from "../engine/types";
 import { other as otherPlayer } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import type { AttrValue, Attrs } from "./cards";
@@ -131,10 +132,19 @@ export interface SpecifiedChange {
  * `cost` and the attribute it discounts is called `costOf`, and the names are
  * the legacy engine's on both sides of that pairing.
  *
- * What a [Permanent] can still say and this cannot carry is a *legality* or an
- * alternative payment; `DEFERRED_STATICS` names each with the issue that reads
- * it, because a static quietly collected into a list nothing reads is the
- * dishonest version of a gap.
+ * Three more carry a *price* rather than a value (#148): 20-19's standing
+ * payer ("you can use this card to pay energy costs even when it's in your
+ * Battle Area", `kind: "payer"`), which `vm/costs.ts`' `payersFor` adds to the
+ * pool of every energy price; 5-3's alternative price ("you can play this card
+ * from your hand without paying its energy cost", `kind: "altCost"`), which
+ * `altCostFor` offers as a second way to make the move; and a change to a
+ * skill line's own orbs (`kind: "skillCost"`), which `skillOrbs` reads where
+ * the line's price is bound.
+ *
+ * What a [Permanent] can still say and this cannot carry is a *legality*;
+ * `DEFERRED_STATICS` names each with the issue that reads it, because a static
+ * quietly collected into a list nothing reads is the dishonest version of a
+ * gap.
  */
 export interface VmStatic {
   /** The card whose [Permanent] says it. */
@@ -144,16 +154,23 @@ export interface VmStatic {
   kind: ContinuousEffect["kind"];
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill | SpecifiedChange | Prohibition;
+  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | AltCost;
+  /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
+  skillKind?: SkillKindPrefix;
+  /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
+  colors?: (Color | "any")[];
+}
+
+/** 20-19: what a standing payer counts as while it pays — one energy of its own colours, or of the one colour named. The legacy `StaticEffect`'s value, word for word. */
+export interface PayerGrant {
+  payAs: "energy" | Color;
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "if"] as const;
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "payWith", "altCost", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {
-  altCost: "another way to pay, granted for a span rather than named on one price — #149 bound the narrower, per-price form (`activate`'s own `payWith` items); this wider [Permanent] grant is still unread",
-  payWith: "the [Permanent] form — \"you can use this card to pay energy costs\" — grants a payer to the whole board; #149 bound the narrower form a price names for itself",
   permit: "#150 — 8-1-1 the other way round: a permission widens what may be *attacked*, and the battle is Stage 6's",
   immune: "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   negateKeyword: "#153 — keywords are Stage 7's",
@@ -493,10 +510,21 @@ function collect(
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "specifiedCost", target: id, value: { colors: op.colors, sign } });
         continue;
       }
-      // 4-3-3 and 22-2: an orb price belongs to *one skill line* rather than to
-      // the card, and a line's price is bound by the move that names it
-      // (`BoundAmounts`, #147), so there is nothing here to change yet.
-      if (op.what === "skill" || op.what === "evolve") continue;
+      // 4-3-3: an orb price belongs to *one skill line* rather than to the
+      // card, so a change to it is no layer of any card attribute — it is
+      // collected under the legacy engine's own kind, with the line kind and
+      // the orbs it names, and read where the line's price is bound
+      // (`vm/costs.ts`' `skillOrbs`, #148). 22-5's [Evolve] price is a
+      // keyword's own body and Stage 7's (#157): collected by nobody yet,
+      // because nothing would read it.
+      if (op.what === "evolve") continue;
+      if (op.what === "skill") {
+        const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
+        if (value == null) continue;
+        for (const id of targets(frame, op))
+          out.push({ source: frame.card, master: frame.master, kind: "skillCost", target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}) });
+        continue;
+      }
       const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
       // "…by 1 for each of your blue Battle Cards" — the same two amounts the
       // power statics take, and for the same reason: a [Permanent] has no frame
@@ -504,6 +532,29 @@ function collect(
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
       if (value == null) continue;
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value });
+      continue;
+    }
+    // 5-3: another price for the card itself — "you can play this card from
+    // your hand without paying its energy cost". Read wherever the card is,
+    // like a cost reducer, because the hand is where it applies; one granted
+    // for a span (`until`) is a resolved skill's continuous effect and is read
+    // off `state.effects` instead, since a [Permanent] never resolves and
+    // nothing would expire it. The legacy `collectStatics`' reading, word for
+    // word, and `altCostFor` is what offers it.
+    if (op.op === "altCost") {
+      if (op.until) continue;
+      const value: AltCost = { pay: op.pay, n: op.n ?? 1, for: op.for ?? "counter", ...(op.ops ? { ops: op.ops } : {}), ...(op.orbs ? { orbs: op.orbs } : {}) };
+      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "altCost", target: id, value });
+      continue;
+    }
+    // 20-19: a card that may be rested in the Energy Area's place, for every
+    // energy price rather than for one (BT3-039). 9-1-3-1 separates it from
+    // `altCost` above: a card can only be *rested* to pay where it stands on
+    // the table, so it is read in play only. `payersFor` is what adds it.
+    if (op.op === "payWith") {
+      if (op.until || !inPlayNow) continue;
+      const value: PayerGrant = { payAs: op.as ?? "energy" };
+      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "payer", target: id, value });
     }
   }
 }
@@ -514,7 +565,7 @@ function collect(
 /** What a layer is handed: the value so far, the standing changes of its kind, the timed ones, and the card's printed bag for the one fallback that needs it. */
 type Layer = (value: AttrValue | undefined, statics: EffectValue[], timed: EffectValue[], attrs: Attrs) => AttrValue | undefined;
 
-type EffectValue = number | KeywordSkill | SpecifiedChange | Prohibition;
+type EffectValue = VmStatic["value"];
 
 /**
  * Numbers added to a number — every change 9-9-1 makes to `power` and

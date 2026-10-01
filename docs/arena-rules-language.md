@@ -302,8 +302,8 @@ cards it applies to, `BIND` the name a refusal calls the candidate by, `skills:`
 kinds it offers when its candidate is a *line* of a card rather than the card, `decline:` the words
 for answering it with no card at all, `COST` the names of the `DEFINE COST` prices it charges, `x:`
 whether a candidate's price may be an X the card itself does not settle (below), `xMin:` the lowest
-X ever offered when it is higher than the coloured requirement alone, `DO` what
-it does (required), one `REFUSE` line per requirement, `again:` whether taking it leaves the question
+X ever offered when it is higher than the coloured requirement alone, `alt:` the word a card's own
+alternative price names this move by (5-3, below), `DO` what it does (required), one `REFUSE` line per requirement, `again:` whether taking it leaves the question
 on the table, `listed:` whether the menu carries it, `label:` the words it shows there, and `text:`
 what it is.
 
@@ -318,6 +318,14 @@ is actually there to read when the program runs. `xMin:` raises the floor past t
 requirement for a move where zero is not a real answer — `playUnison`'s `xMin: 1`, since 13-2-2 never
 lets a Unison arrive with no markers at all (3-11-3), which a Unison with no printed colours would
 otherwise floor at zero.
+
+`alt: "play"` (#148) is 5-3: a card may print another price for a move — "you can play this card
+from your hand without paying its energy cost", or "by adding a card from your life to your hand
+instead" — and the record says which move it is for (`altCost`'s `for:`). A move declaring the same
+word offers such a card a second time, beside its ordinary candidate, at that price instead of its
+`COST`, whenever a [Permanent] or a skill in force puts one on the card and the board can meet it
+(`vm/costs.ts`'s `altCostFor`); never for an X cost, and never past a `REFUSE` that holds. A move
+that declares no `alt:` is never bought another way.
 
 `decline:` is the other half of a *may*. The charge (§7-2-11) offers a card in hand **and** the
 answer that places none, and that answer is a candidate of its own rather than the absence of one —
