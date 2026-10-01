@@ -214,10 +214,15 @@ export function masterOf(game: GameDefinition, state: VmState, id: string): Play
  * Appends to `state.pending` in the order the declarations were read; the
  * *resolution* order is 9-6-6's and is `nextPending`'s, which is what makes the
  * queue a set rather than a sequence at this end.
+ *
+ * `only` narrows the matches to the ones a caller names — `vm/host.ts`'s
+ * `pendByName`, where a program says "this card, this trigger" and nothing
+ * else on the board is being asked.
  */
-export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment): VmPending[] {
+export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment, only?: (match: TriggerMatch) => boolean): VmPending[] {
   const pended: VmPending[] = [];
   for (const match of matchTriggers(game, state, moment)) {
+    if (only && !only(match)) continue;
     const inst = state.cards[match.card];
     // 1-10-2 / 23-5: a card in Hidden Mode is no information at all, its own
     // skills included — and 9-1-5, a card whose skills are negated has none to

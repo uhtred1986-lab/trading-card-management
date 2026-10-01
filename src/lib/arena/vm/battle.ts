@@ -630,15 +630,41 @@ export function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (attacker) fire(ctx, game, state, { event: "damage", card: attacker, controller: masterOf(game, state, attacker), args: { role: "source" } });
 }
 
-/** 8-4-6-2: the generic KO a battle needs — to the owner's Drop, both `ko` roles fired so `koed`/`kos`/`yourCardKoed`/`opponentCardKoed` each answer the moment meant for them. `role` tells the koed card's own moment from the causing card's, the same fix `battleDeclare` needed for `attackDeclared` (`triggers.rules`, this stage). */
-export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, cause: string): void {
+/**
+ * 5-12 / 8-4-6-2: the generic KO — a battle's and a skill's alike (#146), to
+ * the owner's Drop, with the moments the legacy `koCard` (`engine/triggers.ts`)
+ * pends, in the log order it writes them.
+ *
+ * - **20-14 first**: a card that "can't be KO'd" at all is not KO'd by battle
+ *   either, so the prohibition is read here rather than at either caller —
+ *   the legacy engine's own placement, and the reason a battle KO now reads
+ *   it too.
+ * - **The `ko` event, then the move**: the client's picture of a KO is the
+ *   legacy engine's two events in that order (`ko`, then `move` to the Drop),
+ *   which is what `beats.ts` plays the shatter off.
+ * - **Both roles**: `koed` for the card itself (with `to: drop`, 9-1-3-1's
+ *   derived "fires while elsewhere"), and `cause` for the card that did it —
+ *   only when that card is an *opponent's* and still exists, the legacy
+ *   `kos` pend's own three conditions ("when this card KOs an opponent's
+ *   Battle Card"). `cause` is absent for a KO no card caused.
+ *
+ * The move itself carries no `by`: a KO by skill is not, on either engine,
+ * the "removed from a Battle Area by a skill" moment (the legacy `ko` op pends
+ * nothing of that family), only `leftBattleToDrop`'s causeless one.
+ */
+export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, cause?: string): void {
+  if (forbids(ctx, game, state, "beKOd", { card })) return;
   const owner = state.cards[card].owner;
+  const master = masterOf(game, state, card);
+  log(ev, { type: "ko", card, ...(cause === undefined ? {} : { by: cause }) });
   moved(ctx, game, state, ev, card, "drop", { owner });
   // `to: drop` matches `koed`'s own pattern (`triggers.rules`) — the card has
   // already landed there by the time this fires, and that field is what lets
   // it still answer about itself (9-1-3-1's derived "fires while elsewhere").
   fire(ctx, game, state, { event: "ko", card, controller: owner, args: { role: "koed", to: "drop" } });
-  fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), args: { role: "cause" } });
+  if (cause !== undefined && cause !== card && state.cards[cause] && masterOf(game, state, cause) !== master) {
+    fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), args: { role: "cause" } });
+  }
 }
 
 // ── small shared readings ────────────────────────────────────────────────────

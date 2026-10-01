@@ -774,10 +774,13 @@ export interface MoveCause {
  * picture — a zone the shared `GameEvent` union has no `Area` word for is a
  * zone a board cannot animate, and still a place a card arrived in.
  */
-export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, to: string, opts: MoveCause = {}): void {
+export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
   const from = fromZone(state, id);
-  const result = moveCard(state, game, id, to, opts);
-  if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${to}: ${result.refused}`);
+  const result = moveCard(state, game, id, asked, opts);
+  if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
+  // Where it really went: a rule about what the card *is* may send it
+  // somewhere else than asked (19-1-7, a token leaving play is removed).
+  const to = result.move.to;
   const shown: GameEvent | null =
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }

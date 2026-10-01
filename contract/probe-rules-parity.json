@@ -18,10 +18,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "cac09808"
+      "digest": "befb97a9"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "ALLY#0": {
     "legacy": {
@@ -85,10 +84,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "d32d224c"
+      "digest": "6d6ad122"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "ATKSKIP#0": {
     "legacy": {
@@ -97,10 +96,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "988c9287"
+      "digest": "802339ea"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "AURA#0": {
     "legacy": {
@@ -109,10 +107,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "49cb39ff"
+      "digest": "943102c8"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "AUTOCOST#0": {
     "legacy": {
@@ -133,10 +130,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "fe15e5c2"
+      "digest": "0559159a"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "BERGAMO#10": {
     "legacy": {
@@ -215,7 +211,7 @@
       "digest": "7e284eb6"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "unreadable-price"
   },
   "BUUEAT#0": {
     "legacy": {
@@ -235,10 +231,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "52f4dce3"
+      "digest": "778b074c"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "CHEAPENER#0": {
     "legacy": {
@@ -336,10 +331,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "0800dc4f"
+      "digest": "39c6db32"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "COPYSRC#20": {
     "legacy": {
@@ -436,10 +430,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "7669cca7"
+      "digest": "a44f9ad0"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "DOWNALL#0": {
     "legacy": {
@@ -448,10 +441,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "61bbea8b"
+      "digest": "7efb95b0"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "DRAWER#0": {
     "legacy": {
@@ -482,10 +474,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "f1bc9cb3"
+      "digest": "7f83e1d0"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "E-CC#0": {
     "legacy": {
@@ -628,10 +619,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "2887b73c"
+      "digest": "b5a9308a"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "EITHER#0": {
     "legacy": {
@@ -685,10 +676,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "a4ceec4d"
+      "digest": "1a71bc2c"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "FETCH#0": {
     "legacy": {
@@ -719,10 +710,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "28c93714"
+      "digest": "f41c59a9"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "FREEPLAY#0": {
     "legacy": {
@@ -731,10 +721,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "091b647a"
+      "digest": "c6ea6c7a"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "FUSER#0": {
     "legacy": {
@@ -766,10 +755,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "18d2fec1"
+      "digest": "1e6e6c20"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "GOTEN#0": {
     "legacy": {
@@ -781,7 +769,7 @@
       "digest": "e59caa2f"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "rule-processing"
   },
   "GRABBER#0": {
     "legacy": {
@@ -835,10 +823,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "89870dc6"
+      "digest": "82518973"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "HUSH#0": {
     "legacy": {
@@ -858,10 +845,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "ea5bf891"
+      "digest": "a45b0fa4"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "immunity-static"
   },
   "IMMUNE#0": {
     "legacy": {
@@ -870,10 +857,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "43ff41f1"
+      "digest": "193dbdf4"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "immunity-static"
   },
   "INBATTLE#0": {
     "legacy": {
@@ -882,10 +869,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "ce00256b"
+      "digest": "e5a6ea72"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "INERTPERM#0": {
     "legacy": {
@@ -894,10 +880,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "26ca81fa"
+      "digest": "7da44342"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "KILLER#0": {
     "legacy": {
@@ -906,10 +891,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "182475d6"
+      "digest": "ca56ac9b"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "KOSKILL#0": {
     "legacy": {
@@ -918,10 +902,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "39d69f66"
+      "digest": "b36d6ec3"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "L-RED#0": {
     "legacy": {
@@ -1052,10 +1035,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "f08df45b"
+      "digest": "c2a67344"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "MAYWARP#0": {
     "legacy": {
@@ -1064,10 +1047,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "97b07e83"
+      "digest": "f49ac7d8"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "MILLGATE#0": {
     "legacy": {
@@ -1188,10 +1171,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "26736776"
+      "digest": "36dffc2a"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "NOSY#0": {
     "legacy": {
@@ -1211,10 +1193,9 @@
     },
     "rules": {
       "outcome": "blank",
-      "digest": "4854afca"
+      "digest": "e4dc9636"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "OLD-KILL#0": {
     "legacy": {
@@ -1223,10 +1204,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "874bbc1d"
+      "digest": "b5b67485"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "ONCE#0": {
     "legacy": {
@@ -1258,10 +1238,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "7dd7deca"
+      "digest": "26b886d2"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "ONLYSKILLPLAY#0": {
     "legacy": {
@@ -1270,10 +1249,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "a8b4f19d"
+      "digest": "cac4ae74"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "OR-DRAWER#0": {
     "legacy": {
@@ -1315,10 +1293,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "64285511"
+      "digest": "03a523f8"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "PEEK#0": {
     "legacy": {
@@ -1349,10 +1326,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "e29d64ed"
+      "digest": "96e3ee24"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "PERMTOUGH#0": {
     "legacy": {
@@ -1372,10 +1348,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "f12ad49b"
+      "digest": "75868db4"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "PICKY-HUNTER#0": {
     "legacy": {
@@ -1384,10 +1360,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "c9edf206"
+      "digest": "26d1430d"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "PILE#0": {
     "legacy": {
@@ -1396,10 +1371,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "f04220c8"
+      "digest": "f6b9158e"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "PILEDROP#0": {
     "legacy": {
@@ -1408,10 +1382,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "91ffec6d"
+      "digest": "afefa598"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "PILEOFF#0": {
     "legacy": {
@@ -1420,10 +1394,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "81d91209"
+      "digest": "b02ca72c"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "PRICED#0": {
     "legacy": {
@@ -1466,10 +1440,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "dc9d27a4"
+      "digest": "aee83502"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "REFILL#0": {
     "legacy": {
@@ -1500,10 +1473,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "1e72c874"
+      "digest": "f3d33480"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "RENAMED#0": {
     "legacy": {
@@ -1512,10 +1484,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "bb9ea842"
+      "digest": "af7fba2a"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "RESTBOTH#0": {
     "legacy": {
@@ -1535,10 +1506,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "5d0f2bd2"
+      "digest": "c82a2756"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "RESTER#0": {
     "legacy": {
@@ -1580,10 +1550,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "04fbffb6"
+      "digest": "7e315816"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "SAIYANKILL#0": {
     "legacy": {
@@ -1625,10 +1594,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "c6c152a4"
+      "digest": "49785633"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "SELFMUTE#10": {
     "legacy": {
@@ -1637,10 +1605,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "9a344ced"
+      "digest": "801182ea"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "keyword-negation-static"
   },
   "SELFMUTET#0": {
     "legacy": {
@@ -1663,7 +1631,7 @@
       "digest": "2c148eaf"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "rule-processing"
   },
   "SILENCER#0": {
     "legacy": {
@@ -1719,7 +1687,7 @@
       "digest": "9d50db87"
     },
     "same": false,
-    "cause": "skip-or-token"
+    "cause": "skip"
   },
   "SPAWN#0": {
     "legacy": {
@@ -1728,10 +1696,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "f9112ea9"
+      "digest": "781ef92f"
     },
-    "same": false,
-    "cause": "skip-or-token"
+    "same": true
   },
   "SPIRIT#0": {
     "legacy": {
@@ -1786,10 +1753,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "de3fb425"
+      "digest": "2a4f515a"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "SUMMON#0": {
     "legacy": {
@@ -1853,10 +1819,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "5be49d14"
+      "digest": "e33557b1"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "THEIREND#0": {
     "legacy": {
@@ -1876,10 +1841,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "1beeebae"
+      "digest": "7e83b449"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "THEIRS#0": {
     "legacy": {
@@ -1888,10 +1852,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "a7705281"
+      "digest": "24c85aac"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "THEYPICK#0": {
     "legacy": {
@@ -1900,10 +1864,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "0f4fff81"
+      "digest": "5aca21b8"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "TIRED#0": {
     "legacy": {
@@ -1950,7 +1913,7 @@
       "digest": "38667dbd"
     },
     "same": false,
-    "cause": "skip-or-token"
+    "cause": "skip"
   },
   "TWOKILL#0": {
     "legacy": {
@@ -1959,10 +1922,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "dbc32a7a"
+      "digest": "6add85dc"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "TWOLINE#0": {
     "legacy": {
@@ -2015,10 +1977,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "38040389"
+      "digest": "ab28fb98"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "leave-replacement"
   },
   "UNI2#0": {
     "legacy": {
@@ -2038,10 +2000,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "0a9d947c"
+      "digest": "74c0d256"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "UPALL2#0": {
     "legacy": {
@@ -2050,10 +2011,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "04647ce6"
+      "digest": "956f195a"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "UWATCH#0": {
     "legacy": {
@@ -2073,10 +2033,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "a813b46d"
+      "digest": "bdffc264"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "WARDEN2#0": {
     "legacy": {
@@ -2085,10 +2044,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "a4a8f97d"
+      "digest": "cbcaac0c"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "WARPER#0": {
     "legacy": {
@@ -2097,10 +2055,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "a290bf79"
+      "digest": "d5b7cb80"
     },
-    "same": false,
-    "cause": "ko-by-skill"
+    "same": true
   },
   "WATCH#0": {
     "legacy": {
@@ -2143,10 +2100,10 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "24a8449f"
+      "digest": "d1cd5e38"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "counted-power-static"
   },
   "ZB#0": {
     "legacy": {
@@ -2167,9 +2124,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "8737005a"
+      "digest": "2bede6a5"
     },
     "same": false,
-    "cause": "ko-by-skill"
+    "cause": "z-card-leaves-play"
   }
 }

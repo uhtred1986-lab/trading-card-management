@@ -57,6 +57,24 @@ export type Zones = Record<string, string[]>;
  */
 export const SETUP_ZONES = { leader: "leader", deck: "deck", zDeck: "zDeck", hand: "hand", life: "life" } as const;
 
+/**
+ * 19-1: a token's `cardId` is its definition (`tokenCardId`, `engine/state.ts`
+ * — the legacy engine's own encoding), which is how a board tells one from a
+ * catalog card without a field of its own.
+ */
+export function isTokenCard(cardId: string): boolean {
+  return cardId.startsWith("TOKEN:");
+}
+
+/** 19-1-7: where a token leaving play goes — the declared zone of 20-10, "removed from the game". */
+const TOKEN_EXIT = "removed";
+
+/** In play, or a pile a card may sit on (a combo): the places 3-1-6-1 and 19-1-7 both treat as "on the table". */
+function heldInPlay(game: GameDefinition, zone: string): boolean {
+  const z = game.zones[zone];
+  return z?.inPlay === true || z?.host === true;
+}
+
 /** A card in a game, as the rules engine keeps it. Everything else about a card is an *attribute* (`vm/cards.ts`). */
 export interface VmCard {
   /** Unique in this game (`p1#17`), the same convention the legacy engine uses. */
@@ -265,6 +283,11 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   }
 
   // ── into a zone ─────────────────────────────────────────────────────────
+  // 19-1-7: a token leaving play or a combo for anywhere else is removed from
+  // the game instead — the legacy `move`'s own first redirect, read off the
+  // same two declared flags 3-1-6-1's clamp below reads ("in play, or a pile a
+  // card may sit on"), so the rule names no area but the one it sends to.
+  if (isTokenCard(card.cardId) && from && heldInPlay(game, from.zone) && !heldInPlay(game, to) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
   const zone = game.zones[to];
   if (!zone) return { ok: false, refused: `the ${game.id} ruleset declares no zone called ${JSON.stringify(to)}` };
   if (zone.place === false) return { ok: false, refused: `the ${to} is not a place a card is put (${zone.text ?? "no card sits in it"})` };

@@ -32,8 +32,10 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
+import type { EngineContext } from "../engine";
 import { specifiedCostOf, specifiedCostUnknown } from "../engine/cards";
 import { COLORS } from "../engine/script";
+import { tokenDefOf } from "../engine/state";
 import type { CardDef, Color } from "../engine/types";
 import type { AttributeDef, GameDefinition } from "../rulesets";
 
@@ -242,4 +244,40 @@ function typeError(value: AttrValue, declared: AttributeDef["value"]): string | 
 function words(value: unknown): string {
   if (Array.isArray(value)) return `a list of ${value.length}`;
   return `${typeof value} ${JSON.stringify(value)}`;
+}
+
+/**
+ * 19-1: a token is a card no catalog row describes, so its row is its id.
+ *
+ * The legacy engine's own convention (`tokenCardId`/`tokenDefOf`,
+ * `engine/state.ts`) — the whole definition encoded in the `cardId`, so a saved
+ * game reloads without a context that outlived the request that made it. Every
+ * reader in `vm/` asks `ctx.defs[inst.cardId]`, and this is what lets that one
+ * question answer for a token too: `defs` behind a read-through that decodes a
+ * `TOKEN:` id on demand, rather than a second lookup at each of the two dozen
+ * places that read a row. `RULES` (`./index.ts`) wraps the context once at each
+ * of its six entry points; the wrapper is cached per context, so a cache keyed
+ * on the context's identity sees one object per game, and wrapping twice is a
+ * no-op.
+ */
+const TOKEN_READY = new WeakMap<EngineContext, EngineContext>();
+const TOKEN_WRAPPED = new WeakSet<EngineContext>();
+
+export function withTokens(ctx: EngineContext): EngineContext {
+  if (TOKEN_WRAPPED.has(ctx)) return ctx;
+  const known = TOKEN_READY.get(ctx);
+  if (known) return known;
+  const made: Record<string, CardDef> = {};
+  const isToken = (key: string | symbol): key is string => typeof key === "string" && key.startsWith("TOKEN:");
+  const defs = new Proxy(ctx.defs, {
+    get: (target, key, receiver) => {
+      if (isToken(key) && !(key in target)) return (made[key] ??= tokenDefOf(key));
+      return Reflect.get(target, key, receiver);
+    },
+    has: (target, key) => isToken(key) || Reflect.has(target, key),
+  });
+  const wrapped: EngineContext = { ...ctx, defs };
+  TOKEN_READY.set(ctx, wrapped);
+  TOKEN_WRAPPED.add(wrapped);
+  return wrapped;
 }

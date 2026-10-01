@@ -178,10 +178,11 @@ skipped) tells you what you broke:
   *.md`), `staticGap` (a [Permanent] reads to a static kind
   `vm/effects.ts`'s own `DEFERRED_STATICS` names as unread — `altCost`,
   `payWith`, `immune`), `replaceGap` (the 9-10 family: `vm/host.ts`'s
-  `replacementsFor` answers `[]` unconditionally until #146 gives a
-  skill-driven KO something to replace), and `notYetGap` for everything else
-  found empirically rather than guessed at from a doc — a skill-driven KO
-  (`h.ko`, #146), the `addSkip` queue (#145), an X price on a skill line
+  `replacementsFor` answers `[]` unconditionally — a skill-driven KO is real
+  since #146, but no [Permanent]'s replacement is collected to stand in
+  front of it), and `notYetGap` for everything else
+  found empirically rather than guessed at from a doc — the `addSkip` queue
+  (#145; a skill-driven KO, `h.ko`, was #146's until it landed), an X price on a skill line
   (`actions.rules`'s own gap), and several real, individually-diagnosed
   gaps this porting pass turned up and none of the other suites had reason
   to exercise: [Spirit Boost]'s own keyword-shaped marker amount not

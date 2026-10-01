@@ -85,7 +85,8 @@ import { legacyState } from "../../src/lib/arena/engines";
  *   a reader sees, each already citing the issue that closes it.
  * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
  *   `ScriptHost` implementation still throws `NotYet` for by name (a
- *   skill-driven KO, `#146`; a skipped phase or step, `#145`).
+ *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
+ *   landed, and RELKO now runs on both engines).
  * - **`replaceGap`**: the case is 9-10's own family — a [Permanent] standing
  *   in front of a departure. `vm/host.ts`'s `replacementsFor` answers `[]`
  *   unconditionally (`replaceLeave` is exactly `DEFERRED_STATICS`' own entry,
@@ -113,7 +114,7 @@ function notYetGap(where: string, what: string, issue: string): boolean {
 }
 function replaceGap(where: string): boolean {
   if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: a [Permanent] standing in front of a departure (9-10) is DEFERRED_STATICS' own "replaceLeave" — vm/host.ts's replacementsFor answers [] unconditionally until #146 gives moves by skill a real KO to replace`);
+  console.log(`  skipped case — ${where}: a [Permanent] standing in front of a departure (9-10) is DEFERRED_STATICS' own "replaceLeave" — vm/host.ts's replacementsFor answers [] unconditionally — the KO by skill is real since #146, but no [Permanent]'s replacement is collected to stand in front of it`);
   skipped++;
   return true;
 }
@@ -929,7 +930,7 @@ if (!keywordGap("Invoker", S7.invoker)) {
   assert.ok(sel.ignoreBarrier);
 }
 
-if (!notYetGap("RELKO: choose and KO a Battle Card", "a KO is a move a rule makes, and moves by skill (`h.ko`) are declared in #146", "#146")) {
+{
   DEFS.RELKO = {
     ...DEFS.V1,
     id: "RELKO",

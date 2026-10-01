@@ -230,8 +230,8 @@ the same as if it were still in `CLAUDE.md`.
   against the inventory... move it to the later one" working as intended. What #154 did **not**
   build, named rather than hidden: a `chooseCards` prompt has no `rejectedActions` reasoning on the
   rules engine at all (`chooseRejectionGap`, `scripts/verify/workflow.ts` — [Barrier]'s own legality
-  is proven, its rejection *reason* is not), and [Indestructible]'s skill-KO half has no caller since
-  the rules engine does not resolve a skill's `ko` yet (#146).
+  is proven, its rejection *reason* is not); [Indestructible]'s skill-KO half gained its caller when
+  #146 gave the rules engine a skill's `ko` (`vm/host.ts` → `vm/battle.ts`'s `koCard`).
   **`s7-03` (#155) wrote group B's four tractable bodies**: [Field]'s onEnter (22-3, dropping the
   Field Extra already out), [Heroic]/[Villainous]'s afterSkill (22-35/22-36, fired from `moved()`
   itself for every other in-play card the entering card's owner controls, not folded into onEnter

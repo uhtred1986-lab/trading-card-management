@@ -109,6 +109,7 @@ import {
   turnPhases,
   schedule,
   vmHost,
+  withTokens,
   SETUP_ZONES,
   WORKED_STEPS,
   type Attrs,
@@ -4265,5 +4266,144 @@ console.log("verify/vm: ok");
       undefined,
       "costMax read the reduced costOf instead of the printed energyCost — update this section's header comment, it is now wrong",
     );
+  }
+}
+
+// ── 28. a KO by skill, and a token, on the rules engine (#146) ──────────────
+//
+// `vm/host.ts`'s `ko` and `createToken` threw `NotYet("#146")` until this
+// section; both are the legacy engine's own acts now, and the legacy engine is
+// the oracle. The same board is staged on each (§22's `koBoard` pattern: one
+// seed, the same instances relabelled the same way, so every instance id lines
+// up), the same program is run through the shared `stepScript` on each host,
+// and two things are compared:
+//
+// - **the log, event for event** — `ko` then `move` for a KO, `token` for a
+//   token, and a token leaving play logged as a move to `removed` (19-1-7);
+// - **what was pended, as a set** of card + trigger: the *order* `state.pending`
+//   is appended in is not a contract on either engine (9-6-6's resolution
+//   order is `nextPending`'s, which reads the queue as a set), so a sorted
+//   list is the honest comparison.
+{
+  DEFS["K146-SRC"] = card("K146-SRC", { power: 15000, skill: "[Auto] When this card KOs an opponent's Battle Card, draw 1 card." });
+  DEFS["K146-VICTIM"] = card("K146-VICTIM", { skill: "[Auto] When this card is KO'd, draw 1 card." });
+  DEFS["K146-MOURN"] = card("K146-MOURN", { skill: "[Auto] When one of your Battle Cards is KO'd, draw 1 card." });
+  DEFS["K146-GLOAT"] = card("K146-GLOAT", { skill: "[Auto] When one of your opponent's Battle Cards is KO'd, draw 1 card." });
+  DEFS["K146-WATCH"] = card("K146-WATCH", { skill: "[Auto] When you play a Battle Card, draw 1 card." });
+
+  const rulesEngine = engineFor("rules");
+  const TCTX = withTokens(CTX);
+
+  /** Both engines' boards, p1's and p2's Battle Areas filled with these catalog ids off the top of each deck. */
+  function board(p1: string[], p2: string[]): { r: VmState; l: GameState; ids: { p1: string[]; p2: string[] } } {
+    const r = rulesEngine.createGame(CTX, SAME).state as VmState;
+    const l = createGame(CTX, SAME).state;
+    const ids = { p1: [] as string[], p2: [] as string[] };
+    for (const [p, want] of [["p1", p1], ["p2", p2]] as const) {
+      for (const cardId of want) {
+        const id = r.sides[p].zones.deck.find((x) => !ids[p].includes(x))!;
+        assert.ok(l.players[p].deck.includes(id), `the two engines dealt ${p}'s deck differently, so instance ${id} does not line up`);
+        for (const st of [r.cards[id], l.cards[id]]) {
+          st.cardId = cardId;
+          st.mode = "active";
+        }
+        r.sides[p].zones.deck = r.sides[p].zones.deck.filter((x) => x !== id);
+        l.players[p].deck = l.players[p].deck.filter((x) => x !== id);
+        r.sides[p].zones.battle.push(id);
+        l.players[p].battle.push(id);
+        ids[p].push(id);
+      }
+    }
+    return { r, l, ids };
+  }
+  const frame = (ops: Op[], master: PlayerId, source: string, t: string[] = []): ScriptFrame => ({ ops, ip: 0, vars: { t }, card: source, master });
+  const json = (x: unknown): unknown => JSON.parse(JSON.stringify(x));
+  const pendedR = (r: VmState) => r.pending.map((p) => `${r.cards[p.card].cardId}:${p.trigger}`).sort();
+  const pendedL = (l: GameState) => l.pending.map((p) => `${l.cards[p.card].cardId}:${p.trigger}`).sort();
+
+  // A KO by an opponent's skill: the KO'd card's own `koed`, its side's
+  // `yourCardKoed`, the other side's `opponentCardKoed`, the source's `kos`,
+  // and the log's `ko` then `move`.
+  {
+    const b = board(["K146-SRC", "K146-GLOAT"], ["K146-VICTIM", "K146-MOURN"]);
+    const [src] = b.ids.p1;
+    const [victim] = b.ids.p2;
+    const ops: Op[] = [{ op: "ko", target: { var: "t" } }];
+    const rEv: GameEvent[] = [];
+    const lEv: GameEvent[] = [];
+    stepScript(vmHost(TCTX, DBS, b.r, rEv), frame(ops, "p1", src, [victim]));
+    stepScript(legacyHost(CTX, b.l, lEv), frame(ops, "p1", src, [victim]));
+    assert.deepEqual(rEv.map((e) => e.type), ["ko", "move"], "a KO by skill on the rules engine is not the legacy engine's two events, `ko` then `move`");
+    assert.deepEqual(json(rEv), json(lEv), "a KO by skill does not log the same events on both engines");
+    assert.ok(b.r.sides.p2.zones.drop.includes(victim), "the KO'd card is not in its owner's Drop on the rules engine");
+    assert.deepEqual(pendedR(b.r), pendedL(b.l), "a KO by skill does not pend the same [Auto]s on both engines");
+    for (const want of ["K146-VICTIM:koed", "K146-MOURN:yourCardKoed", "K146-GLOAT:opponentCardKoed", "K146-SRC:kos"]) {
+      assert.ok(pendedR(b.r).includes(want), `a KO by skill did not pend ${want} on the rules engine`);
+    }
+  }
+
+  // A KO of one's own card: `kos` is "an opponent's Battle Card", so the
+  // source answers to nothing — on both engines.
+  {
+    const b = board(["K146-SRC", "K146-VICTIM"], []);
+    const [src, own] = b.ids.p1;
+    const ops: Op[] = [{ op: "ko", target: { var: "t" } }];
+    const rEv: GameEvent[] = [];
+    const lEv: GameEvent[] = [];
+    stepScript(vmHost(TCTX, DBS, b.r, rEv), frame(ops, "p1", src, [own]));
+    stepScript(legacyHost(CTX, b.l, lEv), frame(ops, "p1", src, [own]));
+    assert.deepEqual(json(rEv), json(lEv), "a KO of one's own card does not log the same events on both engines");
+    assert.deepEqual(pendedR(b.r), pendedL(b.l), "a KO of one's own card does not pend the same [Auto]s on both engines");
+    assert.ok(!pendedR(b.r).includes("K146-SRC:kos"), "`kos` answered a KO of the source's own side's card");
+  }
+
+  // 22-12: [Indestructible] is not KO'd by an opponent's skill — the shared
+  // interpreter's own skip, ahead of the host's `ko`, so neither engine logs
+  // anything and the card stays where it is.
+  {
+    DEFS["K146-TOUGH"] = card("K146-TOUGH", { skill: "[Indestructible]" });
+    const b = board(["K146-SRC"], ["K146-TOUGH"]);
+    const [src] = b.ids.p1;
+    const [tough] = b.ids.p2;
+    const ops: Op[] = [{ op: "ko", target: { var: "t" } }];
+    const rEv: GameEvent[] = [];
+    const lEv: GameEvent[] = [];
+    stepScript(vmHost(TCTX, DBS, b.r, rEv), frame(ops, "p1", src, [tough]));
+    stepScript(legacyHost(CTX, b.l, lEv), frame(ops, "p1", src, [tough]));
+    assert.deepEqual(json(rEv), json(lEv), "an [Indestructible] card targeted by an opponent's KO does not log the same events on both engines");
+    assert.ok(b.r.sides.p2.zones.battle.includes(tough), "an [Indestructible] card was KO'd by an opponent's skill on the rules engine");
+  }
+
+  // A token: made in the Battle Area with the legacy engine's id and `token`
+  // event, read through `withTokens` as a Battle Card of the printed power,
+  // and removed from the game — not put in the Drop — when a skill KOs it.
+  {
+    const b = board(["K146-WATCH"], ["K146-SRC"]);
+    const [watch] = b.ids.p1;
+    const [oppSrc] = b.ids.p2;
+    const make: Op[] = [{ op: "token", name: "Saibaman", power: 5000, comboCost: null, comboPower: null, colors: ["Green"], n: 1 }];
+    const rEv: GameEvent[] = [];
+    const lEv: GameEvent[] = [];
+    stepScript(vmHost(TCTX, DBS, b.r, rEv), frame(make, "p1", watch));
+    stepScript(legacyHost(CTX, b.l, lEv), frame(make, "p1", watch));
+    assert.deepEqual(json(rEv), json(lEv), "making a token does not log the same events on both engines");
+    const token = (rEv[0] as { card: string }).card;
+    assert.ok(b.r.sides.p1.zones.battle.includes(token), "the token is not in its maker's Battle Area on the rules engine");
+    assert.equal(b.r.cards[token].mode, "active", "a token arrives in Active Mode (19-1-2)");
+    assert.equal(attrsNow(TCTX, DBS, b.r, token).power, 5000, "the token's power is not read off its encoded row");
+    assert.deepEqual(pendedR(b.r), pendedL(b.l), "making a token does not pend the same [Auto]s on both engines");
+    const view = rulesEngine.boardView(CTX, b.r, "p1", {});
+    assert.equal(view.you.battle.find((c) => c.id === token)?.isToken, true, "the rules engine's board does not draw the token as one");
+
+    b.r.pending = [];
+    b.l.pending = [];
+    const koOps: Op[] = [{ op: "ko", target: { var: "t" } }];
+    const rKo: GameEvent[] = [];
+    const lKo: GameEvent[] = [];
+    stepScript(vmHost(TCTX, DBS, b.r, rKo), frame(koOps, "p2", oppSrc, [token]));
+    stepScript(legacyHost(CTX, b.l, lKo), frame(koOps, "p2", oppSrc, [token]));
+    assert.deepEqual(json(rKo), json(lKo), "a KO'd token does not log the same events on both engines");
+    assert.ok(b.r.sides.p1.zones.removed.includes(token) && !b.r.sides.p1.zones.drop.includes(token), "a token leaving play is removed from the game, not put in the Drop (19-1-7)");
+    assert.deepEqual(pendedR(b.r), pendedL(b.l), "a KO'd token does not pend the same [Auto]s on both engines");
   }
 }
