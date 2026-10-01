@@ -2273,7 +2273,7 @@ input[type="number"] {
   white-space: nowrap;
   text-align: center;
   letter-spacing: 0.01em;
-  font-size: min(46px, 11cqw);
+  font-size: min(46px, 8.6cqw);
   -webkit-text-stroke: 2px #000;
 }
 .arena-verdict-good .arena-verdict-word {
@@ -2296,7 +2296,7 @@ input[type="number"] {
 }
 @media (min-width: 1024px) {
   .arena-verdict-word {
-    font-size: min(84px, 11cqw);
+    font-size: min(84px, 8.6cqw);
   }
   .arena-verdict-burst {
     width: 560px;
