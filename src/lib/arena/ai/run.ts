@@ -14,16 +14,15 @@ import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
-import { areaOf, face } from "../engine";
 import { skillsOf } from "../text/cards";
 import { type Action, type Area, type PlayerId } from "../types";
 import { markRuleSeen, saveRule } from "../rules-store";
 import { applyToGame, loadGame, type LoadedGame } from "../games";
 import { legacyState } from "../engines";
-import { isVmState } from "../vm/state";
 import { nameOf } from "../engine-state";
 import { recordDecision } from "./debug";
-import { stateText } from "./view";
+import { shownName, stateText } from "./view";
+import { tableOf } from "./table";
 import { chooseMove, ruleOnCard, type Tier } from "./opponent";
 
 /** Anthropic list prices, US dollars per million tokens (checked 4 Sep 2026). */
@@ -46,14 +45,9 @@ export function costMicros(spend: { model: string; input: number; output: number
  * Named positively on purpose: written as `mode === "hotseat" ? null : "p2"`
  * it handed every future mode to Claude by default, and 1 v 1 was the first
  * one that would have been wrong. `chooseMove` below reads the board through
- * the `Engine` interface and the `zoneOf`/`catalogDefOf` seam for its
- * "cannot go wrong" shortcuts (#162), so `sparring`/`tournament` no longer
- * need to stay off the rules engine for that reason — `games.ts`'s
- * `assertEngineForMode` now refuses only `versus` there, since a 1 v 1's
- * hidden-hand masking is the one piece still legacy-only. A real API call
- * (an actual Main Phase decision, past the free-choice shortcuts) is still
- * refused by name on the rules engine, since `stateText` is not ported —
- * `chooseMove`'s own comment says so.
+ * the `zoneOf`/`catalogDefOf` seam for its "cannot go wrong" shortcuts (#162)
+ * and through `tableOf` (`./table.ts`, #457) for everything it puts to
+ * Claude, so a game against Claude plays through on either engine.
  */
 export function aiPlayerOf(game: { mode: string }): PlayerId | null {
   return game.mode === "sparring" || game.mode === "tournament" ? "p2" : null;
@@ -92,23 +86,19 @@ const HIDDEN_PILES = new Set<Area>(["deck", "hand", "warp", "zDeck"]);
  * `arena_decisions`; this only puts it where it can be read during the game.
  */
 function searchAside(game: LoadedGame, chosen: { action: Action; label: string }): string | null {
-  // Debug-only colour, not core: a rules-engine game's own search disclosure
-  // is #162's own remaining scope (`face`/`areaOf` below are legacy-typed
-  // readers), so this stays quiet there rather than reading `undefined`
-  // fields off a `VmState`. Every game this can matter for is legacy's in
-  // practice today anyway, since `chooseMove` refuses a real API call — the
-  // only way this function is reached at all — before a rules-engine game
-  // gets this far (#162's own comment on that).
-  if (isVmState(game.state)) return null;
-  const state = legacyState(game.state);
-  const prompt = state.prompt;
+  // Read through `tableOf` (#457), so a debug game discloses the same search
+  // on either engine. A card under another (23-2) stands in no area, which
+  // reads as the deck here — hidden, as it always has.
+  const prompt = game.state.prompt;
   if (prompt.kind !== "chooseCards") return null;
+  const t = tableOf(game.ctx, game.state);
   const cands = prompt.choice.candidates;
   if (cands.length < 2) return null;
-  if (!cands.some((id) => HIDDEN_PILES.has(areaOf(state, id) ?? "deck") || (areaOf(state, id) === "life" && !state.cards[id]?.faceUp))) return null;
-  const shown = cands.map((id) => face(game.ctx, state, id).name).join(", ");
-  const took = chosen.action.type === "choose" ? chosen.action.cards.map((id) => face(game.ctx, state, id).name).join(", ") || "nothing" : chosen.label;
-  return `[debug] ${state.players[prompt.player].name} looked at: ${shown} — took ${took}`;
+  const areaOf = (id: string) => (t.area(id) ?? "deck") as Area;
+  if (!cands.some((id) => HIDDEN_PILES.has(areaOf(id)) || (areaOf(id) === "life" && !t.faceUp(id)))) return null;
+  const shown = cands.map((id) => shownName(t, id)).join(", ");
+  const took = chosen.action.type === "choose" ? chosen.action.cards.map((id) => shownName(t, id)).join(", ") || "nothing" : chosen.label;
+  return `[debug] ${t.name(prompt.player)} looked at: ${shown} — took ${took}`;
 }
 
 export interface AdvanceResult {
@@ -140,13 +130,8 @@ export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<Ad
       }
       if (!ai || !("player" in prompt) || prompt.player !== ai) break;
 
-      // Claude's own move: `chooseMove` (#162) reads the board through the
-      // `Engine` interface and the `zoneOf`/`catalogDefOf` seam for its
-      // free-choice shortcuts, and refuses a real API call by name on a
-      // rules-engine game before it would need anything more — so `state`
-      // stays whichever shape `game.state` is, and only the one call below
-      // that actually needs a legacy board (`stateText`, gated on
-      // `choice.spend`, which a rules-engine game can never set) narrows it.
+      // Claude's own move, on whichever engine dealt the game: `chooseMove`
+      // and `stateText` both read the table through `tableOf` (#457).
       const state = game.state;
       const started = Date.now();
       const choice = await chooseMove(db, game.ctx, state, game.legal, ai, game.mode as Tier);
@@ -166,7 +151,7 @@ export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<Ad
         chosenIndex: choice.index,
         chosenLabel: chosen.label,
         say: choice.say,
-        promptText: game.debug && choice.spend ? stateText(game.ctx, legacyState(state), ai) : null,
+        promptText: game.debug && choice.spend ? stateText(game.ctx, state, ai) : null,
         spend: choice.spend ? { ...choice.spend, micros } : null,
         latencyMs: choice.spend ? Date.now() - started : null,
       });

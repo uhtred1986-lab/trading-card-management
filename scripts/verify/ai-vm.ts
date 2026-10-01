@@ -1,27 +1,41 @@
 /**
- * `ai/opponent.ts`'s `chooseMove` on the rules engine (#162).
+ * `ai/opponent.ts`'s `chooseMove` and `ai/view.ts`'s text on the rules engine
+ * (#162, #457).
  *
  * `chooseMove`'s "cannot go wrong" shortcuts (one legal move, the coin flip,
- * mulligan, charge) now read the board through the `zoneOf`/`catalogDefOf`/
- * `leaderOf` seam (`engine-state.ts`) instead of `GameState`'s own shape, so
- * they run on a rules-engine game exactly as they do on a legacy one — this
- * proves it against a real `VmState`, without an API key (`hasAnthropic()`
- * is false in this sandbox, the same as CI, so nothing here makes a network
- * call). A real Main Phase decision is not ported (`stateText` is not), and
- * `chooseMove` refuses it by name rather than reading `undefined` off
- * `.players` — proven with a fake `ANTHROPIC_API_KEY` (never used: the throw
- * happens before anything would reach the network) and a minimal object
- * `isVmState` reads as a rules-engine state.
+ * mulligan, charge) read the board through the `zoneOf`/`catalogDefOf`/
+ * `leaderOf` seam (`engine-state.ts`), and everything Claude is sent reads it
+ * through `tableOf` (`ai/table.ts`). The checks below prove both against a
+ * real `VmState`:
+ *
+ *  - the shortcuts run without an API key;
+ *  - the same staged position renders the same `stateText` and
+ *    `decklistText` on both engines, at the Main Phase and mid-battle;
+ *  - a real decision is put to Claude on the rules engine — no refusal — and
+ *    the request carries the same words as the legacy engine's for the same
+ *    position. The model is a stub: a fake key, a base URL nothing listens on,
+ *    and `messages.parse` replaced before the first call, so no request can
+ *    leave the process.
+ *
+ * The one documented difference is the numbered menu itself (`movesText`):
+ * it is each engine's own `legalActions`, in that engine's order and with that
+ * engine's labels (the rules engine lists `End turn` first, and says `Combo V1`
+ * where the legacy engine says `Combo V1 from hand (+5000, cost 1)`). So the
+ * text before the menu is compared byte for byte and the menu by the moves it
+ * offers.
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`.
  */
 import assert from "node:assert/strict";
 import { defsFrom } from "../../src/lib/arena/vm/common";
 import { seedFrom } from "../../src/lib/arena/vm/rng";
-import { type CardDef, type EngineContext } from "../../src/lib/arena/types";
-import { engineFor } from "../../src/lib/arena/engines";
+import { type Action, type CardDef, type EngineContext, type PlayerId } from "../../src/lib/arena/types";
+import { engineFor, type EngineId, type EngineState } from "../../src/lib/arena/engines";
+import { zoneOf, type ZoneArea } from "../../src/lib/arena/engine-state";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { chooseMove } from "../../src/lib/arena/ai/opponent";
+import { decklistText, stateText } from "../../src/lib/arena/ai/view";
+import { anthropic } from "../../src/lib/ai/client";
 
 const card = (id: string, o: Partial<CardDef> = {}): CardDef => ({
   id,
@@ -44,6 +58,8 @@ const DEFS = defsFrom([
   card("L-BLUE", { type: "LEADER", colors: ["Blue"], energyCost: null, comboCost: null, comboPower: null }),
   card("V1", {}),
   card("V-BLUE", { colors: ["Blue"] }),
+  card("BLOCKER", { colors: ["Blue"], energyCost: 2, skill: "[Blocker]", comboPower: 10000 }),
+  card("CRIT", { energyCost: 3, power: 15000, skill: "[Critical]" }),
 ]);
 const CTX: EngineContext = { defs: DEFS, scripts: {} };
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
@@ -100,26 +116,161 @@ async function main(): Promise<void> {
   assert.ok(choice.how.includes("charge rule") || choice.how.includes("only one legal move"), `expected the charge rule's reason, got: ${choice.how}`);
 }
 
-// A real Main Phase decision — past every shortcut — is refused by name
-// rather than attempted, once there is a key to try one with. `isVmState`
-// reads a plain object with `engine: "rules"`, so this needs no real game.
+// ── #457: the same position, the same words, on both engines ───────────────
+
+// p1's second Main Phase (turn 3), reached by the same actions on both
+// engines, then the same cards staged into the same instance ids. Both
+// engines create the cards in the same order and shuffle with the same RNG
+// calls, so the decks match id for id — asserted rather than assumed.
+const both = ["legacy", "rules"] as const satisfies readonly EngineId[];
+type Staged = Record<EngineId, EngineState>;
+
+function atMain(eid: EngineId): EngineState {
+  const e = engineFor(eid);
+  let s = e.createGame(CTX, { seed: 7, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } }).state;
+  const ap = (a: Action) => (s = e.apply(CTX, s, a).state);
+  ap({ type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" });
+  ap({ type: "mulligan", player: "p1", redraw: false });
+  ap({ type: "mulligan", player: "p2", redraw: false });
+  ap({ type: "charge", player: "p1", card: null });
+  ap({ type: "endMain", player: "p1" });
+  ap({ type: "charge", player: "p2", card: null });
+  ap({ type: "endMain", player: "p2" });
+  ap({ type: "charge", player: "p1", card: null });
+  assert.equal(s.prompt.kind, "main", `${eid}: the fixture did not reach p1's second Main Phase`);
+  return s;
+}
+
+/** A raw fixture splice, the same on both shapes: the first filler card in the deck relabelled and moved, active outside the hand. */
+function stage(s: EngineState, p: PlayerId, cardId: string, area: ZoneArea): string {
+  const filler = p === "p1" ? "V1" : "V-BLUE";
+  const deck = zoneOf(s, p, "deck");
+  const i = deck.findIndex((id) => s.cards[id].cardId === filler);
+  assert.ok(i >= 0, `${p}'s deck has no ${filler} left to stage`);
+  const [id] = deck.splice(i, 1);
+  s.cards[id].cardId = cardId;
+  zoneOf(s, p, area).push(id);
+  if (area === "battle" || area === "energy") (s.cards[id] as { mode: string }).mode = "active";
+  return id;
+}
+
+function staged(): Staged {
+  const out = {} as Staged;
+  for (const eid of both) {
+    const s = atMain(eid);
+    stage(s, "p1", "CRIT", "battle");
+    stage(s, "p1", "V1", "energy");
+    stage(s, "p1", "V1", "energy");
+    stage(s, "p2", "BLOCKER", "battle");
+    stage(s, "p2", "BLOCKER", "hand");
+    stage(s, "p2", "V-BLUE", "energy");
+    stage(s, "p2", "V-BLUE", "drop");
+    // 3-9-2-1: a life card turned face up is public, on both sides.
+    s.cards[zoneOf(s, "p1", "life")[0]].faceUp = true;
+    out[eid] = s;
+  }
+  for (const p of ["p1", "p2"] as const)
+    for (const area of ["deck", "hand", "life", "battle", "energy", "drop"] as const)
+      assert.deepEqual(zoneOf(out.rules, p, area), zoneOf(out.legacy, p, area), `${p}'s ${area} differs between the engines, so the parity below compares two positions`);
+  return out;
+}
+
+const textOf = (s: Staged, viewer: PlayerId) => ({ legacy: stateText(CTX, s.legacy, viewer), rules: stateText(CTX, s.rules, viewer) });
+
 {
-  const key = process.env.ANTHROPIC_API_KEY;
+  const s = staged();
+  for (const viewer of ["p1", "p2"] as const) {
+    const t = textOf(s, viewer);
+    assert.equal(t.rules, t.legacy, `stateText for ${viewer} at the Main Phase differs between the engines`);
+    assert.equal(decklistText(CTX, s.rules, viewer), decklistText(CTX, s.legacy, viewer), `decklistText for ${viewer} differs between the engines`);
+  }
+  // The checks above would pass on two empty strings: the text says what was staged.
+  const t = textOf(s, "p2").rules;
+  for (const line of ["phase main", "BLOCKER (BLOCKER), 10,000 power, active", "[Blocker]", "CRIT (CRIT), 15,000 power, active", "[Critical]", "1 energy marker(s)", "top of drop: V-BLUE", "face-up in life: V1"])
+    assert.ok(t.includes(line), `the rules engine's stateText does not say "${line}":\n${t}`);
+  assert.ok(!t.includes("undefined") && !t.includes("NaN"), `the rules engine's stateText reads a field it does not have:\n${t}`);
+}
+
+// Mid-battle: p1 attacks Claude's leader, Claude declines to block, and both
+// engines stop at p1's Offense Step combo question. The text Claude would get
+// has the battle line, the combo totals and the phase the battle is in.
+function toCombo(s: EngineState, eid: EngineId): EngineState {
+  const e = engineFor(eid);
+  const attack = e.legalActions(CTX, s).find((l) => l.action.type === "attack" && l.label.startsWith("Attack L-BLUE with L-RED"));
+  assert.ok(attack, `${eid}: no attack on Claude's leader on the menu`);
+  s = e.apply(CTX, s, attack!.action).state;
+  assert.equal(s.prompt.kind, "blocker", `${eid}: the attack should offer Claude its [Blocker]`);
+  const decline = e.legalActions(CTX, s).find((l) => l.label === "Don't block");
+  s = e.apply(CTX, s, decline!.action).state;
+  assert.deepEqual(s.prompt, { kind: "combo", player: "p1", side: "offense" }, `${eid}: expected p1's offense combo question`);
+  return s;
+}
+
+{
+  const s0 = staged();
+  const s: Staged = { legacy: toCombo(s0.legacy, "legacy"), rules: toCombo(s0.rules, "rules") };
+  for (const viewer of ["p1", "p2"] as const) {
+    const t = textOf(s, viewer);
+    assert.equal(t.rules, t.legacy, `stateText for ${viewer} mid-battle differs between the engines`);
+  }
+  const t = textOf(s, "p1").rules;
+  assert.ok(t.includes("phase main.") && t.includes("BATTLE (offense): L-RED [10,000] attacks L-BLUE [10,000]"), `the battle line is missing or wrong on the rules engine:\n${t}`);
+}
+
+// A real decision on the rules engine is put to Claude, not refused — and the
+// request carries the same words as the legacy engine's for the same position.
+// The model call is a stub; nothing here can reach the network.
+{
+  const env = { key: process.env.ANTHROPIC_API_KEY, app: process.env.APP_ANTHROPIC_API_KEY, base: process.env.ANTHROPIC_BASE_URL };
   process.env.ANTHROPIC_API_KEY = "sk-test-not-a-real-key";
+  // Belt and braces: were the stub ever bypassed, the request would go nowhere.
+  process.env.ANTHROPIC_BASE_URL = "http://127.0.0.1:9";
+  const client = anthropic();
+  const messages = client.messages as unknown as { parse: (body: unknown) => Promise<unknown> };
+  const original = messages.parse;
+  const requests: { system: { text: string }[]; messages: { content: string }[]; model: string }[] = [];
+  messages.parse = async (body: unknown) => {
+    requests.push(body as (typeof requests)[number]);
+    return { parsed_output: { move: 1, say: "Your move." }, usage: { input_tokens: 100, output_tokens: 5, cache_read_input_tokens: 0 }, stop_reason: "end_turn" };
+  };
+  assert.equal(anthropic().messages.parse as unknown, messages.parse, "the model stub is not the client chooseMove will use");
+  const runs: unknown[] = [];
+  const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
   try {
-    const fakeState = { engine: "rules", prompt: { kind: "main", player: "p1" } } as unknown as VmState;
-    const legal = [
-      { label: "a", action: { type: "endMain", player: "p1" } },
-      { label: "b", action: { type: "charge", player: "p1", card: null } },
-    ] as Parameters<typeof chooseMove>[3];
-    await assert.rejects(() => chooseMove(fakeDb, CTX, fakeState, legal, "p1", "sparring"), /not built on the rules engine yet \(#162\)/, "chooseMove should refuse a real decision on the rules engine by name, not crash reading .players");
+    const s0 = staged();
+    const s: Staged = { legacy: toCombo(s0.legacy, "legacy"), rules: toCombo(s0.rules, "rules") };
+    const asked: Record<EngineId, { question: string; system: string; moves: string[] }> = {} as never;
+    for (const eid of both) {
+      const legal = engineFor(eid).legalActions(CTX, s[eid]);
+      assert.ok(legal.length > 1, `${eid}: the combo question has only one answer, so nothing would be asked`);
+      const before = requests.length;
+      const choice = await chooseMove(db, CTX, s[eid], legal, "p1", "tournament");
+      assert.equal(requests.length, before + 1, `${eid}: chooseMove did not ask the (stubbed) model`);
+      assert.equal(choice.how, "chosen by Claude", `${eid}: ${choice.how}`);
+      assert.equal(choice.index, 1);
+      assert.equal(choice.say, "Your move.");
+      assert.ok(choice.spend && choice.spend.input === 100, `${eid}: the spend was not read off the answer`);
+      const req = requests[requests.length - 1];
+      const [question, menu] = req.messages[0].content.split("\n\nLEGAL MOVES:\n");
+      assert.equal(menu.split("\n\n")[0].split("\n").length, legal.length, `${eid}: the menu sent is not the legal list`);
+      const moves = legal.map((l) => (l.action.type === "combo" ? `combo ${l.action.card ? s[eid].cards[l.action.card].cardId : "pass"}` : l.action.type));
+      asked[eid] = { question, system: req.system.map((b) => b.text).join("\n"), moves };
+    }
+    assert.equal(asked.rules.question, asked.legacy.question, "the question put to Claude differs between the engines");
+    assert.equal(asked.rules.system, asked.legacy.system, "the system prompt (primer and decklist) differs between the engines");
+    assert.deepEqual([...asked.rules.moves].sort(), [...asked.legacy.moves].sort(), "the menu offers different moves on the two engines");
+    assert.ok(asked.rules.question.includes("whether to add combo power in the Offense Step") && asked.rules.question.includes("L-RED attacks L-BLUE: 10,000 against 10,000"), `the combo question was not worked out on the rules engine:\n${asked.rules.question}`);
+    assert.ok(asked.rules.system.includes("YOUR DECK (You)"), "the decklist block does not name the seat");
   } finally {
-    if (key === undefined) delete process.env.ANTHROPIC_API_KEY;
-    else process.env.ANTHROPIC_API_KEY = key;
+    messages.parse = original;
+    for (const [k, v] of [["ANTHROPIC_API_KEY", env.key], ["APP_ANTHROPIC_API_KEY", env.app], ["ANTHROPIC_BASE_URL", env.base]] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   }
 }
 
-console.log("  ai-vm: chooseMove's free-choice shortcuts run on the rules engine; a real decision there is refused by name");
+console.log("  ai-vm: chooseMove's shortcuts run on the rules engine; stateText/decklistText match the legacy engine's for the same position; a real decision is put to (a stub of) Claude on both");
 }
 
 export default main();

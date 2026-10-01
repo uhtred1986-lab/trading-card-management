@@ -14,7 +14,7 @@ import { arenaGames } from "@/db/schema";
 import { SONNET_MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
 import type { PlayerId } from "../types";
 import { loadGame } from "../games";
-import { legacyState } from "../engines";
+import { sideName } from "../engines";
 import { decklistText } from "./view";
 
 export const GameReviewSchema = z.object({
@@ -31,11 +31,11 @@ export async function reviewGame(db: Db, gameId: number): Promise<GameReview | n
   if (!game || game.status === "playing") return null;
   if (!hasAnthropic()) return null;
 
-  // `decklistText` below reads a hand and a deck off `state.players[p]`,
-  // the legacy `GameState`'s own shape — not built for the rules engine yet
-  // (#149), so a game made on it is named rather than read field by field.
-  const s = legacyState(game.state);
-  const outcome = s.winner ? `${s.players[s.winner].name} won — ${s.overReason}` : `A draw — ${s.overReason}`;
+  // Engine-neutral (#457): the fields read here are the ones both state
+  // shapes share by name, the seat names come through `sideName`, and
+  // `decklistText` reads only each card's owner and catalog id.
+  const s = game.state;
+  const outcome = s.winner ? `${sideName(s, s.winner)} won — ${s.overReason}` : `A draw — ${s.overReason}`;
   // Always p1: against Claude the human is the first player, and in hot-seat
   // and 1 v 1 both sides are people, so the review is written from p1's chair.
   const human: PlayerId = "p1";
@@ -51,7 +51,7 @@ export async function reviewGame(db: Db, gameId: number): Promise<GameReview | n
         role: "user",
         content: [
           `RESULT: ${outcome} on turn ${s.turn}.`,
-          `The player you are coaching is ${s.players[human].name}; their opponent was ${s.players[human === "p1" ? "p2" : "p1"].name}.`,
+          `The player you are coaching is ${sideName(s, human)}; their opponent was ${sideName(s, human === "p1" ? "p2" : "p1")}.`,
           "",
           `THEIR DECK:\n${decklistText(game.ctx, s, human)}`,
           "",

@@ -212,14 +212,12 @@ export class EngineMismatch extends Error {
  * Most of the app outside the six engine calls reads only the fields the two
  * state shapes already share by name — `turn`, `phase`, `winner`,
  * `overReason`, `prompt`, `cards` — and is engine-generic for that reason
- * (`games.ts`, `snapshot.ts`). What still is not is the half of `ai/run.ts`
- * that plays Claude's side: it reads a hand, a life pile and a deck off
- * `state.players[p]`, which the rules engine keeps as zones under
- * `state.sides[p]` instead (#149 leaves that unwidened — Sparring and
- * Tournament against Claude are legacy-only until it is). This is the seam
- * for exactly that code, and it is a *check* rather than a cast — a `rules`
- * state reaching it throws by name instead of reading every field as
- * `undefined`.
+ * (`games.ts`, `snapshot.ts`), and Claude's side reads either shape through
+ * `ai/table.ts` (#457). What still reads the legacy shape is code only a
+ * legacy game reaches — the referee in `ai/run.ts`, since the rules engine
+ * never puts a `referee` prompt. This is the seam for exactly that code, and
+ * it is a *check* rather than a cast — a `rules` state reaching it throws by
+ * name instead of reading every field as `undefined`.
  */
 export function legacyState(value: unknown): GameState {
   if (isVmState(value)) throw new EngineMismatch("rules", "legacy");
