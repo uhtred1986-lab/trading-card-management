@@ -2112,7 +2112,24 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       assert.ok(plan.ok);
       assert.deepEqual({ rest: plan.payment.rest, markers: plan.payment.energyMarkers }, oracle, `a different payment was planned: ${what}`);
       // 3-8-2: the genuinely different ways to pay, and the words for each.
-      assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price), legacyOptions(CTX, legacy, "p1", p.total, p.specified), `the payment options differ: ${what}`);
+      if (!p.either.length) assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price), legacyOptions(CTX, legacy, "p1", p.total, p.specified), `the payment options differ: ${what}`);
+      else {
+        // The legacy `paymentOptions` takes no either-orb at all — its callers
+        // settle the colour first — so the options for an either price are
+        // those of each colour it could be paid with, together (22-13). Asked
+        // with the either-orb left out, as this compared until #459, it
+        // offered three red energy for a price that needs a blue or a green.
+        let assignments: Color[][] = [[]];
+        for (const orb of p.either) assignments = assignments.flatMap((soFar) => orb.map((c) => [...soFar, c]));
+        const key = (o: unknown) => JSON.stringify(o);
+        const union = new Map<string, unknown>();
+        for (const pick of assignments) {
+          const specified = { ...p.specified };
+          for (const c of pick) specified[c] = (specified[c] ?? 0) + 1;
+          if (planPayment(CTX, legacy, "p1", p.total, specified)) for (const o of legacyOptions(CTX, legacy, "p1", p.total, specified)) union.set(key(o), o);
+        }
+        assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price).map(key).sort(), [...union.keys()].sort(), `the payment options differ: ${what}`);
+      }
       assert.equal(plan.describe, legacyDescribe(CTX, legacy, oracle), `the payment is described differently: ${what}`);
     }
   }

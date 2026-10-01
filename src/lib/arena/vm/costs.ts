@@ -809,8 +809,16 @@ export function paymentOptions(ctx: EngineContext, game: GameDefinition, state: 
   const out: Payment[] = [];
   const seen = new Set<string>();
 
-  const covers = (picked: string[], markers: number): boolean => {
+  // 22-13: an either-orb is one orb of one of its colours, so a payment covers
+  // the price when *some* choice of colour for each covers it — the same
+  // assignments `payEnergy` tries. Left out, a {r}/{u} price was offered as
+  // payable with green (#459, `verify/readings.ts`'s EITHER case).
+  let assignments: Color[][] = [[]];
+  for (const orb of price.either.slice(0, 3)) assignments = assignments.flatMap((soFar) => orb.map((c) => [...soFar, c]));
+  const covers = (picked: string[], markers: number): boolean => assignments.some((pick) => coversOrbs(picked, markers, pick));
+  const coversOrbs = (picked: string[], markers: number, pick: Color[]): boolean => {
     const need = { ...price.orbs };
+    for (const c of pick) need[c] = (need[c] ?? 0) + 1;
     for (const id of picked) {
       for (const c of colorsOf(id)) {
         if ((need[c] ?? 0) > 0) {

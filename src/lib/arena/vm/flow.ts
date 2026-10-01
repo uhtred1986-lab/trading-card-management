@@ -48,13 +48,14 @@ import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { nextPending, skillsShowing } from "./triggers";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
 import { fireHook, queryHookStatics } from "./hooks";
+import { forbiddenForCard } from "./program";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
 import { leaveRoute } from "./replace";
@@ -233,6 +234,7 @@ const STEP_WORK: Record<string, Work> = {
     section: "7-2-7",
     waits: "switchMode() over a selector naming the four areas a card has a mode in at once",
     run: (ctx, game, state, ev) => {
+      const covered: string[] = [];
       for (const zone of Object.keys(state.sides[state.turnPlayer].zones)) {
         const declared = game.zones[zone];
         // 7-2-7 names the Leader, Battle, **Energy** and Unison Areas — which
@@ -249,6 +251,7 @@ const STEP_WORK: Record<string, Work> = {
         if (mode === null) continue;
         for (const id of state.sides[state.turnPlayer].zones[zone]) {
           const card = state.cards[id];
+          covered.push(id);
           // 0-2-4-1: a card already in that mode does not switch, and an
           // event for a change that did not happen would be a beat the board
           // plays over nothing.
@@ -259,6 +262,12 @@ const STEP_WORK: Record<string, Work> = {
           // case naming the keyword here. Only checked for the active-bound
           // half of the step; nothing stops a card being rested.
           if (mode === "active" && queryHookStatics(ctx, game, state, id, "activeStep").some((f) => f.op === "forbid" && f.forbid.what === "switchToActive")) continue;
+          // 20-14: "it can't switch to Active Mode" holds against the Charge
+          // Phase too — the legacy `setMode`'s own check, which every path
+          // that switches a card to Active Mode goes through there. Read the
+          // same way `vm/battle.ts` reads it for a mode beat's `locked` (#459,
+          // `verify/compiler.ts`'s RESTLOCK case).
+          if (mode === "active" && forbiddenForCard(ctx, game, state, "switchToActive", id)) continue;
           card.mode = mode;
           // 1-10-1: the switch is a moment (`modeSwitched`), and this one has no
           // `by:` — the Charge Phase stands cards up as a rule of the turn, not
@@ -267,6 +276,11 @@ const STEP_WORK: Record<string, Work> = {
           emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller: state.turnPlayer, args: { mode } }, shown);
         }
       }
+      // "…will not switch to Active Mode during your next Charge Phase": the
+      // step it was written for has now happened, so it is spent — on this
+      // player's cards only, which is what makes "next" the right one
+      // whichever turn the effect was made on (the legacy `turn.activeAll`).
+      endAfterChargeEffects(state, ev, covered);
     },
   },
   chargeDraw: {

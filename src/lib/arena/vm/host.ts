@@ -64,7 +64,7 @@ import { NotYet, RulesetBroken } from "./errors";
 import { emit, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
-import { SETUP_ZONES, arrivalMode, hostOf, moveCard, newCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
@@ -481,7 +481,15 @@ function moveTo(
   // before the move, while the card is still in the pile.
   const host = from ? null : hostOf(state, id);
   const hostZone = host ? zoneOf(state, host) : null;
-  const placed = moveCard(state, game, id, to, { owner, position: opts.position, carry: opts.carry, ...(route.mode ? { mode: route.mode } : {}) });
+  // 3-1-4-1: a card moving from play (or a combo) to play (or a combo) has not
+  // changed area, so it keeps its mode, markers and the effects on it — the
+  // legacy `move`'s own `carry` convention, which needs no caller to ask for
+  // it. A skill's "gain control of it" compiles to a plain `moveTo battle`, so
+  // without this the card taken arrived reset to Active Mode (#459,
+  // `verify/compiler.ts`'s STEALER case).
+  const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
+  const carry = !!opts.carry || (held(from) && held(to));
+  const placed = moveCard(state, game, id, to, { owner, position: opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     return;
@@ -492,7 +500,7 @@ function moveTo(
   to = placed.move.to;
   // 3-1-4: a card that changed area is a new card, so nothing that was in force
   // on it still is. A card moving *within* play carries them (3-1-4-1).
-  if (!opts.carry && from !== to) dropEffectsOn(state, ev, id);
+  if (!carry && from !== to) dropEffectsOn(state, ev, id);
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
   } else if (host && hostZone) {
@@ -574,7 +582,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A switch to Rest Mode by a skill is `setMode`'s own moment, fired as the
   // card switched and saying what switched it (#157); the name the program
   // also says is that same happening, already answered.
-  if (FIRED_BY_SET_MODE.has(trigger)) return;
+  if (FIRED_BY_SET_MODE.has(trigger) || FIRED_BY_MOVE.has(trigger)) return;
   const controller = state.cards[id] ? masterOf(game, state, id) : state.turnPlayer;
   const moment = MOMENT_OF[trigger];
   if (!moment) {
@@ -601,8 +609,12 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   played: { event: "moved", args: { to: "battle", asPlay: true } },
   placed: { event: "moved", args: { to: "battle", asPlay: false } },
   addedToZEnergy: { event: "moved", args: { to: "zEnergy", asPlay: false } },
-  removedFromBattle: { event: "moved", args: { from: "battle", asPlay: false } },
-  droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
+  // `by: skill`: these three are pended by name only from `moveTo`, a skill's own move, and
+  // the declarations (`triggers.rules`) ask for it — without it none of them
+  // ever matched, and "removed … by an opponent's skill" had no moment at all (#459).
+  removedFromBattle: { event: "moved", args: { from: "battle", asPlay: false, by: "skill" } },
+  removedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
+  droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill" } },
   leftBattleToDrop: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
   // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
   // first keyword to run one), and `triggers.rules` declares the moment.
@@ -611,6 +623,19 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
 
 /** The names `stepScript`'s `switchMode` pends whose moment `setMode` has already fired as `modeSwitched(by: …)` (`dbs/triggers.rules`). */
 const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "restedByAlliance"]);
+
+/**
+ * The names `stepScript`'s `moveTo` pends right after `moveTo` above has
+ * already fired the `moved` moment they are declared on — `placed`
+ * (`moved(asPlay: false, to: battle)`), `addedToZEnergy` (`moved(to:
+ * zEnergy)`) and `leftBattleToDrop` (`moved(from: battle, to: drop)`) match
+ * that moment as it is, so pending them again by name answered every such
+ * skill twice: a card placed by a skill drew two cards for "when this card is
+ * placed in a Battle Area, draw 1 card" (#459, `verify/readings.ts`'s
+ * ARRIVES case). The names whose declaration asks for more than the mover
+ * says (`removedFromBattle`'s `by: skill`) still come through by name.
+ */
+const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */
 export { sideOf, arrivalMode };
