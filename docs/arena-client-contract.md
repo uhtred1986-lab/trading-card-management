@@ -257,10 +257,9 @@ inherits the workflow model rather than retrofitting it.
 
 `versus` is a 1 v 1 between two human beings on two phones. It is the first
 mode where **the same game is rendered twice**, and that is the only thing that
-makes it different from hot-seat — the engine, the flow and the legal-move list
-are untouched.
+makes it different from hot-seat — the engine and the flow are untouched.
 
-Three properties, all the server's job:
+Four properties, all the server's job:
 
 - **A snapshot is built for a stated viewer.** `buildSnapshot` takes an optional
   `viewer`; `snapshotOfGame`/`snapshotOf`/`applyAction`/`advanceSession`/
@@ -281,6 +280,15 @@ Three properties, all the server's job:
   stands — a card drawn and then played is public, so its beat is not masked.
   **A client must never reconstruct a masked face**, from a previous snapshot or
   anywhere else; that is §1 in the one place it now costs a real secret.
+  Since #458 the rule is read on both engines (`vm/view.ts`'s `vmRevealedTo`
+  reads the rules engine's zone declarations), and it names the whole Drop, the
+  Warp, removed cards, the viewer's own Z-Deck and the cards under a readable
+  card — open areas, not only what the board draws.
+- **`legal` is the viewer's own** (#458). A seat that is not being asked gets
+  `legal: []` and empty `taps`: the asked player's move labels name the cards in
+  their hand ("Play Son Goku"), and the server refuses a move from the wrong
+  seat (`not_your_turn`) anyway. Only a snapshot built with a stated `viewer`
+  is filtered, so every other mode's payload is unchanged.
 
 Seats live on `arena_games.p1_user`/`p2_user` (`app_users.username`, null in
 every other mode). A 1 v 1 belongs to its two seats and to nobody else, over as
@@ -650,6 +658,11 @@ changes; adding an optional field is not a bump.
   Optional and only ever `true`, so a client that has never heard of it renders an archived row
   exactly as a finished live one — `legal: []`, `waiting: null` — minus the one banner it cannot
   yet show. No fixture changed: nothing emitted by `contract:emit` is archived.
+
+- **1 Oct 2026 — narrowing, no bump.** In a 1 v 1, the seat that is not being asked is sent
+  `legal: []` and empty `taps` (§3.3, #458) — the same narrowing of what a payload carries as the
+  7 Sep `beats.art` filter, and the same shape a finished game already sends. `versus.json` was
+  re-emitted: p2's board on p1's turn, with no moves. A 1 v 1 may now be made on the rules engine.
 
 - `GET /api/v1/health` returns `minClient`, the oldest Android `versionCode` the server will still
   talk to. Below it the app refuses to play and offers the update (`docs/arena-android-spec.md` §8).

@@ -334,6 +334,46 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
   };
 }
 
+/**
+ * Every card instance whose identity `viewer` may know right now — the legacy
+ * `revealedTo` (`../view.ts`), read off the zone declarations rather than a
+ * list of field names (#458).
+ *
+ * A zone's declared `visibility` (3-1-3) is the rule: `all` is an open area
+ * either player reads (the Battle, Combo, Energy, Leader and Unison Areas, the
+ * Drop, the Warp, Z-Energy, a card removed from the game); `owner` is a secret
+ * area only its own player reads (the hand, the Z-Deck, 3-3, 3-12-2);
+ * `none` is a secret area nobody reads (the deck and life, 3-2-2, 3-9-2).
+ * Three things cut across a zone's declaration, exactly as on the legacy side:
+ *  - a card turned face up (3-9-2-1, and a life card revealed on its way to a
+ *    hand, #272) is public wherever it sits;
+ *  - a card in Hidden Mode (23-5-2) is nobody's to read, even in an open area;
+ *  - the cards a search shows the player being asked are that player's, and
+ *    only theirs, to see.
+ * The cards under a card that is itself readable are face up (23-2-2), and
+ * follow it only when the `under` zone is declared open.
+ */
+export function vmRevealedTo(game: GameDefinition, state: VmState, viewer: PlayerId): Set<string> {
+  const out = new Set<string>();
+  const underOpen = game.zones.under?.visibility === "all";
+  const add = (id: string) => {
+    const inst = state.cards[id];
+    if (!inst || inst.hidden || out.has(id)) return;
+    out.add(id);
+    if (underOpen) for (const u of inst.under) add(u);
+  };
+  for (const p of ["p1", "p2"] as PlayerId[]) {
+    for (const [zone, ids] of Object.entries(state.sides[p].zones)) {
+      const seen = game.zones[zone]?.visibility ?? "none";
+      const open = seen === "all" || (seen === "owner" && p === viewer) || (seen === "opponent" && p !== viewer);
+      for (const id of ids ?? []) if (open || state.cards[id]?.faceUp) add(id);
+    }
+  }
+  const pr = state.prompt;
+  if (pr.kind === "chooseCards" && pr.player === viewer) for (const id of pr.choice.candidates) add(id);
+  return out;
+}
+
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" ? v : null);
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);

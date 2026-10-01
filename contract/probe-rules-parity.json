@@ -183,10 +183,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "67b68f58"
+      "digest": "7cee2d23"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "BOUNCE#0": {
     "legacy": {
@@ -1390,10 +1389,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "7c53d2ea"
+      "digest": "95489e0a"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "PUMP#0": {
     "legacy": {
@@ -1855,11 +1853,10 @@
       "digest": "4616d25d"
     },
     "rules": {
-      "outcome": "notOffered",
-      "digest": "0dabc277"
+      "outcome": "fired",
+      "digest": "4616d25d"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "TITHE#0": {
     "legacy": {
@@ -1868,10 +1865,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "0e032243"
+      "digest": "7dea9ca0"
     },
-    "same": false,
-    "cause": "unreadable-price"
+    "same": true
   },
   "TOUGH#0": {
     "legacy": {
