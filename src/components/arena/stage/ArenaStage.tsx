@@ -2,7 +2,7 @@
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { act, advanceGame, flagThisTurn } from "@/app/arena/actions";
+import { act, advanceGame, flagThisTurn, rematch } from "@/app/arena/actions";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/engine";
 import type { NumberedBeat } from "@/lib/arena/beats";
@@ -46,7 +46,7 @@ import {
   type InspectorChip,
   type SheetMove,
 } from "../shared";
-import { battleShape, BattleVerdict, firedInBattle } from "./BattleParts";
+import { battleShape, BattleVerdict, ClashBeam, firedInBattle } from "./BattleParts";
 import { DuelBand } from "./DuelBand";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
@@ -54,9 +54,10 @@ import type { DropState } from "./StageZones";
 import { MarkerFlight } from "./MarkerFlight";
 import { fxVars, msFor, turnBannerMs } from "./motion";
 import { StagingToggle } from "../StagingToggle";
-import type { ArenaStaging } from "@/lib/arena/staging";
+import { DEFAULT_STAGING, type ArenaStaging } from "@/lib/arena/staging";
 import type { Moment } from "./StageCard";
 import { Takeover } from "./Takeover";
+import { GameEnd } from "./GameEnd";
 import { useBeatPlayer } from "./useBeatPlayer";
 import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
@@ -82,7 +83,7 @@ import { SpeedButton } from "./SpeedButton";
  * cards out of their rows so each card is drawn once — a card's `layoutId` is
  * what flies it there and back, so it may exist in exactly one place.
  */
-const REAL_SERVER = { act, advance: advanceGame, flag: flagThisTurn };
+const REAL_SERVER = { act, advance: advanceGame, flag: flagThisTurn, rematch };
 
 /**
  * Whether the board is wide enough for the docked inspector (Tailwind `lg`).
@@ -106,7 +107,7 @@ export function ArenaStage({
   gameId,
   snapshot,
   skin = "night",
-  staging = "band",
+  staging = DEFAULT_STAGING,
   lighting = DEFAULT_LIGHTING,
   server = REAL_SERVER,
   announceTurn = false,
@@ -124,7 +125,7 @@ export function ArenaStage({
    * the fixture preview (`/arena/preview`, dev-only) injects stubs, so a tap
    * there goes nowhere instead of to a database that is not there.
    */
-  server?: { act: typeof act; advance: typeof advanceGame; flag: typeof flagThisTurn };
+  server?: { act: typeof act; advance: typeof advanceGame; flag: typeof flagThisTurn; rematch: typeof rematch };
   /** Fixture preview only: open with the turn banner up, so a shot can catch a turn boundary (#344). */
   announceTurn?: boolean;
   /**
@@ -191,9 +192,10 @@ export function ArenaStage({
   /** The narration log (#350): what `NarrationRibbon` said, kept, oldest first. */
   const [story, setStory] = useState<StoryLine[]>([]);
   const [moreOpen, setMoreOpen] = useState(false);
+  /** The end screen was put away to look at the final board. */
+  const [endDismissed, setEndDismissed] = useState(false);
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
-  const promptRef = useRef<HTMLDivElement | null>(null);
 
   /**
    * Whether to start polling — and the **only** thing still derived from the
@@ -262,17 +264,22 @@ export function ArenaStage({
   /**
    * A staging must never hide a card the player is being asked to tap.
    *
-   * The takeover covers the board, and a combo, a counter and a blocker are all
-   * chosen from cards it is covering — so a fight it had taken over asked
-   * "Combo? Tap a glowing card" over a screen with no glowing card on it. When
-   * the prompt names anything the fight is not already drawing, the takeover
-   * stands down and the band takes it, which leaves the board legible
-   * underneath (owner's report, 7 Sep 2026).
+   * The takeover covers the battle field, and a blocker or an energy to pay
+   * with is chosen from cards it is covering — so a fight it had taken over
+   * asked "Tap a glowing card" over a screen with no glowing card on it. When
+   * the prompt names anything on the field the fight is not already drawing,
+   * the takeover stands down and the band takes it, which leaves the board
+   * legible underneath (owner's report, 7 Sep 2026). The hand is not the
+   * field: it stays on screen under a takeover, so a combo chosen from it
+   * keeps the fight up (redesign frame 07).
    *
    * The band dims the board rather than covering it, so it only has to stop
    * dimming so hard.
    */
-  const asksForBoard = playable && !playback.playing && view.prompt.player === view.you.player && Object.keys(taps.byCard).some((id) => !lifted.has(id));
+  const yourAsk = playable && !playback.playing && view.prompt.player === view.you.player;
+  const handIds = new Set((view.you.hand ?? []).map((c) => c.id));
+  const asksForBoard = yourAsk && Object.keys(taps.byCard).some((id) => !lifted.has(id) && !handIds.has(id));
+  const asksForHand = yourAsk && Object.keys(taps.byCard).some((id) => handIds.has(id));
   const takeoverOn = !!shape && staging === "takeover" && !asksForBoard;
   const bandOn = !!shape && !takeoverOn;
 
@@ -321,26 +328,6 @@ export function ArenaStage({
       if (r.error) setError(r.error);
     });
   }, [serverDecides, gameId, server]);
-
-  /**
-   * How tall the prompt bar is, published as a CSS variable on the board.
-   *
-   * The takeover is anchored to the viewport and the prompt bar was anchored
-   * to the document, so on a short window the bar landed across the middle of
-   * the two cards. The bar is fixed while a takeover is open (below) and the
-   * takeover ends where it begins — but only this can say where that is, since
-   * the bar grows a line whenever a question is long or its buttons wrap.
-   */
-  useEffect(() => {
-    const bar = promptRef.current;
-    const board = boardRef.current;
-    if (!bar || !board) return;
-    const measure = () => board.style.setProperty("--arena-prompt-h", `${Math.round(bar.getBoundingClientRect().height)}px`);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(bar);
-    return () => ro.disconnect();
-  }, []);
 
   /**
    * Reading a card stops the fight (`docs/arena-battle-staging-spec.md`
@@ -1031,7 +1018,9 @@ export function ArenaStage({
 
             {/* The field: their strip, their row with their leader first, the
                 lane, your row, your strip. Open sky — no panel round it. */}
-            <section className="arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5" aria-label="Battle Areas">
+            {/* The field is also what a takeover covers and what the verdict slams
+                over; the hand and the prompt are outside it and stay usable. */}
+            <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 ${takeoverOn ? "min-h-[440px] lg:min-h-[560px]" : ""}`} aria-label="Battle Areas">
               <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} narrator={narrator} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
@@ -1047,7 +1036,7 @@ export function ArenaStage({
                   hurt={hurting === view.them.player}
                   hit={hitOf(view.them.player)}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held ?? story.at(-1) ?? null} onLog={() => setLogOpen((x) => !x)} logOpen={logOpen}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => setLogOpen((x) => !x)} logOpen={logOpen}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
@@ -1089,6 +1078,21 @@ export function ArenaStage({
                 gain={gain}
                 className="mx-2"
               />
+              {takeoverOn && (
+                <Takeover
+                  shape={shape}
+                  cardProps={stagedProps}
+                  beat={beat}
+                  progress={playback.playing ? { index: playback.index, total: playback.total } : null}
+                  note={asksForHand ? "Tap hand cards to combo" : null}
+                  yourPick={asksForHand}
+                  desk={wide}
+                />
+              )}
+              {/* Who won the fight, named. Outside the stagings on purpose: it must
+                  appear on all three, and a battle that has already closed by the
+                  time the beats arrive has no staging left to carry it. */}
+              <BattleVerdict beat={beat} sideOf={sideOf} leaders={[view.you.leader?.id, view.them.leader?.id]} />
             </section>
           </div>
 
@@ -1111,12 +1115,9 @@ export function ArenaStage({
           <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} />
 
           {/* The prompt bar: one line and its buttons, the last thing on the
-            board. While a takeover has the screen it is pinned to the
-            viewport with it, because a sticky bar and a fixed overlay are
-            measured against two different things and will always end up on
-            top of each other on a short window. `promptRef` measures it: it
-            is what tells the takeover where to stop. */}
-          <div ref={promptRef} className={`z-30 ${takeoverOn ? "fixed inset-x-0 bottom-0 mx-auto max-w-7xl" : "sticky bottom-0"}`}>
+            board. A takeover covers the field only, so the bar stays where it
+            is and stays usable while the fight is up. */}
+          <div className="sticky bottom-0 z-30">
             <PromptPanel
               view={view}
               playable={playable}
@@ -1238,12 +1239,23 @@ export function ArenaStage({
 
         {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={(note) => server.flag(gameId, note)} onClose={() => setAdminOpen(false)} />}
 
-        {takeoverOn && <Takeover shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
+        {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
+        <ClashBeam beat={beat} hostRef={boardRef} />
 
-        {/* Who won the fight, named. Outside the stagings on purpose: it must
-            appear on all three, and a battle that has already closed by the
-            time the beats arrive has no band left to carry it. */}
-        <BattleVerdict beat={beat} art={beats?.art ?? {}} sideOf={sideOf} hostRef={boardRef} leaders={[view.you.leader?.id, view.them.leader?.id]} />
+        {/* The end of the game, on the board (redesign frame 10): once the last
+            beat has played, never over it. */}
+        {view.over && !playback.playing && !turnCall && !endDismissed && (
+          <GameEnd
+            over={view.over}
+            you={view.you.player}
+            them={view.them.name}
+            turn={view.turn}
+            canRematch={!live.game.archived}
+            versus={live.game.mode === "versus"}
+            onRematch={() => server.rematch(gameId)}
+            onDismiss={() => setEndDismissed(true)}
+          />
+        )}
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 

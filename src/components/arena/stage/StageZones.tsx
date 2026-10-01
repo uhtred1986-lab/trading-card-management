@@ -169,7 +169,7 @@ export function BattleRow({
             (lifted?.has(leader.id) ? (
               // A leader up in a band is drawn there and nowhere else, but the
               // slot it left keeps its shape so the row does not collapse.
-              <span className="arena-slot block" style={sized(LEADER_W)} aria-hidden />
+              <span className="arena-slot arena-slot-lifted block" style={sized(LEADER_W)} aria-hidden />
             ) : (
               /* The footprint is reserved and the scale happens inside it, so
                  the row does not reflow when the turn flips. */

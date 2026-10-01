@@ -36,6 +36,9 @@ export function Ghosts({ ghosts, art }: { ghosts: Ghost[]; art: Record<string, B
             // for `delay`), and only then does the flight to the Drop begin.
             transition={{ duration: Math.min(0.9, g.ms / 1000), ease: g.kind === "arrive" ? "easeOut" : "easeIn", delay: g.ko ? g.ko.delay / 1000 : 0 }}
           >
+            {/* A KO burns white inside a glow (`fx-lab-effects`): the glow is a
+                sibling, because the card clips everything drawn inside it. */}
+            {g.ko && <span className="arena-fx-ko-glow" aria-hidden />}
             <div
               className={`arena-card card-aspect w-[calc(52px*var(--arena,1))] overflow-hidden rounded-[4px] border bg-space-800 ${g.kind === "arrive" ? "arena-ring-legal border-ki-400/70" : "arena-ghost border-loss/60"} ${g.ko ? "arena-fx-ko" : ""}`}
             >
