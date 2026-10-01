@@ -36,11 +36,12 @@
  * nothing read at request time.
  */
 import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
+import type { AltCost } from "../engine/state";
 import { other, type Action, type PlayerId, type Prompt, type Requirement } from "../engine/types";
 import type { Cond, Selector } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { activationMoment, activationRefusals, activationsOf, boundFor, resolveActivation, type ActivationLine } from "./activate";
-import { actionCostOf, chargeCost, freePrice, planCost, priceFor, xValues, type BoundAmounts, type Price } from "./costs";
+import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { answered } from "./flow";
@@ -77,6 +78,14 @@ export interface Candidate {
    * for a move like `play`, where carrying it at all depends on the card.
    */
   x?: number;
+  /**
+   * 5-3: the other price this candidate is bought at instead of the move's
+   * `COST`, for a move declaring `alt:` — a second candidate for the same
+   * card, beside the ordinary one, the way the legacy engine's menu has a
+   * "Play X (for no energy)" row beside "Play X (2)". Its `price` is then
+   * nothing: the alternative is the whole of what is paid.
+   */
+  alt?: AltCost;
   why: Requirement[];
   /**
    * What the move costs this candidate, read once (#148). The menu wears it and
@@ -151,11 +160,16 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
         // card is never held up by a price. The price is read **last**, so a card
         // refused for a reason of its own says that reason rather than "1 short".
         const price = def.cost?.length && !declining(def, card) ? priceFor(ctx, game, state, def, card) : freePrice();
+        // 5-3: the printed alternative, asked only of a card no `REFUSE` holds
+        // back and whose price is a number (the legacy engine offers it for no
+        // X cost) — read before the price's own shortfall joins `why`, since an
+        // alternative is exactly the way past that shortfall.
+        const alt = def.alt !== undefined && !why.length && card !== null && !declining(def, card) && price.unpriced === null ? altCostFor(ctx, game, state, card, player, def.alt) : null;
         if (!why.length && def.cost?.length && !declining(def, card)) {
           const plan = planCost(ctx, game, state, player, price, card);
           if (!plan.ok) why.push(...plan.why);
         }
-        return [{ card, why, price }];
+        return alt ? [{ card, why, price }, { card, alt, why: [], price: freePrice() }] : [{ card, why, price }];
       })
       // The answer that takes no card is an answer to *this question*, so a
       // refusal about the board — one written without ever mentioning the
@@ -395,6 +409,9 @@ function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, c: Ca
   // it always has — `x` is the candidate's, not the shape's, for a move like
   // `play` where it depends on the card rather than on the move.
   if (c.x !== undefined) return { type: def.name, player, card, x: c.x } as unknown as Action;
+  // 5-3: the second offer of the same card, at its printed alternative —
+  // `alt: true` is how the shared union says which of the two was meant.
+  if (c.alt) return { type: def.name, player, card, alt: true } as unknown as Action;
   return { type: def.name, player, card } as unknown as Action;
 }
 
@@ -458,6 +475,8 @@ function labelFor(ctx: EngineContext, state: VmState, def: ActionDef, c: Candida
   // value (issue #270) — so the row has to say which, the same "with X = n"
   // the legacy engine's own label gives a Battle Card.
   if (c.x !== undefined) return `${label} ${name} with X = ${c.x}`;
+  // 5-3: the row says which price it is — the legacy engine's own words.
+  if (c.alt) return `${label} ${name} (${c.alt.pay === "none" ? "for no energy" : `by adding ${c.alt.n} from your life to your hand`})`;
   if (c.skill === undefined) return `${label} ${name}`;
   const line = lineOf(ctx, state, def, card, c.skill);
   const what = line?.skill.keyword ? `[${line.skill.keyword.name}]` : (line?.skill.effect.slice(0, 40) ?? "");
@@ -516,7 +535,10 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // that value has always come from (issue #270).
   const x = def.x ? (action as { x?: number }).x : undefined;
   const candidates = candidatesOf(ctx, game, state, def, player);
-  const chosen = candidates.find((c) => c.card === card && c.skill === skill && (x === undefined || c.x === x || c.price.energy === x));
+  // 5-3: an alternative price is a second candidate for the same card, and
+  // `alt: true` on the action is which one was meant.
+  const alt = def.alt !== undefined && (action as { alt?: boolean }).alt === true;
+  const chosen = candidates.find((c) => c.card === card && c.skill === skill && !!c.alt === alt && (x === undefined || c.x === x || c.price.energy === x));
   if (!chosen) throw new IllegalAction(card === null ? `${def.label ?? def.name} is not offered now` : `${card} is not one of the cards ${def.label ?? def.name} is offered for`);
   // The candidate's own reasons rather than a second reading of them: an
   // activation's gates are read off the line and the price sits inside them, so
@@ -530,7 +552,12 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // even though only one of them runs on the spot.
   const line = def.skills && card !== null && typeof skill === "number" ? lineOf(ctx, state, def, card, skill) : undefined;
   if (def.skills && !line) throw new IllegalAction(`${card} has no skill line ${skill}`);
-  if (def.cost?.length && !declining(def, card)) {
+  if (chosen.alt) {
+    // 5-3: the alternative is paid *instead of* the declared price — nothing,
+    // life to the hand, or a smaller energy price — and the move goes on
+    // exactly as it would have (the legacy `payAltCost`).
+    payAltCost(ctx, game, state, ev, player, chosen.alt);
+  } else if (def.cost?.length && !declining(def, card)) {
     const explicit = (action as { pay?: string[] }).pay;
     const plan = planCost(ctx, game, state, player, chosen.price, card, explicit);
     if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);

@@ -80,7 +80,7 @@ import { legacyState } from "../../src/lib/arena/engines";
  *   rulesets/dbs/keywords.rules`'s own header names which keywords still read
  *   `-- Stage 7 (#153–#157)`).
  * - **`staticGap`**: the [Permanent] reads to a static kind `vm/effects.ts`'s
- *   own `DEFERRED_STATICS` names — a legality or an alternative payment a
+ *   own `DEFERRED_STATICS` names — a legality a
  *   [Permanent] can print and this engine does not yet collect into anything
  *   a reader sees, each already citing the issue that closes it.
  * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
@@ -192,10 +192,10 @@ if (!keywordGap("Evolve", S7.evolve) && !keywordGap("Union", S7.union)) {
 }
 
 if (
-  !staticGap(
+  !notYetGap(
     "CFREE: free [Counter] from hand",
-    "altCost",
-    "#149 bound only the narrower, per-price payWith form (an activation's own line); this wider [Permanent] grant, spanning every activation of one skill, is still unread",
+    "the [Permanent]'s `altCost` is collected (`vm/effects.ts`' `permanents`) and `vm/costs.ts`' `altCostFor` offers it for a play (#148), but the [Counter] window's own price is `vm/battle.ts`'s, which reads no alternative price yet",
+    "#150",
   ) &&
   !keywordGap("Invoker", S7.invoker)
 ) {
@@ -267,8 +267,8 @@ if (
 if (
   !notYetGap(
     "SKILLCHEAP: a scoped reduction of a [Counter]'s own printed orbs",
-    "a skill's own text price has no cost-reduction layer on the rules engine yet — `costOf`/`specifiedCost`'s declared `layers:` (#148 Build 2) cover a play's price, not a skill line's; neither COUNTER_RR nor COUNTER_UU is affordable without the reduction, so the counter window offers neither and play falls straight through to the combo step",
-    "no issue filed yet",
+    "a skill line's own orbs have their reduction layer since #148 (`vm/costs.ts`' `skillOrbs`, read by an [Activate]'s price in `vm/activate.ts`), but a [Counter]'s price is built by the counter window in `vm/battle.ts`, which does not read it yet; neither COUNTER_RR nor COUNTER_UU is affordable without the reduction, so the counter window offers neither and play falls straight through to the combo step",
+    "#150",
   )
 ) {
   // Skill-cost modifiers: a red-scoped reduction lowers a red [Counter] skill's
@@ -302,9 +302,10 @@ if (
   assertConsistentG(s);
 }
 
-if (!notYetGap("[Burst X] (22-27)", "no `DEFINE COST` in dbs/costs.rules consumes cards from the top of the deck yet — the seven declared kinds are energy, zEnergy, marker, life, rest, payWith and text, so the activation's price is unread and the skill is refused rather than offered", "no issue filed yet")) {
+{
   // [Burst X] (22-27): X cards from the top of the deck to the Drop as a cost;
-  // with fewer than X cards in the deck the cost cannot be paid.
+  // with fewer than X cards in the deck the cost cannot be paid. On the rules
+  // engine it is `DEFINE COST burst` (dbs/costs.rules, #148).
   DEFS.BURSTER = { ...DEFS.V1, id: "BURSTER", name: "BURSTER", skill: "[Burst 2][Activate: Main] Draw 1 card." };
   let s = arenaG({ battle: ["BURSTER"] });
   const b = zoneOf(s, "p1", "battle")[0];
@@ -1972,13 +1973,10 @@ if (!notYetGap("SPANSKIP: three `skip` entries under one name (20-13)", "`addSki
 // here, and the third is the one that would not show in a coverage number: the
 // permission is an *offer*, so energy is spent first and the Battle Card is
 // only reached for when the energy alone cannot cover the price.
-if (
-  !staticGap(
-    "PAYER: a [Permanent]'s whole-board grant of a non-energy payer",
-    "payWith",
-    "#149 bound only the narrower, per-price form a price names for itself; this wider [Permanent] grant — a payer for the whole board — is still unread",
-  )
-) {
+{
+  // 20-19's whole-board grant: on the rules engine a standing `payer` static
+  // (`vm/effects.ts`' `permanents`) that `vm/costs.ts`' `payersFor` adds to
+  // every energy price (#148).
   DEFS.PAYER = {
     ...DEFS.V1,
     id: "PAYER",
@@ -2005,7 +2003,7 @@ if (
   const skillCard = findG(s, "p1", "battle", "ORBSKILL");
   const payer = findG(s, "p1", "battle", "PAYER");
   assert.ok(canActivateG(s, skillCard), "the Battle Card standing in for energy makes the skill payable");
-  assert.deepEqual(planPayment(CTX, legacyState(s), "p1", 1, {}), { rest: [payer], markers: 0 }, "the plan rests the payer and nothing else");
+  if (ENGINE === "legacy") assert.deepEqual(planPayment(CTX, legacyState(s), "p1", 1, {}), { rest: [payer], markers: 0 }, "the plan rests the payer and nothing else");
   const before = powerOfG(s, skillCard);
   s = playG(s, { type: "activate", player: "p1", card: skillCard, skill: 0 });
   assert.equal(s.cards[payer].mode, "rest", "the payer is switched to Rest Mode, exactly as energy is");
@@ -2020,8 +2018,19 @@ if (
   let withEnergy = arenaG({ battle: ["ORBSKILL", "PAYER"], energy: ["V1"] });
   const payer2 = findG(withEnergy, "p1", "battle", "PAYER");
   const energyCard = findG(withEnergy, "p1", "energy", "V1");
-  assert.deepEqual(planPayment(CTX, legacyState(withEnergy), "p1", 1, {}), { rest: [energyCard], markers: 0 }, "energy is tried before a card that may stand in for it");
+  if (ENGINE === "legacy") assert.deepEqual(planPayment(CTX, legacyState(withEnergy), "p1", 1, {}), { rest: [energyCard], markers: 0 }, "energy is tried before a card that may stand in for it");
   withEnergy = playG(withEnergy, { type: "activate", player: "p1", card: findG(withEnergy, "p1", "battle", "ORBSKILL"), skill: 0 });
+  // 3-8-2 on the rules engine: a price with two genuinely different answers is
+  // asked about before it is taken (`vm/actions.ts`), an activation's included,
+  // where the legacy engine plans an activation silently. The payer is one of
+  // the answers — the permission is real — and the energy is the other.
+  if (withEnergy.prompt.kind === "payCost") {
+    const options = (withEnergy.prompt as { options: { rest: string[] }[] }).options;
+    assert.ok(options.some((o) => o.rest.includes(payer2)), "the payer is not one of the ways to pay");
+    const energyFirst = options.findIndex((o) => o.rest.length === 1 && o.rest[0] === energyCard);
+    assert.ok(energyFirst >= 0, "paying with the energy alone is not one of the ways to pay");
+    withEnergy = playG(withEnergy, { type: "payCost", player: "p1", option: energyFirst });
+  }
   assert.equal(withEnergy.cards[energyCard].mode, "rest");
   assert.equal(withEnergy.cards[payer2].mode, "active", "the Battle Card is left alone when the energy could cover the price");
 

@@ -50,9 +50,12 @@
  *   reading over declared prices. Both are refused as the printed price rather
  *   than charged as nothing (#149).
  *
- *   *[Burst X]* (22-27) and *[Spirit Boost X]* (22-43) are prices paid in cards
- *   off the deck and markers off a Unison, each with moments of its own to fire;
- *   they are refused by name for the same reason (#149).
+ *   *[Spirit Boost X]* (22-43) is a price in markers off a Unison with moments
+ *   of its own to fire (sixteen cards watch the payment itself); it is refused
+ *   by name for the same reason (#149). *[Burst X]* (22-27) is not: it is a
+ *   `DEFINE COST burst` in `costs.rules`, X cards off the top of the deck,
+ *   bound here from the line's own tag and charged by the planner between the
+ *   marker and the orbs, which is where the legacy `activate` pays it (#148).
  *
  * **One reading that was once not the legacy engine's, and is now.** An Extra
  * Card used from the hand pays its own energy cost as well as the skill's orbs
@@ -75,7 +78,7 @@ import type { Script, ScriptFrame } from "../engine/script";
 import { costIsOnlyOrbs } from "../engine/compile";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
-import { cardColors, cardPrice, type BoundAmounts } from "./costs";
+import { cardColors, cardPrice, skillOrbs, type BoundAmounts } from "./costs";
 import { skillNegated, skillsNegated } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
@@ -110,7 +113,7 @@ export interface ActivationLine {
  * rather than reading a keyword's price off nothing. What would replace them is
  * `DEFINE KEYWORD` bodies naming their own pools, which is Stage 7's (#153).
  */
-export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop" } as const;
+export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck" } as const;
 
 /** Every zone this module names, for the check `createGame` makes against the declarations. */
 export const ACTIVATION_ZONE_NAMES = [...new Set(Object.values(ACTIVATION_ZONES))];
@@ -183,7 +186,10 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
  * The amounts this line binds to the prices the action names (#147).
  *
  * The orbs are printed in front of the line and the marker cost with them
- * (13-4); everything else is the record's. `unreadable` is the answer to "can
+ * (13-4), read through the one reduction layer a line's price has
+ * (`skillOrbs`: every skill-cost change in force on this card for this kind
+ * of line, 4-3-3); a [Burst X] tag binds X cards out of the pool `costs.rules`
+ * says it is paid from (22-27); everything else is the record's. `unreadable` is the answer to "can
  * this engine charge the price at all": `null` when the printed cost is orbs,
  * or orbs and a condition 9-1-3 hoisted out of it, and the printed words
  * otherwise — which `planCost` turns into the `unread` requirement the legacy
@@ -195,26 +201,20 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
  */
 export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): BoundAmounts {
   const sk = line.skill;
-  const orbs: Partial<Record<Color, number>> = {};
-  let total = 0;
-  for (const [key, n] of Object.entries(sk.energyCost)) {
-    if (!n) continue;
-    total += n;
-    // "{1}" is an orb of no colour (1-2-3): part of the total, asking for no
-    // colour, which is what `any` means and what the planner counts by total.
-    if (key !== "any") orbs[key as Color] = (orbs[key as Color] ?? 0) + n;
-  }
-  // 22-13: "{r}/{u}" is one orb payable with either, and it is one energy of
-  // the total like any other orb.
-  total += sk.energyEither.length;
+  const own = skillOrbs(ctx, game, state, line.card, sk);
+  const orbs: Partial<Record<Color, number>> = { ...own.orbs };
+  let total = own.total;
   if (inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
     const play = cardPrice(ctx, game, state, line.card);
     total += play.total;
     for (const [colour, n] of Object.entries(play.orbs)) orbs[colour as Color] = (orbs[colour as Color] ?? 0) + (n ?? 0);
   }
   return {
-    energy: { total, orbs, either: sk.energyEither.map((one) => [...one]) },
+    energy: { total, orbs, either: own.either },
     markers: sk.markerCost ?? 0,
+    // 22-27-2: [Burst X]'s cards, by the pool the declared price takes them out
+    // of. Bound to 0 on a line with no tag, so the price asks nothing of it.
+    pooled: { [ACTIVATION_ZONES.burst]: sk.burst ?? 0 },
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : sk.cost,
   };
@@ -313,9 +313,17 @@ export function activationRefusals(
   if (sk.sparking != null && zone(state, player, ACTIVATION_ZONES.sparking).length < sk.sparking) {
     before.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
   }
-  // 22-27 / 22-43: a price in cards off the deck and in markers off a Unison,
-  // each with moments of its own to fire. Refused rather than charged (#149).
-  if (sk.burst != null || sk.spiritBoost != null) before.push({ kind: "unread", card });
+  // 22-27-3: [Burst X] cannot be paid with fewer than X cards in the deck.
+  // The price itself is charged by the planner (`DEFINE COST burst`); the
+  // shortfall is asked *here*, among the gates, because this is where
+  // `whyNotActivate` asks it — beside [Bond] and [Sparking], before the window
+  // — and in its words, so the first requirement is the same one on both
+  // engines. 22-43's [Spirit Boost], whose payment is a moment sixteen cards
+  // answer, is still refused rather than charged (#149).
+  if (sk.burst != null && zone(state, player, ACTIVATION_ZONES.burst).length < sk.burst) {
+    before.push({ kind: "other", detail: `[Burst ${sk.burst}] needs that many cards in the deck` });
+  }
+  if (sk.spiritBoost != null) before.push({ kind: "unread", card });
   // The window: a line of a kind this move does not offer is still a candidate,
   // and the answer it is owed names the window it belongs to (7-3-4 against
   // 8-6-2). Derived from the declaration, so a battle paragraph says "main" for

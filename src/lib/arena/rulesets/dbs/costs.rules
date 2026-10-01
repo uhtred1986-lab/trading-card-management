@@ -5,7 +5,8 @@
 -- a cost, §1-14-2 energy markers standing in for energy of the Leader's
 -- colour, §3-8-2 the player's free choice of which energy to rest, §13-4 a
 -- Unison's marker cost, §20-5 an X price, §20-19 a card rested in the Energy
--- Area's place, §21-3 life as a price, and §22-30 [Warrior of Universe 7].
+-- Area's place, §21-3 life as a price, §22-27 [Burst X], and §22-30 [Warrior
+-- of Universe 7].
 --
 -- In the legacy engine payment is one function, `planPayment` in
 -- `engine/state.ts`, with a branch inside it for each of those: the coloured
@@ -56,10 +57,11 @@
 -- cost is orbs (#149: `activate`'s own `payWith` items, resolved off the
 -- record and rested where they stand). What still has nothing to bind it is
 -- the *[Permanent]* form of the same permission — "you can use this card to
--- pay energy costs even when it's in your Battle Area" (BT3-039) grants a
--- payer to the whole board rather than to one price, and reading a
--- [Permanent]'s program for it is a wider change `vm/effects.ts`'
--- `DEFERRED_STATICS` still names. And an **either-orb** ("{Red/Blue}", one orb payable with any one of the
+-- pay energy costs even when it's in your Battle Area" (BT3-039) — grants a
+-- payer to the whole board rather than to one price, so it is not bound to any
+-- price at all: `vm/effects.ts`' `permanents` collects it as a standing
+-- `payer`, and `vm/costs.ts`' `payersFor` adds it to the pool of *every*
+-- energy price, the legacy `payersFor`'s reading. And an **either-orb** ("{Red/Blue}", one orb payable with any one of the
 -- listed colours, §22-13) has no parameter type that can name it: `colors` is a
 -- flat list and the language knows no list of alternatives. The planner reads them off the price
 -- and charges them exactly; the parameter list below cannot say so, the way
@@ -82,15 +84,39 @@ DEFINE COST energy                                                        -- §5
 -- where the op says; `payWith`'s names cards the price was handed, so they are
 -- rested where they stand. 5-4-3: the Z-Energy is spent, not rested — the
 -- cards are placed in the Drop Area — which is why the op is a move.
+-- `fromEnd` says which end of the pile the cards come off: the far end, the
+-- last placed first, which is the order the engine that has been playing
+-- spends Z-Energy in and therefore the order the Drop Area ends up in.
 DEFINE COST zEnergy                                                       -- §5-4
   TAKES (n: amount)
   consumes: cards
   amount: "zEnergyCostOf"
   asks: nothing
   DO {
-    moveTo(target: IN you.zEnergy, to: drop)
+    moveTo(target: IN you.zEnergy fromEnd, to: drop)
   }
   text: "a Z-card's Z-Energy price: that many cards are placed from the Z-Energy Area in the Drop Area, on top of the card's energy cost (5-4, 16-2-1)"
+
+-- [Burst X] (§22-27) is a price written as a tag in front of a skill: the top
+-- X cards of your deck are placed in your Drop Area, and with fewer than X
+-- cards in the deck it cannot be paid (22-27-3). It is a `cards` price out of
+-- a declared place like `zEnergy` above, read the same way — the pool is the
+-- op's target and paying does what the op says — with two differences, both
+-- read off the declaration rather than the name: the cards come off the
+-- **top** (no `fromEnd`), and the amount is not an attribute of the card,
+-- because a card prints a [Burst] on one skill line and not on itself. So it
+-- names no `amount:`, and the interpreter that knows which line is being
+-- paid for binds the number in (`vm/activate.ts`'s `boundFor`, #148), the way
+-- `marker` and `life` below get theirs. The deck is a hidden zone, so each
+-- card is shown as it goes.
+DEFINE COST burst                                                         -- §22-27
+  TAKES (n: amount)
+  consumes: cards
+  asks: nothing
+  DO {
+    moveTo(target: IN you.deck, to: drop)
+  }
+  text: "the price is paid by placing that many cards from the top of your deck in your Drop Area, each shown as it goes; with fewer cards in the deck it cannot be paid (22-27-2, 22-27-3)"
 
 DEFINE COST marker                                                        -- §13-4
   TAKES (n: amount)

@@ -176,8 +176,8 @@ skipped) tells you what you broke:
   `keywordGap` (a keyword's own `DEFINE KEYWORD` carries no `HOOK` body for
   what the case needs — most of the 39, `docs/arena-backlog/s7-0{2,3,4,5}-
   *.md`), `staticGap` (a [Permanent] reads to a static kind
-  `vm/effects.ts`'s own `DEFERRED_STATICS` names as unread — `altCost`,
-  `payWith`, `immune`), `replaceGap` (the 9-10 family: `vm/host.ts`'s
+  `vm/effects.ts`'s own `DEFERRED_STATICS` names as unread — `immune`,
+  `negateKeyword`; `altCost` and `payWith` are read since #148), `replaceGap` (the 9-10 family: `vm/host.ts`'s
   `replacementsFor` answers `[]` unconditionally — a skill-driven KO is real
   since #146, but no [Permanent]'s replacement is collected to stand in
   front of it), and `notYetGap` for everything else

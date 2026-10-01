@@ -119,6 +119,17 @@ function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmSt
 }
 
 /**
+ * Every [Permanent]'s standing change right now — the same reading `attrsNow`
+ * makes, for the two that are not a card attribute (#148): a payer for every
+ * energy price (20-19) and another price for a card (5-3), which `vm/costs.ts`
+ * reads where a price is planned. One reading, so the recursion guard above is
+ * the one guard either path goes through.
+ */
+export function staticsNow(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
+  return statics(ctx, game, state);
+}
+
+/**
  * One card's attributes as they stand: the printed values, and every layer the
  * declaration puts over them (9-9-1).
  *
