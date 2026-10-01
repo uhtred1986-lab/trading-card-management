@@ -863,6 +863,212 @@ input[type="number"] {
   }
 }
 
+/* ==========================================================================
+ * The desktop board (#444, `docs/arena-redesign/` frames desk-01…12, the
+ * prototype's `.arena.desk`): one grid the height of the viewport.
+ *
+ *   bar   bar    bar          60 px
+ *   left  field  inspector    the rest
+ *   left  hand   inspector    the fan (~200 px)
+ *   left  prompt inspector    one line and its buttons
+ *
+ * The left column is MATCH, the phase list and a tip; the inspector always
+ * holds a card. Nothing scrolls the page, so the hand and the field are on
+ * screen together and a drag never needs a scroll. The field's cards scale
+ * with the viewport's height as well as its width (below), which is what
+ * lets 1280 × 800 fit as well as 1440 × 900. Below lg nothing here applies.
+ * ========================================================================== */
+/* A missed drag must not paint the board's words blue. */
+.arena-board {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.arena-board :is(input, textarea, [contenteditable]) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+@media (min-width: 1024px) {
+  .arena-board {
+    display: grid;
+    /* The full-bleed game page pads its main by 0.5 rem top and bottom. */
+    height: calc(100dvh - 1rem);
+    min-height: 600px;
+    max-width: none;
+    grid-template-columns: 220px minmax(0, 1fr) 300px;
+    grid-template-rows: 60px minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "top top top"
+      "left field side"
+      "left hand side"
+      "left bar side";
+    /* Both axes now: the turn wash runs 14 % past the board's edges, and the
+       board is exactly the viewport's height. */
+    overflow: clip;
+  }
+  /* The hand at the prototype's desktop size (112 px, `--hw`). */
+  .arena-board .arena-field.arena-hand {
+    --arena: 1.2;
+  }
+  /* Between lg and xl the columns are narrower, and so is the field. */
+  .arena-board .arena-field {
+    --arena: 1.2;
+  }
+  .arena-title {
+    color: var(--color-space-50);
+  }
+  /* The two side columns: a ground of their own over the sky or the night. */
+  .arena-matchcol,
+  .arena-sidecol {
+    position: relative;
+    z-index: 8;
+    background: rgba(4, 7, 18, 0.45);
+  }
+  .arena-matchcol {
+    border-right: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+  }
+  .arena-sidecol {
+    border-left: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+  }
+  [data-skin="anime"] .arena-matchcol,
+  [data-skin="anime"] .arena-sidecol {
+    background: rgba(255, 255, 255, 0.72);
+  }
+  [data-skin="anime"] .arena-matchcol {
+    border-right: 2px solid var(--ink);
+  }
+  [data-skin="anime"] .arena-sidecol {
+    border-left: 2px solid var(--ink);
+  }
+  .arena-sidecol-sheet,
+  .arena-sidecol-tabs {
+    border-bottom: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+  }
+  [data-skin="anime"] .arena-sidecol-sheet,
+  [data-skin="anime"] .arena-sidecol-tabs {
+    border-bottom: 2px solid var(--ink);
+  }
+  .arena-tab-on {
+    background: color-mix(in srgb, var(--color-space-50) 8%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-space-300) 40%, transparent);
+  }
+  [data-skin="anime"] .arena-tab-on {
+    background: #fff;
+    box-shadow:
+      0 0 0 2px var(--ink),
+      2px 3px 0 var(--ink);
+  }
+  /* The phase list: a little taller than the phone's chips, as in the frames. */
+  .arena-matchcol .arena-phase {
+    padding-block: 10px;
+    letter-spacing: 0.12em;
+  }
+}
+@media (min-width: 1280px) {
+  .arena-board {
+    grid-template-columns: 250px minmax(0, 1fr) 370px;
+  }
+  .arena-board .arena-field.arena-hand {
+    --arena: 1.33;
+  }
+  .arena-board .arena-field {
+    --arena: 1.5;
+  }
+}
+/* The inspector's card when it has no art to show: the prototype's 150 px. */
+.arena-inspect-art {
+  --arena: 1.95;
+}
+/* A shorter screen (1280 × 800, a laptop with its browser chrome): the field
+   and the hand step down so both still fit with the prompt under them. */
+@media (min-width: 1024px) and (max-height: 860px) {
+  .arena-board .arena-field {
+    --arena: 1.2;
+  }
+  .arena-board .arena-field.arena-hand {
+    --arena: 1.15;
+  }
+  .arena-board .arena-fight {
+    --arena: 1.45;
+  }
+  .arena-inspect-art {
+    --arena: 1.5;
+  }
+}
+
+/* The MATCH rows: avatar, name over a line, the life count in the impact face. */
+.arena-colh {
+  margin: 14px 4px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-space-300);
+}
+.arena-mrow {
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-space-300) 22%, transparent);
+  transition:
+    background var(--turn-ms),
+    box-shadow var(--turn-ms);
+}
+.arena-mrow[data-on] {
+  background: color-mix(in srgb, var(--turn-tint) 16%, transparent);
+  box-shadow:
+    inset 0 0 0 1.5px var(--turn-tint),
+    0 0 22px color-mix(in srgb, var(--turn-tint) 30%, transparent);
+}
+[data-skin="anime"] .arena-mrow {
+  background: #fff;
+  box-shadow:
+    0 0 0 2px var(--ink),
+    2px 3px 0 var(--ink);
+}
+[data-skin="anime"] .arena-mrow[data-on] {
+  background: color-mix(in srgb, var(--turn-tint) 20%, #fff);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    3px 4px 0 var(--ink),
+    inset 0 0 0 4px var(--turn-tint);
+}
+.arena-lifen {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--color-space-50);
+}
+[data-skin="anime"] .arena-lifen {
+  color: #fff;
+  -webkit-text-stroke: 2.5px var(--ink);
+  paint-order: stroke fill;
+}
+.arena-acting {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--turn-ink);
+  background: var(--turn-tint);
+}
+[data-skin="anime"] .arena-acting {
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+.arena-tip {
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-space-300);
+  background: rgba(255, 255, 255, 0.03);
+}
+[data-skin="anime"] .arena-tip {
+  color: #2c3646;
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
 /* The acting side's Battle Area: a faint radial wash and a 1 px outline. */
 .arena-row {
   position: relative;

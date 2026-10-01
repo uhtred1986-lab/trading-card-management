@@ -15,7 +15,7 @@ import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
-import { PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
+import { MatchColumn, PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
 import type { TurnCall } from "./useBeatPlayer";
 import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/arena/lighting";
 import type { ArenaSkin } from "@/lib/arena/skin";
@@ -188,6 +188,8 @@ export function ArenaStage({
   const [rowHover, setRowHover] = useState<string | null>(null);
   const wide = useWide();
   const [logOpen, setLogOpen] = useState(false);
+  /** The desktop inspector's lower tab: In play, or the battle log (the bar's log button opens it). */
+  const [deskTab, setDeskTab] = useState<"play" | "log">("play");
   const [adminOpen, setAdminOpen] = useState(false);
   /** The narration log (#350): what `NarrationRibbon` said, kept, oldest first. */
   const [story, setStory] = useState<StoryLine[]>([]);
@@ -872,7 +874,10 @@ export function ArenaStage({
   });
 
   // --- The docked inspector's content ----------------------------------------
-  const inspectId = pinned ?? inspected;
+  // Never an empty box (#444): the last card hovered while it is still on the
+  // table, else the first card of your hand, else a leader.
+  const fallbackId = view.you.hand?.[0]?.id ?? view.you.leader?.id ?? view.them.leader?.id ?? null;
+  const inspectId = pinned ?? (inspected && cardOf(inspected) ? inspected : null) ?? fallbackId;
   const inspectCard = inspectId ? cardOf(inspectId) : null;
   const locate = (id: string) => {
     for (const side of [view.you, view.them]) {
@@ -956,7 +961,11 @@ export function ArenaStage({
         ref={boardRef}
         // Below sm the board runs to the screen's edges (the page keeps a
         // 0.5 rem gutter for everything else), so its edge line is flush.
-        className="arena relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)] lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]"
+        // From lg the board is the redesign's desktop grid (#444, `globals.css`
+        // `.arena-board`): a full-width bar over the MATCH column, the field
+        // with the hand and the prompt under it, and the inspector, sized to
+        // the viewport so the hand and the field are on screen together.
+        className="arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]"
         data-skin={skin}
         style={{ ...turnStyle, ...fxVars(pace) }}
       >
@@ -977,11 +986,13 @@ export function ArenaStage({
         <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
-        <div className="flex min-w-0 flex-1 flex-col lg:col-start-1 lg:row-start-1">
+        {/* From lg it is `display: contents`: its children are placed in the grid's areas. */}
+        <div className="flex min-w-0 flex-1 flex-col lg:contents">
           {/* The top bar, one row (`docs/arena-redesign/` frame 01): whose turn
               it is, then speed, review, the admin shield and the menu. It sticks
               to the top of a phone's screen so the turn is never scrolled away. */}
-          <div className="arena-topbar sticky top-0 z-30 flex h-[52px] min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:h-[60px] lg:pl-4">
+          <div className="arena-topbar sticky top-0 z-30 flex h-[52px] min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:h-[60px] lg:gap-4 lg:pl-3 lg:pr-2 lg:[grid-area:top]">
+            <span className="arena-title arena-num hidden text-[19px] leading-none lg:inline">Arena</span>
             <TurnPill view={view} />
             <div className="ml-auto flex shrink-0 items-center gap-0.5">
               <SpeedButton />
@@ -995,6 +1006,18 @@ export function ArenaStage({
                 <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
                   <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              {/* From lg: the battle log, the inspector's second tab. */}
+              <button
+                type="button"
+                onClick={() => setDeskTab((t) => (t === "log" ? "play" : "log"))}
+                className="arena-iconbtn tap hidden h-11 w-11 items-center justify-center lg:flex"
+                aria-label="Battle log"
+                aria-pressed={deskTab === "log"}
+              >
+                <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                  <path d="M5 6h14M5 11h14M5 16h9" />
                 </svg>
               </button>
               {/* Admins only, and rendered only for them: the shield that opens the drawer (#350). */}
@@ -1012,15 +1035,13 @@ export function ArenaStage({
           {/* The shake is on this block and not on the board: a transform on the
               board would become the containing block of the takeover and the
               drag ghost, which are `fixed`. Nothing fixed is inside this one. */}
-          <div className={`flex min-w-0 flex-1 flex-col lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4 ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
-            {/* The desktop's phase list: the top of the left column, so it is on screen with the board. */}
-            <PhaseChips view={view} vertical className="hidden lg:flex lg:w-44 lg:pl-3 lg:pt-4 xl:w-52" />
+          <div className={`flex min-w-0 flex-1 flex-col lg:min-h-0 lg:[grid-area:field] ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
 
             {/* The field: their strip, their row with their leader first, the
                 lane, your row, your strip. Open sky — no panel round it. */}
             {/* The field is also what a takeover covers and what the verdict slams
                 over; the hand and the prompt are outside it and stay usable. */}
-            <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 ${takeoverOn ? "min-h-[440px] lg:min-h-[560px]" : ""}`} aria-label="Battle Areas">
+            <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 lg:min-h-0 lg:pb-1.5 ${takeoverOn ? "min-h-[440px] lg:min-h-0" : ""}`} aria-label="Battle Areas">
               <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} narrator={narrator} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
@@ -1036,7 +1057,7 @@ export function ArenaStage({
                   hurt={hurting === view.them.player}
                   hit={hitOf(view.them.player)}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => setLogOpen((x) => !x)} logOpen={logOpen}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
@@ -1096,6 +1117,8 @@ export function ArenaStage({
             </section>
           </div>
 
+          {/* The fan, and the moves that have no card, in the grid's hand row. */}
+          <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-end lg:[grid-area:hand]">
           {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
             <div className="flex flex-wrap gap-1.5 px-3 pt-2 sm:gap-2">
               {(modal ? bare : bare.slice(3)).map(({ i, l }) => (
@@ -1113,11 +1136,12 @@ export function ArenaStage({
           )}
 
           <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} />
+          </div>
 
           {/* The prompt bar: one line and its buttons, the last thing on the
             board. A takeover covers the field only, so the bar stays where it
             is and stays usable while the fight is up. */}
-          <div className="sticky bottom-0 z-30">
+          <div className="sticky bottom-0 z-30 lg:static lg:[grid-area:bar]">
             <PromptPanel
               view={view}
               playable={playable}
@@ -1148,8 +1172,13 @@ export function ArenaStage({
           </div>
         </div>
 
-        <div className="hidden lg:col-start-2 lg:row-start-1 lg:block">
+        {/* The left column: who is in the match, the phase list, a tip. */}
+        <MatchColumn view={view} versus={live.game.mode === "versus"} className="hidden lg:flex lg:[grid-area:left]" />
+
+        <div className="hidden lg:block lg:min-h-0 lg:[grid-area:side]">
           <InspectorColumn
+            tab={deskTab}
+            onTab={setDeskTab}
             inspector={
               <DockedInspector
                 card={inspectCard}

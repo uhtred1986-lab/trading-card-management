@@ -114,3 +114,45 @@ export function PhaseChips({ view, vertical = false, className = "" }: { view: B
     </ol>
   );
 }
+
+/**
+ * The desktop's left column (#444, `docs/arena-redesign/` frame 01): MATCH —
+ * both players with their life and an ACTING tag on the side whose turn it
+ * is — then the phase list, then a tip at the foot. The phone has the strips
+ * and the phase row for this, so it is drawn from lg only.
+ */
+export function MatchColumn({ view, versus, className = "" }: { view: BoardView; versus: boolean; className?: string }) {
+  const rows = [
+    { side: view.them, them: true, sub: versus ? (view.them.leader?.name ?? null) : "AI opponent" },
+    { side: view.you, them: false, sub: view.you.leader?.name ?? null },
+  ];
+  return (
+    <aside className={`arena-matchcol min-h-0 flex-col gap-1.5 overflow-y-auto px-3.5 pb-3.5 pt-2 ${className}`} aria-label="Match">
+      <p className="arena-colh">Match</p>
+      {rows.map(({ side, them, sub }) => {
+        const on = side.player === view.turnPlayer;
+        return (
+          <div key={side.player} className="arena-mrow flex items-center gap-2.5 rounded-xl p-2.5" data-on={on ? "" : undefined}>
+            <span className="arena-avatar grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm" data-them={them ? "" : undefined} aria-hidden>
+              {side.name.slice(0, 1).toUpperCase()}
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <b className="block truncate text-[15px] text-space-50">{side.name}</b>
+              {sub && <small className="block truncate text-xs font-semibold text-space-300">{sub}</small>}
+              {on && <span className="arena-acting">Acting</span>}
+            </span>
+            <span className="arena-lifen arena-impact shrink-0 tabular-nums" aria-label={`${side.life} life`}>
+              {side.life}
+            </span>
+          </div>
+        );
+      })}
+      <p className="arena-colh">Phase</p>
+      <PhaseChips view={view} vertical />
+      <p className="arena-tip mt-auto">
+        Charge phase: double-click a hand card to charge it. Then drag cards onto the board to play them. Hover any card to review it on the right — yours,{" "}
+        {view.them.name}&apos;s, in hand or in play. Right-click pins it. Glowing cards are ready; ties go to the attacker.
+      </p>
+    </aside>
+  );
+}

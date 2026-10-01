@@ -62,7 +62,7 @@ export function Hand({
   const charging = cards.some((c) => chargeable?.(c.id));
 
   return (
-    <section className="arena-field relative" aria-label="Your hand">
+    <section className="arena-field arena-hand relative" aria-label="Your hand">
       <ZoneAnchor zone="p1:hand" />
       <div
         ref={fan}
