@@ -251,7 +251,8 @@ export function vocabularyOf(def: GameDefinition): Vocabulary {
 
 const keyOf = (def: Definition): string => `${def.define.toLowerCase()}:${def.name}`;
 /** A slot's type in words, for the mismatch message: `a duration`, `one of [active, rest]`, `a list of strings`. */
-const slotWord = (slot: FieldType | "number" | "side" | "area"): string => {
+const slotWord = (slot: FieldType | "count" | "side" | "area"): string => {
+  if (slot === "count") return "a count";
   if (typeof slot === "object") return "enum" in slot ? `one of [${slot.enum.join(", ")}]` : typeof slot.list === "object" ? `a list of [${slot.list.enum.join(", ")}]` : "a list of strings";
   return `${/^[aeiou]/.test(slot) ? "an" : "a"} ${slot}`;
 };

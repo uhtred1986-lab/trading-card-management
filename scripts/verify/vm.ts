@@ -1203,6 +1203,144 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     }
   }
 
+  // ── #137: the replace family and the counted moves, declared as macros ──
+  //
+  // `draw`, `damage`, `addLife`, `discard`, `replaceLeave`, `negateAttack`
+  // and `negateCounter` are declared in `ops.rules` over `moveTo`, `choose`
+  // and `replace`, and each lowered program runs through the same
+  // interpreter case as the op it was lowered from on either host — `moveAs`,
+  // `discardAs` and `replaceAs` read the primitive back as its spelling, and
+  // `collectStatics`/`permanents` already read a `replace` redirect as the
+  // `replaceLeave` it is. So the events, the beats a board draws, the board
+  // itself and the question put are the same both ways, on both engines —
+  // proved here with `DBS` itself, the ruleset every other block loads, for
+  // a plain count, X, `handUpTo`, "both players", both destinations of a
+  // discard and every narrowing of a replacement the compiler writes.
+  {
+    const plain = (x: unknown): unknown => JSON.parse(JSON.stringify(x ?? null));
+    type Seen = { events: unknown; beats: unknown; board: unknown; prompt: unknown; did: unknown };
+    type Stage = { vars?: Record<string, string[]>; x?: number; master?: PlayerId };
+    /** The harness's rules, with one card's [Permanent] record replaced — `CTX.scripts` compiles on read, so this is a view over it rather than a copy. */
+    const withRecord = (cardId: string, ops: Op[]) => {
+      const record = { bySkill: { 0: { ops, unsupported: [] } }, complete: true, unsupported: [] };
+      const scripts = new Proxy(CTX.scripts, { get: (base, key) => (key === cardId ? record : Reflect.get(base, key)) });
+      return { ...CTX, scripts } as typeof CTX;
+    };
+
+    /** The rules engine: p1's Main Phase, the board staged by `stage`, the program run from p1's Leader (or p2's, with `master`). */
+    const onRules = (ops: Op[], stage: (s: VmState) => Stage, ctx = CTX): Seen => {
+      const s = mainPhase();
+      const st = stage(s);
+      const master = st.master ?? "p1";
+      const ev: GameEvent[] = [];
+      const frame: ScriptFrame = { ops, ip: 0, vars: st.vars ?? {}, card: s.sides[master].zones.leader[0], master, ...(st.x !== undefined ? { x: st.x } : {}) };
+      stepScript(vmHost(ctx, DBS, s, ev), frame);
+      return { events: plain(ev), beats: plain(rulesEngine.toBeats(ctx, s, ev).list), board: plain(s.sides), prompt: plain(s.prompt), did: plain(frame.did) };
+    };
+    /** …and the legacy engine, its life dealt and the same staging. */
+    const onLegacy = (ops: Op[], stage: (l: GameState) => Stage, ctx = CTX): Seen => {
+      const l = createGame(ctx, SAME).state;
+      for (const p of ["p1", "p2"] as const) {
+        if (!l.players[p].life.length) l.players[p].life = l.players[p].deck.splice(0, 4);
+        if (!l.players[p].hand.length) l.players[p].hand = l.players[p].deck.splice(0, 4);
+      }
+      const st = stage(l);
+      const master = st.master ?? "p1";
+      const ev: GameEvent[] = [];
+      const frame: ScriptFrame = { ops, ip: 0, vars: st.vars ?? {}, card: l.players[master].leader, master, ...(st.x !== undefined ? { x: st.x } : {}) };
+      stepScript(legacyHost(ctx, l, ev), frame);
+      return { events: plain(ev), beats: plain(toBeats(ctx, l, ev).list), board: plain(l.players), prompt: plain(l.prompt), did: plain(frame.did) };
+    };
+    /** One spelling against its lowering on both engines; returns the spelled runs for a sanity check of what happened. */
+    const same = (what: string, spelled: Op[], rules: (s: VmState) => Stage, legacy: (l: GameState) => Stage, ctxOf: (ops: Op[]) => typeof CTX = () => CTX, run: Op[] = spelled) => {
+      const lowered = expandMacros(spelled, DBS);
+      assert.notDeepEqual(lowered, spelled, `${what}: ops.rules no longer lowers it, so this block proves nothing`);
+      // A program run *against* the record (a KO of the card holding it) is
+      // the same program both times: only the record is lowered.
+      const loweredRun = run === spelled ? lowered : run;
+      const r = { spelled: onRules(run, rules, ctxOf(spelled)), lowered: onRules(loweredRun, rules, ctxOf(lowered)) };
+      const l = { spelled: onLegacy(run, legacy, ctxOf(spelled)), lowered: onLegacy(loweredRun, legacy, ctxOf(lowered)) };
+      assert.deepEqual(r.lowered, r.spelled, `${what}: the spelling and its lowering do not run the same on the rules engine`);
+      assert.deepEqual(l.lowered, l.spelled, `${what}: the spelling and its lowering do not run the same on the legacy engine`);
+      return { r: r.spelled, l: l.spelled };
+    };
+    const nothing = (): Stage => ({});
+    const hand = (board: unknown, p: PlayerId): number => {
+      const b = board as Record<PlayerId, { zones?: { hand: string[] }; hand?: string[] }>;
+      return (b[p].zones?.hand ?? b[p].hand ?? []).length;
+    };
+
+    // The counted moves, and the counts a call can give them.
+    {
+      const before = { r: hand(plain(mainPhase().sides), "p1") };
+      const drew = same("draw 2", [{ op: "draw", n: 2 }], nothing, nothing);
+      assert.equal(hand(drew.r.board, "p1"), before.r + 2, "draw 2 drew nothing on the rules engine, so the parity is over an empty run");
+      same("draw X, both players", [{ op: "draw", n: { x: true }, side: "both" }], () => ({ x: 2 }), () => ({ x: 2 }));
+      same("draw until 8 in hand", [{ op: "draw", n: { handUpTo: 8 } }], nothing, nothing);
+      same("deal 1 damage", [{ op: "damage", n: 1 }], nothing, nothing);
+      same("take 2 damage", [{ op: "damage", n: 2, side: "you" }], nothing, nothing);
+      same("add the top card of your deck to your life", [{ op: "addLife", n: 1 }], nothing, nothing);
+    }
+
+    // 20-7: a discard is a question the hand's owner answers — the same
+    // question, put to the same player, either way.
+    {
+      const asked = same("your opponent discards 1", [{ op: "discard", n: 1, side: "opponent" }], nothing, nothing);
+      assert.equal((asked.r.prompt as { player?: string }).player, "p2", "the opponent was not the one asked to discard");
+      same("discard 1 to the Warp", [{ op: "discard", n: 1, to: "warp" }], nothing, nothing);
+      same("discard X", [{ op: "discard", n: { x: true } }], () => ({ x: 1 }), () => ({ x: 1 }));
+    }
+
+    // 8-1-6-1: an attack replaced by nothing — p2's Leader attacking p1's.
+    {
+      const fight = (attacker: string, guard: string) => ({ attacker, guard, target: guard, step: "defense" as const, negated: false, blockerOffered: true, counters: [] });
+      const negated = same(
+        "negate the attack",
+        [{ op: "negateAttack" }],
+        (s) => ((s.battle = fight(s.sides.p2.zones.leader[0], s.sides.p1.zones.leader[0])), {}),
+        (l) => ((l.battle = { ...fight(l.players.p2.leader, l.players.p1.leader), revenge: false, reactivate: false } as GameState["battle"]), {}),
+      );
+      assert.deepEqual(negated.r.did, { negateAttack: true, negateLeaderAttack: true }, "negateAttack did not negate a Leader's attack, so the parity is over an empty run");
+      assert.deepEqual(negated.l.did, negated.r.did);
+      same("negate the counter being answered", [{ op: "negateCounter" }], nothing, nothing);
+    }
+
+    // 9-10: a [Permanent] replacement, written as `replaceLeave` and as the
+    // `replace` redirect it lowers to, standing the same offer when the
+    // opponent's skill KOs the card or sends it to the Drop — every narrowing
+    // the compiler writes.
+    // A card of this block's own: its record is what each case swaps in, and
+    // the printed [Permanent] is only what makes the record be read (9-1-3).
+    DEFS.REPLACER = card("REPLACER", { energyCost: 2, power: 5000, skill: "[Permanent] If this card would leave the Battle Area, send it to your Warp instead." });
+    const KO: Op[] = [{ op: "ko", target: { var: "t" } }];
+    const SENT: Op[] = [{ op: "moveTo", target: { var: "t" }, to: "drop" }];
+    for (const [what, rec, run, ends] of [
+      ["leaving at all", { op: "replaceLeave", to: "warp" }, KO, "warp"],
+      ["being KO'd", { op: "replaceLeave", to: "warp", by: "ko" }, KO, "warp"],
+      ["a skill, the opponent's", { op: "replaceLeave", to: "hand", by: "skill", bySide: "opponent", target: { sel: { special: "self" } } }, SENT, "hand"],
+      ["a skill or a KO, in Rest Mode", { op: "replaceLeave", to: "energy", by: "skillOrKo", mode: "rest" }, KO, "energy"],
+    ] as const) {
+      let replacer = "";
+      const seen = same(
+        `replaceLeave: ${what}`,
+        [rec as Op],
+        (s) => ({ vars: { t: [(replacer = staged(s, "p1", "REPLACER"))] }, master: "p2" }),
+        (l) => {
+          const [id] = l.players.p1.deck.splice(0, 1);
+          l.cards[id].cardId = "REPLACER";
+          l.cards[id].mode = "active";
+          l.players.p1.battle = [id];
+          return { vars: { t: [id] }, master: "p2" };
+        },
+        (ops) => withRecord("REPLACER", ops),
+        run,
+      );
+      const zones = (seen.r.board as Record<PlayerId, { zones: Record<string, string[]> }>).p1.zones;
+      const at = Object.keys(zones).find((z) => zones[z].includes(replacer));
+      assert.equal(at, ends, `replaceLeave (${what}) did not send the card to ${ends} on the rules engine, so the parity is over an empty run`);
+    }
+  }
+
   // ── 9-1-4 and 7-4-5: a continuous effect, and the turn it ends with ───────
   {
     const s = mainPhase();
@@ -3704,27 +3842,15 @@ console.log("verify/vm: ok");
 //   that owns every other one, not to the one caller that happened to surface
 //   the gap.
 //
-// **What stays out, and why (#122).** `ops.rules`'s own header table already
-// names the reason `damage`/`addLife`/`lifeDownTo` (and `draw`/`discard`/
-// `mill`) carry no `DEFINE OP` row: the spec's nineteen primitives (§2) make
-// them macros over `moveTo`, but a macro's body can only give a selector's
-// `TOP $n`/`count` a bare `number` (`rulesets/holes.ts`'s `walkSelector`)
-// while these ops' own `n` is an `amount` — X included, and exercised
-// throughout this harness. Declaring the row today would validate, expand
-// every fixed-number card correctly and throw a `MacroError` on the first
-// X-priced one — the file's own opening paragraph names that exact shape as
-// worse than leaving the row out. No other row in `ops.rules` is declared
-// "for the fixed case, refused for X" — every row is either fully declared or
-// not there at all — so there is no local precedent for a partial declaration
-// either, which is itself evidence the file's own authors would not want one.
-// The honest scope is what `vm/host.ts`'s own header already says about the
-// rest of the primitive: reachable in full through `stepScript`, running the
-// same case the legacy engine runs, on the ops the compiler already emits for
-// real cards (`scripts/verify/keywords.ts`'s own compiler assertions include
-// a `lifeDownTo` reading) — the macro *declaration* is what stays #122's, not
-// the primitive. Test D below is the one assertion for that: the row is still
-// absent today, on purpose, and a future declaration attempt should fail loud
-// (`MacroError`) rather than pass quietly wrong.
+// **What was declared since, and what stays out (#137).** `damage` and
+// `addLife` (with `draw` and `discard`) are declared in `ops.rules` now: a
+// selector's `TOP $n` became a `count` slot that takes an `amount`, X
+// included, and `moveAs` reads each lowered move back as its own spelling
+// before either engine runs it, so Tests B/C's cases are what a lowered
+// program runs too (the parity itself is §20's block near the top of this
+// file). `lifeDownTo` stays undeclared: "until you have n life" is a count
+// of `life − n`, and an amount cannot subtract a parameter (the header's
+// `maths`). Test D holds both halves.
 {
   const rulesEngine = engineFor("rules");
 
@@ -3841,19 +3967,14 @@ console.log("verify/vm: ok");
     assert.equal(r.sides.p1.zones.hand.length, 2, "lifeDownTo did not add the 2 departing life cards to the hand (21-3-2)");
   }
 
-  // Test D: the macro row stays undeclared today — #122's, not this issue's —
-  // and a program that calls it unexpanded is what every card actually runs
-  // (`expandMacros`'s own "an op with no `DEFINE OP` is passed through
-  // untouched"), which is what Tests B/C exercise. If this ever starts
-  // failing because a `DEFINE OP damage` row was added to `ops.rules`, it is
-  // this comment's cue to be deleted, not patched around: check first that
-  // the row's `n` is written as `TAKES (n: amount, …)` reaching through a
-  // selector's count without a `MacroError`, i.e. that #122 actually landed.
+  // Test D: `damage` and `addLife` are declared, and lower to the one move
+  // `moveAs` reads back; `lifeDownTo` is not, and an undeclared op passes
+  // through `expandMacros` untouched — what every card calling it runs.
   {
-    assert.equal(DBS.ops["damage"], undefined, "damage has a DEFINE OP row — #122 landed, or the row silently misreads an X-priced card (ops.rules's own warning)");
-    assert.equal(DBS.ops["addLife"], undefined, "addLife has a DEFINE OP row — the same check");
-    assert.equal(DBS.ops["lifeDownTo"], undefined, "lifeDownTo has a DEFINE OP row — the same check, plus the subtraction #122 also owns");
-    assert.deepEqual(expandMacros([{ op: "damage", n: 1, side: "opponent" }], DBS), [{ op: "damage", n: 1, side: "opponent" }], "an undeclared damage op should pass through expandMacros untouched, not be silently altered");
+    assert.deepEqual(expandMacros([{ op: "damage", n: { x: true }, side: "opponent" }], DBS), [{ op: "moveTo", target: { sel: { take: { x: true }, side: "opponent", area: "life" } }, to: "hand", cause: "damage" }], "damage does not lower to the move ops.rules declares, X and all");
+    assert.deepEqual(expandMacros([{ op: "addLife", n: 1 }], DBS), [{ op: "moveTo", target: { sel: { take: 1, side: "you", area: "deck" } }, to: "life" }], "addLife does not lower to the move ops.rules declares");
+    assert.equal(DBS.ops["lifeDownTo"], undefined, "lifeDownTo has a DEFINE OP row — check that an amount can subtract a parameter first (ops.rules's `maths`)");
+    assert.deepEqual(expandMacros([{ op: "lifeDownTo", n: 2, side: "you" }], DBS), [{ op: "lifeDownTo", n: 2, side: "you" }], "an undeclared op should pass through expandMacros untouched, not be silently altered");
   }
 }
 

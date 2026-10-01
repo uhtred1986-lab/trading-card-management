@@ -501,7 +501,24 @@ assert.equal(unknownHook.clause, "KEYWORD");
     };
     assert.match(refused(lines("DEFINE OP power", "  TAKES (target: ref)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: 1, until: $until)", "  }")), /writes \$until in modifyAttr.until, which is not a parameter it TAKES/);
     assert.match(refused(lines("DEFINE OP power", "  TAKES (target: ref, until: side)", "  DO {", "    modifyAttr(target: $target, attr: power, amount: 1, until: $until)", "  }")), /\$until in modifyAttr.until, which holds a duration, but TAKES it as side/);
-    assert.match(refused(lines("DEFINE OP draw", "  TAKES (n: amount)", "  DO {", "    moveTo(target: TOP $n IN you.deck, to: hand)", "  }")), /\$n in moveTo.target.sel.take, which holds a number, but TAKES it as amount/);
+    // #137: a selector's count and `TOP n` are one `count` slot, which takes a
+    // number or a whole amount (X included) — and nothing else.
+    assert.match(refused(lines("DEFINE OP draw", "  TAKES (n: side)", "  DO {", "    moveTo(target: TOP $n IN you.deck, to: hand)", "  }")), /\$n in moveTo.target.sel.take, which holds a count, but TAKES it as side/);
+    for (const decl of [
+      lines("DEFINE OP draw", "  TAKES (n: amount)", "  DO {", "    moveTo(target: TOP $n IN you.deck, to: hand)", "  }"),
+      lines("DEFINE OP draw", "  TAKES (n: number)", "  DO {", "    moveTo(target: TOP $n IN you.deck, to: hand)", "  }"),
+      lines("DEFINE OP discard", "  TAKES (n: amount)", "  DO {", '    choose(sel: $n IN you.hand, as: "d")', "  }"),
+    ]) {
+      const loaded = loadRuleset({ "ops.rules": decl, "zones.rules": ZONES });
+      assert.ok(loaded.ok, `a count hole declared as a number or an amount was refused:\n${decl}`);
+      if (!loaded.ok) continue;
+      // …and the call's amount reaches the slot as it is: a number as a
+      // number, X as X (read back by `moveAs`/`discardAs` before it runs).
+      const name = Object.keys(loaded.definition.ops)[0];
+      const where = name === "draw" ? (o: Op[]) => (o[0] as unknown as { target: { sel: { take: unknown } } }).target.sel.take : (o: Op[]) => (o[0] as unknown as { sel: { count: unknown } }).sel.count;
+      assert.equal(where(expandMacros([{ op: name, n: 2 } as unknown as Op], loaded.definition)), 2);
+      if (decl.includes("amount")) assert.deepEqual(where(expandMacros([{ op: name, n: { x: true } } as unknown as Op], loaded.definition)), { x: true }, "X did not reach the count slot whole");
+    }
     assert.match(refused(lines("DEFINE OP may", "  TAKES (ops: cond)", "  DO {", "    if(cond: isTurnPlayer(), then: $ops)", "  }")), /\$ops in if.then, which holds an ops, but TAKES it as cond/);
     assert.match(refused(lines("DEFINE OP switchMode", "  TAKES (mode: string)", "  DO {", "    moveTo(target: [self], to: battle, mode: $mode)", "  }")), /holds one of \[active, rest\], but TAKES it as string/);
     // A `{ var }` in an amount or ref position is checked only when the macro
@@ -603,20 +620,24 @@ if (dbs.ok) {
   // writable is a declaration in it and nothing else: every one declared is a
   // row `OP_CLASS` marks *macro*, and the sweep in verify/language.ts is what
   // proves each lowers over the whole harness. The first three are #273's;
-  // #274 (a move told apart by its cause) adds only `ko` — `draw`, `discard`,
-  // `damage` and `addLife` all take `n` as an `amount`, X included, and a
-  // selector's count is typed a bare `number` (see `ops.rules`'s `count`).
-  // #276 (one primitive under the four negation spellings) adds the next
-  // four, #277 (a price is not a number) the next two, and #275 (a player
-  // and the battle in progress, as subjects) the last ten.
+  // #274 (a move told apart by its cause) adds only `ko`. #276 (one
+  // primitive under the four negation spellings) adds four more, #277 (a
+  // price is not a number) two, and #275 (a player and the battle in
+  // progress, as subjects) ten. #137 adds the last seven: `draw`, `discard`,
+  // `damage` and `addLife` once a selector's count could take an `amount`,
+  // and `replaceLeave`, `negateAttack` and `negateCounter` over `replace`.
   assert.ok("ops.rules" in DBS_FILES, "ops.rules is not in the set the app loads");
   assert.deepEqual(
     Object.keys(def.ops).sort(),
     [
+      "addLife",
       "addMarker",
       "altCost",
       "comboPower",
       "costReduction",
+      "damage",
+      "discard",
+      "draw",
       "energyMarker",
       "faceUp",
       "flip",
@@ -625,6 +646,8 @@ if (dbs.ok) {
       "hidden",
       "ko",
       "may",
+      "negateAttack",
+      "negateCounter",
       "negateKeyword",
       "negateOwnSkill",
       "negateSkills",
@@ -632,6 +655,7 @@ if (dbs.ok) {
       "power",
       "redirectAttack",
       "removeMarker",
+      "replaceLeave",
       "switchMode",
     ],
     "ops.rules declares a different set of macros than the tests expect",

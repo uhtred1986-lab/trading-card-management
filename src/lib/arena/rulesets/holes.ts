@@ -12,6 +12,14 @@
  * `OP_SCHEMA` and `COND_SCHEMA`, and the selector's own slots are the four a
  * macro can usefully leave open — a count, a `TOP n`, a side and an area.
  *
+ * The count and the `TOP n` are one slot type, `count` (#137): a macro may
+ * hand either a `number` or an `amount` — X included — because `draw`,
+ * `discard`, `damage` and `addLife` all take their `n` as an amount and all
+ * lower to a selector counted by it. No selector *runs* counted by an
+ * expression: the three moves and the one choice those four lower to are
+ * read back as the spelling they stand for before an engine resolves them
+ * (`moveAs`, `discardAs` in `engine/script-schema.ts`).
+ *
  * The `amount` and `ref` positions are the two the grammar could already write
  * `$name` in, and there a parameter is a `{ var }` — the same node a program's
  * own binding is. Those are reported too, typed as the field they sit in, and
@@ -22,8 +30,8 @@
 import { COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type FieldType, type Op, type Ref, type Selector } from "../engine/script";
 import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isHole } from "../lang/ast";
 
-/** What a slot holds: an op or condition field's type, or one of a selector's three scalar slots. */
-export type SlotType = FieldType | "number" | "side" | "area";
+/** What a slot holds: an op or condition field's type, or one of a selector's three scalar slots — its count (and `TOP n`), its side, its area. */
+export type SlotType = FieldType | "count" | "side" | "area";
 
 export interface HoleAt {
   /** The parameter the hole names. */
@@ -114,8 +122,8 @@ function walkSelector(sel: Selector | undefined, where: string, out: HoleAt[]): 
   const slot = (name: string, value: unknown, type: SlotType) => {
     if (isHole(value)) out.push({ name: value.hole, slot: type, form: "hole", where: `${where}.${name}` });
   };
-  slot("count", sel.count, "number");
-  slot("take", sel.take, "number");
+  slot("count", sel.count, "count");
+  slot("take", sel.take, "count");
   slot("side", sel.side, "side");
   slot("area", sel.area, "area");
   // #155: a field of the card filter, written open — `(colors = $colors)`.

@@ -11,7 +11,7 @@
  */
 import { skillsOf, sumReachable } from "./cards";
 import type { CardFilter } from "./filters";
-import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector, modifyAttrAs, negateAs } from "./script-schema";
+import { asksAQuestion, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs } from "./script-schema";
 import { resolveSelector, sideOf, type AltCost } from "./state";
 import type { ScriptHost } from "./script-host";
 import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
@@ -62,7 +62,15 @@ export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader"
  * departure's *cause* and mean nothing here: nobody's skill puts a card out
  * of the life area, damage does.
  */
-export type ReplaceEvent = "leave" | "ko" | "play" | "life";
+/**
+ * `"attack"` and `"counter"` (#137): the attack in progress and the [Counter]
+ * this skill is answering (8-1-6-1, 9-7), each replaced by *nothing* — the
+ * shape `negateAttack` and `negateCounter` lower to. Neither is a standing
+ * offer: `replaceAs` (`script-schema.ts`) reads the call back as the spelling
+ * it stands for before any engine looks at it, so those two cases stay the
+ * one reading of either, and a `with` that is not empty is a `note`.
+ */
+export type ReplaceEvent = "leave" | "ko" | "play" | "life" | "attack" | "counter";
 
 export interface Selector {
   side?: Side;
@@ -355,7 +363,7 @@ export type ModifyAttrSubject = "card" | "player" | "battle";
 export type Op =
   | { op: "draw"; n: Amount; side?: Side }
   /** Cards leave a hand, chosen by its owner (20-7); `to: "warp"` for "sends 1 card from their hand to their Warp". */
-  | { op: "discard"; n: Amount; side?: Side; to?: "warp" }
+  | { op: "discard"; n: Amount; side?: Side; to?: "drop" | "warp" }
   | { op: "damage"; n: Amount; side?: Side }
   /**
    * `as` names the cards that went to the Drop, so a later clause can ask
@@ -658,7 +666,11 @@ export type Op =
    * the engine can actually intercept — the glossary's "What a replacement
    * effect can replace" is the readable half of it:
    *   - `"leave"`  the card would leave the Battle Area (9-10-1). `by` narrows
-   *                it to a departure a skill caused, or a skill or a KO.
+   *                it to a departure a skill caused, or a skill or a KO, or
+   *                (`"ko"`) a KO alone — the same standing offer `"ko"` below
+   *                is, and the spelling `replaceLeave(by: ko)` lowers to
+   *                (#137), since a macro's body cannot pick the event by its
+   *                argument.
    *   - `"ko"`     the card would be KO'd, and nothing else about it changes.
    *   - `"play"`   the play being resolved (9-6), for a [Counter: Play].
    *
@@ -679,7 +691,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "skillOrKo"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -1171,13 +1183,19 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
       return "done";
     }
+    // `discard`'s two lowered steps (#137) are folded back into the one step
+    // they stand for before anything reads them, the way `discard`'s own case
+    // below splices itself out into a choice and a move.
+    const folded = discardAs(frame.ops, frame.ip);
+    if (folded) frame.ops = [...frame.ops.slice(0, frame.ip), folded, ...frame.ops.slice(frame.ip + 2)];
     // The `negate` (9-1-5, #276), `costModifier` (spec §2.5-4, #277) and the
     // nine `modifyAttr` widenings (spec §2.5-1/§2.5-3, #275) are run as the
-    // spelling each stands for: one dispatch, so the cases below are the
-    // only reading of any of them on either engine. None of the three ever
-    // reads an op another produces, so the order of the composition is
-    // immaterial.
-    const op = costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip])));
+    // spelling each stands for, and so are the `replace` of an attack or a
+    // counter and the three moves `draw`, `damage` and `addLife` lower to
+    // (#137): one dispatch, so the cases below are the only reading of any of
+    // them on either engine. None of them ever reads an op another produces,
+    // so the order of the composition is immaterial.
+    const op = moveAs(replaceAs(costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip])))));
 
     switch (op.op) {
       case "note":

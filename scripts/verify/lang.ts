@@ -19,7 +19,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
-import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/engine/script";
+import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, describeScript, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/engine/script";
 import { pendTriggers } from "../../src/lib/arena/engine/triggers";
 import type { CardScripts, GameState, KeywordSkill, Trigger } from "../../src/lib/arena/engine";
 import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
@@ -913,6 +913,23 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     assert.ok(unreadable.length >= 1, "§4b has no unreadable row — 20-9/20-13, 20-19 and others are known gaps");
     for (const [, issue] of unreadable) assert.ok(/^\d+$/.test(issue), `§4b's unreadable row does not name a numeric issue: ${issue}`);
   }
+}
+
+// ── #137: the words the replace family and `discard` gained ─────────────────
+//
+// Each is a value of a closed list the schema already prints and reads, so
+// the round trip is the ordinary one — and the macros' lowered forms are
+// programs a person can write and read back too.
+{
+  tripOps([{ op: "replace", event: "attack", with: [] }], "an attack replaced by nothing");
+  tripOps([{ op: "replace", event: "counter", with: [] }], "a counter replaced by nothing");
+  tripOps([{ op: "replace", event: "leave", by: "ko", with: [{ op: "moveTo", target: { sel: { special: "subject" } }, to: "warp" }] }], "a leave narrowed to a KO");
+  tripOps([{ op: "discard", n: 1, to: "drop" }], "a discard naming the Drop Area");
+  tripOps([{ op: "discard", n: 1 }], "a discard naming nowhere");
+  // …and `replace` of an attack reads as the spelling it stands for.
+  assert.equal(describeScript([{ op: "replace", event: "attack", with: [] }]), describeScript([{ op: "negateAttack" }]));
+  assert.equal(describeScript([{ op: "replace", event: "counter", with: [] }]), describeScript([{ op: "negateCounter" }]));
+  assert.equal(describeScript([{ op: "discard", n: 1, to: "drop" }]), describeScript([{ op: "discard", n: 1 }]), "naming the default Drop changed what a discard says");
 }
 
 console.log("verify/lang: the rules language round-trips");
