@@ -18,10 +18,12 @@
  *
  * The refusals, and what each waits on:
  *
- *   `ko`                              a KO is a move a rule makes, and the
- *                                     move-by-skill half is #146. `placeUnder`
- *                                     (23-2) is real now (#152), wired to
- *                                     `moveCard`'s own `under` option.
+ *   `ko` and `createToken` are real now (#146): a skill's KO is
+ *                                     `vm/battle.ts`'s `koCard`, and a token
+ *                                     is a card whose row is its id (19-1,
+ *                                     `withTokens`). `placeUnder` (23-2) is
+ *                                     real too (#152), wired to `moveCard`'s
+ *                                     own `under` option.
  *   `replacementsFor`, the two
  *   `setPlay*` and `replaceResolving` 9-10 and 9-6 both stand between a play
  *                                     being *declared* and its landing, and on
@@ -43,8 +45,6 @@
  *                                     `vm/battle.ts` writes.
  *   `addSkip`                         20-13 is a change to the flow, and the
  *                                     flow's skip list is #145's.
- *   `createToken`                     19-1: a token is a card the catalog has
- *                                     no row for, and `attrsOf` reads a row.
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
@@ -53,13 +53,15 @@ import type { ScriptHost } from "../engine/script-host";
 import type { Area, CardDef, KeywordSkill, Mode, MoveReason, PlayerId, Prompt } from "../engine/types";
 import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
-import { NotYet } from "./errors";
+import { tokenCardId } from "../engine/state";
+import { koCard } from "./battle";
+import { NotYet, RulesetBroken } from "./errors";
 import { emit, log } from "./events";
 import { fireHook } from "./hooks";
 import { resolvePlay } from "./play";
-import { SETUP_ZONES, arrivalMode, moveCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
-import { masterOf, skillsShowing } from "./triggers";
+import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import type { VmState } from "./state";
 
 /**
@@ -144,8 +146,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
-    ko: (id) => {
-      throw new NotYet(`KO ${nameOfCard(ctx, state, id)} — a KO is a move a rule makes, and moves by skill are declared in #146`, "#146");
+    // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
+    // prohibition it reads, the `ko` event and the moments it fires cannot
+    // differ by what caused it. The interpreter has already skipped
+    // [Indestructible] and "can't be KO'd by skills" (`stepScript`'s `ko`
+    // case, shared). `opts.replaced` is always absent or `null` here:
+    // `replacementsFor` finds nothing on this engine yet (9-10, below), so
+    // there is no route to honour.
+    ko: (id, by) => {
+      koCard(ctx, game, state, ev, id, by);
     },
     // 23-2: `moveCard`'s own `under` option already carries 23-2-2 through
     // 23-2-6 (#152 taught it 23-2-5's "different area → Drop" half, which it
@@ -224,8 +233,20 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     addSkip: (p, what) => {
       throw new NotYet(`skip ${p}'s ${what} (20-13) — the flow's skip list is #145's`, "#145");
     },
-    createToken: (_p, name) => {
-      throw new NotYet(`make a ${name} token (19-1) — a token is a card no catalog row describes, and every attribute is read off one`, "#146");
+    // 19-1: a card no catalog row describes, so its row is its id — the
+    // legacy `tokenCardId` encoding, which `withTokens` (`./cards.ts`) decodes
+    // wherever a row is read. The id, the zone end it joins and the one
+    // `token` event are the legacy engine's own, so the two logs agree; no
+    // `moved` moment fires here, because the interpreter pends the token's
+    // own `played` next (`stepScript`'s `token` case), exactly as it does
+    // for the legacy host.
+    createToken: (p, name, power, comboCost, comboPower, colors) => {
+      const id = `${p}#token${Object.keys(state.cards).length}`;
+      state.cards[id] = newCard(id, tokenCardId(name, power, comboCost, comboPower, colors), p);
+      const placed = moveCard(state, game, id, TOKEN_ZONE, { owner: p });
+      if (!placed.ok) throw new RulesetBroken(state.game, `a token cannot be made in the ${TOKEN_ZONE}: ${placed.refused}`);
+      log(ev, { type: "token", card: id, owner: p });
+      return id;
     },
 
     // ── moments ──────────────────────────────────────────────────────────
@@ -346,6 +367,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
 
 // ── the pieces more than one method needs ───────────────────────────────────
 
+/** 19-1-2: where a token is made — a Battle Area, by the name `DEFINE ZONE` gives it. */
+const TOKEN_ZONE = "battle";
+
 /** What to call a card in the log: the face showing, so a flipped Leader reads as its awakened name. */
 function nameOfCard(ctx: EngineContext, state: VmState, id: string): string {
   return faceOf(ctx, state, id).name;
@@ -385,11 +409,15 @@ function moveTo(
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     return;
   }
+  // Where it really went, which a rule about what the card *is* may change
+  // (19-1-7: a token leaving play is removed, `moveCard`'s own redirect) — and
+  // the owner whose copy of the zone it landed in (3-1-6-1's clamp).
+  to = placed.move.to;
   // 3-1-4: a card that changed area is a new card, so nothing that was in force
   // on it still is. A card moving *within* play carries them (3-1-4-1).
   if (!opts.carry && from !== to) dropEffectsOn(state, ev, id);
   if (from && fromOwner) {
-    log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner, ...(opts.reveal ? { reveal: true } : {}) });
+    log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
   }
   // `cause` is the field the two interpreters share a name for (`MoveOptions.reason`
   // on the legacy side): "damage", "ko", "combo", "effect" and a plain draw are one
@@ -453,7 +481,13 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     log(ev, { type: "note", text: `${trigger} is a moment no declaration names, so nothing answers to it` });
     return;
   }
-  emit(ctx, game, state, ev, { event: moment.event, card: id, controller, args: { ...moment.args, ...(subject ? { by: subject } : {}) } }, null);
+  // The legacy `pend(trigger, card)` asks **one** card whether one of its own
+  // skills answers to **one** trigger, and nothing else on the board hears
+  // it — so the moment is matched, and only that card's answer to that name is
+  // pended. Left as a broadcast, a token's `played` (19-1) would also reach
+  // every "when you play a card" watcher in play, which the legacy engine
+  // never pends for a token (#146).
+  pendAutos(ctx, game, state, { event: moment.event, card: id, controller, args: { ...moment.args, ...(subject ? { by: subject } : {}) } }, (m) => m.card === id && m.trigger === trigger);
 }
 
 /**

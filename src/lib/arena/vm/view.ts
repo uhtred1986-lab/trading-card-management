@@ -28,6 +28,7 @@ import type { CardDef, PlayerId } from "../engine/types";
 import type { BattleView, BoardView, CardArt, CardView, PromptView, SideView } from "../view";
 import { attrsOf, type Attrs } from "./cards";
 import { attrsNow } from "./program";
+import { isTokenCard } from "./zones";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
 import { PROMPT_QUESTIONS } from "../prompt-words";
@@ -198,9 +199,9 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     flipped: inst.flipped,
     markers: inst.markers,
     underCount: inst.under.length,
-    // Tokens are the `token` op's, which is Stage 5: nothing in a game on this
-    // engine has been made out of nothing yet.
-    isToken: false,
+    // 19-1: a token is the `token` op's (#146), told apart by the id its
+    // definition is encoded in (`isTokenCard`, `./zones.ts`).
+    isToken: isTokenCard(inst.cardId),
     // An X cost has no `energyCost` attribute at all — 1-2-2-2 says it counts
     // as 0 except while it is being paid, and the value being paid is named at
     // the moment of payment (#139's reading, and #146's payment). So a card

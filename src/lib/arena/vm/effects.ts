@@ -158,7 +158,7 @@ export const DEFERRED_STATICS: Record<string, string> = {
   immune: "#154 — immunity narrows what a skill may choose, and the hook group that reads choosing is Stage 7's",
   negateKeyword: "#153 — keywords are Stage 7's",
   gains: "#153",
-  replaceLeave: "#146 — a replacement stands in front of a move, and moves by skill are Stage 5's",
+  replaceLeave: "#146 — a replacement stands in front of a move; a skill's KO and moves are real since #146, but no [Permanent]'s replacement is collected yet, so `vm/host.ts`'s replacementsFor answers []",
 };
 
 /**

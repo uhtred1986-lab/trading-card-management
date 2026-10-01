@@ -48,7 +48,7 @@ import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
 import { applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, comboLegalActions, declareAttack, restoreNativePrompt } from "./battle";
 import { chargesOf, describePayment } from "./costs";
-import { attributeGaps, attrsForDefs, playerAttributes, type AttrProblem, type AttrValue } from "./cards";
+import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -119,7 +119,7 @@ export {
 } from "./activate";
 export { vmHost } from "./host";
 export { masterOf, matchTriggers, nextPending, pendAutos, skillsShowing, type TriggerMatch, type VmPending } from "./triggers";
-export { attributeGaps, attrsForDefs, attrsOf, cardAttributes, playerAttributes, type AttrProblem, type AttrValue, type Attrs, type AttributeGaps } from "./cards";
+export { attributeGaps, attrsForDefs, attrsOf, cardAttributes, playerAttributes, withTokens, type AttrProblem, type AttrValue, type Attrs, type AttributeGaps } from "./cards";
 export { FilterNeedsAttribute, MEASURES, attributesRead, attributesRequired, deferredMeasures, measuresUsed, predicateOf, skillsIn, usesMeasure, type Measure } from "./filters";
 export {
   arrivalMode,
@@ -127,6 +127,7 @@ export {
   findCard,
   hostOf,
   inPlayZones,
+  isTokenCard,
   moveCard,
   newCard,
   placeZones,
@@ -681,10 +682,12 @@ function toBeats(ctx: EngineContext, state: VmState, events: GameEvent[], after 
  */
 export const RULES = {
   id: "rules" as const,
-  createGame,
-  apply,
-  legalActions,
-  rejectedActions,
-  boardView,
-  toBeats,
+  // Each entry point sees the catalog through `withTokens` (`./cards.ts`), so a
+  // token the `token` op made (19-1) has a row wherever a card is read.
+  createGame: (ctx: EngineContext, options: GameOptions) => createGame(withTokens(ctx), options),
+  apply: (ctx: EngineContext, prev: VmState, action: Action) => apply(withTokens(ctx), prev, action),
+  legalActions: (ctx: EngineContext, state: VmState) => legalActions(withTokens(ctx), state),
+  rejectedActions: (ctx: EngineContext, state: VmState, legal: LegalAction[]) => rejectedActions(withTokens(ctx), state, legal),
+  boardView: (ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>) => boardView(withTokens(ctx), state, viewer, images),
+  toBeats: (ctx: EngineContext, state: VmState, events: GameEvent[], after = 0) => toBeats(withTokens(ctx), state, events, after),
 };

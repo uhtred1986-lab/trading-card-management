@@ -357,7 +357,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "When this card becomes the guard card, KO the attacking card at the end of the battle.",
     engine: "Marked on the battle when it becomes the guard and carried out when the battle ends, whatever happened in between.",
     engineRules:
-      "The `battleEnd` hook fires on the guard the same way (#156) — the contract's own worked example — but the body is not declared: the `ko` op it would run has no skill-driven implementation yet (#146), so declaring it would crash a game rather than leave it silently incomplete.",
+      "The `battleEnd` hook fires on the guard the same way (#156) — the contract's own worked example — but the body is not declared yet, so a Revenge card does not KO the attacker on the rules engine. It is no longer blocked: the `ko` op the body would run is real since #146 (a skill's KO is the battle's own KO, with the same events and moments as the legacy engine), and writing the body is #156's.",
     support: "engine",
   },
   Alliance: {
@@ -435,7 +435,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Honoured both by battle and by an opponent's script on the engine playing every game today. A card at 0 power or less still goes to the Drop Area — that is 21-6, not a KO.",
     engineRules:
-      "Honours the battle half the same way, read directly in the battle-KO step rather than through the hook (#154); the skill half's own `koByEffect` hook has no caller yet, because the rules engine does not resolve a skill's KO at all (#146) — nothing reaches it to be immune from.",
+      "Honours both halves. The battle half is read directly in the battle-KO step rather than through the hook (#154); the skill half is the shared script interpreter's own check, which skips an opponent's KO of an [Indestructible] card before the KO is made — real on the rules engine since a skill's KO is (#146) — and the `koByEffect` hook's own forbid (\"can't be KO'd by the opponent's skills\") answers the same interpreter's 20-14 check alongside it.",
     support: "engine",
   },
 

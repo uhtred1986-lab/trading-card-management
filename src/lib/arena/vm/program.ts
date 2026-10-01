@@ -36,8 +36,8 @@
  * printed rules), and a `REFUSE` can gate a move on one. [Indestructible]
  * (22-12)'s "or as a result of battle" half is `vm/battle.ts`'s own KO path,
  * not a prohibition — 9-1-4 immunity from a *skill*, `koByEffect`'s own case,
- * still has no real caller: the rules engine does not resolve a skill's `ko`
- * yet (`vm/host.ts`, #146), so nothing reaches it to be immune from.
+ * has had a real caller since #146: a skill's `ko` resolves (`vm/host.ts`), and
+ * the shared interpreter asks `forbids("beKOdBySkill")` before it does.
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
@@ -71,13 +71,12 @@ export const NAMED_ZONES = {
  * closes it.
  *
  * One entry today. `battled` left this list at #152 (see the module doc);
- * `immune` stays, with the reason it has *now* rather than the one it had
- * when Stage 7's hook groups were unbuilt — those landed (#154), and what
- * keeps 9-1-4 immunity from a skill unreachable is that no skill's KO reaches
- * it in the first place.
+ * `immune` stays, narrower now: a skill's KO reaches `koByEffect` since #146,
+ * so what is left unread is a [Permanent] that *grants* immunity — the
+ * `immune` op, `DEFERRED_STATICS`' own entry.
  */
 export const NARROWER: Record<string, string> = {
-  immune: "#146 — 9-1-4 immunity narrows what a skill may choose or KO, and `koByEffect`'s hook body (#154) has no caller until `vm/host.ts` resolves a skill's own `ko`",
+  immune: "#154 — 9-1-4 immunity granted by a [Permanent]'s `immune` op is not collected (DEFERRED_STATICS); a keyword's own `koByEffect` is read since #146 gave a skill's KO a caller",
 };
 
 /**
