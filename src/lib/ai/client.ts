@@ -17,6 +17,15 @@ export const MODEL = "claude-opus-5";
  */
 export const FAST_MODEL = "claude-haiku-4-5";
 
+/**
+ * The middle tier, ruled by the owner on 1 Oct 2026 (#381): deck summary, the
+ * arena's post-game review and the first pass of the card scan. Sonnet 5.5
+ * takes adaptive thinking and `output_config.effort`, so those calls keep the
+ * Opus request shape and only change the model. Its list price is in `PRICES`
+ * (`src/lib/arena/ai/run.ts`).
+ */
+export const SONNET_MODEL = "claude-sonnet-5-5";
+
 let cached: Anthropic | null = null;
 
 /**
