@@ -83,7 +83,7 @@ export function Takeover({ shape, cardProps, beat, note, yourPick, desk }: Stagi
   };
 
   return (
-    <div className={`arena-clash ${clash ? (clash.hit ? "arena-clash-hit" : "arena-clash-held") : ""}`} aria-label="the battle">
+    <div className={`arena-fight ${clash ? (clash.hit ? "arena-fight-hit" : "arena-fight-held") : ""}`} aria-label="the battle">
       <ClashBackdrop />
       {side(theirs, "top")}
       <span className={`arena-clash-vs arena-fx-vs arena-impact ${clash ? "arena-fx-vs-off" : ""}`} aria-hidden>

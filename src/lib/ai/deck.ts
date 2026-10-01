@@ -13,7 +13,7 @@ import { currentLineFor, gameOfSetCode } from "@/lib/catalog/sets";
 import { deckRules, gameInfo, type Game } from "@/lib/catalog/games";
 import { deckToText, getDeck, type DeckCardRow } from "@/lib/decks/queries";
 import { hasKeyword, rulesFor } from "@/lib/decks/cardRules";
-import { MODEL, anthropic, recordRun } from "./client";
+import { MODEL, SONNET_MODEL, anthropic, recordRun } from "./client";
 
 /**
  * The two games share a brand and nothing else, so the model is told which one
@@ -111,14 +111,14 @@ export async function summariseDeck(db: Db, deckId: number): Promise<{ runId: nu
 ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Summarise this deck.`;
 
   const res = await anthropic().messages.parse({
-    model: MODEL,
+    model: SONNET_MODEL,
     max_tokens: 8000,
     thinking: { type: "adaptive" },
     output_config: { effort: "medium", format: zodOutputFormat(DeckSummarySchema) },
     system: systemFor(deck.game),
     messages: [{ role: "user", content: prompt }],
   });
-  const { id, output } = await recordRun<DeckSummary>(db, "deck_summary", { deckId }, res, deckId);
+  const { id, output } = await recordRun<DeckSummary>(db, "deck_summary", { deckId }, res, deckId, SONNET_MODEL);
   const text = [
     `**${output.archetype}** — ${output.gamePlan}`,
     output.strengths.length ? `Strong: ${output.strengths.join("; ")}` : "",

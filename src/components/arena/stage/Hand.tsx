@@ -1,42 +1,33 @@
 "use client";
 
-import { motion } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { ZoneAnchor } from "./anchors";
 import { StageCard } from "./StageCard";
 
+/** A hand card at phone scale (`--arena` multiplies it from `sm` up): the redesign's 84 × 117. */
+export const HAND_W = 84;
+
 /**
- * Your hand, at two sizes.
+ * Your hand: a fan across the full width of the board, with no panel, handle
+ * or label (`docs/arena-redesign/` frame 01, the prototype's `.hand`).
  *
- * Closed it is the strip the classic board has: enough to see what you hold,
- * not enough to read it. Open, the cards are half again as big, fanned and
- * arced so they read as cards rather than as a filmstrip — which is the point,
- * because a card's text was previously unreachable without a long press.
- *
- * Drag the handle up or down, or tap it. The tilt is a CSS transform on a
- * child of the animated element (see `StageCard`), so the fan cannot confuse
- * the flight of a card leaving the hand for the board.
+ * The cards overlap just enough to fit the width — up to eight pixels apart
+ * when there is room, closer as the hand grows — and tilt and dip a little
+ * from the middle, so it reads as a hand held up rather than a filmstrip.
+ * The tilt is a CSS transform on a child of the animated element (see
+ * `StageCard`), so the fan cannot confuse the flight of a card leaving the
+ * hand for the board.
  */
 export function Hand({
   cards,
-  count,
-  name,
   cardProps,
-  controls,
-  children,
   dragId = null,
   dragFor,
   chargeable,
 }: {
   cards: CardView[];
-  count: number;
-  name: string;
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
-  /** The inline controls row above the hand. */
-  controls: React.ReactNode;
-  /** The log, when it is open — above the cards, never instead of them. */
-  children?: React.ReactNode;
   /** The card being dragged out of the hand (rd-03): it fades where it sits. */
   dragId?: string | null;
   /** The pointer handlers that make one card draggable, or null when it is not. */
@@ -44,87 +35,65 @@ export function Hand({
   /** In the Charge phase: this card can be charged, so it wears the dashed outline (rd-04). */
   chargeable?: (id: string) => boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  // A hand wider than the screen scrolls sideways, and a card that took every
-  // touch (`touch-action: none`) would make the far cards unreachable. So a
-  // scrolling hand lets a sideways swipe through and keeps the vertical one.
-  const strip = useRef<HTMLDivElement | null>(null);
-  const [scrolls, setScrolls] = useState(false);
+  // The fan is laid out from the width it has, so it is measured: the width of
+  // the hand, and the width of one card at the board's current scale.
+  const fan = useRef<HTMLDivElement | null>(null);
+  const [room, setRoom] = useState<{ width: number; card: number } | null>(null);
   useLayoutEffect(() => {
-    const el = strip.current;
+    const el = fan.current;
     if (!el) return;
-    const measure = () => setScrolls(el.scrollWidth > el.clientWidth + 1);
+    const measure = () => {
+      const scale = parseFloat(getComputedStyle(el).getPropertyValue("--arena")) || 1;
+      // Less the side padding (px-2.5): the fan lays out inside it.
+      setRoom({ width: el.clientWidth - 20, card: HAND_W * scale });
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [cards.length, open]);
-  const width = open ? 92 : 62;
+  }, []);
+
+  const n = cards.length;
+  const card = room?.card ?? HAND_W;
+  const wide = (room?.width ?? 0) >= 640;
+  // The prototype's spacing: never more than 8 px apart, and as close as it takes to fit.
+  const step = n > 1 && room ? Math.min(card + 8, (room.width - card) / (n - 1)) : card + 8;
+  const middle = (n - 1) / 2;
   const charging = cards.some((c) => chargeable?.(c.id));
-  const middle = (cards.length - 1) / 2;
 
   return (
-    <section className="relative rounded-t-2xl border-t border-space-700 bg-space-900/95 p-2 pb-3 sm:rounded-2xl sm:border sm:border-space-700/70 sm:p-3" aria-label="Your hand">
+    <section className="arena-field relative" aria-label="Your hand">
       <ZoneAnchor zone="p1:hand" />
-
-      {/* The handle: a drag target that is also a button, because both are
-          reasonable things to try and neither should fail. */}
-      <motion.div
-        drag="y"
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={0.25}
-        dragMomentum={false}
-        onDragEnd={(_, info) => {
-          if (info.offset.y < -18) setOpen(true);
-          else if (info.offset.y > 18) setOpen(false);
-        }}
-        className="mx-auto mb-1 flex w-full cursor-grab touch-none justify-center active:cursor-grabbing"
+      <div
+        ref={fan}
+        className={`flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
+        // One card's height and its dip, so an empty hand keeps the board's shape.
+        style={{ minHeight: `calc(${Math.round((HAND_W * 88) / 63)}px * var(--arena, 1) + 28px)` }}
       >
-        <button
-          type="button"
-          onClick={() => setOpen((x) => !x)}
-          aria-expanded={open}
-          aria-label={open ? "Make the hand smaller" : "Make the hand bigger"}
-          className="tap flex w-full flex-col items-center gap-1 py-1"
-        >
-          <span className={`h-1 rounded-full transition-all duration-200 ${open ? "w-16 bg-ki-500/70" : "w-10 bg-space-600"}`} />
-        </button>
-      </motion.div>
-
-      {/* The label keeps its own line when the inline controls need the width. */}
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] uppercase tracking-widest text-space-400 sm:mb-2 sm:text-xs">
-        <span className="whitespace-nowrap">
-          {name} · hand {count}
-        </span>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 normal-case tracking-normal">{controls}</div>
-      </div>
-
-      {children}
-
-      <div ref={strip} className={`flex overflow-x-auto pb-1 transition-all duration-200 ${open ? "gap-2 pt-3 sm:gap-3" : `gap-1 sm:gap-2 lg:gap-3 ${charging ? "pt-1.5" : ""}`} sm:[justify-content:safe_center]`}>
         {cards.map((c, i) => {
           const off = i - middle;
           const handlers = dragFor?.(c.id) ?? null;
+          const tilt = off * (wide ? 2.4 : 3.4);
+          const dip = Math.abs(off) * (wide ? 4 : 3.2);
+          const props = cardProps(c);
+          const up = props.state === "selected";
           return (
             <div
               key={c.id}
               {...handlers}
-              className={`shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
-              style={{ touchAction: handlers ? (scrolls ? "pan-x" : "none") : undefined, ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null) }}
+              className={`relative shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
+              style={{
+                marginLeft: i === 0 ? 0 : step - card,
+                zIndex: up ? 60 : i + 1,
+                // The fan never scrolls, so a drag may take every touch.
+                touchAction: handlers ? "none" : undefined,
+                ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null),
+              }}
             >
-              <StageCard
-                {...cardProps(c)}
-                width={width}
-                // A small tilt and a shallow arc: a hand, not a shear.
-                fan={open ? off * 2.5 : 0}
-                lift={open ? Math.abs(off) * 2.5 : 0}
-                lifts
-                holdLock={dragId === c.id}
-              />
+              <StageCard {...props} width={HAND_W} fan={up ? 0 : tilt} lift={dip} lifts holdLock={dragId === c.id} />
             </div>
           );
         })}
-        {cards.length === 0 && <span className="py-4 text-xs text-space-500 sm:text-sm">no cards in hand</span>}
       </div>
     </section>
   );

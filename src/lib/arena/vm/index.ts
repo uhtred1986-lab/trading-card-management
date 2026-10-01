@@ -47,7 +47,7 @@ import { PLAYERS, type PlayerId, type Requirement } from "../engine/types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt } from "./battle";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, spendProhibitionUse } from "./program";
 import { whoseSkills } from "../engine/script";
 import { chargesOf, describePayment } from "./costs";
@@ -486,6 +486,10 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       if (pr.kind !== "chooseMode" && pr.kind !== "replaceMove") throw new IllegalAction("no option is being offered");
       if (!Number.isInteger(action.index) || action.index < 0 || action.index >= pr.options.length) throw new IllegalAction("no such option");
       state.lastMode = action.index;
+      // #272: a life card's own question was put by the Damage Step itself
+      // (`vm/battle.ts`'s `dealDamage`), not by a program — so the step is
+      // asked to run again, and reads this answer as it picks up that card.
+      resumeDamage(state);
       break;
     }
     // #150: `attack`, `block`, `counter` and `combo` are native rather than

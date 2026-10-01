@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { untilWords } from "@/lib/arena/effects";
 import type { Action, PlayerId } from "@/lib/arena/engine";
 import type { MissingEnergyChip } from "@/lib/arena/wording";
@@ -23,6 +23,19 @@ export type CardProps = (c: CardView) => {
   outlined: boolean;
 };
 
+/**
+ * Card sizes on the field, at phone scale (`--arena` multiplies them from `sm`
+ * up). The redesign's (`docs/arena-redesign/prototype/arena.css`: `--lw`,
+ * `--cw`): a leader 80 × 112, a Battle Card 68 × 95 — the named size change
+ * spec §6 allows. The hand's 84 is in `Hand.tsx`.
+ */
+export const LEADER_W = 80;
+export const UNIT_W = 68;
+/** How many positions a Battle Area shows before it scrolls: cards, then dashed slots. */
+const SLOTS = 4;
+const h = (w: number) => Math.round((w * 88) / 63);
+const sized = (w: number) => ({ width: `calc(${w}px * var(--arena, 1))`, height: `calc(${h(w)}px * var(--arena, 1))` });
+
 export function MenuSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-2">
@@ -33,19 +46,13 @@ export function MenuSection({ title, children }: { title: string; children: Reac
 }
 
 export function ReferenceCounts({ side }: { side: SideView }) {
-  const p = side.player;
   return (
     <div className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2">
       <p className="text-sm font-semibold text-space-100">{side.name}</p>
       <dl className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-space-400 sm:text-xs">
-        <span className="relative">
-          <ZoneAnchor zone={`${p}:deck`} />
-          <Counter label="deck" value={side.deck} />
-        </span>
-        <span className="relative">
-          <ZoneAnchor zone={`${p}:drop`} />
-          <Counter label="drop" value={side.drop} />
-        </span>
+        <Counter label="hand" value={side.handCount} />
+        <Counter label="deck" value={side.deck} />
+        <Counter label="drop" value={side.drop} />
         {side.zDeck > 0 && <Counter label="Z" value={side.zDeck} />}
         {side.zEnergy > 0 && <Counter label="Z energy" value={side.zEnergy} />}
         {side.warp > 0 && <Counter label="warp" value={side.warp} />}
@@ -67,116 +74,6 @@ export interface DropState {
   say: boolean;
 }
 
-/** One player's Battle Area, collapsed until it holds a card. */
-/** `active`: it is this side's turn, so the row carries the faint band the frames light (#344). */
-export function BattleRow({ cards, cardProps, zone, label, active = false, drop = null }: { cards: CardView[]; cardProps: CardProps; zone: string; label: string; active?: boolean; drop?: DropState | null }) {
-  return (
-    // The outline and the pill live outside the row: the row scrolls sideways
-    // and would clip a pill that sits above it.
-    <div className="arena-dropzone relative" data-drop={drop ? (drop.ok ? "ok" : "no") : undefined} data-hot={drop?.hot ? "" : undefined}>
-      <div
-        className={`arena-row ${active ? "arena-row-on" : ""} relative flex items-center gap-1.5 overflow-x-auto [justify-content:safe_center] sm:gap-2 lg:gap-3 ${cards.length > 0 || drop?.ok ? "min-h-[calc(78px*var(--arena,1))]" : "min-h-[30px] justify-center"}`}
-      >
-        <ZoneAnchor zone={zone} />
-        {cards.map((c) => (
-          <StageCard key={c.id} {...cardProps(c)} width={52} />
-        ))}
-        {/* The next empty slot, pulsing, when the card can land in it. */}
-        {drop?.ok && <span className="arena-slot arena-slot-land shrink-0" style={{ width: "calc(52px * var(--arena, 1))", height: "calc(73px * var(--arena, 1))" }} aria-hidden />}
-        {cards.length === 0 && !drop?.ok && (
-          <div className="flex w-full items-center gap-2" aria-label={label}>
-            <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
-            <p className="text-[11px] text-space-500">no Battle Cards yet</p>
-            <span className="h-px flex-1 border-t border-dashed border-space-700/80" aria-hidden />
-          </div>
-        )}
-      </div>
-      {drop && (
-        <>
-          <span className="arena-drop-ring" aria-hidden />
-          {drop.say && (
-            <span className="arena-droptag" data-ok={drop.ok ? "" : undefined} role="status">
-              {drop.label}
-            </span>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-/**
- * The middle of the stage: the power figures, both Combo Areas, or a quiet
- * line. This is the `inplace` staging's own picture of a fight; when a band or
- * a takeover is drawing one, those cards are up there instead and this stands
- * down to the quiet divider, so the strip keeps its height and the board does
- * not jump as a battle opens.
- */
-export function ClashBand({ view, cardProps, staged = false }: { view: BoardView; cardProps: CardProps; staged?: boolean }) {
-  const b = staged ? null : view.battle;
-  if (!b) {
-    // The divider keeps the two Battle Areas apart and says nothing else.
-    // Whose turn it was used to be written here — 10 px, grey, centred between
-    // two rows where nothing draws the eye — which is how the most important
-    // fact on the board came to be ignored, and then contradicted by the
-    // headline beneath it. The turn pill says it now, and two turn indicators is
-    // how the first one came to be ignored (`docs/arena-hud-spec.md` §2.1).
-    return (
-      <div className="my-2 flex items-center gap-3 sm:my-3" aria-hidden>
-        <span className="h-px flex-1 bg-gradient-to-r from-transparent to-space-700" />
-        <span className="h-1 w-1 rounded-full bg-space-700" />
-        <span className="h-px flex-1 bg-gradient-to-l from-transparent to-space-700" />
-      </div>
-    );
-  }
-  const winning = b.attackPower >= b.guardPower;
-  return (
-    <div className="my-2 rounded-xl border border-ki-500/35 bg-gradient-to-b from-ki-500/10 to-transparent p-2 sm:my-3 sm:p-3">
-      <div className="arena-clash relative flex items-center justify-center gap-3 font-mono sm:gap-6">
-        <Count value={b.attackPower} className={`arena-impact relative text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
-        <span className="arena-impact relative text-[10px] font-bold tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
-        <Count value={b.guardPower} className={`arena-impact relative text-2xl font-black tabular-nums sm:text-4xl lg:text-5xl ${!winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
-      </div>
-      {(view.them.combo.length > 0 || view.you.combo.length > 0) && (
-        <div className="mt-2 flex items-end justify-between">
-          <div className="relative flex items-end gap-1 sm:gap-2">
-            <ZoneAnchor zone="p2:combo" />
-            <span className="self-center text-[10px] uppercase tracking-wider text-space-500 sm:text-xs">{view.them.name}</span>
-            {view.them.combo.map((c) => (
-              <StageCard key={c.id} {...cardProps(c)} width={32} />
-            ))}
-          </div>
-          <div className="relative flex items-end gap-1 sm:gap-2">
-            <ZoneAnchor zone="p1:combo" />
-            {view.you.combo.map((c) => (
-              <StageCard key={c.id} {...cardProps(c)} width={32} />
-            ))}
-            <span className="self-center text-[10px] uppercase tracking-wider text-space-500 sm:text-xs">you</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** The opponent's hand: a count, fanned, peeking over the top of the stage. */
-export function HandBacks({ count }: { count: number }) {
-  const shown = Math.min(count, 10);
-  return (
-    <div className="relative mb-1 flex items-start justify-center sm:mb-2" aria-label={`${count} cards in hand`}>
-      <ZoneAnchor zone="p2:hand" />
-      {Array.from({ length: shown }, (_, i) => (
-        <span
-          key={i}
-          className="arena-card-back -ml-1.5 h-[calc(24px*var(--arena,1))] w-[calc(22px*var(--arena,1))] rounded-b-[3px] border border-space-500 first:ml-0"
-          style={{ transform: `rotate(${(i - (shown - 1) / 2) * 2.5}deg)` }}
-        />
-      ))}
-      {count === 0 && <span className="text-[10px] uppercase tracking-widest text-space-600">empty hand</span>}
-    </div>
-  );
-}
-
 /** The explosion's 12 shards: angle in degrees and how far each flies, in px (the prototype's). */
 const SHARDS: readonly (readonly [number, number])[] = [
   [0, 74],
@@ -193,16 +90,239 @@ const SHARDS: readonly (readonly [number, number])[] = [
   [330, 64],
 ];
 
-/** A player's own corner of the table, with an anchor on every pile. */
-export function SideRail({
+/** Whether an element is wider than its box — so a row scrolls only when it must, and otherwise lets a lunge or a glow out. */
+function useOverflows<T extends HTMLElement>(dep: unknown) {
+  const ref = useRef<T | null>(null);
+  const [overflows, setOverflows] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setOverflows(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [dep]);
+  return [ref, overflows] as const;
+}
+
+/**
+ * One player's Battle Area, with their leader as its first card
+ * (`docs/arena-redesign/` frame 01): the leader, the unison, the Battle Cards,
+ * then dashed slots up to four positions, so the field keeps its shape from
+ * the first turn. Nothing is written in an empty row.
+ *
+ * `active`: it is this side's turn, so the row carries the faint wash.
+ */
+export function BattleRow({
   side,
-  them = false,
-  active = false,
+  cards,
   cardProps,
+  zone,
+  label,
+  active = false,
+  drop = null,
+  lifted,
   hurt = false,
   hit = null,
+}: {
+  side: SideView;
+  /** The Battle Cards to draw (those a staging lifted are already left out). */
+  cards: CardView[];
+  cardProps: CardProps;
+  zone: string;
+  label: string;
+  active?: boolean;
+  drop?: DropState | null;
+  /** Cards a battle staging is drawing, which this row must not draw twice. */
+  lifted?: ReadonlySet<string>;
+  /** This player is taking damage right now: the leader shakes. */
+  hurt?: boolean;
+  /**
+   * The damage beat on screen against this player (rd-07): an explosion on the
+   * leader. `n` is the beat's number, so a second hit in a row plays again.
+   */
+  hit?: { n: number; amount: number; critical: boolean } | null;
+}) {
+  const p = side.player;
+  const leader = side.leader;
+  const unison = side.unison && !lifted?.has(side.unison.id) ? side.unison : null;
+  const filled = cards.length + (unison ? 1 : 0);
+  const empty = Math.max(0, SLOTS - filled);
+  // The landing slot is the first empty one; a full row grows one to land in.
+  const slots = drop?.ok && empty === 0 ? 1 : empty;
+  const [rowRef, scrolls] = useOverflows<HTMLDivElement>(`${filled}|${slots}`);
+  return (
+    // The outline and the pill live outside the row: the row may scroll
+    // sideways and would clip a pill that sits above it.
+    <div className="arena-field arena-dropzone relative" data-drop={drop ? (drop.ok ? "ok" : "no") : undefined} data-hot={drop?.hot ? "" : undefined}>
+      <div
+        ref={rowRef}
+        aria-label={label}
+        className={`arena-row ${active ? "arena-row-on" : ""} flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ${scrolls ? "overflow-x-auto" : ""}`}
+        style={{ minHeight: `calc(${h(LEADER_W)}px * var(--arena, 1) + 16px)` }}
+      >
+        {/* The leader's own anchor, explosion and shake, on its slot. */}
+        <div key={hurt ? `${p}-hurt-${hit?.n ?? 0}` : p} className={`relative mr-[3px] shrink-0 sm:mr-1 ${hurt ? "arena-hurt" : ""}`}>
+          <ZoneAnchor zone={`${p}:leader`} />
+          {leader &&
+            (lifted?.has(leader.id) ? (
+              // A leader up in a band is drawn there and nowhere else, but the
+              // slot it left keeps its shape so the row does not collapse.
+              <span className="arena-slot arena-slot-lifted block" style={sized(LEADER_W)} aria-hidden />
+            ) : (
+              /* The footprint is reserved and the scale happens inside it, so
+                 the row does not reflow when the turn flips. */
+              <span className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`} style={sized(LEADER_W)}>
+                <StageCard {...cardProps(leader)} width={LEADER_W} />
+                {active && <span className="arena-leader-ring" aria-hidden />}
+              </span>
+            ))}
+          {!leader && <span className="arena-slot block" style={sized(LEADER_W)} aria-hidden />}
+          {/* The explosion, centred on the leader. The pieces are transforms, not shadows. */}
+          {hit && (
+            <span className={`arena-boom ${hit.critical ? "arena-boom-big" : ""}`} style={{ left: `calc(${LEADER_W / 2}px * var(--arena, 1))`, top: `calc(${h(LEADER_W) / 2}px * var(--arena, 1))` }} aria-hidden>
+              <span className="arena-boom-flash" />
+              <span className="arena-boom-ring" />
+              {SHARDS.map(([a, d]) => (
+                <i key={a} className="arena-boom-shard" style={{ "--a": `${a}deg`, "--d": `${d}px` } as React.CSSProperties} />
+              ))}
+            </span>
+          )}
+        </div>
+        <div className="relative flex min-w-0 items-center gap-[5px] sm:gap-2 lg:gap-3">
+          <ZoneAnchor zone={zone} />
+          {unison && <StageCard {...cardProps(unison)} width={UNIT_W} />}
+          {cards.map((c) => (
+            <StageCard key={c.id} {...cardProps(c)} width={UNIT_W} />
+          ))}
+          {Array.from({ length: slots }, (_, i) => (
+            // A slot gives way before a card does: on a narrow board the empty
+            // positions shrink so the cards keep their size.
+            <span
+              key={`slot-${i}`}
+              className={`arena-slot block ${drop?.ok && i === 0 ? "arena-slot-land" : ""}`}
+              style={{ ...sized(UNIT_W), flexShrink: 1, minWidth: 18 }}
+              aria-hidden
+            />
+          ))}
+        </div>
+      </div>
+      {drop && (
+        <>
+          <span className="arena-drop-ring" aria-hidden />
+          {drop.say && (
+            <span className="arena-droptag" data-ok={drop.ok ? "" : undefined} role="status">
+              {drop.label}
+            </span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The lane between the two Battle Areas.
+ *
+ * At rest it is a line with the narration pill on it — the last thing that
+ * happened, said once, in the middle of the field where the eye already is
+ * (`docs/arena-redesign/` frame 01). A tap on the pill opens the battle log.
+ *
+ * In the `inplace` staging it is also that staging's own picture of a fight:
+ * the power figures and both Combo Areas. When a band or a takeover is drawing
+ * the fight those cards are up there instead and the lane keeps its pill.
+ */
+export function Lane({
+  view,
+  cardProps,
+  staged = false,
+  narration,
+  onLog,
+  logOpen = false,
+  children,
+}: {
+  view: BoardView;
+  cardProps: CardProps;
+  staged?: boolean;
+  /** The sentence on the pill, and whose it is (the dot's colour). */
+  narration: { text: string; n: number; mine: boolean } | null;
+  onLog: () => void;
+  logOpen?: boolean;
+  /** The log, when it is open: drawn over the lane. */
+  children?: ReactNode;
+}) {
+  const b = staged ? null : view.battle;
+  if (b) {
+    const winning = b.attackPower >= b.guardPower;
+    return (
+      <div className="arena-field relative my-1 px-2 py-2 sm:my-2">
+        <div className="arena-clash relative flex items-center justify-center gap-3 sm:gap-6">
+          <Count value={b.attackPower} className={`arena-impact relative text-2xl tabular-nums sm:text-4xl lg:text-5xl ${winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
+          <span className="arena-impact relative text-[10px] tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
+          <Count value={b.guardPower} className={`arena-impact relative text-2xl tabular-nums sm:text-4xl lg:text-5xl ${!winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
+        </div>
+        {(view.them.combo.length > 0 || view.you.combo.length > 0) && (
+          <div className="mt-2 flex items-end justify-between">
+            <div className="relative flex items-end gap-1 sm:gap-2">
+              <ZoneAnchor zone="p2:combo" />
+              <span className="self-center text-[10px] uppercase tracking-wider text-space-500 sm:text-xs">{view.them.name}</span>
+              {view.them.combo.map((c) => (
+                <StageCard key={c.id} {...cardProps(c)} width={32} />
+              ))}
+            </div>
+            <div className="relative flex items-end gap-1 sm:gap-2">
+              <ZoneAnchor zone="p1:combo" />
+              {view.you.combo.map((c) => (
+                <StageCard key={c.id} {...cardProps(c)} width={32} />
+              ))}
+              <span className="self-center text-[10px] uppercase tracking-wider text-space-500 sm:text-xs">you</span>
+            </div>
+          </div>
+        )}
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div className="arena-field arena-lane relative flex min-h-[56px] flex-1 items-center justify-center px-3 py-1.5">
+      {narration && (
+        <button
+          type="button"
+          onClick={onLog}
+          aria-expanded={logOpen}
+          aria-label={`${narration.text} — open the battle log`}
+          className="arena-lanepill relative z-[1] flex min-h-11 max-w-full items-center gap-2 rounded-full py-2 pl-3 pr-4 text-left text-sm font-semibold leading-tight lg:text-base"
+        >
+          <span className="arena-lanepill-dot h-[9px] w-[9px] shrink-0 rounded-full" data-mine={narration.mine ? "" : undefined} data-them={narration.mine ? undefined : ""} aria-hidden />
+          <span key={narration.n} className="arena-drop line-clamp-2 min-w-0">
+            {narration.text}
+          </span>
+        </button>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/**
+ * A player's strip: one line with the avatar, the name, the life as skewed
+ * pips, the energy as chips, and the hand and deck counts at the right
+ * (`docs/arena-redesign/` frame 01, `.strip`). It carries the anchors for the
+ * piles a card flies to and from, and is the zone a dragged card charges into.
+ *
+ * Energy is chips because it is nearly always a count. When a prompt names an
+ * energy card — SD5-01's [Awaken] asks for up to 2 of your energy, and
+ * `hiddenChoices` keeps such a card out of the search sheet — the chips give
+ * way to the cards themselves, at a size a finger can hit, for as long as the
+ * question stands.
+ */
+export function PlayerStrip({
+  side,
+  them = false,
+  cardProps,
+  hit = null,
   narrator,
-  lifted,
   energyChips,
   drop = null,
   willRest = 0,
@@ -211,20 +331,10 @@ export function SideRail({
 }: {
   side: SideView;
   them?: boolean;
-  /** It is this side's turn: its leader owns the room (turn-presence spec §2.3). */
-  active?: boolean;
   cardProps: CardProps;
-  /** This player is taking damage right now. */
-  hurt?: boolean;
-  /**
-   * The damage beat on screen against this player (rd-07): an explosion on the
-   * leader, the emptied life pips shattering and -N LIFE rising. `n` is the
-   * beat's number, so a second hit in a row plays again.
-   */
+  /** The damage beat on screen against this player: the emptied pips shatter and -N LIFE rises. */
   hit?: { n: number; amount: number; critical: boolean } | null;
   narrator: { viewer: PlayerId; them: string };
-  /** Cards a battle staging is drawing, which this rail must not draw twice. */
-  lifted?: ReadonlySet<string>;
   energyChips?: MissingEnergyChip[];
   /** A card is being dragged and this is the zone it would charge into (rd-03). */
   drop?: DropState | null;
@@ -234,7 +344,6 @@ export function SideRail({
   gain?: { key: number; ms: number } | null;
   className?: string;
 }) {
-  const spent = side.energy.length - side.activeEnergy;
   const p = side.player;
   // A chip that arrives pops in (rd-04). The first render is not an arrival.
   const [seen, setSeen] = useState<{ ids: string[]; fresh: ReadonlySet<string> }>(() => ({ ids: side.energy.map((c) => c.id), fresh: new Set() }));
@@ -243,126 +352,92 @@ export function SideRail({
   const arrived = seen.fresh;
   const activeIds = side.energy.filter((c) => c.mode === "active").map((c) => c.id);
   const resting = new Set(willRest > 0 ? activeIds.slice(-willRest) : []);
-  /**
-   * Energy and face-up life are drawn small because they are nearly always a
-   * count rather than a choice. But a prompt can name them — SD5-01's [Awaken]
-   * asks for up to 2 of your energy — and `hiddenChoices` keeps a card the
-   * board already draws out of the search sheet, so this row is the only place
-   * such a choice can be answered. They therefore carry every prop a card in
-   * the Battle Area carries, and grow to a real target while they are askable.
-   * Passing only `suppressed` here left that [Awaken] with no answer on screen
-   * but "Choose none".
-   */
-  const pile = (c: CardView) => {
-    const props = cardProps(c);
-    return { ...props, width: props.onTap ? 44 : 22 };
+  // Active energy first, then rested, as the chips read left to right.
+  const energy = [...side.energy.filter((c) => c.mode === "active"), ...side.energy.filter((c) => c.mode !== "active")];
+  const askable = (c: CardView) => {
+    const s = cardProps(c).state;
+    return s === "legal" || s === "selected";
   };
-  return (
-    <aside
-      // Keyed on `hurt` so a second hit in the same turn shakes again rather
-      // than sitting still on an animation that already played.
-      key={hurt ? `${p}-hurt-${hit?.n ?? 0}` : p}
-      className={`flex items-center gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-2 sm:rounded-2xl sm:p-3 lg:w-44 lg:flex-col lg:items-stretch lg:gap-3 xl:w-52 ${hurt ? "arena-hurt" : ""} ${className}`}
-      aria-label={them ? `${side.name}'s side` : "Your side"}
-    >
-      <div className="relative flex shrink-0 items-end gap-1.5 lg:justify-center">
-        <ZoneAnchor zone={`${p}:leader`} />
-        {/* A leader up in a band is drawn there and nowhere else, but the slot
-            it left keeps its shape so the rail does not collapse under it. */}
-        {side.leader &&
-          (lifted?.has(side.leader.id) ? (
-            <span className="arena-slot arena-slot-lifted" style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }} aria-hidden />
-          ) : (
-            /* The footprint is reserved and the scale happens inside it, so
-               the rail does not reflow when the turn flips — the same rule
-               that keeps layout still between every other pair of states. */
-            <span className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`} style={{ width: `calc(56px * var(--arena, 1))`, height: `calc(78px * var(--arena, 1))` }}>
-              <StageCard {...cardProps(side.leader)} width={56} />
-              {active && <span className="arena-leader-ring" aria-hidden />}
-            </span>
-          ))}
-        {side.unison && !lifted?.has(side.unison.id) && <StageCard {...cardProps(side.unison)} width={48} />}
-        {/* The explosion, centred on the leader's slot. The pieces are transforms, not shadows. */}
-        {hit && (
-          <span className={`arena-boom ${hit.critical ? "arena-boom-big" : ""}`} style={{ left: `calc(28px * var(--arena, 1))`, top: `calc(39px * var(--arena, 1))` }} aria-hidden>
-            <span className="arena-boom-flash" />
-            <span className="arena-boom-ring" />
-            {SHARDS.map(([a, d]) => (
-              <i key={a} className="arena-boom-shard" style={{ "--a": `${a}deg`, "--d": `${d}px` } as React.CSSProperties} />
-            ))}
-          </span>
-        )}
-      </div>
+  const energyAsked = side.energy.some(askable);
+  const faceUp = [...side.lifeFaceUp, ...side.zDeckFaceUp];
+  const pips = Math.max(8, side.life);
+  const flag = them ? "" : undefined;
+  const lifeWord = `${side.life} life`;
+  const energyWord = `${side.activeEnergy} of ${side.energy.length} energy active`;
 
-      <div className="relative min-w-0 lg:text-center">
-        <ZoneAnchor zone={`${p}:life`} />
-        <p className="truncate text-xs font-semibold text-space-100 sm:text-sm">{side.name}</p>
-        <div className="flex items-baseline gap-1.5 lg:justify-center">
-          <span className={`arena-impact font-mono text-3xl font-black leading-none tabular-nums sm:text-4xl ${side.life <= 2 ? "text-loss" : "text-space-50"}`}>{side.life}</span>
-          <span className="text-[10px] uppercase tracking-widest text-space-500">life</span>
-        </div>
-        <span className="mt-1 flex gap-[2px] lg:justify-center">
-          {Array.from({ length: 8 }, (_, i) => (
-            <i key={i} className={`relative h-2 w-[5px] rounded-[1px] sm:h-2.5 sm:w-[6px] ${i < side.life ? "bg-gain" : "bg-space-700"}`}>
+  return (
+    <div className={`arena-field relative ${className}`} aria-label={them ? `${side.name}'s side` : "Your side"}>
+      <div
+        className="arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px]"
+        data-drop={drop ? (drop.ok ? "ok" : "no") : undefined}
+        data-hot={drop?.hot ? "" : undefined}
+      >
+        <ZoneAnchor zone={`${p}:energy`} />
+        <span className="flex min-w-0 shrink items-center gap-1.5 font-bold text-space-50">
+          <span className="arena-avatar grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-xs lg:h-7 lg:w-7 lg:text-sm" data-them={flag} aria-hidden>
+            {side.name.slice(0, 1).toUpperCase()}
+          </span>
+          <span className="truncate text-[13px] lg:text-base">{side.name}</span>
+        </span>
+        {/* Life: one skewed pip per card, the emptied ones an outline. */}
+        <span className="relative flex shrink-0 gap-[3px] sm:gap-1" role="img" aria-label={lifeWord}>
+          <ZoneAnchor zone={`${p}:life`} />
+          {Array.from({ length: pips }, (_, i) => (
+            <i key={i} className="arena-lp relative block h-[15px] w-[9px] sm:h-[17px] sm:w-3 lg:h-[22px] lg:w-4" data-them={flag} data-gone={i < side.life ? undefined : ""}>
               {/* The pips this beat emptied are the ones just past the life now left. */}
               {hit && i >= side.life && i < side.life + hit.amount && <b className="arena-pip-shatter" />}
             </i>
           ))}
-        </span>
-        {hit && (
-          <span className="arena-lifefloat text-xl sm:text-3xl" aria-hidden>
-            −{hit.amount} LIFE
-          </span>
-        )}
-        {side.leader?.power != null && <p className="mt-1 font-mono text-xs font-bold text-gain sm:text-sm">{side.leader.power.toLocaleString("en")}</p>}
-        {/* 3-9-2-1: a life card turned face up is open to both players, and the
-            skills that read it are counting these, so they are shown. */}
-        {(side.lifeFaceUp.length > 0 || side.zDeckFaceUp.length > 0) && (
-          <div className="mt-1 flex flex-wrap gap-[2px] lg:justify-center">
-            {[...side.lifeFaceUp, ...side.zDeckFaceUp].map((c) => (
-              <StageCard key={c.id} {...pile(c)} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="arena-dropzone relative ml-auto min-w-0 lg:ml-0" data-drop={drop ? (drop.ok ? "ok" : "no") : undefined} data-hot={drop?.hot ? "" : undefined}>
-        <ZoneAnchor zone={`${p}:deck`} />
-        <ZoneAnchor zone={`${p}:drop`} />
-        <ZoneAnchor zone={`${p}:energy`} />
-        {gain && !them && (
-          <span key={gain.key} className="arena-gain pointer-events-none absolute bottom-full right-0 z-10 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[11px] font-bold tracking-wider" style={{ animationDuration: `${gain.ms}ms` }} aria-hidden>
-            +1 ENERGY
-          </span>
-        )}
-        <div className="flex flex-wrap items-baseline gap-1 lg:justify-center">
-          <span className="font-mono text-base font-bold text-ki-300 sm:text-lg">
-            {side.activeEnergy}
-            <span className="text-space-500">/{side.energy.length}</span>
-          </span>
-          <span className="text-[10px] uppercase tracking-widest text-space-500">energy</span>
-          {side.energyMarkers > 0 && <span className="rounded bg-ki-500/20 px-1 font-mono text-[10px] text-ki-300">+{side.energyMarkers}</span>}
-          {energyChips && energyChips.length > 0 && (
-            <span className="ml-1 inline-flex flex-wrap items-center gap-1">
-              {energyChips.map((chip, i) => (
-                <span key={i} className={`rounded border ${drop ? "arena-miss border-dashed border-loss" : "border-loss/30"} bg-loss/15 px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none text-loss whitespace-nowrap`} title={chip.text}>
-                  {chip.text}
-                </span>
-              ))}
+          {hit && (
+            <span className="arena-lifefloat text-xl sm:text-3xl" aria-hidden>
+              −{hit.amount} LIFE
             </span>
           )}
-        </div>
-        <div className="mt-1 flex flex-wrap gap-[2px] lg:justify-center">
-          {side.energy.map((c) => (
-            <span key={c.id} className={arrived.has(c.id) ? "arena-chip inline-flex" : "contents"}>
-              <StageCard {...pile(c)} upsideDown pulse={resting.has(c.id)} />
+        </span>
+        {/* Energy: active chips upright, rested ones turned and grey. */}
+        {!energyAsked && (
+          <span className="relative flex min-w-0 shrink items-center gap-[2px] sm:gap-[3px]" role="img" aria-label={energyWord}>
+            {energy.map((c) => (
+              <i
+                key={c.id}
+                className={`arena-ec block h-[14px] w-[9px] min-w-[4px] shrink sm:h-[15px] sm:w-[10px] lg:h-[19px] lg:w-[13px] ${arrived.has(c.id) ? "arena-chip" : ""} ${resting.has(c.id) ? "arena-will" : ""}`}
+                data-them={flag}
+                data-off={c.mode === "active" ? undefined : ""}
+              />
+            ))}
+            {side.energyMarkers > 0 && <span className="arena-num ml-0.5 text-[11px] text-ki-300">+{side.energyMarkers}</span>}
+            {energyChips?.map((chip, i) => (
+              <span key={i} className="arena-ec-miss ml-0.5 whitespace-nowrap rounded-[3px] px-1 text-[10px] font-bold leading-[13px]" title={chip.text}>
+                {chip.text}
+              </span>
+            ))}
+            {gain && !them && (
+              <span key={gain.key} className="arena-gain arena-num pointer-events-none absolute bottom-full left-0 z-10 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] tracking-wider" style={{ animationDuration: `${gain.ms}ms` }} aria-hidden>
+                +1 ENERGY
+              </span>
+            )}
+          </span>
+        )}
+        <span className="ml-auto flex shrink-0 items-baseline gap-2.5 whitespace-nowrap tabular-nums">
+          {them && (
+            <span className="relative">
+              <ZoneAnchor zone={`${p}:hand`} />
+              hand <b className="font-bold text-space-50">{side.handCount}</b>
             </span>
-          ))}
-          {side.energy.length === 0 && <span className="text-[10px] text-space-600">none charged</span>}
-        </div>
-        {spent > 0 && <p className="mt-0.5 text-[10px] text-space-500 lg:text-center">{spent} rested</p>}
-        {/* Said only when the pointer is over the zone or it could take the
-            card, so the zone does not shout "Already charged" through every play. */}
+          )}
+          <span className="relative">
+            <ZoneAnchor zone={`${p}:deck`} />
+            deck <b className="font-bold text-space-50">{side.deck}</b>
+          </span>
+          <span className="relative hidden lg:inline">
+            <ZoneAnchor zone={`${p}:drop`} />
+            drop <b className="font-bold text-space-50">{side.drop}</b>
+          </span>
+          {/* Below lg the drop has no count on the strip, but a ghost still needs somewhere to fly. */}
+          <span className="relative lg:hidden" aria-hidden>
+            <ZoneAnchor zone={`${p}:drop`} />
+          </span>
+        </span>
         {drop && (
           <>
             <span className="arena-drop-ring" aria-hidden />
@@ -373,19 +448,34 @@ export function SideRail({
             )}
           </>
         )}
-        {/* Rules in force on the player rather than on a card — "can't attack
-            with Battle Cards" — which no card on the table could carry. */}
-        {side.rules && side.rules.length > 0 && (
-          <ul className="mt-1 space-y-0.5 text-[10px] leading-snug text-loss lg:text-center" aria-label={`Rules on ${them ? side.name : "you"}`}>
-            {side.rules.map((r, i) => (
-              <li key={i}>
-                ⛔ {r.label} · {untilWords(r.until, { master: r.by, viewer: narrator.viewer, them: narrator.them, sourceName: r.sourceName })}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
-    </aside>
+
+      {/* The rarer things a strip has no room for, on a line of their own and
+          only while they exist: energy a prompt is asking for, face-up life
+          (3-9-2-1, open to both players), and rules on the player. */}
+      {(energyAsked || faceUp.length > 0 || (side.rules?.length ?? 0) > 0) && (
+        <div className="mt-1 flex flex-wrap items-center gap-1 px-2">
+          {energyAsked &&
+            energy.map((c) => (
+              <span key={c.id} className={arrived.has(c.id) ? "arena-chip inline-flex" : "contents"}>
+                <StageCard {...cardProps(c)} width={44} upsideDown pulse={resting.has(c.id)} />
+              </span>
+            ))}
+          {faceUp.map((c) => (
+            <StageCard key={c.id} {...cardProps(c)} width={askable(c) ? 44 : 26} />
+          ))}
+          {side.rules && side.rules.length > 0 && (
+            <ul className="w-full space-y-0.5 text-[11px] leading-snug text-loss" aria-label={`Rules on ${them ? side.name : "you"}`}>
+              {side.rules.map((r, i) => (
+                <li key={i}>
+                  ⛔ {r.label} · {untilWords(r.until, { master: r.by, viewer: narrator.viewer, them: narrator.them, sourceName: r.sourceName })}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

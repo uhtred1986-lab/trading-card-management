@@ -27,6 +27,7 @@ import { chooseMove, ruleOnCard, type Tier } from "./opponent";
 /** Anthropic list prices, US dollars per million tokens (checked 4 Sep 2026). */
 export const PRICES: Record<string, { input: number; output: number }> = {
   "claude-opus-5": { input: 5, output: 25 },
+  "claude-sonnet-5-5": { input: 2, output: 10 },
   "claude-haiku-4-5": { input: 1, output: 5 },
 };
 
