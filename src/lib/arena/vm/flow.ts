@@ -57,6 +57,7 @@ import { fireHook, queryHookStatics } from "./hooks";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
 import { leaveRoute } from "./replace";
+import { expireSkips, takeSkip } from "./skips";
 import type { VmFrame, VmState } from "./state";
 
 // `other` is the engine's own: a game of two is what `DEFINE GAME players: 2`
@@ -309,6 +310,10 @@ const STEP_WORK: Record<string, Work> = {
       }
       state.turn++;
       state.turnPlayer = other(state.turnPlayer);
+      // 20-13: a skip entry that named the turn just ended is over with it,
+      // and so is a whole turn being skipped.
+      expireSkips(state);
+      delete state.skippedTurn;
       // The turn passing ends every frame of it: nothing declared after this
       // step belongs to the turn that has just ended.
       state.flow = [];
@@ -378,9 +383,10 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // Main Phase" names. No client draws a phase *ending* and the legacy
       // engine logs none, so it is a moment with no picture — which is exactly
       // what `emit`'s null second half is for.
-      emit(ctx, game, state, ev, { event: "phaseEnd", controller: state.turnPlayer, args: { phase: top.phase } });
+      // 20-13-2: a skipped phase's end is no moment either.
+      if (!top.skipped) emit(ctx, game, state, ev, { event: "phaseEnd", controller: state.turnPlayer, args: { phase: top.phase } });
       const next = phaseAfter(game, top.phase);
-      if (next) enterPhase(ctx, game, state, ev, next);
+      if (next) enterPhase(ctx, game, state, ev, next, top.skipped);
       // A frame popping back to an outer one is the battle sub-flow's shape
       // (Stage 6); nothing nests today, and the phase is restored here rather
       // than left reading the one that just finished.
@@ -392,7 +398,12 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     const step = game.steps[name];
     if (!step) throw new RulesetBroken(state.game, `${top.phase} names a step called ${JSON.stringify(name)}, which nothing declares`);
 
-    if (top.asking === undefined) {
+    // 20-13-1..4: a skipped phase's steps are not performed — no work, no
+    // question — except a step declared `always:` (20-13-5). The programs
+    // and the checkpoint below still see the frame, so a program an `always`
+    // step queued runs before the next step is looked at.
+    if (top.asking === undefined && top.skipped && !step.always) top.asking = [];
+    else if (top.asking === undefined) {
       top.asking = askers(state, step);
       const pended = state.pending.length;
       const worked = STEP_WORK[name]?.run(ctx, game, state, ev);
@@ -464,7 +475,8 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // next, and before any question is put — which is where the legacy
     // engine's own `{ op: "checkpoint" }` entries sit, because those are the
     // two places a player is about to be asked to act (9-6-6).
-    if (checkpoint(ctx, game, state, ev)) continue;
+    // 20-13-4: and none in a skipped phase.
+    if (!top.skipped && checkpoint(ctx, game, state, ev)) continue;
 
     // #150: a move taken at a native prompt that does not end its step (an
     // [Activate: Battle] at the combo prompt) asks the step again — now, with
@@ -536,12 +548,42 @@ function phaseAfter(game: GameDefinition, phase: string): string | null {
  * the start of your Main Phase" is no less that phase's start for a board that
  * does not put a card on the screen for it.
  */
-export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], name: string): void {
+export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], name: string, after?: string): void {
   const declared = game.phases[name];
   if (!declared) throw new RulesetBroken(state.game, `nothing declares a phase called ${JSON.stringify(name)}`);
   state.phase = name;
-  state.flow.push({ phase: name, index: 0, repeats: 0 });
+  const skipped = skippedAs(game, state, name, after);
+  state.flow.push({ phase: name, index: 0, repeats: 0, ...(skipped ? { skipped } : {}) });
+  // 20-13: a skipped phase is announced, so the board can say what did not
+  // happen, and is no moment — nothing answers to its start (20-13-2).
+  if (skipped) {
+    const shown = shownPhase(game, state, name);
+    if (shown) log(ev, { ...shown, skipped: true });
+    return;
+  }
   emit(ctx, game, state, ev, { event: "phaseStart", controller: state.turnPlayer, args: { phase: name } }, shownPhase(game, state, name));
+}
+
+/**
+ * 20-13: why this phase is skipped, or null when it is performed.
+ *
+ * A whole turn first: its entry is spent as the turn's first phase is entered,
+ * and every phase of that turn is then skipped by it (BT31-097, #278 — the
+ * turn still counts, `endTurn` advancing it as for any other). Then the
+ * phase's own declared `skip:` word: carried over from the phase just skipped
+ * when it is the same word (DBS's Main Phase End Step goes with the Main
+ * Phase), or an entry of the turn player's spent for it now. A phase that
+ * declares no word is skipped only with its turn.
+ */
+function skippedAs(game: GameDefinition, state: VmState, name: string, after?: string): string | null {
+  const turn = game.game?.phases ?? [];
+  if (!turn.includes(name)) return null;
+  if (name === turn[0] && takeSkip(state, state.turnPlayer, "turn")) state.skippedTurn = state.turn;
+  if (state.skippedTurn === state.turn) return "turn";
+  const word = game.phases[name].skip;
+  if (!word) return null;
+  if (after === word) return word;
+  return takeSkip(state, state.turnPlayer, word) ? word : null;
 }
 
 /**
@@ -560,7 +602,7 @@ function announce(game: GameDefinition, state: VmState, ev: GameEvent[], name: s
 }
 
 /** The picture a phase has in the log, or null for one the game asks not to announce or that the shared event union has no word for. */
-function shownPhase(game: GameDefinition, state: VmState, name: string): GameEvent | null {
+function shownPhase(game: GameDefinition, state: VmState, name: string): Extract<GameEvent, { type: "phase" }> | null {
   if (game.phases[name]?.announce === false) return null;
   if (!isPhaseWord(name)) return null;
   return { type: "phase", phase: name, player: state.turnPlayer, turn: state.turn };

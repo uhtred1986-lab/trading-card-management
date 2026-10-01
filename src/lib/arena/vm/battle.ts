@@ -81,6 +81,7 @@ import { fireHook } from "./hooks";
 import { lifeReplacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
+import { stepSkippedByPermanent, takeSkip } from "./skips";
 import type { VmBattle, VmState } from "./state";
 
 // ── the phase, from the Main Phase's own "attack" choice ────────────────────
@@ -202,11 +203,21 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
 
   battleOffense: {
     section: "8-2",
-    waits: "20-13's skip as something this step reads generically rather than never applying — no card in the harness skips a step yet, so the gap is unexercised, not fixed",
+    waits: "20-13's skip as a declared `skip:` on the step rather than read here natively — a battle step is the turn player's or the guard's, which a phase's word (always the turn player's) cannot say",
     run: (ctx, game, state, ev) => {
       const b = state.battle;
       if (!b || !battleIntact(state)) return abortToEnd(game, state);
       b.step = "offense";
+      // 20-13: "you skip your Offense Step" — announced and then not
+      // performed, so no [Auto] answers to its start and no combo is offered
+      // (`comboWork` reads `skipped`). A one-shot entry, or a [Permanent]
+      // holding while its own condition does (#278): the legacy
+      // `battleOffense`'s two readings, in its order.
+      if (takeSkip(state, state.turnPlayer, "offense") || stepSkippedByPermanent(ctx, game, state, state.turnPlayer, "offense")) {
+        (b.skipped ??= []).push("offense");
+        log(ev, { type: "battleStep", step: "offense", skipped: true });
+        return;
+      }
       log(ev, { type: "battleStep", step: "offense" });
       // `offenseStart` names no `watcher:` — it is `WHERE isTurnPlayer(who:
       // you)` alone, the same shape `phaseStart` fires with no `card` at all
@@ -219,7 +230,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
 
   battleDefense: {
     section: "8-3",
-    waits: "20-13's skip, the same gap `battleOffense` carries",
+    waits: "20-13's skip as a declared field, the same gap `battleOffense` carries",
     run: (ctx, game, state, ev) => {
       const b = state.battle;
       if (!b || !battleIntact(state)) return abortToEnd(game, state);
@@ -227,6 +238,12 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       const defender = other(state.turnPlayer);
       if (state.sides[defender].zones.unison?.includes(b.guard)) return;
       b.step = "defense";
+      // 20-13: "your opponent skips their Defense Step" — the guard's side.
+      if (takeSkip(state, defender, "defense") || stepSkippedByPermanent(ctx, game, state, defender, "defense")) {
+        (b.skipped ??= []).push("defense");
+        log(ev, { type: "battleStep", step: "defense", skipped: true });
+        return;
+      }
       log(ev, { type: "battleStep", step: "defense" });
       fire(ctx, game, state, { event: "stepStart", controller: defender, args: { step: "defense" } });
     },
@@ -629,6 +646,9 @@ function comboWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   // (`BATTLE_STEP_WORK`) and needs the same one, or a Unison guard would get
   // half a Defense Step instead of none (#152, found by staging it).
   if (side === "defense" && state.sides[other(state.turnPlayer)].zones.unison?.includes(b.guard)) return;
+  // 20-13: the combo offer is part of the step it belongs to, so a skipped
+  // step makes none.
+  if (b.skipped?.includes(side)) return;
   const player = comboSide(ctx, state, side);
   if (!comboEligible(ctx, game, state, player).length && !battleActivations(ctx, game, state, player).length) return;
   state.prompt = { kind: "combo", player, side };

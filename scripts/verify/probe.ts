@@ -374,11 +374,6 @@ if (ENGINE !== "legacy") {
         (old.log.includes(`${rule.def.name} goes to the Drop.`) && !rules.log.includes(`${rule.def.name} goes to the Drop.`) && !old.log.some((l) => l.startsWith(`${rule.def.name} is KO'd`))),
     },
     {
-      id: "skip",
-      says: "'Skip a turn/step' (20-13) is NotYet on the rules engine — the flow's skip list is #145's.",
-      holds: (_f, _old, rules) => /cannot skip/.test(rules.applied.join("|")),
-    },
-    {
       id: "keyword-negation-static",
       says: "A [Permanent] that negates a keyword (`negateKeyword`) is not collected on the rules engine (`DEFERRED_STATICS.negateKeyword`, #153), so the card still reads the keyword in force where legacy reads none.",
       holds: (_f, old, rules, rule) =>

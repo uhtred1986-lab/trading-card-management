@@ -47,8 +47,9 @@
  *                                     changes the battle in progress does,
  *                                     through `state.battle` the same
  *                                     `vm/battle.ts` writes.
- *   `addSkip`                         20-13 is a change to the flow, and the
- *                                     flow's skip list is #145's.
+ *   `addSkip` is real too (#439): an entry on the player's skip list
+ *                                     (`vm/skips.ts`), spent by the phase or
+ *                                     step it names as the flow reaches it.
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
@@ -67,6 +68,7 @@ import { SETUP_ZONES, arrivalMode, hostOf, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
+import { addSkip } from "./skips";
 import type { VmState } from "./state";
 
 /**
@@ -243,8 +245,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     schedule: (d) => {
       schedule(state, ev, d);
     },
-    addSkip: (p, what) => {
-      throw new NotYet(`skip ${p}'s ${what} (20-13) — the flow's skip list is #145's`, "#145");
+    // 20-13: an entry on the player's skip list, spent by the occurrence it
+    // names — a phase by its declared `skip:` word (`vm/flow.ts`), a battle
+    // step by `vm/battle.ts`'s own work, a whole turn as it begins.
+    addSkip: (p, what, when) => {
+      addSkip(state, p, what, when);
     },
     // 19-1: a card no catalog row describes, so its row is its id — the
     // legacy `tokenCardId` encoding, which `withTokens` (`./cards.ts`) decodes
