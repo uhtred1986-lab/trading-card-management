@@ -276,6 +276,12 @@ export interface VmState {
   battle?: VmBattle | null;
   /** 9-6: the play a [Counter: Play] window is open over, or null — #150's second field, absent on a state saved before it existed. */
   resolving?: VmResolving | null;
+  /**
+   * 22-45-3: how many markers the master chose to carry onto the Unison being
+   * played ([Empower]'s `empowerCarry` answer), until that play lands — #157's,
+   * absent on a state saved before it existed.
+   */
+  carried?: { card: string; n: number } | null;
 }
 
 /**

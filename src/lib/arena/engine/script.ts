@@ -399,7 +399,7 @@ export type Op =
    * read. Without it the card is played beside the host instead of onto it.
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
-  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true }
+  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -821,7 +821,15 @@ export type Op =
    * carries, which only a rules-engine keyword moment's frame does; anywhere
    * else it does nothing.
    */
-  | { op: "printedEffect" };
+  | { op: "printedEffect" }
+  /**
+   * [Empower]'s leaf (22-45-3, #157): the `markerCarry` query hook's answer —
+   * the master may carry up to `upTo` of the replaced Unison's markers onto
+   * this one, when the replaced card is `color` (any colour without one). Read
+   * where a play lands (`vm/host.ts`'s `playThen`), never run; the legacy
+   * engine reads [Empower] inline in `resolvePlay`.
+   */
+  | { op: "carryMarkers"; upTo: Amount; color?: Color | null };
 
 /**
  * The price before the colon, as the record holds it (4-3-3). Both halves are
@@ -1281,6 +1289,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // its damage (`vm/battle.ts`) rather than run — the legacy engine reads
       // the same keywords inline in `battleDamage`. Nothing to do as a step.
       case "battleDamage":
+        break;
+      // #157: a `markerCarry` hook body's leaf, read where a play lands. The
+      // same: nothing to do as a step.
+      case "carryMarkers":
         break;
 
       // #154: a keyword body's word — the line's printed effect, announced
@@ -2064,7 +2076,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.counterWindow ? { counterWindow: true } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

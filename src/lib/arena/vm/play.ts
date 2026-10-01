@@ -41,6 +41,7 @@ import { NotYet, RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
 import type { VmState } from "./state";
+import { attrsNow, queryHookStatics } from "./program";
 import { moveCard } from "./zones";
 
 /**
@@ -90,11 +91,10 @@ export const PLAY_ZONE_NAMES = [...new Set([...Object.values(PLAY_ZONES), ...Obj
 /**
  * How a card came to be played, beyond the card and the player.
  *
- * 13-2-3's markers are **not** here: a Unison arrives carrying the energy paid
- * for it, and `actions.rules` says so in the move's own program
- * (`addMarker(target: $card, n: X)`) rather than as a parameter of the play.
- * The legacy engine carries the number on its `play.resolve` flow step, which
- * is the same fact said in the place a `DEFINE ACTION` cannot reach.
+ * 13-2-3's markers are here since #157: a Unison arrives carrying the energy
+ * paid for it, which `actions.rules` says as `play(target: $card, markers: X)`
+ * — part of the arrival rather than a later step, so the markers [Empower]
+ * carries across land after them (22-45-3), the legacy `play.resolve`'s order.
  */
 export interface PlayOptions {
   /** 5-5: "play it in Rest Mode". */
@@ -111,6 +111,36 @@ export interface PlayOptions {
    * says so in the log.
    */
   negatedForTurn?: boolean;
+  /**
+   * 13-2-3: the markers a Unison arrives with, paid for as its cost — part of
+   * the arrival since #157, so markers carried across land after them (the
+   * `playUnison` move says `play(target: $card, markers: X)`).
+   */
+  markers?: number;
+  /** 22-45-3: markers carried across from the Unison this one replaced ([Empower], #157) — read before it left. */
+  carry?: { from: string; n: number };
+}
+
+/**
+ * 22-45-3: may markers come across onto this card from the one its arrival
+ * displaces? The card's `markerCarry` keyword bodies are read ([Empower]'s
+ * `carryMarkers` leaf), against the card already in the single-card area it
+ * is played into: the first whose colour the old card has (any, with none)
+ * gives the most — the least of its `upTo` and the markers the old card has.
+ * Null when nothing would be displaced or nothing answers.
+ */
+export function carryFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId): { from: string; max: number } | null {
+  const inst = state.cards[card];
+  const def = inst && ctx.defs[inst.cardId];
+  if (!def) return null;
+  const to = PLAY_ZONES[baseTypeOf(String(attrsOf(def, game).attrs.type ?? ""))];
+  if (!to || game.zones[to]?.single !== true) return null;
+  const from = (state.sides[player].zones[to] ?? []).find((id) => id !== card);
+  if (!from) return null;
+  const colors = (attrsNow(ctx, game, state, from).colors ?? []) as string[];
+  const fact = queryHookStatics(ctx, game, state, card, "markerCarry").find((f) => f.op === "carryMarkers" && (f.color == null || colors.includes(f.color)));
+  if (!fact || fact.op !== "carryMarkers" || fact.upTo <= 0) return null;
+  return { from, max: Math.min(fact.upTo, state.cards[from].markers) };
 }
 
 /**
@@ -170,6 +200,18 @@ export function resolvePlay(
   const host = opts.onto;
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to);
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true });
+
+  // 13-2-3, 22-45-3: the markers paid for it, then those carried across from
+  // the Unison it replaced, each its own beat — the carried one naming the
+  // card it left (#109) — the legacy `resolvePlay`'s order and words.
+  const paid = opts.markers ?? 0;
+  const carried = opts.carry?.n ?? 0;
+  if (paid || carried) state.cards[card].markers = paid + carried;
+  if (paid) log(ev, { type: "markers", card, delta: paid, total: paid });
+  if (carried && opts.carry) {
+    log(ev, { type: "markers", card, delta: carried, total: paid + carried, from: opts.carry.from });
+    log(ev, { type: "note", text: `Empower: ${carried} marker${carried === 1 ? "" : "s"} carried over` });
+  }
 
   // 5-5: "play it in Rest Mode" — the mode the play itself puts it in, which is
   // a fact about the arrival rather than a switch afterwards, so no

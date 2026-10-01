@@ -1,5 +1,5 @@
 /**
- * `HOOK_CONTRACT` — the fifteen hook points' pure data: which group owns a
+ * `HOOK_CONTRACT` — the sixteen hook points' pure data: which group owns a
  * body there, whether it is read or run, what it binds, what it means.
  *
  * A leaf on purpose, with no dependency beyond `rulesets/hooks.ts`'s name
@@ -15,7 +15,7 @@
  * back from `vm/hooks.ts` would be the cycle this file exists to avoid.
  *
  * See `vm/hooks.ts` for the full account of the contract — the two kinds of
- * hook, the four groups, the fifteen points, one worked example each
+ * hook, the four groups, the sixteen points, one worked example each
  * (`docs/arena-ruleset-spec.md` §4).
  */
 import { HOOK_POINTS, type HookPoint } from "../rulesets";
@@ -128,6 +128,12 @@ export const HOOK_CONTRACT: Record<HookPoint, HookSpec> = {
     answer: "query",
     vars: [],
     doc: "A price is being planned and is asking what else may pay it, or what it no longer demands. Read as a standing change, exactly as a [Permanent]'s program is (`vm/effects.ts`'s `keywordStatics`, from `vm/program.ts`'s `statics`), off every card in play that carries the keyword — because the answer is about *other* cards' prices, it is a change the price's own declared layers read (`attributes.rules`), not a fact about `self`. [Warrior of Universe 7]'s specified-cost clearing (22-19, #154) is the worked example: `costReduction(what: specified, all: true)` over your ≪Universe 7≫ cards in the hand and the Z-Deck. [Invoker]'s stand-in payer (22-37) is the other keyword filed here, and is not written yet.",
+  },
+  markerCarry: {
+    group: "D",
+    answer: "query",
+    vars: [],
+    doc: "A Unison is being played into an area that already holds one (13-2, 3-11-5), and `self` — the card being played — is asked, before the one it replaces leaves (leaving clears its markers, 5-13-3), whether markers may come across. A body ends in `carryMarkers(upTo: <amount>, color: <colour>)`, read declaratively: the master is asked how many of the replaced card's markers, from 0 up to the least of `upTo` and what it has, to carry onto `self` (a `color` the replaced card must have; none, any). The play waits on the answer (`vm/host.ts`'s `playThen`), and the carried markers land after the ones paid for it, naming the card they left. [Empower]'s “up to Y” (22-45-3, #157) is the worked example.",
   },
 };
 

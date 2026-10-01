@@ -112,7 +112,6 @@ function replaceGap(where: string): boolean {
 
 const S7 = {
   invoker: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D's altPayment channel, where #155 moved it: an alternative price on an Extra's activation ([Invoker])",
-  empower: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Empower])",
   rejuvenate: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: its marker price is printed as the line's text, so the 13-4 gates have no number to read ([Rejuvenate])",
 };
 
@@ -588,7 +587,7 @@ if (
   assertConsistentG(s);
 }
 
-if (!keywordGap("Empower", S7.empower)) {
+{
   // [Empower X Y] (22-45-3, owner's ruling 9 Sep 2026): a Unison replacing one
   // of colour X *may* carry up to Y of its markers over — a choice the master
   // makes, not an automatic maximum, so playing it asks rather than deciding
@@ -602,15 +601,45 @@ if (!keywordGap("Empower", S7.empower)) {
   assert.equal(s.prompt.kind, "empowerCarry", "22-45-3: carrying is asked, not assumed");
   assert.equal((s.prompt as { from: string }).from, old);
   assert.equal((s.prompt as { max: number }).max, 2, "capped by the printed Y of 2, though the old Unison had 3 markers");
-  s = playG(s, { type: "empowerCarry", player: "p1", amount: 2 });
+  assert.deepEqual(
+    IMPL.legalActions(CTX, s).map((a) => a.label),
+    ["Carry no markers", "Carry 1 marker", "Carry 2 markers"],
+    "every amount from none to the cap, in the same words on both engines",
+  );
+  const answered = IMPL.apply(CTX, s, { type: "empowerCarry", player: "p1", amount: 2 });
+  s = answered.state;
+  // The same beats on both engines (#157): the old Unison leaves, the new one
+  // arrives, the marker paid for it, then the two carried — naming the card
+  // they left — and the note.
+  const said = (answered.events as unknown as { type: string; card?: string; from?: string; to?: string; delta?: number; total?: number; text?: string }[])
+    .filter((e) => e.type !== "action")
+    .map((e) => (e.type === "markers" ? `markers +${e.delta}=${e.total}${e.from ? ` from ${s.cards[e.from].cardId}` : ""}` : e.type === "move" ? `move ${s.cards[e.card!].cardId} ${e.from}>${e.to}` : e.type === "note" ? `note ${e.text}` : e.type));
+  assert.deepEqual(said.slice(0, 5), ["move U1 unison>drop", "move EMP hand>unison", "markers +1=1", "markers +2=3 from U1", "note Empower: 2 markers carried over"]);
   const emp = unisonOf(s, "p1")!;
   assert.equal(s.cards[emp].cardId, "EMP");
   assert.ok(zoneOf(s, "p1", "drop").includes(old), "13-2-3: the old Unison went to the Drop");
   assert.equal(s.cards[emp].markers, 3, "22-45-2: 1 paid plus 2 carried over (of the 3 it had)");
   assertConsistentG(s);
+
+  // 22-45-3-1: an [Empower] naming no colour takes them from a Unison of any
+  // colour; one naming another colour takes none, and nothing is asked.
+  DEFS.EMPANY = { ...DEFS.U1, id: "EMPANY", name: "EMPANY", skill: "[Empower 2]" };
+  DEFS.EMPBLUE = { ...DEFS.U1, id: "EMPBLUE", name: "EMPBLUE", skill: "[Empower Blue 2]" };
+  for (const [id, asked] of [["EMPANY", true], ["EMPBLUE", false]] as const) {
+    let g = arenaG({ hand: ["U1", id], energy: ["V1", "V1", "V1", "V1", "V1"] });
+    g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", "U1"), x: 3 });
+    g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", id), x: 1 });
+    assert.equal(g.prompt.kind === "empowerCarry", asked, `${id}: asked only when the replaced Unison's colour matches`);
+    if (asked) g = playG(g, { type: "empowerCarry", player: "p1", amount: 1 });
+    assert.equal(g.cards[unisonOf(g, "p1")!].markers, asked ? 2 : 1);
+    assertConsistentG(g);
+  }
+  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  delete DEFS.EMPANY;
+  delete DEFS.EMPBLUE;
 }
 
-if (!keywordGap("Empower", S7.empower)) {
+{
   // Choosing fewer than the maximum — including none at all — is just as
   // legal an answer, and is the whole point of the choice existing.
   DEFS.EMP2 = { ...DEFS.U1, id: "EMP2", name: "EMP2", skill: "[Empower Red 2]" };

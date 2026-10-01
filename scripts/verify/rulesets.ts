@@ -943,7 +943,7 @@ if (dbs.ok) {
 // of the 39 real keywords carrying a body yet, which stays #153's own line.
 {
   const doc = fs.readFileSync(path.join(__dirname, "../../docs/arena-ruleset-spec.md"), "utf8").replace(/\r\n/g, "\n");
-  const start = doc.indexOf("### 4.1 The fifteen hook points");
+  const start = doc.indexOf("### 4.1 The sixteen hook points");
   const end = doc.indexOf("### 4.2 One worked example per hook", start);
   assert.ok(start >= 0 && end > start, "§4.1 is missing from the ruleset spec");
   const table = doc.slice(start, end);
@@ -983,7 +983,7 @@ if (dbs.ok) {
   // example (two adapted to this fixture's own zones and names, noted where
   // they are — kept in sync by hand; this block fails loudly if a body stops
   // parsing, which is the whole reason to run it rather than only read it).
-  const KEYWORD_AT: Record<string, { keyword: string; def: string }> = {
+  const KEYWORD_AT: Record<string, { keyword: string; def: string; granted?: Record<string, unknown> }> = {
     chooseable: {
       keyword: "Barrier",
       def: 'DEFINE KEYWORD Barrier\n  TAKES ()\n  text: "x"\n  HOOK chooseable {\n    forbid(what: beChosen, side: opponent, until: game)\n  }',
@@ -1036,11 +1036,17 @@ if (dbs.ok) {
       keyword: "Warrior of Universe 7",
       def: 'DEFINE KEYWORD "Warrior of Universe 7"\n  TAKES ()\n  text: "x"\n  HOOK altPayment {\n    modifyAttr(target: [self], attr: markers, amount: 0, until: game)\n  }',
     },
+    // #157: the sixteenth point, and a body that names its parameters.
+    markerCarry: {
+      keyword: "Empower",
+      granted: { name: "Empower", color: null, x: 2 },
+      def: 'DEFINE KEYWORD Empower\n  TAKES (color: color, x: number)\n  text: "x"\n  HOOK markerCarry {\n    carryMarkers(upTo: $x, color: $color)\n  }',
+    },
   };
   assert.deepEqual(Object.keys(KEYWORD_AT).sort(), [...HOOK_POINTS].sort(), "this test does not cover every hook point");
 
   const keywordsRules = lines(...Object.values(KEYWORD_AT).map((k) => k.def).filter(Boolean));
-  // The three attributes the fifteen worked hook bodies above write through
+  // The three attributes the sixteen worked hook bodies above write through
   // `modifyAttr` — `WHOLE` declares none, so #328's check needs its own
   // fixture rather than one shared with the "resolves" assertions above,
   // which count `WHOLE`'s declarations exactly.
@@ -1052,7 +1058,7 @@ if (dbs.ok) {
     'DEFINE ATTRIBUTE markers\n  of: card\n  value: number\n  text: "the markers on this card"',
   );
   const loaded = loadRuleset({ ...WHOLE, "keywords.rules": keywordsRules, "attributes.rules": hookAttrs });
-  assert.ok(loaded.ok, `the fifteen worked hook bodies did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors, null, 2)}`);
+  assert.ok(loaded.ok, `the sixteen worked hook bodies did not load: ${loaded.ok ? "" : JSON.stringify(loaded.errors, null, 2)}`);
   if (!loaded.ok) throw new Error("unreachable");
   const def = loaded.definition;
 
@@ -1076,13 +1082,15 @@ if (dbs.ok) {
   assert.ok(cardId, "a dealt hand was empty");
 
   let nextEffectId = 1;
-  for (const { keyword } of Object.values(KEYWORD_AT)) {
+  for (const at of Object.values(KEYWORD_AT)) {
+    const keyword = at.keyword;
     if (state.effects.some((e) => e.kind === "keyword" && (e.value as KeywordSkill).name === keyword)) continue;
     state.effects.push({
       id: nextEffectId++,
       target: cardId,
       kind: "keyword",
-      value: { name: keyword } as KeywordSkill,
+      // A keyword whose body names a parameter is granted with it (#157).
+      value: (at.granted ?? { name: keyword }) as KeywordSkill,
       until: "game",
       ownerTurn: "p1" as PlayerId,
       master: "p1" as PlayerId,

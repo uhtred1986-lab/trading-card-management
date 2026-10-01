@@ -61,7 +61,7 @@ import { koCard, openKeywordPlayWindow } from "./battle";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, log } from "./events";
 import { fireHook } from "./hooks";
-import { resolvePlay } from "./play";
+import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
@@ -381,12 +381,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     //
     // The plays happen on the spot and the frame goes back on the queue behind
     // them, which is the legacy engine's order (`play.resolve` steps first, the
-    // rest of the skill after). It is synchronous because nothing a play does
-    // on this engine asks a question: the counter window the legacy engine
-    // opens over a play is Stage 6's, and [Empower]'s "how many markers to
-    // carry" is a §22 keyword, #157's. A play that grows a question is a
-    // question this must learn to hold, and `resolvePlay` names the two that
-    // would.
+    // rest of the skill after). Two plays stop to ask first, and both hold the
+    // frame at its `play` step until answered: the [Counter: Play] window a
+    // keyword's own play opens (#155) and [Empower]'s "how many markers to
+    // carry" (#157, the `markerCarry` hook).
     playThen: (cards, opts, frame) => {
       // #155, 9-6: a keyword's own play ([Arrival], [Revive], [Successor]) is
       // declared, and the opponent may answer it with a [Counter: Play] before
@@ -394,11 +392,31 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // no counter they could use, nothing is asked and the play lands now.
       if (opts.counterWindow && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
       for (const id of cards) {
+        // 22-45-3 (#157): a `markerCarry` keyword ([Empower]) on a card
+        // replacing one that carries markers asks how many come across —
+        // before the old one leaves, since leaving clears them (5-13-3) — and
+        // the play waits on the answer: the frame is put back at this `play`
+        // step, which lands once `carried` holds the answer.
+        const carry = carryFor(ctx, game, state, id, opts.player);
+        const answered = state.carried?.card === id ? state.carried.n : undefined;
+        if (carry && carry.max > 0 && answered === undefined) {
+          state.programs.unshift({ ...frame, ip: frame.ip - 1 });
+          state.prompt = { kind: "empowerCarry", player: opts.player, card: id, from: carry.from, max: carry.max, ...(opts.markers !== undefined ? { markers: opts.markers } : {}) };
+          return "wait";
+        }
+        if (answered !== undefined) state.carried = null;
         // 9-6: the play a [Counter: Play] window was open over lands here, in
         // the manner the counter left it (5-5) — and is no longer being
         // resolved once it has, the legacy `s.resolving = null`.
         const r = state.resolving?.card === id && !state.resolving.replaced ? state.resolving : null;
-        resolvePlay(ctx, game, state, ev, id, opts.player, { mode: r?.rest ? "rest" : opts.mode, onto: opts.onto, negated: opts.negated, ...(r?.negated ? { negatedForTurn: true } : {}) });
+        resolvePlay(ctx, game, state, ev, id, opts.player, {
+          mode: r?.rest ? "rest" : opts.mode,
+          onto: opts.onto,
+          negated: opts.negated,
+          ...(r?.negated ? { negatedForTurn: true } : {}),
+          ...(opts.markers !== undefined ? { markers: opts.markers } : {}),
+          ...(carry && answered ? { carry: { from: carry.from, n: Math.min(Math.max(0, answered), carry.max) } } : {}),
+        });
         if (r) state.resolving = null;
       }
       state.programs.unshift(frame);

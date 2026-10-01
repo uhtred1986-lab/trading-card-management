@@ -557,6 +557,17 @@ move is about **one printed line** rather than about a card a `FOR` found:
     `CONDITIONS_OFF_A_CARD`.
   - `{<param>?<words>}` in `label:` and a requirement's words — the words only when a boolean
     parameter is set: `"{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"`.
+  - A sixteenth hook point, `markerCarry` (group D, query), and its leaf
+    `carryMarkers(upTo: <amount>, color: <colour>)`: a Unison played over another may take up to
+    `upTo` of its markers, from a Unison of that colour (any, with none). The play stops at the
+    `empowerCarry` question before the old one leaves, and the carried markers land after the paid
+    ones. [Empower] (22-45-3). The op is marked `offCard`.
+  - `play(…, markers: <amount>)` — the markers a Unison arrives with, paid as its cost (13-2-3),
+    as part of the arrival. `playUnison` says `play(target: $card, markers: X)`. Marked `offCard`.
+  - A keyword's `HOOK` body may write `$name` for a parameter it `TAKES` in **any** position, as
+    its `DO` may: `color: $color` fills an enum field. Before, only an amount could name one. A
+    parameter the printed keyword leaves empty (`null`, [Empower 2]'s colour) is absent, so an
+    optional field it fills is left out.
 
 ```
 DEFINE KEYWORD Overlord

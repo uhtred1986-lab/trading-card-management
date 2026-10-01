@@ -292,7 +292,7 @@ export interface ScriptHost {
    * [Counter: Play] window first (9-6). `"wait"` when the host stopped to ask
    * the opponent, with `frame` held until the window closes.
    */
-  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true }, frame: ScriptFrame): "wait" | void;
+  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true; markers?: number }, frame: ScriptFrame): "wait" | void;
 }
 
 /**
@@ -495,7 +495,7 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       s.flow.unshift({ op: "script.step", frame: first });
     },
     playThen: (cards, opts, frame) => {
-      const steps: FlowStep[] = cards.map((card) => ({ op: "play.resolve" as const, card, player: opts.player, mode: opts.mode, onto: opts.onto, negated: opts.negated }));
+      const steps: FlowStep[] = cards.map((card) => ({ op: "play.resolve" as const, card, player: opts.player, mode: opts.mode, onto: opts.onto, negated: opts.negated, ...(opts.markers !== undefined ? { markers: opts.markers } : {}) }));
       // #155: the shared word's legacy reading — the same two steps this
       // engine's own [Arrival]/[Revive]/[Successor] cases queue (no program of
       // this engine writes it).

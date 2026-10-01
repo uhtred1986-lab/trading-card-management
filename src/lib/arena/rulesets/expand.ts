@@ -100,7 +100,10 @@ export function bindKeywordCond(cond: Cond, takes: readonly { name: string; type
 function keywordArgs(takes: readonly { name: string; type: ParamType }[], values: Readonly<Record<string, unknown>>, def: GameDefinition): Args {
   const args: Args = new Map();
   for (const param of takes) {
-    const value = values[param.name];
+    // A parameter the printed keyword leaves empty — [Empower 2] names no
+    // colour, and its `color` is null — is absent, so an optional field it
+    // fills is left out rather than refused (#157).
+    const value = values[param.name] === null ? undefined : values[param.name];
     if (value !== undefined && !argHolds(param.type, value, def)) throw new MacroError(`the printed keyword's ${param.name} is ${JSON.stringify(value)}, and the keyword takes ${param.name} as ${param.type}`);
     args.set(param.name, { type: param.type, value });
   }

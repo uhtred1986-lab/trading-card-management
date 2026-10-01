@@ -311,7 +311,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Read before the old Unison leaves play, because leaving clears its markers (5-13-3). “Up to Y” is asked, not assumed — the master is prompted for how many to carry, from 0 to the cap `resolvePlay` works out (colour checked, capped by what the outgoing Unison actually has), and the play does not finish until it is answered (owner's ruling, 9 Sep 2026).",
     engineRules:
-      "Not built yet (#157 looked and left it): the carry is a question asked in the middle of a play, before the replaced Unison leaves, and the `play` op cannot suspend for an answer; the markers paid for the Unison are a later step of `playUnison`'s `DO` on this engine, so the carry belongs to that move rather than to `play`. Playing a Unison over another works; nothing is carried and nothing is asked. Gated in `verify/keywords.ts`.",
+      "Built as a `markerCarry` hook body (`carryMarkers(upTo: $x, color: $color)` in `keywords.rules`, #157), the same prompt, answers and events as the legacy engine. As the Unison is played over another, the body is read; if the replaced one is the named colour (any, for an [Empower] naming none) and carries markers, the play stops at the same `empowerCarry` question, 0 up to the least of Y and what it has, before the old Unison leaves. The markers paid for the new one land first (`play … markers: X`, part of the arrival), then the carried ones, naming the card they left, and the note.",
     support: "engine",
   },
 

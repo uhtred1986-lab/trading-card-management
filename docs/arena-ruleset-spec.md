@@ -193,6 +193,7 @@ disagree or if a row is missing from either.
 | `note` | primitive | A remark in the log; nothing to lower it to. |
 | `setPlayerAttr` | primitive | Sets a `DEFINE ATTRIBUTE of: player` fact by name (issue #269). Not a `modifyAttr` macro: that op reads and writes a *card's* attribute by a delta or a value list, and a player fact declared boolean has neither — 13-3's `grewUnison` is set once, true, and cleared only by its declaration's own `reset: turnStart`, never added to or subtracted from. |
 | `battleDamage` | primitive | How the battle damage an attacker deals lands (8-4-6) — at least *X*, to the Drop face up, every marker off a Unison, the game won once it lands (#156). A keyword's own word, on no card (`OpSpec.offCard`): the leaf of a `beforeDamage` body, **read** at the moment damage lands rather than run, because a queued program would run after the life cards had moved. Not a `modifyAttr`: what changes is a rule of one battle step, not an attribute any card carries or any other reading asks about. |
+| `carryMarkers` | primitive | How many of the replaced Unison's markers a Unison played over it may take, and from a Unison of which colour (22-45-3, #157). A keyword's own word, on no card (`OpSpec.offCard`): the leaf of a `markerCarry` body, **read** as the play lands rather than run — the master is asked how many, from none to the least of `upTo` and what the old card has, before it leaves. Not a `modifyAttr`: the number is a ceiling on a question, not a change to any card. |
 | `printedEffect` | primitive | The line's own printed effect, announced as printed and run at this point of a keyword moment's `DO`, in the same frame, so it reads what the `DO` bound (#154). A keyword's own word, on no card (`OpSpec.offCard`): [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3), and not at all when none were. Not `AFTER`: that is a move's last word and always runs; this is a step a moment's body takes, or does not take, where it says. The rules engine puts the effect on the frame (`ScriptFrame.printed`); anywhere else the step does nothing. |
 
 ### 2.4 The conditions
@@ -780,7 +781,7 @@ Until a keyword's own body is written (Stage 7's `s7-0{2,3,4,5}` issues), a keyw
 rules engine is a skill that never pends: nothing reaches it, a game on that engine plays pass,
 endMain and concede (#140), and playing, attacking and activating are Stage 5's `DEFINE ACTION`s.
 
-### 4.1 The fifteen hook points
+### 4.1 The sixteen hook points
 
 Taken from the plan's own fifteen names, confirmed against a full inventory of every `has(`/
 `keyword(`/`hasKeyword(` call in `src/lib/arena/engine/` (38 sites across 7 files — reproduce with
@@ -838,6 +839,7 @@ has — no new grammar, because none is needed.
 | `playRefused` | D | query | — | a play is being checked for legality, before cost (5-5, 20-4), and `self` is a card in play whose keyword may refuse it (#157) |
 | `chargeLimit` | D | effect | — | `self` is about to be placed in an Energy Area, from any source (22-31) |
 | `altPayment` | D | query | — | a price is being planned and is asking what else may pay it, or what it no longer demands |
+| `markerCarry` | D | query | — | a Unison is being played over another, before that one leaves; a body ends in `carryMarkers`, and the play waits on how many markers come across (22-45-3, #157 — the sixteenth point, added for [Empower]) |
 
 ### 4.2 One worked example per hook
 
@@ -1156,10 +1158,12 @@ in the place its `DO` names. The remaining three:
 through the [Counter: Play] window (`play … counterWindow: true`). [Over Realm]'s shared use a turn
 is a counted player fact (`overRealms`, `setPlayerAttr … add`, `playerAttr … atLeast`), raised to two
 by a [Wormhole] in play. [Dark Over Realm] is told apart by `flag(value: $dark)`.
-[Empower]'s carry is a question asked in the middle of a play, before the replaced Unison leaves — the
-`play` op cannot suspend for an answer on either interpreter's shared `stepScript`, and on this engine
-the paid markers are a later step of `playUnison`'s `DO`, so the carry belongs to the move (an op of
-its own, or a `play` field) rather than to `play`.
+[Empower]'s carry is a question asked in the middle of a play, before the replaced Unison leaves. It
+is a sixteenth hook point, `markerCarry` (§4.1), whose `carryMarkers` leaf the rules engine's
+`playThen` reads as the play lands. With markers to carry it puts the frame back at its `play` step
+and asks the legacy engine's own `empowerCarry` question (the same prompt, answers and action, so a
+saved game's answer replays). The paid markers became part of the arrival
+(`play(target: $card, markers: X)`) so the carried ones land after them, as on the legacy engine.
 
 **Group B's keywords (#155).** Five are built, each against the legacy engine event for event, and
 they needed seven words the shapes above did not have (`docs/arena-rules-language.md` §3b): the

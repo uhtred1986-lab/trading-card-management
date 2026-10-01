@@ -358,6 +358,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         type: "boolean",
         offCard: "opens the [Counter: Play] window a declared play opens (9-6, 22-10) before the card lands — the play a keyword's own move makes ([Arrival], [Revive], [Successor]), where a play a card's skill makes opens none (5-5-3)",
       },
+      {
+        name: "markers",
+        type: "amount",
+        offCard: "the markers a Unison arrives with, paid for as its cost (13-2-3) — part of the arrival, so markers a [Empower] carries across land after them (22-45-3, #157); the `playUnison` move's own word",
+      },
     ],
     sentence: "play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}",
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
@@ -719,6 +724,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     offCard:
       "the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's",
   },
+  carryMarkers: {
+    fields: [
+      { name: "upTo", type: "amount", required: true },
+      { name: "color", type: { enum: COLORS }, nullable: true },
+    ],
+    sentence: "carry up to {upTo:marker} from the Unison this one replaces{color? if it is {color}}",
+    offCard:
+      "the leaf of a keyword's markerCarry hook: a Unison played over another may take up to this many of its markers, the master's choice from none to the most it has (22-45-3, [Empower]); with a colour, only from a Unison of that colour",
+  },
 };
 
 /**
@@ -798,6 +812,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   setPlayerAttr:      "primitive",
   battleDamage:       "primitive",
   printedEffect:      "primitive",
+  carryMarkers:       "primitive",
 };
 
 /**

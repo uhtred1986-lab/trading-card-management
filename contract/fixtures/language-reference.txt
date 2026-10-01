@@ -448,6 +448,13 @@
           "nullable": false,
           "offCard": "opens the [Counter: Play] window a declared play opens (9-6, 22-10) before the card lands — the play a keyword's own move makes ([Arrival], [Revive], [Successor]), where a play a card's skill makes opens none (5-5-3)",
           "type": "boolean"
+        },
+        {
+          "name": "markers",
+          "required": false,
+          "nullable": false,
+          "offCard": "the markers a Unison arrives with, paid for as its cost (13-2-3) — part of the arrival, so markers a [Empower] carries across land after them (22-45-3, #157); the `playUnison` move's own word",
+          "type": "amount"
         }
       ],
       "sentence": "play this card",
@@ -2181,6 +2188,37 @@
       "sentence": "the line's printed effect resolves",
       "doc": "A keyword's own word, on no card: the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's.",
       "offCard": "the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's"
+    },
+    {
+      "name": "carryMarkers",
+      "class": "primitive",
+      "signature": "{\"op\":\"carryMarkers\",\"upTo\":AMOUNT,\"color\"?:\"Red\"|\"Blue\"|\"Green\"|…}",
+      "fields": [
+        {
+          "name": "upTo",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "color",
+          "required": false,
+          "nullable": true,
+          "type": "enum",
+          "enumValues": [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        }
+      ],
+      "sentence": "carry up to +1 marker from the Unison this one replaces",
+      "doc": "A keyword's own word, on no card: the leaf of a keyword's markerCarry hook: a Unison played over another may take up to this many of its markers, the master's choice from none to the most it has (22-45-3, [Empower]); with a colour, only from a Unison of that colour.",
+      "offCard": "the leaf of a keyword's markerCarry hook: a Unison played over another may take up to this many of its markers, the master's choice from none to the most it has (22-45-3, [Empower]); with a colour, only from a Unison of that colour"
     }
   ],
   "conds": [

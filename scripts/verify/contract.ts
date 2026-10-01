@@ -410,14 +410,9 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
   {
     // Issue #109 — [Empower]'s carry (22-45-3) names both cards in one beat,
     // so the board can fly the markers across rather than count them up in
-    // place. Only the legacy engine resolves the carry today: `vm/host.ts`'s
-    // own comment on `resolvePlay` says the rules engine's play step is
-    // synchronous because nothing a play does on it asks a question yet, and
-    // [Empower]'s "how many to carry" is one of the two that would — so this
-    // runs on the legacy engine specifically (`arena`/`play`/`apply`, this
-    // file's own throughout, are legacy unless `--engine rules` is passed;
-    // gated here because, unlike the rest of the file, this exercises a
-    // keyword the rules engine cannot play at all).
+    // place. This file's fixtures (`arena`/`play`/`apply`) are legacy-only;
+    // the rules engine logs the same beats for the carry since #157, which
+    // `verify/keywords.ts`'s [Empower] case asserts on both engines.
     if (ENGINE !== "rules") {
       DEFS.CONTRACTEMP = { ...DEFS.U1, id: "CONTRACTEMP", name: "CONTRACTEMP", skill: "[Empower Red 2]" };
       let s = arena({ hand: ["U1", "CONTRACTEMP"], energy: ["V1", "V1", "V1", "V1", "V1"] });
@@ -446,7 +441,7 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
       assert.equal(maskBeats(state, beats, "p1"), beats, "nothing hidden from the mover");
       assert.equal(maskBeats(state, beats, "p2"), beats, "nothing hidden from the opponent either — marker counts on a Unison are public");
     } else {
-      console.log("  skipped case — [Empower]'s carry is not resolved on the rules engine yet (vm/host.ts's own comment on resolvePlay)");
+      console.log("  skipped case — [Empower]'s carry beat: this file's fixtures are legacy-only (verify/keywords.ts proves the same beats on the rules engine, #157)");
     }
   }
 

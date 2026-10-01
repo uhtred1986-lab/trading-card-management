@@ -6,12 +6,12 @@
 -- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
 -- holds the two equal so the page and the record cannot quietly disagree.
 --
--- Sixteen HOOK bodies over fifteen keywords, written by Stage 7's four hook
+-- Seventeen HOOK bodies over sixteen keywords, written by Stage 7's four hook
 -- groups (#154-#157) against the contract #153 built: [Field]'s onEnter,
 -- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
 -- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
 -- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s
--- altPayment, [Heroic]/[Villainous]'s afterSkill,
+-- altPayment, [Empower]'s markerCarry, [Heroic]/[Villainous]'s afterSkill,
 -- [Critical]/[Strike]/[Victory Strike]'s beforeDamage and [Revenge]/
 -- [Attack]'s battleEnd. Every other keyword's
 -- own moments are still the engine's, and each one's trailing comment says
@@ -634,11 +634,16 @@ DEFINE KEYWORD "Spirit Boost"
 DEFINE KEYWORD Empower
   TAKES (color: color, x: number)
   text: "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour."
-  -- #157 looked and left it unwritten: the carry is a question asked in the
-  -- middle of a play, before the replaced Unison leaves, and the `play` op
-  -- cannot suspend for an answer; the markers paid for the Unison are a later
-  -- step of `playUnison`'s DO here, so the carry belongs to that move rather
-  -- than to `play`. docs/arena-ruleset-spec.md §4.4.
+  -- #157: a `markerCarry` HOOK, read as the Unison is played over another.
+  -- Its leaf says how many may come across and from a Unison of which
+  -- colour (any, for an [Empower] naming none); the master is asked how
+  -- many, from none to the least of that and what the old one has, before
+  -- it leaves (owner's ruling 9 Sep 2026, "asked, not assumed"), and the
+  -- carried markers land after the paid ones, naming the card they left —
+  -- the legacy `empowerCarry` prompt and beats.
+  HOOK markerCarry {
+    carryMarkers(upTo: $x, color: $color)
+  }
 
 -- 22-46
 DEFINE KEYWORD "Z-Awaken"

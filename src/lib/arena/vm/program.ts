@@ -44,7 +44,7 @@
 import type { EngineContext } from "../engine";
 import { coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../engine/cards";
 import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "../engine/script";
-import type { EffectUntil, ForbiddenAction, Immunity, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
+import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
 import { other } from "../engine/types";
 import { parseFilter, powerRelOk } from "../engine/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
@@ -478,7 +478,8 @@ export function hookFrame(game: GameDefinition, state: VmState, subject: string,
 export type QueryFact =
   | { keyword: KeywordSkill; op: "forbid"; forbid: Prohibition }
   | { keyword: KeywordSkill; op: "modifyAttr"; attr: CardAttr | "energyMarkers" | "guard"; delta: number }
-  | { keyword: KeywordSkill; op: "battleDamage"; atLeast?: number; to?: "drop"; allMarkers?: boolean; wins?: boolean };
+  | { keyword: KeywordSkill; op: "battleDamage"; atLeast?: number; to?: "drop"; allMarkers?: boolean; wins?: boolean }
+  | { keyword: KeywordSkill; op: "carryMarkers"; upTo: number; color: Color | null };
 
 /**
  * Every fact a query hook's bodies are in force to state right now — read
@@ -558,6 +559,12 @@ function readHookLeaf(ctx: EngineContext, game: GameDefinition, state: VmState, 
         ...(op.allMarkers ? { allMarkers: true } : {}),
         ...(op.wins ? { wins: true } : {}),
       });
+      continue;
+    }
+    // #157: `markerCarry`'s leaf — how many markers may come across, and from
+    // a Unison of which colour.
+    if (op.op === "carryMarkers") {
+      out.push({ keyword, op: "carryMarkers", upTo: amount(ctx, game, state, frame, op.upTo), color: op.color ?? null });
       continue;
     }
     throw new Error(`vm/program.ts: [${keyword.name}]'s body is a query hook and ends in "${op.op}", which none of the contract's query hooks document`);

@@ -466,6 +466,18 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       state.lastChoice = action.cards;
       break;
     }
+    // 22-45-3 (#157): how many markers [Empower] carries across — the answer
+    // the play put back at its `play` step is waiting on (`vm/host.ts`'s
+    // `playThen`), left on the state for that step to read, the same shape as
+    // the two answers above and below.
+    case "empowerCarry": {
+      requirePrompt(state, action, ["empowerCarry"]);
+      const pr = state.prompt;
+      if (pr.kind !== "empowerCarry") throw new IllegalAction("no [Empower] carry pending");
+      if (!Number.isInteger(action.amount) || action.amount < 0 || action.amount > pr.max) throw new IllegalAction(`carry between 0 and ${pr.max} markers`);
+      state.carried = { card: pr.card, n: action.amount };
+      break;
+    }
     case "chooseMode": {
       requirePrompt(state, action, ["chooseMode"]);
       const pr = state.prompt;
@@ -693,6 +705,9 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
         ...pr.choice.candidates.map((card) => ({ action: { type: "choose" as const, player: pr.player, cards: [card] }, label: `Choose ${card}` })),
         ...(pr.choice.min === 0 ? [{ action: { type: "choose" as const, player: pr.player, cards: [] }, label: "Choose none" }] : []),
       ];
+    // 22-45-3: every amount from none to the cap, in the legacy engine's words.
+    case "empowerCarry":
+      return Array.from({ length: pr.max + 1 }, (_, n) => ({ action: { type: "empowerCarry" as const, player: pr.player, amount: n }, label: n === 0 ? "Carry no markers" : `Carry ${n} marker${n === 1 ? "" : "s"}` }));
     // 20-2: the printed options, in the order they are printed.
     case "chooseMode":
       return pr.options.map((label, index) => ({ action: { type: "chooseMode" as const, player: pr.player, index }, label: label.length > 90 ? `${label.slice(0, 88)}\u2026` : label }));
