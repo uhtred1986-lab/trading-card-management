@@ -71,15 +71,11 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  * `move(CTX, …)`'s reason and event log are not what the assertion is about.
  *
  * What is still skipped on `--engine rules`, and why — every case below is
- * one of three shapes, named at its own gate call rather than silently doing
+ * one of two shapes, named at its own gate call rather than silently doing
  * nothing (a fourth, `staticGap` — a [Permanent] static `DEFERRED_STATICS`
- * names as unread — left with its last cases, IMMUNE/IMMANY, at #154):
+ * names as unread — left with its last cases, IMMUNE/IMMANY, at #154, and a third, `keywordGap`,
+ * with its last at #157):
  *
- * - **`keywordGap`**: the keyword's own `DEFINE KEYWORD` in `keywords.rules`
- *   carries no `HOOK` body or `DO` for what this case needs (`docs/arena-backlog/
- *   s7-0{2,3,4,5}-*.md` — Stage 7's four hook groups, `src/lib/arena/
- *   rulesets/dbs/keywords.rules`'s own header names which keywords still read
- *   `-- Stage 7 (#153–#157)`).
  * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
  *   `ScriptHost` implementation still throws `NotYet` for by name (a
  *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
@@ -2805,4 +2801,4 @@ if (!replaceGap("REVEALER: a life card's own departure, replaced by a [Permanent
   assertConsistentG(taken.state);
 }
 
-if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own keywordGap/notYetGap/replaceGap comments`);
+if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap/replaceGap comments`);
