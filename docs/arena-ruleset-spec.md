@@ -228,6 +228,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `eachNamed` | primitive | Does every character a keyword line prints in ‹…› stand on a *different* card the selector finds — and, with `samePower`, are those cards of one power (22-13-4, 22-13-5)? A matching of names to distinct cards, which no single count can say: two Gokus count to two and still name no Vegeta. Read off the line its program belongs to, like the `asPrinted` selector flag (#157). |
 | `covers` | primitive | Do the cards a selector finds carry every one of these colours between them (22-29-3, 22-30-3, 22-34-3)? [Arrival]'s Combo Area and [Revive]'s hand, with `colors: $colors` bound off the printed keyword (#155). One count per colour would say it only for a fixed list; the list is the keyword's parameter. |
 | `sumsTo` | primitive | Can some of the cards a selector finds — at least one, and a total above 0 — be picked so that one measure of theirs adds up to exactly an amount (22-38-2)? [Successor]'s check before it is offered (#155); `choose … sumTo` picks that set. A subset sum, which no bound on a count or a total says. |
+| `attacked` | macro over `count` | Has a card declared at least *n* attacks this turn, the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s X−1 stands a turn (22-8-3), `NOT attacked(sel: [self], atLeast: $x)` (#156). A count the rules engine keeps on the card (`attacksThisTurn`) beside `battled`'s flag; the legacy engine reads the keyword inline and counts no attacks, so there the word does not hold. |
 
 ### 2.5 What the tables ask for
 
@@ -1207,6 +1208,33 @@ exists. **[Invoker]** is an alternative price on an Extra's activation from the 
 ACTION activate` declares no `alt:` and `payAltCost` has no `invoker` case — so it moves there. **[Wormhole]** only raises [Over Realm]'s
 limit, which is unwritten. **[Dragon Ball]** needs nothing: it is deck legality (`support: "deck"`),
 and no game reads it.
+
+**Group C's keywords (#156).** Six are built, each against the legacy engine event for event.
+Between them they needed one op, one condition and one change to the contract
+(`docs/arena-rules-language.md` §3b):
+
+- **[Awaken]** is [Wish]'s body under its own name. It is a move,
+  `offer: "activate:main/battle"`, and `AFTER { flip(target: [self]) }` flips the Leader.
+- **[Revenge]** and **[Dual/Triple Attack]** are each two halves, as on the legacy engine.
+  - The line answers a moment (`at: [attacked]`, `at: [attacks]`) with an empty `DO`, so it is
+    pended and announced as the legacy `keywordTriggers` case is.
+  - The effect is a `battleEnd` hook, which the Battle End Step now fires on both cards of the
+    fight: the attacker first, so the guard's body runs first, the legacy `battleCleanup` order.
+  - [Revenge] KOs a Battle Card attacker when its card is the guard
+    (`inBattle(sel: [self], role: guard)`).
+  - [Attack] stands its card up while it has declared fewer than X attacks this turn. That count
+    is the `attacked` condition, kept on the card as `attacksThisTurn`.
+- **[Critical]**, **[Strike]** and **[Victory Strike]** are `beforeDamage` bodies ending in
+  `battleDamage`.
+  - `beforeDamage` is a **query** hook now: read on the attacker as its damage lands
+    (`vm/battle.ts`'s `damageRule`). The effect hook first contracted could not change a damage
+    already being dealt.
+  - A `HOOK` body's `$name` parameters are bound off the keyword in force, as a `DO`'s are, so
+    [Strike]'s body writes `$x`.
+
+**[Ultimate]** is left unwritten. Its removal (22-14-3) is a replacement: one move to `removed`
+instead. `onLeave` runs after the card has landed, so it cannot say it. It needs a leave-time query
+hook, or the 9-10 replacements `replacementsFor` does not collect yet.
 
 ---
 

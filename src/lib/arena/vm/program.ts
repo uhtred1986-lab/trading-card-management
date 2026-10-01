@@ -966,6 +966,13 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const each = (id: string) => amount(ctx, game, state, { ...frame, vars: { ...frame.vars, [ONE_CARD]: [id] } }, { attr: { var: ONE_CARD }, name: c.attr });
       return sumReachable(resolveSelector(ctx, game, state, frame, c.sel).map(each), amount(ctx, game, state, frame, c.total));
     }
+    // #156: `VmCard.attacksThisTurn`, counted by `declareAttack` and cleared
+    // with the turn and with a change of area (3-1-4) — [Dual Attack]'s
+    // "X−1 times a turn".
+    case "attacked": {
+      const n = amount(ctx, game, state, frame, c.atLeast);
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => (state.cards[id]?.attacksThisTurn ?? 0) >= n);
+    }
   }
 }
 

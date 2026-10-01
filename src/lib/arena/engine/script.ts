@@ -311,7 +311,15 @@ export type Cond =
    * (22-38-2)? [Successor]'s check before it is offered, the same set a
    * `choose` with `sumTo` then picks one card at a time (#155).
    */
-  | { kind: "sumsTo"; sel: Selector; attr: AmountAttr; total: Amount };
+  | { kind: "sumsTo"; sel: Selector; attr: AmountAttr; total: Amount }
+  /**
+   * Has a card among `sel` declared at least this many attacks this turn,
+   * the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s
+   * "X−1 times a turn" (22-8-3), `NOT attacked(sel: [self], atLeast: $x)`. A
+   * `DEFINE KEYWORD` body's word, on no card (#156); only the rules engine
+   * counts attacks.
+   */
+  | { kind: "attacked"; sel: Selector; atLeast: Amount };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous

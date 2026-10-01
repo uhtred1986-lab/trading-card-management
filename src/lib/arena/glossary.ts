@@ -359,7 +359,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card attacks, it switches back to Active Mode at the end of the battle — X−1 times a turn.",
     engine: "Counted on the card itself, so the extra stands run out after X−1 attacks in the turn.",
-    engineRules: "Not built — docs/arena-backlog/s7-04-keywords-battle.md, hook group C. `verify/battles.ts`'s own [Dual Attack] case is a named keyword gap.",
+    engineRules:
+      "Built (#156) in the legacy engine's two halves: the line answers `attacks` (`at:`), so it is announced as the card attacks, and the stand is the `battleEnd` hook on the attacker — after a guard's [Revenge] — which switches it to Active Mode while it is still in play and has declared fewer than X attacks this turn, the one ending included (`attacked`, a count kept on the card and cleared with the turn or a change of area). The same events as the legacy engine. The legacy engine counts the stands it has granted instead of the attacks, which is the same number unless the card attacked that turn before it had the keyword.",
     support: "engine",
   },
   Revenge: {
@@ -520,7 +521,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "The removal is enforced, both in play and when the card fails to enter play. The one-per-deck limit is not: no card prints it in a wording the deck checker reads, so a second [Ultimate] card is not flagged.",
     engineRules:
-      "The deck limit is the same deck checker either engine's games are built from — engine-agnostic, so nothing here differs. The in-game removal is not built yet — docs/arena-backlog/s7-04-keywords-battle.md, hook group C.",
+      "The deck limit is the same deck checker either engine's games are built from — engine-agnostic, so nothing here differs. The in-game removal is not built: an [Ultimate] card leaving play goes where it was sent. #156 looked and left it: it is a replacement (the card goes to “removed” instead, one move), and the `onLeave` hook runs after the card has landed, so it needs a leave-time query hook or the 9-10 replacements the rules engine does not collect yet.",
     support: "partial",
   },
   "Super Combo": {

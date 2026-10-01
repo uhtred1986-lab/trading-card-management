@@ -15,16 +15,14 @@
  * `--engine legacy` (the default) is byte-for-byte the suite this always was —
  * `arenaG`'s own legacy branch is `arena()`, untouched.
  *
- * **What is still skipped on `--engine rules`, and why.** A keyword body is
- * Stage 7's (`docs/arena-backlog/s7-*.md`; the milestone is Arena M10).
- * [Critical], [Strike], [Victory Strike], [Revenge] and [Awaken] are built
- * since #156, [Indestructible] since #154, [Unique] and [Evolve] since #157
- * and [Z-Stack] since #155; what is left is named at its own `keywordGap`
- * call below, which prints the skip and the doc that builds it rather than
- * silently doing nothing. Everything else in this file is a
- * real assertion on both engines, not a keyword gap dressed as one — #152's
- * own acceptance bullet ("the skipped cases are all keyword cases") is what
- * that split is for.
+ * **Nothing is skipped on `--engine rules` any more.** Every case used to
+ * wait on a Stage 7 keyword body (`docs/arena-backlog/s7-*.md`) was a named
+ * `keywordGap`; the last of them — [Critical], [Strike], [Victory Strike],
+ * [Dual Attack], [Revenge] and [Awaken] — are built since #156
+ * ([Indestructible] since #154, [Unique] and [Evolve] since #157, [Z-Stack]
+ * since #155), so the gate is gone and every case is a real assertion on
+ * both engines. A case a later keyword cannot yet pass on the rules engine
+ * gets a named gate back, as `keywords.ts`'s `keywordGap` still has.
  */
 import assert from "node:assert/strict";
 import {
@@ -48,22 +46,6 @@ import {
   zoneOf,
 } from "./harness";
 import type { EngineState, PlayerId } from "./harness";
-
-// ── keyword gaps: Stage 7, named rather than silently skipped ───────────────
-
-const S7 = {
-  battle: "docs/arena-backlog/s7-04-keywords-battle.md — hook group C: blocking, counters, attack, damage, battle end ([Dual Attack])",
-};
-
-let skipped = 0;
-
-/** True (and the case printed as skipped, naming its Stage 7 doc) only on the rules engine — the legacy engine always runs every case below. */
-function keywordGap(keyword: string, doc: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — [${keyword}]'s keyword body is not built on the rules engine yet (${doc})`);
-  skipped++;
-  return true;
-}
 
 // ── combos, blockers, counters, keywords ───────────────────────────────────
 
@@ -270,7 +252,7 @@ function keywordGap(keyword: string, doc: string): boolean {
 }
 
 // [Dual Attack] (22-8): the attacker is active again after the battle, once per turn.
-if (!keywordGap("Dual Attack", S7.battle)) {
+{
   let s = arenaG({ battle: ["DUAL"] });
   const dual = zoneOf(s, "p1", "battle")[0];
   s = playG(s, { type: "attack", player: "p1", attacker: dual, target: leaderOf(s, "p2") }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
@@ -580,4 +562,4 @@ if (!keywordGap("Dual Attack", S7.battle)) {
   assert.equal(run(), run());
 }
 
-if (ENGINE === "rules") console.log(`verify/battles: ${skipped} case(s) skipped on the rules engine, all named keyword gaps`);
+if (ENGINE === "rules") console.log("verify/battles: every case ran on the rules engine — no keyword gap left (#156)");

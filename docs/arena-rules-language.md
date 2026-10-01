@@ -507,7 +507,12 @@ move is about **one printed line** rather than about a card a `FOR` found:
   The two op fields are marked `offCard` in `OP_SCHEMA` and the two conditions are in
   `CONDITIONS_OFF_A_CARD`: none is in what the referee is told, because a ruling on one card's
   skill could only use them wrongly. The generated language reference lists all of them.
-- Group C (#156) added one op, on no card either:
+- Group C (#156) added one condition and one op, on no card either:
+  - `attacked(sel: …, atLeast: <amount>)` — a card among `sel` has declared at least that many
+    attacks this turn, the one in progress included (8-1). [Dual Attack]'s "X−1 times a turn" is
+    `NOT attacked(sel: [self], atLeast: $x)`. The rules engine keeps the count on the card
+    (`attacksThisTurn`); the legacy engine counts no attacks, and there the word does not hold.
+    It is in `CONDITIONS_OFF_A_CARD`.
   - `battleDamage(atLeast: <amount>, to: drop, allMarkers: true, wins: true)`, every field
     optional — how the battle damage an attacker deals lands (8-4-6). It is the leaf of a
     `beforeDamage` body, which is a **query** hook: read on the attacker the moment its damage

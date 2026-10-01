@@ -293,6 +293,7 @@ const STEP_WORK: Record<string, Work> = {
         // having been in one ends with the turn — the legacy `turn.next`'s
         // own reset, ported alongside the two fields above (#152).
         inst.battledThisTurn = false;
+        delete inst.attacksThisTurn;
       }
       // Every `DEFINE ATTRIBUTE of: player, reset: turnStart` fact returns to
       // its rest value here, off the declaration rather than by name (issue

@@ -139,14 +139,12 @@ skipped) tells you what you broke:
 - **`setup.ts`** — the seed and game setup (§6-2). A failure here usually means
   determinism broke, which invalidates every other suite.
 - **`battles.ts`** — combos, blockers, counters, the keywords that decide a
-  battle. **Runs on both engines since #152.** On `--engine rules` every case
-  is a real assertion except the ones a Stage 7 keyword body still owns
-  ([Awaken], [Critical], [Dual Attack], [Indestructible], [Revenge];
-  [Unique] and [Evolve] are built since #157, [Z-Stack] since #155, whose
-  case stages its Z-Energy directly on `rules` because 8-5-2's Z-Energy offer
-  is still #151's) — each prints `skipped case` by name, citing the
-  `docs/arena-backlog/s7-*.md` hook-group doc that builds it, and the suite
-  still reports `ok`. Proves, on the rules engine as much as the legacy one:
+  battle. **Runs on both engines since #152**, and since #156 every case is
+  a real assertion on `--engine rules` too: the keyword cases it used to skip
+  by name are built ([Awaken], [Critical], [Double Strike], [Victory Strike],
+  [Dual Attack] and [Revenge] by #156, [Indestructible] by #154, [Unique] and
+  [Evolve] by #157, [Z-Stack] by #155, whose case stages its Z-Energy
+  directly on `rules` because 8-5-2's Z-Energy offer is still #151's). Proves, on the rules engine as much as the legacy one:
   combo power deciding a battle and combo cards reaching the Drop, [Blocker]
   redirecting an attack and resting, [Counter: Attack] negating one before the
   Offense Step, what `view.battle` says about counters and contributions,

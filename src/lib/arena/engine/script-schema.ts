@@ -1052,6 +1052,14 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "can some of these cards — at least one, and a total above 0 — be picked so that their measure adds up to exactly this much? [Successor]'s check before it is offered (22-38-2); the `choose` op's `sumTo` then picks that set one card at a time. A `DEFINE KEYWORD` body's word (#155)",
   },
+  attacked: {
+    fields: [SEL, { name: "atLeast", type: "amount", required: true }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"attacked">;
+      return `${describeSelector(c.sel, "any of")} has attacked ${describeAmount(c.atLeast)} or more times this turn`;
+    },
+    doc: "has one of these cards declared at least this many attacks this turn, the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s X−1 stands a turn (22-8-3): `NOT attacked(sel: [self], atLeast: $x)`. A `DEFINE KEYWORD` body's word (#156)",
+  },
 };
 
 /** Primitive or macro for a condition — `docs/arena-ruleset-spec.md` §2.4, and see `OP_CLASS` above. */
@@ -1082,6 +1090,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   eachNamed:      "primitive",
   covers:         "primitive",
   sumsTo:         "primitive",
+  attacked:       "macro over `count`",
 };
 
 /**
@@ -1104,7 +1113,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
  * Not a validation rule — `validateProgram` accepts every schema row, because a
  * stored program is checked against the language and not against this list.
  */
-export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "oneOf", "eachNamed", "covers", "sumsTo"];
+export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "oneOf", "eachNamed", "covers", "sumsTo", "attacked"];
 
 // ── validation, for programs that did not come from the compiler ───────────
 

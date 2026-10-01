@@ -116,6 +116,8 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
   }
   const attacker = action.attacker;
   setMode(ctx, game, state, ev, attacker, "rest");
+  // 8-1, #156: the count [Dual Attack]'s `attacked` condition reads.
+  state.cards[attacker].attacksThisTurn = (state.cards[attacker].attacksThisTurn ?? 0) + 1;
   state.battle = { attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, counters: [] };
   joinsBattle(state, attacker, action.target);
   log(ev, { type: "attack", attacker, target: action.target });
@@ -260,9 +262,12 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // off `state.battle`, which is why this step does not clear it itself
       // (`vm/flow.ts`'s own phase-pop does, once this step's queued program
       // has actually run — see the comment there for why the ordering
-      // matters). Fired on the guard alone: the manual conditions this on
-      // "becomes the guard card", and nothing yet needs `battleEnd` on the
-      // attacker's own side.
+      // matters). Fired on both cards of the fight: the guard's is
+      // [Revenge]'s, the attacker's [Dual Attack]'s stand (22-8-3). Each body
+      // is `unshift`ed onto the queue, so the attacker's is fired first and
+      // runs second — the legacy `battleCleanup`'s order, the [Revenge] KO
+      // before the stand.
+      if (b.attacker !== b.guard) fireHook(ctx, game, state, b.attacker, "battleEnd");
       fireHook(ctx, game, state, b.guard, "battleEnd");
     },
   },

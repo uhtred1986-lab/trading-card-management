@@ -108,8 +108,8 @@ issues' own PR descriptions remain the record of how each got there.
   [Heroic]/[Villainous]'s `afterSkill` and [Energy-Exhaust]'s `chargeLimit`. **Each of the other
   thirty-two is deferred with its own reason in its own trailing comment** rather than left
   blank — most are whole-keyword *activations*, which a `DEFINE KEYWORD` has no `do:` for yet
-  (#157's own gap); [Revenge]'s body is written out in a comment and left undeclared because the
-  `ko` it would run still throws.
+  (#157's own gap). Hook group C (#156) added [Revenge]'s and [Dual Attack]'s `battleEnd` and
+  made `beforeDamage` a query hook for [Critical], [Strike] and [Victory Strike].
 - **Everything else from config** (Stage 8, #158–#163): `board-words.ts` (one zone/phase/mode/
   colour vocabulary for `wording.ts`, `narration.ts`, `effects.ts` and `lighting.ts`, validated
   against the declarations by `wordsFromRuleset`), `prompt-words.ts` (one question/hint table both
