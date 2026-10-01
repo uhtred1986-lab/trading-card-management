@@ -16,7 +16,7 @@
 import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, whoseSkills, type Op } from "./engine/script";
 import type { StaticEffect } from "./engine/state";
 import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "./engine/types";
-import { DBS_WORDS, type BoardWords } from "./board-words";
+import { dbsWords, type BoardWords } from "./board-words";
 
 export type EffectKind = "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other";
 
@@ -186,7 +186,7 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
 }
 
 /** The same for a standing effect a [Permanent] skill emits. */
-export function describeStatic(e: StaticEffect, master?: PlayerId | null, words: BoardWords = DBS_WORDS): Pick<EffectView, "kind" | "label" | "keyword"> {
+export function describeStatic(e: StaticEffect, master?: PlayerId | null, words: BoardWords = dbsWords()): Pick<EffectView, "kind" | "label" | "keyword"> {
   switch (e.kind) {
     case "power":
       return { kind: "power", label: `${signed(e.value as number)} power` };
@@ -264,25 +264,27 @@ export function describeStatic(e: StaticEffect, master?: PlayerId | null, words:
  * durations are written from the *master's* point of view, so "until the end
  * of your opponent's turn" on Claude's effect is your turn, not Claude's.
  */
-export function untilWords(until: EffectUntil, o: { master: PlayerId | null; viewer: PlayerId; them: string; sourceName?: string | null }): string {
+export function untilWords(until: EffectUntil, o: { master: PlayerId | null; viewer: PlayerId; them: string; sourceName?: string | null }, words: BoardWords = dbsWords()): string {
   const mine = o.master === o.viewer;
+  const w = words.until[until];
+  if (!w) throw new Error(`effects: words.rules has no DEFINE WORDS until${until.charAt(0).toUpperCase()}${until.slice(1)}`);
   switch (until) {
     case "turn":
-      return "until the end of the turn";
     case "battle":
-      return "for the battle";
-    case "nextTurn":
-      // Ends as the master's next turn begins.
-      return mine ? "until the start of your next turn" : `until the start of ${o.them}'s next turn`;
-    case "opponentTurn":
-      // Ends as the master's opponent's next turn begins.
-      return mine ? `until the start of ${o.them}'s next turn` : "until the start of your next turn";
     case "afterNextCharge":
-      return "through the next Charge Phase";
     case "game":
-      return "for the rest of the game";
+      return w.text;
+    case "nextTurn":
+    case "opponentTurn": {
+      // `nextTurn` ends as the master's next turn begins, `opponentTurn` as the
+      // master's opponent's does; the phrase that names the viewer is the one
+      // said when that turn is the viewer's own.
+      const viewersTurn = until === "nextTurn" ? mine : !mine;
+      return (viewersTurn && w.you ? w.you : w.text).replace("{them}", o.them);
+    }
     case "permanent":
-      return o.sourceName ? `while ${o.sourceName} is in play` : "while its card is in play";
+      // Which card holds it up, or — with none named — "its card".
+      return o.sourceName ? w.text.replace("{source}", o.sourceName) : (w.bare ?? w.text);
   }
 }
 

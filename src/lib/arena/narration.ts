@@ -14,7 +14,7 @@
 import type { PlayerId } from "./engine";
 import type { Beat, BeatArt } from "./beats";
 import { untilWords } from "./effects";
-import { DBS_WORDS, type BoardWords } from "./board-words";
+import { dbsWords, type BoardWords } from "./board-words";
 
 export interface Narrator {
   /** Whose side of the table the sentence is read from. */
@@ -28,7 +28,7 @@ export interface Narrator {
 }
 
 /** One sentence for a beat, or null for a beat with nothing to say. */
-export function narrate(b: Beat, n: Narrator, words: BoardWords = DBS_WORDS): string | null {
+export function narrate(b: Beat, n: Narrator, words: BoardWords = dbsWords()): string | null {
   const PHASE = words.phase;
   const AREA = words.narrationArea;
   const name = (id: string) => n.art[id]?.name ?? "a card";
@@ -121,7 +121,7 @@ export function narrate(b: Beat, n: Narrator, words: BoardWords = DBS_WORDS): st
       // A rule coming into force, read from the viewer's chair: whose card,
       // what it now does, and for how long. The label is a phrase already
       // ("+5000 power", "can't attack"), so only the verb varies by kind.
-      const when = untilWords(b.until, { master: b.owner, viewer: n.viewer, them: n.them, sourceName: b.source ? name(b.source) : null });
+      const when = untilWords(b.until, { master: b.owner, viewer: n.viewer, them: n.them, sourceName: b.source ? name(b.source) : null }, words);
       const subject = b.card ? name(b.card) : b.player ? (you(b.player) ? "You" : n.them) : "Both players";
       const verb = b.kind === "power" || b.kind === "comboPower" ? "gets" : b.kind === "keyword" ? "gains" : b.kind === "negate" ? "has its" : "";
       const from = b.source && b.source !== b.card ? ` (${name(b.source)})` : "";

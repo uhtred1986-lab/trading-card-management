@@ -8,23 +8,16 @@
 -- zone, phase/step, mode or colour it is the word for, so `DEFINE WORDS
 -- battle` is the words for `DEFINE ZONE battle` and needs no second name.
 --
--- Declared, not consumed. `board-words.ts`'s own tables (`WORDING_AREA`,
--- `NARRATION_AREA`, `PHASE`, the mode words, `LEADER_COLOURS`) still stand,
--- unchanged, and `wordsFromRuleset` still only checks a zone/mode/colour
--- exists rather than reading a phrase from here — the wiring that would
--- retire the hand-written tables is Stage 8's own follow-up, deliberately
--- not done in this file (CLAUDE.md: "declare only; do not move any consumer
--- Stage 8 did not already move").
+-- Consumed: `board-words.ts` reads every word below from the loaded
+-- definition (`wordsFromRuleset`, over the generated `files.ts`), and
+-- `wording.ts`, `narration.ts`, `effects.ts` and `lighting.ts` read it from
+-- there (Stage 8, #159). The sentence *shapes* around the words — which branch
+-- a viewer takes, the "cannot ... now" frame — stay in those files.
 --
--- Left out on purpose, and named rather than silently missing: `wording.ts`'s
--- `VERB` (the verb in "X cannot attack") and `WINDOW` (a timing window's
--- phrase, for a Requirement), and `effects.ts`'s `untilWords` (how long a
--- rule in force lasts, said "your"/"Claude's", singular/plural). All three
--- are viewer-dependent sentence templates with a branch in them, not a flat
--- name -> word lookup, so they do not fit this file's shape. Giving them a
--- home is real design work — either a templated-sentence declaration beside
--- this one, or a further split of DEFINE WORDS — left to a follow-up rather
--- than forced into a table that would lie about what it can say.
+-- The last three sections are the phrases a `Requirement` and a rule in force
+-- are said in: `of: verb`, `of: window` and `of: until`. Their names carry a
+-- prefix because a name is unique across every `of:` (`charge` is already a
+-- phase, `main` and `defense` too).
 
 -- §3: the twelve areas the manual counts, minus the two effect-language-only
 -- routes (`under`, `play`) `zones.rules` also declares — a program needs to
@@ -190,3 +183,100 @@ DEFINE WORDS White
 DEFINE WORDS Colorless
   of: color
   text: "Colorless"
+
+-- `wording.ts`'s verb in "X cannot <verb> now", one per action a client can
+-- ask for. An action with no word here is said "do that" (the shape's own
+-- default).
+DEFINE WORDS verbAttack
+  of: verb
+  text: "attack"
+
+DEFINE WORDS verbCombo
+  of: verb
+  text: "combo"
+
+DEFINE WORDS verbPlay
+  of: verb
+  text: "be played"
+
+DEFINE WORDS verbPlayUnison
+  of: verb
+  text: "be played"
+
+DEFINE WORDS verbPlayZ
+  of: verb
+  text: "be played"
+
+DEFINE WORDS verbActivate
+  of: verb
+  text: "use its skill"
+
+DEFINE WORDS verbCharge
+  of: verb
+  text: "be charged"
+
+DEFINE WORDS verbCounter
+  of: verb
+  text: "counter"
+
+DEFINE WORDS verbBlock
+  of: verb
+  text: "block"
+
+DEFINE WORDS verbChoose
+  of: verb
+  text: "be chosen"
+
+-- `wording.ts`'s remedy for a timing refusal: when the action is allowed. A
+-- window with no word here is said "Only in the <window>." by the shape.
+DEFINE WORDS windowMain
+  of: window
+  text: "Only in your Main Phase."
+
+DEFINE WORDS windowBattle
+  of: window
+  text: "Only during a battle."
+
+DEFINE WORDS windowDefense
+  of: window
+  text: "Only in the Defense Step of your opponent's turn."
+
+DEFINE WORDS windowNextTurn
+  of: window
+  text: "No attacks on the first turn — from your next turn on."
+
+-- `effects.ts`'s `untilWords`: how long a rule in force holds, one per
+-- duration. `{them}` is the other player's name and `{source}` the card
+-- holding a rule up. Where the phrase depends on whose turn ends it, `you:`
+-- is the one that names the viewer and `text:` the one that names the other
+-- player; `bare:` is `text:` with no `{source}` to fill.
+DEFINE WORDS untilTurn
+  of: until
+  text: "until the end of the turn"
+
+DEFINE WORDS untilBattle
+  of: until
+  text: "for the battle"
+
+DEFINE WORDS untilNextTurn
+  of: until
+  you: "until the start of your next turn"
+  text: "until the start of {them}'s next turn"
+
+DEFINE WORDS untilOpponentTurn
+  of: until
+  you: "until the start of your next turn"
+  text: "until the start of {them}'s next turn"
+
+DEFINE WORDS untilAfterNextCharge
+  of: until
+  text: "through the next Charge Phase"
+
+DEFINE WORDS untilGame
+  of: until
+  text: "for the rest of the game"
+
+DEFINE WORDS untilPermanent
+  of: until
+  text: "while {source} is in play"
+  bare: "while its card is in play"

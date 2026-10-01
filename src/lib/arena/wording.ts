@@ -13,30 +13,10 @@
 import type { Action, ActionCost, PlayerId, Requirement } from "./engine";
 import type { CardView, SideView } from "./view";
 import { untilWords } from "./effects";
-import { DBS_WORDS, type BoardWords } from "./board-words";
+import { dbsWords, type BoardWords } from "./board-words";
 
 /** What the player was trying to do, for the verb in the sentence. */
 export type Reaching = Action["type"];
-
-const VERB: Partial<Record<Reaching, string>> = {
-  attack: "attack",
-  combo: "combo",
-  play: "be played",
-  playUnison: "be played",
-  playZ: "be played",
-  activate: "use its skill",
-  charge: "be charged",
-  counter: "counter",
-  block: "block",
-  choose: "be chosen",
-};
-
-const WINDOW: Record<string, string> = {
-  main: "Only in your Main Phase.",
-  battle: "Only during a battle.",
-  defense: "Only in the Defense Step of your opponent's turn.",
-  nextTurn: "No attacks on the first turn — from your next turn on.",
-};
 
 export interface Refusal {
   /** Which requirement failed. */
@@ -50,9 +30,9 @@ export interface Refusal {
  * own side of the table, so an energy shortfall can say whether next turn
  * fixes it or more charging does.
  */
-export function refusal(r: Requirement, o: { name: string; reaching: Reaching; side?: SideView | null; inHand?: boolean; them?: string }, words: BoardWords = DBS_WORDS): Refusal {
+export function refusal(r: Requirement, o: { name: string; reaching: Reaching; side?: SideView | null; inHand?: boolean; them?: string }, words: BoardWords = dbsWords()): Refusal {
   const name = o.name;
-  const verb = VERB[o.reaching] ?? "do that";
+  const verb = words.verb[o.reaching] ?? "do that";
   const viewer: PlayerId = o.side?.player ?? "p1";
   const them = o.them ?? "your opponent";
   switch (r.kind) {
@@ -74,7 +54,7 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
         remedy: r.locked ? "A rule keeps it from standing up at your next Charge Phase." : "It stands back up at the start of your next turn.",
       };
     case "timing":
-      return { fact: r.window === "nextTurn" ? `${name} cannot attack yet.` : `${name} cannot ${verb} now.`, remedy: WINDOW[r.window] ?? `Only in the ${r.window}.` };
+      return { fact: r.window === "nextTurn" ? `${name} cannot attack yet.` : `${name} cannot ${verb} now.`, remedy: words.window[r.window] ?? `Only in the ${r.window}.` };
     case "oncePerTurn":
       if (r.what === "charge") return { fact: "You have already charged this turn.", remedy: "One charge per turn — again next turn." };
       if (r.what === "skill")
@@ -93,7 +73,7 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
     case "forbidden": {
       // Which rule, and how long it holds — "until that effect ends" told the
       // player nothing they could plan around.
-      const when = r.until ? untilWords(r.until, { master: null, viewer, them, sourceName: r.by }) : null;
+      const when = r.until ? untilWords(r.until, { master: null, viewer, them, sourceName: r.by }, words) : null;
       const fact = r.by ? `${r.by} forbids it.` : "A rule in force forbids it.";
       if (r.unless) return { fact, remedy: `Allowed only if ${r.unless}.` };
       if (!when) return { fact, remedy: "Until that rule ends." };
@@ -113,7 +93,7 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
       // out, or another card holding the rule up.
       const own = !r.by || r.by === name;
       if (own && (!r.until || r.until === "permanent")) return { fact, remedy: null };
-      const when = r.until ? untilWords(r.until, { master: null, viewer, them, sourceName: r.by ?? name }) : null;
+      const when = r.until ? untilWords(r.until, { master: null, viewer, them, sourceName: r.by ?? name }, words) : null;
       if (!when) return { fact, remedy: `${r.by}'s skill says so.` };
       return { fact, remedy: own ? `${capital(when)}.` : `${r.by}'s skill says so, ${when}.` };
     }
@@ -127,7 +107,7 @@ export function refusal(r: Requirement, o: { name: string; reaching: Reaching; s
 }
 
 /** The refusal as one line for the prompt bar. */
-export function sentence(r: Requirement, o: Parameters<typeof refusal>[1], words: BoardWords = DBS_WORDS): string {
+export function sentence(r: Requirement, o: Parameters<typeof refusal>[1], words: BoardWords = dbsWords()): string {
   const w = refusal(r, o, words);
   return w.remedy ? `${w.fact} ${w.remedy}` : w.fact;
 }
