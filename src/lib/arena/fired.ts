@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import type { Action, EngineContext } from "./types";
-import { engineFor, engineOr, legacyState } from "./engines";
+import { engineFor, engineOr } from "./engines";
 import { deckInputFor, defsForCards } from "./load";
 import { rulesFor } from "./rules-store";
 
@@ -50,11 +50,13 @@ export async function firedInGame(db: Db, gameId: number): Promise<FiredSkill[]>
   try {
     const made = engine.createGame(ctx, { seed: row.seed, p1: a.input, p2: b.input });
     let state = made.state;
-    collect(made.events, legacyState(state).cards);
+    // Both engines keep `cards` by instance id with the catalog id on each,
+    // so the collection reads either state as it stands (#457).
+    collect(made.events, state.cards);
     for (const action of (row.actions as Action[]) ?? []) {
       const step = engine.apply(ctx, state, action);
       state = step.state;
-      collect(step.events, legacyState(state).cards);
+      collect(step.events, state.cards);
     }
   } catch {
     // A deck edited since makes the replay diverge; keep what it reached.
