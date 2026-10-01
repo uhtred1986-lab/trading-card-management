@@ -52,6 +52,9 @@ import type { VmState } from "./state";
  */
 let applyingReplacement = false;
 
+/** The zone 8-4-6-1's damage takes cards from — the same name `vm/battle.ts`'s `damageLife` reads. */
+const LIFE_ZONE = "life";
+
 /** Every replacement standing in front of this card's departures, in the order the statics are read (the legacy order). */
 function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { source: string; r: Replacement }[] {
   return staticsNow(ctx, game, state)
@@ -100,6 +103,29 @@ export function replacementChoices(
 }
 
 /**
+ * Every `life` replacement answering to this life card's own move to `dest`
+ * (#272) — the legacy `lifeReplacementChoicesFor`, the one reader a battle's
+ * damage asks (`vm/battle.ts`'s `damageLife`), the way `replacementChoices` is
+ * the one the Battle Area's two suspendable sites ask. Every printed card in
+ * this family says "if **you** would…", so it is scoped by whose rule it is
+ * (`master`) rather than by a target card; `lifeTo` narrows it to one
+ * destination when the card names one. No cause to match: damage is the only
+ * thing that puts a card out of the life area this way.
+ */
+export function lifeReplacementChoices(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, dest: "hand" | "drop"): ReplacementChoice[] {
+  const owner = masterOf(game, state, id);
+  const out: ReplacementChoice[] = [];
+  for (const e of staticsNow(ctx, game, state)) {
+    if (e.kind !== "replaceLeave") continue;
+    const r = e.value as Replacement;
+    if (r.kind !== "life" || r.master !== owner || (r.lifeTo && r.lifeTo !== dest)) continue;
+    if (r.ops && applyingReplacement) continue;
+    out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
+  }
+  return out;
+}
+
+/**
  * The deterministic answer, for a departure nobody can be asked about — the
  * legacy `replacementFor`. The first mandatory, question-free match wins: an
  * optional one is not taken on anyone's behalf, and a substitute that would
@@ -129,6 +155,10 @@ export type LeaveRoute = { stays: true } | { stays: false; to: string; mode?: st
  * "look one up" (the deterministic path), `null` "there is none". A card
  * leaving one of the zones that are in play for one that is not held in play
  * (a combo is) is the only departure a [Permanent]'s replacement answers.
+ * A life card's own departure (#272) is the other one, but only with the
+ * caller's answer: battle damage is the one site that asks about it
+ * (`lifeReplacementChoices`), and nothing is looked up for it here — the
+ * legacy `move`'s `wasLife`.
  * Then the keyword's own `wouldLeave` rule, which also answers a card leaving
  * a combo — the legacy `wasInPlay || wasCombo`.
  */
@@ -145,8 +175,9 @@ export function leaveRoute(
   const inPlay = inPlayZones(game);
   const held = (zone: string | null) => !!zone && (inPlay.includes(zone) || game.zones[zone]?.host === true);
   let mode: string | undefined;
-  if (from && inPlay.includes(from) && !held(to)) {
-    const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : replacementFor(ctx, game, state, id, opts.reason);
+  const fromLife = from === LIFE_ZONE;
+  if (((from && inPlay.includes(from)) || fromLife) && !held(to)) {
+    const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : fromLife ? null : replacementFor(ctx, game, state, id, opts.reason);
     if (instead?.ops?.length) {
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });
       if (!("deferred" in instead && instead.deferred)) runReplacement(ctx, game, state, ev, id, instead);

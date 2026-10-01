@@ -77,6 +77,24 @@ export interface VmBattle {
    * engines' `BattleView.counters` come off the same record.
    */
   counters: { card: string; by: PlayerId; after: number }[];
+  /**
+   * 8-4-6-1's life cards, part way through (#272): set only while the Damage
+   * Step is waiting on 9-10-3's question over one life card's own `life`
+   * replacement, so the step resumes at that card rather than starting the
+   * damage again — the legacy `battle.damage` flow step's `resume`, word for
+   * word. Absent on every battle that never asked, so no stored state changes.
+   */
+  damage?: VmDamage;
+}
+
+/** What `vm/battle.ts`'s `damageLife` needs to pick up where it stopped: the legacy `battleDamage`'s `resume`, plus [Victory Strike]'s ending (the attacker's rule, read once when the damage began). */
+export interface VmDamage {
+  taken: string[];
+  remaining: number;
+  critical: boolean;
+  wins?: true;
+  /** The question is on the board; the next pass reads its answer (`lastMode`) rather than asking again. */
+  awaiting?: true;
 }
 
 /**

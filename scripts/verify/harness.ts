@@ -44,6 +44,7 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import { attrsNow } from "../../src/lib/arena/vm/program";
 import { addEffect as vmAddEffect, skillNegated as vmSkillNegated } from "../../src/lib/arena/vm/effects";
 import { hasKeyword as vmHasKeyword } from "../../src/lib/arena/vm/program";
+import { lifeReplacementChoices as vmLifeReplacementChoices } from "../../src/lib/arena/vm/replace";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../../src/lib/arena/snapshot";
@@ -606,6 +607,11 @@ function masterOfG(s: EngineState, id: string): PlayerId {
   return isVmState(s) ? vmMasterOf(DBS_DEFINITION, s, id) : masterOf(s, id);
 }
 
+/** `lifeReplacementChoicesFor` above, on whichever engine `--engine` named — 9-10's `life` event (#272), the replacements that answer a life card's own move to `dest`; the rules engine's reader is `vm/replace.ts`'s `lifeReplacementChoices`. */
+function lifeReplacementChoicesForG(s: EngineState, id: string, dest: "hand" | "drop") {
+  return isVmState(s) ? vmLifeReplacementChoices(CTX, DBS_DEFINITION, s, id, dest) : lifeReplacementChoicesFor(CTX, s, id, dest);
+}
+
 /**
  * Test-only staging: relocate a card instance into a named zone, on whichever
  * engine `--engine` named — a raw splice like `stageOnRules`'s own above, not
@@ -687,6 +693,7 @@ export {
   findG,
   forbids,
   lifeReplacementChoicesFor,
+  lifeReplacementChoicesForG,
   game,
   gameG,
   has,
