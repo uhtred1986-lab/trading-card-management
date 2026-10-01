@@ -35,7 +35,7 @@
  * Pure, synchronous and client-safe, like the rest of `rulesets/`.
  */
 import { COLORS, COND_SCHEMA, DURATIONS, OP_SCHEMA, SIDES, type Amount, type Cond, type FieldType, type Op, type OpField, type Ref, type Selector } from "../engine/script";
-import { isHole, type Hole, type ParamType } from "../lang/ast";
+import { FILTER_FIELDS, FILTER_FIELD_NAMES, filterSlot, isHole, type Hole, type ParamType } from "../lang/ast";
 import type { GameDefinition, OpDef } from "./types";
 
 /**
@@ -293,6 +293,15 @@ function substSelector(sel: Selector, args: Args): Selector {
     ["area", "area"],
   ] as const) {
     if (isHole(out[slot])) out[slot] = fill((out[slot] as Hole).hole, { name: slot, type, required: true }, args);
+  }
+  // #155: a filter field left open — `(colors = $colors)` — filled the same way.
+  const filter = sel.filter;
+  if (filter && FILTER_FIELD_NAMES.some((name) => isHole(filter[name]))) {
+    const filled: Record<string, unknown> = { ...filter };
+    for (const name of FILTER_FIELD_NAMES) {
+      if (isHole(filled[name])) filled[name] = fill((filled[name] as Hole).hole, { name, type: filterSlot(FILTER_FIELDS[name]), required: true }, args);
+    }
+    out.filter = filled;
   }
   if (sel.underHost) out.underHost = substSelector(sel.underHost, args);
   return out as Selector;

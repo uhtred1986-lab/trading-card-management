@@ -68,6 +68,7 @@
 import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
 import { canCombo } from "../engine/cards";
 import type { Action, PlayerId, Prompt, Requirement, Skill } from "../engine/types";
+import type { Op, ScriptFrame } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../engine/compile";
@@ -405,10 +406,11 @@ function openCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmSt
  * The moves that declare a play a [Counter: Play] may answer — the legacy
  * engine's three action handlers that put `{op:"counter", window:"play"}` in
  * front of their `play.resolve` (`engine/engine.ts`). A play a *skill* makes
- * (5-5-3, the `play` op) opens no window on either engine, and the keyword
- * plays the legacy engine also opens one over ([Successor], [Revive], [Swap],
- * [Over Realm], [Arrival]) are Stage 7's keyword moves, not built here yet ([Evolve]
- * and [Union] open none on either engine, #157).
+ * (5-5-3, the `play` op) opens no window on either engine. The keyword plays
+ * the legacy engine also opens one over are the `play` op's `counterWindow`
+ * (`openKeywordPlayWindow` below — [Arrival], [Successor] and [Revive] since
+ * #155; [Swap] and [Over Realm] are still unwritten), and [Evolve] and [Union]
+ * open none on either engine (#157).
  */
 const PLAY_MOVES: readonly Action["type"][] = ["play", "playUnison", "playZ"];
 
@@ -443,6 +445,35 @@ export function openPlayCounterWindow(ctx: EngineContext, game: GameDefinition, 
   }
   state.programs.shift();
   state.resolving.frame = frame;
+  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card) };
+  return true;
+}
+
+/**
+ * #155: the same window over the play a keyword's own move makes — [Arrival],
+ * [Revive] and [Successor] say `play(target: [self], counterWindow: true)`,
+ * the legacy engine's `{op:"counter", window:"play"}` in front of its
+ * `play.resolve`. Reached from inside the running program (`host.playThen`),
+ * so what is held on `state.resolving` is that program, put back *at* its
+ * `play` op — with the window field dropped, so landing the card does not ask
+ * again — and `vm/flow.ts`'s runner releases it once the answer has run, the
+ * same as a declared play's `DO`. False, and nothing changed, when the
+ * opponent has no [Counter: Play] to answer with.
+ */
+export function openKeywordPlayWindow(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId, frame: ScriptFrame): boolean {
+  state.resolving = { card, player };
+  const responder = other(player);
+  const candidates = counterCandidates(ctx, game, state, responder, "play");
+  if (!candidates.length) {
+    state.resolving = null;
+    return false;
+  }
+  const at = frame.ip - 1;
+  const ops = frame.ops.slice();
+  const landing = { ...ops[at] } as Extract<Op, { op: "play" }>;
+  delete landing.counterWindow;
+  ops[at] = landing;
+  state.resolving.frame = { ...frame, ops, ip: at };
   state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card) };
   return true;
 }

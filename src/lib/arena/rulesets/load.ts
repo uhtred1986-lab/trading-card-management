@@ -163,6 +163,9 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
       // A move's own requirements and words are a move's: on a keyword that is
       // no move they would be a refusal no menu ever asks.
       if ((def.refusals?.length || def.label !== undefined) && def.offer === undefined) errors.push(errorAt(entry, def.refusals?.length ? "REFUSE" : "label:", `${label(def)} refuses or labels a move it does not offer`, ["offer:"]));
+      // `AFTER` follows the line's printed effect, which only a move runs (#155):
+      // a moment's line runs its `DO` and nothing printed.
+      if (def.after !== undefined && def.offer === undefined) errors.push(errorAt(entry, "AFTER", `${label(def)} has an AFTER, and only a move (offer:) runs the line's printed effect for it to follow`, ["offer:"]));
       // The moments are the game's own (9-6): a name nothing declares is a
       // keyword that never fires.
       need(def.at, definition.triggers, "a moment");
@@ -186,7 +189,8 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
       const takes = new Map((def.takes ?? []).map((p) => [p.name, p.type]));
       // A keyword move's `REFUSE` conditions are bound the same way (Stage 7).
       const refused = def.define === "KEYWORD" ? (def.refusals ?? []).flatMap((r, i) => holesInCond(r.unless, `REFUSE ${i + 1}`)) : [];
-      for (const hole of [...holesIn(def.do), ...refused]) {
+      const afterHoles = def.define === "KEYWORD" ? holesIn(def.after, "AFTER") : [];
+      for (const hole of [...holesIn(def.do), ...afterHoles, ...refused]) {
         const declared = takes.get(hole.name);
         if (declared === undefined) {
           if (hole.form === "var") continue;

@@ -458,6 +458,28 @@ export function eachNamedHolds(names: string[], pool: { id: string; characters: 
   return !samePower || new Set(found.map((f) => f!.power)).size === 1;
 }
 
+/**
+ * The `covers` condition (22-29-3, 22-30-3, 22-34-3): the cards' colours,
+ * between them, include every colour named — the legacy `canCoverColors`'
+ * reading, one for both engines.
+ */
+export function coversColors(cardColors: readonly (readonly string[])[], colors: readonly string[]): boolean {
+  return colors.every((c) => cardColors.some((cs) => cs.includes(c)));
+}
+
+/**
+ * The `sumsTo` condition (22-38-2): some non-empty set of these values adds up
+ * to exactly `target`, and `target` is above 0 — the legacy `subsetSumExists`
+ * with the [Successor] gate's "no energy cost to match" folded in, since an
+ * empty set is not a cost.
+ */
+export function sumReachable(values: readonly number[], target: number): boolean {
+  if (target <= 0) return false;
+  const reachable = new Set<number>([0]);
+  for (const v of values) if (v > 0) for (const r of [...reachable]) if (r + v <= target) reachable.add(r + v);
+  return reachable.has(target);
+}
+
 export function baseType(def: CardDef): "LEADER" | "BATTLE" | "EXTRA" | "UNISON" {
   const t = def.type.replace(/^Z-/, "");
   return t === "TOKEN" ? "BATTLE" : (t as "LEADER" | "BATTLE" | "EXTRA" | "UNISON");

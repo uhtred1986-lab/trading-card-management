@@ -47,6 +47,7 @@ import {
   placeUnderG,
   playG,
   powerOfG,
+  stageMoveG,
   zoneOf,
 } from "./harness";
 import type { EngineState, PlayerId } from "./harness";
@@ -61,7 +62,6 @@ const S7 = {
   // reconciling it against `beforeDamage` (group C) is hook group C's own
   // call to make, not renamed out from under it mid-issue.
   immunity: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing and immunity ([Critical])",
-  enterLeave: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering and leaving ([Z-Stack])",
 };
 
 let skipped = 0;
@@ -457,7 +457,7 @@ if (!keywordGap("Awaken", S7.battle)) {
 }
 
 // Z-cards (16-2, 22-47): Z-Energy is paid from the Z-Energy Area; Z-Stack asks which card to tuck.
-if (!keywordGap("Z-Stack", S7.enterLeave)) {
+{
   let s = arenaG({ hand: ["V1"], energy: ["V1", "V1"], z: ["ZB", "V1"] });
   // Nothing in Z-Energy yet → not playable.
   assert.ok(!labelsG(s).some((x) => x.includes("Z-Battle")));
@@ -465,14 +465,26 @@ if (!keywordGap("Z-Stack", S7.enterLeave)) {
   s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
   const c = findG(s, "p1", "hand", "V1");
   s = playG(s, { type: "combo", player: "p1", card: c }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
-  assert.equal(s.prompt.kind, "zEnergyFromCombo");
-  s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
+  if (ENGINE === "legacy") {
+    assert.equal(s.prompt.kind, "zEnergyFromCombo");
+    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
+  } else {
+    // 8-5-2's Z-Energy offer over a spent combo card is not built on the
+    // rules engine (`vm/index.ts`'s `DECLARED_BY.zEnergyFromCombo`, #151):
+    // the combo card goes to the Drop, and it is staged into the Z-Energy
+    // Area here so the [Z-Stack] half below (#155) runs on both engines.
+    assert.equal(s.prompt.kind, "main", "no Z-Energy offer on the rules engine yet (#151)");
+    stageMoveG(s, c, "zEnergy", "p1");
+  }
   assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
+  const zb = findG(s, "p1", "zDeck", "ZB");
   assert.ok(
-    labelsG(s).some((x) => x.startsWith("Play Z-Battle ZB")),
+    actsG(s).some((a) => a.type === "playZ" && a.card === zb),
     "now affordable",
   );
-  const zb = findG(s, "p1", "zDeck", "ZB");
+  // The menu's exact words are the legacy engine's; the rules engine's are
+  // the generic builder over `actions.rules`' `label:` (Stage 8).
+  if (ENGINE === "legacy") assert.ok(labelsG(s).some((x) => x.startsWith("Play Z-Battle ZB")));
   s = playG(s, { type: "playZ", player: "p1", card: zb });
   assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: Z-Energy paid to the Drop");
   assert.equal(s.prompt.kind, "chooseCards", "22-47: Z-Stack asks for the card to place under");

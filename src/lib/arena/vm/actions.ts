@@ -288,10 +288,11 @@ function keywordRefusalsOf(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (!kw?.refusals?.length) return [];
   const frame = { ops: [], ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex };
   const host = vmHost(ctx, game, state, []);
-  const name = ctx.defs[state.cards[line.card]?.cardId ?? ""]?.name ?? line.card;
+  const printed = ctx.defs[state.cards[line.card]?.cardId ?? ""];
+  const name = printed?.name ?? line.card;
   for (const refusal of kw.refusals) {
     if (host.condHolds(frame, keywordRefusalCond(game, kw, line.skill, refusal.unless))) continue;
-    const args = Object.fromEntries(Object.entries(refusal.args).map(([k, v]) => [k, typeof v === "string" ? keywordWords(v, kw, line.skill, name) : v]));
+    const args = Object.fromEntries(Object.entries(refusal.args).map(([k, v]) => [k, typeof v === "string" ? keywordWords(v, kw, line.skill, name, printed?.back?.name) : v]));
     return [requirementOf(state, refusal.kind, args, line.card)];
   }
   return [];
@@ -552,7 +553,7 @@ function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def:
   // legacy engine's own ("Overlord: return a Servant to the deck, draw 1") —
   // and is refused under the generic row's, which is how the legacy
   // `rejections.ts` names every refused line, keyword or not.
-  if (offered && line?.keyword?.label !== undefined) return keywordWords(line.keyword.label, line.keyword, line.skill, name);
+  if (offered && line?.keyword?.label !== undefined) return keywordWords(line.keyword.label, line.keyword, line.skill, name, (cardId && ctx.defs[cardId]?.back?.name) || undefined);
   const what = line?.skill.keyword ? `[${line.skill.keyword.name}]` : (line?.skill.effect.slice(0, 40) ?? "");
   return what ? `${label} ${name}: ${what}` : `${label} ${name}`;
 }

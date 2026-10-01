@@ -44,6 +44,14 @@ export interface OpField {
   default?: unknown;
   /** `null` is a value here ("no combo cost"), not an omission. */
   nullable?: boolean;
+  /**
+   * A field no printed card's record writes — a `DEFINE KEYWORD` body's word
+   * (#155) — and what it does. Left out of what the referee is told
+   * (`opSignature`), as `CONDITIONS_OFF_A_CARD` leaves out a whole condition:
+   * a word only a keyword's own program writes is one a ruling on a card
+   * could only use wrongly. The language reference lists it with this line.
+   */
+  offCard?: string;
 }
 
 /**
@@ -84,6 +92,9 @@ export interface RenderOptions {
  * goes back to being private.
  */
 export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
+
+/** The card measures an `Amount` may read off one card (`AmountAttr`) — `lang/ast.ts`'s `EXPR_ATTRS`, written out here because the schema cannot import the language. */
+const AMOUNT_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost"] as const satisfies readonly AmountAttr[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
 export const REPLACE_EVENTS = ["leave", "ko", "play", "life"] as const satisfies readonly ReplaceEvent[];
@@ -295,8 +306,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "reason", type: "string" },
       { name: "chooser", type: "side" },
       { name: "bindX", type: "boolean" },
+      {
+        name: "sumTo",
+        type: "amount",
+        offCard: "picks one card at a time until their sumAttr adds up to exactly this much, offering only the cards that still leave a way to the exact sum; the selector's count is not read, and a set that cannot be finished binds nothing — [Successor]'s cost (22-38-3)",
+      },
+      { name: "sumAttr", type: { enum: AMOUNT_ATTRS }, offCard: "the measure sumTo adds up — energyCost when left out" },
     ],
-    sentence: "choose {sel}",
+    sentence: "choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}",
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
   look: {
@@ -322,8 +339,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
   play: {
-    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "negated", type: { enum: ["turn", "game"] } }],
-    sentence: "play {target}{mode? in {mode} mode}",
+    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "negated", type: { enum: ["turn", "game"] } }, {
+        name: "counterWindow",
+        type: "boolean",
+        offCard: "opens the [Counter: Play] window a declared play opens (9-6, 22-10) before the card lands — the play a keyword's own move makes ([Arrival], [Revive], [Successor]), where a play a card's skill makes opens none (5-5-3)",
+      },
+    ],
+    sentence: "play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}",
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
   },
   switchMode: { fields: [TARGET, { name: "mode", type: MODE, required: true }], sentence: "switch {target} to {mode} mode" },
@@ -979,6 +1001,29 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "does every character the keyword line prints in ‹…› stand on a different card among these — and, with samePower, are they of one power? [Union]'s check before it is offered (22-13-4, 22-13-5). No card's record says this; it is read off the line a keyword's own program belongs to, like the `asPrinted` selector flag",
   },
+  covers: {
+    fields: [
+      { name: "sel", type: "selector", required: true },
+      { name: "colors", type: { list: { enum: COLORS } }, required: true },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"covers">;
+      return `${describeSelector(c.sel, "")} carry ${c.colors.join(" and ")} between them`;
+    },
+    doc: "do these cards carry every one of the colours between them — one card of each, or one multicolour card for two? [Arrival]'s Combo Area and [Revive]'s hand (22-29-3, 22-34-3), with the colours bound off the printed keyword (`colors: $colors`). A `DEFINE KEYWORD` body's word; no card's record says this (#155)",
+  },
+  sumsTo: {
+    fields: [
+      { name: "sel", type: "selector", required: true },
+      { name: "attr", type: { enum: AMOUNT_ATTRS }, required: true },
+      { name: "total", type: "amount", required: true },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"sumsTo">;
+      return `some of ${describeSelector(c.sel, "")} have a total ${c.attr} of exactly ${describeAmount(c.total)}`;
+    },
+    doc: "can some of these cards — at least one, and a total above 0 — be picked so that their measure adds up to exactly this much? [Successor]'s check before it is offered (22-38-2); the `choose` op's `sumTo` then picks that set one card at a time. A `DEFINE KEYWORD` body's word (#155)",
+  },
 };
 
 /** Primitive or macro for a condition — `docs/arena-ruleset-spec.md` §2.4, and see `OP_CLASS` above. */
@@ -1007,6 +1052,8 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   sameCard:       "primitive",
   oneOf:          "primitive",
   eachNamed:      "primitive",
+  covers:         "primitive",
+  sumsTo:         "primitive",
 };
 
 /**
@@ -1029,7 +1076,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
  * Not a validation rule — `validateProgram` accepts every schema row, because a
  * stored program is checked against the language and not against this list.
  */
-export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "oneOf", "eachNamed"];
+export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "oneOf", "eachNamed", "covers", "sumsTo"];
 
 // ── validation, for programs that did not come from the compiler ───────────
 
@@ -1657,7 +1704,7 @@ export function opSignature(name: Op["op"]): string {
     }
     return { amount: "AMOUNT", ref: "TARGET", selector: "SELECTOR", side: '"you"|"opponent"', area: "AREA", duration: "DURATION", cond: "COND", conds: "[COND]", ops: "[…]", string: '"…"', number: "N", boolean: "true|false", keyword: '{"name":"Blocker"}', filter: "FILTER", modes: '[{"label":"…","ops":[…]}]' }[t];
   };
-  const fields = OP_SCHEMA[name].fields.map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
+  const fields = OP_SCHEMA[name].fields.filter((f) => !f.offCard).map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
   return `{"op":"${name}"${fields.length ? "," : ""}${fields.join(",")}}`;
 }
 

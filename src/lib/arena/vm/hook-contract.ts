@@ -67,7 +67,7 @@ export const HOOK_CONTRACT: Record<HookPoint, HookSpec> = {
     group: "B",
     answer: "effect",
     vars: ["to"],
-    doc: "`self` is leaving a zone its keyword cares about. Bound: `to`, the zone it is going to. [Revive]'s KO-triggered play from the Drop (22-34) is the worked example.",
+    doc: "`self` is leaving a zone its keyword cares about. Bound: `to`, the zone it is going to. No keyword body hangs on it yet: [Revive]'s KO-triggered play from the Drop (22-34), the example this row was written around, is the keyword's own line answering the `koed` moment (`at: [koed]`, #155), because it pends and is announced like an [Auto] and asks its owner a question.",
   },
   afterSkill: {
     group: "B",

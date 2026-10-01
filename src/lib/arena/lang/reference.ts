@@ -37,7 +37,7 @@ import {
   type OpField,
 } from "../engine/script";
 import { whenMoments, words } from "../rulesets/words";
-import { COST_ITEMS, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, FILTER_FIELDS, SELECTOR_FIELDS, type FilterFieldType } from "./ast";
+import { COST_ITEMS, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, FILTER_FIELDS, SELECTOR_FIELDS, filterSlot, paramTypesFor, type FilterFieldType, type ParamType } from "./ast";
 import { SELECTOR_FLAGS } from "./parse";
 
 // ── one field, as a table row ───────────────────────────────────────────────
@@ -54,11 +54,13 @@ export interface RefField {
   listOf?: "string" | "enum";
   /** What the interpreter assumes when the field is left out, printed as JSON — `undefined` itself is not a value, so its absence here means there is no default. */
   defaultText?: string;
+  /** A `DEFINE KEYWORD` body's own field (`OpField.offCard`): what it does. No card's record writes it, and the referee is not told it. */
+  offCard?: string;
 }
 
 function refField(f: OpField): RefField {
   const t = f.type;
-  const base = { name: f.name, required: !!f.required, nullable: !!f.nullable, defaultText: f.default === undefined ? undefined : JSON.stringify(f.default) };
+  const base = { name: f.name, required: !!f.required, nullable: !!f.nullable, defaultText: f.default === undefined ? undefined : JSON.stringify(f.default), ...(f.offCard ? { offCard: f.offCard } : {}) };
   if (typeof t === "object") {
     if ("enum" in t) return { ...base, type: "enum", enumValues: [...t.enum] };
     return t.list === "string" ? { ...base, type: "list", listOf: "string" } : { ...base, type: "list", listOf: "enum", enumValues: [...t.list.enum] };
@@ -212,12 +214,14 @@ export interface RefFilterField {
   type: FilterFieldType;
   /** `describeFilter` on a filter carrying only this field — the words it alone contributes. */
   printed: string;
+  /** The parameter types a `DEFINE KEYWORD`/`DEFINE OP` body may leave this field open to, written `(field = $name)` (#155) — `filterSlot`'s answer, as the loader checks it. */
+  openTo: ParamType[];
 }
 
 function refFilterFields(): RefFilterField[] {
   return Object.entries(FILTER_FIELDS).map(([field, type]) => {
     const filter = { ...emptyFilter(), [field]: sampleFilterValue(type as FilterFieldType) } as CardFilter;
-    return { field, type: type as FilterFieldType, printed: describeFilter(filter) };
+    return { field, type: type as FilterFieldType, printed: describeFilter(filter), openTo: paramTypesFor(filterSlot(type as FilterFieldType)) };
   });
 }
 

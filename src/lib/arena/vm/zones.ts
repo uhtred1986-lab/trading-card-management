@@ -68,6 +68,8 @@ export function isTokenCard(cardId: string): boolean {
 
 /** 19-1-7: where a token leaving play goes — the declared zone of 20-10, "removed from the game". */
 const TOKEN_EXIT = "removed";
+/** 23-2-5: where the cards under a card go when it leaves play — the Drop Area, as `moveCard`'s own 23-2-5 half above already names it. */
+const PILE_EXIT = "drop";
 
 /** In play, or a pile a card may sit on (a combo): the places 3-1-6-1 and 19-1-7 both treat as "on the table". */
 function heldInPlay(game: GameDefinition, zone: string): boolean {
@@ -212,6 +214,8 @@ export interface MoveRecord {
   under: string | null;
   /** The replacement the caller passed, so a later stage can see the hook was reached and declined. */
   replacement: Replacement | null;
+  /** 23-2-5: the pile this card left behind as it left play, each card's own move (`from` is the area the pile was in). */
+  released?: MoveRecord[];
 }
 
 export type MoveResult = { ok: true; move: MoveRecord } | { ok: false; refused: string };
@@ -318,13 +322,24 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   if (opts.mode !== undefined && !zone.modes?.includes(opts.mode)) return { ok: false, refused: `a card in the ${to} is never ${opts.mode}` };
 
   lift(board, id, host);
+  // 23-2-5: a card leaving play (or a combo) for an area of another name
+  // leaves its pile behind, each card in its owner's Drop Area — a Z-card
+  // among them removed from the game (14-1-4) — the legacy `move`'s own line,
+  // in its order: the pile goes before the card on top is logged as gone.
+  const released: MoveRecord[] = [];
+  if (from && heldInPlay(game, from.zone) && !heldInPlay(game, to) && card.under.length) {
+    for (const u of card.under.splice(0)) {
+      const out = moveCard(board, game, u, board.cards[u]?.zCard === true && game.zones[TOKEN_EXIT] ? TOKEN_EXIT : PILE_EXIT, { position: "top" });
+      if (out.ok) released.push({ ...out.move, from: from.zone, fromOwner: from.owner });
+    }
+  }
   if (!opts.carry) reset(card, zone);
   else if (zone.modes && !zone.modes.includes(card.mode ?? "")) card.mode = arrivalMode(zone);
   if (opts.mode !== undefined) card.mode = opts.mode;
   if (zone.markers !== true) card.markers = 0;
   if (opts.position === "top") list.unshift(id);
   else list.push(id);
-  return { ok: true, move: record(id, from, to, toOwner, opts, null) };
+  return { ok: true, move: { ...record(id, from, to, toOwner, opts, null), ...(released.length ? { released } : {}) } };
 }
 
 function record(id: string, from: At | null, to: string, owner: PlayerId, opts: MoveOptions, under: string | null): MoveRecord {

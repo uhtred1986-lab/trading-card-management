@@ -282,7 +282,12 @@ export interface ScriptHost {
   /** Run `first` now and come back to `frame` — a replacement's substitute, which may itself ask (9-10-1-1). */
   interrupt(first: ScriptFrame, frame: ScriptFrame): void;
   /** 5-5-3: play these cards, then come back to `frame`. */
-  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game" }, frame: ScriptFrame): void;
+  /**
+   * `counterWindow` (#155): the play a keyword's own move makes opens the
+   * [Counter: Play] window first (9-6). `"wait"` when the host stopped to ask
+   * the opponent, with `frame` held until the window closes.
+   */
+  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true }, frame: ScriptFrame): "wait" | void;
 }
 
 /**
@@ -481,6 +486,13 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
     },
     playThen: (cards, opts, frame) => {
       const steps: FlowStep[] = cards.map((card) => ({ op: "play.resolve" as const, card, player: opts.player, mode: opts.mode, onto: opts.onto, negated: opts.negated }));
+      // #155: the shared word's legacy reading — the same two steps this
+      // engine's own [Arrival]/[Revive]/[Successor] cases queue (no program of
+      // this engine writes it).
+      if (opts.counterWindow && cards.length === 1) {
+        s.resolving = { card: cards[0], player: opts.player };
+        steps.unshift({ op: "counter", window: "play", responder: opts.player === "p1" ? "p2" : "p1" });
+      }
       steps.push({ op: "script.step", frame });
       s.flow.unshift(...steps);
     },

@@ -201,6 +201,12 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   }
   // `bindX` on a choose, which is the other way X gets a value.
   tripOps([{ op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "c", bindX: true }], "choose with bindX");
+  // #155: the words group B's keyword bodies write — [Successor]'s exact sum,
+  // [Arrival]'s play through a window, and the two conditions they ask.
+  tripOps([{ op: "choose", sel: { side: "you", area: "battle" }, as: "paid", sumTo: { attr: { sel: { special: "self" } }, name: "energyCost" }, sumAttr: "comboCost" }], "choose with sumTo");
+  tripOps([{ op: "play", target: { sel: { special: "self" } }, counterWindow: true }], "play through a [Counter: Play] window");
+  tripCond({ kind: "covers", sel: { side: "you", area: "combo" }, colors: ["Red", "Blue"] }, "covers");
+  tripCond({ kind: "sumsTo", sel: { side: "you", area: "battle" }, attr: "energyCost", total: { attr: { sel: { special: "self" } }, name: "energyCost" } }, "sumsTo");
 
   // A counted, conditional prohibition (20-14): the schema loop above already
   // builds a maximal `forbid`, but it builds one generic value per field type.

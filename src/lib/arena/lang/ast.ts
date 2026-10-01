@@ -13,7 +13,7 @@
  * fail `npm run typecheck` until it is described.
  */
 import type { CardFilter } from "../engine/filters";
-import type { Amount, AmountAttr, Cond, CostRecord, FieldType, Op, OpField, Selector, Side } from "../engine/script";
+import { COLORS, type Amount, type AmountAttr, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector, type Side } from "../engine/script";
 import type { Requirement, SkillKind, Trigger } from "../engine/types";
 
 /**
@@ -137,6 +137,30 @@ void _everyFilterFieldWritten;
 
 export const FILTER_FIELD_NAMES = Object.keys(FILTER_FIELDS) as (keyof CardFilter)[];
 
+/**
+ * The slot a `$name` stands in when a `DEFINE KEYWORD` or `DEFINE OP` body
+ * writes it as a filter field's value — `(colors = $colors)`, [Revive]'s
+ * cards of the colours the printed keyword names (#155) — so the loader can
+ * check it against the parameter's type and the expander fill it, as for a
+ * selector's own count, side and area. A filter written in words has no
+ * such slot: only the field-by-field form can leave one open.
+ */
+export function filterSlot(kind: FilterFieldType): FieldType {
+  switch (kind) {
+    case "colors":
+      return { list: { enum: COLORS } };
+    case "strings":
+    case "keywords":
+      return { list: "string" };
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    default:
+      return "string";
+  }
+}
+
 // ── expressions ─────────────────────────────────────────────────────────────
 
 /** What one argument of an expression call is. */
@@ -226,7 +250,7 @@ export const COST_ITEMS = [
  */
 export const RESERVED = new Set([
   "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
-  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT",
+  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT", "AFTER",
 ]);
 
 // ── definitions ─────────────────────────────────────────────────────────────
@@ -688,6 +712,12 @@ export interface DefKeyword extends Declaration<"KEYWORD"> {
   label?: string;
   /** What the keyword does: run when its move is taken, or when a moment it answers to resolves. */
   do?: Op[];
+  /**
+   * A move's last word: run after the line's own printed effect, where `DO`
+   * runs before it — [Wish]'s flip of the Leader once the effect has resolved
+   * (22-25-4), even when the effect stopped to ask something (#155).
+   */
+  after?: Op[];
   hooks?: DefineHook[];
 }
 
@@ -937,6 +967,7 @@ export const DEFINE_SCHEMA = {
       { name: "refusals", type: "refusals", word: "REFUSE" },
       { name: "label", type: "string" },
       { name: "do", type: "ops", word: "DO" },
+      { name: "after", type: "ops", word: "AFTER" },
       { name: "hooks", type: "hooks", word: "HOOK" },
     ],
   },

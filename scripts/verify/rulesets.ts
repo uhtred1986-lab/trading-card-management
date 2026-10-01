@@ -297,6 +297,15 @@ assert.equal(unknownHook.clause, "KEYWORD");
     const cond = bindKeywordCond(swap.refusals![0].unless, swap.takes, { name: "Swap", x: 3 }, gated.definition);
     assert.deepEqual(cond, { kind: "count", sel: { side: "you", area: "hand" }, atLeast: 3 }, "the printed keyword's parameter is not what the refusal reads");
   }
+  // #155: a field of a card filter may be left to the printed keyword too —
+  // [Revive]'s `(colors = $colors)`, and here "an energy cost of X".
+  const filtered = loadRuleset(keyword("  at: [played]", "  DO {", "    choose(sel: 1 (costMin = $x AND costMax = $x) IN you.hand, as: \"t\")", "  }"));
+  assert.ok(filtered.ok, `a keyword's filter hole did not load: ${filtered.ok ? "" : JSON.stringify(filtered.errors)}`);
+  if (filtered.ok) {
+    const swap = filtered.definition.keywords.Swap;
+    const [chosen] = bindKeywordParams(swap.do ?? [], swap.takes, { name: "Swap", x: 3 }, filtered.definition) as unknown as [{ sel: { filter: { costMin: unknown; costMax: unknown } } }];
+    assert.deepEqual([chosen.sel.filter.costMin, chosen.sel.filter.costMax], [3, 3], "the printed keyword's parameter does not reach the filter field");
+  }
   // A moment, by a name the game declares.
   const moment = loadRuleset(keyword("  at: [played]", "  DO {", "    draw(n: 1)", "  }"));
   assert.ok(moment.ok, `a keyword's moment did not load: ${moment.ok ? "" : JSON.stringify(moment.errors)}`);
@@ -317,6 +326,9 @@ assert.equal(unknownHook.clause, "KEYWORD");
   refusedKeyword(['  offer: "counter:play"', "  DO {}"], "no DEFINE ACTION takes a line", "a move of a kind no action is about");
   refusedKeyword(["  at: [played]", "  DO {", "    moveTo(target: TOP $y IN you.hand, to: battle)", "  }"], "$y", "a hole that is not a parameter it TAKES");
   refusedKeyword(['  offer: "activate:main"', '  REFUSE target(reason: "no") UNLESS oneOf(value: $y, of: ["3"])', "  DO {}"], "$y", "a REFUSE hole that is not a parameter it TAKES");
+  refusedKeyword(["  at: [played]", "  DO {", "    choose(sel: 1 (colors = $x) IN you.hand, as: \"t\")", "  }"], "TAKES it as number", "a filter hole of the wrong type");
+  refusedKeyword(["  at: [played]", "  DO {}", "  AFTER {", "    draw(n: 1)", "  }"], "has an AFTER", "an AFTER on a keyword that offers no move");
+  refusedKeyword(['  offer: "activate:main"', "  DO {}", "  AFTER {", "    moveTo(target: TOP $y IN you.hand, to: battle)", "  }"], "$y", "an AFTER hole that is not a parameter it TAKES");
 }
 
 // ── the macro expander ──────────────────────────────────────────────────────

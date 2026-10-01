@@ -92,7 +92,7 @@ import { moved } from "./flow";
 import { forbiddenBy, resolveSelector } from "./program";
 import { vmHost } from "./host";
 import type { VmState } from "./state";
-import { keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
+import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
 import { skillsShowing } from "./triggers";
 import { findCard } from "./zones";
 
@@ -463,7 +463,9 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // and then whatever effect the line prints beyond the keyword, which is
   // [Union-Absorb]'s whole effect ("its text says which card is played onto
   // this one", 22-13-6) and nothing at all on a bare [Evolve] or [Overlord].
-  const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? [])] : (line.script?.ops ?? []);
+  // `AFTER` (#155) is the keyword's last word, after that printed effect:
+  // [Wish]'s flip of the Leader (22-25-4).
+  const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []);
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index });
 }
 
