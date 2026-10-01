@@ -6,10 +6,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "f10e415b"
+      "digest": "bbb023a5"
     },
-    "same": false,
-    "cause": "keyword-moves"
+    "same": true
   },
   "ACTIVE-HUNTER#0": {
     "legacy": {
@@ -649,11 +648,11 @@
       "digest": "c84aadcf"
     },
     "rules": {
-      "outcome": "notOffered",
-      "digest": "69657b64"
+      "outcome": "fired",
+      "digest": "96be7a90"
     },
     "same": false,
-    "cause": "keyword-moves"
+    "cause": "evolve-moved-twice"
   },
   "EXILE#0": {
     "legacy": {
@@ -729,10 +728,9 @@
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "f10e415b"
+      "digest": "aa35f8c1"
     },
-    "same": false,
-    "cause": "keyword-moves"
+    "same": true
   },
   "GLOATER#0": {
     "legacy": {

@@ -41,12 +41,14 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import type { Cond, Selector } from "../engine/script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationMoment, activationRefusals, activationsOf, boundFor, keywordActivationMoment, resolveActivation, type ActivationLine } from "./activate";
+import { activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, keywordActivationMoments, resolveActivation, type ActivationLine } from "./activate";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { answered } from "./flow";
 import { predicateOf } from "./filters";
+import { vmHost } from "./host";
+import { keywordRefusalCond, keywordWords } from "./keyword-do";
 import { attrsNow, forbiddenBy } from "./program";
 import { SETUP_ZONES } from "./zones";
 import type { VmState } from "./state";
@@ -200,7 +202,7 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
 function activation(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, line: ActivationLine): Candidate {
   // A keyword's own move (Stage 7) brings its own `REFUSE` lines, which the
   // gates read in the place the legacy twin asks its keyword's `case`.
-  const keywordRefusals = () => firstRefusal(ctx, game, state, line.keyword?.refusals ?? [], player, line.card, false);
+  const keywordRefusals = () => keywordRefusalsOf(ctx, game, state, player, line);
   const gates = activationRefusals(ctx, game, state, def, player, line, keywordRefusals);
   const why = [...refusedBy(ctx, game, state, def, player, line.card), ...gates.before];
   const bound: BoundAmounts = boundFor(ctx, game, state, player, line);
@@ -264,6 +266,33 @@ function firstRefusal(ctx: EngineContext, game: GameDefinition, state: VmState, 
     const found: Record<string, unknown> = {};
     if (holds(ctx, game, state, refusal.unless, player, card, found)) continue;
     return [requirementOf(state, refusal.kind, { ...refusal.args, ...found }, card)];
+  }
+  return [];
+}
+
+/**
+ * The first `REFUSE` of a keyword's own move that does not hold (Stage 7).
+ *
+ * The same requirement an action's `REFUSE` names, but its condition is about
+ * **the line**, not about a candidate an action's `FOR` found: it is asked as
+ * the line's own program would ask it — a frame of the card, its master and
+ * its skill index, through the one condition reader a program has
+ * (`condHolds`) — so `[self] IN you.hand`, `asPrinted` and `eachNamed` mean
+ * what they mean in the keyword's `DO`, and `$x`/`$variant` are bound off the
+ * printed keyword first. Its words are the line's too (`keywordWords`): the
+ * legacy engine writes "no <Nail> in your Battle Area" by hand, and the
+ * declaration writes "no {line} in your Battle Area" once.
+ */
+function keywordRefusalsOf(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): Requirement[] {
+  const kw = line.keyword;
+  if (!kw?.refusals?.length) return [];
+  const frame = { ops: [], ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex };
+  const host = vmHost(ctx, game, state, []);
+  const name = ctx.defs[state.cards[line.card]?.cardId ?? ""]?.name ?? line.card;
+  for (const refusal of kw.refusals) {
+    if (host.condHolds(frame, keywordRefusalCond(game, kw, line.skill, refusal.unless))) continue;
+    const args = Object.fromEntries(Object.entries(refusal.args).map(([k, v]) => [k, typeof v === "string" ? keywordWords(v, kw, line.skill, name) : v]));
+    return [requirementOf(state, refusal.kind, args, line.card)];
   }
   return [];
 }
@@ -523,7 +552,7 @@ function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def:
   // legacy engine's own ("Overlord: return a Servant to the deck, draw 1") —
   // and is refused under the generic row's, which is how the legacy
   // `rejections.ts` names every refused line, keyword or not.
-  if (offered && line?.keyword?.label !== undefined) return line.keyword.label.replace(/\{card\}/g, name);
+  if (offered && line?.keyword?.label !== undefined) return keywordWords(line.keyword.label, line.keyword, line.skill, name);
   const what = line?.skill.keyword ? `[${line.skill.keyword.name}]` : (line?.skill.effect.slice(0, 40) ?? "");
   return what ? `${label} ${name}: ${what}` : `${label} ${name}`;
 }
@@ -600,10 +629,15 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // even though only one of them runs on the spot.
   const line = def.skills && card !== null && typeof skill === "number" ? lineOf(ctx, game, state, def, card, skill) : undefined;
   if (def.skills && !line) throw new IllegalAction(`${card} has no skill line ${skill}`);
+  // A keyword move that is the keyword's alone is announced as it is paid for
+  // and ahead of the payment, the legacy order (`announcesBeforePrice`) — but
+  // never before a `payCost` question below, which pays and announces nothing.
+  const early = line && announcesBeforePrice(line) ? line : null;
   if (chosen.alt) {
     // 5-3: the alternative is paid *instead of* the declared price — nothing,
     // life to the hand, or a smaller energy price — and the move goes on
     // exactly as it would have (the legacy `payAltCost`).
+    if (early) announce(state, ev, player, early);
     payAltCost(ctx, game, state, ev, player, chosen.alt);
   } else if (def.cost?.length && !declining(def, card)) {
     const explicit = (action as { pay?: string[] }).pay;
@@ -626,8 +660,9 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       state.prompt = { kind: "payCost", player, action, options: plan.options, describe: label.charAt(0).toLowerCase() + label.slice(1) };
       return "asked";
     }
+    if (early) announce(state, ev, player, early);
     chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
-  }
+  } else if (early) announce(state, ev, player, early);
   // The one move whose program is not the declaration's: an activation runs the
   // **record's**, because a `DO` written once in the file could not be the
   // program of nine different lines. `vm/activate.ts` counts the use, sends an
@@ -640,10 +675,10 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     const moment = activationMoment(state, player, line);
     // A keyword's own move is a second moment as well — "when you activate an
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
-    const keywordMoment = keywordActivationMoment(state, player, line);
+    const keywordMoments = keywordActivationMoments(state, player, line);
     resolveActivation(ctx, game, state, ev, player, line);
     fire(ctx, game, state, moment);
-    if (keywordMoment) fire(ctx, game, state, keywordMoment);
+    for (const m of keywordMoments) fire(ctx, game, state, m);
   } else {
     runProgram(state, def, player, chosen);
   }

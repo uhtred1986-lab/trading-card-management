@@ -240,13 +240,62 @@ DEFINE KEYWORD Offering
 DEFINE KEYWORD Evolve
   TAKES (variant: string)
   text: "From hand: pay the cost, choose one of your Battle Cards matching the printed description, and play this card on top of it. [Xeno-Evolve] sends the chosen card to the Warp instead of stacking onto it."
-  -- Stage 7 (#153–#157)
+  -- A move (#157), offered as an [Activate: Main] used from the hand (22-5-2)
+  -- while a Battle Card matching the printed description is out — `asPrinted`
+  -- reads "<V1>" off the line, the legacy `parseFilter(sk.effect || sk.cost)`.
+  -- The price is the line's printed orbs. "when you use this card's [Evolve]
+  -- from your hand" is the move's `keywordActivated(from: hand)`. The stack
+  -- keeps the host's place, mode and power effects (`play … onto`,
+  -- `vm/play.ts`'s `stackOnto`). [Xeno-Evolve] sends the host to the Warp and
+  -- plays this card beside where it was (22-5-6).
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE target(reason: "no {line} in your Battle Area") UNLESS count(IN you.battle asPrinted) >= 1
+  label: "{variant} {card} onto a {line}"
+  DO {
+    choose(sel: 1 IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+    if(cond: oneOf(value: $variant, of: ["Xeno-Evolve"]), then: {
+      moveTo(target: $base, to: warp)
+      play(target: [self])
+    }, else: {
+      play(target: [self], onto: $base)
+    })
+  }
 
 -- 22-13
 DEFINE KEYWORD Union
   TAKES (variant: string)
   text: "Three ways to play a Battle Card by naming characters. Fusion drops one of each named character from your hand, both of equal power. Potara plays this card on top of two named characters in your Battle Area. Absorb is activated from the Battle Area, and its text says which card is played onto this one."
-  -- Stage 7 (#153–#157)
+  -- A move (#157), one declaration for its three variants, told apart by
+  -- `oneOf(value: $variant, …)`. Fusion and Potara are used from the hand and
+  -- need each character the line names in ‹…› on a different card
+  -- (`eachNamed`) — in the hand, of one power, for Fusion (22-13-4); in the
+  -- Battle Area for Potara (22-13-5). Absorb is used from the Battle Area
+  -- (22-13-6-2) and its `DO` does nothing of its own: the line's printed
+  -- effect, which runs after the `DO` of every keyword move, is what says
+  -- which card is played onto this one. "when you activate a [Union] skill"
+  -- and "when this card's [Union-Absorb] is activated" are the move's
+  -- `keywordActivated` under both names.
+  offer: "activate:main"
+  REFUSE zone(area: battle) UNLESS any([NOT oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.battle) >= 1])
+  REFUSE zone(area: hand) UNLESS any([oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.hand) >= 1])
+  REFUSE target(reason: "needs {names} in hand") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), eachNamed(sel: IN you.hand otherThanSelf)])
+  REFUSE target(reason: "the two cards must have equal power") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), eachNamed(sel: IN you.hand otherThanSelf, samePower: true)])
+  REFUSE target(reason: "needs {names} in your Battle Area") UNLESS any([NOT oneOf(value: $variant, of: ["Potara"]), eachNamed(sel: IN you.battle)])
+  label: "Union-{variant} {card}"
+  DO {
+    if(cond: oneOf(value: $variant, of: ["Fusion"]), then: {
+      choose(sel: 2 IN you.hand otherThanSelf asPrinted, as: "pair", reason: "[Union-Fusion]: choose the named cards to drop")
+      moveTo(target: $pair, to: drop, cause: cost)
+      play(target: [self])
+    })
+    if(cond: oneOf(value: $variant, of: ["Potara"]), then: {
+      choose(sel: 1 IN you.battle asPrinted, as: "first", reason: "[Union-Potara]: choose the card to play this one onto")
+      play(target: [self], onto: $first)
+      choose(sel: 1 IN you.battle otherThanSelf asPrinted, as: "second", reason: "[Union-Potara]: choose the card to put under it")
+      moveTo(target: $second, to: under, under: [self])
+    })
+  }
 
 -- 22-15, 22-23
 DEFINE KEYWORD "Over Realm"
@@ -304,6 +353,7 @@ DEFINE KEYWORD Overlord
   -- `keywordActivated` moment (`triggers.rules`' `overlordActivated`).
   offer: "activate:main"
   REFUSE target(reason: "no [Servant] in your Battle Area") UNLESS count("card with [Servant]" IN you.battle) >= 1
+  REFUSE zone(area: battle) UNLESS count([self] IN you.battle) >= 1
   label: "Overlord: return a Servant to the deck, draw 1"
   DO {
     choose(sel: 1 "card with [Servant]" IN you.battle, as: "servant", reason: "[Overlord]: the [Servant] to put at the bottom of your deck")

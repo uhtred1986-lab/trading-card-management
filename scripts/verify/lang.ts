@@ -506,6 +506,9 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { ignoreBarrier: true },
     { notSelf: "card" as const },
     { notSelf: "copies" as const },
+    // #157: a keyword body's "the description printed on this line".
+    { printed: true },
+    { side: "you" as const, area: "hand" as const, count: 2, notSelf: "card" as const, printed: true },
     { special: "self" as const, mode: "rest" as const, count: 1 },
   ] as Selector[])
     tripSelector(sel, `selector ${printSelector(sel)}`);

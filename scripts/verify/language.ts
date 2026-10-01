@@ -181,6 +181,7 @@ import type { CardFilter, SchemaOp } from "./harness";
 {
   const sample = (t: unknown): unknown => {
     if (typeof t === "object" && t && "enum" in t) return (t as { enum: readonly string[] }).enum[0];
+    if (typeof t === "object" && t && "list" in t) return ["t"];
     return { selector: { side: "you", area: "battle", count: 1 }, side: "you", number: 1, boolean: true, string: "t", filter: parseFilter("red card"), cond: { kind: "isTurnPlayer" }, conds: [{ kind: "isTurnPlayer" }] }[t as string];
   };
   for (const [kind, spec] of Object.entries(COND_SCHEMA)) {

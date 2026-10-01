@@ -43,6 +43,13 @@ export function holesIn(ops: Op[] | undefined, where = ""): HoleAt[] {
   return out;
 }
 
+/** Every hole in one condition — a keyword move's `REFUSE … UNLESS` (Stage 7). */
+export function holesInCond(cond: Cond | undefined, where = ""): HoleAt[] {
+  const out: HoleAt[] = [];
+  walkCond(cond, where, out);
+  return out;
+}
+
 function walkOps(ops: unknown, where: string, out: HoleAt[]): void {
   if (isHole(ops)) {
     out.push({ name: ops.hole, slot: "ops", form: "hole", where });

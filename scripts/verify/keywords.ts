@@ -120,8 +120,6 @@ function replaceGap(where: string): boolean {
 }
 
 const S7 = {
-  evolve: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Evolve])",
-  union: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Union])",
   invoker: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering, leaving and after a skill ([Invoker])",
   arrival: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering, leaving and after a skill ([Arrival])",
   empower: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Empower])",
@@ -134,7 +132,8 @@ const S7 = {
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
 
-if (!keywordGap("Evolve", S7.evolve) && !keywordGap("Union", S7.union)) {
+// Both engines since #157: [Evolve] and [Union] are `keywords.rules`' own moves.
+{
   // Trigger moments that are keyword timings, not plain phase timings, are
   // named in WHEN and fired by the engine where the keyword is used.
   DEFS.EVOHOST = { ...DEFS.V1, id: "EVOHOST", name: "EVOHOST", characters: ["Evo Host"] };
@@ -189,6 +188,70 @@ if (!keywordGap("Evolve", S7.evolve) && !keywordGap("Union", S7.union)) {
   delete DEFS.EVOHOST;
   delete DEFS.UABS;
   delete DEFS.UABSWATCH;
+}
+
+// #157: the variants of [Evolve] and [Union], on both engines. The legacy
+// engine asks for each card, the rules engine takes a forced choice without a
+// question, so every question either asks is answered with its first candidate.
+{
+  // The harness deals a hand of V1s, so a question is answered with the named
+  // card the case is about when it is among the candidates.
+  const answerAll = (s: ReturnType<typeof arenaG>, prefer: string[]): ReturnType<typeof arenaG> => {
+    while (s.prompt.kind === "chooseCards") {
+      const candidates = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+      s = playG(s, { type: "choose", player: "p1", cards: [prefer.find((id) => candidates.includes(id)) ?? candidates[0]] });
+    }
+    return s;
+  };
+  const used = (s: ReturnType<typeof arenaG>, card: string, prefer: string[] = []) => {
+    const a = actsG(s).find((x) => x.type === "activate" && x.card === card && !x.alt);
+    assert.ok(a, `${s.cards[card].cardId}'s keyword is offered`);
+    return answerAll(playG(s, a), prefer);
+  };
+  DEFS["UNI-B"] = { ...DEFS.V1, id: "UNI-B", name: "UNI-B", characters: ["UNI-B"] };
+
+  // 22-5-6: [Xeno-Evolve] sends the base to the Warp and plays beside it.
+  DEFS.XENO = { ...DEFS.V1, id: "XENO", name: "XENO", energyCost: 3, skill: "[Xeno-Evolve]{1}: <V1>" };
+  let s = arenaG({ hand: ["XENO"], battle: ["V1"], energy: ["V1"] });
+  const base = zoneOf(s, "p1", "battle")[0];
+  const xeno = findG(s, "p1", "hand", "XENO");
+  s = used(s, xeno);
+  assert.ok(zoneOf(s, "p1", "warp").includes(base), "22-5-6: the base goes to the Warp");
+  assert.ok(zoneOf(s, "p1", "battle").includes(xeno) && s.cards[xeno].under.length === 0, "…and nothing is stacked");
+  assertConsistentG(s);
+
+  // 20-21 on the [Evolve] channel: "reduce the evolve costs" reaches the
+  // line's orbs, so [Evolve]{1} is offered with no energy at all.
+  DEFS.EVOCHEAP = { ...DEFS.V1, id: "EVOCHEAP", name: "EVOCHEAP", skill: "[Permanent] Reduce the evolve costs of all cards in your hand by 1." };
+  s = arenaG({ hand: ["XENO"], battle: ["V1", "EVOCHEAP"] });
+  assert.ok(actsG(s).some((a) => a.type === "activate" && a.card === findG(s, "p1", "hand", "XENO")), "an [Evolve] cost reduction pays the line's orb");
+  delete DEFS.EVOCHEAP;
+
+  // 22-13-4: [Union-Fusion] drops one of each named character from the hand.
+  DEFS.FUSE = { ...DEFS.V1, id: "FUSE", name: "FUSE", energyCost: 3, skill: "[Union-Fusion]{r}: <V1> <UNI-B>" };
+  s = arenaG({ hand: ["FUSE", "V1"], energy: ["V1"] });
+  const fuse = findG(s, "p1", "hand", "FUSE");
+  assert.ok(!actsG(s).some((a) => a.type === "activate" && a.card === fuse), "22-13-4: not offered with one of the two named characters missing");
+  s = arenaG({ hand: ["FUSE", "V1", "UNI-B"], energy: ["V1"] });
+  const pair = [findG(s, "p1", "hand", "V1"), findG(s, "p1", "hand", "UNI-B")];
+  s = used(s, findG(s, "p1", "hand", "FUSE"), pair);
+  assert.ok(pair.every((id) => zoneOf(s, "p1", "drop").includes(id)), "22-13-4-4: both named cards are dropped as the cost");
+  assert.ok(zoneOf(s, "p1", "battle").some((id) => s.cards[id].cardId === "FUSE"), "…and the card is played");
+  assertConsistentG(s);
+
+  // 22-13-5: [Union-Potara] plays onto the two named characters in play.
+  DEFS.POTARA = { ...DEFS.V1, id: "POTARA", name: "POTARA", energyCost: 3, skill: "[Union-Potara]{1}: <V1> <UNI-B>" };
+  s = arenaG({ hand: ["POTARA"], battle: ["V1", "UNI-B"], energy: ["V1"] });
+  const both = zoneOf(s, "p1", "battle").slice();
+  const potara = findG(s, "p1", "hand", "POTARA");
+  s = used(s, potara);
+  assert.deepEqual(zoneOf(s, "p1", "battle"), [potara], "22-13-5: one card in play where there were two");
+  assert.deepEqual([...s.cards[potara].under].sort(), [...both].sort(), "…with both named cards underneath");
+  assertConsistentG(s);
+  delete DEFS.XENO;
+  delete DEFS.FUSE;
+  delete DEFS.POTARA;
+  delete DEFS["UNI-B"];
 }
 
 if (

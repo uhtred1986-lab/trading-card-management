@@ -41,6 +41,7 @@ import { NotYet, RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
 import type { VmState } from "./state";
+import { moveCard } from "./zones";
 
 /**
  * The in-play area a card of each base type is played into (3-6-1, 3-11-4).
@@ -98,7 +99,7 @@ export const PLAY_ZONE_NAMES = [...new Set([...Object.values(PLAY_ZONES), ...Obj
 export interface PlayOptions {
   /** 5-5: "play it in Rest Mode". */
   mode?: Mode;
-  /** 22-13-6-3: played *onto* another card, which is 23-2's pile and is not built yet. */
+  /** 22-13-6-3 / 22-5-5: played *onto* another card, which goes under it (23-2's pile, `stackOnto`). */
   onto?: string;
   /** 9-1-5: "played with its skills negated". */
   negated?: "turn" | "game";
@@ -161,14 +162,14 @@ export function resolvePlay(
     }
   }
 
-  if (opts.onto !== undefined) {
-    throw new NotYet(`play ${def.name} on top of another card (22-13-6-3) — [Union-Absorb] is a keyword, and its body is #157's`, "#157");
-  }
-
   // 9-6-9-4: this *is* the play, which is what `asPlay: true` says and what
   // `played`/`youPlayed`/`opponentPlayed` ask for. 5-5-1: the card is revealed
-  // as it arrives.
-  moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true });
+  // as it arrives. 22-13-6-3 / 22-5-5: played *onto* another card, it takes
+  // that card's place and the card goes under it (`stackOnto`); with the host
+  // gone from the area, it is an ordinary play beside it — the legacy reading.
+  const host = opts.onto;
+  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to);
+  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true });
 
   // 5-5: "play it in Rest Mode" — the mode the play itself puts it in, which is
   // a fact about the arrival rather than a switch afterwards, so no
@@ -189,6 +190,37 @@ export function resolvePlay(
     addEffect(state, ev, { target: card, kind: "negateSkills", value: 0, until: opts.negated, source: card });
     log(ev, { type: "note", text: `${def.name} was played with its skills negated` });
   }
+}
+
+/**
+ * 22-5-5, 22-13-6-3: a card played on top of another (23-2) — [Evolve],
+ * [Union-Absorb], "play … on top of this card". The legacy `stackOnto`, in its
+ * order: the card arrives (the play, so its moments are the play's), takes the
+ * host's place in the area and its mode, the host goes under it with its own
+ * pile, the host's power effects carry over to the stack (21-5-2) and its
+ * others end, and a host fighting a battle hands its role to the stack
+ * (8-1-7-1). The card underneath answers no moment: it has not left the area
+ * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
+ */
+function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string): void {
+  const list = state.sides[player].zones[to];
+  const slot = list.indexOf(host);
+  const mode = state.cards[host].mode;
+  moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true });
+  const under = moveCard(state, game, host, to, { under: card });
+  if (!under.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${card}: ${under.refused}`);
+  list.splice(list.indexOf(card), 1);
+  list.splice(Math.min(slot, list.length), 0, card);
+  if (mode !== undefined) state.cards[card].mode = mode;
+  for (const e of state.effects) if (e.target === host && e.kind === "power") e.target = card;
+  state.effects = state.effects.filter((e) => e.target !== host);
+  const b = state.battle;
+  if (b && (b.attacker === host || b.guard === host)) {
+    state.cards[card].battledThisTurn = true;
+    if (b.attacker === host) b.attacker = card;
+    if (b.guard === host) b.guard = card;
+  }
+  log(ev, { type: "stack", top: card, under: state.cards[card].under.slice() });
 }
 
 /** The base type a zone is chosen by (14-1, 19-1) — `vm/filters.ts`'s reading of the same attribute. */

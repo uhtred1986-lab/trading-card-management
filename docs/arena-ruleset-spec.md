@@ -223,6 +223,8 @@ can name the attributes the engine keeps in code (§2.5).
 | `forbidden` | primitive | A search over the rules in force rather than over the board — a prohibition carries a budget, an escape clause and a chair to read it from (20-14), none of which is a count of cards. |
 | `playerAttr` | primitive | A `DEFINE ATTRIBUTE of: player` fact, read by name (issue #269) — "you have already had your charge this turn" and "you have not already grown a Unison this turn" are both `NOT playerAttr(name: …)`. Not a count: a boolean fact about a player is not a bound on any selector. |
 | `sameCard` | primitive | Do two selectors each resolve to a card of the same printed identity? Not a filter, because the identity being matched is another *selected* card's, not a fixed wording (`FILTER_FIELDS` names no "same as" field) — 13-3's "a copy of the Unison Card" is this, over the candidate and the Unison Area. |
+| `oneOf` | primitive | Is a word one of these words? A `DEFINE KEYWORD` body's, not a card's: with `$variant` bound off the printed keyword (#157) it tells [Xeno-Evolve] from [Evolve] and [Union-Fusion] from [Union-Absorb] inside one declaration. A comparison of two words, not a count of cards. |
+| `eachNamed` | primitive | Does every character a keyword line prints in ‹…› stand on a *different* card the selector finds — and, with `samePower`, are those cards of one power (22-13-4, 22-13-5)? A matching of names to distinct cards, which no single count can say: two Gokus count to two and still name no Vegeta. Read off the line its program belongs to, like the `asPrinted` selector flag (#157). |
 
 ### 2.5 What the tables ask for
 

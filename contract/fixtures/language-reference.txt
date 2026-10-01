@@ -2554,6 +2554,49 @@
       ],
       "sentence": "1 in your battle is the same card as 1 in your battle",
       "doc": "do these two selectors each resolve to one card of the same printed identity? \"a copy of the Unison Card\" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card's identity, so this reads two selectors instead (issue #269)"
+    },
+    {
+      "kind": "oneOf",
+      "class": "primitive",
+      "signature": "{\"kind\":\"oneOf\",\"value\":\"…\",\"of\":[…]}",
+      "fields": [
+        {
+          "name": "value",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "of",
+          "required": true,
+          "nullable": false,
+          "type": "list",
+          "listOf": "string"
+        }
+      ],
+      "sentence": "\"x\" is one of nothing",
+      "doc": "is this word one of those? No card says this — it is the word a `DEFINE KEYWORD` body tells the variants of one keyword apart with, once `$variant` is bound off the printed keyword: `oneOf(value: $variant, of: [\"Xeno-Evolve\"])` (22-5-6, Stage 7)"
+    },
+    {
+      "kind": "eachNamed",
+      "class": "primitive",
+      "signature": "{\"kind\":\"eachNamed\",\"sel\":SELECTOR,\"samePower\"?:true|false}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "samePower",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "every character this line names is a different one of 1 in your battle",
+      "doc": "does every character the keyword line prints in ‹…› stand on a different card among these — and, with samePower, are they of one power? [Union]'s check before it is offered (22-13-4, 22-13-5). No card's record says this; it is read off the line a keyword's own program belongs to, like the `asPrinted` selector flag"
     }
   ],
   "selectorFields": [
@@ -2616,6 +2659,10 @@
     {
       "field": "notSelf",
       "part": "flag"
+    },
+    {
+      "field": "printed",
+      "part": "flag"
     }
   ],
   "selectorFlags": [
@@ -2654,6 +2701,10 @@
     {
       "word": "otherThanCopies",
       "doc": "excludes every copy of this card, not only this one"
+    },
+    {
+      "word": "asPrinted",
+      "doc": "only cards matching the description printed on the line this program belongs to — [Evolve]{1}: <Nail>'s <Nail>; a `DEFINE KEYWORD` body's word, since one declaration serves every card printing the keyword"
     }
   ],
   "filterFields": [

@@ -1012,9 +1012,12 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   total += either.length;
   const generic = { n: Math.max(0, total - orbCount(orbs) - either.length) };
   const applies = (kind: string | undefined) => !kind || sk.kind.startsWith(kind);
+  // 22-5: an [Evolve] line's orbs are changed on a channel of their own — the
+  // legacy `orbTotals(…, "evolve")` — and a skill-cost change does not reach them.
+  const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
   const changes = [
-    ...staticsNow(ctx, game, state).filter((e) => e.kind === "skillCost" && e.target === card && applies(e.skillKind)),
-    ...state.effects.filter((e) => e.kind === "skillCost" && e.target === card && applies(e.skillKind)),
+    ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind)),
+    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind)),
   ];
   for (const e of changes) {
     const by = e.value as number;

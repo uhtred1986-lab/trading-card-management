@@ -42,11 +42,11 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../engine";
-import { keywordsInSkills, parseSkills } from "../engine/cards";
+import { eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames } from "../engine/cards";
 import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "../engine/script";
-import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
+import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
 import { other } from "../engine/types";
-import { powerRelOk } from "../engine/filters";
+import { parseFilter, powerRelOk } from "../engine/filters";
 import type { GameDefinition, HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "../engine/script-schema";
@@ -693,7 +693,18 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
   if (sel.take != null) out = sel.fromEnd ? out.slice(Math.max(0, out.length - sel.take)) : out.slice(0, sel.take);
 
   const matchesFilter = sel.filter ? predicateOf(sel.filter, game) : null;
+  // `asPrinted` (Stage 7): the description printed on the line this program
+  // belongs to, read as the legacy keyword sites read it — `parseFilter` over
+  // `sk.effect || sk.cost`. A frame with no line finds nothing.
+  let matchesPrinted: ((id: string) => boolean) | null = null;
+  if (sel.printed) {
+    const sk = lineOf(ctx, state, frame);
+    if (!sk) return [];
+    const printed = predicateOf(parseFilter(printedDescription(sk)), game);
+    matchesPrinted = (id) => printed(attrsNow(ctx, game, state, id));
+  }
   return out.filter((id) => {
+    if (matchesPrinted && !matchesPrinted(id)) return false;
     const card = state.cards[id];
     if (!card) return false;
     if (sel.mode && card.mode !== sel.mode) return false;
@@ -885,7 +896,27 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const b = resolveSelector(ctx, game, state, frame, c.b);
       return a.length === 1 && b.length === 1 && state.cards[a[0]].cardId === state.cards[b[0]].cardId;
     }
+    // Two words of a `DEFINE KEYWORD` body (Stage 7): a bound parameter
+    // against the words it may be, and [Union]'s named characters (22-13),
+    // read off the line the program belongs to.
+    case "oneOf":
+      return c.of.includes(c.value);
+    case "eachNamed": {
+      const sk = lineOf(ctx, state, frame);
+      if (!sk) return false;
+      const pool = resolveSelector(ctx, game, state, frame, c.sel).map((id) => {
+        const def = ctx.defs[state.cards[id].cardId];
+        return { id, characters: def?.characters ?? [], power: def?.power ?? 0 };
+      });
+      return eachNamedHolds(printedNames(sk), pool, !!c.samePower);
+    }
   }
+}
+
+/** The skill line a frame belongs to — the one `asPrinted` and `eachNamed` read their description off. Undefined for a frame that carries no line (a hook body, an action's `DO`). */
+function lineOf(ctx: EngineContext, state: VmState, frame: ScriptFrame): Skill | undefined {
+  if (frame.skillIndex === undefined || !frame.card) return undefined;
+  return skillsShowing(ctx, state, frame.card).skills.find((k) => k.index === frame.skillIndex);
 }
 
 function num(value: AttrValue | undefined): number {

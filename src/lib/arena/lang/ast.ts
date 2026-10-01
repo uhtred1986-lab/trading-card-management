@@ -80,6 +80,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   hidden: "flag",
   ignoreBarrier: "flag",
   notSelf: "flag",
+  printed: "flag",
 };
 type SelectorFieldMissing = Exclude<keyof Selector, keyof typeof SELECTOR_FIELDS>;
 const _everySelectorFieldWritten: SelectorFieldMissing extends never ? true : never = true;

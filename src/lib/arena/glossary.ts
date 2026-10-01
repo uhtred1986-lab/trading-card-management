@@ -152,7 +152,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "From hand: pay the cost, choose one of your Battle Cards matching the printed description, and play this card on top of it. [Xeno-Evolve] sends the chosen card to the Warp instead of stacking onto it.",
     engine:
       "The description is read with the target grammar, so only cards that qualify are offered — and the skill is not offered at all when none do. The stack keeps the position and the power effects of the card underneath. Cards that say “when using this card's [Evolve] from your hand” fire at this activation.",
-    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D). Confirmed absent: gated in `verify/battles.ts`, `verify/keywords.ts` and `verify/workflow.ts` alike.",
+    engineRules:
+      "Built as its keyword's own `DO` (`offer: \"activate:main\"` in `keywords.rules`, #157): offered from the hand at the Main Phase while a Battle Card matching the printed description is out (`asPrinted` reads the description off the line), with the legacy menu words; the printed orbs are the price; the chosen card goes under this one, which keeps its place, its mode and its power effects (`vm/play.ts`'s `stackOnto`); [Xeno-Evolve] sends it to the Warp instead. “When using this card's [Evolve] from your hand” fires at the activation. Two differences from the legacy engine: with one card to evolve onto the choice is forced and nothing is asked, and the evolved card is moved once — the legacy engine moves it a second time from the Battle Area to the Battle Area, which loses the slot it took over (a legacy bug, recorded as the `evolve-moved-twice` probe cause). A change to “evolve costs” reaches the line's orbs on its own channel, as on the legacy engine.",
     support: "engine",
   },
   Union: {
@@ -166,7 +167,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "All three, with Absorb resolving its printed text like an ordinary skill rather than by names. Cards watching “when you activate a [Union] skill” fire at the activation, not at the choice that follows it, and “when this card's [Union-Absorb] is activated” fires at Absorb's own activation.",
     engineRules:
-      "Not built — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D. [Union-Absorb] specifically throws `NotYet(\"#157\")` at the one place it would play a card on top of another (`vm/play.ts`); Fusion and Potara have no body either.",
+      "Built as its keyword's own `DO` (`offer: \"activate:main\"` in `keywords.rules`, #157), one declaration for the three variants. Fusion and Potara are offered from the hand only while every character the line names stands on a different card (`eachNamed`) — in the hand and of one power for Fusion, in the Battle Area for Potara — and are refused with the legacy engine's words otherwise; Fusion drops the two as the cost and plays the card, Potara plays it onto the first and puts the second under it. Absorb is offered from the Battle Area and runs its printed text, which is what plays a card on top of this one (`play … onto`, `vm/play.ts`). Both watchers fire at the activation. As on the legacy engine, the Fusion choice offers every card of either name, so two copies of one character can be dropped. Differences: a forced choice is taken without a question, Potara asks for its two cards one after the other, and the menu reads “Union-Absorb CARD” without the effect text.",
     support: "engine",
   },
   "Over Realm": {

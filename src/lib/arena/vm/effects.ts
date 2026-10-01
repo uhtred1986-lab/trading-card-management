@@ -514,15 +514,16 @@ function collect(
       // card, so a change to it is no layer of any card attribute — it is
       // collected under the legacy engine's own kind, with the line kind and
       // the orbs it names, and read where the line's price is bound
-      // (`vm/costs.ts`' `skillOrbs`, #148). 22-5's [Evolve] price is a
-      // keyword's own body and Stage 7's (#157): collected by nobody yet,
-      // because nothing would read it.
-      if (op.what === "evolve") continue;
-      if (op.what === "skill") {
+      // (`vm/costs.ts`' `skillOrbs`, #148). 22-5's [Evolve] price is the
+      // same shape on its own channel, `evolveCost` (#157) — the legacy
+      // `orbTotals(…, "evolve")` reads it instead of `skillCost` for an
+      // [Evolve] line, and `skillOrbs` does the same.
+      if (op.what === "skill" || op.what === "evolve") {
         const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
         if (value == null) continue;
+        const kind = op.what === "evolve" ? "evolveCost" : "skillCost";
         for (const id of targets(frame, op))
-          out.push({ source: frame.card, master: frame.master, kind: "skillCost", target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}) });
+          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}) });
         continue;
       }
       const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";

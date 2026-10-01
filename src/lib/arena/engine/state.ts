@@ -4,7 +4,7 @@
  * how much power it has, and paying costs. Everything mutates the state it
  * is given; `engine.ts` clones before calling.
  */
-import { hasKeyword, keywordOf, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
+import { eachNamedHolds, hasKeyword, keywordOf, printedNames, skillsOf, specifiedCostOf, isZ, baseType } from "./cards";
 import { matches, powerRelOk } from "./filters";
 import { asksAQuestion, describeCond, describeScript } from "./script-schema";
 import { legacyHost } from "./script-host";
@@ -913,6 +913,17 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
       const a = resolveSelector(ctx, s, frame, c.a);
       const b = resolveSelector(ctx, s, frame, c.b);
       return a.length === 1 && b.length === 1 && s.cards[a[0]].cardId === s.cards[b[0]].cardId;
+    }
+    // Two words a `DEFINE KEYWORD` body reads (Stage 7) and no compiled record
+    // writes; this engine runs no keyword body, so these are the same readings
+    // the rules engine makes, kept here so the shared word means one thing.
+    case "oneOf":
+      return c.of.includes(c.value);
+    case "eachNamed": {
+      const sk = frame.skillIndex === undefined ? undefined : skillsOfInstance(ctx, s, frame.card).find((k) => k.index === frame.skillIndex);
+      if (!sk) return false;
+      const pool = resolveSelector(ctx, s, frame, c.sel).map((id) => ({ id, characters: def(ctx, s, id).characters, power: def(ctx, s, id).power ?? 0 }));
+      return eachNamedHolds(printedNames(sk), pool, !!c.samePower);
     }
   }
 }
