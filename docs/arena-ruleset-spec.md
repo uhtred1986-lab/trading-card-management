@@ -141,14 +141,14 @@ disagree or if a row is missing from either.
 | `draw` | macro over `move` | *n* from the top of a deck to its owner's hand. Losing on an empty deck is the game's own win condition (§3), not part of the op. |
 | `discard` | macro over `choose` + `move` | Already a macro in code: `stepScript` splices a `choose` the *owner* answers and a move to the Drop or the Warp (20-7), rather than teaching the op to prompt. |
 | `damage` | macro over `move` | *n* from the top of a Life Area to its owner's hand with the cause `damage` (5-10, 21-3). The cause is the whole difference from `lifeDownTo`, which moves the same cards and is not damage (1-13-2). |
-| `mill` | macro over `move` | Top of deck to the Drop, face up, bound to `as`. Naming what moved is the move's own answer, not a second mechanism. |
+| `mill` | macro over `move` | Top of deck to the Drop, face up, bound to `as`. Naming what moved is the move's own answer, not a second mechanism. **The one macro row left native** (#137): `moveTo` binds nothing, and a hole cannot make the call's `as` a binding a later clause reads (`ops.rules`, `bind`). |
 | `addLife` | macro over `move` | Top of deck to the Life Area. |
-| `lifeDownTo` | macro over `move` | "Until you have *n* life" is `count(you.life) − n` cards from life to hand: a move with a computed amount, so it needs the arithmetic §2.6 does not have yet (#122). |
+| `lifeDownTo` | macro over `move` | "Until you have *n* life" is `life(you) - n` cards from life to hand: `moveTo(target: TOP (life($side) - $n) IN $side.life, to: hand)`, declared in `ops.rules` since #137 once an amount could subtract (`- n` is `+ -n`). `moveAs` reads the move back as `lifeDownTo`, whose case takes "both players" one pile at a time. |
 | `shuffle` | primitive | An order nobody chose. No sequence of moves reproduces it, and the RNG is the interpreter's (§7). |
 | `energyMarker` | macro over `modifyAttr` | A counter on the **player**, not on a card — the first of the three widenings §2.5 asks for. |
 | `choose` | primitive | The only op that binds cards a player picked to a name; every "the chosen cards" downstream reads that binding. |
-| `look` | macro over `reveal` | The same act with a narrower audience (20-11): the cards stay where they are and are bound to a name. "The top *n*" is the selector's `TOP n`, "your opponent's hand" its area. |
-| `reveal` | primitive | Changes who has seen a card without moving it (20-11-2). Visibility does not follow from position. |
+| `look` | macro over `reveal` | The same act with a narrower audience (20-11): the cards stay where they are and are bound to a name. "The top *n*" is the selector's `TOP n` (`BOTTOM n` by `from`), "your opponent's hand" its area. Declared since #137 as `reveal(…, audience: you)` under `GIVEN`/`UNLESS` guards; `revealAs` reads each shape back as `look`. |
+| `reveal` | primitive | Changes who has seen a card without moving it (20-11-2). Visibility does not follow from position. `audience` (`you` or `both`, the default) is who (#137): `you` binds the cards and logs nothing. |
 | `ko` | macro over `move` | To the owner's Drop with the cause `ko`. [Indestructible], "can't be KO'd by skills" and the replacement offers belong to `move` — they apply to any departure — so the macro is a destination and a cause. |
 | `moveTo` | primitive | This **is** `move`. |
 | `play` | primitive | The play action, not a destination (5-5); see §2.2 for why this row is provisional. |
@@ -165,7 +165,7 @@ disagree or if a row is missing from either.
 | `negateOwnSkill` | macro over `negate` | Scope: the skill resolving now, for the turn, the battle or the game. |
 | `hidden` | macro over `modifyAttr` | Attribute `hidden`: Hidden Mode and Revealed Mode (23-5). |
 | `redirectAttack` | macro over `modifyAttr` | The guard is an attribute of the **battle in progress** (8-1, 22-4-2) — the second widening in §2.5. |
-| `comboFrom` | macro over `move` + `negate` | Into the Combo Area with the cause `combo` (5-7), optionally with the card's skills negated. |
+| `comboFrom` | macro over `move` + `negate` | Into the Combo Area with the cause `combo` (5-7), optionally with the card's skills negated. Declared since #137, the `negate` under `GIVEN $negated`; `comboFromAs` folds the two steps back into the one whose case checks 5-7-2 and pends the combo moments. |
 | `flip` | macro over `modifyAttr` | Attribute `flipped`: which face of a Leader is in play (22-2-4). |
 | `faceUp` | macro over `modifyAttr` | Attribute `faceUp` on a card in a Life Area (3-9-2-1). |
 | `addMarker` | macro over `modifyAttr` | Attribute `markers`, by +*n*. The plan's sketch kept `marker` as a primitive of its own; a marker count is a number on a card and behaves like one, so it is not. |
@@ -180,7 +180,7 @@ disagree or if a row is missing from either.
 | `skip` | primitive | A phase or a step does not happen (20-13). Nothing else can say it: an `if` skips a *program*, not the turn's own steps, and no prohibition (20-14) can stop a phase from beginning — `forbid` refuses an action a player would declare, and 20-13-3 is the stronger claim that there is no free timing to declare one in. Built by #126. |
 | `altCost` | macro over `costModifier` | A price is replaced, not reduced — which is why the primitive takes a price rather than a number (§2.5). |
 | `payWith` | primitive | 20-19: a card outside the Energy Area that may be rested to pay an energy cost. Not a `costModifier` — the price is unchanged, and what moves is where the payment may come *from*; and not a `move`, because the card stays exactly where it stands. There is nothing to lower it to until a ruleset can declare what a payment is made of. |
-| `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). |
+| `resolvingPlay` | macro over `replace` | Event: the play being resolved, negated or altered (9-6). Declared since #137: `replace(event: play, with: …)` holding a move of `[resolving]` with `instead`, or the same `play` of it rested or negated for the turn without — the branch is a guard. `replaceAs` reads both back. |
 | `negateAttack` | macro over `replace` | Event: the attack in progress resolves to nothing. |
 | `negateCounter` | macro over `replace` | Event: the [Counter] this one is answering resolves to nothing (9-7). |
 | `forbid` | primitive | A prohibition is not an attribute of a card: it is a rule in force, read by whatever would act (20-14). |
@@ -265,7 +265,8 @@ for the macros above to be writable; none of them is built by #130, which delive
    `moveTo`, and `moveAs`/`discardAs` read each lowered shape back as its own spelling before an
    engine runs it — so no selector is ever *resolved* counted by an expression, and X is still
    evaluated where it always was. `mill` stays native (its `as` names cards for a later clause,
-   which a hole cannot make a binding of) and `lifeDownTo` waits on subtraction, requirement 5.
+   which a hole cannot make a binding of) and `lifeDownTo` waited on subtraction, requirement 5 —
+   declared by #137's second half, below.
 3. **Filters must name the attributes the engine keeps in code.** `flipped`, `markers`, the
    battle's roles and "battled this turn" are what five condition rows lower to. Selectors already
    carry `mode` and `hidden`; filters already carry power, cost, `faceUp`, keywords and type.
@@ -274,7 +275,13 @@ for the macros above to be writable; none of them is built by #130, which delive
    9 Sep 2026). That is why costs are not folded into `modifyAttr` even though a cost is an
    attribute of a card: the value is structured, and `playCost`'s payment search reads it.
 5. **Amounts must become expressions** (#122): subtraction for `lifeDownTo`, a comparison of two
-   expressions for `lifeVsOpponent` and `every`, and X for the cards that bind one.
+   expressions for `lifeVsOpponent` and `every`, and X for the cards that bind one. **Subtraction
+   answered by #137 (1 Oct 2026):** `a - n` is `a + -n`, so no interpreter evaluates a new shape,
+   and in a `DEFINE OP` body the right of `+`/`-` may be a parameter, `life()` may take `$side`, and
+   `TOP (…)` may hold an expression; `lifeDownTo` is declared over it. The same change gave a body
+   **guards** (`GIVEN $p { … }`, `GIVEN $p = word { … }`, `UNLESS …`, rules-language §3b), which
+   is what `resolvingPlay`, `comboFrom` and `look` waited on, and `reveal` an `audience`. Every macro
+   row but `mill` is now declared.
 
 Half 1 of #137 (12 Sep 2026) found a sixth, and it was the one that bound first: **a macro's body
 could only name a parameter where the grammar let a `$name` stand**, which was an `amount` or a

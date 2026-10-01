@@ -889,9 +889,9 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     // The two literals and the one operator have no call name to look for, so
     // the production is checked against the forms `EXPR_LITERALS` names.
     assert.ok(grammar.includes('"$" name'), "§3's expr production does not show a $variable");
-    assert.ok(grammar.includes('( "+" number )'), "§3's expr production does not show the + operator");
+    assert.ok(grammar.includes('( ( "+" | "-" ) number )'), "§3's expr production does not show the + and - operators");
     assert.ok(grammar.includes("term   := number"), "§3's expr production does not show a bare number");
-    assert.equal(Object.keys(EXPR_LITERALS).join(","), "number,var,plus", "EXPR_LITERALS names the three forms this check covers");
+    assert.equal(Object.keys(EXPR_LITERALS).join(","), "number,var,plus,minus", "EXPR_LITERALS names the four forms this check covers");
   }
 
   assert.ok(examples.length >= 5, `only ${examples.length} worked examples in the language doc`);
@@ -930,6 +930,29 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   assert.equal(describeScript([{ op: "replace", event: "attack", with: [] }]), describeScript([{ op: "negateAttack" }]));
   assert.equal(describeScript([{ op: "replace", event: "counter", with: [] }]), describeScript([{ op: "negateCounter" }]));
   assert.equal(describeScript([{ op: "discard", n: 1, to: "drop" }]), describeScript([{ op: "discard", n: 1 }]), "naming the default Drop changed what a discard says");
+}
+
+// ── #137: the words `look`, `lifeDownTo` and `resolvingPlay` lower to ─────
+//
+// A reveal names its audience, an amount subtracts, and each lowered shape a
+// read-back claims reads in the words of the spelling it stands for.
+{
+  tripOps([{ op: "reveal", sel: { take: 2, side: "you", area: "deck" }, as: "seen", audience: "you" }], "a reveal to you alone");
+  tripOps([{ op: "reveal", sel: { side: "opponent", area: "hand" }, as: "seen", audience: "both" }], "a reveal naming the default audience");
+  tripOps([{ op: "draw", n: { plus: [{ life: "you" }, -2] } }], "an amount less a number");
+  tripOps([{ op: "draw", n: { plus: [{ plus: [{ x: true }, 3] }, -1] } }], "an amount plus, then less");
+  const printed = printOps([{ op: "draw", n: { plus: [{ life: "you" }, -2] } }]);
+  assert.match(printed, /life\(you\) - 2/, "a negative right side is not printed as subtraction");
+  const say = (ops: Op[]) => describeScript(ops);
+  const resolving = { sel: { special: "resolving" as const } };
+  assert.equal(say([{ op: "replace", event: "play", with: [{ op: "moveTo", target: resolving, to: "deck", position: "bottom" }] }]), say([{ op: "resolvingPlay", instead: "deck", position: "bottom" }]));
+  assert.equal(say([{ op: "replace", event: "play", with: [{ op: "play", target: resolving, mode: "rest" }] }]), say([{ op: "resolvingPlay", mode: "rest" }]));
+  assert.equal(say([{ op: "replace", event: "play", with: [{ op: "play", target: resolving, negated: "turn" }] }]), say([{ op: "resolvingPlay", negated: true }]));
+  assert.equal(say([{ op: "reveal", sel: { take: 3, side: "you", area: "deck" }, as: "looked", audience: "you" }]), say([{ op: "look", n: 3, as: "looked", side: "you" }]));
+  assert.equal(say([{ op: "reveal", sel: { take: 1, fromEnd: true, side: "you", area: "deck" }, as: "looked", audience: "you" }]), say([{ op: "look", n: 1, as: "looked", side: "you", from: "bottom" }]));
+  assert.equal(say([{ op: "moveTo", target: { sel: { take: { plus: [{ life: "you" }, -3] } as unknown as number, side: "you", area: "life" } }, to: "hand" }]), say([{ op: "lifeDownTo", n: 3, side: "you" }]));
+  // A reveal to both reads as it always did.
+  assert.equal(say([{ op: "reveal", sel: { side: "opponent", area: "hand" }, as: "seen", audience: "both" }]), say([{ op: "reveal", sel: { side: "opponent", area: "hand" }, as: "seen" }]));
 }
 
 console.log("verify/lang: the rules language round-trips");

@@ -122,7 +122,7 @@ import { describePayment as legacyDescribe, paymentOptions as legacyOptions, pla
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
 import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/engine/types";
 import { legacyHost } from "../../src/lib/arena/engine/script-host";
-import { stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/engine/script";
+import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/engine/script";
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
 import { CTX, DEFS, assertMenuInvariants, card, cardNow, fifty, matches, parseSkills } from "./harness";
@@ -1218,7 +1218,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   // discard and every narrowing of a replacement the compiler writes.
   {
     const plain = (x: unknown): unknown => JSON.parse(JSON.stringify(x ?? null));
-    type Seen = { events: unknown; beats: unknown; board: unknown; prompt: unknown; did: unknown };
+    // `vars` (#137): what a look or a reveal bound is the whole of what it did.
+    type Seen = { events: unknown; beats: unknown; board: unknown; prompt: unknown; did: unknown; vars: unknown };
     type Stage = { vars?: Record<string, string[]>; x?: number; master?: PlayerId };
     /** The harness's rules, with one card's [Permanent] record replaced — `CTX.scripts` compiles on read, so this is a view over it rather than a copy. */
     const withRecord = (cardId: string, ops: Op[]) => {
@@ -1235,7 +1236,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       const ev: GameEvent[] = [];
       const frame: ScriptFrame = { ops, ip: 0, vars: st.vars ?? {}, card: s.sides[master].zones.leader[0], master, ...(st.x !== undefined ? { x: st.x } : {}) };
       stepScript(vmHost(ctx, DBS, s, ev), frame);
-      return { events: plain(ev), beats: plain(rulesEngine.toBeats(ctx, s, ev).list), board: plain(s.sides), prompt: plain(s.prompt), did: plain(frame.did) };
+      return { events: plain(ev), beats: plain(rulesEngine.toBeats(ctx, s, ev).list), board: plain(s.sides), prompt: plain(s.prompt), did: plain(frame.did), vars: plain(frame.vars) };
     };
     /** …and the legacy engine, its life dealt and the same staging. */
     const onLegacy = (ops: Op[], stage: (l: GameState) => Stage, ctx = CTX): Seen => {
@@ -1249,7 +1250,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       const ev: GameEvent[] = [];
       const frame: ScriptFrame = { ops, ip: 0, vars: st.vars ?? {}, card: l.players[master].leader, master, ...(st.x !== undefined ? { x: st.x } : {}) };
       stepScript(legacyHost(ctx, l, ev), frame);
-      return { events: plain(ev), beats: plain(toBeats(ctx, l, ev).list), board: plain(l.players), prompt: plain(l.prompt), did: plain(frame.did) };
+      return { events: plain(ev), beats: plain(toBeats(ctx, l, ev).list), board: plain(l.players), prompt: plain(l.prompt), did: plain(frame.did), vars: plain(frame.vars) };
     };
     /** One spelling against its lowering on both engines; returns the spelled runs for a sanity check of what happened. */
     const same = (what: string, spelled: Op[], rules: (s: VmState) => Stage, legacy: (l: GameState) => Stage, ctxOf: (ops: Op[]) => typeof CTX = () => CTX, run: Op[] = spelled) => {
@@ -1338,6 +1339,98 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       const zones = (seen.r.board as Record<PlayerId, { zones: Record<string, string[]> }>).p1.zones;
       const at = Object.keys(zones).find((z) => zones[z].includes(replacer));
       assert.equal(at, ends, `replaceLeave (${what}) did not send the card to ${ends} on the rules engine, so the parity is over an empty run`);
+    }
+
+    // ── #137, chunk 2: the four rows a guard, an audience and subtraction unblocked ──
+    //
+    // `lifeDownTo`, `comboFrom`, `resolvingPlay` and `look` lower through
+    // `GIVEN`/`UNLESS` guards, `reveal`'s `audience` and `life($side) - $n`, and
+    // `moveAs`, `comboFromAs`, `replaceAs` and `revealAs` read each lowered
+    // shape back as its spelling — so, again, the same events, beats, board,
+    // prompt, `did` and bindings both ways on both engines, for every branch
+    // a guard picks.
+    const zonesOf = (board: unknown, p: PlayerId): Record<string, string[]> => {
+      const b = board as Record<PlayerId, { zones?: Record<string, string[]> } & Record<string, unknown>>;
+      return (b[p].zones ?? b[p]) as Record<string, string[]>;
+    };
+    {
+      const down = same("life down to 2", [{ op: "lifeDownTo", n: 2 }], nothing, nothing);
+      assert.equal(zonesOf(down.r.board, "p1").life.length, 2, "lifeDownTo left a life other than 2 on the rules engine, so the parity is over an empty run");
+      assert.equal(zonesOf(down.l.board, "p1").life.length, 2);
+      const both = same("both players, life down to 1", [{ op: "lifeDownTo", n: 1, side: "both" }], nothing, nothing);
+      assert.equal(zonesOf(both.r.board, "p2").life.length, 1, "lifeDownTo (both) did not take each pile down on its own");
+    }
+
+    // 5-7: a combo a skill makes, during a battle on its master's side —
+    // with and without its skills negated, and refused with no battle at all.
+    {
+      const fight = (attacker: string, guard: string) => ({ attacker, guard, target: guard, step: "defense" as const, negated: false, blockerOffered: true, counters: [] });
+      let comboed = "";
+      const onRulesSide = (s: VmState): Stage => {
+        s.battle = fight(s.sides.p2.zones.leader[0], s.sides.p1.zones.leader[0]);
+        comboed = s.sides.p1.zones.hand[0];
+        return { vars: { t: [comboed] } };
+      };
+      const onLegacySide = (l: GameState): Stage => {
+        l.battle = { ...fight(l.players.p2.leader, l.players.p1.leader), revenge: false, reactivate: false } as GameState["battle"];
+        return { vars: { t: [l.players.p1.hand[0]] } };
+      };
+      for (const negated of [false, true]) {
+        const ran = same(`comboFrom${negated ? ", negated" : ""}`, [{ op: "comboFrom", target: { var: "t" }, ...(negated ? { negated } : {}) }], onRulesSide, onLegacySide);
+        assert.ok(zonesOf(ran.r.board, "p1").combo.includes(comboed), "comboFrom did not put the card in the Combo Area on the rules engine, so the parity is over an empty run");
+      }
+      const idle = same("comboFrom, no battle", [{ op: "comboFrom", target: { var: "t" } }], (s) => ({ vars: { t: [s.sides.p1.zones.hand[0]] } }), (l) => ({ vars: { t: [l.players.p1.hand[0]] } }));
+      assert.deepEqual(zonesOf(idle.r.board, "p1").combo, [], "comboFrom made a combo with no battle to join (5-7-2)");
+    }
+
+    // 9-6: the play being resolved — p1's first card in hand — replaced by a
+    // move, or played in another manner. The manner is kept on the record
+    // the play window opened, which the board does not show, so it is
+    // compared here too.
+    {
+      const kept: { r: unknown[]; l: unknown[] } = { r: [], l: [] };
+      const onRulesPlay = (s: VmState): Stage => {
+        const card = s.sides.p1.zones.hand[0];
+        s.sides.p1.zones.hand = s.sides.p1.zones.hand.slice(1);
+        s.sides.p1.zones.play = [...(s.sides.p1.zones.play ?? []), card];
+        s.resolving = { card, player: "p1" };
+        kept.r.push(s);
+        return {};
+      };
+      const onLegacyPlay = (l: GameState): Stage => {
+        const card = l.players.p1.hand[0];
+        l.resolving = { card, player: "p1" };
+        kept.l.push(l);
+        return {};
+      };
+      for (const rec of [
+        { op: "resolvingPlay", instead: "deck", position: "bottom" },
+        { op: "resolvingPlay", instead: "hand" },
+        { op: "resolvingPlay", mode: "rest" },
+        { op: "resolvingPlay", negated: true },
+        { op: "resolvingPlay", mode: "rest", negated: true },
+      ] as Op[]) {
+        kept.r = [];
+        kept.l = [];
+        same(`resolvingPlay ${JSON.stringify(rec)}`, [rec], onRulesPlay, onLegacyPlay);
+        const [rs, rl] = kept.r as VmState[];
+        const [ls, ll] = kept.l as GameState[];
+        assert.deepEqual(plain(rl.resolving), plain(rs.resolving), `resolvingPlay ${JSON.stringify(rec)}: the play being resolved was left differently on the rules engine`);
+        assert.deepEqual(plain([ll.resolving, ll.continuations]), plain([ls.resolving, ls.continuations]), `resolvingPlay ${JSON.stringify(rec)}: the play being resolved was left differently on the legacy engine`);
+        assert.notDeepEqual(plain(rs.resolving), { card: rs.resolving?.card, player: "p1" }, `resolvingPlay ${JSON.stringify(rec)} did nothing to the play on the rules engine, so the parity is over an empty run`);
+      }
+    }
+
+    // 20-11: a look — the top or the bottom of a deck, X cards, the
+    // opponent's deck, and a whole hand — bound alike, logged nowhere.
+    {
+      const top = same("look at the top 2", [{ op: "look", n: 2, as: "looked" }], nothing, nothing);
+      assert.equal((top.r.vars as Record<string, string[]>).looked.length, 2, "look bound nothing on the rules engine, so the parity is over an empty run");
+      same("look at the bottom card", [{ op: "look", n: 1, as: "looked", from: "bottom" }], nothing, nothing);
+      same("look at the top X of your opponent's deck", [{ op: "look", n: { x: true }, as: "looked", side: "opponent" }], () => ({ x: 3 }), () => ({ x: 3 }));
+      const hand = same("look at your opponent's hand", [{ op: "look", n: 99, as: "looked", side: "opponent", area: "hand" }], nothing, nothing);
+      assert.ok((hand.r.vars as Record<string, string[]>).looked.length > 0, "look at a hand bound nothing on the rules engine");
+      assert.deepEqual(hand.r.events, [], "a look logged something — 20-11 shows the cards to one player only");
     }
   }
 
@@ -3848,9 +3941,9 @@ console.log("verify/vm: ok");
 // included, and `moveAs` reads each lowered move back as its own spelling
 // before either engine runs it, so Tests B/C's cases are what a lowered
 // program runs too (the parity itself is §20's block near the top of this
-// file). `lifeDownTo` stays undeclared: "until you have n life" is a count
-// of `life − n`, and an amount cannot subtract a parameter (the header's
-// `maths`). Test D holds both halves.
+// file). `lifeDownTo` followed once an amount could subtract a parameter
+// (the header's `maths`): "until you have n life" is the top `life − n` of a
+// life, and `moveAs` reads that move back too. Test D holds all three.
 {
   const rulesEngine = engineFor("rules");
 
@@ -3967,14 +4060,15 @@ console.log("verify/vm: ok");
     assert.equal(r.sides.p1.zones.hand.length, 2, "lifeDownTo did not add the 2 departing life cards to the hand (21-3-2)");
   }
 
-  // Test D: `damage` and `addLife` are declared, and lower to the one move
-  // `moveAs` reads back; `lifeDownTo` is not, and an undeclared op passes
-  // through `expandMacros` untouched — what every card calling it runs.
+  // Test D: `damage`, `addLife` and `lifeDownTo` are declared, and each
+  // lowers to the one move `moveAs` reads back; `mill`, the one macro row
+  // left native, passes through `expandMacros` untouched.
   {
     assert.deepEqual(expandMacros([{ op: "damage", n: { x: true }, side: "opponent" }], DBS), [{ op: "moveTo", target: { sel: { take: { x: true }, side: "opponent", area: "life" } }, to: "hand", cause: "damage" }], "damage does not lower to the move ops.rules declares, X and all");
     assert.deepEqual(expandMacros([{ op: "addLife", n: 1 }], DBS), [{ op: "moveTo", target: { sel: { take: 1, side: "you", area: "deck" } }, to: "life" }], "addLife does not lower to the move ops.rules declares");
-    assert.equal(DBS.ops["lifeDownTo"], undefined, "lifeDownTo has a DEFINE OP row — check that an amount can subtract a parameter first (ops.rules's `maths`)");
-    assert.deepEqual(expandMacros([{ op: "lifeDownTo", n: 2, side: "you" }], DBS), [{ op: "lifeDownTo", n: 2, side: "you" }], "an undeclared op should pass through expandMacros untouched, not be silently altered");
+    assert.deepEqual(expandMacros([{ op: "lifeDownTo", n: 2, side: "you" }], DBS), [{ op: "moveTo", target: { sel: { take: { plus: [{ life: "you" }, -2] }, side: "you", area: "life" } }, to: "hand" }], "lifeDownTo does not lower to the move ops.rules declares");
+    assert.deepEqual(moveAs(expandMacros([{ op: "lifeDownTo", n: 2, side: "both" }], DBS)[0]), { op: "lifeDownTo", n: 2, side: "both" }, "lifeDownTo's move is not read back as lifeDownTo");
+    assert.deepEqual(expandMacros([{ op: "mill", n: 2, side: "you" }], DBS), [{ op: "mill", n: 2, side: "you" }], "an undeclared op should pass through expandMacros untouched, not be silently altered");
   }
 }
 

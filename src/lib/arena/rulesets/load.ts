@@ -29,9 +29,9 @@ import type { SkillKindPrefix } from "../engine/types";
 // circle, and it is the honest one — a `.rules` file is read against the
 // engine's lists, and the areas it names are resolved against its own zones
 // a few lines below.
-import { fieldsOf, paramTypesFor, PARAM_TYPES, type Definition, type DefineField, type DefineHook, type DefineKind, type DefineRefusal, type PatternValue } from "../lang/ast";
+import { fieldsOf, isGuard, paramTypesFor, PARAM_TYPES, type Definition, type DefineField, type DefineHook, type DefineKind, type DefineRefusal, type PatternValue } from "../lang/ast";
 import { parseDefinitions } from "../lang/parse";
-import { holesIn, holesInCond } from "./holes";
+import { guardsIn, holesIn, holesInCond } from "./holes";
 import { isHookPoint, HOOK_POINTS } from "./hooks";
 import type { GameDefinition, Loaded, RulesetError, Vocabulary } from "./types";
 
@@ -201,6 +201,14 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
         if (allowed.includes(declared)) continue;
         errors.push(errorAt(entry, `$${hole.name}`, `${label(def)} writes $${hole.name} in ${hole.where}, which holds ${slotWord(hole.slot)}, but TAKES it as ${declared}`, allowed.filter((t) => (PARAM_TYPES as readonly string[]).includes(t))));
       }
+      // #137: a guard (`GIVEN $p { … }`) names a parameter the macro takes,
+      // and `= word` compares a parameter that *is* one word — a closed list,
+      // an area or a side — never a flag, a number or a program.
+      for (const guard of def.define === "OP" ? guardsIn(def.do) : []) {
+        const declared = takes.get(guard.given);
+        if (declared === undefined) errors.push(errorAt(entry, `$${guard.given}`, `${label(def)} guards a step on $${guard.given}, which is not a parameter it TAKES`, [...takes.keys()]));
+        else if (guard.is !== undefined && !GUARD_WORDS.includes(declared)) errors.push(errorAt(entry, `$${guard.given}`, `${label(def)} compares $${guard.given} to ${JSON.stringify(guard.is)}, and a ${declared} is not one word — write GIVEN $${guard.given} on its own`, [...GUARD_WORDS]));
+      }
     }
     // Every program and every selector names its areas, wherever it sits.
     need(areasOf(def), definition.zones, "a zone");
@@ -214,6 +222,9 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
   if (errors.length) return { ok: false, errors };
   return { ok: true, definition, vocabulary: vocabularyOf(definition) };
 }
+
+/** The parameter types a guard may compare to a word (`GIVEN $from = bottom`). */
+const GUARD_WORDS: readonly string[] = ["word", "area", "side"];
 
 /** The word lists this definition fixes, in the names the language's constants already use. */
 export function vocabularyOf(def: GameDefinition): Vocabulary {
@@ -384,7 +395,8 @@ function fieldAreas(type: FieldType, value: unknown): string[] {
 
 function selectorAreas(sel: Selector | undefined): string[] {
   if (!sel || typeof sel !== "object") return [];
-  return [...(sel.area ? [sel.area] : []), ...(sel.areas ?? []), ...selectorAreas(sel.underHost)];
+  // `IN $side.$area` names no area until a call fills it (#137).
+  return [...(typeof sel.area === "string" ? [sel.area] : []), ...(sel.areas ?? []), ...selectorAreas(sel.underHost)];
 }
 
 const refAreas = (ref: Ref | undefined): string[] => (ref && typeof ref === "object" && "sel" in ref ? selectorAreas(ref.sel) : []);
@@ -409,6 +421,7 @@ function condAreas(cond: Cond | undefined): string[] {
 function opsAreas(ops: Op[] | undefined): string[] {
   if (!Array.isArray(ops)) return [];
   return ops.flatMap((op) => {
+    if (isGuard(op)) return opsAreas(op.ops);
     const spec = op && typeof op === "object" ? OP_SCHEMA[op.op] : undefined;
     if (!spec) return [];
     return spec.fields.flatMap((f) => {
@@ -476,6 +489,7 @@ const isCardAttrField = (type: FieldType): boolean => typeof type === "object" &
 function opsAttrs(ops: Op[] | undefined): string[] {
   if (!Array.isArray(ops)) return [];
   return ops.flatMap((op) => {
+    if (isGuard(op)) return opsAttrs(op.ops);
     const spec = op && typeof op === "object" ? OP_SCHEMA[op.op] : undefined;
     if (!spec) return [];
     return spec.fields.flatMap((f) => {

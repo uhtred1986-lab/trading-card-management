@@ -214,6 +214,8 @@ export const EXPR_LITERALS = {
   number: "5000",
   var: "$n",
   plus: "count(SELECTOR) + 1",
+  /** `+ -n`, printed with its sign as the operator (#137). */
+  minus: "life(you) - 2",
 } as const;
 
 /** The measures `attr` and `sumOf` may read off a card. Printed as bare words; a measure added to `AmountAttr` fails the typecheck until it is listed. */
@@ -321,6 +323,37 @@ export interface Hole {
   hole: string;
 }
 export const isHole = (v: unknown): v is Hole => typeof v === "object" && v !== null && typeof (v as Hole).hole === "string" && Object.keys(v as object).length === 1;
+
+/**
+ * `- $n` on the right of an amount, inside a `DEFINE OP` body (#137): the
+ * parameter, subtracted. The right of `+`/`-` is a printed number in a card's
+ * program; in a body it may be a `Hole` (`+ $n`) or this, and the expander
+ * fills it with the number the call gave — negated here. `lifeDownTo`'s
+ * `life($side) - $n` is the shape that needs it.
+ */
+export interface NegHole {
+  neg: Hole;
+}
+export const isNegHole = (v: unknown): v is NegHole => typeof v === "object" && v !== null && isHole((v as NegHole).neg) && Object.keys(v as object).length === 1;
+
+/**
+ * A step of a `DEFINE OP` body kept only for some calls (#137): `GIVEN $p { … }`
+ * keeps its steps when the call gave `p` (after the schema's default) and it
+ * is not `false`; `GIVEN $p = word { … }` when `p` is that word; `UNLESS …`
+ * is the same test, the other way. It is the one way a body depends on its
+ * arguments — `comboFrom`'s `negate` only when `negated`, `resolvingPlay`'s
+ * replaced play or played-differently by `instead`, `look`'s three selectors
+ * by `area` and `from` — and like a `Hole` the parser makes one only while it
+ * reads a `DEFINE OP`'s `DO`, so no card's program ever holds one; the
+ * expander settles every guard before the body is a program.
+ */
+export interface Guard {
+  given: string;
+  is?: string;
+  unless?: true;
+  ops: Op[];
+}
+export const isGuard = (v: unknown): v is Guard => typeof v === "object" && v !== null && typeof (v as Guard).given === "string" && Array.isArray((v as Guard).ops) && !("op" in (v as object));
 
 /**
  * The parameter types a hole in a slot of this field type may declare. One

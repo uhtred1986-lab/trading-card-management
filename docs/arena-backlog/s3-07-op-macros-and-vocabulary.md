@@ -4,6 +4,7 @@ issue: 137
 milestone: Arena M6 — Definitions in the language (Stage 3)
 labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-rulesets, area:arena-workbench, phase:rules-stage3, model:opus-5
 stage: 3
+status: closed
 ---
 **Source:** plan Stage 3 and decision 2 ("new game = `.rules` files + drafter; new mechanism = one primitive, then every game has it"); Stage 2's primitive-or-macro table; `src/lib/arena/lang/validate.ts`, `src/components/arena/rules/*` (the chip editor), `src/lib/arena/ai/opponent.ts` (the referee prompt reads `OP_SCHEMA`).
 

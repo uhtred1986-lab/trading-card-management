@@ -24,7 +24,7 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
 import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Duration, type Op, type OpField, type Ref, type ScriptArea, type Selector, type Side, type XCost } from "../engine/script";
 import type { Color, KeywordSkill, Trigger } from "../engine/types";
-import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, REQUIREMENT_KINDS, fieldsOf, type Definition, type Hole, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
+import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, REQUIREMENT_KINDS, fieldsOf, type Definition, type Guard, type Hole, type NegHole, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
 import type { Words } from "../rulesets/words";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";
 
@@ -63,6 +63,8 @@ class Parser {
    * `$name` as `{ var }` whatever this says.
    */
   private holes = false;
+  /** Whether a step may be a guard, `GIVEN $p { … }` (#137) — raised only while a `DEFINE OP`'s own `DO` is read. */
+  private guards = false;
 
   constructor(
     private readonly src: string,
@@ -307,13 +309,23 @@ class Parser {
     this.skipNl();
     while (!this.isPunct("}")) {
       if (this.tok.kind === "eof") this.fail("a block is never closed", ["}"]);
-      out.push(this.op());
+      out.push(this.guards && (this.isKw("GIVEN") || this.isKw("UNLESS")) && this.isPunct("$", this.ahead(1)) ? (this.guard() as unknown as Op) : this.op());
       this.skipNl();
       this.eatPunct(";");
       this.skipNl();
     }
     this.want("}");
     return out;
+  }
+
+  /** `GIVEN $p { … }`, `GIVEN $p = word { … }`, `UNLESS …` — a step of a macro body kept only for some calls (#137, `Guard`). */
+  private guard(): Guard {
+    const unless = this.isKw("UNLESS");
+    this.i++;
+    const given = this.variable();
+    const is = this.eatPunct("=") ? this.text() : undefined;
+    const ops = this.block();
+    return { given, ...(is === undefined ? {} : { is }), ...(unless ? { unless: true as const } : {}), ops };
   }
 
   private op(): Op {
@@ -482,7 +494,13 @@ class Parser {
     let left = this.amountTerm();
     for (;;) {
       if (this.eatPunct("+")) {
-        left = { plus: [left, this.number()] };
+        left = { plus: [left, this.operand(false)] };
+        continue;
+      }
+      // `- n` is `+ -n` (#137): subtraction is the one operator's other sign,
+      // so no new shape is evaluated anywhere — `lifeDownTo`'s `life(you) - 2`.
+      if (this.eatPunct("-")) {
+        left = { plus: [left, this.operand(true)] };
         continue;
       }
       // Typed without the space, "count(SEL)+1" lexes the "+1" as one signed
@@ -495,6 +513,16 @@ class Parser {
       }
       return left;
     }
+  }
+
+  /** The right of `+`/`-`: a printed number, or in a `DEFINE OP` body a parameter (`Hole`, `NegHole`). */
+  private operand(negated: boolean): number {
+    if (this.holes && this.isPunct("$")) {
+      const hole = this.hole();
+      return (negated ? ({ neg: hole } satisfies NegHole) : hole) as unknown as number;
+    }
+    const n = this.number();
+    return negated ? -n : n;
   }
 
   private amountTerm(): Amount {
@@ -530,7 +558,8 @@ class Parser {
       case "number":
         return this.number();
       case "side":
-        return this.sideWord();
+        // `life($side)` in a macro body (#137) — the side the call names.
+        return this.slot(() => this.sideWord());
       case "attr":
         return this.enumValue(EXPR_ATTRS);
     }
@@ -596,11 +625,11 @@ class Parser {
       return;
     }
     if (this.eatKw("TOP")) {
-      sel.take = this.slot(() => this.number()) as number;
+      sel.take = this.taken();
       return;
     }
     if (this.eatKw("BOTTOM")) {
-      sel.take = this.slot(() => this.number()) as number;
+      sel.take = this.taken();
       sel.fromEnd = true;
       return;
     }
@@ -617,6 +646,20 @@ class Parser {
     const flag = SELECTOR_FLAGS[w];
     if (!flag) throw new LangSyntaxError(`${JSON.stringify(w)} says nothing about which cards`, at.start, Object.keys(SELECTOR_FLAGS));
     flag(sel);
+  }
+
+  /**
+   * `TOP n`'s count: a number, a parameter, or — in a `DEFINE OP` body only —
+   * a whole expression in brackets, `TOP (life($side) - $n)` (#137). No
+   * selector *runs* counted by an expression; the move it sits in is read back
+   * as the spelling it stands for first (`moveAs`).
+   */
+  private taken(): number {
+    if (!this.holes || !this.isPunct("(")) return this.slot(() => this.number()) as number;
+    this.i++;
+    const n = this.amount();
+    this.want(")");
+    return n as unknown as number;
   }
 
   /**
@@ -816,10 +859,12 @@ class Parser {
         // (`[Swap 3]`'s `x`) when it runs. A keyword's `HOOK` bodies are
         // opened above, where they are read.
         this.holes = (kind === "OP" || kind === "KEYWORD") && (f.name === "do" || f.name === "after");
+        this.guards = kind === "OP" && f.name === "do";
         try {
           out[f.name] = this.defineValue(f);
         } finally {
           this.holes = false;
+          this.guards = false;
         }
       }
       this.endOfLine();
