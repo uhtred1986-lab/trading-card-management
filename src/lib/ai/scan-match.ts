@@ -79,6 +79,26 @@ export function assessMatch(seen: { name: string; confidence: number }, candidat
 /** Rows at or above this are shown as confident; below it they land in the "needs review" filter. */
 export const REVIEW_THRESHOLD = 0.8;
 
+/**
+ * Should the Sonnet read of a photo be repeated on Opus (#381)? Decided from
+ * the response shape alone, so it needs no catalog and is covered by
+ * scripts/verify-rules.ts. True when any of:
+ *  - a card has no readable number (`number` null or blank);
+ *  - a card's `confidence` is below {@link REVIEW_THRESHOLD}, the line under
+ *    which the review screen flags a row anyway;
+ *  - the model counted cards it could not identify (`unreadable` > 0);
+ *  - it listed no cards at all in `single` mode, where a card is known to be there.
+ * An unparseable or empty answer is handled by the caller, which falls back too.
+ */
+export function needsOpusFallback(
+  result: { cards: { number: string | null; confidence: number }[]; unreadable: number },
+  mode: "single" | "batch",
+): boolean {
+  if (result.unreadable > 0) return true;
+  if (result.cards.length === 0) return mode === "single";
+  return result.cards.some((c) => !c.number?.trim() || !(c.confidence >= REVIEW_THRESHOLD));
+}
+
 export interface Box {
   x: number;
   y: number;

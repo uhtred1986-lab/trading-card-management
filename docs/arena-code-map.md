@@ -77,6 +77,9 @@ the same as if it were still in `CLAUDE.md`.
   asked by both movers (`vm/flow.ts`'s `moved`, `vm/host.ts`'s `moveTo`) before `moveCard` — the
   caller's route or the first mandatory, question-free match, then a keyword's `wouldLeave` body
   ([Ultimate]) as the card's own rule.
+  The `life` event (#272) is asked by `vm/battle.ts`'s `dealDamage`, one life card at a time
+  (`lifeReplacementChoices`); its `replaceMove` question pauses the Damage Step, whose progress
+  waits on `state.battle.damage` until `chooseMode`'s `resumeDamage` re-runs the step.
   **The turn is a program** (`vm/flow.ts`, #140): `state.flow` is a stack of `{phase, index}`
   frames over the `DEFINE PHASE`/`DEFINE STEP` declarations, the frame *is* the suspension (so a
   game is storable mid-decision and reproducible from seed plus actions), a step's `prompt:` is
@@ -569,8 +572,19 @@ the same as if it were still in `CLAUDE.md`.
   components (the arena's are named classes painted from tokens), no size or logic behind a skin
   check, and card faces keep the night palette under both.
   **Pace** (`src/lib/arena/pace.ts`): how fast a turn plays back is a remembered preference —
-  slow (default), normal, or step (tap *Next* between beats); while it plays, the prompt bar's
-  headline is the narration sentence and a card from a hidden pile flies in as a ghost.
+  slow (default), normal, or step (tap *Next* between beats); while it plays, the narration
+  sentence is the pill in the lane between the Battle Areas, the prompt bar says "Claude is
+  playing · 2 of 5", and a card from a hidden pile flies in as a ghost. The top bar's speed
+  button (`stage/SpeedButton.tsx`) and the menu's `PaceToggle` set the same preference.
+  **Board layout** (`docs/arena-redesign/` frame 01, review of 1 Oct 2026): one sticky top bar
+  (turn pill, speed, eye, admin shield, menu), the phase words, then the field — a one-line
+  `PlayerStrip` per player (life pips, energy chips, hand/deck counts; the pile anchors live on
+  it), a `BattleRow` per player with the **leader as its first card** and dashed slots up to four
+  positions, and the `Lane` (narration pill, or the `inplace` staging's power figures) between
+  them (`stage/StageZones.tsx`); the fanned `Hand`; the one-line `PromptPanel`. The field is open
+  sky: no panel round it. The game page's own links (back, give up, the debug view) are passed
+  in as `menu` and drawn in the menu sheet. The field's cards are drawn at the redesign's sizes
+  (leader 80, Battle Card 68, hand 84) with a gentler `--arena` step (`.arena-field`).
   **Whose move** (`docs/arena-hud-spec.md`, §1/§1.1/§2.1 built): the turn pill (`stage/TurnPresence.tsx`, #344 — it replaced
   `TurnStrip`) says *whose turn* in words and the acting side's colour, beside a turn-change banner, a board
   edge and a lit battle row; the prompt bar says *what is open* ("3 moves available — …"). One rule holds it together — **everything

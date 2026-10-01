@@ -16,7 +16,7 @@ import { hashPassword, passwordProblem, usernameProblem, verifyPassword } from "
 import { normaliseSpeech, parseSpoken, spokenQuantity } from "../src/lib/scan/voice";
 import { collectorNumbers } from "../src/lib/marketplace/cardtrader";
 import { sanitiseDraft, type PoolCard } from "../src/lib/ai/deck-builder";
-import { assessMatch, cleanBox, nameSimilarity, normaliseNumber } from "../src/lib/ai/scan-match";
+import { assessMatch, cleanBox, nameSimilarity, needsOpusFallback, normaliseNumber } from "../src/lib/ai/scan-match";
 import { parseViewMode, viewHref } from "../src/lib/view-mode";
 import { needsInstall } from "./session-start-check.mjs";
 import { shouldSkipBuild, isDocsOnlyChange, changedFiles } from "./vercel-ignore-build.mjs";
@@ -528,6 +528,19 @@ assert.equal(assessMatch(seen, { name: "Omega Shenron" }, false).matchedBy, "nam
 assert.equal(assessMatch(seen, { name: "Omega Shenron" }, false).confidence, 0.54, "name-only match is capped");
 assert.equal(assessMatch(seen, { name: "Omega Shenron, Ultimate Shadow Dragon Form" }, false).confidence, 0.36, "weak name match is capped harder");
 assert.deepEqual(assessMatch(seen, null, false), { matchedBy: null, confidence: 0, nameSimilarity: 0 });
+// Sonnet → Opus fallback rule (#381)
+{
+  const ok = { number: "BT18-020", confidence: 0.95 };
+  assert.equal(needsOpusFallback({ cards: [ok, ok], unreadable: 0 }, "batch"), false, "all clear: stay on Sonnet");
+  assert.equal(needsOpusFallback({ cards: [ok, { number: "BT18-021", confidence: 0.79 }], unreadable: 0 }, "batch"), true, "below REVIEW_THRESHOLD");
+  assert.equal(needsOpusFallback({ cards: [{ number: "BT18-021", confidence: 0.8 }], unreadable: 0 }, "single"), false, "at the threshold is fine");
+  assert.equal(needsOpusFallback({ cards: [{ number: null, confidence: 0.95 }], unreadable: 0 }, "single"), true, "no number");
+  assert.equal(needsOpusFallback({ cards: [{ number: "  ", confidence: 0.95 }], unreadable: 0 }, "single"), true, "blank number");
+  assert.equal(needsOpusFallback({ cards: [ok], unreadable: 1 }, "batch"), true, "model counted an unreadable card");
+  assert.equal(needsOpusFallback({ cards: [], unreadable: 0 }, "single"), true, "single photo, nothing listed");
+  assert.equal(needsOpusFallback({ cards: [], unreadable: 0 }, "batch"), false, "empty batch photo is plausible");
+  assert.equal(needsOpusFallback({ cards: [{ number: "P-181", confidence: Number.NaN }], unreadable: 0 }, "single"), true, "NaN confidence");
+}
 assert.deepEqual(cleanBox({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }), { x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
 assert.deepEqual(cleanBox({ x: 0.9, y: 0.9, w: 0.5, h: 0.5 }), { x: 0.9, y: 0.9, w: 0.1, h: 0.1 }, "clamped to the image");
 assert.equal(cleanBox({ x: 0.5, y: 0.5, w: 0.001, h: 0.5 }), null, "degenerate boxes are dropped");
