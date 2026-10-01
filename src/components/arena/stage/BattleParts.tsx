@@ -410,8 +410,9 @@ export function BattleVerdict({
  * The ki beam from attacker to defender, and on a hold the barrier that flares
  * around the defender (rd-07). Drawn between the two cards where they are on
  * screen right now — a band, a takeover or the board — and not at all when one
- * of them is no longer anywhere to be measured. Positioned inline: a direct
- * child of the board is forced `relative` by a rule the classes cannot beat (#412).
+ * of them is no longer anywhere to be measured. The beam and the barrier get
+ * their `position` from `.arena-fx-beam` / `.arena-fx-shield`; only the z-index
+ * (above the cards, below the verdict) and the measured box are set here.
  */
 function ClashFx({ from, to, held, hostRef }: { from: string; to: string; held: boolean; hostRef: React.RefObject<HTMLDivElement | null> }) {
   const [geo, setGeo] = useState<{ x: number; y: number; len: number; ang: number; box: { x: number; y: number; w: number; h: number } } | null>(null);
@@ -432,8 +433,8 @@ function ClashFx({ from, to, held, hostRef }: { from: string; to: string; held: 
   if (!geo) return null;
   return (
     <>
-      <span className="arena-fx-beam" style={{ position: "absolute", left: geo.x, top: geo.y, width: geo.len, zIndex: 45, "--ang": `${geo.ang}deg` } as React.CSSProperties} aria-hidden />
-      {held && <span className="arena-fx-shield" style={{ position: "absolute", left: geo.box.x - 24, top: geo.box.y - 24, width: geo.box.w + 48, height: geo.box.h + 48, zIndex: 44 }} aria-hidden />}
+      <span className="arena-fx-beam" style={{ left: geo.x, top: geo.y, width: geo.len, zIndex: 45, "--ang": `${geo.ang}deg` } as React.CSSProperties} aria-hidden />
+      {held && <span className="arena-fx-shield" style={{ left: geo.box.x - 24, top: geo.box.y - 24, width: geo.box.w + 48, height: geo.box.h + 48, zIndex: 44 }} aria-hidden />}
     </>
   );
 }
@@ -456,7 +457,7 @@ export function ClashBackdrop() {
 function Banner({ eyebrow, tone, name, line, won = false, word }: { eyebrow: string; tone: "yours" | "theirs" | "neutral"; name: string; line: string; won?: boolean; word?: string }) {
   const colour = tone === "yours" ? "text-ki-300" : tone === "theirs" ? "text-loss" : "text-space-200";
   return (
-    <div className="pointer-events-none flex justify-center px-3" style={{ position: "fixed", left: 0, right: 0, top: "33%", zIndex: 40 }} aria-live="polite">
+    <div className="pointer-events-none fixed inset-x-0 top-[33%] z-40 flex justify-center px-3" aria-live="polite">
       <div className="arena-verdict max-w-[92vw] rounded-2xl border border-ki-500/40 px-5 py-3 text-center sm:px-8 sm:py-5">
         <p className="text-[10px] uppercase tracking-[0.3em] text-space-300 sm:text-xs">{eyebrow}</p>
         {word && <span className={`arena-fx-word arena-impact mt-1 whitespace-nowrap font-black leading-none text-[clamp(1.6rem,9vw,2.9rem)] sm:text-[clamp(2.75rem,5.5vw,5rem)] ${colour}`}>{word}</span>}

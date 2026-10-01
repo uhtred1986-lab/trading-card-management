@@ -23,14 +23,6 @@ function sideTint(side: BoardView["you"], yours: boolean, view: BoardView, light
   return vars["--turn-tint"] ?? (yours ? "#f28c0f" : "#64748b");
 }
 
-/**
- * `:where(.arena) > *` lifts every child of the board above the room's layers
- * with `position: relative; z-index: 1`, and that rule is unlayered, so it beats Tailwind's
- * `fixed` — a banner left to its class is centred on the (tall) board instead
- * of the screen. An inline style is the one thing it cannot beat.
- */
-const ABOVE_THE_ROOM: React.CSSProperties = { position: "fixed", zIndex: 40 };
-
 export function turnWords(yours: boolean, name: string): string {
   return yours ? "YOUR TURN" : `${name.toUpperCase()}'S TURN`;
 }
@@ -46,7 +38,7 @@ export function TurnBanner({ call, view, lighting, ms, holdUntilTap }: { call: T
   const yours = call.player === view.you.player;
   const side = yours ? view.you : view.them;
   return (
-    <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center overflow-hidden" style={ABOVE_THE_ROOM} aria-hidden data-turn-banner={yours ? "you" : "them"}>
+    <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center overflow-hidden" aria-hidden data-turn-banner={yours ? "you" : "them"}>
       <div
         key={call.key}
         className={`arena-turnbanner ${holdUntilTap ? "arena-turnbanner-hold" : ""}`}

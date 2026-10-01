@@ -27,10 +27,6 @@ export function Ghosts({ ghosts, art }: { ghosts: Ghost[]; art: Record<string, B
           <motion.div
             key={g.key}
             className="pointer-events-none absolute z-30"
-            // Inline as well: a direct child of `.arena` is forced to `relative` by
-            // an unlayered rule that beats the classes (#412), and a ghost that is
-            // not absolute flies from the wrong place.
-            style={{ position: "absolute", zIndex: 30 }}
             // A card leaving shudders out and fades to the Drop; one arriving
             // flies in from its pile, whole, and hands over to the real card.
             initial={g.kind === "arrive" ? { left: g.from.x, top: g.from.y, opacity: 0.85, scale: 0.9 } : { left: g.from.x, top: g.from.y, opacity: 1, scale: 1, filter: "saturate(1)" }}

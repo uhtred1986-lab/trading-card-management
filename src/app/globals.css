@@ -206,10 +206,18 @@ input[type="number"] {
    ghost — keeps exactly what it had, and a child added later is above the room
    without having to know the room exists. `.arena` is left un-isolated: it
    must not become a stacking context, or the card sheet would fall behind the
-   app header. */
-:where(.arena) > :where(*) {
-  position: relative;
-  z-index: 1;
+   app header.
+
+   It sits in `@layer base`, below Tailwind's utilities (#412). Unlayered, it
+   beat the layered `fixed` / `absolute` / `z-*` utilities on every direct child
+   of `.arena`, so a Sheet opened from the board was drawn inline under the hand
+   with no scrim. In the layer it is only a default: a utility or an inline
+   style on the child wins, as the comment above already promised. */
+@layer base {
+  :where(.arena) > :where(*) {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 /* Layer 3 — the leader itself. The footprint is reserved, so the scale is a
