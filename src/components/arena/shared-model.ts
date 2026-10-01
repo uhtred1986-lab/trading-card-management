@@ -1,6 +1,6 @@
 "use client";
 
-import type { PlayerId, Requirement } from "@/lib/arena/engine";
+import type { PlayerId, Requirement } from "@/lib/arena/types";
 import { sentence } from "@/lib/arena/wording";
 
 /** Whose chair the words are read from: "until the start of your next turn" depends on it. */

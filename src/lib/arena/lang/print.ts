@@ -14,7 +14,7 @@
  * printed in its own words only when `parseFilter` reads them back *equal*;
  * when it does not, the field form is used, which is uglier and exact.
  */
-import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
+import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
 import {
   COND_SCHEMA,
   OP_SCHEMA,
@@ -27,8 +27,8 @@ import {
   type OpField,
   type Ref,
   type Selector,
-} from "../engine/script";
-import type { KeywordSkill } from "../engine/types";
+} from "../vm/script";
+import type { KeywordSkill } from "../types";
 import { EXPR_SCHEMA, FILTER_FIELDS, FILTER_FIELD_NAMES, fieldsOf, isGuard, isHole, isNegHole, type Definition, type DefineFieldType, type DefineHook, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type Rule } from "./ast";
 
 /**

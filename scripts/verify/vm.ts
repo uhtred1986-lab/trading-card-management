@@ -40,7 +40,9 @@
  */
 import assert from "node:assert/strict";
 import { toBeats } from "../../src/lib/arena/beats";
-import { IllegalAction, apply, createGame, legalActions, rejectedActions, type Action, type GameEvent, type GameState, type LegalAction } from "../../src/lib/arena/engine";
+import { IllegalAction } from "../../src/lib/arena/vm/common";
+import { apply, createGame, legalActions, rejectedActions } from "../../src/lib/arena/engine";
+import { type Action, type GameEvent, type GameState, type LegalAction } from "../../src/lib/arena/types";
 import {
   AVAILABLE_ENGINES,
   ENGINE_IDS,
@@ -117,12 +119,12 @@ import {
 } from "../../src/lib/arena/vm";
 import { expandMacros, loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
 import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
-import { emptyFilter, type CardFilter } from "../../src/lib/arena/engine/filters";
+import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
 import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
-import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/engine/types";
-import { legacyHost } from "../../src/lib/arena/engine/script-host";
-import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/engine/script";
+import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/types";
+import { legacyHost } from "../../src/lib/arena/engine/legacy-host";
+import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
 import { CTX, DEFS, assertMenuInvariants, card, cardNow, fifty, matches, parseSkills } from "./harness";
@@ -3910,7 +3912,7 @@ console.log("verify/vm: ok");
 //   "every game now ends via real battle damage" claim.
 // - **What was not already built, and is fixed here**: `damage`/`addLife`/
 //   `lifeDownTo` are not new primitives this issue adds — `stepScript`
-//   (`engine/script.ts`) has carried a full `case` for each since #142 ("the
+//   (`vm/script.ts`) has carried a full `case` for each since #142 ("the
 //   interpreter has every case … now"), and `vmHost` (`vm/host.ts`) implements
 //   every `ScriptHost` method those cases call (`zone`, `move`, `amount`,
 //   `addDamageTaken`, `pend`, `areaOf`, `cardsInPlay`) — none of them `NotYet`.

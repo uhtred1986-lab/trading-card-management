@@ -31,11 +31,12 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext, GameEvent } from "../engine";
-import { stepScript } from "../engine/script";
-import { asksAQuestion, describeScript } from "../engine/script-schema";
-import { redirectOf, type Replacement } from "../engine/state";
-import type { MoveActor, MoveReason, ReplacementChoice, ReplacementResult } from "../engine/types";
+import type { EngineContext, GameEvent } from "../types";
+import { stepScript } from "./script";
+import { asksAQuestion, describeScript } from "./script-schema";
+import { redirectOf } from "./common";
+import { type Replacement } from "../types";
+import type { MoveActor, MoveReason, ReplacementChoice, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { log } from "./events";
 import { vmHost } from "./host";

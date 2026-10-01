@@ -25,9 +25,9 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { printedDescription, printedNames } from "../engine/cards";
-import type { Cond, Op } from "../engine/script";
-import type { Skill } from "../engine/types";
+import { printedDescription, printedNames } from "../text/cards";
+import type { Cond, Op } from "./script";
+import type { Skill } from "../types";
 import { bindKeywordCond, bindKeywordParams, type GameDefinition, type KeywordDef } from "../rulesets";
 
 /** The declaration of the keyword a line *is* — a line printed as nothing but its keyword tag (22-1-1), never a printed [Activate] that also carries one. */

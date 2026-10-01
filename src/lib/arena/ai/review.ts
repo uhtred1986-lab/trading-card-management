@@ -12,7 +12,7 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import { SONNET_MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
-import type { PlayerId } from "../engine";
+import type { PlayerId } from "../types";
 import { loadGame } from "../games";
 import { legacyState } from "../engines";
 import { decklistText } from "./view";

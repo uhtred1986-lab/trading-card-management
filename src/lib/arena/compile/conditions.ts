@@ -1,5 +1,5 @@
-import { parseFilter } from "../filters";
-import type { Cond, Ref, Selector } from "../script";
+import { parseFilter } from "../text/filters";
+import type { Cond, Ref, Selector } from "../vm/script";
 import { compileAction, joints } from "./prices";
 import { filterFor, parseTarget } from "./targets";
 

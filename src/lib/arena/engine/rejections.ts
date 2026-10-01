@@ -1,9 +1,9 @@
-import { skillsOf } from "./cards";
+import { skillsOf } from "../text/cards";
 import { cardsInPlay, def, face, forbiddenBy, has, immunityRefusing, skillsNegated, skillsOfInstance } from "./state";
-import { whoseSkills } from "./script";
-import type { EngineContext, LegalAction } from "./engine";
-import type { Action, CounterWindow, GameState, PlayerId, RejectedAction, Requirement, Skill } from "./types";
-import { other, PLAYERS } from "./types";
+import { whoseSkills } from "../vm/script";
+import type { EngineContext, LegalAction } from "../types";
+import type { Action, CounterWindow, GameState, PlayerId, RejectedAction, Requirement, Skill } from "../types";
+import { other, PLAYERS } from "../types";
 
 export interface RejectionDeps {
   whyNotCharge: (ctx: EngineContext, s: GameState, p: PlayerId) => Requirement[];

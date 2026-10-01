@@ -17,8 +17,8 @@ import { refusal, sentence, type Reaching } from "../../src/lib/arena/wording";
 import { narrate, type Narrator } from "../../src/lib/arena/narration";
 import { describeStatic, untilWords } from "../../src/lib/arena/effects";
 import { colourOf, LEADER_COLOURS, TONES } from "../../src/lib/arena/lighting";
-import { COLORS } from "../../src/lib/arena/engine/script-schema";
-import type { Area, EffectUntil } from "../../src/lib/arena/engine/types";
+import { COLORS } from "../../src/lib/arena/vm/script-schema";
+import type { Area, EffectUntil } from "../../src/lib/arena/types";
 
 const dbs = loadDbs();
 assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);

@@ -78,10 +78,10 @@
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
-import type { EngineContext, GameEvent, Payer } from "../engine";
-import type { Area, Color, PlayerId, Requirement, Skill } from "../engine/types";
-import type { Cond, Script, ScriptFrame } from "../engine/script";
-import { costIsOnlyOrbs } from "../engine/compile";
+import type { EngineContext, GameEvent, Payer } from "../types";
+import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
+import type { Cond, Script, ScriptFrame } from "./script";
+import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, type BoundAmounts } from "./costs";

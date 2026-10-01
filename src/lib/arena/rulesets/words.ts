@@ -3,7 +3,7 @@
  *
  * The language, the workbench's chip editor and the referee's prompt each used
  * to carry their own copy of the closed lists a rule is checked against —
- * three imports of the same constants in `engine/script-schema.ts`, and a
+ * three imports of the same constants in `vm/script-schema.ts`, and a
  * fourth of `TRIGGERS` in `gaps.ts`. Once a game is a set of declarations
  * there must be one: the areas are the zones `zones.rules` declares, and a
  * word deleted there has to disappear from all three readers at once or the

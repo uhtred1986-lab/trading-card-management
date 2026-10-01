@@ -7,7 +7,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { decisionsFor } from "./ai/debug";
-import type { Action, EngineContext } from "./engine";
+import type { Action, EngineContext } from "./types";
 import { engineOr } from "./engines";
 import { deckInputFor, defsForCards } from "./load";
 import { flagsForGame, type FlagLine } from "./review-store";

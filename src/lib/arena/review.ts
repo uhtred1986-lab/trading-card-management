@@ -12,7 +12,7 @@
  * Only the wanted turn is worked out in detail (legal moves, refusals, beats);
  * the rest of the game is walked only to learn which turns exist.
  */
-import type { Action, EngineContext, GameOptions, PlayerId } from "./engine";
+import type { Action, EngineContext, GameOptions, PlayerId } from "./types";
 import { engineFor, type EngineId, type EngineState } from "./engines";
 import { narrate, type Narrator } from "./narration";
 import type { NumberedBeat } from "./beats";

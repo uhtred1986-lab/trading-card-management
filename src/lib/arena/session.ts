@@ -12,7 +12,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
-import type { Action, PlayerId } from "./engine";
+import type { Action, PlayerId } from "./types";
 import { applyToGame, clearBeatsForTurn, loadArchivedGame, loadGame, type LoadedGame } from "./games";
 import { advance, aiPlayerOf } from "./ai/run";
 import { longPollStepMs } from "./poll-schedule";

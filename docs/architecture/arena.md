@@ -61,7 +61,7 @@ Before opening arena docs or engine source for a specific question, start with
 `docs/arena-next-session-prompt.md` (current state, priority order) — both are short and meant
 as the entry point. There are 20+ other `docs/arena-*.md` files (several 400–900+ lines); grep
 them for the term you need rather than reading multiple specs end to end. `src/lib/arena/engine/`
-is large: the compiler implementation now lives under `src/lib/arena/engine/compile/`,
+is large: the compiler implementation now lives under `src/lib/arena/compile/`,
 `compile.ts` is its stable public barrel, and `engine.ts`, `script.ts` + `script-schema.ts`,
 `state.ts` are each 1,800–4,600 lines — grep for the symbol first and read a line range, don't
 open these files whole. For iterating on pure rule

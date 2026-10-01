@@ -37,8 +37,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { effectLanguage } from "../../src/lib/arena/ai/opponent";
-import { AREA_NAMES, CARD_ATTRIBUTES, COLORS, KEYWORD_NAMES, OP_CLASS, OP_SCHEMA, PHASES, PROMPT_KINDS, validateProgram, type Op } from "../../src/lib/arena/engine/script";
-import type { CounterWindow, KeywordSkill, PlayerId } from "../../src/lib/arena/engine/types";
+import { AREA_NAMES, CARD_ATTRIBUTES, COLORS, KEYWORD_NAMES, OP_CLASS, OP_SCHEMA, PHASES, PROMPT_KINDS, validateProgram, type Op } from "../../src/lib/arena/vm/script";
+import type { CounterWindow, KeywordSkill, PlayerId } from "../../src/lib/arena/types";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import { deepEqual, parseDefinitions, parseRule, printDefinitions, validateRule } from "../../src/lib/arena/lang";
 import { bindKeywordCond, bindKeywordParams, loadRuleset, loadDbs, rulesetFor, DBS_FILES, MacroError, expandMacros, opsIn, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
@@ -838,7 +838,7 @@ if (dbs.ok) {
   // `words.rules` (#135): every colour `attributes.rules`' own `colors`
   // attribute may hold has a `DEFINE WORDS … of: color`, and no other colour
   // is declared — the same both-directions shape, over `COLORS`
-  // (`engine/script-schema.ts`), the one closed list no declaration names yet
+  // (`vm/script-schema.ts`), the one closed list no declaration names yet
   // (`board-words.ts`'s own note on why `COLORS` is still exported).
   completeness(
     Object.entries(def.words)
@@ -888,9 +888,9 @@ for (const name of dbsFiles) {
 // ── keywords.rules against KEYWORD_NAMES, both directions ──────────────────
 
 /**
- * The parameters `keywordOf` (`engine/cards.ts`) builds for each keyword, as
+ * The parameters `keywordOf` (`text/cards.ts`) builds for each keyword, as
  * `keywords.rules`' own `TAKES` should read them. Hand-written against the
- * `KeywordSkill` union (`engine/types.ts`) rather than derived from it — a
+ * `KeywordSkill` union (`types.ts`) rather than derived from it — a
  * union has no runtime shape to walk — but `Record` over `KEYWORD_NAMES`'
  * own element type means a keyword added to one list and not the other
  * fails `npm run typecheck` before this file ever runs, the same guard

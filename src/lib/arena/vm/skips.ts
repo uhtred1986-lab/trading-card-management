@@ -17,8 +17,8 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext } from "../engine";
-import type { PlayerId, SkipWhat } from "../engine/types";
+import type { EngineContext } from "../types";
+import type { PlayerId, SkipWhat } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { staticsNow } from "./program";
 import type { VmState } from "./state";

@@ -68,7 +68,7 @@ export interface GameDefinition {
 
 /**
  * The closed word lists the language is checked against — today hand-written
- * constants in `engine/script-schema.ts` and `gaps.ts`, tomorrow (#137) a
+ * constants in `vm/script-schema.ts` and `gaps.ts`, tomorrow (#137) a
  * re-export of this. The names are the ones those constants use, so the swap
  * is a re-export and not a rename.
  *

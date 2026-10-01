@@ -25,7 +25,8 @@
  * Pure: no database (the default-engine setting is `engine-setting.ts`), so
  * `snapshot.ts` and the tests can use it.
  */
-import { apply, createGame, legalActions, rejectedActions, type Action, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction } from "./engine";
+import { apply, createGame, legalActions, rejectedActions } from "./engine";
+import { type Action, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction } from "./types";
 import { toBeats, type Beats } from "./beats";
 import { boardView, type BoardView, type CardArt } from "./view";
 import { RULES } from "./vm";

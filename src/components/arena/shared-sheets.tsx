@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { LegalAction, RejectedAction } from "@/lib/arena/engine";
+import type { LegalAction, RejectedAction } from "@/lib/arena/types";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
 import type { CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";

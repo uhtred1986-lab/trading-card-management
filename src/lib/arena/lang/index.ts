@@ -1,6 +1,6 @@
 import { parseCond as cond, parseRule as parse } from "./parse";
 import { words, type Words } from "../rulesets/words";
-import type { Cond } from "../engine/script";
+import type { Cond } from "../vm/script";
 import type { Parsed, Rule } from "./ast";
 
 /**

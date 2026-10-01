@@ -38,7 +38,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { PlayerId } from "../engine/types";
+import type { PlayerId } from "../types";
 import type { GameDefinition, ZoneDef } from "../rulesets";
 
 /** One side's areas: every zone the game declares as a place, in declaration order. */

@@ -9,12 +9,12 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { skillsOf, sumReachable } from "./cards";
-import type { CardFilter } from "./filters";
+import { skillsOf, sumReachable } from "../text/cards";
+import type { CardFilter } from "../text/filters";
 import { asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
-import { resolveSelector, sideOf, type AltCost } from "./state";
+import { sideOf } from "./common";
 import type { ScriptHost } from "./script-host";
-import type { Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "./types";
+import type { AltCost, Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -1087,7 +1087,6 @@ export const DELAY_LABELS: Record<DelayTiming, string> = {
 
 // ── the interpreter ────────────────────────────────────────────────────────
 
-export { resolveSelector };
 
 /**
  * One skill as a line of a menu, for `copySkills`' "which one?" (20-18). A
@@ -2217,7 +2216,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 }
 
 export * from "./script-schema";
-// Named as well as starred, for the same reason `engine/compile.ts` names its
+// Named as well as starred, for the same reason `compile.ts` names its
 // entry points: through an import cycle an `export *` name is not instantiated,
 // and `arena:readings` died on `does not provide an export named
 // "describeScript"`.

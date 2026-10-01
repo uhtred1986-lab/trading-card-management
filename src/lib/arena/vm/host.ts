@@ -1,6 +1,6 @@
 /**
  * The rules engine as a `ScriptHost` — the other implementation of the
- * interface `stepScript` runs on (`engine/script-host.ts`, #142 step 1).
+ * interface `stepScript` runs on (`vm/script-host.ts`, #142 step 1).
  *
  * The interpreter is shared, so this file is where the two engines are allowed
  * to differ and the only place they do. Every method is a reading or a change
@@ -53,12 +53,12 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext, GameEvent } from "../engine";
-import type { ScriptHost } from "../engine/script-host";
-import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../engine/types";
+import type { EngineContext, GameEvent } from "../types";
+import type { ScriptHost } from "./script-host";
+import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
-import { tokenCardId } from "../engine/state";
+import { tokenCardId } from "./common";
 import { koCard, openKeywordPlayWindow } from "./battle";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, log } from "./events";
@@ -329,7 +329,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     //
     // Read and written off `state.battle`, the same record `vm/battle.ts`'s
     // native flow keeps — a program's `case "redirectAttack"`/`case
-    // "negateAttack"` in the shared `engine/script.ts` interpreter call these
+    // "negateAttack"` in the shared `vm/script.ts` interpreter call these
     // three, so a card whose skill runs either op now really does change the
     // battle in progress, the moment its `card_rules` program calls for it
     // (no card does yet — `ops.rules` declares neither as a macro, since both

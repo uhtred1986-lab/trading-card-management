@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { EXPR_ATTRS } from "@/lib/arena/lang";
-import { parseFilter, type CardFilter } from "@/lib/arena/engine/filters";
-import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, describeCond, describeFilter, describeScript, type Cond, type FieldType, type Op, type OpField } from "@/lib/arena/engine/script";
+import { parseFilter, type CardFilter } from "@/lib/arena/text/filters";
+import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, describeCond, describeFilter, describeScript, type Cond, type FieldType, type Op, type OpField } from "@/lib/arena/vm/script";
 import { optionsFor } from "@/lib/arena/rulesets/words";
 
 /**

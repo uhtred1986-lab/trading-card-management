@@ -8,7 +8,7 @@
  * scripts) and, failing that, the referee. This file only reads what the
  * manual calls the skill's type, keywords, and cost (1-5, 1-6, 22).
  */
-import type { CardDef, Color, KeywordSkill, Skill, SkillKind } from "./types";
+import type { CardDef, Color, KeywordSkill, Skill, SkillKind } from "../types";
 
 // ── text normalisation ─────────────────────────────────────────────────────
 

@@ -32,11 +32,11 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext } from "../engine";
-import { specifiedCostOf, specifiedCostUnknown } from "../engine/cards";
-import { COLORS } from "../engine/script";
-import { tokenDefOf } from "../engine/state";
-import type { CardDef, Color } from "../engine/types";
+import type { EngineContext } from "../types";
+import { specifiedCostOf, specifiedCostUnknown } from "../text/cards";
+import { COLORS } from "./script";
+import { tokenDefOf } from "./common";
+import type { CardDef, Color } from "../types";
 import type { AttributeDef, GameDefinition } from "../rulesets";
 
 /** What an attribute's value may be — one shape per `value:` word the grammar allows. */
@@ -83,7 +83,7 @@ type Reader = (def: CardDef) => AttrValue | undefined;
  * paid is named by the player at the moment of payment, which is #140's. Read
  * as `0` here, every "energy cost of 1 or less" selector in the catalog would
  * start matching every X-cost card, which the engine playing today does not do
- * (`matches` in `engine/filters.ts` measures a cost only when it is a number).
+ * (`matches` in `text/filters.ts` measures a cost only when it is a number).
  * Absent keeps the two engines answering alike, and keeps "this card's cost is
  * 0" from being said about a card whose cost nobody has chosen yet.
  *

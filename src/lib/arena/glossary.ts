@@ -1,9 +1,9 @@
 /**
  * What the arena engine knows about card wording, written down.
  *
- * The engine reads printed card text: `engine/cards.ts` turns a line into a
- * skill with a type and a keyword, `engine/filters.ts` reads the target
- * grammar, `engine/compile/` turns the rest into a program, and the referee
+ * The engine reads printed card text: `text/cards.ts` turns a line into a
+ * skill with a type and a keyword, `text/filters.ts` reads the target
+ * grammar, `compile/` turns the rest into a program, and the referee
  * takes whatever is left. Every one of those steps is a decision about
  * meaning, and until now the only way to see one was to read the code.
  *
@@ -24,8 +24,8 @@
  *
  * Pure: no database, no React.
  */
-import { keywordOf } from "./engine/cards";
-import type { KeywordSkill, SkillKind } from "./engine/types";
+import { keywordOf } from "./text/cards";
+import type { KeywordSkill, SkillKind } from "./types";
 
 /** How much of the keyword the engine carries out on its own. */
 export type Support =
@@ -743,7 +743,7 @@ export const READING_RULES: ReadingRule[] = [
     table: {
       head: ["Site", "What it reads", "Means", "Verdict"],
       rows: [
-        ["engine/types.ts:191 `CardInstance.owner`", "the field itself", "owner", "0-3-3-1: who had the card in their deck. The one field that is the owner, and it never changes."],
+        ["types.ts:191 `CardInstance.owner`", "the field itself", "owner", "0-3-3-1: who had the card in their deck. The one field that is the owner, and it never changes."],
         ["engine/state.ts:254 `Location.owner`", "the area holder", "master", "0-3-4-1. Named for the coincidence; every `locate(…)?.owner` read below is a master read."],
         ["engine/triggers.ts:12 `masterOf`", "the area holder, else the owner", "master", "Already right, and the function the corrected sites now call."],
         ["engine/state.ts:551 [Barrier]", "`cards[id].owner !== frame.master`", "master", "22-25: “the skills of cards your opponent **masters**”. Corrected."],
@@ -757,12 +757,12 @@ export const READING_RULES: ReadingRule[] = [
         ["engine/state.ts:1404/1465 `unlessHolds` / `unlessInWords`", "`cards[card].owner` as the frame's master", "master", "The escape clause is read from the source card's chair (0-3-4-3). Corrected."],
         ["engine/state.ts:1994 `playCost`", "`cards[id].owner`", "master", "A card being priced is in a hand or a Z-Deck, where the two coincide; corrected anyway so the ‹Warrior of Universe 7› board read below it cannot drift."],
         ["engine/state.ts:196/208 `replacementFor`", "`cards[id].owner` as the fallback master", "master", "9-10-2-1: the master of the replaced card makes the choice. Corrected."],
-        ["engine/script.ts:742 `replacePlay`", "`cards[card].owner`", "owner", "5-5-4: a play that fails puts the card in its owner's Drop Area."],
-        ["engine/script.ts:1022 [Indestructible]", "`cards[id].owner !== master`", "master", "22-18 reads “your opponent's skills” the same way [Barrier] does. Corrected."],
-        ["engine/script.ts:1042/1052/1056 the KO probe", "`players[cards[id].owner].drop`", "owner", "5-12-1: a KO lands in the owner's Drop, so that is the pile to measure."],
-        ["engine/script.ts:1089 `beMovedBySkill`", "`cards[id].owner !== master`", "master", "“An opponent's card” at the moment the skill moves it. Corrected."],
-        ["engine/script.ts:1098 `moveTo`'s destination", "`master` for battle/unison, else `cards[id].owner`", "both, correctly", "3-8 for the named area, 3-1-6 for every other. The one site that already said both out loud."],
-        ["engine/script.ts:1206 `flippedFaceUp` witnesses", "`cardsInPlay(s, cards[id].owner)`", "master", "21-x: the board that watches it is the one the card is on. Corrected."],
+        ["vm/script.ts:742 `replacePlay`", "`cards[card].owner`", "owner", "5-5-4: a play that fails puts the card in its owner's Drop Area."],
+        ["vm/script.ts:1022 [Indestructible]", "`cards[id].owner !== master`", "master", "22-18 reads “your opponent's skills” the same way [Barrier] does. Corrected."],
+        ["vm/script.ts:1042/1052/1056 the KO probe", "`players[cards[id].owner].drop`", "owner", "5-12-1: a KO lands in the owner's Drop, so that is the pile to measure."],
+        ["vm/script.ts:1089 `beMovedBySkill`", "`cards[id].owner !== master`", "master", "“An opponent's card” at the moment the skill moves it. Corrected."],
+        ["vm/script.ts:1098 `moveTo`'s destination", "`master` for battle/unison, else `cards[id].owner`", "both, correctly", "3-8 for the named area, 3-1-6 for every other. The one site that already said both out loud."],
+        ["vm/script.ts:1206 `flippedFaceUp` witnesses", "`cardsInPlay(s, cards[id].owner)`", "master", "21-x: the board that watches it is the one the card is on. Corrected."],
         ["engine/engine.ts:148 `instance`", "sets `owner`", "owner", "Set once as the decks are dealt."],
         ["engine/engine.ts:1613/3208 `move` events", "the destination area's player", "master", "The event's `owner` field is the area holder, which is what a client draws the card into. Already right."],
         ["engine/engine.ts:3146 the displaced Unison's stack", "`cards[beneath].owner`", "owner", "3-1-6 again."],
@@ -932,6 +932,6 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Original power, and originally skill-less",
-    body: "20-3-1: “original” is what a card describes before any skill effect has applied — the printed face, not its current, possibly modified, state. `P-295`, `BT11-152`, `DB1-041` and thirty-three more print “an original power of N”; `BT22-081`, `BT22-084`, `BT22-085`, `BT22-088`, `BT22-089`, `BT22-100`, `BT23-106`, `BT25-001b`, `BT25-009`, `EX25-02`, `P-529` and `P-692` print “an originally skill-less Battle Card” — printed with no text at all (1-5-9), whether or not it has since gained a skill (9-1-4). Neither had a filter field to land on, and both compiled cleanly and read wrongly: `parseFilter` had no pattern for “power **of** N” at all — only the sets' other word order, “N power” — so the whole measure vanished from a filter that otherwise read fine, exactly the “compiles and reads wrongly” failure this page exists to catch; “originally skill-less” had no pattern whatsoever and vanished the same way. The fix is `originalPowerMin`/`originalPowerMax` and `originallySkillLess` on `CardFilter` (`engine/filters.ts`), read off `d.power`/`d.skill` — the printed face, which since the owner's face-showing ruling of 20 Sep 2026 (issue #327) is the face `cardNow` shows (a flipped Leader's back, nothing at all while the card is hidden) rather than the front row unconditionally, though still not the *current*, effect-adjusted number or text even if a card asked for it (that gap belongs to `powerMin`/`powerMax` and to bare, non-“originally”, “skill-less”, and stays open). On the **rules engine** the same two fields read a declared attribute of their own, `originalPower` (`rulesets/dbs/attributes.rules`), seeded by `attrsNow` off the face *showing* — a flipped Leader's awakened side, and nothing at all for a card in Hidden Mode (1-9, 23-5-2). They have to: that engine's `power` carries 9-9-1's `layers:` and arrives at a predicate with every continuous effect in force already applied, so sharing it made a card pumped to 15000 answer to “an original power of 15000” and stop answering to its own printed 10000 — the very reading this entry says the field cannot make (found by #166's pre-flip review). The bare `powerMin`/`powerMax` gap above is therefore closed on that engine and open on this one, which is the one place the two differ about a filter. A second bug hid behind the first: `filterFor`'s `narrows` check — the list that decides whether a filter narrows anything or is thrown away as noise — had no entry for either new field, so “you have an originally skill-less Battle Card in play” (`P-529`, no other qualifier) built a filter, then discarded it as saying nothing, the same silent widening `BT19-130`'s character-name phrase suffered before it was added to that list. Both fields are on it now. `attr(REF, originalPower)` reads the same printed number as a value rather than a filter, for “its power becomes the attacking card's original power” (`BT19-129`) — that whole mechanism (power *becomes* a value, rather than changing by an amount) has no op yet and stays unread; the expression exists for the referee to rule with by hand. Continuous effects that have already changed a card's colour or traits (20-1) are a different question and stay out of this fix.",
+    body: "20-3-1: “original” is what a card describes before any skill effect has applied — the printed face, not its current, possibly modified, state. `P-295`, `BT11-152`, `DB1-041` and thirty-three more print “an original power of N”; `BT22-081`, `BT22-084`, `BT22-085`, `BT22-088`, `BT22-089`, `BT22-100`, `BT23-106`, `BT25-001b`, `BT25-009`, `EX25-02`, `P-529` and `P-692` print “an originally skill-less Battle Card” — printed with no text at all (1-5-9), whether or not it has since gained a skill (9-1-4). Neither had a filter field to land on, and both compiled cleanly and read wrongly: `parseFilter` had no pattern for “power **of** N” at all — only the sets' other word order, “N power” — so the whole measure vanished from a filter that otherwise read fine, exactly the “compiles and reads wrongly” failure this page exists to catch; “originally skill-less” had no pattern whatsoever and vanished the same way. The fix is `originalPowerMin`/`originalPowerMax` and `originallySkillLess` on `CardFilter` (`text/filters.ts`), read off `d.power`/`d.skill` — the printed face, which since the owner's face-showing ruling of 20 Sep 2026 (issue #327) is the face `cardNow` shows (a flipped Leader's back, nothing at all while the card is hidden) rather than the front row unconditionally, though still not the *current*, effect-adjusted number or text even if a card asked for it (that gap belongs to `powerMin`/`powerMax` and to bare, non-“originally”, “skill-less”, and stays open). On the **rules engine** the same two fields read a declared attribute of their own, `originalPower` (`rulesets/dbs/attributes.rules`), seeded by `attrsNow` off the face *showing* — a flipped Leader's awakened side, and nothing at all for a card in Hidden Mode (1-9, 23-5-2). They have to: that engine's `power` carries 9-9-1's `layers:` and arrives at a predicate with every continuous effect in force already applied, so sharing it made a card pumped to 15000 answer to “an original power of 15000” and stop answering to its own printed 10000 — the very reading this entry says the field cannot make (found by #166's pre-flip review). The bare `powerMin`/`powerMax` gap above is therefore closed on that engine and open on this one, which is the one place the two differ about a filter. A second bug hid behind the first: `filterFor`'s `narrows` check — the list that decides whether a filter narrows anything or is thrown away as noise — had no entry for either new field, so “you have an originally skill-less Battle Card in play” (`P-529`, no other qualifier) built a filter, then discarded it as saying nothing, the same silent widening `BT19-130`'s character-name phrase suffered before it was added to that list. Both fields are on it now. `attr(REF, originalPower)` reads the same printed number as a value rather than a filter, for “its power becomes the attacking card's original power” (`BT19-129`) — that whole mechanism (power *becomes* a value, rather than changing by an amount) has no op yet and stays unread; the expression exists for the referee to rule with by hand. Continuous effects that have already changed a card's colour or traits (20-1) are a different question and stay out of this fix.",
   },
 ];

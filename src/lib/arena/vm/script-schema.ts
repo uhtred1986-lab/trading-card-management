@@ -1,10 +1,10 @@
-import type { CardFilter } from "./filters";
+import type { CardFilter } from "../text/filters";
 // `AmountAttr` and `CardAttr` are deliberately two lists, not one: `CardAttr`
 // is what `modifyAttr` may *write* (colours, characters, traits and names among
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
 // Collapsing them would let `attr($t, colors)` stand where a number belongs.
 import type { Amount, AmountAttr, CardAttr, Cond, Duration, NegateScope, Op, Ref, ReplaceEvent, ScriptArea, Selector, Side, SpecialTarget } from "./script";
-import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, Phase, Prompt, SkillKindPrefix, SkipWhat } from "./types";
+import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, Phase, Prompt, SkillKindPrefix, SkipWhat } from "../types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
 
@@ -158,7 +158,7 @@ const _everyPhaseListed: MissingPhase extends never ? true : never = true;
 void _everyPhaseListed;
 
 /**
- * Every `Prompt["kind"]` (`engine/types.ts`), so `scripts/verify/rulesets.ts`
+ * Every `Prompt["kind"]` (`types.ts`), so `scripts/verify/rulesets.ts`
  * can check `prompts.rules` against a runtime list rather than a type — the
  * union itself has none. `prompts.rules` is #135's open question (`DEFINE
  * PROMPT` awaits the owner's word on #131); this array exists so the two

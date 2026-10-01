@@ -1,6 +1,6 @@
-import { keywordOf, orbsIn } from "../cards";
-import { parseFilter } from "../filters";
-import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../script";
+import { keywordOf, orbsIn } from "../text/cards";
+import { parseFilter } from "../text/filters";
+import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../vm/script";
 import type { DelayScope, DelayTiming, SkillKindPrefix } from "../types";
 import { parseConditionClause } from "./conditions";
 import { TWO_NAMED_CARDS } from "./clauses";

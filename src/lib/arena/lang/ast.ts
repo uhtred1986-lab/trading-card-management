@@ -3,7 +3,7 @@
  * language never described in a table of their own — a selector and a card
  * filter.
  *
- * `OP_SCHEMA` and `COND_SCHEMA` (`engine/script.ts`) already say what a step
+ * `OP_SCHEMA` and `COND_SCHEMA` (`vm/script.ts`) already say what a step
  * and a condition are made of, and the printer and the parser read those rows
  * rather than repeating them. A selector and a filter had no such row: they
  * were an interface each and a hand-written describer, so a field added to
@@ -12,9 +12,9 @@
  * tables below close that, and the `never` checks under them make a new field
  * fail `npm run typecheck` until it is described.
  */
-import type { CardFilter } from "../engine/filters";
-import { COLORS, type Amount, type AmountAttr, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector, type Side } from "../engine/script";
-import type { Requirement, SkillKind, Trigger } from "../engine/types";
+import type { CardFilter } from "../text/filters";
+import { COLORS, type Amount, type AmountAttr, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector, type Side } from "../vm/script";
+import type { Requirement, SkillKind, Trigger } from "../types";
 
 /**
  * One `card_rules` row as the language says it: WHEN / COST / IF / THEN.
@@ -885,7 +885,7 @@ export interface DefWords extends Declaration<"WORDS"> {
  * `DEFINE PROMPT` — the question a fixed prompt kind puts to the player, and
  * the hint under it (Stage 8's `prompt-words.ts`, #160), declared rather than
  * hand-written (owner's decision on #131/#135, 20 Sep 2026). One per
- * `Prompt["kind"]` (`PROMPT_KINDS`, `engine/script-schema.ts`).
+ * `Prompt["kind"]` (`PROMPT_KINDS`, `vm/script-schema.ts`).
  *
  * A kind whose real question is built at the table — a card's name, a cost,
  * a count interpolated in — still gets a declaration: `question:` carries

@@ -17,9 +17,9 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "./../src/db";
 import { arenaFeedback, cards as cardsTable } from "../src/db/schema";
-import type { GameState } from "../src/lib/arena/engine";
+import type { GameState } from "../src/lib/arena/types";
 import { loadRules } from "../src/lib/arena/rules-store";
-import { skillLines } from "../src/lib/arena/engine/cards";
+import { skillLines } from "../src/lib/arena/text/cards";
 import { cardDefFrom } from "../src/lib/arena/load";
 
 const arg = process.argv[2] ?? "open";

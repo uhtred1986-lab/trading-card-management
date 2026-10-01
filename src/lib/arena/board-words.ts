@@ -19,8 +19,8 @@
  * Android's Kotlin copy of these tables is unchanged: the strings are the
  * same ones.
  */
-import type { Area } from "./engine/types";
-import { AREAS, COLORS } from "./engine/script-schema";
+import type { Area } from "./types";
+import { AREAS, COLORS } from "./vm/script-schema";
 import { loadDbs, type GameDefinition } from "./rulesets";
 
 /** How long a rule holds, as `words.rules` declares it. `{them}` and `{source}` are filled by `effects.ts`'s `untilWords`. */
@@ -130,7 +130,7 @@ export function wordsFromRuleset(def: GameDefinition): BoardWords {
   if (def.attributes.colors?.value !== "colors") throw new Error(`board-words: attributes.rules no longer declares "colors" as a colours-valued attribute`);
   const leaderColours: string[] = [];
   for (const [name, w] of of("color")) {
-    if (!(COLORS as readonly string[]).includes(name)) throw new Error(`board-words: "${name}" is no longer one of engine/script-schema.ts's COLORS`);
+    if (!(COLORS as readonly string[]).includes(name)) throw new Error(`board-words: "${name}" is no longer one of vm/script-schema.ts's COLORS`);
     if (w.room) leaderColours.push(w.text);
   }
   if (leaderColours.length === 0) throw new Error(`board-words: words.rules marks no colour room: true, so no leader would light a room`);

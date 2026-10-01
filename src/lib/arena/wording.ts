@@ -10,7 +10,7 @@
  * Pure and React-free so `npm test` can read every kind, and so the Android
  * app can carry its own copy of exactly this table in Kotlin.
  */
-import type { Action, ActionCost, PlayerId, Requirement } from "./engine";
+import type { Action, ActionCost, PlayerId, Requirement } from "./types";
 import type { CardView, SideView } from "./view";
 import { untilWords } from "./effects";
 import { dbsWords, type BoardWords } from "./board-words";

@@ -11,7 +11,7 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
-import type { Action, EngineContext } from "./engine";
+import type { Action, EngineContext } from "./types";
 import { engineFor, engineOr, legacyState } from "./engines";
 import { deckInputFor, defsForCards } from "./load";
 import { rulesFor } from "./rules-store";

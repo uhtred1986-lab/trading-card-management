@@ -1,5 +1,5 @@
-import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../cards";
-import type { CardScripts, Cond, Op, Script, SkillPrice } from "../script";
+import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
+import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, KeywordSkill, Skill } from "../types";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";

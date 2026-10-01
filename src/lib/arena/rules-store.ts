@@ -9,9 +9,10 @@
 import { and, asc, eq, ilike, inArray, isNotNull, ne, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
-import { describeScript, type CardDef, type CardScripts, type Op } from "./engine";
-import type { Cond, PayWith, SkillPrice, XCost } from "./engine/script";
-import type { Trigger } from "./engine/types";
+import { describeScript, type CardScripts, type Op } from "./vm/script";
+import { type CardDef } from "./types";
+import type { Cond, PayWith, SkillPrice, XCost } from "./vm/script";
+import type { Trigger } from "./types";
 import { clauseShape, mechanismOf, PHRASING_ONLY } from "./gaps";
 import type { EngineId } from "./engines";
 

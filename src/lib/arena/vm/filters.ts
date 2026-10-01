@@ -2,7 +2,7 @@
  * A `CardFilter` as a **predicate over declared attributes**.
  *
  * "Blue ≪Saiyan≫ Battle Card with an energy cost of 3 or less" is read off a
- * card's printed text by the compiler into a `CardFilter` (`engine/filters.ts`),
+ * card's printed text by the compiler into a `CardFilter` (`text/filters.ts`),
  * stored in `card_rules`, printed and re-parsed by the language. None of that
  * changes here, and deliberately: the compiler, the drafter, the workbench and
  * every stored program keep the shape they have. What changes is how the filter
@@ -30,14 +30,14 @@
  * The one reading this module does of card *text* is keywords and skill kinds:
  * those are measured against the printed text box, which is the declared `skill`
  * attribute, and both engines read it with the same functions
- * (`parseSkills`/`keywordsInSkills` in `engine/cards.ts`). There is no second
+ * (`parseSkills`/`keywordsInSkills` in `text/cards.ts`). There is no second
  * reading of a keyword in this codebase and there must not be.
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { keywordsInSkills, parseSkills } from "../engine/cards";
-import { emptyFilter, type CardFilter } from "../engine/filters";
-import type { KeywordSkill, Skill, SkillKindPrefix } from "../engine/types";
+import { keywordsInSkills, parseSkills } from "../text/cards";
+import { emptyFilter, type CardFilter } from "../text/filters";
+import type { KeywordSkill, Skill, SkillKindPrefix } from "../types";
 import { FILTER_FIELD_NAMES } from "../lang";
 import type { GameDefinition } from "../rulesets";
 import type { Attrs, AttrValue } from "./cards";
@@ -194,7 +194,7 @@ export function predicateOf(filter: Partial<CardFilter>, game: GameDefinition): 
  * Two groupings are not arbitrary and are the reason this is one function
  * rather than a predicate per field: a name asked for whole and a name asked for
  * in part are two ways to satisfy *one* choice (2-10-1-1 and the
- * `charactersIncluding` note in `engine/filters.ts`), and several colours in one
+ * `charactersIncluding` note in `text/filters.ts`), and several colours in one
  * description mean *either* of them unless the card is asked to be multicolour.
  */
 function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {

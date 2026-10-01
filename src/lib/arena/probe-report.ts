@@ -1,5 +1,8 @@
-import { keywordsInForce as legacyKeywordsInForce, powerOf as legacyPowerOf, specifiedCostUnknown, type EngineContext, type GameEvent, type Op, type PlayerId } from "./engine";
-import type { KeywordSkill } from "./engine/types";
+import { keywordsInForce as legacyKeywordsInForce, powerOf as legacyPowerOf } from "./engine";
+import { specifiedCostUnknown } from "./text/cards";
+import { type EngineContext, type GameEvent, type PlayerId } from "./types";
+import { type Op } from "./vm/script";
+import type { KeywordSkill } from "./types";
 import { engineFor, FALLBACK_ENGINE, isVmState, type EngineId, type EngineState } from "./engines";
 import { zoneOf } from "./engine-state";
 import { rulesetFor, type GameDefinition } from "./rulesets";

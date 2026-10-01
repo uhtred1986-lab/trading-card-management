@@ -25,7 +25,7 @@ import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecif
 import { cardDefFrom } from "../src/lib/arena/load";
 import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-preview";
 import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
-import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
+import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/text/cards";
 import { cardImage, cardImageSizeFor } from "../src/lib/catalog/card-image";
 
 // ── catalog shaping ────────────────────────────────────────────────────────

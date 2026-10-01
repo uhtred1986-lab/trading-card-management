@@ -34,8 +34,8 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext, GameEvent } from "../engine";
-import type { PlayerId } from "../engine/types";
+import type { EngineContext, GameEvent } from "../types";
+import type { PlayerId } from "../types";
 import type { PatternValue } from "../lang";
 import type { GameDefinition } from "../rulesets";
 import { pendAutos, type VmPending } from "./triggers";

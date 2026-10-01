@@ -14,10 +14,13 @@ import type { Db } from "@/db";
 import { arenaFeedback, cardRules, cards as cardsTable, settings } from "@/db/schema";
 import { hasAnthropic } from "@/lib/ai/client";
 import { DEFAULT_GAME } from "@/lib/catalog/games";
-import { compileCardCached, compileSkill, parseSkills, skillLines, type CardDef, type CardScripts, type KeywordSkill, type Op } from "./engine";
-import { compileCostProgram, costText, priceCondition, priceX } from "./engine/compile";
-import type { Cond, CostRecord } from "./engine/script";
-import { describeScript } from "./engine/script";
+import { compileCardCached, compileSkill } from "./compile";
+import { parseSkills, skillLines } from "./text/cards";
+import { type CardDef, type KeywordSkill } from "./types";
+import { type CardScripts, type Op } from "./vm/script";
+import { compileCostProgram, costText, priceCondition, priceX } from "./compile";
+import type { Cond, CostRecord } from "./vm/script";
+import { describeScript } from "./vm/script";
 
 /**
  * The price shape moved to `script.ts` on 9 Sep 2026, so the rules language

@@ -66,13 +66,14 @@
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
-import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
-import { canCombo } from "../engine/cards";
-import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../engine/types";
-import { replacementPrompt, routeOf, type Op, type ScriptFrame } from "../engine/script";
+import { IllegalAction } from "./common";
+import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
+import { canCombo } from "../text/cards";
+import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../types";
+import { replacementPrompt, routeOf, type Op, type ScriptFrame } from "./script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
-import { costIsOnlyOrbs } from "../engine/compile";
+import { costIsOnlyOrbs } from "../compile";
 import { altCostFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, type BoundAmounts } from "./costs";
 import type { VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";

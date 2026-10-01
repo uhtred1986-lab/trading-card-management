@@ -120,7 +120,7 @@ Battle Card to pay for something the Energy Area could have covered is a cost no
 keeps one — a note that the next save would silently eat is worse than no note at all.
 
 **Statements and conditions are not listed here** and never will be: they are generated from
-`OP_SCHEMA` and `COND_SCHEMA` (`engine/script.ts`), field names and all. Adding an operation is
+`OP_SCHEMA` and `COND_SCHEMA` (`vm/script.ts`), field names and all. Adding an operation is
 still *one interpreter case and one schema row*; the printer, the parser, the validator, the plain
 reading, the referee's prompt and the chip editor all follow from the row.
 
@@ -353,7 +353,7 @@ how one paragraph says both halves.
 
 A `REFUSE` line is `REFUSE <requirement> UNLESS <condition>`. The requirement is written as an event
 pattern is — a name and the fields that go with it — and the name is a **`Requirement` kind** and
-nothing else (`REQUIREMENT_KINDS`, the closed list `src/lib/arena/engine/types.ts` declares), so a
+nothing else (`REQUIREMENT_KINDS`, the closed list `src/lib/arena/types.ts` declares), so a
 refusal a game declares is one `src/lib/arena/wording.ts` already knows how to word. The condition
 is the *positive* test: what would have had to hold for the move to be offered, which is the same
 expression the legality check runs. The lines are read in order and no further than the first that
@@ -398,7 +398,7 @@ Two conditions of the language are never said by a printed card, and both exist 
 20-14's prohibitions — the same predicate `forbids()` is on both engines, asked of the candidate
 and the actor. Both are in `COND_SCHEMA` like every other condition and a `.rules` file may write
 either, but the referee's prompt and the workbench's chip editor, which are both about one *card's*
-rule, leave them out (`CONDITIONS_OFF_A_CARD` in `engine/script-schema.ts`).
+rule, leave them out (`CONDITIONS_OFF_A_CARD` in `vm/script-schema.ts`).
 
 `forbidden` is also the one condition whose failure carries **fields** back: a `forbidden`
 requirement has to name which card's rule stopped the move, how long it holds and what would let it
@@ -744,7 +744,7 @@ and its `TOP n` are one slot type, **`count`**, which takes a parameter declared
 `amount` (#137): `draw(n: X)` lowers to `moveTo(target: TOP $n IN $side.deck, …)` with the call's
 X in the slot. No selector *runs* counted by an expression — the four rows that lower to one
 (`draw`, `discard`, `damage`, `addLife`) are read back as their own spelling first (`moveAs`,
-`discardAs`, `engine/script-schema.ts`), the precedent `negateAs` set. The parameter types are the field types, plus `strings` for a list of strings and
+`discardAs`, `vm/script-schema.ts`), the precedent `negateAs` set. The parameter types are the field types, plus `strings` for a list of strings and
 `word` for any closed list — the list itself is known from the field the hole sits in, so
 `mode: $mode` is checked against `[active, rest]` when the call is expanded, not declared twice.
 `rulesets/expand.ts` fills a hole of any type, refuses an argument that is not what the parameter
@@ -805,7 +805,7 @@ DEFINE WORDS battle
 
 **PROMPT** — the question a fixed prompt kind puts to the player, and the hint under it (Stage 8's
 `prompt-words.ts`). `question:` the question (required), `hint:` what to do about it. One per
-`Prompt["kind"]` (`PROMPT_KINDS`, `engine/script-schema.ts`); a kind whose real question is built at
+`Prompt["kind"]` (`PROMPT_KINDS`, `vm/script-schema.ts`); a kind whose real question is built at
 the table carries the same template `questionFor` (`view.ts`) writes today, in prose naming the
 value the way a `DEFINE OP`'s own `text:` names a parameter, rather than as a hole a program could
 fill.

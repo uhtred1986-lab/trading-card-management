@@ -62,7 +62,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext } from "../engine";
+import type { EngineContext } from "../types";
 import type { GameDefinition, HookPoint } from "../rulesets";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { hookBodiesFor, hookFrame } from "./program";

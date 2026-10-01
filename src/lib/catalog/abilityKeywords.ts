@@ -1,5 +1,5 @@
 import { leadingTags } from "@/lib/decks/cardRules";
-import { keywordOf } from "@/lib/arena/engine/cards";
+import { keywordOf } from "@/lib/arena/text/cards";
 
 /**
  * Keyword-ability tags a card carries on either face — "Blocker", "Critical",

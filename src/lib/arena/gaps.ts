@@ -7,8 +7,8 @@
  * blanked, so like wordings sit together. Plus the moments an [Auto] skill can
  * answer to, in words, for the record's WHEN line.
  */
-import { autoTriggerMatches, keywordTriggers } from "./engine/triggers";
-import type { Skill, Trigger } from "./engine/types";
+import { autoTriggerMatches, keywordTriggers } from "./text/triggers";
+import type { Skill, Trigger } from "./types";
 
 /** Ordered: the first bucket a clause matches wins, so put the specific first. */
 export const MECHANISMS: { key: string; needs: string; test: RegExp }[] = [

@@ -7,7 +7,7 @@
  * Z-Awaken and Swap without a compiled script.
  */
 import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf } from "./cards";
-import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "./types";
+import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "../types";
 
 export interface CardFilter {
   colors: Color[];

@@ -1,11 +1,17 @@
-export * from "./types";
-export { createGame, apply, legalActions, rejectedActions, IllegalAction, defsFrom, type EngineContext, type GameOptions, type DeckInput, type LegalAction, type ActionCost } from "./engine";
+/**
+ * The legacy engine's barrel — and, since #118's first step, nothing else.
+ *
+ * Everything both engines share moved to its own home: the vocabulary to
+ * `../types.ts`, card text to `../text/`, the compiler to `../compile/`, the
+ * record interpreter and its schema to `../vm/script*.ts`, the RNG to
+ * `../vm/rng.ts`, and the helpers that are not about a legacy `GameState` to
+ * `../vm/common.ts`. What is left here is the hand-written engine over
+ * `GameState`, and every import of it outside this directory is a reader the
+ * retirement still has to replace (`docs/architecture/arena.md`).
+ */
+export { createGame, apply, legalActions, rejectedActions } from "./engine";
 export { koCard, pendTriggers, masterOf } from "./triggers";
-export { compileCardCached, compileSkill, splitClauses } from "./compile";
-export { validateProgram, describeScript, opSignature, OP_SCHEMA, NO_RULES, resolveSelector, type CardScripts, type Op, type OpField, type OpSpec, type FieldType, type Script, type ScriptFrame, type Selector } from "./script";
-export { tokenCardId, tokenDefOf, permanentStatics, programsOf, scriptsOfInstance, copiedSkillsOn, isCopiedSkill, emitsStatic } from "./state";
-export { parseSkills, skillsOf, keywordsOf, keywordOf, specifiedCostOf, specifiedCostUnknown, canCombo, baseType, isZ, skillLines, orbsIn } from "./cards";
-export { parseFilter, matches, parseCondition } from "./filters";
+export { resolveSelector, permanentStatics, scriptsOfInstance, copiedSkillsOn, emitsStatic } from "./state";
 export {
   face,
   powerOf,
@@ -21,9 +27,5 @@ export {
   paymentOptions,
   describePayment,
   staticEffects,
-  type GameContext,
-  type Payer,
-  type Payment,
   type StaticEffect,
 } from "./state";
-export { nextRandom, shuffle, seedFrom } from "./rng";

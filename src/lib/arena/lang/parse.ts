@@ -21,9 +21,9 @@
  * the areas its declarations name are resolved by the loader against the zones
  * it declares, which is the same check one step later.
  */
-import { emptyFilter, parseFilter, type CardFilter } from "../engine/filters";
-import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Duration, type Op, type OpField, type Ref, type ScriptArea, type Selector, type Side, type XCost } from "../engine/script";
-import type { Color, KeywordSkill, Trigger } from "../engine/types";
+import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
+import { AREAS, DURATIONS, KEYWORD_NAMES, SIDES, SPECIAL_TARGETS, COND_SCHEMA, OP_SCHEMA, type Amount, type Cond, type CostRecord, type FieldType, type Duration, type Op, type OpField, type Ref, type ScriptArea, type Selector, type Side, type XCost } from "../vm/script";
+import type { Color, KeywordSkill, Trigger } from "../types";
 import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, REQUIREMENT_KINDS, fieldsOf, type Definition, type Guard, type Hole, type NegHole, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
 import type { Words } from "../rulesets/words";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";

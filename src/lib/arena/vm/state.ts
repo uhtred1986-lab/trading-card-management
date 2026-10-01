@@ -46,8 +46,8 @@
  */
 import type { VmPending } from "./triggers";
 import type { Game } from "../../catalog/games";
-import type { ScriptFrame } from "../engine/script";
-import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, SkipWhat } from "../engine/types";
+import type { ScriptFrame } from "./script";
+import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, SkipWhat } from "../types";
 import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
 
@@ -67,7 +67,7 @@ export interface VmBattle {
   /** The card the attack was declared against, before any [Blocker] changed the guard (8-1-2-1). */
   target: string;
   step: BattleStep;
-  /** 8-1-6-1: a `negateAttack` op was run against this battle — a program a declared op can already fire (`engine/script.ts`'s `case "negateAttack"`), wired here so the day a card reaches it, the battle honours it. */
+  /** 8-1-6-1: a `negateAttack` op was run against this battle — a program a declared op can already fire (`vm/script.ts`'s `case "negateAttack"`), wired here so the day a card reaches it, the battle honours it. */
   negated: boolean;
   /** 8-1-2-3: [Blocker] is offered once a battle. */
   blockerOffered: boolean;
@@ -236,7 +236,7 @@ export interface VmState {
   seed: number;
   /** `VM_STATE_VERSION` as at the moment the game was created. */
   version: number;
-  /** The seeded RNG's state, advanced by every shuffle and every flip (`engine/rng.ts`). */
+  /** The seeded RNG's state, advanced by every shuffle and every flip (`vm/rng.ts`). */
   rngState: number;
   /** The declared phase the game is in — `"setup"` for a game that has only been dealt. */
   phase: string;

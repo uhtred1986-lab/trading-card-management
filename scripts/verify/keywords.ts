@@ -4,8 +4,8 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import type { PlayerId } from "../../src/lib/arena/engine/types";
-import { validateProgram } from "../../src/lib/arena/engine/script";
+import type { PlayerId } from "../../src/lib/arena/types";
+import { validateProgram } from "../../src/lib/arena/vm/script";
 import {
   CTX,
   DEFS,

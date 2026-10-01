@@ -23,7 +23,7 @@ the term you need first instead of reading each in full.
 
 ## 2. Find code by symbol, not by file
 
-The compiler implementation now lives under `src/lib/arena/engine/compile/`; `compile.ts` is the
+The compiler implementation now lives under `src/lib/arena/compile/`; `compile.ts` is the
 stable public barrel. `engine.ts` (3,226), `script.ts` (2,378), and `state.ts` (1,838) are still
 too large to read whole. Search for the function/type name, then view only the surrounding lines.
 

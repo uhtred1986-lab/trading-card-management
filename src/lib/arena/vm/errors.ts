@@ -6,7 +6,7 @@
  * one-way dependency the switch has on the engine (`../engines.ts`). `index.ts`
  * re-exports them, so nothing outside `vm/` learns a second import path.
  */
-import { IllegalAction } from "../engine";
+import { IllegalAction } from "./common";
 import type { Game } from "../../catalog/games";
 
 /**

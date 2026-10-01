@@ -24,7 +24,7 @@ by setting the right DSL statement*. Four decisions shape everything below.
 **One language, three uses.** A card's rule (`card_rules`), a game's definition
 (`src/lib/arena/rulesets/<game>/*.rules`) and the referee's answers are all written in the same
 language, with one parser, printer and validator in `src/lib/arena/lang/`, table-driven from
-`OP_SCHEMA`/`COND_SCHEMA` in `src/lib/arena/engine/script-schema.ts`. The round-trip promise
+`OP_SCHEMA`/`COND_SCHEMA` in `src/lib/arena/vm/script-schema.ts`. The round-trip promise
 `parse(print(x)) = x` is what makes a text view of a stored record safe to edit. There is no
 dialect per use.
 
@@ -132,7 +132,7 @@ of mechanism, and Stage 3 may do it.
 
 ### 2.3 The operations
 
-One row per key of `OP_SCHEMA` (`src/lib/arena/engine/script-schema.ts`). The same decision is
+One row per key of `OP_SCHEMA` (`src/lib/arena/vm/script-schema.ts`). The same decision is
 carried in code as `OP_CLASS` beside the schema, and `scripts/verify/language.ts` fails if the two
 disagree or if a row is missing from either.
 
@@ -246,7 +246,7 @@ for the macros above to be writable; none of them is built by #130, which delive
    (`"card"` default, `"player"`, `"battle"`) and a `side` field for the player subject;
    `attributes.rules` declares the six new card attributes with their layers (9-9-1), read by
    `vm/effects.ts`'s `valueOf` and nowhere else; `attrsNow` (`vm/program.ts`) seeds the live
-   instance value each has no catalog face for. `modifyAttrAs` (`engine/script-schema.ts`) reads
+   instance value each has no catalog face for. `modifyAttrAs` (`vm/script-schema.ts`) reads
    the nine short spellings this unblocked back as the primitive — `flip`, `switchMode`, `hidden`,
    `faceUp`, `addMarker`/`removeMarker` (a `sign` field, since an amount cannot yet subtract,
    requirement 5 below), `grant`, `energyMarker` and `redirectAttack`, all declared in `ops.rules`.
@@ -767,7 +767,7 @@ suite that proves the definition covers every legacy union.
 `vocabularyOf(definition)` is the second half of the loader's job: the closed word lists the
 language is checked against, taken from the declarations instead of from hand-written constants —
 `areas` from the zones, `keywordNames` from the keywords, `triggers` from the triggers, `words` from
-every declaration's `text:`. The names are the ones `engine/script-schema.ts` and `gaps.ts` use
+every declaration's `text:`. The names are the ones `vm/script-schema.ts` and `gaps.ts` use
 today (`AREAS`, `KEYWORD_NAMES`, `TRIGGERS`, …) so that #137's swap is a re-export and not a rename.
 
 Four of the eight lists have no declaration to come from yet, and say so rather than pretending:
@@ -799,7 +799,7 @@ endMain and concede (#140), and playing, attacking and activating are Stage 5's 
 Taken from the plan's own fifteen names, confirmed against a full inventory of every `has(`/
 `keyword(`/`hasKeyword(` call in `src/lib/arena/engine/` (38 sites across 7 files — reproduce with
 `grep -rn 'has(ctx, s\|keyword(ctx, s\|hasKeyword(' src/lib/arena/engine/*.ts
-src/lib/arena/engine/compile/*.ts | wc -l`) and against `src/lib/arena/glossary.ts`'s own account of
+src/lib/arena/compile/*.ts | wc -l`) and against `src/lib/arena/glossary.ts`'s own account of
 what each keyword means and where the legacy engine approximates. `src/lib/arena/vm/hooks.ts` is the
 interpreter's half — `HOOK_CONTRACT`, a `Record<HookPoint, HookSpec>` so a name added to
 `rulesets/hooks.ts`'s `HOOK_POINTS` and not there fails `npm run typecheck`, the same guarantee
@@ -1359,9 +1359,9 @@ document rather than a failing test, which is why they are written down.
 A primitive is a new operation or condition — a mechanism no existing op can express, decided
 against the primitive-or-macro table (§2) rather than added on sight.
 
-1. **Interpreter case** — one case in the evaluator (`stepScript`, `src/lib/arena/engine/script.ts`
+1. **Interpreter case** — one case in the evaluator (`stepScript`, `src/lib/arena/vm/script.ts`
    line 629, for the legacy engine; the `vm/` evaluator once it exists).
-2. **`OP_SCHEMA` row** (or `COND_SCHEMA` row) in `src/lib/arena/engine/script-schema.ts` — the
+2. **`OP_SCHEMA` row** (or `COND_SCHEMA` row) in `src/lib/arena/vm/script-schema.ts` — the
    fields, their types and the plain reading. The schema is what the validator, the printer, the
    referee's prompt and the workbench's chip editor all read, so the row is the definition.
 3. **`OP_CLASS` row** (`COND_CLASS` for a condition) — primitive or macro, per #130. The `Record`
@@ -1492,13 +1492,13 @@ decision nobody can make from a place that is tested to a place that is not.
 - **Payment search** (`paymentOptions`, `src/lib/arena/engine/state.ts` line 1675). Choosing which
   energy pays a specified cost is a search with a bound, not a rule. A game declares costs and
   colours; the search is the interpreter's.
-- **The RNG** (`src/lib/arena/engine/rng.ts`). Seeded and reproducible, because seed plus actions
+- **The RNG** (`src/lib/arena/vm/rng.ts`). Seeded and reproducible, because seed plus actions
   must reproduce a game exactly. Configurable randomness is unreproducible randomness.
 - **The language** (`src/lib/arena/lang/`). The lexer, parser, printer and validator are the thing
   every declaration is written in, so they cannot themselves be declared. The round-trip promise is
   asserted over every op, condition, selector, filter, keyword, every compiled program and every
   drafter record (`scripts/verify/lang.ts`).
-- **The drafter** (`src/lib/arena/draft.ts`, over `engine/compile/`). Reading English card text into
+- **The drafter** (`src/lib/arena/draft.ts`, over `compile/`). Reading English card text into
   a rule record is inference, not rules: it is allowed to be wrong, which is why its output is a
   *draft* a person confirms, and why it is the only module that calls the compiler in production.
   The engine plays records, never text.

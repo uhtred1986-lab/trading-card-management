@@ -53,12 +53,12 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches } from "../engine/triggers";
-import { parseSkills } from "../engine/cards";
-import { copiedSkillIndex, programsOf } from "../engine/state";
-import { NO_RULES, type CardScripts } from "../engine/script";
-import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../engine/types";
-import type { EngineContext } from "../engine";
+import { autoTriggerMatches } from "../text/triggers";
+import { parseSkills } from "../text/cards";
+import { copiedSkillIndex, programsOf } from "./common";
+import { NO_RULES, type CardScripts } from "./script";
+import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../types";
+import type { EngineContext } from "../types";
 import type { PatternValue } from "../lang";
 import { ZONE_ARGS, type GameDefinition, type TriggerDef } from "../rulesets";
 import { TRIGGERS } from "../gaps";

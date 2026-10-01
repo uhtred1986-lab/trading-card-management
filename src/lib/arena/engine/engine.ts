@@ -8,78 +8,22 @@
  * that needs a decision sets `state.prompt` and stops. That makes every
  * state storable mid-prompt and replayable from the action log.
  */
-import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "./cards";
+import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "../text/cards";
 // Not the compiler's programs: `costIsOnlyOrbs` and `costText` are spelling
 // tests over the printed price and `parseConditionClause` reads a keyword's
 // own reminder. Nothing here builds a program — since 8 Sep 2026 the price
 // before the colon comes off the record (`priceFor`), which was the last place
 // a game compiled card text.
-import { costIsOnlyOrbs, costText, parseConditionClause } from "./compile";
-import { matches, parseCondition, parseFilter } from "./filters";
-import { legacyHost } from "./script-host";
-import { replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "./script";
+import { costIsOnlyOrbs, costText, parseConditionClause } from "../compile";
+import { matches, parseCondition, parseFilter } from "../text/filters";
+import { legacyHost } from "./legacy-host";
+import { replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "../vm/script";
 import { koCard, pendTriggers } from "./triggers";
-import { nextRandom, shuffle } from "./rng";
+import { nextRandom, shuffle } from "../vm/rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
-import {
-  activeEnergy,
-  addEffect,
-  altCostFor,
-  canPayCostProgram,
-  areaOf,
-  cardNow,
-  cardsInPlay,
-  comboCostOf,
-  comboPowerOf,
-  def,
-  draw,
-  endAfterChargeEffects,
-  endEffects,
-  endTurnRelativeEffects,
-  expireDelayed,
-  expireSkips,
-  takeSkip,
-  stepSkippedByPermanent,
-  face,
-  forbids,
-  fireDelayed,
-  has,
-  describePayment,
-  forbiddenBy,
-  forbiddenForCard,
-  inPlay,
-  keyword,
-  LIFE_AT_START,
-  lifeReplacementChoicesFor,
-  move,
-  note,
-  OPENING_HAND,
-  pay,
-  payAltCost,
-  paymentOptions,
-  payZEnergy,
-  permits,
-  orbCount,
-  planPayment,
-  pricePayers,
-  playCost,
-  powerOf,
-  schedule,
-  staticEffects,
-  spendProhibitionUse,
-  setMode,
-  skillsOfInstance,
-  type GameContext,
-  type Payer,
-  condHolds,
-  invokerEnergy,
-  liftFromPile,
-  skillNegated,
-  skillsNegated,
-  whyNotPay,
-  scriptsOfInstance,
-  zEnergyCostOf,
-} from "./state";
+import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
+import { IllegalAction } from "../vm/common";
+import type { ActionCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
 import type {
   Action,
   Applied,
@@ -100,32 +44,10 @@ import type {
   Requirement,
   Skill,
   Trigger,
-} from "./types";
-import { other, PLAYERS } from "./types";
-
-export interface EngineContext extends GameContext {
-  /**
-   * When set, a skill whose text did not compile stops the game and asks the
-   * referee (Claude) for a program in the effect language. Without it — tests,
-   * fuzzing, a hot-seat game with no API key — such a skill is logged and skipped.
-   */
-  referee?: boolean;
-}
+} from "../types";
+import { other, PLAYERS } from "../types";
 
 // ── setup ──────────────────────────────────────────────────────────────────
-
-export interface DeckInput {
-  name: string;
-  leader: string;
-  main: string[];
-  z?: string[];
-}
-
-export interface GameOptions {
-  seed: number;
-  p1: DeckInput;
-  p2: DeckInput;
-}
 
 function emptyPlayer(id: PlayerId, name: string): PlayerState {
   return {
@@ -1756,38 +1678,6 @@ function stackOnto(ctx: EngineContext, s: GameState, ev: GameEvent[], top: strin
 
 // ── legal actions ──────────────────────────────────────────────────────────
 
-export interface LegalAction {
-  action: Action;
-  /** One line for menus and Claude: "Play Son Goku (3)". */
-  label: string;
-  /**
-   * What the move costs, for the row it sits on (`docs/arena-workflow-spec.md`
-   * Phase 2: every action with its price on it). Set for skill activations
-   * and counters, whose price is not in the card's own numbers; a play's
-   * price is its printed cost and a client reads that off the card.
-   */
-  cost?: ActionCost;
-}
-
-export interface ActionCost {
-  /** Energy to rest, orbs of the skill included. */
-  energy: number;
-  /** Which of those must be a colour. */
-  orbs?: Partial<Record<Color, number>>;
-  /** Unison markers added (positive) or removed (negative) as the price (13-4). */
-  markers?: number;
-  /**
-   * The price in words, as the row shows it: "2 energy", "{r}{r}", "free",
-   * "3 markers" — **except on a play**, where it is the coloured requirement
-   * alone ("1 blue"). A play's total is printed on the card and the row reads
-   * it there; only the specified cost can have been relaxed out from under the
-   * print (owner's ruling on BT19-039), so that is the half the engine has to
-   * hand over, and `priceOf` in `wording.ts` is still the one place the two
-   * halves become a sentence.
-   */
-  describe: string;
-}
-
 /**
  * A play's price, worn on the row only when its **coloured** requirement is
  * something the card itself does not say (issue #96): an X cost, whose printed
@@ -2772,8 +2662,6 @@ function conditionHolds(ctx: EngineContext, s: GameState, p: PlayerId, c: Return
 
 // ── apply ──────────────────────────────────────────────────────────────────
 
-export class IllegalAction extends Error {}
-
 function clone<T>(x: T): T {
   return structuredClone(x);
 }
@@ -3401,12 +3289,5 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
 }
 
 // ── views ──────────────────────────────────────────────────────────────────
-
-/** Deck lists as `CardDef` maps, for building a context from catalog rows. */
-export function defsFrom(cards: CardDef[]): Record<string, CardDef> {
-  const out: Record<string, CardDef> = {};
-  for (const c of cards) out[c.id] = c;
-  return out;
-}
 
 export { specifiedCostOf, keywordOf };

@@ -41,16 +41,16 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext } from "../engine";
-import { coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../engine/cards";
-import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "../engine/script";
-import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
-import { other } from "../engine/types";
-import { parseFilter, powerRelOk } from "../engine/filters";
+import type { EngineContext } from "../types";
+import { coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
+import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, PlayerId, Prohibition, Skill } from "../types";
+import { other } from "../types";
+import { parseFilter, powerRelOk } from "../text/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
-import { describeCond as sayCond } from "../engine/script-schema";
-import { mirrorSides } from "../engine/state";
+import { describeCond as sayCond } from "./script-schema";
+import { mirrorSides } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
@@ -1097,7 +1097,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       return eachNamedHolds(printedNames(sk), pool, !!c.samePower);
     }
     // #155: [Arrival]/[Revive]'s colours and [Successor]'s exact sum, read
-    // through the shared readings `engine/cards.ts` gives both engines.
+    // through the shared readings `text/cards.ts` gives both engines.
     case "covers":
       return coversColors(
         resolveSelector(ctx, game, state, frame, c.sel).map((id) => list(attrsNow(ctx, game, state, id).colors)),
