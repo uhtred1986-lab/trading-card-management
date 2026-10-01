@@ -782,7 +782,7 @@ Until a keyword's own body is written (Stage 7's `s7-0{2,3,4,5}` issues), a keyw
 rules engine is a skill that never pends: nothing reaches it, a game on that engine plays pass,
 endMain and concede (#140), and playing, attacking and activating are Stage 5's `DEFINE ACTION`s.
 
-### 4.1 The sixteen hook points
+### 4.1 The seventeen hook points
 
 Taken from the plan's own fifteen names, confirmed against a full inventory of every `has(`/
 `keyword(`/`hasKeyword(` call in `src/lib/arena/engine/` (38 sites across 7 files — reproduce with
@@ -840,6 +840,7 @@ has — no new grammar, because none is needed.
 | `playRefused` | D | query | — | a play is being checked for legality, before cost (5-5, 20-4), and `self` is a card in play whose keyword may refuse it (#157) |
 | `chargeLimit` | D | effect | — | `self` is about to be placed in an Energy Area, from any source (22-31) |
 | `altPayment` | D | query | — | a price is being planned and is asking what else may pay it, or what it no longer demands |
+| `wouldLeave` | B | query | — | `self` would leave a place it is held in (in play, or a combo) for one it is not, before it goes anywhere (9-10); a body ends in `replace(event: leave, with: …)`, read as the redirect a [Permanent]'s is, after any [Permanent]'s (1 Oct 2026 — [Ultimate], 22-14-3) |
 | `markerCarry` | D | query | — | a Unison is being played over another, before that one leaves; a body ends in `carryMarkers`, and the play waits on how many markers come across (22-45-3, #157 — the sixteenth point, added for [Empower]) |
 
 ### 4.2 One worked example per hook
@@ -1264,9 +1265,34 @@ Between them they needed one op, one condition and one change to the contract
   - A `HOOK` body's `$name` parameters are bound off the keyword in force, as a `DO`'s are, so
     [Strike]'s body writes `$x`.
 
-**[Ultimate]** is left unwritten. Its removal (22-14-3) is a replacement: one move to `removed`
-instead. `onLeave` runs after the card has landed, so it cannot say it. It needs a leave-time query
-hook, or the 9-10 replacements `replacementsFor` does not collect yet.
+**[Ultimate]** was left unwritten here. Its removal (22-14-3) is a replacement: one move to
+`removed` instead. `onLeave` runs after the card has landed, so it cannot say it. It needed a
+leave-time query hook, or the 9-10 replacements `replacementsFor` did not collect yet.
+
+**Owner's decision (1 Oct 2026): the 9-10 leave replacements are built as real replacement
+effects, and [Ultimate] rides on them. `onLeave` stays an effect hook; it is not made a query.**
+What was built:
+
+- **The replacements.** A [Permanent]'s `replaceLeave`, or `replace` of `leave`/`ko`/`life`, is
+  collected on the rules engine as a standing offer (`vm/effects.ts`, kind `replaceLeave`, the
+  legacy `collectStatics` reading). `vm/replace.ts` reads it at the moment of departure, the
+  legacy engine's two readers:
+  - `replacementChoices` answers `ScriptHost.replacementsFor`, so the shared interpreter's `ko`
+    and `moveTo` loops ask 9-10-2's choice and 9-10-3's "you may" through the existing
+    `replaceMove` prompt, with `bySide` read against whose skill it is;
+  - `leaveRoute` is what every mover does with the answer (`vm/flow.ts`'s `moved`,
+    `vm/host.ts`'s `moveTo`): the route the caller settled on, or else the first mandatory,
+    question-free match. A redirect changes the destination; a substitute keeps the card where it
+    is and runs its program, inline, or as its own frame when it asks (#107).
+- **[Ultimate]** is a `wouldLeave` body — a seventeenth hook point, group B, **query** —
+  whose leaf is the same `replace` record a [Permanent] prints:
+  `replace(event: leave, with: { moveTo(target: [self], to: removed) })`. `leaveRoute` reads it
+  after any [Permanent]'s replacement, as the card's own rule, and never offers it as a 9-10-2
+  choice. That is the legacy order: `move` folds [Ultimate] into the line that removes a token and
+  a Z-card (19-1-7, 14-1-4), after the replacement. It also answers a card leaving a combo, as the
+  legacy `wasCombo` does.
+- **Not built:** the `life` half (#272, BT10-031/SD18-01). It is collected, but the rules engine's
+  battle damage (`vm/battle.ts`) does not yet ask about it per life card.
 
 **Group A's keywords (#154).** [Barrier], [Indestructible], [Deflect] and [Servant]'s power were
 already hook bodies (§4.2). #154 built the rest of the group, each against the legacy engine event

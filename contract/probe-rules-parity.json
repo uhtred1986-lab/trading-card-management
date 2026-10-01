@@ -83,10 +83,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "6d6ad122"
+      "digest": "4fb94674"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "ATKSKIP#0": {
     "legacy": {
@@ -615,10 +614,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "b5a9308a"
+      "digest": "81fbfb94"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "EITHER#0": {
     "legacy": {
@@ -672,10 +670,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "1a71bc2c"
+      "digest": "8f4484de"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "FETCH#0": {
     "legacy": {
@@ -1027,10 +1024,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "c2a67344"
+      "digest": "6b48f004"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "MAYWARP#0": {
     "legacy": {
@@ -1039,10 +1035,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "f49ac7d8"
+      "digest": "d76e6bde"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "MILLGATE#0": {
     "legacy": {
@@ -1340,10 +1335,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "75868db4"
+      "digest": "8aa546a8"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "PICKY-HUNTER#0": {
     "legacy": {
@@ -1374,10 +1368,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "afefa598"
+      "digest": "dac9c320"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "PILEOFF#0": {
     "legacy": {
@@ -1386,10 +1379,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "b02ca72c"
+      "digest": "2c5fd534"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "PRICED#0": {
     "legacy": {
@@ -1843,10 +1835,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "24c85aac"
+      "digest": "995cc7e2"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "THEYPICK#0": {
     "legacy": {
@@ -1968,10 +1959,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "ab28fb98"
+      "digest": "e362de12"
     },
-    "same": false,
-    "cause": "leave-replacement"
+    "same": true
   },
   "UNI2#0": {
     "legacy": {

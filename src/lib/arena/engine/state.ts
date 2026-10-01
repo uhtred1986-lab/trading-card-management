@@ -320,7 +320,7 @@ export function lifeReplacementChoicesFor(ctx: GameContext, s: GameState, id: st
  * `replaceLeave` prints and the only one `move()` can honour by changing a
  * destination. Everything else is a substitute, and runs.
  */
-function redirectOf(ops: Op[]): { to: Area; mode?: "active" | "rest" } | null {
+export function redirectOf(ops: Op[]): { to: Area; mode?: "active" | "rest" } | null {
   if (ops.length !== 1) return null;
   const only = ops[0];
   if (only.op !== "moveTo" || only.under || only.owner || only.to === "under" || only.to === "play") return null;

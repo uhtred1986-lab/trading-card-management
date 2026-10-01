@@ -379,13 +379,6 @@ if (ENGINE !== "legacy") {
       holds: (_f, _old, rules) => /cannot skip/.test(rules.applied.join("|")),
     },
     {
-      id: "leave-replacement",
-      says: "A [Permanent] replacement for leaving play or a KO (9-10 — `replaceLeave`, or `replace` of `leave`/`ko`) is not collected on the rules engine: `vm/host.ts`'s `replacementsFor` answers [] (`DEFERRED_STATICS.replaceLeave`, #146's replacement half, not on the KO branch), so a KO'd card goes to the Drop where legacy sends it to the Warp, out of the game, or replaces the move altogether.",
-      holds: (_f, old, rules, rule) =>
-        hasOp(rule, (o) => o.op === "replaceLeave" || (o.op === "replace" && (o.event === "leave" || o.event === "ko"))) &&
-        rules.result.some((l) => / goes from the Battle Area to the Drop$/.test(l) && !old.result.includes(l)),
-    },
-    {
       id: "keyword-negation-static",
       says: "A [Permanent] that negates a keyword (`negateKeyword`) is not collected on the rules engine (`DEFERRED_STATICS.negateKeyword`, #153), so the card still reads the keyword in force where legacy reads none.",
       holds: (_f, old, rules, rule) =>

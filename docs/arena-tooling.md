@@ -177,10 +177,9 @@ skipped) tells you what you broke:
   what the case needs — most of the 39, `docs/arena-backlog/s7-0{2,3,4,5}-
   *.md`; a fourth, `staticGap`, left with its last cases at #154, which reads
   a [Permanent]'s `immune` op as #148 reads `altCost` and `payWith`),
-  `replaceGap` (the 9-10 family: `vm/host.ts`'s
-  `replacementsFor` answers `[]` unconditionally — a skill-driven KO is real
-  since #146, but no [Permanent]'s replacement is collected to stand in
-  front of it), and `notYetGap` for everything else
+  `lifeGap` (9-10's `life` event, #272 — the rest of the 9-10 family,
+  `replaceGap`'s six cases until 1 Oct 2026, runs on both engines through
+  `vm/replace.ts`), and `notYetGap` for everything else
   found empirically rather than guessed at from a doc — the `addSkip` queue
   (#145; a skill-driven KO, `h.ko`, was #146's until it landed), an X price on a skill line
   (`actions.rules`'s own gap), and several real, individually-diagnosed

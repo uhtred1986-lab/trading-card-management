@@ -348,6 +348,22 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   // declarations have to end at each other without a bracket to say so.
   tripDefs(all, "a whole file of declarations");
 
+  // The seventeenth hook point (1 Oct 2026): [Ultimate]'s `wouldLeave` body,
+  // whose leaf is the `replace` record a [Permanent] prints — written out,
+  // because the sample hooks above name points by no particular word.
+  tripDefs(
+    [
+      {
+        define: "KEYWORD",
+        name: "Ultimate",
+        takes: [],
+        text: "removed from the game instead",
+        hooks: [{ at: "wouldLeave", ops: [{ op: "replace", event: "leave", with: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }] }] }],
+      } as unknown as Definition,
+    ],
+    "[Ultimate]'s wouldLeave body",
+  );
+
   // The layout, written out once. A declaration is a header line and one line
   // per field — a word for the clause fields, `name: value` for the rest — and
   // a nested program is a block at one more indent, exactly as a rule's is.

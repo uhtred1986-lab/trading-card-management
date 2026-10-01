@@ -67,7 +67,7 @@
  */
 import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../engine";
 import { canCombo } from "../engine/cards";
-import type { Action, PlayerId, Prompt, Requirement, Skill } from "../engine/types";
+import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../engine/types";
 import type { Op, ScriptFrame } from "../engine/script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
@@ -875,12 +875,14 @@ export function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmSt
  * the "removed from a Battle Area by a skill" moment (the legacy `ko` op pends
  * nothing of that family), only `leftBattleToDrop`'s causeless one.
  */
-export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, cause?: string): void {
+export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, cause?: string, replaced?: ReplacementResult | null): void {
   if (forbids(ctx, game, state, "beKOd", { card })) return;
   const owner = state.cards[card].owner;
   const master = masterOf(game, state, card);
   log(ev, { type: "ko", card, ...(cause === undefined ? {} : { by: cause }) });
-  moved(ctx, game, state, ev, card, "drop", { owner });
+  // 9-10: a KO is a departure a replacement may stand in front of — the one
+  // a skill's `ko` loop settled on, or the first that answers (`vm/replace.ts`).
+  moved(ctx, game, state, ev, card, "drop", { owner, reason: "ko", ...(replaced !== undefined ? { replaced } : {}) });
   // `to: drop` matches `koed`'s own pattern (`triggers.rules`) — the card has
   // already landed there by the time this fires, and that field is what lets
   // it still answer about itself (9-1-3-1's derived "fires while elsewhere").

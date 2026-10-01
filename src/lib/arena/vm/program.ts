@@ -479,7 +479,8 @@ export type QueryFact =
   | { keyword: KeywordSkill; op: "forbid"; forbid: Prohibition }
   | { keyword: KeywordSkill; op: "modifyAttr"; attr: CardAttr | "energyMarkers" | "guard"; delta: number }
   | { keyword: KeywordSkill; op: "battleDamage"; atLeast?: number; to?: "drop"; allMarkers?: boolean; wins?: boolean }
-  | { keyword: KeywordSkill; op: "carryMarkers"; upTo: number; color: Color | null };
+  | { keyword: KeywordSkill; op: "carryMarkers"; upTo: number; color: Color | null }
+  | { keyword: KeywordSkill; op: "replace"; event: string; with: Op[] };
 
 /**
  * Every fact a query hook's bodies are in force to state right now — read
@@ -565,6 +566,13 @@ function readHookLeaf(ctx: EngineContext, game: GameDefinition, state: VmState, 
     // a Unison of which colour.
     if (op.op === "carryMarkers") {
       out.push({ keyword, op: "carryMarkers", upTo: amount(ctx, game, state, frame, op.upTo), color: op.color ?? null });
+      continue;
+    }
+    // `wouldLeave`'s leaf — what the card does instead of leaving play
+    // ([Ultimate], 22-14-3), read by `vm/replace.ts`'s `leaveRoute` as the
+    // redirect a [Permanent]'s `replace` is.
+    if (op.op === "replace") {
+      out.push({ keyword, op: "replace", event: op.event, with: op.with });
       continue;
     }
     throw new Error(`vm/program.ts: [${keyword.name}]'s body is a query hook and ends in "${op.op}", which none of the contract's query hooks document`);

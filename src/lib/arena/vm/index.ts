@@ -478,10 +478,12 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       state.carried = { card: pr.card, n: action.amount };
       break;
     }
+    // 9-10-2/9-10-3: which replacement a departure takes, or none, is
+    // answered the way a printed choice is — the legacy engine's own pairing.
     case "chooseMode": {
-      requirePrompt(state, action, ["chooseMode"]);
+      requirePrompt(state, action, ["chooseMode", "replaceMove"]);
       const pr = state.prompt;
-      if (pr.kind !== "chooseMode") throw new IllegalAction("no option is being offered");
+      if (pr.kind !== "chooseMode" && pr.kind !== "replaceMove") throw new IllegalAction("no option is being offered");
       if (!Number.isInteger(action.index) || action.index < 0 || action.index >= pr.options.length) throw new IllegalAction("no such option");
       state.lastMode = action.index;
       break;
@@ -708,8 +710,10 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     // 22-45-3: every amount from none to the cap, in the legacy engine's words.
     case "empowerCarry":
       return Array.from({ length: pr.max + 1 }, (_, n) => ({ action: { type: "empowerCarry" as const, player: pr.player, amount: n }, label: n === 0 ? "Carry no markers" : `Carry ${n} marker${n === 1 ? "" : "s"}` }));
-    // 20-2: the printed options, in the order they are printed.
+    // 20-2: the printed options, in the order they are printed — and 9-10's
+    // replacements, one answer per route, the legacy engine's labels.
     case "chooseMode":
+    case "replaceMove":
       return pr.options.map((label, index) => ({ action: { type: "chooseMode" as const, player: pr.player, index }, label: label.length > 90 ? `${label.slice(0, 88)}\u2026` : label }));
     default:
       return [];
