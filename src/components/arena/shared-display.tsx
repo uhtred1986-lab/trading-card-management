@@ -9,6 +9,7 @@ export type { InspectorChip };
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { newestFirst, type StoryLine } from "@/lib/arena/story";
 import { cardImage } from "@/lib/catalog/card-image";
+import { ArenaCard } from "./ArenaCard";
 
 export function Counter({ label, value }: { label: string; value: number }) {
   return (
@@ -304,18 +305,26 @@ export function DockedInspector({
   narrator?: Narrator;
   battle?: Parameters<typeof CardDetail>[0]["battle"];
 }) {
+  // The board hands it a card whenever there is one on the table (the last
+  // hovered, else your first hand card), so this is a table with no cards.
   if (!card) {
     return (
-      <div className="grid h-full place-items-center p-4 text-center text-sm text-space-300" data-arena-inspector="empty">
-        Hover any card to review it — no clicks needed.
+      <div className="flex h-full flex-col justify-center gap-2 p-4 text-center text-sm text-space-300" data-arena-inspector="empty">
+        <b className="arena-impact text-lg text-space-50">Hover any card to review it</b>
+        Yours or the opponent&apos;s, in hand or in play — it shows here. No clicks needed.
       </div>
     );
   }
   return (
-    <div className="space-y-2 p-3" data-arena-inspector={card.id}>
-      {card.imageUrl && (
+    <div className="space-y-2 p-3 lg:px-5 lg:py-4" data-arena-inspector={card.id}>
+      {card.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- the board has already loaded this URL.
-        <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect mx-auto w-40 rounded-lg object-cover xl:w-48" />
+        <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect mx-auto w-[clamp(6.5rem,16dvh,9.5rem)] rounded-lg object-cover" />
+      ) : (
+        // A card with no art (a test deck): its drawn face, as on the board.
+        <div className="arena-inspect-art flex justify-center">
+          <ArenaCard card={{ ...card, mode: "active" }} width={77} />
+        </div>
       )}
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
@@ -420,14 +429,28 @@ export function InPlayList({
  * The inspector over two tabs — In play, and the log. The log is the narration
  * log (#350): the sentences the story told, newest first, under their turn.
  */
-export function InspectorColumn({ inspector, inPlay, story }: { inspector: React.ReactNode; inPlay: React.ReactNode; story: StoryLine[] }) {
-  const [tab, setTab] = useState<"play" | "log">("play");
+export function InspectorColumn({
+  inspector,
+  inPlay,
+  story,
+  tab,
+  onTab,
+}: {
+  inspector: React.ReactNode;
+  inPlay: React.ReactNode;
+  story: StoryLine[];
+  /** Which tab is open; the board owns it so its bar's log button can open the log. */
+  tab: "play" | "log";
+  onTab: (tab: "play" | "log") => void;
+}) {
+  const setTab = onTab;
   return (
-    <div className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-xl border border-space-700/70 bg-space-900/90 lg:sticky lg:top-16" aria-label="Card review">
+    // The board's right-hand column (#444): its full height, the card over the tabs.
+    <div className="arena-sidecol flex h-full flex-col overflow-hidden" aria-label="Card review">
       {/* A fixed height, scrolling inside: the tabs below must not move when a
           taller card fills it, or a row under the pointer slides away from it. */}
-      <div className="h-[min(20rem,38dvh)] shrink-0 overflow-y-auto xl:h-[min(24rem,40dvh)]">{inspector}</div>
-      <div role="tablist" className="flex shrink-0 gap-1 border-y border-space-700 p-1.5 text-xs font-semibold">
+      <div className="arena-sidecol-sheet h-[58%] shrink-0 overflow-y-auto">{inspector}</div>
+      <div role="tablist" className="arena-sidecol-tabs flex shrink-0 gap-2 p-2.5 text-sm font-semibold">
         {(
           [
             ["play", "In play"],
@@ -440,13 +463,13 @@ export function InspectorColumn({ inspector, inPlay, story }: { inspector: React
             role="tab"
             aria-selected={tab === k}
             onClick={() => setTab(k)}
-            className={`tap flex-1 rounded-lg border px-2 py-1 ${tab === k ? "border-ki-400 bg-space-800 text-space-50" : "border-transparent text-space-300 hover:text-space-50"}`}
+            className={`arena-tab tap flex-1 rounded-xl px-2 py-1.5 ${tab === k ? "arena-tab-on text-space-50" : "text-space-300 hover:text-space-50"}`}
           >
             {label}
           </button>
         ))}
       </div>
-      <div role="tabpanel" className="h-[min(12rem,24dvh)] shrink-0 overflow-y-auto xl:h-[min(14rem,24dvh)]">
+      <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto">
         {tab === "play" ? (
           inPlay
         ) : (

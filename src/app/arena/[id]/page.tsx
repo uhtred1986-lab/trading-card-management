@@ -161,7 +161,8 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   );
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-3">
+    // From lg the board is the whole viewport, edge to edge (#444).
+    <div className="mx-auto w-full max-w-7xl space-y-3 lg:max-w-none">
 
       {game.status === "over" && (
         <GameOver
