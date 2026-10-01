@@ -190,7 +190,7 @@ export function BattleRow({
             </span>
           )}
         </div>
-        <div className="relative flex items-center gap-[5px] sm:gap-2 lg:gap-3">
+        <div className="relative flex min-w-0 items-center gap-[5px] sm:gap-2 lg:gap-3">
           <ZoneAnchor zone={zone} />
           {unison && <StageCard {...cardProps(unison)} width={UNIT_W} />}
           {cards.map((c) => (

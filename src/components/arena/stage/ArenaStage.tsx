@@ -1027,7 +1027,7 @@ export function ArenaStage({
               drag ghost, which are `fixed`. Nothing fixed is inside this one. */}
           <div className={`flex min-w-0 flex-1 flex-col lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4 ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
             {/* The desktop's phase list: the top of the left column, so it is on screen with the board. */}
-            <PhaseChips view={view} vertical className="hidden lg:flex lg:w-44 lg:pt-4 xl:w-52" />
+            <PhaseChips view={view} vertical className="hidden lg:flex lg:w-44 lg:pl-3 lg:pt-4 xl:w-52" />
 
             {/* The field: their strip, their row with their leader first, the
                 lane, your row, your strip. Open sky — no panel round it. */}
