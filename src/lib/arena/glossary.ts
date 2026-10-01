@@ -102,7 +102,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "leader",
     meaning: "The same shape as [Awaken]: a condition, an effect, and then the Leader is flipped over.",
     engine: "Treated as [Awaken] throughout — the same offer, the same queued flip.",
-    engineRules: "Not built yet — the same whole-keyword activation gap as [Awaken] (docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B).",
+    engineRules:
+      "Built as its keyword's own move (`offer: \"activate:main/battle\"` in `keywords.rules`, #155): offered at the Main Phase and at the combo prompt from a face-up Leader that prints an awakened side, while the printed condition holds (the record hoists it into the line's price); the line's printed effect runs and then the Leader flips (`AFTER`), even when the effect stops to ask something. The same offer, menu words and log as the legacy engine. [Awaken] is the same body, still to declare (hook group C, #156).",
     support: "engine",
   },
   "Z-Awaken": {
@@ -114,7 +115,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "From the Z-Deck, once a turn: pay the Z-Energy cost and the skill cost and place this Z-Leader on top of your already-awakened Leader, which has to match the printed description. The stack is one card from then on.",
     engine:
       "Offered when the Leader matches the description (read by card description or by character), the Z-Energy is there and the turn's one Z-Awaken is unspent. Only in the Main Phase, though 22-46-1 also allows it during a battle.",
-    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B).",
+    engineRules:
+      "Not built yet (#155 looked and left it unwritten): the move stacks a Z-Leader from the Z-Deck onto the Leader, carrying the old Leader's power effects and its place in a battle in progress, pays a Z-Energy price beside the line's orbs, and is once a turn per player — a stack onto the Leader Area (`vm/play.ts`'s `stackOnto` knows the Battle Area), a Z-Energy price on a keyword move and a player-level counter, none of which the language or `vm/` has yet. Never offered on the rules engine.",
     support: "partial",
   },
   "Z-Stack": {
@@ -293,7 +295,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "A Unison Card with cards beneath it: drop one of them and pay the skill cost, then add the top card of your deck to your life.",
     engine: "Offered on a Unison in play with the markers to pay and any printed life condition met. The card that goes is the top one beneath rather than your pick.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly: not offered on the rules engine, even with a Unison in play.",
+    engineRules:
+      "Not built yet (#155 looked and left it unwritten): its price, “Remove N markers from this card”, is printed as the line's text, which the record reads as an effect rather than as the line's marker price — so the 13-4 gates the legacy engine applies (enough markers on the Unison, one marker skill a card a turn) have no number to read. The order of its effect is sayable (`DO` drops the card from beneath, the printed effect removes the markers, `AFTER` adds the life), the gate is not, and a move offered without it would be read wrongly rather than left unread. Needs the count as the line's marker price or as a keyword parameter. Not offered on the rules engine.",
     support: "partial",
   },
   Empower: {
@@ -477,7 +480,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "A Red/Blue multicolour Extra Card in your hand may be activated by switching one active Red/Blue multicolour energy to Rest Mode instead of paying its energy cost.",
     engine:
       "Offered as a separate second entry in the menu, so the ordinary price is still there. The skill's own orbs are still paid, and paid out of what is left after the energy [Invoker] is about to rest.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B. Checked directly: no alternate offer reaches the menu on the rules engine.",
+    engineRules:
+      "Not built yet, and moved to the payment hooks (#155 looked and left it unwritten): it is an alternative price on an Extra's activation from the hand, which is hook group D's `altPayment` channel — `DEFINE ACTION activate` declares no `alt:`, `vm/costs.ts`' `altCostFor` reads no `altPayment` body (the same gap as [Warrior of Universe 7]) and `payAltCost` has no `invoker` case (rest one active Red/Blue energy, then pay the skill's orbs out of the rest). No alternate offer reaches the menu on the rules engine.",
     support: "engine",
   },
   Wormhole: {
@@ -487,7 +491,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "cost",
     meaning: "[Over Realm] and [Dark Over Realm] may be activated twice a turn between them instead of once.",
     engine: "Raises the count while any card you have in play carries it, and a refused second [Over Realm] says which limit it hit.",
-    engineRules: "Not built yet — docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B, the same [Over Realm] this raises the limit of.",
+    engineRules: "Not built yet: it only raises [Over Realm]'s once-a-turn limit to two, and [Over Realm] itself is still unwritten on the rules engine (hook group D, a counted player attribute) — #155 left it with that keyword.",
     support: "engine",
   },
   "Spirit Boost": {

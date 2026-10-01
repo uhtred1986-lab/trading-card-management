@@ -806,7 +806,7 @@ class Parser {
         // a keyword's own `DO`, whose parameters come off the printed keyword
         // (`[Swap 3]`'s `x`) when it runs. A keyword's `HOOK` bodies stay
         // closed: a hook is read at a moment the interpreter owns, not bound.
-        this.holes = (kind === "OP" || kind === "KEYWORD") && f.name === "do";
+        this.holes = (kind === "OP" || kind === "KEYWORD") && (f.name === "do" || f.name === "after");
         try {
           out[f.name] = this.defineValue(f);
         } finally {

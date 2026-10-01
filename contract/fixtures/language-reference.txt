@@ -2804,167 +2804,268 @@
     {
       "field": "colors",
       "type": "colors",
-      "printed": "red"
+      "printed": "red",
+      "openTo": [
+        "strings",
+        "colors"
+      ]
     },
     {
       "field": "notColors",
       "type": "colors",
-      "printed": "non-red"
+      "printed": "non-red",
+      "openTo": [
+        "strings",
+        "colors"
+      ]
     },
     {
       "field": "monoColor",
       "type": "boolean",
-      "printed": "mono-colour"
+      "printed": "mono-colour",
+      "openTo": [
+        "boolean"
+      ]
     },
     {
       "field": "multiColor",
       "type": "boolean",
-      "printed": "multicolour"
+      "printed": "multicolour",
+      "openTo": [
+        "boolean"
+      ]
     },
     {
       "field": "characters",
       "type": "strings",
-      "printed": "<Saiyan>"
+      "printed": "<Saiyan>",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "notCharacters",
       "type": "strings",
-      "printed": "non-<Saiyan>"
+      "printed": "non-<Saiyan>",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "charactersIncluding",
       "type": "strings",
-      "printed": "card with <Saiyan> in its character name"
+      "printed": "card with <Saiyan> in its character name",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "notCharactersIncluding",
       "type": "strings",
-      "printed": "card without <Saiyan> in its character name"
+      "printed": "card without <Saiyan> in its character name",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "traits",
       "type": "strings",
-      "printed": "≪Saiyan≫"
+      "printed": "≪Saiyan≫",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "notTraits",
       "type": "strings",
-      "printed": "non-≪Saiyan≫"
+      "printed": "non-≪Saiyan≫",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "names",
       "type": "strings",
-      "printed": "{Saiyan}"
+      "printed": "{Saiyan}",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "notNames",
       "type": "strings",
-      "printed": "card other than {Saiyan}"
+      "printed": "card other than {Saiyan}",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "namesIncluding",
       "type": "strings",
-      "printed": "card with {Saiyan} in its card name"
+      "printed": "card with {Saiyan} in its card name",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "notNamesIncluding",
       "type": "strings",
-      "printed": "card without {Saiyan} in its card name"
+      "printed": "card without {Saiyan} in its card name",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "keywords",
       "type": "keywords",
-      "printed": "card with [Blocker]"
+      "printed": "card with [Blocker]",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "notKeywords",
       "type": "keywords",
-      "printed": "card non-[Blocker]"
+      "printed": "card non-[Blocker]",
+      "openTo": [
+        "strings"
+      ]
     },
     {
       "field": "type",
       "type": "cardType",
-      "printed": "battle card"
+      "printed": "battle card",
+      "openTo": [
+        "string"
+      ]
     },
     {
       "field": "notType",
       "type": "cardType",
-      "printed": "non-battle card"
+      "printed": "non-battle card",
+      "openTo": [
+        "string"
+      ]
     },
     {
       "field": "skillKind",
       "type": "skillKind",
-      "printed": "card with [Activate] skills"
+      "printed": "card with [Activate] skills",
+      "openTo": [
+        "string"
+      ]
     },
     {
       "field": "unreadable",
       "type": "boolean",
-      "printed": "card"
+      "printed": "card",
+      "openTo": [
+        "boolean"
+      ]
     },
     {
       "field": "noKeywords",
       "type": "boolean",
-      "printed": "card and no keyword skills"
+      "printed": "card and no keyword skills",
+      "openTo": [
+        "boolean"
+      ]
     },
     {
       "field": "faceUp",
       "type": "boolean",
-      "printed": "card that is face up"
+      "printed": "card that is face up",
+      "openTo": [
+        "boolean"
+      ]
     },
     {
       "field": "token",
       "type": "boolean",
-      "printed": "token"
+      "printed": "token",
+      "openTo": [
+        "boolean"
+      ]
     },
     {
       "field": "notToken",
       "type": "boolean",
-      "printed": "non-token"
+      "printed": "non-token",
+      "openTo": [
+        "boolean"
+      ]
     },
     {
       "field": "costMin",
       "type": "number",
-      "printed": "card with an energy cost of 3 or more"
+      "printed": "card with an energy cost of 3 or more",
+      "openTo": [
+        "number"
+      ]
     },
     {
       "field": "costMax",
       "type": "number",
-      "printed": "card with an energy cost of 3 or less"
+      "printed": "card with an energy cost of 3 or less",
+      "openTo": [
+        "number"
+      ]
     },
     {
       "field": "powerMin",
       "type": "number",
-      "printed": "card with 3 power or more"
+      "printed": "card with 3 power or more",
+      "openTo": [
+        "number"
+      ]
     },
     {
       "field": "powerMax",
       "type": "number",
-      "printed": "card with 3 power or less"
+      "printed": "card with 3 power or less",
+      "openTo": [
+        "number"
+      ]
     },
     {
       "field": "originalPowerMin",
       "type": "number",
-      "printed": "card with an original power of 3 or more"
+      "printed": "card with an original power of 3 or more",
+      "openTo": [
+        "number"
+      ]
     },
     {
       "field": "originalPowerMax",
       "type": "number",
-      "printed": "card with an original power of 3 or less"
+      "printed": "card with an original power of 3 or less",
+      "openTo": [
+        "number"
+      ]
     },
     {
       "field": "originallySkillLess",
       "type": "boolean",
-      "printed": "originally skill-less"
+      "printed": "originally skill-less",
+      "openTo": [
+        "boolean"
+      ]
     },
     {
       "field": "powerRel",
       "type": "powerRel",
-      "printed": "card with power less than or equal to this card's power"
+      "printed": "card with power less than or equal to this card's power",
+      "openTo": [
+        "string"
+      ]
     },
     {
       "field": "z",
       "type": "tri",
-      "printed": "Z-card"
+      "printed": "Z-card",
+      "openTo": [
+        "string"
+      ]
     }
   ],
   "expressions": [

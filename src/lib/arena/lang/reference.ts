@@ -37,7 +37,7 @@ import {
   type OpField,
 } from "../engine/script";
 import { whenMoments, words } from "../rulesets/words";
-import { COST_ITEMS, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, FILTER_FIELDS, SELECTOR_FIELDS, type FilterFieldType } from "./ast";
+import { COST_ITEMS, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, FILTER_FIELDS, SELECTOR_FIELDS, filterSlot, paramTypesFor, type FilterFieldType, type ParamType } from "./ast";
 import { SELECTOR_FLAGS } from "./parse";
 
 // ── one field, as a table row ───────────────────────────────────────────────
@@ -214,12 +214,14 @@ export interface RefFilterField {
   type: FilterFieldType;
   /** `describeFilter` on a filter carrying only this field — the words it alone contributes. */
   printed: string;
+  /** The parameter types a `DEFINE KEYWORD`/`DEFINE OP` body may leave this field open to, written `(field = $name)` (#155) — `filterSlot`'s answer, as the loader checks it. */
+  openTo: ParamType[];
 }
 
 function refFilterFields(): RefFilterField[] {
   return Object.entries(FILTER_FIELDS).map(([field, type]) => {
     const filter = { ...emptyFilter(), [field]: sampleFilterValue(type as FilterFieldType) } as CardFilter;
-    return { field, type: type as FilterFieldType, printed: describeFilter(filter) };
+    return { field, type: type as FilterFieldType, printed: describeFilter(filter), openTo: paramTypesFor(filterSlot(type as FilterFieldType)) };
   });
 }
 

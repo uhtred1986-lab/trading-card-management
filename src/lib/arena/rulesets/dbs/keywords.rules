@@ -16,14 +16,15 @@
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Eight DO bodies, the whole-keyword activations that are no hook at all
+-- Nine DO bodies, the whole-keyword activations that are no hook at all
 -- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
--- [Successor] and [Arrival] are moves (`offer:`), each offered as an
--- [Activate: Main] — [Arrival] an [Activate: Battle] — line with its own
--- REFUSE and menu words, and [Offering], [Z-Stack] and [Revive] answer a
--- moment (`at:`), pended like an [Auto]. The others of that shape — [Wish],
--- [Rejuvenate], [Z-Awaken], [Over Realm], [Swap] … — are still to write the
--- same way, each one's trailing comment saying what it is missing.
+-- [Successor], [Arrival] and [Wish] are moves (`offer:`), each offered as an
+-- [Activate: Main] — [Arrival] an [Activate: Battle], [Wish] both — line
+-- with its own REFUSE and menu words ([Wish] with an AFTER as well), and
+-- [Offering], [Z-Stack] and [Revive] answer a moment (`at:`), pended like an
+-- [Auto]. The others of that shape — [Awaken], [Rejuvenate], [Z-Awaken],
+-- [Over Realm], [Swap] … — are still to write the same way, each one's
+-- trailing comment saying what it is missing.
 -- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
 
 -- 22-2
@@ -36,7 +37,22 @@ DEFINE KEYWORD Awaken
 DEFINE KEYWORD Wish
   TAKES ()
   text: "The same shape as [Awaken]: a condition, an effect, and then the Leader is flipped over."
-  -- Stage 7 (#153–#157)
+  -- #155: a move, offered at the Main Phase and at the combo prompt from a
+  -- face-up Leader that prints an awakened side, while the printed condition
+  -- holds (the record hoists it into the line's price, 9-1-3). The effect is
+  -- the line's own; the flip is the keyword's, and comes after it (`AFTER`,
+  -- 22-25-4) even when the effect stops to ask something — the legacy engine
+  -- queues it ahead for the same reason. [Awaken] (22-2) is the same body;
+  -- it is hook group C's to declare (#156).
+  offer: "activate:main/battle"
+  REFUSE zone(area: leader) UNLESS count([self] IN you.leader) >= 1
+  REFUSE other(detail: "the Leader is already awakened") UNLESS NOT leaderFlipped()
+  REFUSE other(detail: "the Leader has no awakened side") UNLESS leaderMatches(filter: "card", back: true)
+  label: "Wish: {card} → {back}"
+  DO {}
+  AFTER {
+    flip(target: [self])
+  }
 
 -- 22-3
 DEFINE KEYWORD Field
@@ -181,19 +197,25 @@ DEFINE KEYWORD "Super Combo"
 DEFINE KEYWORD "Dragon Ball"
   TAKES ()
   text: "As many copies of a [Dragon Ball] card as you like, as long as no more than seven [Dragon Ball] cards are in the deck all told."
-  -- Stage 7 (#153–#157)
+  -- #155: no body to write — a deck-building rule (`legality`), which no game
+  -- reads on either engine.
 
 -- 22-24
 DEFINE KEYWORD Wormhole
   TAKES ()
   text: "[Over Realm] and [Dark Over Realm] may be activated twice a turn between them instead of once."
-  -- Stage 7 (#153–#157)
+  -- #155 left it with [Over Realm]: its only effect is that keyword's limit,
+  -- and [Over Realm] is unwritten (a counted, shared once-a-turn player
+  -- attribute, above).
 
 -- 22-37
 DEFINE KEYWORD Invoker
   TAKES ()
   text: "A Red/Blue multicolour Extra Card in your hand may be activated by switching one active Red/Blue multicolour energy to Rest Mode instead of paying its energy cost."
-  -- Stage 7 (#153–#157)
+  -- #155 looked and moved it to the payment hooks: an alternative price on an
+  -- Extra's activation is the `altPayment` channel (hook group D), and
+  -- `DEFINE ACTION activate` declares no `alt:`, `vm/costs.ts`' `altCostFor`
+  -- reads no `altPayment` body and `payAltCost` has no `invoker` case.
 
 -- 22-35
 DEFINE KEYWORD Heroic
@@ -433,7 +455,11 @@ DEFINE KEYWORD Overlord
 DEFINE KEYWORD Rejuvenate
   TAKES ()
   text: "A Unison Card with cards beneath it: drop one of them and pay the skill cost, then add the top card of your deck to your life."
-  -- Stage 7 (#153–#157)
+  -- #155 looked and left it unwritten: its price ("Remove N markers from this
+  -- card") is printed as the line's text, which the record reads as an effect,
+  -- so the 13-4 gates (enough markers, one marker skill a turn) have no number
+  -- to read. The order is sayable — DO drops the card from beneath, the
+  -- printed effect removes the markers, AFTER adds the life — the gate is not.
 
 -- 22-43
 DEFINE KEYWORD "Spirit Boost"
@@ -457,7 +483,10 @@ DEFINE KEYWORD Empower
 DEFINE KEYWORD "Z-Awaken"
   TAKES ()
   text: "From the Z-Deck, once a turn: pay the Z-Energy cost and the skill cost and place this Z-Leader on top of your already-awakened Leader, which has to match the printed description. The stack is one card from then on."
-  -- Stage 7 (#153–#157)
+  -- #155 looked and left it unwritten: a stack onto the Leader Area carrying
+  -- the old Leader's power effects and battle role (`stackOnto` knows the
+  -- Battle Area), a Z-Energy price on a keyword move, and a once-a-turn
+  -- counter per player — none of which the language or `vm/` has yet.
 
 -- 22-47
 DEFINE KEYWORD "Z-Stack"

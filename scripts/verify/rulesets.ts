@@ -327,6 +327,8 @@ assert.equal(unknownHook.clause, "KEYWORD");
   refusedKeyword(["  at: [played]", "  DO {", "    moveTo(target: TOP $y IN you.hand, to: battle)", "  }"], "$y", "a hole that is not a parameter it TAKES");
   refusedKeyword(['  offer: "activate:main"', '  REFUSE target(reason: "no") UNLESS oneOf(value: $y, of: ["3"])', "  DO {}"], "$y", "a REFUSE hole that is not a parameter it TAKES");
   refusedKeyword(["  at: [played]", "  DO {", "    choose(sel: 1 (colors = $x) IN you.hand, as: \"t\")", "  }"], "TAKES it as number", "a filter hole of the wrong type");
+  refusedKeyword(["  at: [played]", "  DO {}", "  AFTER {", "    draw(n: 1)", "  }"], "has an AFTER", "an AFTER on a keyword that offers no move");
+  refusedKeyword(['  offer: "activate:main"', "  DO {}", "  AFTER {", "    moveTo(target: TOP $y IN you.hand, to: battle)", "  }"], "$y", "an AFTER hole that is not a parameter it TAKES");
 }
 
 // ── the macro expander ──────────────────────────────────────────────────────

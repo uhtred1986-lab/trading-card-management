@@ -1148,10 +1148,10 @@ are sayable since #155 (`play … counterWindow: true`, a filter field written o
 of them is the body itself; [Over Realm] also needs a counted, shared once-a-turn player attribute
 that [Wormhole] raises to two.
 
-**Group B's keywords (#155).** Four are built, each against the legacy engine event for event, and
-they needed five words the shapes above did not have (`docs/arena-rules-language.md` §3b): the
-`covers` and `sumsTo` conditions, `choose`'s `sumTo`, `play`'s `counterWindow`, and a filter field
-written open (`colors = $colors`).
+**Group B's keywords (#155).** Five are built, each against the legacy engine event for event, and
+they needed seven words the shapes above did not have (`docs/arena-rules-language.md` §3b): the
+`covers` and `sumsTo` conditions, `choose`'s `sumTo`, `play`'s `counterWindow`, a filter field
+written open (`colors = $colors`), a keyword's `AFTER` and the `{back}` word.
 
 - **[Z-Stack]** is a moment: `at: [played, leaderPlaced]`, the legacy `keywordTriggers` case; its `DO`
   offers up to X Z-Deck cards the line's description matches (`asPrinted`) and puts them under the
@@ -1167,6 +1167,10 @@ written open (`colors = $colors`).
   (22-34-4) and plays the card back through the window. The legacy engine remembers the revival
   instead of negating, and announces a second [Revive] that does nothing; this engine pends none
   (recorded).
+- **[Wish]** is a move, `offer: "activate:main/battle"`, refused off a Leader that is already
+  awakened or prints no other side; the printed condition is the record's hoisted price condition,
+  the effect is the line's, and `AFTER { flip(target: [self]) }` flips the Leader once it has
+  resolved (22-25-4). [Awaken] is the same body and hook group C's to declare.
 
 ```
 DEFINE KEYWORD Successor
@@ -1183,16 +1187,16 @@ DEFINE KEYWORD Successor
 ```
 
 The rest of group B, each with what it is missing: **[Rejuvenate]**'s marker price is printed as the
-line's text ("Remove 2 markers from this card"), which the record compiles into an effect that runs
-*after* a keyword move's `DO` — so neither the legacy order (markers, then the life card) nor the
-13-4 gates (enough markers, one marker skill a turn) can be said until the keyword carries the number
-(`TAKES (markers: number)`) or the price is read as a price. **[Wish]** (and group C's [Awaken]) flips
-the Leader *after* the printed effect, and a keyword move's `DO` runs *before* it — it needs a field
-for what follows the line's effect. **[Z-Awaken]** stacks a Z-Leader on the Leader from the Z-Deck,
+line's text ("Remove 2 markers from this card"), which the record compiles into an effect — the
+legacy order is sayable now (`DO` drops the card from beneath, the printed effect removes the
+markers, `AFTER` adds the life), but the 13-4 gates (enough markers, one marker skill a turn) have
+no number to read until the keyword carries it or the price is read as the line's marker price, and
+a move offered without them would be read wrongly. **[Z-Awaken]** stacks a Z-Leader on the Leader from the Z-Deck,
 carrying its power effects and its battle role, pays Z-Energy and is once a turn per player: a
 leader-area `stackOnto`, a Z-Energy price on a keyword move and a player-level counter, none of which
-exists. **[Invoker]** is an `altPayment` hook on the play price, which `vm/costs.ts` does not ask
-yet (group D's channel, beside [Warrior of Universe 7]). **[Wormhole]** only raises [Over Realm]'s
+exists. **[Invoker]** is an alternative price on an Extra's activation from the hand — group D's
+`altPayment` channel, beside [Warrior of Universe 7], which `vm/costs.ts` does not ask yet; `DEFINE
+ACTION activate` declares no `alt:` and `payAltCost` has no `invoker` case — so it moves there. **[Wormhole]** only raises [Over Realm]'s
 limit, which is unwritten. **[Dragon Ball]** needs nothing: it is deck legality (`support: "deck"`),
 and no game reads it.
 

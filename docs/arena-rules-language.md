@@ -429,7 +429,8 @@ DEFINE TRIGGER played
 §22). `TAKES` its parameters, `text:` what it means (required), `section:` the manual section,
 `offer:` the skill kind its line is offered as when it is a move, `at:` the moments its line answers
 to when it is not, one `REFUSE` line per requirement of its move, `label:` the words its move shows on
-the menu, `DO` the program the keyword runs, and one `HOOK` line per hook point it hangs on. A keyword
+the menu, `DO` the program the keyword runs, `AFTER` what a move runs once the line's printed effect
+has (#155), and one `HOOK` line per hook point it hangs on. A keyword
 with none of these is a declaration of the name and its meaning and nothing more, which is what
 Stage 3 wrote; the bodies are Stage 7's.
 
@@ -469,12 +470,16 @@ move is about **one printed line** rather than about a card a `FOR` found:
   write `$name` for a parameter too, the comparison sugar included (`count(IN you.drop) >= $x`).
 - `label:` and a requirement's string arguments may name the line's own words: `{card}` the card's
   name, `{line}` the description the line prints after its tag ("<Nail>"), `{names}` the characters
-  it names in ‹…› joined by "and", and `{<param>}` a parameter as printed (`{variant}`, `{x}`). A
+  it names in ‹…› joined by "and", `{back}` the name the card's other face prints (a Leader's
+  awakened side, #155), and `{<param>}` a parameter as printed (`{variant}`, `{x}`). A
   list parameter is written as printed, `{colors}` → "Red/Blue", or joined by "and" as
   `{colors:and}` → "Red and Blue" (#155).
 - The line's own printed effect, if it has one, runs after `DO` — [Union-Absorb]'s whole effect is
   its printed text, and a bare [Evolve] or [Overlord] has none. A line printed with the very kind
-  the move is offered as (`[Union-Absorb][Activate: Main] …`) is the keyword's move too.
+  the move is offered as (`[Union-Absorb][Activate: Main] …`) is the keyword's move too. `AFTER { … }`
+  runs after that printed effect, the move's last word — [Wish]'s flip of the Leader once its effect
+  has resolved (22-25-4), even when the effect stopped to ask something (#155). Only a move has one:
+  a moment's line runs its `DO` and nothing printed, so the loader refuses `AFTER` without `offer:`.
 - Three words exist for a keyword body and appear on no card: the `asPrinted` selector flag (only
   cards matching the description the line prints — `[Evolve]{1}: <V1>` finds a `<V1>`), the
   `oneOf(value: $variant, of: [...])` condition (tells the variants of one keyword apart), and the

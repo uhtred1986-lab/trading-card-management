@@ -250,7 +250,7 @@ export const COST_ITEMS = [
  */
 export const RESERVED = new Set([
   "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
-  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT",
+  "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT", "AFTER",
 ]);
 
 // ── definitions ─────────────────────────────────────────────────────────────
@@ -712,6 +712,12 @@ export interface DefKeyword extends Declaration<"KEYWORD"> {
   label?: string;
   /** What the keyword does: run when its move is taken, or when a moment it answers to resolves. */
   do?: Op[];
+  /**
+   * A move's last word: run after the line's own printed effect, where `DO`
+   * runs before it — [Wish]'s flip of the Leader once the effect has resolved
+   * (22-25-4), even when the effect stopped to ask something (#155).
+   */
+  after?: Op[];
   hooks?: DefineHook[];
 }
 
@@ -961,6 +967,7 @@ export const DEFINE_SCHEMA = {
       { name: "refusals", type: "refusals", word: "REFUSE" },
       { name: "label", type: "string" },
       { name: "do", type: "ops", word: "DO" },
+      { name: "after", type: "ops", word: "AFTER" },
       { name: "hooks", type: "hooks", word: "HOOK" },
     ],
   },

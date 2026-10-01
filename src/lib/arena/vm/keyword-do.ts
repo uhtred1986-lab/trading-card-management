@@ -68,6 +68,11 @@ export function keywordProgram(game: GameDefinition, def: KeywordDef, sk: Skill)
   return bindKeywordParams(def.do ?? [], def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game);
 }
 
+/** The keyword's `AFTER` — what a move runs once the line's printed effect has — bound the way its `DO` is (#155). */
+export function keywordAfterProgram(game: GameDefinition, def: KeywordDef, sk: Skill): Op[] {
+  return def.after ? bindKeywordParams(def.after, def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game) : [];
+}
+
 /** A `REFUSE … UNLESS` of the keyword's move, with its parameters filled in from the line as printed (`$variant`, `$x`), the way its `DO` is. */
 export function keywordRefusalCond(game: GameDefinition, def: KeywordDef, sk: Skill, cond: Cond): Cond {
   return bindKeywordCond(cond, def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game);
@@ -77,15 +82,18 @@ export function keywordRefusalCond(game: GameDefinition, def: KeywordDef, sk: Sk
  * The words a keyword's move shows — its `label:` and the text of a `REFUSE`'s
  * requirement — with the line's own words put in: `{card}` is the card's name,
  * `{line}` the description the line prints ("<Nail>"), `{names}` the
- * characters it names in ‹…› joined by "and", and `{<param>}` a parameter the
+ * characters it names in ‹…› joined by "and", `{back}` the name its other face
+ * prints (a Leader's awakened side), and `{<param>}` a parameter the
  * keyword `TAKES`, as printed (`{variant}` is "Xeno-Evolve", `{x}` is 3). The
  * legacy engine builds each of these sentences by hand per keyword; here the
  * declaration writes it once.
  */
-export function keywordWords(text: string, def: KeywordDef, sk: Skill, card: string): string {
+export function keywordWords(text: string, def: KeywordDef, sk: Skill, card: string, back?: string): string {
   const values = (sk.keyword ?? {}) as Record<string, unknown>;
   return text.replace(/\{(\w+)(:and)?\}/g, (whole, name: string, and?: string) => {
     if (name === "card") return card;
+    // The name the card's other face prints — a Leader's awakened side (#155).
+    if (name === "back" && back !== undefined) return back;
     if (name === "line") return printedDescription(sk);
     if (name === "names") return printedNames(sk).join(" and ");
     if (def.takes?.some((p) => p.name === name) && values[name] !== undefined) {
