@@ -128,6 +128,9 @@ import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame }
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
 import { CTX, DEFS, assertMenuInvariants, card, cardNow, fifty, matches, parseSkills } from "./harness";
+import { rulesFromCompiler } from "../../src/lib/arena/draft";
+import { backCharactersOf } from "../../src/lib/arena/text/cards";
+import { usableFrom } from "../../src/lib/arena/vm/activate";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -4873,7 +4876,201 @@ console.log("verify/vm: ok");
   }
 }
 
-// ── 30. the board's card view, on both engines (#465) ────────────────────────
+// ── 30. a skill used from the hand (9-1-3-2), and a back side's characters (#464) ─
+//
+// The owner's turn 1 of 1 Oct 2026, on the real cards (the deckplanet feed's
+// rows, inlined): Son Goku & Vegeta (BT31-001), whose back side is SS Gogeta,
+// and Vegeta, Hellish Warrior (BT31-012) in the hand, which prints
+// "[Activate: Main][Limit 1] {r}, if your Leader's back side is a red <Gogeta>
+// card: Draw 1 card and play this card from your hand." Both engines used to
+// refuse it twice over — 9-1-3-1 read for every line in the hand, and the back
+// side's characters read off the front ("Son Goku", "Vegeta"). The rules
+// engine is the one production plays, and the one held to it here.
+{
+  const rulesEngine = engineFor("rules");
+  const skill = (...lines: string[]) => lines.join("\n[br]\n");
+  const real: CardDef[] = [
+    {
+      id: "BT31-001",
+      name: "Son Goku & Vegeta",
+      type: "LEADER",
+      colors: ["Red"],
+      energyCost: null,
+      zEnergyCost: null,
+      power: 10000,
+      comboCost: null,
+      comboPower: null,
+      skill: skill(
+        "[activate: main] [once per turn] Discard 1 card from your hand: Look at up to 5 cards from the top of your deck and add up to 1 red ≪Saiyan≫ card to your hand, then shuffle your deck.",
+        "[awaken] When your life is at 4 or less, or you have 2 or more energy and you have 1 or more red <Son Goku> cards and 1 or more red <Vegeta> cards in your Drop: Draw 2 cards and add cards from your life to your hand until you have 6 life left.",
+      ),
+      characters: ["Son Goku", "Vegeta"],
+      traits: ["Saiyan"],
+      back: {
+        name: "SS Gogeta, Situation Reversal Fusion",
+        power: 15000,
+        skill: skill(
+          "[permanent] You can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [union] skill of a red <Veku> or <Gogeta> card from your hand. If you do, send the chosen cards to their owner's Warp.",
+          "[auto] When this card attacks, draw 1 card.",
+        ),
+      },
+    },
+    {
+      id: "BT31-012",
+      name: "Vegeta, Hellish Warrior",
+      type: "BATTLE",
+      colors: ["Red"],
+      energyCost: 3,
+      zEnergyCost: null,
+      power: 16000,
+      comboCost: 0,
+      comboPower: 5000,
+      skill: skill(
+        "[permanent] If you have 2 or fewer red ≪Saiyan≫ cards in your Warp, this card can't attack.",
+        "[activate: main] [limit 1] {r}, if your Leader's back side is a red <Gogeta> card: Draw 1 card and play this card from your hand.",
+        "[activate: main] [limit 1] If you have 2 or more energy and you place this card into its owner's Drop: Play up to 1 mono-red <Vegeta> card with 16000 power from your hand.",
+      ),
+      characters: ["Vegeta"],
+      traits: ["Saiyan"],
+      back: null,
+    },
+    {
+      id: "BT31-008",
+      name: "Son Goku, Other World Warrior",
+      type: "BATTLE",
+      colors: ["Red"],
+      energyCost: 3,
+      zEnergyCost: null,
+      power: 16000,
+      comboCost: 0,
+      comboPower: 5000,
+      skill: skill(
+        "[permanent] If you have 2 or fewer red ≪Saiyan≫ cards in your Warp, this card can't attack.",
+        "[activate: main] [limit 1] {r}, if your Leader's back side is a red <Gogeta> card: Draw 1 card and play this card from your hand.",
+        "[activate: main] [limit 1] If you have 2 or more energy and you place this card into its owner's Drop: Play up to 1 mono-red <Son Goku> card with 16000 power from your hand.",
+      ),
+      characters: ["Son Goku"],
+      traits: ["Saiyan"],
+      back: null,
+    },
+  ];
+  const defs: Record<string, CardDef> = { ...DEFS };
+  for (const d of real) defs[d.id] = d;
+  // A Battle Card whose [Activate] names no area: 9-1-3-1 still keeps it in the Battle Area.
+  defs["C464-PLAIN"] = card("C464-PLAIN", { skill: "[Activate: Main] {r}: Draw 1 card." });
+  const ctx = { defs, scripts: rulesFromCompiler(defs) };
+  const LINE = 10; // the second printed line, "Draw 1 card and play this card from your hand"
+
+  // The record carries the area — the compiler wrote it, the engine reads it.
+  assert.deepEqual(usableFrom(ctx.scripts["BT31-012"].bySkill[LINE]), ["hand"], "the record of BT31-012's play-from-hand line does not say it is used from the hand (9-1-3-2)");
+  assert.deepEqual(usableFrom(ctx.scripts["BT31-012"].bySkill[20]), [], "a line that drops this card from wherever it is was read as naming an area");
+  assert.deepEqual(usableFrom(ctx.scripts["C464-PLAIN"].bySkill[0]), [], "a line that names no area was read as naming one");
+  // The area is the record's to say, not a guess from the op: "play this card"
+  // with no area is just as often "from under a Unison Card" or "from your
+  // Warp", so a row drafted before the compiler wrote one says nothing.
+  const olderRow = { ops: [{ op: "draw", n: 1 }, { op: "choose", sel: { special: "self" }, as: "p0" }, { op: "play", target: { var: "p0" } }] as Op[], unsupported: [] };
+  assert.deepEqual(usableFrom(olderRow), [], "a row that names no area was read as naming one");
+  assert.deepEqual(usableFrom({ ops: [{ op: "play", target: { sel: { special: "self", areas: ["hand", "warp"] } } }], unsupported: [] }), ["hand", "warp"], "\"from your hand or Warp\" is not read as both areas");
+  assert.deepEqual(backCharactersOf(defs["BT31-001"]), ["Gogeta"], "SS Gogeta, Situation Reversal Fusion is not read as <Gogeta>");
+
+  /** p1 at turn 1's Main Phase, `leader` leading, these ids in the hand and one red energy charged. */
+  function turnOne(hand: string[], leader = "BT31-001"): VmState {
+    let s = rulesEngine.createGame(ctx, { seed: 3, p1: { name: "You", leader, main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
+    s = rulesEngine.apply(ctx, s, { type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" }).state as VmState;
+    s = rulesEngine.apply(ctx, s, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+    s = rulesEngine.apply(ctx, s, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+    hand.forEach((cardId, i) => (s.cards[s.sides.p1.zones.hand[i]].cardId = cardId));
+    assert.equal(s.prompt.kind, "charge", "§30: p1's turn 1 did not open on its Charge Phase");
+    s = rulesEngine.apply(ctx, s, { type: "charge", player: "p1", card: s.sides.p1.zones.hand[hand.length] }).state as VmState;
+    assert.equal(s.prompt.kind, "main", "§30: p1 did not reach the Main Phase");
+    assert.equal(s.sides.p1.zones.energy.length, 1, "§30: p1 does not have exactly one energy");
+    return s;
+  }
+  const isLine = (a: Action, id: string, skillIndex: number) => a.type === "activate" && (a as { card: string }).card === id && (a as { skill: number }).skill === skillIndex;
+  const offer = (s: VmState, id: string, skillIndex = LINE) => rulesEngine.legalActions(ctx, s).find((a) => isLine(a.action, id, skillIndex));
+  const why = (s: VmState, id: string, skillIndex = LINE) => rulesEngine.rejectedActions(ctx, s, rulesEngine.legalActions(ctx, s)).find((x) => isLine(x.action, id, skillIndex))?.why[0];
+
+  // The owner's move: offered for {r}, and paying it draws 1 and puts the card in the Battle Area.
+  {
+    const s = turnOne(["BT31-012", "BT31-008"]);
+    const vegeta = s.sides.p1.zones.hand[0];
+    const goku = s.sides.p1.zones.hand[1];
+    const row = offer(s, vegeta);
+    assert.ok(row, `"Activate Vegeta, Hellish Warrior" is not legal on turn 1 with one red energy — refused ${JSON.stringify(why(s, vegeta))}`);
+    assert.match(row.label, /^Activate Vegeta, Hellish Warrior/, "the move is not labelled as the owner saw it");
+    assert.ok(offer(s, goku), "Son Goku, Other World Warrior's identical line is not legal beside it");
+    const handBefore = s.sides.p1.zones.hand.length;
+    let after = rulesEngine.apply(ctx, s, row.action).state as VmState;
+    // A play may open a window for the opponent to answer: decline it.
+    for (let i = 0; i < 5 && after.prompt.kind !== "main"; i++) {
+      const rows = rulesEngine.legalActions(ctx, after);
+      const pass = rows.find((a) => /^(Pass|No|Don't|Decline|Skip)/i.test(a.label)) ?? rows[0];
+      after = rulesEngine.apply(ctx, after, pass.action).state as VmState;
+    }
+    assert.equal(after.prompt.kind, "main", "the activation did not come back to p1's Main Phase");
+    assert.ok(after.sides.p1.zones.battle.includes(vegeta), "Vegeta, Hellish Warrior did not end in the Battle Area");
+    assert.ok(!after.sides.p1.zones.hand.includes(vegeta), "Vegeta, Hellish Warrior is still in the hand");
+    // One card drawn, one card played out of the hand.
+    assert.equal(after.sides.p1.zones.hand.length, handBefore, "the skill did not draw exactly 1 card");
+    assert.equal(after.sides.p1.zones.energy.filter((id) => after.cards[id].mode === "rest").length, 1, "{r} was not paid with the one red energy");
+
+    // [Limit 1] (22-44-3): the same copy back in the hand, and its energy
+    // active again, is refused the second time this turn.
+    const again = structuredClone(after);
+    again.sides.p1.zones.battle = again.sides.p1.zones.battle.filter((id) => id !== vegeta);
+    again.sides.p1.zones.hand.push(vegeta);
+    for (const id of again.sides.p1.zones.energy) again.cards[id].mode = "active";
+    assert.equal(offer(again, vegeta), undefined, "[Limit 1] did not stop the same line being used twice in a turn");
+    assert.equal(why(again, vegeta)?.kind, "oncePerTurn", "the second use is not refused by its [Limit 1]");
+    assert.ok(offer(again, goku), "the other card's own [Limit 1] line was used up by this one");
+
+    // 9-1-3-2 the other way: in the Battle Area the line names the hand, and is refused there.
+    const inPlay = structuredClone(after);
+    inPlay.cards[vegeta].usedThisTurn = [];
+    for (const id of inPlay.sides.p1.zones.energy) inPlay.cards[id].mode = "active";
+    assert.equal(offer(inPlay, vegeta), undefined, "a line that plays this card from the hand is offered while the card is in the Battle Area");
+    assert.deepEqual(why(inPlay, vegeta), { kind: "zone", card: vegeta, area: "hand" }, "the line in the Battle Area is not refused for being out of the hand (9-1-3-2)");
+  }
+
+  // 9-1-3-1 still stands for a line that names no area.
+  {
+    const s = turnOne(["C464-PLAIN"]);
+    const plain = s.sides.p1.zones.hand[0];
+    assert.equal(offer(s, plain, 0), undefined, "a Battle Card's ordinary [Activate] is offered from the hand");
+    assert.deepEqual(why(s, plain, 0), { kind: "zone", card: plain, area: "battle" }, "a Battle Card's ordinary [Activate] in the hand is not refused by 9-1-3-1");
+  }
+
+  // A Leader whose back side is not a red <Gogeta>: the condition, not the area, refuses it.
+  {
+    const s = turnOne(["BT31-012"], "L-RED");
+    const vegeta = s.sides.p1.zones.hand[0];
+    assert.equal(offer(s, vegeta), undefined, "the line is offered under a Leader whose back side is not <Gogeta>");
+    assert.equal(why(s, vegeta)?.kind, "condition", "the line under the wrong Leader is not refused by its condition");
+  }
+
+  // 1-9, 2-10: a flipped Leader is its back side's character — <Gogeta>, not
+  // <Son Goku> or <Vegeta>. BT31-013's [Union-Fusion] asks "if your Leader is
+  // a red <Gogeta> card".
+  {
+    const s = turnOne([]);
+    const leader = s.sides.p1.zones.leader[0];
+    const asks = (st: VmState, filter: CardFilter, back = false) =>
+      vmHost(ctx, DBS, st, []).condHolds({ ops: [], ip: 0, vars: {}, card: leader, master: "p1" }, { kind: "leaderMatches", filter, ...(back ? { back: true } : {}) });
+    const redGogeta: CardFilter = { ...emptyFilter(), colors: ["Red"], characters: ["gogeta"] };
+    const sonGoku: CardFilter = { ...emptyFilter(), characters: ["son goku"] };
+    assert.deepEqual(attrsNow(ctx, DBS, s, leader).characters, ["Son Goku", "Vegeta"], "the front of BT31-001 does not carry its printed characters");
+    assert.equal(asks(s, redGogeta), false, "the unflipped Son Goku & Vegeta answers to <Gogeta>");
+    assert.equal(asks(s, redGogeta, true), true, "\"your Leader's back side is a red <Gogeta> card\" does not hold for BT31-001");
+    const flipped = structuredClone(s);
+    flipped.cards[leader].flipped = true;
+    assert.deepEqual(attrsNow(ctx, DBS, flipped, leader).characters, ["Gogeta"], "a flipped BT31-001 does not carry its back side's character");
+    assert.equal(asks(flipped, redGogeta), true, "\"your Leader is a red <Gogeta> card\" does not hold once BT31-001 is flipped");
+    assert.equal(asks(flipped, redGogeta, true), true, "the back side is no longer <Gogeta> once it is the face showing");
+    assert.equal(asks(flipped, sonGoku), false, "a flipped BT31-001 still answers to its front's <Son Goku>");
+  }
+}
+
+// ── 31. the board's card view, on both engines (#465) ────────────────────────
 //
 // `vm/view.ts` drew the printed card: the printed power, no keywords, no
 // reading, no aura. The same position is staged on each engine (one seed, the
