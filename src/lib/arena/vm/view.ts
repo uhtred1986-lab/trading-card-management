@@ -21,14 +21,22 @@
  * lands the board draws a card that simply does nothing yet rather than a wrong
  * claim about what it does.
  *
+ * Two things on a *side* are read from the board rather than printed, since
+ * #152: the cards a search shows the player being asked (`you.choices`), and
+ * the rules in force on a player rather than on a card (`rules` — a
+ * player-level prohibition, timed or from a [Permanent]). Neither is a card's
+ * face, and both are the legacy board's own readings, field for field.
+ *
  * Pure and client-safe: no database, no network.
  */
 import type { EngineContext } from "../engine";
-import type { CardDef, PlayerId } from "../engine/types";
+import type { CardDef, PlayerId, Prohibition } from "../engine/types";
 import type { BattleView, BoardView, CardArt, CardView, PromptView, SideView } from "../view";
+import { describeEffect, describeStatic, type EffectView } from "../effects";
 import { attrsOf, type Attrs } from "./cards";
-import { attrsNow } from "./program";
-import { isTokenCard } from "./zones";
+import { attrsNow, staticsNow } from "./program";
+import { masterOf } from "./triggers";
+import { findCard, hostOf, isTokenCard } from "./zones";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
 import { fixedPrompt, promptHint } from "../prompt-words";
@@ -62,8 +70,8 @@ const VIEW_ZONES = {
 export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
   const them: PlayerId = viewer === "p1" ? "p2" : "p1";
   return {
-    you: sideView(ctx, game, state, viewer, true, images),
-    them: sideView(ctx, game, state, them, false, images),
+    you: sideView(ctx, game, state, viewer, viewer, true, images),
+    them: sideView(ctx, game, state, them, viewer, false, images),
     turn: state.turn,
     phase: state.phase,
     turnPlayer: state.turnPlayer,
@@ -132,17 +140,103 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
 export function promptView(state: VmState): PromptView {
   const pr = state.prompt;
   if (pr.kind === "payCost") return { kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: promptHint("payCost"), cost: pr.describe };
+  // The two questions a *program* puts (5-2, 20-2) carry their own words —
+  // the legacy `questionFor`'s, field for field — and where the question sits
+  // in the skill's chain (`stepFor` below).
+  if (pr.kind === "chooseCards") {
+    const { min, max, reason } = pr.choice;
+    return withStep(state, reason, { kind: pr.kind, player: pr.player, question: reason, hint: `Choose ${min === max ? min : `${min} to ${max}`}.`, min, max });
+  }
+  if (pr.kind === "chooseMode") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("chooseMode") });
   const words = fixedPrompt(pr.kind) ?? { question: "…", hint: null };
   return { kind: pr.kind, player: "player" in pr ? pr.player : null, question: words.question, hint: words.hint };
 }
 
-function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: PlayerId, mine: boolean, images: Record<string, CardArt>): SideView {
+/**
+ * Where a program's question sits in its skill's chain — the legacy `stepFor`,
+ * read off the program frame that is waiting rather than off a flow entry: the
+ * suspended program is the front of `state.programs` (9-6-3), and it counts its
+ * own asking ops the same way, so "step 2 of 3" means the same on both boards.
+ * A frame that is not waiting has no chain this module can count, and says
+ * "step 1" with no total invented.
+ */
+function withStep(state: VmState, label: string, view: PromptView): PromptView {
+  const frame = state.programs[0];
+  if (frame?.awaiting) {
+    const asks = frame.ops.map((o, i) => (o.op === "choose" || o.op === "may" || o.op === "chooseMode" ? i : -1)).filter((i) => i >= 0);
+    const askedNow = frame.awaiting === "replaceMove" ? 1 : 0;
+    const index = Math.max(1, asks.filter((i) => i <= frame.ip).length + askedNow);
+    return { ...view, step: { index, count: asks.length + askedNow, label } };
+  }
+  return { ...view, step: { index: 1, count: 0, label } };
+}
+
+/**
+ * The cards a `chooseCards` prompt names on this side of the table that the
+ * board does not draw — a deck search, the Drop below its top card, face-down
+ * life, a pile under another card. The legacy `hiddenChoices`, card for card:
+ * only for the player being asked, and only when that player is the viewer,
+ * because what a search shows you is yours to see (3-1-3).
+ */
+function hiddenChoices(state: VmState, p: PlayerId, viewer: PlayerId, mine: boolean): string[] {
+  const pr = state.prompt;
+  if (pr.kind !== "chooseCards" || pr.player !== viewer) return [];
+  const zones = state.sides[p].zones;
+  const at = (zone: string): string[] => zones[zone] ?? [];
+  const faceUp = (zone: string): string[] => at(zone).filter((id) => state.cards[id]?.faceUp);
+  const drawn = new Set<string>([
+    ...at(VIEW_ZONES.leader),
+    ...at(VIEW_ZONES.unison),
+    ...at(VIEW_ZONES.battle),
+    ...at(VIEW_ZONES.combo),
+    ...at(VIEW_ZONES.energy),
+    ...(mine ? at(VIEW_ZONES.hand) : []),
+    ...faceUp(VIEW_ZONES.life),
+    ...faceUp(VIEW_ZONES.zDeck),
+    ...at(VIEW_ZONES.drop).slice(0, 1),
+  ]);
+  return pr.choice.candidates.filter((id) => {
+    if (drawn.has(id) || !state.cards[id]) return false;
+    // A card under another belongs to whoever holds the host (23-2).
+    const host = findCard(state, id) ? null : hostOf(state, id);
+    const at = findCard(state, host ?? id);
+    return at ? at.owner === p : state.cards[id].owner === p;
+  });
+}
+
+/**
+ * The rules in force on this *player* rather than on a card — a player-level
+ * prohibition, timed or standing (20-14). The legacy `rulesOn`, rule for rule:
+ * the timed effects first, then the [Permanent]s, each worded by the same
+ * `describeEffect`/`describeStatic` the legacy board uses so the label is the
+ * same sentence on both.
+ */
+function rulesOn(ctx: EngineContext, game: GameDefinition, state: VmState, p: PlayerId): EffectView[] {
+  const out: EffectView[] = [];
+  const about = (player: PlayerId | undefined) => !player || player === p;
+  const view = (d: Pick<EffectView, "kind" | "label" | "keyword">, until: EffectView["until"], source: string | null | undefined, by: PlayerId | null): EffectView => {
+    const src = source && state.cards[source] ? source : null;
+    const name = src ? (ctx.defs[state.cards[src].cardId]?.name ?? null) : null;
+    return { ...d, until, source: src, sourceName: name, by };
+  };
+  for (const e of state.effects) if (!e.target && e.kind === "forbid" && e.forbid && about(e.forbid.player)) out.push(view(describeEffect(e), e.until, e.source, e.master ?? null));
+  for (const e of staticsNow(ctx, game, state)) {
+    if (e.target || e.kind !== "forbid" || !about((e.value as Prohibition).player)) continue;
+    const by = state.cards[e.source] ? masterOf(game, state, e.source) : null;
+    out.push(view(describeStatic({ source: e.source, kind: "forbid", target: e.target, value: e.value as Prohibition }, by), "permanent", e.source, by));
+  }
+  return out;
+}
+
+function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: PlayerId, viewer: PlayerId, mine: boolean, images: Record<string, CardArt>): SideView {
   const zones = state.sides[p].zones;
   const at = (zone: string): string[] => zones[zone] ?? [];
   const cards = (zone: string): CardView[] => at(zone).map((id) => cardView(ctx, game, state, id, images));
   const one = (zone: string): CardView | null => (at(zone)[0] ? cardView(ctx, game, state, at(zone)[0], images) : null);
   const faceUp = (zone: string): CardView[] => at(zone).filter((id) => state.cards[id].faceUp).map((id) => cardView(ctx, game, state, id, images));
   const energy = at(VIEW_ZONES.energy);
+  const choices = hiddenChoices(state, p, viewer, mine);
+  const rules = rulesOn(ctx, game, state, p);
   return {
     player: p,
     name: state.sides[p].name,
@@ -165,6 +259,8 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
     energyMarkers: Number(state.sides[p].attrs.energyMarkers ?? 0),
     activeEnergy: energy.filter((id) => state.cards[id].mode === "active").length,
     dropTop: one(VIEW_ZONES.drop),
+    ...(choices.length ? { choices: choices.map((id) => cardView(ctx, game, state, id, images)) } : {}),
+    ...(rules.length ? { rules } : {}),
   };
 }
 

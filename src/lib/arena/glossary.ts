@@ -414,7 +414,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Taken out of the candidates of every opponent selector, and named as the reason when you tap the card anyway. “Ignoring [Barrier]” lifts it for that one choice, and a card in a hand was never in scope to begin with.",
     engineRules:
-      "Excludes the same candidates through its own `chooseable` hook, the same `forbid(what: beChosen)`/20-4 machinery folded into the card's own rules (`prohibitions()`) rather than a special case (#154); naming *why* a `chooseCards` candidate was refused is not built there yet (a real gap, not this keyword's — `chooseRejectionGap` in `verify/workflow.ts`), so only the legality half is proven so far.",
+      "Excludes the same candidates through its own `chooseable` hook, the same `forbid(what: beChosen)`/20-4 machinery folded into the card's own rules (`prohibitions()`) rather than a special case (#154), and named as the reason when you tap the card anyway: a `chooseCards` prompt's rejected list reads 20-14, then [Barrier], then the prompt's own target description, the legacy engine's order (#152).",
     support: "engine",
   },
   Deflect: {
@@ -425,7 +425,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "This card isn't affected by your opponent's [Counter: Play] skills. Valid in every area.",
     engine: "While a [Deflect] card is being played the opponent's [Counter: Play] window holds nothing, and the refusal says which card closed it.",
     engineRules:
-      "Empties the [Counter: Play] window the same way, through its own `counterWindow` hook body (`keywords.rules`: a `forbid(what: activateCounter)` read declaratively, asked of the card being played) once #150 opened that window — so no window is opened over a [Deflect] card's play at all. Naming the card that closed it is not built there: the rules engine gives no rejection reasons at a counter window yet (`nativeRejectionGap` in `verify/workflow.ts`).",
+      "Empties the [Counter: Play] window the same way, through its own `counterWindow` hook body (`keywords.rules`: a `forbid(what: activateCounter)` read declaratively, asked of the card being played) once #150 opened that window — so no window is opened over a [Deflect] card's play at all. The counter window's rejected list reads [Deflect] the way the legacy one does and names the card that closed the window (#152); on both engines a window left with no candidate is simply not opened.",
     support: "engine",
   },
   Indestructible: {

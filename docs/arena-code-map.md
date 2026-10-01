@@ -239,9 +239,9 @@ the same as if it were still in `CLAUDE.md`.
   inventory: [Unique] to `playRefused` (group D), [Deflect] to `counterWindow` (group C), [Critical]/
   [Strike]/[Victory Strike] to `beforeDamage` (group C) — `docs/arena-backlog/s7-02-*.md`'s "confirm
   against the inventory... move it to the later one" working as intended. What #154 did **not**
-  build, named rather than hidden: a `chooseCards` prompt has no `rejectedActions` reasoning on the
-  rules engine at all (`chooseRejectionGap`, `scripts/verify/workflow.ts` — [Barrier]'s own legality
-  is proven, its rejection *reason* is not); [Indestructible]'s skill-KO half gained its caller when
+  build, named rather than hidden: a `chooseCards` prompt had no `rejectedActions` reasoning on the
+  rules engine at all — [Barrier]'s rejection *reason* came with #152 (`chooseRejectedActions`,
+  `vm/index.ts`); [Indestructible]'s skill-KO half gained its caller when
   #146 gave the rules engine a skill's `ko` (`vm/host.ts` → `vm/battle.ts`'s `koCard`).
   **`s7-03` (#155) wrote group B's four tractable bodies**: [Field]'s onEnter (22-3, dropping the
   Field Extra already out), [Heroic]/[Villainous]'s afterSkill (22-35/22-36, fired from `moved()`

@@ -69,14 +69,14 @@ import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, ty
 import { canCombo } from "../engine/cards";
 import type { Action, PlayerId, Prompt, Requirement, Skill } from "../engine/types";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { applyDeclared, legalActionsOf } from "./actions";
+import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../engine/compile";
 import { cardPrice, chargeCost, planCost, priceFor, type BoundAmounts } from "./costs";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { enterPhase, moved, other, requirePrompt, type Work } from "./flow";
 import { fireHook } from "./hooks";
-import { attrsNow, forbiddenBy, forbids, hasKeyword, queryHookStatics } from "./program";
+import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import type { VmBattle, VmState } from "./state";
 
@@ -808,6 +808,164 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   if (cause !== undefined && cause !== card && state.cards[cause] && masterOf(game, state, cause) !== master) {
     fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), args: { role: "cause" } });
   }
+}
+
+// ── why not: the battle's own three prompts (review §3.7, #152) ──────────────
+
+/**
+ * The rejected list at a battle prompt — `combo`, `counter` or `blocker` — the
+ * twin of the menu `vm/index.ts`'s `promptAnswers` gives at the same three.
+ *
+ * Each case is the legacy `rejectedActions`' own (`engine/rejections.ts`), gate
+ * for gate and in its order, so the first requirement the two engines give for
+ * the same card on the same board is the same requirement. One entry per card
+ * per action type, except an activation, which is one per skill line (§3.2) —
+ * the same `keyOf` the declared moves are filed under, so nothing offered is
+ * also refused and nothing is refused twice. A reason list that comes out empty
+ * is a drifted twin, and says so the way the legacy one does rather than
+ * vanishing from both lists.
+ */
+export function battleRejectedActions(ctx: EngineContext, game: GameDefinition, state: VmState, legal: LegalAction[]): RejectedAction[] {
+  const pr = state.prompt;
+  if (pr.kind !== "combo" && pr.kind !== "counter" && pr.kind !== "blocker") return [];
+  const p = pr.player;
+  const offered = new Set(legal.map((l) => keyOf(l.action)));
+  const seen = new Set<string>();
+  const out: RejectedAction[] = [];
+  const push = (r: RejectedAction) => {
+    const key = keyOf(r.action);
+    if (offered.has(key) || seen.has(key)) return;
+    seen.add(key);
+    out.push(r.why.length ? r : { ...r, why: [{ kind: "other", detail: "not offered by the engine" }] });
+  };
+  const zone = (name: string): string[] => state.sides[p].zones[name] ?? [];
+
+  if (pr.kind === "combo") {
+    // The legacy order: each hand card's combo and then its own activations,
+    // the Battle Area's combos, and then the activations of every card in play.
+    const def = battleActivationDef(game);
+    const activations = def ? rejectionsOf(ctx, game, state, def, p, offered) : [];
+    const activationsOfCard = (id: string) => activations.filter((r) => r.action.type === "activate" && r.action.card === id);
+    for (const id of zone("hand")) {
+      push({ action: { type: "combo", player: p, card: id }, label: `Combo ${nameOf(ctx, state, id)}`, why: comboWhy(ctx, game, state, p, id) });
+      for (const r of activationsOfCard(id)) push(r);
+    }
+    for (const id of zone("battle")) push({ action: { type: "combo", player: p, card: id }, label: `Combo ${nameOf(ctx, state, id)}`, why: comboWhy(ctx, game, state, p, id) });
+    for (const id of cardsInPlay(state, p)) for (const r of activationsOfCard(id)) push(r);
+    return out;
+  }
+
+  if (pr.kind === "counter") {
+    // Every counter card in hand that is not on the menu: a candidate the
+    // energy cannot cover, a counter for another moment, or one this engine
+    // cannot read — the same gates `counterCandidates` and the menu apply.
+    for (const id of zone("hand")) {
+      const why = counterWhy(ctx, game, state, p, id, pr.window, pr.candidates);
+      if (why) push({ action: { type: "counter", player: p, card: id }, label: `Counter with ${nameOf(ctx, state, id)}`, why });
+    }
+    return out;
+  }
+
+  // A [Blocker] that is not offered: the card being attacked, resting, or
+  // forbidden to block.
+  const b = state.battle;
+  for (const id of cardsInPlay(state, p)) {
+    if (pr.candidates.includes(id) || !hasKeyword(ctx, game, state, id, "Blocker")) continue;
+    const why: Requirement[] = [];
+    if (b && id === b.guard) why.push({ kind: "other", detail: "it is the card being attacked" });
+    if (state.cards[id].mode !== "active") why.push(modeWhy(ctx, game, state, id));
+    const banned = forbiddenBy(ctx, game, state, "block", { player: p, card: id });
+    if (banned) why.push({ kind: "forbidden", ...banned });
+    push({ action: { type: "block", player: p, card: id }, label: `Block with ${nameOf(ctx, state, id)}`, why });
+  }
+  return out;
+}
+
+/**
+ * The legacy `whyNotCombo`: the Battle Area's own gates first (the attacker and
+ * the guard are already in the battle, and a rested or face-down card cannot
+ * join it), then the card's ability to combo at all, a prohibition (20-14), and
+ * the combo cost (5-7-3) — read through the same planner `comboEligible` pays
+ * with, so the energy the refusal counts is the energy the menu counted.
+ */
+function comboWhy(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): Requirement[] {
+  const why: Requirement[] = [];
+  const b = state.battle;
+  const inst = state.cards[card];
+  if (state.sides[player].zones.battle?.includes(card)) {
+    if (b && card === b.attacker) why.push({ kind: "other", detail: "it is the attacking card" });
+    else if (b && card === b.guard) why.push({ kind: "other", detail: "it is the card being attacked" });
+    if (inst.mode !== "active") why.push(modeWhy(ctx, game, state, card));
+    if (inst.hidden) why.push({ kind: "other", detail: "a face-down card cannot combo" });
+  }
+  const def = ctx.defs[inst.cardId];
+  const combos = !!def && canCombo(def);
+  if (!combos) why.push({ kind: "cardType", card, needs: "a Battle Card with a combo cost" });
+  const banned = forbiddenBy(ctx, game, state, "combo", { player, card });
+  if (banned) why.push({ kind: "forbidden", ...banned });
+  if (combos) {
+    const cost = Number(attrsNow(ctx, game, state, card).comboCostOf ?? def.comboCost ?? 0);
+    const price = priceFor(ctx, game, state, game.actions.play!, card, { energy: { total: cost, orbs: {}, either: [] }, markers: 0, unreadable: null });
+    const plan = planCost(ctx, game, state, player, price, card);
+    if (!plan.ok) why.push(...plan.why);
+  }
+  return why;
+}
+
+/**
+ * The legacy `whyNotCounter`: null for a card with no [Counter] line at all,
+ * which nobody expects to counter with. A card already on the window's list
+ * that is not on the menu is held up only by its price; any other names the
+ * window its first line belongs to, [Deflect] closing the window (22-20), the
+ * attacker's kind, an unreadable effect, a prohibition, and then the price.
+ *
+ * One reading the legacy engine has no twin for: a [Counter] whose printed
+ * price is more than orbs is never offered here (`counterCandidates`'
+ * `costIsOnlyOrbs`), so it is refused as `unread` rather than left in neither
+ * list.
+ */
+function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, window: string, candidates: string[]): Requirement[] | null {
+  const showing = skillsShowing(ctx, state, card);
+  const counters = showing.skills.filter((sk) => sk.kind.startsWith("counter:"));
+  if (!counters.length) return null;
+  const priceOf = (sk: Skill): Requirement[] => {
+    const price = priceFor(ctx, game, state, game.actions.play!, card, counterPrice(cardPrice(ctx, game, state, card), sk));
+    const plan = planCost(ctx, game, state, player, price, card);
+    return plan.ok ? [] : plan.why;
+  };
+  // On the list but not on the menu: only the price stops it.
+  if (candidates.includes(card)) return priceOf(counters[0]);
+  const fits = counters.filter(
+    (sk) =>
+      (window === "play" && sk.kind === "counter:play") ||
+      (window === "attack" && (sk.kind === "counter:attack" || sk.kind === "counter:battle card attack")) ||
+      (window === "counter" && sk.kind === "counter:counter"),
+  );
+  if (!fits.length) return [{ kind: "timing", window: counters[0].kind.replace("counter:", "") }];
+  const sk = fits[0];
+  const why: Requirement[] = [];
+  const playing = window === "play" ? state.resolving?.card : undefined;
+  if (playing && windowClosedBy(ctx, game, state, "play")) why.push({ kind: "forbidden", by: nameOf(ctx, state, playing), until: "permanent" });
+  const b = state.battle;
+  if (sk.kind === "counter:battle card attack" && b && baseTypeOf(ctx, state, b.attacker) !== "BATTLE") why.push({ kind: "target", reason: "only an attacking Battle Card" });
+  if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) why.push({ kind: "unread", card });
+  const banned = forbiddenBy(ctx, game, state, "activateCounter", { player, card });
+  if (banned) why.push({ kind: "forbidden", ...banned });
+  why.push(...priceOf(sk));
+  if (!why.length && !costIsOnlyOrbs(sk.cost)) why.push({ kind: "unread", card });
+  return why;
+}
+
+/** The legacy `modeWhy`: a card refused for resting, `locked` when a rule will keep it down through its next Charge Phase (7-2-7 lifted by 20-14). */
+function modeWhy(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): Requirement {
+  const mode = state.cards[card].mode === "rest" ? "rest" : "active";
+  return { kind: "mode", card, mode, ...(forbiddenForCard(ctx, game, state, "switchToActive", card) ? { locked: true } : {}) };
+}
+
+/** The legacy `cardsInPlay`, in its order: the Leader, the Unison, then the Battle Area. */
+function cardsInPlay(state: VmState, player: PlayerId): string[] {
+  const zones = state.sides[player].zones;
+  return [...(zones.leader ?? []), ...(zones.unison ?? []), ...(zones.battle ?? [])];
 }
 
 // ── small shared readings ────────────────────────────────────────────────────
