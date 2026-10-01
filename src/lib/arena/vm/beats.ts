@@ -26,7 +26,7 @@
  */
 import type { EngineContext, GameEvent } from "../types";
 import type { Beat, BeatArt, Beats, NumberedBeat } from "../beats";
-import { SKILL_LABELS } from "../beats";
+import { SKILL_LABELS, relateBeats, revealedMove } from "../beats";
 import { describeEffect } from "../effects";
 import { rulesetFor } from "../rulesets";
 import { attrsOf } from "./cards";
@@ -74,7 +74,7 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         break;
       case "move":
         remember(e.card);
-        push({ t: "move", card: e.card, from: e.from, to: e.to, owner: e.owner });
+        push({ t: "move", card: e.card, from: e.from, to: e.to, owner: e.owner, ...(revealedMove(e, state.cards[e.card]?.faceUp) ? { reveal: true as const } : {}) });
         break;
       case "mode":
         remember(e.card);
@@ -180,5 +180,8 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         break;
     }
   }
+  // `beats.ts`'s own last step, so a `damage` beat's `by` and a `skill`
+  // beat's `extra`/`noEffect` read the same on either engine (#463).
+  relateBeats(list, state.prompt.kind);
   return { seq: n, list, art };
 }

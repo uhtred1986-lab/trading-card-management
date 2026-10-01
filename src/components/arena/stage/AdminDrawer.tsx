@@ -268,7 +268,7 @@ export function AdminDrawer({
                   <span>{turn != null ? `T${turn}` : "—"}</span>
                   <span className="arena-admin-side">{p == null ? "" : p === youIs ? "YOU" : them}</span>
                   <span className="arena-admin-kind">{b.t}</span>
-                  <span>{narrate(b, narrator) ?? ""}</span>
+                  <span>{narrate(b, narrator, undefined, { full: true }) ?? ""}</span>
                 </li>
               );
             })}

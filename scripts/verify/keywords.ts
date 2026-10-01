@@ -2246,7 +2246,9 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   assert.ok(charge && charge.type === "phase" && charge.skipped === true, "the phase event says it was skipped");
   const beat = IMPL.toBeats(ctx, s, r.events, 0).list.find((b) => b.t === "phase" && b.phase === "charge");
   assert.ok(beat && beat.t === "phase" && beat.skipped === true, "and so does the beat a client draws");
-  assert.equal(narrate(beat, { viewer: "p1" as PlayerId, them: "Claude", art: {} }), "Claude skips the Charge Phase.");
+  // #463: the table hears the turn begin, with the skip folded in; the full log keeps the old line.
+  assert.equal(narrate(beat, { viewer: "p1" as PlayerId, them: "Claude", art: {} }), "Claude's turn begins — Claude skips the Charge Phase.");
+  assert.equal(narrate(beat, { viewer: "p1" as PlayerId, them: "Claude", art: {} }, undefined, { full: true }), "Claude skips the Charge Phase.");
   assertConsistentG(s);
 }
 
@@ -2809,6 +2811,10 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   assert.ok(zoneOf(taken.state, "p2", "hand").includes(life), "accepted: to the hand instead");
   assert.ok(!zoneOf(taken.state, "p2", "drop").includes(life));
   assert.equal(taken.state.cards[life].faceUp, true, "revealed and kept public (20-11-2)");
+  // #463: the beat says it was revealed, so the narration may name it — on
+  // the flag, not because the face is in `art`.
+  const shown = IMPL.toBeats(CTX, taken.state, taken.events, 0).list.find((b) => b.t === "move" && b.card === life && b.to === "hand");
+  assert.ok(shown && shown.t === "move" && shown.reveal === true, "the move to hand carries `reveal`");
   assertConsistentG(taken.state);
 }
 

@@ -776,6 +776,7 @@
         "from": "hand",
         "to": "battle",
         "owner": "p1",
+        "reveal": true,
         "n": 2
       }
     ],
