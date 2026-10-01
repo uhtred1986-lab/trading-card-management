@@ -824,6 +824,51 @@ if (!keywordGap("Empower", S7.empower)) {
   delete DEFS["L-WISH"];
 }
 
+{
+  // [Z-Awaken] (22-46): from the Z-Deck, onto an awakened Leader the line's
+  // description matches, paying the orbs and the Z-Energy cost; the Z-Leader
+  // takes the Leader Area with the old Leader under it. Both engines since
+  // #155 (`keywords.rules`' move). The legacy menu never lists a line in the
+  // Z-Deck (its `mainActions` reads the hand and the cards in play), though
+  // its `apply` takes one — a legacy bug, recorded rather than copied — so the
+  // offer is checked on the rules engine and the refusals and the result on
+  // both. Taken out of DEFS again at the end, so the probe sweep is unchanged.
+  DEFS["L-ZAW"] = { ...DEFS["L-RED"], id: "L-ZAW", name: "L-ZAW", characters: ["Son Goku"], back: { name: "L-ZAW awakened", power: 15000, skill: null } };
+  DEFS.ZL = { ...DEFS.ZB, id: "ZL", name: "ZL", type: "Z-LEADER", energyCost: null, zEnergyCost: 1, power: 25000, skill: "[Z-Awaken] {1} : <Son Goku>" };
+  const board = (z: string, awakened: boolean, zEnergy: boolean) => {
+    const b = arenaG({ energy: ["V1"], z: [z] });
+    b.cards[leaderOf(b, "p1")!].cardId = "L-ZAW";
+    b.cards[leaderOf(b, "p1")!].flipped = awakened;
+    if (zEnergy) stageMoveG(b, zoneOf(b, "p1", "deck")[0], "zEnergy", "p1");
+    return b;
+  };
+  const refused = (b: ReturnType<typeof arenaG>, z: string, why: string) => {
+    const id = findG(b, "p1", "zDeck", z);
+    assert.ok(!canActivateG(b, id), why);
+    assert.throws(() => playG(b, { type: "activate", player: "p1", card: id, skill: 0 }), why);
+  };
+  refused(board("ZL", false, true), "ZL", "22-46-3: the Leader is not awakened yet");
+  refused(board("ZL", true, false), "ZL", "5-4: no Z-Energy to pay with");
+  let s = board("ZL", true, true);
+  const leader = leaderOf(s, "p1")!;
+  const zl = findG(s, "p1", "zDeck", "ZL");
+  const spent = zoneOf(s, "p1", "zEnergy")[0];
+  if (ENGINE === "rules") assert.ok(canActivateG(s, zl), "awakened, matching, with the Z-Energy and the orb");
+  s = playG(s, { type: "activate", player: "p1", card: zl, skill: 0 });
+  assert.equal(leaderOf(s, "p1"), zl, "22-46-6: the Z-Leader is the Leader");
+  assert.deepEqual(s.cards[zl].under, [leader], "with the old Leader under it");
+  assert.ok(zoneOf(s, "p1", "drop").includes(spent), "5-4-3: the Z-Energy is spent");
+  assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "and the orb paid");
+  assertConsistentG(s);
+
+  // The description has to match the Leader.
+  DEFS.ZL2 = { ...DEFS.ZL, id: "ZL2", name: "ZL2", skill: "[Z-Awaken] {1} : <Vegeta>" };
+  refused(board("ZL2", true, true), "ZL2", "a <Vegeta> Z-Leader does not go on a <Son Goku>");
+  delete DEFS["L-ZAW"];
+  delete DEFS.ZL;
+  delete DEFS.ZL2;
+}
+
 // ── a keyword's own `DO` (`DEFINE KEYWORD … offer:` / `at:`) ────────────────
 //
 // The two whole-keyword activations Stage 7's groundwork proved end to end,

@@ -207,6 +207,8 @@ export interface MoveOptions {
   carry?: boolean;
   /** Put it under this card instead of into a zone (23-2). The host's zone must be declared `host: true`. */
   under?: string;
+  /** It arrives on top of this card, which goes under it next (23-2): a zone that holds one card is not full for it — the Leader Area at [Z-Awaken] (22-46-6, #155). */
+  onto?: string;
   /** A replacement the caller has already decided on. Recorded, never applied (see `Replacement`). */
   replacement?: Replacement | null;
 }
@@ -323,7 +325,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   const toOwner = owner !== card.owner && !(zone.inPlay === true || zone.host === true) ? card.owner : owner;
   const list = board.sides[toOwner]?.zones[to];
   if (!list) return { ok: false, refused: `${toOwner} has no ${to}` };
-  if (zone.single === true && list.length && list[0] !== id) {
+  if (zone.single === true && list.length && list[0] !== id && list[0] !== opts.onto) {
     return { ok: false, refused: `there is already a card in the ${to}, which holds one` };
   }
   // Every refusal above and this one come before anything is touched: a mover

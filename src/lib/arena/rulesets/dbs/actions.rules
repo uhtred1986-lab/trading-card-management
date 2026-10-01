@@ -332,10 +332,10 @@ DEFINE ACTION playZ                                                       -- §1
 DEFINE ACTION activate                                                    -- §9-1-2
   WHEN [main]
   prompts: [main]
-  FOR 1 IN you.hand|leader|unison|battle
+  FOR 1 IN you.hand|leader|unison|battle|zDeck                            -- zDeck: a keyword's own move only, [Z-Awaken] (22-46-5)
   BIND "card"
   skills: ["activate:main", "activate:main/battle"]
-  COST [marker, burst, spiritBoost, energy, payWith, text]
+  COST [marker, burst, spiritBoost, energy, zEnergy, payWith, text]       -- zEnergy: bound to 0 but from the Z-Deck (22-46-3)
   alt: "play"                                                             -- 5-3, 22-37: an Extra used from the hand is played (4-2)
   DO {}
   again: true

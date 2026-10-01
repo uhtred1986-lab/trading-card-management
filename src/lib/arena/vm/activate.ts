@@ -130,7 +130,7 @@ export interface ActivationLine {
  * rather than reading a keyword's price off nothing. What would replace them is
  * `DEFINE KEYWORD` bodies naming their own pools, which is Stage 7's (#153).
  */
-export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison" } as const;
+export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison", zDeck: "zDeck", zEnergy: "zEnergy" } as const;
 
 /** Every zone this module names, for the check `createGame` makes against the declarations. */
 export const ACTIVATION_ZONE_NAMES = [...new Set(Object.values(ACTIVATION_ZONES))];
@@ -198,6 +198,11 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     const keyword = game ? keywordMoveOf(game, skill) : undefined;
     const kind = keyword?.offer ?? skill.kind;
     if (!families.has(familyOf(kind))) continue;
+    // 22-46-5: the Z-Deck is where a keyword's own move may be used from
+    // ([Z-Awaken], #155), and nothing else is: a Z-card's printed lines are
+    // valid once it is in play, so a line there that is no keyword's move is
+    // no candidate at all — the legacy menu never asks about one.
+    if (!keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.zDeck) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   return out;
@@ -240,7 +245,10 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     markers: sk.markerCost ?? 0,
     // 22-27-2: [Burst X]'s cards, by the pool the declared price takes them out
     // of. Bound to 0 on a line with no tag, so the price asks nothing of it.
-    pooled: { [ACTIVATION_ZONES.burst]: sk.burst ?? 0 },
+    // 22-46-3: a line used from the Z-Deck pays its card's Z-Energy cost, read
+    // off the card as a Z-card played from there pays it (16-2) — [Z-Awaken]
+    // (#155); bound to 0 everywhere else, so no line in play pays it again.
+    pooled: { [ACTIVATION_ZONES.burst]: sk.burst ?? 0, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
     // 22-43: [Spirit Boost X]'s markers come off the Unison Card, the place
     // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
     markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(sk.spiritBoost ?? 0), by: "Spirit Boost" } },

@@ -19,9 +19,9 @@
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Fifteen DO bodies, the whole-keyword activations that are no hook at all
+-- Sixteen DO bodies, the whole-keyword activations that are no hook at all
 -- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
--- [Successor], [Arrival], [Aegis], [Rejuvenate], [Wish] and [Awaken] are moves (`offer:`),
+-- [Successor], [Arrival], [Aegis], [Rejuvenate], [Z-Awaken], [Wish] and [Awaken] are moves (`offer:`),
 -- each offered as an [Activate: Main] — [Arrival] and [Aegis] an [Activate:
 -- Battle], [Wish] and [Awaken] both — line with its own REFUSE and menu
 -- words ([Wish] and [Awaken] with an AFTER as well), and [Offering],
@@ -31,7 +31,7 @@
 -- announced as the legacy engine announces them, their effect a battleEnd
 -- HOOK. 9-1-4 immunity printed as a [Permanent] is no keyword at all and is
 -- read beside the other statics (`vm/effects.ts`, #154). The others of that shape —
--- [Z-Awaken], [Over Realm], [Swap] … — are still to write the
+-- [Over Realm], [Swap] … — are still to write the
 -- same way, each one's trailing comment saying what it is missing.
 -- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
 
@@ -637,10 +637,26 @@ DEFINE KEYWORD Empower
 DEFINE KEYWORD "Z-Awaken"
   TAKES ()
   text: "From the Z-Deck, once a turn: pay the Z-Energy cost and the skill cost and place this Z-Leader on top of your already-awakened Leader, which has to match the printed description. The stack is one card from then on."
-  -- #155 looked and left it unwritten: a stack onto the Leader Area carrying
-  -- the old Leader's power effects and battle role (`stackOnto` knows the
-  -- Battle Area), a Z-Energy price on a keyword move, and a once-a-turn
-  -- counter per player — none of which the language or `vm/` has yet.
+  -- #155: a move, offered at the Main Phase (the legacy window; 22-46-1 also
+  -- allows a battle) from the Z-Deck, where `DEFINE ACTION activate` reads a
+  -- keyword's own move and nothing else, and paying the card's Z-Energy cost
+  -- after the line's orbs (the activation's `zEnergy` price, bound only from
+  -- the Z-Deck). Refused unless the Leader is awakened and no Z-card yet, and
+  -- matches the description the line prints (`asPrinted`). DO plays the card
+  -- onto the Leader: it takes the Leader Area, the old Leader and its pile go
+  -- under it, power effects and a battle role carry over (22-46-6-1), and
+  -- "when your Leader is placed" hears it (22-46-6-3). 22-46-4's once a turn
+  -- needs no count: once it has resolved the Leader is a Z-card, which the
+  -- third REFUSE already refuses, so a second [Z-Awaken] that turn is refused
+  -- by that reason rather than by the legacy `oncePerTurn` one.
+  offer: "activate:main"
+  REFUSE zone(area: zDeck) UNLESS count([self] IN you.zDeck) >= 1
+  REFUSE condition(text: "your Leader is awakened and not yet a Z-Leader") UNLESS all([leaderFlipped(), NOT count("Z-card" IN you.leader) >= 1])
+  REFUSE target(reason: "your Leader is not {line}") UNLESS count(IN you.leader asPrinted) >= 1
+  label: "Z-Awaken: {card} on your Leader"
+  DO {
+    play(target: [self], onto: IN you.leader)
+  }
 
 -- 22-47
 DEFINE KEYWORD "Z-Stack"

@@ -1218,10 +1218,20 @@ legacy `activatable(…, alt)` does, and still pays the line's own orbs out of w
 left. Any alternative a card has for a play reaches its activation this way, on both engines.
 Its [Counter]-from-hand half waits for the counter window to read an alternative price (#150).
 
-The rest of group B, each with what it is missing: **[Z-Awaken]** stacks a Z-Leader on the Leader from the Z-Deck,
-carrying its power effects and its battle role, pays Z-Energy and is once a turn per player: a
-leader-area `stackOnto`, a Z-Energy price on a keyword move and a player-level counter, none of which
-exists. **[Wormhole]** only raises [Over Realm]'s
+**[Z-Awaken]** (#155, the leftovers) is a move, `offer: "activate:main"`, from the Z-Deck. Three
+pieces of plumbing, no new word: `DEFINE ACTION activate` reads `IN you.…|zDeck`, and a card there
+offers only a keyword's own move (`vm/activate.ts`'s `activationsOf`); its `COST` gains `zEnergy`
+after `energy`, bound to 0 for every line but one used from the Z-Deck, which pays its card's
+Z-Energy cost as a Z-card played from there does; and `play … onto` puts a card where its host
+stands when the host is the Leader (`vm/play.ts`), the Leader Area's one slot taking the card that
+arrives on top (`MoveOptions.onto`). Its `DO` is `play(target: [self], onto: IN you.leader)`:
+`stackOnto` carries the old Leader, its pile, its power effects and its battle role, and
+`leaderPlaced` hears it — event for event with the legacy engine. 22-46-4's once a turn needs no
+counter, since a resolved [Z-Awaken] leaves a Z-Leader the `REFUSE` already refuses (recorded: the
+reason given differs from the legacy `oncePerTurn`). The legacy menu never lists a Z-Deck line, though
+its `apply` takes one; that legacy bug is recorded, not copied.
+
+The rest of group B, each with what it is missing: **[Wormhole]** only raises [Over Realm]'s
 limit, which is unwritten. **[Dragon Ball]** needs nothing: it is deck legality (`support: "deck"`),
 and no game reads it.
 
