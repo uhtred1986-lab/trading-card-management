@@ -160,6 +160,7 @@ export function printSelector(sel: Selector): string {
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
   if (sel.notSelf === "card") parts.push("otherThanSelf");
   else if (sel.notSelf === "copies") parts.push("otherThanCopies");
+  if (sel.printed) parts.push("asPrinted");
   return parts.length ? parts.join(" ") : "any";
 }
 
@@ -235,7 +236,7 @@ function comparison(c: Cond): string | null {
   if (bounds.length !== 1) return null;
   const extra = COND_SCHEMA[c.kind].fields.some((f) => f.name !== "atLeast" && f.name !== "atMost" && !f.required && (c as unknown as Record<string, unknown>)[f.name] !== undefined);
   if (extra) return null;
-  return `${head(c)} ${b.atLeast !== undefined ? ">=" : "<="} ${b.atLeast ?? b.atMost}`;
+  return `${head(c)} ${b.atLeast !== undefined ? ">=" : "<="} ${slot(b.atLeast ?? b.atMost)}`;
 }
 
 export function printCond(c: Cond): string {

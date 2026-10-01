@@ -84,13 +84,27 @@ const expandOps = (ops: Op[], def: GameDefinition, chain: string[]): Op[] => (Ar
  */
 export function bindKeywordParams(ops: Op[], takes: readonly { name: string; type: ParamType }[] | undefined, values: Readonly<Record<string, unknown>>, def: GameDefinition): Op[] {
   if (!takes?.length) return ops;
+  return substOps(ops, keywordArgs(takes, values, def));
+}
+
+/**
+ * A keyword move's `REFUSE … UNLESS` condition, with its parameters filled in
+ * the same way — [Over Realm 5] asks for 5 cards in the Drop, [Union]'s
+ * variant chooses which of its requirements apply (Stage 7).
+ */
+export function bindKeywordCond(cond: Cond, takes: readonly { name: string; type: ParamType }[] | undefined, values: Readonly<Record<string, unknown>>, def: GameDefinition): Cond {
+  if (!takes?.length) return cond;
+  return substCond(cond, keywordArgs(takes, values, def));
+}
+
+function keywordArgs(takes: readonly { name: string; type: ParamType }[], values: Readonly<Record<string, unknown>>, def: GameDefinition): Args {
   const args: Args = new Map();
   for (const param of takes) {
     const value = values[param.name];
     if (value !== undefined && !argHolds(param.type, value, def)) throw new MacroError(`the printed keyword's ${param.name} is ${JSON.stringify(value)}, and the keyword takes ${param.name} as ${param.type}`);
     args.set(param.name, { type: param.type, value });
   }
-  return substOps(ops, args);
+  return args;
 }
 
 /**

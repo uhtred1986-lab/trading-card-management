@@ -56,14 +56,11 @@ import type { EngineState, PlayerId } from "./harness";
 const S7 = {
   battle: "docs/arena-backlog/s7-04-keywords-battle.md — hook group C: blocking, counters, attack, damage, battle end ([Revenge], [Double/Triple Strike], [Dual Attack], [Awaken])",
   // [Indestructible]'s battle-KO half is #154's and done (see its own split
-  // block below); [Unique] moved to hook group D (`playRefused`) once #153's
-  // inventory confirmed it, so its own remaining skip cites `S7.unique`
-  // below rather than this string. [Critical] stays cited here for now —
+  // block below); [Unique] moved to hook group D (`playRefused`) and is built
+  // (#157). [Critical] stays cited here for now —
   // reconciling it against `beforeDamage` (group C) is hook group C's own
   // call to make, not renamed out from under it mid-issue.
   immunity: "docs/arena-backlog/s7-02-keywords-choosing-immunity.md — hook group A: choosing and immunity ([Critical])",
-  unique: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying (`playRefused`) — moved out of hook group A once #153's inventory confirmed [Unique]'s real hook",
-  playCharge: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying ([Evolve])",
   enterLeave: "docs/arena-backlog/s7-03-keywords-enter-leave.md — hook group B: entering and leaving ([Z-Stack])",
 };
 
@@ -320,7 +317,8 @@ if (!keywordGap("Revenge", S7.battle)) {
 }
 
 // [Unique] (22-39): a second copy can't be played while one is in play.
-if (!keywordGap("Unique", S7.unique)) {
+// Both engines since #157 (`playRefused`, keywords.rules).
+{
   const s = arenaG({ hand: ["UNIQ"], battle: ["UNIQ"], energy: ["V1"] });
   assert.ok(!labelsG(s).some((x) => x.startsWith("Play UNIQ")));
 }
@@ -496,14 +494,17 @@ if (!keywordGap("Z-Stack", S7.enterLeave)) {
 }
 
 // [Evolve] (22-5): pay, choose the base, the stack keeps the slot.
-if (!keywordGap("Evolve", S7.playCharge)) {
+// Both engines since #157: the rules engine's [Evolve] is `keywords.rules`'
+// own move. With one base to choose from the legacy engine still asks and the
+// rules engine takes the forced choice, as every program's `choose` does.
+{
   let s = arenaG({ hand: ["EVO"], battle: ["V1"], energy: ["V1"] });
   const evo = findG(s, "p1", "hand", "EVO");
   const base = zoneOf(s, "p1", "battle")[0];
   assert.ok(labelsG(s).some((x) => x.startsWith("Evolve EVO")));
   s = playG(s, { type: "activate", player: "p1", card: evo, skill: 0 });
-  assert.equal(s.prompt.kind, "chooseCards");
-  s = playG(s, { type: "choose", player: "p1", cards: [base] });
+  if (ENGINE === "legacy") assert.equal(s.prompt.kind, "chooseCards");
+  if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [base] });
   assert.deepEqual(zoneOf(s, "p1", "battle"), [evo]);
   assert.deepEqual(s.cards[evo].under, [base]);
   assert.equal(s.cards[zoneOf(s, "p1", "energy")[0]].mode, "rest", "the {1} was paid");

@@ -1941,7 +1941,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 
     // …and charging really does what the declarations say it does.
     const ev: GameEvent[] = [];
-    const payment: VmPayment = { rest: [energyIds(1)[0]], energyMarkers: 0, markers: -2, life: [], pooled: [], restsSelf: true };
+    const payment: VmPayment = { rest: [energyIds(1)[0]], energyMarkers: 0, markers: -2, markersOff: [], life: [], pooled: [], restsSelf: true };
     chargeCost(CTX, DBS, vm, ev, "p1", payment, subject, ["energy", "marker", "rest"]);
     assert.equal(vm.cards[energyIds(1)[0]].mode, "rest", "the energy was not rested");
     assert.equal(vm.cards[subject].markers, 0, "the markers were not taken off the card");

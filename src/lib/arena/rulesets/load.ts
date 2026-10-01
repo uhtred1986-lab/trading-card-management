@@ -31,7 +31,7 @@ import type { SkillKindPrefix } from "../engine/types";
 // a few lines below.
 import { fieldsOf, paramTypesFor, PARAM_TYPES, type Definition, type DefineField, type DefineHook, type DefineKind, type DefineRefusal, type PatternValue } from "../lang/ast";
 import { parseDefinitions } from "../lang/parse";
-import { holesIn } from "./holes";
+import { holesIn, holesInCond } from "./holes";
 import { isHookPoint, HOOK_POINTS } from "./hooks";
 import type { GameDefinition, Loaded, RulesetError, Vocabulary } from "./types";
 
@@ -184,7 +184,9 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
     // printed keyword's (`[Swap 3]`'s `x`), bound when it runs.
     if (def.define === "OP" || (def.define === "KEYWORD" && def.do !== undefined)) {
       const takes = new Map((def.takes ?? []).map((p) => [p.name, p.type]));
-      for (const hole of holesIn(def.do)) {
+      // A keyword move's `REFUSE` conditions are bound the same way (Stage 7).
+      const refused = def.define === "KEYWORD" ? (def.refusals ?? []).flatMap((r, i) => holesInCond(r.unless, `REFUSE ${i + 1}`)) : [];
+      for (const hole of [...holesIn(def.do), ...refused]) {
         const declared = takes.get(hole.name);
         if (declared === undefined) {
           if (hole.form === "var") continue;

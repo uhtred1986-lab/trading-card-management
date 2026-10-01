@@ -115,7 +115,7 @@ export const HOOK_CONTRACT: Record<HookPoint, HookSpec> = {
     group: "D",
     answer: "query",
     vars: [],
-    doc: "A play of `self` is being checked for legality, before cost (5-5, 20-4). A body ends in `forbid` (what: \"play\") under whatever condition the keyword names — [Unique]'s \"can't play another card with the same name\" (22-39) is the worked example, read fresh against the board rather than the state-based cleanup the legacy engine runs instead.",
+    doc: "A play is being checked for legality, before cost (5-5, 20-4), and `self` is a card **in play** whose keyword may refuse it — the rule is the in-play card's. A body ends in `forbid` (what: \"play\") with the fields a [Permanent]'s own `forbid` takes (`side`, `filter`, `sameNameAsSelf`, `bySkill`), read declaratively by `forbiddenBy` (`vm/program.ts`) when the action asked about is a play; the refusal names the card and no duration, since a keyword is the game's own rule rather than an effect. [Unique]'s \"can't play another card with the same name\" (22-39, #157) is the worked example.",
   },
   chargeLimit: {
     group: "D",

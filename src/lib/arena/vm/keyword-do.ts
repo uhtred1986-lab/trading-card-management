@@ -25,9 +25,10 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { Op } from "../engine/script";
+import { printedDescription, printedNames } from "../engine/cards";
+import type { Cond, Op } from "../engine/script";
 import type { Skill } from "../engine/types";
-import { bindKeywordParams, type GameDefinition, type KeywordDef } from "../rulesets";
+import { bindKeywordCond, bindKeywordParams, type GameDefinition, type KeywordDef } from "../rulesets";
 
 /** The declaration of the keyword a line *is* — a line printed as nothing but its keyword tag (22-1-1), never a printed [Activate] that also carries one. */
 function declarationOf(game: GameDefinition, sk: Skill): KeywordDef | undefined {
@@ -36,10 +37,18 @@ function declarationOf(game: GameDefinition, sk: Skill): KeywordDef | undefined 
   return def?.do ? def : undefined;
 }
 
-/** The keyword this line is a move of, when its declaration says `offer:`. */
+/**
+ * The keyword this line is a move of, when its declaration says `offer:`.
+ *
+ * One printed shape besides the bare tag is the keyword's move too: a line
+ * whose printed kind *is* the kind the move is offered as —
+ * "[Union-Absorb][Activate: Main] …" (22-13-6-2) is the [Union] activation
+ * itself, printed with the tag of the window it is used in, not a second
+ * [Activate] that happens to carry a keyword.
+ */
 export function keywordMoveOf(game: GameDefinition, sk: Skill): KeywordDef | undefined {
-  const def = declarationOf(game, sk);
-  return def?.offer !== undefined ? def : undefined;
+  const def = declarationOf(game, sk) ?? (sk.keyword && sk.kind !== "keyword" ? game.keywords[sk.keyword.name] : undefined);
+  return def?.do && def.offer !== undefined && (sk.kind === "keyword" || sk.kind === def.offer) ? def : undefined;
 }
 
 /** The keyword this line answers to `trigger` as, when its declaration names that moment in `at:`. */
@@ -57,4 +66,41 @@ export function keywordMomentOf(game: GameDefinition, sk: Skill, trigger?: strin
  */
 export function keywordProgram(game: GameDefinition, def: KeywordDef, sk: Skill): Op[] {
   return bindKeywordParams(def.do ?? [], def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game);
+}
+
+/** A `REFUSE … UNLESS` of the keyword's move, with its parameters filled in from the line as printed (`$variant`, `$x`), the way its `DO` is. */
+export function keywordRefusalCond(game: GameDefinition, def: KeywordDef, sk: Skill, cond: Cond): Cond {
+  return bindKeywordCond(cond, def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game);
+}
+
+/**
+ * The words a keyword's move shows — its `label:` and the text of a `REFUSE`'s
+ * requirement — with the line's own words put in: `{card}` is the card's name,
+ * `{line}` the description the line prints ("<Nail>"), `{names}` the
+ * characters it names in ‹…› joined by "and", and `{<param>}` a parameter the
+ * keyword `TAKES`, as printed (`{variant}` is "Xeno-Evolve", `{x}` is 3). The
+ * legacy engine builds each of these sentences by hand per keyword; here the
+ * declaration writes it once.
+ */
+export function keywordWords(text: string, def: KeywordDef, sk: Skill, card: string): string {
+  const values = (sk.keyword ?? {}) as Record<string, unknown>;
+  return text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    if (name === "card") return card;
+    if (name === "line") return printedDescription(sk);
+    if (name === "names") return printedNames(sk).join(" and ");
+    if (def.takes?.some((p) => p.name === name) && values[name] !== undefined) return String(values[name]);
+    return whole;
+  });
+}
+
+/**
+ * The names a keyword's own move is announced under for `keywordActivated`:
+ * the keyword, and — when the card prints a variant of it — the variant as
+ * printed, so "when this card's [Union-Absorb] is activated" (22-13-5) hears
+ * an Absorb and "when you activate a [Union] skill" hears every [Union].
+ */
+export function keywordMomentNames(def: KeywordDef, sk: Skill): string[] {
+  const variant = (sk.keyword as { variant?: unknown } | null)?.variant;
+  if (typeof variant !== "string" || variant === def.name) return [def.name];
+  return [def.name, variant.includes(def.name) ? variant : `${def.name}-${variant}`];
 }

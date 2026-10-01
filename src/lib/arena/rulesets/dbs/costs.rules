@@ -127,6 +127,22 @@ DEFINE COST marker                                                        -- §1
   }
   text: "the price is paid with the markers on the card whose skill is being used: a negative number removes that many, and the card may use no further marker skill this turn (13-4, 1-11)"
 
+-- [Spirit Boost X] (§22-43) is a marker price like 13-4's, written as a tag in
+-- front of a skill — but the markers come off the Unison Card in the Unison
+-- Area, not off the card whose skill is used. The planner reads which card
+-- from the op's target, as it reads a pool for `burst`: `[self]` is the card
+-- itself, a place is the card in it. The amount is the line's (the tag's X,
+-- negative to remove), bound by the activation (#157); the shortfall is asked
+-- among the activation's gates, beside [Burst]'s, in the legacy words.
+DEFINE COST spiritBoost                                                   -- §22-43
+  TAKES (n: amount)
+  consumes: markers
+  asks: nothing
+  DO {
+    addMarker(target: IN you.unison, n: $n)
+  }
+  text: "the price is paid by removing that many markers from your Unison Card; with fewer on it, it cannot be paid (22-43-2)"
+
 DEFINE COST life                                                          -- §21-3
   TAKES (n: amount)
   consumes: life

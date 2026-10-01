@@ -39,6 +39,7 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   ignoringBarrier: (s) => (s.ignoreBarrier = true),
   otherThanSelf: (s) => (s.notSelf = "card"),
   otherThanCopies: (s) => (s.notSelf = "copies"),
+  asPrinted: (s) => (s.printed = true),
 };
 
 /**
@@ -786,7 +787,15 @@ class Parser {
         // changed rather than a re-flowed list — and the order is the order the
         // legality check runs them in.
         const refusals = (out[f.name] as DefineRefusal[] | undefined) ?? [];
-        refusals.push(this.refusal());
+        // A keyword's own move reads its requirements off the printed keyword
+        // too — [Over Realm 5]'s 5, [Union]'s variant — so its `UNLESS` may
+        // write `$name` for a parameter it `TAKES`, bound as its `DO` is.
+        this.holes = kind === "KEYWORD";
+        try {
+          refusals.push(this.refusal());
+        } finally {
+          this.holes = false;
+        }
         out[f.name] = refusals;
       } else {
         if (out[f.name] !== undefined) this.fail(`${JSON.stringify(f.name)} is said twice`, []);
@@ -985,7 +994,9 @@ class Parser {
     const inner = name === "life" ? { side: this.sideWord() } : { sel: this.selector() };
     this.want(")");
     const cmp = this.tok.kind === "punct" && (this.tok.text === ">=" || this.tok.text === "<=") ? this.toks[this.i++].text : this.fail("a comparison needs >= or <=", [">=", "<="]);
-    const n = this.number();
+    // A keyword move's `REFUSE` may compare against a parameter it takes —
+    // `count(IN you.drop) >= $x` for [Over Realm X] (#157) — where holes are open.
+    const n = this.holes && this.isPunct("$") ? this.hole() : this.number();
     return { kind: name, ...inner, ...(cmp === ">=" ? { atLeast: n } : { atMost: n }) } as unknown as Cond;
   }
 }

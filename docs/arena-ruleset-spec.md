@@ -223,6 +223,8 @@ can name the attributes the engine keeps in code (§2.5).
 | `forbidden` | primitive | A search over the rules in force rather than over the board — a prohibition carries a budget, an escape clause and a chair to read it from (20-14), none of which is a count of cards. |
 | `playerAttr` | primitive | A `DEFINE ATTRIBUTE of: player` fact, read by name (issue #269) — "you have already had your charge this turn" and "you have not already grown a Unison this turn" are both `NOT playerAttr(name: …)`. Not a count: a boolean fact about a player is not a bound on any selector. |
 | `sameCard` | primitive | Do two selectors each resolve to a card of the same printed identity? Not a filter, because the identity being matched is another *selected* card's, not a fixed wording (`FILTER_FIELDS` names no "same as" field) — 13-3's "a copy of the Unison Card" is this, over the candidate and the Unison Area. |
+| `oneOf` | primitive | Is a word one of these words? A `DEFINE KEYWORD` body's, not a card's: with `$variant` bound off the printed keyword (#157) it tells [Xeno-Evolve] from [Evolve] and [Union-Fusion] from [Union-Absorb] inside one declaration. A comparison of two words, not a count of cards. |
+| `eachNamed` | primitive | Does every character a keyword line prints in ‹…› stand on a *different* card the selector finds — and, with `samePower`, are those cards of one power (22-13-4, 22-13-5)? A matching of names to distinct cards, which no single count can say: two Gokus count to two and still name no Vegeta. Read off the line its program belongs to, like the `asPrinted` selector flag (#157). |
 
 ### 2.5 What the tables ask for
 
@@ -735,7 +737,7 @@ the line and column of the offending word:
 | A `TRIGGER` naming an unknown zone | `ON moved(from: hand, to: battle)` — the pattern arguments `from`, `to`, `in`, `area`, `zone` are places; the rest of an event pattern is open, as the grammar leaves it |
 | **Any** program or selector naming an unknown zone | `moveTo(target: $chosen, to: warp)`, nested however deep. The check reads `OP_SCHEMA`/`COND_SCHEMA` rows rather than a list of places, so an op that grows an area field is checked the day its row says so |
 | A `KEYWORD` hanging a body on an unknown hook point | `HOOK whenTheMoodTakesIt {}` — the points are the interpreter's (§4), not the game's |
-| A `KEYWORD`'s `DO` that cannot run (§4.4) | a `DO` with neither `offer:` nor `at:`; `offer:`/`at:` with no `DO`; both at once; `REFUSE`/`label:` with no `offer:`; `at: [whenever]` naming no trigger; `offer: "counter:play"` when no `ACTION`'s `skills:` takes that family; `$y` in `DO` that it does not `TAKES` |
+| A `KEYWORD`'s `DO` that cannot run (§4.4) | a `DO` with neither `offer:` nor `at:`; `offer:`/`at:` with no `DO`; both at once; `REFUSE`/`label:` with no `offer:`; `at: [whenever]` naming no trigger; `offer: "counter:play"` when no `ACTION`'s `skills:` takes that family; `$y` in `DO` or a `REFUSE` condition that it does not `TAKES` (#157) |
 
 Every error says **both ends**: the declaration it is in and the name that does not resolve.
 `scripts/verify/rulesets.ts` holds one fixture per refusal; #136 grows it into the completeness
@@ -828,7 +830,7 @@ has — no new grammar, because none is needed.
 | `onAttackDeclared` | C | effect | — | `self` has just been declared the attacker (8-1-1) |
 | `beforeDamage` | C | effect | — | battle damage is about to be calculated for the fight in progress (8-4) |
 | `battleEnd` | C | effect | — | the battle's steps have run out, one step before `state.battle` clears (8-1-2-2) |
-| `playRefused` | D | query | — | a play of `self` is being checked for legality, before cost (5-5, 20-4) |
+| `playRefused` | D | query | — | a play is being checked for legality, before cost (5-5, 20-4), and `self` is a card in play whose keyword may refuse it (#157) |
 | `chargeLimit` | D | effect | — | `self` is about to be placed in an Energy Area, from any source (22-31) |
 | `altPayment` | D | query | — | a price is being planned and is asking what else may pay it, or what it no longer demands |
 
@@ -937,10 +939,11 @@ DEFINE KEYWORD Revenge
     ko(target: [attacker])
   }
 
--- D: playRefused — read declaratively, a `forbid` leaf under a condition
+-- D: playRefused — read declaratively off the card already in play (#157:
+-- real, `keywords.rules`), a `forbid` leaf with a [Permanent]'s own fields
 DEFINE KEYWORD Unique
   HOOK playRefused {
-    if(cond: count("a card with the same name" IN you.battle) >= 1, then: { forbid(what: play, until: turn) })
+    forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false, until: game)
   }
 
 -- D: chargeLimit — a real program, run once as the card is placed
@@ -1098,6 +1101,47 @@ general `chooseMode` prompt, with the legacy engine's two answers in its words, 
 kind of its own. The other keywords stay undeclared until their hook-group issue writes them, one at a
 time; a line of one is still refused `unread` (a printed activation) or never offered (a bare keyword),
 exactly as before.
+
+**Group D's moves (#157).** [Evolve] and [Union] are the next two, and between them they needed four
+things the shape above did not have (`docs/arena-rules-language.md` §3b says each in full): a move's
+`REFUSE` is asked on the line's own frame and may read `$variant`/`$x`, so a move states its own zone
+(`REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1`); `label:` and a requirement's words
+take `{line}`, `{names}` and `{<param>}`; the line's printed effect runs after `DO` (Absorb's); and the
+`asPrinted` flag with the `oneOf` and `eachNamed` conditions (§2.4). A move whose effect is the
+keyword's alone is announced before its price is charged, which is the legacy order; one with a
+printed effect is announced after it, as a text skill is. `play … onto` stacks the card on its host
+(`vm/play.ts`'s `stackOnto`), which is both [Evolve]'s play and the "on top of this card" an Absorb's
+text says.
+
+```
+DEFINE KEYWORD Evolve
+  TAKES (variant: string)
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE target(reason: "no {line} in your Battle Area") UNLESS count(IN you.battle asPrinted) >= 1
+  label: "{variant} {card} onto a {line}"
+  DO {
+    choose(sel: 1 IN you.battle asPrinted, as: "base", reason: "…")
+    if(cond: oneOf(value: $variant, of: ["Xeno-Evolve"]), then: {
+      moveTo(target: $base, to: warp)
+      play(target: [self])
+    }, else: {
+      play(target: [self], onto: $base)
+    })
+  }
+```
+
+Two of group D are not moves at all: [Unique] is a `playRefused` hook read off the card already in play
+(§4.1's row), and [Spirit Boost] is a price, `DEFINE COST spiritBoost`, whose markers come off the card
+in the place its `DO` names. Three are still to write, each recorded with what it is missing:
+[Empower]'s carry is a question asked in the middle of a play, before the replaced Unison leaves — the
+`play` op cannot suspend for an answer on either interpreter's shared `stepScript`, and on this engine
+the paid markers are a later step of `playUnison`'s `DO`, so the carry belongs to the move (an op of
+its own, or a `play` field) rather than to `play`; [Swap] and [Over Realm] play a card through a
+[Counter: Play] window, which only a declared play opens today (`vm/battle.ts`'s
+`openPlayCounterWindow`), and [Swap]'s "energy cost of X" is a parameter inside a card filter, which
+the filter grammar has no slot for; [Over Realm] also needs a counted, shared once-a-turn player
+attribute that [Wormhole] raises to two.
 
 ---
 

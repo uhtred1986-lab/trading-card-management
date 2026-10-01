@@ -92,7 +92,7 @@ import { moved } from "./flow";
 import { forbiddenBy, resolveSelector } from "./program";
 import { vmHost } from "./host";
 import type { VmState } from "./state";
-import { keywordMoveOf, keywordProgram } from "./keyword-do";
+import { keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
 import { skillsShowing } from "./triggers";
 import { findCard } from "./zones";
 
@@ -130,7 +130,7 @@ export interface ActivationLine {
  * rather than reading a keyword's price off nothing. What would replace them is
  * `DEFINE KEYWORD` bodies naming their own pools, which is Stage 7's (#153).
  */
-export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck" } as const;
+export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison" } as const;
 
 /** Every zone this module names, for the check `createGame` makes against the declarations. */
 export const ACTIVATION_ZONE_NAMES = [...new Set(Object.values(ACTIVATION_ZONES))];
@@ -238,6 +238,9 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     // 22-27-2: [Burst X]'s cards, by the pool the declared price takes them out
     // of. Bound to 0 on a line with no tag, so the price asks nothing of it.
     pooled: { [ACTIVATION_ZONES.burst]: sk.burst ?? 0 },
+    // 22-43: [Spirit Boost X]'s markers come off the Unison Card, the place
+    // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
+    markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(sk.spiritBoost ?? 0), by: "Spirit Boost" } },
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : sk.cost,
   };
@@ -347,7 +350,13 @@ export function activationRefusals(
   if (sk.burst != null && zone(state, player, ACTIVATION_ZONES.burst).length < sk.burst) {
     before.push({ kind: "other", detail: `[Burst ${sk.burst}] needs that many cards in the deck` });
   }
-  if (sk.spiritBoost != null) before.push({ kind: "unread", card });
+  // 22-43-2: the same for [Spirit Boost X] — a Unison Card with X markers on it
+  // — asked here for the same reason, in the legacy words (#157). The price is
+  // `DEFINE COST spiritBoost`'s.
+  if (sk.spiritBoost != null) {
+    const unison = zone(state, player, ACTIVATION_ZONES.spiritBoost)[0];
+    if (!unison || (state.cards[unison]?.markers ?? 0) < sk.spiritBoost) before.push({ kind: "other", detail: "[Spirit Boost] needs the markers" });
+  }
   // The window: a line of a kind this move does not offer is still a candidate,
   // and the answer it is owed names the window it belongs to (7-3-4 against
   // 8-6-2). Derived from the declaration, so a battle paragraph says "main" for
@@ -388,7 +397,9 @@ export function activationRefusals(
   // Card's are valid in the hand, because using one from there is how an Extra
   // is played at all (4-2), and its price above carries the energy cost to
   // match.
-  if (at === ACTIVATION_ZONES.hand && !isExtra(ctx, game, state, card)) after.push({ kind: "zone", card, area: "battle" });
+  // A keyword's own move says where it is used from in its own `REFUSE` lines
+  // instead — [Evolve] from the hand (22-5-2), [Overlord] from the Battle Area.
+  if (at === ACTIVATION_ZONES.hand && !isExtra(ctx, game, state, card) && !line.keyword) after.push({ kind: "zone", card, area: "battle" });
   return { before, after };
 }
 
@@ -404,7 +415,11 @@ function usesLeft(sk: Skill, used: number[]): number | null {
  * with no referee: a line with no effect resolves to nothing, and a line with
  * one needs a record whose every clause the compiler read.
  */
-const canResolve = (line: ActivationLine): boolean => (line.keyword || !line.skill.effect.trim() ? true : !!line.script && line.script.unsupported.length === 0);
+// A keyword's own move runs its `DO` and then the line's record, so the record
+// is asked like any other — [Union-Absorb]'s printed effect has to read — and a
+// line the record does not cover at all ([Overlord], a card no compile saw) is
+// the keyword's `DO` alone.
+const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim() || (line.keyword && !line.script) ? true : !!line.script && line.script.unsupported.length === 0);
 
 // ── taking one ──────────────────────────────────────────────────────────────
 
@@ -442,11 +457,33 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   }
   // `inBattle` is the legacy `!!s.battle`: an [Activate: Battle] taken at the
   // combo prompt (`vm/battle.ts`, #150) is a skill used in a battle.
-  log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!state.battle });
+  if (!announcesBeforePrice(line)) announce(state, ev, player, line);
   // A keyword's own move runs the keyword's `DO` — the keyword's rules are the
-  // effect (22-1), and the record of a line like "[Overlord]" says nothing.
-  const program = line.keyword ? keywordProgram(game, line.keyword, sk) : (line.script?.ops ?? []);
+  // effect (22-1), and the record of a line like "[Overlord]" says nothing —
+  // and then whatever effect the line prints beyond the keyword, which is
+  // [Union-Absorb]'s whole effect ("its text says which card is played onto
+  // this one", 22-13-6) and nothing at all on a bare [Evolve] or [Overlord].
+  const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? [])] : (line.script?.ops ?? []);
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index });
+}
+
+/**
+ * Is this line announced as it is declared — before its price is charged —
+ * rather than as it is used? A keyword's own move whose effect is the
+ * keyword's alone ([Evolve], [Union-Fusion], [Overlord]: the line's record has
+ * nothing to run) is, because that is the legacy engine's order: its keyword
+ * `case`s announce the skill and then pay. A line with an effect of its own
+ * ([Union-Absorb], every printed [Activate]) is announced as that effect
+ * resolves, after the price, the legacy `skill.resolve` step. The log is what
+ * a replay compares, so the order is the oracle's.
+ */
+export function announcesBeforePrice(line: ActivationLine): boolean {
+  return !!line.keyword && !line.script?.ops.length;
+}
+
+/** The `skill` event for a line being used (9-6). */
+export function announce(state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine): void {
+  log(ev, { type: "skill", card: line.card, skill: line.skill.index, master: player, text: line.skill.raw, inBattle: !!state.battle });
 }
 
 /**
@@ -475,9 +512,13 @@ export function activationMoment(state: VmState, player: PlayerId, line: Activat
  * keyword's move. Read before the line is used, like the activation's own
  * moment, because "from: hand" is about where it was used from.
  */
-export function keywordActivationMoment(state: VmState, player: PlayerId, line: ActivationLine): { event: string; card: string; controller: PlayerId; args: Record<string, string> } | null {
-  if (!line.keyword) return null;
-  return { event: "keywordActivated", card: line.card, controller: player, args: { keyword: line.keyword.name, from: findCard(state, line.card)?.zone ?? "" } };
+export function keywordActivationMoments(state: VmState, player: PlayerId, line: ActivationLine): { event: string; card: string; controller: PlayerId; args: Record<string, string> }[] {
+  const kw = line.keyword;
+  if (!kw) return [];
+  const from = findCard(state, line.card)?.zone ?? "";
+  // One per name the move is announced under: [Union], and [Union-Absorb] for
+  // an Absorb (22-13-5) — `keywordMomentNames`.
+  return keywordMomentNames(kw, line.skill).map((keyword) => ({ event: "keywordActivated", card: line.card, controller: player, args: { keyword, from } }));
 }
 
 // ── reading the board ───────────────────────────────────────────────────────

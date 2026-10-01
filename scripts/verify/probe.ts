@@ -393,13 +393,21 @@ if (ENGINE !== "legacy") {
         hasOp(rule, (o) => o.op === "negateKeyword") && rules.result.some((l) => /^keywords in force: /.test(l) && !old.result.includes(l)),
     },
     {
+      id: "evolve-moved-twice",
+      says: "Legacy moves an evolved card a second time, from the Battle Area to the Battle Area (`play.resolve` after `stackOnto`), which takes it out of the slot it just took over; the rules engine stacks it once and keeps the slot (22-5-5, #157). A legacy bug, recorded rather than copied: fixing it there would move the legacy probe digests.",
+      holds: (_f, old, rules) => {
+        const twice = (l: string) => / enters the Battle Area from the Battle Area\.$/.test(l);
+        return old.applied.some(twice) && !rules.applied.some(twice) && JSON.stringify(old.applied.filter((l) => !twice(l))) === JSON.stringify(rules.applied) && JSON.stringify(old.result) === JSON.stringify(rules.result);
+      },
+    },
+    {
       id: "keyword-moves",
-      says: "A keyword's own move ([Evolve], [Union], [Awaken], [Z-Stack]) is not built on the rules engine (Stage 7, #153), so it is never offered and `rejectedActions` names no reason; legacy names the board it was missing.",
+      says: "A keyword's own move that is not built on the rules engine yet — [Awaken] (hook group C, #156) and [Z-Stack] (hook group B, #155) — is never offered and `rejectedActions` names no reason; legacy names the board it was missing. [Evolve] and [Union] are built (#157).",
       holds: (_f, _old, rules) => /never offered, and the engine gives no reason/.test(rules.result.join("|")),
     },
     {
       id: "unreadable-price",
-      says: "An [Activate] with a price the rules engine's activation cannot read yet (a cost program, an X, [Spirit Boost]) is refused as 'cannot read this text yet'; legacy offers it, or names what it could not pay. [Burst X] is a declared price since #148 and is no longer one of them.",
+      says: "An [Activate] with a price the rules engine's activation cannot read yet (a cost program, an X) is refused as 'cannot read this text yet'; legacy offers it, or names what it could not pay. [Burst X] (#148) and [Spirit Boost X] (#157) are declared prices and no longer among them.",
       holds: (_f, _old, rules) => /cannot read .* text yet/.test(rules.result.join("|")),
     },
     {

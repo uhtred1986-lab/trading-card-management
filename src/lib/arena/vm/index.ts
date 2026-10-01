@@ -681,7 +681,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     case "payCost":
       return pr.options.map((option, i) => ({
         action: { type: "payCost", player: pr.player, option: i },
-        label: `Rest ${describePayment(ctx, definitionFor(state.game), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, life: [], pooled: [], restsSelf: false })}`,
+        label: `Rest ${describePayment(ctx, definitionFor(state.game), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, markersOff: [], life: [], pooled: [], restsSelf: false })}`,
       }));
     // 5-2: one card per answer, so the menu is one move per candidate — the
     // legacy engine's labels word for word, because a client that read

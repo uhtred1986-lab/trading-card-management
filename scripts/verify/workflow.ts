@@ -60,7 +60,6 @@ const S7 = {
   swap: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying ([Swap])",
   // [Barrier] is done (#154), its rejection reason too (#152) — see
   // [Barrier]'s own block below.
-  unique: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying (`playRefused`) — moved out of hook group A once #153's inventory confirmed [Unique]'s real hook",
 };
 let skipped = 0;
 function keywordGap(keyword: string, doc: string): boolean {
@@ -201,7 +200,8 @@ function actionPriceGap(where: string): boolean {
   }
 
   // 22-39: a [Unique] twin in play is a rule of that card.
-  if (!keywordGap("Unique", S7.unique)) {
+  // Both engines since #157 (`playRefused`, keywords.rules).
+  {
     const s = arenaG({ hand: ["UNIQ"], battle: ["UNIQ"], energy: ["V1"] });
     const r = ofCard(assertDisjointG(s, "Unique"), "play", findG(s, "p1", "hand", "UNIQ"));
     assert.deepEqual(first(r), { kind: "forbidden", by: "UNIQ" });
@@ -871,4 +871,4 @@ function actionPriceGap(where: string): boolean {
   assert.equal(narrate({ t: "draw", player: "p1", card: "a" }, me), "You draw Son Goku.");
 }
 
-if (ENGINE === "rules") console.log(`verify/workflow: ${skipped} case(s) skipped on the rules engine — 2 named keyword gaps ([Unique], [Swap]) and PRICED's action price (#149) (see this file's own keywordGap/actionPriceGap comments)`);
+if (ENGINE === "rules") console.log(`verify/workflow: ${skipped} case(s) skipped on the rules engine — 1 named keyword gap ([Swap]) and PRICED's action price (#149) (see this file's own keywordGap/actionPriceGap comments)`);

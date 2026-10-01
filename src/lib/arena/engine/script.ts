@@ -114,6 +114,17 @@ export interface Selector {
    * name, which is what that longer wording says.
    */
   notSelf?: "card" | "copies";
+  /**
+   * Only cards matching the description printed on the line this program
+   * belongs to (`asPrinted`): [Evolve]{2}: <Nail> finds a <Nail>, [Swap 3]'s
+   * "<Goku> with an energy cost of 3" a Goku of cost 3 (22-5, 22-22). A
+   * keyword's own program is one declaration for every card that prints the
+   * keyword, so the description it is about is the printed line's — the same
+   * reason `$x` comes off the printed keyword. Read off the frame's own card
+   * and skill index; a frame with no line finds nothing. No card's record
+   * writes it: the compiler reads a description into a filter itself.
+   */
+  printed?: true;
 }
 
 /**
@@ -268,7 +279,24 @@ export type Cond =
    * dynamically (`FILTER_FIELDS` is fixed wordings only), so this reads two
    * selectors instead of stretching a filter to do it.
    */
-  | { kind: "sameCard"; a: Selector; b: Selector };
+  | { kind: "sameCard"; a: Selector; b: Selector }
+  /**
+   * Is this value one of these words? Not a card's word — no printed text
+   * compares two words — but the one a `DEFINE KEYWORD` body needs to tell the
+   * variants of one keyword apart once `$variant` is bound off the printed
+   * keyword (`oneOf(value: $variant, of: ["Xeno-Evolve"])`, 22-5-6): one
+   * declaration per keyword name, and [Evolve]/[Xeno-Evolve] or
+   * [Union-Fusion]/[Union-Potara]/[Union-Absorb] are one keyword each.
+   */
+  | { kind: "oneOf"; value: string; of: string[] }
+  /**
+   * Does every character the line prints in ‹…› stand on a different card
+   * among `sel` — and, with `samePower`, are those cards of one power? The
+   * check [Union] makes before it is offered (22-13-4, 22-13-5): "<Goku>
+   * <Vegeta>" needs a Goku and a Vegeta, two cards and not one, and Fusion's
+   * two of equal power. Read off the frame's own line, like `asPrinted`.
+   */
+  | { kind: "eachNamed"; sel: Selector; samePower?: boolean };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous

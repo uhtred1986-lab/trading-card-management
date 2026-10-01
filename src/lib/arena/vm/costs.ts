@@ -85,7 +85,7 @@ import type { PayerGrant } from "./effects";
 import { attrsNow, staticsNow } from "./program";
 import { NotYet, RulesetBroken } from "./errors";
 import { SETUP_ZONES, moved } from "./flow";
-import { log } from "./events";
+import { fire, log } from "./events";
 import type { VmState } from "./state";
 
 /**
@@ -204,6 +204,8 @@ export interface Price {
   either: Color[][];
   /** Markers added (+) or removed (−) on the card whose skill is being paid for (13-4). */
   markers: number;
+  /** 22-43: markers added (+) or removed (−) on the card in a declared place — [Spirit Boost]'s Unison — named by the price's `DO` target. */
+  markersOff: PooledMarkers[];
   /** Cards to place from life in the Drop (21-3). */
   life: number;
   /** Does paying switch the card itself to Rest Mode? */
@@ -236,8 +238,18 @@ export interface PooledPrice {
   fromEnd?: boolean;
 }
 
+/** Markers paid off the card in a declared place (22-43): which price, where, how many (signed, like 13-4's), and the keyword that printed it. */
+export interface PooledMarkers {
+  cost: string;
+  side: string;
+  area: string;
+  n: number;
+  /** The keyword the line prints the price under — the `by:` of the `markerRemoved` moment it is paid as ("Spirit Boost", 22-43-3). */
+  by?: string;
+}
+
 /** A price of nothing — what a move with no `COST` costs, and the value every reading is built up from. */
-export const freePrice = (): Price => ({ energy: 0, orbs: {}, either: [], markers: 0, life: 0, rest: false, payers: [], pooled: [], unreadable: null, unpriced: null });
+export const freePrice = (): Price => ({ energy: 0, orbs: {}, either: [], markers: 0, markersOff: [], life: 0, rest: false, payers: [], pooled: [], unreadable: null, unpriced: null });
 
 /**
  * The amounts a move's prices are **bound** to, when they come from the thing
@@ -263,6 +275,13 @@ export interface BoundAmounts {
   energy?: { total: number | null; orbs: Partial<Record<Color, number>>; either: Color[][] };
   /** `consumes: markers` — 13-4's marker cost, negative to remove that many. */
   markers?: number;
+  /**
+   * `consumes: markers` off the card in a declared place — 22-43's [Spirit
+   * Boost X], printed on one skill line — keyed by the place the declaration's
+   * `DO` targets, never by its name; `by` is the keyword the line prints it
+   * under. A place left out is a price with nothing bound to it.
+   */
+  markersFrom?: Partial<Record<string, { n: number; by?: string }>>;
   /** `consumes: life` — 21-3. */
   life?: number;
   /**
@@ -361,6 +380,13 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
         price.unreadable = bound?.unreadable !== undefined ? bound.unreadable : charge.name;
         break;
       case "markers":
+        // 22-43: the markers of the card in a declared place, bound by the line.
+        if (charge.from) {
+          const bind = bound?.markersFrom?.[charge.from.area];
+          if (bind === undefined) throw new NotYet(`charge the price ${name}, whose amount is on the skill line asking for it and has nothing to bind it to`, "#157");
+          if (bind.n) price.markersOff.push({ cost: charge.name, side: charge.from.side, area: charge.from.area, n: bind.n, ...(bind.by ? { by: bind.by } : {}) });
+          break;
+        }
         if (bound?.markers === undefined) throw new NotYet(`charge the price ${name}, whose amount is on the card's own record and has nothing to bind it to`, "#149");
         price.markers += bound.markers;
         break;
@@ -518,6 +544,8 @@ export interface VmPayment {
   energyMarkers: number;
   /** Markers added to (+) or removed from (−) the card being paid for (13-4). */
   markers: number;
+  /** 22-43: markers paid off the card in a declared place. */
+  markersOff: PooledMarkers[];
   /** Cards taken from life, topmost first (21-3). */
   life: string[];
   /** 5-4: the cards each pooled price takes, in the order they are taken. */
@@ -561,6 +589,7 @@ export function planCost(ctx: EngineContext, game: GameDefinition, state: VmStat
     rest: energy.rest,
     energyMarkers: energy.markers,
     markers: price.markers,
+    markersOff: price.markersOff,
     // 3-9-4: any card in life may be chosen when one leaves, and the topmost is
     // the one damage takes — the same end the legacy engine deals from.
     life: price.life ? lifeZone.slice(0, price.life) : [],
@@ -626,6 +655,13 @@ function whyNot(ctx: EngineContext, game: GameDefinition, state: VmState, player
   if (price.markers < 0 && card !== null) {
     const on = state.cards[card]?.markers ?? 0;
     if (on + price.markers < 0) why.push({ kind: "other", detail: `needs ${-price.markers} markers (${on} on it)` });
+  }
+  // 22-43-2: never below none on the card in the place either — the words are
+  // the legacy `whyNotActivate`'s, which asks it among the gates.
+  for (const off of price.markersOff) {
+    const holder = holderOf(state, player, off);
+    const on = holder ? state.cards[holder].markers : 0;
+    if (on + off.n < 0) why.push({ kind: "other", detail: off.by ? `[${off.by}] needs the markers` : `needs ${-off.n} markers (${on} on it)` });
   }
   if (price.life > 0) {
     const on = (state.sides[player].zones[SETUP_ZONES.life] ?? []).length;
@@ -900,6 +936,20 @@ export function chargeCost(
         break;
       }
       case "markers": {
+        // 22-43: off the card in a declared place, and the payment is a moment
+        // of its own — `markerRemoved` with the keyword it was paid under
+        // (`spiritBoostPaid` in `triggers.rules`), the legacy `payKeywordCosts`.
+        if (charge.from) {
+          for (const off of payment.markersOff.filter((x) => x.cost === name)) {
+            const id = holderOf(state, player, off);
+            if (!id) continue;
+            const inst = state.cards[id];
+            inst.markers = Math.max(0, inst.markers + off.n);
+            log(ev, { type: "markers", card: id, delta: off.n, total: inst.markers });
+            if (off.n < 0) fire(ctx, game, state, { event: "markerRemoved", card: id, controller: player, args: off.by ? { by: off.by } : {} });
+          }
+          break;
+        }
         if (card === null || !payment.markers) break;
         const inst = state.cards[card];
         inst.markers = Math.max(0, inst.markers + payment.markers);
@@ -925,6 +975,12 @@ export function chargeCost(
         break;
     }
   }
+}
+
+/** The card in the place a marker price names (22-43's Unison Area holds one), or null with none there. */
+function holderOf(state: VmState, player: PlayerId, off: PooledMarkers): string | null {
+  const side = off.side === "opponent" ? (player === "p1" ? "p2" : "p1") : player;
+  return state.sides[side].zones[off.area]?.[0] ?? null;
 }
 
 /** The mode a price switches what it took into — the declaration's, never a word this module chose. */
@@ -1012,9 +1068,12 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   total += either.length;
   const generic = { n: Math.max(0, total - orbCount(orbs) - either.length) };
   const applies = (kind: string | undefined) => !kind || sk.kind.startsWith(kind);
+  // 22-5: an [Evolve] line's orbs are changed on a channel of their own — the
+  // legacy `orbTotals(…, "evolve")` — and a skill-cost change does not reach them.
+  const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
   const changes = [
-    ...staticsNow(ctx, game, state).filter((e) => e.kind === "skillCost" && e.target === card && applies(e.skillKind)),
-    ...state.effects.filter((e) => e.kind === "skillCost" && e.target === card && applies(e.skillKind)),
+    ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind)),
+    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind)),
   ];
   for (const e of changes) {
     const by = e.value as number;

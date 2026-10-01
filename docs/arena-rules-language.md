@@ -81,7 +81,7 @@ SEL    := part+                                    parts in any order; "any" whe
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number
         | "BOTTOM" number | filter | "IN" places | "OF" side | flag
 places := ( side "." )? ( zone | zone ( "|" zone )+ | "ANY" "(" zone ( "|" zone )* ")" )
-flag   := "active" | "rest" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies"
+flag   := "active" | "rest" | "hidden" | "revealed" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies" | "asPrinted"
 filter := "\"" printed filter text "\"" | "(" field "=" value ( "AND" … )* ")"
 item   := "{" colour "}"+ | "{" colour "/" colour "}" | ±n "marker" | "burst" n
         | "spiritBoost" n | "X" ( "min" number )? ( "max" number )? | "TEXT" "…"
@@ -459,6 +459,26 @@ card is played — and writes a `DO`, with exactly one of two fields saying when
 `REFUSE` and `label:` belong to a move and are refused on anything else; a `DO` with neither `offer:`
 nor `at:`, either of them with no `DO`, and both at once are refused too (§3b's loader list below).
 
+Four things are true of a move's lines that are not true of an action's (#157), because a keyword's
+move is about **one printed line** rather than about a card a `FOR` found:
+
+- A `REFUSE … UNLESS` condition is asked the way the line's own program would ask it — a frame of
+  the card, its master and the line — so `[self] IN you.hand` says where the move is used from
+  ([Evolve] from the hand, [Overlord] from the Battle Area: a keyword move states its own zone; the
+  generic "a Battle Card's skills are valid in the Battle Area" gate does not apply to it). It may
+  write `$name` for a parameter too, the comparison sugar included (`count(IN you.drop) >= $x`).
+- `label:` and a requirement's string arguments may name the line's own words: `{card}` the card's
+  name, `{line}` the description the line prints after its tag ("<Nail>"), `{names}` the characters
+  it names in ‹…› joined by "and", and `{<param>}` a parameter as printed (`{variant}`, `{x}`).
+- The line's own printed effect, if it has one, runs after `DO` — [Union-Absorb]'s whole effect is
+  its printed text, and a bare [Evolve] or [Overlord] has none. A line printed with the very kind
+  the move is offered as (`[Union-Absorb][Activate: Main] …`) is the keyword's move too.
+- Three words exist for a keyword body and appear on no card: the `asPrinted` selector flag (only
+  cards matching the description the line prints — `[Evolve]{1}: <V1>` finds a `<V1>`), the
+  `oneOf(value: $variant, of: [...])` condition (tells the variants of one keyword apart), and the
+  `eachNamed(sel: …, samePower: true)` condition (every character the line names stands on a
+  different card among `sel`, of one power — [Union]'s check, 22-13).
+
 ```
 DEFINE KEYWORD Overlord
   TAKES ()
@@ -646,7 +666,8 @@ own line, with `clause` naming the kind, exactly as a rule's missing argument fa
 **duplicate name**, an **unknown hook point**, and a keyword's `DO` that cannot run: one with neither
 `offer:` nor `at:`, an `offer:` or `at:` with no `DO`, both at once, `REFUSE`/`label:` on a keyword
 that offers no move, an `at:` naming a moment nothing declares, an `offer:` of a kind no `ACTION`'s
-`skills:` takes, and a `$name` in its `DO` that is not a parameter it `TAKES`. Those are the ruleset loader's
+`skills:` takes, and a `$name` in its `DO` or a `REFUSE` condition that is not a parameter it `TAKES`
+(or is one of the wrong type for its slot). Those are the ruleset loader's
 (`rulesets/load.ts`, built 12 Sep 2026), in the same `LangError` shape plus the file, pointed at the
 line and column of the offending word.
 `docs/arena-ruleset-spec.md` §3 lists them one by one.

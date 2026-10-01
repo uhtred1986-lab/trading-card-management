@@ -12,7 +12,7 @@
  * time. `docs/arena-ruleset-spec.md` §3 says what each file declares.
  */
 export { ZONE_ARGS, loadRuleset, vocabularyOf } from "./load";
-export { bindKeywordParams, expandMacros, opsIn, MacroError } from "./expand";
+export { bindKeywordCond, bindKeywordParams, expandMacros, opsIn, MacroError } from "./expand";
 export { HOOK_POINTS, isHookPoint, type HookPoint } from "./hooks";
 export { DBS_FILES, loadDbs } from "./dbs";
 export type { ActionDef, AttributeDef, CostDef, Def, GameDef, GameDefinition, KeywordDef, Loaded, OpDef, PhaseDef, PromptDef, RulesetError, StepDef, TriggerDef, Vocabulary, WinDef, WordsDef, ZoneDef } from "./types";

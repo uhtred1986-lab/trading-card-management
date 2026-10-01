@@ -429,6 +429,35 @@ export function isZ(def: CardDef): boolean {
   return def.type.startsWith("Z-");
 }
 
+/**
+ * The description a keyword line prints after its tag and price — [Evolve]{1}:
+ * <Nail>'s "<Nail>", [Union-Fusion]'s "<Goku> <Vegeta>". The legacy engine
+ * reads `sk.effect || sk.cost` at every keyword site that needs one; this is
+ * that reading, named, so the rules engine's `asPrinted` and `eachNamed` read
+ * the same words.
+ */
+export function printedDescription(sk: Pick<Skill, "effect" | "cost">): string {
+  return sk.effect || sk.cost;
+}
+
+/** The character names a keyword line prints in ‹…› (22-13): "<Goku> <Vegeta>" → ["Goku", "Vegeta"]. */
+export function printedNames(sk: Pick<Skill, "effect" | "cost">): string[] {
+  return printedDescription(sk).match(/<([^>]+)>/g)?.map((x) => x.slice(1, -1)) ?? [];
+}
+
+/**
+ * The `eachNamed` condition, read the legacy [Union] way (22-13): for each
+ * name, the first card in `pool` order with that character; every name must
+ * find one, no card may answer two names, and with `samePower` the cards
+ * found must share a power. One reading for both engines.
+ */
+export function eachNamedHolds(names: string[], pool: { id: string; characters: string[]; power: number }[], samePower: boolean): boolean {
+  if (!names.length) return false;
+  const found = names.map((n) => pool.find((c) => c.characters.some((x) => x.toLowerCase() === n.toLowerCase())));
+  if (found.some((f) => !f) || new Set(found.map((f) => f!.id)).size < names.length) return false;
+  return !samePower || new Set(found.map((f) => f!.power)).size === 1;
+}
+
 export function baseType(def: CardDef): "LEADER" | "BATTLE" | "EXTRA" | "UNISON" {
   const t = def.type.replace(/^Z-/, "");
   return t === "TOKEN" ? "BATTLE" : (t as "LEADER" | "BATTLE" | "EXTRA" | "UNISON");

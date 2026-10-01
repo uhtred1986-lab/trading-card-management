@@ -42,11 +42,11 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../engine";
-import { keywordsInSkills, parseSkills } from "../engine/cards";
+import { eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames } from "../engine/cards";
 import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "../engine/script";
-import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition } from "../engine/types";
+import type { EffectUntil, ForbiddenAction, KeywordSkill, PlayerId, Prohibition, Skill } from "../engine/types";
 import { other } from "../engine/types";
-import { powerRelOk } from "../engine/filters";
+import { parseFilter, powerRelOk } from "../engine/filters";
 import type { GameDefinition, HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "../engine/script-schema";
@@ -424,7 +424,19 @@ function readHookLeaf(ctx: EngineContext, game: GameDefinition, state: VmState, 
       out.push({
         keyword,
         op: "forbid",
-        forbid: { what: op.what, filter: op.filter, player, unless: op.unless, uses: op.uses !== undefined ? amount(ctx, game, state, frame, op.uses) : undefined, master: frame.master },
+        forbid: {
+          what: op.what,
+          filter: op.filter,
+          player,
+          unless: op.unless,
+          uses: op.uses !== undefined ? amount(ctx, game, state, frame, op.uses) : undefined,
+          master: frame.master,
+          // [Unique]'s "a card with the same name" (22-39) and a declared
+          // play's "except by skills" — the two fields a `forbid` leaf names
+          // that a [Permanent]'s own reading (`vm/effects.ts`) already keeps.
+          ...(op.sameNameAsSelf ? { name: nameShowing(ctx, state, frame.card) } : {}),
+          ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
+        },
       });
       continue;
     }
@@ -553,7 +565,7 @@ export function forbiddenBy(
   state: VmState,
   what: ForbiddenAction,
   opts: { player?: PlayerId; card?: string; bySkill?: boolean; hooks?: boolean } = {},
-): { by: string | null; until: EffectUntil; unless?: string } | null {
+): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     if ((rule.forbid.uses ?? 0) > 0) continue;
@@ -564,6 +576,23 @@ export function forbiddenBy(
       until: rule.until,
       ...(rule.forbid.unless ? { unless: sayCond(master && viewer && master !== viewer ? mirrorSides(rule.forbid.unless) : rule.forbid.unless) } : {}),
     };
+  }
+  // 22-39 (#157): a play is refused by a keyword of a card already in play —
+  // [Unique]'s `playRefused` hook, asked of every card in play when a play is
+  // checked, since the rule is the in-play card's ("while a card with [Unique]
+  // is in play you can't play another card with the same name"). The keyword
+  // is the game's own rule rather than an effect, so it names no duration —
+  // the legacy `whyNotPlay`'s own refusal, `{ kind: "forbidden", by }`.
+  if (what === "play" && opts.hooks !== false) {
+    for (const side of [state.sides.p1, state.sides.p2]) {
+      for (const source of inPlayZones(game).flatMap((zone) => side.zones[zone] ?? [])) {
+        for (const fact of queryHookStatics(ctx, game, state, source, "playRefused")) {
+          if (fact.op !== "forbid") continue;
+          if (!ruleApplies(ctx, game, state, what, { target: "", source, until: "permanent", forbid: fact.forbid }, opts)) continue;
+          return { by: nameShowing(ctx, state, source) ?? null };
+        }
+      }
+    }
   }
   return null;
 }
@@ -693,7 +722,18 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
   if (sel.take != null) out = sel.fromEnd ? out.slice(Math.max(0, out.length - sel.take)) : out.slice(0, sel.take);
 
   const matchesFilter = sel.filter ? predicateOf(sel.filter, game) : null;
+  // `asPrinted` (Stage 7): the description printed on the line this program
+  // belongs to, read as the legacy keyword sites read it — `parseFilter` over
+  // `sk.effect || sk.cost`. A frame with no line finds nothing.
+  let matchesPrinted: ((id: string) => boolean) | null = null;
+  if (sel.printed) {
+    const sk = lineOf(ctx, state, frame);
+    if (!sk) return [];
+    const printed = predicateOf(parseFilter(printedDescription(sk)), game);
+    matchesPrinted = (id) => printed(attrsNow(ctx, game, state, id));
+  }
   return out.filter((id) => {
+    if (matchesPrinted && !matchesPrinted(id)) return false;
     const card = state.cards[id];
     if (!card) return false;
     if (sel.mode && card.mode !== sel.mode) return false;
@@ -885,7 +925,27 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const b = resolveSelector(ctx, game, state, frame, c.b);
       return a.length === 1 && b.length === 1 && state.cards[a[0]].cardId === state.cards[b[0]].cardId;
     }
+    // Two words of a `DEFINE KEYWORD` body (Stage 7): a bound parameter
+    // against the words it may be, and [Union]'s named characters (22-13),
+    // read off the line the program belongs to.
+    case "oneOf":
+      return c.of.includes(c.value);
+    case "eachNamed": {
+      const sk = lineOf(ctx, state, frame);
+      if (!sk) return false;
+      const pool = resolveSelector(ctx, game, state, frame, c.sel).map((id) => {
+        const def = ctx.defs[state.cards[id].cardId];
+        return { id, characters: def?.characters ?? [], power: def?.power ?? 0 };
+      });
+      return eachNamedHolds(printedNames(sk), pool, !!c.samePower);
+    }
   }
+}
+
+/** The skill line a frame belongs to — the one `asPrinted` and `eachNamed` read their description off. Undefined for a frame that carries no line (a hook body, an action's `DO`). */
+function lineOf(ctx: EngineContext, state: VmState, frame: ScriptFrame): Skill | undefined {
+  if (frame.skillIndex === undefined || !frame.card) return undefined;
+  return skillsShowing(ctx, state, frame.card).skills.find((k) => k.index === frame.skillIndex);
 }
 
 function num(value: AttrValue | undefined): number {

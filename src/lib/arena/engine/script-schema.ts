@@ -956,6 +956,29 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: 'do these two selectors each resolve to one card of the same printed identity? "a copy of the Unison Card" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card\'s identity, so this reads two selectors instead (issue #269)',
   },
+  oneOf: {
+    fields: [
+      { name: "value", type: "string", required: true },
+      { name: "of", type: { list: "string" }, required: true },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"oneOf">;
+      if (!c.of.length) return `${JSON.stringify(c.value)} is one of nothing`;
+      return `${JSON.stringify(c.value)} is ${c.of.length === 1 ? JSON.stringify(c.of[0]) : `one of ${c.of.map((w) => JSON.stringify(w)).join(", ")}`}`;
+    },
+    doc: 'is this word one of those? No card says this — it is the word a `DEFINE KEYWORD` body tells the variants of one keyword apart with, once `$variant` is bound off the printed keyword: `oneOf(value: $variant, of: ["Xeno-Evolve"])` (22-5-6, Stage 7)',
+  },
+  eachNamed: {
+    fields: [
+      { name: "sel", type: "selector", required: true },
+      { name: "samePower", type: "boolean" },
+    ],
+    sentence: (raw) => {
+      const c = raw as CondOf<"eachNamed">;
+      return `every character this line names is a different one of ${describeSelector(c.sel, "")}${c.samePower ? ", all of one power" : ""}`;
+    },
+    doc: "does every character the keyword line prints in ‹…› stand on a different card among these — and, with samePower, are they of one power? [Union]'s check before it is offered (22-13-4, 22-13-5). No card's record says this; it is read off the line a keyword's own program belongs to, like the `asPrinted` selector flag",
+  },
 };
 
 /** Primitive or macro for a condition — `docs/arena-ruleset-spec.md` §2.4, and see `OP_CLASS` above. */
@@ -982,6 +1005,8 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   forbidden:      "primitive",
   playerAttr:     "primitive",
   sameCard:       "primitive",
+  oneOf:          "primitive",
+  eachNamed:      "primitive",
 };
 
 /**
@@ -1004,7 +1029,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
  * Not a validation rule — `validateProgram` accepts every schema row, because a
  * stored program is checked against the language and not against this list.
  */
-export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden"];
+export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "oneOf", "eachNamed"];
 
 // ── validation, for programs that did not come from the compiler ───────────
 
@@ -1437,7 +1462,7 @@ const describeMode = (sel: Selector): string =>
  * the sentence "all in each player's battle" said nothing about either way.
  */
 const describeNotSelf = (sel: Selector): string =>
-  sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "";
+  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "") + (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);

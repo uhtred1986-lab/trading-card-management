@@ -152,7 +152,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "From hand: pay the cost, choose one of your Battle Cards matching the printed description, and play this card on top of it. [Xeno-Evolve] sends the chosen card to the Warp instead of stacking onto it.",
     engine:
       "The description is read with the target grammar, so only cards that qualify are offered — and the skill is not offered at all when none do. The stack keeps the position and the power effects of the card underneath. Cards that say “when using this card's [Evolve] from your hand” fire at this activation.",
-    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D). Confirmed absent: gated in `verify/battles.ts`, `verify/keywords.ts` and `verify/workflow.ts` alike.",
+    engineRules:
+      "Built as its keyword's own `DO` (`offer: \"activate:main\"` in `keywords.rules`, #157): offered from the hand at the Main Phase while a Battle Card matching the printed description is out (`asPrinted` reads the description off the line), with the legacy menu words; the printed orbs are the price; the chosen card goes under this one, which keeps its place, its mode and its power effects (`vm/play.ts`'s `stackOnto`); [Xeno-Evolve] sends it to the Warp instead. “When using this card's [Evolve] from your hand” fires at the activation. Two differences from the legacy engine: with one card to evolve onto the choice is forced and nothing is asked, and the evolved card is moved once — the legacy engine moves it a second time from the Battle Area to the Battle Area, which loses the slot it took over (a legacy bug, recorded as the `evolve-moved-twice` probe cause). A change to “evolve costs” reaches the line's orbs on its own channel, as on the legacy engine.",
     support: "engine",
   },
   Union: {
@@ -166,7 +167,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "All three, with Absorb resolving its printed text like an ordinary skill rather than by names. Cards watching “when you activate a [Union] skill” fire at the activation, not at the choice that follows it, and “when this card's [Union-Absorb] is activated” fires at Absorb's own activation.",
     engineRules:
-      "Not built — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D. [Union-Absorb] specifically throws `NotYet(\"#157\")` at the one place it would play a card on top of another (`vm/play.ts`); Fusion and Potara have no body either.",
+      "Built as its keyword's own `DO` (`offer: \"activate:main\"` in `keywords.rules`, #157), one declaration for the three variants. Fusion and Potara are offered from the hand only while every character the line names stands on a different card (`eachNamed`) — in the hand and of one power for Fusion, in the Battle Area for Potara — and are refused with the legacy engine's words otherwise; Fusion drops the two as the cost and plays the card, Potara plays it onto the first and puts the second under it. Absorb is offered from the Battle Area and runs its printed text, which is what plays a card on top of this one (`play … onto`, `vm/play.ts`). Both watchers fire at the activation. As on the legacy engine, the Fusion choice offers every card of either name, so two copies of one character can be dropped. Differences: a forced choice is taken without a question, Potara asks for its two cards one after the other, and the menu reads “Union-Absorb CARD” without the effect text.",
     support: "engine",
   },
   "Over Realm": {
@@ -179,7 +180,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "With X or more cards in your Drop Area — X or more black cards, for the dark one — send your whole Drop Area to the Warp as the cost and play this card from hand. The two share one activation a turn. A card played with [Over Realm] goes to the Warp at the end of that turn.",
     engine:
       "The count, the whole-Drop cost and the shared limit, which [Wormhole] raises to two. Cards that watch “played with [Over Realm]” fire here rather than on the ordinary play. The end-of-turn return to the Warp is scheduled for the dark variant too, which 22-23 does not ask for.",
-    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D).",
+    engineRules:
+      "Not built yet (#157 looked and left it): its play goes through a [Counter: Play] window, which only a declared play opens on this engine, and the shared once-a-turn limit that [Wormhole] raises to two is a counted player attribute the language cannot read yet. The line is never offered.",
     support: "partial",
   },
   Swap: {
@@ -191,7 +193,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Offered from the Battle Area, and the swap happens. 22-22-3 is honoured: with no cost-X Battle Card in hand it is refused before it is offered, rather than taking its orbs and then finding nothing to choose. The choice is still filtered by energy cost only — a [Swap] that names a character offers every cost-X Battle Card in hand, not just that character's.",
     engineRules:
-      "Not built yet — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D. Confirmed absent: `verify/workflow.ts`'s own [Swap] case (22-22-3's own refusal) is a named keyword gap.",
+      "Not built yet (#157 looked and left it): the chosen card is played through a [Counter: Play] window, which only a declared play opens on this engine, and “an energy cost of X” is a parameter inside a card filter, which the filter grammar has no slot for. `verify/workflow.ts`'s own [Swap] case is a named keyword gap.",
     support: "partial",
   },
   Arrival: {
@@ -267,7 +269,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "The play is blocked, with the card already out named as the reason. When two do end up in play the engine keeps the newest instead of asking which to keep — 21-11 gives that choice to the master.",
     engineRules:
-      "Not built, and fits none of the fifteen contracted hook points (#157's own finding): the worked example a `playRefused` body would need — \"a card with the same name\" as a self-referential comparison — is not a phrase `parseFilter` reads, so forcing [Unique] through `playRefused` would read the wrong card's own keyword. Left undeclared until the contract gains the right shape rather than forced through the wrong one.",
+      "The play half is built (#157) as a `playRefused` hook body in `keywords.rules` — `forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false)` — read off the [Unique] card already in play whenever a play is checked, so the same declared play is refused with the same reason (`forbidden`, by the card already out) and a play a skill makes is not, as on the legacy engine. The 21-11 half is not built: rule processing does not run on the rules engine, so two copies that do end up in play both stay, where the legacy engine keeps the newest.",
     support: "partial",
   },
   Overlord: {
@@ -301,7 +303,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
       "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour.",
     engine:
       "Read before the old Unison leaves play, because leaving clears its markers (5-13-3). “Up to Y” is asked, not assumed — the master is prompted for how many to carry, from 0 to the cap `resolvePlay` works out (colour checked, capped by what the outgoing Unison actually has), and the play does not finish until it is answered (owner's ruling, 9 Sep 2026).",
-    engineRules: "Not built yet — docs/arena-backlog/s7-05-keywords-play-charge-pay.md, hook group D (\"markers on arrival and the carry prompt\"). Confirmed absent: gated in `verify/keywords.ts`.",
+    engineRules:
+      "Not built yet (#157 looked and left it): the carry is a question asked in the middle of a play, before the replaced Unison leaves, and the `play` op cannot suspend for an answer; the markers paid for the Unison are a later step of `playUnison`'s `DO` on this engine, so the carry belongs to that move rather than to `play`. Playing a Unison over another works; nothing is carried and nothing is asked. Gated in `verify/keywords.ts`.",
     support: "engine",
   },
 
@@ -493,7 +496,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Read off the tag and charged where the orbs are charged, so an unpayable one is neither offered nor resolved. It never names the skill it sits on, which is why the line keeps its own [Activate] or [Auto] type. Paying it is a moment cards watch, and those triggers fire.",
     engineRules:
-      "Not built, though `dbs/costs.rules`'s own `DEFINE COST marker` is declared and shared code once suggested this keyword needed no hook body at all — checked directly rather than trusted: with a Unison carrying enough markers, the skill is still not offered on the rules engine. The bound amount for a keyword-shaped `[Spirit Boost N]` price is not reaching the planner (`vm/costs.ts`'s `BoundAmounts`) the way an activation's own line binds a marker cost for other kinds of skill.",
+      "Built as a declared price (#157): `DEFINE COST spiritBoost` in `dbs/costs.rules` takes X markers off the card in your Unison Area, and the activation binds X off the line's tag and charges it after [Burst] and before the orbs, the legacy order. With no Unison, or too few markers on it, the line is refused with the legacy words (“[Spirit Boost] needs the markers”). Paying it is the `markerRemoved` moment named for the keyword, so cards watching the payment fire — the Unison it came off and your other cards — as on the legacy engine. Activated lines only: an [Auto]'s own price is not charged on this engine yet, [Spirit Boost] or otherwise.",
     support: "engine",
   },
 
