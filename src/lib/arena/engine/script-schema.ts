@@ -105,7 +105,7 @@ export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colo
 const AMOUNT_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost"] as const satisfies readonly AmountAttr[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
-export const REPLACE_EVENTS = ["leave", "ko", "play", "life"] as const satisfies readonly ReplaceEvent[];
+export const REPLACE_EVENTS = ["leave", "ko", "play", "life", "attack", "counter"] as const satisfies readonly ReplaceEvent[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
 /**
  * Every `modifyAttr` may name in `attr`: the six card attributes it always
@@ -303,7 +303,15 @@ type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   draw: { fields: [n(), SIDE], sentence: "{side:opponent draws|draw} {n}" },
-  discard: { fields: [n(), SIDE, { name: "to", type: { enum: ["warp"] } }], sentence: "{side:opponent discards|discard} {n}{to? to the Warp}", doc: 'cards leave a hand for the Drop (20-7); "to":"warp" for the Warp' },
+  // `to` names the Drop Area as well as the Warp (#137): left out it always
+  // meant the Drop, and naming that default is what lets `ops.rules`'s
+  // `discard` macro put the destination in its move without guessing. The
+  // sentence still says "to the Warp" for the Warp alone.
+  discard: {
+    fields: [n(), SIDE, { name: "to", type: { enum: ["drop", "warp"] }, default: "drop" }],
+    sentence: (raw, r) => renderTemplate(`{side:opponent discards|discard} {n}${(raw as OpOf<"discard">).to === "warp" ? " to the Warp" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.discard.fields, r),
+    doc: 'cards leave a hand for the Drop (20-7); "to":"warp" for the Warp',
+  },
   // The runtime default is "opponent" (`stepScript`'s `case "damage"`), not
   // `SIDE`'s "you" — damage is dealt to *someone*, and nearly every card that
   // omits `side` means the other player's life, never its own.
@@ -547,13 +555,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [
       { name: "event", type: { enum: REPLACE_EVENTS }, required: true },
       { name: "with", type: "ops", required: true },
-      { name: "by", type: { enum: ["skill", "skillOrKo"] } },
+      { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } },
       { name: "bySide", type: { enum: ["opponent"] } },
       { name: "to", type: { enum: ["hand", "drop"] } },
       { name: "optional", type: "boolean" },
       SELF,
     ],
     sentence: (raw, r) => {
+      // An attack or a counter replaced by nothing reads as the spelling it
+      // stands for (#137), the precedent `negate`'s own sentence set.
+      const as = replaceAs(raw as Op);
+      if (as.op !== "replace") return describeScript([as], r);
       const op = raw as OpOf<"replace">;
       const who = describeRef(op.target ?? { sel: { special: "self" } });
       const whose = op.bySide === "opponent" ? "an opponent's skill" : "a skill";
@@ -562,7 +574,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
           ? "the card being played would be played"
           : op.event === "life"
             ? `${who} would move from your life to your ${op.to === "drop" ? "Drop Area" : op.to === "hand" ? "hand" : "hand or your Drop Area"}`
-            : op.event === "ko"
+            : op.event === "ko" || op.by === "ko"
               ? `${who} would be KO'd${op.bySide === "opponent" ? " by an opponent's skill" : ""}`
               : op.by === "skill"
                 ? `${who} would be removed from the Battle Area by ${whose}`
@@ -571,7 +583,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
                   : `${who} would leave the Battle Area`;
       return `if ${moment}, ${op.optional ? "you may have this happen" : "this happens"} instead: ${describeScript(op.with, r)}`;
     },
-    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life" replacement is [Permanent] only — or, for "leave", the leaf of a keyword\'s wouldLeave hook: [Ultimate]\'s "removed from the game instead" (22-14-3), read as a redirect after any [Permanent]\'s',
+    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area), "attack" (the attack in progress, 8-1-6-1) and "counter" (the [Counter] this one answers, 9-7) — those two only with an empty "with", read back as "negateAttack"/"negateCounter" (#137). "by":"ko" on a "leave" is the same moment as "ko", the spelling "replaceLeave" lowers to. "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life" replacement is [Permanent] only — or, for "leave", the leaf of a keyword\'s wouldLeave hook: [Ultimate]\'s "removed from the game instead" (22-14-3), read as a redirect after any [Permanent]\'s',
   },
   altCost: {
     fields: [
@@ -1277,6 +1289,82 @@ export function modifyAttrAs(op: Op): Op {
     default:
       return op;
   }
+}
+
+/** Every key of `o` is one of `keys`: a lowered shape is read back only when it carries nothing the spelling would drop. */
+const only = (o: object, keys: readonly string[]): boolean => Object.keys(o).every((k) => keys.includes(k));
+
+/**
+ * The `replace` primitive, read as the spelling it stands for (#137) — the
+ * precedent `negateAs`, `costModifierAs` and `modifyAttrAs` set. The attack in
+ * progress and the [Counter] being answered are two moments a replacement
+ * stands in front of only with *nothing*: `negateAttack` and `negateCounter`
+ * lower to `replace(event: attack | counter, with: {})`, and this reads that
+ * back, so their own cases stay the one reading of either on both engines and
+ * no collector of standing offers ever mistakes one for a departure. Anything
+ * else said about those two moments — a program in their place, a target, a
+ * narrowing — is a `note`: unread beats wrongly read. Every other `replace` —
+ * a departure, a KO, a life card, the play being resolved — is the primitive's
+ * own business and comes back as it was.
+ */
+export function replaceAs(op: Op): Op {
+  if (op.op !== "replace" || (op.event !== "attack" && op.event !== "counter")) return op;
+  if (op.with.length || !only(op, ["op", "event", "with"])) return { op: "note", text: `replace: ${op.event === "attack" ? "the attack" : "the counter being answered"} can only be replaced by nothing` };
+  return op.event === "attack" ? { op: "negateAttack" } : { op: "negateCounter" };
+}
+
+/**
+ * The `moveTo` primitive, read as the spelling it stands for (#137). `draw`,
+ * `damage` and `addLife` each lower to one move of the top `n` cards of one
+ * pile — `TOP $n IN $side.deck` to the hand with the cause `draw`, `TOP $n IN
+ * $side.life` to the hand with the cause `damage`, `TOP $n IN $side.deck` to
+ * life — and this reads exactly those three shapes back. Their own cases are
+ * the reading that matters: a draw from an empty deck (2-2), damage's own
+ * moments (21-3) and "both players" (one pile each, not the top `n` of the two
+ * together) are what the cases know and a plain move does not.
+ *
+ * The count is the call's own `amount` (`rulesets/holes.ts`'s `count` slot):
+ * a number, or an expression — X, "until you have 4 cards in your hand" —
+ * that only one of these three cases evaluates. A move whose top-level
+ * selector carries an expression in any other shape is a `note`, because no
+ * selector counts by one (`resolveSelector` slices by a number).
+ */
+export function moveAs(op: Op): Op {
+  if (op.op !== "moveTo" || !("sel" in op.target)) return op;
+  const sel = op.target.sel;
+  const counted = typeof sel.take !== "number" && sel.take !== undefined;
+  if (only(op, ["op", "target", "to", "cause"]) && only(sel, ["take", "side", "area"]) && sel.take !== undefined && sel.side) {
+    const n = sel.take as unknown as Amount;
+    if (op.cause === "draw" && sel.area === "deck" && op.to === "hand") return { op: "draw", n, side: sel.side };
+    if (op.cause === "damage" && sel.area === "life" && op.to === "hand") return { op: "damage", n, side: sel.side };
+    if (op.cause === undefined && sel.area === "deck" && op.to === "life") return { op: "addLife", n, side: sel.side };
+  }
+  return counted ? { op: "note", text: "moveTo: a selector counts by a number" } : op;
+}
+
+/** The name `ops.rules`'s `discard` binds its choice to, read back below. */
+export const DISCARDED = "discarded";
+
+/**
+ * `discard`'s two steps, read back as the one step they stand for (#137). The
+ * macro lowers to `choose(sel: $n IN $side.hand, as: "discarded", chooser:
+ * $side)` and `moveTo(target: $discarded, to: $to, reveal: true)` — 20-7's
+ * "the owner of the hand chooses, and the cards go" — and `discard`'s own case
+ * is what asks each player in turn with the prompt that names the count, and
+ * evaluates an X there. This is the one read-back that spans two steps, so
+ * `stepScript` calls it on the program rather than on one op: the pair at `ip`
+ * comes back as the `discard` it stands for, or `null` when it is not that
+ * pair exactly.
+ */
+export function discardAs(ops: readonly Op[], ip: number): Op | null {
+  const choose = ops[ip];
+  const move = ops[ip + 1];
+  if (choose?.op !== "choose" || move?.op !== "moveTo") return null;
+  if (choose.as !== DISCARDED || !only(choose, ["op", "sel", "as", "chooser"]) || !only(choose.sel, ["count", "side", "area"])) return null;
+  if (choose.sel.area !== "hand" || !choose.sel.side || choose.sel.side !== choose.chooser || choose.sel.count === undefined) return null;
+  if (!only(move, ["op", "target", "to", "reveal"]) || move.reveal !== true || (move.to !== "drop" && move.to !== "warp")) return null;
+  if (!("var" in move.target) || move.target.var !== DISCARDED || move.target.minus !== undefined) return null;
+  return { op: "discard", n: choose.sel.count as unknown as Amount, side: choose.sel.side, ...(move.to === "warp" ? { to: "warp" as const } : {}) };
 }
 
 export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is Op[] {

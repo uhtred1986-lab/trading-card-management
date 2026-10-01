@@ -439,6 +439,13 @@ import type { CardFilter, SchemaOp } from "./harness";
       "removeMarker",
       "grant",
       "gains",
+      "draw",
+      "discard",
+      "damage",
+      "addLife",
+      "replaceLeave",
+      "negateAttack",
+      "negateCounter",
     ])
       assert.ok(macros.has(name), `ops.rules no longer declares ${name}`);
     // What a declared macro must lower into — read off `OP_CLASS`, the same
@@ -461,6 +468,11 @@ import type { CardFilter, SchemaOp } from "./harness";
         const left = opsIn(lowered).filter((op) => macros.has(op));
         assert.deepEqual(left, [], `${where}: the expansion still holds ${JSON.stringify(left)}, which ops.rules declares as a macro`);
         const used = opsIn(rec.ops as SchemaOp[]).filter((op) => macros.has(op));
+        // #137: `replaceLeave` lowers to a redirect, which `play` and `under`
+        // are not (`redirectOf`) — the one boundary `ops.rules` records for
+        // the row, held here to no record ever reaching it.
+        const leave = JSON.stringify(rec.ops).match(/"op":"replaceLeave","to":"(play|under)"/);
+        assert.equal(leave, null, `${where}: a replaceLeave to ${leave?.[1]} lowers to a substitute, not the native redirect`);
         if (!used.length) assert.deepEqual(lowered, rec.ops, `${where}: a program with no macro in it did not come back unchanged`);
         else {
           withMacro++;

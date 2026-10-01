@@ -724,8 +724,12 @@ a `choose … as "picked"` is left alone).
 
 Every hole names a parameter the macro `TAKES`, of a type the slot can hold, and the loader
 refuses the rest before the expander could fill it: `$until` where nothing is declared, `$until`
-declared `side` in a duration slot, `$n` declared `amount` in a selector's `TOP` (a selector counts
-by a number). The parameter types are the field types, plus `strings` for a list of strings and
+declared `side` in a duration slot, `$n` declared `side` in a selector's `TOP`. A selector's count
+and its `TOP n` are one slot type, **`count`**, which takes a parameter declared `number` *or*
+`amount` (#137): `draw(n: X)` lowers to `moveTo(target: TOP $n IN $side.deck, …)` with the call's
+X in the slot. No selector *runs* counted by an expression — the four rows that lower to one
+(`draw`, `discard`, `damage`, `addLife`) are read back as their own spelling first (`moveAs`,
+`discardAs`, `engine/script-schema.ts`), the precedent `negateAs` set. The parameter types are the field types, plus `strings` for a list of strings and
 `word` for any closed list — the list itself is known from the field the hole sits in, so
 `mode: $mode` is checked against `[active, rest]` when the call is expanded, not declared twice.
 `rulesets/expand.ts` fills a hole of any type, refuses an argument that is not what the parameter
