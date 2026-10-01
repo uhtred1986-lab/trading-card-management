@@ -159,9 +159,24 @@ export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | 
   return engineFor(input.engine ?? FALLBACK_ENGINE).rejectedActions(input.ctx, input.state, input.legal);
 }
 
+/**
+ * The moves this board may list. A 1 v 1 seat (`viewer` named) sees none of
+ * the other seat's: their labels name the cards in that player's hand ("Play
+ * Son Goku"), which is exactly what 3-3-3 keeps from the opponent, and the
+ * server refuses a move from the wrong seat anyway (#458). Everyone else keeps
+ * the whole list, as before.
+ */
+function legalFor(input: Pick<SnapshotInput, "state" | "legal" | "viewer">): LegalAction[] {
+  if (!input.viewer) return input.legal;
+  const prompt = input.state.prompt;
+  const asked = "player" in prompt ? prompt.player : null;
+  return asked && asked !== input.viewer ? [] : input.legal;
+}
+
 export function buildSnapshot(input: SnapshotInput): Snapshot {
   const viewer = viewerFor(input);
   const rejected = rejectedFor(input);
+  const legal = legalFor(input);
   return {
     contract: CONTRACT_VERSION,
     game: {
@@ -178,8 +193,8 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
       ...(input.p2User !== undefined ? { p2User: input.p2User } : {}),
     },
     view: engineFor(input.engine ?? FALLBACK_ENGINE).boardView(input.ctx, input.state, viewer, input.images),
-    legal: input.legal,
-    taps: tappable(input.legal, rejected),
+    legal,
+    taps: tappable(legal, rejected),
     ...(rejected.length ? { rejected } : {}),
     // Masked before the art goes on: a beat naming a card this viewer may not
     // see must not carry its name or its face. See `maskBeats`.

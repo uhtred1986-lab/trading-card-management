@@ -14,10 +14,10 @@
  * ENGINE` explicitly — `snapshot.ts` defaults a missing `engine` to `legacy`,
  * which would draw a rules-engine board through the wrong adapter.
  *
- * On `--engine rules` this file skips one case and no more: the first half
- * of PRICED, an action price (4-3-3) the engine's own `NotYet` gives to #149
- * (`actionPriceGap`). [Unique] and [Swap], the Stage 7 keyword bodies it used
- * to skip, are built (#157). Everything else is a real assertion on both engines —
+ * On `--engine rules` this file skips nothing: PRICED's action price (4-3-3),
+ * the last case it skipped, is charged there since #458. [Unique] and [Swap],
+ * the Stage 7 keyword bodies it used to skip, are built (#157). Everything is a
+ * real assertion on both engines —
  * since #152, the combo, counter, blocker and chooseCards prompts' rejected
  * lists, the board's `you.choices`/`them.rules` and a chooseCards prompt's
  * own words, and a counted prohibition spending its uses included.
@@ -37,6 +37,7 @@ import {
   gameG,
   labelsG,
   leaderOf,
+  maskBeats,
   missingEnergyChip,
   missingEnergyChips,
   narrate,
@@ -50,14 +51,14 @@ import {
   rejectedFor,
   sentence,
   setEnergyMarkersG,
+  stageMoveG,
   stepText,
   zoneOf,
 } from "./harness";
-import type { Beat, EngineState, PlayerId, RejectedAction, Requirement } from "./harness";
+import type { Beat, Beats, EngineState, PlayerId, RejectedAction, Requirement } from "./harness";
 
 // No keyword gap is left here: [Barrier] is done (#154), its rejection reason
 // too (#152), and [Swap] is a keyword move since #157.
-let skipped = 0;
 
 /**
  * A menu label's exact wording — checked only on the legacy engine.
@@ -74,27 +75,6 @@ let skipped = 0;
  */
 function assertLabelOnLegacy(actual: string, expected: string, msg?: string): void {
   if (ENGINE === "legacy") assert.equal(actual, expected, msg);
-}
-
-/**
- * The one real, non-keyword gap this suite still skips on the rules engine:
- * an **action price** (4-3-3) — "Choose 1 card in your hand and place it in
- * the Drop Area:" in front of a skill's colon. `vm/activate.ts`'s
- * `chargeablePrice` refuses any price whose record carries `ops` (it needs the
- * payability of a program), and `vm/host.ts`'s `saveVars` — the half that
- * hands what a price chose on to the effect — throws `NotYet(…, "#149")`. So
- * the line is refused `unread` rather than offered. Named here with the issue
- * the engine's own `NotYet` names, so it is never mistaken for a keyword skip.
- * (Until #152 this whole case was skipped as "legacy-only architecture": it is
- * not — the rules engine reads `ctx.scripts` through `programsOf` exactly as
- * the legacy engine does, and the record-without-a-price half below runs and
- * passes on both engines.)
- */
-function actionPriceGap(where: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — ${where}: an action price (4-3-3) is not charged on the rules engine yet — vm/activate.ts's chargeablePrice refuses a price with ops, and vm/host.ts's saveVars throws NotYet (#149)`);
-  skipped++;
-  return true;
 }
 
 // ── every rule as a workflow: rejections, choices, steps ───────────────────
@@ -291,8 +271,9 @@ function actionPriceGap(where: string): boolean {
     const priced = findG(s, "p1", "battle", "PRICED");
     const sk = parseSkills(DEFS.PRICED.skill!)[0];
 
-    // With the record's price: offered, and paying it really costs the card.
-    if (!actionPriceGap("PRICED: an action price the record carries is charged")) {
+    // With the record's price: offered, and paying it really costs the card —
+    // on both engines since #458.
+    {
       assert.ok(
         IMPL.legalActions(CTX, s).some((l) => l.action.type === "activate" && l.action.card === priced),
         "an action price the record carries is a price the engine charges",
@@ -861,4 +842,72 @@ function actionPriceGap(where: string): boolean {
   assert.equal(narrate({ t: "draw", player: "p1", card: "a" }, me), "You draw Son Goku.");
 }
 
-if (ENGINE === "rules") console.log(`verify/workflow: ${skipped} case(s) skipped on the rules engine — PRICED's action price (#149) (see this file's own actionPriceGap comment)`);
+// ── 1 v 1: what each seat may see, on both engines (#458) ──────────────────
+//
+// 3-1-3 and 3-3-3: in a 1 v 1 the same game is drawn twice, once per seat, and
+// neither may name a card the other has not shown. `revealedTo` is the rule
+// (`view.ts`, and `vm/view.ts`'s `vmRevealedTo` for the rules engine); the
+// board view, the masked beats and the snapshot's move list are the three
+// places a face could leak. Instance ids are not faces — what is checked is
+// which ids come with a card's name.
+{
+  const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
+  const spend = { calls: 0, input: 0, output: 0, cached: 0, micros: 0 };
+  const snapFor = (s: EngineState, viewer: PlayerId, beats: Beats) =>
+    buildSnapshot({ id: 1, engine: ENGINE, mode: "versus", status: "playing", p1Name: "You", p2Name: "Rival", ctx: CTX, state: s, legal: IMPL.legalActions(CTX, s), log: [], beats, spotlight: null, spend, ai: null, viewer, images: {} });
+  /** Every card the board names with a face: any object carrying both an instance id and a catalog id, and not drawn face down. */
+  const named = (v: unknown, out = new Set<string>()): Set<string> => {
+    if (Array.isArray(v)) for (const x of v) named(x, out);
+    else if (v && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      if (typeof o.id === "string" && typeof o.cardId === "string" && o.hidden !== true) out.add(o.id);
+      for (const x of Object.values(o)) named(x, out);
+    }
+    return out;
+  };
+  /** A beat queue that names every card in the game, so masking is the only thing deciding what survives. */
+  const everything = (s: EngineState): Beats => ({ seq: 1, list: [], art: Object.fromEntries(Object.entries(s.cards).map(([id, c]) => [id, { cardId: c.cardId, name: c.cardId, imageUrl: null }])) });
+
+  const s = arenaG({ hand: ["V1", "BIG"], battle: ["V1"], oppHand: ["BIG"], oppBattle: ["V1", "V1"] });
+  // Two cards in p2's Drop — the whole Drop is open, not only its top (3-4-3).
+  const dropped = zoneOf(s, "p2", "deck").slice(0, 2);
+  for (const id of dropped) stageMoveG(s, id, "drop", "p2");
+  // One of p2's life cards turned face up (3-9-2-1), and one of p2's Battle
+  // Cards face down in Hidden Mode (23-5-2).
+  const lifeUp = zoneOf(s, "p2", "life")[0];
+  s.cards[lifeUp].faceUp = true;
+  const faceDown = zoneOf(s, "p2", "battle")[0];
+  s.cards[faceDown].hidden = true;
+
+  for (const viewer of ["p1", "p2"] as PlayerId[]) {
+    const them = other(viewer);
+    const beats = maskBeats(s, everything(s), viewer)!;
+    const snap = snapFor(s, viewer, everything(s));
+    const board = named(snap.view);
+    const faceDownLife = (p: PlayerId) => zoneOf(s, p, "life").filter((id) => id !== lifeUp);
+    const secret = [...zoneOf(s, them, "hand"), ...zoneOf(s, them, "deck"), ...zoneOf(s, viewer, "deck"), ...faceDownLife(them), ...faceDownLife(viewer), faceDown];
+    for (const id of secret) {
+      assert.ok(!(id in beats.art), `${viewer}'s masked beats name ${id} (${s.cards[id].cardId}), which ${viewer} may not see`);
+      assert.ok(!(id in snap.beats!.art), `${viewer}'s snapshot beats name ${id}`);
+      assert.ok(!board.has(id), `${viewer}'s board names ${id}`);
+    }
+    assert.equal(snap.view.them.hand, null, `${viewer}'s board draws the opponent's hand`);
+    // A card in Hidden Mode is no one's to read, its owner's included (23-5-2).
+    const open = [...zoneOf(s, viewer, "hand"), ...zoneOf(s, them, "battle"), ...zoneOf(s, viewer, "battle"), ...dropped, lifeUp, leaderOf(s, them), leaderOf(s, viewer)].filter((id) => id !== faceDown);
+    for (const id of open) assert.ok(id in beats.art, `${viewer}'s masked beats hide ${id} (${s.cards[id].cardId}), which is public or ${viewer}'s own`);
+    // The prompt is p1's: the move list names p1's hand ("Play BIG"), so only p1's seat gets it.
+    assert.equal(snap.legal.length > 0, viewer === "p1", `${viewer}'s snapshot ${viewer === "p1" ? "has no moves on its own turn" : "lists the other seat's moves, which name the cards in its hand"}`);
+  }
+
+  // The same through a real move: p2 draws at the start of their turn, and the
+  // draw beat keeps its face for p2 and for nobody else.
+  const r = IMPL.apply(CTX, s, { type: "endMain", player: "p1" });
+  const told = IMPL.toBeats(CTX, r.state, r.events);
+  const drawn = told.list.filter((b): b is Extract<Beat, { t: "draw" }> & { n: number } => b.t === "draw" && b.player === "p2");
+  assert.ok(drawn.length, "p2 drew no card at the start of their turn");
+  for (const b of drawn) {
+    assert.ok(b.card && b.card in maskBeats(r.state, told, "p2")!.art, "p2's own draw is hidden from p2");
+    assert.ok(b.card && !(b.card in maskBeats(r.state, told, "p1")!.art), "p2's draw is shown to p1");
+  }
+}
+

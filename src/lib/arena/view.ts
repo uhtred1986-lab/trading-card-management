@@ -13,6 +13,8 @@ import { def, emitsStatic, locate, masterOf, permanentStatics, type StaticEffect
 import { describeEffect, describeStatic, type EffectView } from "./effects";
 import type { EngineState } from "./engines";
 import { isVmState } from "./vm/state";
+import { vmRevealedTo } from "./vm/view";
+import { rulesetFor } from "./rulesets";
 import { fixedPrompt, promptHint } from "./prompt-words";
 
 export interface CardView {
@@ -386,44 +388,48 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
 /**
  * Every card instance whose identity `viewer` is allowed to know right now.
  *
- * The same question `sideView` and `cardView` answer per zone, asked once for
- * the whole board: a card is identifiable when some zone this viewer's board
- * renders shows its face — both leaders and Unisons, everything in play, the
- * viewer's *own* hand, face-up Life and Z-Deck (3-9-2-1), the top of each Drop
- * — and it is not itself face-down (1-10-2). A card being searched for is in
- * too, because the search sheet shows it to the searcher and to nobody else.
+ * A card is identifiable when it sits in an area either player may read
+ * (3-1-3) — both leaders and Unisons, everything in play, the Energy, Combo
+ * and Z-Energy Areas, the *whole* Drop (3-4-3) and Warp (3-10-2), the cards
+ * removed from the game (20-10-3) — or in a secret area that is the viewer's
+ * own to read (their hand, 3-3-2; their Z-Deck, 3-12-2), or it has been turned
+ * face up (3-9-2-1); and it is not itself face-down (23-5-2). The cards under
+ * a readable card are face up too (23-2-2). A card being searched for is in,
+ * because the search sheet shows it to the searcher and to nobody else. The
+ * opponent's hand, both decks and face-down life never are.
  *
  * It exists so `beats.ts` can ask the same question about a card that has
  * since left the board, without a second set of reveal rules growing up beside
- * this one. See `maskBeats`.
+ * this one. See `maskBeats`. The board draws only the top of a Drop, but the
+ * area is open, so a card KO'd under another stays named in its beat (#458).
  *
- * The rules engine has no reading of this rule yet, and — for now — needs
- * none: `games.ts`'s `assertEngineForMode` refuses a 1 v 1 on it, so every
- * mode it can actually be played in is the "on one device" case `maskBeats`'s
- * own header already calls harmless. Revealing everything is that
- * harmlessness taken literally, honestly, rather than a second reading of
- * this rule built over `state.sides` before there is a second viewer for a
- * leak to reach.
+ * The rules engine's reading is `vmRevealedTo` (`vm/view.ts`): the same rule,
+ * read off its zone declarations' `visibility` (#458).
  */
 export function revealedTo(s: EngineState, viewer: PlayerId): Set<string> {
-  if (isVmState(s)) return new Set(Object.keys(s.cards));
+  if (isVmState(s)) {
+    const loaded = rulesetFor(s.game);
+    if (!loaded.ok) throw new Error(`the ${s.game} ruleset did not load, so no board can say what is hidden: ${loaded.errors[0]?.message ?? "no reason given"}`);
+    return vmRevealedTo(loaded.definition, s, viewer);
+  }
   const out = new Set<string>();
   const add = (id: string | null | undefined) => {
     const inst = id ? s.cards[id] : null;
-    if (id && inst && !inst.hidden) out.add(id);
+    if (!id || !inst || inst.hidden || out.has(id)) return;
+    out.add(id);
+    for (const u of inst.under ?? []) add(u);
   };
   for (const p of ["p1", "p2"] as PlayerId[]) {
     const ps = s.players[p];
     add(ps.leader);
     add(ps.unison);
-    for (const id of [...ps.battle, ...ps.combo, ...ps.energy]) add(id);
+    for (const id of [...ps.battle, ...ps.combo, ...ps.energy, ...ps.zEnergy, ...ps.drop, ...ps.warp, ...(ps.removed ?? [])]) add(id);
     // #272: a life card revealed on its way into a hand (BT10-031/SD18-01,
     // "you may reveal it and add it to your hand instead") is `faceUp` the
     // same way a life or Z-Deck card left face up is — public knowledge
     // wherever it sits, not only to its own owner.
-    for (const id of ps.hand) if (p === viewer || s.cards[id]?.faceUp) add(id);
-    for (const id of [...ps.life, ...ps.zDeck]) if (s.cards[id]?.faceUp) add(id);
-    add(ps.drop[0]);
+    for (const id of [...ps.hand, ...ps.zDeck]) if (p === viewer || s.cards[id]?.faceUp) add(id);
+    for (const id of [...ps.life, ...ps.deck]) if (s.cards[id]?.faceUp) add(id);
   }
   // What a search shows you is yours to see, exactly as `hiddenChoices` has it.
   const pr = s.prompt;

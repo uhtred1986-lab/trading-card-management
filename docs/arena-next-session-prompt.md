@@ -48,9 +48,8 @@ issues' own PR descriptions remain the record of how each got there.
   `arena.engine` setting stays as the way back to `legacy`, and `engineOr`'s own fallback is
   `FALLBACK_ENGINE`, not the default, so a stored row that cannot be read is still legacy.
   `ENGINE_INFO.rules.available` is true, and since #162 a hot-seat game, Sparring **and**
-  Tournament run on it — a 1 v 1 is the one mode that does not, because the hidden-hand masking is
-  the one thing still reading the legacy `GameState` directly, and since #166 that resolves to the
-  legacy engine (`games.ts`'s `engineForMode`) instead of refusing. #166's own remaining bullets —
+  Tournament run on it, and since #458 a 1 v 1 too: the hidden-hand masking reads the rules
+  engine's own state (`vm/view.ts`'s `vmRevealedTo`). #166's own remaining bullets —
   the owner's confirmation and the `arena:diff`/`arena:reprobe` parity runs (#164, #165) — need the
   shared database and are the owner's.
 - **The effect language's tables**: `src/lib/arena/vm/script-schema.ts` (`OP_SCHEMA`,

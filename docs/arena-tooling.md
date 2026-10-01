@@ -218,11 +218,12 @@ skipped) tells you what you broke:
   compiler.
 - **`workflow.ts`** — every rule as a visible workflow: what is refused and why,
   in the words a client shows. Asserts the "one rejection per card per action
-  type" promise. **Runs on both engines since #152**, and on `rules` it skips
-  one case and no more ([Unique] and [Swap], the keyword bodies it used to
-  skip, are built since #157): the first half of `PRICED` — an action price (4-3-3),
-  which `vm/activate.ts`'s `chargeablePrice` refuses and `vm/host.ts`'s
-  `saveVars` gives to #149 (`actionPriceGap`). The four non-keyword gaps the
+  type" promise. **Runs on both engines since #152**, and since #458 it skips
+  nothing on `rules`: `PRICED`'s action price (4-3-3), the last case it
+  skipped, is charged there ([Unique] and [Swap], the keyword bodies it used to
+  skip, are built since #157). It also holds the 1 v 1 masking checks (#458):
+  each seat's board, masked beats and move list hide the other seat's hand,
+  both decks and face-down cards, on both engines. The four non-keyword gaps the
   porting pass found are closed: the combo, counter and blocker prompts have
   their rejected lists (`battleRejectedActions`, `vm/battle.ts`, with the combo
   prompt's [Activate: Battle] lines), and so does a `chooseCards` prompt

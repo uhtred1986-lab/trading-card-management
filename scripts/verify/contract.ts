@@ -371,6 +371,9 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     assert.equal(forP1.waiting, "you");
     assert.equal(forP2.waiting, "opponent", "the other device is told to sit still and watch");
     assert.ok(!forP2.rejected?.length, "and is never told why it cannot move: the prompt is not its");
+    // #458: nor handed p1's moves, whose labels name the cards in p1's hand.
+    assert.deepEqual(forP2.legal, [], "the other device is sent the asked player's moves");
+    assert.equal(forP1.legal, legal, "the asked player is not sent their own moves");
 
     // 3. The beat queue is one queue, but a face is only in the copy that may
     //    see it. Both beats survive in both — that a card moved is public —
@@ -531,7 +534,8 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     play: 1,
     search: 1,
     standing: 1,
-    versus: 1,
+    // #458: the 1 v 1 fixture is p2's board on p1's turn, which lists none of p1's moves.
+    versus: 0,
     // #447: "End Defense Step" (defend), the End Main Phase button (the rest).
     defend: 1,
     "attack-life": 1,

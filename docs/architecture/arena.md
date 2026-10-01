@@ -18,8 +18,10 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `docs/arena-code-map.md`.
 - **Two engines, chosen per game** (`src/lib/arena/engines.ts`): the config-driven `rules` engine
   (`vm/`) is the **default** since 20 Sep 2026 (#166); `legacy` (`engine/`, frozen) stays the
-  oracle, is what Settings → Arena engine puts new games back on, and is what a **1 v 1** is made
-  on either way (`engineForMode`, #162 — never a refusal of the default path). A game keeps the
+  oracle and is what Settings → Arena engine puts new games back on. Every mode is played on both
+  since #458 made a **1 v 1**'s hidden-hand masking read the rules engine's own state
+  (`vm/view.ts`'s `vmRevealedTo`); a mode an engine is not built for would resolve to the fallback
+  (`engineForMode`, never a refusal of the default path). A game keeps the
   engine it was made on — `engineFor(id)` is the one switch, and `engineOr`'s own fallback is
   `FALLBACK_ENGINE`, not the default, because an unreadable stored value is an old legacy row.
   **Retiring `legacy` (Stage 10, #118) is under way, not done**: `engine/` now holds only the
