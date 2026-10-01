@@ -186,6 +186,53 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     fixtures.attack = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
   }
   {
+    // `defend` (design frame 07): Claude attacks you. p1 ends the turn, p2 charges and
+    // attacks your leader, passes its own combo, and the board stops on *your* defence
+    // prompt — with cards in hand that could combo. The preview's `?fx=defend` fakes
+    // this by turning `attack` round; this is the real thing, from the engine.
+    let s = arena({ hand: ["V1", "UNIQ", "BLOCKER"], battle: ["V1"], oppBattle: ["BIG"] });
+    s = play(s, { type: "endMain", player: "p1" });
+    s = play(s, { type: "charge", player: "p2", card: null });
+    const attacker = s.players.p2.battle[0];
+    const r1 = apply(ctx, s, { type: "attack", player: "p2", attacker, target: s.players.p1.leader! });
+    const r2 = apply(ctx, r1.state, { type: "pass", player: "p2" });
+    assert.equal(r2.state.prompt.kind, "combo", "the attack waits on a combo");
+    assert.equal((r2.state.prompt as { player: PlayerId }).player, "p1", "and it is yours to answer");
+    fixtures.defend = snapshotFor(r2.state, toBeats(ctx, r2.state, [...r1.events, ...r2.events], 0));
+  }
+  {
+    // `attack-life` (design frame 09): an attack nobody blocks takes a life, so the
+    // pip shatters. The beats are the whole attack — attack, clash, damage — in one batch.
+    let s = arena({ battle: ["BIG"], oppBattle: [] });
+    const lifeBefore = s.players.p2.life.length;
+    let step = apply(ctx, s, { type: "attack", player: "p1", attacker: s.players.p1.battle[0], target: s.players.p2.leader! });
+    const all = [...step.events];
+    s = step.state;
+    for (let i = 0; i < 4 && s.players.p2.life.length === lifeBefore; i++) {
+      const pass = legalActions(ctx, s).find((l) => l.action.type === "pass");
+      assert.ok(pass, "an unblocked attack only needs both sides to pass");
+      step = apply(ctx, s, pass.action);
+      all.push(...step.events);
+      s = step.state;
+    }
+    assert.equal(s.players.p2.life.length, lifeBefore - 1, "the attack took one life");
+    const beats = toBeats(ctx, s, all, 0);
+    assert.ok(beats.list.some((b) => b.t === "damage" && b.amount === 1), "and the life loss is a damage beat");
+    fixtures["attack-life"] = snapshotFor(s, beats);
+  }
+  {
+    // `refusal` (design frame 05): a card you cannot afford, for the review sheet's
+    // "1 energy short" and the disabled Play. `hand` has the same refusal among
+    // others; this is the one card the frame is about.
+    const s = arena({ hand: ["COST3", "UNIQ"], energy: ["V1", "V1"] });
+    const snap = snapshotFor(s, null);
+    assert.ok(
+      snap.rejected?.some((r) => r.action.type === "play" && r.why.some((w) => w.kind === "energy")),
+      "the unaffordable card is refused for energy",
+    );
+    fixtures.refusal = snap;
+  }
+  {
     const s = arena();
     const r = apply(ctx, s, { type: "concede", player: "p1" });
     fixtures.over = snapshotFor(r.state, toBeats(ctx, r.state, r.events, 0));
@@ -440,6 +487,11 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
       // back for the mover and for the opponent watching.
       assert.equal(maskBeats(state, beats, "p1"), beats, "nothing hidden from the mover");
       assert.equal(maskBeats(state, beats, "p2"), beats, "nothing hidden from the opponent either — marker counts on a Unison are public");
+
+      // `empower`: the same carry as a fixture, for the board's marker flight (#447).
+      // The legacy engine only; the rules engine cannot stage this file's cards.
+      assert.equal(state.prompt.kind, "main", "the carry is answered; the board is back on the Main Phase");
+      fixtures.empower = snapshotFor(state, beats);
     } else {
       console.log("  skipped case — [Empower]'s carry beat: this file's fixtures are legacy-only (verify/keywords.ts proves the same beats on the rules engine, #157)");
     }
@@ -480,6 +532,11 @@ import type { Beat, Beats, GameState, NumberedBeat, PlayerId, Snapshot } from ".
     search: 1,
     standing: 1,
     versus: 1,
+    // #447: "End Defense Step" (defend), the End Main Phase button (the rest).
+    defend: 1,
+    "attack-life": 1,
+    refusal: 1,
+    ...(ENGINE === "rules" ? {} : { empower: 1 }),
   };
   for (const [name, snap] of Object.entries(fixtures)) {
     const sn = snap as Snapshot;

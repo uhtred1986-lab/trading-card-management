@@ -559,6 +559,44 @@ skin is set both as `?skin=` (the board) and as the `arenaSkin` cookie (the page
 behind it, which the root layout skins) — set both by hand if you open the URL
 yourself.
 
+### The preview, as a player sees it (#447)
+
+`/arena/preview` is **full-bleed** like `/arena/<id>` (`isFullBleed`, `src/lib/navigation.ts`): no
+app header, no bottom tabs, so a shot of it is the board a player gets. Four fixtures exist for
+the design frames that had none, all written by `npm run contract:emit` from the harness:
+`defend` (frame 07: Claude attacks you; you are asked to combo), `attack-life` (frame 09: an
+unblocked attack takes a life, so a pip shatters), `refusal` (frame 05: a card you cannot
+afford) and `empower` (a Unison replaced, its markers carried: the [Empower] flight; legacy
+engine only, like the case it comes from). `?fx=defend|victory|finish` still work.
+
+`?replay=1` plays a fixture's own beats from the start: the board mounts with an empty queue
+and the beats are delivered 500 ms later, as a later snapshot would. Without it a fixture is a
+still moment, its beats already seen. `?fx=` wins when both are given.
+
+### `npm run arena:record`
+
+The motion twin of `arena:shots`: a clip of `?replay=1` per fixture x skin x viewport, for a PR
+that has to *show* an animation. Written to `docs/arena-redesign/clips/` (ignored by version
+control) as `phone-attack-life-anime.webm`, named like the shots.
+
+```
+npm run arena:record                                   # attack-life, anime + night, phone + desk
+npm run arena:record -- --fixtures attack-life --skins anime,night --viewports phone,desk
+npm run arena:record -- --fixtures defend,empower --skins anime --duration 8000
+npm run arena:record -- --fixtures play --query fx=reveal   # a preview effect instead of the replay
+```
+
+It drives the same CDP driver as `arena:shots` (`Page.startScreencast`, so no Playwright and no
+new dependency) and encodes the frames with an ffmpeg it finds at run time: `FFMPEG_PATH`, then
+`ffmpeg` on the PATH, then Playwright's own copy (`$PLAYWRIGHT_BROWSERS_PATH` or
+`/opt/pw-browsers/ffmpeg-*/ffmpeg-linux`, which writes VP8 only, as the encoder here asks).
+With none of them it stops and says where it looked. The clip starts when the board is up, so
+the dev compile is not in it; `--duration` (default 12000 ms, a whole attack at normal pace) is how long it runs after that,
+`--pace` defaults to `normal`. Like `arena:shots` it needs `npm run dev` running; neither touches
+the database. To look at a clip, pass `--frames`: a JPEG every 250 ms lands in `<clip>-frames/`
+(Playwright's ffmpeg decodes VP8 but has no image encoder, so extracting frames from the clip
+afterwards only works with a full ffmpeg).
+
 ### `npm run arena:contrast`
 
 Proves the board's text is **legible** (WCAG 1.4.3: 4.5:1, 3:1 for large text),
