@@ -30,6 +30,15 @@
  * for.
  */
 
+import { dbsWords } from "./board-words";
+
+/**
+ * The colours `TONES` has a palette for — the *type* of a room's colour. Which
+ * colours light a room at all is `words.rules`' `room: true` (`colourOf` reads
+ * it through `board-words.ts`), and `scripts/verify/board-words.ts` holds the
+ * two lists to one another, so a colour added to the ruleset without a tone
+ * here fails `npm test` rather than lighting a room with no palette.
+ */
 export const LEADER_COLOURS = ["Red", "Blue", "Green", "Yellow", "Black"] as const;
 export type LeaderColour = (typeof LEADER_COLOURS)[number];
 
@@ -151,10 +160,10 @@ export function toneFor(colour: LeaderColour, prefs: TurnLighting): Tone {
  * their own — they fall back to Black, the neutral tone, rather than to no
  * light at all.
  */
-export function colourOf(colors: readonly string[] | null | undefined): LeaderColour | null {
+export function colourOf(colors: readonly string[] | null | undefined, rooms: readonly string[] = dbsWords().leaderColours): LeaderColour | null {
   if (!colors || colors.length === 0) return null;
   const first = colors[0];
-  return (LEADER_COLOURS as readonly string[]).includes(first) ? (first as LeaderColour) : "Black";
+  return rooms.includes(first) && first in TONES ? (first as LeaderColour) : "Black";
 }
 
 /** Who the room belongs to at this moment. */

@@ -476,10 +476,6 @@ export function CardSheet({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center arena-scrim p-0 sm:items-center sm:p-4"
-      // Inline on purpose: `.arena > *` (globals.css) is unlayered, so it beats
-      // Tailwind's layered `fixed` and `z-50` on any direct child of the board,
-      // and the sheet would be drawn in the flow under the hand.
-      style={{ position: "fixed", zIndex: 50 }}
       onClick={onClose}
     >
       <div

@@ -77,7 +77,7 @@ export function StepBanner({ step, hold = false }: { step: string; hold?: boolea
 
   if (!shown) return null;
   return (
-    <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center" style={{ position: "fixed", zIndex: 40 }} aria-hidden>
+    <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center" aria-hidden>
       <p key={shown.key} className="arena-banner arena-impact select-none text-4xl font-black uppercase italic tracking-tight text-space-50 sm:text-6xl lg:text-7xl">
         {shown.text}
       </p>
