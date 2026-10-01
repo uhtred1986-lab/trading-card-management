@@ -33,10 +33,14 @@
  *
  *   *A keyword's own activation* — [Awaken], [Evolve], [Union], [Over Realm],
  *   [Swap], [Arrival], [Successor], [Aegis], [Rejuvenate], [Overlord], [Field],
- *   [Z-Awaken] — is a body the `DEFINE KEYWORD` hooks carry, which is Stage 7's
- *   (#153–#157). Such a line is still a candidate and is refused `unread`,
- *   because a player reaching for it is owed an answer; it is simply not an
- *   answer this engine can give yet.
+ *   [Z-Awaken] — is its `DEFINE KEYWORD`'s `DO`, Stage 7's to write one keyword
+ *   at a time (`docs/arena-ruleset-spec.md` §4.4). A keyword whose declaration
+ *   says `offer:` makes its bare line a candidate here, as a line of the kind
+ *   it names (`ActivationLine.kind`), gated by the keyword's own `REFUSE`s
+ *   beside the window and running its `DO` in place of the record ([Overlord]
+ *   is the first). A printed [Activate] line carrying a keyword with no `DO`
+ *   is still a candidate and is refused `unread`, because a player reaching
+ *   for it is owed an answer; it is simply not one this engine can give yet.
  *
  *   *A [Counter]* is not an activation at all: its windows (an attack's,
  *   a play's) are `vm/battle.ts`'s native `counter` move (#150), and no
@@ -78,7 +82,7 @@ import type { EngineContext, GameEvent, Payer } from "../engine";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../engine/types";
 import type { Script, ScriptFrame } from "../engine/script";
 import { costIsOnlyOrbs } from "../engine/compile";
-import type { ActionDef, GameDefinition } from "../rulesets";
+import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { cardColors, cardPrice, skillOrbs, type BoundAmounts } from "./costs";
 import { skillNegated, skillsNegated } from "./effects";
@@ -88,6 +92,7 @@ import { moved } from "./flow";
 import { forbiddenBy, resolveSelector } from "./program";
 import { vmHost } from "./host";
 import type { VmState } from "./state";
+import { keywordMoveOf, keywordProgram } from "./keyword-do";
 import { skillsShowing } from "./triggers";
 import { findCard } from "./zones";
 
@@ -104,6 +109,16 @@ export interface ActivationLine {
   skillIndex: number;
   skill: Skill;
   script: Script | undefined;
+  /**
+   * The kind the line is offered as: its printed kind, or — for a line that is
+   * nothing but a keyword whose `DEFINE KEYWORD` says `offer:` — the kind the
+   * declaration names. Every window and family test reads this rather than
+   * `skill.kind`, so [Overlord] is an `activate:main` line in every sense the
+   * gates care about.
+   */
+  kind: string;
+  /** The keyword's declaration, when the line is that keyword's own move: its `REFUSE`s are gates, its `label:` the menu's words and its `DO` the program. */
+  keyword?: KeywordDef;
 }
 
 /**
@@ -169,15 +184,21 @@ export function windowOf(game: GameDefinition, def: ActionDef): string {
  * included, so it offers none and is asked about none — the same reading
  * `pendAutos` makes of the same rule.
  */
-export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef, card: string): ActivationLine[] {
+export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef, card: string, game?: GameDefinition): ActivationLine[] {
   const families = new Set((def.skills ?? []).map(familyOf));
   const inst = state.cards[card];
   if (!inst || inst.hidden) return [];
   const showing = skillsShowing(ctx, state, card);
   const out: ActivationLine[] = [];
   for (const skill of showing.skills) {
-    if (!families.has(familyOf(skill.kind))) continue;
-    out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index] });
+    // Stage 7: a line that is nothing but a keyword is a move when the
+    // keyword's declaration says so (`offer:`), and is then a candidate of the
+    // family of the kind it is offered as. Without a `game` there is no
+    // declaration to read, and such a line is what it has always been: none.
+    const keyword = game ? keywordMoveOf(game, skill) : undefined;
+    const kind = keyword?.offer ?? skill.kind;
+    if (!families.has(familyOf(kind))) continue;
+    out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   return out;
 }
@@ -286,6 +307,7 @@ export function activationRefusals(
   def: ActionDef,
   player: PlayerId,
   line: ActivationLine,
+  keywordRefusals: () => Requirement[] = () => [],
 ): { before: Requirement[]; after: Requirement[] } {
   const before: Requirement[] = [];
   const after: Requirement[] = [];
@@ -330,14 +352,18 @@ export function activationRefusals(
   // and the answer it is owed names the window it belongs to (7-3-4 against
   // 8-6-2). Derived from the declaration, so a battle paragraph says "main" for
   // the same line without a second table.
-  if (!(def.skills ?? []).includes(sk.kind)) {
+  if (!(def.skills ?? []).some((k) => k === line.kind)) {
     const ours = windowOf(game, def);
-    const theirs = windowsOf(sk.kind).filter((w) => w !== ours);
-    before.push({ kind: "timing", window: theirs.join("/") || sk.kind });
+    const theirs = windowsOf(line.kind).filter((w) => w !== ours);
+    before.push({ kind: "timing", window: theirs.join("/") || line.kind });
   }
-  // 22-2 and the eleven keywords like it: a keyword's activation has a body,
-  // and the bodies are the `DEFINE KEYWORD` hooks of Stage 7.
-  if (sk.keyword) before.push({ kind: "unread", card });
+  // 22-2 and the keywords like it: a keyword's own activation is the keyword's
+  // `DO`, which Stage 7 writes one keyword at a time. One whose declaration
+  // offers it is gated by its own `REFUSE` lines here — where the legacy
+  // `whyNotActivate` asks its keyword's `case`, after the window — and every
+  // other is still the answer it was: a line this engine cannot read yet.
+  if (line.keyword) before.push(...keywordRefusals());
+  else if (sk.keyword) before.push({ kind: "unread", card });
   // 13-4: a marker skill is used in the Unison Area, once a turn, and never
   // below no markers. The last of the three is the price's own and `planCost`
   // words it; the two here are not about the price at all.
@@ -378,7 +404,7 @@ function usesLeft(sk: Skill, used: number[]): number | null {
  * with no referee: a line with no effect resolves to nothing, and a line with
  * one needs a record whose every clause the compiler read.
  */
-const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim() ? true : !!line.script && line.script.unsupported.length === 0);
+const canResolve = (line: ActivationLine): boolean => (line.keyword || !line.skill.effect.trim() ? true : !!line.script && line.script.unsupported.length === 0);
 
 // ── taking one ──────────────────────────────────────────────────────────────
 
@@ -417,7 +443,9 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // `inBattle` is the legacy `!!s.battle`: an [Activate: Battle] taken at the
   // combo prompt (`vm/battle.ts`, #150) is a skill used in a battle.
   log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!state.battle });
-  const program = line.script?.ops ?? [];
+  // A keyword's own move runs the keyword's `DO` — the keyword's rules are the
+  // effect (22-1), and the record of a line like "[Overlord]" says nothing.
+  const program = line.keyword ? keywordProgram(game, line.keyword, sk) : (line.script?.ops ?? []);
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index });
 }
 
@@ -437,6 +465,19 @@ export function activationMoment(state: VmState, player: PlayerId, line: Activat
     controller: player,
     args: { kind: familyOf(line.skill.kind), from: findCard(state, line.card)?.zone ?? "", paid: true },
   };
+}
+
+/**
+ * The second moment a keyword's own move is: "when you activate an
+ * [Overlord] skill", "when you use this card's [Evolve] from your hand"
+ * (22-5, 22-13, 22-41) — `keywordActivated` in `triggers.rules`' words, the
+ * event `vm/battle.ts` already fires for [Blocker]. Null for a line that is no
+ * keyword's move. Read before the line is used, like the activation's own
+ * moment, because "from: hand" is about where it was used from.
+ */
+export function keywordActivationMoment(state: VmState, player: PlayerId, line: ActivationLine): { event: string; card: string; controller: PlayerId; args: Record<string, string> } | null {
+  if (!line.keyword) return null;
+  return { event: "keywordActivated", card: line.card, controller: player, args: { keyword: line.keyword.name, from: findCard(state, line.card)?.zone ?? "" } };
 }
 
 // ── reading the board ───────────────────────────────────────────────────────

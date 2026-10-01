@@ -152,13 +152,37 @@ export function loadRuleset(files: Record<string, string>, id: Game = "dbs"): Lo
         if (isHookPoint(hook.at)) continue;
         errors.push(errorAt(entry, hook.at, `${label(def)} hangs a body on ${JSON.stringify(hook.at)}, which is not a hook point the engine offers`, [...HOOK_POINTS]));
       }
+      // A whole-keyword activation (`DO`, `offer:`, `at:`): a program and the
+      // one thing that says when it runs, never both and never neither. A `DO`
+      // nothing runs is a keyword that reads as built and does nothing; an
+      // `offer:` or an `at:` with no `DO` is a move or a moment that happens
+      // and does nothing; one with both would run the same program twice over.
+      if (def.offer !== undefined && def.at !== undefined) errors.push(errorAt(entry, "at:", `${label(def)} is both a move (offer:) and an answer to a moment (at:), and its DO is one or the other`, []));
+      if ((def.offer !== undefined || def.at !== undefined) && def.do === undefined) errors.push(errorAt(entry, def.offer !== undefined ? "offer:" : "at:", `${label(def)} says when its program runs and has no DO to run`, ["DO"]));
+      if (def.do !== undefined && def.offer === undefined && def.at === undefined) errors.push(errorAt(entry, "DO", `${label(def)} has a DO that nothing runs — say offer: for a move or at: for a moment`, ["offer:", "at:"]));
+      // A move's own requirements and words are a move's: on a keyword that is
+      // no move they would be a refusal no menu ever asks.
+      if ((def.refusals?.length || def.label !== undefined) && def.offer === undefined) errors.push(errorAt(entry, def.refusals?.length ? "REFUSE" : "label:", `${label(def)} refuses or labels a move it does not offer`, ["offer:"]));
+      // The moments are the game's own (9-6): a name nothing declares is a
+      // keyword that never fires.
+      need(def.at, definition.triggers, "a moment");
+      // A move is offered by the action whose `skills:` takes lines of its
+      // family (`activate:main` is the `activate` paragraph's); a kind no
+      // action is about is a move never offered.
+      if (def.offer !== undefined) {
+        const family = def.offer.split(":")[0];
+        const offeredBy = Object.values(definition.actions).some((a) => (a.skills ?? []).some((k) => k.split(":")[0] === family));
+        if (!offeredBy) errors.push(errorAt(entry, def.offer, `${label(def)} is offered as ${JSON.stringify(def.offer)}, and no DEFINE ACTION takes a line of that kind`, Object.values(definition.actions).flatMap((a) => a.skills ?? [])));
+      }
     }
     // A macro's body may leave a value to the call — `$until`, `$ops`, `TOP $n`
     // — and every such hole names a parameter the macro takes, of a type the
     // slot can hold (#273). A `$n` in an amount or ref position is the same
     // node as a program's own binding, so there only a name the macro *takes*
-    // is checked; anywhere else a `$name` is a hole and nothing else.
-    if (def.define === "OP") {
+    // is checked; anywhere else a `$name` is a hole and nothing else. A
+    // keyword's own `DO` is read the same way: its parameters are the
+    // printed keyword's (`[Swap 3]`'s `x`), bound when it runs.
+    if (def.define === "OP" || (def.define === "KEYWORD" && def.do !== undefined)) {
       const takes = new Map((def.takes ?? []).map((p) => [p.name, p.type]));
       for (const hole of holesIn(def.do)) {
         const declared = takes.get(hole.name);

@@ -46,6 +46,7 @@ import type { GameDefinition, StepDef, WinDef } from "../rulesets";
 import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { nextPending, skillsShowing } from "./triggers";
+import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
 import { vmHost } from "./host";
 import { NotYet } from "./errors";
@@ -608,6 +609,16 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // one reading of that rule lives in `./effects.ts` and every reader uses it.
   if (skillNegated(state, next.card, next.skillIndex, skill?.kind)) {
     log(ev, { type: "note", text: `${named}'s skill is negated, so it does not resolve` });
+    return true;
+  }
+  // Stage 7: a keyword's own line that answered through its declaration's
+  // `at:` ([Offering] at `played`) runs the keyword's `DO`, not the card's
+  // record — the keyword's rules are the effect (22-1), and the record of a
+  // bare "[Offering]" says nothing. Announced as printed, like any [Auto].
+  const keyword = skill?.kind === "keyword" ? keywordMomentOf(game, skill, next.trigger) : undefined;
+  if (skill && keyword) {
+    log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill.raw, inBattle: !!state.battle });
+    state.programs.unshift({ ...frame, ops: keywordProgram(game, keyword, skill) });
     return true;
   }
   if (!program || program.unsupported.length) {

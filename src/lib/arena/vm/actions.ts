@@ -39,8 +39,9 @@ import { IllegalAction, type EngineContext, type GameEvent, type LegalAction, ty
 import type { AltCost } from "../engine/state";
 import { other, type Action, type PlayerId, type Prompt, type Requirement } from "../engine/types";
 import type { Cond, Selector } from "../engine/script";
+import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationMoment, activationRefusals, activationsOf, boundFor, resolveActivation, type ActivationLine } from "./activate";
+import { activationMoment, activationRefusals, activationsOf, boundFor, keywordActivationMoment, resolveActivation, type ActivationLine } from "./activate";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -138,7 +139,7 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
   // a move declared `skills:` is about a **line** of each of those cards rather
   // than about the card, so a card with three of them is asked about three
   // times and answered three times (#147).
-  if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card).map((line) => activation(ctx, game, state, def, player, line))));
+  if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card, game).map((line) => activation(ctx, game, state, def, player, line))));
   return (
     cards
       .flatMap((card): Candidate[] => {
@@ -197,7 +198,10 @@ export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: Vm
  * skill lines charges.
  */
 function activation(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, line: ActivationLine): Candidate {
-  const gates = activationRefusals(ctx, game, state, def, player, line);
+  // A keyword's own move (Stage 7) brings its own `REFUSE` lines, which the
+  // gates read in the place the legacy twin asks its keyword's `case`.
+  const keywordRefusals = () => firstRefusal(ctx, game, state, line.keyword?.refusals ?? [], player, line.card, false);
+  const gates = activationRefusals(ctx, game, state, def, player, line, keywordRefusals);
   const why = [...refusedBy(ctx, game, state, def, player, line.card), ...gates.before];
   const bound: BoundAmounts = boundFor(ctx, game, state, player, line);
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
@@ -210,8 +214,8 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
 }
 
 /** The line a candidate is, re-read from the board — the one place a `skill` index becomes the record it stands for. */
-function lineOf(ctx: EngineContext, state: VmState, def: ActionDef, card: string, skill: number): ActivationLine | undefined {
-  return activationsOf(ctx, state, def, card).find((line) => line.skillIndex === skill);
+function lineOf(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, card: string, skill: number): ActivationLine | undefined {
+  return activationsOf(ctx, state, def, card, game).find((line) => line.skillIndex === skill);
 }
 
 /**
@@ -241,8 +245,17 @@ function refusedBy(ctx: EngineContext, game: GameDefinition, state: VmState, def
   // fact about the board — "the question on the table is no longer the
   // charge's" — and that stops the decline exactly as it stops every card;
   // one written `FROM $card` has nothing to be asked about here.
-  const boardOnly = declining(def, card);
-  for (const refusal of def.refusals ?? []) {
+  return firstRefusal(ctx, game, state, def.refusals ?? [], player, card, declining(def, card));
+}
+
+/**
+ * The first of these `REFUSE` lines that does not hold, as the requirement it
+ * names — an action's own (`refusedBy`), or a keyword's own move's, read among
+ * the gates of its line (`vm/activate.ts`, Stage 7). One reading of a refusal
+ * for both, so a keyword's `REFUSE` means exactly what an action's does.
+ */
+function firstRefusal(ctx: EngineContext, game: GameDefinition, state: VmState, refusals: readonly DefineRefusal[], player: PlayerId, card: string | null, boardOnly: boolean): Requirement[] {
+  for (const refusal of refusals) {
     if (boardOnly && mentionsCandidate(refusal.unless)) continue;
     // What a condition *found* when it failed, for the one or two fields an
     // interpreter has to fill in rather than a declaration: which card's rule
@@ -349,7 +362,7 @@ export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: 
   for (const c of candidatesOf(ctx, game, state, def, player)) {
     if (c.why.length) continue;
     const cost = actionCostOf(c.price);
-    out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, state, def, c), ...(cost ? { cost } : {}) });
+    out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, game, state, def, c, true), ...(cost ? { cost } : {}) });
   }
   return out;
 }
@@ -393,7 +406,7 @@ export function rejectionsOf(ctx: EngineContext, game: GameDefinition, state: Vm
     // offered is not refused, which is the invariant every client indexes by
     // card on.
     if (offered.has(keyOf(action))) continue;
-    out.push({ action, label: labelFor(ctx, state, def, c), why: c.why });
+    out.push({ action, label: labelFor(ctx, game, state, def, c, false), why: c.why });
   }
   return out;
 }
@@ -490,7 +503,7 @@ const DECLARABLE_ACTIONS: Partial<Record<Action["type"], "card" | "cardWithX" | 
  * by the start of its effect, which is the same 40 characters the legacy
  * engine's own menu and rejection labels use.
  */
-function labelFor(ctx: EngineContext, state: VmState, def: ActionDef, c: Candidate): string {
+function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, c: Candidate, offered: boolean): string {
   const label = def.label ?? def.name;
   const card = c.card;
   // The answer that takes no card has words of its own, because "Charge" said
@@ -505,7 +518,12 @@ function labelFor(ctx: EngineContext, state: VmState, def: ActionDef, c: Candida
   // 5-3: the row says which price it is — the legacy engine's own words.
   if (c.alt) return `${label} ${name} (${c.alt.pay === "none" ? "for no energy" : `by adding ${c.alt.n} from your life to your hand`})`;
   if (c.skill === undefined) return `${label} ${name}`;
-  const line = lineOf(ctx, state, def, card, c.skill);
+  const line = lineOf(ctx, game, state, def, card, c.skill);
+  // A keyword's own move wears its declaration's words on the menu — the
+  // legacy engine's own ("Overlord: return a Servant to the deck, draw 1") —
+  // and is refused under the generic row's, which is how the legacy
+  // `rejections.ts` names every refused line, keyword or not.
+  if (offered && line?.keyword?.label !== undefined) return line.keyword.label.replace(/\{card\}/g, name);
   const what = line?.skill.keyword ? `[${line.skill.keyword.name}]` : (line?.skill.effect.slice(0, 40) ?? "");
   return what ? `${label} ${name}: ${what}` : `${label} ${name}`;
 }
@@ -580,7 +598,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // board in a state no replay could reach (#148). The price is charged here
   // and the program goes on the queue below, so the two cannot be interleaved
   // even though only one of them runs on the spot.
-  const line = def.skills && card !== null && typeof skill === "number" ? lineOf(ctx, state, def, card, skill) : undefined;
+  const line = def.skills && card !== null && typeof skill === "number" ? lineOf(ctx, game, state, def, card, skill) : undefined;
   if (def.skills && !line) throw new IllegalAction(`${card} has no skill line ${skill}`);
   if (chosen.alt) {
     // 5-3: the alternative is paid *instead of* the declared price — nothing,
@@ -604,7 +622,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (explicit === undefined && plan.asks && plan.options.length > 1) {
       // "play Son Goku" — the legacy engine's own wording for this prompt, which
       // is the move's label with its first letter lowered.
-      const label = labelFor(ctx, state, def, chosen);
+      const label = labelFor(ctx, game, state, def, chosen, true);
       state.prompt = { kind: "payCost", player, action, options: plan.options, describe: label.charAt(0).toLowerCase() + label.slice(1) };
       return "asked";
     }
@@ -620,8 +638,12 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // to the Drop as part of using it, and "from: hand" is what 22-10 asks
     // about.
     const moment = activationMoment(state, player, line);
+    // A keyword's own move is a second moment as well — "when you activate an
+    // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
+    const keywordMoment = keywordActivationMoment(state, player, line);
     resolveActivation(ctx, game, state, ev, player, line);
     fire(ctx, game, state, moment);
+    if (keywordMoment) fire(ctx, game, state, keywordMoment);
   } else {
     runProgram(state, def, player, chosen);
   }

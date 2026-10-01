@@ -232,7 +232,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "When this Battle Card is played, your opponent may put one of their life cards in their Drop Area. If they don't, you draw 2 cards.",
     engine: "Put to the opponent as a prompt of their own. With no life left there is nothing to ask, so you simply draw.",
-    engineRules: "Not built yet — [Offering]'s own moment is onEnter, group B's firing site (docs/arena-backlog/s7-03-keywords-enter-leave.md), not yet wired for this keyword.",
+    engineRules:
+      "Built as its keyword's own `DO` (`at: [played]` in `keywords.rules`): it pends as the card is played and resolves like an [Auto], the opponent is asked with the same two answers in the same words, the life card that goes is the top one, and with no life left you simply draw — the same events as the legacy engine, event for event. One difference: the question is the general “choose one” prompt (`chooseMode`), not a prompt kind of its own (`offering`), so a client answers it by the option it shows.",
     support: "engine",
   },
   Heroic: {
@@ -276,7 +277,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "Put one of your Battle Cards with [Servant] at the bottom of your deck as the cost, and draw 1 card.",
     engine: "Offered while you have a [Servant] out, and cards watching “when you activate an [Overlord] skill” fire. With several [Servant] cards the engine picks one rather than asking.",
-    engineRules: "Not built yet — a whole-keyword activation with no DEFINE KEYWORD do: block (docs/arena-backlog/s7-03-keywords-enter-leave.md, hook group B).",
+    engineRules:
+      "Built as its keyword's own `DO` (`offer: \"activate:main\"` in `keywords.rules`): offered at the Main Phase with the same menu words, refused with the same requirement when no [Servant] is out, and the watchers fire — the same events as the legacy engine. One difference, the legacy approximation removed: with several [Servant] cards you choose which one goes (22-41-2), where the legacy engine picks the first; with one the choice is forced and nothing is asked. The line is offered from the Battle Area only (9-1-3-1), where the legacy engine also offers it from the hand.",
     support: "partial",
   },
   Rejuvenate: {

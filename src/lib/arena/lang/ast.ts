@@ -642,11 +642,51 @@ export interface DefTrigger extends Declaration<"TRIGGER"> {
   text?: string;
 }
 
-/** `DEFINE KEYWORD` — a keyword skill, its parameters and its hook bodies (manual §22). */
+/**
+ * `DEFINE KEYWORD` — a keyword skill, its parameters and its hook bodies (manual §22).
+ *
+ * Two shapes of keyword, and the fields that say which (Stage 7's groundwork):
+ *
+ * A **hook** keyword changes how the game reads a card at a moment the
+ * interpreter already has — [Barrier] is asked whether a card may be chosen,
+ * [Servant] whether it stands up — and says so in `HOOK` bodies (§4 of
+ * `docs/arena-ruleset-spec.md`).
+ *
+ * A **whole-keyword activation** is the keyword's own line doing something of
+ * its own: [Overlord] is a move a player makes, [Offering] something that
+ * happens when the card is played. Neither is a hook — nothing the game was
+ * already doing is asked — so it is written as a program, `DO`, and one of two
+ * fields saying when that program runs:
+ *
+ *   `offer:` — the line is **a move**, offered exactly as a printed line of
+ *   that skill kind would be (`"activate:main"` reaches the Main Phase's
+ *   `activate` paragraph, `"activate:battle"` the combo prompt's), with the
+ *   keyword's own `REFUSE` lines among its gates and its own `label:` on the
+ *   menu. Taking it charges the line's printed price and runs `DO` instead of
+ *   the card's record — the keyword's rules are the effect (22-1).
+ *
+ *   `at:` — the line **answers to moments**, the declared `DEFINE TRIGGER`
+ *   names, exactly as an [Auto] whose record says that WHEN would: it pends,
+ *   resolves at the checkpoint (9-6-6) and runs `DO`.
+ *
+ * `DO` may write `$name` for a parameter the keyword `TAKES` — the value comes
+ * off the printed keyword (`[Swap 3]`'s `x`) when the program runs — exactly as
+ * a `DEFINE OP` body writes one for its call's argument (#273).
+ */
 export interface DefKeyword extends Declaration<"KEYWORD"> {
   takes?: DefineParam[];
   text: string;
   section?: string;
+  /** The skill kind the keyword's line is offered as — a move (see above). */
+  offer?: SkillKind;
+  /** The declared moments the keyword's line answers to, like an [Auto]'s WHEN (see above). */
+  at?: string[];
+  /** A move's own requirements, read among the line's gates in order — the same `REFUSE` an action writes. */
+  refusals?: DefineRefusal[];
+  /** The words the menu shows for the move; `{card}` is the card's name. */
+  label?: string;
+  /** What the keyword does: run when its move is taken, or when a moment it answers to resolves. */
+  do?: Op[];
   hooks?: DefineHook[];
 }
 
@@ -887,7 +927,17 @@ export const DEFINE_SCHEMA = {
   },
   KEYWORD: {
     doc: "a keyword skill: what it means, what it takes, and the hook points it hangs on",
-    fields: [PARAMS, { name: "text", type: "string", required: true }, { name: "section", type: "string" }, { name: "hooks", type: "hooks", word: "HOOK" }],
+    fields: [
+      PARAMS,
+      { name: "text", type: "string", required: true },
+      { name: "section", type: "string" },
+      { name: "offer", type: { enum: SKILL_KINDS } },
+      { name: "at", type: { list: "string" } },
+      { name: "refusals", type: "refusals", word: "REFUSE" },
+      { name: "label", type: "string" },
+      { name: "do", type: "ops", word: "DO" },
+      { name: "hooks", type: "hooks", word: "HOOK" },
+    ],
   },
   COST: {
     doc: "a price the game knows how to charge, named so an action can ask for it",

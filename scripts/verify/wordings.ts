@@ -142,34 +142,8 @@ import type { GameState, Trigger } from "./harness";
   assertConsistent(s);
 }
 
-{
-  // 22-41: [Overlord] costs a [Servant] Battle Card, sent to the bottom of its
-  // owner's deck, and draws 1.
-  DEFS.OVER = { ...DEFS.V1, id: "OVER", name: "OVER", skill: "[Overlord]" };
-  DEFS.SERV2 = { ...DEFS.V1, id: "SERV2", name: "SERV2", skill: "[Servant]" };
-  let s = arena({ battle: ["OVER"] });
-  const over = s.players.p1.battle[0];
-  assert.ok(!canActivate(s, over), "22-41-2: no [Servant] to pay with");
-  s = arena({ battle: ["OVER", "SERV2"] });
-  const over2 = s.players.p1.battle.find((id) => s.cards[id].cardId === "OVER")!;
-  const servant = s.players.p1.battle.find((id) => s.cards[id].cardId === "SERV2")!;
-  const hand = s.players.p1.hand.length;
-  assert.ok(canActivate(s, over2));
-  s = play(s, { type: "activate", player: "p1", card: over2, skill: 0 });
-  assert.equal(s.players.p1.deck[s.players.p1.deck.length - 1], servant, "22-41-2: to the bottom of the deck");
-  assert.equal(s.players.p1.hand.length, hand + 1, "22-41-3: and draw 1");
-  assertConsistent(s);
-
-  // 22-41: four cards watch the keyword being used rather than anything it
-  // does — "when you activate an [Overlord] skill".
-  DEFS.OVERWATCH = { ...DEFS.V1, id: "OVERWATCH", name: "OVERWATCH", skill: "[Auto] When you activate an [Overlord] skill, draw 1 card." };
-  let w = arena({ battle: ["OVER", "SERV2", "OVERWATCH"] });
-  const o3 = w.players.p1.battle.find((id) => w.cards[id].cardId === "OVER")!;
-  const before = w.players.p1.hand.length;
-  w = play(w, { type: "activate", player: "p1", card: o3, skill: 0 });
-  assert.equal(w.players.p1.hand.length, before + 2, "the keyword's own draw, and the watcher's");
-  assertConsistent(w);
-}
+// 22-41's [Overlord] case moved to `keywords.ts`, which runs on both engines,
+// when its keyword's `DO` was declared (Stage 7).
 
 {
   // 22-18-2: dealing life damage with a [Victory Strike] card wins the game.

@@ -629,8 +629,8 @@ its order, so the first requirement is the same requirement on both engines: neg
 [Once per turn] and [Limit X] count (22-44-3), [Bond X] and [Sparking X], the window, 13-4's Unison
 Area and its one marker skill a turn, the condition 9-4 hoisted out of the price, the energy, an
 effect the compiler could not read, and 9-1-3-1's wrong area. What it does *not* read is written into
-`actions.rules` beside it: a keyword's own activation is a `DEFINE KEYWORD` hook body and is Stage
-7's, an X price and an action price are refused as `unread` for the same reason a play's X cost is,
+`actions.rules` beside it: a keyword's own activation is a `DEFINE KEYWORD`'s `DO` with `offer:`
+(§4.4) and is Stage 7's, keyword by keyword, an X price and an action price are refused as `unread` for the same reason a play's X cost is,
 and [Counter] windows are Stage 6's.
 
 ### How a price is declared
@@ -735,6 +735,7 @@ the line and column of the offending word:
 | A `TRIGGER` naming an unknown zone | `ON moved(from: hand, to: battle)` — the pattern arguments `from`, `to`, `in`, `area`, `zone` are places; the rest of an event pattern is open, as the grammar leaves it |
 | **Any** program or selector naming an unknown zone | `moveTo(target: $chosen, to: warp)`, nested however deep. The check reads `OP_SCHEMA`/`COND_SCHEMA` rows rather than a list of places, so an op that grows an area field is checked the day its row says so |
 | A `KEYWORD` hanging a body on an unknown hook point | `HOOK whenTheMoodTakesIt {}` — the points are the interpreter's (§4), not the game's |
+| A `KEYWORD`'s `DO` that cannot run (§4.4) | a `DO` with neither `offer:` nor `at:`; `offer:`/`at:` with no `DO`; both at once; `REFUSE`/`label:` with no `offer:`; `at: [whenever]` naming no trigger; `offer: "counter:play"` when no `ACTION`'s `skills:` takes that family; `$y` in `DO` that it does not `TAKES` |
 
 Every error says **both ends**: the declaration it is in and the name that does not resolve.
 `scripts/verify/rulesets.ts` holds one fixture per refusal; #136 grows it into the completeness
@@ -762,9 +763,10 @@ read off `triggers.rules` either.** [Attack], [Alliance] and [Revenge] fire when
 is attacked, [Offering] and [Z-Stack] when it is played, [Revive] when it is KO'd — and none of
 that is written in the card's text box, so no WHEN can carry it and no `DEFINE TRIGGER` can be the
 whole of it. The legacy engine states them as a `switch` (`keywordTriggers`, `engine/triggers.ts`);
-the rules engine states none of them yet and pends `kind: "auto"` skills only (`vm/triggers.ts`,
-#141). They arrive here, as the `HOOK` bodies of a `DEFINE KEYWORD` hung on the moments this
-section inventories — which is why #141 deliberately did *not* copy the switch into `vm/`: a second
+the rules engine pends `kind: "auto"` skills off the record (`vm/triggers.ts`, #141) and a keyword's
+own line only where its `DEFINE KEYWORD` names the moment in `at:` (§4.4). They arrive here, as the
+`HOOK` bodies of a `DEFINE KEYWORD` hung on the moments this section inventories, or as its `DO`
+(§4.4) when the keyword is an activation of its own rather than a hook — which is why #141 deliberately did *not* copy the switch into `vm/`: a second
 copy of a list that is about to stop being a list.
 
 Until a keyword's own body is written (Stage 7's `s7-0{2,3,4,5}` issues), a keyword skill on the
@@ -1031,6 +1033,71 @@ neither is a hook.
 Two keywords carry **no runtime site at all** beyond the parser and the generic keyword-filter
 machinery every keyword gets for free: [Super Combo] and [Dragon Ball] are deck-legality only
 (`support: "deck"` in the glossary) and need no hook.
+
+### 4.4 A keyword's own activation: `DO`, `offer:` and `at:`
+
+About fifteen keywords are not hooks at all, and no hook point could be made to fit them: [Arrival],
+[Wish], [Revive], [Successor], [Overlord], [Rejuvenate], [Z-Awaken], [Z-Stack], [Offering], [Evolve],
+[Union], [Over Realm], [Swap] among them. Nothing the game was already doing is *asked* — the
+keyword's own line does something of its own: it is **a move** a player makes (the legacy engine's
+`activatable`/`whyNotActivate`/`activate` `case`s), or **a program at a moment** (its
+`keywordTriggers`/`resolveKeywordOrText` `case`s). Both are a `DO` on the `DEFINE KEYWORD`, with
+exactly one field saying when it runs (grammar: `docs/arena-rules-language.md` §3b):
+
+- **`offer: "<skill kind>"` — a move.** The line is a candidate of the `ACTION` whose `skills:` takes
+  lines of that family (`"activate:main"` is `activate`'s, at the Main Phase question; `"activate:battle"`
+  would be the same paragraph read against the combo prompt, `vm/battle.ts`, #150), and is gated as a
+  line of that kind is (`vm/activate.ts`: negation, 20-14, the use count, [Bond]/[Sparking]/[Burst],
+  the window) and then by the keyword's own `REFUSE` lines, where the legacy twin asks its keyword's
+  `case`. Taking it charges the line's printed price, announces it as printed, and queues `DO` in place
+  of the card's record; `label:` is the menu row's words (`{card}` is the card's name), and a refused
+  line keeps the generic `Activate <card>: [<keyword>]` row both engines give one. Besides the
+  activation's own `skillActivated` it fires `keywordActivated(keyword: <name>, from: <zone>)`, the
+  moment `triggers.rules`' `overlordActivated`, `evolveFromHandActivated`, `unionActivated` … answer.
+- **`at: [<trigger>, …]` — a moment.** The line pends at those declared moments exactly as an [Auto]
+  whose record names them (`vm/triggers.ts`), resolves at the checkpoint in 9-6-6's order, is announced
+  as printed and runs `DO` (`vm/flow.ts`).
+
+`DO` may name a `TAKES` parameter as `$name`; `rulesets/expand.ts`'s `bindKeywordParams` fills it from
+the printed keyword (`KeywordSkill`, whose fields are `TAKES`' names) when the program runs, with
+the same substitution and the same refusal of a missing or misshapen value a macro call gets (#273).
+`vm/keyword-do.ts` is the one reading both halves share — which declaration a line carries, and its
+bound program.
+
+Proved end to end with one of each, both written in `rulesets/dbs/keywords.rules` and asserted on both
+engines by `scripts/verify/keywords.ts`, against the legacy engine event for event:
+
+```
+-- a move: offered while a [Servant] is out, and "when you activate an [Overlord] skill" fires
+DEFINE KEYWORD Overlord
+  offer: "activate:main"
+  REFUSE target(reason: "no [Servant] in your Battle Area") UNLESS count("card with [Servant]" IN you.battle) >= 1
+  label: "Overlord: return a Servant to the deck, draw 1"
+  DO {
+    choose(sel: 1 "card with [Servant]" IN you.battle, as: "servant", reason: "…")
+    moveTo(target: $servant, to: deck, position: bottom, cause: cost)
+    draw(n: 1)
+  }
+
+-- a moment: pends as the card is played, and the opponent answers
+DEFINE KEYWORD Offering
+  at: [played]
+  DO {
+    if(cond: count(IN opponent.life) >= 1, then: {
+      chooseMode(modes: ["Drop 1 life (deny the draw)" { … }, "Keep life (opponent draws 2)" { draw(n: 2) }], chooser: opponent)
+    }, else: {
+      draw(n: 2)
+    })
+  }
+```
+
+Two differences from the legacy engine, both recorded in the glossary rather than matched: [Overlord]
+asks which [Servant] goes when there is more than one (22-41-2; legacy takes the first) and is offered
+from the Battle Area only (9-1-3-1; legacy also offers it from the hand); [Offering]'s question is the
+general `chooseMode` prompt, with the legacy engine's two answers in its words, rather than a prompt
+kind of its own. The other keywords stay undeclared until their hook-group issue writes them, one at a
+time; a line of one is still refused `unread` (a printed activation) or never offered (a bare keyword),
+exactly as before.
 
 ---
 
