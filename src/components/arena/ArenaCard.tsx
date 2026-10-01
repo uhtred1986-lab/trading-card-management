@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { useArenaAdmin } from "./admin-context";
+import { cardImage, cardImageSizeFor } from "@/lib/catalog/card-image";
 
 const COLOR_BAR: Record<string, string> = {
   Red: "bg-dbs-red",
@@ -211,7 +212,7 @@ export function ArenaCard({
             <span className="block h-[62%] w-[62%] rounded-full border border-ki-400/35" />
           </span>
         ) : showArt ? (
-          <Image src={card.imageUrl!} alt={card.name} fill sizes={`${width * 3}px`} className="object-cover" onError={() => setFailedSrc(card.imageUrl)} unoptimized />
+          <Image src={cardImage(card.imageUrl!, cardImageSizeFor(width))} alt={card.name} fill sizes={`${width * 3}px`} className="object-cover" onError={() => setFailedSrc(card.imageUrl)} unoptimized />
         ) : (
           <>
             <span className={`block h-[18%] ${COLOR_BAR[card.colors[0] ?? "Colorless"]}`} />

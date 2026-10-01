@@ -26,6 +26,7 @@ import { cardDefFrom } from "../src/lib/arena/load";
 import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-preview";
 import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
 import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/engine/cards";
+import { cardImage, cardImageSizeFor } from "../src/lib/catalog/card-image";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
 assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
@@ -770,4 +771,25 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.deepEqual(neighbours([4, 7, 9], 99), { prev: null, next: 4, skip: 4, after: 4 }, "a rule opened by id starts at the top of the queue");
   assert.deepEqual(neighbours([4], 4), { prev: null, next: null, skip: null, after: null }, "a queue of one has nowhere to go");
   assert.deepEqual(neighbours([], null), { prev: null, next: null, skip: null, after: null });
+}
+
+// ── small card art (issue #384) ────────────────────────────────────────────
+{
+  const big = "https://tcgplayer-cdn.tcgplayer.com/product/123456_in_1000x1000.jpg";
+  assert.equal(cardImage(big, "thumb"), "https://tcgplayer-cdn.tcgplayer.com/product/123456_200w.jpg");
+  assert.equal(cardImage(big, "medium"), "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg");
+  assert.equal(cardImage(big, "full"), big);
+  const small = "https://tcgplayer-cdn.tcgplayer.com/product/123456_200w.jpg";
+  assert.equal(cardImage(small, "medium"), "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg", "any TCGplayer size maps to any other");
+  assert.equal(cardImage(small, "full"), big);
+  for (const u of [
+    "https://storage.googleapis.com/deckplanet_card_images/BT18-020.png",
+    "https://www.dbs-cardgame.com/fw/images/cards/card/en/FB01-001.webp",
+    "https://www.cardtrader.com/uploads/blueprints/image/1/x.jpg",
+    "https://example.com/product/123456_in_1000x1000.jpg",
+  ]) assert.equal(cardImage(u, "thumb"), u, `unchanged: ${u}`);
+  assert.equal(cardImage(null, "thumb"), null);
+  assert.equal(cardImage(undefined, "thumb"), undefined);
+  assert.equal(cardImageSizeFor(56), "thumb");
+  assert.equal(cardImageSizeFor(128), "medium");
 }

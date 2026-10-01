@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import type { BeatArt } from "@/lib/arena/beats";
 import type { Ghost } from "./useBeatPlayer";
+import { cardImage } from "@/lib/catalog/card-image";
 
 /**
  * Cards that have already left.
@@ -45,7 +46,7 @@ export function Ghosts({ ghosts, art }: { ghosts: Ghost[]; art: Record<string, B
                 </span>
               ) : face.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element -- a transient overlay of art the board has already loaded.
-                <img src={face.imageUrl} alt="" className="h-full w-full object-cover" />
+                <img src={cardImage(face.imageUrl, "thumb")} alt="" className="h-full w-full object-cover" />
               ) : (
                 <span className="block px-[3px] pt-1 text-[7px] font-semibold leading-tight text-space-100">{face.name}</span>
               )}
