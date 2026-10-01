@@ -371,9 +371,11 @@ DEFINE TRIGGER restedBySkill
   BIND "self"
   text: "when this card is rested by one of your skills"
 
--- §1-10-1 — when your skill rests an opponent's card
+-- §1-10-1 — when your skill rests an opponent's card. The printed wording
+-- names their Battle Cards and energy, which is where the legacy engine pends
+-- it, and the skill is the other player's (#157).
 DEFINE TRIGGER restedTheirsBySkill
-  ON modeSwitched(by: skill, mode: rest, watcher: opponent)
+  ON modeSwitched(by: skill, byOpponent: true, in: [battle, energy], mode: rest, watcher: opponent)
   BIND "subject"
   text: "when your skill rests an opponent's card"
 

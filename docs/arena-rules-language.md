@@ -313,7 +313,7 @@ offer — it is one candidate per legal value, floored at the coloured requireme
 already carries and ceilinged at what the player could pay, each checked affordable before it is
 offered (`vm/costs.ts`'s `xValues`). A card with a fixed price is unaffected — `x:` only changes what
 happens when the price really is X. Every `DO` that spends the chosen value already reads it as the
-bare word `X` (`playUnison`'s `addMarker(target: $card, n: X)`); `x: true` is what guarantees a value
+bare word `X` (`playUnison`'s `play(target: $card, markers: X)`); `x: true` is what guarantees a value
 is actually there to read when the program runs. `xMin:` raises the floor past the coloured
 requirement for a move where zero is not a real answer — `playUnison`'s `xMin: 1`, since 13-2-2 never
 lets a Unison arrive with no markers at all (3-11-3), which a Unison with no printed colours would
@@ -556,6 +556,35 @@ move is about **one printed line** rather than about a card a `FOR` found:
   - `play(target: [self], onto: IN you.leader)` — no new word, a new reach: a card played onto
     the Leader goes into the Leader Area on top of it, the old Leader and its pile under it
     ([Z-Awaken], 22-46-6). Onto anything else the card still goes where its type is played.
+- Group D's remainder (#157) added these, on no card either:
+  - `switchMode(…, by: <keyword>)` — the switch is that keyword's skill's, so the card answers
+    "switched to Rest Mode by an [Alliance] skill" (22-32-3) rather than "…by one of your skills"
+    (1-10). Left out, the switch is the running skill's own. The rules engine's `modeSwitched`
+    moment carries `by: skill | <keyword>`, `byOpponent` (the skill is not the card's master's) and
+    `in` (where the card is), which `triggers.rules`' three rested-by triggers read. The field is
+    marked `offCard`.
+  - A **counted** player fact: `DEFINE ATTRIBUTE … of: player, value: number, reset: turnStart`
+    rests at 0 at the start of the turn. `setPlayerAttr(name: "overRealms", add: 1)` adds to it,
+    and `playerAttr(name: "overRealms", atLeast: 2)` holds once it has reached that. [Over Realm]'s
+    one use a turn, two with [Wormhole] (22-15-7, 22-24-2), is
+    `NOT playerAttr(…, atLeast: 1)`, or `NOT playerAttr(…, atLeast: 2)` with a [Wormhole] in play.
+    Both fields are marked `offCard`, so neither is in what the referee is told.
+  - `flag(value: $dark)` — a keyword's boolean parameter, read as a condition: [Dark Over Realm]'s
+    black-cards count beside [Over Realm]'s plain one in one `REFUSE`. It is in
+    `CONDITIONS_OFF_A_CARD`.
+  - `{<param>?<words>}` in `label:` and a requirement's words — the words only when a boolean
+    parameter is set: `"{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"`.
+  - A sixteenth hook point, `markerCarry` (group D, query), and its leaf
+    `carryMarkers(upTo: <amount>, color: <colour>)`: a Unison played over another may take up to
+    `upTo` of its markers, from a Unison of that colour (any, with none). The play stops at the
+    `empowerCarry` question before the old one leaves, and the carried markers land after the paid
+    ones. [Empower] (22-45-3). The op is marked `offCard`.
+  - `play(…, markers: <amount>)` — the markers a Unison arrives with, paid as its cost (13-2-3),
+    as part of the arrival. `playUnison` says `play(target: $card, markers: X)`. Marked `offCard`.
+  - A keyword's `HOOK` body may write `$name` for a parameter it `TAKES` in **any** position, as
+    its `DO` may: `color: $color` fills an enum field. Before, only an amount could name one. A
+    parameter the printed keyword leaves empty (`null`, [Empower 2]'s colour) is absent, so an
+    optional field it fills is left out.
 
 ```
 DEFINE KEYWORD Overlord

@@ -179,8 +179,13 @@ export interface ScriptHost {
   ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced">): void;
   /** 23-2: put a card under another. */
   placeUnder(id: string, host: string): boolean;
-  /** 1-10: switch a card's mode. Returns whether it moved. */
-  setMode(id: string, mode: Mode): boolean;
+  /**
+   * 1-10: switch a card's mode. Returns whether it moved. `by` is the skill
+   * doing it when a program does, with the keyword whose skill it is (#157):
+   * the rules engine fires "…by one of your skills" off it, where the legacy
+   * engine pends that moment by name and ignores it.
+   */
+  setMode(id: string, mode: Mode, by?: { card: string; master: PlayerId; keyword?: KeywordSkill["name"] }): boolean;
   /** 3-9-2-1: turn a card face up or face down where it stands. */
   setFaceUp(id: string, faceUp: boolean): void;
   /** 23-5: switch a Battle Card between Hidden and Revealed Mode. */
@@ -198,7 +203,7 @@ export interface ScriptHost {
    * card program uses this op today and the rules-engine action that declares
    * it is the only caller.
    */
-  setPlayerAttr(p: PlayerId, name: string, value: boolean): void;
+  setPlayerAttr(p: PlayerId, name: string, value: boolean | { add: number }): void;
   /** 21-3: record damage taken, for the cards that count it. */
   addDamageTaken(p: PlayerId, n: number): void;
   /** 5-11: shuffle these players' decks with the game's own RNG, so a replay reproduces the order. */
@@ -287,7 +292,7 @@ export interface ScriptHost {
    * [Counter: Play] window first (9-6). `"wait"` when the host stopped to ask
    * the opponent, with `frame` held until the window closes.
    */
-  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true }, frame: ScriptFrame): "wait" | void;
+  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true; markers?: number }, frame: ScriptFrame): "wait" | void;
 }
 
 /**
@@ -366,6 +371,11 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       ev.push({ type: "energyMarker", player: p, delta });
     },
     setPlayerAttr: (p, name, value) => {
+      // #157: [Over Realm]'s count, the field this engine already keeps.
+      if (typeof value === "object") {
+        if (name === "overRealms") s.players[p].overRealmsThisTurn += value.add;
+        return;
+      }
       if (name === "grewUnison") s.players[p].grewUnisonThisTurn = value;
       // "charged" and any other declared player attribute have no legacy
       // field: this engine's own charge logic never calls this op (7-2-11 is
@@ -485,7 +495,7 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       s.flow.unshift({ op: "script.step", frame: first });
     },
     playThen: (cards, opts, frame) => {
-      const steps: FlowStep[] = cards.map((card) => ({ op: "play.resolve" as const, card, player: opts.player, mode: opts.mode, onto: opts.onto, negated: opts.negated }));
+      const steps: FlowStep[] = cards.map((card) => ({ op: "play.resolve" as const, card, player: opts.player, mode: opts.mode, onto: opts.onto, negated: opts.negated, ...(opts.markers !== undefined ? { markers: opts.markers } : {}) }));
       // #155: the shared word's legacy reading — the same two steps this
       // engine's own [Arrival]/[Revive]/[Successor] cases queue (no program of
       // this engine writes it).

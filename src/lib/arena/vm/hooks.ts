@@ -15,7 +15,7 @@
  * (`condHolds`, `amount`, `keywordsInForce`), the way `resolveSelector`/
  * `resolveRef`/`amount`/`condHolds` already are. All #153's.
  *
- * **Fifteen points, four groups** — the plan's own split, and the four
+ * **Sixteen points, four groups** — the plan's own split, and the four
  * `docs/arena-backlog/s7-0{2,3,4,5}-*.md` issues that each take one:
  *
  *   A. choosing, immunity, KO by effect  — `chooseable`, `koByEffect`, `attrBonus`

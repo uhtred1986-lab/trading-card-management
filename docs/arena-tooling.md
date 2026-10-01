@@ -189,7 +189,8 @@ skipped) tells you what you broke:
   reaching the cost planner though the price grammar is declared (closed by
   #157: `DEFINE COST spiritBoost`); two
   trigger-moment wordings ("switched to Rest Mode by one of your skills",
-  "when you use a card in a combo") that do not yet pend on this engine;
+  closed by #157's `modeSwitched(by: …)`, and "when you use a card in a
+  combo", which does not yet pend on this engine);
   `copySkills` granting a keyword and an [Auto] but not the copied
   [Permanent] itself (20-18); an [Activate: Battle] skill not reaching the
   menu from hand during the combo step; `control` (20-9) not preserving a
@@ -207,9 +208,8 @@ skipped) tells you what you broke:
 - **`workflow.ts`** — every rule as a visible workflow: what is refused and why,
   in the words a client shows. Asserts the "one rejection per card per action
   type" promise. **Runs on both engines since #152**, and on `rules` it skips
-  two cases and no more: [Swap], a Stage 7 keyword body ([Unique] is built
-  since #157)
-  (`keywordGap`), and the first half of `PRICED` — an action price (4-3-3),
+  one case and no more ([Unique] and [Swap], the keyword bodies it used to
+  skip, are built since #157): the first half of `PRICED` — an action price (4-3-3),
   which `vm/activate.ts`'s `chargeablePrice` refuses and `vm/host.ts`'s
   `saveVars` gives to #149 (`actionPriceGap`). The four non-keyword gaps the
   porting pass found are closed: the combo, counter and blocker prompts have

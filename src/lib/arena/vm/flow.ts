@@ -302,7 +302,9 @@ const STEP_WORK: Record<string, Work> = {
       // harmless to have reset early.
       for (const attr of playerAttributes(game)) {
         if (game.attributes[attr].reset !== "turnStart") continue;
-        for (const side of Object.values(state.sides)) side.attrs[attr] = false;
+        // A counted fact rests at 0, a boolean at false (#157).
+        const rest = game.attributes[attr].value === "number" ? 0 : false;
+        for (const side of Object.values(state.sides)) side.attrs[attr] = rest;
       }
       state.turn++;
       state.turnPlayer = other(state.turnPlayer);

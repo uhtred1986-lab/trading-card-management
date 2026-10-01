@@ -185,7 +185,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "The count, the whole-Drop cost and the shared limit, which [Wormhole] raises to two. Cards that watch “played with [Over Realm]” fire here rather than on the ordinary play. The end-of-turn return to the Warp is scheduled for the dark variant too, which 22-23 does not ask for.",
     engineRules:
-      "Not built yet (#157 looked and left it): its play goes through a [Counter: Play] window, which only a declared play opens on this engine, and the shared once-a-turn limit that [Wormhole] raises to two is a counted player attribute the language cannot read yet. The line is never offered.",
+      "Built as its keyword's own move (`offer: \"activate:main\"` in `keywords.rules`, #157), the same events as the legacy engine: offered from the hand while the Drop holds X or more cards (black ones for the dark variant, `flag(value: $dark)`) and the shared use is free — one a turn, two while a card with [Wormhole] is in play, counted in the `overRealms` player fact (`playerAttr … atLeast`). Taken, it pays the line's orbs, counts the use, sends the whole Drop to the Warp as the cost, schedules the card's return to the Warp as the turn ends (for the dark variant too, as legacy does) and plays it through the [Counter: Play] window; “played using [Over Realm]” is the move's own moment. One difference: refused for too few cards, it does not say how many are there.",
     support: "partial",
   },
   Swap: {
@@ -197,7 +197,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Offered from the Battle Area, and the swap happens. 22-22-3 is honoured: with no cost-X Battle Card in hand it is refused before it is offered, rather than taking its orbs and then finding nothing to choose. The choice is still filtered by energy cost only — a [Swap] that names a character offers every cost-X Battle Card in hand, not just that character's.",
     engineRules:
-      "Not built yet (#157 looked and left it): the chosen card is played through a [Counter: Play] window, which only a declared play opens on this engine, and “an energy cost of X” is a parameter inside a card filter, which the filter grammar has no slot for. `verify/workflow.ts`'s own [Swap] case is a named keyword gap.",
+      "Built as its keyword's own move (`offer: \"activate:main\"` in `keywords.rules`, #157), the same events as the legacy engine: offered from the Battle Area only while a Battle Card with an energy cost of X is in the hand (22-22-3, `costMin = $x AND costMax = $x`). It pays the line's orbs, asks for up to one such card, returns this card to the hand as the cost whether or not one was chosen, and plays the chosen card through the [Counter: Play] window. Like the legacy engine, the choice is filtered by energy cost only.",
     support: "partial",
   },
   Arrival: {
@@ -311,7 +311,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Read before the old Unison leaves play, because leaving clears its markers (5-13-3). “Up to Y” is asked, not assumed — the master is prompted for how many to carry, from 0 to the cap `resolvePlay` works out (colour checked, capped by what the outgoing Unison actually has), and the play does not finish until it is answered (owner's ruling, 9 Sep 2026).",
     engineRules:
-      "Not built yet (#157 looked and left it): the carry is a question asked in the middle of a play, before the replaced Unison leaves, and the `play` op cannot suspend for an answer; the markers paid for the Unison are a later step of `playUnison`'s `DO` on this engine, so the carry belongs to that move rather than to `play`. Playing a Unison over another works; nothing is carried and nothing is asked. Gated in `verify/keywords.ts`.",
+      "Built as a `markerCarry` hook body (`carryMarkers(upTo: $x, color: $color)` in `keywords.rules`, #157), the same prompt, answers and events as the legacy engine. As the Unison is played over another, the body is read; if the replaced one is the named colour (any, for an [Empower] naming none) and carries markers, the play stops at the same `empowerCarry` question, 0 up to the least of Y and what it has, before the old Unison leaves. The markers paid for the new one land first (`play … markers: X`, part of the arrival), then the carried ones, naming the card they left, and the note.",
     support: "engine",
   },
 
@@ -382,7 +382,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning: "When this card attacks, you may switch one or more of your other Battle Cards of the named colours to Rest Mode as the cost of the printed effect.",
     engine: "The printed condition is checked before anyone is asked to rest anything, and the cards rested are bound so the effect can talk about them.",
     engineRules:
-      "Built as its keyword's own `DO` (`at: [attacks]` in `keywords.rules`, #154): announced as the card attacks, a condition printed before the colon asked first, then any number of your other active Battle Cards of the named colours, or none, are rested as the cost, and only then is the printed effect announced and run with them bound as `rested` (`printedEffect`) — the same events as the legacy engine, and an effect “for the battle” now ends with the battle on this engine too. Two differences: the question reads “(99 more)”, the language's word for any number of cards, and a card rested this way does not answer “when this card is switched to Rest Mode by an [Alliance] skill” — the rules engine's mode switch does not say what did the switching yet, the same gap as “…by one of your skills”, which it notes in the log instead.",
+      "Built as its keyword's own `DO` (`at: [attacks]` in `keywords.rules`, #154): announced as the card attacks, a condition printed before the colon asked first, then any number of your other active Battle Cards of the named colours, or none, are rested as the cost, and only then is the printed effect announced and run with them bound as `rested` (`printedEffect`) — the same events as the legacy engine, and an effect “for the battle” now ends with the battle on this engine too. A card rested this way answers “when this card is switched to Rest Mode by an [Alliance] skill” and not “…by one of your skills”, as on the legacy engine: the rest names its keyword (`switchMode … by: Alliance`, #157), and the rules engine's mode switch says what did the switching (`modeSwitched(by: …)`). One difference: the question reads “(99 more)”, the language's word for any number of cards.",
     support: "engine",
   },
   Aegis: {
@@ -498,7 +498,8 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "cost",
     meaning: "[Over Realm] and [Dark Over Realm] may be activated twice a turn between them instead of once.",
     engine: "Raises the count while any card you have in play carries it, and a refused second [Over Realm] says which limit it hit.",
-    engineRules: "Not built yet: it only raises [Over Realm]'s once-a-turn limit to two, and [Over Realm] itself is still unwritten on the rules engine (hook group D, a counted player attribute) — #155 left it with that keyword.",
+    engineRules:
+      "Read by [Over Realm]'s own move (#157): its once-a-turn refusal allows a second use while a card with [Wormhole] is in play, counted in the `overRealms` player fact, and a refused third says which limit it hit (“oncePerTurn: Over Realm”), as on the legacy engine. The keyword needs no body of its own.",
     support: "engine",
   },
   "Spirit Boost": {

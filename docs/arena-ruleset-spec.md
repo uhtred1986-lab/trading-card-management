@@ -193,6 +193,7 @@ disagree or if a row is missing from either.
 | `note` | primitive | A remark in the log; nothing to lower it to. |
 | `setPlayerAttr` | primitive | Sets a `DEFINE ATTRIBUTE of: player` fact by name (issue #269). Not a `modifyAttr` macro: that op reads and writes a *card's* attribute by a delta or a value list, and a player fact declared boolean has neither — 13-3's `grewUnison` is set once, true, and cleared only by its declaration's own `reset: turnStart`, never added to or subtracted from. |
 | `battleDamage` | primitive | How the battle damage an attacker deals lands (8-4-6) — at least *X*, to the Drop face up, every marker off a Unison, the game won once it lands (#156). A keyword's own word, on no card (`OpSpec.offCard`): the leaf of a `beforeDamage` body, **read** at the moment damage lands rather than run, because a queued program would run after the life cards had moved. Not a `modifyAttr`: what changes is a rule of one battle step, not an attribute any card carries or any other reading asks about. |
+| `carryMarkers` | primitive | How many of the replaced Unison's markers a Unison played over it may take, and from a Unison of which colour (22-45-3, #157). A keyword's own word, on no card (`OpSpec.offCard`): the leaf of a `markerCarry` body, **read** as the play lands rather than run — the master is asked how many, from none to the least of `upTo` and what the old card has, before it leaves. Not a `modifyAttr`: the number is a ceiling on a question, not a change to any card. |
 | `printedEffect` | primitive | The line's own printed effect, announced as printed and run at this point of a keyword moment's `DO`, in the same frame, so it reads what the `DO` bound (#154). A keyword's own word, on no card (`OpSpec.offCard`): [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3), and not at all when none were. Not `AFTER`: that is a move's last word and always runs; this is a step a moment's body takes, or does not take, where it says. The rules engine puts the effect on the frame (`ScriptFrame.printed`); anywhere else the step does nothing. |
 
 ### 2.4 The conditions
@@ -225,6 +226,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `forbidden` | primitive | A search over the rules in force rather than over the board — a prohibition carries a budget, an escape clause and a chair to read it from (20-14), none of which is a count of cards. |
 | `playerAttr` | primitive | A `DEFINE ATTRIBUTE of: player` fact, read by name (issue #269) — "you have already had your charge this turn" and "you have not already grown a Unison this turn" are both `NOT playerAttr(name: …)`. Not a count: a boolean fact about a player is not a bound on any selector. |
 | `sameCard` | primitive | Do two selectors each resolve to a card of the same printed identity? Not a filter, because the identity being matched is another *selected* card's, not a fixed wording (`FILTER_FIELDS` names no "same as" field) — 13-3's "a copy of the Unison Card" is this, over the candidate and the Unison Area. |
+| `flag` | primitive | Is a keyword's boolean parameter set? A `DEFINE KEYWORD` body's, not a card's: with `$dark` bound off the printed keyword (#157) it tells [Dark Over Realm] from [Over Realm] inside one declaration. A bound value, not a count of cards. |
 | `oneOf` | primitive | Is a word one of these words? A `DEFINE KEYWORD` body's, not a card's: with `$variant` bound off the printed keyword (#157) it tells [Xeno-Evolve] from [Evolve] and [Union-Fusion] from [Union-Absorb] inside one declaration. A comparison of two words, not a count of cards. |
 | `eachNamed` | primitive | Does every character a keyword line prints in ‹…› stand on a *different* card the selector finds — and, with `samePower`, are those cards of one power (22-13-4, 22-13-5)? A matching of names to distinct cards, which no single count can say: two Gokus count to two and still name no Vegeta. Read off the line its program belongs to, like the `asPrinted` selector flag (#157). |
 | `covers` | primitive | Do the cards a selector finds carry every one of these colours between them (22-29-3, 22-30-3, 22-34-3)? [Arrival]'s Combo Area and [Revive]'s hand, with `colors: $colors` bound off the printed keyword (#155). One count per colour would say it only for a fixed list; the list is the keyword's parameter. |
@@ -780,7 +782,7 @@ Until a keyword's own body is written (Stage 7's `s7-0{2,3,4,5}` issues), a keyw
 rules engine is a skill that never pends: nothing reaches it, a game on that engine plays pass,
 endMain and concede (#140), and playing, attacking and activating are Stage 5's `DEFINE ACTION`s.
 
-### 4.1 The fifteen hook points
+### 4.1 The sixteen hook points
 
 Taken from the plan's own fifteen names, confirmed against a full inventory of every `has(`/
 `keyword(`/`hasKeyword(` call in `src/lib/arena/engine/` (38 sites across 7 files — reproduce with
@@ -838,6 +840,7 @@ has — no new grammar, because none is needed.
 | `playRefused` | D | query | — | a play is being checked for legality, before cost (5-5, 20-4), and `self` is a card in play whose keyword may refuse it (#157) |
 | `chargeLimit` | D | effect | — | `self` is about to be placed in an Energy Area, from any source (22-31) |
 | `altPayment` | D | query | — | a price is being planned and is asking what else may pay it, or what it no longer demands |
+| `markerCarry` | D | query | — | a Unison is being played over another, before that one leaves; a body ends in `carryMarkers`, and the play waits on how many markers come across (22-45-3, #157 — the sixteenth point, added for [Empower]) |
 
 ### 4.2 One worked example per hook
 
@@ -1150,15 +1153,18 @@ DEFINE KEYWORD Evolve
 
 Two of group D are not moves at all: [Unique] is a `playRefused` hook read off the card already in play
 (§4.1's row), and [Spirit Boost] is a price, `DEFINE COST spiritBoost`, whose markers come off the card
-in the place its `DO` names. Three are still to write, each recorded with what it is missing:
-[Empower]'s carry is a question asked in the middle of a play, before the replaced Unison leaves — the
-`play` op cannot suspend for an answer on either interpreter's shared `stepScript`, and on this engine
-the paid markers are a later step of `playUnison`'s `DO`, so the carry belongs to the move (an op of
-its own, or a `play` field) rather than to `play`; [Swap] and [Over Realm] play a card through a
-[Counter: Play] window, and [Swap]'s "energy cost of X" is a parameter inside a card filter — both
-are sayable since #155 (`play … counterWindow: true`, a filter field written open), so what is left
-of them is the body itself; [Over Realm] also needs a counted, shared once-a-turn player attribute
-that [Wormhole] raises to two.
+in the place its `DO` names. The remaining three:
+[Swap] and [Over Realm] are moves (#157), each against the legacy engine event for event. [Swap]'s
+"energy cost of X" is a filter field written open (`costMin = $x AND costMax = $x`), and both play
+through the [Counter: Play] window (`play … counterWindow: true`). [Over Realm]'s shared use a turn
+is a counted player fact (`overRealms`, `setPlayerAttr … add`, `playerAttr … atLeast`), raised to two
+by a [Wormhole] in play. [Dark Over Realm] is told apart by `flag(value: $dark)`.
+[Empower]'s carry is a question asked in the middle of a play, before the replaced Unison leaves. It
+is a sixteenth hook point, `markerCarry` (§4.1), whose `carryMarkers` leaf the rules engine's
+`playThen` reads as the play lands. With markers to carry it puts the frame back at its `play` step
+and asks the legacy engine's own `empowerCarry` question (the same prompt, answers and action, so a
+saved game's answer replays). The paid markers became part of the arrival
+(`play(target: $card, markers: X)`) so the carried ones land after them, as on the legacy engine.
 
 **Group B's keywords (#155).** Five are built, each against the legacy engine event for event, and
 they needed seven words the shapes above did not have (`docs/arena-rules-language.md` §3b): the
@@ -1288,9 +1294,13 @@ bodies, not their hook group.
 
 Two engine facts came out of it. The rules engine never ended an effect "for the battle"; the
 battle phase now ends them as it closes, after the `battleEnd` hooks' programs. And "when this card
-is switched to Rest Mode by an [Alliance] skill" (and "…by one of your skills") does not answer on
-the rules engine: its `modeSwitched` moment does not say what did the switching. That is trigger
-plumbing beyond this group, recorded in the glossary.
+is switched to Rest Mode by an [Alliance] skill" (and "…by one of your skills") did not answer on
+the rules engine: its `modeSwitched` moment did not say what did the switching. #157 closed it. A
+program's switch hands the host its cause (`ScriptHost.setMode`'s `by`), and the rules engine's
+`setMode` fires `modeSwitched(by: skill | <keyword>, byOpponent, in, mode)`. [Alliance]'s body
+names its keyword (`switchMode … by: Alliance`), so its cards answer the [Alliance] moment and not
+the general one, as on the legacy engine. `restedTheirsBySkill` now also says
+`byOpponent: true, in: [battle, energy]`, the legacy engine's own narrowing.
 
 ---
 

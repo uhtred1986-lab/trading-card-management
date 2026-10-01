@@ -358,11 +358,28 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         type: "boolean",
         offCard: "opens the [Counter: Play] window a declared play opens (9-6, 22-10) before the card lands — the play a keyword's own move makes ([Arrival], [Revive], [Successor]), where a play a card's skill makes opens none (5-5-3)",
       },
+      {
+        name: "markers",
+        type: "amount",
+        offCard: "the markers a Unison arrives with, paid for as its cost (13-2-3) — part of the arrival, so markers a [Empower] carries across land after them (22-45-3, #157); the `playUnison` move's own word",
+      },
     ],
     sentence: "play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}",
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
   },
-  switchMode: { fields: [TARGET, { name: "mode", type: MODE, required: true }], sentence: "switch {target} to {mode} mode" },
+  switchMode: {
+    fields: [
+      TARGET,
+      { name: "mode", type: MODE, required: true },
+      {
+        name: "by",
+        type: { enum: KEYWORD_NAMES },
+        offCard:
+          "the keyword whose skill does the switching — [Alliance]'s rest-as-cost (22-32-3) is the moment \"switched to Rest Mode by an [Alliance] skill\" and not \"…by one of your skills\" (1-10); left out, the switch is the skill's own",
+      },
+    ],
+    sentence: "switch {target} to {mode} mode{by? by a [{by}] skill}",
+  },
   skip: {
     fields: [
       { name: "what", type: { enum: SKIP_WHATS }, required: true },
@@ -677,8 +694,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   note: { fields: [{ name: "text", type: "string", required: true }], sentence: "", doc: "a remark in the log; does nothing" },
   setPlayerAttr: {
-    fields: [{ name: "name", type: "string", required: true }, { name: "value", type: "boolean", default: true }, SIDE],
-    sentence: "{side:your opponent's|your} {name} is set",
+    fields: [
+      { name: "name", type: "string", required: true },
+      { name: "value", type: "boolean", default: true },
+      SIDE,
+      {
+        name: "add",
+        type: "number",
+        offCard: "a counted fact (`value: number`) goes up by this much instead of being set — [Over Realm]'s use this turn (22-15-3, #157); `value` is not read with it",
+      },
+    ],
+    sentence: "{side:your opponent's|your} {name} is set{add? (plus {add})}",
     doc: 'set a `DEFINE ATTRIBUTE of: player` fact — 13-3\'s growUnison marks its own "grewUnison" true once it resolves, so a later REFUSE reads it rather than the move being asked twice in one turn (issue #269)',
   },
   battleDamage: {
@@ -705,6 +731,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: "the line's printed effect resolves",
     offCard:
       "the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's",
+  },
+  carryMarkers: {
+    fields: [
+      { name: "upTo", type: "amount", required: true },
+      { name: "color", type: { enum: COLORS }, nullable: true },
+    ],
+    sentence: "carry up to {upTo:marker} from the Unison this one replaces{color? if it is {color}}",
+    offCard:
+      "the leaf of a keyword's markerCarry hook: a Unison played over another may take up to this many of its markers, the master's choice from none to the most it has (22-45-3, [Empower]); with a colour, only from a Unison of that colour",
   },
 };
 
@@ -785,6 +820,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   setPlayerAttr:      "primitive",
   battleDamage:       "primitive",
   printedEffect:      "primitive",
+  carryMarkers:       "primitive",
 };
 
 /**
@@ -1010,10 +1046,15 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [
       { name: "name", type: "string", required: true },
       { name: "side", type: { enum: ["you", "opponent"] } },
+      {
+        name: "atLeast",
+        type: "number",
+        offCard: "reads a counted fact (`value: number`): it holds when the count is at least this — [Over Realm]'s one use a turn, two with [Wormhole] (22-15-3, 22-24, #157)",
+      },
     ],
     sentence: (raw) => {
       const c = raw as CondOf<"playerAttr">;
-      return `${c.side === "opponent" ? "your opponent" : "you"} ${c.name}`;
+      return `${c.side === "opponent" ? "your opponent" : "you"} ${c.name}${c.atLeast !== undefined ? ` at least ${c.atLeast} time${c.atLeast === 1 ? "" : "s"}` : ""}`;
     },
     doc: 'a `DEFINE ATTRIBUTE of: player` fact, read — "you have already had your charge this turn" (7-2-11) and "you have not already grown a Unison this turn" (13-3) are both `NOT playerAttr(name: …)`, over the declared name (issue #269)',
   },
@@ -1027,6 +1068,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       return `${describeSelector(c.a, "")} is the same card as ${describeSelector(c.b, "")}`;
     },
     doc: 'do these two selectors each resolve to one card of the same printed identity? "a copy of the Unison Card" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card\'s identity, so this reads two selectors instead (issue #269)',
+  },
+  flag: {
+    fields: [{ name: "value", type: "boolean", required: true }],
+    sentence: (raw) => ((raw as CondOf<"flag">).value ? "always" : "never"),
+    doc: "a keyword's boolean parameter, read as a condition. No card says this: once `$dark` is bound off the printed keyword, `flag(value: $dark)` tells [Dark Over Realm] from [Over Realm] (22-23, #157)",
   },
   oneOf: {
     fields: [
@@ -1116,6 +1162,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   forbidden:      "primitive",
   playerAttr:     "primitive",
   sameCard:       "primitive",
+  flag:           "primitive",
   oneOf:          "primitive",
   eachNamed:      "primitive",
   covers:         "primitive",
@@ -1144,7 +1191,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
  * Not a validation rule — `validateProgram` accepts every schema row, because a
  * stored program is checked against the language and not against this list.
  */
-export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "oneOf", "eachNamed", "covers", "sumsTo", "attacked", "markerSkillUsed"];
+export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "flag", "oneOf", "eachNamed", "covers", "sumsTo", "attacked", "markerSkillUsed"];
 
 // ── validation, for programs that did not come from the compiler ───────────
 
@@ -1782,6 +1829,6 @@ export function condSignature(kind: Cond["kind"]): string {
     if (typeof t === "object") return "enum" in t ? (t.enum.length > 4 ? `${t.enum.slice(0, 3).map((e) => `"${e}"`).join("|")}|…` : t.enum.map((e) => `"${e}"`).join("|")) : "[…]";
     return { selector: "SELECTOR", side: '"you"|"opponent"', cond: "COND", conds: "[COND]", filter: "FILTER", string: '"…"', number: "N", boolean: "true|false", amount: "AMOUNT", ref: "TARGET", area: "AREA", duration: "DURATION", ops: "[…]", keyword: '{"name":"Blocker"}', modes: "[…]" }[t];
   };
-  const fields = COND_SCHEMA[kind].fields.map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
+  const fields = COND_SCHEMA[kind].fields.filter((f) => !f.offCard).map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
   return `{"kind":"${kind}"${fields.length ? "," : ""}${fields.join(",")}}`;
 }

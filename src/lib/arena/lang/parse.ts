@@ -783,7 +783,16 @@ class Parser {
       const f = this.defineField(fields);
       if (f.type === "hooks") {
         const hooks = (out[f.name] as DefineHook[] | undefined) ?? [];
-        hooks.push(this.hook());
+        // A keyword's `HOOK` body is bound off the keyword in force as its
+        // `DO` is (`hookBodiesFor`, #156), so it may write `$name` for a
+        // parameter it `TAKES` in any position too — [Empower]'s
+        // `carryMarkers(upTo: $x, color: $color)` (#157).
+        this.holes = kind === "KEYWORD";
+        try {
+          hooks.push(this.hook());
+        } finally {
+          this.holes = false;
+        }
         out[f.name] = hooks;
       } else if (f.type === "refusals") {
         // Like a hook: one line each, so a ruleset diff shows the refusal that
@@ -804,8 +813,8 @@ class Parser {
         if (out[f.name] !== undefined) this.fail(`${JSON.stringify(f.name)} is said twice`, []);
         // A macro's body is the one text a parameter may stand in (#273) — and
         // a keyword's own `DO`, whose parameters come off the printed keyword
-        // (`[Swap 3]`'s `x`) when it runs. A keyword's `HOOK` bodies stay
-        // closed: a hook is read at a moment the interpreter owns, not bound.
+        // (`[Swap 3]`'s `x`) when it runs. A keyword's `HOOK` bodies are
+        // opened above, where they are read.
         this.holes = (kind === "OP" || kind === "KEYWORD") && (f.name === "do" || f.name === "after");
         try {
           out[f.name] = this.defineValue(f);

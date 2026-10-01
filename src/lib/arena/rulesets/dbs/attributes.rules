@@ -270,6 +270,16 @@ DEFINE ATTRIBUTE grewUnison                                               -- §1
   reset: turnStart
   text: "whether this player has already grown their Unison Card this turn (13-3); set the moment growUnison resolves"
 
+-- A counted fact of the same kind (#157): [Over Realm] and [Dark Over Realm]
+-- share one activation a turn, two with [Wormhole] (22-15-3, 22-24), so the
+-- uses are counted rather than flagged. Rests at 0 at the start of the turn.
+DEFINE ATTRIBUTE overRealms                                               -- §22-15
+  of: player
+  value: number
+  printed: false
+  reset: turnStart
+  text: "how many times this player has activated [Over Realm] or [Dark Over Realm] this turn (22-15-3); one more each time"
+
 -- ── the battle in progress (§8-1, §22-4-2, #328) ────────────────────────────
 --
 -- `modifyAttr` reached a second widened subject alongside the player

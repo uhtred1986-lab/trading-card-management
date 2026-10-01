@@ -448,6 +448,13 @@
           "nullable": false,
           "offCard": "opens the [Counter: Play] window a declared play opens (9-6, 22-10) before the card lands — the play a keyword's own move makes ([Arrival], [Revive], [Successor]), where a play a card's skill makes opens none (5-5-3)",
           "type": "boolean"
+        },
+        {
+          "name": "markers",
+          "required": false,
+          "nullable": false,
+          "offCard": "the markers a Unison arrives with, paid for as its cost (13-2-3) — part of the arrival, so markers a [Empower] carries across land after them (22-45-3, #157); the `playUnison` move's own word",
+          "type": "amount"
         }
       ],
       "sentence": "play this card",
@@ -472,6 +479,54 @@
           "enumValues": [
             "active",
             "rest"
+          ]
+        },
+        {
+          "name": "by",
+          "required": false,
+          "nullable": false,
+          "offCard": "the keyword whose skill does the switching — [Alliance]'s rest-as-cost (22-32-3) is the moment \"switched to Rest Mode by an [Alliance] skill\" and not \"…by one of your skills\" (1-10); left out, the switch is the skill's own",
+          "type": "enum",
+          "enumValues": [
+            "Awaken",
+            "Wish",
+            "Field",
+            "Blocker",
+            "Critical",
+            "Strike",
+            "Attack",
+            "Revenge",
+            "Indestructible",
+            "Barrier",
+            "Deflect",
+            "Unique",
+            "Servant",
+            "Energy-Exhaust",
+            "Victory Strike",
+            "Warrior of Universe 7",
+            "Ultimate",
+            "Super Combo",
+            "Dragon Ball",
+            "Wormhole",
+            "Invoker",
+            "Heroic",
+            "Villainous",
+            "Offering",
+            "Evolve",
+            "Union",
+            "Over Realm",
+            "Swap",
+            "Arrival",
+            "Aegis",
+            "Alliance",
+            "Revive",
+            "Successor",
+            "Overlord",
+            "Rejuvenate",
+            "Spirit Boost",
+            "Empower",
+            "Z-Awaken",
+            "Z-Stack"
           ]
         }
       ],
@@ -2083,6 +2138,13 @@
           "nullable": false,
           "defaultText": "\"you\"",
           "type": "side"
+        },
+        {
+          "name": "add",
+          "required": false,
+          "nullable": false,
+          "offCard": "a counted fact (`value: number`) goes up by this much instead of being set — [Over Realm]'s use this turn (22-15-3, #157); `value` is not read with it",
+          "type": "number"
         }
       ],
       "sentence": "your x is set",
@@ -2133,6 +2195,37 @@
       "sentence": "the line's printed effect resolves",
       "doc": "A keyword's own word, on no card: the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's.",
       "offCard": "the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's"
+    },
+    {
+      "name": "carryMarkers",
+      "class": "primitive",
+      "signature": "{\"op\":\"carryMarkers\",\"upTo\":AMOUNT,\"color\"?:\"Red\"|\"Blue\"|\"Green\"|…}",
+      "fields": [
+        {
+          "name": "upTo",
+          "required": true,
+          "nullable": false,
+          "type": "amount"
+        },
+        {
+          "name": "color",
+          "required": false,
+          "nullable": true,
+          "type": "enum",
+          "enumValues": [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow",
+            "Black",
+            "White",
+            "Colorless"
+          ]
+        }
+      ],
+      "sentence": "carry up to +1 marker from the Unison this one replaces",
+      "doc": "A keyword's own word, on no card: the leaf of a keyword's markerCarry hook: a Unison played over another may take up to this many of its markers, the master's choice from none to the most it has (22-45-3, [Empower]); with a colour, only from a Unison of that colour.",
+      "offCard": "the leaf of a keyword's markerCarry hook: a Unison played over another may take up to this many of its markers, the master's choice from none to the most it has (22-45-3, [Empower]); with a colour, only from a Unison of that colour"
     }
   ],
   "conds": [
@@ -2617,6 +2710,13 @@
             "you",
             "opponent"
           ]
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "offCard": "reads a counted fact (`value: number`): it holds when the count is at least this — [Over Realm]'s one use a turn, two with [Wormhole] (22-15-3, 22-24, #157)",
+          "type": "number"
         }
       ],
       "sentence": "you x",
@@ -2642,6 +2742,21 @@
       ],
       "sentence": "1 in your battle is the same card as 1 in your battle",
       "doc": "do these two selectors each resolve to one card of the same printed identity? \"a copy of the Unison Card\" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card's identity, so this reads two selectors instead (issue #269)"
+    },
+    {
+      "kind": "flag",
+      "class": "primitive",
+      "signature": "{\"kind\":\"flag\",\"value\":true|false}",
+      "fields": [
+        {
+          "name": "value",
+          "required": true,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "always",
+      "doc": "a keyword's boolean parameter, read as a condition. No card says this: once `$dark` is bound off the printed keyword, `flag(value: $dark)` tells [Dark Over Realm] from [Over Realm] (22-23, #157)"
     },
     {
       "kind": "oneOf",

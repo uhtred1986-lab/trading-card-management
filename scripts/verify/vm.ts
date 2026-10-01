@@ -273,7 +273,7 @@ const DBS: GameDefinition = dbs.ok ? dbs.definition : (undefined as never);
 // adapter and `attributes.rules` account for each other. Reported by name in
 // both directions — a count would say something changed and nothing about what.
 assert.deepEqual(attributeGaps(DBS), { unfilled: [], undeclared: [] }, "the catalog adapter and attributes.rules do not describe the same card");
-assert.deepEqual(playerAttributes(DBS), ["energyMarkers", "charged", "grewUnison"], "the player attributes of 1-14, 7-2-11 and 13-3 are not what the game declares");
+assert.deepEqual(playerAttributes(DBS), ["energyMarkers", "charged", "grewUnison", "overRealms"], "the player attributes of 1-14, 7-2-11, 13-3 and 22-15 are not what the game declares");
 assert.ok(cardAttributes(DBS).includes("costOf"), "the derived cost of 20-21 is not a declared card attribute");
 
 {
@@ -512,7 +512,7 @@ const SEED = 7;
 const SAME = { seed: SEED, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
 const fresh = engineFor("rules").createGame(CTX, SAME).state as VmState;
-assert.deepEqual(fresh.sides.p1.attrs, { energyMarkers: 0, charged: false, grewUnison: false }, "a side does not start with the player attributes the game declares (1-14, 7-2-11, 13-3)");
+assert.deepEqual(fresh.sides.p1.attrs, { energyMarkers: 0, charged: false, grewUnison: false, overRealms: 0 }, "a side does not start with the player attributes the game declares (1-14, 7-2-11, 13-3, 22-15)");
 
 let oracle = createGame(CTX, SAME).state;
 const chooser = (oracle.prompt as { player: PlayerId }).player;
@@ -2613,8 +2613,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     for (const [key, why] of legacyFirst) {
       const got = ours.get(key);
       // The one difference this stage records rather than hides: a keyword's
-      // own activation not declared yet ([Over Realm], [Swap], [Z-Awaken] …;
-      // [Awaken], [Rejuvenate] and the others are since #155–#157) is a
+      // own activation not declared yet ([Z-Awaken] …; [Awaken], [Rejuvenate],
+      // [Over Realm], [Swap] and the others are since #155–#157) is a
       // `DEFINE KEYWORD` body still to write — the legacy engine answers
       // about such a line and this one does not name it at all.
       if (!got) {

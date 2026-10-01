@@ -267,9 +267,10 @@ export type Cond =
    * A `DEFINE ATTRIBUTE of: player` fact, read (13-3, 7-2-11, issue #269):
    * "you have not already grown a Unison this turn" and "you have already had
    * your charge this turn" are both this, over a different declared name.
-   * Boolean only, so far — nothing has needed a counter read back yet.
+   * `atLeast` reads a counted fact instead (#157): [Over Realm]'s one use a
+   * turn, two with [Wormhole], is `playerAttr(name: "overRealms", atLeast: 1)`.
    */
-  | { kind: "playerAttr"; name: string; side?: "you" | "opponent" }
+  | { kind: "playerAttr"; name: string; side?: "you" | "opponent"; atLeast?: number }
   /**
    * Do these two selectors each resolve to a card of the same printed
    * identity (`cardId`)? False with nothing, or more than one, on either
@@ -289,6 +290,8 @@ export type Cond =
    * [Union-Fusion]/[Union-Potara]/[Union-Absorb] are one keyword each.
    */
   | { kind: "oneOf"; value: string; of: string[] }
+  /** A keyword body's boolean parameter, read as a condition (#157): `flag(value: $dark)` is [Dark Over Realm]. */
+  | { kind: "flag"; value: boolean }
   /**
    * Does every character the line prints in ‹…› stand on a different card
    * among `sel` — and, with `samePower`, are those cards of one power? The
@@ -404,8 +407,14 @@ export type Op =
    * read. Without it the card is played beside the host instead of onto it.
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
-  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true }
-  | { op: "switchMode"; target: Ref; mode: "active" | "rest" }
+  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount }
+  /**
+   * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
+   * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
+   * a different moment from "…by one of your skills" (1-10). No card says it;
+   * a keyword body does.
+   */
+  | { op: "switchMode"; target: Ref; mode: "active" | "rest"; by?: KeywordSkill["name"] }
   /**
    * 20-9: gaining control of a card is moving it into your own area and
    * becoming its master (20-9-1), which is why this is one move and not a flag
@@ -803,7 +812,7 @@ export type Op =
    * the declaration is what clears it again, at the turn boundary the
    * declaration names, not this op running in reverse.
    */
-  | { op: "setPlayerAttr"; name: string; value?: boolean; side?: Side }
+  | { op: "setPlayerAttr"; name: string; value?: boolean; side?: Side; add?: number }
   /**
    * How the battle damage this card deals by attacking lands (8-4-6) — a
    * `DEFINE KEYWORD`'s `beforeDamage` body's leaf, never a printed card's
@@ -826,7 +835,15 @@ export type Op =
    * carries, which only a rules-engine keyword moment's frame does; anywhere
    * else it does nothing.
    */
-  | { op: "printedEffect" };
+  | { op: "printedEffect" }
+  /**
+   * [Empower]'s leaf (22-45-3, #157): the `markerCarry` query hook's answer —
+   * the master may carry up to `upTo` of the replaced Unison's markers onto
+   * this one, when the replaced card is `color` (any colour without one). Read
+   * where a play lands (`vm/host.ts`'s `playThen`), never run; the legacy
+   * engine reads [Empower] inline in `resolvePlay`.
+   */
+  | { op: "carryMarkers"; upTo: Amount; color?: Color | null };
 
 /**
  * The price before the colon, as the record holds it (4-3-3). Both halves are
@@ -974,6 +991,9 @@ export interface CardScripts {
 
 /** What the engine has for a card nobody drafted: nothing, and it says so. */
 export const NO_RULES: CardScripts = Object.freeze({ bySkill: {}, complete: false, unsupported: [] }) as CardScripts;
+
+/** The moment a keyword's own switch to Rest Mode is (`switchMode`'s `by`, #157): "switched to Rest Mode by an [Alliance] skill" (22-32-3). */
+const RESTED_BY_KEYWORD: Partial<Record<KeywordSkill["name"], Trigger>> = { Alliance: "restedByAlliance" };
 
 /** Where a price leaves the X it bound, beside where it leaves its names. */
 export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
@@ -1276,13 +1296,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
 
       case "setPlayerAttr":
-        for (const p of sideOf(master, op.side)) h.setPlayerAttr(p, op.name, op.value ?? true);
+        for (const p of sideOf(master, op.side)) h.setPlayerAttr(p, op.name, op.add !== undefined ? { add: op.add } : (op.value ?? true));
         break;
 
       // #156: a `beforeDamage` hook body's leaf, read where the battle deals
       // its damage (`vm/battle.ts`) rather than run — the legacy engine reads
       // the same keywords inline in `battleDamage`. Nothing to do as a step.
       case "battleDamage":
+        break;
+      // #157: a `markerCarry` hook body's leaf, read where a play lands. The
+      // same: nothing to do as a step.
+      case "carryMarkers":
         break;
 
       // #154: a keyword body's word — the line's printed effect, announced
@@ -1585,13 +1609,23 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "switchMode":
         for (const id of h.resolveRef(frame, op.target)) {
           const was = h.modeOf(id);
-          h.setMode(id, op.mode);
+          // The switch says what caused it — this skill, and the keyword whose
+          // skill it is when a keyword body names one (#157) — so a host that
+          // fires the moment itself can tell "by one of your skills" from "by
+          // an [Alliance] skill" (the rules engine's `modeSwitched(by: …)`).
+          h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}) });
           // "When this card is switched to Rest Mode by one of your skills"
           // (1-10): the card and the skill both have to be yours, which is what
           // "your" says — an opponent resting it is not this moment.
           if (op.mode === "rest" && was === "active" && h.modeOf(id) === "rest") {
             const area = h.areaOf(id);
-            if (h.masterOf(id) === master) h.pend("restedBySkill", id, frame.card);
+            // A keyword's own switch is that keyword's moment and not the
+            // general one: the legacy [Alliance] case pends only "…by an
+            // [Alliance] skill" on the cards it rests.
+            if (op.by) {
+              const named = RESTED_BY_KEYWORD[op.by];
+              if (named) h.pend(named, id, frame.card);
+            } else if (h.masterOf(id) === master) h.pend("restedBySkill", id, frame.card);
             // The other end of it: your skill resting one of *theirs*, watched
             // by your cards in play. The printed wording names their Battle
             // Cards and energy, so that is where it is pended and nowhere else.
@@ -2056,7 +2090,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.counterWindow ? { counterWindow: true } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

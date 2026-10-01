@@ -250,6 +250,18 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     ],
     "printedEffect after [Alliance]'s cost",
   );
+  // #157: the switch that names its keyword — [Alliance]'s rest-as-cost.
+  tripOps([{ op: "switchMode", target: { var: "rested" }, mode: "rest", by: "Alliance" }], "switchMode by a keyword's skill");
+  // …[Over Realm]'s counted use and its dark variant.
+  tripOps([{ op: "setPlayerAttr", name: "overRealms", add: 1 }], "setPlayerAttr adding to a counted fact");
+  tripCond({ kind: "not", cond: { kind: "playerAttr", name: "overRealms", atLeast: 2 } }, "NOT playerAttr at least");
+  tripCond({ kind: "flag", value: true }, "flag");
+  // …and [Empower]'s: the `markerCarry` leaf, with and without a colour, and
+  // the paid markers as part of the play.
+  tripOps([{ op: "carryMarkers", upTo: 2, color: "Red" }], "carryMarkers from a red Unison");
+  tripOps([{ op: "carryMarkers", upTo: { x: true } }], "carryMarkers from any Unison");
+  tripOps([{ op: "play", target: { var: "card" }, markers: { x: true } }], "play with the markers paid for it");
+  tripCond({ kind: "all", conds: [{ kind: "flag", value: false }, { kind: "count", sel: { side: "you", area: "drop" }, atLeast: 3 }] }, "flag beside a count");
 
   // A counted, conditional prohibition (20-14): the schema loop above already
   // builds a maximal `forbid`, but it builds one generic value per field type.
@@ -399,11 +411,14 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     assert.match(text, /power\(target: \$t, amount: \$n, until: turn\)/, "an amount or ref var prints differently from before");
     // `DO $ops` — the whole body one hole.
     tripDefs([{ define: "OP", name: "whole", takes: [{ name: "ops", type: "ops" }], do: hole("ops") as unknown as Op[] }], "a DEFINE OP whose whole body is a hole");
-    // A hole is read nowhere else: the same `$until` in a card's program, a
-    // step's program or a keyword's hook is a syntax error, not a value.
+    // A hole is read nowhere else: the same `$until` in a card's program or a
+    // step's program is a syntax error, not a value. A keyword's `HOOK` body
+    // reads one since #157 — it is bound off the keyword in force exactly as
+    // the keyword's `DO` is (`hookBodiesFor`, #156), and [Empower]'s
+    // `carryMarkers(color: $color)` needs a parameter in an enum field.
     assert.equal(parseRule("WHEN [auto] played\nTHEN\n  power(target: [self], amount: 1, until: $until)").ok, false, "a card's program read a hole");
     assert.equal(parseDefinitions("DEFINE STEP s\n  phase: \"main\"\n  DO {\n    power(target: [self], amount: 1, until: $until)\n  }").ok, false, "a step's program read a hole");
-    assert.equal(parseDefinitions("DEFINE KEYWORD k\n  text: \"t\"\n  HOOK played {\n    power(target: [self], amount: 1, until: $until)\n  }").ok, false, "a keyword's hook read a hole");
+    assert.equal(parseDefinitions("DEFINE KEYWORD k\n  text: \"t\"\n  HOOK played {\n    power(target: [self], amount: 1, until: $until)\n  }").ok, true, "a keyword's hook does not read its parameters as holes");
     // …except a keyword's own `DO` (Stage 7), whose parameters come off the
     // printed keyword the way a macro's come off its call: `[Swap 3]`'s `x`.
     tripDefs(

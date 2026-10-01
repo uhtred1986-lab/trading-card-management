@@ -16,7 +16,7 @@
  *   A. choosing, immunity, KO by effect  — `chooseable`, `koByEffect`, `attrBonus`
  *   B. entering, leaving, after a skill  — `onEnter`, `onLeave`, `afterSkill`, `activeStep`
  *   C. battle                            — `block`, `counterWindow`, `onAttackDeclared`, `beforeDamage`, `battleEnd`
- *   D. playing, charging, alt payment    — `playRefused`, `chargeLimit`, `altPayment`
+ *   D. playing, charging, alt payment    — `playRefused`, `chargeLimit`, `altPayment`, `markerCarry` (#157's own)
  *
  * `src/lib/arena/vm/hooks.ts` is the other half: what each point binds, what
  * a body found there is read to mean, and the two functions (one per answer
@@ -45,6 +45,9 @@ export const HOOK_POINTS = [
   "playRefused",
   "chargeLimit",
   "altPayment",
+  // #157: the sixteenth, [Empower]'s — a Unison played over another may carry
+  // markers across (22-45-3), asked before the one it replaces leaves.
+  "markerCarry",
 ] as const;
 
 export type HookPoint = (typeof HOOK_POINTS)[number];

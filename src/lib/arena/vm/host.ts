@@ -61,7 +61,7 @@ import { koCard, openKeywordPlayWindow } from "./battle";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, log } from "./events";
 import { fireHook } from "./hooks";
-import { resolvePlay } from "./play";
+import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, hostOf, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
@@ -173,7 +173,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
       return true;
     },
-    setMode: (id, mode) => {
+    setMode: (id, mode, by) => {
       const at = zoneOf(state, id);
       const declared = at ? game.zones[at] : undefined;
       if (!declared?.modes?.includes(mode)) return false;
@@ -182,7 +182,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // a change that did not happen is a beat the board plays over nothing.
       if (inst.mode === mode) return false;
       inst.mode = mode;
-      emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller: masterOf(game, state, id), args: { mode } }, { type: "mode", card: id, mode });
+      // 1-10-1: a skill doing the switching is part of the moment — `by:
+      // skill`, or the keyword whose skill it is (`by: Alliance`, 22-32-3) —
+      // and so is whose skill it was against whose card, and where the card
+      // is: "when this card is switched to Rest Mode by one of your skills",
+      // "when your skill rests an opponent's Battle Card or energy" (#157).
+      const controller = masterOf(game, state, id);
+      const cause: Record<string, string | boolean> = by ? { by: by.keyword ?? "skill", byOpponent: by.master !== controller } : {};
+      emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller, args: { mode, in: at ?? "", ...cause } }, { type: "mode", card: id, mode });
       return true;
     },
     setFaceUp: (id, faceUp) => {
@@ -208,7 +215,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       log(ev, { type: "energyMarker", player: p, delta });
     },
     setPlayerAttr: (p, name, value) => {
-      state.sides[p].attrs[name] = value;
+      // #157: a counted fact goes up rather than being set.
+      state.sides[p].attrs[name] = typeof value === "object" ? Number(state.sides[p].attrs[name] ?? 0) + value.add : value;
     },
     // 21-3: the count is for the end screen, and a player attribute is the
     // only place this engine keeps a number about a player. Nothing declares
@@ -373,12 +381,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     //
     // The plays happen on the spot and the frame goes back on the queue behind
     // them, which is the legacy engine's order (`play.resolve` steps first, the
-    // rest of the skill after). It is synchronous because nothing a play does
-    // on this engine asks a question: the counter window the legacy engine
-    // opens over a play is Stage 6's, and [Empower]'s "how many markers to
-    // carry" is a §22 keyword, #157's. A play that grows a question is a
-    // question this must learn to hold, and `resolvePlay` names the two that
-    // would.
+    // rest of the skill after). Two plays stop to ask first, and both hold the
+    // frame at its `play` step until answered: the [Counter: Play] window a
+    // keyword's own play opens (#155) and [Empower]'s "how many markers to
+    // carry" (#157, the `markerCarry` hook).
     playThen: (cards, opts, frame) => {
       // #155, 9-6: a keyword's own play ([Arrival], [Revive], [Successor]) is
       // declared, and the opponent may answer it with a [Counter: Play] before
@@ -386,11 +392,31 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // no counter they could use, nothing is asked and the play lands now.
       if (opts.counterWindow && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
       for (const id of cards) {
+        // 22-45-3 (#157): a `markerCarry` keyword ([Empower]) on a card
+        // replacing one that carries markers asks how many come across —
+        // before the old one leaves, since leaving clears them (5-13-3) — and
+        // the play waits on the answer: the frame is put back at this `play`
+        // step, which lands once `carried` holds the answer.
+        const carry = carryFor(ctx, game, state, id, opts.player);
+        const answered = state.carried?.card === id ? state.carried.n : undefined;
+        if (carry && carry.max > 0 && answered === undefined) {
+          state.programs.unshift({ ...frame, ip: frame.ip - 1 });
+          state.prompt = { kind: "empowerCarry", player: opts.player, card: id, from: carry.from, max: carry.max, ...(opts.markers !== undefined ? { markers: opts.markers } : {}) };
+          return "wait";
+        }
+        if (answered !== undefined) state.carried = null;
         // 9-6: the play a [Counter: Play] window was open over lands here, in
         // the manner the counter left it (5-5) — and is no longer being
         // resolved once it has, the legacy `s.resolving = null`.
         const r = state.resolving?.card === id && !state.resolving.replaced ? state.resolving : null;
-        resolvePlay(ctx, game, state, ev, id, opts.player, { mode: r?.rest ? "rest" : opts.mode, onto: opts.onto, negated: opts.negated, ...(r?.negated ? { negatedForTurn: true } : {}) });
+        resolvePlay(ctx, game, state, ev, id, opts.player, {
+          mode: r?.rest ? "rest" : opts.mode,
+          onto: opts.onto,
+          negated: opts.negated,
+          ...(r?.negated ? { negatedForTurn: true } : {}),
+          ...(opts.markers !== undefined ? { markers: opts.markers } : {}),
+          ...(carry && answered ? { carry: { from: carry.from, n: Math.min(Math.max(0, answered), carry.max) } } : {}),
+        });
         if (r) state.resolving = null;
       }
       state.programs.unshift(frame);
@@ -517,6 +543,10 @@ function shuffle(state: VmState, p: PlayerId): void {
  * its own is a note rather than a silent miss.
  */
 function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string): void {
+  // A switch to Rest Mode by a skill is `setMode`'s own moment, fired as the
+  // card switched and saying what switched it (#157); the name the program
+  // also says is that same happening, already answered.
+  if (FIRED_BY_SET_MODE.has(trigger)) return;
   const controller = state.cards[id] ? masterOf(game, state, id) : state.turnPlayer;
   const moment = MOMENT_OF[trigger];
   if (!moment) {
@@ -550,6 +580,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // first keyword to run one), and `triggers.rules` declares the moment.
   markerRemoved: { event: "markerRemoved", args: {} },
 };
+
+/** The names `stepScript`'s `switchMode` pends whose moment `setMode` has already fired as `modeSwitched(by: …)` (`dbs/triggers.rules`). */
+const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "restedByAlliance"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */
 export { sideOf, arrivalMode };

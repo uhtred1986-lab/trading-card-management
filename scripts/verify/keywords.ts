@@ -71,15 +71,11 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  * `move(CTX, …)`'s reason and event log are not what the assertion is about.
  *
  * What is still skipped on `--engine rules`, and why — every case below is
- * one of three shapes, named at its own gate call rather than silently doing
+ * one of two shapes, named at its own gate call rather than silently doing
  * nothing (a fourth, `staticGap` — a [Permanent] static `DEFERRED_STATICS`
- * names as unread — left with its last cases, IMMUNE/IMMANY, at #154):
+ * names as unread — left with its last cases, IMMUNE/IMMANY, at #154, and a third, `keywordGap`,
+ * with its last at #157):
  *
- * - **`keywordGap`**: the keyword's own `DEFINE KEYWORD` in `keywords.rules`
- *   carries no `HOOK` body or `DO` for what this case needs (`docs/arena-backlog/
- *   s7-0{2,3,4,5}-*.md` — Stage 7's four hook groups, `src/lib/arena/
- *   rulesets/dbs/keywords.rules`'s own header names which keywords still read
- *   `-- Stage 7 (#153–#157)`).
  * - **`notYetGap`**: the case reaches a primitive `vm/host.ts`'s own
  *   `ScriptHost` implementation still throws `NotYet` for by name (a
  *   skipped phase or step, `#145`; a skill-driven KO was `#146`'s until it
@@ -91,12 +87,8 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
  *   rather than four unrelated ones.
  */
 let skipped = 0;
-function keywordGap(keyword: string, doc: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — [${keyword}]'s keyword body is not built on the rules engine yet (${doc})`);
-  skipped++;
-  return true;
-}
+// `keywordGap` is gone: since #157 and #155's leftovers (#434) no case here
+// waits on a keyword body.
 function notYetGap(where: string, what: string, issue: string): boolean {
   if (ENGINE !== "rules") return false;
   console.log(`  skipped case — ${where}: ${what} (${issue})`);
@@ -109,10 +101,6 @@ function replaceGap(where: string): boolean {
   skipped++;
   return true;
 }
-
-const S7 = {
-  empower: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: playing, charging and alternative payment ([Empower])",
-};
 
 // ── §22 keywords as engine rules ───────────────────────────────────────────
 
@@ -236,6 +224,107 @@ const S7 = {
   delete DEFS.FUSE;
   delete DEFS.POTARA;
   delete DEFS["UNI-B"];
+}
+
+// Both engines since #157: [Swap] and [Over Realm] are `keywords.rules`' own
+// moves. Each move's log is asserted beat for beat — the same list on both
+// engines, so the two runs of this suite hold them to each other.
+{
+  const beats = (s: EngineState, events: unknown[]): string[] =>
+    (events as { type: string; card?: string; from?: string; to?: string; mode?: string }[])
+      .filter((e) => e.type !== "action")
+      .map((e) => [e.type, e.card ? s.cards[e.card]?.cardId : "", e.from && e.to ? `${e.from}>${e.to}` : (e.mode ?? "")].join(" ").trim());
+  const step = (s: EngineState, action: Parameters<typeof playG>[1]) => {
+    const r = IMPL.apply(CTX, s, action);
+    return { s: r.state, beats: beats(r.state, r.events) };
+  };
+
+  // [Swap X] (22-22): from the Battle Area, while a cost-X Battle Card is in
+  // hand (22-22-3). The orbs are paid, the cost-X card is chosen, this card
+  // returns to the hand as the cost, and the chosen one is played (22-22-4).
+  let s = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3", "V-BLUE"] });
+  const swapper = findG(s, "p1", "battle", "SWAPPER");
+  const in3 = findG(s, "p1", "hand", "COST3");
+  assert.ok(labelsG(s).includes("Swap SWAPPER for a cost-3 card from hand"), "the menu wears the keyword's own words");
+  let r = step(s, { type: "activate", player: "p1", card: swapper, skill: 0 });
+  assert.deepEqual(r.beats, ["skill SWAPPER", "mode V1 rest"], "announced, then the orbs paid");
+  assert.equal(r.s.prompt.kind, "chooseCards");
+  assert.deepEqual((r.s.prompt as { choice: { candidates: string[]; min: number } }).choice.candidates, [in3], "only a cost-3 Battle Card");
+  assert.equal((r.s.prompt as { choice: { min: number } }).choice.min, 0);
+  r = step(r.s, { type: "choose", player: "p1", cards: [in3] });
+  assert.deepEqual(r.beats, ["move SWAPPER battle>hand", "move COST3 hand>battle"], "22-22-4: back to the hand, then the swap is played");
+  assert.equal(r.s.prompt.kind, "main");
+  assertConsistentG(r.s);
+  // Declined: the card still goes back to the hand, the legacy reading.
+  s = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3"] });
+  const back = findG(s, "p1", "battle", "SWAPPER");
+  s = playG(s, { type: "activate", player: "p1", card: back, skill: 0 }, { type: "choose", player: "p1", cards: [] });
+  assert.ok(zoneOf(s, "p1", "hand").includes(back) && !zoneOf(s, "p1", "battle").includes(back), "returned as the cost, chosen or not");
+  assert.equal(zoneOf(s, "p1", "battle").length, 0, "and nothing is played");
+  assertConsistentG(s);
+
+  // [Over Realm X] (22-15): from the hand, with X or more cards in the Drop.
+  // The whole Drop goes to the Warp as the cost, the card is played, "when
+  // you play a Battle Card using [Over Realm]" fires, and the card goes to
+  // the Warp as the turn ends (22-15-6).
+  DEFS.ORX = { ...DEFS.V1, id: "ORX", name: "ORX", energyCost: 5, skill: "[Over Realm 3]{1}" };
+  DEFS.ORWATCH = { ...DEFS.V1, id: "ORWATCH", name: "ORWATCH", skill: "[Auto] When you play a Battle Card using [Over Realm], draw 1 card." };
+  DEFS.ORHOLE = { ...DEFS.V1, id: "ORHOLE", name: "ORHOLE", skill: "[Wormhole]" };
+  DEFS.ORDARK = { ...DEFS.V1, id: "ORDARK", name: "ORDARK", skill: "[Dark Over Realm 2]" };
+  DEFS.ORBLACK = { ...DEFS.V1, id: "ORBLACK", name: "ORBLACK", colors: ["Black"] };
+  const toDrop = (g: EngineState, n: number, as?: string) => {
+    for (const id of zoneOf(g, "p1", "deck").slice(0, n)) {
+      stageMoveG(g, id, "drop", "p1");
+      if (as) g.cards[id].cardId = as;
+    }
+  };
+  const o = arenaG({ hand: ["ORX"], battle: ["ORWATCH"], energy: ["V1", "V1"] });
+  const orx = findG(o, "p1", "hand", "ORX");
+  toDrop(o, 2);
+  assert.ok(!canActivateG(o, orx), "22-15-3: two cards in the Drop is fewer than 3");
+  assert.deepEqual(rejectedActionsG(o).find((x) => x.action.type === "activate" && x.action.card === orx)?.why[0].kind, "condition");
+  toDrop(o, 1);
+  assert.ok(labelsG(o).includes("Over Realm 3: play ORX (Drop → Warp)"));
+  const drop = zoneOf(o, "p1", "drop").slice();
+  r = step(o, { type: "activate", player: "p1", card: orx, skill: 0 });
+  assert.deepEqual(
+    r.beats,
+    ["skill ORX", "mode V1 rest", "move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "delayed ORX", "move ORX hand>battle", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
+    "the orbs, the whole Drop to the Warp, the return scheduled, the play, and the watcher",
+  );
+  assert.deepEqual([...zoneOf(r.s, "p1", "warp")].sort(), [...drop].sort(), "22-15-4: every card of the Drop");
+  r = step(r.s, { type: "endMain", player: "p1" });
+  assert.ok(r.beats.includes("move ORX battle>warp"), "22-15-6: to the Warp as the turn ends");
+  assertConsistentG(r.s);
+
+  // 22-15-7 / 22-24-2: one [Over Realm] a turn, two with [Wormhole] in play.
+  const twice = (battle: string[]) => {
+    let g = arenaG({ hand: ["ORX", "ORX"], battle, energy: ["V1", "V1", "V1"] });
+    toDrop(g, 3);
+    g = playG(g, { type: "activate", player: "p1", card: zoneOf(g, "p1", "hand").find((id) => g.cards[id].cardId === "ORX")!, skill: 0 });
+    toDrop(g, 3);
+    return { g, second: zoneOf(g, "p1", "hand").find((id) => g.cards[id].cardId === "ORX")! };
+  };
+  const once = twice([]);
+  assert.ok(!canActivateG(once.g, once.second), "22-15-7: once a turn, even with the Drop refilled");
+  assert.deepEqual(rejectedActionsG(once.g).find((x) => x.action.type === "activate" && x.action.card === once.second)?.why[0], { kind: "oncePerTurn", what: "Over Realm" });
+  const hole = twice(["ORHOLE"]);
+  assert.ok(canActivateG(hole.g, hole.second), "22-24-2: [Wormhole] allows a second");
+
+  // 22-23: [Dark Over Realm] counts black cards only.
+  let d = arenaG({ hand: ["ORDARK"], energy: ["V1"] });
+  const dark = findG(d, "p1", "hand", "ORDARK");
+  toDrop(d, 3);
+  toDrop(d, 1, "ORBLACK");
+  assert.ok(!canActivateG(d, dark), "three cards, but one black");
+  toDrop(d, 1, "ORBLACK");
+  assert.ok(labelsG(d).includes("Dark Over Realm 2: play ORDARK (Drop → Warp)"), "two black cards");
+  d = playG(d, { type: "activate", player: "p1", card: dark, skill: 0 });
+  assert.ok(zoneOf(d, "p1", "battle").includes(dark));
+  assert.equal(zoneOf(d, "p1", "drop").length, 0, "the whole Drop, black or not, to the Warp");
+  assertConsistentG(d);
+  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK"]) delete DEFS[id];
 }
 
 if (
@@ -406,13 +495,9 @@ if (
   assertConsistentG(s);
 }
 
-if (
-  !notYetGap(
-    "RESTWATCH/RESTER: \"switched to Rest Mode by one of your skills\" (1-10)",
-    "checked directly rather than trusted: the watcher's [Auto] does not pend on the rules engine when a skill program switches another card to Rest Mode — the trigger-moment pattern this wording compiles to is not yet one `dbs/triggers.rules` matches the same way `moveTo`'s own moments are",
-    "no issue filed yet",
-  )
-) {
+// Both engines since #157: the rules engine's switch says what switched it
+// (`modeSwitched(by: …)`, `vm/host.ts`'s `setMode`).
+{
   // 1-10: "when this card is switched to Rest Mode by one of your skills" —
   // your skill and your card, so an opponent resting it is a different moment
   // and this does not fire.
@@ -426,6 +511,26 @@ if (
   assert.equal(s.cards[watcher].mode, "rest");
   assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "one played, one drawn by the rested card");
   assertConsistentG(s);
+
+  // The other end: your skill resting one of *their* Battle Cards is watched
+  // by your cards in play ("when your skill switches your opponent's Battle
+  // Card to Rest Mode"), and is not the rested card's own "by one of your
+  // skills" — the skill is not its master's.
+  DEFS.THEIRWATCH = { ...DEFS.V1, id: "THEIRWATCH", name: "THEIRWATCH", skill: "[Auto] When your skill switches your opponent's Battle Card to Rest Mode, draw 1 card." };
+  DEFS.THEIRRESTER = { ...DEFS.V1, id: "THEIRRESTER", name: "THEIRRESTER", energyCost: 1, skill: "[Auto] When you play this card, switch up to 1 of your opponent's Battle Cards to Rest Mode." };
+  let t = arenaG({ hand: ["THEIRRESTER"], battle: ["THEIRWATCH"], energy: ["V1"], oppBattle: ["RESTWATCH"] });
+  const theirs = zoneOf(t, "p2", "battle")[0];
+  const mine = zoneOf(t, "p1", "hand").length;
+  const oppHand = zoneOf(t, "p2", "hand").length;
+  t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "THEIRRESTER") });
+  t = playG(t, { type: "choose", player: "p1", cards: [theirs] });
+  assert.equal(t.cards[theirs].mode, "rest");
+  assert.equal(zoneOf(t, "p1", "hand").length, mine - 1 + 1, "the watcher of your skill draws");
+  assert.equal(zoneOf(t, "p2", "hand").length, oppHand, "the rested card's own 'by one of your skills' does not fire: the skill is not its master's");
+  assertConsistentG(t);
+  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  delete DEFS.THEIRWATCH;
+  delete DEFS.THEIRRESTER;
 }
 
 if (
@@ -468,7 +573,7 @@ if (
   assertConsistentG(s);
 }
 
-if (!keywordGap("Empower", S7.empower)) {
+{
   // [Empower X Y] (22-45-3, owner's ruling 9 Sep 2026): a Unison replacing one
   // of colour X *may* carry up to Y of its markers over — a choice the master
   // makes, not an automatic maximum, so playing it asks rather than deciding
@@ -482,15 +587,45 @@ if (!keywordGap("Empower", S7.empower)) {
   assert.equal(s.prompt.kind, "empowerCarry", "22-45-3: carrying is asked, not assumed");
   assert.equal((s.prompt as { from: string }).from, old);
   assert.equal((s.prompt as { max: number }).max, 2, "capped by the printed Y of 2, though the old Unison had 3 markers");
-  s = playG(s, { type: "empowerCarry", player: "p1", amount: 2 });
+  assert.deepEqual(
+    IMPL.legalActions(CTX, s).map((a) => a.label),
+    ["Carry no markers", "Carry 1 marker", "Carry 2 markers"],
+    "every amount from none to the cap, in the same words on both engines",
+  );
+  const answered = IMPL.apply(CTX, s, { type: "empowerCarry", player: "p1", amount: 2 });
+  s = answered.state;
+  // The same beats on both engines (#157): the old Unison leaves, the new one
+  // arrives, the marker paid for it, then the two carried — naming the card
+  // they left — and the note.
+  const said = (answered.events as unknown as { type: string; card?: string; from?: string; to?: string; delta?: number; total?: number; text?: string }[])
+    .filter((e) => e.type !== "action")
+    .map((e) => (e.type === "markers" ? `markers +${e.delta}=${e.total}${e.from ? ` from ${s.cards[e.from].cardId}` : ""}` : e.type === "move" ? `move ${s.cards[e.card!].cardId} ${e.from}>${e.to}` : e.type === "note" ? `note ${e.text}` : e.type));
+  assert.deepEqual(said.slice(0, 5), ["move U1 unison>drop", "move EMP hand>unison", "markers +1=1", "markers +2=3 from U1", "note Empower: 2 markers carried over"]);
   const emp = unisonOf(s, "p1")!;
   assert.equal(s.cards[emp].cardId, "EMP");
   assert.ok(zoneOf(s, "p1", "drop").includes(old), "13-2-3: the old Unison went to the Drop");
   assert.equal(s.cards[emp].markers, 3, "22-45-2: 1 paid plus 2 carried over (of the 3 it had)");
   assertConsistentG(s);
+
+  // 22-45-3-1: an [Empower] naming no colour takes them from a Unison of any
+  // colour; one naming another colour takes none, and nothing is asked.
+  DEFS.EMPANY = { ...DEFS.U1, id: "EMPANY", name: "EMPANY", skill: "[Empower 2]" };
+  DEFS.EMPBLUE = { ...DEFS.U1, id: "EMPBLUE", name: "EMPBLUE", skill: "[Empower Blue 2]" };
+  for (const [id, asked] of [["EMPANY", true], ["EMPBLUE", false]] as const) {
+    let g = arenaG({ hand: ["U1", id], energy: ["V1", "V1", "V1", "V1", "V1"] });
+    g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", "U1"), x: 3 });
+    g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", id), x: 1 });
+    assert.equal(g.prompt.kind === "empowerCarry", asked, `${id}: asked only when the replaced Unison's colour matches`);
+    if (asked) g = playG(g, { type: "empowerCarry", player: "p1", amount: 1 });
+    assert.equal(g.cards[unisonOf(g, "p1")!].markers, asked ? 2 : 1);
+    assertConsistentG(g);
+  }
+  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  delete DEFS.EMPANY;
+  delete DEFS.EMPBLUE;
 }
 
-if (!keywordGap("Empower", S7.empower)) {
+{
   // Choosing fewer than the maximum — including none at all — is just as
   // legal an answer, and is the whole point of the choice existing.
   DEFS.EMP2 = { ...DEFS.U1, id: "EMP2", name: "EMP2", skill: "[Empower Red 2]" };
@@ -996,6 +1131,23 @@ if (!notYetGap("a prompt for more than one card, answered one at a time", "`cont
   assert.equal(zoneOf(s, "p1", "hand").length, hand + 1, "then draw 1 card");
   assert.equal(s.prompt.kind, "combo");
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+
+  // 22-32-3: a card rested as [Alliance]'s cost answers "switched to Rest
+  // Mode by an [Alliance] skill" — and not "…by one of your skills", which
+  // the legacy engine's own [Alliance] case never pends (#157).
+  DEFS.ALLYWATCH = { ...DEFS.GRN, id: "ALLYWATCH", name: "ALLYWATCH", skill: "[Auto] When this card is switched to Rest Mode by an [Alliance] skill, draw 1 card." };
+  DEFS.SKILLWATCH = { ...DEFS.GRN, id: "SKILLWATCH", name: "SKILLWATCH", skill: "[Auto] When this card is switched to Rest Mode by one of your skills, draw 1 card." };
+  let r = arenaG({ battle: ["ALLY", "ALLYWATCH", "SKILLWATCH"], oppBattle: ["BIG"] });
+  const [ally2, allyWatch, skillWatch] = zoneOf(r, "p1", "battle");
+  r.cards[zoneOf(r, "p2", "battle")[0]].mode = "rest";
+  const before = zoneOf(r, "p1", "hand").length;
+  r = playG(r, { type: "attack", player: "p1", attacker: ally2, target: zoneOf(r, "p2", "battle")[0] });
+  r = playG(r, { type: "choose", player: "p1", cards: [allyWatch] }, { type: "choose", player: "p1", cards: [skillWatch] });
+  assert.equal(r.cards[skillWatch].mode, "rest");
+  assert.equal(zoneOf(r, "p1", "hand").length, before + 2, "[Alliance]'s own draw, and the [Alliance] watcher's — not the other one's");
+  assertConsistentG(r);
+  delete DEFS.ALLYWATCH;
+  delete DEFS.SKILLWATCH;
   assert.ok(zoneOf(s, "p2", "drop").includes(big), "10000 + (10000 + 15000) beats 25000");
   // 8-5: "for the battle" ends with it — on the rules engine too since #154.
   assert.equal(powerOfG(s, ally), 10000, "the power gained for the battle is gone once it ends");
@@ -2649,4 +2801,4 @@ if (!replaceGap("REVEALER: a life card's own departure, replaced by a [Permanent
   assertConsistentG(taken.state);
 }
 
-if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own keywordGap/notYetGap/replaceGap comments`);
+if (ENGINE === "rules") console.log(`verify/keywords: ${skipped} case(s) skipped on the rules engine — see this file's own notYetGap/replaceGap comments`);

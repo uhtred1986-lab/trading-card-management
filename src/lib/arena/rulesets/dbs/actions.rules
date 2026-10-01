@@ -225,9 +225,11 @@ DEFINE ACTION playUnison                                                  -- §1
   COST [energy]
   x: true
   xMin: 1                                                                 -- 13-2-2, 3-11-3: never zero markers
+  -- 13-2-3: the markers paid for it are part of the arrival (`markers:`),
+  -- so an [Empower] carry (22-45-3, #157) lands after them, as it does on
+  -- the legacy engine.
   DO {
-    play(target: $card)
-    addMarker(target: $card, n: X)
+    play(target: $card, markers: X)
   }
   REFUSE forbidden() UNLESS NOT forbidden(what: play, bySkill: false)
   again: true
