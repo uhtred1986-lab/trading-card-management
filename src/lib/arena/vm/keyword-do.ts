@@ -84,12 +84,16 @@ export function keywordRefusalCond(game: GameDefinition, def: KeywordDef, sk: Sk
  * `{line}` the description the line prints ("<Nail>"), `{names}` the
  * characters it names in ‹…› joined by "and", `{back}` the name its other face
  * prints (a Leader's awakened side), and `{<param>}` a parameter the
- * keyword `TAKES`, as printed (`{variant}` is "Xeno-Evolve", `{x}` is 3). The
+ * keyword `TAKES`, as printed (`{variant}` is "Xeno-Evolve", `{x}` is 3), and
+ * `{<param>?<words>}` the words only when a boolean parameter is set. The
  * legacy engine builds each of these sentences by hand per keyword; here the
  * declaration writes it once.
  */
 export function keywordWords(text: string, def: KeywordDef, sk: Skill, card: string, back?: string): string {
   const values = (sk.keyword ?? {}) as Record<string, unknown>;
+  // `{<param>?<words>}` — the words when a boolean parameter is set, nothing
+  // when it is not: "{dark?Dark }Over Realm" (#157).
+  text = text.replace(/\{(\w+)\?([^{}]*)\}/g, (whole, name: string, words: string) => (def.takes?.some((p) => p.name === name) ? (values[name] === true ? words : "") : whole));
   return text.replace(/\{(\w+)(:and)?\}/g, (whole, name: string, and?: string) => {
     if (name === "card") return card;
     // The name the card's other face prints — a Leader's awakened side (#155).

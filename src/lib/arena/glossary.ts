@@ -185,7 +185,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "The count, the whole-Drop cost and the shared limit, which [Wormhole] raises to two. Cards that watch “played with [Over Realm]” fire here rather than on the ordinary play. The end-of-turn return to the Warp is scheduled for the dark variant too, which 22-23 does not ask for.",
     engineRules:
-      "Not built yet (#157 looked and left it): its play goes through a [Counter: Play] window, which only a declared play opens on this engine, and the shared once-a-turn limit that [Wormhole] raises to two is a counted player attribute the language cannot read yet. The line is never offered.",
+      "Built as its keyword's own move (`offer: \"activate:main\"` in `keywords.rules`, #157), the same events as the legacy engine: offered from the hand while the Drop holds X or more cards (black ones for the dark variant, `flag(value: $dark)`) and the shared use is free — one a turn, two while a card with [Wormhole] is in play, counted in the `overRealms` player fact (`playerAttr … atLeast`). Taken, it pays the line's orbs, counts the use, sends the whole Drop to the Warp as the cost, schedules the card's return to the Warp as the turn ends (for the dark variant too, as legacy does) and plays it through the [Counter: Play] window; “played using [Over Realm]” is the move's own moment. One difference: refused for too few cards, it does not say how many are there.",
     support: "partial",
   },
   Swap: {
@@ -197,7 +197,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Offered from the Battle Area, and the swap happens. 22-22-3 is honoured: with no cost-X Battle Card in hand it is refused before it is offered, rather than taking its orbs and then finding nothing to choose. The choice is still filtered by energy cost only — a [Swap] that names a character offers every cost-X Battle Card in hand, not just that character's.",
     engineRules:
-      "Not built yet (#157 looked and left it): the chosen card is played through a [Counter: Play] window, which only a declared play opens on this engine, and “an energy cost of X” is a parameter inside a card filter, which the filter grammar has no slot for. `verify/workflow.ts`'s own [Swap] case is a named keyword gap.",
+      "Built as its keyword's own move (`offer: \"activate:main\"` in `keywords.rules`, #157), the same events as the legacy engine: offered from the Battle Area only while a Battle Card with an energy cost of X is in the hand (22-22-3, `costMin = $x AND costMax = $x`). It pays the line's orbs, asks for up to one such card, returns this card to the hand as the cost whether or not one was chosen, and plays the chosen card through the [Counter: Play] window. Like the legacy engine, the choice is filtered by energy cost only.",
     support: "partial",
   },
   Arrival: {

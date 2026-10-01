@@ -203,7 +203,7 @@ export interface ScriptHost {
    * card program uses this op today and the rules-engine action that declares
    * it is the only caller.
    */
-  setPlayerAttr(p: PlayerId, name: string, value: boolean): void;
+  setPlayerAttr(p: PlayerId, name: string, value: boolean | { add: number }): void;
   /** 21-3: record damage taken, for the cards that count it. */
   addDamageTaken(p: PlayerId, n: number): void;
   /** 5-11: shuffle these players' decks with the game's own RNG, so a replay reproduces the order. */
@@ -371,6 +371,11 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       ev.push({ type: "energyMarker", player: p, delta });
     },
     setPlayerAttr: (p, name, value) => {
+      // #157: [Over Realm]'s count, the field this engine already keeps.
+      if (typeof value === "object") {
+        if (name === "overRealms") s.players[p].overRealmsThisTurn += value.add;
+        return;
+      }
       if (name === "grewUnison") s.players[p].grewUnisonThisTurn = value;
       // "charged" and any other declared player attribute have no legacy
       // field: this engine's own charge logic never calls this op (7-2-11 is

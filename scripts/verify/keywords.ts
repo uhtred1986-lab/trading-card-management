@@ -240,6 +240,107 @@ const S7 = {
   delete DEFS["UNI-B"];
 }
 
+// Both engines since #157: [Swap] and [Over Realm] are `keywords.rules`' own
+// moves. Each move's log is asserted beat for beat — the same list on both
+// engines, so the two runs of this suite hold them to each other.
+{
+  const beats = (s: EngineState, events: unknown[]): string[] =>
+    (events as { type: string; card?: string; from?: string; to?: string; mode?: string }[])
+      .filter((e) => e.type !== "action")
+      .map((e) => [e.type, e.card ? s.cards[e.card]?.cardId : "", e.from && e.to ? `${e.from}>${e.to}` : (e.mode ?? "")].join(" ").trim());
+  const step = (s: EngineState, action: Parameters<typeof playG>[1]) => {
+    const r = IMPL.apply(CTX, s, action);
+    return { s: r.state, beats: beats(r.state, r.events) };
+  };
+
+  // [Swap X] (22-22): from the Battle Area, while a cost-X Battle Card is in
+  // hand (22-22-3). The orbs are paid, the cost-X card is chosen, this card
+  // returns to the hand as the cost, and the chosen one is played (22-22-4).
+  let s = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3", "V-BLUE"] });
+  const swapper = findG(s, "p1", "battle", "SWAPPER");
+  const in3 = findG(s, "p1", "hand", "COST3");
+  assert.ok(labelsG(s).includes("Swap SWAPPER for a cost-3 card from hand"), "the menu wears the keyword's own words");
+  let r = step(s, { type: "activate", player: "p1", card: swapper, skill: 0 });
+  assert.deepEqual(r.beats, ["skill SWAPPER", "mode V1 rest"], "announced, then the orbs paid");
+  assert.equal(r.s.prompt.kind, "chooseCards");
+  assert.deepEqual((r.s.prompt as { choice: { candidates: string[]; min: number } }).choice.candidates, [in3], "only a cost-3 Battle Card");
+  assert.equal((r.s.prompt as { choice: { min: number } }).choice.min, 0);
+  r = step(r.s, { type: "choose", player: "p1", cards: [in3] });
+  assert.deepEqual(r.beats, ["move SWAPPER battle>hand", "move COST3 hand>battle"], "22-22-4: back to the hand, then the swap is played");
+  assert.equal(r.s.prompt.kind, "main");
+  assertConsistentG(r.s);
+  // Declined: the card still goes back to the hand, the legacy reading.
+  s = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3"] });
+  const back = findG(s, "p1", "battle", "SWAPPER");
+  s = playG(s, { type: "activate", player: "p1", card: back, skill: 0 }, { type: "choose", player: "p1", cards: [] });
+  assert.ok(zoneOf(s, "p1", "hand").includes(back) && !zoneOf(s, "p1", "battle").includes(back), "returned as the cost, chosen or not");
+  assert.equal(zoneOf(s, "p1", "battle").length, 0, "and nothing is played");
+  assertConsistentG(s);
+
+  // [Over Realm X] (22-15): from the hand, with X or more cards in the Drop.
+  // The whole Drop goes to the Warp as the cost, the card is played, "when
+  // you play a Battle Card using [Over Realm]" fires, and the card goes to
+  // the Warp as the turn ends (22-15-6).
+  DEFS.ORX = { ...DEFS.V1, id: "ORX", name: "ORX", energyCost: 5, skill: "[Over Realm 3]{1}" };
+  DEFS.ORWATCH = { ...DEFS.V1, id: "ORWATCH", name: "ORWATCH", skill: "[Auto] When you play a Battle Card using [Over Realm], draw 1 card." };
+  DEFS.ORHOLE = { ...DEFS.V1, id: "ORHOLE", name: "ORHOLE", skill: "[Wormhole]" };
+  DEFS.ORDARK = { ...DEFS.V1, id: "ORDARK", name: "ORDARK", skill: "[Dark Over Realm 2]" };
+  DEFS.ORBLACK = { ...DEFS.V1, id: "ORBLACK", name: "ORBLACK", colors: ["Black"] };
+  const toDrop = (g: EngineState, n: number, as?: string) => {
+    for (const id of zoneOf(g, "p1", "deck").slice(0, n)) {
+      stageMoveG(g, id, "drop", "p1");
+      if (as) g.cards[id].cardId = as;
+    }
+  };
+  const o = arenaG({ hand: ["ORX"], battle: ["ORWATCH"], energy: ["V1", "V1"] });
+  const orx = findG(o, "p1", "hand", "ORX");
+  toDrop(o, 2);
+  assert.ok(!canActivateG(o, orx), "22-15-3: two cards in the Drop is fewer than 3");
+  assert.deepEqual(rejectedActionsG(o).find((x) => x.action.type === "activate" && x.action.card === orx)?.why[0].kind, "condition");
+  toDrop(o, 1);
+  assert.ok(labelsG(o).includes("Over Realm 3: play ORX (Drop → Warp)"));
+  const drop = zoneOf(o, "p1", "drop").slice();
+  r = step(o, { type: "activate", player: "p1", card: orx, skill: 0 });
+  assert.deepEqual(
+    r.beats,
+    ["skill ORX", "mode V1 rest", "move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "delayed ORX", "move ORX hand>battle", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
+    "the orbs, the whole Drop to the Warp, the return scheduled, the play, and the watcher",
+  );
+  assert.deepEqual([...zoneOf(r.s, "p1", "warp")].sort(), [...drop].sort(), "22-15-4: every card of the Drop");
+  r = step(r.s, { type: "endMain", player: "p1" });
+  assert.ok(r.beats.includes("move ORX battle>warp"), "22-15-6: to the Warp as the turn ends");
+  assertConsistentG(r.s);
+
+  // 22-15-7 / 22-24-2: one [Over Realm] a turn, two with [Wormhole] in play.
+  const twice = (battle: string[]) => {
+    let g = arenaG({ hand: ["ORX", "ORX"], battle, energy: ["V1", "V1", "V1"] });
+    toDrop(g, 3);
+    g = playG(g, { type: "activate", player: "p1", card: zoneOf(g, "p1", "hand").find((id) => g.cards[id].cardId === "ORX")!, skill: 0 });
+    toDrop(g, 3);
+    return { g, second: zoneOf(g, "p1", "hand").find((id) => g.cards[id].cardId === "ORX")! };
+  };
+  const once = twice([]);
+  assert.ok(!canActivateG(once.g, once.second), "22-15-7: once a turn, even with the Drop refilled");
+  assert.deepEqual(rejectedActionsG(once.g).find((x) => x.action.type === "activate" && x.action.card === once.second)?.why[0], { kind: "oncePerTurn", what: "Over Realm" });
+  const hole = twice(["ORHOLE"]);
+  assert.ok(canActivateG(hole.g, hole.second), "22-24-2: [Wormhole] allows a second");
+
+  // 22-23: [Dark Over Realm] counts black cards only.
+  let d = arenaG({ hand: ["ORDARK"], energy: ["V1"] });
+  const dark = findG(d, "p1", "hand", "ORDARK");
+  toDrop(d, 3);
+  toDrop(d, 1, "ORBLACK");
+  assert.ok(!canActivateG(d, dark), "three cards, but one black");
+  toDrop(d, 1, "ORBLACK");
+  assert.ok(labelsG(d).includes("Dark Over Realm 2: play ORDARK (Drop → Warp)"), "two black cards");
+  d = playG(d, { type: "activate", player: "p1", card: dark, skill: 0 });
+  assert.ok(zoneOf(d, "p1", "battle").includes(dark));
+  assert.equal(zoneOf(d, "p1", "drop").length, 0, "the whole Drop, black or not, to the Warp");
+  assertConsistentG(d);
+  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK"]) delete DEFS[id];
+}
+
 if (
   !notYetGap(
     "CFREE: free [Counter] from hand",

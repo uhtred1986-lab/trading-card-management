@@ -546,6 +546,17 @@ move is about **one printed line** rather than about a card a `FOR` found:
     moment carries `by: skill | <keyword>`, `byOpponent` (the skill is not the card's master's) and
     `in` (where the card is), which `triggers.rules`' three rested-by triggers read. The field is
     marked `offCard`.
+  - A **counted** player fact: `DEFINE ATTRIBUTE … of: player, value: number, reset: turnStart`
+    rests at 0 at the start of the turn. `setPlayerAttr(name: "overRealms", add: 1)` adds to it,
+    and `playerAttr(name: "overRealms", atLeast: 2)` holds once it has reached that. [Over Realm]'s
+    one use a turn, two with [Wormhole] (22-15-7, 22-24-2), is
+    `NOT playerAttr(…, atLeast: 1)`, or `NOT playerAttr(…, atLeast: 2)` with a [Wormhole] in play.
+    Both fields are marked `offCard`, so neither is in what the referee is told.
+  - `flag(value: $dark)` — a keyword's boolean parameter, read as a condition: [Dark Over Realm]'s
+    black-cards count beside [Over Realm]'s plain one in one `REFUSE`. It is in
+    `CONDITIONS_OFF_A_CARD`.
+  - `{<param>?<words>}` in `label:` and a requirement's words — the words only when a boolean
+    parameter is set: `"{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"`.
 
 ```
 DEFINE KEYWORD Overlord

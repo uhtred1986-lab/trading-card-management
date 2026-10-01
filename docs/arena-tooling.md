@@ -208,9 +208,8 @@ skipped) tells you what you broke:
 - **`workflow.ts`** — every rule as a visible workflow: what is refused and why,
   in the words a client shows. Asserts the "one rejection per card per action
   type" promise. **Runs on both engines since #152**, and on `rules` it skips
-  two cases and no more: [Swap], a Stage 7 keyword body ([Unique] is built
-  since #157)
-  (`keywordGap`), and the first half of `PRICED` — an action price (4-3-3),
+  one case and no more ([Unique] and [Swap], the keyword bodies it used to
+  skip, are built since #157): the first half of `PRICED` — an action price (4-3-3),
   which `vm/activate.ts`'s `chargeablePrice` refuses and `vm/host.ts`'s
   `saveVars` gives to #149 (`actionPriceGap`). The four non-keyword gaps the
   porting pass found are closed: the combo, counter and blocker prompts have

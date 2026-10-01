@@ -907,8 +907,13 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     // as not-set rather than guessing at one (issue #269).
     case "playerAttr": {
       const ps = s.players[c.side === "opponent" ? other(frame.master) : frame.master];
+      // #157: [Over Realm]'s count is `overRealmsThisTurn` here.
+      if (c.atLeast !== undefined) return (c.name === "overRealms" ? ps.overRealmsThisTurn : 0) >= c.atLeast;
       return c.name === "grewUnison" ? ps.grewUnisonThisTurn : false;
     }
+    // #157: a keyword body's boolean parameter, read as it was bound.
+    case "flag":
+      return c.value === true;
     case "sameCard": {
       const a = resolveSelector(ctx, s, frame, c.a);
       const b = resolveSelector(ctx, s, frame, c.b);

@@ -14,11 +14,10 @@
  * ENGINE` explicitly — `snapshot.ts` defaults a missing `engine` to `legacy`,
  * which would draw a rules-engine board through the wrong adapter.
  *
- * On `--engine rules` this file skips three cases and no more: [Swap] and
- * [Unique], Stage 7 keyword bodies named at their own `keywordGap` call
- * (`docs/arena-backlog/s7-05-keywords-play-charge-pay.md`), and the first half
+ * On `--engine rules` this file skips one case and no more: the first half
  * of PRICED, an action price (4-3-3) the engine's own `NotYet` gives to #149
- * (`actionPriceGap`). Everything else is a real assertion on both engines —
+ * (`actionPriceGap`). [Unique] and [Swap], the Stage 7 keyword bodies it used
+ * to skip, are built (#157). Everything else is a real assertion on both engines —
  * since #152, the combo, counter, blocker and chooseCards prompts' rejected
  * lists, the board's `you.choices`/`them.rules` and a chooseCards prompt's
  * own words, and a counted prohibition spending its uses included.
@@ -56,18 +55,9 @@ import {
 } from "./harness";
 import type { Beat, EngineState, PlayerId, RejectedAction, Requirement } from "./harness";
 
-const S7 = {
-  swap: "docs/arena-backlog/s7-05-keywords-play-charge-pay.md — hook group D: play, charge and paying ([Swap])",
-  // [Barrier] is done (#154), its rejection reason too (#152) — see
-  // [Barrier]'s own block below.
-};
+// No keyword gap is left here: [Barrier] is done (#154), its rejection reason
+// too (#152), and [Swap] is a keyword move since #157.
 let skipped = 0;
-function keywordGap(keyword: string, doc: string): boolean {
-  if (ENGINE !== "rules") return false;
-  console.log(`  skipped case — [${keyword}]'s keyword body is not built on the rules engine yet (${doc})`);
-  skipped++;
-  return true;
-}
 
 /**
  * A menu label's exact wording — checked only on the legacy engine.
@@ -527,7 +517,7 @@ function actionPriceGap(where: string): boolean {
   // activate [Swap]". It was offered on timing and energy alone, took its orbs
   // and then had nothing to choose — the swap simply vanished, four energy
   // with it (game 47, turn 12).
-  if (!keywordGap("Swap", S7.swap)) {
+  {
     const bare = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["V-BLUE"] });
     const swapper = findG(bare, "p1", "battle", "SWAPPER");
     assert.ok(!labelsG(bare).some((x) => x.startsWith("Swap")), "no cost-3 card in hand, so no [Swap] on the menu");
@@ -871,4 +861,4 @@ function actionPriceGap(where: string): boolean {
   assert.equal(narrate({ t: "draw", player: "p1", card: "a" }, me), "You draw Son Goku.");
 }
 
-if (ENGINE === "rules") console.log(`verify/workflow: ${skipped} case(s) skipped on the rules engine — 1 named keyword gap ([Swap]) and PRICED's action price (#149) (see this file's own keywordGap/actionPriceGap comments)`);
+if (ENGINE === "rules") console.log(`verify/workflow: ${skipped} case(s) skipped on the rules engine — PRICED's action price (#149) (see this file's own actionPriceGap comment)`);

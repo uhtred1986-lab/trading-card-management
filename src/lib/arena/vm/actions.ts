@@ -846,8 +846,10 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
       return cond.atLeast !== undefined || cond.atMost !== undefined;
     }
     // 7-2-11, 13-3: a `DEFINE ATTRIBUTE of: player` fact, read by name (#269).
-    case "playerAttr":
-      return !!state.sides[cond.side === "opponent" ? other(me) : me].attrs[cond.name];
+    case "playerAttr": {
+      const value = state.sides[cond.side === "opponent" ? other(me) : me].attrs[cond.name];
+      return cond.atLeast !== undefined ? Number(value ?? 0) >= cond.atLeast : !!value;
+    }
     // 13-3: "a copy of the Unison Card in play" — two selectors, compared by
     // identity rather than counted (#269).
     case "sameCard": {

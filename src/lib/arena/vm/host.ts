@@ -215,7 +215,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       log(ev, { type: "energyMarker", player: p, delta });
     },
     setPlayerAttr: (p, name, value) => {
-      state.sides[p].attrs[name] = value;
+      // #157: a counted fact goes up rather than being set.
+      state.sides[p].attrs[name] = typeof value === "object" ? Number(state.sides[p].attrs[name] ?? 0) + value.add : value;
     },
     // 21-3: the count is for the end screen, and a player attribute is the
     // only place this engine keeps a number about a player. Nothing declares

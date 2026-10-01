@@ -238,6 +238,11 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   );
   // #157: the switch that names its keyword — [Alliance]'s rest-as-cost.
   tripOps([{ op: "switchMode", target: { var: "rested" }, mode: "rest", by: "Alliance" }], "switchMode by a keyword's skill");
+  // …[Over Realm]'s counted use and its dark variant.
+  tripOps([{ op: "setPlayerAttr", name: "overRealms", add: 1 }], "setPlayerAttr adding to a counted fact");
+  tripCond({ kind: "not", cond: { kind: "playerAttr", name: "overRealms", atLeast: 2 } }, "NOT playerAttr at least");
+  tripCond({ kind: "flag", value: true }, "flag");
+  tripCond({ kind: "all", conds: [{ kind: "flag", value: false }, { kind: "count", sel: { side: "you", area: "drop" }, atLeast: 3 }] }, "flag beside a count");
 
   // A counted, conditional prohibition (20-14): the schema loop above already
   // builds a maximal `forbid`, but it builds one generic value per field type.

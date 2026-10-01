@@ -1041,8 +1041,13 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // thing by the word.
     case "forbidden":
       return forbids(ctx, game, state, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }) });
-    case "playerAttr":
-      return !!state.sides[c.side === "opponent" ? other(frame.master) : frame.master].attrs[c.name];
+    case "playerAttr": {
+      const value = state.sides[c.side === "opponent" ? other(frame.master) : frame.master].attrs[c.name];
+      // #157: a counted fact, read against its threshold.
+      return c.atLeast !== undefined ? Number(value ?? 0) >= c.atLeast : !!value;
+    }
+    case "flag":
+      return c.value === true;
     case "sameCard": {
       const a = resolveSelector(ctx, game, state, frame, c.a);
       const b = resolveSelector(ctx, game, state, frame, c.b);

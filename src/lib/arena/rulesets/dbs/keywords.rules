@@ -19,9 +19,10 @@
 -- "no HOOK bodies yet", which stopped being true at #154 and was found by
 -- #166's pre-flip review.
 --
--- Fourteen DO bodies, the whole-keyword activations that are no hook at all
+-- Sixteen DO bodies, the whole-keyword activations that are no hook at all
 -- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
--- [Successor], [Arrival], [Aegis], [Wish] and [Awaken] are moves (`offer:`),
+-- [Successor], [Arrival], [Aegis], [Wish], [Awaken], [Over Realm] and [Swap]
+-- are moves (`offer:`),
 -- each offered as an [Activate: Main] — [Arrival] and [Aegis] an [Activate:
 -- Battle], [Wish] and [Awaken] both — line with its own REFUSE and menu
 -- words ([Wish] and [Awaken] with an AFTER as well), and [Offering],
@@ -31,7 +32,7 @@
 -- announced as the legacy engine announces them, their effect a battleEnd
 -- HOOK. 9-1-4 immunity printed as a [Permanent] is no keyword at all and is
 -- read beside the other statics (`vm/effects.ts`, #154). The others of that shape —
--- [Rejuvenate], [Z-Awaken], [Over Realm], [Swap] … — are still to write the
+-- [Rejuvenate], [Z-Awaken] … — are still to write the
 -- same way, each one's trailing comment saying what it is missing.
 -- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
 
@@ -417,20 +418,52 @@ DEFINE KEYWORD Union
 DEFINE KEYWORD "Over Realm"
   TAKES (x: number, dark: boolean)
   text: "With X or more cards in your Drop Area — X or more black cards, for the dark one — send your whole Drop Area to the Warp as the cost and play this card from hand. The two share one activation a turn. A card played with [Over Realm] goes to the Warp at the end of that turn."
-  -- #157 looked and left it unwritten: its play goes through a [Counter: Play]
-  -- window, which only a declared play opens today (`vm/battle.ts`'s
-  -- `openPlayCounterWindow`), and "one activation a turn between them, two
-  -- with [Wormhole]" is a counted player attribute (`playerAttr` reads
-  -- booleans only). docs/arena-ruleset-spec.md §4.4.
+  -- A move (#157), offered as an [Activate: Main] from the hand, as the
+  -- legacy `activatable` case gates it: the two variants share one use a
+  -- turn, two while a card with [Wormhole] is in play (22-24) — a counted
+  -- player fact (`overRealms`, attributes.rules) — and want X or more cards
+  -- in the Drop, black ones for the dark variant (`flag(value: $dark)`).
+  -- The price is the line's printed orbs. Taken, the use is counted, the
+  -- whole Drop goes to the Warp as the cost, the card is scheduled back to
+  -- the Warp as the turn ends (for the dark variant too, which 22-23 does not
+  -- ask for — the legacy engine's approximation, kept so the two agree), and
+  -- it is played through the [Counter: Play] window. "when you play a card
+  -- using [Over Realm]" is the move's `keywordActivated`. One difference,
+  -- recorded: the refusal for too few cards does not add "(N there)".
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE oncePerTurn(what: "Over Realm") UNLESS any([NOT playerAttr(name: "overRealms", atLeast: 1), all([count("card with [Wormhole]" IN you.play) >= 1, NOT playerAttr(name: "overRealms", atLeast: 2)])])
+  REFUSE condition(text: "{x} or more {dark?black }cards in your Drop Area") UNLESS any([all([NOT flag(value: $dark), count(IN you.drop) >= $x]), all([flag(value: $dark), count((colors = [Black]) IN you.drop) >= $x])])
+  label: "{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"
+  DO {
+    setPlayerAttr(name: "overRealms", add: 1)
+    moveTo(target: IN you.drop, to: warp, cause: cost)
+    delay(at: turnCleanup, ops: {
+      moveTo(target: [self] IN you.battle, to: warp)
+    }, label: "back to the Warp as the turn ends")
+    play(target: [self], counterWindow: true)
+  }
 
 -- 22-22
 DEFINE KEYWORD Swap
   TAKES (x: number)
   text: "Return this Battle Card to your hand and play a named Battle Card with an energy cost of X from your hand in its place."
-  -- #157 looked and left it unwritten: the chosen card is played through a
-  -- [Counter: Play] window (as [Over Realm]'s is), and "an energy cost of X"
-  -- is a parameter inside a card filter, which the filter grammar has no
-  -- slot for. docs/arena-ruleset-spec.md §4.4.
+  -- A move (#157), offered as an [Activate: Main] from the Battle Area while
+  -- a Battle Card with an energy cost of X is in the hand (22-22-3: with
+  -- none to choose it cannot be activated). The choice is filtered by cost
+  -- only, as on the legacy engine — a [Swap] that names a character offers
+  -- every cost-X Battle Card. The price is the line's printed orbs; the card
+  -- returns to the hand as the cost whether or not one is chosen, and the
+  -- chosen card is played through the [Counter: Play] window.
+  offer: "activate:main"
+  REFUSE zone(area: battle) UNLESS count([self] IN you.battle) >= 1
+  REFUSE target(reason: "no cost-{x} Battle Card in your hand") UNLESS count((type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand) >= 1
+  label: "Swap {card} for a cost-{x} card from hand"
+  DO {
+    choose(sel: UP TO 1 (type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand, as: "swapIn", reason: "[Swap]: the Battle Card to play in its place, or none")
+    moveTo(target: [self], to: hand, cause: cost)
+    play(target: $swapIn, counterWindow: true)
+  }
 
 -- 22-29
 DEFINE KEYWORD Arrival

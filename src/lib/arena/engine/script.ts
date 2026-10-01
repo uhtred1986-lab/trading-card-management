@@ -267,9 +267,10 @@ export type Cond =
    * A `DEFINE ATTRIBUTE of: player` fact, read (13-3, 7-2-11, issue #269):
    * "you have not already grown a Unison this turn" and "you have already had
    * your charge this turn" are both this, over a different declared name.
-   * Boolean only, so far — nothing has needed a counter read back yet.
+   * `atLeast` reads a counted fact instead (#157): [Over Realm]'s one use a
+   * turn, two with [Wormhole], is `playerAttr(name: "overRealms", atLeast: 1)`.
    */
-  | { kind: "playerAttr"; name: string; side?: "you" | "opponent" }
+  | { kind: "playerAttr"; name: string; side?: "you" | "opponent"; atLeast?: number }
   /**
    * Do these two selectors each resolve to a card of the same printed
    * identity (`cardId`)? False with nothing, or more than one, on either
@@ -289,6 +290,8 @@ export type Cond =
    * [Union-Fusion]/[Union-Potara]/[Union-Absorb] are one keyword each.
    */
   | { kind: "oneOf"; value: string; of: string[] }
+  /** A keyword body's boolean parameter, read as a condition (#157): `flag(value: $dark)` is [Dark Over Realm]. */
+  | { kind: "flag"; value: boolean }
   /**
    * Does every character the line prints in ‹…› stand on a different card
    * among `sel` — and, with `samePower`, are those cards of one power? The
@@ -795,7 +798,7 @@ export type Op =
    * the declaration is what clears it again, at the turn boundary the
    * declaration names, not this op running in reverse.
    */
-  | { op: "setPlayerAttr"; name: string; value?: boolean; side?: Side }
+  | { op: "setPlayerAttr"; name: string; value?: boolean; side?: Side; add?: number }
   /**
    * How the battle damage this card deals by attacking lands (8-4-6) — a
    * `DEFINE KEYWORD`'s `beforeDamage` body's leaf, never a printed card's
@@ -1271,7 +1274,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
 
       case "setPlayerAttr":
-        for (const p of sideOf(master, op.side)) h.setPlayerAttr(p, op.name, op.value ?? true);
+        for (const p of sideOf(master, op.side)) h.setPlayerAttr(p, op.name, op.add !== undefined ? { add: op.add } : (op.value ?? true));
         break;
 
       // #156: a `beforeDamage` hook body's leaf, read where the battle deals
