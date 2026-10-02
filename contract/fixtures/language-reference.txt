@@ -1207,7 +1207,7 @@
     {
       "name": "costModifier",
       "class": "primitive",
-      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION}",
+      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"onto\"?:TARGET}",
       "fields": [
         {
           "name": "target",
@@ -1323,6 +1323,12 @@
           "required": false,
           "nullable": false,
           "type": "duration"
+        },
+        {
+          "name": "onto",
+          "required": false,
+          "nullable": false,
+          "type": "ref"
         }
       ],
       "sentence": "",
@@ -1331,7 +1337,7 @@
     {
       "name": "costReduction",
       "class": "macro over `costModifier`",
-      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION}",
+      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"onto\"?:TARGET}",
       "fields": [
         {
           "name": "target",
@@ -1401,10 +1407,16 @@
           "nullable": false,
           "offCard": "with what: \"specified\", no specified cost at all — every orb, after every other change to it, and amount is not read — [Warrior of Universe 7]'s ≪Universe 7≫ cards (22-19-2), the leaf of its altPayment hook",
           "type": "boolean"
+        },
+        {
+          "name": "onto",
+          "required": false,
+          "nullable": false,
+          "type": "ref"
         }
       ],
       "sentence": "this card costs 1 less",
-      "doc": "[Permanent] only unless a duration is given (20-21): \"reduce the energy cost of your <Son Goku> cards in your hand by 1\" — the selector names the area the text names, usually the hand; \"skill\"/\"evolve\" are orb costs read by `orbTotals` for one skill on one card; \"zEnergy\" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. \"specified\" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count."
+      "doc": "[Permanent] only unless a duration is given (20-21): \"reduce the energy cost of your <Son Goku> cards in your hand by 1\" — the selector names the area the text names, usually the hand; \"skill\"/\"evolve\" are orb costs read by `orbTotals` for one skill on one card, and \"onto\" scopes an \"evolve\" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); \"zEnergy\" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. \"specified\" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count."
     },
     {
       "name": "negateKeyword",
@@ -3047,6 +3059,10 @@
     {
       "word": "otherThanCopies",
       "doc": "excludes every copy of this card, not only this one"
+    },
+    {
+      "word": "otherThanSameName",
+      "doc": "excludes every card with this card's card name — \"a <Broly> with a different card name\" (EX03-16)"
     },
     {
       "word": "asPrinted",

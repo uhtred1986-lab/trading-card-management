@@ -118,10 +118,12 @@ export interface Selector {
    * Clan≫ card among them **other than copies of this card**". Refusing to
    * *resolve* to this card is only half of it: read as nothing, the phrase
    * still offered this card among the candidates, so "they get -15000 power"
-   * hit the card printing it. `"copies"` excludes every card of the same
+   * hit the card printing it. `"name"` excludes every card sharing this
+   * card's card name — "a <Broly> with a different card name" (EX03-16), so a
+   * reprint under another number is excluded too. `"copies"` excludes every card of the same
    * name, which is what that longer wording says.
    */
-  notSelf?: "card" | "copies";
+  notSelf?: "card" | "copies" | "name";
   /**
    * Only cards matching the description printed on the line this program
    * belongs to (`asPrinted`): [Evolve]{2}: <Nail> finds a <Nail>, [Swap 3]'s
@@ -600,6 +602,8 @@ export type Op =
       alt?: Op[];
       orbs?: (Color | "any")[];
       until?: Duration;
+      /** `costReduction`'s `onto`: an [Evolve] price changed only when played onto one of these cards. */
+      onto?: Ref;
     }
   /**
    * A [Permanent] cost reducer, applied while the card sits where the skill
@@ -638,6 +642,16 @@ export type Op =
        * on no card (`OpField.offCard`, #154); `amount` is not read with it.
        */
       all?: boolean;
+      /**
+       * With `what: "evolve"`: the change holds only for an [Evolve] played
+       * **onto** one of these cards (22-5-5). EX03-16's "when evolving this
+       * card into a <Broly> with a different card name from your hand, the
+       * [evolve] cost is decreased by {g}{g}" is `onto: [self]`. The base is
+       * part of the move — the activation's own `onto` — so the discounted
+       * price is offered once per base it covers, beside the ordinary one,
+       * and never reaches an [Evolve] played onto any other card.
+       */
+      onto?: Ref;
     }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
@@ -2024,8 +2038,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 : op.what === "evolve"
                   ? "evolveCost"
                   : "cost";
+        // EX03-16: an [Evolve] price changed only when it is played onto these.
+        const onto = kind === "evolveCost" && op.onto ? { onto: h.resolveRef(frame, op.onto) } : {};
         for (const id of h.resolveRef(frame, op.target)) {
           h.addEffect({
+            ...onto,
             master: frame.master,
             source: frame.card,
             target: id,

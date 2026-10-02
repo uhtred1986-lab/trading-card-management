@@ -642,11 +642,11 @@
   "EVO#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "c84aadcf"
+      "digest": "73cc3842"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "96be7a90"
+      "digest": "995254b5"
     },
     "same": false,
     "cause": "evolve-moved-twice"

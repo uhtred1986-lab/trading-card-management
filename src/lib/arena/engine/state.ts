@@ -572,6 +572,7 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     if (sel.notSelf && frame.card) {
       if (id === frame.card) return false;
       if (sel.notSelf === "copies" && s.cards[frame.card] && inst.cardId === s.cards[frame.card].cardId) return false;
+      if (sel.notSelf === "name" && s.cards[frame.card] && ctx.defs[inst.cardId]?.name === ctx.defs[s.cards[frame.card].cardId]?.name) return false;
     }
     // A named target that also names an area only matches while it is there.
     // A delayed effect resolves turns later, and by then "this card" may have
@@ -854,6 +855,8 @@ export interface StaticEffect {
   skillKind?: SkillKindPrefix;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
   colors?: (Color | "any")[];
+  /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
+  onto?: string[];
 }
 
 /**
@@ -1048,8 +1051,10 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       // can be evaluated.
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
+      // EX03-16: an [Evolve] price changed only when it is played onto these.
+      const onto = kind === "evolveCost" && op.onto ? { onto: staticTargets(ctx, s, frame, op.onto) } : {};
       for (const id of staticTargets(ctx, s, frame, op.target))
-        out.push({ source, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}) });
+        out.push({ source, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
       continue;
     }
     // "In all areas", so it is read wherever the card is — which is the point

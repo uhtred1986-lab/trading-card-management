@@ -175,6 +175,7 @@ const SELECTOR_FLAG_DOCS: Record<keyof typeof SELECTOR_FLAGS, string> = {
   ignoringBarrier: "may target a card with [Barrier] all the same",
   otherThanSelf: "excludes this card",
   otherThanCopies: "excludes every copy of this card, not only this one",
+  otherThanSameName: "excludes every card with this card's card name — \"a <Broly> with a different card name\" (EX03-16)",
   asPrinted: "only cards matching the description printed on the line this program belongs to — [Evolve]{1}: <Nail>'s <Nail>; a `DEFINE KEYWORD` body's word, since one declaration serves every card printing the keyword",
 };
 

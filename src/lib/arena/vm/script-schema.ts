@@ -212,6 +212,12 @@ const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenA
 
 const SIDE: OpField = { name: "side", type: "side", default: "you" };
 const TARGET: OpField = { name: "target", type: "ref", required: true };
+/**
+ * With what: "evolve", the change holds only for an [Evolve] played onto one
+ * of these cards (22-5-5) — EX03-16's `onto: [self]`. Shared by
+ * `costReduction` and `costModifier`, which `costModifierAs` hands it across.
+ */
+const ONTO: OpField = { name: "onto", type: "ref" };
 /** `costReduction`'s fields, named so its `sentence` function (below) can hand them to `renderTemplate` for the non-"specified" branch without reaching into `OP_SCHEMA` mid-construction. */
 const COST_REDUCTION_FIELDS: OpField[] = [
   TARGET,
@@ -226,6 +232,7 @@ const COST_REDUCTION_FIELDS: OpField[] = [
     offCard:
       'with what: "specified", no specified cost at all — every orb, after every other change to it, and amount is not read — [Warrior of Universe 7]\'s ≪Universe 7≫ cards (22-19-2), the leaf of its altPayment hook',
   },
+  ONTO,
 ];
 /**
  * `costModifier`'s fields — the union of `costReduction`'s and `altCost`'s,
@@ -246,6 +253,7 @@ const COST_MODIFIER_FIELDS: OpField[] = [
   { name: "alt", type: "ops" },
   { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
+  ONTO,
 ];
 const MODE = { enum: ["active", "rest"] } as const;
 /**
@@ -559,6 +567,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
         const scoped = op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
+        // EX03-16: a change scoped to the card the [Evolve] lands on.
+        if (op.onto) return `the ${noun}${scoped} of ${describeRef(op.target)} is ${describeCostChange(op.amount)} when evolving onto ${describeRef(op.onto)}`;
         return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}`;
       }
       if (op.all) return `${describeRef(op.target)} has no specified cost`;
@@ -568,7 +578,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const amt = typeof op.amount === "number" ? op.amount : 0;
       return `${describeRef(op.target)}'s specified cost is ${amt < 0 ? `${-amt} more` : `${amt} less`}${orbs ? ` (${orbs})` : ""}`;
     },
-    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.',
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card, and "onto" scopes an "evolve" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.',
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {
@@ -932,6 +942,7 @@ export function costModifierAs(op: Op): Op {
     ...(op.skillKind ? { skillKind: op.skillKind } : {}),
     ...(op.colors?.length ? { colors: op.colors } : {}),
     ...(op.until !== undefined ? { until: op.until } : {}),
+    ...(op.onto ? { onto: op.onto } : {}),
   };
 }
 
@@ -1972,7 +1983,7 @@ const describeMode = (sel: Selector): string => {
  * the sentence "all in each player's battle" said nothing about either way.
  */
 const describeNotSelf = (sel: Selector): string =>
-  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "") + (sel.printed ? " matching the description printed on this line" : "");
+  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : sel.notSelf === "name" ? " with a different card name from this card" : "") + (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);

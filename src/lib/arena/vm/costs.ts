@@ -1063,7 +1063,7 @@ export function payersFor(ctx: EngineContext, game: GameDefinition, state: VmSta
  * does nothing, which is 20-21-2's floor for an orb price. A negative change
  * adds orbs the same way round.
  */
-export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill): { total: number; orbs: Partial<Record<Color, number>>; either: Color[][] } {
+export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill, onto?: string): { total: number; orbs: Partial<Record<Color, number>>; either: Color[][] } {
   const orbs: Partial<Record<Color, number>> = {};
   let total = 0;
   for (const [key, n] of Object.entries(sk.energyCost)) {
@@ -1081,9 +1081,12 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   // 22-5: an [Evolve] line's orbs are changed on a channel of their own — the
   // legacy `orbTotals(…, "evolve")` — and a skill-cost change does not reach them.
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
+  // EX03-16: a change scoped to the base an [Evolve] lands on holds only when
+  // that base is the one the activation names — the legacy `orbTotals`' `onto`.
+  const reaches = (e: { onto?: string[] }) => !e.onto || (onto !== undefined && e.onto.includes(onto));
   const changes = [
-    ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind)),
-    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind)),
+    ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind) && reaches(e)),
+    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind) && reaches(e)),
   ];
   for (const e of changes) {
     const by = e.value as number;
