@@ -631,9 +631,9 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     const blocked = ofCard(assertDisjointG(s, "unless missing"), "play", card);
     assert.equal(first(blocked)?.kind, "forbidden");
     // …and said in the words of the player being refused, not the card's.
-    assert.equal((first(blocked) as { unless?: string }).unless, "there are 3 or more cards in your energy");
+    assert.equal((first(blocked) as { unless?: string }).unless, "there are 3 or more cards in your Energy Area");
     // The escape is the remedy the player is shown, so it is the sentence too.
-    assert.equal(refusal(first(blocked)!, { name: "V1", reaching: "play" }).remedy, "Allowed only if there are 3 or more cards in your energy.");
+    assert.equal(refusal(first(blocked)!, { name: "V1", reaching: "play" }).remedy, "Allowed only if there are 3 or more cards in your Energy Area.");
     const extra = zoneOf(s, "p2", "deck")[0];
     zoneOf(s, "p2", "deck").splice(0, 1);
     zoneOf(s, "p2", "energy").push(extra);

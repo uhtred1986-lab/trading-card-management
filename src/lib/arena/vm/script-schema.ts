@@ -943,11 +943,9 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     sentence: (raw) => {
       const c = raw as CondOf<"count">;
       // "all" is the count this borrows to name the cards; what is left says
-      // which and where. With no filter it starts at the area — "there is 2 or
-      // more in your drop" — so the noun the selector had nothing to say about
-      // is put back.
+      // which and where, noun included — "blue cards in your Drop Area" (#478).
       const what = describeSelector({ ...c.sel, count: 99 }).replace(/^all /, "");
-      return `there are ${bound(c)} ${what.startsWith("in ") ? `cards ${what}` : what}`;
+      return `there are ${bound(c)} ${what}`;
     },
     doc: "how many cards a selector finds",
   },
@@ -998,10 +996,10 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [SEL, { name: "not", type: "boolean" }, { name: "role", type: { enum: ["attacker", "guard"] } }],
     sentence: (raw) => {
       const c = raw as CondOf<"inBattle">;
-      return `${describeSelector(c.sel, "any of")} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
+      return `${describeSelector(c.sel, "any of the")} is ${c.not ? "not " : ""}${c.role === "guard" ? "being attacked" : c.role === "attacker" ? "attacking" : "in a battle"}`;
     },
   },
-  battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel, "any of")} has been in a battle this turn` },
+  battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel, "any of the")} has been in a battle this turn` },
   every: {
     fields: [SEL, { name: "matching", type: "selector", required: true }],
     sentence: (raw) => {
@@ -1009,8 +1007,12 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // Both selectors are built by `parseTarget` with the count deleted (see
       // `compile.ts`), so the quantifier is the sentence's own word: "all of
       // all in your energy is all mono-colour blue in your energy" was the
-      // stutter that came of letting each of them claim one.
-      return `every card ${describeSelector(c.sel, "")} is also ${describeSelector(c.matching, "")}`;
+      // stutter that came of letting each of them claim one. Each is given a
+      // count only to settle its noun, which the sentence then drops: "every
+      // card in your Energy Area is also among the cards … in Rest Mode".
+      const one = describeSelector({ ...c.sel, count: 1, upTo: false }).replace(/^1 /, "");
+      const all = describeSelector({ ...c.matching, count: 99 }).replace(/^all /, "");
+      return `every ${one} is also among the ${all}`;
     },
     doc: "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)",
   },
@@ -1154,7 +1156,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [SEL, { name: "atLeast", type: "amount", required: true }],
     sentence: (raw) => {
       const c = raw as CondOf<"attacked">;
-      return `${describeSelector(c.sel, "any of")} has attacked ${describeAmount(c.atLeast)} or more times this turn`;
+      return `${describeSelector(c.sel, "any of the")} has attacked ${describeAmount(c.atLeast)} or more times this turn`;
     },
     doc: "has one of these cards declared at least this many attacks this turn, the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s X−1 stands a turn (22-8-3): `NOT attacked(sel: [self], atLeast: $x)`. A `DEFINE KEYWORD` body's word (#156)",
   },
@@ -1162,7 +1164,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [SEL],
     sentence: (raw) => {
       const c = raw as CondOf<"markerSkillUsed">;
-      return `${describeSelector(c.sel, "any of")} has used a marker skill this turn`;
+      return `${describeSelector(c.sel, "any of the")} has used a marker skill this turn`;
     },
     doc: "has one of these cards used a skill with a marker price this turn (13-4-2: one a turn per card)? [Rejuvenate]'s gate, `NOT markerSkillUsed(sel: [self])`; a keyword move refused by it on its own card is a marker skill itself, and using it spends the card's one (22-42-2). A `DEFINE KEYWORD` body's word (#155)",
   },
@@ -1633,7 +1635,21 @@ export function whoseSkills(side: Side | undefined, filter?: CardFilter): string
   return `${whose ? `${whose} ` : ""}skills`;
 }
 
-export function describeFilter(f: CardFilter): string {
+/**
+ * How a sentence names the cards a filter finds. Without it, `describeFilter`
+ * writes the filter's own short form — "blue", "battle card" — which is the
+ * form `parseFilter` reads back and `lang/print.ts` prints a rule's filter in,
+ * so it cannot change. A sentence needs a noun: "3 or more blue" is not
+ * English (#478), and the card prints "blue cards" and "Battle Cards".
+ */
+export interface FilterNoun {
+  plural: boolean;
+}
+
+/** "BATTLE" → "Battle Card", the card type as the card prints it. */
+const typeNoun = (type: string, plural: boolean): string => `${type.charAt(0)}${type.slice(1).toLowerCase()} ${plural ? "Cards" : "Card"}`;
+
+export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
@@ -1648,9 +1664,13 @@ export function describeFilter(f: CardFilter): string {
   bits.push(...f.characters.map((x) => `<${x}>`));
   bits.push(...f.notCharacters.map((x) => `non-<${x}>`));
   bits.push(...f.names.map((x) => `{${x}}`));
-  if (f.token) bits.push("token");
+  // In a sentence a token and a Z-card are the noun itself — "a {Majin}
+  // token", "Z-cards" — rather than a word in front of "card".
+  const ownNoun = noun && !f.type && !f.notType ? (f.token ? "token" : f.z ? "Z-card" : null) : null;
+  if (f.token && !ownNoun) bits.push("token");
   else if (f.notToken) bits.push("non-token");
-  if (f.z) bits.push("Z-card");
+  // "Z-card Extra Cards" is said "Z-Extra Cards", the way the card types print.
+  if (f.z && ownNoun !== "Z-card" && !(noun && f.type)) bits.push("Z-card");
   // "Originally skill-less" (20-3-1) is a prenominal adjective, like the
   // colours above it, and has to sit before the type noun is decided —
   // printed after it, `parseFilter` would still read it (it looks for the
@@ -1674,7 +1694,11 @@ export function describeFilter(f: CardFilter): string {
     ...f.notKeywords.map((k) => `non-[${k}]`),
   ];
   if (f.skillKind) partial.push(`with [${f.skillKind === "activate" ? "Activate" : f.skillKind === "counter" ? "Counter" : f.skillKind === "auto" ? "Auto" : "Permanent"}] skills`);
-  if (f.type) bits.push(`${f.type.toLowerCase()} card`);
+  if (noun) {
+    if (f.type) bits.push(`${f.z ? "Z-" : ""}${typeNoun(f.type, noun.plural)}`);
+    else if (f.notType) bits.push(`non-${typeNoun(f.notType, noun.plural)}`);
+    else bits.push(`${ownNoun ?? "card"}${noun.plural ? "s" : ""}`);
+  } else if (f.type) bits.push(`${f.type.toLowerCase()} card`);
   else if (f.notType) bits.push(`non-${f.notType.toLowerCase()} card`);
   else if (!bits.length) bits.push("card");
   // Printed nowhere until 9 Sep 2026, which is what let "choose up to 1 of
@@ -1684,7 +1708,7 @@ export function describeFilter(f: CardFilter): string {
   // that narrows wrongly, so a measure it cannot print is a measure nobody can
   // sign off.
   bits.push(...partial);
-  if (f.faceUp) bits.push("that is face up");
+  if (f.faceUp) bits.push(noun?.plural ? "that are face up" : "that is face up");
   // A range said only half of itself: a filter with both bounds printed as
   // "or less" and dropped the floor, and an *exact* cost or power printed as
   // "or less" too — a reading strictly wider than the filter in both cases.
@@ -1721,6 +1745,59 @@ function selectorWords(sel: Selector): string {
 }
 
 /**
+ * The same cards with their noun, as a sentence names them: "blue cards",
+ * "a ≪Saiyan≫ card", "Battle Cards with [Blocker]" — or just "cards" where the
+ * filter only repeats the area. "3 or more blue in your drop" was the reading
+ * of a card that prints "3 or more blue cards in your Drop Area" (#478).
+ */
+function selectorNoun(sel: Selector, plural: boolean): string {
+  return sel.filter && selectorWords(sel) ? describeFilter(sel.filter, { plural }) : plural ? "cards" : "card";
+}
+
+/**
+ * An area as the game names it — `words.rules`' `you:` form ("your Drop Area",
+ * "the Leader Area") without its determiner, since the owner is the
+ * selector's. A copy, because this module cannot import the ruleset loader:
+ * the loader is built on `lang/`, which reads this module's constants while it
+ * loads. `scripts/verify/describe.ts` asserts it is the same word as
+ * `dbsWords().area` for every area, so the declaration is still the source.
+ */
+export const ZONE_NOUNS: Record<Exclude<ScriptArea, "play" | "under" | "removed">, string> = {
+  deck: "deck",
+  hand: "hand",
+  drop: "Drop Area",
+  leader: "Leader Area",
+  battle: "Battle Area",
+  combo: "Combo Area",
+  energy: "Energy Area",
+  life: "Life Area",
+  warp: "Warp",
+  unison: "Unison Area",
+  zDeck: "Z-Deck",
+  zEnergy: "Z-Energy Area",
+};
+
+/**
+ * Where a selector looks, in the game's own words for its areas: "in your
+ * Drop Area", "in your opponent's Battle Area or Unison Area" — not "in
+ * opponent's battle" (#478). The two routes a board never shows a card in
+ * (`under`, `play`) and the cards removed from the game have no area to be
+ * "in", so they are said the way the card text says them.
+ */
+function describeWhere(sel: Selector): string {
+  const areas: ScriptArea[] = sel.areas?.length ? sel.areas : [sel.area ?? "play"];
+  const owner = sel.side === "opponent" ? "your opponent's" : sel.side === "both" ? "each player's" : "your";
+  const has = sel.side === "opponent" ? "your opponent has" : sel.side === "both" ? "either player has" : "you have";
+  const zones = areas.filter((a) => a !== "play" && a !== "under" && a !== "removed").map((a) => ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] ?? a);
+  const parts: string[] = [];
+  if (zones.length) parts.push(`in ${owner} ${zones.join(" or ")}`);
+  if (areas.includes("play")) parts.push(`${has} in play`);
+  if (areas.includes("under")) parts.push(`under ${owner} cards`);
+  if (areas.includes("removed")) parts.push(`${has} out of the game`);
+  return parts.join(" or ");
+}
+
+/**
  * Which cards, in words. The filter is part of the answer: without it the
  * worklist read "choose up to 1 in your warp" for a skill that can only take
  * a blue ≪Another World Budokai≫ card, which is exactly the detail that tells
@@ -1736,10 +1813,7 @@ export function describeSelector(sel: Selector, all = "all"): string {
   // The one special a filter can narrow and the reading has to keep: "the
   // <Majin Buu> on top of this card" and "the Leader on top of this card" are
   // different cards, and dropping the words would print them the same.
-  if (sel.special === "onTop") {
-    const words = selectorWords(sel);
-    return `the ${words ? `${words} ` : "card "}on top of this card`;
-  }
+  if (sel.special === "onTop") return `the ${selectorNoun(sel, false)} on top of this card`;
   if (sel.special)
     return {
       self: "this card",
@@ -1750,7 +1824,6 @@ export function describeSelector(sel: Selector, all = "all"): string {
       opponentLeader: "the opposing leader",
       resolving: "the card being played",
     }[sel.special];
-  const who = sel.side === "opponent" ? "opponent's " : sel.side === "both" ? "each player's " : "your ";
   // A selector with neither a count nor a `take` is every card the filter
   // matches — `resolveSelector` returns the whole area — and printing
   // `${undefined}` said so as "undefined in your energy", on 145 readings.
@@ -1767,13 +1840,12 @@ export function describeSelector(sel: Selector, all = "all"): string {
           : sel.upTo
             ? `up to ${sel.count}`
             : `${sel.count}`;
-  const words = selectorWords(sel);
+  // One card is "card", any other number — and every card — is "cards".
+  const plural = sel.take != null ? sel.take !== 1 : sel.count !== 1;
+  // "Up to 1 of the cards looked at" already has its noun.
+  const words = sel.fromVar && !selectorWords(sel) ? "" : selectorNoun(sel, plural);
   const host = sel.underHost ? describeUnderHost(sel.underHost) : null;
-  const where = sel.fromVar
-    ? "of the cards looked at"
-    : host
-      ? `under ${host}`
-      : `in ${who}${sel.areas?.length ? sel.areas.join(" or ") : sel.area}`;
+  const where = sel.fromVar ? "of the cards looked at" : host ? `under ${host}` : describeWhere(sel);
   const mode = describeMode(sel);
   return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel);
 }

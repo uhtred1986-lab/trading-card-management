@@ -900,7 +900,7 @@ import type { EngineState, Trigger } from "./harness";
   assert.equal(describeScript(read("[Activate: Main] This card gets +5000 power for the turn.").ops), "this card +5000 power for the turn");
   assert.equal(
     describeScript(read("[Auto] When you play this card, choose 1 of your opponent's Battle Cards. It can't attack until the end of your opponent's next turn.").ops),
-    "choose 1 in opponent's battle, the chosen cards can't attack until the end of your opponent's turn",
+    "choose 1 card in your opponent's Battle Area, the chosen cards can't attack until the end of your opponent's turn",
     "a duration reads as words, never as the enum's name",
   );
 }
@@ -1012,7 +1012,7 @@ import type { EngineState, Trigger } from "./harness";
   // knows — and it has to be read before the general form, which would take
   // "copy of this card" for a description of the cards and fail on it.
   const copies = read("[Permanent] Only 1 copy of this card can be played in your Battle Area.");
-  assert.equal(describeScript(copies.ops, { permanent: true }), "if there are 1 or more cards in your battle: you can't play another copy of this card");
+  assert.equal(describeScript(copies.ops, { permanent: true }), "if there are 1 or more cards in your Battle Area: you can't play another copy of this card");
 
   // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
   assert.deepEqual(read("[Auto] When you play this card, your opponent shuffles their deck.").ops, [{ op: "shuffle", side: "opponent" }]);
@@ -1545,7 +1545,7 @@ import type { EngineState, Trigger } from "./harness";
   const compiled = compileSkill(sk);
   assert.equal(compiled.unsupported.length, 0);
   const reading = describeScript(compiled.ops, { permanent: true });
-  assert.ok(reading.includes("in your leader or battle or unison or combo or energy or drop or warp or zDeck or zEnergy"));
+  assert.ok(reading.includes("in your Leader Area or Battle Area or Unison Area or Combo Area or Energy Area or Drop Area or Warp or Z-Deck or Z-Energy Area"));
   assert.ok(!reading.includes("in your deck"));
 
   // BT16-088: "non-<Zamasu> and non-<Goku Black>" Battle Cards for the game

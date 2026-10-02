@@ -137,7 +137,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(describeScript([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]), "if it is your turn: nothing, otherwise draw 1");
   assert.equal(describeScript([{ op: "may", ops: [{ op: "draw", n: 1 }], chooser: "opponent" }]), "your opponent may: draw 1");
   assert.equal(describeScript([{ op: "forbid", what: "attack", until: "turn", side: "opponent", uses: 1 }]), "your opponent can't attack once more for the turn");
-  assert.equal(describeScript([{ op: "forbid", what: "play", until: "turn", side: "opponent", unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } }]), "your opponent can't play cards unless there are 3 or more cards in opponent's energy for the turn");
+  assert.equal(describeScript([{ op: "forbid", what: "play", until: "turn", side: "opponent", unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } }]), "your opponent can't play cards unless there are 3 or more cards in your opponent's Energy Area for the turn");
   assert.equal(describeScript([{ op: "note", text: "x" }, { op: "shuffle" }]), "shuffle", "a note says nothing");
   assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');
   assert.equal(opSignature("negateAttack"), '{"op":"negateAttack"}');
@@ -205,8 +205,8 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(validate([{ op: "if", cond: { kind: "any", conds: [{ kind: "isTurnPlayer" }, { kind: "nope" }] }, then: [] }]), false, "nested conditions are checked too");
   assert.equal(validate([{ op: "if", cond: { kind: "not", cond: { kind: "isTurnPlayer" } }, then: [] }]), true);
   // …and the sentences are the ones the workbench and the log printed before.
-  assert.equal(describeCond({ kind: "count", sel: { side: "you", area: "drop", count: 99, filter: parseFilter("{Angel Halo}") }, atLeast: 2 }), "there are 2 or more {Angel Halo} in your drop");
-  assert.equal(describeCond({ kind: "count", sel: { side: "opponent", area: "battle", count: 99 }, atMost: 0 }), "there are no cards in opponent's battle", "the noun the selector had nothing to say about is put back");
+  assert.equal(describeCond({ kind: "count", sel: { side: "you", area: "drop", count: 99, filter: parseFilter("{Angel Halo}") }, atLeast: 2 }), "there are 2 or more {Angel Halo} cards in your Drop Area");
+  assert.equal(describeCond({ kind: "count", sel: { side: "opponent", area: "battle", count: 99 }, atMost: 0 }), "there are no cards in your opponent's Battle Area", "the noun the selector had nothing to say about is put back");
   assert.equal(describeCond({ kind: "isTurnPlayer", who: "opponent" }), "it is your opponent's turn");
   assert.equal(describeCond({ kind: "did", what: "may" }), "the offer was taken");
   assert.equal(describeCond({ kind: "all", conds: [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }] }), "it is your turn and your life is 4 or less");
@@ -246,14 +246,14 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(describeTrigger(play.trigger), "when this card is played");
   assert.equal(play.unread.length, 0);
   assert.equal(play.pattern, "choose→ko", "drafts group by the shape of what the compiler produced");
-  assert.equal(play.reads, "choose up to 1 in opponent's battle, KO the chosen cards");
+  assert.equal(play.reads, "choose up to 1 card in your opponent's Battle Area, KO the chosen cards");
   // What the selector picks is part of the reading: two cards phrased alike
   // are told apart by their filter, and the worklist used to hide it.
   assert.equal(
     describeScript(compileSkill(parseSkills("[Auto] When you play this card, choose up to 1 blue ≪Another World Budokai≫ card in your Warp and place it in your Drop Area.")[0]).ops),
-    "choose up to 1 blue ≪Another World Budokai≫ in your warp, move the chosen cards to drop",
+    "choose up to 1 blue ≪Another World Budokai≫ card in your Warp, move the chosen cards to drop",
   );
-  assert.equal(describeScript([{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, mode: "rest" }, as: "t" }]), "choose 1 in opponent's battle in rest mode");
+  assert.equal(describeScript([{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, mode: "rest" }, as: "t" }]), "choose 1 card in your opponent's Battle Area in rest mode");
   assert.equal(play.cost, null);
   // A program that is one wrapping `if` is shown as IF + DO; the reading still covers the whole thing.
   const perm = recs[1];

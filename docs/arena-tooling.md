@@ -244,6 +244,9 @@ skipped) tells you what you broke:
 - **`language.ts`** — the effect language as one table, the drafter's records.
 - **`lang.ts`** — the round-trip promise: `parse(print(x)) === x` over every op,
   condition, selector, filter and the language document's own examples.
+- **`describe.ts`** — the plain-English readers' nouns and area words (#478):
+  "3 or more blue cards in your Drop Area", never "3 or more blue in your
+  drop"; and `ZONE_NOUNS` held to `words.rules`.
 - **`rulesets.ts`** — the loader's own guarantees (a dangling reference, a
   duplicate declaration, an unknown hook point, each a pointed `LangError`)
   and, once the DBS `.rules` files exist, that the ruleset declares exactly
