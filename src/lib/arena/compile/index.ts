@@ -54,6 +54,7 @@ export function compileSkill(skill: Skill): Script {
 function narrowHiddenChoices(sc: Script): Script {
   const chooses = new Map<string, Extract<Op, { op: "choose" }>>();
   const first = new Map<string, boolean>();
+  const firstMode = new Map<string, "active" | "rest">();
   const walk = (v: unknown): void => {
     if (Array.isArray(v)) return v.forEach(walk);
     if (!v || typeof v !== "object") return;
@@ -63,11 +64,23 @@ function narrowHiddenChoices(sc: Script): Script {
       const name = (o.target as { var: string }).var;
       if (!first.has(name)) first.set(name, o.hidden as boolean);
     }
+    if (o.op === "switchMode" && o.target && typeof o.target === "object" && "var" in o.target) {
+      const name = (o.target as { var: string }).var;
+      if (!firstMode.has(name)) firstMode.set(name, o.mode as "active" | "rest");
+    }
     for (const k of Object.keys(o)) if (k !== "sel" && k !== "target") walk(o[k]);
   };
   walk(sc.ops);
-  if (!first.size) return sc;
+  if (!first.size && !firstMode.size) return sc;
   const narrowed = new Map<string, Extract<Op, { op: "choose" }>>();
+  // The same for a Hidden Mode card switched to Rest or Active Mode — "by
+  // switching 1 Hidden Mode card in your Battle Area to Rest Mode" (BT28-138)
+  // — where the choice already says Hidden Mode and nothing of its mode.
+  for (const [name, mode] of firstMode) {
+    const ch = chooses.get(name);
+    if (!ch || ch.sel.hidden !== true || ch.sel.mode || first.has(name)) continue;
+    narrowed.set(name, { ...ch, sel: { ...ch.sel, mode: mode === "rest" ? "active" : "rest" } });
+  }
   for (const [name, hidden] of first) {
     const ch = chooses.get(name);
     if (!ch || ch.sel.filter || ch.sel.hidden !== undefined || ch.sel.special || ch.sel.fromVar || ch.sel.take != null) continue;

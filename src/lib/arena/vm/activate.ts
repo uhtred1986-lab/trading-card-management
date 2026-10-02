@@ -674,11 +674,18 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   const inHand = hand.includes(card) ? 1 : 0;
   for (const op of ops) {
     switch (op.op) {
-      case "choose":
+      case "choose": {
         // "Up to" can always be paid with nothing (5-2-4).
         if (op.sel.upTo) break;
-        if (resolveSelector(ctx, game, state, frame, op.sel).length < (op.sel.count ?? 1)) return false;
+        // 5-8-2-2: a chosen card the price then switches pays only if it is
+        // not in that mode already — "by switching 1 Hidden Mode card in your
+        // Battle Area to Rest Mode" (BT28-138) is not paid by a rested one.
+        const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
+        const switches = (id: string) =>
+          !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
+        if (resolveSelector(ctx, game, state, frame, op.sel).filter(switches).length < (op.sel.count ?? 1)) return false;
         break;
+      }
       case "discard":
         if (typeof op.n !== "number" || hand.length - inHand < op.n) return false;
         break;

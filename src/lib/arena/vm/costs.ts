@@ -1175,6 +1175,24 @@ export function altCostFor(ctx: EngineContext, game: GameDefinition, state: VmSt
   return null;
 }
 
+/**
+ * The alternatives that are an action rather than a payment (5-3, `pay:
+ * "program"`) — "by switching 1 Hidden Mode card in your Battle Area to Rest
+ * Mode instead of paying its energy cost" (BT28-138). `altCostFor` leaves
+ * them out because whether one can be paid is a question about a program,
+ * which the caller asks (`vm/battle.ts`'s `counterAlt`, through
+ * `canPayPriceProgram`).
+ */
+export function programAltsFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, which: string): VmAltCost[] {
+  const out: VmAltCost[] = [];
+  for (const e of state.effects) if (e.kind === "altCost" && e.target === card && e.altCost?.pay === "program" && (e.altCost.for ?? "counter") === which) out.push(e.altCost);
+  for (const e of staticsNow(ctx, game, state)) {
+    const alt = e.value as VmAltCost;
+    if (e.kind === "altCost" && e.target === card && alt.pay === "program" && (alt.for ?? "counter") === which) out.push(alt);
+  }
+  return out.filter((alt) => alt.ops?.length);
+}
+
 /** How many cards a `rest` price rests: one per orb, and one when it names none. */
 const restCount = (alt: VmAltCost): number => (alt.orbs ?? []).length || 1;
 

@@ -1897,12 +1897,15 @@ function describeUnderHost(sel: Selector): string {
 
 /**
  * "In Rest Mode" / "In Hidden Mode" — the two axes a card instance carries
- * (§23-5's Hidden/Revealed is orthogonal to §1-10's Active/Rest, and the
- * compiler never sets both on one selector, so there is no case where they
- * would need to be said together).
+ * (§23-5's Hidden/Revealed is orthogonal to §1-10's Active/Rest). Both are
+ * said when both are set: "1 card in your Battle Area in Hidden Mode and in
+ * active mode" is the choice BT28-138's price is narrowed to.
  */
-const describeMode = (sel: Selector): string =>
-  sel.mode ? ` in ${sel.mode} mode` : sel.hidden === true ? " in Hidden Mode" : sel.hidden === false ? " in Revealed Mode" : "";
+const describeMode = (sel: Selector): string => {
+  const hidden = sel.hidden === true ? " in Hidden Mode" : sel.hidden === false ? " in Revealed Mode" : "";
+  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  return hidden && mode ? `${hidden} and${mode}` : hidden || mode;
+};
 
 /**
  * "…other than this card". Left out of the reading until 9 Sep 2026, when

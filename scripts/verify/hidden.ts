@@ -207,5 +207,39 @@ if (ENGINE !== "rules") {
     assertConsistentG(s);
   }
 
+  // ── BT28-124, BT28-138: a [Counter] paid with a Hidden Mode card ────────
+  {
+    def("HM-BEERUS", { energyCost: 5, skill: "[Counter: Play][Limit 1] Play this card.<br>[Permanent] If your opponent has 1 or more energy, you can activate this card's [Counter] skill from your hand by choosing 1 Hidden Mode card in your Battle Area and placing it into its owner's Drop instead of paying its energy cost." });
+    let s = arenaG({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["HM-BEERUS"], oppBattle: ["HM-WHITE"] });
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "V1") });
+    assert.notEqual(s.prompt.kind, "counter", "nothing face down: five energy it does not have, and no other way to pay");
+    s = arenaG({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["HM-BEERUS"], oppBattle: ["HM-WHITE"] });
+    const down = findG(s, "p2", "battle", "HM-WHITE");
+    s.cards[down].hidden = true;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "V1") });
+    assert.equal(s.prompt.kind, "counter");
+    s = choose(playG(s, actsG(s).find((a) => a.type === "counter" && (a as { alt?: boolean }).alt)!), "p2", [down]);
+    assert.ok(zoneOf(s, "p2", "drop").includes(down), "the Hidden Mode card paid for it");
+    assert.ok(zoneOf(s, "p2", "battle").some((id) => s.cards[id].cardId === "HM-BEERUS"), "and the counter played the card");
+    assertConsistentG(s);
+
+    def("HM-STOP", { ...DEFS["E-NEGATE"], energyCost: 5, skill: "[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand by switching 1 Hidden Mode card in your Battle Area to Rest Mode instead of paying its energy cost." });
+    let t = arenaG({ battle: ["V1"], oppHand: ["HM-STOP"], oppBattle: ["HM-WHITE"] });
+    const one = findG(t, "p2", "battle", "HM-WHITE");
+    t.cards[one].hidden = true;
+    t.cards[one].mode = "rest";
+    const attacker = zoneOf(t, "p1", "battle")[0];
+    t = playG(t, { type: "attack", player: "p1", attacker, target: leaderOf(t, "p2") });
+    assert.ok(!actsG(t).some((a) => a.type === "counter" && (a as { alt?: boolean }).alt), "5-8-2-2: a rested Hidden Mode card cannot be switched to Rest Mode to pay");
+    t = arenaG({ battle: ["V1"], oppHand: ["HM-STOP"], oppBattle: ["HM-WHITE"] });
+    const two = findG(t, "p2", "battle", "HM-WHITE");
+    t.cards[two].hidden = true;
+    t = playG(t, { type: "attack", player: "p1", attacker: zoneOf(t, "p1", "battle")[0], target: leaderOf(t, "p2") });
+    t = choose(playG(t, actsG(t).find((a) => a.type === "counter" && (a as { alt?: boolean }).alt)!), "p2", [two]);
+    assert.equal(t.cards[two].mode, "rest", "rested to pay");
+    assert.ok(!t.battle || t.battle.negated, "and the attack is negated");
+    assertConsistentG(t);
+  }
+
   for (const id of TEMP) delete DEFS[id];
 }

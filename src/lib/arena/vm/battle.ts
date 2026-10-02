@@ -70,11 +70,11 @@ import { IllegalAction } from "./common";
 import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import { canCombo } from "../text/cards";
 import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../types";
-import { replacementPrompt, routeOf, type Op, type ScriptFrame } from "./script";
+import { describeScript, replacementPrompt, routeOf, type Op, type ScriptFrame } from "./script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../compile";
-import { altCostFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, type BoundAmounts } from "./costs";
 import type { VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
@@ -454,6 +454,11 @@ const counterVarsKey = (card: string, skillIndex: number) => `costvars:${card}:$
 function counterAlt(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId): VmAltCost | null {
   const own = altCostFor(ctx, game, state, card, player, "counter");
   if (own) return own;
+  // 5-3 with 4-3-3: an alternative that is an action — "by choosing 1 Hidden
+  // Mode card in your Battle Area and placing it into its owner's Drop"
+  // (BT28-124) — offered while that action can be paid.
+  const action = programAltsFor(ctx, game, state, card, "counter").find((alt) => canPayPriceProgram(ctx, game, state, player, card, alt.ops!));
+  if (action) return action;
   const asPlay = baseTypeOf(ctx, state, card) === "EXTRA" ? altCostFor(ctx, game, state, card, player, "play") : null;
   return asPlay && asPlay.pay === "energy" && asPlay.rest ? asPlay : null;
 }
@@ -477,7 +482,7 @@ export function counterLegalActions(ctx: EngineContext, game: GameDefinition, st
     if (!alt) continue;
     const resting = restingFor(alt);
     const orbs = (alt.orbs ?? []).map((o) => `{${o}}`).join("");
-    const how = alt.pay === "none" ? "for no energy" : alt.pay === "life" ? `by adding ${alt.n} from your life to your hand` : resting.length ? `by resting ${resting.map((id) => nameOf(ctx, state, id)).join(" and ")}` : `for ${orbs}`;
+    const how = alt.pay === "none" ? "for no energy" : alt.pay === "program" ? `instead of energy: ${describeScript(alt.ops ?? [])}` : alt.pay === "life" ? `by adding ${alt.n} from your life to your hand` : resting.length ? `by resting ${resting.map((id) => nameOf(ctx, state, id)).join(" and ")}` : `for ${orbs}`;
     const energy = alt.pay === "energy" ? (alt.orbs ?? []).length || 1 : 0;
     const cost = alt.pay === "none" ? { energy: 0, describe: "free" } : alt.pay === "energy" ? { energy, describe: orbs || "free" } : { energy: 0, describe: "alternative cost" };
     out.push({ action: { type: "counter", player: pr.player, card, ...(sk ? { skill: sk.index } : {}), alt: true }, label: `Counter with ${nameOf(ctx, state, card)} (${how})`, cost });
@@ -623,8 +628,11 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // and the line's orbs — the legacy `payAltCost` on `action.alt` (#439).
   const alt = action.alt ? counterAlt(ctx, game, state, card, action.player) : null;
   if (action.alt && !alt) throw new IllegalAction("that card has no other cost to pay");
-  if (alt) payAltCost(ctx, game, state, ev, action.player, alt);
-  else {
+  // An action alternative (`pay: "program"`) is not paid here: it runs as a
+  // price program in front of the effect, below.
+  if (alt) {
+    if (alt.pay !== "program") payAltCost(ctx, game, state, ev, action.player, alt);
+  } else {
     const combined = counterPrice(ctx, game, state, card, sk);
     const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
     const plan = planCost(ctx, game, state, action.player, price, card, action.pay);
@@ -650,7 +658,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // hands on what it chose ("the card that was switched to Hidden Mode by
   // this skill", BT28-121); the price finishing is what announces the line —
   // `vm/activate.ts`'s shape, which the host already reads.
-  const priceOps = costIsOnlyOrbs(sk.cost) || alt ? null : counterPriceOps(showing.scripts.bySkill[sk.index]);
+  const priceOps = alt?.pay === "program" ? (alt.ops ?? null) : costIsOnlyOrbs(sk.cost) || alt ? null : counterPriceOps(showing.scripts.bySkill[sk.index]);
   if (priceOps) {
     const key = counterVarsKey(card, sk.index);
     state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, pricedBy: { key, text: sk.raw } });
