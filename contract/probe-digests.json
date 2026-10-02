@@ -271,6 +271,10 @@
     "outcome": "fired",
     "digest": "465c59fa"
   },
+  "FIELDB#10": {
+    "outcome": "inForce",
+    "digest": "49f36b12"
+  },
   "FLIPPER#0": {
     "outcome": "fired",
     "digest": "51109403"

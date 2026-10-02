@@ -422,8 +422,13 @@ export interface Permission {
    * — "you can use your mono-red Rest Mode ≪Saiyan≫ cards in combos"
    * (BT18-001, BT29-129); the target is the card granting it, and `filter`
    * says which rested cards.
+   * `fieldBattle`: the target's own [Field] skill may be used from the hand at
+   * [Activate: Battle] timings as well as the Main Phase's (22-3) — "The
+   * [Field] skill on this card in your hand can also be activated at
+   * [Activate: Battle] timings" (BT29-041, BT29-042). Read from the hand,
+   * where the skill is used; `filter` is not read.
    */
-  what: "attackActive" | "comboRest";
+  what: "attackActive" | "comboRest" | "fieldBattle";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }

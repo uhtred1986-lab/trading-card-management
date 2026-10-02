@@ -745,11 +745,21 @@
       "digest": "465c59fa"
     },
     "rules": {
-      "outcome": "notOffered",
-      "digest": "866e213d"
+      "outcome": "fired",
+      "digest": "465c59fa"
     },
-    "same": false,
-    "cause": "auto-price"
+    "same": true
+  },
+  "FIELDB#10": {
+    "legacy": {
+      "outcome": "inForce",
+      "digest": "49f36b12"
+    },
+    "rules": {
+      "outcome": "inForce",
+      "digest": "49f36b12"
+    },
+    "same": true
   },
   "FLIPPER#0": {
     "legacy": {

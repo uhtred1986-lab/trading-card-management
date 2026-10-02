@@ -2342,7 +2342,9 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         return `Overlord: return a Servant to the deck, draw 1`;
       }
       case "Field": {
-        if (timing !== "main" || !inHand || baseType(d) !== "EXTRA") return null;
+        // 22-3: an [Activate: Main] — and at [Activate: Battle] timings too
+        // while a [Permanent] says so for this card (`fieldBattle`, BT29-041).
+        if (!fieldTimingOk(ctx, s, card, timing) || !inHand || baseType(d) !== "EXTRA") return null;
         const c = playCost(ctx, s, card);
         if (!planPayment(ctx, s, p, c.total, c.specified)) return null;
         return `Field: place ${name} (${c.total})`;
@@ -2434,6 +2436,16 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
  * offer of the same skill and is not reported separately. Called only from
  * `rejectedActions`; `activatable` is untouched.
  */
+/**
+ * 22-3: [Field] is used at the Main Phase, and at [Activate: Battle] timings as
+ * well while a [Permanent] permits it for this card — "The [Field] skill on
+ * this card in your hand can also be activated at [Activate: Battle] timings"
+ * (BT29-041, BT29-042), a `permit` of `fieldBattle` read from the hand.
+ */
+function fieldTimingOk(ctx: EngineContext, s: GameState, card: string, timing: "main" | "battle"): boolean {
+  return timing === "main" || permits(ctx, s, card, "fieldBattle").length > 0;
+}
+
 function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle"): Requirement[] | null {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
@@ -2594,7 +2606,7 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
         return why;
       }
       case "Field": {
-        wantTiming("main");
+        if (!fieldTimingOk(ctx, s, card, timing)) wantTiming("main");
         wantZone("hand");
         if (baseType(d) !== "EXTRA") why.push({ kind: "cardType", card, needs: "an Extra Card" });
         const c = playCost(ctx, s, card);
