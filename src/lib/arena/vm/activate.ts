@@ -81,7 +81,7 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
-import { HIDEABLE, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
+import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
@@ -701,7 +701,8 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
-        if (resolveSelector(ctx, game, state, frame, op.sel).filter(switches).length < (op.sel.count ?? 1)) return false;
+        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches);
+        if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id)) < (op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":
@@ -767,10 +768,13 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * `case`s announce the skill and then pay. A line with an effect of its own
  * ([Union-Absorb], every printed [Activate]) is announced as that effect
  * resolves, after the price, the legacy `skill.resolve` step. The log is what
- * a replay compares, so the order is the oracle's.
+ * a replay compares, so the order is the oracle's. [Field] is the exception
+ * the legacy engine makes too: its `Field` case pays the Extra's energy cost
+ * first and announces the skill as it resolves (`resolvesLater`), so it is
+ * announced after the price.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !!line.keyword && !line.script?.ops.length;
+  return !!line.keyword && line.keyword.name !== "Field" && !line.script?.ops.length;
 }
 
 /** The `skill` event for a line being used (9-6). */

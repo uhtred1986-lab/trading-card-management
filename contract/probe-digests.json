@@ -24,8 +24,12 @@
     "digest": "49f36b12"
   },
   "ARRIVES#0": {
-    "outcome": "didNotFire",
-    "digest": "d55f4c52"
+    "outcome": "fired",
+    "digest": "b3dceee2"
+  },
+  "ARRIVES2#0": {
+    "outcome": "fired",
+    "digest": "3680fcfa"
   },
   "ASKER#0": {
     "outcome": "inForce",
@@ -66,6 +70,10 @@
   "BOTHPAY#0": {
     "outcome": "notOffered",
     "digest": "7cee2d23"
+  },
+  "BOTHWAYS#0": {
+    "outcome": "fired",
+    "digest": "160ec8f1"
   },
   "BOUNCE#0": {
     "outcome": "fired",
@@ -155,6 +163,14 @@
     "outcome": "inForce",
     "digest": "a44f9ad0"
   },
+  "DN-COUNTER#0": {
+    "outcome": "fired",
+    "digest": "cc4f7a36"
+  },
+  "DN-HOST#0": {
+    "outcome": "fired",
+    "digest": "357d2d9e"
+  },
   "DOWNALL#0": {
     "outcome": "inForce",
     "digest": "7efb95b0"
@@ -231,6 +247,10 @@
     "outcome": "didNotFire",
     "digest": "16bdaa6b"
   },
+  "EVERY2#0": {
+    "outcome": "inForce",
+    "digest": "1a31b1b4"
+  },
   "EVO#0": {
     "outcome": "fired",
     "digest": "c84aadcf"
@@ -246,6 +266,10 @@
   "FETCH#0": {
     "outcome": "fired",
     "digest": "c02c8607"
+  },
+  "FIELD-ARRIVES#10": {
+    "outcome": "fired",
+    "digest": "465c59fa"
   },
   "FIELDB#10": {
     "outcome": "inForce",
@@ -285,7 +309,7 @@
   },
   "GRAVE#0": {
     "outcome": "fired",
-    "digest": "13cd596c"
+    "digest": "fe91e119"
   },
   "GRUDGE#0": {
     "outcome": "noScenario",
@@ -634,6 +658,10 @@
   "SUMMON#0": {
     "outcome": "fired",
     "digest": "08e62634"
+  },
+  "SUMMON2#0": {
+    "outcome": "fired",
+    "digest": "5ac1d7fa"
   },
   "SWAPPER#0": {
     "outcome": "fired",

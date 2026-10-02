@@ -117,7 +117,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
  * `subject` — `modifyAttrAs` is what reads the two together.
  */
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
-export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
+export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game", "whileSourceInPlay"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
@@ -353,7 +353,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // count is not read, so it is not said either.
       if (op.atMost !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
+        const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined && op.atMost.per === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
         return `choose any number of ${cards}, up to ${bound}`;
       }
       return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
@@ -481,7 +481,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   power: {
     fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL],
     sentence: "{target} {amount:power}{until}",
-    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)',
+    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card; add "per":2 for "for every 2 cards", rounded down), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)',
   },
   comboPower: { fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL], sentence: "{target} {amount:combo power}{until}" },
   grant: { fields: [TARGET, { name: "keyword", type: "keyword", required: true }, UNTIL], sentence: "{target} gains [{keyword}]{until}" },
@@ -515,6 +515,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   hidden: { fields: [TARGET, { name: "hidden", type: "boolean", required: true }], sentence: "switch {target} to {hidden:Hidden|Revealed} Mode", doc: "Hidden Mode / Revealed Mode (23-5)" },
   redirectAttack: { fields: [TARGET], sentence: "switch the target of the attack to {target}", doc: '"switch the target of the attack to it" (22-4-2)' },
+  swapBattle: {
+    fields: [TARGET],
+    sentence: "switch your card that's in a battle with {target}",
+    doc: '"switch your card that\'s in a battle with this card / the chosen card" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its "when this card attacks / is attacked" are not made pending',
+  },
   comboFrom: { fields: [TARGET, { name: "negated", type: "boolean" }], sentence: "use {target} in a combo{negated? with its skills negated}", doc: '"use it in a combo from your Drop (with its skills negated)" (5-7)' },
   flip: { fields: [TARGET], sentence: "flip {target} over", doc: 'a Leader awakens ("flip this card over", 22-2-4)' },
   faceUp: { fields: [TARGET, { name: "faceUp", type: "boolean", default: true }], sentence: "turn {target} face {faceUp:up|down}", doc: "turn a card in a life area face up (3-9-2-1); false turns it back down" },
@@ -864,6 +869,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   negateSkillsOfKind: "macro over `negate`",
   hidden:             "macro over `modifyAttr`",
   redirectAttack:     "macro over `modifyAttr`",
+  swapBattle:         "primitive",
   comboFrom:          "macro over `move` + `negate`",
   flip:               "macro over `modifyAttr`",
   faceUp:             "macro over `modifyAttr`",
@@ -1602,6 +1608,20 @@ function readsUnboundX(v: unknown, xBound: boolean): boolean {
   return Array.isArray(a.plus) && readsUnboundX(a.plus[0], xBound);
 }
 
+/**
+ * A `per` divides a reading into whole steps (2 Oct 2026), so it is a whole
+ * number of at least 2 — 1 says nothing a missing `per` doesn't, and 0 or a
+ * fraction is a division the rule manual's rounding has no answer for. Walked
+ * through `plus` the same way `readsUnboundX` is.
+ */
+function perHolds(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return true;
+  const a = v as Record<string, unknown>;
+  if (Array.isArray(a.plus)) return perHolds(a.plus[0]);
+  if (a.per === undefined) return true;
+  return ("count" in a || "markers" in a || "life" in a) && Number.isInteger(a.per) && (a.per as number) >= 2;
+}
+
 function selectorHolds(v: unknown): boolean {
   if (typeof v !== "object" || v === null) return false;
   const special = (v as { special?: unknown }).special;
@@ -1634,6 +1654,7 @@ function fieldHolds(type: FieldType, v: unknown, depth: number, xBound: boolean)
   switch (type) {
     case "amount":
       if (readsUnboundX(v, xBound)) return false;
+      if (!perHolds(v)) return false;
       return typeof v === "number" || (typeof v === "object" && v !== null);
     // A ref is a bound name or a selector — a bare selector written where a
     // ref belongs ({"special":"self"} for {"sel":{"special":"self"}}) is the
@@ -1800,6 +1821,12 @@ export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
   else if (f.originalPowerMin != null && f.originalPowerMax != null) bits.push(`with an original power between ${f.originalPowerMin} and ${f.originalPowerMax}`);
   else if (f.originalPowerMax != null) bits.push(`with an original power of ${f.originalPowerMax} or less`);
   else if (f.originalPowerMin != null) bits.push(`with an original power of ${f.originalPowerMin} or more`);
+  // 2-8: "cards with 5000 combo power" (BT29-030), in the words `parseFilter`
+  // reads back.
+  if (f.comboPowerMin != null && f.comboPowerMin === f.comboPowerMax) bits.push(`with ${f.comboPowerMin} combo power`);
+  else if (f.comboPowerMin != null && f.comboPowerMax != null) bits.push(`with combo power between ${f.comboPowerMin} and ${f.comboPowerMax}`);
+  else if (f.comboPowerMax != null) bits.push(`with ${f.comboPowerMax} combo power or less`);
+  else if (f.comboPowerMin != null) bits.push(`with ${f.comboPowerMin} combo power or more`);
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
@@ -1973,7 +2000,10 @@ const describeMode = (sel: Selector): string => {
  * the sentence "all in each player's battle" said nothing about either way.
  */
 const describeNotSelf = (sel: Selector): string =>
-  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "") + (sel.printed ? " matching the description printed on this line" : "");
+  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "") +
+  // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
+  (sel.differentNames ? " with different card names" : "") +
+  (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);
@@ -1991,10 +2021,10 @@ function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
     if ("plus" in a) return `${describeAmount(a.plus[0], noun)} and ${a.plus[1] < 0 ? `${-a.plus[1]} less` : `${a.plus[1]} more`}`;
-    if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
-    if ("markers" in a) return `+${a.times ?? 1} ${noun} for each marker on ${describeEach(a.markers)}`;
+    if ("count" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per)} of ${describeEach(a.count)}`;
+    if ("markers" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
     if ("x" in a) return a.times === undefined ? `+X ${noun}` : `+${a.times} ${noun} for each X`;
-    if ("life" in a) return `+${a.times ?? 1} ${noun} for each life ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+    if ("life" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
     if ("sumOf" in a) return `${noun} equal to the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
     if ("attr" in a) return `${noun} equal to ${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
     return `+that many ${noun}`;
@@ -2005,11 +2035,17 @@ function describeAmount(a: Amount, noun?: string): string {
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
   if ("x" in a) return a.times === undefined ? "X" : `${a.times} for each X`;
-  if ("life" in a) return `${a.times ?? 1} for each life ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+  if ("life" in a) return `${a.times ?? 1} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
   if ("sumOf" in a) return `the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
   if ("attr" in a) return `${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
-  if ("markers" in a) return `${a.times ?? 1} for each marker on ${describeEach(a.markers)}`;
-  return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
+  if ("markers" in a) return `${a.times ?? 1} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
+  return `${a.times ?? 1} ${forEvery(a.per)} of ${describeEach(a.count)}`;
+}
+
+/** "for each marker", or "for every 2 markers" when the reading is divided (`Amount`'s `per`). */
+function forEvery(per: number | undefined, noun?: string, plural = `${noun}s`): string {
+  if (!per || per < 2) return noun ? `for each ${noun}` : "for each";
+  return noun ? `for every ${per} ${plural}` : `for every ${per}`;
 }
 
 /** The area as a person would name it, for "for each of your Battle Cards". */
@@ -2064,6 +2100,7 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   opponentTurn: " until the start of your opponent's next turn",
   afterNextCharge: " through your next Charge Phase",
   game: " for the rest of the game",
+  whileSourceInPlay: " while this card is in a Battle Area",
 };
 const forThe = (until: Duration | undefined, r: RenderOptions) => (r.permanent || !until ? "" : DURATION_IN_WORDS[until]);
 
