@@ -628,7 +628,14 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // pended. Left as a broadcast, a token's `played` (19-1) would also reach
   // every "when you play a card" watcher in play, which the legacy engine
   // never pends for a token (#146).
-  pendAutos(ctx, game, state, { event: moment.event, card: id, controller, args: { ...moment.args, ...(subject ? { by: subject } : {}) } }, (m) => m.card === id && m.trigger === trigger);
+  //
+  // A subject handed in with a self-moment is the card that caused it — the
+  // skill's card for `deckToWarpBySkill` — and goes on the pending entry, as
+  // the legacy `pend(trigger, card, subject)` puts it, so "your <Heles>
+  // card's skill" can be asked of it. It is not a pattern argument: written
+  // over `by` it turned `by: skill` into a card id, which no declaration asks.
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: id, controller, args: moment.args }, (m) => m.card === id && m.trigger === trigger);
+  if (subject) for (const p of pended) p.subject ??= subject;
 }
 
 /**
@@ -649,6 +656,10 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   removedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
   droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill" } },
   leftBattleToDrop: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
+  // 3-10: pended by `moveTo` when your skill sends your card from your deck to
+  // the Warp (BT30-106); the plain `moved` moment carries no cause, so the
+  // name is what says a skill of yours did it.
+  deckToWarpBySkill: { event: "moved", args: { from: "deck", to: "warp", asPlay: false, by: "skill", byOpponent: false } },
   // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
   // first keyword to run one), and `triggers.rules` declares the moment.
   markerRemoved: { event: "markerRemoved", args: {} },
@@ -660,7 +671,7 @@ const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "rest
 /**
  * The names `stepScript`'s `moveTo` pends right after `moveTo` above has
  * already fired the `moved` moment they are declared on — `placed`
- * (`moved(asPlay: false, to: battle)`), `addedToZEnergy` (`moved(to:
+ * (`moved(to: battle)`), `addedToZEnergy` (`moved(to:
  * zEnergy)`) and `leftBattleToDrop` (`moved(from: battle, to: drop)`) match
  * that moment as it is, so pending them again by name answered every such
  * skill twice: a card placed by a skill drew two cards for "when this card is

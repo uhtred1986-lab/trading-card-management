@@ -1629,6 +1629,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
           const deferred = defers(replaced);
+          // 3-10: "when this card is sent from your deck to your Warp by your
+          // <Heles> card's skill" (BT30-106) asks where it came from, which is
+          // gone once it has moved.
+          const fromDeck = h.areaOf(id) === "deck";
           h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: op.cause ?? "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
@@ -1653,6 +1657,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               h.pend("leftBattleToDrop", id);
             }
           }
+          // Your own skill sent your own card from your deck to the Warp. The
+          // skill's card is the subject, so "by your <Heles> card's skill" is
+          // a condition the rule asks of it — the same way `restedBySkill`
+          // hands on the card that rested it.
+          if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
           if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only

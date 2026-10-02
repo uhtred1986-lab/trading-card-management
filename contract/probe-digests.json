@@ -24,8 +24,12 @@
     "digest": "49f36b12"
   },
   "ARRIVES#0": {
-    "outcome": "didNotFire",
-    "digest": "d55f4c52"
+    "outcome": "fired",
+    "digest": "b3dceee2"
+  },
+  "ARRIVES2#0": {
+    "outcome": "fired",
+    "digest": "3680fcfa"
   },
   "ASKER#0": {
     "outcome": "inForce",
@@ -66,6 +70,10 @@
   "BOTHPAY#0": {
     "outcome": "notOffered",
     "digest": "7cee2d23"
+  },
+  "BOTHWAYS#0": {
+    "outcome": "fired",
+    "digest": "160ec8f1"
   },
   "BOUNCE#0": {
     "outcome": "fired",
@@ -250,6 +258,10 @@
   "FETCH#0": {
     "outcome": "fired",
     "digest": "c02c8607"
+  },
+  "FIELD-ARRIVES#10": {
+    "outcome": "fired",
+    "digest": "465c59fa"
   },
   "FLIPPER#0": {
     "outcome": "fired",
@@ -634,6 +646,10 @@
   "SUMMON#0": {
     "outcome": "fired",
     "digest": "08e62634"
+  },
+  "SUMMON2#0": {
+    "outcome": "fired",
+    "digest": "5ac1d7fa"
   },
   "SWAPPER#0": {
     "outcome": "fired",

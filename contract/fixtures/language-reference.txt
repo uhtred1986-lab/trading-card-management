@@ -3690,6 +3690,10 @@
       "words": "when this card goes from your deck or hand to the Drop"
     },
     {
+      "name": "deckToWarpBySkill",
+      "words": "when one of your skills sends this card from your deck to the Warp"
+    },
+    {
       "name": "restedByAlliance",
       "words": "when this card is rested by an [Alliance] skill"
     },
