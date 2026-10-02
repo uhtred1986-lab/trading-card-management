@@ -50,7 +50,7 @@ import { answered } from "./flow";
 import { predicateOf } from "./filters";
 import { vmHost } from "./host";
 import { keywordRefusalCond, keywordWords } from "./keyword-do";
-import { attrsNow, forbiddenBy } from "./program";
+import { attrsNow, forbiddenBy, readingBoard } from "./program";
 import { SETUP_ZONES } from "./zones";
 import type { VmState } from "./state";
 
@@ -130,6 +130,12 @@ export function actionsAt(game: GameDefinition, state: VmState): ActionDef[] {
  * about.
  */
 export function candidatesOf(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId): Candidate[] {
+  // Asked in the middle of `apply` as well as for a menu, and it only reads:
+  // the statics it asks for over and over are the same throughout (`readingBoard`).
+  return readingBoard(ctx, game, state, () => candidatesOnBoard(ctx, game, state, def, player));
+}
+
+function candidatesOnBoard(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId): Candidate[] {
   if (def.decline !== undefined && def.for === undefined) {
     throw new RulesetBroken(state.game, `DEFINE ACTION ${JSON.stringify(def.name)} declines with no FOR, and a move about no card is already the answer that takes nothing`);
   }

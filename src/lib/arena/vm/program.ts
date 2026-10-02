@@ -152,6 +152,8 @@ let staticsScope: StaticsScope | null = null;
 /** Run one read-only question about `state` with its statics read once. The state must not be changed in place while `read` runs. */
 export function readingBoard<T>(ctx: EngineContext, game: GameDefinition, state: VmState, read: () => T): T {
   const outer = staticsScope;
+  // Already inside a reading of this very board: its statics are this one's.
+  if (outer && outer.state === state && outer.ctx === ctx && outer.game === game) return read();
   staticsScope = { state, ctx, game, standing: null };
   try {
     return read();
