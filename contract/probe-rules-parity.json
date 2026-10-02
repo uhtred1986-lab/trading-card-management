@@ -452,6 +452,28 @@
     },
     "same": true
   },
+  "DN-COUNTER#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "cc4f7a36"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "cc4f7a36"
+    },
+    "same": true
+  },
+  "DN-HOST#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "357d2d9e"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "357d2d9e"
+    },
+    "same": true
+  },
   "DOWNALL#0": {
     "legacy": {
       "outcome": "inForce",
@@ -821,14 +843,13 @@
   "GRAVE#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "13cd596c"
+      "digest": "fe91e119"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "6d2e9b52"
+      "digest": "fe91e119"
     },
-    "same": false,
-    "cause": "legacy-habits"
+    "same": true
   },
   "GRUDGE#0": {
     "legacy": {

@@ -381,6 +381,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   originalPowerMin: { originalPowerMin: 15000 },
   originalPowerMax: { originalPowerMax: 10000 },
   originallySkillLess: { originallySkillLess: true },
+  comboPowerMin: { comboPowerMin: 5000 },
+  comboPowerMax: { comboPowerMax: 5000 },
   faceUp: { faceUp: true },
   powerRel: { powerRel: { of: "self", cmp: "<=" } },
   unreadable: { unreadable: true },
@@ -402,6 +404,9 @@ const CORPUS: CardDef[] = [
   card("ZED", { type: "Z-BATTLE", zEnergyCost: 2 }),
   card("RAINBOW", { colors: ["Red", "Blue"], energyCost: 4, power: 20000 }),
   card("MUTE", { skill: null, characters: [] }),
+  // 2-8: combo power either side of 5000, and none at all.
+  card("COMBO10K", { comboPower: 10000 }),
+  card("NOCOMBO", { comboPower: null }),
 ];
 
 for (const field of FILTER_FIELD_NAMES) {

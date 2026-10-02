@@ -39,6 +39,7 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   ignoringBarrier: (s) => (s.ignoreBarrier = true),
   otherThanSelf: (s) => (s.notSelf = "card"),
   otherThanCopies: (s) => (s.notSelf = "copies"),
+  differentNames: (s) => (s.differentNames = true),
   asPrinted: (s) => (s.printed = true),
 };
 

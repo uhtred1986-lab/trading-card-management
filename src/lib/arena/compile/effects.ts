@@ -1865,9 +1865,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Under another card (23-2). Not an area, so it is not in the table below.
   // Only "under this card" is read: any other host is an antecedent the
   // compiler would have to guess at, and a wrong guess moves the wrong card.
+  // A counted target is a choice first (`withChoice`): "place **up to 3**
+  // cards … from your Drop under this card" (BT29-030) handed the selector
+  // straight to the move, which takes every card it matches.
   if ((m = /^(?:place|put) (.+?) (?:face ?up )?under this card$/.exec(t))) {
     const ref = refFor(m[1], c);
-    return ref ? [{ op: "moveTo", target: ref, to: "under" }] : null;
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under" })) : null;
   }
   // The same stack said from the other end: this card ends up underneath.
   if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {

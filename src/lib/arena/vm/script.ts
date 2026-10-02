@@ -123,6 +123,17 @@ export interface Selector {
    */
   notSelf?: "card" | "copies";
   /**
+   * "Place up to 3 cards with 5000 combo power **and different card names**
+   * from your Drop under this card" (BT29-030): a constraint on the *set*
+   * rather than on any one card, so no filter can say it. A `choose` over it
+   * stops offering a card once one of the same name has been picked; a count
+   * over it ("4 or more ≪Bardock's Crew≫ cards with different card names in
+   * your energy", BT18-104) counts names, not cards (`selectedCount`).
+   * `resolveSelector` itself ignores it — every card stays a candidate until
+   * a namesake is chosen.
+   */
+  differentNames?: true;
+  /**
    * Only cards matching the description printed on the line this program
    * belongs to (`asPrinted`): [Evolve]{2}: <Nail> finds a <Nail>, [Swap 3]'s
    * "<Goku> with an energy cost of 3" a Goku of cost 3 (22-5, 22-22). A
@@ -133,6 +144,17 @@ export interface Selector {
    * writes it: the compiler reads a description into a filter itself.
    */
   printed?: true;
+}
+
+/**
+ * How many the cards a selector found are, as that selector counts them: one
+ * per card, or one per card name under `differentNames` ("4 or more
+ * ≪Bardock's Crew≫ cards with different card names in your energy",
+ * BT18-104). Both engines' `count` conditions and amounts read through this,
+ * so the two cannot count the same board differently.
+ */
+export function selectedCount(sel: Selector, ids: readonly string[], nameOf: (id: string) => string): number {
+  return sel.differentNames ? new Set(ids.map((id) => nameOf(id).toLowerCase())).size : ids.length;
 }
 
 /**
@@ -1471,11 +1493,20 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           return "wait";
         }
 
-        const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id));
+        // "…and different card names" (BT29-030): a card whose name is
+        // already among the picks is no longer on offer.
+        const nameKey = (id: string) => h.nameOf(id).toLowerCase();
+        const taken = new Set(op.sel.differentNames ? sofar.map(nameKey) : []);
+        const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)));
 
         const answer = h.lastChoice();
         if (answer && frame.awaiting === op.as) {
-          const picked = [...sofar, ...answer.filter((id) => cands.includes(id))];
+          const picked = [...sofar];
+          for (const id of answer) {
+            if (!cands.includes(id) || picked.includes(id)) continue;
+            if (op.sel.differentNames && picked.some((o) => nameKey(o) === nameKey(id))) continue;
+            picked.push(id);
+          }
           h.clearLastChoice();
           // A choice is made one card at a time (the board asks by tapping),
           // so a "choose 2" comes back here for the second card. Declining a
@@ -1498,7 +1529,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           break;
         }
         // Only ask when the answer can differ: a forced pick is taken silently.
-        if (!upTo && cands.length <= left) {
+        // Under "different card names" two namesakes among the candidates are
+        // a real choice between them, even when there are few enough to take.
+        const namesakes = !!op.sel.differentNames && new Set(cands.map(nameKey)).size < cands.length;
+        if (!upTo && !namesakes && cands.length <= left) {
           frame.awaiting = undefined;
           take([...sofar, ...cands]);
           break;
