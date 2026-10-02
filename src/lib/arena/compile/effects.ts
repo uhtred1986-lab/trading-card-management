@@ -532,19 +532,31 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // reached with the count and the effect still both in hand; every other
   // leading "for each" phrase in the catalog is still split apart on its own
   // and stays unread, same as before.
-  const lead = /^for (?:each|every) (markers?\s+on\s+.+?)\s*,\s*(.+)$/.exec(t);
-  const m = lead ? null : /^(.+?)\s+(?:for each|equal to the number of)\s+(.+)$/.exec(t);
+  //
+  // "For every 2 ≪Universe 2≫ cards in your Warp" (BT30-084) is the same count
+  // in whole steps of 2, rounded down — `Amount`'s `per` (2 Oct 2026). The
+  // step size is read off the front of the counted phrase in either form;
+  // "for each 1 energy you have" is a step of 1, which is no step at all.
+  const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?)\s*,\s*(.+)$/.exec(t);
+  const m = lead ? null : /^(.+?)\s+(for each|for every|equal to the number of)\s+(.+)$/.exec(t);
   if (!lead && !m) return null;
-  const headSrc = lead ? lead[2] : m![1];
+  const headSrc = lead ? lead[3] : m![1];
   // What is being counted ends at its noun. "…+6000 power for each card in
   // your energy **and [Triple Strike] for the duration of the battle**"
   // carries on about the card, not about what is counted, and taking the whole
   // tail as the counted phrase dropped the keyword and the duration in
   // silence — the power lasted the turn instead of the battle. The leading
   // form has no such tail: the comma already ends the counted phrase.
-  const cut = lead ? null : /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m![2]);
-  const counted = lead ? lead[1] : cut ? m![2].slice(0, cut.index) : m![2];
-  const tail = lead ? "" : cut ? m![2].slice(cut.index) : "";
+  const cut = lead ? null : /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m![3]);
+  const countedSrc = lead ? lead[2] : cut ? m![3].slice(0, cut.index) : m![3];
+  const tail = lead ? "" : cut ? m![3].slice(cut.index) : "";
+  // "Equal to the number of 2 …" says nothing, so only a "for each/every"
+  // phrase may lead with its step size.
+  const stepped = !lead && m![2] !== "equal to the number of" ? /^(\d+)\s+(.+)$/.exec(countedSrc) : null;
+  const counted = stepped ? stepped[2] : countedSrc;
+  const step = Number(lead ? (lead[1] ?? 1) : stepped ? stepped[1] : 1);
+  if (!Number.isInteger(step) || step < 1) return null;
+  const per = step > 1 ? { per: step } : {};
   // "For each marker on X" is a marker total, not a count of matching cards —
   // reading it as `count` asked how many cards are named "this card" (always
   // 1) and printed a flat bonus with no markers in it at all.
@@ -560,11 +572,11 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // A count (or a marker total) reads the whole area, not one card out of it.
   const broad: Selector = { ...sel, count: 99, upTo: false };
   const amountFor = (printed: number): Amount =>
-    markersOn ? { markers: broad, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...(printed === 1 ? {} : { times: printed }) };
+    markersOn ? { markers: broad, ...per, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...per, ...(printed === 1 ? {} : { times: printed }) };
   // "Draw cards equal to the number of …" prints no number at all, because the
   // count is the number. Only the trailing "equal to" form says this; the
   // leading marker form always prints a number to multiply.
-  if (!lead && /^draw cards?$/.test(headSrc)) return [{ op: "draw", n: { count: broad } }];
+  if (!lead && /^draw cards?$/.test(headSrc)) return [{ op: "draw", n: { count: broad, ...per } }];
   // The tail goes back on the head, where the patterns that read "and
   // [Keyword]" and the duration can see it.
   const head = compileClause(`${headSrc}${tail}`, c);
@@ -580,8 +592,9 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
  * not this shape, where the noun is the area itself and the "1" is the size of
  * each step rather than a multiplier.
  *
- * Any other number would mean *dividing* the count, which no amount can do, so
- * "for each 2 energy" is left unread rather than read as this.
+ * Any other number divides the count — "for each 2 energy" is a step of 2,
+ * `Amount`'s `per` — and `compileForEach` takes it off the front before this
+ * is asked, so a number still here is one nothing read.
  */
 function energyYouHave(counted: string): Selector | null {
   const m = /^(?:(\d+) )?energy (you have|your opponent has)$/.exec(counted);
@@ -786,7 +799,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // match on a word boundary rather than the end of the clause, so "gets
   // +5000 power for each card in your Drop" would otherwise read as a flat
   // +5000 and say nothing about having dropped the rest of the sentence.
-  if (/\bfor each\b|\bequal to the number of\b/.test(t)) {
+  if (/\bfor each\b|\bfor every\b|\bequal to the number of\b/.test(t)) {
     const counted = compileForEach(t, c);
     if (counted) return counted;
     // "For each marker on this card, **it** gets +5000 power" (EX19-21):
@@ -798,7 +811,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // be a marker total glued onto an effect (`PURE_FOREACH_MARKERS_ON_SELF`,
     // reattached above), a failure to compile the effect refuses the whole
     // clause rather than exposing that leftover phrase to anything else.
-    if (/^for (?:each|every) markers? on this card\s*,/.test(t)) return null;
+    if (/^for (?:each|every) (?:\d+ )?markers? on this card\s*,/.test(t)) return null;
   }
 
   // 20-13 (#278). "You skip your Offense Step" / "your opponent skips their
@@ -1248,7 +1261,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       { op: "costReduction", target: ref, amount: flat, what: "zEnergy" as const, until },
     ];
   }
-  if ((m = /^(reduce|increase|decrease) the ((?:energy|skill|evolve|combo|z-energy) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
+  if ((m = /^(reduce|increase|decrease) the ((?:energy|skill|evolve|combo|z-energy) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for (?:each|every) (?:(\d+) )?(.+))?$/.exec(qq))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
     // effect with the sign turned round; "decrease" already reads as "reduce".
@@ -1256,7 +1269,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const kindWord = m[2];
     const targetText = m[3];
     const amountText = m[4];
-    const perText = m[5];
+    // "…by 1 for every 2 ≪Saiyan≫ cards" (BT13-076): whole steps of 2.
+    const perStepOf = m[5] === undefined ? 1 : Number(m[5]);
+    const perText = m[6];
     // The area the phrase names is part of the target, not noise: a reducer
     // for cards "in your hand" that selects cards in play does nothing at all,
     // which is what stripping it here used to produce.
@@ -1292,7 +1307,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (perText) {
       const per = parseTarget(perText);
       if (!per) return null;
-      by = { count: { ...per, count: undefined, upTo: undefined }, ...(flat === 1 ? {} : { times: flat }) };
+      by = { count: { ...per, count: undefined, upTo: undefined }, ...(perStepOf > 1 ? { per: perStepOf } : {}), ...(flat === 1 ? {} : { times: flat }) };
     }
     // The duration is read off the printed clause, not the qualifier-stripped
     // one: "…for the duration of the turn" is exactly what `stripQualifiers`
@@ -2468,7 +2483,7 @@ const PURE_DURATION =
  * today, so merging their clause the same way would only change which text
  * shows up unread, not whether it reads — left split, as before.
  */
-const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) markers? on this card[.,]?$/i;
+const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) (?:\d+ )?markers? on this card[.,]?$/i;
 /** The two halves of the copied-skill wording (20-18); see the merge in `compileClauseList`. */
 const COPY_SKILL_CHOICE = /^choose (?:up to )?\d+ (?:of (?:the )?.+?'s (?:keyword )?skills?|(?:keyword )?skills? (?:on|of|from|in) .+?)[.,]?$/i;
 const GAINS_THAT_SKILL = /^.*?\bgains? that skill\b/i;

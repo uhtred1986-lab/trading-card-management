@@ -431,6 +431,33 @@ import {
   assert.equal(powerIn(CTX, s, pile), base + 10000, "two cards under it, +10000");
 }
 
+{
+  // "For every 2" (BT30-084's wording, 2 Oct 2026): whole steps of 2, rounded
+  // down, on whichever engine the harness runs. Five matching cards in the
+  // Warp are two steps, +10000 — never +12500 and never the +25000 that
+  // reading it as "for each" would give. A card without the trait is not
+  // counted at all.
+  DEFS.U2 = { ...DEFS.V1, id: "U2", name: "U2", traits: ["Universe 2"] };
+  DEFS.EVERY2 = { ...DEFS.V1, id: "EVERY2", name: "EVERY2", skill: "[Permanent] This card gets +5000 power for every 2 ≪Universe 2≫ cards in your Warp." };
+  const s = stagedG({ battle: ["EVERY2"] });
+  const every = zoneOf(s, "p1", "battle")[0];
+  const base = powerIn(CTX, s, every);
+  const warp = (n: number, cardId: string) => {
+    for (const id of zoneOf(s, "p1", "deck").slice(0, n)) {
+      s.cards[id].cardId = cardId;
+      moveG(s, id, "warp", "p1");
+    }
+  };
+  warp(1, "U2");
+  assert.equal(powerIn(CTX, s, every), base, "one card is no whole step of 2");
+  warp(1, "V1");
+  assert.equal(powerIn(CTX, s, every), base, "a card without the trait is not counted");
+  warp(4, "U2");
+  assert.equal(powerIn(CTX, s, every), base + 10000, "five ≪Universe 2≫ cards are two steps of 2: +10000");
+  warp(1, "U2");
+  assert.equal(powerIn(CTX, s, every), base + 15000, "six are three");
+}
+
 // ── what a replacement replaces (9-10) ─────────────────────────────────────
 
 {

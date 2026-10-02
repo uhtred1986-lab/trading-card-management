@@ -239,6 +239,10 @@
     "outcome": "didNotFire",
     "digest": "16bdaa6b"
   },
+  "EVERY2#0": {
+    "outcome": "inForce",
+    "digest": "1a31b1b4"
+  },
   "EVO#0": {
     "outcome": "fired",
     "digest": "c84aadcf"

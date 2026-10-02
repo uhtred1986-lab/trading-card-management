@@ -71,7 +71,7 @@ THEN   := "THEN" ( stmt )*                         one per line
 stmt   := name "(" ( value | field ":" value ) ( "," field ":" value )* ")"
 cond   := comparison | name "(" … ")" | "NOT" cond | cond "AND" cond | cond "OR" cond | "(" cond ")"
 expr   := term ( ( "+" | "-" ) number )*           left-associative; the right side is always printed
-term   := number | "$" name | call ( "*" number )?
+term   := number | "$" name | call ( "/" number )? ( "*" number )?   "/" on count, markers, life
 call   := "count" "(" SEL ")" | "markers" "(" SEL ")" | "sumPower" "(" "$" name ")"
         | "handUpTo" "(" number ")" | "X" | "life" "(" side ")"
         | "attr" "(" REF "," attr ")" | "sumOf" "(" SEL "," attr ")"
@@ -105,6 +105,15 @@ the effect that follows it, which is how "discard any number of cards: … X car
 
 The right-hand side of `*`, `+` and `-` is always a printed number. No card multiplies one reading of the
 board by another, and allowing it would leave the printed form ambiguous about which was read first.
+
+**`/ n` is "for every n", rounded down** (2 Oct 2026). `count(SEL) / 2 * 5000` is BT30-084's
+"+5000 power for every 2 ≪Universe 2≫ cards in your Warp": the reading in whole steps of 2, then
+5000 for each step, so five cards are two steps and +10000 — the remainder never counts. It is
+stored as `per` beside `times` (`{"count": …, "per": 2, "times": 5000}`), it is written only on
+`count`, `markers` and `life`, the readings a card says "for every n" of, and it is always a whole
+number of at least 2: `validateRule` refuses `per: 1` (it says nothing) and anything that is not a
+whole number. The divisor comes before the multiplier because that is the order both engines apply
+them in; there is no general division, only this step.
 
 `PAYWITH` names cards this price may be settled with instead of energy (20-19). Each one is rested
 exactly as an energy card is and never moves, standing in for one energy — of its own colours

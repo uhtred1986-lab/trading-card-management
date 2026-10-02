@@ -756,7 +756,7 @@
         }
       ],
       "sentence": "this card +1 power for the turn",
-      "doc": "an amount may also be {\"count\":SELECTOR,\"times\":5000} (so much for each card), {\"sumPower\":{\"var\":\"rested\"}} (the total power of named cards) or {\"sumOf\":SELECTOR,\"attr\":\"comboPower\"} (any measure of them, added up)"
+      "doc": "an amount may also be {\"count\":SELECTOR,\"times\":5000} (so much for each card; add \"per\":2 for \"for every 2 cards\", rounded down), {\"sumPower\":{\"var\":\"rested\"}} (the total power of named cards) or {\"sumOf\":SELECTOR,\"attr\":\"comboPower\"} (any measure of them, added up)"
     },
     {
       "name": "comboPower",
@@ -3345,7 +3345,7 @@
         "selector"
       ],
       "example": "count(SELECTOR)",
-      "maxExample": "count(SELECTOR) * 5000"
+      "maxExample": "count(SELECTOR) / 2 * 5000"
     },
     {
       "key": "markers",
@@ -3354,7 +3354,7 @@
         "selector"
       ],
       "example": "markers(SELECTOR)",
-      "maxExample": "markers(SELECTOR) * 5000"
+      "maxExample": "markers(SELECTOR) / 2 * 5000"
     },
     {
       "key": "sumPower",
@@ -3386,7 +3386,7 @@
         "side"
       ],
       "example": "life(you)",
-      "maxExample": "life(both) * 2"
+      "maxExample": "life(both) / 2 * 2"
     },
     {
       "key": "attr",

@@ -541,6 +541,7 @@ class Parser {
         out[fields[i]] = this.amountArg(kind);
       });
       if (spec.args.length) this.want(")");
+      if (spec.per && this.eatPunct("/")) out.per = this.number();
       if (spec.times && this.eatPunct("*")) out.times = this.number();
       return out as Amount;
     }

@@ -153,6 +153,13 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     { x: true, times: 1000 },
     { life: "you" },
     { life: "both", times: 2 },
+    // "For every 2" (2 Oct 2026): divided first, then multiplied — with and
+    // without a multiplier, on each of the three shapes that take it.
+    { count: { side: "you", area: "warp", count: 99 }, per: 2, times: 5000 },
+    { count: { side: "you", area: "drop", count: 99 }, per: 3 },
+    { markers: { special: "self" }, per: 2, times: 5000 },
+    { life: "you", per: 2 },
+    { plus: [{ count: { side: "you", area: "warp", count: 99 }, per: 2 }, 1] },
     { attr: { var: "t" }, name: "energyCost" },
     { attr: { sel: { special: "self" } }, name: "power", times: 1000 },
     // "The attacking card's original power" (20-3-1, BT19-129): the printed
@@ -182,17 +189,37 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
         if (fields.every((f) => f in (a as Record<string, unknown>))) {
           written.add(spec.key);
           if (spec.times && "times" in (a as Record<string, unknown>)) written.add(`${spec.key}*`);
+          if (spec.per && "per" in (a as Record<string, unknown>)) written.add(`${spec.key}/`);
           return;
         }
       }
     };
     AMOUNTS.forEach(mark);
-    const wanted = EXPR_SCHEMA.flatMap((spec) => [spec.key, ...(spec.times ? [`${spec.key}*`] : [])]);
+    const wanted = EXPR_SCHEMA.flatMap((spec) => [spec.key, ...(spec.times ? [`${spec.key}*`] : []), ...(spec.per ? [`${spec.key}/`] : [])]);
     assert.deepEqual(
       wanted.filter((k) => !written.has(k)),
       [],
-      "every EXPR_SCHEMA row, with and without its multiplier, is round-tripped above",
+      "every EXPR_SCHEMA row, with and without its multiplier and its divisor, is round-tripped above",
     );
+  }
+
+  // The divisor's spelling, read and printed: `/ n` before `* n`, the order
+  // the engines apply them in.
+  {
+    const src = "WHEN [permanent]\nTHEN\n  power(target: [self], amount: count(99 IN you.warp) / 2 * 5000, until: game)";
+    const r = parseRule(src);
+    assert.ok(r.ok, r.ok ? "" : r.error.message);
+    assert.deepEqual((r.value.ops[0] as { amount: unknown }).amount, { count: { side: "you", area: "warp", count: 99 }, per: 2, times: 5000 }, "count(…) / 2 * 5000");
+    assert.equal(printRule(r.value), src, "and it prints back the same");
+    // The validator holds a divisor to a whole number of at least 2, on the
+    // shapes that take one, inside a sum as well.
+    const valid = (amount: unknown) =>
+      validateRule({ kind: "permanent", trigger: [], cost: null, cond: null, ops: [{ op: "power", target: { sel: { special: "self" } }, amount, until: "game" }] }, "permanent");
+    assert.equal(valid({ count: { side: "you", area: "warp", count: 99 }, per: 2, times: 5000 }), null);
+    assert.equal(valid({ plus: [{ life: "you", per: 2 }, 1] }), null);
+    for (const per of [0, 1, 1.5, -2, "2"]) assert.equal(valid({ count: { side: "you", area: "warp", count: 99 }, per })?.field, "ops", `per: ${JSON.stringify(per)} is refused`);
+    assert.equal(valid({ attr: { var: "t" }, name: "power", per: 2 })?.field, "ops", "attr takes no divisor");
+    assert.equal(valid({ plus: [{ count: { side: "you", area: "warp", count: 99 }, per: 1 }, 1] })?.field, "ops", "the divisor is checked inside a sum too");
   }
 
   // 20-5: the price that binds X, minimal and with both its bounds.
