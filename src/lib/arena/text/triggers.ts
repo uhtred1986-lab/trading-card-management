@@ -286,8 +286,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // here or every combo card would fire twice.
     case "youCombo":
       return /when you (?:use a card in a combo|combo)\b/.test(t) && !/when you combo with this card/.test(t);
-    // 5-5: placed, not played. A card that says both is caught by `played`
-    // first, so this only ever adds the ones that say only this.
+    // 5-5-4: placed in a Battle Area, which a play is too (5-5-1, owner's
+    // ruling of 2 Oct 2026) — the engines fire it for both. A skill that says
+    // both this and `played` answers a play once (`vm/triggers.ts`,
+    // `engine/triggers.ts`'s `pendPlacedOnArrival`).
     case "placed":
       return /when this card is placed in (?:a|your|their|an opponent's) battle area/.test(t);
     case "energyToDrop":

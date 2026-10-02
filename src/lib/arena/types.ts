@@ -716,9 +716,10 @@ export type Trigger =
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**
-   * A card *placed* in a Battle Area rather than played (5-5): by a skill, by
-   * [Over Realm], by an Evolve. "When this card is played" does not cover it,
-   * and 30 cards say only the second.
+   * A card *placed* in a Battle Area (5-5-4): by a skill, by [Over Realm], by
+   * an Evolve, by its [Field] — and by being played, since 5-5-1 makes a play
+   * a placing (owner's ruling, 2 Oct 2026). "When this card is played" does
+   * not cover the rest, and 42 skills say only the second.
    */
   | "placed"
   | "energyToDrop"

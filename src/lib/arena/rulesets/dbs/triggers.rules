@@ -70,9 +70,12 @@ DEFINE TRIGGER opponentPlayed
   BIND "subject"
   text: "when your opponent plays a card"
 
--- §5-5-4 — when this card is placed in a Battle Area
+-- §5-5-4 — when this card is placed in a Battle Area. 5-5-1: playing a card
+-- places it in the Battle Area, so a play is one of the ways this happens and
+-- the pattern does not ask `asPlay` (owner's ruling, 2 Oct 2026). A skill whose
+-- record also says `played` answers the one arrival once (`vm/triggers.ts`).
 DEFINE TRIGGER placed
-  ON moved(asPlay: false, to: battle)
+  ON moved(to: battle)
   BIND "self"
   text: "when this card is placed in a Battle Area"
 
