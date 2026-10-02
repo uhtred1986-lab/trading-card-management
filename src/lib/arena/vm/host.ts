@@ -649,6 +649,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   removedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
   droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill" } },
   leftBattleToDrop: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
+  // 20-7: the hand's side of `droppedFromBattle`, pended by name from `moveTo`
+  // for a card a skill's effect or price took out of the hand.
+  droppedFromHand: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill" } },
   // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
   // first keyword to run one), and `triggers.rules` declares the moment.
   markerRemoved: { event: "markerRemoved", args: {} },

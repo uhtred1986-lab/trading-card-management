@@ -196,6 +196,16 @@ DEFINE TRIGGER droppedFromBattle
   BIND "self"
   text: "when a skill sends this card from a Battle Area to the Drop"
 
+-- §20-7 — when a skill sends this card from your hand to the Drop: a
+-- discard by a skill's effect or as its cost (1-6, 1-7-1, 20-7-4). Pended by
+-- name from a skill's own move, like `droppedFromBattle` above; a card leaving
+-- the hand by the rules (an Extra after it is activated, 12-2-2) says no
+-- `by: skill` and is not this.
+DEFINE TRIGGER droppedFromHand
+  ON moved(by: skill, from: hand, to: drop)
+  BIND "self"
+  text: "when a skill sends this card from your hand to the Drop"
+
 -- §3-1-5 — when this card goes from a Battle Area to the Drop
 DEFINE TRIGGER leftBattleToDrop
   ON moved(from: battle, to: drop)

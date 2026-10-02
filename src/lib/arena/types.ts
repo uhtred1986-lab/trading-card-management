@@ -658,6 +658,15 @@ export type Trigger =
   | "droppedFromBattle"
   /** The same sentence with no cause named, which is every cause: a skill and a battle KO alike. */
   | "leftBattleToDrop"
+  /**
+   * "When [or "If"] this card is placed in your Drop Area from your hand by a
+   * skill" (SD13-05, BT7-127, BT11-022): the hand's side of `droppedFromBattle`.
+   * A discard by a skill's effect or as a skill's cost (1-6, 1-7-1: the cost is
+   * part of the skill; 20-7-4: placing a card from the hand in the Drop is a
+   * discard), never a card leaving the hand by the rules — an Extra going to
+   * the Drop once it is activated (12-2-2) is not this.
+   */
+  | "droppedFromHand"
   /** "When your Leader Card is attacked" printed on a Battle Card (8-1). */
   | "yourLeaderAttacked"
   /** "When you take damage from an opponent's non-keyword skill" and its mirror (21-3). */
