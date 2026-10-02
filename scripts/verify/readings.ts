@@ -431,6 +431,33 @@ import {
   assert.equal(powerIn(CTX, s, pile), base + 10000, "two cards under it, +10000");
 }
 
+{
+  // "For every 2" (BT30-084's wording, 2 Oct 2026): whole steps of 2, rounded
+  // down, on whichever engine the harness runs. Five matching cards in the
+  // Warp are two steps, +10000 — never +12500 and never the +25000 that
+  // reading it as "for each" would give. A card without the trait is not
+  // counted at all.
+  DEFS.U2 = { ...DEFS.V1, id: "U2", name: "U2", traits: ["Universe 2"] };
+  DEFS.EVERY2 = { ...DEFS.V1, id: "EVERY2", name: "EVERY2", skill: "[Permanent] This card gets +5000 power for every 2 ≪Universe 2≫ cards in your Warp." };
+  const s = stagedG({ battle: ["EVERY2"] });
+  const every = zoneOf(s, "p1", "battle")[0];
+  const base = powerIn(CTX, s, every);
+  const warp = (n: number, cardId: string) => {
+    for (const id of zoneOf(s, "p1", "deck").slice(0, n)) {
+      s.cards[id].cardId = cardId;
+      moveG(s, id, "warp", "p1");
+    }
+  };
+  warp(1, "U2");
+  assert.equal(powerIn(CTX, s, every), base, "one card is no whole step of 2");
+  warp(1, "V1");
+  assert.equal(powerIn(CTX, s, every), base, "a card without the trait is not counted");
+  warp(4, "U2");
+  assert.equal(powerIn(CTX, s, every), base + 10000, "five ≪Universe 2≫ cards are two steps of 2: +10000");
+  warp(1, "U2");
+  assert.equal(powerIn(CTX, s, every), base + 15000, "six are three");
+}
+
 // ── what a replacement replaces (9-10) ─────────────────────────────────────
 
 {
@@ -997,6 +1024,54 @@ import {
   assert.ok(zoneOf(s, "p1", "battle").includes(sleeping), "it was placed");
   assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "SUMMON left the hand, the draw came in");
   assertConsistentG(s);
+}
+
+{
+  // 5-5-1: playing a card places it in the Battle Area, so "when this card is
+  // placed in a Battle Area" answers a play from the hand as well (owner's
+  // ruling, 2 Oct 2026) — once, not once as a play and again as a placing.
+  DEFS.ARRIVES2 = { ...DEFS.V1, id: "ARRIVES2", name: "ARRIVES2", energyCost: 1, skill: "[Auto] When this card is placed in a Battle Area, draw 1 card." };
+  let s = stagedG({ hand: ["ARRIVES2"], energy: ["V1"] });
+  const hand = zoneOf(s, "p1", "hand").length;
+  const card = findG(s, "p1", "hand", "ARRIVES2");
+  s = playG(s, { type: "play", player: "p1", card });
+  assert.ok(zoneOf(s, "p1", "battle").includes(card), "it was played");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "5-5-1: played is placed — one draw, not none and not two");
+  assertConsistentG(s);
+}
+
+{
+  // A skill that names both moments ("when you play this card or when this
+  // card is placed …") answers a play once: the play is the placing (5-5-1),
+  // one arrival. Placed by a skill, it answers once as well.
+  DEFS.BOTHWAYS = {
+    ...DEFS.V1,
+    id: "BOTHWAYS",
+    name: "BOTHWAYS",
+    energyCost: 1,
+    characters: ["BOTHWAYS"],
+    skill: "[Auto] When you play this card or when this card is placed in a Battle Area, draw 1 card.",
+  };
+  const sk = parseSkills(DEFS.BOTHWAYS.skill!)[0];
+  assert.ok(autoTriggerMatches(sk, "played") && autoTriggerMatches(sk, "placed"), "the fixture names both moments");
+
+  let s = stagedG({ hand: ["BOTHWAYS"], energy: ["V1"] });
+  const hand = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "BOTHWAYS") });
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "played: one draw for one arrival");
+  assertConsistentG(s);
+
+  DEFS.SUMMON2 = { ...DEFS.V1, id: "SUMMON2", name: "SUMMON2", energyCost: 1, skill: "[Auto] When you play this card, place up to 1 <BOTHWAYS> card from your Drop into your Battle Area." };
+  let t = stagedG({ hand: ["SUMMON2"], energy: ["V1"] });
+  const sleeping = zoneOf(t, "p1", "deck").find((id) => t.cards[id].cardId === "V1")!;
+  t.cards[sleeping].cardId = "BOTHWAYS";
+  moveG(t, sleeping, "drop", "p1");
+  const before = zoneOf(t, "p1", "hand").length;
+  t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "SUMMON2") });
+  if (t.prompt.kind === "chooseCards") t = playG(t, { type: "choose", player: "p1", cards: [sleeping] });
+  assert.ok(zoneOf(t, "p1", "battle").includes(sleeping), "it was placed");
+  assert.equal(zoneOf(t, "p1", "hand").length, before - 1 + 1, "placed by a skill: one draw");
+  assertConsistentG(t);
 }
 
 {

@@ -342,7 +342,7 @@ AMOUNT is a number or an expression: {"var":"t"} (how many cards that name holds
   {"markers":SELECTOR,"times":N} (so much for each marker on them), {"life":${sides},"times":N}, {"sumPower":{"var":"t"}}, {"handUpTo":N},
   {"x":true,"times":N} (the X this skill's price was paid at — only where the price charges an X), {"attr":TARGET,"name":ATTR,"times":N} (one card's own measure),
   {"sumOf":SELECTOR,"attr":ATTR,"times":N} (that measure over every matching card, added up), or {"plus":[AMOUNT,N]} (that many and N more).
-  "times" multiplies; ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
+  "times" multiplies; on count, markers and life "per":N divides first, rounded down ("for every 2 cards": {"count":SELECTOR,"per":2,"times":5000}); ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
 SELECTOR: {"side":${sides},"area":${areas},"count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}

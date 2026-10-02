@@ -353,7 +353,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // count is not read, so it is not said either.
       if (op.atMost !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
+        const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined && op.atMost.per === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
         return `choose any number of ${cards}, up to ${bound}`;
       }
       return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
@@ -481,7 +481,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   power: {
     fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL],
     sentence: "{target} {amount:power}{until}",
-    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)',
+    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card; add "per":2 for "for every 2 cards", rounded down), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)',
   },
   comboPower: { fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL], sentence: "{target} {amount:combo power}{until}" },
   grant: { fields: [TARGET, { name: "keyword", type: "keyword", required: true }, UNTIL], sentence: "{target} gains [{keyword}]{until}" },
@@ -1607,6 +1607,20 @@ function readsUnboundX(v: unknown, xBound: boolean): boolean {
   return Array.isArray(a.plus) && readsUnboundX(a.plus[0], xBound);
 }
 
+/**
+ * A `per` divides a reading into whole steps (2 Oct 2026), so it is a whole
+ * number of at least 2 — 1 says nothing a missing `per` doesn't, and 0 or a
+ * fraction is a division the rule manual's rounding has no answer for. Walked
+ * through `plus` the same way `readsUnboundX` is.
+ */
+function perHolds(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return true;
+  const a = v as Record<string, unknown>;
+  if (Array.isArray(a.plus)) return perHolds(a.plus[0]);
+  if (a.per === undefined) return true;
+  return ("count" in a || "markers" in a || "life" in a) && Number.isInteger(a.per) && (a.per as number) >= 2;
+}
+
 function selectorHolds(v: unknown): boolean {
   if (typeof v !== "object" || v === null) return false;
   const special = (v as { special?: unknown }).special;
@@ -1639,6 +1653,7 @@ function fieldHolds(type: FieldType, v: unknown, depth: number, xBound: boolean)
   switch (type) {
     case "amount":
       if (readsUnboundX(v, xBound)) return false;
+      if (!perHolds(v)) return false;
       return typeof v === "number" || (typeof v === "object" && v !== null);
     // A ref is a bound name or a selector — a bare selector written where a
     // ref belongs ({"special":"self"} for {"sel":{"special":"self"}}) is the
@@ -1996,10 +2011,10 @@ function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
     if ("plus" in a) return `${describeAmount(a.plus[0], noun)} and ${a.plus[1] < 0 ? `${-a.plus[1]} less` : `${a.plus[1]} more`}`;
-    if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
-    if ("markers" in a) return `+${a.times ?? 1} ${noun} for each marker on ${describeEach(a.markers)}`;
+    if ("count" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per)} of ${describeEach(a.count)}`;
+    if ("markers" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
     if ("x" in a) return a.times === undefined ? `+X ${noun}` : `+${a.times} ${noun} for each X`;
-    if ("life" in a) return `+${a.times ?? 1} ${noun} for each life ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+    if ("life" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
     if ("sumOf" in a) return `${noun} equal to the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
     if ("attr" in a) return `${noun} equal to ${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
     return `+that many ${noun}`;
@@ -2010,11 +2025,17 @@ function describeAmount(a: Amount, noun?: string): string {
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
   if ("x" in a) return a.times === undefined ? "X" : `${a.times} for each X`;
-  if ("life" in a) return `${a.times ?? 1} for each life ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+  if ("life" in a) return `${a.times ?? 1} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
   if ("sumOf" in a) return `the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
   if ("attr" in a) return `${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
-  if ("markers" in a) return `${a.times ?? 1} for each marker on ${describeEach(a.markers)}`;
-  return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
+  if ("markers" in a) return `${a.times ?? 1} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
+  return `${a.times ?? 1} ${forEvery(a.per)} of ${describeEach(a.count)}`;
+}
+
+/** "for each marker", or "for every 2 markers" when the reading is divided (`Amount`'s `per`). */
+function forEvery(per: number | undefined, noun?: string, plural = `${noun}s`): string {
+  if (!per || per < 2) return noun ? `for each ${noun}` : "for each";
+  return noun ? `for every ${per} ${plural}` : `for every ${per}`;
 }
 
 /** The area as a person would name it, for "for each of your Battle Cards". */

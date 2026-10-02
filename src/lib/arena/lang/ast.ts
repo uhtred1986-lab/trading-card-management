@@ -175,7 +175,9 @@ export type ExprArg = "selector" | "var" | "number" | "side" | "ref" | "attr";
  * interpreter narrows on — and `args` names the fields in the order they are
  * written between the brackets, so `attr($c0, energyCost)` is `{attr: REF,
  * name: "energyCost"}` with `args: ["ref", "attr"]` and `fields: ["attr",
- * "name"]`. `times` says the call may be followed by `* n`.
+ * "name"]`. `times` says the call may be followed by `* n`, and `per` that it
+ * may be divided first, `/ n` — "for every 2 of them", rounded down, so
+ * `count(SEL) / 2 * 5000` is +5000 for each whole pair (2 Oct 2026).
  *
  * The three shapes with no call of their own — a bare number, `$var` and the
  * `+ n` sum — are not in the table: they are the grammar's literals and its
@@ -190,6 +192,8 @@ export interface ExprSpec {
   /** The object keys the arguments land in, positionally. Defaults to `[key]` for a one-argument call. */
   fields?: string[];
   times?: true;
+  /** May be followed by `/ n` before its `* n`: the reading in whole steps of n, rounded down (`Amount`'s `per`). */
+  per?: true;
   /** How it reads with nothing optional, and with everything. The round-trip suite asserts both. */
   example: string;
   maxExample?: string;
@@ -201,12 +205,12 @@ export interface ExprSpec {
  * so a shape added to `Amount` is one row here and no new parsing.
  */
 export const EXPR_SCHEMA: ExprSpec[] = [
-  { key: "count", call: "count", args: ["selector"], times: true, example: "count(SELECTOR)", maxExample: "count(SELECTOR) * 5000" },
-  { key: "markers", call: "markers", args: ["selector"], times: true, example: "markers(SELECTOR)", maxExample: "markers(SELECTOR) * 5000" },
+  { key: "count", call: "count", args: ["selector"], times: true, per: true, example: "count(SELECTOR)", maxExample: "count(SELECTOR) / 2 * 5000" },
+  { key: "markers", call: "markers", args: ["selector"], times: true, per: true, example: "markers(SELECTOR)", maxExample: "markers(SELECTOR) / 2 * 5000" },
   { key: "sumPower", call: "sumPower", args: ["var"], example: "sumPower($rested)" },
   { key: "handUpTo", call: "handUpTo", args: ["number"], example: "handUpTo(4)" },
   { key: "x", call: "X", args: [], times: true, example: "X", maxExample: "X * 1000" },
-  { key: "life", call: "life", args: ["side"], times: true, example: "life(you)", maxExample: "life(both) * 2" },
+  { key: "life", call: "life", args: ["side"], times: true, per: true, example: "life(you)", maxExample: "life(both) / 2 * 2" },
   { key: "attr", call: "attr", args: ["ref", "attr"], fields: ["attr", "name"], times: true, example: "attr($t, energyCost)", maxExample: "attr($t, energyCost) * 1000" },
   { key: "sumOf", call: "sumOf", args: ["selector", "attr"], fields: ["sumOf", "attr"], times: true, example: "sumOf(SELECTOR, comboPower)", maxExample: "sumOf(SELECTOR, comboPower) * 2" },
 ];
