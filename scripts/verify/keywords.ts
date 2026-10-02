@@ -1175,6 +1175,30 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
     assertConsistentG(s);
   }
   delete DEFS.YOUWATCH;
+
+  // A {name} is one word: "When you play a {Son Goku, Joined by Destiny}"
+  // (P-526). Its comma and its "by" cut the name in half, and the trigger
+  // fired for any card played.
+  const NAMED = "[Auto] When you play a {Son Goku, Joined by Destiny}, draw 1 card.";
+  const named = JSON.parse(JSON.stringify(compileSkill(parseSkills(NAMED)[0]).ops));
+  assert.equal(named[0].op, "if");
+  assert.deepEqual(named[0].cond.sel.filter.names, ["son goku, joined by destiny"]);
+  assert.ok(autoTriggerMatches(parseSkills("[Auto] When your {Pan, Proudest Daughter} is played in your Battle Area, draw 1 card.")[0], "youPlayed"), "TB2-029: the passive wording with a comma in the name");
+  DEFS.JBD = { ...DEFS.V1, id: "JBD", name: "Son Goku, Joined by Destiny", characters: ["Son Goku"] };
+  DEFS.NAMEWATCH = { ...DEFS.V1, id: "NAMEWATCH", name: "NAMEWATCH", skill: NAMED };
+  for (const [played, fires] of [
+    ["JBD", true],
+    ["V1", false],
+  ] as const) {
+    let s = arenaG({ hand: [played], energy: ["V1"], battle: ["NAMEWATCH"] });
+    const hand = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", played) });
+    assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + (fires ? 1 : 0), `{Son Goku, Joined by Destiny}, ${played}: the watcher ${fires ? "draws" : "does not draw"}`);
+    assert.equal(s.prompt.kind, "main");
+    assertConsistentG(s);
+  }
+  delete DEFS.JBD;
+  delete DEFS.NAMEWATCH;
 }
 
 {

@@ -732,6 +732,23 @@ export function hasTrait(def: CardDef, name: string): boolean {
 const TIMING_PHRASE = /at the (?:beginning|start|end) of (?:(?:you|your) (?:and|or) your opponent'?s|each player'?s|your opponent'?s|your|the|this|a) (?:next )?(?:turns?|battle|charge phase|main phases?|offense step|defense step|damage step)/;
 
 /**
+ * A card name in braces, held as one word while a sentence is read for its
+ * shape: “When you play a {Son Goku, Joined by Destiny}” (P-526). The comma
+ * and the “by” belong to the name, and a reader that stops at a comma — or
+ * strips “by …” as a means — cut the name in half: the trigger lost its card
+ * and fired for any card played. `clauses.ts`'s `splitClauses` already counts
+ * braces; the trigger readers and `subjectFilterOf` read with regexes, so they
+ * read the masked text and put the names back afterwards.
+ *
+ * Only {…}: no ≪trait≫ or <character> in the catalog carries a comma.
+ */
+export function maskNames(text: string): { text: string; unmask: (s: string) => string } {
+  const names: string[] = [];
+  const masked = text.replace(/\{[^{}]*\}/g, (m) => `{${names.push(m) - 1}}`);
+  return { text: masked, unmask: (s) => s.replace(/\{(\d+)\}/g, (m, i) => names[Number(i)] ?? m) };
+}
+
+/**
  * The head of a skill's effect: where a trigger has to be printed.
  *
  * A validity condition may come before it rather than before the colon — “If
