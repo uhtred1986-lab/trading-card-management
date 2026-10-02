@@ -6,11 +6,21 @@ import type { Game } from "@/lib/catalog/games";
 import { sameKeyword } from "@/lib/decks/cardRules";
 import type { Currency } from "@/lib/money";
 import { latestUsdEur } from "@/lib/pricing/fx";
-import { basePricesAsOf, priceForFinish, pricesForPrints } from "@/lib/pricing/queries";
+import { basePricesAsOf, priceForFinish, pricesForPrints, type PriceSource } from "@/lib/pricing/queries";
 
-export const CONDITIONS = ["NM", "LP", "MP", "HP", "DMG"] as const;
-export const FINISHES = ["normal", "foil"] as const;
-export const LANGUAGES = ["EN", "JP", "DE", "FR", "IT", "ES", "PT", "KR", "ZH"] as const;
+/**
+ * Where a valuation reads its prices (`PriceSource`): straight from the
+ * database unless the caller says otherwise. A page passes the cached reads
+ * (`@/lib/cache/reads`'s `cachedPriceSource`), which hold until the next
+ * price sync; this module cannot import them itself, because it also runs
+ * against PGlite in `npm test`, where `@/db` must never be reached.
+ */
+const pricesFrom = (db: Db): PriceSource => ({ usdEur: () => latestUsdEur(db), prices: (ids) => pricesForPrints(db, ids), pricesAsOf: (ids, asOf) => basePricesAsOf(db, ids, asOf) });
+
+/** The distinct prints of some lots, sorted so the same collection asks the same question (a cache key). */
+const printIdsOf = (lots: { printId: string }[]) => [...new Set(lots.map((l) => l.printId))].sort();
+
+export { CONDITIONS, FINISHES, LANGUAGES } from "./constants";
 
 /** Owners already used somewhere in the collection, for the card page's picker. */
 export async function knownOwners(db: Db): Promise<string[]> {
@@ -68,7 +78,8 @@ export type ValuedCollection = { lots: ValuedLot[]; usdEur: number | null };
  * `game` narrows to one game's cards, which is what makes the collection
  * header's totals agree with the filter above the grid.
  */
-export async function valuedLots(db: Db, opts: { game?: Game } = {}): Promise<ValuedCollection> {
+export async function valuedLots(db: Db, opts: { game?: Game; prices?: PriceSource } = {}): Promise<ValuedCollection> {
+  const source = opts.prices ?? pricesFrom(db);
   const [lots, usdEur] = await Promise.all([
     db
       .select({
@@ -83,9 +94,9 @@ export async function valuedLots(db: Db, opts: { game?: Game } = {}): Promise<Va
       })
       .from(ownedCards)
       .where(and(isNull(ownedCards.archivedAt), opts.game ? sql`exists (select 1 from ${cards} c where c.id = ${ownedCards.cardId} and c.game = ${opts.game})` : undefined)),
-    latestUsdEur(db),
+    source.usdEur(),
   ]);
-  const prices = await pricesForPrints(db, [...new Set(lots.map((l) => l.printId))]);
+  const prices = await source.prices(printIdsOf(lots));
   return {
     usdEur,
     lots: lots.map((l) => {
@@ -334,7 +345,10 @@ export async function collectionCopies(
     owner?: string;
     sort?: "value" | "name" | "number" | "recent";
   } = {},
+  /** Where the prices come from — see `PriceSource`. */
+  priceSource?: PriceSource,
 ): Promise<{ rows: CollectionCopy[]; usdEur: number | null }> {
+  const source = priceSource ?? pricesFrom(db);
   const [lots, usdEur] = await Promise.all([
     db
       .select({
@@ -373,10 +387,10 @@ export async function collectionCopies(
       .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
       .leftJoin(storageLocations, eq(storageLocations.id, ownedCards.locationId))
       .where(isNull(ownedCards.archivedAt)),
-    latestUsdEur(db),
+    source.usdEur(),
   ]);
 
-  const prices = await pricesForPrints(db, [...new Set(lots.map((l) => l.printId))]);
+  const prices = await source.prices(printIdsOf(lots));
   let rows = lots.map((l) => {
     const usd = priceForFinish(prices.get(l.printId), l.finish);
     return {
@@ -503,16 +517,17 @@ export async function archivedCopies(db: Db): Promise<ArchivedCopy[]> {
 }
 
 /** Value now vs. N days ago for owned cards, base-print Normal price. */
-export async function movers(db: Db, days = 7, limit = 8, pre?: ValuedCollection) {
+export async function movers(db: Db, days = 7, limit = 8, pre?: ValuedCollection, priceSource?: PriceSource) {
   // `pre` must be the unfiltered `valuedLots(db)`.
-  const { lots, usdEur } = pre ?? (await valuedLots(db));
+  const source = priceSource ?? pricesFrom(db);
+  const { lots, usdEur } = pre ?? (await valuedLots(db, { prices: source }));
   const qty = new Map<string, number>();
   for (const l of lots) qty.set(l.cardId, (qty.get(l.cardId) ?? 0) + 1);
-  const ids = [...qty.keys()];
+  const ids = [...qty.keys()].sort();
   if (ids.length === 0) return { rows: [], usdEur, days };
 
   const asOf = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
-  const [now, then] = await Promise.all([basePricesAsOf(db, ids, new Date().toISOString().slice(0, 10)), basePricesAsOf(db, ids, asOf)]);
+  const [now, then] = await Promise.all([source.pricesAsOf(ids, new Date().toISOString().slice(0, 10)), source.pricesAsOf(ids, asOf)]);
   const rows: { cardId: string; nowUsd: number; thenUsd: number; deltaUsd: number; pct: number; qty: number }[] = [];
   for (const id of ids) {
     const a = then.get(id);

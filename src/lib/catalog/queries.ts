@@ -43,8 +43,11 @@ export function searchTerms(q: string): string[] {
     .slice(0, 6);
 }
 
-/** Cards carrying a §22 keyword ability, found in TS since it reads bracket text rather than a column. */
-async function cardIdsWithAbility(db: Db, ability: string, game?: Game): Promise<string[]> {
+/**
+ * Cards carrying a §22 keyword ability, found in TS since it reads bracket text rather than a column.
+ * It reads every card's skill text to answer, so a page asks the cached copy (`@/lib/cache/reads`).
+ */
+export async function cardIdsWithAbility(db: Db, ability: string, game?: Game): Promise<string[]> {
   const rows = await db
     .select({ id: cards.id, skill: cards.skill, backSkill: cards.backSkill })
     .from(cards)
@@ -70,10 +73,11 @@ function whereFor(s: CardSearch, abilityIds?: string[]): SQL | undefined {
 /** Natural ordering: set sort key, then number so BT1-002 < BT1-010. */
 const numberOrder = sql`${cards.id} collate "C"`;
 
-export async function searchCards(db: Db, s: CardSearch) {
+/** `withAbility` is where the ability filter's ids come from: `cardIdsWithAbility` unless the caller has a cached one. */
+export async function searchCards(db: Db, s: CardSearch, withAbility: (ability: string, game?: Game) => Promise<string[]> = (a, g) => cardIdsWithAbility(db, a, g)) {
   const pageSize = s.pageSize ?? 60;
   const page = Math.max(1, s.page ?? 1);
-  const abilityIds = s.ability ? await cardIdsWithAbility(db, s.ability, s.game) : undefined;
+  const abilityIds = s.ability ? await withAbility(s.ability, s.game) : undefined;
   const where = whereFor(s, abilityIds);
   const order = s.sort === "name" ? [asc(cards.name), asc(numberOrder)] : s.sort === "newest" ? [desc(cardSets.sortKey), asc(numberOrder)] : [asc(cardSets.sortKey), asc(numberOrder)];
 

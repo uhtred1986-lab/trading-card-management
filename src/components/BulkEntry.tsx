@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { addLots, printsForCardAction, type LotInput } from "@/app/collection/actions";
-import { CONDITIONS } from "@/lib/collection/queries";
+import { CONDITIONS } from "@/lib/collection/constants";
 import type { DeckOption } from "@/lib/decks/add";
 import { CardImage } from "./CardImage";
 import { CardSearchInput, type CardHit as Hit } from "./CardSearchInput";
