@@ -61,9 +61,15 @@ import {
   thenChoices,
   whenChoices,
   type Block,
+  type Layout,
+  describeCostItem,
+  describeNode,
+  filterFieldWords,
+  layoutOf,
+  optionWords,
 } from "../../src/lib/arena/lang/blocks";
 import { minimalInstance } from "../../src/lib/arena/lang/reference";
-import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, type Cond, type Op, type Selector } from "../../src/lib/arena/vm/script";
+import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, type Cond, type Op, type OpField, type Selector } from "../../src/lib/arena/vm/script";
 import { whenMoments } from "../../src/lib/arena/rulesets/words";
 import { DEFS, skillRecords } from "./harness";
 import type { Trigger } from "../../src/lib/arena/types";
@@ -296,6 +302,46 @@ THEN
   assert.equal(openingFocus(r, "nonsense[", []), null, "a bad path is never trusted");
   assert.equal(openingFocus(r, null, ["if there are 3 or more blue cards in your drop area"]), "cond", "an unread condition opens IF");
   assert.equal(openingFocus(r, null, ["draw 1 card"]), "ops");
+}
+
+// ── each block reads as one sentence, blanks in the flow ────────────────────
+{
+  const placed = (l: Layout) => l.pieces.flatMap((p) => ("field" in p ? [p.field] : "bound" in p ? ["atLeast", "atMost"] : []));
+  const said = (l: Layout) => l.pieces.map((p) => ("text" in p ? p.text : "field" in p ? `[${p.field}]` : "[bound]")).join(" ");
+  // Every row a card can say lays itself out, minimal and blank: every required blank is in the
+  // sentence or holds blocks of its own; nothing is lost between the sentence, "More…" and the nested.
+  const check = (keyField: "op" | "kind", key: string, fields: OpField[], template: unknown) => {
+    for (const node of [minimalInstance(key, keyField, { fields }), keyField === "op" ? (blankOp(key as Op["op"]) as unknown as Record<string, unknown>) : (blankCond(key as Cond["kind"]) as unknown as Record<string, unknown>)]) {
+      const l = layoutOf(node, fields, describeNode(keyField), template);
+      const where = new Set([...placed(l), ...l.more, ...l.nested]);
+      for (const f of fields) if (!f.offCard || node[f.name] !== undefined) assert.ok(where.has(f.name) || (f.name === "as" && f.type === "string"), `${key}.${f.name} is neither in the sentence, behind More, nor nested: ${said(l)}`);
+      for (const f of fields.filter((x) => x.required && !["cond", "conds", "ops", "modes"].includes(x.type as string) && x.name !== "as")) assert.ok(placed(l).includes(f.name), `${key}: required ${f.name} is not in the sentence: ${said(l)}`);
+    }
+  };
+  for (const op of thenChoices().map((c) => c.key as Op["op"])) check("op", op, OP_SCHEMA[op].fields, OP_SCHEMA[op].sentence);
+  for (const kind of ifChoices().map((c) => c.key as Cond["kind"])) check("kind", kind, COND_SCHEMA[kind].fields, null);
+
+  // Tidecaller's IF, as the mockup has it: "there are [3] [or more] [blue cards in your drop]".
+  const tide = { kind: "count", sel: { side: "you", area: "drop", filter: setFilterField(undefined, "colors", ["Blue"]) }, atLeast: 3 };
+  const lt = layoutOf(tide, COND_SCHEMA.count.fields, describeNode("kind"));
+  assert.equal(said(lt), "there are [bound] [sel]", said(lt));
+  // A condition's side reads as the sentence says it.
+  const turn = layoutOf({ kind: "isTurnPlayer" }, COND_SCHEMA.isTurnPlayer.fields, describeNode("kind"));
+  assert.equal(said(turn), "it is [who] turn");
+  assert.deepEqual(optionWords({ kind: "isTurnPlayer" }, COND_SCHEMA.isTurnPlayer.fields, "who", ["you", "opponent"], describeNode("kind"), undefined, turn), { you: "your", opponent: "your opponent's" });
+  // A template says the words; its blanks stand where it puts them.
+  assert.equal(said(layoutOf({ op: "switchMode", target: { var: "t" }, mode: "rest" }, OP_SCHEMA.switchMode.fields, describeNode("op"), OP_SCHEMA.switchMode.sentence)), "switch [target] to [mode] mode");
+  // A block that holds blocks: its words, then the blocks indented under it.
+  const ifl = layoutOf({ op: "if", cond: { kind: "isTurnPlayer" }, then: [] }, OP_SCHEMA.if.fields, describeNode("op"), OP_SCHEMA.if.sentence);
+  assert.deepEqual(ifl.nested, ["cond", "then", "else"]);
+  // Every price item lays out too, its orb colour and count both in the sentence.
+  for (const key of COST_SYNTAXES) layoutOf(COST_ITEM_SPECS[key].blank(), COST_ITEM_SPECS[key].fields, describeCostItem(key), null, key);
+  assert.equal(said(layoutOf({ color: "Red", n: 1 }, COST_ITEM_SPECS["{Red}"].fields, describeCostItem("{Red}"))), "[n] [color] energy");
+  // Optional fields wait behind "More…".
+  assert.ok(layoutOf({ op: "choose", sel: { count: 1 }, as: "t" }, OP_SCHEMA.choose.fields, describeNode("op"), OP_SCHEMA.choose.sentence).more.includes("reason"));
+  // A filter field's own words, before or after the noun.
+  assert.deepEqual(filterFieldWords("colors", ["Blue"]), { words: "blue", after: false });
+  assert.deepEqual(filterFieldWords("costMax", 4), { words: "with an energy cost of 4 or less", after: true });
 }
 
 // ── the four rule-writing actions refuse a non-admin ────────────────────────

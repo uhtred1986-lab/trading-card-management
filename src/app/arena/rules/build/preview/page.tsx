@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { RuleBuilder } from "@/components/arena/rules/RuleBuilder";
+import { ACTION_BAR_ID, RuleRecord, type RecordProps } from "@/components/arena/rules/RuleRecord";
 import type { Rule } from "@/lib/arena/lang";
 import { openingFocus } from "@/lib/arena/lang/blocks";
 import { emptyFilter } from "@/lib/arena/text/filters";
@@ -40,11 +41,52 @@ const FIXTURES: Record<string, { rule: Rule; card: { cardId: string; name: strin
   },
 };
 
-export default async function BuildPreviewPage({ searchParams }: { searchParams: Promise<{ rule?: string; focus?: string }> }) {
+/** `?record=1`: the same fixture as the workbench's record pane draws it, so the shared block editor can be seen in the record column too. */
+function recordOf(fx: (typeof FIXTURES)[string]): RecordProps {
+  return {
+    id: 0,
+    cardId: fx.card.cardId,
+    name: fx.card.name,
+    setCode: fx.card.cardId.split("-")[0],
+    side: "front",
+    skillIndex: 0,
+    kind: fx.rule.kind,
+    tag: fx.rule.kind,
+    permanent: fx.rule.kind === "permanent",
+    printed: fx.card.printed,
+    trigger: fx.rule.trigger,
+    cost: fx.rule.cost,
+    cond: fx.rule.cond,
+    ops: fx.rule.ops,
+    unread: fx.card.unread,
+    status: fx.card.unread.length ? "open" : "draft",
+    source: "compiler",
+    version: 1,
+    explanation: null,
+    brief: null,
+    timesSeen: 0,
+    pattern: null,
+    reads: "",
+    decks: [],
+    siblings: { count: 0, ids: [] },
+    compilerDiff: null,
+    mechanism: null,
+    specifiedCost: null,
+  };
+}
+
+export default async function BuildPreviewPage({ searchParams }: { searchParams: Promise<{ rule?: string; focus?: string; record?: string }> }) {
   if (process.env.NODE_ENV === "production") notFound();
   const q = await searchParams;
   const fx = FIXTURES[q.rule ?? "tidecaller"] ?? FIXTURES.tidecaller;
   const focus = openingFocus(fx.rule, q.focus ?? null, fx.card.unread);
+  if (q.record === "1")
+    return (
+      <div className="mx-auto max-w-3xl">
+        <RuleRecord {...recordOf(fx)} />
+        <div id={ACTION_BAR_ID} className="mt-3 rounded-xl border border-space-700/70" />
+      </div>
+    );
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="mb-2 text-lg font-semibold text-space-50">Build the rule · preview</h1>

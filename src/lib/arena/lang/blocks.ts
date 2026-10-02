@@ -42,11 +42,12 @@ import {
   type Selector,
 } from "../vm/script";
 import { describeTrigger } from "../gaps";
+import { dbsWords } from "../board-words";
 import { optionsFor, whenMoments, words } from "../rulesets/words";
 import { COST_ITEMS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, SELECTOR_FIELDS, type ExprArg, type ExprSpec, type FilterFieldType, type Rule } from "./ast";
 import { SELECTOR_FLAGS } from "./parse";
 import { RULE_CLAUSES, childPath, clauseOf, parsePath, resolvePath, type PathStep, type RuleClause, type RulePath } from "./path";
-import { minimalInstance } from "./reference";
+import { minimalInstance, sampleFilterValue, sampleFor } from "./reference";
 import { validateRule } from "./validate";
 
 type Loose = Record<string, unknown>;
@@ -469,6 +470,30 @@ export function setFilterField(f: CardFilter | undefined, key: keyof CardFilter,
 
 export const filterReading = (f: CardFilter | undefined): string => (f ? safe(() => describeFilter(f), "any card") : "any card");
 
+/**
+ * One filter field as the words it adds to the phrase, read off `describeFilter`
+ * on a filter holding only that field: "blue" stands before the noun, "with an
+ * energy cost of 4 or less" after it. The noun itself is `type`'s (`nounWords`).
+ */
+export function filterFieldWords(key: keyof CardFilter, value: unknown): { words: string; after: boolean } {
+  // A field still blank is placed where its words will stand once it is filled, so its chip does not jump.
+  const resting = value == null || (Array.isArray(value) && !value.length) || value === false;
+  const said = safe(() => describeFilter({ ...emptyFilter(), [key]: resting ? sampleFilterValue(FILTER_FIELDS[key]) : value } as CardFilter), String(key));
+  if (resting) return { words: fieldWords(String(key)), after: said.startsWith("card ") };
+  if (said === "card") return { words: fieldWords(String(key)), after: false };
+  if (said.startsWith("card ")) return { words: said.slice(5), after: true };
+  return { words: said.replace(/\s*card$/, ""), after: false };
+}
+
+/** The noun a filter's `type` makes: "cards", "Battle Cards", "non-Leader cards". */
+export function nounWords(type: CardFilter["type"], notType: CardFilter["notType"] = null): string {
+  const title = (t: string) => t.charAt(0) + t.slice(1).toLowerCase();
+  if (type) return `${title(type)} Cards`;
+  if (notType) return `non-${title(notType)} cards`;
+  return "cards";
+}
+export const NOUN_TYPES = CARD_TYPES;
+
 // ── an amount ───────────────────────────────────────────────────────────────
 
 /** The shapes an amount may take: a number, `$name`, `+ n`, and one per `EXPR_SCHEMA` row. */
@@ -516,6 +541,13 @@ export function blankAmount(shape: AmountShape, bound: readonly string[] = []): 
 }
 
 export const AMOUNT_SHAPES: AmountShape[] = ["number", "var", "plus", ...EXPR_SCHEMA.map((e) => e.key)];
+
+/** The shapes past a plain number, as an amount chip offers them: the language's own spelling, "…" where a selector goes. */
+export const EXPR_SPECS_SHAPES: { key: AmountShape; label: string }[] = [
+  { key: "var", label: "a number bound earlier ($)" },
+  { key: "plus", label: "… plus N" },
+  ...EXPR_SCHEMA.map((e) => ({ key: e.key, label: e.example.replace(/SELECTOR/g, "…") })),
+];
 
 // ── paths: read, write, insert, remove, move ────────────────────────────────
 
@@ -622,6 +654,300 @@ export const templateFields = (parts: readonly Part[] | null): string[] => (part
 
 /** `atLeast` → "at least": a field's name, as words. */
 export const fieldWords = (name: string): string => name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+
+// ── a block laid out as its own sentence ────────────────────────────────────
+//
+// What the owner reads on the screen is the row's own sentence — the words
+// `describeScript`/`describeCond` say — with each field standing where its
+// words stand. A template sentence says where outright. A sentence that is a
+// function (every condition, and the ops whose prose turns on their fields)
+// is asked instead: the reading is made once as the block stands and once with
+// the field changed, and the words that differ are where the field is. Nothing
+// here knows a row by name; a row added to the schema lays itself out.
+
+/** A piece of a laid-out block: words, a blank for a field, or the `atLeast`/`atMost` pair as one comparison. */
+export type LayoutPiece = { text: string } | { field: string } | { bound: true };
+
+export interface Layout {
+  pieces: LayoutPiece[];
+  /** Fields set or settable that the sentence does not show: behind the block's "More…". */
+  more: string[];
+  /** Fields that hold blocks of their own (`cond`, `conds`, `ops`, `modes`), shown indented under the sentence. */
+  nested: string[];
+  /** The sentence could not be read (a half-built node): the pieces are the row's key and its blanks. */
+  fallback: boolean;
+  /** Where each placed field's words are in `words` (a function sentence only), for its choices' own words. */
+  spans?: Record<string, { i: number; j: number }>;
+  words?: string[];
+}
+
+const NESTED_TYPES = new Set<string>(["cond", "conds", "ops", "modes"]);
+const isNestedType = (t: FieldType): boolean => typeof t === "string" && NESTED_TYPES.has(t);
+const toks = (s: string): string[] => s.split(/\s+/).filter(Boolean);
+
+/** A value of the field's type that reads differently from `v` — two of them, so a coincidence in one cannot hide the field. */
+function altValues(f: OpField, v: unknown): unknown[] {
+  const t = f.type;
+  if (typeof t === "object") {
+    if ("enum" in t) return t.enum.filter((x) => x !== v).slice(0, 2);
+    const opts = t.list === "string" ? ["Zz", "Qq"] : [...t.list.enum];
+    return Array.isArray(v) && v.length ? [[], [opts[opts.length - 1]]] : [[opts[0]], [opts[opts.length - 1]]];
+  }
+  switch (t) {
+    case "side":
+      return SIDE_ALTS.filter((s) => s !== v).slice(0, 2);
+    case "area":
+      return ["hand", "deck", "life"].filter((a) => a !== v).slice(0, 2);
+    case "duration":
+      return ["game", "turn", "battle"].filter((d) => d !== v).slice(0, 2);
+    case "number":
+    case "amount":
+      return typeof v === "number" ? [v + 7, v + 11] : [7, 11];
+    case "boolean":
+      return [!v];
+    case "string":
+      return [`${typeof v === "string" ? v : ""}Zz`];
+    case "keyword":
+      return [{ name: (v as { name?: string } | undefined)?.name === "Barrier" ? "Blocker" : "Barrier" }];
+    case "selector":
+      return [{}, { side: "opponent", area: "life", count: 7 }];
+    case "ref":
+      return isObject(v) && "var" in v ? [{ sel: { special: "self" } }, { sel: { special: "leader" } }] : [{ var: "zz" }, { sel: { special: "self" } }];
+    case "filter":
+      return [
+        { ...emptyFilter(), colors: ["Green"], costMax: 7 },
+        { ...emptyFilter(), type: "LEADER" },
+      ];
+    default:
+      return [];
+  }
+}
+const SIDE_ALTS = ["you", "opponent", "both"];
+
+/** Where two readings differ: the range in `a`, after the words they share at both ends. */
+function diffSpan(a: string[], b: string[]): { i: number; j: number } | null {
+  let p = 0;
+  while (p < a.length && p < b.length && a[p] === b[p]) p++;
+  if (p === a.length && p === b.length) return null;
+  let s = 0;
+  while (s < a.length - p && s < b.length - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+  return { i: p, j: a.length - s };
+}
+
+type Describe = (node: Loose) => string;
+const tryWords = (describe: Describe, node: Loose): string[] | null => {
+  try {
+    return toks(describe(node));
+  } catch {
+    return null;
+  }
+};
+
+/** The node with every required field that is still empty filled with a sample, so its sentence can be said at all. */
+function filledFor(node: Loose, fields: readonly OpField[]): Loose {
+  const out: Loose = { ...node };
+  for (const f of fields) if (f.required && out[f.name] === undefined) out[f.name] = sampleFor(f.type);
+  return out;
+}
+
+/** The words a field stands in, in the reading of `node`: the union of where it differs from two other values. */
+export function fieldSpan(node: Loose, fields: readonly OpField[], field: string, describe: Describe): { i: number; j: number; words: string[] } | null {
+  const f = fields.find((x) => x.name === field);
+  if (!f) return null;
+  const filled = filledFor(node, fields);
+  const base = tryWords(describe, filled);
+  if (!base) return null;
+  let span: { i: number; j: number } | null = null;
+  for (const alt of altValues(f, filled[field])) {
+    const other = tryWords(describe, { ...filled, [field]: alt });
+    const d = other && diffSpan(base, other);
+    if (d) span = span ? { i: Math.min(span.i, d.i), j: Math.max(span.j, d.j) } : d;
+  }
+  return span ? { ...span, words: base } : null;
+}
+
+/** The two bounds a counting row puts on a number, when it has both: laid out as one comparison. */
+const BOUND_FIELDS = ["atLeast", "atMost"] as const;
+export const hasBound = (fields: readonly OpField[]): boolean => BOUND_FIELDS.every((b) => fields.some((f) => f.name === b && f.type === "number"));
+
+/** A row's sentence, with each field where its words are. */
+export function layoutOf(node: Loose, fields: readonly OpField[], describe: Describe, template: unknown = null, name?: string): Layout {
+  const shown = shownFields(fields, node);
+  const nested = shown.filter((f) => isNestedType(f.type)).map((f) => f.name);
+  const flat = shown.filter((f) => !isNestedType(f.type));
+  const keyName = (name ?? node.op ?? node.kind ?? "") as string;
+  const blank = (f: OpField) => f.required && node[f.name] === undefined;
+  // A required blank the sentence has no words for still stands in it, at the end — except a binding
+  // name, which is made fresh when the block is and waits behind "More…" unless it has been emptied.
+  const stays = (f: OpField) => blank(f) || (!!f.required && !(f.name === BINDING_FIELD && f.type === "string"));
+
+  // A template says where every blank goes.
+  const parts = sentenceParts(template);
+  if (parts) {
+    const pieces: LayoutPiece[] = [];
+    const placed = new Set<string>();
+    const walk = (ps: Part[]) => {
+      for (const p of ps) {
+        if ("text" in p) {
+          if (p.text.trim()) pieces.push({ text: p.text.trim() });
+        } else if ("field" in p) {
+          const f = flat.find((x) => x.name === p.field);
+          if (f && !placed.has(f.name)) {
+            pieces.push({ field: f.name });
+            placed.add(f.name);
+          }
+        } else if (node[p.when] !== undefined) walk(p.parts);
+      }
+    };
+    walk(parts);
+    // A punctuation-only piece left behind by a nested field ("if:") reads as nothing.
+    const clean = pieces.filter((p) => !("text" in p) || /[\w≪<{[]/.test(p.text));
+    for (const f of flat) if (!placed.has(f.name) && stays(f)) clean.push({ field: f.name });
+    const more = flat.filter((f) => !placed.has(f.name) && !stays(f)).map((f) => f.name);
+    return { pieces: clean.length ? clean : [{ text: keyName }], more, nested, fallback: false };
+  }
+
+  // A node that holds blocks of its own is said by them: its sentence is its key, its own blanks after it.
+  if (nested.length) {
+    const inline = flat.filter((f) => f.required || node[f.name] !== undefined);
+    return { pieces: [{ text: fieldWords(keyName) }, ...inline.map((f) => ({ field: f.name }))], more: flat.filter((f) => !inline.includes(f)).map((f) => f.name), nested, fallback: false };
+  }
+
+  const filled = filledFor(node, fields);
+  const base = tryWords(describe, filled);
+  if (!base) {
+    const inline = flat.filter((f) => f.required || node[f.name] !== undefined);
+    return { pieces: [{ text: keyName }, ...inline.map((f) => ({ field: f.name }))], more: flat.filter((f) => !inline.includes(f)).map((f) => f.name), nested, fallback: true };
+  }
+
+  const spots: { piece: LayoutPiece; i: number; j: number }[] = [];
+  const overlaps = (i: number, j: number) => spots.some((s) => (i < s.j && j > s.i) || (i === j && i > s.i && i < s.j) || (s.i === s.j && s.i > i && s.i < j));
+  const bounded = hasBound(flat);
+  if (bounded) {
+    // Set, the bound's words are where turning the comparison round and changing the number differ
+    // ("is [4 or less]"); unset, where giving it one would put them ("there are [any] cards").
+    const lo = node.atLeast as number | undefined;
+    const hi = node.atMost as number | undefined;
+    const alts: Loose[] =
+      lo === undefined && hi === undefined
+        ? [{ ...filled, atLeast: 1 }]
+        : [
+            { ...filled, atLeast: hi, atMost: lo },
+            { ...filled, atLeast: lo === undefined ? undefined : lo + 7, atMost: hi === undefined ? undefined : hi + 7 },
+          ];
+    let d: { i: number; j: number } | null = null;
+    for (const alt of alts) {
+      const other = tryWords(describe, alt);
+      const s = other && diffSpan(base, other);
+      if (s) d = d ? { i: Math.min(d.i, s.i), j: Math.max(d.j, s.j) } : s;
+    }
+    if (d) spots.push({ piece: { bound: true }, i: d.i, j: d.j });
+  }
+  const spans: Record<string, { i: number; j: number }> = {};
+  const unplaced: OpField[] = [];
+  // Fields whose words are already in the sentence are placed first; a field that only adds words
+  // then takes a neighbouring word that is still free.
+  const rawSpans = new Map(flat.map((f) => [f.name, fieldSpan(node, fields, f.name, describe)] as const));
+  const order = [...flat].sort((a, b) => Number(isZero(rawSpans.get(a.name))) - Number(isZero(rawSpans.get(b.name))));
+  for (const f of order) {
+    if (bounded && (BOUND_FIELDS as readonly string[]).includes(f.name)) continue;
+    const raw = rawSpans.get(f.name);
+    let span = raw && { i: raw.i, j: raw.j };
+    // A field whose words are only *added* when it changes ("your turn" → "your opponent's turn")
+    // takes the word beside the gap, so its chip has words of its own to show.
+    if (span && span.i === span.j) {
+      if (span.i > 0 && !overlaps(span.i - 1, span.i)) span = { i: span.i - 1, j: span.i };
+      else if (span.i < base.length && !overlaps(span.i, span.i + 1)) span = { i: span.i, j: span.i + 1 };
+    }
+    // A selector says its own noun, its "in" and its zone: the words just before it that are part of
+    // that ("cards in") belong to the selector's chips, not to the sentence around them.
+    if (span && controlFor(f.type) === "selector") while (span.i > 0 && SELECTOR_OWN.has(base[span.i - 1].toLowerCase()) && !overlaps(span.i - 1, span.i)) span = { i: span.i - 1, j: span.j };
+    const inSentence = !!span && span.j > span.i;
+    if (span && (inSentence || blank(f)) && !overlaps(span.i, span.j)) {
+      spots.push({ piece: { field: f.name }, i: span.i, j: span.j });
+      spans[f.name] = span;
+    } else unplaced.push(f);
+  }
+  spots.sort((a, b) => a.i - b.i || a.j - b.j);
+  const pieces: LayoutPiece[] = [];
+  let at = 0;
+  for (const s of spots) {
+    if (s.i > at) pieces.push({ text: base.slice(at, s.i).join(" ") });
+    pieces.push(s.piece);
+    at = Math.max(at, s.j);
+  }
+  if (at < base.length) pieces.push({ text: base.slice(at).join(" ") });
+  for (const f of unplaced) if (stays(f)) pieces.push({ field: f.name });
+  return { pieces: pieces.length ? pieces : [{ text: name ?? keyName }], more: unplaced.filter((f) => !stays(f)).map((f) => f.name), nested, fallback: false, spans, words: base };
+}
+/** The words a selector's own chips say, so they are not said twice by the sentence around it. */
+const SELECTOR_OWN = new Set(["in", "cards", "card", "of"]);
+const isZero = (s: { i: number; j: number } | null | undefined): boolean => !s || s.i === s.j;
+
+/**
+ * What each value of a closed-list field reads as in this sentence — "your" and
+ * "their" for a condition's side, "draw" and "opponent draws" for a step's —
+ * so a blank's choices are the sentence's own words. A value whose words
+ * cannot be told apart reads as itself. `layout` is the block's own, whose
+ * span for the field is used when it has one.
+ */
+export function optionWords(node: Loose, fields: readonly OpField[], field: string, options: readonly string[], describe: Describe, write: (o: string) => unknown = (o) => o, layout?: Layout): Record<string, string> {
+  const out: Record<string, string> = {};
+  const filled = filledFor(node, fields);
+  const own = layout?.spans?.[field];
+  const raw = own ? { ...own, words: layout!.words! } : fieldSpan(node, fields, field, describe);
+  let span = raw;
+  if (span && span.i === span.j && span.i > 0) span = { ...span, i: span.i - 1 };
+  for (const o of options) {
+    out[o] = o;
+    if (!span || span.j === span.i) continue;
+    const words = tryWords(describe, { ...filled, [field]: write(o) });
+    if (!words) continue;
+    const tail = span.words.length - span.j;
+    const said = words.slice(span.i, words.length - tail).join(" ");
+    if (said) out[o] = said;
+  }
+  return out;
+}
+
+/** The describer for a node: a step's sentence, or a condition's. */
+export const describeNode = (keyField: "op" | "kind"): Describe => (n) => (keyField === "op" ? describeScript([n as unknown as Op]) : describeCond(n as unknown as Cond));
+/** The describer for a price item: the price with only that item in it. */
+export const describeCostItem = (key: CostSyntax): Describe => (values) => costSentence(costFrom([{ key, values }])) ?? "";
+
+// ── the zone words, and the bound ───────────────────────────────────────────
+
+/** The game's words for a zone, said as the viewer's own ("your Drop Area"), without the "your": a chip of its own beside the side's. */
+export function areaWords(area: string): string {
+  try {
+    const w = dbsWords().area as Record<string, string>;
+    return (w[area] ?? area).replace(/^your\s+/i, "");
+  } catch {
+    return area;
+  }
+}
+
+/** Whose zone, as the sentence says it. */
+export const SIDE_WORDS: Record<string, string> = { you: "your", opponent: "your opponent's", both: "either player's" };
+
+/** The comparison a bound pair says: "or more", "or fewer", "exactly" or nothing at all. */
+export type BoundCmp = "any" | "atLeast" | "atMost" | "exactly";
+export function boundOf(node: Loose): { cmp: BoundCmp; n: number | null } {
+  const lo = node.atLeast as number | undefined;
+  const hi = node.atMost as number | undefined;
+  if (lo !== undefined && hi !== undefined) return { cmp: lo === hi ? "exactly" : "atLeast", n: lo };
+  if (lo !== undefined) return { cmp: "atLeast", n: lo };
+  if (hi !== undefined) return { cmp: "atMost", n: hi };
+  return { cmp: "any", n: null };
+}
+/** The pair written back: a comparison and a number. */
+export function boundWrite(cmp: BoundCmp, n: number | null): { atLeast?: number; atMost?: number } {
+  const v = n ?? 1;
+  if (cmp === "atLeast") return { atLeast: v };
+  if (cmp === "atMost") return { atMost: v };
+  if (cmp === "exactly") return { atLeast: v, atMost: v };
+  return {};
+}
 
 // ── the names bound before a place ──────────────────────────────────────────
 
