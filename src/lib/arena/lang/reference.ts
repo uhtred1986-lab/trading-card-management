@@ -99,7 +99,7 @@ function sampleFor(t: FieldType): unknown {
   return SAMPLE[t];
 }
 
-function minimalInstance(key: string, keyField: "op" | "kind", spec: { fields: OpField[] }): Record<string, unknown> {
+export function minimalInstance(key: string, keyField: "op" | "kind", spec: { fields: OpField[] }): Record<string, unknown> {
   const out: Record<string, unknown> = { [keyField]: key };
   for (const f of spec.fields) if (f.required) out[f.name] = sampleFor(f.type);
   return out;
