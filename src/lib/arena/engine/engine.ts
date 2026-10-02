@@ -17,11 +17,11 @@ import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from ".
 import { costIsOnlyOrbs, costText, parseConditionClause } from "../compile";
 import { matches, parseCondition, parseFilter } from "../text/filters";
 import { legacyHost } from "./legacy-host";
-import { replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "../vm/script";
+import { describeScript, replacementPrompt, routeOf, savedXKey, stepScript, taxLabel, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "../vm/script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "../vm/rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
-import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
+import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
 import { IllegalAction } from "../vm/common";
 import type { ActionCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
 import type {
@@ -1973,6 +1973,9 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     for (const a of cardsInPlay(s, p)) {
       if (s.cards[a].mode !== "active" || s.cards[a].hidden) continue;
       if (forbids(ctx, s, "attack", { player: p, card: a })) continue;
+      // 20-14-1: a tax the attacker cannot pay is a ban; one they can is said on the button.
+      const taxes = taxesOn(ctx, s, "attack", { player: p, card: a }).map((t) => t.ops);
+      if (taxes.some((ops) => !canPayCostProgram(ctx, s, p, a, ops))) continue;
       // 8-1-1 says an attack may only be declared against a Leader, a Unison,
       // or a **rested** Battle Card. "This card can attack Battle Cards in
       // Active Mode" lifts that, for this attacker only — so the target list
@@ -1982,7 +1985,7 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
       );
       for (const t of [...targets, ...new Set(extra)]) {
         if (forbids(ctx, s, "beAttacked", { player: opp, card: t })) continue;
-        out.push({ action: { type: "attack", player: p, attacker: a, target: t }, label: `Attack ${name(t)} with ${name(a)} (${powerOf(ctx, s, a)} vs ${powerOf(ctx, s, t)})` });
+        out.push({ action: { type: "attack", player: p, attacker: a, target: t }, label: `Attack ${name(t)} with ${name(a)} (${powerOf(ctx, s, a)} vs ${powerOf(ctx, s, t)})${taxLabel(taxes)}` });
       }
     }
   }
@@ -2134,6 +2137,9 @@ function whyNotAttack(ctx: EngineContext, s: GameState, p: PlayerId, a: string):
   if (s.cards[a].hidden) why.push({ kind: "other", detail: "a face-down card cannot attack" });
   const f = forbiddenBy(ctx, s, "attack", { player: p, card: a });
   if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
+  for (const tax of taxesOn(ctx, s, "attack", { player: p, card: a })) {
+    if (!canPayCostProgram(ctx, s, p, a, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
+  }
   const opp = other(p);
   const targets = [s.players[opp].leader, ...(s.players[opp].unison ? [s.players[opp].unison] : []), ...s.players[opp].battle.filter((id) => s.cards[id].mode === "rest")];
   const extra = permits(ctx, s, a, "attackActive").flatMap((rule) =>
@@ -2815,13 +2821,17 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       requireMain(s, p);
       const legal = mainActions(ctx, s, p).some((a) => a.action.type === "attack" && a.action.attacker === action.attacker && a.action.target === action.target);
       if (!legal) throw new IllegalAction("illegal attack");
+      // 20-14-1: "can't attack unless … each time" — the price first, paid by
+      // the attacker in their own frame, then the attack; read before anything
+      // below changes the board the rules are matched against.
+      const taxes = taxesOn(ctx, s, "attack", { player: p, card: action.attacker });
       spendProhibitionUse(ctx, s, "attack", { player: p, card: action.attacker });
       spendProhibitionUse(ctx, s, "beAttacked", { player: other(p), card: action.target });
       setMode(s, ev, action.attacker, "rest");
       s.battle = { attacker: action.attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, revenge: false, reactivate: false, counters: [] };
       joinsBattle(s, action.attacker, action.target);
       ev.push({ type: "attack", attacker: action.attacker, target: action.target });
-      s.flow.unshift({ op: "battle.afterDeclare" });
+      s.flow.unshift(...taxes.map((t): FlowStep => ({ op: "script.step", frame: { ops: t.ops, ip: 0, vars: {}, card: action.attacker, master: p } })), { op: "battle.afterDeclare" });
       break;
     }
     case "endMain": {

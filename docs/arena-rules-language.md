@@ -1291,6 +1291,19 @@ the turn unless they give the attacking card -5000 power for the turn each time"
 that is itself a repeatable cost rather than a boolean `Cond` — a harder shape `unless` does not
 reach yet, which is why this row cites a simpler real card instead of the manual's own.
 
+A repeatable cost is `forbid`'s `unlessPay` since 2 Oct 2026, for an attack: a program the attacker
+runs in their own frame before each attack, the attack refused when they cannot pay it. `BT30-100`'s
+"that card can't attack unless your opponent sends 2 cards from their hand to their warp each time":
+
+```
+forbid(what: attack, until: nextTurn, target: $c0, unlessPay: {
+  discard(n: 2, to: warp)
+})
+```
+
+`BT13-030` itself is still out of reach: its price ("give the attacking card -5000 power") is not a
+step whose payability the engines know in advance, so the clause stays unread.
+
 ### 20-15. If Declared
 
 20-15-1: from when an action is declared until it is taken (or something is known to have that

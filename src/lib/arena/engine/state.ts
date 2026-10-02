@@ -1144,7 +1144,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const player = op.side && op.side !== "both" ? sideOf(master, op.side)[0] : undefined;
       const name = op.sameNameAsSelf ? face(ctx, s, source).name : undefined;
       const uses = op.uses != null ? amount(ctx, s, frame, op.uses) : undefined;
-      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "forbid", target: id, value: forbid });
       } else {
@@ -1662,6 +1662,8 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
   for (const { target, source, forbid: f } of rules) {
     if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
     if ((f.uses ?? 0) > 0) continue;
+    // A rule with a price is a tax, not a ban (20-14-1): `taxesOn` reads it.
+    if (f.pay) continue;
     return true;
   }
   return false;
@@ -1689,9 +1691,31 @@ export function forbiddenBy(
   for (const { target, source, until, forbid: f } of rules) {
     if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
     if ((f.uses ?? 0) > 0) continue;
+    // A rule with a price is a tax, not a ban (20-14-1): `taxesOn` reads it.
+    if (f.pay) continue;
     return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until, ...(f.unless ? { unless: unlessInWords(f, opts.player ?? (opts.card && s.cards[opts.card] ? masterOf(s, opts.card) : undefined)) } : {}) };
   }
   return null;
+}
+
+/**
+ * 20-14-1, "you can't do A unless you do B … each time": the prices rules in
+ * force charge for this action (`Prohibition.pay`), every one of them every
+ * time — the rules `forbids` reads and skips, matched the same way. Whether
+ * they can be paid is the caller's question (`canPayCostProgram`), asked of
+ * the acting player, in whose frame each program runs.
+ */
+export function taxesOn(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): { ops: Op[]; by: string | null; until: EffectUntil }[] {
+  const rules: { target: string; source: string | null; until: EffectUntil; forbid: Prohibition }[] = [];
+  for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid });
+  for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition });
+  const out: { ops: Op[]; by: string | null; until: EffectUntil }[] = [];
+  for (const { target, source, until, forbid: f } of rules) {
+    if (!f.pay?.length || (f.uses ?? 0) > 0) continue;
+    if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
+    out.push({ ops: f.pay, by: source && s.cards[source] ? face(ctx, s, source).name : null, until });
+  }
+  return out;
 }
 
 export function spendProhibitionUse(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): void {
@@ -1728,7 +1752,7 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
   if (
     s.effects.some((e) => {
       if (e.kind !== "forbid" || e.target !== card || e.forbid?.what !== what) return false;
-      if ((e.forbid.uses ?? 0) > 0) return false;
+      if ((e.forbid.uses ?? 0) > 0 || e.forbid.pay) return false;
       if (ctx && unlessHolds(ctx, s, e.forbid, { card }, e.source ?? null)) return false;
       return true;
     })

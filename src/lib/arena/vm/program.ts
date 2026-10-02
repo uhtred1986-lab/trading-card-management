@@ -868,6 +868,8 @@ export function forbiddenBy(
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     if ((rule.forbid.uses ?? 0) > 0) continue;
+    // A rule with a price is a tax, not a ban: `taxesOn` below is what reads it.
+    if (rule.forbid.pay) continue;
     const viewer = opts.player ?? (opts.card && state.cards[opts.card] ? masterOf(game, state, opts.card) : undefined);
     const master = rule.forbid.master;
     return {
@@ -896,6 +898,32 @@ export function forbiddenBy(
   return null;
 }
 
+/** One price a rule in force charges for an action (20-14-1), with the words a refusal names it by. */
+export interface TaxInForce {
+  ops: Op[];
+  by: string | null;
+  until: EffectUntil;
+}
+
+/**
+ * 20-14-1, "you can't do A unless you do B … each time": every rule in force
+ * that lets this action happen **only after** a price is paid (`Prohibition.pay`).
+ *
+ * The same rules and matcher `forbiddenBy` reads, which skips these — a tax is
+ * not a ban. Each applies to every action of its kind, so the caller charges
+ * all of them, in this order, every time; whether they *can* be paid is the
+ * caller's question (`canPayPriceProgram`), asked of the acting player.
+ */
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): TaxInForce[] {
+  const out: TaxInForce[] = [];
+  for (const rule of prohibitions(ctx, game, state, opts.card)) {
+    if (!rule.forbid.pay?.length || (rule.forbid.uses ?? 0) > 0) continue;
+    if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
+    out.push({ ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until });
+  }
+  return out;
+}
+
 /**
  * The card-only half of 20-14: a rule in force that names **this card** as its
  * target. The legacy `forbiddenForCard`, test for test — no filter, no player,
@@ -905,7 +933,7 @@ export function forbiddenBy(
  */
 export function forbiddenForCard(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, card: string): boolean {
   for (const rule of prohibitions(ctx, game, state, card, { hooks: false })) {
-    if (rule.target !== card || rule.forbid.what !== what || (rule.forbid.uses ?? 0) > 0) continue;
+    if (rule.target !== card || rule.forbid.what !== what || (rule.forbid.uses ?? 0) > 0 || rule.forbid.pay) continue;
     if (escapeHolds(ctx, game, state, rule.forbid, { card }, rule.source)) continue;
     return true;
   }

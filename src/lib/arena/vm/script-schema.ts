@@ -710,6 +710,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "bySkill", type: "boolean" },
       { name: "uses", type: "amount" },
       { name: "unless", type: "cond" },
+      { name: "unlessPay", type: "ops" },
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"forbid">;
@@ -724,10 +725,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // of *which* cards replaces that word rather than following it.
       const verb = which ? what.replace(/\s+cards?$/, "") : what;
       const budget = op.uses != null ? ` ${op.uses === 1 ? "once more" : `${describeAmount(op.uses)} more times`}` : "";
-      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : "";
+      // 20-14-1's price, said from the payer's side: the program's "you" is
+      // whoever takes the action, not this card's controller.
+      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
       return `${who} can't ${verb}${which ? ` ${which}` : ""}${budget}${escape}${forThe(op.until, r)}`;
     },
-    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
+    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; only "what":"attack" takes one so far (BT30-100). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
   immune: {
     fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],
@@ -1559,6 +1562,10 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
       return fieldHolds(f.type, v, depth, bound);
     });
     if (!ok) return false;
+    // 20-14-1: a tax is charged where the action is taken, and only the attack
+    // charges one so far — a price on any other action would be a rule that
+    // silently stopped forbidding anything.
+    if (o.op === "forbid" && o.unlessPay !== undefined && (o.what !== "attack" || !(o.unlessPay as unknown[]).length || o.unless !== undefined)) return false;
     if (o.op === "choose" && o.bindX === true) bound = true;
   }
   return true;
@@ -2163,6 +2170,15 @@ export function describeScript(ops: Op[], o: RenderOptions = {}): string {
     if (text) parts.push(text);
   }
   return parts.join(", ");
+}
+
+/**
+ * What an offered move also costs, said on its button (20-14-1, a `forbid`'s
+ * `unlessPay`): " — first pay: discard 2 to the Warp". Empty with no tax. One
+ * definition for both engines' menus, so the two labels cannot drift apart.
+ */
+export function taxLabel(taxes: Op[][]): string {
+  return taxes.length ? ` — first pay: ${taxes.map((ops) => describeScript(ops)).join("; ")}` : "";
 }
 
 /**

@@ -383,6 +383,15 @@ export interface Prohibition {
   /** Escape condition: while this holds, the prohibition does not apply. */
   unless?: Cond;
   /**
+   * 20-14-1's other escape: a price the acting player may pay to take the
+   * action anyway, **each time** — "that card can't attack unless your
+   * opponent sends 2 cards from their hand to their Warp each time" (BT30-100).
+   * The program is run in the payer's frame ("you" is whoever acts), before the
+   * action is taken; an action nobody can pay for is refused. Only `attack`
+   * carries one so far (`validateProgram` refuses it on any other action).
+   */
+  pay?: Op[];
+  /**
    * The controller of the card that made the rule. An `unless` is a clause of
    * that card's text, so "you" and "your opponent" in it are read from that
    * chair — not from the chair of whoever is trying to act.
