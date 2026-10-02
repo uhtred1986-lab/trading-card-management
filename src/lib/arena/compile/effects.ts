@@ -287,6 +287,9 @@ function durationOf(clause: string): Duration {
   // begins: the rest-lock wordings, which are the same duration said four ways.
   if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next charge phase|during your opponent's next turn/.test(t))
     return "nextTurn";
+  // "Your opponent can't attack until the end of **their** turn" (BT24-133):
+  // the pronoun is the opponent the clause names, so it is the same duration.
+  if (/\byour opponent\b/.test(t) && /until the end of their(?: next)? turn/.test(t)) return "nextTurn";
   return "turn";
 }
 
@@ -2391,7 +2394,11 @@ function taxProgram(said: string, c: Ctx): { payer: Side; ops: Op[] } | null {
   }
   const ops = compileClause(clause, { ...c, choices: [...c.choices] });
   if (!ops?.length || ops.some((o) => !TAX_OPS.has(o.op) || ("side" in o && o.side !== undefined && o.side !== "you"))) return null;
-  return { payer, ops };
+  // The price runs with the acting card as "this card" (the attacker), and B
+  // is done before A is declared (20-14-1): "switch 1 of their Active Mode
+  // cards to Rest Mode" (BT24-133) paid with the attacker itself would leave
+  // nothing able to attack, so a choice in the price never offers it.
+  return { payer, ops: ops.map((o) => (o.op === "choose" ? { ...o, sel: { ...o.sel, notSelf: "card" as const } } : o)) };
 }
 
 function compileToken(clause: string, c: Ctx): Op[] | null {

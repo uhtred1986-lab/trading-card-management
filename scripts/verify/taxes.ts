@@ -47,6 +47,14 @@ const TAX: Op[] = [{ op: "discard", n: 2, to: "warp" }];
   // tax on an action the engine does not charge one on: both stay unread.
   assert.notDeepEqual(one("[Auto] When you play this card, your opponent can't attack unless you send 1 card from your hand to your Warp each time.").unsupported, []);
   assert.notDeepEqual(one("[Auto] When you play this card, your opponent can't play Battle Cards unless they send 1 card from their hand to their Warp each time.").unsupported, []);
+  // BT24-133: "until the end of their turn" is the opponent's, and the price's
+  // choice never offers the attacker itself (20-14-1: B before A is declared).
+  const rest = one("[Auto] When this card is played, your opponent can't attack until the end of their turn unless they switch 1 of their Active Mode cards to Rest Mode each time.").ops[0] as Extract<Op, { op: "forbid" }>;
+  assert.equal(rest.until, "nextTurn");
+  assert.deepEqual(rest.unlessPay?.map((o) => o.op), ["choose", "switchMode"]);
+  assert.equal((rest.unlessPay![0] as Extract<Op, { op: "choose" }>).sel.notSelf, "card");
+  // P-379's older spelling.
+  assert.deepEqual(one("[Auto] When this card is played, your opponent can't attack for the turn unless they discard 1 card from their hand each time.").ops, [{ op: "forbid", what: "attack", side: "opponent", until: "turn", unlessPay: [{ op: "discard", n: 1 }] }]);
   // The plain condition is still a condition.
   const cond = one("[Permanent] This card can't attack unless you have a Z-Extra in your Battle Area.").ops[0] as Extract<Op, { op: "forbid" }>;
   assert.ok(cond.unless && !cond.unlessPay);
@@ -139,6 +147,25 @@ def("TX-ATT", {});
   assertConsistentG(s);
   // The rule is p2's about p1: p2's own attacks are untaxed.
   assert.ok(!labelsG(s).some((l) => l.includes("first pay") && l.includes("TX-WALL")));
+}
+
+// A price paid by resting another card (BT24-133): the attacker is not one of them.
+{
+  const RESTS = one("[Auto] When this card is played, your opponent can't attack until the end of their turn unless they switch 1 of their Active Mode cards to Rest Mode each time.").ops[0] as Extract<Op, { op: "forbid" }>;
+  const tax = (s: EngineState, attacker: string) => addEffectG(s, [], { master: "p2", source: leaderOf(s, "p2"), target: attacker, kind: "forbid", value: 0, until: "turn", forbid: { what: "attack", pay: RESTS.unlessPay } });
+  let s = stagedG({ battle: ["TX-ATT"] });
+  const attacker = findG(s, "p1", "battle", "TX-ATT");
+  for (const id of [leaderOf(s, "p1"), ...zoneOf(s, "p1", "energy")]) s.cards[id].mode = "rest";
+  tax(s, attacker);
+  assert.equal(attacks(s, attacker).length, 0, "the attacker is the only active card, and it cannot pay for its own attack");
+  s = stagedG({ battle: ["TX-ATT", "TX-ATT2"] });
+  const a = findG(s, "p1", "battle", "TX-ATT");
+  const other = findG(s, "p1", "battle", "TX-ATT2");
+  for (const id of [leaderOf(s, "p1"), ...zoneOf(s, "p1", "energy")]) s.cards[id].mode = "rest";
+  tax(s, a);
+  s = settle(playG(s, { ...attacks(s, a)[0] }));
+  assert.equal(s.cards[other].mode, "rest", "the other card paid");
+  assertConsistentG(s);
 }
 
 for (const id of TEMP) delete DEFS[id];
