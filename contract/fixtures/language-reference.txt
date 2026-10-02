@@ -240,7 +240,7 @@
           ]
         }
       ],
-      "sentence": "choose 1 in your battle",
+      "sentence": "choose 1 card in your Battle Area",
       "doc": "binds the chosen cards to the name in \"as\"; \"chooser\":\"opponent\" when the card says *they* choose (\"your opponent sends 1 Battle Card…\"); \"bindX\":true also binds X to how many were chosen (20-5)"
     },
     {
@@ -318,7 +318,7 @@
           ]
         }
       ],
-      "sentence": "reveal 1 in your battle",
+      "sentence": "reveal 1 card in your Battle Area",
       "doc": "shown to both players; the cards stay where they are (20-11-2). \"audience\":\"you\" is a look — shown to you alone, nothing logged (20-11); prefer \"look\", the spelling it means"
     },
     {
@@ -2269,7 +2269,7 @@
           "type": "number"
         }
       ],
-      "sentence": "there are any cards in your battle",
+      "sentence": "there are any cards in your Battle Area",
       "doc": "how many cards a selector finds"
     },
     {
@@ -2393,7 +2393,7 @@
           "type": "number"
         }
       ],
-      "sentence": "1 in your battle has any markers"
+      "sentence": "1 card in your Battle Area has any markers"
     },
     {
       "kind": "inBattle",
@@ -2423,7 +2423,7 @@
           ]
         }
       ],
-      "sentence": "1 in your battle is in a battle"
+      "sentence": "1 card in your Battle Area is in a battle"
     },
     {
       "kind": "battled",
@@ -2437,7 +2437,7 @@
           "type": "selector"
         }
       ],
-      "sentence": "1 in your battle has been in a battle this turn"
+      "sentence": "1 card in your Battle Area has been in a battle this turn"
     },
     {
       "kind": "every",
@@ -2457,7 +2457,7 @@
           "type": "selector"
         }
       ],
-      "sentence": "every card 1 in your battle is also 1 in your battle",
+      "sentence": "every card in your Battle Area is also among the cards in your Battle Area",
       "doc": "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)"
     },
     {
@@ -2534,7 +2534,7 @@
           "type": "number"
         }
       ],
-      "sentence": "1 in your battle has any power"
+      "sentence": "1 card in your Battle Area has any power"
     },
     {
       "kind": "did",
@@ -2756,7 +2756,7 @@
           "type": "selector"
         }
       ],
-      "sentence": "1 in your battle is the same card as 1 in your battle",
+      "sentence": "1 card in your Battle Area is the same card as 1 card in your Battle Area",
       "doc": "do these two selectors each resolve to one card of the same printed identity? \"a copy of the Unison Card\" (13-3) is this, over the candidate and the card in the Unison Area — the filter grammar has no word for another card's identity, so this reads two selectors instead (issue #269)"
     },
     {
@@ -2814,7 +2814,7 @@
           "type": "boolean"
         }
       ],
-      "sentence": "every character this line names is a different one of 1 in your battle",
+      "sentence": "every character this line names is a different one of 1 card in your Battle Area",
       "doc": "does every character the keyword line prints in ‹…› stand on a different card among these — and, with samePower, are they of one power? [Union]'s check before it is offered (22-13-4, 22-13-5). No card's record says this; it is read off the line a keyword's own program belongs to, like the `asPrinted` selector flag"
     },
     {
@@ -2845,7 +2845,7 @@
           ]
         }
       ],
-      "sentence": "1 in your battle carry  between them",
+      "sentence": "1 card in your Battle Area carry  between them",
       "doc": "do these cards carry every one of the colours between them — one card of each, or one multicolour card for two? [Arrival]'s Combo Area and [Revive]'s hand (22-29-3, 22-34-3), with the colours bound off the printed keyword (`colors: $colors`). A `DEFINE KEYWORD` body's word; no card's record says this (#155)"
     },
     {
@@ -2879,7 +2879,7 @@
           "type": "amount"
         }
       ],
-      "sentence": "some of 1 in your battle have a total power of exactly 1",
+      "sentence": "some of 1 card in your Battle Area have a total power of exactly 1",
       "doc": "can some of these cards — at least one, and a total above 0 — be picked so that their measure adds up to exactly this much? [Successor]'s check before it is offered (22-38-2); the `choose` op's `sumTo` then picks that set one card at a time. A `DEFINE KEYWORD` body's word (#155)"
     },
     {
@@ -2900,7 +2900,7 @@
           "type": "amount"
         }
       ],
-      "sentence": "1 in your battle has attacked 1 or more times this turn",
+      "sentence": "1 card in your Battle Area has attacked 1 or more times this turn",
       "doc": "has one of these cards declared at least this many attacks this turn, the one in progress included (8-1)? [Dual Attack]/[Triple Attack]'s X−1 stands a turn (22-8-3): `NOT attacked(sel: [self], atLeast: $x)`. A `DEFINE KEYWORD` body's word (#156)"
     },
     {
@@ -2915,7 +2915,7 @@
           "type": "selector"
         }
       ],
-      "sentence": "1 in your battle has used a marker skill this turn",
+      "sentence": "1 card in your Battle Area has used a marker skill this turn",
       "doc": "has one of these cards used a skill with a marker price this turn (13-4-2: one a turn per card)? [Rejuvenate]'s gate, `NOT markerSkillUsed(sel: [self])`; a keyword move refused by it on its own card is a marker skill itself, and using it spends the card's one (22-42-2). A `DEFINE KEYWORD` body's word (#155)"
     }
   ],

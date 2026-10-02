@@ -191,9 +191,9 @@ let records = 0;
   r = setAt(r, "cond.atLeast", 3); // at least [3]
   assert.deepEqual(problemsOf(r, "auto"), []);
   const reads = condReading(r.cond!);
-  // `describeFilter` says an adjective-only filter without its noun ("3 or more blue in your drop"): the describer's own wording, reported on the PR rather than changed here (a language change is out of scope).
-  assert.match(reads, /3 or more blue (cards )?in your drop/, `Tidecaller's IF reads "${reads}"`);
-  assert.match(ruleReading(r), /attacks.*3 or more blue (cards )?in your drop.*draw 1/);
+  // The reading names its cards and the zone in the game's words (#478).
+  assert.equal(reads, "there are 3 or more blue cards in your Drop Area", `Tidecaller's IF reads "${reads}"`);
+  assert.match(ruleReading(r), /attacks.*3 or more blue cards in your Drop Area.*draw 1/);
   trip(r, "Tidecaller Oracle");
 }
 
