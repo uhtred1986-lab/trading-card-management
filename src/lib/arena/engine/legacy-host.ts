@@ -175,6 +175,15 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       s.battle.guard = guard;
       ev.push({ type: "guardChanged", guard, by });
     },
+    swapBattleCard: (out, into) => {
+      const b = s.battle;
+      if (!b || (b.attacker !== out && b.guard !== out)) return;
+      // 8-1-7-2: the new card is in the battle from here on (`joinsBattle`).
+      inst(into).battledThisTurn = true;
+      if (b.attacker === out) b.attacker = into;
+      else b.guard = into;
+      note(ev, `${face(ctx, s, into).name} takes ${face(ctx, s, out).name}'s place in the battle`);
+    },
     negateAttack: () => {
       if (!s.battle) return;
       s.battle.negated = true;

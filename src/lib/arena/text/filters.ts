@@ -142,6 +142,15 @@ export interface CardFilter {
   originalPowerMin: number | null;
   originalPowerMax: number | null;
   /**
+   * "Cards with **5000 combo power**" (BT29-030), "a combo power of 5000"
+   * (2-8): the number a card adds when it is used in a combo, inclusive
+   * bounds the same shape as `powerMin`/`powerMax`. Until 2 Oct 2026 nothing
+   * read it, and "card with 5000 combo power" parsed with the measure
+   * silently dropped — every card in the Drop answered.
+   */
+  comboPowerMin: number | null;
+  comboPowerMax: number | null;
+  /**
    * "An originally skill-less Battle Card" (20-3-1, 1-5-9): the card printed
    * with no text at all, whether or not a later effect granted it a skill —
    * narrower than "skill-less" on its own, which would also ask about a skill
@@ -231,6 +240,8 @@ export function emptyFilter(): CardFilter {
     powerMax: null,
     originalPowerMin: null,
     originalPowerMax: null,
+    comboPowerMin: null,
+    comboPowerMax: null,
     originallySkillLess: false,
     powerRel: null,
     z: null,
@@ -456,24 +467,45 @@ export function parseFilter(text: string): CardFilter {
   } else if ((m = /original powers? (?:of )?([\d,]+) or less/.exec(lower))) f.originalPowerMax = Number(m[1].replace(/,/g, ""));
   else if ((m = /original powers? (?:of )?([\d,]+) or more/.exec(lower))) f.originalPowerMin = Number(m[1].replace(/,/g, ""));
   else if ((m = /original powers? (?:of )?([\d,]+)\b/.exec(lower))) f.originalPowerMin = f.originalPowerMax = Number(m[1].replace(/,/g, ""));
-  if ((m = /powers? between ([\d,]+) and ([\d,]+)/.exec(lower))) {
+  // "Cards with 5000 combo power" (BT29-030), "a combo power of 5000" (2-8):
+  // read before the bare power lines and then taken out of the text they
+  // read, because "combo power between 5000 and 10000" contains "power
+  // between", which would otherwise land on `powerMin`/`powerMax` as well.
+  // The number-first order is read only after "with"/"and"/"of", so that "it
+  // gets +5000 combo power" is not read as a bound on the target.
+  const num = (x: string) => Number(x.replace(/,/g, ""));
+  let comboSaid: string | null = null;
+  if ((m = /combo powers? (?:of )?between ([\d,]+) and ([\d,]+)/.exec(lower))) {
+    f.comboPowerMin = num(m[1]);
+    f.comboPowerMax = num(m[2]);
+    comboSaid = m[0];
+  } else if ((m = /combo powers? (?:of )?([\d,]+) or (less|more)\b/.exec(lower) ?? /\b([\d,]+) or (less|more) combo powers?\b/.exec(lower) ?? /\b([\d,]+) combo powers? or (less|more)\b/.exec(lower))) {
+    if (m[2] === "less") f.comboPowerMax = num(m[1]);
+    else f.comboPowerMin = num(m[1]);
+    comboSaid = m[0];
+  } else if ((m = /\b(?:with|and|of) ([\d,]+) combo powers?\b/.exec(lower) ?? /combo powers? of ([\d,]+)\b/.exec(lower))) {
+    f.comboPowerMin = f.comboPowerMax = num(m[1]);
+    comboSaid = m[0];
+  }
+  const pw = comboSaid ? lower.replace(comboSaid, " ") : lower;
+  if ((m = /powers? between ([\d,]+) and ([\d,]+)/.exec(pw))) {
     f.powerMin = Number(m[1].replace(/,/g, ""));
     f.powerMax = Number(m[2].replace(/,/g, ""));
-  } else if ((m = /(\d+) power or less/.exec(lower))) f.powerMax = Number(m[1]);
-  else if ((m = /(\d+) power or more/.exec(lower))) f.powerMin = Number(m[1]);
+  } else if ((m = /(\d+) power or less/.exec(pw))) f.powerMax = Number(m[1]);
+  else if ((m = /(\d+) power or more/.exec(pw))) f.powerMin = Number(m[1]);
   // The sets print the same bound with the words the other way round —
   // "Battle Cards with 25000 **or less power**" — on 41 lines, and only the
   // first order was read, so some thirty-eight selectors carried no bound at
   // all and were offered every card in the area. TB1-015 is the one that shows
   // what that costs: with its exclusion fixed but its bound still missing, it
   // KO'd every Battle Card on both boards instead of the small ones.
-  else if ((m = /([\d,]+) or less power\b/.exec(lower))) f.powerMax = Number(m[1].replace(/,/g, ""));
-  else if ((m = /([\d,]+) or more power\b/.exec(lower))) f.powerMin = Number(m[1].replace(/,/g, ""));
+  else if ((m = /([\d,]+) or less power\b/.exec(pw))) f.powerMax = Number(m[1].replace(/,/g, ""));
+  else if ((m = /([\d,]+) or more power\b/.exec(pw))) f.powerMin = Number(m[1].replace(/,/g, ""));
   // An exact power, which searches print alongside the cost: "a yellow
   // <Son Goku> card with an energy cost of 3 and 5000 power". Only after
   // "with"/"and", so that "it gets +5000 power for the turn" is not read as a
   // bound on the target.
-  else if ((m = /\b(?:with|and) (\d+) power\b/.exec(lower))) f.powerMin = f.powerMax = Number(m[1]);
+  else if ((m = /\b(?:with|and) (\d+) power\b/.exec(pw))) f.powerMin = f.powerMax = Number(m[1]);
   // "with power less than or equal to this card's power", "with power greater
   // than this card's power" — measured against the card the skill is on.
   if (
@@ -573,6 +605,11 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   if (f.originalPowerMin != null && (d.power == null || d.power < f.originalPowerMin)) return false;
   if (f.originalPowerMax != null && (d.power == null || d.power > f.originalPowerMax)) return false;
   if (f.originallySkillLess && d.skill) return false;
+  // 2-8: the printed combo power — `cardNow` never rewrites it, the same as
+  // `d.power` above.
+  const combo = typeof d.comboPower === "number" ? d.comboPower : null;
+  if (f.comboPowerMin != null && (combo == null || combo < f.comboPowerMin)) return false;
+  if (f.comboPowerMax != null && (combo == null || combo > f.comboPowerMax)) return false;
   return true;
 }
 

@@ -18,7 +18,7 @@ import { costIsOnlyOrbs, costText, parseConditionClause } from "../compile";
 import { matches, parseCondition, parseFilter } from "../text/filters";
 import { legacyHost } from "./legacy-host";
 import { replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "../vm/script";
-import { koCard, pendTriggers } from "./triggers";
+import { koCard, pendPlacedOnArrival, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "../vm/rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
 import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
@@ -692,6 +692,7 @@ function resolvePlay(
     note(ev, `${face(ctx, s, card).name} was played with its skills negated`);
   }
   s.resolving = null;
+  const pendedBefore = s.pending.length;
   pendTriggers(ctx, s, "played", card);
   // "When your opponent plays a Battle Card": watched by every card the other
   // player has in play, with the played card as the subject.
@@ -702,6 +703,9 @@ function resolvePlay(
   // valid in the area it now sits in (9-1-3-1) and the event it names has
   // happened, so a ≪God≫ card printing that line does see its own arrival.
   for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "youPlayed", id, card);
+  // 5-5-1: played into the Battle Area is placed there too (owner's ruling,
+  // 2 Oct 2026) — a Unison's area is not one.
+  pendPlacedOnArrival(ctx, s, card, pendedBefore);
   // 22-35-2 / 22-36-2: each pends when its owner plays *another* card with the
   // **same** keyword. They used to cross-match, so a [Villainous] card played
   // set off every [Heroic] on the board.
@@ -839,6 +843,9 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         // 22-3: the Extra goes to the Battle Area; other [Field] Extras go to the Drop.
         for (const id of s.players[master].battle.slice()) if (has(ctx, s, id, "Field")) move(ctx, s, ev, id, "drop", master, { reason: "rule" });
         move(ctx, s, ev, card, "battle", master, { reason: "play", reveal: true });
+        // "When this card is placed in a Battle Area" (BT29-041, BT29-042):
+        // the Extra has arrived there, which is the moment it names.
+        pendPlacedOnArrival(ctx, s, card);
         return "done";
       default:
         break;

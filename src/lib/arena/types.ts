@@ -696,6 +696,13 @@ export type Trigger =
   /** "When this card in your deck or hand is placed into its owner's Drop" (BT29-109): out of a secret area, whatever put it there — a discard included. */
   | "deckOrHandToDrop"
   /**
+   * "When this card is sent from your deck to your Warp by your <Heles> card's
+   * skill" (3-10, BT30-106): one of your skills moved it out of your deck into
+   * the Warp. The skill's card is the `subject`, so what the card says about it
+   * ("your <Heles> card's") is a condition on the subject, not part of the moment.
+   */
+  | "deckToWarpBySkill"
+  /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"
    * (22-40), "when you play a Battle Card using [Over Realm]" (22-15).
@@ -709,9 +716,10 @@ export type Trigger =
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**
-   * A card *placed* in a Battle Area rather than played (5-5): by a skill, by
-   * [Over Realm], by an Evolve. "When this card is played" does not cover it,
-   * and 30 cards say only the second.
+   * A card *placed* in a Battle Area (5-5-4): by a skill, by [Over Realm], by
+   * an Evolve, by its [Field] — and by being played, since 5-5-1 makes a play
+   * a placing (owner's ruling, 2 Oct 2026). "When this card is played" does
+   * not cover the rest, and 42 skills say only the second.
    */
   | "placed"
   | "energyToDrop"

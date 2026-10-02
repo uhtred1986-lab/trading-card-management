@@ -381,6 +381,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   originalPowerMin: { originalPowerMin: 15000 },
   originalPowerMax: { originalPowerMax: 10000 },
   originallySkillLess: { originallySkillLess: true },
+  comboPowerMin: { comboPowerMin: 5000 },
+  comboPowerMax: { comboPowerMax: 5000 },
   faceUp: { faceUp: true },
   powerRel: { powerRel: { of: "self", cmp: "<=" } },
   unreadable: { unreadable: true },
@@ -402,6 +404,9 @@ const CORPUS: CardDef[] = [
   card("ZED", { type: "Z-BATTLE", zEnergyCost: 2 }),
   card("RAINBOW", { colors: ["Red", "Blue"], energyCost: 4, power: 20000 }),
   card("MUTE", { skill: null, characters: [] }),
+  // 2-8: combo power either side of 5000, and none at all.
+  card("COMBO10K", { comboPower: 10000 }),
+  card("NOCOMBO", { comboPower: null }),
 ];
 
 for (const field of FILTER_FIELD_NAMES) {
@@ -996,8 +1001,11 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // game fires what it fires, and which of those are moments is the
     // definition's business (`triggers.rules`' own header).
     assert.deepEqual(matchTriggers(DBS, s, { event: "somethingElse", card: id, controller: "p1", args: {} }), [], "a moment nothing declares matched a trigger");
-    // A pattern argument the moment does not carry never matches.
-    assert.deepEqual(matchTriggers(DBS, s, { event: "moved", card: id, controller: "p1", args: { to: "battle" } }).map((m) => m.trigger), [], "a `moved` moment that does not say whether it was a play matched a declaration that asks");
+    // A pattern argument the moment does not carry never matches: `played`
+    // asks `asPlay` and this moment does not say it. `placed` asks only where
+    // the card went (5-5-1: a play is a placing too, owner's ruling of 2 Oct
+    // 2026), so it is the one declaration this moment answers.
+    assert.deepEqual(matchTriggers(DBS, s, { event: "moved", card: id, controller: "p1", args: { to: "battle" } }).map((m) => m.trigger), ["placed"], "a `moved` moment that does not say whether it was a play matched a declaration that asks");
     // A declaration that watches a side cannot be answered by a moment that
     // says whose it is nowhere — said loudly, because a silent empty list here
     // is a skill that never fires with nothing to explain it.

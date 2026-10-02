@@ -36,6 +36,7 @@ import {
   priceOf,
   rejectedActionsG,
   sentence,
+  settledG,
   skillNegatedG,
   splitClauses,
   stageMoveG,
@@ -1532,6 +1533,82 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   r = playG(r, { type: "counter", player: "p2", card: edecoy, skill: 0 });
   if (r.prompt.kind === "chooseCards") r = playG(r, { type: "choose", player: "p2", cards: [big] });
   assert.equal(r.battle?.guard, big, "the attack now goes at BIG");
+}
+
+// "Switch your card that's in a battle with the chosen card" (8-1-7-2,
+// BT30-098 / BT31-085): the chosen card takes the master's seat in the battle
+// — the guard card when they are attacked, the attack card when they attack —
+// and the battle resolves with it. The ids are this block's own and leave
+// DEFS again at its end, so the probe sweep is unchanged by them.
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  DEFS["E-SWAPG"] = { ...DEFS["E-NEGATE"], id: "E-SWAPG", name: "E-SWAPG", skill: "[Counter: Attack] Choose 1 of your Battle Cards and switch your card that's in a battle with the chosen card." };
+  DEFS["E-SWAPA"] = { ...DEFS["E-DRAW"], id: "E-SWAPA", name: "E-SWAPA", skill: "[Activate: Battle] Choose 1 of your Battle Cards and switch your card that's in a battle with the chosen card." };
+  assert.deepEqual(
+    one(DEFS["E-SWAPG"].skill!).ops.map((o) => o.op),
+    ["choose", "swapBattle"],
+  );
+  // "Play this card, switch your card that's in a battle with this card" — the
+  // card itself, once it has been played (BT30-098).
+  assert.deepEqual(
+    one("[Counter: Counter] Play this card, switch your card that's in a battle with this card.").ops.map((o) => o.op),
+    ["choose", "play", "swapBattle"],
+  );
+  assert.deepEqual(one("[Counter: Counter] Play this card, switch your card that's in a battle with this card.").ops[2], { op: "swapBattle", target: { sel: { special: "self" } } });
+
+  // The guard card: p1's Leader (10000) attacks p2's V1 (10000), which would
+  // be KO'd; p2 swaps BIG (25000) in, so the attack bounces off and V1 stays.
+  {
+    let s = arenaG({ oppHand: ["E-SWAPG"], oppEnergy: ["V1"], oppBattle: ["V1", "BIG"] });
+    const [v1, big] = zoneOf(s, "p2", "battle");
+    s.cards[v1].mode = "rest";
+    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: v1 });
+    assert.equal(s.prompt.kind, "counter", "the [Counter: Attack] window");
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "E-SWAPG"), skill: 0 });
+    if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p2", cards: [big] });
+    assert.equal(s.battle?.guard, big, "BIG is the guard card now");
+    assert.equal(s.battle?.attacker, leaderOf(s, "p1"), "the attack card is unchanged");
+    for (let i = 0; i < 8 && s.battle; i++) s = playG(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
+    assert.equal(s.battle, null, "the battle ended");
+    assert.ok(zoneOf(s, "p2", "battle").includes(v1), "V1 left the battle and was not KO'd");
+    assert.ok(zoneOf(s, "p2", "battle").includes(big), "BIG (25000) held against 10000");
+    assertConsistentG(s);
+  }
+
+  // The attack card: p1's V1 (10000) attacks p2's BIG (25000), which would
+  // bounce off; p1 swaps its own BIG in, and 25000 against 25000 KOs p2's BIG.
+  {
+    let s = arenaG({ hand: ["E-SWAPA"], energy: ["V1"], battle: ["V1", "BIG"], oppBattle: ["BIG"] });
+    const [v1, mine] = zoneOf(s, "p1", "battle");
+    const theirs = zoneOf(s, "p2", "battle")[0];
+    settledG(s, v1);
+    s.cards[theirs].mode = "rest";
+    s = playG(s, { type: "attack", player: "p1", attacker: v1, target: theirs });
+    assert.equal(s.prompt.kind, "combo");
+    const swap = findG(s, "p1", "hand", "E-SWAPA");
+    s = playG(s, { type: "activate", player: "p1", card: swap, skill: 0 });
+    if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [mine] });
+    assert.equal(s.battle?.attacker, mine, "p1's BIG is the attack card now");
+    assert.equal(s.battle?.guard, theirs, "the guard card is unchanged");
+    for (let i = 0; i < 8 && s.battle; i++) s = playG(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
+    assert.equal(s.battle, null, "the battle ended");
+    assert.ok(zoneOf(s, "p2", "drop").includes(theirs), "p2's BIG was KO'd by the new attack card");
+    assert.ok(zoneOf(s, "p1", "battle").includes(v1) && zoneOf(s, "p1", "battle").includes(mine), "both of p1's cards are still in play");
+    assertConsistentG(s);
+  }
+
+  // Outside a battle, or naming a card already in it, the op does nothing.
+  {
+    let s = arenaG({ oppHand: ["E-SWAPG"], oppEnergy: ["V1"], oppBattle: ["V1"] });
+    const v1 = zoneOf(s, "p2", "battle")[0];
+    s.cards[v1].mode = "rest";
+    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: v1 });
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "E-SWAPG"), skill: 0 });
+    if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p2", cards: [v1] });
+    assert.equal(s.battle?.guard, v1, "the guard card cannot take its own place");
+  }
+  delete DEFS["E-SWAPG"];
+  delete DEFS["E-SWAPA"];
 }
 
 {
