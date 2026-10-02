@@ -422,8 +422,14 @@ export interface Permission {
    * — "you can use your mono-red Rest Mode ≪Saiyan≫ cards in combos"
    * (BT18-001, BT29-129); the target is the card granting it, and `filter`
    * says which rested cards.
+   * `overRealmFromWarp`: the target's own [Over Realm] skill may be activated
+   * from its owner's Warp under the same conditions as from the hand (22-15)
+   * — "This card's [Over Realm] skill can be activated from its owner's Warp
+   * under the same conditions as if it were in your hand" (BT31-150). Read
+   * while the card is in the Warp, where the line is then used; `filter` is
+   * not read.
    */
-  what: "attackActive" | "comboRest";
+  what: "attackActive" | "comboRest" | "overRealmFromWarp";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }

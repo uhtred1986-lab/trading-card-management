@@ -1980,7 +1980,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"overRealmFromWarp\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
       "fields": [
         {
           "name": "what",
@@ -1989,7 +1989,8 @@
           "type": "enum",
           "enumValues": [
             "attackActive",
-            "comboRest"
+            "comboRest",
+            "overRealmFromWarp"
           ]
         },
         {
@@ -2012,7 +2013,7 @@
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
-      "doc": "a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it). The filter says *which* cards — leave it out only when the card does"
+      "doc": "a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged). The filter says *which* cards — leave it out only when the card does"
     },
     {
       "name": "if",

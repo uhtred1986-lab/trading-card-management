@@ -875,9 +875,14 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
       const ps = s.players[p];
       // 9-1-3-1: a card's skills are valid in its own area. Cards in hand are
       // included only for the skills that name the hand, such as cost reducers.
-      for (const src of [...cardsInPlay(s, p), ...ps.hand, ...ps.zDeck]) {
+      // Cards in the Warp only for the one permission about the card's own
+      // line used from there (`overRealmFromWarp`, BT31-150) — nothing else a
+      // [Permanent] says holds from the Warp.
+      for (const src of [...cardsInPlay(s, p), ...ps.hand, ...ps.zDeck, ...ps.warp]) {
         const inst = s.cards[src];
         if (!inst || inst.hidden || skillsNegated(s, src)) continue;
+        const inWarp = ps.warp.includes(src);
+        if (inWarp && !mayHoldFromWarp(ctx, s, src)) continue;
         const scripts = scriptsOfInstance(ctx, s, src);
         const inPlayNow = inPlay(s, src);
         // Copies included (20-18): a copied [Permanent] stands on the card
@@ -887,7 +892,7 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
           if (skillNegated(s, src, sk.index, sk.kind)) continue;
           const sc = scripts.bySkill[sk.index];
           if (!sc || sc.unsupported.length) continue;
-          collectStatics(ctx, s, out, src, p, sc.ops, inPlayNow);
+          collectStatics(ctx, s, out, src, p, inWarp ? sc.ops.filter(isWarpPermission) : sc.ops, inPlayNow);
         }
       }
     }
@@ -1003,6 +1008,14 @@ const STATIC_OPS = new Set<Op["op"]>(["power", "comboPower", "modifyAttr", "gran
 
 export function emitsStatic(ops: Op[]): boolean {
   return ops.some((o) => (o.op === "if" ? emitsStatic(o.then) || emitsStatic(o.else ?? []) : STATIC_OPS.has(replaceAs(costModifierAs(negateAs(modifyAttrAs(o)))).op)));
+}
+
+/** A [Permanent]'s op that holds while its card is in the Warp: the permission to use its own [Over Realm] line from there (BT31-150). */
+const isWarpPermission = (op: Op): boolean => op.op === "permit" && op.what === "overRealmFromWarp";
+
+/** The cheap gate in front of that: only a card printing [Over Realm] can carry a permission about using it from the Warp. */
+function mayHoldFromWarp(ctx: GameContext, s: GameState, card: string): boolean {
+  return skillsOfInstance(ctx, s, card).some((sk) => sk.keyword?.name === "Over Realm");
 }
 
 function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], source: string, master: PlayerId, ops: Op[], inPlayNow: boolean): void {
@@ -1181,7 +1194,9 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // that have it ("This card can attack Battle Cards in Active Mode"), so it
     // belongs here beside the prohibition it mirrors.
     if (op.op === "permit") {
-      if (!inPlayNow) continue;
+      // `overRealmFromWarp` (BT31-150) is about the card's own [Over Realm]
+      // line used from the Warp, so it is read there (`staticEffects`).
+      if (!inPlayNow && op.what !== "overRealmFromWarp") continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "permit", target: id, value: { what: op.what, filter: op.filter } });
       continue;
     }

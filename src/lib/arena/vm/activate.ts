@@ -90,7 +90,7 @@ import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, resolveRef, resolveSelector, staticsNow } from "./program";
+import { attrsNow, forbiddenBy, permissions, resolveRef, resolveSelector, staticsNow } from "./program";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
 import { vmHost } from "./host";
@@ -133,7 +133,7 @@ export interface ActivationLine {
  * rather than reading a keyword's price off nothing. What would replace them is
  * `DEFINE KEYWORD` bodies naming their own pools, which is Stage 7's (#153).
  */
-export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison", zDeck: "zDeck", zEnergy: "zEnergy" } as const;
+export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison", zDeck: "zDeck", zEnergy: "zEnergy", overRealmWarp: "warp" } as const;
 
 /** Every zone this module names, for the check `createGame` makes against the declarations. */
 export const ACTIVATION_ZONE_NAMES = [...new Set(Object.values(ACTIVATION_ZONES))];
@@ -206,9 +206,20 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // valid once it is in play, so a line there that is no keyword's move is
     // no candidate at all — the legacy menu never asks about one.
     if (!keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.zDeck) continue;
+    // 22-15 widened: the Warp is where nothing is used from, except an [Over
+    // Realm] line whose own card's [Permanent] says it "can be activated from
+    // its owner's Warp under the same conditions as if it were in your hand"
+    // (BT31-150) — a `permit` of `overRealmFromWarp`, read while the card is
+    // in the Warp (`vm/effects.ts`). Every other gate is the keyword's own.
+    if (findCard(state, card)?.zone === ACTIVATION_ZONES.overRealmWarp && !(game && keyword?.name === "Over Realm" && overRealmFromWarp(ctx, game, state, card))) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   return out;
+}
+
+/** 22-15 widened (BT31-150): does a `permit` of `overRealmFromWarp` stand for this card, which is in the Warp? The legacy `overRealmFromWarp`'s twin. */
+function overRealmFromWarp(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): boolean {
+  return permissions(ctx, game, state, "overRealmFromWarp").some((p) => p.target === card);
 }
 
 // ── what a line costs ───────────────────────────────────────────────────────

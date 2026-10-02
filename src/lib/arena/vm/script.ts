@@ -803,8 +803,11 @@ export type Op =
    * "This card can attack Battle Cards in Active Mode" (8-1-1). `filter`
    * says which active cards, and a description the parser cannot read must
    * fail the clause rather than permit every one of them.
+   * `overRealmFromWarp` (BT31-150): the target's [Over Realm] skill may be
+   * activated from its owner's Warp as from the hand (22-15); read while the
+   * card is in the Warp.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest"; until: Duration; target: Ref; filter?: CardFilter }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "overRealmFromWarp"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or

@@ -12,6 +12,8 @@ export interface RejectionDeps {
   whyNotCombo: (ctx: EngineContext, s: GameState, p: PlayerId, card: string) => Requirement[];
   whyNotCounter: (ctx: EngineContext, s: GameState, p: PlayerId, card: string, window: CounterWindow, candidates: string[]) => Requirement[] | null;
   whyNotActivate: (ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle") => Requirement[] | null;
+  /** The Warp's cards whose [Over Realm] line a [Permanent] lets be used there (BT31-150), and that line. */
+  overRealmWarpLines: (ctx: EngineContext, s: GameState, p: PlayerId) => { card: string; skills: Skill[] }[];
   modeWhy: (ctx: EngineContext, s: GameState, card: string) => Requirement;
   cardOf: (a: Action) => string | null;
 }
@@ -124,6 +126,7 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
         const why = deps.whyNotAttack(ctx, s, p, id);
         if (why) push({ type: "attack", player: p, attacker: id, target: s.players[other(p)].leader }, `Attack with ${name(id)}`, why);
       }
+      for (const { card, skills } of deps.overRealmWarpLines(ctx, s, p)) rejectActivate(card, skills, "main");
       return out;
     }
     case "combo": {
@@ -134,6 +137,7 @@ export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAc
       }
       for (const id of ps.battle) push({ type: "combo", player: p, card: id }, `Combo ${name(id)}`, deps.whyNotCombo(ctx, s, p, id));
       for (const id of cardsInPlay(s, p)) rejectActivate(id, skillsToExplain(id), "battle");
+      for (const { card, skills } of deps.overRealmWarpLines(ctx, s, p)) rejectActivate(card, skills, "battle");
       return out;
     }
     case "counter": {

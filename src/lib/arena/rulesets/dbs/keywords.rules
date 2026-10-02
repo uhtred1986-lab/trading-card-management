@@ -441,8 +441,17 @@ DEFINE KEYWORD "Over Realm"
   -- it is played through the [Counter: Play] window. "when you play a card
   -- using [Over Realm]" is the move's `keywordActivated`. One difference,
   -- recorded: the refusal for too few cards does not add "(N there)".
+  -- From the Warp as well (owner-approved 2 Oct 2026) while the card's own
+  -- [Permanent] says "This card's [Over Realm] skill can be activated from
+  -- its owner's Warp under the same conditions as if it were in your hand"
+  -- (BT31-150): a `permit` of `overRealmFromWarp`, read in the Warp. The
+  -- `activate` action's FOR names the Warp, and `vm/activate.ts`'s
+  -- `activationsOf` offers no line there but this one, and this one only
+  -- under that permission — so the zone gate below may accept the Warp, and
+  -- every other gate (the count, the shared limit, the whole-Drop cost, the
+  -- return to the Warp as the turn ends) is the hand's, unchanged.
   offer: "activate:main"
-  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE zone(area: hand) UNLESS any([count([self] IN you.hand) >= 1, count([self] IN you.warp) >= 1])
   REFUSE oncePerTurn(what: "Over Realm") UNLESS any([NOT playerAttr(name: "overRealms", atLeast: 1), all([count("card with [Wormhole]" IN you.play) >= 1, NOT playerAttr(name: "overRealms", atLeast: 2)])])
   REFUSE condition(text: "{x} or more {dark?black }cards in your Drop Area") UNLESS any([all([NOT flag(value: $dark), count(IN you.drop) >= $x]), all([flag(value: $dark), count((colors = [Black]) IN you.drop) >= $x])])
   label: "{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"

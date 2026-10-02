@@ -303,7 +303,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "overRealmFromWarp"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -745,9 +745,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const cards = op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards";
         return `you can use your ${cards} in Rest Mode in combos${forThe(op.until, r)}`;
       }
+      if (op.what === "overRealmFromWarp") {
+        return renderTemplate("{target}'s [Over Realm] skill can be activated from its owner's Warp under the same conditions as from the hand", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
+      }
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },
-    doc: 'a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it). The filter says *which* cards — leave it out only when the card does',
+    doc: 'a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged). The filter says *which* cards — leave it out only when the card does',
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
   chooseMode: {

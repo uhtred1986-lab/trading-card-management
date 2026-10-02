@@ -335,7 +335,7 @@ DEFINE ACTION playZ                                                       -- §1
 DEFINE ACTION activate                                                    -- §9-1-2
   WHEN [main]
   prompts: [main]
-  FOR 1 IN you.hand|leader|unison|battle|zDeck                            -- zDeck: a keyword's own move only, [Z-Awaken] (22-46-5)
+  FOR 1 IN you.hand|leader|unison|battle|zDeck|warp                       -- zDeck: a keyword's own move only, [Z-Awaken] (22-46-5); warp: [Over Realm] only, and only while its card's [Permanent] permits it (`overRealmFromWarp`, BT31-150)
   BIND "card"
   skills: ["activate:main", "activate:main/battle"]
   COST [marker, burst, spiritBoost, energy, zEnergy, payWith, text]       -- zEnergy: bound to 0 but from the Z-Deck (22-46-3)

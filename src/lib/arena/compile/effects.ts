@@ -1674,6 +1674,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "permit", what: "comboRest", target: { sel: { special: "self" } }, until, ...(filter ? { filter } : {}) }];
   }
 
+  // 22-15 widened (owner-approved 2 Oct 2026): "[Permanent] This card's [Over
+  // Realm] skill can be activated from its owner's Warp under the same
+  // conditions as if it were in your hand" (BT31-150). [Over Realm] is used
+  // from the hand; this lets the same line be used from the Warp. A
+  // [Permanent] only — read while the card is in the Warp.
+  if (c.permanent && /^this card'?s \[(?:dark )?over realm\] skill can be activated from (?:its owner'?s|your) warp under the same conditions as (?:if it were|when it is) in (?:your|its owner'?s) hand$/.test(t)) {
+    return [{ op: "permit", what: "overRealmFromWarp", target: { sel: { special: "self" } }, until: "game" }];
+  }
+
   // 20-9: "gain control of it until the end of the turn", "you gain control of
   // it", "gain control of the played card". Six cards, every one of them
   // pointing back at a card an earlier clause chose or a trigger named, which

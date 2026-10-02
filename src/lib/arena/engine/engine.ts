@@ -1941,6 +1941,14 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
       if (act) pushActivations(out, ctx, s, p, id, sk, act, false);
     }
   }
+  // 22-15 widened: an [Over Realm] line its own [Permanent] lets be used from
+  // the Warp (BT31-150), under the same gates as from the hand.
+  for (const { card: id, skills } of overRealmWarpLines(ctx, s, p)) {
+    for (const sk of skills) {
+      const act = activatable(ctx, s, p, id, sk, "main");
+      if (act) pushActivations(out, ctx, s, p, id, sk, act, false);
+    }
+  }
   // 13-3: Unison growth.
   if (ps.unison && !ps.grewUnisonThisTurn) {
     const uc = s.cards[ps.unison].cardId;
@@ -2016,7 +2024,7 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
  * does), so the menu is not enumerated a second time.
  */
 export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAction[] = legalActions(ctx, s)): RejectedAction[] {
-  const deps: RejectionDeps = { whyNotCharge, whyNotPlayFromHand, whyNotAttack, whyNotCombo, whyNotCounter, whyNotActivate, modeWhy, cardOf };
+  const deps: RejectionDeps = { whyNotCharge, whyNotPlayFromHand, whyNotAttack, whyNotCombo, whyNotCounter, whyNotActivate, overRealmWarpLines, modeWhy, cardOf };
   return gatherRejectedActions(ctx, s, legal, deps);
 }
 
@@ -2193,6 +2201,23 @@ function whyNotPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string)
 }
 
 /**
+ * 22-15 widened: is this card in the Warp, with a [Permanent] saying its
+ * [Over Realm] skill "can be activated from its owner's Warp under the same
+ * conditions as if it were in your hand" (BT31-150)? A `permit` of
+ * `overRealmFromWarp`, read while the card is in the Warp (`staticEffects`).
+ */
+export function overRealmFromWarp(ctx: EngineContext, s: GameState, card: string): boolean {
+  return areaOf(s, card) === "warp" && permits(ctx, s, card, "overRealmFromWarp").length > 0;
+}
+
+/** The cards in a player's Warp whose [Over Realm] line is offered there (`overRealmFromWarp`), and that line. */
+export function overRealmWarpLines(ctx: EngineContext, s: GameState, p: PlayerId): { card: string; skills: Skill[] }[] {
+  return s.players[p].warp
+    .filter((id) => overRealmFromWarp(ctx, s, id))
+    .map((id) => ({ card: id, skills: skillsOf(def(ctx, s, id)).filter((sk) => sk.keyword?.name === "Over Realm") }));
+}
+
+/**
  * Whether a skill can be declared now, and its menu label. Only skills the
  * engine can pay for *and* resolve are offered: keyword skills with native
  * rules, plus text skills whose cost is orbs only and whose effect the native
@@ -2272,7 +2297,9 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         return `Union-${k.variant} ${name}`;
       }
       case "Over Realm": {
-        if (timing !== "main" || !inHand) return null;
+        // From the hand — or from the Warp while a [Permanent] says so for
+        // this card (`overRealmFromWarp`, BT31-150), under the same conditions.
+        if (timing !== "main" || !(inHand || overRealmFromWarp(ctx, s, card))) return null;
         const ps = s.players[p];
         const limit = cardsInPlay(s, p).some((id) => has(ctx, s, id, "Wormhole")) ? 2 : 1;
         if (ps.overRealmsThisTurn >= limit) return null;
@@ -2511,7 +2538,7 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
       }
       case "Over Realm": {
         wantTiming("main");
-        wantZone("hand");
+        if (!overRealmFromWarp(ctx, s, card)) wantZone("hand");
         const ps = s.players[p];
         const limit = cardsInPlay(s, p).some((id) => has(ctx, s, id, "Wormhole")) ? 2 : 1;
         if (ps.overRealmsThisTurn >= limit) why.push({ kind: "oncePerTurn", what: "Over Realm" });
@@ -2801,7 +2828,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
     case "activate": {
       const timing = pr.kind === "main" ? "main" : pr.kind === "combo" ? "battle" : null;
       if (!timing) throw new IllegalAction("no skill can be activated now");
-      const skills = areaOf(s, action.card) === "hand" || areaOf(s, action.card) === "zDeck" ? skillsOf(def(ctx, s, action.card)) : skillsOfInstance(ctx, s, action.card);
+      const skills = areaOf(s, action.card) === "hand" || areaOf(s, action.card) === "zDeck" || areaOf(s, action.card) === "warp" ? skillsOf(def(ctx, s, action.card)) : skillsOfInstance(ctx, s, action.card);
       const sk = skills.find((k) => k.index === action.skill);
       if (!sk) throw new IllegalAction("no such skill");
       const label = activatable(ctx, s, p, action.card, sk, timing, !!action.alt);
