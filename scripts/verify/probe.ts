@@ -207,10 +207,21 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
         skill: "[Permanent] If you have a card with <Trunks> in its character name in play, reduce the specified cost of this card in your hand by {u}.",
       });
     const entered = ruleFor(goten({ Blue: 2 }));
+    // The trigger's boards; the met / not-met pair for its IF (#470,
+    // `probe-edges.ts`) follows them and is checked in `verify/tryit.ts`.
     assert.deepEqual(
-      scenariosFor(entered).map((s) => s.key),
+      scenariosFor(entered)
+        .filter((s) => !s.knobs)
+        .map((s) => s.key),
       ["permanent", "permanent:inHand", "permanent:reduced"],
       "the reduced board is offered beside the KO board, not instead of it",
+    );
+    assert.deepEqual(
+      scenariosFor(entered)
+        .filter((s) => s.knobs)
+        .map((s) => s.key),
+      ["permanent|cond=1", "permanent|cond=0"],
+      "and the edge pair of its condition after them",
     );
     assert.ok(!scenariosFor(ruleFor(card("P-PERM2", { skill: "[Permanent] This card gets +5000 power." }))).some((s) => s.key === "permanent:reduced"), "and only to a rule that relaxes its own specified cost");
 

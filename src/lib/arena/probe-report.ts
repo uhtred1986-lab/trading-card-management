@@ -13,6 +13,8 @@ import { keywordPlays } from "./glossary";
 import { narrate } from "./narration";
 import type { ProbeOutcome, ProbeRule, ProbeScenario } from "./probe-types";
 import { questionFor } from "./view";
+import type { RulePath } from "./lang/path";
+import { isMarker, markerPath } from "./probe-trace";
 
 /**
  * The rules engine's definition, for the two readings below that the engine
@@ -48,6 +50,12 @@ export interface ProbeStep {
   chose: string;
   /** What a `chooseCards` prompt was offering, so a card that could not be chosen can be named. */
   candidates: string[] | null;
+  /**
+   * On a traced run (#470): one per event, the rule path of the block that
+   * made it — null for an event the rule did not make. Filled by
+   * `attributeSteps`; absent otherwise.
+   */
+  paths?: (RulePath | null)[];
 }
 
 /** The question, said from the chair it is asked in — the probe watches from p1's. */
@@ -86,6 +94,68 @@ export function logLines(ctx: EngineContext, steps: ProbeStep[], from = 0, engin
     }
   }
   return out;
+}
+
+/**
+ * Which block made each event of a traced run (#470), written onto the steps
+ * as `paths`, and the steps the rule finished, in order.
+ *
+ * The markers `probe-trace.ts` put after every step are read off the event
+ * stream: everything since the last marker belongs to the step the next one
+ * names. The skill's own announcement is the rule's WHEN — or its IF, when it
+ * has one, since that is the clause deciding whether a skill that answered
+ * goes on to do anything — and whatever piled up before it was the move under
+ * test, not the rule. Whatever is left when the markers run out is the game
+ * carrying on (the battle the attack opened) and belongs to nobody.
+ */
+export function attributeSteps(steps: ProbeStep[], from: number, card: string, skillIndex: number, hasCond: boolean): { reached: RulePath[] } {
+  const reached: RulePath[] = [];
+  let pending: { step: ProbeStep; i: number }[] = [];
+  for (const step of steps) step.paths = step.events.map(() => null);
+  for (const step of steps.slice(from)) {
+    const paths = step.paths as (RulePath | null)[];
+    step.events.forEach((e, i) => {
+      if (e.type === "note" && isMarker(e.text)) {
+        const at = markerPath(e.text);
+        for (const p of pending) (p.step.paths as (RulePath | null)[])[p.i] = at;
+        pending = [];
+        reached.push(at);
+      } else if (e.type === "skill" && e.card === card && e.skill === skillIndex) {
+        pending = [];
+        paths[i] = hasCond ? "cond" : "trigger";
+      } else pending.push({ step, i });
+    });
+  }
+  return { reached };
+}
+
+/**
+ * `logLines`, with the path of the block behind each line — the same lines,
+ * in the same order, so `applied` reads as it always has. A beat is mapped
+ * back to its event by translating the events one at a time, which gives the
+ * same beats as the batch (`toBeats` is one beat per event or none, in order);
+ * a step where it does not is left unattributed rather than misattributed.
+ */
+export function tracedLogLines(ctx: EngineContext, steps: ProbeStep[], from = 0, engine: EngineId = FALLBACK_ENGINE): { lines: string[]; paths: (RulePath | null)[] } {
+  const lines: string[] = [];
+  const paths: (RulePath | null)[] = [];
+  const impl = engineFor(engine);
+  for (const step of steps.slice(from)) {
+    const beats = impl.toBeats(ctx, step.state, step.events, 0);
+    const owners: (RulePath | null)[] = [];
+    step.events.forEach((e, i) => {
+      const n = impl.toBeats(ctx, step.state, [e], 0).list.length;
+      for (let k = 0; k < n; k++) owners.push(step.paths?.[i] ?? null);
+    });
+    const aligned = owners.length === beats.list.length;
+    beats.list.forEach((b, k) => {
+      const said = narrate(b, { viewer: YOU, them: "Opponent", art: beats.art, ownerOf: (id) => step.state.cards[id]?.owner ?? null }, undefined, { full: true });
+      if (!said) return;
+      lines.push(said);
+      paths.push(aligned ? owners[k] : null);
+    });
+  }
+  return { lines, paths };
 }
 
 const AREA_WORDS: Record<string, string> = {
@@ -151,7 +221,7 @@ function notesIn(ops: Op[]): string[] {
 export function assumptionsOf(ctx: EngineContext, s: EngineState, card: string, rule: ProbeRule, steps: ProbeStep[]): string[] {
   const out = new Set<string>();
   for (const t of notesIn(rule.ops)) out.add(t);
-  for (const step of steps) for (const e of step.events) if (e.type === "note") out.add(e.text);
+  for (const step of steps) for (const e of step.events) if (e.type === "note" && !isMarker(e.text)) out.add(e.text);
   for (const clause of rule.unread) out.add(`the compiler could not read "${clause}", so that much of the line does nothing`);
   // An X cost whose orbs nobody has entered (issue #255): every price on this
   // card's boards is charged as if it demanded no colour, which is lenient

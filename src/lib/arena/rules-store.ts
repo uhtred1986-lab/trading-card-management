@@ -711,6 +711,30 @@ export async function setProbe(db: Db, id: number, probe: StoredProbe): Promise<
   await db.update(cardRules).set({ probe, updatedAt: new Date() }).where(eq(cardRules.id, id));
 }
 
+/**
+ * The owner's word on what should happen, board by board (#470) — the
+ * rule's own tests, written from Try it as each board is judged. A judgement
+ * is about the card rather than one version of its rule, which is why it is
+ * kept as it is made and survives the rule being edited: a row whose new
+ * result no longer matches is how Try it turns red. `[]` clears them.
+ */
+export async function setExpectations(db: Db, id: number, expectations: unknown[]): Promise<void> {
+  await db
+    .update(cardRules)
+    .set({ expectations: expectations.length ? expectations : null, updatedAt: new Date() })
+    .where(eq(cardRules.id, id));
+}
+
+/** Every rule that carries a judgement, for `arena:reprobe`'s "expected X, now Y". */
+export async function expectedRules(db: Db): Promise<WorklistRow[]> {
+  const rows = await db
+    .select({ rule: cardRules, name: cards.name, setCode: cards.setCode })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(isNotNull(cardRules.expectations));
+  return rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode }));
+}
+
 /** Every rule that carries a probe, for `arena:reprobe`. */
 export async function probedRules(db: Db): Promise<WorklistRow[]> {
   const rows = await db

@@ -93,6 +93,12 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
 - **The probe** (`src/lib/arena/probe.ts`): says what the engine *does* with a rule, not what it
   should. Pure — no database, no network, and **no compiler**: `draft.ts` stays the only module
   that compiles card text. Doc: `docs/arena-code-map.md`.
+- **Try it → fix it** (`src/lib/arena/tryit.ts`, panel `components/arena/rules/tryit/`, actions
+  `app/arena/rules/probe-actions.ts`, #470): the builder's unsaved rule, probed on the boards its
+  trigger and condition call for, on the engine games use with legacy beside it. Each beat carries
+  the `RulePath` of its block, so a wrong row opens that block. **`probe()`'s own default stays
+  `FALLBACK_ENGINE`**: Try it passes the engine explicitly. The owner's judgements are
+  `card_rules.expectations`. Doc: `docs/arena-tooling.md`.
 - **Explaining a card** (`src/lib/arena/ai/clarify.ts`): plain-language explanations become a
   draft rule. **A ruling given in conversation goes to `card_rules.explanation` first** (`npm run
   arena:rule`), and the code change is made afterwards, deliberately. Doc: `docs/arena-code-map.md`.
@@ -122,7 +128,8 @@ npm run arena:draft    # Compile the catalog offline into card_rules drafts (--c
 npm run arena:rulesets # Rewrite src/lib/arena/rulesets/<game>/files.ts from the .rules files beside it
                        # (--check fails instead of writing); the loader itself reads no filesystem
 npm run arena:probe    # Try stored rules on a board built for each (--card, --set, --all, --limit, --fill)
-npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
+npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write),
+                       # then every board the owner judged: "expected fired, now didNotFire"
 npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
                        # clause shapes — no database needed (--misses N, --show "<a wording>")
 npm run arena:specified # The specified (coloured) half of a play's price: proves the catalog feed carries
