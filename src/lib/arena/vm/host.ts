@@ -205,9 +205,22 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     setFaceUp: (id, faceUp) => {
       card(id).faceUp = faceUp;
     },
-    setHidden: (id, hidden) => {
+    setHidden: (id, hidden, by) => {
       card(id).hidden = hidden;
       log(ev, { type: "hidden", card: id, hidden });
+      // 21-16-2 / 9-9-2: the card keeps its Active or Rest Mode, but no
+      // continuous effect on it carries over the flip — a [Permanent] is
+      // read fresh, so only the effects written down here go.
+      dropEffectsOn(state, ev, id);
+      // 23-5-4: face down, an attack card or guard card is neither any more.
+      const b = state.battle;
+      if (hidden && b && (b.attacker === id || b.guard === id)) b.hiddenOut = true;
+      // 1-10-2: the switch is a moment, with what caused it and where the card
+      // is — the same shape as `modeSwitched` above (`hiddenBySkill`,
+      // `triggers.rules`).
+      const controller = masterOf(game, state, id);
+      const cause: Record<string, string | boolean> = by ? { by: "skill", byOpponent: by.master !== controller } : {};
+      emit(ctx, game, state, ev, { event: "hiddenSwitched", card: id, controller, args: { hidden, in: zoneOf(state, id) ?? "", ...cause } }, null);
     },
     flip: (id) => {
       card(id).flipped = true;
@@ -484,6 +497,8 @@ function moveTo(
   opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null },
 ): void {
   const from = zoneOf(state, id);
+  // 9-6-9-3: whether it left face down, read before the move resets it.
+  const wasHidden = !!state.cards[id]?.hidden;
   // 9-10: what stands in front of a card leaving play (`vm/replace.ts`) — a
   // redirect changes `to`, a substitute keeps the card where it is.
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}) });
@@ -525,7 +540,7 @@ function moveTo(
   // `cause` is the field the two interpreters share a name for (`MoveOptions.reason`
   // on the legacy side): "damage", "ko", "combo", "effect" and a plain draw are one
   // move told apart by it, and `triggers.rules` may match a `moved(cause: …)` (#274).
-  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner, args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect" } }, null);
+  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner, args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(wasHidden ? { hidden: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
   // this is the one script-level mover every DO program's own `moveTo` op
   // runs through (the charge action's own `DO { moveTo(..., to: energy) }`

@@ -6,8 +6,8 @@ import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal } from "./effects";
 import { compileCostProgram, costText, counterAltCost, priceCondition, priceX } from "./prices";
 import type { Ctx } from "./shared";
-import { countWord } from "./shared";
-import { subjectFilterOf } from "./targets";
+import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
+import { filterFor, parseTarget, subjectFilterOf } from "./targets";
 
 // ── skills and cards ───────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ const KEYWORD_HANDLES_THE_LINE = new Set<KeywordSkill["name"]>(["Evolve", "Union
 
 
 export function compileSkill(skill: Skill): Script {
-  const sc = compileSkillText(skill);
+  const sc = narrowHiddenChoices(compileSkillText(skill));
   // A [Permanent] never resolves, so "for the turn" — the duration every
   // clause gets when it names none — was a lie on every op it emitted. The
   // static layer ignores `until`, so nothing played wrongly; but the stored
@@ -36,6 +36,98 @@ export function compileSkill(skill: Skill): Script {
   // The skill holds while its card is where it is valid (9-5-1), and `game`
   // is the nearest thing the language has to that.
   return skill.kind === "permanent" ? { ...sc, ops: holdForGame(sc.ops) } : sc;
+}
+
+/**
+ * 23-5 with 5-8-2-2: "choose 1 card in your Battle Area **and switch it to
+ * Revealed Mode**" can only be performed on a card that is in Hidden Mode,
+ * and the other way round. As a price that is the whole of it — a price is
+ * paid only if its action is performed completely, so picking a card already
+ * face up would buy the line for nothing — and as an effect it is the only
+ * pick that does anything. The choice is narrowed to the cards the switch can
+ * act on, read off the first switch the chosen cards meet: BT28-113 hides a
+ * card and reveals it again at the end of the turn, and it is the hiding that
+ * is chosen for. A choice that already describes its cards (a colour, a
+ * trait, "Battle Cards") is left alone: a Hidden Mode card has none of that
+ * information (23-5-2), so the description has already ruled them out.
+ */
+function narrowHiddenChoices(sc: Script): Script {
+  const chooses = new Map<string, Extract<Op, { op: "choose" }>>();
+  const first = new Map<string, boolean>();
+  const firstMode = new Map<string, "active" | "rest">();
+  const toggled = new Set<string>();
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    if (o.op === "choose" && typeof o.as === "string") chooses.set(o.as, o as Extract<Op, { op: "choose" }>);
+    // "Switch it to Revealed Mode or Hidden Mode" (BT28-150) asks which mode
+    // the chosen card is in and switches it to the other: either will do.
+    const asked = o.op === "if" ? (o.cond as { sel?: { fromVar?: string } } | undefined)?.sel?.fromVar : undefined;
+    if (asked) toggled.add(asked);
+    if (o.op === "hidden" && o.target && typeof o.target === "object" && "var" in o.target) {
+      const name = (o.target as { var: string }).var;
+      if (!first.has(name)) first.set(name, o.hidden as boolean);
+    }
+    if (o.op === "switchMode" && o.target && typeof o.target === "object" && "var" in o.target) {
+      const name = (o.target as { var: string }).var;
+      if (!firstMode.has(name)) firstMode.set(name, o.mode as "active" | "rest");
+    }
+    for (const k of Object.keys(o)) if (k !== "sel" && k !== "target") walk(o[k]);
+  };
+  walk(sc.ops);
+  if (!first.size && !firstMode.size) return sc;
+  const narrowed = new Map<string, Extract<Op, { op: "choose" }>>();
+  // The same for a Hidden Mode card switched to Rest or Active Mode — "by
+  // switching 1 Hidden Mode card in your Battle Area to Rest Mode" (BT28-138)
+  // — where the choice already says Hidden Mode and nothing of its mode.
+  for (const [name, mode] of firstMode) {
+    const ch = chooses.get(name);
+    if (!ch || ch.sel.hidden !== true || ch.sel.mode || first.has(name)) continue;
+    narrowed.set(name, { ...ch, sel: { ...ch.sel, mode: mode === "rest" ? "active" : "rest" } });
+  }
+  for (const [name, hidden] of first) {
+    if (toggled.has(name)) continue;
+    const ch = chooses.get(name);
+    if (!ch || ch.sel.filter || ch.sel.hidden !== undefined || ch.sel.special || ch.sel.fromVar || ch.sel.take != null) continue;
+    // Only where a card has the position at all (1-10-2): a card chosen out of
+    // a hand and then put into play face down is not chosen for its mode.
+    const areas = ch.sel.areas?.length ? ch.sel.areas : [ch.sel.area ?? "battle"];
+    if (!areas.every((a) => a === "battle" || a === "energy" || a === "unison" || a === "play")) continue;
+    narrowed.set(name, { ...ch, sel: { ...ch.sel, hidden: !hidden } });
+  }
+  if (!narrowed.size) return sc;
+  const rebuild = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(rebuild);
+    if (!v || typeof v !== "object") return v;
+    const o = v as Record<string, unknown>;
+    if (o.op === "choose" && typeof o.as === "string" && narrowed.get(o.as) && chooses.get(o.as) === o) return narrowed.get(o.as);
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(o)) out[k] = k === "sel" || k === "target" ? o[k] : rebuild(o[k]);
+    return out;
+  };
+  return { ...sc, ops: rebuild(sc.ops) as Op[] };
+}
+
+/**
+ * "When paying the skill cost of skills on <description> cards in any of your
+ * areas, [once per turn] you can use <N [or M]> <cards> as energy" — the
+ * scoped `payWith` (20-19, BT28-106). Null for any other sentence, and for
+ * one whose description or cards the target grammar cannot read: a
+ * permission read wider than it is printed is the one wrong answer.
+ */
+function scopedPayWith(text: string): Op | null {
+  const m = /^when paying the skill costs? of skills on (.+?) cards? in (?:any of )?your areas?,\s*(once per turn,? )?you (?:can|may) use (\d+)(?: or (\d+))? (.+?) as energy\.?$/i.exec(text.trim());
+  if (!m) return null;
+  const forSkillsOf = filterFor(m[1], null);
+  if (!forSkillsOf) return null;
+  const sel = parseTarget(`${m[3]} ${m[5]}`);
+  if (!sel || sel.special || sel.fromVar) return null;
+  const { count: _count, upTo: _upTo, ...where } = sel;
+  void _count;
+  void _upTo;
+  const max = Number(m[4] ?? m[3]);
+  return { op: "payWith", target: { sel: where }, forSkillsOf, max, ...(m[2] ? { oncePerTurn: true as const } : {}) };
 }
 
 function compileSkillText(skill: Skill): Script {
@@ -94,6 +186,12 @@ function compileSkillText(skill: Skill): Script {
   // condition comes off first and goes back on around the permission, the way
   // the two-sentence form below already does it.
   const said = text.toLowerCase().trim();
+  // 20-19, scoped (BT28-106): "When paying the skill cost of skills on white
+  // ≪God≫ cards in any of your areas, once per turn you can use 1 [or 2]
+  // Hidden Mode card[s] in your Battle Area as energy." One sentence, which
+  // the clause list would cut at the comma and leave both halves unread.
+  const scoped = c.permanent ? scopedPayWith(text) : null;
+  if (scoped) return { ops: [scoped], unsupported: [] };
   const opener = /^if (.+?),\s*(?=you (?:can|may)\s)/.exec(said);
   const permission = counterAltCost(said.slice(opener?.[0].length ?? 0).replace(/^you (?:can|may)\s+/, ""), c);
   // Only a *program* price needs the opener taken off. A waiver and a price
@@ -149,6 +247,18 @@ function compileSkillText(skill: Skill): Script {
     if (o.op !== "choose") continue;
     c.last = o.as;
     c.lastTarget = { var: o.as };
+    c.priceChoice = o.as;
+  }
+  // "The card that was switched to Hidden Mode by this skill" names the
+  // price's card, possibly well after the effect has made choices of its own
+  // ("Play this card, then switch the card that was switched to Hidden Mode
+  // by this skill to Revealed Mode at the end of the turn", BT28-121). The
+  // effect's own names start past the price's then, so the price's card is
+  // still under its name when the reference is read; anywhere else the shared
+  // `c0` stays as it is (see `Ctx.mills`).
+  if (c.priceChoice && SWITCHED_BY_THIS_SKILL.test(text)) {
+    const at = /^c(\d+)$/.exec(c.priceChoice);
+    if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
   }
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);

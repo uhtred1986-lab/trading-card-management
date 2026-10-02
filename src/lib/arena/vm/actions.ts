@@ -42,7 +42,7 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import type { Cond, Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationAlt, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, keywordActivationMoments, resolveActivation, type ActivationLine } from "./activate";
+import { activationAlt, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -704,7 +704,9 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (line && def.cost?.length) {
       const plan = planCost(ctx, game, state, player, chosen.price, card);
       if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);
+      const spent = scopedPayersSpent(ctx, game, state, player, line);
       chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
+      spent(plan.payment.rest);
     }
   } else if (def.cost?.length && !declining(def, card)) {
     const explicit = (action as { pay?: string[] }).pay;
@@ -728,7 +730,10 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       return "asked";
     }
     if (early) announce(state, ev, player, early);
+    // BT28-106: a once-per-turn grant whose card paid this line is spent.
+    const spent = line ? scopedPayersSpent(ctx, game, state, player, line) : null;
     chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
+    spent?.(plan.payment.rest);
   } else if (early) announce(state, ev, player, early);
   // The one move whose program is not the declaration's: an activation runs the
   // **record's**, because a `DO` written once in the file could not be the

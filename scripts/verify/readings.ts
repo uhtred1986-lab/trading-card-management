@@ -68,7 +68,10 @@ import {
   // the bonus: "+5000 power" must not become a filter.
   const buff = one("[Auto] When you play this card, choose 1 of your Battle Cards and it gets +5000 power for the turn.");
   assert.deepEqual(buff.unsupported, []);
-  assert.equal((buff.ops[0] as { sel: { filter?: unknown } }).sel.filter, undefined, "the bonus is not a bound on the choice");
+  // The only measure left is the card type, which in the Battle Area keeps a
+  // Hidden Mode card out (23-5-2) — nothing about power.
+  const buffFilter = (buff.ops[0] as { sel: { filter?: { type: string | null; powerMin: number | null; powerMax: number | null } } }).sel.filter;
+  assert.deepEqual([buffFilter?.type, buffFilter?.powerMin, buffFilter?.powerMax], ["BATTLE", null, null], "the bonus is not a bound on the choice");
 
   // "Among them" names its own target and only says where to look for it.
   // Read as an "it" this became *this card*, which was silently wrong.

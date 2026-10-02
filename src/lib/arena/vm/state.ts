@@ -87,6 +87,13 @@ export interface VmBattle {
   damage?: VmDamage;
   /** 20-13: the battle steps skipped in this battle, so the combo offer that belongs to a skipped step is not made either. */
   skipped?: ("offense" | "defense")[];
+  /**
+   * 23-5-4: the attack card or the guard card was switched to Hidden Mode and
+   * is no longer either — so, by 8-1-7, the battle goes to its end step. Kept
+   * rather than read off `hidden` because a card revealed again later in the
+   * battle does not get its place in it back. Absent on every other battle.
+   */
+  hiddenOut?: true;
 }
 
 /** What `vm/battle.ts`'s `damageLife` needs to pick up where it stopped: the legacy `battleDamage`'s `resume`, plus [Victory Strike]'s ending (the attacker's rule, read once when the damage began). */

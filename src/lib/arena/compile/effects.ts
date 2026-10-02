@@ -6,7 +6,7 @@ import { parseConditionClause } from "./conditions";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
-import { countWord } from "./shared";
+import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { AREA_WORDS, filterFor, parseTarget, selfFrom } from "./targets";
 
 /**
@@ -134,6 +134,12 @@ function refFor(clause: string, c: Ctx): Ref | null {
   if (/\bthe played card\b|\bthe card (?:that was |you )?played(?: with this skill)?\b/i.test(clause)) {
     if (c.lastPlayed) return { var: c.lastPlayed };
     return c.last ? { var: c.last } : { sel: { special: "subject" } };
+  }
+  // "The card that was switched to Hidden Mode by this skill": the card the
+  // price switched (BT28-121), or nothing to point at when the price chose none.
+  if (SWITCHED_BY_THIS_SKILL.test(clause)) {
+    const named = c.priceChoice ?? c.switchedHere;
+    return named ? { var: named } : null;
   }
   // "Add a marker to the chosen card": the last choice. "**Cards chosen with
   // this card's skill** can't be switched to Active Mode" is the same thing
@@ -1048,13 +1054,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Battle Area" (BT3-039) — the card is rested where it stands, as one energy
   // of its own colours, and never moves.
   //
-  // Only the **unscoped** permission is read. Five cards in the catalog print
-  // something in this family and four of them scope it — to the cards whose
-  // cost is being paid ("when paying the energy cost of blue ≪Demon Realm≫
-  // cards in your hand", BT28-031/032), to one play ("when playing this card",
-  // BT17-065), or to a count per turn (BT28-106). A scope this op cannot carry
-  // is a permission wider than the card prints, which is the one thing a
-  // reading must never be (ground rule 5), so those stay unread.
+  // Only the **unscoped** permission is read here. Five cards in the catalog
+  // print something in this family and four of them scope it — to the cards
+  // whose cost is being paid ("when paying the energy cost of blue ≪Demon
+  // Realm≫ cards in your hand", BT28-031/032), to one play ("when playing this
+  // card", BT17-065), or to skill costs and a count per turn (BT28-106, read
+  // whole as one sentence by `compile/index.ts`'s `scopedPayWith`). A scope
+  // this op cannot carry is a permission wider than the card prints, which is
+  // the one thing a reading must never be (ground rule 5), so those stay unread.
   if (/^use this card to pay energy costs?(?: even)?(?: when (?:it's|it is|this card is) in your battle area)?$/.test(t)) {
     return [{ op: "payWith" }];
   }
@@ -1401,6 +1408,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     }
   }
 
+  // 23-5-2-4: "Increase this card's power by the original power on the front
+  // of the card that was switched to Hidden Mode by this skill" (BT28-105).
+  // The card named is face down by then, and a skill naming a Hidden Mode
+  // card reads its front side — the `originalPower` amount does (`measureOf`).
+  // Only "this card": BT28-105b's "that card" points at a choice between a
+  // Leader and a ≪Universe 7≫ Battle Card the target grammar cannot say.
+  // "That card" (BT28-105b) is the choice just made, between a Leader and a
+  // Battle Card (the "your Leaders or …" choice above).
+  if ((m = /^increase (this card|that card)'?s power by the original power on the front of the card (?:that was )?switched to hidden mode by this skill$/.exec(q)) && c.priceChoice) {
+    const target: Ref | null = m[1] === "this card" ? { sel: { special: "self" } } : c.last && c.last !== c.priceChoice ? { var: c.last } : null;
+    if (!target) return null;
+    return [{ op: "power", target, amount: { attr: { var: c.priceChoice }, name: "originalPower" }, until: durationOf(t) }];
+  }
+
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) (combo )?power,? and ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
     const refs = refsFor(m[1], c);
     const kws = [...m[4].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
@@ -1699,11 +1720,60 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "faceUp", target, ...(up ? {} : { faceUp: false }) })) : null;
   }
+  // "Your opponent adds 2 cards from their hand to their energy in Hidden
+  // Mode" (BT28-136): their choice, out of their own hand (5-2), and the
+  // cards arrive face down (1-10-2) — no colour to pay with (23-5-2).
+  if ((m = /^your opponent adds (\d+) cards? from their hand to their energy(?: area)?( in hidden mode)?$/.exec(t))) {
+    const v = `c${c.n++}`;
+    const n = Number(m[1]);
+    return [
+      { op: "choose", sel: { side: "opponent", area: "hand", count: n }, as: v, chooser: "opponent", reason: clause },
+      { op: "moveTo", target: { var: v }, to: "energy" },
+      ...(m[2] ? [{ op: "hidden", target: { var: v }, hidden: true } as Op] : []),
+    ];
+  }
+  // 23-5: "switch it to Revealed Mode or Hidden Mode" (BT28-150). A card is
+  // in exactly one of the two, and switching it to the one it is in does
+  // nothing (0-2-4-1), so the only switch the choice can make is to the other
+  // one — read as that, for the one chosen card the sentence is about.
+  if ((m = /^switch (.+?) to (?:revealed mode or hidden mode|hidden mode or revealed mode)$/.exec(t))) {
+    // "Switch up to 1 of your energy to …" (BT30-112) chooses first; the
+    // switch then reads the one card chosen, which is all it is ever said of.
+    const ref = refFor(m[1], c);
+    if (!ref) return null;
+    const toggle = (target: Ref): Op =>
+      "var" in target
+        ? { op: "if", cond: { kind: "count", sel: { fromVar: target.var, hidden: true }, atLeast: 1 }, then: [{ op: "hidden", target, hidden: false }], else: [{ op: "hidden", target, hidden: true }] }
+        : { op: "note", text: clause };
+    const ops = withChoice(ref, clause, c, toggle);
+    const last = ops[ops.length - 1];
+    if (last.op !== "if" || ("sel" in ref && (ref.sel.count ?? 99) > 1)) return null;
+    return ops;
+  }
+  // "Switch this card to Revealed Mode with 1 marker on it" (BT31-148):
+  // the switch, then the marker (1-11).
+  if ((m = /^switch (.+?) to (hidden|revealed) mode with (\d+) markers? on (?:it|them)$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    const hidden = m[2] === "hidden";
+    const n = Number(m[3]);
+    if (!ref) return null;
+    let switched: Ref = ref;
+    const ops = withChoice(ref, clause, c, (target) => {
+      switched = target;
+      return { op: "hidden", target, hidden };
+    });
+    return [...ops, { op: "addMarker", target: switched, n }];
+  }
   // 23-5: "switch it to Hidden Mode", "switch it to Revealed Mode".
   if ((m = /^switch (.+?) to (hidden|revealed) mode$/.exec(t))) {
     const ref = refFor(m[1], c);
     const hidden = m[2] === "hidden";
-    return ref ? withChoice(ref, clause, c, (target) => ({ op: "hidden", target, hidden })) : null;
+    return ref
+      ? withChoice(ref, clause, c, (target) => {
+          if ("var" in target) c.switchedHere = target.var;
+          return { op: "hidden", target, hidden };
+        })
+      : null;
   }
   // "Use up to 1 green card with 5000 combo power from your Drop in a combo
   // with its skills negated for the battle", "use this card from your Drop in
@@ -1947,6 +2017,34 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^choose (up to )?(\d+)$/.exec(t)) && c.lastSeen) {
     const v = `c${c.n++}`;
     return [{ op: "choose", sel: { fromVar: c.lastSeen, count: Number(m[2]), upTo: !!m[1] }, as: v, reason: clause }];
+  }
+
+  // "Choose any number of your opponent's Battle Cards up to the number of
+  // your Hidden Mode cards" (BT29-139): as many as the player likes, up to a
+  // count read off the board when the choice is made (`atMost`).
+  if ((m = /^choose any number of (.+?) up to the number of (.+)$/.exec(t))) {
+    const sel = parseTarget(m[1], undefined, c.lastSeen ?? undefined);
+    const counted = parseTarget(m[2]);
+    if (!sel || !counted || sel.special || sel.take != null) return null;
+    delete counted.count;
+    delete counted.upTo;
+    const v = `c${c.n++}`;
+    return [{ op: "choose", sel: { ...sel, count: undefined, upTo: true }, as: v, reason: clause, atMost: { count: counted } }];
+  }
+
+  // "Choose up to 1 of your Leaders or up to 1 of your white ≪Universe 7≫
+  // Battle Cards" (BT28-105b): two kinds, one described and one not, which
+  // no single selector says — a filter would land on both or neither. The
+  // player picks the kind first (20-2), and both branches bind the same name,
+  // so "that card" after it is whichever was chosen.
+  if ((m = /^choose up to (\d+) of your leaders? or up to (\d+) of your (.+)$/.exec(t))) {
+    const other = parseTarget(`up to ${m[2]} of your ${m[3]}`);
+    if (!other || other.side !== "you" || other.area === "leader" || other.fromVar || other.special) return null;
+    const v = `c${c.n++}`;
+    const leader: Op = { op: "choose", sel: { side: "you", area: "leader", count: Number(m[1]), upTo: true }, as: v, reason: clause };
+    const battle: Op = { op: "choose", sel: other, as: v, reason: clause };
+    track(leader, c);
+    return [{ op: "chooseMode", modes: [{ label: "your Leader", ops: [leader] }, { label: /\bor up to \d+ of (your .+)$/i.exec(clause.trim())?.[1] ?? "the other card", ops: [battle] }], reason: clause }];
   }
 
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.

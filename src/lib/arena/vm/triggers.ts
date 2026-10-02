@@ -96,6 +96,12 @@ export interface TriggerMatch {
   trigger: string;
   card: string;
   subject?: string;
+  /**
+   * 23-5-2-4: the declaration asks for a card *in* Hidden Mode (`hidden:
+   * true`) — "when this card … is switched to Hidden Mode" — so the card's
+   * front side answers although it is face down.
+   */
+  front?: true;
 }
 
 // ── matching a moment against the declarations ──────────────────────────────
@@ -115,10 +121,15 @@ export function matchTriggers(game: GameDefinition, state: VmState, moment: Mome
   for (const trigger of Object.values(game.triggers)) {
     if (trigger.on.event !== moment.event) continue;
     if (!fieldsMatch(trigger.on.args, moment.args)) continue;
+    const asksHidden = trigger.on.args.hidden === true;
     for (const card of asked(game, state, trigger, moment)) {
+      // 9-6-9-3: a card that moved (or was KO'd) face down does not answer to
+      // its own area-movement [Auto]s, "unless specified otherwise" — and the
+      // declaration that names `hidden: true` is what specifies it.
+      if (card === moment.card && moment.args.hidden === true && !asksHidden) continue;
       if (!holdsFor(game, state, trigger, card)) continue;
       const subject = trigger.bind === "subject" && moment.card !== undefined ? { subject: moment.card } : {};
-      out.push({ trigger: trigger.name, card, ...subject });
+      out.push({ trigger: trigger.name, card, ...subject, ...(asksHidden && card === moment.card ? { front: true as const } : {}) });
     }
   }
   return out;
@@ -232,7 +243,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
     // skills included — and 9-1-5, a card whose skills are negated has none to
     // answer with. The second half is #142's: it is an effect in force, read
     // where every other reader of that rule reads it.
-    if (!inst || inst.hidden || skillsNegated(state, match.card)) continue;
+    // `front` is 23-5-2-4's exception: a moment that is about the card
+    // switching to Hidden Mode is answered by its front side.
+    if (!inst || (inst.hidden && !match.front) || skillsNegated(state, match.card)) continue;
     const master = masterOf(game, state, match.card);
     // Read once per card: a text box is parsed by a regex, and a moment that
     // every card in play hears would otherwise parse each of them twice.

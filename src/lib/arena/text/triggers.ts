@@ -204,6 +204,15 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when (?:one of )?your (?:card )?skills? switch(?:es)? (?:an|your) opponent'?s/.test(head) && /rest mode/.test(head);
     case "restedByAlliance":
       return /when this card is switched to rest mode by (?:an?|one of your) \[alliance\]/.test(t);
+    // 1-10-2, 23-5-2-4: the same sentence about Hidden Mode (BT28-116,
+    // BT28-119), "in a Battle Area" or not.
+    case "hiddenBySkill":
+      return /when this card(?: in (?:a|your) battle area)? is switched to hidden mode by (?:one of )?your skills?\b/.test(t);
+    // 9-6-9-3: a face-down card's own leave-play [Auto] answers only when it
+    // says so — "when this Hidden Mode card in a Battle Area is placed into
+    // its owner's Drop" (BT28-117, BT28-118).
+    case "hiddenToDrop":
+      return /when this hidden mode card(?: in (?:a|your) battle area)? is placed (?:in|into) (?:its owner'?s|your|a) drop/.test(t);
     case "addedToZEnergy":
       return /when this card is added to (?:your )?z-energy|when you add this card to your z-energy/.test(t);
     case "chargeStart":

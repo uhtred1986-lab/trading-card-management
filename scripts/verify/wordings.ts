@@ -900,7 +900,7 @@ import type { EngineState, Trigger } from "./harness";
   assert.equal(describeScript(read("[Activate: Main] This card gets +5000 power for the turn.").ops), "this card +5000 power for the turn");
   assert.equal(
     describeScript(read("[Auto] When you play this card, choose 1 of your opponent's Battle Cards. It can't attack until the end of your opponent's next turn.").ops),
-    "choose 1 card in your opponent's Battle Area, the chosen cards can't attack until the end of your opponent's turn",
+    "choose 1 Battle Card in your opponent's Battle Area, the chosen cards can't attack until the end of your opponent's turn",
     "a duration reads as words, never as the enum's name",
   );
 }

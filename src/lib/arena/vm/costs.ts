@@ -1036,7 +1036,9 @@ export function payersFor(ctx: EngineContext, game: GameDefinition, state: VmSta
     out.push({ id, colors: as === "energy" ? cardColors(ctx, game, state, id) : [as] });
   };
   for (const e of state.effects) if (e.kind === "payer" && e.target) add(e.target, e.payAs ?? "energy");
-  for (const e of staticsNow(ctx, game, state)) if (e.kind === "payer" && e.target) add(e.target, (e.value as PayerGrant).payAs);
+  // A scoped grant (BT28-106: "when paying the skill cost of skills on white
+  // ≪God≫ cards") is no price's but its own line's — `vm/activate.ts` adds it.
+  for (const e of staticsNow(ctx, game, state)) if (e.kind === "payer" && e.target && !(e.value as PayerGrant).forSkillsOf) add(e.target, (e.value as PayerGrant).payAs);
   for (const x of extra) add(x.id, x.colors[0] ?? "energy");
   for (const x of extra) {
     const at = out.find((o) => o.id === x.id);
@@ -1173,6 +1175,24 @@ export function altCostFor(ctx: EngineContext, game: GameDefinition, state: VmSt
   return null;
 }
 
+/**
+ * The alternatives that are an action rather than a payment (5-3, `pay:
+ * "program"`) — "by switching 1 Hidden Mode card in your Battle Area to Rest
+ * Mode instead of paying its energy cost" (BT28-138). `altCostFor` leaves
+ * them out because whether one can be paid is a question about a program,
+ * which the caller asks (`vm/battle.ts`'s `counterAlt`, through
+ * `canPayPriceProgram`).
+ */
+export function programAltsFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, which: string): VmAltCost[] {
+  const out: VmAltCost[] = [];
+  for (const e of state.effects) if (e.kind === "altCost" && e.target === card && e.altCost?.pay === "program" && (e.altCost.for ?? "counter") === which) out.push(e.altCost);
+  for (const e of staticsNow(ctx, game, state)) {
+    const alt = e.value as VmAltCost;
+    if (e.kind === "altCost" && e.target === card && alt.pay === "program" && (alt.for ?? "counter") === which) out.push(alt);
+  }
+  return out.filter((alt) => alt.ops?.length);
+}
+
 /** How many cards a `rest` price rests: one per orb, and one when it names none. */
 const restCount = (alt: VmAltCost): number => (alt.orbs ?? []).length || 1;
 
@@ -1271,7 +1291,9 @@ function leaderColors(ctx: EngineContext, game: GameDefinition, state: VmState, 
 export function cardColors(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): Color[] {
   const inst = state.cards[id];
   const def = inst && ctx.defs[inst.cardId];
-  if (!def) return [];
+  // 23-5-2: energy in Hidden Mode has no colour, so it pays only the part of
+  // a cost that asks for none (BT28-136 puts an opponent's cards there).
+  if (!def || inst.hidden) return [];
   const colors = attrsOf(def, game).attrs.colors;
   return Array.isArray(colors) ? ([...colors] as Color[]) : [];
 }

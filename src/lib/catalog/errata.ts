@@ -90,6 +90,7 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT29-106": [[/Hidden\s+Mode\s+crds/g, "Hidden Mode cards"]],
   "BT30-048": [[/bottom\s+of\s+ther\s+owner's\s+deck/g, "bottom of their owner's deck"]],
   "BT30-073": [[/your\s+opponnt's\s+Battle\s+Cards/g, "your opponent's Battle Cards"]],
+  "BT30-109": [[/switch\s+it\s+t\s+Hidden\s+Mode/g, "switch it to Hidden Mode"]],
   "BT30-126": [[/from\s+your\s+han,/g, "from your hand,"]],
   "BT30-146": [
     [/and\s+ngate\s+their\s+skills/g, "and negate their skills"],

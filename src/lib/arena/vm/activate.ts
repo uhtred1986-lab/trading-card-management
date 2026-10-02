@@ -81,7 +81,7 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
-import type { Cond, Op, Script, ScriptFrame, Selector } from "./script";
+import { HIDEABLE, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
@@ -90,7 +90,9 @@ import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { forbiddenBy, resolveRef, resolveSelector } from "./program";
+import { attrsNow, forbiddenBy, resolveRef, resolveSelector, staticsNow } from "./program";
+import { predicateOf } from "./filters";
+import type { PayerGrant } from "./effects";
 import { vmHost } from "./host";
 import type { VmState } from "./state";
 import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
@@ -295,13 +297,62 @@ export function activationAlt(
  */
 function payWithPayers(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): Payer[] {
   const payWith = line.script?.price?.payWith;
-  if (!payWith?.length) return [];
+  const out: Payer[] = scopedPayers(ctx, game, state, player, line).map((s) => s.payer);
+  if (!payWith?.length) return out;
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: line.card, master: player };
-  const out: Payer[] = [];
   for (const pw of payWith) {
     for (const id of resolveSelector(ctx, game, state, frame, pw.sel)) out.push({ id, colors: pw.as === "energy" ? cardColors(ctx, game, state, id) : [pw.as] });
   }
   return out;
+}
+
+/**
+ * 20-19, scoped (BT28-106): the cards a [Permanent] of this player's lets pay
+ * the **skill cost** of this line — "when paying the skill cost of skills on
+ * white ≪God≫ cards in any of your areas, once per turn you can use 1 [or 2]
+ * Hidden Mode card[s] in your Battle Area as energy". Only for a line on a
+ * card the grant describes, wherever that card is; at most `max` of the cards
+ * (the first ones standing, Active, in the area); and not at all once a
+ * once-per-turn grant has paid this turn (`spendScopedPayers`). Each payer
+ * carries the grant it came from, for the spending.
+ */
+function scopedPayers(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): { payer: Payer; source: string; skillIndex?: number; oncePerTurn?: true }[] {
+  const out: { payer: Payer; source: string; skillIndex?: number; oncePerTurn?: true }[] = [];
+  const counted = new Map<string, number>();
+  let attrs: ReturnType<typeof attrsNow> | null = null;
+  for (const e of staticsNow(ctx, game, state)) {
+    if (e.kind !== "payer" || !e.target || e.master !== player) continue;
+    const g = e.value as PayerGrant;
+    if (!g.forSkillsOf) continue;
+    if (g.oncePerTurn && g.skillIndex !== undefined && state.cards[e.source]?.usedThisTurn.includes(g.skillIndex)) continue;
+    attrs ??= attrsNow(ctx, game, state, line.card);
+    if (!predicateOf(g.forSkillsOf, game)(attrs)) continue;
+    const inst = state.cards[e.target];
+    if (!inst || inst.owner !== player || inst.mode !== "active" || out.some((o) => o.payer.id === e.target)) continue;
+    const key = `${e.source}#${g.skillIndex ?? ""}`;
+    const n = counted.get(key) ?? 0;
+    if (g.max !== undefined && n >= g.max) continue;
+    counted.set(key, n + 1);
+    out.push({ payer: { id: e.target, colors: g.payAs === "energy" ? cardColors(ctx, game, state, e.target) : [g.payAs] }, source: e.source, ...(g.skillIndex !== undefined ? { skillIndex: g.skillIndex } : {}), ...(g.oncePerTurn ? { oncePerTurn: true as const } : {}) });
+  }
+  return out;
+}
+
+/**
+ * The other half of a once-per-turn scoped grant (BT28-106): the line paid
+ * with one of its cards, so the [Permanent] is spent for the turn — its index
+ * on its card's `usedThisTurn`, which the turn's end clears (`vm/flow.ts`).
+ * Read before the charge, while the payers are still Active.
+ */
+export function scopedPayersSpent(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): (rested: string[]) => void {
+  const scoped = scopedPayers(ctx, game, state, player, line);
+  return (rested) => {
+    for (const s of scoped) {
+      if (!s.oncePerTurn || s.skillIndex === undefined || !rested.includes(s.payer.id)) continue;
+      const used = state.cards[s.source]?.usedThisTurn;
+      if (used && !used.includes(s.skillIndex)) used.push(s.skillIndex);
+    }
+  };
 }
 
 /**
@@ -623,11 +674,18 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   const inHand = hand.includes(card) ? 1 : 0;
   for (const op of ops) {
     switch (op.op) {
-      case "choose":
+      case "choose": {
         // "Up to" can always be paid with nothing (5-2-4).
         if (op.sel.upTo) break;
-        if (resolveSelector(ctx, game, state, frame, op.sel).length < (op.sel.count ?? 1)) return false;
+        // 5-8-2-2: a chosen card the price then switches pays only if it is
+        // not in that mode already — "by switching 1 Hidden Mode card in your
+        // Battle Area to Rest Mode" (BT28-138) is not paid by a rested one.
+        const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
+        const switches = (id: string) =>
+          !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
+        if (resolveSelector(ctx, game, state, frame, op.sel).filter(switches).length < (op.sel.count ?? 1)) return false;
         break;
+      }
       case "discard":
         if (typeof op.n !== "number" || hand.length - inHand < op.n) return false;
         break;
@@ -638,6 +696,15 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         if ("var" in op.target) break;
         const cards = resolveRef(ctx, game, state, frame, op.target);
         if (!cards.length || cards.some((id) => state.cards[id].mode === op.mode)) return false;
+        break;
+      }
+      case "hidden": {
+        // 23-5 with 5-8-2-2: a switch is paid only by a card it can switch —
+        // in an area with that position (1-10-2) and not already in it. A
+        // chosen card has been narrowed to those by its own choice.
+        if ("var" in op.target) break;
+        const cards = resolveRef(ctx, game, state, frame, op.target);
+        if (!cards.length || cards.some((id) => state.cards[id].hidden === op.hidden || !HIDEABLE.has(findCard(state, id)?.zone ?? ""))) return false;
         break;
       }
       case "moveTo":

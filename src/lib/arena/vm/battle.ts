@@ -70,15 +70,16 @@ import { IllegalAction } from "./common";
 import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import { canCombo } from "../text/cards";
 import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../types";
-import { replacementPrompt, routeOf, type Op, type ScriptFrame } from "./script";
+import { describeScript, replacementPrompt, routeOf, type Op, type ScriptFrame } from "./script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../compile";
-import { altCostFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, type BoundAmounts } from "./costs";
 import type { VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
+import { canPayPriceProgram } from "./activate";
 import { fireHook } from "./hooks";
 import { lifeReplacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics, readingBoard } from "./program";
@@ -145,9 +146,12 @@ function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   const out: string[] = [];
   const leader = state.sides[opp].zones.leader?.[0];
   if (leader) out.push(leader);
+  // 23-5-2 with 8-1-1: a Hidden Mode card has no card type, so a face-down
+  // card in a Battle or Unison Area is neither a Battle Card nor a Unison
+  // Card, and only those are attacked.
   const unison = state.sides[opp].zones.unison?.[0];
-  if (unison) out.push(unison);
-  for (const id of state.sides[opp].zones.battle ?? []) if (state.cards[id]?.mode === "rest") out.push(id);
+  if (unison && !state.cards[unison]?.hidden) out.push(unison);
+  for (const id of state.sides[opp].zones.battle ?? []) if (state.cards[id]?.mode === "rest" && !state.cards[id].hidden) out.push(id);
   return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }));
 }
 
@@ -158,6 +162,9 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   if (state.turn === 1 && player === state.firstPlayer) why.push({ kind: "timing", window: "nextTurn" });
   const inst = state.cards[attacker];
   if (!inst) return why;
+  // 8-1-1 is a Leader, Battle or Unison *Card* attacking, and a Hidden Mode
+  // card has no card type at all (23-5-2) — face down, it cannot attack.
+  if (inst.hidden) why.push({ kind: "other", detail: "a Hidden Mode card has no card type, so it cannot attack (23-5-2)" });
   if (inst.mode !== "active") why.push({ kind: "mode", card: attacker, mode: (inst.mode as "active" | "rest" | null) ?? "active" });
   const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker });
   if (banned) why.push({ kind: "forbidden", ...banned });
@@ -306,10 +313,10 @@ function joinsBattle(state: VmState, ...ids: string[]): void {
   for (const id of ids) if (state.cards[id]) state.cards[id].battledThisTurn = true;
 }
 
-/** 8-1-7: if the attacker or the guard has already left play, the battle skips straight to its end step. */
+/** 8-1-7: if the attacker or the guard has already left play — or, 23-5-4, been switched to Hidden Mode — the battle skips straight to its end step. */
 function battleIntact(state: VmState): boolean {
   const b = state.battle;
-  if (!b) return false;
+  if (!b || b.hiddenOut) return false;
   return inPlayZone(state, b.attacker) !== null && inPlayZone(state, b.guard) !== null;
 }
 
@@ -408,7 +415,14 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
       if (!wantsLine(ctx, state, window, sk)) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card })) continue;
-      if (!costIsOnlyOrbs(sk.cost)) continue;
+      // 4-3-3: a price that is an action as well as orbs — "Choose 1 of your
+      // white Battle Cards and switch it to Hidden Mode: Play this card"
+      // (BT28-121) — is offered while it can be paid, the way an [Activate]'s
+      // is (`canPayPriceProgram`); one with no record to pay it from is not.
+      if (!costIsOnlyOrbs(sk.cost)) {
+        const ops = counterPriceOps(showing.scripts.bySkill[sk.index]);
+        if (!ops || !canPayPriceProgram(ctx, game, state, responder, card, ops)) continue;
+      }
       const combined = counterPrice(ctx, game, state, card, sk);
       const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
       // 5-3: a card printing another way to pay for its [Counter] is a
@@ -421,6 +435,15 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
   return out;
 }
 
+/** The action price (4-3-3) a [Counter] line's record carries, or null when it has none. */
+function counterPriceOps(script: { price?: { ops?: Op[] | null } } | undefined): Op[] | null {
+  const ops = script?.price?.ops;
+  return ops?.length ? ops : null;
+}
+
+/** Where a [Counter]'s action price leaves what it chose for the effect — `vm/activate.ts`'s own key shape. */
+const counterVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${skillIndex}`;
+
 /**
  * 5-3: the other price a [Counter] in the hand may be activated at — one its
  * own skills or a skill in force give it for a counter, or 22-37's [Invoker]:
@@ -431,6 +454,11 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
 function counterAlt(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId): VmAltCost | null {
   const own = altCostFor(ctx, game, state, card, player, "counter");
   if (own) return own;
+  // 5-3 with 4-3-3: an alternative that is an action — "by choosing 1 Hidden
+  // Mode card in your Battle Area and placing it into its owner's Drop"
+  // (BT28-124) — offered while that action can be paid.
+  const action = programAltsFor(ctx, game, state, card, "counter").find((alt) => canPayPriceProgram(ctx, game, state, player, card, alt.ops!));
+  if (action) return action;
   const asPlay = baseTypeOf(ctx, state, card) === "EXTRA" ? altCostFor(ctx, game, state, card, player, "play") : null;
   return asPlay && asPlay.pay === "energy" && asPlay.rest ? asPlay : null;
 }
@@ -454,7 +482,7 @@ export function counterLegalActions(ctx: EngineContext, game: GameDefinition, st
     if (!alt) continue;
     const resting = restingFor(alt);
     const orbs = (alt.orbs ?? []).map((o) => `{${o}}`).join("");
-    const how = alt.pay === "none" ? "for no energy" : alt.pay === "life" ? `by adding ${alt.n} from your life to your hand` : resting.length ? `by resting ${resting.map((id) => nameOf(ctx, state, id)).join(" and ")}` : `for ${orbs}`;
+    const how = alt.pay === "none" ? "for no energy" : alt.pay === "program" ? `instead of energy: ${describeScript(alt.ops ?? [])}` : alt.pay === "life" ? `by adding ${alt.n} from your life to your hand` : resting.length ? `by resting ${resting.map((id) => nameOf(ctx, state, id)).join(" and ")}` : `for ${orbs}`;
     const energy = alt.pay === "energy" ? (alt.orbs ?? []).length || 1 : 0;
     const cost = alt.pay === "none" ? { energy: 0, describe: "free" } : alt.pay === "energy" ? { energy, describe: orbs || "free" } : { energy: 0, describe: "alternative cost" };
     out.push({ action: { type: "counter", player: pr.player, card, ...(sk ? { skill: sk.index } : {}), alt: true }, label: `Counter with ${nameOf(ctx, state, card)} (${how})`, cost });
@@ -600,8 +628,11 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // and the line's orbs — the legacy `payAltCost` on `action.alt` (#439).
   const alt = action.alt ? counterAlt(ctx, game, state, card, action.player) : null;
   if (action.alt && !alt) throw new IllegalAction("that card has no other cost to pay");
-  if (alt) payAltCost(ctx, game, state, ev, action.player, alt);
-  else {
+  // An action alternative (`pay: "program"`) is not paid here: it runs as a
+  // price program in front of the effect, below.
+  if (alt) {
+    if (alt.pay !== "program") payAltCost(ctx, game, state, ev, action.player, alt);
+  } else {
     const combined = counterPrice(ctx, game, state, card, sk);
     const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
     const plan = planCost(ctx, game, state, action.player, price, card, action.pay);
@@ -622,8 +653,18 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
   fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: alt?.pay !== "none" } });
-  log(ev, { type: "skill", card, skill: sk.index, master: action.player, text: sk.raw, inBattle: !!b });
   const program = showing.scripts.bySkill[sk.index]?.ops ?? [];
+  // 4-3-3: an action price runs as its own program in front of the effect and
+  // hands on what it chose ("the card that was switched to Hidden Mode by
+  // this skill", BT28-121); the price finishing is what announces the line —
+  // `vm/activate.ts`'s shape, which the host already reads.
+  const priceOps = alt?.pay === "program" ? (alt.ops ?? null) : costIsOnlyOrbs(sk.cost) || alt ? null : counterPriceOps(showing.scripts.bySkill[sk.index]);
+  if (priceOps) {
+    const key = counterVarsKey(card, sk.index);
+    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, pricedBy: { key, text: sk.raw } });
+    return "done";
+  }
+  log(ev, { type: "skill", card, skill: sk.index, master: action.player, text: sk.raw, inBattle: !!b });
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index });
   return "done";
 }
@@ -1013,6 +1054,9 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   if (forbids(ctx, game, state, "beKOd", { card })) return;
   const owner = state.cards[card].owner;
   const master = masterOf(game, state, card);
+  // 9-6-9-3: a card KO'd face down answers to its own KO only where a
+  // declaration asks for that (`matchTriggers`).
+  const wasHidden = !!state.cards[card].hidden;
   log(ev, { type: "ko", card, ...(cause === undefined ? {} : { by: cause }) });
   // 9-10: a KO is a departure a replacement may stand in front of — the one
   // a skill's `ko` loop settled on, or the first that answers (`vm/replace.ts`).
@@ -1020,7 +1064,7 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   // `to: drop` matches `koed`'s own pattern (`triggers.rules`) — the card has
   // already landed there by the time this fires, and that field is what lets
   // it still answer about itself (9-1-3-1's derived "fires while elsewhere").
-  fire(ctx, game, state, { event: "ko", card, controller: owner, args: { role: "koed", to: "drop" } });
+  fire(ctx, game, state, { event: "ko", card, controller: owner, args: { role: "koed", to: "drop", ...(wasHidden ? { hidden: true } : {}) } });
   if (cause !== undefined && cause !== card && state.cards[cause] && masterOf(game, state, cause) !== master) {
     fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), args: { role: "cause" } });
   }

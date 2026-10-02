@@ -301,6 +301,26 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
+/** `choose`'s fields, named so its sentence can render the plain case with them. */
+const CHOOSE_FIELDS: OpField[] = [
+      { name: "sel", type: "selector", required: true },
+      { name: "as", type: "string", required: true },
+      { name: "reason", type: "string" },
+      { name: "chooser", type: "side" },
+      { name: "bindX", type: "boolean" },
+      {
+        name: "sumTo",
+        type: "amount",
+        offCard: "picks one card at a time until their sumAttr adds up to exactly this much, offering only the cards that still leave a way to the exact sum; the selector's count is not read, and a set that cannot be finished binds nothing — [Successor]'s cost (22-38-3)",
+      },
+      { name: "sumAttr", type: { enum: AMOUNT_ATTRS }, offCard: "the measure sumTo adds up — energyCost when left out" },
+      {
+        name: "atMost",
+        type: "amount",
+        offCard: "any number of the selected cards, up to this many read off the board as the choice is made — \"choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards\" (BT29-139); the selector's count is not read",
+      },
+    ];
+
 export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   draw: { fields: [n(), SIDE], sentence: "{side:opponent draws|draw} {n}" },
   // `to` names the Drop Area as well as the Warp (#137): left out it always
@@ -322,20 +342,18 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   shuffle: { fields: [SIDE], sentence: "shuffle" },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {
-    fields: [
-      { name: "sel", type: "selector", required: true },
-      { name: "as", type: "string", required: true },
-      { name: "reason", type: "string" },
-      { name: "chooser", type: "side" },
-      { name: "bindX", type: "boolean" },
-      {
-        name: "sumTo",
-        type: "amount",
-        offCard: "picks one card at a time until their sumAttr adds up to exactly this much, offering only the cards that still leave a way to the exact sum; the selector's count is not read, and a set that cannot be finished binds nothing — [Successor]'s cost (22-38-3)",
-      },
-      { name: "sumAttr", type: { enum: AMOUNT_ATTRS }, offCard: "the measure sumTo adds up — energyCost when left out" },
-    ],
-    sentence: "choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}",
+    fields: CHOOSE_FIELDS,
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"choose">;
+      // "Any number of …, up to the number of …" (BT29-139): the selector's own
+      // count is not read, so it is not said either.
+      if (op.atMost !== undefined) {
+        const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
+        const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
+        return `choose any number of ${cards}, up to ${bound}`;
+      }
+      return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+    },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
   look: {
@@ -638,15 +656,26 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'another way to pay for a [Counter] (or a play, "for":"play") (5-3) — "none", "life" (n cards), a reduced "energy" price ("orbs"), or a "program" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits "target"/"until"; a card that grants it to *other* cards for a span carries both — "Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …" (BT11-033)',
   },
   payWith: {
-    fields: [{ name: "as", type: { enum: ["energy", ...COLORS] }, default: "energy" }, SELF, { name: "until", type: "duration" }],
+    fields: [
+      { name: "as", type: { enum: ["energy", ...COLORS] }, default: "energy" },
+      SELF,
+      { name: "until", type: "duration" },
+      { name: "forSkillsOf", type: "filter" },
+      { name: "max", type: "number" },
+      { name: "oncePerTurn", type: "boolean" },
+    ],
     sentence: (raw) => {
       const op = raw as OpOf<"payWith">;
       const who = op.target ? describeRef(op.target) : "this card";
       const as = !op.as || op.as === "energy" ? "energy" : `{${op.as}}`;
       const until = op.until ? ` until ${op.until === "game" ? "the game ends" : op.until}` : "";
+      if (op.forSkillsOf) {
+        const payers = op.target && "sel" in op.target ? describeSelector({ ...op.target.sel, count: op.max ?? 99, upTo: !!op.max }) : who;
+        return `${once(op)}${payers} may be rested as ${as} to pay the skill cost of a skill on ${describeFilter(op.forSkillsOf, { plural: false })}${until}`;
+      }
       return `${who} may be rested to pay an energy cost as ${as}, wherever it is${until}`;
     },
-    doc: 'a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — "[Permanent] You can use this card to pay energy costs even when it\'s in your Battle Area" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours ("as":"energy") or of the colour named. Printed on the card itself this is [Permanent]-only and omits "target"/"until", the way "altCost" does; both are for a card granting the permission to others for a span. It is the *unscoped* permission only — a card usable as energy for some payments and not others is left unread rather than offered wider than it prints',
+    doc: 'a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — "[Permanent] You can use this card to pay energy costs even when it\'s in your Battle Area" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours ("as":"energy") or of the colour named. Printed on the card itself this is [Permanent]-only and omits "target"/"until", the way "altCost" does; both are for a card granting the permission to others for a span. With "forSkillsOf" it is scoped (BT28-106): only the **skill costs** of skills on cards that filter describes, wherever those cards are, at most "max" of the cards on one payment, and — with "oncePerTurn" — spent for the turn once it has paid. Any other scope (one play, the energy cost of cards in the hand) is left unread rather than offered wider than it prints',
   },
   resolvingPlay: {
     fields: [{ name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
@@ -1646,6 +1675,9 @@ export interface FilterNoun {
   plural: boolean;
 }
 
+/** "Once per turn, " for a scoped `payWith` spent for the turn when it pays (BT28-106). */
+const once = (op: { oncePerTurn?: true }): string => (op.oncePerTurn ? "once per turn, " : "");
+
 /** "BATTLE" → "Battle Card", the card type as the card prints it. */
 const typeNoun = (type: string, plural: boolean): string => `${type.charAt(0)}${type.slice(1).toLowerCase()} ${plural ? "Cards" : "Card"}`;
 
@@ -1740,7 +1772,10 @@ export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
 function selectorWords(sel: Selector): string {
   if (!sel.filter) return "";
   const words = describeFilter(sel.filter);
-  const areas = (sel.areas?.length ? sel.areas : [sel.area]).filter(Boolean).map((a) => `${String(a).toLowerCase()} card`);
+  // A type that only repeats the area says nothing — "leader card" in the
+  // Leader Area. Not in the Battle Area: a Hidden Mode card there has no card
+  // type (23-5-2), so "Battle Cards" there is a narrower choice than "cards".
+  const areas = (sel.areas?.length ? sel.areas : [sel.area]).filter((a) => a && a !== "battle").map((a) => `${String(a).toLowerCase()} card`);
   return words === "card" || areas.includes(words) ? "" : words;
 }
 
@@ -1872,17 +1907,23 @@ function describeUnderHost(sel: Selector): string {
         : sel.area === "battle" || sel.area === "play" || sel.area == null
           ? "card"
           : `${sel.area} card`;
+  // "Your <Son Goku> Battle Card": the type word, now kept in the Battle Area
+  // (`selectorWords`), already is the noun.
+  if (kind === "card" && /\bbattle card$/.test(words)) return `${who}${words}`;
   return `${who}${words ? `${words} ` : ""}${kind}`;
 }
 
 /**
  * "In Rest Mode" / "In Hidden Mode" — the two axes a card instance carries
- * (§23-5's Hidden/Revealed is orthogonal to §1-10's Active/Rest, and the
- * compiler never sets both on one selector, so there is no case where they
- * would need to be said together).
+ * (§23-5's Hidden/Revealed is orthogonal to §1-10's Active/Rest). Both are
+ * said when both are set: "1 card in your Battle Area in Hidden Mode and in
+ * active mode" is the choice BT28-138's price is narrowed to.
  */
-const describeMode = (sel: Selector): string =>
-  sel.mode ? ` in ${sel.mode} mode` : sel.hidden === true ? " in Hidden Mode" : sel.hidden === false ? " in Revealed Mode" : "";
+const describeMode = (sel: Selector): string => {
+  const hidden = sel.hidden === true ? " in Hidden Mode" : sel.hidden === false ? " in Revealed Mode" : "";
+  const mode = sel.mode ? ` in ${sel.mode} mode` : "";
+  return hidden && mode ? `${hidden} and${mode}` : hidden || mode;
+};
 
 /**
  * "…other than this card". Left out of the reading until 9 Sep 2026, when
@@ -1952,6 +1993,14 @@ const AREA_NOUNS: Partial<Record<ScriptArea, string>> = {
 function describeEach(sel: Selector): string {
   if (sel.special) return describeSelector(sel);
   const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
+  // A Hidden Mode card has no card type (23-5-2), so it is not a "Battle
+  // Card" or a "Unison Card" to count: "your Hidden Mode cards", and the area
+  // only when the selector names one.
+  if (sel.hidden === true && !sel.filter && !sel.mode) {
+    const areas = sel.areas?.length ? sel.areas : [sel.area ?? "play"];
+    const where = areas.length === 1 && areas[0] !== "play" ? ` in ${who}${ZONE_NOUNS[areas[0] as keyof typeof ZONE_NOUNS] ?? areas[0]}` : "";
+    return `${who}Hidden Mode cards${where}${describeNotSelf(sel)}`;
+  }
   const mode = describeMode(sel);
   const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
   return `${who}${nouns.join(" or ")}${mode}${describeNotSelf(sel)}`;

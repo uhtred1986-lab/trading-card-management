@@ -202,6 +202,14 @@ DEFINE TRIGGER leftBattleToDrop
   BIND "self"
   text: "when this card goes from a Battle Area to the Drop"
 
+-- §9-6-9-3 — when this card goes from a Battle Area to the Drop in Hidden
+-- Mode. A card that moves face down answers to no other moment of its own
+-- (`matchTriggers`); this is the "unless specified otherwise" (BT28-117).
+DEFINE TRIGGER hiddenToDrop
+  ON moved(from: battle, to: drop, hidden: true)
+  BIND "self"
+  text: "when this card goes from a Battle Area to the Drop in Hidden Mode"
+
 -- ── damage and life (5-10, 3-9, 21-3) ──────────────────────────────────────
 
 -- §5-10 — when this card deals damage
@@ -378,6 +386,14 @@ DEFINE TRIGGER restedTheirsBySkill
   ON modeSwitched(by: skill, byOpponent: true, in: [battle, energy], mode: rest, watcher: opponent)
   BIND "subject"
   text: "when your skill rests an opponent's card"
+
+-- §1-10-2, §23-5-2-4 — when this card is switched to Hidden Mode by one of
+-- your skills. The card is face down by the time it answers, and the pattern
+-- naming `hidden: true` is what lets its front side do so (`matchTriggers`).
+DEFINE TRIGGER hiddenBySkill
+  ON hiddenSwitched(by: skill, byOpponent: false, hidden: true, in: battle)
+  BIND "self"
+  text: "when this card is switched to Hidden Mode by one of your skills"
 
 -- §22-32-3 — when this card is rested by an [Alliance] skill
 DEFINE TRIGGER restedByAlliance

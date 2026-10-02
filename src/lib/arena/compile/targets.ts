@@ -496,6 +496,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
   if (!allAreas && !area && !fromVar && filterFor(phrase, null)) area = "play";
+  // "You have a Hidden Mode card" (BT29-112) names no area, and a card is in
+  // Hidden Mode only where it has that position at all (1-10-2): the Battle,
+  // Energy and Unison Areas.
+  // The plural ("your opponent's Hidden Mode cards") reads as 20-1-6's "on
+  // the table" above, which leaves the Energy and Unison Areas out — so it is
+  // this reading too unless the phrase names a place itself.
+  const unplaced = !area || (area === "play" && !/\bin play\b|\barea\b|\bbattle cards?\b/.test(t));
+  const hiddenAnywhere = !allAreas && unplaced && !fromVar && !underSelf && !underHostSel && /\bhidden mode (?:[a-z-]+ )*cards?\b/.test(t);
+  if (hiddenAnywhere) area = "battle";
   // The pile under a card is the area, and it was named by words that have
   // already been taken off the phrase.
   if (!allAreas && !area && !fromVar && !underSelf && !underHostSel) return null;
@@ -571,7 +580,9 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // that shrank every Battle Card shrank this one too.
   const excluded = /\b(?:other than|except for|besides) (copies of )?this card\b/.exec(t);
   const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj ? "card" : undefined;
-  const filter = filterFor(phrase, area);
+  // "Battle Cards or Unisons" names two kinds, one per area, so neither type
+  // word narrows the pair — the "play" reading drops it.
+  const filter = filterFor(phrase, bothAreas ? "play" : area);
   // A description the parser could not read is not a target: the clause fails
   // and the skill goes to the referee, rather than selecting the whole area.
   if (filter === null) return null;
@@ -588,6 +599,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, hidden, notSelf };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, hidden, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, hidden, fromVar, notSelf };
+  if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, mode, hidden, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, mode, hidden, fromVar, take, fromEnd, notSelf };
 }
 
@@ -645,8 +657,15 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
   if (f.unreadable) return null;
   // In an area that only holds one kind of card, the type word is noise — and
   // it has to go before the question of whether anything narrows, or "your
-  // Battle Cards" would count as narrowed by a word that means nothing there.
-  if (area === "battle" && f.type === "BATTLE") f.type = null;
+  // Leader Card" would count as narrowed by a word that means nothing there.
+  //
+  // The Battle Area is not such an area, and never quite was: an Extra with
+  // [Field] sits in it (3-6-5), and since BT28 so does a Hidden Mode card,
+  // which has no card type at all (3-6-1-1, 23-5-2). "Your opponent's Battle
+  // Cards" is therefore a description there (11-1-2): it leaves out the cards
+  // face down, which is the whole of what hiding a card protects it from
+  // (BT28-139 has to say "all the **cards** in your opponent's Battle Area"
+  // to reach them), and "cards in your Battle Area" still reaches them.
   if (area === "leader" && f.type === "LEADER") f.type = null;
   // "Play" spans both areas, so naming either type narrows nothing there.
   if (area === "play" && (f.type === "BATTLE" || f.type === "LEADER")) f.type = null;

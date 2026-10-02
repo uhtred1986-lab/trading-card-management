@@ -384,7 +384,7 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -753,6 +753,16 @@ export type Op =
       target?: Ref;
       /** Omit only for the permanent, self-only form printed as [Permanent]. */
       until?: Duration;
+      /**
+       * The scoped permission (BT28-106): only for the **skill costs** of
+       * skills on cards this filter describes, wherever those cards are ("in
+       * any of your areas"). Absent is every energy price, as before.
+       */
+      forSkillsOf?: CardFilter;
+      /** With `forSkillsOf`: at most this many of the cards stand in on one payment ("1 or 2" is 2). */
+      max?: number;
+      /** With `forSkillsOf`: the permission is used once per turn — the [Permanent] line is spent for the turn when it pays. */
+      oncePerTurn?: true;
     }
   /**
    * What a [Counter: Play] does to the card it is answering (9-6). `instead`
@@ -1007,6 +1017,9 @@ export interface CardScripts {
 
 /** What the engine has for a card nobody drafted: nothing, and it says so. */
 export const NO_RULES: CardScripts = Object.freeze({ bySkill: {}, complete: false, unsupported: [] }) as CardScripts;
+
+/** 1-10-2: the areas whose cards are in Revealed Mode or Hidden Mode — the only places `hidden` can switch a card. */
+export const HIDEABLE: ReadonlySet<string> = new Set(["battle", "energy", "unison"]);
 
 /** The moment a keyword's own switch to Rest Mode is (`switchMode`'s `by`, #157): "switched to Rest Mode by an [Alliance] skill" (22-32-3). */
 const RESTED_BY_KEYWORD: Partial<Record<KeywordSkill["name"], Trigger>> = { Alliance: "restedByAlliance" };
@@ -1381,7 +1394,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "choose": {
-        const want = op.sel.count ?? 1;
+        // "Any number … up to the number of your Hidden Mode cards" (BT29-139):
+        // a bound read off the board, and the choice may stop short of it.
+        const bounded = op.atMost !== undefined;
+        const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : (op.sel.count ?? 1);
+        const upTo = bounded || !!op.sel.upTo;
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
           frame.vars[op.as] = picked;
@@ -1451,13 +1468,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
         // 5-2-5: take as many as possible when fewer are available than asked for.
         const left = want - sofar.length;
-        if (cands.length === 0) {
+        if (cands.length === 0 || left <= 0) {
           frame.awaiting = undefined;
           take(sofar);
           break;
         }
         // Only ask when the answer can differ: a forced pick is taken silently.
-        if (!op.sel.upTo && cands.length <= left) {
+        if (!upTo && cands.length <= left) {
           frame.awaiting = undefined;
           take([...sofar, ...cands]);
           break;
@@ -1471,10 +1488,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // 20-7: whoever the card says chooses, chooses.
           player: op.chooser ? sideOf(master, op.chooser)[0] : master,
           choice: {
-            reason: (op.reason ?? `${h.nameOf(frame.card)}: choose ${op.sel.upTo ? `up to ${want}` : want}`) + asked,
+            reason: (op.reason ?? `${h.nameOf(frame.card)}: choose ${upTo ? `up to ${want}` : want}`) + asked,
             candidates: cands,
             // One card per answer, so the menu is one action per card.
-            min: op.sel.upTo ? 0 : 1,
+            min: upTo ? 0 : 1,
             max: 1,
             continuation: op.as,
           },
@@ -1716,10 +1733,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
 
       case "hidden":
-        // 23-5-1: only a Battle Card in a Battle Area can be face down.
+        // 1-10-2: the Battle, Energy and Unison Areas are where a card is in
+        // Revealed or Hidden Mode — BT28-138 hides "1 of your white energy",
+        // BT28-110 reveals "1 of your energy". Anywhere else there is no such
+        // position to switch, and a card already in the named one does not
+        // switch (0-2-4-1).
         for (const id of h.resolveRef(frame, op.target)) {
-          if (h.areaOf(id) !== "battle" || h.isHidden(id) === op.hidden) continue;
-          h.setHidden(id, op.hidden);
+          if (!HIDEABLE.has(h.areaOf(id) ?? "") || h.isHidden(id) === op.hidden) continue;
+          // The skill doing it is part of the moment, as with Rest Mode: "when
+          // this card in a Battle Area is switched to Hidden Mode by one of
+          // your skills" (BT28-116, -119).
+          h.setHidden(id, op.hidden, { card: frame.card, master });
           h.note(`${op.hidden ? "a Battle Card" : h.nameOf(id)} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
         }
         break;
