@@ -2822,3 +2822,94 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   assertConsistentG(taken.state);
 }
 
+// ── event: "marker" — a Unison's marker kept, at 13-5-2 ─────────────────────
+// SD13-02 skill 0 (owner-approved, 2 Oct 2026): "If this card would lose a
+// marker from an opponent's attack, you may place 1 card from your life in
+// your Drop Area instead." Both engines: the Damage Step asks once per marker
+// (5-13-4-2, 9-10-2-3), and a marker a skill removes is not this moment.
+{
+  const KEEP_TEXT = "[Permanent] If this card would lose a marker from an opponent's attack, you may place 1 card from your life in your Drop Area instead.";
+  DEFS.KEEPER = { ...DEFS.U1, id: "KEEPER", name: "KEEPER", skill: KEEP_TEXT };
+  DEFS.UNMARK = { ...DEFS.V1, id: "UNMARK", name: "UNMARK", skill: "[Activate: Main] Choose up to 1 of your opponent's Unison Cards and remove a marker from it." };
+  const rule = compileSkill(parseSkills(KEEP_TEXT)[0]);
+  assert.deepEqual(rule.unsupported, [], "the moment and the substitute both read");
+  assert.deepEqual(
+    rule.ops.map((o) => (o.op === "replace" ? { event: o.event, by: o.by, optional: o.optional } : o.op)),
+    [{ event: "marker", by: "attack", optional: true }],
+    "read as replace(event: marker, by: attack), optional",
+  );
+
+  /** p1's KEEPER in the Unison Area with 3 markers; p2's turn, `attacker` (and `extra`) in p2's Battle Area. */
+  const attacked = (attacker: string, extra: string[] = []): { s: EngineState; u: string } => {
+    let g = arenaG({ hand: ["KEEPER"], energy: ["V1", "V1", "V1"], oppBattle: [attacker, ...extra] });
+    g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", "KEEPER"), x: 3 });
+    const u = unisonOf(g, "p1")!;
+    g = playG(g, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+    return { s: g, u };
+  };
+  /** Answer the substitute's own question — which life card goes — with the first one offered. */
+  const pickLife = (g: EngineState): EngineState => {
+    if (g.prompt.kind !== "chooseCards") return g;
+    const cands = g.prompt.choice.candidates;
+    assert.ok(cands.every((id) => zoneOf(g, "p1", "life").includes(id)), "the substitute's choice is of p1's own life cards");
+    return playG(g, { type: "choose", player: "p1", cards: [cands[0]] });
+  };
+
+  // Taken: the marker stays, a life card goes to the Drop instead.
+  {
+    const { s, u } = attacked("BIG");
+    const lifeBefore = zoneOf(s, "p1", "life").length;
+    const dropBefore = zoneOf(s, "p1", "drop").length;
+    let g = playG(s, { type: "attack", player: "p2", attacker: findG(s, "p2", "battle", "BIG"), target: u }, { type: "pass", player: "p2" });
+    assert.equal(g.prompt.kind, "replaceMove", "9-10-3: whether to keep the marker is asked");
+    assert.equal((g.prompt as { player: string }).player, "p1", "asked of the Unison's master, not the attacker");
+    assert.equal((g.prompt as { options: string[] }).options.length, 2, "the offer, and losing the marker as usual");
+    g = pickLife(playG(g, { type: "chooseMode", player: "p1", index: 0 }));
+    assert.equal(g.cards[u].markers, 3, "taken: the marker stays (9-10-1-1)");
+    assert.equal(zoneOf(g, "p1", "life").length, lifeBefore - 1, "taken: one life card fewer");
+    assert.equal(zoneOf(g, "p1", "drop").length, dropBefore + 1, "taken: and it is in the Drop Area");
+    assert.equal(g.prompt.kind, "main", "the battle finishes behind the substitute");
+    assertConsistentG(g);
+  }
+
+  // Declined: the marker comes off as 13-5-2-3 says, and life is untouched.
+  {
+    const { s, u } = attacked("BIG");
+    const lifeBefore = zoneOf(s, "p1", "life").length;
+    let g = playG(s, { type: "attack", player: "p2", attacker: findG(s, "p2", "battle", "BIG"), target: u }, { type: "pass", player: "p2" });
+    assert.equal(g.prompt.kind, "replaceMove");
+    g = playG(g, { type: "chooseMode", player: "p1", index: 1 });
+    assert.equal(g.cards[u].markers, 2, "declined: one marker lost");
+    assert.equal(zoneOf(g, "p1", "life").length, lifeBefore, "declined: life untouched");
+    assert.equal(g.prompt.kind, "main");
+    assertConsistentG(g);
+  }
+
+  // [Double Strike]: two markers, two events (5-13-4-2) — each asked on its own.
+  {
+    const { s, u } = attacked("DOUBLE");
+    const lifeBefore = zoneOf(s, "p1", "life").length;
+    let g = playG(s, { type: "attack", player: "p2", attacker: findG(s, "p2", "battle", "DOUBLE"), target: u }, { type: "pass", player: "p2" });
+    assert.equal(g.prompt.kind, "replaceMove", "the first marker's question");
+    g = pickLife(playG(g, { type: "chooseMode", player: "p1", index: 0 }));
+    assert.equal(g.prompt.kind, "replaceMove", "5-13-4-2: the second marker is its own event, asked again");
+    g = playG(g, { type: "chooseMode", player: "p1", index: 1 });
+    assert.equal(g.cards[u].markers, 2, "one kept, one lost");
+    assert.equal(zoneOf(g, "p1", "life").length, lifeBefore - 1, "one life card paid for the one kept");
+    assert.equal(g.prompt.kind, "main");
+    assertConsistentG(g);
+  }
+
+  // A marker a skill removes is not an attack's: no replacement is offered.
+  {
+    const { s, u } = attacked("BIG", ["UNMARK"]);
+    const lifeBefore = zoneOf(s, "p1", "life").length;
+    let g = playG(s, { type: "activate", player: "p2", card: findG(s, "p2", "battle", "UNMARK"), skill: 0 });
+    if (g.prompt.kind === "chooseCards") g = playG(g, { type: "choose", player: "p2", cards: [u] });
+    assert.notEqual(g.prompt.kind, "replaceMove", "no replacement for a skill's removal");
+    assert.equal(g.cards[u].markers, 2, "the skill's marker came off");
+    assert.equal(zoneOf(g, "p1", "life").length, lifeBefore, "and no life card went for it");
+    assertConsistentG(g);
+  }
+}
+

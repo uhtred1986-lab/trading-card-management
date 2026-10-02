@@ -106,7 +106,7 @@ export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colo
 const AMOUNT_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost"] as const satisfies readonly AmountAttr[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
-export const REPLACE_EVENTS = ["leave", "ko", "play", "life", "attack", "counter"] as const satisfies readonly ReplaceEvent[];
+export const REPLACE_EVENTS = ["leave", "ko", "play", "life", "marker", "attack", "counter"] as const satisfies readonly ReplaceEvent[];
 export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy", "unison", "leader", "warp", "zDeck", "zEnergy", "under", "play", "removed"] as const satisfies readonly ScriptArea[];
 /**
  * Every `modifyAttr` may name in `attr`: the six card attributes it always
@@ -598,7 +598,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [
       { name: "event", type: { enum: REPLACE_EVENTS }, required: true },
       { name: "with", type: "ops", required: true },
-      { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } },
+      { name: "by", type: { enum: ["skill", "ko", "skillOrKo", "attack"] } },
       { name: "bySide", type: { enum: ["opponent"] } },
       { name: "to", type: { enum: ["hand", "drop"] } },
       { name: "optional", type: "boolean" },
@@ -612,6 +612,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"replace">;
       const who = describeRef(op.target ?? { sel: { special: "self" } });
       const whose = op.bySide === "opponent" ? "an opponent's skill" : "a skill";
+      const instead = `${op.optional ? "you may have this happen" : "this happens"} instead: ${describeScript(op.with, r)}`;
+      // 13-5-2: the one marker loss a replacement is read at (`by` is always "attack").
+      if (op.event === "marker") return `if ${who} would lose a marker from an opponent's attack, ${instead}`;
       const moment =
         op.event === "play"
           ? "the card being played would be played"
@@ -624,9 +627,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
                 : op.by === "skillOrKo"
                   ? `${who} would be removed from the Battle Area by ${whose} or KO'd`
                   : `${who} would leave the Battle Area`;
-      return `if ${moment}, ${op.optional ? "you may have this happen" : "this happens"} instead: ${describeScript(op.with, r)}`;
+      return `if ${moment}, ${instead}`;
     },
-    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area), "attack" (the attack in progress, 8-1-6-1) and "counter" (the [Counter] this one answers, 9-7) — those two only with an empty "with", read back as "negateAttack"/"negateCounter" (#137). "by":"ko" on a "leave" is the same moment as "ko", the spelling "replaceLeave" lowers to. "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life" replacement is [Permanent] only — or, for "leave", the leaf of a keyword\'s wouldLeave hook: [Ultimate]\'s "removed from the game instead" (22-14-3), read as a redirect after any [Permanent]\'s',
+    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area), "marker" (this Unison would lose a marker, only with "by":"attack" — 13-5-2\'s removal by an opponent\'s attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and "with" runs), "attack" (the attack in progress, 8-1-6-1) and "counter" (the [Counter] this one answers, 9-7) — those two only with an empty "with", read back as "negateAttack"/"negateCounter" (#137). "by":"ko" on a "leave" is the same moment as "ko", the spelling "replaceLeave" lowers to. "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life"/"marker" replacement is [Permanent] only — or, for "leave", the leaf of a keyword\'s wouldLeave hook: [Ultimate]\'s "removed from the game instead" (22-14-3), read as a redirect after any [Permanent]\'s',
   },
   altCost: {
     fields: [
@@ -1559,6 +1562,10 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
       return fieldHolds(f.type, v, depth, bound);
     });
     if (!ok) return false;
+    // A marker loss is read at one moment only — 13-5-2's, an attack on a
+    // Unison — so `event: marker` names it and `by: attack` belongs to it
+    // alone: either without the other is a moment nothing reads.
+    if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return false;
     if (o.op === "choose" && o.bindX === true) bound = true;
   }
   return true;

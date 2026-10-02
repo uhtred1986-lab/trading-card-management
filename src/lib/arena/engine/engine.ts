@@ -17,11 +17,12 @@ import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from ".
 import { costIsOnlyOrbs, costText, parseConditionClause } from "../compile";
 import { matches, parseCondition, parseFilter } from "../text/filters";
 import { legacyHost } from "./legacy-host";
-import { replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "../vm/script";
+import { markerReplacementPrompt, markerSubstituteFrame, replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "../vm/script";
 import { koCard, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "../vm/rng";
+import { describeScript } from "../vm/script-schema";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
-import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
+import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
 import { IllegalAction } from "../vm/common";
 import type { ActionCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
 import type {
@@ -398,6 +399,8 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       return battleDefense(ctx, s, ev);
     case "battle.damage":
       return battleDamage(ctx, s, ev, step.resume);
+    case "battle.markers":
+      return loseMarkers(ctx, s, ev, step.resume);
     case "battle.end":
       return battleEnd(ctx, s, ev);
     case "battle.zEnergy":
@@ -1383,18 +1386,75 @@ function battleDamage(ctx: EngineContext, s: GameState, ev: GameEvent[], resume?
       const critical = has(ctx, s, b.attacker, "Critical");
       return damageLife(ctx, s, ev, defP, { taken: [], remaining: amount, critical });
     } else if (gt === "UNISON") {
-      // 13-5-2: markers come off instead of KO.
+      // 13-5-2: markers come off instead of KO — one at a time (5-13-4-2),
+      // each one's `marker` replacement asked (SD13-02).
       const strike = keyword(ctx, s, b.attacker, "Strike");
       const n = has(ctx, s, b.attacker, "Victory Strike") ? s.cards[b.guard].markers : strike ? strike.x : 1;
-      s.cards[b.guard].markers = Math.max(0, s.cards[b.guard].markers - n);
-      ev.push({ type: "markers", card: b.guard, delta: -n, total: s.cards[b.guard].markers });
-      pendTriggers(ctx, s, "markerRemoved", b.guard);
+      return loseMarkers(ctx, s, ev, { remaining: Math.min(n, s.cards[b.guard].markers), lost: 0 });
     } else {
       // 8-4-6-2: the guard is KO'd unless [Indestructible] (22-12).
       if (!has(ctx, s, b.guard, "Indestructible")) koCard(ctx, s, ev, b.guard, b.attacker);
     }
   }
   s.flow.unshift({ op: "checkpoint" }, { op: "battle.end" });
+  return "done";
+}
+
+/**
+ * 13-5-2's markers coming off a Unison guard, one at a time: removing X
+ * markers is "remove 1 marker" X times (5-13-4-2), and each removal is its own
+ * event for a `marker` replacement (9-10-2-3) — SD13-02's "if this card would
+ * lose a marker from an opponent's attack, you may place 1 card from your life
+ * in your Drop Area instead". 9-10-2's choice between several, or 9-10-3's
+ * "you may", is put to the Unison's master; a substitute taken is queued as a
+ * program (it may ask, "choose 1 card in your Life Area") and this step comes
+ * back behind it for the next marker. The markers actually lost are logged as
+ * one event and `markerRemoved` pends once, at the end — the shape this step
+ * always had, so a battle no replacement touches reads exactly as before.
+ */
+function loseMarkers(ctx: EngineContext, s: GameState, ev: GameEvent[], resume: { remaining: number; lost: number; awaiting?: true }): "done" | "wait" {
+  const b = s.battle!;
+  const guard = b.guard;
+  let { remaining, lost, awaiting } = resume;
+  const defP = other(s.turnPlayer);
+  let last: ScriptFrame | null = null;
+  while (remaining > 0 && areaOf(s, guard) === "unison" && s.cards[guard].markers > 0) {
+    const choices = markerReplacementChoicesFor(ctx, s, guard);
+    const allowNone = choices.length > 0 && choices.every((c) => c.optional);
+    let taken: (typeof choices)[number] | null;
+    if (awaiting) {
+      const index = s.lastMode;
+      s.lastMode = null;
+      awaiting = undefined;
+      taken = index == null || index < 0 || index >= choices.length ? null : choices[index];
+    } else if (choices.length > 1 || allowNone) {
+      s.flow.unshift({ op: "battle.markers", resume: { remaining, lost, awaiting: true } });
+      const prompt = markerReplacementPrompt(face(ctx, s, guard).name, choices, allowNone);
+      return wait(s, { kind: "replaceMove", player: defP, card: guard, reason: prompt.reason, options: prompt.options });
+    } else {
+      taken = choices[0] ?? null;
+    }
+    remaining--;
+    if (taken) {
+      // 9-10-1-1: this marker is not lost; the substitute happens in its place.
+      note(ev, `${face(ctx, s, guard).name} keeps its marker; ${describeScript(taken.ops ?? [])} instead`);
+      const frame = markerSubstituteFrame(guard, taken, defP);
+      if (remaining > 0) {
+        s.flow.unshift({ op: "script.step", frame }, { op: "battle.markers", resume: { remaining, lost } });
+        return "done";
+      }
+      last = frame;
+      break;
+    }
+    s.cards[guard].markers--;
+    lost++;
+  }
+  if (lost) {
+    ev.push({ type: "markers", card: guard, delta: -lost, total: s.cards[guard].markers });
+    pendTriggers(ctx, s, "markerRemoved", guard);
+  }
+  // The last marker's substitute, if it was replaced, runs before the battle moves on.
+  s.flow.unshift(...(last ? [{ op: "script.step" as const, frame: last }] : []), { op: "checkpoint" }, { op: "battle.end" });
   return "done";
 }
 

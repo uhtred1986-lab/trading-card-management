@@ -929,6 +929,37 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   assert.equal(describeScript([{ op: "discard", n: 1, to: "drop" }]), describeScript([{ op: "discard", n: 1 }]), "naming the default Drop changed what a discard says");
 }
 
+// ── replace(event: marker, by: attack): SD13-02's marker kept (13-5-2) ──────
+//
+// The exact program for SD13-02 skill 0, written as the workbench would show
+// it: it parses, validates as a [Permanent], prints back to the same text and
+// reads in words. `event: marker` and `by: attack` belong together — either
+// alone names a moment nothing reads, and the validator says so.
+{
+  const SD13_02 = [
+    "WHEN [permanent]",
+    "THEN",
+    "  replace(event: marker, with: {",
+    '    choose(sel: 1 IN you.life, as: "c0", reason: "you may place 1 card from your life in your Drop Area")',
+    "    moveTo(target: $c0, to: drop, reveal: true)",
+    "  }, by: attack, optional: true)",
+  ].join("\n");
+  const parsed = parseRule(SD13_02);
+  assert.ok(parsed.ok, `SD13-02's program does not parse: ${parsed.ok ? "" : parsed.error.message}`);
+  assert.equal(validateRule(parsed.value, "permanent"), null, "SD13-02's program validates as a [Permanent]");
+  assert.equal(printRule(parsed.value), SD13_02, "and prints back as written");
+  const op = parsed.value.ops[0];
+  assert.ok(op.op === "replace" && op.event === "marker" && op.by === "attack" && op.optional === true);
+  assert.equal(
+    describeScript(parsed.value.ops),
+    "if this card would lose a marker from an opponent's attack, you may have this happen instead: choose 1 card in your Life Area, move the chosen cards to drop",
+  );
+  tripOps(parsed.value.ops, "a marker kept for a life card");
+  const keep: Op[] = [{ op: "moveTo", target: { sel: { side: "you", area: "life", count: 1 } }, to: "drop" }];
+  assert.equal(validateRule({ ...parsed.value, ops: [{ op: "replace", event: "marker", with: keep }] }, "permanent")?.field, "ops", "a marker loss with no cause named is refused");
+  assert.equal(validateRule({ ...parsed.value, ops: [{ op: "replace", event: "leave", by: "attack", with: keep }] }, "permanent")?.field, "ops", "`by: attack` on a departure is refused");
+}
+
 // ── #137: the words `look`, `lifeDownTo` and `resolvingPlay` lower to ─────
 //
 // A reveal names its audience, an amount subtracts, and each lowered shape a

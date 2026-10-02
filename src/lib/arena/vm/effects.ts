@@ -661,9 +661,12 @@ function collect(
     if (op.op === "replace") {
       if (op.event === "play" || !inPlayNow) continue;
       const isLife = op.event === "life";
-      const redirect = redirectOf(op.with);
-      const by = op.event === "ko" ? ("ko" as const) : isLife ? undefined : op.by;
-      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : {};
+      // 13-5-2: a marker loss is never a redirect — the marker is not a card
+      // that could go anywhere else — so its `with` is always the substitute.
+      const isMarker = op.event === "marker";
+      const redirect = isMarker ? null : redirectOf(op.with);
+      const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
+      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional, ...lifeFields }
         : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };

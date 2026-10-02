@@ -140,7 +140,9 @@ function replacementFor(ctx: GameContext, s: GameState, id: string, reason: Move
 function causeMatches(s: GameState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor): boolean {
   // #272: a "life" replacement answers to no Battle Area departure at all —
   // `lifeReplacementChoicesFor` is its own reader, asked only by `battleDamage`.
-  if (r.kind === "life") return false;
+  // A "marker" replacement answers to no departure either — the Unison stays;
+  // `markerReplacementChoicesFor` is its reader, asked only by the Damage Step.
+  if (r.kind === "life" || r.kind === "marker") return false;
   if (r.by === "skill" && reason !== "effect") return false;
   if (r.by === "ko" && reason !== "ko") return false;
   if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
@@ -198,6 +200,24 @@ export function lifeReplacementChoicesFor(ctx: GameContext, s: GameState, id: st
     if (r.kind !== "life" || r.master !== owner || (r.lifeTo && r.lifeTo !== dest)) continue;
     if (r.ops && applyingReplacement) continue;
     out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
+  }
+  return out;
+}
+
+/**
+ * Every `kind: "marker"` replacement standing in front of this Unison losing
+ * one marker to an attack (13-5-2, SD13-02) — the one reader the Damage Step
+ * asks, once per marker (5-13-4-2). Scoped by target like the Battle Area
+ * family: the card printing it is the card whose marker it keeps. Always a
+ * substitute, run by the caller as a frame of its own.
+ */
+export function markerReplacementChoicesFor(ctx: GameContext, s: GameState, id: string): ReplacementChoice[] {
+  const out: ReplacementChoice[] = [];
+  for (const e of staticEffects(ctx, s)) {
+    if (e.kind !== "replaceLeave" || e.target !== id) continue;
+    const r = e.value as Replacement;
+    if (r.kind !== "marker" || !r.ops?.length) continue;
+    out.push({ source: e.source, optional: r.optional, ops: r.ops, ...(r.master ? { master: r.master } : {}) });
   }
   return out;
 }
@@ -1071,10 +1091,12 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     if (op.op === "replace") {
       if (op.event === "play" || !inPlayNow) continue;
       const isLife = op.event === "life";
-      const redirect = redirectOf(op.with);
-      const by = op.event === "ko" ? ("ko" as const) : isLife ? undefined : op.by;
+      // 13-5-2: a marker loss is never a redirect — always the substitute.
+      const isMarker = op.event === "marker";
+      const redirect = isMarker ? null : redirectOf(op.with);
+      const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
-      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : {};
+      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional, ...lifeFields }
         : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source, master, ...lifeFields };

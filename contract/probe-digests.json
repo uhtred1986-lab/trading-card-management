@@ -315,6 +315,10 @@
     "outcome": "inForce",
     "digest": "7da44342"
   },
+  "KEEPER#0": {
+    "outcome": "inForce",
+    "digest": "00264035"
+  },
   "KILLER#0": {
     "outcome": "fired",
     "digest": "ca56ac9b"
@@ -710,6 +714,10 @@
   "UNI2#0": {
     "outcome": "notOffered",
     "digest": "e2ce4101"
+  },
+  "UNMARK#0": {
+    "outcome": "fired",
+    "digest": "46dfe8cb"
   },
   "UPALL#0": {
     "outcome": "inForce",

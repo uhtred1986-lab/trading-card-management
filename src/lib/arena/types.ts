@@ -975,6 +975,8 @@ export type FlowStep =
    * rather than asking about the next card.
    */
   | { op: "battle.damage"; resume?: { taken: string[]; remaining: number; critical: boolean; awaiting?: true } }
+  /** 13-5-2 / 5-13-4-2: a Unison guard's markers coming off one at a time, each one's `marker` replacement asked (SD13-02); `lost` is how many have actually come off so far. */
+  | { op: "battle.markers"; resume: { remaining: number; lost: number; awaiting?: true } }
   | { op: "battle.end" }
   | { op: "battle.zEnergy"; player: PlayerId }
   | { op: "battle.cleanup" }
@@ -1107,8 +1109,14 @@ export interface Replacement {
    * means "leave"/"ko"/"play", every existing effect; `by`/`bySide` are not
    * asked when this is set, and `lifeReplacementsFor` is the reader instead
    * of `causeMatches`.
+   *
+   * `"marker"`: a Unison losing one marker to an attack (13-5-2) — "if this
+   * card would lose a marker from an opponent's attack, you may … instead"
+   * (SD13-02). Always a substitute, never a redirect: the marker stays and the
+   * program runs. Read by `markerReplacementChoices` on the Damage Step alone,
+   * once per marker (5-13-4-2), never by `causeMatches`.
    */
-  kind?: "life";
+  kind?: "life" | "marker";
   /** For `kind: "life"`: narrows to the one destination named, or answers to either when absent — both cards print "to your hand or … your Drop Area". */
   lifeTo?: "hand" | "drop";
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
