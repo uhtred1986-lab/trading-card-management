@@ -128,9 +128,49 @@ function mayCarry(ctx: EngineContext, state: VmState, id: string, names: string[
   return names.some((n) => text.includes(n)) || state.effects.some((e) => e.kind === "keyword" && e.target === id);
 }
 
+/**
+ * One read-only question about one board — `legalActions`, `rejectedActions`,
+ * `boardView` (`./index.ts`) — and the statics it has already worked out.
+ *
+ * The statics are a function of the board, and nothing in those three changes
+ * the board they were handed: a move is tried on a copy (`restedAlready`,
+ * `apply`'s clone), which is a different object and so never reads this. Yet
+ * every value read inside one of them asked for every [Permanent] again —
+ * hundreds of walks of the same programs per menu. Held only for the length
+ * of the call, because outside one a caller may change the state in place (a
+ * test staging a board does), and only for a reading made with neither guard
+ * up, since a reading made under one answers a narrower question.
+ */
+interface StaticsScope {
+  state: VmState;
+  ctx: EngineContext;
+  game: GameDefinition;
+  standing: VmStatic[] | null;
+}
+let staticsScope: StaticsScope | null = null;
+
+/** Run one read-only question about `state` with its statics read once. The state must not be changed in place while `read` runs. */
+export function readingBoard<T>(ctx: EngineContext, game: GameDefinition, state: VmState, read: () => T): T {
+  const outer = staticsScope;
+  staticsScope = { state, ctx, game, standing: null };
+  try {
+    return read();
+  } finally {
+    staticsScope = outer;
+  }
+}
+
 /** Every [Permanent] standing right now — and every keyword's `altPayment` body — or nothing while one is being read (see `readingStatics`). */
 function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   if (readingStatics) return [];
+  const scope = staticsScope && !readingImmunities && staticsScope.state === state && staticsScope.ctx === ctx && staticsScope.game === game ? staticsScope : null;
+  if (scope?.standing) return scope.standing;
+  const standing = readStatics(ctx, game, state);
+  if (scope) scope.standing = standing;
+  return standing;
+}
+
+function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   readingStatics = true;
   try {
     const targets = (frame: ScriptFrame, op: Op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref);
