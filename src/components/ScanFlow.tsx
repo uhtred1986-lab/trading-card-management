@@ -6,7 +6,7 @@ import { completeBatchAction, createBatchAction, deleteBatchAction, setBatchDeck
 import { printsForCardAction } from "@/app/collection/actions";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
 import { REVIEW_THRESHOLD, type Box } from "@/lib/ai/scan-match";
-import { CONDITIONS } from "@/lib/collection/queries";
+import { CONDITIONS } from "@/lib/collection/constants";
 import type { DeckOption } from "@/lib/decks/add";
 import type { ItemPatch, ScanItemRow, ScanMode, ScanPhotoMeta } from "@/lib/scan/batches";
 import { downscaleImage } from "@/lib/scan/downscale";

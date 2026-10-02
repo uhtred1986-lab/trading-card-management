@@ -126,35 +126,38 @@ export interface DeckCardRow {
 
 /** `viewer` hides a deck owned by someone else — the caller treats null the same as not found. */
 export async function getDeck(db: Db, id: number, viewer?: string | null) {
-  const deck = await db.query.decks.findFirst({ where: eq(decks.id, id) });
+  // The deck and its cards together: the cards need only the id.
+  const [deck, rows] = await Promise.all([
+    db.query.decks.findFirst({ where: eq(decks.id, id) }),
+    db
+      .select({
+        cardId: deckCards.cardId,
+        zone: deckCards.zone,
+        quantity: deckCards.quantity,
+        game: cards.game,
+        name: cards.name,
+        cardType: cards.cardType,
+        colors: cards.colors,
+        energyCost: cards.energyCost,
+        power: cards.power,
+        rarityCode: cards.rarityCode,
+        imageUrl: cards.imageUrl,
+        backImageUrl: cards.backImageUrl,
+        backName: cards.backName,
+        limitedTo: cards.limitedTo,
+        isBanned: cards.isBanned,
+        skill: cards.skill,
+        characters: cards.characters,
+        traits: cards.traits,
+      })
+      .from(deckCards)
+      .innerJoin(cards, eq(cards.id, deckCards.cardId))
+      .where(eq(deckCards.deckId, id))
+      .orderBy(asc(deckCards.zone), asc(sql`nullif(regexp_replace(${cards.energyCost}, '\\D', '', 'g'), '')::int`), asc(cards.name)),
+  ]);
   if (!deck) return null;
   if (viewer && deck.owner && deck.owner !== viewer) return null;
   const game = gameOr(deck.game);
-  const rows = await db
-    .select({
-      cardId: deckCards.cardId,
-      zone: deckCards.zone,
-      quantity: deckCards.quantity,
-      game: cards.game,
-      name: cards.name,
-      cardType: cards.cardType,
-      colors: cards.colors,
-      energyCost: cards.energyCost,
-      power: cards.power,
-      rarityCode: cards.rarityCode,
-      imageUrl: cards.imageUrl,
-      backImageUrl: cards.backImageUrl,
-      backName: cards.backName,
-      limitedTo: cards.limitedTo,
-      isBanned: cards.isBanned,
-      skill: cards.skill,
-      characters: cards.characters,
-      traits: cards.traits,
-    })
-    .from(deckCards)
-    .innerJoin(cards, eq(cards.id, deckCards.cardId))
-    .where(eq(deckCards.deckId, id))
-    .orderBy(asc(deckCards.zone), asc(sql`nullif(regexp_replace(${cards.energyCost}, '\\D', '', 'g'), '')::int`), asc(cards.name));
 
   const alloc = await allocationForCards(db, [...new Set(rows.map((r) => r.cardId))]);
   const cardsOut: DeckCardRow[] = rows.map((r) => ({ ...r, zone: r.zone as Zone, game: gameOr(r.game), alloc: alloc.get(r.cardId)! }));

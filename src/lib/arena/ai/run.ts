@@ -17,7 +17,7 @@ import { describeAiError } from "@/lib/ai/client";
 import { skillsOf } from "../text/cards";
 import { type Action, type Area, type PlayerId } from "../types";
 import { markRuleSeen, saveRule } from "../rules-store";
-import { applyToGame, loadGame, type LoadedGame } from "../games";
+import { applyToGame, loadGame, StaleGame, type LoadedGame } from "../games";
 import { legacyState } from "../engines";
 import { nameOf } from "../engine-state";
 import { recordDecision } from "./debug";
@@ -112,18 +112,26 @@ export interface AdvanceResult {
 /**
  * Take every decision that is not the human's, until one is. Bounded, so a
  * loop in the rules can never spin the server.
+ *
+ * `warm` is a game this request has just loaded or written (`act()`'s own
+ * move): its cards and rules are this game's for the whole run, so each step
+ * reads the row and nothing else. A referee ruling can write a rule, so after
+ * one they are read again.
  */
-export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<AdvanceResult> {
+export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick<LoadedGame, "ctx" | "art">): Promise<AdvanceResult> {
   const said: string[] = [];
   let steps = 0;
+  let reuse = warm;
   for (; steps < maxSteps; steps++) {
-    const game = await loadGame(db, gameId);
+    const game = await loadGame(db, gameId, reuse);
     if (!game || game.status !== "playing") break;
+    reuse = game;
     const ai = aiPlayerOf(game);
     const prompt = game.state.prompt;
 
     try {
       if (prompt.kind === "referee") {
+        reuse = undefined;
         const done = await runReferee(db, game, gameId);
         if (done) said.push(done);
         continue;
@@ -158,9 +166,16 @@ export async function advance(db: Db, gameId: number, maxSteps = 80): Promise<Ad
       // Written with the move it explains, not collected for the end of the
       // batch — see `applyToGame`.
       const line = choice.say ? `${nameOf(state, ai)}: “${choice.say}”` : null;
-      await applyToGame(db, gameId, chosen.action as Action, { say: line, aside: game.debug ? searchAside(game, chosen) : null });
+      // Applied to the board it was decided on, not to a fresh read of the
+      // row: Claude's call takes seconds, and a move chosen off one menu must
+      // not be played on whatever board is there by the time it answers.
+      await applyToGame(db, gameId, chosen.action as Action, { say: line, aside: game.debug ? searchAside(game, chosen) : null }, { game });
       if (line) said.push(line);
     } catch (err) {
+      // Someone else moved the game on while Claude was deciding — another
+      // request advancing the same game. That one carries on from the board
+      // it wrote; this one has nothing left that is its to decide.
+      if (err instanceof StaleGame) return { steps, said, error: null };
       return { steps, said, error: describeAiError(err) };
     }
   }

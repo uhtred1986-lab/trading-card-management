@@ -128,9 +128,51 @@ function mayCarry(ctx: EngineContext, state: VmState, id: string, names: string[
   return names.some((n) => text.includes(n)) || state.effects.some((e) => e.kind === "keyword" && e.target === id);
 }
 
+/**
+ * One read-only question about one board — `legalActions`, `rejectedActions`,
+ * `boardView` (`./index.ts`) — and the statics it has already worked out.
+ *
+ * The statics are a function of the board, and nothing in those three changes
+ * the board they were handed: a move is tried on a copy (`restedAlready`,
+ * `apply`'s clone), which is a different object and so never reads this. Yet
+ * every value read inside one of them asked for every [Permanent] again —
+ * hundreds of walks of the same programs per menu. Held only for the length
+ * of the call, because outside one a caller may change the state in place (a
+ * test staging a board does), and only for a reading made with neither guard
+ * up, since a reading made under one answers a narrower question.
+ */
+interface StaticsScope {
+  state: VmState;
+  ctx: EngineContext;
+  game: GameDefinition;
+  standing: VmStatic[] | null;
+}
+let staticsScope: StaticsScope | null = null;
+
+/** Run one read-only question about `state` with its statics read once. The state must not be changed in place while `read` runs. */
+export function readingBoard<T>(ctx: EngineContext, game: GameDefinition, state: VmState, read: () => T): T {
+  const outer = staticsScope;
+  // Already inside a reading of this very board: its statics are this one's.
+  if (outer && outer.state === state && outer.ctx === ctx && outer.game === game) return read();
+  staticsScope = { state, ctx, game, standing: null };
+  try {
+    return read();
+  } finally {
+    staticsScope = outer;
+  }
+}
+
 /** Every [Permanent] standing right now — and every keyword's `altPayment` body — or nothing while one is being read (see `readingStatics`). */
 function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   if (readingStatics) return [];
+  const scope = staticsScope && !readingImmunities && staticsScope.state === state && staticsScope.ctx === ctx && staticsScope.game === game ? staticsScope : null;
+  if (scope?.standing) return scope.standing;
+  const standing = readStatics(ctx, game, state);
+  if (scope) scope.standing = standing;
+  return standing;
+}
+
+function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   readingStatics = true;
   try {
     const targets = (frame: ScriptFrame, op: Op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref);
@@ -313,8 +355,8 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // cost have no distinct back-side value the catalog has ever recorded, so
   // 10-1-3 is satisfied by the printed value already sitting in `base` — the
   // feed simply never gave this adapter a second number to prefer.
-  for (const [name, decl] of Object.entries(game.attributes)) {
-    if (!decl.face || name === "power" || name === "originalPower") continue;
+  const plan = attrPlanOf(game);
+  for (const name of plan.face) {
     if (!shownFace) {
       delete base[name];
       continue;
@@ -355,7 +397,7 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // through this attribute) must find [Blocker] and friends in, and a Hidden
   // Mode card grants none at all (23-5-2), which `base.skill` being absent
   // there already gives for free.
-  if (game.attributes.keywords) base.keywords = keywordsInSkills(parseSkills(typeof base.skill === "string" ? base.skill : null)).map((k) => k.name);
+  if (game.attributes.keywords) base.keywords = printedKeywordNames(typeof base.skill === "string" ? base.skill : null);
   // The value every layer is applied *to*, so an attribute the base left out —
   // a hidden card's power — stays out rather than falling back to the catalog
   // row the spread above would have carried.
@@ -365,8 +407,7 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // whole reason this no longer filters by the attribute's name (#148).
   const mine = standing.filter((e) => e.target === id);
   const timed = state.effects.filter((e) => e.target === id);
-  for (const name of Object.keys(game.attributes)) {
-    if (!game.attributes[name].layers?.length) continue;
+  for (const name of plan.layered) {
     const value = valueOf(game, base, name, mine, timed);
     if (value !== undefined) out[name] = value;
   }
@@ -383,6 +424,44 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (typeof current === "number") out[fact.attr] = current + fact.delta;
   }
   return out;
+}
+
+/**
+ * Which of a game's declared attributes `attrsNow` overlays from the face
+ * showing, and which have layers to apply — in declaration order, worked out
+ * once per definition rather than on every value read. A definition is never
+ * changed once `loadRuleset` has built it.
+ */
+const ATTR_PLAN = new WeakMap<GameDefinition, { face: string[]; layered: string[] }>();
+function attrPlanOf(game: GameDefinition): { face: string[]; layered: string[] } {
+  let plan = ATTR_PLAN.get(game);
+  if (!plan) {
+    const entries = Object.entries(game.attributes);
+    plan = {
+      face: entries.filter(([name, decl]) => decl.face && name !== "power" && name !== "originalPower").map(([name]) => name),
+      layered: entries.filter(([, decl]) => decl.layers?.length).map(([name]) => name),
+    };
+    ATTR_PLAN.set(game, plan);
+  }
+  return plan;
+}
+
+/**
+ * The keyword names a skill text prints — `keywordsInSkills(parseSkills(…))`,
+ * the one way a keyword is read, kept per text the way `parseSkills` is. Asked
+ * on every value read; frozen, because every caller shares it.
+ */
+const KEYWORD_NAMES = new Map<string, readonly string[]>();
+const NO_KEYWORDS: readonly string[] = Object.freeze([]);
+function printedKeywordNames(text: string | null): readonly string[] {
+  if (!text) return NO_KEYWORDS;
+  let names = KEYWORD_NAMES.get(text);
+  if (!names) {
+    if (KEYWORD_NAMES.size >= 20_000) KEYWORD_NAMES.clear();
+    names = Object.freeze(keywordsInSkills(parseSkills(text)).map((k) => k.name));
+    KEYWORD_NAMES.set(text, names);
+  }
+  return names;
 }
 
 /** What `CardDef.back` carries a value of its own for — the two `attrsNow`'s generic `face: true` overlay substitutes on a flip, `power` (read separately, below) beside them. */

@@ -51,8 +51,9 @@ export function isFullBleed(pathname: string): boolean {
  * the Play screen (`/arena`, also `?tab=games`), a waiting 1 v 1 and the feedback page. Below
  * `sm` they drop the app header and the tab bar (about 114 px of a 390×844 screen) and handle
  * the safe-area insets themselves, as `isFullBleed` does; from `sm` up nothing changes. The
- * board is `isFullBleed`; the workbench and debug views keep the app's chrome.
+ * board is `isFullBleed`; the workbench and debug views keep the app's chrome. The phone's rule
+ * review (`/arena/rules/review`, #472) is a phone screen with its own way back, so it is one too.
  */
 export function isArenaShell(pathname: string): boolean {
-  return pathname === "/arena" || pathname === "/arena/feedback" || /^\/arena\/match\/\d+$/.test(pathname);
+  return pathname === "/arena" || pathname === "/arena/feedback" || pathname === "/arena/rules/review" || /^\/arena\/match\/\d+$/.test(pathname);
 }

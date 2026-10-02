@@ -269,7 +269,11 @@ function Readiness({ deck }: { deck: PlayDeck }) {
             {/* Phone: no link, Rules is for the computer. */}
             <span className="sm:hidden">{r.openCards.map((c) => c.name).join(", ")}</span>
           </p>
-          <p className="mt-1 text-space-300 sm:hidden">Fix them in Rules on the computer.</p>
+          <p className="mt-1 text-space-300 sm:hidden">The engine would play them as blank. Check them here, then this deck unlocks.</p>
+          {/* The phone's rule review (#472), scoped to this deck: open skills first. */}
+          <Link href={`/arena/rules/review?deck=${deck.id}`} className="tap mt-2 flex w-full items-center justify-center rounded-lg border border-loss/70 bg-loss/15 px-3 text-sm font-bold text-space-50 hover:bg-loss/25">
+            Review {r.open} card{r.open === 1 ? "" : "s"} now
+          </Link>
         </div>
       ) : (
         <p className="text-gain">

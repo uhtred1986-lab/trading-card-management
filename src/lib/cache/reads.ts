@@ -7,11 +7,14 @@
  * | `cachedListRarities`   | catalog          | cards                                   |
  * | `cachedListTraits`     | catalog          | cards                                   |
  * | `cachedAbilityKeywords`| catalog          | cards                                   |
+ * | `cachedCardIdsWithAbility` | catalog      | cards                                   |
  * | `cachedCard`           | catalog          | cards, card_sets, card_prints           |
  * | `cachedRecentCards`    | catalog          | cards, card_sets                        |
  * | `cachedUsdEur`         | prices           | fx_rates                                |
  * | `cachedPricesForPrints`| prices           | tcg_products, tcg_prices                |
  * | `cachedTcgUrl`         | prices           | tcg_products                            |
+ * | `cachedBasePricesForCards` | catalog, prices | card_prints, tcg_products, tcg_prices |
+ * | `cachedPriceSource`    | prices           | fx_rates, tcg_products, tcg_prices, cards, card_prints |
  * | `cachedLeaderboard`    | meta, catalog    | meta_events, meta_results, cards        |
  * | `cachedResultCards`    | meta             | meta_result_cards                       |
  *
@@ -35,10 +38,10 @@
 import { db } from "@/db";
 import type { Game } from "@/lib/catalog/games";
 import { recentCards, type NewCard } from "@/lib/catalog/news";
-import { getCard, listAbilityKeywords, listRarities, listSets, listTraits } from "@/lib/catalog/queries";
+import { cardIdsWithAbility, getCard, listAbilityKeywords, listRarities, listSets, listTraits } from "@/lib/catalog/queries";
 import { leaderboard, resultCardsFor, type ResultCard } from "@/lib/meta/leaderboard";
 import { latestUsdEur } from "@/lib/pricing/fx";
-import { pricesForPrints, type PrintPrice } from "@/lib/pricing/queries";
+import { basePricesAsOf, basePricesForCards, pricesForPrints, type PriceSource, type PrintPrice } from "@/lib/pricing/queries";
 import { cachedRead, datesCodec, mapCodec, reviveDates } from "./tags";
 
 /** Today, UTC — part of the key of a read whose window is "the last N days", so the window rolls daily. */
@@ -48,6 +51,7 @@ export const cachedListSets = cachedRead("listSets", ["catalog"], (game?: Game) 
 export const cachedListRarities = cachedRead("listRarities", ["catalog"], (game?: Game) => listRarities(db, { game }));
 export const cachedListTraits = cachedRead("listTraits", ["catalog"], (game?: Game) => listTraits(db, { game }));
 export const cachedAbilityKeywords = cachedRead("listAbilityKeywords", ["catalog"], (game?: Game) => listAbilityKeywords(db, { game }));
+export const cachedCardIdsWithAbility = cachedRead("cardIdsWithAbility", ["catalog"], (ability: string, game?: Game) => cardIdsWithAbility(db, ability, game));
 
 type Card = Awaited<ReturnType<typeof getCard>>;
 export const cachedCard = cachedRead("getCard", ["catalog"], (id: string) => getCard(db, id), {
@@ -68,6 +72,20 @@ export const cachedRecentCards = (opts: { game?: Game; days: number }) => recent
 
 export const cachedUsdEur = cachedRead("latestUsdEur", ["prices"], () => latestUsdEur(db));
 export const cachedPricesForPrints = cachedRead("pricesForPrints", ["prices"], (printIds: string[]) => pricesForPrints(db, printIds), mapCodec<string, PrintPrice>());
+/** The /cards grid's prices: a page of base prints at a time. */
+export const cachedBasePricesForCards = cachedRead("basePricesForCards", ["catalog", "prices"], (cardIds: string[]) => basePricesForCards(db, cardIds), mapCodec<string, PrintPrice>());
+
+const basePricesAsOfRead = cachedRead("basePricesAsOf", ["prices"], (cardIds: string[], asOf: string) => basePricesAsOf(db, cardIds, asOf), mapCodec<string, number>());
+
+/**
+ * The collection's valuation reads (`valuedLots`, `collectionCopies`,
+ * `movers`) from the cache: the same three queries, held until the next
+ * price sync. Only the prices are cached — which copies you own is read
+ * fresh every time, so a lot added a moment ago is valued at once (its
+ * print's price is a miss for the new key, and read).
+ */
+export const cachedPriceSource: PriceSource = { usdEur: cachedUsdEur, prices: (ids) => cachedPricesForPrints(ids), pricesAsOf: (ids, asOf) => basePricesAsOfRead(ids, asOf) };
+
 export const cachedTcgUrl = cachedRead(
   "tcgUrl",
   ["prices"],

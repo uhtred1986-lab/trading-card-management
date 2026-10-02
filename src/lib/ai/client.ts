@@ -48,7 +48,7 @@ export function anthropic(): Anthropic {
   return (cached ??= new Anthropic({ apiKey }));
 }
 
-export type RunKind = "deck_summary" | "deck_wizard" | "set_review" | "scan_identify" | "cart_explain" | "deck_builder" | "deck_from_card" | "arena_move" | "arena_referee" | "arena_clarify" | "arena_review";
+export type RunKind = "deck_summary" | "deck_wizard" | "set_review" | "scan_identify" | "cart_explain" | "deck_builder" | "deck_from_card" | "arena_move" | "arena_referee" | "arena_clarify" | "arena_review" | "arena_teach";
 
 /** The slice of the SDK's `usage` that `ai_runs` keeps; the cache fields are absent or null when a call did not use the cache. */
 export type RunUsage = {
