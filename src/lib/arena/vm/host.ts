@@ -362,6 +362,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       state.battle.guard = guard;
       log(ev, { type: "guardChanged", guard, by });
     },
+    swapBattleCard: (out, into) => {
+      const b = state.battle;
+      if (!b || (b.attacker !== out && b.guard !== out)) return;
+      // 8-1-7-2: the new card is in the battle from here on, as a card played
+      // on top of one is (`vm/play.ts`'s `stackOnto`).
+      state.cards[into].battledThisTurn = true;
+      if (b.attacker === out) b.attacker = into;
+      else b.guard = into;
+      log(ev, { type: "note", text: `${nameOfCard(ctx, state, into)} takes ${nameOfCard(ctx, state, out)}'s place in the battle` });
+    },
     negateAttack: () => {
       if (!state.battle) return;
       state.battle.negated = true;

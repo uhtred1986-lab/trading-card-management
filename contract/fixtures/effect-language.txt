@@ -46,6 +46,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     Hidden Mode / Revealed Mode (23-5)
   {"op":"redirectAttack","target":TARGET}
     "switch the target of the attack to it" (22-4-2)
+  {"op":"swapBattle","target":TARGET}
+    "switch your card that's in a battle with this card / the chosen card" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its "when this card attacks / is attacked" are not made pending
   {"op":"comboFrom","target":TARGET,"negated"?:true|false}
     "use it in a combo from your Drop (with its skills negated)" (5-7)
   {"op":"flip","target":TARGET}

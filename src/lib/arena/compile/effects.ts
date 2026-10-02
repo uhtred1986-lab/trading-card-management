@@ -1814,6 +1814,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "redirectAttack", target })) : null;
   }
+  // "Switch your card that's in a battle with this card / the chosen card"
+  // (8-1-7-2): the named card takes your seat in the battle, attacking or
+  // guarding (BT30-098, BT31-085).
+  if ((m = /^switch your card (?:that['’]s|that is) in (?:a|the) battle with (.+)$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "swapBattle", target })) : null;
+  }
 
   // KO (5-12).
   if ((m = /^ko (.+)$/.exec(t))) {
