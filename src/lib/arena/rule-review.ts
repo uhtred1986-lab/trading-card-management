@@ -288,11 +288,7 @@ export function isFlagged(explanation: string | null | undefined): boolean {
   return !!explanation?.startsWith(FLAG_PREFIX);
 }
 
-/**
- * Where "Teach it" and "Fix it in the builder" go. The block builder (#469)
- * owns `/arena/rules/build/[id]`; until it is on `main`, the workbench record
- * is the place a rule is fixed, and this one line is what switches.
- */
+/** Where "Teach it" and "Fix it in the builder" go: the block builder (#469). */
 export function builderHref(ruleId: number): string {
-  return `/arena/rules?rule=${ruleId}`;
+  return `/arena/rules/build/${ruleId}`;
 }

@@ -153,6 +153,6 @@ assert.equal(findOnce("Draw 2 cards.", "draw 2"), null, "exact case unless asked
   assert.equal(isFlagged(null), false);
 }
 
-assert.equal(builderHref(42), "/arena/rules?rule=42", "until #469's builder is on main, the workbench record is where a rule is fixed");
+assert.equal(builderHref(42), "/arena/rules/build/42", "Teach it and Fix it open the block builder (#469)");
 
 console.log("rule review: span logic, queue order and the Wrong verdict hold");
