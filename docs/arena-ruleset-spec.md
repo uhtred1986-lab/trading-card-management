@@ -212,6 +212,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `markers` | macro over `count` | `markers(SELECTOR)` is already an expression (§2.6); this row is a bound on it. |
 | `inBattle` | macro over `count` | "Attacking", "being attacked" and "in a battle" are roles of the battle in progress; as filter fields they are a count of the cards in the role. |
 | `battled` | macro over `count` | "Has been in a battle this turn" is a flag the engine keeps on the card; as a filter field it counts. |
+| `playedUsing` | macro over `count` | "During the turn you played it with [Over Realm]" (P-048, 22-15): the keyword whose own move played the card this turn, a fact both engines keep on the card (`playedUsing`, set as the `play … using:` lands, cleared at the turn's end and on a change of area); as a filter field it counts. |
 | `every` | macro over `count` + `not` | Every card the first selector finds is also one the second finds: a bound of zero on the difference, plus the bound that makes the empty case false (0-2-4-1) rather than vacuously true. |
 | `any` | primitive | Disjunction. A clause list is already a conjunction; nothing else says "or". |
 | `all` | macro over `any` + `not` | De Morgan. The interpreter may keep the case for legibility; the language does not need it. |

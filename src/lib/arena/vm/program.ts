@@ -1198,6 +1198,11 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // `vm/battle.ts`'s `joinsBattle` sets it, `endTurn` clears it.
     case "battled":
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => !!state.cards[id]?.battledThisTurn);
+    // P-048's "during the turn you played it with [Over Realm]": the card's
+    // memory of the play (`VmCard.playedUsing`), set by `resolvePlay` and gone
+    // with the turn or a change of area.
+    case "playedUsing":
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => state.cards[id]?.playedUsing === c.what);
     case "every": {
       const ids = resolveSelector(ctx, game, state, frame, c.sel);
       // Nothing there is not "all of it" (0-2-4-1).

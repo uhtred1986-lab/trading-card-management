@@ -2476,6 +2476,30 @@
       "sentence": "1 card in your Battle Area has been in a battle this turn"
     },
     {
+      "kind": "playedUsing",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"playedUsing\",\"sel\":SELECTOR,\"what\":\"Over Realm\"}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "Over Realm"
+          ]
+        }
+      ],
+      "sentence": "1 card in your Battle Area was played with [Over Realm] this turn",
+      "doc": "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4)"
+    },
+    {
       "kind": "every",
       "class": "macro over `count` + `not`",
       "signature": "{\"kind\":\"every\",\"sel\":SELECTOR,\"matching\":SELECTOR}",

@@ -311,6 +311,8 @@ const STEP_WORK: Record<string, Work> = {
         // own reset, ported alongside the two fields above (#152).
         inst.battledThisTurn = false;
         delete inst.attacksThisTurn;
+        // 22-15: "the turn you played it with [Over Realm]" is this one only.
+        delete inst.playedUsing;
       }
       // Every `DEFINE ATTRIBUTE of: player, reset: turnStart` fact returns to
       // its rest value here, off the declaration rather than by name (issue

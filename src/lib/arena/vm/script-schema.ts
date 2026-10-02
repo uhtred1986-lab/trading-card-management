@@ -1070,6 +1070,14 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
   },
   battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel, "any of the")} has been in a battle this turn` },
+  playedUsing: {
+    fields: [SEL, { name: "what", type: { enum: ["Over Realm"] }, required: true }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"playedUsing">;
+      return `${describeSelector(c.sel, "any of the")} was played with [${c.what}] this turn`;
+    },
+    doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4)",
+  },
   every: {
     fields: [SEL, { name: "matching", type: "selector", required: true }],
     sentence: (raw) => {
@@ -1250,7 +1258,8 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   markers:        "macro over `count`",
   inBattle:       "macro over `count`",
   battled:        "macro over `count`",
-  every:          "macro over `count` + `not`",
+  playedUsing:    "macro over `count`",
+  every:         "macro over `count` + `not`",
   any:            "primitive",
   all:            "macro over `any` + `not`",
   leaderFlipped:  "macro over `count`",

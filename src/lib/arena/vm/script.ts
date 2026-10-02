@@ -222,6 +222,13 @@ export type Cond =
    */
   | { kind: "battled"; sel: Selector }
   /**
+   * "During the turn you played it with [Over Realm]" (P-048, 22-15): was one
+   * of these cards played this turn by that keyword's own move? The card's
+   * memory of the play — set as the `play … using: "Over Realm"` lands, gone
+   * when the turn ends or the card changes area (3-1-4).
+   */
+  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" }
+  /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
    * filter, because what the sentence asks about is as often the *mode* of a

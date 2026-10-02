@@ -213,6 +213,10 @@ export function resolvePlay(
   // gone from the area, it is an ordinary play beside it — the legacy reading.
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to);
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}) });
+  // 22-15: the card remembers which keyword played it, for the rest of the
+  // turn — P-048's "during the turn you played it with [Over Realm]"
+  // (`playedUsing`). Set after the arrival, which resets the copy (3-1-4).
+  if (opts.using) state.cards[card].playedUsing = opts.using;
 
   // 13-2-3, 22-45-3: the markers paid for it, then those carried across from
   // the Unison it replaced, each its own beat — the carried one naming the

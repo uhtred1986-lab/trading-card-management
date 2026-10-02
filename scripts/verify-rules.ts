@@ -27,6 +27,7 @@ import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-previe
 import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
 import { parseSkills, specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/text/cards";
 import { describeTrigger, triggersOf } from "../src/lib/arena/gaps";
+import { compileSkill } from "../src/lib/arena/compile";
 import { cardImage, cardImageSizeFor } from "../src/lib/catalog/card-image";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
@@ -823,4 +824,17 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.deepEqual(whenOf("[Auto] When this card is played, draw 1 card."), ["played"]);
   assert.deepEqual(whenOf("[Auto] When you play a Battle Card using [Over Realm], draw 1 card."), ["overRealmPlayed"], "the watcher on other cards is unchanged");
   assert.equal(describeTrigger(["playedUsingOverRealm"]), "when this card is played using [Over Realm]");
+}
+// ── "…during the turn you played it with [Over Realm]" is a condition (P-048) ──
+// The attack is the moment; the rest of the trigger sentence asks the card's
+// memory of the [Over Realm] play (`playedUsing`). Dropped with the trigger,
+// it fired on every attack of every turn.
+{
+  const sk = parseSkills("[Auto] When this card attacks during the turn you played it with [Over Realm], draw 1 card.").find((x) => x.kind === "auto")!;
+  assert.deepEqual(triggersOf(sk), ["attacks"]);
+  assert.deepEqual(compileSkill(sk), { ops: [{ op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] }], unsupported: [] });
+  const passive = parseSkills("[Auto] When this card attacks during the turn this card was played using [Dark Over Realm], draw 1 card.").find((x) => x.kind === "auto")!;
+  assert.deepEqual(compileSkill(passive).ops[0], { op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] });
+  const plain = parseSkills("[Auto] When this card attacks, draw 1 card.").find((x) => x.kind === "auto")!;
+  assert.deepEqual(compileSkill(plain).ops, [{ op: "draw", n: 1 }], "an attack trigger without it is unconditional");
 }

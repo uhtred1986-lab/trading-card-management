@@ -261,6 +261,13 @@ export interface CardInstance {
    * turn; whose turn that was is a condition of its own.
    */
   battledThisTurn: boolean;
+  /**
+   * 22-15: the keyword whose own move played this card this turn ("Over
+   * Realm") — P-048's "during the turn you played it with [Over Realm]", the
+   * `playedUsing` condition. Set by `resolvePlay`, cleared in `turn.next` and
+   * when the card changes area (3-1-4); absent otherwise.
+   */
+  playedUsing?: string;
   /** Skills negated by effects (index list) or all skills. */
   negated: number[] | "all";
 }

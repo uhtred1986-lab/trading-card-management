@@ -197,6 +197,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
         s.cards[id].extraAttacks = 0;
         s.cards[id].usedMarkerSkill = false;
         s.cards[id].battledThisTurn = false;
+        delete s.cards[id].playedUsing;
       }
       const ps = s.players[s.turnPlayer];
       ps.overRealmsThisTurn = 0;
@@ -692,6 +693,9 @@ function resolvePlay(
   // and only when [Over Realm]'s own move made it (the `using` its step
   // carries). An ordinary play of the card carries none and is `played` alone.
   if (using === "Over Realm") pendTriggers(ctx, s, "playedUsingOverRealm", card);
+  // …and the card remembers it for the rest of the turn: P-048's "during the
+  // turn you played it with [Over Realm]" (`playedUsing`).
+  if (using) s.cards[card].playedUsing = using;
   // "When your opponent plays a Battle Card": watched by every card the other
   // player has in play, with the played card as the subject.
   for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentPlayed", id, card);

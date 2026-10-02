@@ -720,6 +720,9 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     }
     case "battled":
       return resolveSelector(ctx, s, frame, c.sel).some((id) => s.cards[id]?.battledThisTurn);
+    // P-048's "during the turn you played it with [Over Realm]" (22-15).
+    case "playedUsing":
+      return resolveSelector(ctx, s, frame, c.sel).some((id) => s.cards[id]?.playedUsing === c.what);
     case "every": {
       const ids = resolveSelector(ctx, s, frame, c.sel);
       // Nothing there is not "all of it" — see the note on the Cond.
@@ -1360,6 +1363,7 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     inst.negated = [];
     inst.usedThisTurn = [];
     inst.extraAttacks = 0;
+    delete inst.playedUsing;
     s.effects = s.effects.filter((e) => e.target !== id);
   }
   if (goesToPlay || goesToCombo) inst.enteredTurn = s.turn;

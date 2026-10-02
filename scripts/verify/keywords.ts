@@ -43,6 +43,26 @@ import {
   zoneOf,
 } from "./harness";
 import { legacyState, type EngineState } from "../../src/lib/arena/engines";
+import { compileCard } from "../../src/lib/arena/compile";
+import { triggersOf } from "../../src/lib/arena/gaps";
+import { parseFilter } from "../../src/lib/arena/text/filters";
+import type { EngineContext } from "../../src/lib/arena/types";
+import type { CardScripts, Op } from "../../src/lib/arena/vm/script";
+
+/** A card's compiled programs, by skill index. */
+const compileSkillsOf = (id: string) => compileCard(DEFS[id]).bySkill;
+
+/** `ctx` with one skill of one card answered by a hand-written record instead of the compiler's reading — a drafted rule, the way the arena reads `card_rules`. */
+function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec: { ops: Op[]; trigger: string[] }): EngineContext {
+  const scripts = new Proxy({} as Record<string, CardScripts>, {
+    get(_, key) {
+      const base = (ctx.scripts as Record<string, CardScripts>)[key as string];
+      if (key !== cardId || !base) return base;
+      return { ...base, bySkill: { ...base.bySkill, [index]: { ...base.bySkill[index], ops: rec.ops, trigger: rec.trigger, unsupported: [] } }, unsupported: [], complete: true };
+    },
+  });
+  return { ...ctx, scripts } as EngineContext;
+}
 
 /**
  * #158: this suite runs on both engines now, through the same state-interface
@@ -333,8 +353,97 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.equal(zoneOf(r.s, "p1", "hand").length, realmHand, "played using [Over Realm]: the [Auto] draws once");
   assert.equal(r.beats.filter((b) => b.startsWith("draw ")).length, 1, "once, not twice");
   assertConsistentG(r.s);
+
+  // P-048's "when this card attacks during the turn you played it with [Over
+  // Realm]" (22-15): the attack is the moment, and `playedUsing` — the card's
+  // memory of the [Over Realm] play, which lasts the turn — is the condition.
+  DEFS.ORTURN = {
+    ...DEFS.V1,
+    id: "ORTURN",
+    name: "ORTURN",
+    energyCost: 2,
+    skill: "[Over Realm 3]{1}\n[Auto] When this card attacks during the turn you played it with [Over Realm], draw 1 card.",
+  };
+  const turnSkill = parseSkills(DEFS.ORTURN.skill).find((sk) => sk.kind === "auto")!;
+  assert.deepEqual(triggersOf(turnSkill), ["attacks"], "the attack is the moment");
+  const turnAuto = compileSkillsOf("ORTURN")[turnSkill.index];
+  assert.deepEqual(turnAuto?.ops[0], { op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] }, "and the turn it was Over-Realmed in is the condition");
+  /** Attack the opponent's Leader and answer nothing until the Main Phase is back: what the attack drew. */
+  const attackDraws = (g: EngineState, attacker: string) => {
+    let res = step(g, { type: "attack", player: "p1", attacker, target: leaderOf(g, "p2") });
+    const seen = [...res.beats];
+    while (res.s.prompt.kind !== "main" && res.s.prompt.kind !== "gameOver") {
+      res = step(res.s, { type: "pass", player: (res.s.prompt as { player: PlayerId }).player });
+      seen.push(...res.beats);
+    }
+    return { g: res.s, draws: seen.filter((b) => b.startsWith("draw ")).length };
+  };
+  // Played with [Over Realm]: it attacks the same turn and draws.
+  let turnG = arenaG({ hand: ["ORTURN"], energy: ["V1", "V1"] });
+  const turnCard = findG(turnG, "p1", "hand", "ORTURN");
+  toDrop(turnG, 3);
+  turnG = playG(turnG, actsG(turnG).find((a) => a.type === "activate" && a.card === turnCard && !a.alt)!);
+  assert.ok(zoneOf(turnG, "p1", "battle").includes(turnCard));
+  const realmAttack = attackDraws(turnG, turnCard);
+  assert.equal(realmAttack.draws, 1, "an attack the turn it was played with [Over Realm] fires the [Auto]");
+  assertConsistentG(realmAttack.g);
+  // Played the ordinary way: the same attack fires nothing.
+  turnG = arenaG({ hand: ["ORTURN"], energy: ["V1", "V1"] });
+  const plainTurn = findG(turnG, "p1", "hand", "ORTURN");
+  turnG = playG(turnG, { type: "play", player: "p1", card: plainTurn });
+  assert.equal(attackDraws(turnG, plainTurn).draws, 0, "played normally, its attack is not the [Over Realm] turn's");
+  // A later turn: the memory is gone with the turn it was made in. The card
+  // goes to the Warp as that turn ends (22-15-6), so it is put back in the
+  // Battle Area by hand — a raw splice that leaves the copy's fields alone,
+  // which is what shows that the turn's end cleared them.
+  turnG = arenaG({ hand: ["ORTURN"], energy: ["V1", "V1"] });
+  const laterCard = findG(turnG, "p1", "hand", "ORTURN");
+  toDrop(turnG, 3);
+  turnG = playG(turnG, actsG(turnG).find((a) => a.type === "activate" && a.card === laterCard && !a.alt)!);
+  assert.equal(turnG.cards[laterCard].playedUsing, "Over Realm", "the copy remembers the [Over Realm] play");
+  turnG = playG(turnG, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" }, { type: "charge", player: "p1", card: null });
+  assert.equal(turnG.prompt.kind, "main", "p1's next Main Phase");
+  assert.equal(turnG.cards[laterCard].playedUsing, undefined, "and forgets it when the turn ends");
+  stageMoveG(turnG, laterCard, "battle", "p1");
+  turnG.cards[laterCard].mode = "active";
+  assert.equal(attackDraws(turnG, laterCard).draws, 0, "an attack on a later turn fires nothing");
+
+  // The whole of P-048, as a record: the opponent sends a card from their
+  // hand to their Warp, and if it was a Battle Card you combo with it.
+  DEFS.P048T = { ...DEFS.ORTURN, id: "P048T", name: "P048T", skill: "[Over Realm 3]{1}\n[Auto] When this card attacks during the turn you played it with [Over Realm], your opponent chooses 1 card from their hand and sends it to their Warp. If that card was a Battle Card, combo with it in your Combo Area." };
+  const p048Index = parseSkills(DEFS.P048T.skill).find((sk) => sk.kind === "auto")!.index;
+  const p048Ops: Op[] = [
+    { op: "choose", sel: { side: "opponent", area: "hand", count: 1 }, as: "c0", chooser: "opponent", reason: "choose 1 card in your hand to send to your Warp" },
+    { op: "moveTo", target: { var: "c0" }, to: "warp" },
+    { op: "if", cond: { kind: "varMatches", var: "c0", filter: parseFilter("Battle Card") }, then: [{ op: "comboFrom", target: { var: "c0" } }] },
+  ];
+  const p048Program: Op[] = [{ op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: p048Ops }];
+  assert.ok(validateProgram(p048Program), "P-048's program is a valid one");
+  const p048Ctx = withSkillRecord(CTX, "P048T", p048Index, { ops: p048Program, trigger: ["attacks"] });
+  /** P-048 Over-Realmed and attacking; the opponent sends `pick` (a card id of their hand's) to their Warp. */
+  const p048Sends = (pick: string) => {
+    let g = arenaG({ hand: ["P048T"], energy: ["V1", "V1"], oppHand: ["V1", "E-NEGATE"] });
+    const me = findG(g, "p1", "hand", "P048T");
+    toDrop(g, 3);
+    const sent = findG(g, "p2", "hand", pick);
+    g = IMPL.apply(p048Ctx, g, actsG(g).find((a) => a.type === "activate" && a.card === me && !a.alt)!).state;
+    g = IMPL.apply(p048Ctx, g, { type: "attack", player: "p1", attacker: me, target: leaderOf(g, "p2") }).state;
+    for (let guard = 0; g.prompt.kind !== "chooseCards" && g.prompt.kind !== "main" && guard < 20; guard++) g = IMPL.apply(p048Ctx, g, { type: "pass", player: (g.prompt as { player: PlayerId }).player }).state;
+    assert.equal(g.prompt.kind, "chooseCards", "the opponent is asked for a card from their hand");
+    assert.equal((g.prompt as { player: PlayerId }).player, "p2", "and they are the one who chooses");
+    assert.ok((g.prompt as { choice: { candidates: string[] } }).choice.candidates.includes(sent));
+    g = IMPL.apply(p048Ctx, g, { type: "choose", player: "p2", cards: [sent] }).state;
+    assert.ok(!zoneOf(g, "p2", "hand").includes(sent), "out of their hand");
+    assertConsistentG(g);
+    return { g, sent };
+  };
+  const battleSent = p048Sends("V1");
+  assert.ok(zoneOf(battleSent.g, "p1", "combo").includes(battleSent.sent), "a Battle Card: from their Warp into your Combo Area");
+  const extraSent = p048Sends("E-NEGATE");
+  assert.ok(zoneOf(extraSent.g, "p2", "warp").includes(extraSent.sent), "not a Battle Card: it stays in their Warp");
+  assert.ok(!zoneOf(extraSent.g, "p1", "combo").includes(extraSent.sent), "and no combo is made with it");
   // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
-  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK", "ORSELF"]) delete DEFS[id];
+  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK", "ORSELF", "ORTURN", "P048T"]) delete DEFS[id];
 }
 
 {

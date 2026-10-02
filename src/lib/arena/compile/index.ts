@@ -288,6 +288,13 @@ function compileSkillText(skill: Skill): Script {
       if (host === null) return { ops: [], unsupported: [trigger, ...clauses] };
       if (host) triggerCond = { kind: "count", sel: { special: "onTop", filter: host }, atLeast: 1 };
     }
+    // "When this card attacks during the turn you played it with [Over Realm]"
+    // (P-048, 22-15): the moment is the attack, and the rest of the sentence is
+    // a condition on it — the card's memory of how it was played this turn.
+    // Dropped with the trigger, it fired on every attack of every turn.
+    if (/\bduring the turn (?:you played (?:it|this card)|(?:it|this card) was played) (?:with|using) \[(?:dark )?over realm[^\]]*\]/i.test(trigger)) {
+      triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" };
+    }
     if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a
