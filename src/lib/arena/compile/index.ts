@@ -299,7 +299,14 @@ function compileSkillText(skill: Skill): Script {
     // `extraActivated`): its description is read as a condition below, but
     // "that card" is not pointed at it — BT31-086b's "activate the [Activate]
     // skill of that card from its owner's Drop" would read as a play.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you activate (?:an?|1) /i.test(trigger.trim())) {
+    //
+    // The same for "when you **play** a red ≪Android≫ card" (`youPlayed`) and
+    // "when you **combo with** a skill-less card" (`youCombo`): the card
+    // played or used is the subject and its description a condition on it,
+    // which a trigger with no "your" in it never got — so those skills fired
+    // for any card at all. "It" is still pointed at the subject only where
+    // the trigger says "your", as before.
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim())) {
       if (/\byour\b/i.test(trigger)) c.lastTarget = { sel: { special: "subject" } };
       // The dropped clause also said *which* card, and dropping it dropped
       // that: "when your opponent plays a **Battle Card**" fired when they

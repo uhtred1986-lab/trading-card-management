@@ -295,8 +295,13 @@ import type { EngineState, Trigger } from "./harness";
   // targets, not two clauses. Split, the first half was a bare name reported
   // as unreadable; joined but read as one subject, the Leader would have been
   // missed in silence, which is worse. Both have to get the power.
-  const two = one("[Auto] When you play a ≪Demon Clan≫ card, this card and your Leader get +5000 power for the turn.");
-  assert.deepEqual(two.unsupported, []);
+  const played = one("[Auto] When you play a ≪Demon Clan≫ card, this card and your Leader get +5000 power for the turn.");
+  assert.deepEqual(played.unsupported, []);
+  // The trigger's description is a condition on the card played (P-602).
+  const gate = played.ops[0] as { op: string; cond: { sel: { special?: string } }; then: typeof played.ops };
+  assert.equal(gate.op, "if");
+  assert.equal(gate.cond.sel.special, "subject");
+  const two = { ops: gate.then };
   assert.deepEqual(
     two.ops.map((o) => o.op),
     ["power", "power"],
