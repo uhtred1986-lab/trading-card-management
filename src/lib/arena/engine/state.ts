@@ -1362,6 +1362,10 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     inst.extraAttacks = 0;
     s.effects = s.effects.filter((e) => e.target !== id);
   }
+  // "…while this card is in a Battle Area": what the card made for that long
+  // ends as it leaves — a move from one Battle Area to another (20-9) is not
+  // leaving.
+  if (from?.area === "battle" && to !== "battle") endSourceEffects(ctx, s, ev, id);
   if (goesToPlay || goesToCombo) inst.enteredTurn = s.turn;
   // 22-31: [Energy-Exhaust] enters the Energy Area rested.
   if (to === "energy" && hasKeyword(d, "Energy-Exhaust")) inst.mode = "rest";
@@ -1497,6 +1501,14 @@ function dropEffects(ctx: GameContext, s: GameState, ev: GameEvent[], keep: (e: 
 
 export function endEffects(ctx: GameContext, s: GameState, ev: GameEvent[], until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
   dropEffects(ctx, s, ev, (e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+/**
+ * "…while this card is in a Battle Area" (`whileSourceInPlay`): every effect
+ * the card made with that duration ends as the card leaves the Battle Area.
+ */
+export function endSourceEffects(ctx: GameContext, s: GameState, ev: GameEvent[], source: string): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === "whileSourceInPlay" && e.source === source));
 }
 
 /**

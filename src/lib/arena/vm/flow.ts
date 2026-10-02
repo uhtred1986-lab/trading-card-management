@@ -48,14 +48,14 @@ import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { nextPending, skillsShowing } from "./triggers";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
 import { fireHook, queryHookStatics } from "./hooks";
-import { forbiddenForCard } from "./program";
+import { forbiddenForCard, forbids } from "./program";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
 import { leaveRoute } from "./replace";
@@ -679,6 +679,12 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     log(ev, { type: "note", text: `${named}'s skill is negated, so it does not resolve` });
     return true;
   }
+  // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
+  // activate skills" (BT29-041) has its pending [Auto] cancelled.
+  if (skill?.kind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card })) {
+    log(ev, { type: "note", text: `${named} can't activate skills, so its skill does not resolve` });
+    return true;
+  }
   // Stage 7: a keyword's own line that answered through its declaration's
   // `at:` ([Offering] at `played`) runs the keyword's `DO`, not the card's
   // record — the keyword's rules are the effect (22-1), and the record of a
@@ -929,6 +935,9 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // borrowed card's loan standing, so it outlived the card (#459,
   // `verify/keywords.ts`'s TAKER2 case).
   if (from !== to) state.effects = state.effects.filter((e) => !(e.target === id && e.kind === "control"));
+  // "…while this card is in a Battle Area": what the card made for that long
+  // ends as it leaves (`vm/host.ts`'s `moveTo` says the same for a skill's move).
+  if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
   // 23-2-5: the pile it left behind is shown going first, with no moment of
   // its own — the legacy engine logs these moves and pends nothing for them.
   for (const r of result.move.released ?? []) {
