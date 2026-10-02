@@ -1,5 +1,8 @@
 import type { Op, Ref, Selector } from "../vm/script";
 
+/** "The card that was switched to Hidden Mode by this skill" (BT28-105, BT28-121): the card the skill's price switched (`Ctx.priceChoice`). */
+export const SWITCHED_BY_THIS_SKILL = /\bthe card (?:that was )?switched to (?:hidden|revealed) mode by this skill\b/i;
+
 export interface Ctx {
   /** The variable the last `choose` bound. */
   last: string | null;
@@ -35,6 +38,12 @@ export interface Ctx {
   lastNamed: string | null;
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
+  /**
+   * The card the skill's price chose, by the name the price binds it to —
+   * "the card that was switched to Hidden Mode **by this skill**" (BT28-105,
+   * BT28-121) is that card and no other. Absent when the price chose nothing.
+   */
+  priceChoice?: string;
   /**
    * What "it"/"them" points at. Card text carries the subject from clause to
    * clause — "Switch this card to Active Mode and it gets +5000 power" means

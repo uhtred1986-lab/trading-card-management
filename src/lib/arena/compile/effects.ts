@@ -6,7 +6,7 @@ import { parseConditionClause } from "./conditions";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
-import { countWord } from "./shared";
+import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { AREA_WORDS, filterFor, parseTarget, selfFrom } from "./targets";
 
 /**
@@ -135,6 +135,9 @@ function refFor(clause: string, c: Ctx): Ref | null {
     if (c.lastPlayed) return { var: c.lastPlayed };
     return c.last ? { var: c.last } : { sel: { special: "subject" } };
   }
+  // "The card that was switched to Hidden Mode by this skill": the card the
+  // price switched (BT28-121), or nothing to point at when the price chose none.
+  if (SWITCHED_BY_THIS_SKILL.test(clause)) return c.priceChoice ? { var: c.priceChoice } : null;
   // "Add a marker to the chosen card": the last choice. "**Cards chosen with
   // this card's skill** can't be switched to Active Mode" is the same thing
   // said the long way, and it used to read as this card — so the restriction
@@ -1401,6 +1404,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     }
   }
 
+  // 23-5-2-4: "Increase this card's power by the original power on the front
+  // of the card that was switched to Hidden Mode by this skill" (BT28-105).
+  // The card named is face down by then, and a skill naming a Hidden Mode
+  // card reads its front side — the `originalPower` amount does (`measureOf`).
+  // Only "this card": BT28-105b's "that card" points at a choice between a
+  // Leader and a ≪Universe 7≫ Battle Card the target grammar cannot say.
+  if ((m = /^increase this card'?s power by the original power on the front of the card (?:that was )?switched to hidden mode by this skill$/.exec(q)) && c.priceChoice) {
+    return [{ op: "power", target: { sel: { special: "self" } }, amount: { attr: { var: c.priceChoice }, name: "originalPower" }, until: durationOf(t) }];
+  }
+
   if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) (combo )?power,? and ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
     const refs = refsFor(m[1], c);
     const kws = [...m[4].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
@@ -1698,6 +1711,27 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const up = m[2] === "up";
     const ref = refFor(m[1], c);
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "faceUp", target, ...(up ? {} : { faceUp: false }) })) : null;
+  }
+  // "Your opponent adds 2 cards from their hand to their energy in Hidden
+  // Mode" (BT28-136): their choice, out of their own hand (5-2), and the
+  // cards arrive face down (1-10-2) — no colour to pay with (23-5-2).
+  if ((m = /^your opponent adds (\d+) cards? from their hand to their energy(?: area)?( in hidden mode)?$/.exec(t))) {
+    const v = `c${c.n++}`;
+    const n = Number(m[1]);
+    return [
+      { op: "choose", sel: { side: "opponent", area: "hand", count: n }, as: v, chooser: "opponent", reason: clause },
+      { op: "moveTo", target: { var: v }, to: "energy" },
+      ...(m[2] ? [{ op: "hidden", target: { var: v }, hidden: true } as Op] : []),
+    ];
+  }
+  // 23-5: "switch it to Revealed Mode or Hidden Mode" (BT28-150). A card is
+  // in exactly one of the two, and switching it to the one it is in does
+  // nothing (0-2-4-1), so the only switch the choice can make is to the other
+  // one — read as that, for the one chosen card the sentence is about.
+  if ((m = /^switch (.+?) to (?:revealed mode or hidden mode|hidden mode or revealed mode)$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    if (!ref || !("var" in ref)) return null;
+    return [{ op: "if", cond: { kind: "count", sel: { fromVar: ref.var, hidden: true }, atLeast: 1 }, then: [{ op: "hidden", target: ref, hidden: false }], else: [{ op: "hidden", target: ref, hidden: true }] }];
   }
   // 23-5: "switch it to Hidden Mode", "switch it to Revealed Mode".
   if ((m = /^switch (.+?) to (hidden|revealed) mode$/.exec(t))) {

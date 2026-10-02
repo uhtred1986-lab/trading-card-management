@@ -46,7 +46,7 @@ import { backCharactersOf, coversColors, eachNamedHolds, keywordsInSkills, parse
 import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, PlayerId, Prohibition, Skill } from "../types";
 import { other } from "../types";
-import { parseFilter, powerRelOk } from "../text/filters";
+import { parseFilter, powerRelOk, type CardFilter } from "../text/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
@@ -503,6 +503,11 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
       // 20-3-1: the printed face value, before any layer — the same number
       // `attrsNow` seeds the `originalPower` attribute from, read through the
       // one helper so the amount and the filter cannot answer differently.
+      // 23-5-2-4: a skill naming a Hidden Mode card reads its front side —
+      // "the original power on the front of the card that was switched to
+      // Hidden Mode by this skill" (BT28-105) — where every other reader
+      // finds nothing at all.
+      if (state.cards[id]?.hidden) return ctx.defs[state.cards[id].cardId]?.power ?? 0;
       return faceOf(ctx, state, id)?.power ?? 0;
     case "comboPower":
       return num(now.comboPower);
@@ -958,6 +963,16 @@ function specialCard(state: VmState, frame: ScriptFrame, special: NonNullable<Se
   }
 }
 
+/** A filter whose one measure is a card type ruled out ("non-Extra"): the only description a typeless Hidden Mode card fits (23-5-2). */
+function onlyRulesOutTypes(f: CardFilter): boolean {
+  return f.notType != null && f.type == null && narrowsBy(f).every((k) => k === "notType");
+}
+
+/** The measures a filter actually sets — every field that differs from "says nothing". */
+function narrowsBy(f: CardFilter): string[] {
+  return Object.entries(f).filter(([k, v]) => k !== "unreadable" && v !== null && v !== false && !(Array.isArray(v) && v.length === 0)).map(([k]) => k);
+}
+
 /**
  * The cards a selector picks, right now.
  *
@@ -1020,8 +1035,10 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const wanted = (sel.areas?.length ? sel.areas : [sel.area as string]).flatMap((a) => (a === "play" ? inPlayZones(game) : [a as string]));
       if (!wanted.includes(zoneOf(state, id) ?? "")) return false;
     }
-    // 23-5-2 again: a Hidden Mode card has none of its front-side information.
-    if (matchesFilter && (card.hidden || !matchesFilter(attrsNow(ctx, game, state, id)))) return false;
+    // 23-5-2 again: a Hidden Mode card has none of its front-side information
+    // — so it answers no measure, except one that only says what type a card
+    // is *not*: having no card type at all, it is a "non-Extra card" (BT28-150).
+    if (matchesFilter && (card.hidden ? !onlyRulesOutTypes(sel.filter!) : !matchesFilter(attrsNow(ctx, game, state, id)))) return false;
     // 3-9-2-1: whether a life card has been turned face up is a fact about this
     // copy rather than about the card, so no attribute can carry it.
     if (sel.filter?.faceUp && !card.faceUp) return false;

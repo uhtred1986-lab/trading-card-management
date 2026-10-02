@@ -6,7 +6,7 @@ import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal } from "./effects";
 import { compileCostProgram, costText, counterAltCost, priceCondition, priceX } from "./prices";
 import type { Ctx } from "./shared";
-import { countWord } from "./shared";
+import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { subjectFilterOf } from "./targets";
 
 // ── skills and cards ───────────────────────────────────────────────────────
@@ -71,6 +71,10 @@ function narrowHiddenChoices(sc: Script): Script {
   for (const [name, hidden] of first) {
     const ch = chooses.get(name);
     if (!ch || ch.sel.filter || ch.sel.hidden !== undefined || ch.sel.special || ch.sel.fromVar || ch.sel.take != null) continue;
+    // Only where a card has the position at all (1-10-2): a card chosen out of
+    // a hand and then put into play face down is not chosen for its mode.
+    const areas = ch.sel.areas?.length ? ch.sel.areas : [ch.sel.area ?? "battle"];
+    if (!areas.every((a) => a === "battle" || a === "energy" || a === "unison" || a === "play")) continue;
     narrowed.set(name, { ...ch, sel: { ...ch.sel, hidden: !hidden } });
   }
   if (!narrowed.size) return sc;
@@ -197,6 +201,18 @@ function compileSkillText(skill: Skill): Script {
     if (o.op !== "choose") continue;
     c.last = o.as;
     c.lastTarget = { var: o.as };
+    c.priceChoice = o.as;
+  }
+  // "The card that was switched to Hidden Mode by this skill" names the
+  // price's card, possibly well after the effect has made choices of its own
+  // ("Play this card, then switch the card that was switched to Hidden Mode
+  // by this skill to Revealed Mode at the end of the turn", BT28-121). The
+  // effect's own names start past the price's then, so the price's card is
+  // still under its name when the reference is read; anywhere else the shared
+  // `c0` stays as it is (see `Ctx.mills`).
+  if (c.priceChoice && SWITCHED_BY_THIS_SKILL.test(text)) {
+    const at = /^c(\d+)$/.exec(c.priceChoice);
+    if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
   }
   const modal = splitModal(text);
   const clauses = splitClauses(modal ? modal.head : text);

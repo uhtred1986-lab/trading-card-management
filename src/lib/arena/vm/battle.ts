@@ -79,6 +79,7 @@ import type { VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
+import { canPayPriceProgram } from "./activate";
 import { fireHook } from "./hooks";
 import { lifeReplacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics, readingBoard } from "./program";
@@ -414,7 +415,14 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
       if (!wantsLine(ctx, state, window, sk)) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card })) continue;
-      if (!costIsOnlyOrbs(sk.cost)) continue;
+      // 4-3-3: a price that is an action as well as orbs — "Choose 1 of your
+      // white Battle Cards and switch it to Hidden Mode: Play this card"
+      // (BT28-121) — is offered while it can be paid, the way an [Activate]'s
+      // is (`canPayPriceProgram`); one with no record to pay it from is not.
+      if (!costIsOnlyOrbs(sk.cost)) {
+        const ops = counterPriceOps(showing.scripts.bySkill[sk.index]);
+        if (!ops || !canPayPriceProgram(ctx, game, state, responder, card, ops)) continue;
+      }
       const combined = counterPrice(ctx, game, state, card, sk);
       const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
       // 5-3: a card printing another way to pay for its [Counter] is a
@@ -426,6 +434,15 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
   }
   return out;
 }
+
+/** The action price (4-3-3) a [Counter] line's record carries, or null when it has none. */
+function counterPriceOps(script: { price?: { ops?: Op[] | null } } | undefined): Op[] | null {
+  const ops = script?.price?.ops;
+  return ops?.length ? ops : null;
+}
+
+/** Where a [Counter]'s action price leaves what it chose for the effect — `vm/activate.ts`'s own key shape. */
+const counterVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${skillIndex}`;
 
 /**
  * 5-3: the other price a [Counter] in the hand may be activated at — one its
@@ -628,8 +645,18 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
   fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: alt?.pay !== "none" } });
-  log(ev, { type: "skill", card, skill: sk.index, master: action.player, text: sk.raw, inBattle: !!b });
   const program = showing.scripts.bySkill[sk.index]?.ops ?? [];
+  // 4-3-3: an action price runs as its own program in front of the effect and
+  // hands on what it chose ("the card that was switched to Hidden Mode by
+  // this skill", BT28-121); the price finishing is what announces the line —
+  // `vm/activate.ts`'s shape, which the host already reads.
+  const priceOps = costIsOnlyOrbs(sk.cost) || alt ? null : counterPriceOps(showing.scripts.bySkill[sk.index]);
+  if (priceOps) {
+    const key = counterVarsKey(card, sk.index);
+    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, pricedBy: { key, text: sk.raw } });
+    return "done";
+  }
+  log(ev, { type: "skill", card, skill: sk.index, master: action.player, text: sk.raw, inBattle: !!b });
   if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index });
   return "done";
 }

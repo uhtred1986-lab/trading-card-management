@@ -1271,7 +1271,9 @@ function leaderColors(ctx: EngineContext, game: GameDefinition, state: VmState, 
 export function cardColors(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): Color[] {
   const inst = state.cards[id];
   const def = inst && ctx.defs[inst.cardId];
-  if (!def) return [];
+  // 23-5-2: energy in Hidden Mode has no colour, so it pays only the part of
+  // a cost that asks for none (BT28-136 puts an opponent's cards there).
+  if (!def || inst.hidden) return [];
   const colors = attrsOf(def, game).attrs.colors;
   return Array.isArray(colors) ? ([...colors] as Color[]) : [];
 }
