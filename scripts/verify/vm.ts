@@ -996,8 +996,11 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // game fires what it fires, and which of those are moments is the
     // definition's business (`triggers.rules`' own header).
     assert.deepEqual(matchTriggers(DBS, s, { event: "somethingElse", card: id, controller: "p1", args: {} }), [], "a moment nothing declares matched a trigger");
-    // A pattern argument the moment does not carry never matches.
-    assert.deepEqual(matchTriggers(DBS, s, { event: "moved", card: id, controller: "p1", args: { to: "battle" } }).map((m) => m.trigger), [], "a `moved` moment that does not say whether it was a play matched a declaration that asks");
+    // A pattern argument the moment does not carry never matches: `played`
+    // asks `asPlay` and this moment does not say it. `placed` asks only where
+    // the card went (5-5-1: a play is a placing too, owner's ruling of 2 Oct
+    // 2026), so it is the one declaration this moment answers.
+    assert.deepEqual(matchTriggers(DBS, s, { event: "moved", card: id, controller: "p1", args: { to: "battle" } }).map((m) => m.trigger), ["placed"], "a `moved` moment that does not say whether it was a play matched a declaration that asks");
     // A declaration that watches a side cannot be answered by a moment that
     // says whose it is nowhere — said loudly, because a silent empty list here
     // is a skill that never fires with nothing to explain it.
