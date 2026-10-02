@@ -81,7 +81,7 @@ SEL    := part+                                    parts in any order; "any" whe
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number
         | "BOTTOM" number | filter | "IN" places | "OF" side | flag
 places := ( side "." )? ( zone | zone ( "|" zone )+ | "ANY" "(" zone ( "|" zone )* ")" )
-flag   := "active" | "rest" | "hidden" | "revealed" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies" | "differentNames" | "asPrinted"
+flag   := "active" | "rest" | "hidden" | "revealed" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies" | "otherThanSameName" | "differentNames" | "asPrinted"
 filter := "\"" printed filter text "\"" | "(" field "=" value ( "AND" … )* ")"
 item   := "{" colour "}"+ | "{" colour "/" colour "}" | ±n "marker" | "burst" n
         | "spiritBoost" n | "X" ( "min" number )? ( "max" number )? | "TEXT" "…"

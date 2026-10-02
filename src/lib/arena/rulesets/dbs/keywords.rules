@@ -391,13 +391,18 @@ DEFINE KEYWORD Evolve
   -- from your hand" is the move's `keywordActivated(from: hand)`. The stack
   -- keeps the host's place, mode and power effects (`play … onto`,
   -- `vm/play.ts`'s `stackOnto`). [Xeno-Evolve] sends the host to the Warp and
-  -- plays this card beside where it was (22-5-6).
+  -- plays this card beside where it was (22-5-6). A base named with the
+  -- activation (`onto`, offered where a price change is scoped to that base —
+  -- EX03-16, `vm/activate.ts`'s `evolveOntoBases`) arrives already bound as
+  -- `$base`, and is not asked for again.
   offer: "activate:main"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
   REFUSE target(reason: "no {line} in your Battle Area") UNLESS count(IN you.battle asPrinted) >= 1
   label: "{variant} {card} onto a {line}"
   DO {
-    choose(sel: 1 IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+    if(cond: count(FROM $base) <= 0, then: {
+      choose(sel: 1 IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+    })
     if(cond: oneOf(value: $variant, of: ["Xeno-Evolve"]), then: {
       moveTo(target: $base, to: warp)
       play(target: [self])

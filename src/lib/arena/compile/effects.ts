@@ -2608,7 +2608,11 @@ function nextActivationReduction(scope: string, amountText: string, c: Ctx): Op[
 }
 
 /** The two halves of the copied-skill wording (20-18); see the merge in `compileClauseList`. */
-const COPY_SKILL_CHOICE = /^choose (?:up to )?\d+ (?:of (?:the )?.+?'s (?:keyword )?skills?|(?:keyword )?skills? (?:on|of|from|in) .+?)[.,]?$/i;
+/** EX03-16's first half: the card names the [Evolve] played onto this one, and whether it must differ in name (group 2). */
+const EVOLVING_ONTO_SELF = /^when evolving this card into (?:an? )?([<≪{][^>≫}]+[>≫}])(?: cards?)?( with a different card name)?(?: from your hand)?$/i;
+/** EX03-16's second half: the [Evolve] price, moved by printed orbs. */
+const EVOLVE_COST_CHANGED = /^(?:the |its |that card's )?\[?evolve\]? cost is (decreased|reduced|increased) by ((?:\{[a-z0-9]\}\s*)+)\.?$/i;
+const COPY_SKILL_CHOICE =/^choose (?:up to )?\d+ (?:of (?:the )?.+?'s (?:keyword )?skills?|(?:keyword )?skills? (?:on|of|from|in) .+?)[.,]?$/i;
 const GAINS_THAT_SKILL = /^.*?\bgains? that skill\b/i;
 
 /** The clause loop, shared by a skill's body and by each modal option. */
@@ -2675,6 +2679,24 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // card gains that skill for the turn", and only the pair says anything.
     // Merged so `compileClause` reads the two as one `copySkills`; apart, the
     // first half compiled as a choice of cards and the second went unread.
+    // EX03-16: "When evolving this card into a <Broly> with a different card
+    // name from your hand, the [evolve] cost is decreased by {g}{g}" — not a
+    // trigger but a standing change to the price of an [Evolve] played onto
+    // this card: the two halves are one `costReduction(what: evolve, onto:
+    // [self])` over the named cards in the hand.
+    const ontoSelf = EVOLVING_ONTO_SELF.exec(clause.trim());
+    const ontoPrice = ontoSelf && i + 1 < clauses.length ? EVOLVE_COST_CHANGED.exec(clauses[i + 1].trim()) : null;
+    if (ontoSelf && ontoPrice) {
+      const target = parseTarget(`${ontoSelf[1]} cards in your hand`);
+      const orbs = orbsIn(ontoPrice[2]);
+      const n = Object.values(orbs).reduce<number>((sum, k) => sum + (k ?? 0), 0);
+      if (target && n > 0) {
+        const sel: Selector = { ...target, ...(ontoSelf[2] ? { notSelf: "name" as const } : {}) };
+        push([{ op: "costReduction", target: { sel }, amount: (ontoPrice[1].toLowerCase() === "increased" ? -1 : 1) * n, what: "evolve", colors: orbsToList(orbs), onto: { sel: { special: "self" } }, until: durationOf(clauses[i + 1]) }]);
+        i++;
+        continue;
+      }
+    }
     if (COPY_SKILL_CHOICE.test(clause.trim()) && i + 1 < clauses.length && GAINS_THAT_SKILL.test(clauses[i + 1].trim())) {
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;

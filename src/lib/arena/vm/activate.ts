@@ -248,9 +248,9 @@ function widenedOffer(ctx: EngineContext, game: GameDefinition, state: VmState, 
  * (`activationAlt`), which stands in for the energy cost and leaves the
  * skill's own orbs to pay.
  */
-export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true): BoundAmounts {
+export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true, onto?: string): BoundAmounts {
   const sk = line.skill;
-  const own = skillOrbs(ctx, game, state, line.card, sk);
+  const own = skillOrbs(ctx, game, state, line.card, sk, onto);
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
   if (withCardPrice && inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
@@ -273,6 +273,21 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : sk.cost,
   };
+}
+
+/**
+ * EX03-16: the Battle Cards an [Evolve] line has a price change scoped to
+ * (`costReduction`'s `onto`) that it could evolve onto — each one a second
+ * candidate of the line, naming its base, beside the ordinary one. The legacy
+ * `evolveOntoBases`, in the same order: the Battle Area's own.
+ */
+export function evolveOntoBases(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): string[] {
+  if (line.skill.keyword?.name !== "Evolve") return [];
+  const scoped = (e: { kind: string; target?: string; onto?: string[] }) => e.kind === "evolveCost" && e.target === line.card && !!e.onto?.length;
+  const bases = new Set([...staticsNow(ctx, game, state).filter(scoped), ...state.effects.filter(scoped)].flatMap((e) => e.onto ?? []));
+  if (!bases.size) return [];
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex };
+  return resolveSelector(ctx, game, state, frame, { area: "battle", side: "you", printed: true }).filter((id) => bases.has(id));
 }
 
 /**
@@ -616,7 +631,7 @@ const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim()
  * counter window around it is not opened: the legacy engine opens it with no
  * candidates at all, so there is nothing to answer it with.
  */
-export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number): void {
+export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string): void {
   const { card, skill: sk } = line;
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
@@ -649,7 +664,9 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // [Wish]'s flip of the Leader (22-25-4).
   const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []);
   // 20-5: the X the price was paid at is what the effect reads as `X`.
-  const effect: ScriptFrame = { ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, ...(x === undefined ? {} : { x }) };
+  // EX03-16: an [Evolve]'s base named with the activation is the keyword's
+  // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
+  const effect: ScriptFrame = { ops: program, ip: 0, vars: onto === undefined ? {} : { base: [onto] }, card, master: player, skillIndex: sk.index, ...(x === undefined ? {} : { x }) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and

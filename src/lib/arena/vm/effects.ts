@@ -164,6 +164,8 @@ export interface VmStatic {
   skillKind?: SkillKindPrefix;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
   colors?: (Color | "any")[];
+  /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
+  onto?: string[];
 }
 
 /**
@@ -624,8 +626,10 @@ function collect(
         const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
         if (value == null) continue;
         const kind = op.what === "evolve" ? "evolveCost" : "skillCost";
+        // EX03-16: an [Evolve] price changed only when it is played onto these.
+        const onto = kind === "evolveCost" && op.onto ? { onto: targets(frame, { ...op, target: op.onto }) } : {};
         for (const id of targets(frame, op))
-          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}) });
+          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
         continue;
       }
       const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";

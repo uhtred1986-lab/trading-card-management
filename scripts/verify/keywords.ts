@@ -178,6 +178,74 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.ok(actsG(s).some((a) => a.type === "activate" && a.card === findG(s, "p1", "hand", "XENO")), "an [Evolve] cost reduction pays the line's orb");
   delete DEFS.EVOCHEAP;
 
+  // EX03-16: an [Evolve] price changed only onto this card (`costReduction`'s
+  // `onto: [self]`). The discounted [Evolve] is its own offer, naming its base;
+  // onto any other base, or for a <Broly> of the same card name, the price is
+  // the printed one.
+  DEFS.DWBROLY = {
+    ...DEFS.V1,
+    id: "DWBROLY",
+    name: "Deathless Warrior Broly",
+    characters: ["Broly"],
+    colors: ["Green"],
+    skill: "[Permanent] When evolving this card into a <Broly> with a different card name from your hand, the [evolve] cost is decreased by {g} {g}.",
+  };
+  {
+    const read = compileSkill(parseSkills(DEFS.DWBROLY.skill)[0]);
+    assert.deepEqual(read.unsupported, [], "EX03-16's wording is read whole");
+    const op = read.ops[0] as Extract<(typeof read.ops)[number], { op: "costReduction" }>;
+    assert.equal(op.op, "costReduction", "…as a cost change");
+    assert.equal(op.what, "evolve", "…to the [Evolve] price");
+    assert.deepEqual(op.onto, { sel: { special: "self" } }, "…only onto this card");
+    assert.equal(op.amount, 2, "…by two orbs");
+    assert.deepEqual(op.colors, ["Green", "Green"], "…both green");
+    assert.ok("sel" in op.target && op.target.sel.area === "hand" && op.target.sel.notSelf === "name", "…for the <Broly> cards in the hand with a different card name");
+  }
+  DEFS.BROLYB = { ...DEFS.V1, id: "BROLYB", name: "BROLYB", characters: ["Broly"], colors: ["Green"] };
+  DEFS.BROLYEVO = { ...DEFS.V1, id: "BROLYEVO", name: "BROLYEVO", characters: ["Broly"], colors: ["Green"], energyCost: 4, skill: "[Evolve]{g}{g}{g}: <Broly>" };
+  DEFS.BROLYSAME = { ...DEFS.V1, id: "BROLYSAME", name: "Deathless Warrior Broly", characters: ["Broly"], colors: ["Green"], energyCost: 4, skill: "[Evolve]{g}{g}{g}: <Broly>" };
+  DEFS.EVOGREEN = { ...DEFS.V1, id: "EVOGREEN", name: "EVOGREEN", colors: ["Green"] };
+  const evolves = (s: ReturnType<typeof arenaG>, card: string) => IMPL.legalActions(CTX, s).filter((l) => l.action.type === "activate" && l.action.card === card && !l.action.alt);
+  const ontoOf = (a: { action: unknown }) => (a.action as { onto?: string }).onto;
+  const restedEnergy = (s: ReturnType<typeof arenaG>) => zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length;
+
+  // One green energy: only the discounted [Evolve] onto EX03-16 is affordable.
+  s = arenaG({ hand: ["BROLYEVO"], battle: ["DWBROLY", "BROLYB"], energy: ["EVOGREEN"] });
+  let dw = findG(s, "p1", "battle", "DWBROLY");
+  let other = findG(s, "p1", "battle", "BROLYB");
+  let evo = findG(s, "p1", "hand", "BROLYEVO");
+  let offers = evolves(s, evo);
+  assert.deepEqual(offers.map(ontoOf), [dw], "EX03-16: with {g} only the [Evolve] onto this card is offered — onto another <Broly> it costs the printed {g}{g}{g}");
+  assert.equal(offers[0].cost?.energy, 1, "…at {g}{g} less");
+  assert.equal(offers[0].label, "Evolve BROLYEVO onto Deathless Warrior Broly", "…and the row names its base");
+  s = playG(s, offers[0].action);
+  assert.notEqual(s.prompt.kind, "chooseCards", "the base named with the activation is not asked for again");
+  assert.ok(zoneOf(s, "p1", "battle").includes(evo) && s.cards[evo].under.includes(dw), "…and the card lands on EX03-16");
+  assert.ok(zoneOf(s, "p1", "battle").includes(other), "…not on the other <Broly>");
+  assert.equal(restedEnergy(s), 1, "…for one energy");
+  assertConsistentG(s);
+
+  // Three green energy: the printed price onto another base, beside the discounted row.
+  s = arenaG({ hand: ["BROLYEVO"], battle: ["DWBROLY", "BROLYB"], energy: ["EVOGREEN", "EVOGREEN", "EVOGREEN"] });
+  dw = findG(s, "p1", "battle", "DWBROLY");
+  other = findG(s, "p1", "battle", "BROLYB");
+  evo = findG(s, "p1", "hand", "BROLYEVO");
+  offers = evolves(s, evo);
+  assert.deepEqual(offers.map(ontoOf), [undefined, dw], "the ordinary [Evolve] and the one onto EX03-16 are both offered");
+  assert.equal(offers[0].cost?.energy, 3, "the ordinary row is the printed price");
+  s = playG(s, offers[0].action);
+  if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [other] });
+  assert.ok(s.cards[evo].under.includes(other), "evolving onto another <Broly> …");
+  assert.equal(restedEnergy(s), 3, "… costs {g}{g}{g}: the discount does not reach it");
+  assertConsistentG(s);
+
+  // A <Broly> with the same card name gets no discount: with {g} nothing is offered.
+  s = arenaG({ hand: ["BROLYSAME"], battle: ["DWBROLY"], energy: ["EVOGREEN"] });
+  assert.deepEqual(evolves(s, findG(s, "p1", "hand", "BROLYSAME")), [], "EX03-16: a <Broly> of the same card name is not discounted");
+  s = arenaG({ hand: ["BROLYSAME"], battle: ["DWBROLY"], energy: ["EVOGREEN", "EVOGREEN", "EVOGREEN"] });
+  assert.deepEqual(evolves(s, findG(s, "p1", "hand", "BROLYSAME")).map(ontoOf), [undefined], "…it evolves onto EX03-16 at the printed price only");
+  for (const id of ["DWBROLY", "BROLYB", "BROLYEVO", "BROLYSAME", "EVOGREEN"]) delete DEFS[id];
+
   // 22-13-4: [Union-Fusion] drops one of each named character from the hand.
   DEFS.FUSE = { ...DEFS.V1, id: "FUSE", name: "FUSE", energyCost: 3, skill: "[Union-Fusion]{r}: <V1> <UNI-B>" };
   s = arenaG({ hand: ["FUSE", "V1"], energy: ["V1"] });

@@ -957,6 +957,7 @@ function orbTotals(
   card: string,
   sk: Skill,
   kind: "skill" | "evolve" = "skill",
+  onto?: string,
 ): { total: number; specified: Partial<Record<Color, number>>; either: Color[][] } {
   const specified: Partial<Record<Color, number>> = {};
   let total = 0;
@@ -969,9 +970,12 @@ function orbTotals(
   const generic = { n: Math.max(0, total - Object.values(specified).reduce((sum, n) => sum + (n ?? 0), 0) - either.length) };
   const effectKind = kind === "evolve" ? "evolveCost" : "skillCost";
   const applies = (skillKind: string | undefined) => !skillKind || sk.kind.startsWith(skillKind);
+  // EX03-16: a change scoped to the base an [Evolve] lands on holds only when
+  // that base is the one this activation names.
+  const reaches = (e: { onto?: string[] }) => !e.onto || (onto !== undefined && e.onto.includes(onto));
   const mods = [
-    ...staticEffects(ctx, s).filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind)),
-    ...s.effects.filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind) && (e.uses ?? 1) > 0),
+    ...staticEffects(ctx, s).filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind) && reaches(e)),
+    ...s.effects.filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind) && reaches(e) && (e.uses ?? 1) > 0),
   ];
   for (const e of mods) {
     const by = e.value as number;
@@ -997,6 +1001,21 @@ function orbTotals(
     }
   }
   return { total, specified, either };
+}
+
+/**
+ * EX03-16: the Battle Cards an [Evolve] line has a price change scoped to
+ * (`costReduction`'s `onto`) that it could evolve onto — each one a second
+ * offer of the line, naming its base, beside the ordinary one. Empty for every
+ * other line, so the menu is what it always was without such a change.
+ */
+function evolveOntoBases(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill): string[] {
+  if (sk.keyword?.name !== "Evolve") return [];
+  const scoped = (e: { kind: string; target: string; onto?: string[] }) => e.kind === "evolveCost" && e.target === card && !!e.onto?.length;
+  const bases = new Set([...staticEffects(ctx, s).filter(scoped), ...s.effects.filter(scoped)].flatMap((e) => e.onto ?? []));
+  if (!bases.size) return [];
+  const filter = parseFilter(sk.effect || sk.cost);
+  return s.players[p].battle.filter((id) => bases.has(id) && matches(cardNow(ctx, s, id), filter));
 }
 
 /**
@@ -1549,8 +1568,8 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
     }
     case "evolve": {
       // 22-5-5: played on top of the chosen card; position and power effects carry over (21-5-2).
-      const target = chosen[0];
-      const info = s.continuations.evolve as { card: string; xeno: boolean };
+      const info = s.continuations.evolve as { card: string; xeno: boolean; onto?: string };
+      const target = info.onto ?? chosen[0];
       delete s.continuations.evolve;
       if (!target || areaOf(s, target) !== "battle") {
         // 22-5-7: failed to enter play → Drop.
@@ -1744,8 +1763,10 @@ function playPrice(c: { total: number; specified: Partial<Record<Color, number>>
  * the way out, the number moved and the words stayed — "Activate XDRAW with
  * X = 3" read "free" on the action sheet while three energy was charged.
  */
-function activationCost(ctx: EngineContext, s: GameState, card: string, sk: Skill, alt: boolean, x = 0): ActionCost {
-  const { total, specified } = orbTotals(ctx, s, card, sk);
+function activationCost(ctx: EngineContext, s: GameState, card: string, sk: Skill, alt: boolean, x = 0, onto?: string): ActionCost {
+  // The base an [Evolve] names (EX03-16) is read on the [Evolve] channel; every
+  // other row reads the line's orbs as it always has.
+  const { total, specified } = onto ? orbTotals(ctx, s, card, sk, "evolve", onto) : orbTotals(ctx, s, card, sk);
   const fromHand = baseType(def(ctx, s, card)) === "EXTRA" && areaOf(s, card) === "hand" && !alt;
   const c = fromHand ? playCost(ctx, s, card) : { total: 0, specified: {} as Partial<Record<Color, number>> };
   const orbs: Partial<Record<Color, number>> = { ...c.specified };
@@ -1964,6 +1985,12 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
       if (act) pushActivations(out, ctx, s, p, id, sk, act, false);
       const viaAlt = activatable(ctx, s, p, id, sk, "main", true);
       if (viaAlt) pushActivations(out, ctx, s, p, id, sk, viaAlt, true);
+      // EX03-16: an [Evolve] whose price changes only onto a named base is
+      // offered once per such base, at the price that base gives it.
+      for (const base of evolveOntoBases(ctx, s, p, id, sk)) {
+        const onto = activatable(ctx, s, p, id, sk, "main", false, base);
+        if (onto) out.push({ action: { type: "activate", player: p, card: id, skill: sk.index, onto: base }, label: onto, cost: activationCost(ctx, s, id, sk, false, 0, base) });
+      }
     }
   }
   // Skills on cards in play.
@@ -2236,7 +2263,10 @@ function whyNotPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string)
  * rules, plus text skills whose cost is orbs only and whose effect the native
  * resolver reads. Everything else waits for compiled scripts / the referee.
  */
-function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle", alt = false): string | null {
+function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle", alt = false, onto?: string): string | null {
+  // `onto` (EX03-16) names an [Evolve]'s base with the activation: nothing
+  // else takes one.
+  if (onto !== undefined && (sk.keyword?.name !== "Evolve" || alt)) return null;
   const d = def(ctx, s, card);
   const inst = s.cards[card];
   const inHand = areaOf(s, card) === "hand";
@@ -2255,7 +2285,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   const k = sk.keyword;
   // One reading of the skill's orbs, shared with `activate` — the two used to
   // count them separately, and neither knew about "{r}/{u}".
-  const { total: orbTotal, specified: orbSpecified, either: orbEither } = orbTotals(ctx, s, card, sk, k?.name === "Evolve" ? "evolve" : "skill");
+  const { total: orbTotal, specified: orbSpecified, either: orbEither } = orbTotals(ctx, s, card, sk, k?.name === "Evolve" ? "evolve" : "skill", onto);
   const pricePayerCards = pricePayersFor(ctx, s, p, card, sk);
   const canPayOrbs = () => planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, undefined, pricePayerCards) !== null;
   // The one reading of "the price is nothing but orbs", shared with
@@ -2264,6 +2294,14 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   // hand when you have red cards.)" counted as orbs in one place and not the
   // other — the exact drift these helpers exist to prevent.
   const costIsOrbsOnly = costIsOnlyOrbs(sk.cost);
+
+  if (k?.name === "Evolve" && onto !== undefined) {
+    // EX03-16: the [Evolve] with its base named — the base has to be one it
+    // could land on, and the price is the one that base gives it.
+    if (timing !== "main" || !inHand || !costIsOrbsOnly || !canPayOrbs()) return null;
+    if (!s.players[p].battle.includes(onto) || !matches(cardNow(ctx, s, onto), parseFilter(sk.effect || sk.cost))) return null;
+    return `${k.variant} ${name} onto ${face(ctx, s, onto).name}`;
+  }
 
   if (k) {
     switch (k.name) {
@@ -2854,10 +2892,10 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const skills = areaOf(s, action.card) === "hand" || areaOf(s, action.card) === "zDeck" ? skillsOf(def(ctx, s, action.card)) : skillsOfInstance(ctx, s, action.card);
       const sk = skills.find((k) => k.index === action.skill);
       if (!sk) throw new IllegalAction("no such skill");
-      const label = activatable(ctx, s, p, action.card, sk, timing, !!action.alt);
+      const label = activatable(ctx, s, p, action.card, sk, timing, !!action.alt, action.onto);
       if (!label) throw new IllegalAction("that skill can't be activated now");
       spendProhibitionUse(ctx, s, "activateSkill", { player: p, card: action.card });
-      activate(ctx, s, ev, p, action.card, sk, action.pay, !!action.alt, action.x);
+      activate(ctx, s, ev, p, action.card, sk, action.pay, !!action.alt, action.x, action.onto);
       s.flow.push(timing === "main" ? { op: "turn.promptMain" } : { op: "battle.promptCombo", side: pr.kind === "combo" ? pr.side : "offense" });
       break;
     }
@@ -3109,13 +3147,13 @@ function requireMain(s: GameState, p: PlayerId): void {
 }
 
 /** Pay a skill's cost and queue its resolution. Keyword skills with choices push a prompt. */
-function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number): void {
-  activateLine(ctx, s, ev, p, card, sk, explicitPay, alt, x);
+function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number, onto?: string): void {
+  activateLine(ctx, s, ev, p, card, sk, explicitPay, alt, x, onto);
   // Paid for, whichever branch paid it: a one-use change to this line's price is spent.
   spendSkillCostUses(s, ev, card, sk);
 }
 
-function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number): void {
+function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number, onto?: string): void {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
   const k = sk.keyword;
@@ -3128,7 +3166,7 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
   const xPaid = xPrice ? Math.max(xPrice.min ?? 0, x ?? xPrice.min ?? 0) : undefined;
   if (xPrice && xPrice.max !== undefined && (xPaid ?? 0) > xPrice.max) throw new IllegalAction("X is more than this skill allows");
   const payOrbs = () => {
-    const { total, specified, either } = orbTotals(ctx, s, card, sk, k?.name === "Evolve" ? "evolve" : "skill");
+    const { total, specified, either } = orbTotals(ctx, s, card, sk, k?.name === "Evolve" ? "evolve" : "skill", onto);
     const pm = planPayment(ctx, s, p, total + (xPaid ?? 0), specified, explicitPay, either, undefined, pricePayersFor(ctx, s, p, card, sk));
     if (!pm) throw new IllegalAction("can't pay the skill cost");
     pay(s, ev, p, pm);
@@ -3159,6 +3197,13 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     const filter = parseFilter(sk.effect || sk.cost);
     const cands = ps.battle.filter((id) => matches(cardNow(ctx, s, id), filter));
     s.continuations.evolve = { card, xeno: k.variant === "Xeno-Evolve" };
+    // EX03-16: a base named with the activation is the choice already made —
+    // nothing to ask, and the card lands on exactly the base it was priced for.
+    if (onto !== undefined) {
+      s.continuations.evolve = { card, xeno: k.variant === "Xeno-Evolve", onto };
+      s.flow.unshift({ op: "choose.apply", what: "evolve", card, player: p });
+      return;
+    }
     s.flow.unshift(
       { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `${k.variant}: choose the card to evolve`, candidates: cands, min: 1, max: 1, continuation: "evolve" } } },
       { op: "choose.apply", what: "evolve", card, player: p },

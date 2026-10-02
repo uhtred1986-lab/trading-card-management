@@ -267,6 +267,29 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     [{ op: "costReduction", target: { sel: { side: "you", areas: ["hand", "zDeck"], filter: { ...emptyFilter(), traits: ["Universe 7"] } } }, amount: 0, what: "specified", all: true }],
     "costReduction, every orb of the specified cost",
   );
+  // EX03-16: an [Evolve] price changed only onto this card, for <Broly> cards
+  // of a different card name — `onto` and `otherThanSameName`, as the
+  // compiler writes them, round-tripped and validated as the [Permanent] it is.
+  {
+    const ex0316: Rule = ruleOf(
+      [
+        {
+          op: "costReduction",
+          target: { sel: { side: "you", area: "hand", count: 99, filter: { ...emptyFilter(), characters: ["Broly"] }, notSelf: "name" } },
+          amount: 2,
+          what: "evolve",
+          colors: ["Green", "Green"],
+          onto: { sel: { special: "self" } },
+          until: "game",
+        },
+      ],
+      { kind: "permanent" },
+    );
+    trip(ex0316, "costReduction onto [self] — EX03-16");
+    assert.equal(validateRule(ex0316, "permanent"), null, "EX03-16's program is a valid [Permanent] rule");
+    assert.match(printRule(ex0316), /onto: \[self\]/, "…and `onto` prints as a ref");
+    assert.match(printRule(ex0316), /otherThanSameName/, "…and the different-name exclusion as its own selector word");
+  }
   tripOps(
     [
       {

@@ -1080,6 +1080,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.notSelf && frame.card) {
       if (id === frame.card) return false;
       if (sel.notSelf === "copies" && state.cards[frame.card] && card.cardId === state.cards[frame.card].cardId) return false;
+      if (sel.notSelf === "name" && state.cards[frame.card] && ctx.defs[card.cardId]?.name === ctx.defs[state.cards[frame.card].cardId]?.name) return false;
     }
     // A named target that also names an area only matches while it is there: a
     // delayed effect resolves turns later, and by then "this card" may have
