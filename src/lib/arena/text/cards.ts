@@ -328,6 +328,34 @@ function isOnlyOrbs(body: string): boolean {
 
 /** Parse a card face's whole text into skills. */
 export function parseSkills(text: string | null | undefined): Skill[] {
+  if (!text) return [];
+  // The rules engine holds a card's text as a declared attribute and asks for
+  // its skills on every query it answers (`permanents`, `skillsShowing`,
+  // `keywordsInForce`), so the same few dozen texts were parsed thousands of
+  // times per request — two thirds of a game's CPU. A text always parses the
+  // same way, so the answer is kept, frozen, because every caller now shares it.
+  let hit = parsedByText.get(text);
+  if (!hit) {
+    if (parsedByText.size >= PARSED_BY_TEXT_LIMIT) parsedByText.clear();
+    hit = deepFreeze(parseSkillsUncached(text));
+    parsedByText.set(text, hit);
+  }
+  return hit;
+}
+
+/** Bounded so a long-lived process that reads the whole catalog (`arena:draft`, a sync) cannot grow it without end; the catalog has fewer distinct texts than this. */
+const PARSED_BY_TEXT_LIMIT = 20_000;
+const parsedByText = new Map<string, Skill[]>();
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const v of Object.values(value)) deepFreeze(v);
+  }
+  return value;
+}
+
+function parseSkillsUncached(text: string): Skill[] {
   const out: Skill[] = [];
   for (const [index, line] of skillLines(text).entries()) {
     const { tags, body } = splitTags(line);

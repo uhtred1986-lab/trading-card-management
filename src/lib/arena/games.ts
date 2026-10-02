@@ -23,8 +23,9 @@ import { recordDecision } from "./ai/debug";
 import { tableTalk } from "./ai/table-talk";
 import { cardDefFrom, deckInputFor } from "./load";
 import { assertDecksPlayable } from "./readiness";
-import { rulesFor } from "./rules-store";
+import { loadRules, rulesFor, rulesFromRows } from "./rules-store";
 import type { StoredSnapshot } from "./snapshot";
+import type { CardArt } from "./view";
 import { gameOr, type Game } from "@/lib/catalog/games";
 
 export type ArenaMode = "hotseat" | "sparring" | "tournament" | "versus";
@@ -135,20 +136,70 @@ export interface LoadedGame {
   /** Every action applied so far, in order. */
   actions: Action[];
   log: string[];
+  /** Worked out on first read, not on load: most callers that load a game to change it never ask. */
   legal: LegalAction[];
+  /** Card art for every card in the game, read in the same query as `ctx.defs` (`session.ts`'s `artForGame`). */
+  art: Record<string, CardArt>;
   /** The skill that fired on the last action, for the board's banner. */
   spotlight: Spotlight | null;
   /** What has happened since the human last acted, for a client to animate. */
   beats: Beats | null;
 }
 
-/** Definitions for every card the state mentions, tokens included. */
-async function defsForState(db: Db, state: EngineState): Promise<Record<string, CardDef>> {
-  const ids = [...new Set(Object.values(state.cards).map((c) => c.cardId))].filter((id) => !id.startsWith("TOKEN:"));
-  const rows = ids.length ? await db.select().from(cardsTable).where(inArray(cardsTable.id, ids)) : [];
-  const out: Record<string, CardDef> = {};
-  for (const r of rows) out[r.id] = cardDefFrom(r);
-  return out;
+/** The catalog rows a state stands on: every card it mentions but a token, whose row is its id (19-1). */
+function cardIdsOf(state: EngineState): string[] {
+  return [...new Set(Object.values(state.cards).map((c) => c.cardId))].filter((id) => !id.startsWith("TOKEN:"));
+}
+
+/**
+ * What a saved state is played with: a definition and the stored rules for
+ * every card it mentions, and their art. The cards and the rules are two
+ * queries sent together, not one after the other — `rulesFor`'s filter only
+ * needs the ids, which the state already has.
+ *
+ * `reuse` is a game this request loaded a moment ago, during a run of moves
+ * (`ai/run.ts`'s `advance`): its context still covers every card, since a
+ * game's cards are dealt at the start and only tokens appear later, so it is
+ * taken as it is rather than read again — which also keeps every per-card
+ * cache keyed on a definition's identity warm across the run.
+ */
+async function contextFor(db: Db, state: EngineState, mode: string, reuse?: Pick<LoadedGame, "ctx" | "art">): Promise<{ ctx: EngineContext; art: Record<string, CardArt> }> {
+  const ids = cardIdsOf(state);
+  if (reuse && ids.every((id) => id in reuse.ctx.defs)) return { ctx: reuse.ctx, art: reuse.art };
+  const [rows, ruleRows] = ids.length ? await Promise.all([db.select().from(cardsTable).where(inArray(cardsTable.id, ids)), loadRules(db, ids)]) : [[], []];
+  const defs: Record<string, CardDef> = {};
+  const art: Record<string, CardArt> = {};
+  for (const r of rows) {
+    defs[r.id] = cardDefFrom(r);
+    art[r.id] = { front: r.imageUrl, back: r.backImageUrl };
+  }
+  // The rules the engine plays by come from `card_rules`, not from a compile.
+  return { ctx: { defs, scripts: rulesFromRows(ruleRows, defs), referee: hasAnthropic() && mode !== "hotseat" }, art };
+}
+
+/**
+ * `legal` as a property worked out on first read and then kept as a plain
+ * value. Loading a game to apply a move to it — every `applyToGame`, every
+ * step of Claude's turn — never reads the menu of the board it is about to
+ * leave, and `legalActions` is the most expensive thing a load does.
+ */
+function withLegal<T extends Omit<LoadedGame, "legal">>(game: T, engine: { legalActions(ctx: EngineContext, state: EngineState): LegalAction[] }): T & { legal: LegalAction[] } {
+  return Object.defineProperty(game, "legal", {
+    enumerable: true,
+    configurable: true,
+    get() {
+      const legal = engine.legalActions(game.ctx, game.state);
+      Object.defineProperty(game, "legal", { value: legal, enumerable: true, configurable: true, writable: true });
+      return legal;
+    },
+  }) as T & { legal: LegalAction[] };
+}
+
+/** Every field of a loaded game but `legal`, without reading it — a spread would work the old board's menu out only to replace it. */
+function withoutLegal(game: LoadedGame): Omit<LoadedGame, "legal"> {
+  const fields = Object.getOwnPropertyDescriptors(game) as Partial<Record<keyof LoadedGame, PropertyDescriptor>>;
+  delete fields.legal;
+  return Object.defineProperties({}, fields as PropertyDescriptorMap) as Omit<LoadedGame, "legal">;
 }
 
 /**
@@ -336,7 +387,7 @@ export async function loadArchivedGame(db: Db, id: number): Promise<ArchivedGame
   };
 }
 
-export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
+export async function loadGame(db: Db, id: number, reuse?: Pick<LoadedGame, "ctx" | "art">): Promise<LoadedGame | null> {
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
   if (!row) return null;
   // An archived row (`loadArchivedGame`) answers to nothing this function
@@ -348,11 +399,10 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
   // right for an archived one too: nothing here can be continued.
   if (row.snapshot) return null;
   const state = row.state as EngineState;
-  const defs = await defsForState(db, state);
-  // The rules the engine plays by come from `card_rules`, not from a compile.
-  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && row.mode !== "hotseat" };
+  const { ctx, art } = await contextFor(db, state, row.mode, reuse);
   const engine = engineFor(engineOr(row.engine));
-  return {
+  return withLegal(
+    {
     id: row.id,
     mode: row.mode as ArenaMode,
     engine: engine.id,
@@ -371,11 +421,13 @@ export async function loadGame(db: Db, id: number): Promise<LoadedGame | null> {
     log: (row.log as string[]) ?? [],
     spotlight: (row.spotlight as Spotlight | null) ?? null,
     beats: (row.beats as Beats | null) ?? null,
-    legal: engine.legalActions(ctx, state),
+    art,
     spend: { calls: row.aiCalls, input: row.aiInputTokens, output: row.aiOutputTokens, cached: row.aiCachedTokens, micros: row.aiCostMicros },
     review: row.review,
     debug: row.debug,
-  };
+    },
+    engine,
+  );
 }
 
 /**
@@ -397,9 +449,10 @@ export class StaleGame extends Error {
  * Apply one action and save. Throws whatever the engine throws for an illegal
  * move, and `StaleGame` when the row changed under it.
  */
-export async function applyToGame(db: Db, id: number, action: Action, told?: { say?: string | null; aside?: string | null }): Promise<LoadedGame> {
-  const game = await loadGame(db, id);
+export async function applyToGame(db: Db, id: number, action: Action, told?: { say?: string | null; aside?: string | null }, opts: ApplyOptions = {}): Promise<LoadedGame> {
+  const game = opts.game ?? (await loadGame(db, id));
   if (!game) throw new Error(`no game ${id}`);
+  if (game.id !== id) throw new Error(`game ${game.id} handed in for game ${id}`);
   if (game.status !== "playing") throw new Error("this game is over");
   const engine = engineFor(game.engine);
   const { state, events } = engine.apply(game.ctx, game.state, action);
@@ -423,7 +476,11 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   const from = game.beats?.seq ?? 0;
   const said: NumberedBeat[] = say ? [{ t: "say", text: say, n: from + 1 }] : [];
   const moved = engine.toBeats(game.ctx, state, events, from + said.length);
-  const beats = appendBeats(game.beats, { seq: moved.seq, list: [...said, ...moved.list], art: moved.art });
+  // `clearBeatsForTurn`'s emptying, written in this same update rather than
+  // in queries of its own before it: the counter carries on, the list starts
+  // again — and never in a 1 v 1, for the reason given there.
+  const before: Beats | null = opts.clearBeats && !isVersus(game.mode) ? { seq: from, list: [], art: {} } : game.beats;
+  const beats = appendBeats(before, { seq: moved.seq, list: [...said, ...moved.list], art: moved.art });
   const actions = [...game.actions, action];
   // `WHERE version = <what loadGame read>` is the whole concurrency story: two
   // devices racing means one of these updates matches no row, and that one is
@@ -463,17 +520,31 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
       how: state.overReason,
     });
   }
-  return {
-    ...game,
-    state,
-    actions,
-    version: game.version + 1,
-    log: lines,
-    spotlight,
-    beats,
-    legal: engine.legalActions(game.ctx, state),
-    status: state.phase === "over" ? "over" : "playing",
-  };
+  return withLegal(
+    {
+      ...withoutLegal(game),
+      state,
+      actions,
+      version: game.version + 1,
+      log: lines,
+      spotlight,
+      beats,
+      status: state.phase === "over" ? "over" : "playing",
+    },
+    engine,
+  );
+}
+
+export interface ApplyOptions {
+  /**
+   * The game as this request already loaded it, to apply to instead of
+   * reading the row again. The write is still guarded by its `version`, so a
+   * move decided on a board someone has since changed is refused
+   * (`StaleGame`) rather than played on the new one.
+   */
+  game?: LoadedGame;
+  /** Empty the animation queue as part of this write — what `clearBeatsForTurn` does, for the move that starts a new story. */
+  clearBeats?: boolean;
 }
 
 /**
@@ -503,11 +574,11 @@ export async function clearBeatsForTurn(db: Db, id: number): Promise<void> {
  * it had already seen — and it would sit still through it.
  */
 export async function clearBeats(db: Db, id: number): Promise<void> {
-  const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
-  const seq = (row?.beats as Beats | null)?.seq ?? 0;
+  // One statement: the counter is read off the row it is written back to,
+  // rather than the whole row (state, log and all) fetched to find it.
   await db
     .update(arenaGames)
-    .set({ beats: { seq, list: [], art: {} } satisfies Beats })
+    .set({ beats: sql`jsonb_build_object('seq', coalesce((${arenaGames.beats}->>'seq')::int, 0), 'list', '[]'::jsonb, 'art', '{}'::jsonb)` })
     .where(eq(arenaGames.id, id));
 }
 

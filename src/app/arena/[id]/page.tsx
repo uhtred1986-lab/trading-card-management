@@ -114,7 +114,8 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   const snap = await snapshotOfGame(db, game, isVersus(game.mode) ? seat : null);
   const playing = snap.game.status === "playing";
   // The drawer's extras — seed, the opponent's hand, the decisions — only for an admin.
-  const adminDebug = admin ? adminDebugOf({ engine: game.engine, ctx: game.ctx, state: game.state, viewer: snap.game.you, images: await artForGame(db, game), decisions: await decisionsFor(db, id), flags: await flagsForGame(db, id) }) : null;
+  const [decisions, flags] = admin ? await Promise.all([decisionsFor(db, id), flagsForGame(db, id)]) : [null, null];
+  const adminDebug = admin && decisions && flags ? adminDebugOf({ engine: game.engine, ctx: game.ctx, state: game.state, viewer: snap.game.you, images: await artForGame(db, game), decisions, flags }) : null;
   const review = game.review ? (JSON.parse(game.review) as GameReview) : null;
 
   // The game's own links, in the board's menu sheet rather than a row above

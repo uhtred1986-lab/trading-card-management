@@ -81,7 +81,7 @@ import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
 import { fireHook } from "./hooks";
 import { lifeReplacementChoices } from "./replace";
-import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics } from "./program";
+import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics, readingBoard } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
 import type { VmBattle, VmState } from "./state";
@@ -671,6 +671,11 @@ export function applyBlock(ctx: EngineContext, game: GameDefinition, state: VmSt
 // ── the combo offer (5-7, 8-2, 8-3) ─────────────────────────────────────────
 
 function comboEligible(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId): string[] {
+  // Only reads, and asks the statics once per card in hand and on the field.
+  return readingBoard(ctx, game, state, () => comboEligibleOnBoard(ctx, game, state, player));
+}
+
+function comboEligibleOnBoard(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId): string[] {
   const b = state.battle;
   if (!b) return [];
   const hand = state.sides[player].zones.hand ?? [];
