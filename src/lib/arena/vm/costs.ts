@@ -1036,7 +1036,9 @@ export function payersFor(ctx: EngineContext, game: GameDefinition, state: VmSta
     out.push({ id, colors: as === "energy" ? cardColors(ctx, game, state, id) : [as] });
   };
   for (const e of state.effects) if (e.kind === "payer" && e.target) add(e.target, e.payAs ?? "energy");
-  for (const e of staticsNow(ctx, game, state)) if (e.kind === "payer" && e.target) add(e.target, (e.value as PayerGrant).payAs);
+  // A scoped grant (BT28-106: "when paying the skill cost of skills on white
+  // ≪God≫ cards") is no price's but its own line's — `vm/activate.ts` adds it.
+  for (const e of staticsNow(ctx, game, state)) if (e.kind === "payer" && e.target && !(e.value as PayerGrant).forSkillsOf) add(e.target, (e.value as PayerGrant).payAs);
   for (const x of extra) add(x.id, x.colors[0] ?? "energy");
   for (const x of extra) {
     const at = out.find((o) => o.id === x.id);

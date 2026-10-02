@@ -7,7 +7,7 @@ import { compileClauseList, holdForGame, splitModal } from "./effects";
 import { compileCostProgram, costText, counterAltCost, priceCondition, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
-import { subjectFilterOf } from "./targets";
+import { filterFor, parseTarget, subjectFilterOf } from "./targets";
 
 // ── skills and cards ───────────────────────────────────────────────────────
 
@@ -90,6 +90,27 @@ function narrowHiddenChoices(sc: Script): Script {
   return { ...sc, ops: rebuild(sc.ops) as Op[] };
 }
 
+/**
+ * "When paying the skill cost of skills on <description> cards in any of your
+ * areas, [once per turn] you can use <N [or M]> <cards> as energy" — the
+ * scoped `payWith` (20-19, BT28-106). Null for any other sentence, and for
+ * one whose description or cards the target grammar cannot read: a
+ * permission read wider than it is printed is the one wrong answer.
+ */
+function scopedPayWith(text: string): Op | null {
+  const m = /^when paying the skill costs? of skills on (.+?) cards? in (?:any of )?your areas?,\s*(once per turn,? )?you (?:can|may) use (\d+)(?: or (\d+))? (.+?) as energy\.?$/i.exec(text.trim());
+  if (!m) return null;
+  const forSkillsOf = filterFor(m[1], null);
+  if (!forSkillsOf) return null;
+  const sel = parseTarget(`${m[3]} ${m[5]}`);
+  if (!sel || sel.special || sel.fromVar) return null;
+  const { count: _count, upTo: _upTo, ...where } = sel;
+  void _count;
+  void _upTo;
+  const max = Number(m[4] ?? m[3]);
+  return { op: "payWith", target: { sel: where }, forSkillsOf, max, ...(m[2] ? { oncePerTurn: true as const } : {}) };
+}
+
 function compileSkillText(skill: Skill): Script {
   // [Union-Fusion] and [Union-Potara] print two character names where an
   // effect would go, and the engine reads those itself. [Union-Absorb] is
@@ -146,6 +167,12 @@ function compileSkillText(skill: Skill): Script {
   // condition comes off first and goes back on around the permission, the way
   // the two-sentence form below already does it.
   const said = text.toLowerCase().trim();
+  // 20-19, scoped (BT28-106): "When paying the skill cost of skills on white
+  // ≪God≫ cards in any of your areas, once per turn you can use 1 [or 2]
+  // Hidden Mode card[s] in your Battle Area as energy." One sentence, which
+  // the clause list would cut at the comma and leave both halves unread.
+  const scoped = c.permanent ? scopedPayWith(text) : null;
+  if (scoped) return { ops: [scoped], unsupported: [] };
   const opener = /^if (.+?),\s*(?=you (?:can|may)\s)/.exec(said);
   const permission = counterAltCost(said.slice(opener?.[0].length ?? 0).replace(/^you (?:can|may)\s+/, ""), c);
   // Only a *program* price needs the opener taken off. A waiver and a price

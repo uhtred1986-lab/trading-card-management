@@ -54,6 +54,7 @@ import { type AltCost, type Replacement } from "../types";
 import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
 import { other as otherPlayer } from "../types";
 import type { GameDefinition } from "../rulesets";
+import type { CardFilter } from "../text/filters";
 import type { AttrValue, Attrs } from "./cards";
 import { log } from "./events";
 import { skillsShowing } from "./triggers";
@@ -182,6 +183,18 @@ export interface StandingSkip {
 /** 20-19: what a standing payer counts as while it pays — one energy of its own colours, or of the one colour named. The legacy `StaticEffect`'s value, word for word. */
 export interface PayerGrant {
   payAs: "energy" | Color;
+  /**
+   * The scoped permission (BT28-106): only the skill costs of skills on cards
+   * this describes — read by `vm/activate.ts`'s `payWithPayers` for one line,
+   * never by `payersFor`'s every-price pool.
+   */
+  forSkillsOf?: CardFilter;
+  /** At most this many of the granted cards on one payment. */
+  max?: number;
+  /** Spent for the turn when it pays: the [Permanent] line's index goes on its card's `usedThisTurn`. */
+  oncePerTurn?: true;
+  /** The [Permanent] line saying it, for `oncePerTurn`. */
+  skillIndex?: number;
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
@@ -453,7 +466,7 @@ export function permanents(
           if (skillNegated(state, src, sk.index, sk.kind)) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
-          collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p }, program.ops, inPlay.has(zone), targets, holds, measure);
+          collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, program.ops, inPlay.has(zone), targets, holds, measure);
         }
       }
     }
@@ -664,7 +677,10 @@ function collect(
     // the table, so it is read in play only. `payersFor` is what adds it.
     if (op.op === "payWith") {
       if (op.until || !inPlayNow) continue;
-      const value: PayerGrant = { payAs: op.as ?? "energy" };
+      const scope: Partial<PayerGrant> = op.forSkillsOf
+        ? { forSkillsOf: op.forSkillsOf, ...(op.max ? { max: op.max } : {}), ...(op.oncePerTurn ? { oncePerTurn: true as const } : {}), ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) }
+        : {};
+      const value: PayerGrant = { payAs: op.as ?? "energy", ...scope };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "payer", target: id, value });
       continue;
     }

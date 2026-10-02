@@ -638,15 +638,26 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'another way to pay for a [Counter] (or a play, "for":"play") (5-3) — "none", "life" (n cards), a reduced "energy" price ("orbs"), or a "program" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits "target"/"until"; a card that grants it to *other* cards for a span carries both — "Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …" (BT11-033)',
   },
   payWith: {
-    fields: [{ name: "as", type: { enum: ["energy", ...COLORS] }, default: "energy" }, SELF, { name: "until", type: "duration" }],
+    fields: [
+      { name: "as", type: { enum: ["energy", ...COLORS] }, default: "energy" },
+      SELF,
+      { name: "until", type: "duration" },
+      { name: "forSkillsOf", type: "filter" },
+      { name: "max", type: "number" },
+      { name: "oncePerTurn", type: "boolean" },
+    ],
     sentence: (raw) => {
       const op = raw as OpOf<"payWith">;
       const who = op.target ? describeRef(op.target) : "this card";
       const as = !op.as || op.as === "energy" ? "energy" : `{${op.as}}`;
       const until = op.until ? ` until ${op.until === "game" ? "the game ends" : op.until}` : "";
+      if (op.forSkillsOf) {
+        const payers = op.target && "sel" in op.target ? describeSelector({ ...op.target.sel, count: op.max ?? 99, upTo: !!op.max }) : who;
+        return `${once(op)}${payers} may be rested as ${as} to pay the skill cost of a skill on ${describeFilter(op.forSkillsOf, { plural: false })}${until}`;
+      }
       return `${who} may be rested to pay an energy cost as ${as}, wherever it is${until}`;
     },
-    doc: 'a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — "[Permanent] You can use this card to pay energy costs even when it\'s in your Battle Area" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours ("as":"energy") or of the colour named. Printed on the card itself this is [Permanent]-only and omits "target"/"until", the way "altCost" does; both are for a card granting the permission to others for a span. It is the *unscoped* permission only — a card usable as energy for some payments and not others is left unread rather than offered wider than it prints',
+    doc: 'a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — "[Permanent] You can use this card to pay energy costs even when it\'s in your Battle Area" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours ("as":"energy") or of the colour named. Printed on the card itself this is [Permanent]-only and omits "target"/"until", the way "altCost" does; both are for a card granting the permission to others for a span. With "forSkillsOf" it is scoped (BT28-106): only the **skill costs** of skills on cards that filter describes, wherever those cards are, at most "max" of the cards on one payment, and — with "oncePerTurn" — spent for the turn once it has paid. Any other scope (one play, the energy cost of cards in the hand) is left unread rather than offered wider than it prints',
   },
   resolvingPlay: {
     fields: [{ name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
@@ -1645,6 +1656,9 @@ export function whoseSkills(side: Side | undefined, filter?: CardFilter): string
 export interface FilterNoun {
   plural: boolean;
 }
+
+/** "Once per turn, " for a scoped `payWith` spent for the turn when it pays (BT28-106). */
+const once = (op: { oncePerTurn?: true }): string => (op.oncePerTurn ? "once per turn, " : "");
 
 /** "BATTLE" → "Battle Card", the card type as the card prints it. */
 const typeNoun = (type: string, plural: boolean): string => `${type.charAt(0)}${type.slice(1).toLowerCase()} ${plural ? "Cards" : "Card"}`;

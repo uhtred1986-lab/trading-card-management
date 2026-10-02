@@ -753,6 +753,16 @@ export type Op =
       target?: Ref;
       /** Omit only for the permanent, self-only form printed as [Permanent]. */
       until?: Duration;
+      /**
+       * The scoped permission (BT28-106): only for the **skill costs** of
+       * skills on cards this filter describes, wherever those cards are ("in
+       * any of your areas"). Absent is every energy price, as before.
+       */
+      forSkillsOf?: CardFilter;
+      /** With `forSkillsOf`: at most this many of the cards stand in on one payment ("1 or 2" is 2). */
+      max?: number;
+      /** With `forSkillsOf`: the permission is used once per turn — the [Permanent] line is spent for the turn when it pays. */
+      oncePerTurn?: true;
     }
   /**
    * What a [Counter: Play] does to the card it is answering (9-6). `instead`

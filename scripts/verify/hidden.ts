@@ -183,5 +183,29 @@ if (ENGINE !== "rules") {
     assert.equal(act(t, line), undefined, "face down, it has no colour to pay it with");
   }
 
+  // ── BT28-106: Hidden Mode cards as energy, for one kind of skill cost ───
+  {
+    def("HM-BELMOD", { ...DEFS["L-RED"], colors: ["White"], back: undefined, skill: "[Permanent] When paying the skill cost of skills on white ≪God≫ cards in any of your areas, once per turn you can use 1 Hidden Mode card in your Battle Area as energy." });
+    def("HM-GOD", { colors: ["White"], traits: ["God"], skill: "[Activate: Main]{2}: Draw 1 card." });
+    def("HM-MORTAL", { colors: ["White"], skill: "[Activate: Main]{2}: Draw 1 card." });
+    let s = arenaG({ battle: ["HM-GOD", "HM-MORTAL", "HM-WHITE", "HM-WHITE"], energy: ["V1"] });
+    const leader = leaderOf(s, "p1");
+    s.cards[leader].cardId = "HM-BELMOD";
+    const god = findG(s, "p1", "battle", "HM-GOD");
+    const mortal = findG(s, "p1", "battle", "HM-MORTAL");
+    const [w1, w2] = zoneOf(s, "p1", "battle").filter((id) => s.cards[id].cardId === "HM-WHITE");
+    assert.equal(act(s, god), undefined, "one energy and nothing face down: {2} is not there");
+    s.cards[w1].hidden = true;
+    s.cards[w2].hidden = true;
+    assert.ok(act(s, god), "a Hidden Mode card stands in for the second energy");
+    assert.equal(act(s, mortal), undefined, "only for the skill costs of white ≪God≫ cards");
+    s = playG(s, act(s, god)!);
+    if (s.prompt.kind === "payCost") s = playG(s, { ...(s.prompt.action as Action), pay: s.prompt.options[0].rest } as Action);
+    assert.deepEqual([w1, w2].map((id) => s.cards[id].mode).sort(), ["active", "rest"], "at most 1 of them, rested where it stands");
+    s.cards[zoneOf(s, "p1", "energy")[0]].mode = "active";
+    assert.equal(act(s, god), undefined, "once per turn: the second Hidden Mode card does not pay again");
+    assertConsistentG(s);
+  }
+
   for (const id of TEMP) delete DEFS[id];
 }

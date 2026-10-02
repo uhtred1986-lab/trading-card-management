@@ -1051,13 +1051,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Battle Area" (BT3-039) — the card is rested where it stands, as one energy
   // of its own colours, and never moves.
   //
-  // Only the **unscoped** permission is read. Five cards in the catalog print
-  // something in this family and four of them scope it — to the cards whose
-  // cost is being paid ("when paying the energy cost of blue ≪Demon Realm≫
-  // cards in your hand", BT28-031/032), to one play ("when playing this card",
-  // BT17-065), or to a count per turn (BT28-106). A scope this op cannot carry
-  // is a permission wider than the card prints, which is the one thing a
-  // reading must never be (ground rule 5), so those stay unread.
+  // Only the **unscoped** permission is read here. Five cards in the catalog
+  // print something in this family and four of them scope it — to the cards
+  // whose cost is being paid ("when paying the energy cost of blue ≪Demon
+  // Realm≫ cards in your hand", BT28-031/032), to one play ("when playing this
+  // card", BT17-065), or to skill costs and a count per turn (BT28-106, read
+  // whole as one sentence by `compile/index.ts`'s `scopedPayWith`). A scope
+  // this op cannot carry is a permission wider than the card prints, which is
+  // the one thing a reading must never be (ground rule 5), so those stay unread.
   if (/^use this card to pay energy costs?(?: even)?(?: when (?:it's|it is|this card is) in your battle area)?$/.test(t)) {
     return [{ op: "payWith" }];
   }

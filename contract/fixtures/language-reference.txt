@@ -1729,7 +1729,7 @@
     {
       "name": "payWith",
       "class": "primitive",
-      "signature": "{\"op\":\"payWith\",\"as\"?:\"energy\"|\"Red\"|\"Blue\"|…,\"target\"?:TARGET,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"payWith\",\"as\"?:\"energy\"|\"Red\"|\"Blue\"|…,\"target\"?:TARGET,\"until\"?:DURATION,\"forSkillsOf\"?:FILTER,\"max\"?:N,\"oncePerTurn\"?:true|false}",
       "fields": [
         {
           "name": "as",
@@ -1760,10 +1760,28 @@
           "required": false,
           "nullable": false,
           "type": "duration"
+        },
+        {
+          "name": "forSkillsOf",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
+        },
+        {
+          "name": "max",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "oncePerTurn",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
       "sentence": "this card may be rested to pay an energy cost as energy, wherever it is",
-      "doc": "a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — \"[Permanent] You can use this card to pay energy costs even when it's in your Battle Area\" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours (\"as\":\"energy\") or of the colour named. Printed on the card itself this is [Permanent]-only and omits \"target\"/\"until\", the way \"altCost\" does; both are for a card granting the permission to others for a span. It is the *unscoped* permission only — a card usable as energy for some payments and not others is left unread rather than offered wider than it prints"
+      "doc": "a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — \"[Permanent] You can use this card to pay energy costs even when it's in your Battle Area\" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours (\"as\":\"energy\") or of the colour named. Printed on the card itself this is [Permanent]-only and omits \"target\"/\"until\", the way \"altCost\" does; both are for a card granting the permission to others for a span. With \"forSkillsOf\" it is scoped (BT28-106): only the **skill costs** of skills on cards that filter describes, wherever those cards are, at most \"max\" of the cards on one payment, and — with \"oncePerTurn\" — spent for the turn once it has paid. Any other scope (one play, the energy cost of cards in the hand) is left unread rather than offered wider than it prints"
     },
     {
       "name": "resolvingPlay",
