@@ -57,6 +57,12 @@ export interface ClarifyResult {
   ops: Op[];
   /** True when the program was well formed and has been saved against the card. */
   saved: boolean;
+  /**
+   * Why nothing was saved, when nothing was: `invalid` — the answer was not
+   * JSON or failed `validateProgram`; `empty` — a valid program with no steps,
+   * Claude's way of saying the step language cannot express it. Null when saved.
+   */
+  rejected: "invalid" | "empty" | null;
 }
 
 /** The rule row's fields this needs — the workbench passes a whole row, the sync a fresh one. */
@@ -118,11 +124,13 @@ export async function clarifyRule(db: Db, rule: RuleToClarify, explanation: stri
 
   const { output } = await recordRun<Clarification>(db, "arena_clarify", { ruleId: rule.id, cardId: rule.cardId, explanation: said || null }, res, undefined, MODEL);
 
-  let parsed: unknown = [];
+  // Unparseable JSON is an invalid answer, not an empty one: falling back to
+  // `[]` would pass the validator and read as "nothing to express".
+  let parsed: unknown = null;
   try {
     parsed = JSON.parse(output.program);
   } catch {
-    parsed = [];
+    parsed = null;
   }
   const ok = validateProgram(parsed);
   const ops = ok ? (parsed as Op[]) : [];
@@ -146,5 +154,5 @@ export async function clarifyRule(db: Db, rule: RuleToClarify, explanation: stri
   // and it is worth having even when this one card could not be expressed.
   await setBrief(db, rule.id, { brief: output.brief, ...(ok && ops.length ? {} : { explanation: said || output.meaning }) });
 
-  return { clarification: output, ops, saved: ok && ops.length > 0 };
+  return { clarification: output, ops, saved: ok && ops.length > 0, rejected: !ok ? "invalid" : ops.length ? null : "empty" };
 }
