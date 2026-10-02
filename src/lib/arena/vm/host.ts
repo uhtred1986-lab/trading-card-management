@@ -660,7 +660,7 @@ const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "rest
 /**
  * The names `stepScript`'s `moveTo` pends right after `moveTo` above has
  * already fired the `moved` moment they are declared on — `placed`
- * (`moved(asPlay: false, to: battle)`), `addedToZEnergy` (`moved(to:
+ * (`moved(to: battle)`), `addedToZEnergy` (`moved(to:
  * zEnergy)`) and `leftBattleToDrop` (`moved(from: battle, to: drop)`) match
  * that moment as it is, so pending them again by name answered every such
  * skill twice: a card placed by a skill drew two cards for "when this card is

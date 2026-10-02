@@ -875,7 +875,7 @@ export interface MoveCause {
   position?: "top" | "bottom";
   /**
    * 9-6-9-4: was this the card being **played**? The declarations turn on it —
-   * `played` and `youPlayed` ask for `asPlay: true`, `placed` for `false` — so
+   * `played` and `youPlayed` ask for `asPlay: true` (`placed` asks nothing of it, 5-5-1) — so
    * every move states it rather than leaving it out to be read as either.
    * Playing a card is a `DEFINE ACTION` with a price (#145), so nothing says
    * `true` yet; the argument is here because the pattern asks for it.
