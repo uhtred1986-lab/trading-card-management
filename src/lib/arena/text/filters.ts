@@ -38,6 +38,13 @@ export interface CardFilter {
   notCharactersIncluding: string[];
   traits: string[];
   notTraits: string[];
+  /**
+   * "White <Baby> **or** ≪Brainwashed≫ cards" (BT29-114): a character or a
+   * trait, either will do — where `characters` and `traits` otherwise both
+   * have to hold. Read as both, the description asked for a Brainwashed Baby,
+   * a narrower card than the one printed.
+   */
+  characterOrTrait: boolean;
   names: string[];
   /**
    * "Choose up to 1 Battle Card **other than** {Vegito, Powers Combined}" — a
@@ -196,6 +203,7 @@ export function emptyFilter(): CardFilter {
     notCharactersIncluding: [],
     traits: [],
     notTraits: [],
+    characterOrTrait: false,
     names: [],
     notNames: [],
     namesIncluding: [],
@@ -283,6 +291,9 @@ export function parseFilter(text: string): CardFilter {
   });
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
+  // "<Baby> or ≪Brainwashed≫", "≪Brainwashed≫ and/or <Baby>": one of each kind
+  // joined by "or" is a choice between them, not both at once.
+  if (f.characters.length && f.traits.length && /<[^>]+>\s*(?:or|and\/or)\s+(?:a |an )?≪[^≫]+≫|≪[^≫]+≫\s*(?:or|and\/or)\s+(?:a |an )?<[^>]+>/i.test(t)) f.characterOrTrait = true;
   for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykbw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
   // "Cards other than Battle Cards" (BT23-140) says the same as "non-Battle
   // Cards" the long way, naming a *type* rather than the named cards `EXCLUDED`
@@ -522,10 +533,14 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   // of the day it was written.
   const partChars = f.charactersIncluding ?? [];
   const partNames = f.namesIncluding ?? [];
-  if ((f.characters.length || partChars.length) && !f.characters.some((c) => hasCharacter(d, c)) && !partChars.some((c) => characterIncludes(d, c))) return false;
+  const characterOk = !(f.characters.length || partChars.length) || f.characters.some((c) => hasCharacter(d, c)) || partChars.some((c) => characterIncludes(d, c));
+  const traitOk = !f.traits.length || f.traits.some((c) => hasTrait(d, c));
+  // "<Baby> or ≪Brainwashed≫" (BT29-114): either one answers.
+  if (f.characterOrTrait) {
+    if (!f.characters.some((c) => hasCharacter(d, c)) && !f.traits.some((c) => hasTrait(d, c))) return false;
+  } else if (!characterOk || !traitOk) return false;
   if (f.notCharacters.some((c) => hasCharacter(d, c))) return false;
   if ((f.notCharactersIncluding ?? []).some((c) => characterIncludes(d, c))) return false;
-  if (f.traits.length && !f.traits.some((c) => hasTrait(d, c))) return false;
   if (f.notTraits.some((c) => hasTrait(d, c))) return false;
   // Every name the card answers to: its printed one, plus any it was "also
   // treated as in all areas" (20-1). A card that gained {Planet M-2} is found

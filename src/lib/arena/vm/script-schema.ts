@@ -1693,6 +1693,9 @@ export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
   bits.push(...f.notColors.map((c) => `non-${c.toLowerCase()}`));
   bits.push(...f.traits.map((x) => `≪${x}≫`));
   bits.push(...f.notTraits.map((x) => `non-≪${x}≫`));
+  // "≪Brainwashed≫ or <Baby>" (BT29-114): the one word that makes it either,
+  // and the word `parseFilter` reads the flag back from.
+  if (f.characterOrTrait && f.traits.length && f.characters.length) bits.push("or");
   bits.push(...f.characters.map((x) => `<${x}>`));
   bits.push(...f.notCharacters.map((x) => `non-<${x}>`));
   bits.push(...f.names.map((x) => `{${x}}`));

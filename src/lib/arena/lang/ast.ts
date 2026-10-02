@@ -107,6 +107,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   notCharactersIncluding: "strings",
   traits: "strings",
   notTraits: "strings",
+  characterOrTrait: "boolean",
   names: "strings",
   notNames: "strings",
   namesIncluding: "strings",
