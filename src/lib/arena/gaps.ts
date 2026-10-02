@@ -120,6 +120,8 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   markerRemoved: "when a marker is removed from this card",
   restedBySkill: "when this card is rested by one of your skills",
   restedTheirsBySkill: "when your skill rests an opponent's card",
+  hiddenBySkill: "when this card is switched to Hidden Mode by one of your skills",
+  hiddenToDrop: "when this card goes from a Battle Area to the Drop in Hidden Mode",
   unionActivated: "when you activate a [Union] skill",
   unionAbsorbActivated: "when this card's [Union-Absorb] is activated",
   overlordActivated: "when you activate an [Overlord] skill",

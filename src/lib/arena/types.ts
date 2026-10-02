@@ -672,6 +672,10 @@ export type Trigger =
   | "restedBySkill"
   /** The other end of it: your skill resting one of theirs (1-10). */
   | "restedTheirsBySkill"
+  /** "When this card in a Battle Area is switched to Hidden Mode by one of your skills" (1-10-2, 23-5-2-4; BT28-116, BT28-119). */
+  | "hiddenBySkill"
+  /** "When this Hidden Mode card in a Battle Area is placed into its owner's Drop" (9-6-9-3's "unless specified otherwise"; BT28-117, BT28-118). */
+  | "hiddenToDrop"
   /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"

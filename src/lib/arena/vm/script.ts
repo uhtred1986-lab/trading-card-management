@@ -1726,7 +1726,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // switch (0-2-4-1).
         for (const id of h.resolveRef(frame, op.target)) {
           if (!HIDEABLE.has(h.areaOf(id) ?? "") || h.isHidden(id) === op.hidden) continue;
-          h.setHidden(id, op.hidden);
+          // The skill doing it is part of the moment, as with Rest Mode: "when
+          // this card in a Battle Area is switched to Hidden Mode by one of
+          // your skills" (BT28-116, -119).
+          h.setHidden(id, op.hidden, { card: frame.card, master });
           h.note(`${op.hidden ? "a Battle Card" : h.nameOf(id)} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
         }
         break;

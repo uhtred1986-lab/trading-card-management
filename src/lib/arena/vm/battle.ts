@@ -1019,6 +1019,9 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   if (forbids(ctx, game, state, "beKOd", { card })) return;
   const owner = state.cards[card].owner;
   const master = masterOf(game, state, card);
+  // 9-6-9-3: a card KO'd face down answers to its own KO only where a
+  // declaration asks for that (`matchTriggers`).
+  const wasHidden = !!state.cards[card].hidden;
   log(ev, { type: "ko", card, ...(cause === undefined ? {} : { by: cause }) });
   // 9-10: a KO is a departure a replacement may stand in front of — the one
   // a skill's `ko` loop settled on, or the first that answers (`vm/replace.ts`).
@@ -1026,7 +1029,7 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   // `to: drop` matches `koed`'s own pattern (`triggers.rules`) — the card has
   // already landed there by the time this fires, and that field is what lets
   // it still answer about itself (9-1-3-1's derived "fires while elsewhere").
-  fire(ctx, game, state, { event: "ko", card, controller: owner, args: { role: "koed", to: "drop" } });
+  fire(ctx, game, state, { event: "ko", card, controller: owner, args: { role: "koed", to: "drop", ...(wasHidden ? { hidden: true } : {}) } });
   if (cause !== undefined && cause !== card && state.cards[cause] && masterOf(game, state, cause) !== master) {
     fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), args: { role: "cause" } });
   }

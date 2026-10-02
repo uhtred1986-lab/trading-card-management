@@ -911,6 +911,8 @@ export interface MoveCause {
  */
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
   const from = fromZone(state, id);
+  // 9-6-9-3: whether it left face down, read before the move resets it.
+  const wasHidden = !!state.cards[id]?.hidden;
   // 9-10: a replacement stands in front of a card leaving play, and a
   // substitute keeps it where it is (9-10-1-1) — nothing below happens then.
   const route = leaveRoute(ctx, game, state, ev, id, from, asked, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}) });
@@ -936,7 +938,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
-  emit(ctx, game, state, ev, movement(result.move.card, from, to, result.move.owner, opts), shown);
+  emit(ctx, game, state, ev, movement(result.move.card, from, to, result.move.owner, opts, wasHidden), shown);
   // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in
   // play* in (9-1-3-1) — [Field] cares about the Battle Area, never a hand or
   // deck a card passes through on the way to being dealt. `hookBodiesFor`
@@ -968,7 +970,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
 }
 
 /** The `moved` moment, in the words `triggers.rules` asks about it in. */
-function movement(id: string, from: string | null, to: string, owner: PlayerId, opts: MoveCause): Moment {
+function movement(id: string, from: string | null, to: string, owner: PlayerId, opts: MoveCause, wasHidden = false): Moment {
   const cause: Record<string, PatternValue> = opts.by !== undefined ? { by: opts.by, byOpponent: opts.byOpponent ?? false } : {};
   const where: Record<string, PatternValue> = from !== null ? { from } : {};
   return {
@@ -978,7 +980,10 @@ function movement(id: string, from: string | null, to: string, owner: PlayerId, 
     // "when **you** play a card" means by you. For a card leaving play it is
     // its owner, which `moveCard` has already clamped the destination to.
     controller: owner,
-    args: { ...where, to, asPlay: opts.asPlay ?? false, ...cause },
+    // `hidden` only when it is true: "when this Hidden Mode card in a Battle
+    // Area is placed into its owner's Drop" (BT28-117) asks for it, and 9-6-9-3
+    // keeps every other self-moment of the card from answering (`matchTriggers`).
+    args: { ...where, to, asPlay: opts.asPlay ?? false, ...cause, ...(wasHidden ? { hidden: true } : {}) },
   };
 }
 

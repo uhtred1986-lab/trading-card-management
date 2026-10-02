@@ -3520,6 +3520,10 @@
       "words": "when this card goes from a Battle Area to the Drop"
     },
     {
+      "name": "hiddenToDrop",
+      "words": "when this card goes from a Battle Area to the Drop in Hidden Mode"
+    },
+    {
       "name": "dealtDamage",
       "words": "when this card deals damage"
     },
@@ -3622,6 +3626,10 @@
     {
       "name": "restedTheirsBySkill",
       "words": "when your skill rests an opponent's card"
+    },
+    {
+      "name": "hiddenBySkill",
+      "words": "when this card is switched to Hidden Mode by one of your skills"
     },
     {
       "name": "restedByAlliance",
