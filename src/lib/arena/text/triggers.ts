@@ -8,6 +8,7 @@
  * `engine/triggers.ts` (#118); nothing here reads a game.
  */
 import { effectHead, trailingTrigger } from "./cards";
+import { parseFilter } from "./filters";
 import type { Skill, Trigger } from "../types";
 
 /** Keyword [Auto] skills and the events that make them pending (22). */
@@ -199,6 +200,24 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when you activate an \[overlord\](?: skill)?/.test(t);
     case "overRealmPlayed":
       return /when you play a battle card using \[over realm\]/.test(t);
+    // 12-1-3: "activating an Extra Card" is using its [Activate] or [Counter]
+    // skill from the hand, unless the card says otherwise — so "from your
+    // hand" (BT29-029) and the bare wording are the same moment. The Extra is
+    // the subject, and the description becomes a condition on it, so — like
+    // `youPlayed` — one the compiler cannot read whole must not fire at all:
+    // "…with an original energy cost of 2 **and the [Field] skill**", "…from
+    // your hand **by paying the cost**", "the [Activate: Battle] skill on a red
+    // Extra … in your hand **or Drop Area**" are left as gaps.
+    case "extraActivated": {
+      const m = /^when you activate (?:an?|1) ([^,:]{0,90}?\bextra(?: cards?)?\b[^,:]{0,90}?)(?:,|$)/.exec(head);
+      if (!m) return false;
+      const said = m[1].replace(/\s+from your hand$/, "");
+      // "An energy cost of 1 **or** more" is one bound, not two kinds.
+      const kinds = said.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, "");
+      // "Original" (20-3-1) is a measure the filter reads as the current cost.
+      if (/ or |\[|\bby\b|\busing\b|\bwithout\b|\bfrom\b|\bin your\b|\boriginal\b/.test(kinds)) return false;
+      return !parseFilter(said).unreadable;
+    }
     // 1-10: the narrower [Alliance] wording just below is read first, so a card
     // that names the keyword is not also caught by this.
     case "restedBySkill":

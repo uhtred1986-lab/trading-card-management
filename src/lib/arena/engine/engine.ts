@@ -2914,6 +2914,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         // "When your opponent activates a [Counter] skill" (4-3): watched by
         // the other player's cards in play, with the counter card as subject.
         for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentCounter", id, action.card);
+        // 12-1-3: an Extra's [Counter] from the hand is "activating an Extra
+        // Card" too, watched by your own cards in play.
+        if (baseType(d) === "EXTRA") for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "extraActivated", id, action.card);
         // 9-7: a counter is itself an action that can be countered. The answer
         // is offered first and resolves first (9-7-3, descending order), which
         // is simply what the flow being a stack already does — and a
@@ -3274,6 +3277,10 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
       pay(s, ev, p, pm);
     }
     move(ctx, s, ev, card, "drop", p, { reason: "cost", reveal: true });
+    // 12-1-3: "when you activate a blue Extra from your hand" — watched by
+    // your cards in play, with the Extra as the subject. [Field] comes this
+    // way too, on its way to the Battle Area (22-3).
+    for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "extraActivated", id, card);
   } else payOrbs();
   s.resolving = { card, skill: sk.index, player: p };
   s.flow.unshift(

@@ -769,12 +769,21 @@ export function announce(state: VmState, ev: GameEvent[], player: PlayerId, line
  * is the whole difference from the forty hand-placed `pendTriggers` calls in
  * the engine this one is replacing.
  */
-export function activationMoment(state: VmState, player: PlayerId, line: ActivationLine): { event: string; card: string; controller: PlayerId; args: Record<string, string | boolean> } {
+export function activationMoment(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  player: PlayerId,
+  line: ActivationLine,
+): { event: string; card: string; controller: PlayerId; args: Record<string, string | boolean> } {
   return {
     event: "skillActivated",
     card: line.card,
     controller: player,
-    args: { kind: familyOf(line.skill.kind), from: findCard(state, line.card)?.zone ?? "", paid: true },
+    // `extra` is 12-1-3's "activating an Extra Card" (`extraActivated`): the
+    // card's type, read here for the same reason as `from` — once it is in
+    // the Drop it is still an Extra, but nothing else about the moment is.
+    args: { kind: familyOf(line.skill.kind), from: findCard(state, line.card)?.zone ?? "", paid: true, extra: isExtra(ctx, game, state, line.card) },
   };
 }
 

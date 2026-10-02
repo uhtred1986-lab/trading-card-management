@@ -744,7 +744,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // Read where the line was used **before** it is used: 12-2-2 sends an Extra
     // to the Drop as part of using it, and "from: hand" is what 22-10 asks
     // about.
-    const moment = activationMoment(state, player, line);
+    const moment = activationMoment(ctx, game, state, player, line);
     // A keyword's own move is a second moment as well — "when you activate an
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
     const keywordMoments = keywordActivationMoments(state, player, line);

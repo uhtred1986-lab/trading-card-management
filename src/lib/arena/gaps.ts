@@ -130,6 +130,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   unionAbsorbActivated: "when this card's [Union-Absorb] is activated",
   overlordActivated: "when you activate an [Overlord] skill",
   overRealmPlayed: "when you play a card using [Over Realm]",
+  extraActivated: "when you activate an Extra Card from your hand",
   spiritBoostPaid: "when you pay a [Spirit Boost] cost from this card",
   flippedFaceUp: "when a card in your life is flipped face up",
   offenseStart: "at the start of the offense step",
