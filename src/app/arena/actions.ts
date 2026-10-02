@@ -157,6 +157,9 @@ export async function syncAllFeedbackAction(): Promise<void> {
 // an `arena_feedback` row of kind `rule`, so `arena:feedback` still lists what
 // a person decided about a card.
 
+/** What the rule-writing actions answer a login that is not an admin (`isArenaAdmin`). */
+const RULES_ADMINS_ONLY = "only an admin can change a card's rule";
+
 async function noteRule(id: number, note: string, resolution: string | null) {
   const row = await ruleById(db, id);
   await db.insert(arenaFeedback).values({ kind: "rule", cardId: row?.cardId ?? null, skillIndex: row?.skillIndex ?? null, note, resolution });
@@ -175,6 +178,10 @@ async function noteRule(id: number, note: string, resolution: string | null) {
  * inside one press is not a press — and `arena:probe --fill` catches those up.
  */
 export async function confirmRuleAction(id: number): Promise<{ error: string | null }> {
+  // The four actions that write a rule refuse anyone but an admin (#469): the
+  // block builder makes writing one from a phone easy, so the server is where
+  // that is decided, not the button.
+  if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY };
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
   await confirmRule(db, id);
@@ -216,6 +223,7 @@ export async function reopenRuleAction(id: number): Promise<{ error: string | nu
  * misread.
  */
 export async function saveRuleAction(id: number, rule: unknown, explanation: string | null, patternWrong = false): Promise<{ error: string | null }> {
+  if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY };
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
   const read = readRule(rule, row.kind);
@@ -262,6 +270,7 @@ export async function setSpecifiedCostAction(cardId: string, text: string): Prom
 
 /** An empty program, owned by the person: the skill does nothing the engine should carry out. */
 export async function blankRuleAction(id: number, explanation: string | null): Promise<{ error: string | null }> {
+  if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY };
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
   await blankRule(db, id, explanation);
@@ -322,6 +331,7 @@ function filterInWords(f: RuleFilter): string {
  * those, and nothing that happened afterwards.
  */
 export async function confirmAllAction(rawFilter: unknown): Promise<{ error: string | null; confirmed: number; batchId: number | null }> {
+  if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY, confirmed: 0, batchId: null };
   const filter = readFilter(rawFilter);
   const batch = await confirmMatching(db, filter);
   if (!batch.rules.length) return { error: null, confirmed: 0, batchId: null };
