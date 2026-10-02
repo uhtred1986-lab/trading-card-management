@@ -2037,14 +2037,36 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // no single selector says — a filter would land on both or neither. The
   // player picks the kind first (20-2), and both branches bind the same name,
   // so "that card" after it is whichever was chosen.
-  if ((m = /^choose up to (\d+) of your leaders? or up to (\d+) of your (.+)$/.exec(t))) {
-    const other = parseTarget(`up to ${m[2]} of your ${m[3]}`);
-    if (!other || other.side !== "you" || other.area === "leader" || other.fromVar || other.special) return null;
+  //
+  // The same for any two kinds, either player's: "up to 1 of your white Battle
+  // Cards with an energy cost of 4 or less or up to 1 of your opponent's
+  // Battle Cards" (BT29-148). Read as the first half alone, the opponent's
+  // card was never on offer.
+  if ((m = /^choose up to (\d+) of ((?:your opponent's|your) .+?) or up to (\d+) of ((?:your opponent's|your) .+)$/.exec(t))) {
+    const half = (n: string, phrase: string): Selector | null => {
+      // A measure the filter grammar does not carry would be read away, and
+      // the half offered wider than printed (EX12-07's "with a specified cost
+      // of 2"): refused instead.
+      if (/\bspecified cost\b/.test(phrase)) return null;
+      // "Your [green] Leaders" (P-691) is the Leader, described or not.
+      const leader = /^your (?:(.+?) )?leaders?(?: cards?)?$/.exec(phrase);
+      if (leader) {
+        const filter = leader[1] ? filterFor(leader[1], "leader") : undefined;
+        return filter === null ? null : { side: "you", area: "leader", count: Number(n), upTo: true, ...(filter ? { filter } : {}) };
+      }
+      const sel = parseTarget(`up to ${n} of ${phrase}`);
+      return sel && !sel.fromVar && !sel.special && sel.take == null ? sel : null;
+    };
+    const first = half(m[1], m[2]);
+    const second = half(m[3], m[4]);
+    if (!first || !second) return null;
+    const printed = /^choose up to \d+ of (.+?) or up to \d+ of (.+)$/i.exec(clause.trim());
     const v = `c${c.n++}`;
-    const leader: Op = { op: "choose", sel: { side: "you", area: "leader", count: Number(m[1]), upTo: true }, as: v, reason: clause };
-    const battle: Op = { op: "choose", sel: other, as: v, reason: clause };
-    track(leader, c);
-    return [{ op: "chooseMode", modes: [{ label: "your Leader", ops: [leader] }, { label: /\bor up to \d+ of (your .+)$/i.exec(clause.trim())?.[1] ?? "the other card", ops: [battle] }], reason: clause }];
+    const a: Op = { op: "choose", sel: first, as: v, reason: clause };
+    const b: Op = { op: "choose", sel: second, as: v, reason: clause };
+    track(a, c);
+    const label = (s: string | undefined, fallback: string) => (s ? s.replace(/^your Leaders$/i, "your Leader") : fallback);
+    return [{ op: "chooseMode", modes: [{ label: label(printed?.[1], "the first"), ops: [a] }, { label: label(printed?.[2], "the other"), ops: [b] }], reason: clause }];
   }
 
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.
@@ -2601,7 +2623,13 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     if (c.lastNamed || c.last) {
       // "If **it's** a Battle Card" is the same sentence contracted, which the
       // reveal wordings print as often as the long form.
-      const seen = /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      // "If **the card sent to your Warp** is …" (BT29-105b) names the card the
+      // move just before it moved, which is "that card" said the long way.
+      // "…by this skill" is the price's card (P-628), not the effect's last
+      // move, so that form is left to the readings that know the price.
+      const seen = /\bby this skill\b/i.test(clause)
+        ? null
+        : /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card|the card (?:sent|placed|moved|added|returned) (?:to|into|in) (?:your|its owner'?s|their) [a-z-]+(?: area)?) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
       // "The chosen card" is the choice; "that card" is whatever was last
       // turned up, and only falls back to the choice when nothing was.
       const v = seen?.[1]?.toLowerCase() === "chosen" ? c.last : (c.lastNamed ?? c.last);
@@ -2668,7 +2696,13 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // at the front is emphasis only, and it stopped every pattern below from
     // recognising an otherwise ordinary sentence.
     const plain = clause.replace(/^((?:your opponent|they|you)\s+)?instead[,\s]+/i, "$1");
-    const said = c.replacing ? plain.replace(/[\s,]+instead[.\s]*$/i, "") : plain;
+    const unbounded = c.replacing ? plain.replace(/[\s,]+instead[.\s]*$/i, "") : plain;
+    // 9-10 once a turn: "…, once per turn you may switch 1 of your cards to
+    // Revealed Mode instead" (BT29-141). The replacement's program ends by
+    // switching its own [Permanent] off for the turn (`negateOwnSkill`), which
+    // is exactly "once per turn" for a standing rule.
+    const oncePerTurn = !!c.replacing && /^once per turn,?\s+/i.test(unbounded.trim());
+    const said = oncePerTurn ? unbounded.trim().replace(/^once per turn,?\s+/i, "") : unbounded;
     // 20-16: "your opponent **may** choose 1 of their Battle Cards and KO it"
     // — the offer is theirs to decline, and the "if they don't" after it reads
     // their answer. `compileClause` strips "you may" so every pattern sees a
@@ -2783,7 +2817,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       // not in a Battle Area at all, so the printed skill did nothing. It is a
       // substitute, and falls through to the branch below.
       const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self";
-      if (replaceEvent !== "life" && only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under) {
+      if (replaceEvent !== "life" && only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under && !oncePerTurn) {
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
         const filter = subject ? filterFor(subject, "battle") : undefined;
@@ -2813,10 +2847,11 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
         // hand, the way a revealed life card already does (`revealedTo`).
         // The card names no "face up" of its own; the reveal says it instead.
         const revealedAs = new Set(got.filter((o): o is Extract<Op, { op: "reveal" }> => o.op === "reveal").map((o) => o.as));
-        const withOps =
+        const revealedOps =
           replaceEvent === "life" && revealedAs.size
             ? got.map((o) => (o.op === "moveTo" && o.to === "hand" && "var" in o.target && revealedAs.has(o.target.var) ? { ...o, faceUp: true } : o))
             : got;
+        const withOps: Op[] = oncePerTurn ? [...revealedOps, { op: "negateOwnSkill", until: "turn" }] : revealedOps;
         push([
           {
             op: "replace",

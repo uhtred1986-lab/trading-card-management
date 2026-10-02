@@ -691,7 +691,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   negateAttack: { fields: [], sentence: "negate the attack" },
   negateCounter: { fields: [], sentence: "negate the counter being answered", doc: "negate the [Counter] this one is answering (9-7)" },
-  negateOwnSkill: { fields: [{ name: "until", type: { enum: ["turn", "battle"] } }], sentence: "this skill does not happen again", doc: '"negate this skill for the game / turn / battle" (9-1-5)' },
+  negateOwnSkill: { fields: [{ name: "until", type: { enum: ["turn", "battle"] } }], sentence: "this skill does not happen again{until? this {until}}", doc: '"negate this skill for the game / turn / battle" (9-1-5)' },
   forbid: {
     fields: [
       { name: "what", type: { enum: FORBIDDEN_ACTIONS }, required: true },

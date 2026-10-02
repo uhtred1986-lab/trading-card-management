@@ -71,6 +71,19 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
     reads("[Counter: Attack] Negate the attack, choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards and switch them to Hidden Mode, then switch all the cards switched to Hidden Mode by this skill to Revealed Mode at the end of the turn."),
     "negate the attack, choose any number of Battle Cards in your opponent's Battle Area, up to the number of your Hidden Mode cards, switch the chosen cards to Hidden Mode, at the end of the turn: switch the chosen cards to Revealed Mode",
   );
+  // BT29-148: two kinds, either player's, picked as a kind first.
+  const twoSides = one("[Activate: Main] Draw 1 card, choose up to 1 of your white Battle Cards with an energy cost of 4 or less or up to 1 of your opponent's Battle Cards and switch it to Hidden Mode.");
+  assert.deepEqual(twoSides.unsupported, []);
+  const modes = (twoSides.ops.find((o) => o.op === "chooseMode") as { modes: { ops: { sel: { side: string } }[] }[] }).modes;
+  assert.deepEqual(modes.map((m) => m.ops[0].sel.side), ["you", "opponent"], "the opponent's Battle Card is on offer too");
+  // BT29-107: "1 player's card" is either player's.
+  assert.equal(reads("[Auto] When this card is played, choose up to 1 player's card and switch it to Revealed Mode."), "choose up to 1 card either player has in play in Hidden Mode, switch the chosen cards to Revealed Mode");
+  // BT29-105b: "the card sent to your Warp" is that card.
+  assert.deepEqual(one("[Activate: Main] Choose up to 1 Hidden Mode card in your Battle Area and send it to its owner's Warp. Additionally, if the card sent to your Warp is a white <Vegeta: GT> card, play that card from your Warp.").unsupported, []);
+  // BT29-141: a replacement once per turn spends its own line.
+  const once = one("[Permanent] When this card would be removed from a Battle Area by an opponent's skill or KO'd, once per turn you may switch 1 of your cards to Revealed Mode instead.");
+  assert.deepEqual(once.unsupported, []);
+  assert.deepEqual((once.ops[0] as { with: { op: string }[] }).with.map((o) => o.op), ["choose", "hidden", "negateOwnSkill"]);
   // BT31-148.
   assert.deepEqual(one("[Auto] When your opponent's card is played, switch this card to Revealed Mode with 1 marker on it.").ops.map((o) => o.op), ["hidden", "addMarker"]);
 }
@@ -322,6 +335,30 @@ if (ENGINE !== "rules") {
     assert.equal(t.cards[either].hidden, true);
     assert.equal(handOf(t, "p2"), hand + 1, "switched to Hidden Mode by the opponent's skill: it answers");
     assertConsistentG(t);
+  }
+
+  // ── BT29-141: switch a card to Revealed Mode instead, once per turn ─────
+  {
+    def("HM-VEGITO", { skill: "[Permanent] When this card would be removed from a Battle Area by an opponent's skill or KO'd, once per turn you may switch 1 of your cards to Revealed Mode instead." });
+    let s = arenaG({ hand: ["HM-KOER", "HM-KOER"], energy: ["V1", "V1"], oppBattle: ["HM-VEGITO", "HM-WHITE", "HM-WHITE"] });
+    const vegito = findG(s, "p2", "battle", "HM-VEGITO");
+    for (const id of zoneOf(s, "p2", "battle")) if (id !== vegito) s.cards[id].hidden = true;
+    const answer = (st: EngineState): EngineState => {
+      for (let i = 0; i < 6 && st.prompt.kind !== "main"; i++) {
+        const p = st.prompt as { kind: string; player?: PlayerId };
+        if (p.kind === "chooseCards" && p.player === "p1") st = playG(st, { type: "choose", player: "p1", cards: [vegito] });
+        else if (p.kind === "chooseMode") st = playG(st, { type: "chooseMode", player: p.player!, index: 0 } as Action);
+        else if (p.kind === "chooseCards") st = playG(st, { type: "choose", player: p.player!, cards: [(st.prompt as { choice: { candidates: string[] } }).choice.candidates[0]] });
+        else st = playG(st, actsG(st)[0]);
+      }
+      return st;
+    };
+    s = answer(playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "HM-KOER") }));
+    assert.ok(zoneOf(s, "p2", "battle").includes(vegito), "the first KO is replaced");
+    assert.equal(zoneOf(s, "p2", "battle").filter((id) => s.cards[id].hidden).length, 1, "by switching a Hidden Mode card to Revealed Mode");
+    s = answer(playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "HM-KOER") }));
+    assert.ok(zoneOf(s, "p2", "drop").includes(vegito), "once per turn: the second KO goes through");
+    assertConsistentG(s);
   }
 
   for (const id of TEMP) delete DEFS[id];

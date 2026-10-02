@@ -119,7 +119,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(describeScript([{ op: "negate", target: { var: "t" }, what: "skills", until: "turn" }]), "negate the skills of the chosen cards for the turn");
   assert.equal(describeScript([{ op: "negate", target: { var: "t" }, what: "kind", kind: "auto", until: "turn" }]), "negate the [Auto] skills of the chosen cards for the turn");
   assert.equal(describeScript([{ op: "negate", what: "keyword", keyword: "Blocker" }]), describeScript([{ op: "negateKeyword", keyword: "Blocker" }]));
-  assert.equal(describeScript([{ op: "negate", what: "own", until: "battle" }]), "this skill does not happen again");
+  assert.equal(describeScript([{ op: "negate", what: "own", until: "battle" }]), "this skill does not happen again this battle");
   // …and `negateAs` is the one lowering: a left-out span is the game, a
   // left-out target is this card, and a scope missing its field is a note.
   assert.deepEqual(negateAs({ op: "negate", what: "skills" }), { op: "negateSkills", target: { sel: { special: "self" } }, until: "game" });

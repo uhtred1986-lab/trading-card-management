@@ -86,7 +86,10 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT28-074": [[/Battle\s+Areas\s+wit\s+their\s+skills/g, "Battle Areas with their skills"]],
   "BT28-141": [[/and\s+paly\s+this\s+card/g, "and play this card"]],
   "BT29-085": [[/1\s+or\s+more\s+blacks\s+cards/g, "1 or more black cards"]],
-  "BT29-105": [[/send\s+itto\s+its\s+owner's\s+Warp/g, "send it to its owner's Warp"]],
+  "BT29-105": [
+    [/send\s+itto\s+its\s+owner's\s+Warp/g, "send it to its owner's Warp"],
+    [/-only\s+crd,/g, "-only card,"],
+  ],
   "BT29-106": [[/Hidden\s+Mode\s+crds/g, "Hidden Mode cards"]],
   "BT30-048": [[/bottom\s+of\s+ther\s+owner's\s+deck/g, "bottom of their owner's deck"]],
   "BT30-073": [[/your\s+opponnt's\s+Battle\s+Cards/g, "your opponent's Battle Cards"]],

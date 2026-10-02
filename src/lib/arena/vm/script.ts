@@ -1158,7 +1158,7 @@ function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: nu
 
 /** One applicable replacement as `move()` takes it: a destination, or a program to run in the departure's place. */
 export function routeOf(c: ReplacementChoice): ReplacementResult {
-  return { ...(c.to ? { to: c.to } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master } : {}) };
+  return { ...(c.to ? { to: c.to } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}) } : {}) };
 }
 
 /**
@@ -1174,7 +1174,7 @@ function defers(r: ReplacementResult | null | undefined): boolean {
 
 /** The substitute as a program of its own: the card whose departure it replaced is its `subject` (9-10-1-1). */
 function substituteFrame(h: ScriptHost, id: string, r: ReplacementResult): ScriptFrame {
-  return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? h.masterOf(id), subject: id, replacing: id };
+  return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? h.masterOf(id), subject: id, replacing: id, ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) };
 }
 
 /** The name a `choose … sumTo` binds one card to while it reads that card's measure through `amount`. */

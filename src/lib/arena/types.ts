@@ -183,6 +183,8 @@ export interface ReplacementChoice {
   ops?: Op[];
   /** Whose skill it is, so the substitute's program runs for the right player. */
   master?: PlayerId;
+  /** The [Permanent] line saying it, so the substitute can spend that line ("once per turn … instead", BT29-141). */
+  skillIndex?: number;
 }
 
 /**
@@ -212,6 +214,8 @@ export interface ReplacementResult {
    * and ask. Only the two suspendable call sites set it.
    */
   deferred?: boolean;
+  /** The line the substitute's program belongs to (`ReplacementChoice.skillIndex`). */
+  skillIndex?: number;
 }
 
 /** A physical card in the game. `id` is unique per game ("p1#17"); `cardId` is the catalog id. */
@@ -1110,6 +1114,8 @@ export interface Replacement {
   source?: string;
   /** Whose skill it is, so the substitute's program runs for the right player. */
   master?: PlayerId;
+  /** The [Permanent] line saying it, handed to the substitute's frame (BT29-141's once per turn). */
+  skillIndex?: number;
 }
 
 /** Another way to pay for a card's [Counter] skill (5-3). */

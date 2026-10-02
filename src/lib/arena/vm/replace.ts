@@ -98,7 +98,7 @@ export function replacementChoices(
   for (const { source, r } of standing(ctx, game, state, id)) {
     if (r.ops && (applyingReplacement || opts.inSubstitute)) continue;
     if (!causeMatches(game, state, id, r, reason, opts.actor)) continue;
-    out.push({ source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
+    out.push({ source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
   }
   return out;
 }
@@ -121,7 +121,7 @@ export function lifeReplacementChoices(ctx: EngineContext, game: GameDefinition,
     const r = e.value as Replacement;
     if (r.kind !== "life" || r.master !== owner || (r.lifeTo && r.lifeTo !== dest)) continue;
     if (r.ops && applyingReplacement) continue;
-    out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
+    out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
   }
   return out;
 }
@@ -216,7 +216,7 @@ function runReplacement(ctx: EngineContext, game: GameDefinition, state: VmState
   if (applyingReplacement || !r.ops?.length) return;
   applyingReplacement = true;
   try {
-    stepScript(vmHost(ctx, game, state, ev), { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(game, state, id), subject: id, replacing: id });
+    stepScript(vmHost(ctx, game, state, ev), { ops: r.ops, ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? masterOf(game, state, id), subject: id, replacing: id, ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
   } finally {
     applyingReplacement = false;
   }
