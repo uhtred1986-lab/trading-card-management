@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { RuleBuilder } from "@/components/arena/rules/RuleBuilder";
+import { FullRuleBuilder } from "@/components/arena/rules/FullRuleBuilder";
 import { isArenaAdmin } from "@/lib/auth";
 import type { Rule } from "@/lib/arena/lang";
 import { openingFocus } from "@/lib/arena/lang/blocks";
@@ -50,7 +50,7 @@ export default async function BuildRulePage({ params, searchParams }: { params: 
           </p>
         </div>
       </div>
-      <RuleBuilder
+      <FullRuleBuilder
         ruleId={id}
         initialRule={rule}
         focusPath={focus ?? undefined}
