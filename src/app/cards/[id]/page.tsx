@@ -32,7 +32,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   if (!card) notFound();
 
   const printIds = card.prints.map((p) => p.id);
-  const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me, locations] = await Promise.all([
+  const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me, locations, inDecks, tcgUrl] = await Promise.all([
     cachedPricesForPrints(printIds),
     allocationForCards(db, [id]),
     lotsForCard(db, id),
@@ -43,11 +43,11 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     knownOwners(db),
     currentUser(),
     listLocations(db),
+    decksForCard(db, id),
+    cachedTcgUrl(id),
   ]);
-  const inDecks = await decksForCard(db, id);
   const owners = [...new Set([...ownersUsed, ...(me ? [me] : [])])];
   const a = alloc.get(id)!;
-  const tcgUrl = await cachedTcgUrl(id);
   const eur = (usd: number | null) => (usd == null ? "—" : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD"));
   const printOptions = card.prints.map((p) => ({ id: p.id, label: p.label, rarity: p.rarity }));
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";

@@ -195,6 +195,25 @@ export function attributeGaps(game: GameDefinition): AttributeGaps {
  * out and reported.
  */
 export function attrsOf(def: CardDef, game: GameDefinition): { attrs: Attrs; problems: AttrProblem[] } {
+  // Asked for every card on every value read (`attrsNow`), and the answer is a
+  // function of the two objects alone — so it is kept per pair, frozen because
+  // every caller now shares it. Keyed by identity, as `skillsOf` is: a test
+  // that redefines a card does so with a new object.
+  let byGame = ATTRS_OF.get(def);
+  if (!byGame) ATTRS_OF.set(def, (byGame = new WeakMap()));
+  let hit = byGame.get(game);
+  if (!hit) {
+    hit = readAttrs(def, game);
+    Object.freeze(hit.attrs);
+    Object.freeze(hit.problems);
+    byGame.set(game, Object.freeze(hit));
+  }
+  return hit;
+}
+
+const ATTRS_OF = new WeakMap<CardDef, WeakMap<GameDefinition, { attrs: Attrs; problems: AttrProblem[] }>>();
+
+function readAttrs(def: CardDef, game: GameDefinition): { attrs: Attrs; problems: AttrProblem[] } {
   const attrs: Record<string, AttrValue> = {};
   const problems: AttrProblem[] = [];
   for (const [name, declaration] of Object.entries(game.attributes)) {

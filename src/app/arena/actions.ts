@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { expireTagsFromAction } from "@/lib/cache/tags";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { arenaFeedback, arenaGames, cards } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
@@ -13,7 +13,7 @@ import { type Action, type GameState } from "@/lib/arena/types";
 import { printRule, readRule } from "@/lib/arena/lang";
 import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
-import { abandonGame, applyToGame, clearBeatsForTurn, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
+import { abandonGame, applyToGame, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode, type LoadedGame } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentOwner, currentUser, isArenaAdmin } from "@/lib/auth";
 import { flagTurn as storeFlagTurn, reopenFlag, reviewFlag, type FlagLine } from "@/lib/arena/review-store";
@@ -355,19 +355,38 @@ export async function recentBatches(): Promise<{ id: number; note: string; n: nu
   return rows.map((r) => ({ id: r.id, note: r.note, n: ((r.batch as ConfirmBatch | null)?.rules ?? []).length }));
 }
 
-/** You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler. */
-export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null }> {
+/**
+ * You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler.
+ *
+ * An answer that saved no program is an error, not a success: the record is
+ * unchanged, and saying "the draft is in the block above" over it sent the
+ * owner looking for a change that never happened. `question` is Claude's one
+ * question when it was not sure — returned whether or not a program was saved,
+ * since it is what to add to the explanation before asking again.
+ */
+export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null; question: string | null }> {
   const row = await ruleById(db, id);
-  if (!row) return { error: "no such rule" };
+  if (!row) return { error: "no such rule", question: null };
+  let error: string | null = null;
+  let question: string | null = null;
   try {
     const r = await clarifyRule(db, row, explanation);
-    await db.insert(arenaFeedback).values({ kind: "card", noteId: row.id, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution: r.clarification.meaning });
+    question = (!r.clarification.confident || !r.saved) && r.clarification.question.trim() ? r.clarification.question.trim() : null;
+    if (r.rejected) {
+      error =
+        r.rejected === "invalid"
+          ? "Claude's program did not pass the engine's validator, so nothing was saved — the record is unchanged. The compiler brief was kept."
+          : "Claude found nothing the engine's steps can express, so nothing was saved — the record is unchanged. The compiler brief was kept.";
+    }
+    const resolution = [r.rejected ? `no program saved (${r.rejected})` : null, r.clarification.meaning, question ? `Claude asks: ${question}` : null].filter(Boolean).join(" — ");
+    await db.insert(arenaFeedback).values({ kind: "card", noteId: row.id, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution });
   } catch (err) {
-    return { error: describeAiError(err) };
+    return { error: describeAiError(err), question: null };
   }
+  // Revalidated on a refusal too: the brief was written either way.
   revalidatePath("/arena/rules");
   revalidatePath("/arena/feedback");
-  return { error: null };
+  return { error, question };
 }
 
 export async function startGameForm(formData: FormData) {
@@ -482,21 +501,23 @@ export async function matchGameId(matchId: number): Promise<{ gameId: number | n
  * cards by asking for them.
  */
 export async function act(gameId: number, action: Action): Promise<{ error: string | null }> {
+  let applied: LoadedGame;
   try {
     const refused = await refuse(gameId, true);
     if (refused) return { error: refused };
     // Empty the animation queue first: from here until you act again, what
     // accumulates is one story — your move, then everything the server does
     // in reply. Not in a 1 v 1, where the queue is also the other device's
-    // only copy. See `src/lib/arena/beats.ts` and `clearBeatsForTurn`.
-    await clearBeatsForTurn(db, gameId);
-    await applyToGame(db, gameId, action);
+    // only copy. See `src/lib/arena/beats.ts` and `clearBeatsForTurn`; it is
+    // done in the same write as the move.
+    applied = await applyToGame(db, gameId, action, undefined, { clearBeats: true });
   } catch (err) {
     if (err instanceof IllegalAction) return { error: err.message };
     if (err instanceof StaleGame) return { error: err.message };
     throw err;
   }
-  const ran = await advance(db, gameId);
+  // Claude's reply starts from the board this request has just written.
+  const ran = await advance(db, gameId, undefined, applied);
   revalidatePath(`/arena/${gameId}`);
   return { error: ran.error };
 }
@@ -512,12 +533,18 @@ export async function act(gameId: number, action: Action): Promise<{ error: stri
  * about to do all of that again — a guard has no business paying for it twice.
  */
 async function refuse(gameId: number, needTurn: boolean): Promise<string | null> {
-  const [row] = await db.select({ mode: arenaGames.mode, p1User: arenaGames.p1User, p2User: arenaGames.p2User, state: arenaGames.state }).from(arenaGames).where(eq(arenaGames.id, gameId)).limit(1);
+  // `state->'prompt'`, not `state`: the whole board is the largest column on
+  // the row, and the one thing asked of it here is whose question is open.
+  const [row] = await db
+    .select({ mode: arenaGames.mode, p1User: arenaGames.p1User, p2User: arenaGames.p2User, prompt: sql<GameState["prompt"]>`${arenaGames.state}->'prompt'` })
+    .from(arenaGames)
+    .where(eq(arenaGames.id, gameId))
+    .limit(1);
   if (!row || !isVersus(row.mode)) return null;
   const seat = seatOf(row, await currentUser());
   if (!seat) return "this is not your game";
   if (!needTurn) return null;
-  const prompt = (row.state as GameState).prompt;
+  const prompt = row.prompt;
   if ("player" in prompt && prompt.player && prompt.player !== seat) return "it is not your turn";
   return null;
 }

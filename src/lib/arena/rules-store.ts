@@ -65,7 +65,11 @@ export async function loadRules(db: Db, cardIds: string[]): Promise<RuleRow[]> {
  * which is what `arena:draft` is for.
  */
 export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<Record<string, CardScripts>> {
-  const rows = await loadRules(db, Object.keys(defs));
+  return rulesFromRows(await loadRules(db, Object.keys(defs)), defs);
+}
+
+/** `rulesFor`'s reading of rows already fetched — for a caller that fetches them beside the cards rather than after (`games.ts`'s `loadGame`). */
+export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): Record<string, CardScripts> {
   const out: Record<string, CardScripts> = {};
   for (const row of rows) {
     const d = defs[row.cardId];

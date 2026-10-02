@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { breakdown, movers, summarise, valuedLots } from "@/lib/collection/queries";
+import { cachedPriceSource } from "@/lib/cache/reads";
 import { lastSyncRuns } from "@/lib/sync";
 import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { formatCents, formatPct } from "@/lib/money";
@@ -10,9 +11,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   // Valued once (the heavy price join) and handed to movers and breakdown.
-  const valued = await valuedLots(db);
+  // Prices from the cache (held until the next price sync); the lots themselves are read fresh.
+  const [valued, sync] = await Promise.all([valuedLots(db, { prices: cachedPriceSource }), lastSyncRuns(db)]);
   const { lots, usdEur } = valued;
-  const [mv, bd, sync] = await Promise.all([movers(db, 7, 8, valued), breakdown(db, {}, valued), lastSyncRuns(db)]);
+  const [mv, bd] = await Promise.all([movers(db, 7, 8, valued, cachedPriceSource), breakdown(db, {}, valued)]);
   const s = summarise(lots, usdEur);
   const gain = s.valueEurCents - s.spentEurCents;
   const catalogRun = sync.latest.get("catalog");

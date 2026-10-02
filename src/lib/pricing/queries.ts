@@ -41,6 +41,18 @@ const isNonFoilMarker = (m: string | null) => !m || /non-foil/.test(m);
 const FOIL_SUB_TYPES = ["Foil", "Holofoil"];
 const isFoilSubType = (s: string) => FOIL_SUB_TYPES.includes(s);
 
+/**
+ * The three price reads a collection valuation makes, as one value a caller
+ * can swap: the database's (`collection/queries.ts`) or the cache's
+ * (`@/lib/cache/reads`'s `cachedPriceSource`).
+ */
+export interface PriceSource {
+  usdEur(): Promise<number | null>;
+  prices(printIds: string[]): Promise<Map<string, PrintPrice>>;
+  /** `basePricesAsOf`: each card's base-print market price on a day (`movers`). */
+  pricesAsOf(cardIds: string[], asOf: string): Promise<Map<string, number>>;
+}
+
 /** Latest Normal/Foil price per print for the given prints. */
 export async function pricesForPrints(db: Db, printIds: string[]): Promise<Map<string, PrintPrice>> {
   const out = new Map<string, PrintPrice>();

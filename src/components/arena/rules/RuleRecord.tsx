@@ -195,8 +195,29 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   const [patternWrong, setPatternWrong] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  /** Claude's one question from the last "Ask Claude", when it was not sure. */
+  const [question, setQuestion] = useState<string | null>(null);
   const [orbsOpen, setOrbsOpen] = useState(false);
   const [orbs, setOrbs] = useState(r.specifiedCost?.entered ?? "");
+
+  // The chips are state seeded from the stored record, and the record is keyed
+  // by id alone — so a program written on the server (Claude's draft, the
+  // compiler's reading taken) reached the page on refresh and never the chips,
+  // which went on showing the old one as an unsaved edit. A new version is a
+  // new stored program: take it, and drop the edit made against the old one.
+  const [version, setVersion] = useState(r.version);
+  if (version !== r.version) {
+    setVersion(r.version);
+    setOps(r.ops);
+    setCond(r.cond);
+    setTrigger(r.trigger);
+    setCost(r.cost);
+    setJsonText(JSON.stringify(programOf(r.cond, r.ops), null, 2));
+    setJsonError(null);
+    setTextOpen(false);
+    setTextError(null);
+    setEditing(false);
+  }
 
   const rule: Rule = useMemo(() => ({ kind: r.tag, trigger, cost, cond, ops }), [r.tag, trigger, cost, cond, ops]);
   const program = useMemo(() => programOf(cond, ops), [cond, ops]);
@@ -224,6 +245,24 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
         if (advance && nav) router.push(nav.after, { scroll: false });
         else router.refresh();
       }
+    });
+  };
+
+  /**
+   * Not `run`: a refusal still refreshes (the brief was written either way),
+   * and Claude's question is kept beside the explanation box, whatever the
+   * outcome, so it can be answered there and asked again.
+   */
+  const askClaude = () => {
+    setError(null);
+    setDone(null);
+    setQuestion(null);
+    start(async () => {
+      const res = await explainRuleAction(r.id, explanation);
+      setQuestion(res.question);
+      if (res.error) setError(res.error);
+      else setDone(res.question ? "Claude's draft is in the block above, but it was not sure — see its question before confirming." : "Claude's draft is in the block above — confirm it if it is right.");
+      router.refresh();
     });
   };
 
@@ -647,11 +686,18 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
           </label>
           <textarea value={explanation} onChange={(e) => setExplanation(e.target.value)} rows={3} autoFocus className="w-full rounded-md border border-space-600 bg-space-900 p-2 text-xs text-space-100" placeholder="e.g. you pick one of your opponent's Battle Cards that costs 3 or less and put it on the bottom of their deck, but only if your leader is red" />
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={pending || !explanation.trim()} className={primary} onClick={() => run("Claude's draft is in the block above — confirm it if it is right.", () => explainRuleAction(r.id, explanation))}>
-              Ask Claude for a program
+            <button type="button" disabled={pending || !explanation.trim()} className={primary} onClick={askClaude}>
+              {question ? "Ask Claude again" : "Ask Claude for a program"}
             </button>
             <span className="text-[11px] text-space-500">Claude answers in the engine&rsquo;s own step language and writes the brief for the compiler. You still confirm it.</span>
           </div>
+          {question && (
+            <p className="rounded-lg border-l-2 border-ki-500 bg-space-900/60 p-2 text-[11px] text-space-200" aria-live="polite">
+              <span className="text-ki-300">Claude was not sure and asks: </span>
+              {question}
+              <span className="text-space-500"> — answer it in the box above and ask again.</span>
+            </p>
+          )}
         </div>
       )}
 

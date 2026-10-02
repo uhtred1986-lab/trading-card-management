@@ -49,7 +49,7 @@ import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
 import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
-import { forbiddenBy, hasKeyword, immunityRefusing, spendProhibitionUse } from "./program";
+import { forbiddenBy, hasKeyword, immunityRefusing, readingBoard, spendProhibitionUse } from "./program";
 import { whoseSkills } from "./script";
 import { chargesOf, describePayment } from "./costs";
 import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
@@ -645,7 +645,8 @@ function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, even
  * legacy engine does with it.
  */
 function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
-  return [...declaredLegalActions(ctx, definitionFor(state.game), state), ...promptAnswers(ctx, state)];
+  const game = definitionFor(state.game);
+  return readingBoard(ctx, game, state, () => [...declaredLegalActions(ctx, game, state), ...promptAnswers(ctx, state)]);
 }
 
 /**
@@ -756,6 +757,10 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
  */
 function rejectedActions(ctx: EngineContext, state: VmState, legal: LegalAction[]): RejectedAction[] {
   const game = definitionFor(state.game);
+  return readingBoard(ctx, game, state, () => rejectedActionsOf(ctx, game, state, legal));
+}
+
+function rejectedActionsOf(ctx: EngineContext, game: GameDefinition, state: VmState, legal: LegalAction[]): RejectedAction[] {
   const declared = declaredRejectedActions(ctx, game, state, legal);
   // `attack` is native (`vm/battle.ts`), so its own `whyNotAttack` reading is
   // merged in beside the declared ones — offered only at the "main" prompt,
@@ -830,7 +835,8 @@ function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: 
 
 /** The board, drawn from the declarations for one side of the table. */
 function boardView(ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
-  return vmBoardView(ctx, definitionFor(state.game), state, viewer, images);
+  const game = definitionFor(state.game);
+  return readingBoard(ctx, game, state, () => vmBoardView(ctx, game, state, viewer, images));
 }
 
 /** One batch of events as the board plays them back. */

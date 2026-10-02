@@ -29,17 +29,15 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();
-  const deck = await getDeck(db, id, await currentOwner());
+  // Read together: none of these needs another's answer, only the id.
+  // Archived places are listed too, so a deck already filed in one still shows
+  // where it is.
+  const owner = await currentOwner();
+  const [deck, suggestions, locations] = await Promise.all([getDeck(db, id, owner), suggestionsForDeck(db, id), listLocations(db)]);
   if (!deck) notFound();
   const conflicts = deck.isBuilt ? [] : await buildConflicts(db, id);
   const tiedUpIds = conflicts.filter((c) => c.reservedElsewhere > 0).map((c) => c.cardId);
-  // Archived places are listed too, so a deck already filed in one still shows
-  // where it is.
-  const [suggestions, locations, reserversMap] = await Promise.all([
-    suggestionsForDeck(db, id),
-    listLocations(db),
-    tiedUpIds.length ? decksReservingFor(db, tiedUpIds, id) : Promise.resolve(new Map<string, { id: number; name: string; quantity: number }[]>()),
-  ]);
+  const reserversMap = tiedUpIds.length ? await decksReservingFor(db, tiedUpIds, id) : new Map<string, { id: number; name: string; quantity: number }[]>();
   const reservers = Object.fromEntries(reserversMap);
   const deckLocation = locations.find((l) => l.id === deck.locationId) ?? null;
   const leader = deck.cards.find((c) => c.zone === "leader");

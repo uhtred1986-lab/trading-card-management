@@ -12,6 +12,18 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `ScriptHost` interface in `vm/script-host.ts`, the RNG in `vm/rng.ts`, and the state-free helpers
   (`programsOf`, token ids, `redirectOf`, `IllegalAction`, …) in `vm/common.ts`. `vm/` imports
   nothing from `engine/`. Doc: `docs/arena-code-map.md`.
+- **What the rules engine keeps between reads** (the performance pass of 2 Oct 2026): a skill
+  text's parse (`parseSkills`, per text) and a card's printed attributes (`attrsOf`, per
+  definition) are memoised and **frozen**, so a caller that mutates one throws instead of
+  corrupting every later read. The statics (`statics()` in `vm/program.ts`) are kept only for
+  the length of one `readingBoard(...)` call — `legalActions`, `rejectedActions`, `boardView`,
+  `candidatesOf`, `comboEligible` — so **nothing inside a `readingBoard` may change the state it
+  was handed in place**; try a move on a copy, as `restedAlready` and `apply` do. Measure an
+  engine change with a saved game replayed offline (load it once, then `engine.apply` its
+  `actions` from its `seed`) and compare every output before and after. Saved games
+  (`games.ts`): `loadGame` reads cards and rules in one round, keeps the art, and works
+  `legal` out on first read; `applyToGame` takes a game the caller already loaded and is
+  still guarded by its `version`.
 - **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/keywords`): the only
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
