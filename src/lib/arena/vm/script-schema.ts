@@ -220,6 +220,7 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
+  { name: "uses", type: "number" },
   {
     name: "all",
     type: "boolean",
@@ -246,6 +247,7 @@ const COST_MODIFIER_FIELDS: OpField[] = [
   { name: "alt", type: "ops" },
   { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
+  { name: "uses", type: "number" },
 ];
 const MODE = { enum: ["active", "rest"] } as const;
 /**
@@ -559,7 +561,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
         const scoped = op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
-        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}`;
+        // "The next time you activate …" (BT31-096): spent by the activations it reaches.
+        const budget = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
+        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${budget}`;
       }
       if (op.all) return `${describeRef(op.target)} has no specified cost`;
       const counts = new Map<string, number>();
@@ -568,7 +572,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const amt = typeof op.amount === "number" ? op.amount : 0;
       return `${describeRef(op.target)}'s specified cost is ${amt < 0 ? `${-amt} more` : `${amt} less`}${orbs ? ` (${orbs})` : ""}`;
     },
-    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.',
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. "uses" (with "skill"/"evolve" and a duration) is how many activations the change reaches before it ends — "the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}" (BT31-096) is uses 1, until "turn"; the activation that pays a line it reaches spends one, and "until" still ends it unused.',
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {
@@ -932,6 +936,7 @@ export function costModifierAs(op: Op): Op {
     ...(op.skillKind ? { skillKind: op.skillKind } : {}),
     ...(op.colors?.length ? { colors: op.colors } : {}),
     ...(op.until !== undefined ? { until: op.until } : {}),
+    ...(op.uses !== undefined ? { uses: op.uses } : {}),
   };
 }
 

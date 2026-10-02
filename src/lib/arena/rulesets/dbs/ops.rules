@@ -299,7 +299,7 @@ DEFINE OP negateOwnSkill
 -- ── a price is not a number (§2.5-4, #277) ──────────────────────────────────
 --
 -- `costModifier(target, amount?, what?, colors?, skillKind?, pay?, n?, for?,
--- alt?, orbs?, until?)` is the one primitive under both spellings —
+-- alt?, orbs?, until?, uses?)` is the one primitive under both spellings —
 -- `costModifierAs` (`vm/script-schema.ts`) reads a call back as whichever
 -- it stands for, and each row here is built to invert it exactly: `pay`
 -- present means `altCost` (the price replaced), absent means `costReduction`
@@ -311,9 +311,9 @@ DEFINE OP negateOwnSkill
 -- 1", "…combo cost…", "…Z-Energy cost…", the specified (coloured) half
 -- (owner's BT19-039 ruling), and a skill's own orb price scoped by kind.
 DEFINE OP costReduction
-  TAKES (target: ref, amount: amount, what: word, skillKind: word, colors: colors, until: duration)
+  TAKES (target: ref, amount: amount, what: word, skillKind: word, colors: colors, until: duration, uses: number)
   DO {
-    costModifier(target: $target, amount: $amount, what: $what, skillKind: $skillKind, colors: $colors, until: $until)
+    costModifier(target: $target, amount: $amount, what: $what, skillKind: $skillKind, colors: $colors, until: $until, uses: $uses)
   }
   text: "the target's price changes by the amount"
   doc: "what `costReduction` means: the general price change, with nothing about what replaces it"

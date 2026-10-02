@@ -1083,7 +1083,7 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
   const changes = [
     ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind)),
-    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind)),
+    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind) && (e.uses ?? 1) > 0),
   ];
   for (const e of changes) {
     const by = e.value as number;
@@ -1105,6 +1105,26 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
     }
   }
   return { total, orbs, either };
+}
+
+/**
+ * "The next time you activate …, reduce its skill cost by {b}" (BT31-096):
+ * the line has just been paid for, so every one-use change to its price that
+ * `skillOrbs` read for it is spent — one use off each, and a change with none
+ * left ends here rather than at its duration. Called where a line's price has
+ * been charged (`vm/activate.ts`' `resolveActivation`, `vm/battle.ts`'s
+ * counter), never while the menu is only being built, so offering a line
+ * spends nothing. The legacy engine's twin of the same name is in `engine.ts`.
+ */
+export function spendSkillCostUses(state: VmState, ev: GameEvent[], card: string, sk: Skill): void {
+  const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
+  const spent = state.effects.filter((e) => e.kind === channel && e.target === card && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)));
+  if (!spent.length) return;
+  for (const e of spent) e.uses = e.uses! - 1;
+  const ended = spent.filter((e) => e.uses === 0);
+  if (!ended.length) return;
+  state.effects = state.effects.filter((e) => !ended.includes(e));
+  for (const e of ended) log(ev, { type: "effectEnded", effect: e });
 }
 
 /** One orb of no named colour off a line's price: the first coloured one, then an either-orb, then a colourless one. The legacy `reduceAnyOrb`. */

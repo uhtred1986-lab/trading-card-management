@@ -74,7 +74,7 @@ import { describeScript, replacementPrompt, routeOf, type Op, type ScriptFrame }
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../compile";
-import { altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import type { VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
@@ -652,6 +652,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
       return "asked";
     }
     chargeCost(ctx, game, state, ev, action.player, plan.payment, card, ["energy"]);
+    spendSkillCostUses(state, ev, card, sk);
   }
   // 22-10-7: the battle writes the counter down before it is lost in the
   // Drop (staging spec §3.1) — the battle's own record, so a [Counter: Play]
