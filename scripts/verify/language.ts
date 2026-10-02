@@ -246,7 +246,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(describeTrigger(play.trigger), "when this card is played");
   assert.equal(play.unread.length, 0);
   assert.equal(play.pattern, "choose→ko", "drafts group by the shape of what the compiler produced");
-  assert.equal(play.reads, "choose up to 1 card in your opponent's Battle Area, KO the chosen cards");
+  assert.equal(play.reads, "choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards");
   // What the selector picks is part of the reading: two cards phrased alike
   // are told apart by their filter, and the worklist used to hide it.
   assert.equal(

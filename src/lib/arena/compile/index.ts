@@ -28,7 +28,7 @@ const KEYWORD_HANDLES_THE_LINE = new Set<KeywordSkill["name"]>(["Evolve", "Union
 
 
 export function compileSkill(skill: Skill): Script {
-  const sc = compileSkillText(skill);
+  const sc = narrowHiddenChoices(compileSkillText(skill));
   // A [Permanent] never resolves, so "for the turn" — the duration every
   // clause gets when it names none — was a lie on every op it emitted. The
   // static layer ignores `until`, so nothing played wrongly; but the stored
@@ -36,6 +36,54 @@ export function compileSkill(skill: Skill): Script {
   // The skill holds while its card is where it is valid (9-5-1), and `game`
   // is the nearest thing the language has to that.
   return skill.kind === "permanent" ? { ...sc, ops: holdForGame(sc.ops) } : sc;
+}
+
+/**
+ * 23-5 with 5-8-2-2: "choose 1 card in your Battle Area **and switch it to
+ * Revealed Mode**" can only be performed on a card that is in Hidden Mode,
+ * and the other way round. As a price that is the whole of it — a price is
+ * paid only if its action is performed completely, so picking a card already
+ * face up would buy the line for nothing — and as an effect it is the only
+ * pick that does anything. The choice is narrowed to the cards the switch can
+ * act on, read off the first switch the chosen cards meet: BT28-113 hides a
+ * card and reveals it again at the end of the turn, and it is the hiding that
+ * is chosen for. A choice that already describes its cards (a colour, a
+ * trait, "Battle Cards") is left alone: a Hidden Mode card has none of that
+ * information (23-5-2), so the description has already ruled them out.
+ */
+function narrowHiddenChoices(sc: Script): Script {
+  const chooses = new Map<string, Extract<Op, { op: "choose" }>>();
+  const first = new Map<string, boolean>();
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    if (o.op === "choose" && typeof o.as === "string") chooses.set(o.as, o as Extract<Op, { op: "choose" }>);
+    if (o.op === "hidden" && o.target && typeof o.target === "object" && "var" in o.target) {
+      const name = (o.target as { var: string }).var;
+      if (!first.has(name)) first.set(name, o.hidden as boolean);
+    }
+    for (const k of Object.keys(o)) if (k !== "sel" && k !== "target") walk(o[k]);
+  };
+  walk(sc.ops);
+  if (!first.size) return sc;
+  const narrowed = new Map<string, Extract<Op, { op: "choose" }>>();
+  for (const [name, hidden] of first) {
+    const ch = chooses.get(name);
+    if (!ch || ch.sel.filter || ch.sel.hidden !== undefined || ch.sel.special || ch.sel.fromVar || ch.sel.take != null) continue;
+    narrowed.set(name, { ...ch, sel: { ...ch.sel, hidden: !hidden } });
+  }
+  if (!narrowed.size) return sc;
+  const rebuild = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(rebuild);
+    if (!v || typeof v !== "object") return v;
+    const o = v as Record<string, unknown>;
+    if (o.op === "choose" && typeof o.as === "string" && narrowed.get(o.as) && chooses.get(o.as) === o) return narrowed.get(o.as);
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(o)) out[k] = k === "sel" || k === "target" ? o[k] : rebuild(o[k]);
+    return out;
+  };
+  return { ...sc, ops: rebuild(sc.ops) as Op[] };
 }
 
 function compileSkillText(skill: Skill): Script {

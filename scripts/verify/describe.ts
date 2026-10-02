@@ -45,7 +45,10 @@ import type { Selector } from "../../src/lib/arena/vm/script";
   assert.equal(sel("Z-extra card", { area: "battle", count: 99 }), "all Z-Extra Cards in your Battle Area");
   // No filter, and a filter that only repeats the area, name the cards alone.
   assert.equal(describeSelector({ side: "opponent", area: "battle", count: 1, upTo: true }), "up to 1 card in your opponent's Battle Area");
-  assert.equal(sel("battle card", { area: "battle", count: 2 }), "2 cards in your Battle Area");
+  assert.equal(sel("leader card", { area: "leader", count: 1 }), "1 card in your Leader Area");
+  // …except in the Battle Area, where a Hidden Mode card has no card type
+  // (23-5-2): "Battle Cards" there is a narrower choice than "cards".
+  assert.equal(sel("battle card", { area: "battle", count: 2 }), "2 Battle Cards in your Battle Area");
   // The take: a position in the area, said as the cards it takes.
   assert.equal(describeSelector({ side: "you", area: "deck", take: 1 }), "the top 1 card in your deck");
   // "Of the cards looked at" already has its noun.

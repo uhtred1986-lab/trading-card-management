@@ -145,9 +145,12 @@ function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   const out: string[] = [];
   const leader = state.sides[opp].zones.leader?.[0];
   if (leader) out.push(leader);
+  // 23-5-2 with 8-1-1: a Hidden Mode card has no card type, so a face-down
+  // card in a Battle or Unison Area is neither a Battle Card nor a Unison
+  // Card, and only those are attacked.
   const unison = state.sides[opp].zones.unison?.[0];
-  if (unison) out.push(unison);
-  for (const id of state.sides[opp].zones.battle ?? []) if (state.cards[id]?.mode === "rest") out.push(id);
+  if (unison && !state.cards[unison]?.hidden) out.push(unison);
+  for (const id of state.sides[opp].zones.battle ?? []) if (state.cards[id]?.mode === "rest" && !state.cards[id].hidden) out.push(id);
   return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }));
 }
 
@@ -158,6 +161,9 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   if (state.turn === 1 && player === state.firstPlayer) why.push({ kind: "timing", window: "nextTurn" });
   const inst = state.cards[attacker];
   if (!inst) return why;
+  // 8-1-1 is a Leader, Battle or Unison *Card* attacking, and a Hidden Mode
+  // card has no card type at all (23-5-2) — face down, it cannot attack.
+  if (inst.hidden) why.push({ kind: "other", detail: "a Hidden Mode card has no card type, so it cannot attack (23-5-2)" });
   if (inst.mode !== "active") why.push({ kind: "mode", card: attacker, mode: (inst.mode as "active" | "rest" | null) ?? "active" });
   const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker });
   if (banned) why.push({ kind: "forbidden", ...banned });
@@ -306,10 +312,10 @@ function joinsBattle(state: VmState, ...ids: string[]): void {
   for (const id of ids) if (state.cards[id]) state.cards[id].battledThisTurn = true;
 }
 
-/** 8-1-7: if the attacker or the guard has already left play, the battle skips straight to its end step. */
+/** 8-1-7: if the attacker or the guard has already left play — or, 23-5-4, been switched to Hidden Mode — the battle skips straight to its end step. */
 function battleIntact(state: VmState): boolean {
   const b = state.battle;
-  if (!b) return false;
+  if (!b || b.hiddenOut) return false;
   return inPlayZone(state, b.attacker) !== null && inPlayZone(state, b.guard) !== null;
 }
 

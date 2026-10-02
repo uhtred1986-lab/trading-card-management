@@ -1740,7 +1740,10 @@ export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
 function selectorWords(sel: Selector): string {
   if (!sel.filter) return "";
   const words = describeFilter(sel.filter);
-  const areas = (sel.areas?.length ? sel.areas : [sel.area]).filter(Boolean).map((a) => `${String(a).toLowerCase()} card`);
+  // A type that only repeats the area says nothing — "leader card" in the
+  // Leader Area. Not in the Battle Area: a Hidden Mode card there has no card
+  // type (23-5-2), so "Battle Cards" there is a narrower choice than "cards".
+  const areas = (sel.areas?.length ? sel.areas : [sel.area]).filter((a) => a && a !== "battle").map((a) => `${String(a).toLowerCase()} card`);
   return words === "card" || areas.includes(words) ? "" : words;
 }
 

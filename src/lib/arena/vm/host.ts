@@ -208,6 +208,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     setHidden: (id, hidden) => {
       card(id).hidden = hidden;
       log(ev, { type: "hidden", card: id, hidden });
+      // 21-16-2 / 9-9-2: the card keeps its Active or Rest Mode, but no
+      // continuous effect on it carries over the flip — a [Permanent] is
+      // read fresh, so only the effects written down here go.
+      dropEffectsOn(state, ev, id);
+      // 23-5-4: face down, an attack card or guard card is neither any more.
+      const b = state.battle;
+      if (hidden && b && (b.attacker === id || b.guard === id)) b.hiddenOut = true;
     },
     flip: (id) => {
       card(id).flipped = true;

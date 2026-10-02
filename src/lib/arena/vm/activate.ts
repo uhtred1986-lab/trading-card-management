@@ -81,7 +81,7 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
-import type { Cond, Op, Script, ScriptFrame, Selector } from "./script";
+import { HIDEABLE, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
@@ -638,6 +638,15 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         if ("var" in op.target) break;
         const cards = resolveRef(ctx, game, state, frame, op.target);
         if (!cards.length || cards.some((id) => state.cards[id].mode === op.mode)) return false;
+        break;
+      }
+      case "hidden": {
+        // 23-5 with 5-8-2-2: a switch is paid only by a card it can switch —
+        // in an area with that position (1-10-2) and not already in it. A
+        // chosen card has been narrowed to those by its own choice.
+        if ("var" in op.target) break;
+        const cards = resolveRef(ctx, game, state, frame, op.target);
+        if (!cards.length || cards.some((id) => state.cards[id].hidden === op.hidden || !HIDEABLE.has(findCard(state, id)?.zone ?? ""))) return false;
         break;
       }
       case "moveTo":

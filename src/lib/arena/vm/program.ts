@@ -527,7 +527,9 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
  */
 export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"]): boolean {
   const card = state.cards[id];
-  if (!card) return false;
+  // 23-5-2-1: a skill a Hidden Mode card gains is ignored, so a granted
+  // [Blocker] or [Barrier] is no more in force than a printed one.
+  if (!card || card.hidden) return false;
   for (const k of printedKeywords(ctx, state, id)) if (k.name === name) return true;
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
@@ -558,7 +560,8 @@ function printedKeywords(ctx: EngineContext, state: VmState, id: string): Keywor
  */
 export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordSkill[] {
   const card = state.cards[id];
-  if (!card) return [];
+  // 23-5-2-1, as in `hasKeyword`.
+  if (!card || card.hidden) return [];
   const out: KeywordSkill[] = printedKeywords(ctx, state, id);
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);

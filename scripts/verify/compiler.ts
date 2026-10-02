@@ -120,7 +120,7 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   assert.deepEqual(partial.unsupported, ["rearrange the stars in the sky"]);
 
   // The reading the inspector shows.
-  assert.equal(describeScript(ko.ops), "choose up to 1 card in your opponent's Battle Area, KO the chosen cards");
+  assert.equal(describeScript(ko.ops), "choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards");
   assert.equal(describeScript(draw.ops), "draw 1");
 }
 
@@ -1396,7 +1396,7 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   assert.deepEqual(each.ops, [
     {
       op: "draw",
-      n: { count: { side: "you", area: "battle", filter: undefined, count: 99, upTo: false, mode: undefined, hidden: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } },
+      n: { count: { side: "you", area: "battle", filter: parseFilter("Battle Cards"), count: 99, upTo: false, mode: undefined, hidden: undefined, fromVar: undefined, take: undefined, fromEnd: undefined, notSelf: undefined } },
     },
   ]);
 

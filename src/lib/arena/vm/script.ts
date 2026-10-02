@@ -1008,6 +1008,9 @@ export interface CardScripts {
 /** What the engine has for a card nobody drafted: nothing, and it says so. */
 export const NO_RULES: CardScripts = Object.freeze({ bySkill: {}, complete: false, unsupported: [] }) as CardScripts;
 
+/** 1-10-2: the areas whose cards are in Revealed Mode or Hidden Mode — the only places `hidden` can switch a card. */
+export const HIDEABLE: ReadonlySet<string> = new Set(["battle", "energy", "unison"]);
+
 /** The moment a keyword's own switch to Rest Mode is (`switchMode`'s `by`, #157): "switched to Rest Mode by an [Alliance] skill" (22-32-3). */
 const RESTED_BY_KEYWORD: Partial<Record<KeywordSkill["name"], Trigger>> = { Alliance: "restedByAlliance" };
 
@@ -1716,9 +1719,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
 
       case "hidden":
-        // 23-5-1: only a Battle Card in a Battle Area can be face down.
+        // 1-10-2: the Battle, Energy and Unison Areas are where a card is in
+        // Revealed or Hidden Mode — BT28-138 hides "1 of your white energy",
+        // BT28-110 reveals "1 of your energy". Anywhere else there is no such
+        // position to switch, and a card already in the named one does not
+        // switch (0-2-4-1).
         for (const id of h.resolveRef(frame, op.target)) {
-          if (h.areaOf(id) !== "battle" || h.isHidden(id) === op.hidden) continue;
+          if (!HIDEABLE.has(h.areaOf(id) ?? "") || h.isHidden(id) === op.hidden) continue;
           h.setHidden(id, op.hidden);
           h.note(`${op.hidden ? "a Battle Card" : h.nameOf(id)} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
         }
