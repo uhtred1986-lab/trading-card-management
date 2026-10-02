@@ -94,12 +94,12 @@ const SAMPLE: Record<string, unknown> = {
   modes: [{ label: "a", ops: [{ op: "draw", n: 1 }] }],
 };
 
-function sampleFor(t: FieldType): unknown {
+export function sampleFor(t: FieldType): unknown {
   if (typeof t === "object") return "enum" in t ? t.enum[0] : [];
   return SAMPLE[t];
 }
 
-function minimalInstance(key: string, keyField: "op" | "kind", spec: { fields: OpField[] }): Record<string, unknown> {
+export function minimalInstance(key: string, keyField: "op" | "kind", spec: { fields: OpField[] }): Record<string, unknown> {
   const out: Record<string, unknown> = { [keyField]: key };
   for (const f of spec.fields) if (f.required) out[f.name] = sampleFor(f.type);
   return out;
@@ -190,7 +190,7 @@ function refSelectorFlags(): RefSelectorFlag[] {
 // ── the card filter: its fields, in the printed words `describeFilter` makes ─
 
 /** One representative value per `FilterFieldType`, so every field's printed words can be read off the real `describeFilter` rather than guessed at. */
-function sampleFilterValue(t: FilterFieldType): unknown {
+export function sampleFilterValue(t: FilterFieldType): unknown {
   switch (t) {
     case "strings":
       return ["Saiyan"];

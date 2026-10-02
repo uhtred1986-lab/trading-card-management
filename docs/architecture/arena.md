@@ -77,6 +77,13 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and **never compiles card text at game time**; a row a person confirmed or corrected is never
   rewritten by a script. Doc: `docs/arena-code-map.md`, and for the owner's own walkthrough of
   correcting a record, `docs/arena-fixing-a-card.md`.
+- **The block builder** (`src/lib/arena/lang/blocks.ts`, `components/arena/rules/Blocks.tsx`,
+  `/arena/rules/build/[id]`, #469): a rule spelled out as WHEN · COST · IF · THEN blocks, **generated
+  from the schema** — what a clause may hold comes off `OP_SCHEMA`/`COND_SCHEMA`/`whenMoments()`/
+  `COST_ITEMS`, each blank's control off its `FieldType`, so a new row needs no builder change. One
+  component for the phone route and the workbench record; every edit goes through a `RulePath`
+  (`lang/path.ts`) into the one `Rule`. Proved by `scripts/verify/blocks.ts`; `/arena/rules/build/preview`
+  shows it on fixtures without a database (dev only).
 - **The probe** (`src/lib/arena/probe.ts`): says what the engine *does* with a rule, not what it
   should. Pure — no database, no network, and **no compiler**: `draft.ts` stays the only module
   that compiles card text. Doc: `docs/arena-code-map.md`.
