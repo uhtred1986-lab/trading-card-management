@@ -70,7 +70,7 @@ import { IllegalAction } from "./common";
 import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import { canCombo } from "../text/cards";
 import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../types";
-import { describeScript, replacementPrompt, routeOf, type Op, type ScriptFrame } from "./script";
+import { describeScript, replacementPrompt, routeOf, taxLabel, type Op, type ScriptFrame } from "./script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../compile";
@@ -82,7 +82,7 @@ import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./f
 import { canPayPriceProgram } from "./activate";
 import { fireHook } from "./hooks";
 import { lifeReplacementChoices } from "./replace";
-import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard } from "./program";
+import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
 import type { VmBattle, VmState } from "./state";
@@ -94,7 +94,7 @@ export function attackLegalActions(ctx: EngineContext, game: GameDefinition, sta
   const out: LegalAction[] = [];
   for (const attacker of eligibleAttackers(ctx, game, state, player)) {
     for (const target of targetsFor(ctx, game, state, player, attacker)) {
-      const label = `Attack ${nameOf(ctx, state, target)} with ${nameOf(ctx, state, attacker)} (${powerOf(ctx, game, state, attacker)} vs ${powerOf(ctx, game, state, target)})`;
+      const label = `Attack ${nameOf(ctx, state, target)} with ${nameOf(ctx, state, attacker)} (${powerOf(ctx, game, state, attacker)} vs ${powerOf(ctx, game, state, target)})${taxLabel(taxesOn(ctx, game, state, "attack", { player, card: attacker }).map((t) => t.ops))}`;
       out.push({ action: { type: "attack", player, attacker, target }, label });
     }
   }
@@ -121,6 +121,12 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
     throw new IllegalAction("that attack is not offered");
   }
   const attacker = action.attacker;
+  // 20-14-1: "can't attack unless … each time" — the price is paid first, by
+  // the attacking player and in their own frame, and the attack is taken after
+  // it. The programs go in front of the battle the attack opens, so they run
+  // before the Attack Step's first checkpoint resolves anything.
+  const taxes = taxesOn(ctx, game, state, "attack", { player: action.player, card: attacker });
+  for (const tax of taxes.reverse()) state.programs.unshift({ ops: tax.ops, ip: 0, vars: {}, card: attacker, master: action.player });
   setMode(ctx, game, state, ev, attacker, "rest");
   // 8-1, #156: the count [Dual Attack]'s `attacked` condition reads.
   state.cards[attacker].attacksThisTurn = (state.cards[attacker].attacksThisTurn ?? 0) + 1;
@@ -177,6 +183,10 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   if (inst.mode !== "active") why.push({ kind: "mode", card: attacker, mode: (inst.mode as "active" | "rest" | null) ?? "active" });
   const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker });
   if (banned) why.push({ kind: "forbidden", ...banned });
+  // 20-14-1: a tax nobody can pay is a ban — "if action B is not taken … action A can't be declared".
+  for (const tax of taxesOn(ctx, game, state, "attack", { player, card: attacker })) {
+    if (!canPayPriceProgram(ctx, game, state, player, attacker, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
+  }
   if (!why.length && !targetsFor(ctx, game, state, player, attacker).length) why.push({ kind: "target", reason: "nothing may be attacked" });
   return why;
 }

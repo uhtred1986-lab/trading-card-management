@@ -852,8 +852,10 @@ export type Op =
    * cards, or a `side` for one about a player ("your opponent can't attack
    * with Battle Cards"), optionally narrowed by a filter. `uses` allows that
    * many uses before the prohibition applies; `unless` is the escape condition.
+   * `unlessPay` is 20-14-1's other escape, a price: the acting player may run
+   * it, in their own frame, to take the action anyway — each time (`attack` only).
    */
-  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean; uses?: Amount; unless?: Cond }
+  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean; uses?: Amount; unless?: Cond; unlessPay?: Op[] }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
    * which only stops a skill from *choosing* it. `from`/`fromFilter` say
@@ -2035,7 +2037,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), player: players[0] },
             });
           break;
         }
@@ -2050,6 +2052,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             what: op.what,
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
+            ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,

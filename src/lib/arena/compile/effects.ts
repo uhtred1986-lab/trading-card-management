@@ -293,6 +293,9 @@ function durationOf(clause: string): Duration {
   // begins: the rest-lock wordings, which are the same duration said four ways.
   if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next charge phase|during your opponent's next turn/.test(t))
     return "nextTurn";
+  // "Your opponent can't attack until the end of **their** turn" (BT24-133):
+  // the pronoun is the opponent the clause names, so it is the same duration.
+  if (/\byour opponent\b/.test(t) && /until the end of their(?: next)? turn/.test(t)) return "nextTurn";
   return "turn";
 }
 
@@ -2301,10 +2304,27 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   const rest0 = m[2].trim();
   const unlessTail = /\s+unless\s+(.+)$/.exec(rest0);
   const unlessPlayBySkill = !!unlessTail && /^(?:it is |it's )?played by (?:card )?skills?$/.test(unlessTail[1].trim());
-  const unless = !unlessTail || unlessPlayBySkill ? null : parseConditionClause(`if ${unlessTail[1].trim()}`, true);
-  if (unlessTail && !unlessPlayBySkill && !unless) return null;
+  // 20-14-1: "…unless your opponent sends 2 cards from their hand to their
+  // Warp each time" is a price, not a condition (BT30-100).
+  const tax = unlessTail && !unlessPlayBySkill ? taxProgram(unlessTail[1].trim(), c) : null;
+  const unless = !unlessTail || unlessPlayBySkill || tax ? null : parseConditionClause(`if ${unlessTail[1].trim()}`, true);
+  if (unlessTail && !unlessPlayBySkill && !unless && !tax) return null;
   const rest = unlessTail && !unlessPlayBySkill ? rest0.slice(0, unlessTail.index).trim() : rest0;
   const withUnless = unless ? { unless: unless.cond } : {};
+  // The engine charges a tax on an attack only; on any other action the
+  // clause stays unread rather than becoming a ban or nothing at all.
+  if (tax) {
+    if (!/^attack\b/.test(rest) || /^attack (?:this card|it)\b/.test(rest)) return null;
+    const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
+    if (side) {
+      if (side !== tax.payer) return null;
+      if (/\bwith\b/.test(rest)) return null;
+      return [{ op: "forbid", what: "attack", side, until, unlessPay: tax.ops }];
+    }
+    const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
+    if (!target) return null;
+    return [{ op: "forbid", what: "attack", until, target, unlessPay: tax.ops }];
+  }
 
   // Deck-building restrictions are not rules of play (6-1); the engine takes
   // the deck it is given, so the clause is read and does nothing.
@@ -2402,6 +2422,40 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...withUnless }] : null;
   }
   return null;
+}
+
+/** The steps a tax may be made of: the price ops both engines can say in advance whether a player can pay (`canPayPriceProgram`). */
+const TAX_OPS = new Set<Op["op"]>(["discard", "mill", "choose", "moveTo", "switchMode", "removeMarker"]);
+
+/**
+ * 20-14-1's price: "your opponent sends 2 cards from their hand to their Warp
+ * each time" (BT30-100), read as the program the **payer** runs — said again
+ * from their chair ("send 2 cards from your hand to your Warp"), because the
+ * engine runs it with the acting player as "you". `payer` is who the clause
+ * names, so the caller can check it is the player the rule stops.
+ *
+ * Null for anything that is not "<player> <does something> each time", and
+ * for a price made of anything but the steps whose payability is known before
+ * they run: a tax the engine cannot promise is either a ban the card does not
+ * state or an attack that half-pays.
+ */
+function taxProgram(said: string, c: Ctx): { payer: Side; ops: Op[] } | null {
+  const m = /^(your opponent|they|you)\s+(.+?)\s+each time(?:\s+(?:until|for|during)\b.*)?$/.exec(said);
+  if (!m) return null;
+  const payer: Side = m[1] === "you" ? "you" : "opponent";
+  let clause = m[2];
+  if (payer === "opponent") {
+    // "sends" → "send", "pushes" → "push": the verb back to the imperative.
+    clause = clause.replace(/^(\w+?)(?:(?<=(?:ch|sh|ss|x))es|s)\b/, "$1");
+    clause = clause.replace(/\btheir\b/g, "your").replace(/\bthey\b/g, "you").replace(/\bthemselves\b/g, "yourself");
+  }
+  const ops = compileClause(clause, { ...c, choices: [...c.choices] });
+  if (!ops?.length || ops.some((o) => !TAX_OPS.has(o.op) || ("side" in o && o.side !== undefined && o.side !== "you"))) return null;
+  // The price runs with the acting card as "this card" (the attacker), and B
+  // is done before A is declared (20-14-1): "switch 1 of their Active Mode
+  // cards to Rest Mode" (BT24-133) paid with the attacker itself would leave
+  // nothing able to attack, so a choice in the price never offers it.
+  return { payer, ops: ops.map((o) => (o.op === "choose" ? { ...o, sel: { ...o.sel, notSelf: "card" as const } } : o)) };
 }
 
 function compileToken(clause: string, c: Ctx): Op[] | null {
