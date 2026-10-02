@@ -78,6 +78,13 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "ot
                 </Link>
                 <BoardSettingsSheet skin={skin} staging={staging} className={`${item} w-full text-left`} />
               </div>
+              {/* The phone's rule review (#472): every deck's open and draft skills, one at a time. */}
+              <Link href="/arena/rules/review" className={item}>
+                <span>
+                  Rule review
+                  <small className="block text-[11px] text-space-400">Check how the engine reads your cards&rsquo; text</small>
+                </span>
+              </Link>
               <Link href="/arena/feedback" className={item}>
                 <span className="sm:hidden">Report a problem</span>
                 <span className="hidden sm:inline">What you told the arena</span>
