@@ -1087,6 +1087,22 @@ function AmountChip({ value, path, bad, onChange, rule }: { value: unknown; path
           if (arg === "var") return <SelectChip key={f} label="bound name" value={(val as Loose)?.var as string} options={[...new Set([...bound, (val as Loose)?.var as string])]} optional={false} bad={false} onChange={(w) => put({ var: w })} />;
           return <RefChip key={f} value={val as Loose} path={path} optional={false} bad={false} onChange={put} rule={rule} />;
         })}
+      {spec?.per && (
+        <>
+          <span className={words}>÷</span>
+          <NumberChip
+            label="for every"
+            value={(v.per as number) ?? 1}
+            bad={false}
+            onChange={(n) => {
+              const next = { ...v };
+              if (n === undefined || n <= 1) delete next.per;
+              else next.per = n;
+              onChange(next);
+            }}
+          />
+        </>
+      )}
       {spec?.times && (
         <>
           <span className={words}>×</span>

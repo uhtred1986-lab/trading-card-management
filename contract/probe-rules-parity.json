@@ -639,6 +639,17 @@
     },
     "same": true
   },
+  "EVERY2#0": {
+    "legacy": {
+      "outcome": "inForce",
+      "digest": "1a31b1b4"
+    },
+    "rules": {
+      "outcome": "inForce",
+      "digest": "1a31b1b4"
+    },
+    "same": true
+  },
   "EVO#0": {
     "legacy": {
       "outcome": "fired",
