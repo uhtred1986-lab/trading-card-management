@@ -301,8 +301,40 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.ok(zoneOf(d, "p1", "battle").includes(dark));
   assert.equal(zoneOf(d, "p1", "drop").length, 0, "the whole Drop, black or not, to the Warp");
   assertConsistentG(d);
+
+  // "When you play this card using [Over Realm]" (22-15, 2 Oct 2026): the
+  // card's own [Auto] answers the play [Over Realm] makes, and an ordinary
+  // play of the same card is not that moment. Read as `played`, it was.
+  DEFS.ORSELF = {
+    ...DEFS.V1,
+    id: "ORSELF",
+    name: "ORSELF",
+    energyCost: 2,
+    skill: "[Over Realm 3]{1}\n[Auto] When you play this card using [Over Realm], draw 1 card.",
+  };
+  let plain = arenaG({ hand: ["ORSELF"], energy: ["V1", "V1"] });
+  const plainCard = findG(plain, "p1", "hand", "ORSELF");
+  const plainHand = zoneOf(plain, "p1", "hand").length;
+  r = step(plain, { type: "play", player: "p1", card: plainCard });
+  plain = r.s;
+  assert.ok(zoneOf(plain, "p1", "battle").includes(plainCard), "played the ordinary way");
+  assert.equal(zoneOf(plain, "p1", "hand").length, plainHand - 1, "an ordinary play is not the [Over Realm] play: nothing drawn");
+  assert.ok(!r.beats.includes("skill ORSELF"), "and the [Auto] is not announced");
+  assertConsistentG(plain);
+
+  const realm = arenaG({ hand: ["ORSELF"], energy: ["V1", "V1"] });
+  const realmCard = findG(realm, "p1", "hand", "ORSELF");
+  toDrop(realm, 3);
+  const realmHand = zoneOf(realm, "p1", "hand").length;
+  const orMove = actsG(realm).find((a) => a.type === "activate" && a.card === realmCard && !a.alt);
+  assert.ok(orMove, "the [Over Realm] move is offered");
+  r = step(realm, orMove);
+  assert.ok(zoneOf(r.s, "p1", "battle").includes(realmCard), "played by [Over Realm]");
+  assert.equal(zoneOf(r.s, "p1", "hand").length, realmHand, "played using [Over Realm]: the [Auto] draws once");
+  assert.equal(r.beats.filter((b) => b.startsWith("draw ")).length, 1, "once, not twice");
+  assertConsistentG(r.s);
   // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
-  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK"]) delete DEFS[id];
+  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK", "ORSELF"]) delete DEFS[id];
 }
 
 {

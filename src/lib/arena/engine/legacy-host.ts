@@ -210,7 +210,7 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       s.flow.unshift({ op: "script.step", frame: first });
     },
     playThen: (cards, opts, frame) => {
-      const steps: FlowStep[] = cards.map((card) => ({ op: "play.resolve" as const, card, player: opts.player, mode: opts.mode, onto: opts.onto, negated: opts.negated, ...(opts.markers !== undefined ? { markers: opts.markers } : {}) }));
+      const steps: FlowStep[] = cards.map((card) => ({ op: "play.resolve" as const, card, player: opts.player, mode: opts.mode, onto: opts.onto, negated: opts.negated, ...(opts.markers !== undefined ? { markers: opts.markers } : {}), ...(opts.using ? { using: opts.using } : {}) }));
       // #155: the shared word's legacy reading — the same two steps this
       // engine's own [Arrival]/[Revive]/[Successor] cases queue (no program of
       // this engine writes it).

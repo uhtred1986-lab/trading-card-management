@@ -25,7 +25,8 @@ import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecif
 import { cardDefFrom } from "../src/lib/arena/load";
 import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-preview";
 import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
-import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/text/cards";
+import { parseSkills, specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/text/cards";
+import { describeTrigger, triggersOf } from "../src/lib/arena/gaps";
 import { cardImage, cardImageSizeFor } from "../src/lib/catalog/card-image";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
@@ -805,4 +806,21 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.equal(cardImage(undefined, "thumb"), undefined);
   assert.equal(cardImageSizeFor(56), "thumb");
   assert.equal(cardImageSizeFor(128), "medium");
+}
+
+// ── "when this card is played using [Over Realm]" is its own moment (2 Oct 2026) ──
+// Read as `played` — its opening words — these skills fired on an ordinary
+// play as well (P-067, EX02-05, BT3-110 …). Both printed wordings, and the dark
+// variant, are `playedUsingOverRealm` and nothing else; the plain wording and
+// the watcher on other cards are untouched.
+{
+  const whenOf = (text: string) => triggersOf(parseSkills(text).find((sk) => sk.kind === "auto")!);
+  assert.deepEqual(whenOf("[Auto] When you play this card using [Over Realm], draw 1 card."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Auto] When this card is played using [Over Realm], activate this skill. Draw 2 cards."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Auto] When this card is played using [Dark Over Realm], draw 1 card."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Over Realm 4]{2}\n[Auto] When you play this card using [Over Realm], KO up to 1 of your opponent's Battle Cards."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Auto] When you play this card, draw 1 card."), ["played"], "the plain wording is still `played`");
+  assert.deepEqual(whenOf("[Auto] When this card is played, draw 1 card."), ["played"]);
+  assert.deepEqual(whenOf("[Auto] When you play a Battle Card using [Over Realm], draw 1 card."), ["overRealmPlayed"], "the watcher on other cards is unchanged");
+  assert.equal(describeTrigger(["playedUsingOverRealm"]), "when this card is played using [Over Realm]");
 }

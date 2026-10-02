@@ -411,6 +411,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         type: "amount",
         offCard: "the markers a Unison arrives with, paid for as its cost (13-2-3) — part of the arrival, so markers a [Empower] carries across land after them (22-45-3, #157); the `playUnison` move's own word",
       },
+      {
+        name: "using",
+        type: { enum: ["Over Realm"] },
+        offCard: "the keyword whose own move this play is — [Over Realm]'s (22-15) — carried onto the arrival's `moved` moment, so \"when this card is played using [Over Realm]\" (`playedUsingOverRealm`) answers that play and not an ordinary one",
+      },
     ],
     sentence: "play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}",
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',

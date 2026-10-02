@@ -119,6 +119,13 @@ export interface PlayOptions {
   markers?: number;
   /** 22-45-3: markers carried across from the Unison this one replaced ([Empower], #157) — read before it left. */
   carry?: { from: string; n: number };
+  /**
+   * 22-15: the keyword whose own move this play is ([Over Realm]'s `play …
+   * using: "Over Realm"`), carried onto the arrival's `moved` moment —
+   * "when this card is played using [Over Realm]" asks for it, and an ordinary
+   * play, which carries none, is never that moment.
+   */
+  using?: string;
 }
 
 /**
@@ -205,7 +212,7 @@ export function resolvePlay(
   // that card's place and the card goes under it (`stackOnto`); with the host
   // gone from the area, it is an ordinary play beside it — the legacy reading.
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to);
-  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true });
+  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}) });
 
   // 13-2-3, 22-45-3: the markers paid for it, then those carried across from
   // the Unison it replaced, each its own beat — the carried one naming the

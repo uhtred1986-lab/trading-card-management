@@ -706,6 +706,14 @@ export type Trigger =
   | "unionAbsorbActivated"
   | "overlordActivated"
   | "overRealmPlayed"
+  /**
+   * "When you play this card using [Over Realm]", "when this card is played
+   * using [Over Realm]" (22-15): the card's own arrival, and only when the play
+   * was [Over Realm]'s. An ordinary play of the same card is `played` and not
+   * this — compiled as `played`, these skills fired on every play (2 Oct 2026).
+   * `overRealmPlayed` is the watcher on *other* cards.
+   */
+  | "playedUsingOverRealm"
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**
@@ -956,7 +964,7 @@ export type FlowStep =
    * is played — `resolvePlay` asks then and requeues this same step with the
    * answer on it, so the step never asks twice.
    */
-  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game"; empowerCarry?: number }
+  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game"; empowerCarry?: number; using?: string }
   | { op: "script.step"; frame: ScriptFrame }
   | { op: "flipLeader"; card: string }
   | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger; x?: number }

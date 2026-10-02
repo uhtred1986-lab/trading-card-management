@@ -439,7 +439,9 @@ DEFINE KEYWORD "Over Realm"
   -- the Warp as the turn ends (for the dark variant too, which 22-23 does not
   -- ask for — the legacy engine's approximation, kept so the two agree), and
   -- it is played through the [Counter: Play] window. "when you play a card
-  -- using [Over Realm]" is the move's `keywordActivated`. One difference,
+  -- using [Over Realm]" is the move's `keywordActivated`; "when this card is
+  -- played using [Over Realm]" is the play's own `moved`, which `using:` marks
+  -- as this keyword's (`playedUsingOverRealm`). One difference,
   -- recorded: the refusal for too few cards does not add "(N there)".
   offer: "activate:main"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
@@ -452,7 +454,7 @@ DEFINE KEYWORD "Over Realm"
     delay(at: turnCleanup, ops: {
       moveTo(target: [self] IN you.battle, to: warp)
     }, label: "back to the Warp as the turn ends")
-    play(target: [self], counterWindow: true)
+    play(target: [self], counterWindow: true, using: "Over Realm")
   }
 
 -- 22-22

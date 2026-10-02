@@ -262,7 +262,9 @@ export interface ScriptHost {
   /**
    * `counterWindow` (#155): the play a keyword's own move makes opens the
    * [Counter: Play] window first (9-6). `"wait"` when the host stopped to ask
-   * the opponent, with `frame` held until the window closes.
+   * the opponent, with `frame` held until the window closes. `using` names the
+   * keyword whose own move this play is ([Over Realm], 22-15), carried onto
+   * the arrival so `playedUsingOverRealm` can tell it from an ordinary play.
    */
-  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true; markers?: number }, frame: ScriptFrame): "wait" | void;
+  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true; markers?: number; using?: string }, frame: ScriptFrame): "wait" | void;
 }

@@ -895,6 +895,8 @@ export interface MoveCause {
   byOpponent?: boolean;
   /** It arrives on top of this card, which goes under it next (`MoveOptions.onto`, 22-46-6). */
   onto?: string;
+  /** 22-15: the keyword whose own move played it ("Over Realm"), for `moved(using: …)`. Left out for every other move, and a pattern naming it does not match those. */
+  using?: string;
   /** Why it moves, in the shared interpreter's words — what a 9-10 replacement's `by` is matched against (`"ko"` for a KO). A step of the procedure gives none. */
   reason?: MoveReason;
   /** A 9-10 replacement the caller already decided on (`vm/replace.ts`): `null` for none, absent to look one up. */
@@ -983,7 +985,7 @@ function movement(id: string, from: string | null, to: string, owner: PlayerId, 
     // `hidden` only when it is true: "when this Hidden Mode card in a Battle
     // Area is placed into its owner's Drop" (BT28-117) asks for it, and 9-6-9-3
     // keeps every other self-moment of the card from answering (`matchTriggers`).
-    args: { ...where, to, asPlay: opts.asPlay ?? false, ...cause, ...(wasHidden ? { hidden: true } : {}) },
+    args: { ...where, to, asPlay: opts.asPlay ?? false, ...cause, ...(opts.using !== undefined ? { using: opts.using } : {}), ...(wasHidden ? { hidden: true } : {}) },
   };
 }
 

@@ -55,6 +55,15 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
 const EVERY_MAIN_START = /^at the (?:beginning|start) of (?:(?:you|your) (?:and|or) your opponent'?s main phases?|each player'?s main phase)\b/;
 
+/**
+ * 22-15: "When you play this card using [Over Realm]", "when this card is
+ * played using [Over Realm]" (P-067, EX02-05, BT3-110, BT31-095 …) — the
+ * card's own play, and only the one [Over Realm] made. Read as `played`, which
+ * its opening words are, these fired on an ordinary play too, so the phrase is
+ * taken out before `played` is looked for and is `playedUsingOverRealm` alone.
+ */
+const PLAYED_USING_OVER_REALM = /when (?:you play this card|this card is played) using \[(?:dark )?over realm[^\]]*\]/g;
+
 /** "When this card [in a Battle Area] is [played or] switched to X Mode [or Y Mode]", with no cause after it: the modes named, or "" for none. */
 function switchedTo(t: string): string {
   const m = /when this card(?: in (?:a|your) battle area)? is (?:played or )?switched to ((?:revealed|hidden) mode(?: or (?:revealed|hidden) mode)?)(?! by)/.exec(t);
@@ -90,9 +99,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // "When you play or combo with this card" and "when this card in your
       // hand is played or used in a combo" are this trigger and `comboed`
       // both — each fires at its own moment, and only one of them happens.
+      // "…using [Over Realm]" is `playedUsingOverRealm`'s and is not this.
       return /when (?:you play this card|this card is played)|when you activate this card|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
-        t,
+        t.replace(PLAYED_USING_OVER_REALM, ""),
       );
+    case "playedUsingOverRealm":
+      return new RegExp(PLAYED_USING_OVER_REALM.source).test(t);
     case "attacks":
       // "When this card attacks and KOs an opponent's Battle Card" is the KO, not the attack.
       // "When you attack or combo with this card" is this trigger and `comboed`
