@@ -45,7 +45,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!chosen) return fail("illegal_action", `there is no move ${index}; the board offers ${game.legal.length}`);
 
   try {
-    return ok(await applyAction(db, id, chosen.action, seat));
+    return ok(await applyAction(db, id, chosen.action, seat, game));
   } catch (err) {
     if (err instanceof IllegalAction) return fail("illegal_action", err.message);
     // The row changed between the read above and the write. Same answer as a
