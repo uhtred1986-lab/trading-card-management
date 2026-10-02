@@ -181,6 +181,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const result = moveCard(state, game, id, "drop", { under: host });
       if (!result.ok) return false;
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
+      // 23-2: going into the pile is a moment for the card itself — "when
+      // this card is placed under a <Vegito> card" (BT29-140).
+      emit(ctx, game, state, ev, { event: "placedUnder", card: id, controller: masterOf(game, state, host), args: { to: "under" } }, null);
       return true;
     },
     setMode: (id, mode, by) => {

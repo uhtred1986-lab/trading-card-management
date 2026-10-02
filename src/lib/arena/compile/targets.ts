@@ -479,6 +479,10 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // because the phrase says *both* whichever possessive happens to sit closest
   // to the area word ("you or your opponent's", "your and your opponent's").
   if (BOTH_SIDES.test(t)) side = "both";
+  // "Choose up to 1 **player's** card" (BT29-107): either player's — a card
+  // on the table (20-1-6), on whichever side.
+  const eitherPlayers = /\b(?:a|1|one|any|up to \d+) player'?s cards?\b/.test(t);
+  if (eitherPlayers) side = "both";
   if ((otherAdj || sweep) && !/\byour\b|\btheir\b|\bopponent\b|\byou control\b/.test(chosen)) side = "both";
   // "among them" / "of those cards" keeps working on what was just looked at.
   //
@@ -496,6 +500,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
   if (!allAreas && !area && !fromVar && filterFor(phrase, null)) area = "play";
+  if (!allAreas && !area && !fromVar && eitherPlayers) area = "play";
   // "You have a Hidden Mode card" (BT29-112) names no area, and a card is in
   // Hidden Mode only where it has that position at all (1-10-2): the Battle,
   // Energy and Unison Areas.

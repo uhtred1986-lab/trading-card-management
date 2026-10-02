@@ -1980,7 +1980,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
       "fields": [
         {
           "name": "what",
@@ -1988,7 +1988,8 @@
           "nullable": false,
           "type": "enum",
           "enumValues": [
-            "attackActive"
+            "attackActive",
+            "comboRest"
           ]
         },
         {
@@ -2011,7 +2012,7 @@
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
-      "doc": "the one rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1). The filter says *which* active cards — leave it out only when the card does"
+      "doc": "a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it). The filter says *which* cards — leave it out only when the card does"
     },
     {
       "name": "if",
@@ -3136,6 +3137,22 @@
       ]
     },
     {
+      "field": "characterOrTrait",
+      "type": "boolean",
+      "printed": "card",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
+      "field": "onlyCharacters",
+      "type": "boolean",
+      "printed": "card",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
       "field": "names",
       "type": "strings",
       "printed": "{Saiyan}",
@@ -3655,6 +3672,22 @@
     {
       "name": "hiddenBySkill",
       "words": "when this card is switched to Hidden Mode by one of your skills"
+    },
+    {
+      "name": "switchedRevealed",
+      "words": "when this card is switched to Revealed Mode"
+    },
+    {
+      "name": "switchedHidden",
+      "words": "when this card is switched to Hidden Mode"
+    },
+    {
+      "name": "placedUnder",
+      "words": "when this card is placed under a card"
+    },
+    {
+      "name": "deckOrHandToDrop",
+      "words": "when this card goes from your deck or hand to the Drop"
     },
     {
       "name": "restedByAlliance",

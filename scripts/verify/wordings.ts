@@ -1459,11 +1459,9 @@ import type { EngineState, Trigger } from "./harness";
   const attacks = actsG(s).filter((a) => a.type === "attack") as { attacker: string; target: string }[];
   const from = (cardId: string) => attacks.filter((a) => s.cards[a.attacker].cardId === cardId).map((a) => a.target);
 
-  if (!rulesGap("wordings: a [Permanent] that lets a card attack Battle Cards in Active Mode (8-1-1)", "`permit` is not read by the rules engine's static layer (`DEFERRED_STATICS.permit`)", "#150")) {
-    assert.ok(from("ACTIVE-HUNTER").includes(target), "8-1-1 is lifted for the card that says so");
-    assert.ok(from("PICKY-HUNTER").includes(target), "the carve-out still allows the ordinary case");
-    assert.ok(from("ACTIVE-HUNTER").includes(walled), "22-16 is about being chosen by a skill, not attacked");
-  }
+  assert.ok(from("ACTIVE-HUNTER").includes(target), "8-1-1 is lifted for the card that says so");
+  assert.ok(from("PICKY-HUNTER").includes(target), "the carve-out still allows the ordinary case");
+  assert.ok(from("ACTIVE-HUNTER").includes(walled), "22-16 is about being chosen by a skill, not attacked");
   assert.ok(!from("V1").includes(target), "…and only for that card");
   assert.ok(!from("PICKY-HUNTER").includes(walled), "…but not a [Barrier] card, which the text excludes");
   // The Leader is attackable by everyone, as always.

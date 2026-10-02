@@ -51,7 +51,7 @@ import type { EngineContext, GameEvent } from "../types";
 import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Op, type ScriptFrame } from "./script";
 import { redirectOf } from "./common";
 import { type AltCost, type Replacement } from "../types";
-import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
+import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
 import { other as otherPlayer } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { CardFilter } from "../text/filters";
@@ -159,7 +159,7 @@ export interface VmStatic {
   kind: ContinuousEffect["kind"] | "replaceLeave" | "skip";
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement | StandingSkip;
+  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement | StandingSkip | Permission;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
@@ -198,11 +198,10 @@ export interface PayerGrant {
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "if"] as const;
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "permit", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {
-  permit: "#150 — 8-1-1 the other way round: a permission widens what may be *attacked*, and the battle is Stage 6's",
   negateKeyword: "#153 — keywords are Stage 7's",
   gains: "#153",
 };
@@ -667,8 +666,17 @@ function collect(
       const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional, ...lifeFields }
-        : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields };
+        : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
+      continue;
+    }
+    // 8-1-1 / 5-7 lifted as a standing rule: "this card can attack Battle
+    // Cards in Active Mode", "you can use your mono-red Rest Mode ≪Saiyan≫
+    // cards in combos" (BT18-001). In play only, like every [Permanent].
+    if (op.op === "permit") {
+      if (!inPlayNow) continue;
+      const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}) };
+      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });
       continue;
     }
     // 20-19: a card that may be rested in the Energy Area's place, for every

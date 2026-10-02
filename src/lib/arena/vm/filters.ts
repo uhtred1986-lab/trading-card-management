@@ -90,6 +90,8 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   notCharactersIncluding: { reads: ["characters"] },
   traits: { reads: ["traits"] },
   notTraits: { reads: ["traits"] },
+  characterOrTrait: { reads: ["characters", "traits"] },
+  onlyCharacters: { reads: ["characters"] },
   names: { reads: ["name"], also: ["alsoNames"] },
   notNames: { reads: ["name"], also: ["alsoNames"] },
   namesIncluding: { reads: ["name"], also: ["alsoNames"] },
@@ -226,12 +228,18 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
 
   const characters = list(attrs.characters);
   const partChars = f.charactersIncluding ?? [];
-  if ((f.characters.length || partChars.length) && !f.characters.some((c) => same(characters, c)) && !partChars.some((c) => part(characters, c))) return false;
+  const traits = list(attrs.traits);
+  const characterOk = !(f.characters.length || partChars.length) || f.characters.some((c) => same(characters, c)) || partChars.some((c) => part(characters, c));
+  const traitOk = !f.traits.length || f.traits.some((t) => same(traits, t));
+  // "<Baby> or ≪Brainwashed≫" (BT29-114): either one answers.
+  if (f.characterOrTrait) {
+    if (!f.characters.some((c) => same(characters, c)) && !f.traits.some((t) => same(traits, t))) return false;
+  } else if (!characterOk || !traitOk) return false;
+  // "<Son Goku>-only" (BT29-108): nothing but the characters named.
+  if (f.onlyCharacters && !characters.every((c) => same(f.characters, c))) return false;
   if (f.notCharacters.some((c) => same(characters, c))) return false;
   if ((f.notCharactersIncluding ?? []).some((c) => part(characters, c))) return false;
 
-  const traits = list(attrs.traits);
-  if (f.traits.length && !f.traits.some((t) => same(traits, t))) return false;
   if (f.notTraits.some((t) => same(traits, t))) return false;
 
   // 20-1: every name the card answers to — its printed one, and any a skill

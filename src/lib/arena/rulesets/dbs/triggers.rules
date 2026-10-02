@@ -395,6 +395,35 @@ DEFINE TRIGGER hiddenBySkill
   BIND "self"
   text: "when this card is switched to Hidden Mode by one of your skills"
 
+-- §1-10-2 — when this card is switched to Revealed Mode, whatever switched it.
+-- In a Battle or Unison Area only: a card's skills are not valid in the
+-- Energy Area (9-1-3-1), though its energy can be switched there.
+DEFINE TRIGGER switchedRevealed
+  ON hiddenSwitched(hidden: false, in: [battle, unison])
+  BIND "self"
+  text: "when this card is switched to Revealed Mode"
+
+-- §1-10-2, §23-5-2-4 — when this card is switched to Hidden Mode, whatever
+-- switched it; answered by its front side, as `hiddenBySkill` is.
+DEFINE TRIGGER switchedHidden
+  ON hiddenSwitched(hidden: true, in: [battle, unison])
+  BIND "self"
+  text: "when this card is switched to Hidden Mode"
+
+-- §23-2 — when this card is placed under another card. The pile is a place
+-- of its own, so the card answers there although its skills are not valid
+-- under a card otherwise (23-2-2); the host is the card on top.
+DEFINE TRIGGER placedUnder
+  ON placedUnder(to: under)
+  BIND "self"
+  text: "when this card is placed under a card"
+
+-- §3-2, §3-3, §3-4 — when this card goes from your deck or hand to the Drop
+DEFINE TRIGGER deckOrHandToDrop
+  ON moved(from: [deck, hand], to: drop)
+  BIND "self"
+  text: "when this card goes from your deck or hand to the Drop"
+
 -- §22-32-3 — when this card is rested by an [Alliance] skill
 DEFINE TRIGGER restedByAlliance
   ON modeSwitched(by: Alliance, mode: rest)

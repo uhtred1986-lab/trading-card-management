@@ -1,4 +1,5 @@
 import type { CardFilter } from "../text/filters";
+import { keywordName } from "../text/cards";
 // `AmountAttr` and `CardAttr` are deliberately two lists, not one: `CardAttr`
 // is what `modifyAttr` may *write* (colours, characters, traits and names among
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
@@ -301,6 +302,9 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
+/** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
+
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
       { name: "sel", type: "selector", required: true },
@@ -548,7 +552,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
         if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
-          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r);
+          // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
+          // 2 less" alone would not say.
+          const orbs = op.colors?.length ? ` (${op.colors.map((c) => `{${c}}`).join("")})` : "";
+          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + orbs;
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
         const scoped = op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
@@ -691,7 +698,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   negateAttack: { fields: [], sentence: "negate the attack" },
   negateCounter: { fields: [], sentence: "negate the counter being answered", doc: "negate the [Counter] this one is answering (9-7)" },
-  negateOwnSkill: { fields: [{ name: "until", type: { enum: ["turn", "battle"] } }], sentence: "this skill does not happen again", doc: '"negate this skill for the game / turn / battle" (9-1-5)' },
+  negateOwnSkill: { fields: [{ name: "until", type: { enum: ["turn", "battle"] } }], sentence: "this skill does not happen again{until? this {until}}", doc: '"negate this skill for the game / turn / battle" (9-1-5)' },
   forbid: {
     fields: [
       { name: "what", type: { enum: FORBIDDEN_ACTIONS }, required: true },
@@ -731,9 +738,16 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '9-1-4: a card no skill may touch (stronger than "forbid":"beChosen", which only stops a skill choosing it); "from" and "fromFilter" narrow whose skills — "from":"you" its own controller\'s, "from":"opponent" the other player\'s, and "both" or no "from" at all every skill, the card\'s own side\'s included',
   },
   permit: {
-    fields: [{ name: "what", type: { enum: ["attackActive"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }],
-    sentence: "{target} can attack {filter:cards} in Active Mode{until}",
-    doc: 'the one rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1). The filter says *which* active cards — leave it out only when the card does',
+    fields: PERMIT_FIELDS,
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"permit">;
+      if (op.what === "comboRest") {
+        const cards = op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards";
+        return `you can use your ${cards} in Rest Mode in combos${forThe(op.until, r)}`;
+      }
+      return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
+    },
+    doc: 'a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it). The filter says *which* cards — leave it out only when the card does',
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
   chooseMode: {
@@ -971,6 +985,24 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [SEL, AT_LEAST, AT_MOST],
     sentence: (raw) => {
       const c = raw as CondOf<"count">;
+      // One named card asked about — "if the Battle Card being played has an
+      // energy cost of 3 or less" (BT29-112): the question is what it is, and
+      // "there are 1 or more the card being played" said neither.
+      if (c.sel.special && c.sel.special !== "onTop" && (c.atLeast ?? 1) === 1 && c.atMost === undefined) {
+        const what = describeSelector({ special: c.sel.special });
+        // Everything said about it, each as "is …": what it is, its mode, face
+        // down or up, and where it is (9-1-3-2's "this card in your hand").
+        const is: string[] = [];
+        if (c.sel.filter) {
+          const noun = describeFilter(c.sel.filter, { plural: false });
+          is.push(`${/^[aeiou]/i.test(noun) ? "an" : "a"} ${noun}`);
+        }
+        if (c.sel.mode) is.push(`in ${c.sel.mode} mode`);
+        if (c.sel.hidden !== undefined) is.push(c.sel.hidden ? "in Hidden Mode" : "in Revealed Mode");
+        const areas = c.sel.areas?.length ? c.sel.areas : c.sel.area ? [c.sel.area] : [];
+        if (areas.length) is.push(`in ${areas.map((a) => (a === "play" ? "play" : `your ${ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] ?? a}`)).join(" or ")}`);
+        return is.length ? `${what} is ${is.join(" and ")}` : `there is ${what}`;
+      }
       // "all" is the count this borrows to name the cards; what is left says
       // which and where, noun included — "blue cards in your Drop Area" (#478).
       const what = describeSelector({ ...c.sel, count: 99 }).replace(/^all /, "");
@@ -1009,7 +1041,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     sentence: (raw) => {
       const c = raw as CondOf<"leaderMatches">;
       const f = c.filter;
-      const bits = [...f.colors, ...f.characters.map((x) => `<${x}>`), ...f.traits.map((x) => `\u226a${x}\u226b`)];
+      // "-only" (BT29-108) and "<Baby> or ≪Brainwashed≫" are said as printed:
+      // without them the reading claims a wider Leader than the card does.
+      const chars = f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`);
+      const traits = f.traits.map((x) => `\u226a${x}\u226b`);
+      const bits = [...f.colors, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits])];
       return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${bits.join(" ") || f.names?.join("/") || "a match"}`;
     },
     doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
@@ -1693,7 +1729,11 @@ export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
   bits.push(...f.notColors.map((c) => `non-${c.toLowerCase()}`));
   bits.push(...f.traits.map((x) => `≪${x}≫`));
   bits.push(...f.notTraits.map((x) => `non-≪${x}≫`));
-  bits.push(...f.characters.map((x) => `<${x}>`));
+  // "≪Brainwashed≫ or <Baby>" (BT29-114): the one word that makes it either,
+  // and the word `parseFilter` reads the flag back from.
+  if (f.characterOrTrait && f.traits.length && f.characters.length) bits.push("or");
+  // "<Son Goku>-only" (BT29-108), on the last character named, as printed.
+  bits.push(...f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`));
   bits.push(...f.notCharacters.map((x) => `non-<${x}>`));
   bits.push(...f.names.map((x) => `{${x}}`));
   // In a sentence a token and a Z-card are the noun itself — "a {Majin}
@@ -2065,7 +2105,9 @@ function describeField(f: OpField, v: unknown, hint: string | undefined, r: Rend
       return inner || (hint ?? "");
     }
     case "keyword":
-      return (v as KeywordSkill).name;
+      // "[Double Strike]", not "[Strike]": the number is part of the name
+      // the card prints (22), and the reading said a different keyword.
+      return keywordName(v as KeywordSkill);
     case "filter":
       return v ? describeFilter(v as CardFilter) : (hint ?? "");
     case "modes":

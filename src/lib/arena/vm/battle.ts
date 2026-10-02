@@ -82,7 +82,7 @@ import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./f
 import { canPayPriceProgram } from "./activate";
 import { fireHook } from "./hooks";
 import { lifeReplacementChoices } from "./replace";
-import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, queryHookStatics, readingBoard } from "./program";
+import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
 import type { VmBattle, VmState } from "./state";
@@ -93,7 +93,7 @@ import type { VmBattle, VmState } from "./state";
 export function attackLegalActions(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId): LegalAction[] {
   const out: LegalAction[] = [];
   for (const attacker of eligibleAttackers(ctx, game, state, player)) {
-    for (const target of targetsFor(ctx, game, state, player)) {
+    for (const target of targetsFor(ctx, game, state, player, attacker)) {
       const label = `Attack ${nameOf(ctx, state, target)} with ${nameOf(ctx, state, attacker)} (${powerOf(ctx, game, state, attacker)} vs ${powerOf(ctx, game, state, target)})`;
       out.push({ action: { type: "attack", player, attacker, target }, label });
     }
@@ -141,7 +141,7 @@ const eligibleAttackers = (ctx: EngineContext, game: GameDefinition, state: VmSt
  * shape legacy's own `permits(ctx, s, a, "attackActive")` extends this list
  * with), this signature grows one rather than carrying it unread until then.
  */
-function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId): string[] {
+function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, attacker?: string): string[] {
   const opp = other(player);
   const out: string[] = [];
   const leader = state.sides[opp].zones.leader?.[0];
@@ -152,6 +152,15 @@ function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   const unison = state.sides[opp].zones.unison?.[0];
   if (unison && !state.cards[unison]?.hidden) out.push(unison);
   for (const id of state.sides[opp].zones.battle ?? []) if (state.cards[id]?.mode === "rest" && !state.cards[id].hidden) out.push(id);
+  // 8-1-1 lifted for this attacker: "this card can attack Battle Cards in
+  // Active Mode" — a resolved skill's for its span, or a [Permanent]'s.
+  if (attacker) {
+    const lifts = permissions(ctx, game, state, "attackActive").filter((p) => p.target === attacker);
+    for (const id of state.sides[opp].zones.battle ?? []) {
+      if (state.cards[id]?.mode !== "active" || state.cards[id].hidden) continue;
+      if (lifts.some((p) => permitted(ctx, game, state, p.filter, id))) out.push(id);
+    }
+  }
   return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }));
 }
 
@@ -168,7 +177,7 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   if (inst.mode !== "active") why.push({ kind: "mode", card: attacker, mode: (inst.mode as "active" | "rest" | null) ?? "active" });
   const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker });
   if (banned) why.push({ kind: "forbidden", ...banned });
-  if (!why.length && !targetsFor(ctx, game, state, player).length) why.push({ kind: "target", reason: "nothing may be attacked" });
+  if (!why.length && !targetsFor(ctx, game, state, player, attacker).length) why.push({ kind: "target", reason: "nothing may be attacked" });
   return why;
 }
 
@@ -720,7 +729,12 @@ function comboEligibleOnBoard(ctx: EngineContext, game: GameDefinition, state: V
   const b = state.battle;
   if (!b) return [];
   const hand = state.sides[player].zones.hand ?? [];
-  const field = (state.sides[player].zones.battle ?? []).filter((id) => id !== b.attacker && id !== b.guard && state.cards[id]?.mode === "active");
+  // 5-7 lifted: "you can use your … Rest Mode … cards in combos" (BT18-001,
+  // BT29-129) lets in the rested ones the description fits.
+  const rested = permissions(ctx, game, state, "comboRest").filter((p) => p.master === player);
+  const field = (state.sides[player].zones.battle ?? []).filter(
+    (id) => id !== b.attacker && id !== b.guard && (state.cards[id]?.mode === "active" || (state.cards[id]?.mode === "rest" && rested.some((p) => permitted(ctx, game, state, p.filter, id)))),
+  );
   return [...hand, ...field].filter((id) => {
     const inst = state.cards[id];
     const def = inst && ctx.defs[inst.cardId];

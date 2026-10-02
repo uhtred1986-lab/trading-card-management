@@ -785,3 +785,34 @@ export function withoutTrailingTrigger(effect: string, phrase: string): string {
   if (at < 0) return effect;
   return `${effect.slice(0, at).replace(/\s+$/, "")}${effect.slice(at + phrase.length)}`;
 }
+
+/** The printed name of a keyword, with its number folded in: [Double Strike], [Over Realm 4]. */
+export function keywordName(k: KeywordSkill): string {
+  switch (k.name) {
+    case "Strike":
+      return { 2: "Double Strike", 3: "Triple Strike", 4: "Quadruple Strike" }[k.x];
+    case "Attack":
+      return k.x === 2 ? "Dual Attack" : "Triple Attack";
+    case "Over Realm":
+      return `${k.dark ? "Dark " : ""}Over Realm ${k.x}`;
+    case "Swap":
+      return `Swap ${k.x}`;
+    case "Spirit Boost":
+      return `Spirit Boost ${k.x}`;
+    case "Z-Stack":
+      return `Z-Stack ${k.x}`;
+    case "Empower":
+      return `Empower ${k.color ?? ""} ${k.x}`.replace(/\s+/g, " ").trim();
+    case "Arrival":
+    case "Aegis":
+    case "Alliance":
+    case "Revive":
+      return `${k.name} ${k.colors.join("/")}`;
+    case "Evolve":
+      return k.variant;
+    case "Union":
+      return `Union-${k.variant}`;
+    default:
+      return k.name;
+  }
+}

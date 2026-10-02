@@ -279,6 +279,15 @@ function compileSkillText(skill: Skill): Script {
     // is sent to the Warp …, add **it** to your hand" means this card. Without
     // this, the first "it" of an [Auto] has nothing to point at and the whole
     // skill goes to the referee.
+    // "When this card is placed under a <Vegito> card with a [Union] skill"
+    // (BT29-140, 23-2): the host is the card on top of this one, and what the
+    // trigger says about it is a condition on that card.
+    const under = /^when this card is placed under (?:an? |your )?(.+?)[,.]?$/i.exec(trigger.trim());
+    if (under) {
+      const host = filterFor(under[1], null);
+      if (host === null) return { ops: [], unsupported: [trigger, ...clauses] };
+      if (host) triggerCond = { kind: "count", sel: { special: "onTop", filter: host }, atLeast: 1 };
+    }
     if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a

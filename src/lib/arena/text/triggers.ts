@@ -55,6 +55,12 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
 const EVERY_MAIN_START = /^at the (?:beginning|start) of (?:(?:you|your) (?:and|or) your opponent'?s main phases?|each player'?s main phase)\b/;
 
+/** "When this card [in a Battle Area] is [played or] switched to X Mode [or Y Mode]", with no cause after it: the modes named, or "" for none. */
+function switchedTo(t: string): string {
+  const m = /when this card(?: in (?:a|your) battle area)? is (?:played or )?switched to ((?:revealed|hidden) mode(?: or (?:revealed|hidden) mode)?)(?! by)/.exec(t);
+  return m ? m[1] : "";
+}
+
 /**
  * Read the "When …" clause of an [Auto] skill. Unrecognised wording never
  * pends — a skill the engine cannot place in time is better left out than
@@ -211,6 +217,20 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // 9-6-9-3: a face-down card's own leave-play [Auto] answers only when it
     // says so — "when this Hidden Mode card in a Battle Area is placed into
     // its owner's Drop" (BT28-117, BT28-118).
+    // The same switch with no cause named — any skill, either player's — and
+    // "…to Revealed Mode or Hidden Mode", which is both (BT29-116, -121, -122,
+    // -125, -142). "By one of your skills" is `hiddenBySkill`'s, not these.
+    case "switchedRevealed":
+      return /revealed/.test(switchedTo(t));
+    case "switchedHidden":
+      return /hidden/.test(switchedTo(t));
+    // 23-2: a card going into a pile under another (BT29-140).
+    case "placedUnder":
+      return /when this card is placed under\b/.test(t);
+    // Out of the deck or the hand into the Drop (BT29-109) — "in your deck or
+    // hand", either order, or just one of them.
+    case "deckOrHandToDrop":
+      return /when this card in your (?:deck|hand)(?: or (?:deck|hand))? is (?:placed|put|sent) (?:in|into) (?:its owner'?s|your) drop/.test(t);
     case "hiddenToDrop":
       return /when this hidden mode card(?: in (?:a|your) battle area)? is placed (?:in|into) (?:its owner'?s|your|a) drop/.test(t);
     case "addedToZEnergy":

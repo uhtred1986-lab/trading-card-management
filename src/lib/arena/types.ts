@@ -183,6 +183,8 @@ export interface ReplacementChoice {
   ops?: Op[];
   /** Whose skill it is, so the substitute's program runs for the right player. */
   master?: PlayerId;
+  /** The [Permanent] line saying it, so the substitute can spend that line ("once per turn … instead", BT29-141). */
+  skillIndex?: number;
 }
 
 /**
@@ -212,6 +214,8 @@ export interface ReplacementResult {
    * and ask. Only the two suspendable call sites set it.
    */
   deferred?: boolean;
+  /** The line the substitute's program belongs to (`ReplacementChoice.skillIndex`). */
+  skillIndex?: number;
 }
 
 /** A physical card in the game. `id` is unique per game ("p1#17"); `cardId` is the catalog id. */
@@ -412,8 +416,15 @@ export interface Prohibition {
  * parser cannot read fails rather than permitting everything.
  */
 export interface Permission {
-  what: "attackActive";
-  /** Which active cards may be attacked. Absent means any of them. */
+  /**
+   * `attackActive`: the card may attack Battle Cards in Active Mode (8-1-1).
+   * `comboRest`: its master may use Battle Cards in Rest Mode in combos (5-7)
+   * — "you can use your mono-red Rest Mode ≪Saiyan≫ cards in combos"
+   * (BT18-001, BT29-129); the target is the card granting it, and `filter`
+   * says which rested cards.
+   */
+  what: "attackActive" | "comboRest";
+  /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }
 
@@ -676,6 +687,14 @@ export type Trigger =
   | "hiddenBySkill"
   /** "When this Hidden Mode card in a Battle Area is placed into its owner's Drop" (9-6-9-3's "unless specified otherwise"; BT28-117, BT28-118). */
   | "hiddenToDrop"
+  /** "When this card is switched to Revealed Mode" (BT29-116, BT29-125), whatever switched it — and half of "…to Revealed Mode or Hidden Mode" (BT29-121, BT29-122). */
+  | "switchedRevealed"
+  /** "When this card is switched to Hidden Mode" with no cause named (BT29-142's "played or switched to Hidden Mode"), and the other half of "…Revealed Mode or Hidden Mode". */
+  | "switchedHidden"
+  /** "When this card is placed under a … card" (23-2, BT29-140): the card going into a pile; what it says about the host is a condition on the card on top. */
+  | "placedUnder"
+  /** "When this card in your deck or hand is placed into its owner's Drop" (BT29-109): out of a secret area, whatever put it there — a discard included. */
+  | "deckOrHandToDrop"
   /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"
@@ -1106,6 +1125,8 @@ export interface Replacement {
   source?: string;
   /** Whose skill it is, so the substitute's program runs for the right player. */
   master?: PlayerId;
+  /** The [Permanent] line saying it, handed to the substitute's frame (BT29-141's once per turn). */
+  skillIndex?: number;
 }
 
 /** Another way to pay for a card's [Counter] skill (5-3). */
