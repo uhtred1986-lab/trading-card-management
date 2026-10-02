@@ -60,7 +60,7 @@ function forbidLabel(f: Prohibition): string {
   const what = FORBIDDEN_IN_WORDS[f.what];
   const which = f.name ? `copies of ${f.name}` : f.filter ? describeFilter(f.filter) : "";
   const budget = f.uses != null ? ` ${f.uses === 1 ? "once more" : `${f.uses} more times`}` : "";
-  const escape = f.unless ? ` unless ${describeCond(f.unless)}` : "";
+  const escape = f.unless ? ` unless ${describeCond(f.unless)}` : f.pay?.length ? ` unless they first pay, each time: ${describeScript(f.pay)}` : "";
   // "…can't play **cards**" already names the object; a description of which
   // cards replaces that word rather than following it.
   return `can't ${which ? what.replace(/\s+cards?$/, "") : what}${which ? ` ${which}` : ""}${budget}${escape}`;
@@ -259,6 +259,7 @@ export function untilWords(until: EffectUntil, o: { master: PlayerId | null; vie
       return (viewersTurn && w.you ? w.you : w.text).replace("{them}", o.them);
     }
     case "permanent":
+    case "whileSourceInPlay":
       // Which card holds it up, or — with none named — "its card".
       return o.sourceName ? w.text.replace("{source}", o.sourceName) : (w.bare ?? w.text);
   }
@@ -268,5 +269,5 @@ export function untilWords(until: EffectUntil, o: { master: PlayerId | null; vie
 export function effectLine(e: EffectView, o: { viewer: PlayerId; them: string; self?: string }): string {
   const when = untilWords(e.until, { master: e.by, viewer: o.viewer, them: o.them, sourceName: e.sourceName });
   const from = e.source && e.source === o.self ? "its own [Permanent]" : e.sourceName;
-  return `${e.label} · ${when}${from && e.until !== "permanent" ? ` · from ${from}` : from && e.source === o.self ? ` · ${from}` : ""}`;
+  return `${e.label} · ${when}${from && e.until !== "permanent" && !(e.until === "whileSourceInPlay" && e.sourceName) ?` · from ${from}` : from && e.source === o.self ? ` · ${from}` : ""}`;
 }

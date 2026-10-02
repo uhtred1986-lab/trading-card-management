@@ -166,6 +166,7 @@ disagree or if a row is missing from either.
 | `negateOwnSkill` | macro over `negate` | Scope: the skill resolving now, for the turn, the battle or the game. |
 | `hidden` | macro over `modifyAttr` | Attribute `hidden`: Hidden Mode and Revealed Mode (23-5). |
 | `redirectAttack` | macro over `modifyAttr` | The guard is an attribute of the **battle in progress** (8-1, 22-4-2) — the second widening in §2.5. |
+| `swapBattle` | primitive | "Switch your card that's in a battle with …" (8-1-7-2). Not `redirectAttack`'s attribute: which seat changes — the attack card or the guard card — is the battle's answer at the moment it runs (whichever is the master's), so no call can name one attribute to set. The battle goes on with the new card; the old one stays where it is. |
 | `comboFrom` | macro over `move` + `negate` | Into the Combo Area with the cause `combo` (5-7), optionally with the card's skills negated. Declared since #137, the `negate` under `GIVEN $negated`; `comboFromAs` folds the two steps back into the one whose case checks 5-7-2 and pends the combo moments. |
 | `flip` | macro over `modifyAttr` | Attribute `flipped`: which face of a Leader is in play (22-2-4). |
 | `faceUp` | macro over `modifyAttr` | Attribute `faceUp` on a card in a Life Area (3-9-2-1). |

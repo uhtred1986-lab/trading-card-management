@@ -32,7 +32,7 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"modifyAttr","subject"?:"card"|"player"|"battle","target"?:TARGET,"side"?:"you"|"opponent","attr":"power"|"comboPower"|"colors"|…,"amount"?:AMOUNT,"values"?:["…"],"mode"?:"active"|"rest","sign"?:"add"|"remove","keyword"?:{"name":"Blocker"},"flag"?:true|false,"until"?:DURATION}
     the primitive under "power", "comboPower", "gains" and — since spec §2.5-1/§2.5-3 (#275) — "switchMode", "addMarker", "removeMarker", "grant", "hidden", "faceUp", "flip", "energyMarker" and "redirectAttack": one attribute of one subject, "amount" for a delta, "values" for the lists a card also counts as, and "mode"/"sign"/"keyword"/"flag" for the shapes those two have no room for. Those nine short spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean
   {"op":"power","target":TARGET,"amount":AMOUNT,"until":DURATION}
-    an amount may also be {"count":SELECTOR,"times":5000} (so much for each card), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)
+    an amount may also be {"count":SELECTOR,"times":5000} (so much for each card; add "per":2 for "for every 2 cards", rounded down), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)
   {"op":"comboPower","target":TARGET,"amount":AMOUNT,"until":DURATION}
   {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":DURATION}
   {"op":"copySkills","target"?:TARGET,"from":TARGET,"which"?:"all","skill"?:N,"only"?:"keyword","until":DURATION}
@@ -48,6 +48,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     Hidden Mode / Revealed Mode (23-5)
   {"op":"redirectAttack","target":TARGET}
     "switch the target of the attack to it" (22-4-2)
+  {"op":"swapBattle","target":TARGET}
+    "switch your card that's in a battle with this card / the chosen card" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its "when this card attacks / is attacked" are not made pending
   {"op":"comboFrom","target":TARGET,"negated"?:true|false}
     "use it in a combo from your Drop (with its skills negated)" (5-7)
   {"op":"flip","target":TARGET}
@@ -58,10 +60,10 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"removeMarker","target":TARGET,"n":AMOUNT}
   {"op":"token","name":"…","power":N,"comboCost":N,"comboPower":N,"colors":["Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"n":AMOUNT,"side"?:"you"|"opponent"}
     a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}
-  {"op":"costModifier","target"?:TARGET,"amount"?:AMOUNT,"what"?:"energy"|"skill"|"evolve"|"combo"|"zEnergy"|"specified","skillKind"?:"auto"|"activate"|"counter"|"permanent","colors"?:["any"|"Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"pay"?:"none"|"life"|"program"|"energy","n"?:N,"for"?:"counter"|"play","alt"?:[…],"orbs"?:["any"|"Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"until"?:DURATION}
+  {"op":"costModifier","target"?:TARGET,"amount"?:AMOUNT,"what"?:"energy"|"skill"|"evolve"|"combo"|"zEnergy"|"specified","skillKind"?:"auto"|"activate"|"counter"|"permanent","colors"?:["any"|"Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"pay"?:"none"|"life"|"program"|"energy","n"?:N,"for"?:"counter"|"play","alt"?:[…],"orbs"?:["any"|"Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"until"?:DURATION,"onto"?:TARGET,"uses"?:N}
     the primitive under "costReduction" and "altCost" (docs/arena-ruleset-spec.md §2.5-4): a price is not a number. "pay" present is the whole price replaced — "none"/"life"/"program"/"energy", with "alt" the program for "program" and "orbs" the reduced price for "energy" (altCost's own shape); "pay" absent is the number changed by "amount"/"what"/"colors"/"skillKind" (costReduction's). Those two spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean
-  {"op":"costReduction","target":TARGET,"amount":AMOUNT,"what"?:"energy"|"skill"|"evolve"|"combo"|"zEnergy"|"specified","skillKind"?:"auto"|"activate"|"counter"|"permanent","colors"?:["any"|"Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"until"?:DURATION}
-    [Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.
+  {"op":"costReduction","target":TARGET,"amount":AMOUNT,"what"?:"energy"|"skill"|"evolve"|"combo"|"zEnergy"|"specified","skillKind"?:"auto"|"activate"|"counter"|"permanent","colors"?:["any"|"Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"until"?:DURATION,"uses"?:N,"onto"?:TARGET}
+    [Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card, and "onto" scopes an "evolve" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. "uses" (with "skill"/"evolve" and a duration) is how many activations the change reaches before it ends — "the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}" (BT31-096) is uses 1, until "turn"; the activation that pays a line it reaches spends one, and "until" still ends it unused.
   {"op":"negateKeyword","keyword":"Awaken"|"Wish"|"Field"|…,"target"?:TARGET}
     take one named keyword away ("negate this card's [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"
   {"op":"gains","traits"?:["…"],"characters"?:["…"],"colors"?:["Red"|"Blue"|"Green"|"Yellow"|"Black"|"White"|"Colorless"],"names"?:["…"],"target"?:TARGET}
@@ -81,12 +83,12 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     negate the [Counter] this one is answering (9-7)
   {"op":"negateOwnSkill","until"?:"turn"|"battle"}
     "negate this skill for the game / turn / battle" (9-1-5)
-  {"op":"forbid","what":"attack"|"beAttacked"|"block"|…,"until":DURATION,"target"?:TARGET,"side"?:"you"|"opponent","filter"?:FILTER,"sameNameAsSelf"?:true|false,"bySkill"?:true|false,"uses"?:AMOUNT,"unless"?:COND}
-    forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "what" is one of "attack" | "beAttacked" | "block" | "play" | "activateSkill" | "activateCounter" | "combo" | "beKOd" | "beKOdBySkill" | "beChosen" | "switchToActive" | "placeEnergy" | "beMovedBySkill" | "beNegated"
+  {"op":"forbid","what":"attack"|"beAttacked"|"block"|…,"until":DURATION,"target"?:TARGET,"side"?:"you"|"opponent","filter"?:FILTER,"sameNameAsSelf"?:true|false,"bySkill"?:true|false,"uses"?:AMOUNT,"unless"?:COND,"unlessPay"?:[…]}
+    forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; only "what":"attack" takes one so far (BT30-100). "what" is one of "attack" | "beAttacked" | "block" | "play" | "activateSkill" | "activateCounter" | "combo" | "beKOd" | "beKOdBySkill" | "beChosen" | "switchToActive" | "placeEnergy" | "beMovedBySkill" | "beNegated"
   {"op":"immune","until":DURATION,"target"?:TARGET,"from"?:"you"|"opponent","fromFilter"?:FILTER}
     9-1-4: a card no skill may touch (stronger than "forbid":"beChosen", which only stops a skill choosing it); "from" and "fromFilter" narrow whose skills — "from":"you" its own controller's, "from":"opponent" the other player's, and "both" or no "from" at all every skill, the card's own side's included
-  {"op":"permit","what":"attackActive"|"comboRest","until":DURATION,"target":TARGET,"filter"?:FILTER}
-    a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it). The filter says *which* cards — leave it out only when the card does
+  {"op":"permit","what":"attackActive"|"comboRest"|"fieldBattle","until":DURATION,"target":TARGET,"filter"?:FILTER}
+    a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), or "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase). The filter says *which* cards — leave it out only when the card does
   {"op":"if","cond":COND,"then":[…],"else"?:[…]}
   {"op":"chooseMode","modes":[{"label":"…","ops":[…]}],"reason"?:"…","chooser"?:"you"|"opponent"}
     "Choose one— ・A ・B" (20-2): the master picks one printed option, or "chooser" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty
@@ -103,7 +105,7 @@ AMOUNT is a number or an expression: {"var":"t"} (how many cards that name holds
   {"markers":SELECTOR,"times":N} (so much for each marker on them), {"life":"you"|"opponent"|"both","times":N}, {"sumPower":{"var":"t"}}, {"handUpTo":N},
   {"x":true,"times":N} (the X this skill's price was paid at — only where the price charges an X), {"attr":TARGET,"name":ATTR,"times":N} (one card's own measure),
   {"sumOf":SELECTOR,"attr":ATTR,"times":N} (that measure over every matching card, added up), or {"plus":[AMOUNT,N]} (that many and N more).
-  "times" multiplies; ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
+  "times" multiplies; on count, markers and life "per":N divides first, rounded down ("for every 2 cards": {"count":SELECTOR,"per":2,"times":5000}); ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
 SELECTOR: {"side":"you"|"opponent"|"both","area":"deck"|"hand"|"drop"|"leader"|"battle"|"combo"|"energy"|"life"|"warp"|"unison"|"zDeck"|"zEnergy"|"removed"|"under"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}
@@ -148,7 +150,7 @@ COND is one of these (a field marked ? may be left out):
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
 AREA: "deck" | "hand" | "drop" | "leader" | "battle" | "combo" | "energy" | "life" | "warp" | "unison" | "zDeck" | "zEnergy" | "removed" | "under" | "play"
-DURATION: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" — "nextTurn" lasts through the opponent's turn and ends as yours begins.
+DURATION: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay" — "nextTurn" lasts through the opponent's turn and ends as yours begins; "whileSourceInPlay" lasts until the card that made it leaves the Battle Area.
 FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
   The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and
   {Angel Halo} a card *name* — "names", never "characters". A card names itself in braces and its character
