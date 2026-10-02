@@ -231,6 +231,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // hand", either order, or just one of them.
     case "deckOrHandToDrop":
       return /when this card in your (?:deck|hand)(?: or (?:deck|hand))? is (?:placed|put|sent) (?:in|into) (?:its owner'?s|your) drop/.test(t);
+    // Out of the deck into the Warp by one of *your* skills (3-10, BT30-106):
+    // "…by your <Heles> card's skill", "…by one of your skills". Which card's
+    // skill is a condition on the subject (`compileSkill`), so the moment is
+    // any skill of yours. "By a skill" names either player's and is not this.
+    case "deckToWarpBySkill":
+      return /when this card (?:in your deck is sent (?:from your deck )?|is sent from your deck )to (?:your|its owner'?s) warp by (?:one of )?your\b[^,.]{0,60}?\bskills?\b/.test(t);
     case "hiddenToDrop":
       return /when this hidden mode card(?: in (?:a|your) battle area)? is placed (?:in|into) (?:its owner'?s|your|a) drop/.test(t);
     case "addedToZEnergy":

@@ -288,6 +288,22 @@ function compileSkillText(skill: Skill): Script {
       if (host === null) return { ops: [], unsupported: [trigger, ...clauses] };
       if (host) triggerCond = { kind: "count", sel: { special: "onTop", filter: host }, atLeast: 1 };
     }
+    // "When this card is sent from your deck to your Warp by your <Heles>
+    // card's skill" (BT30-106, 3-10): the moment is any skill of yours
+    // (`deckToWarpBySkill`), and the skill's card is the subject — so which
+    // card's skill it was is a condition on the subject. A description that
+    // cannot be read refuses the skill: firing for every skill of yours would
+    // be wider than the card.
+    const warped = /^when this card (?:in your deck is sent (?:from your deck )?|is sent from your deck )to (?:your|its owner'?s) warp by (?:one of )?your (.+?)[,.]?$/i.exec(trigger.trim());
+    if (warped) {
+      const said = warped[1].trim();
+      if (!/^skills?$/i.test(said)) {
+        const by = /^(.+?)(?: card)?'s? skills?$/i.exec(said);
+        const cause = by ? filterFor(by[1], null) : null;
+        if (!cause) return { ops: [], unsupported: [trigger, ...clauses] };
+        triggerCond = { kind: "count", sel: { special: "subject", filter: cause }, atLeast: 1 };
+      }
+    }
     if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a

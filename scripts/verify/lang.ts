@@ -24,7 +24,7 @@ import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
 import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
-import { CTX, DEFS, stagedG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords } from "./harness";
+import { CTX, DEFS, stagedG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords, compileSkill, parseSkills } from "./harness";
 
 /** A rule with nothing but its steps, for the round trips that are about the program. */
 const ruleOf = (ops: Op[], rest: Partial<Rule> = {}): Rule => ({ kind: "auto", trigger: [], cost: null, cond: null, ops, ...rest });
@@ -950,6 +950,36 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   assert.equal(say([{ op: "moveTo", target: { sel: { take: { plus: [{ life: "you" }, -3] } as unknown as number, side: "you", area: "life" } }, to: "hand" }]), say([{ op: "lifeDownTo", n: 3, side: "you" }]));
   // A reveal to both reads as it always did.
   assert.equal(say([{ op: "reveal", sel: { side: "opponent", area: "hand" }, as: "seen", audience: "both" }]), say([{ op: "reveal", sel: { side: "opponent", area: "hand" }, as: "seen" }]));
+}
+
+// ── BT30-106: sent from your deck to the Warp by your <Heles> card's skill ──
+//
+// The moment is a WHEN word the validator knows, and the program the compiler
+// drafts for the card — the cause as a condition on the subject, the play out
+// of the look, the rest to the Warp — prints, reads back and validates.
+{
+  const sk = parseSkills("[auto] When this card is sent from your deck to your Warp by your <Heles> card's skill, look at up to 1 card from the top of your deck, play up to 1 black ≪Maiden Squadron≫ card, then send the rest to their owner's Warp.")[0];
+  const compiled = compileSkill(sk);
+  assert.deepEqual(compiled.unsupported, []);
+  const rule: Rule = { kind: "auto", trigger: ["deckToWarpBySkill"], cost: null, cond: null, ops: compiled.ops };
+  assert.equal(validateRule(rule, "auto"), null);
+  trip(rule, "BT30-106's drafted rule");
+  assert.equal(
+    printRule(rule),
+    [
+      "WHEN [auto] deckToWarpBySkill",
+      "THEN",
+      '  if(cond: count([subject] "<Heles>") >= 1, then: {',
+      "    look(n: 1, as: \"looked\")",
+      '    choose(sel: FROM $looked UP TO 1 "black ≪maiden squadron≫" OF you, as: "p0", reason: "play up to 1 black ≪Maiden Squadron≫ card")',
+      "    play(target: $p0)",
+      "    moveTo(target: $looked MINUS $p0, to: warp)",
+      "  })",
+    ].join("\n"),
+  );
+  // Written by hand, the condition on the cause reads at the rule's IF too.
+  const byHand = parseRule('WHEN [auto] deckToWarpBySkill\nIF count([subject] "<Heles>") >= 1\nTHEN\n  look(n: 1, as: "looked")');
+  assert.ok(byHand.ok && validateRule(byHand.value, "auto") === null, "an IF on the cause is a rule the validator accepts");
 }
 
 console.log("verify/lang: the rules language round-trips");

@@ -953,6 +953,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) the (top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in any order)?$`).exec(t)))
       return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom" }];
     if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their )?drop(?: area)?$`).test(t)) return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
+    // "…then send the rest to their owner's Warp" (BT30-106, 3-10).
+    if (new RegExp(`^send ${REST} to (?:your|the|its owner'?s?|their owners?'?s?|their) warps?$`).test(t)) return [{ op: "moveTo", target: rest, to: "warp" }];
   }
   if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
   // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
@@ -2019,8 +2021,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // 9-1-5: "played … with its skills negated", which the sets print with and
     // without the article before "game".
     const negated: "turn" | "game" | undefined = /skills negated/.test(t) ? (m[3] === "game" ? "game" : "turn") : undefined;
-    const ref = refFor(m[1], c);
+    let ref = refFor(m[1], c);
     if (!ref) return null;
+    // "Look at up to 1 card from the top of your deck, **play up to 1 black
+    // ≪Maiden Squadron≫ card**, then send the rest to their owner's Warp"
+    // (BT30-106): the play's twin of the `add … to your hand` rule above.
+    // Standing after the look is what says the card comes out of the cards
+    // looked at; read as an unqualified card it was one already in play.
+    // Only a description of its own that names no area — "play this card",
+    // "play it" and "play up to 1 X from your hand" are what they say.
+    const desc = m[1];
+    if (c.lastSeen && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(desc))) {
+      const sel = parseTarget(desc, c.lastSeen);
+      if (sel && !sel.special) ref = { sel };
+    }
     const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
