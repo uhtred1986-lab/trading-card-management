@@ -1980,7 +1980,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
       "fields": [
         {
           "name": "what",
@@ -1989,7 +1989,8 @@
           "type": "enum",
           "enumValues": [
             "attackActive",
-            "comboRest"
+            "comboRest",
+            "fieldBattle"
           ]
         },
         {
@@ -2012,7 +2013,7 @@
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
-      "doc": "a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it). The filter says *which* cards — leave it out only when the card does"
+      "doc": "a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), or \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase). The filter says *which* cards — leave it out only when the card does"
     },
     {
       "name": "if",

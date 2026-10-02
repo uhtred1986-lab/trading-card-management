@@ -1674,6 +1674,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "permit", what: "comboRest", target: { sel: { special: "self" } }, until, ...(filter ? { filter } : {}) }];
   }
 
+  // 22-3 widened: "The [Field] skill on this card in your hand can also be
+  // activated at [Activate: Battle] timings" (BT29-041, BT29-042). [Field] is
+  // an [Activate: Main]; this lets its own line be used at the combo prompt
+  // too. A [Permanent] only — read from the hand, where the line is used.
+  if (c.permanent && /^the \[field\] skill on this card in your hand can (?:also )?be activated at \[activate: ?battle\] timings?$/.test(t)) {
+    return [{ op: "permit", what: "fieldBattle", target: { sel: { special: "self" } }, until: "game" }];
+  }
+
   // 20-9: "gain control of it until the end of the turn", "you gain control of
   // it", "gain control of the played card". Six cards, every one of them
   // pointing back at a card an earlier clause chose or a trigger named, which

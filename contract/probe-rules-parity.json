@@ -684,6 +684,17 @@
     },
     "same": true
   },
+  "FIELDB#10": {
+    "legacy": {
+      "outcome": "inForce",
+      "digest": "49f36b12"
+    },
+    "rules": {
+      "outcome": "inForce",
+      "digest": "49f36b12"
+    },
+    "same": true
+  },
   "FLIPPER#0": {
     "legacy": {
       "outcome": "fired",

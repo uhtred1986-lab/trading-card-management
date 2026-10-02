@@ -4104,12 +4104,10 @@ console.log("verify/vm: ok");
 // tested here against three of the four keyword bodies #155 built: [Field]'s
 // onEnter (22-3) and [Heroic]/[Villainous]'s afterSkill (22-35/22-36).
 // [Servant]'s activeStep is not `moved()`'s to fire — it is `chargeActivate`'s
-// own query (7-2-7) — and is tested separately below. [Field]'s own
-// activation, how the Extra reaches the Battle Area in the first place, is
-// #157's (`actions.rules`'s own note refuses it `unread` today), so its hook
-// body is fired the way that activation will fire it once built: through
-// `moved()` directly, standing in for the `activate` action that does not
-// exist yet.
+// own query (7-2-7) — and is tested separately below. [Field]'s hook body is
+// fired here through `moved()` directly, which is what its own activation
+// (the keyword's `DO`, 2 Oct 2026) does by playing the card; the activation
+// itself is tested on both engines in `wordings.ts`.
 {
   const rulesEngine = engineFor("rules");
 

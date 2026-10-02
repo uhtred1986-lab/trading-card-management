@@ -31,6 +31,7 @@ import {
   playG,
   powerIn,
   priceCondition,
+  rejectedActionsG,
   rulesGap,
   scheduleG,
   settledG,
@@ -137,18 +138,59 @@ import type { EngineState, Trigger } from "./harness";
   // into the Battle Area in Active Mode, and 22-3-5 drops any other [Field]
   // Extra already there.
   DEFS.FIELD = { ...DEFS["E-DRAW"], id: "FIELD", name: "FIELD", energyCost: 1, skill: "[Field]" };
+  // Both engines since 2 Oct 2026: the rules engine's [Field] is its keyword's
+  // own move (`keywords.rules`), and its onEnter hook asks which [Field] Extra
+  // already out to drop (up to 1) where the legacy engine drops it unasked.
   let s = stagedG({ hand: ["FIELD", "FIELD"], energy: ["V1", "V1"] });
-  if (!rulesGap("wordings: [Field] played from hand (22-3)", "the rules engine offers no [Field] activation — the glossary's own line: its onEnter is built, how the Extra gets there is not", "#157")) {
-    const first = findG(s, "p1", "hand", "FIELD");
-    s = playG(s, { type: "activate", player: "p1", card: first, skill: 0 });
-    assert.ok(zoneOf(s, "p1", "battle").includes(first), "22-3-2: into the Battle Area");
-    assert.equal(s.cards[first].mode, "active", "22-3-2: in Active Mode");
-    const second = findG(s, "p1", "hand", "FIELD");
-    s = playG(s, { type: "activate", player: "p1", card: second, skill: 0 });
-    assert.ok(zoneOf(s, "p1", "battle").includes(second));
-    assert.ok(zoneOf(s, "p1", "drop").includes(first), "22-3-5: the one already there goes to the Drop");
-    assertConsistentG(s);
-  }
+  const first = findG(s, "p1", "hand", "FIELD");
+  s = playG(s, { type: "activate", player: "p1", card: first, skill: 0 });
+  assert.ok(zoneOf(s, "p1", "battle").includes(first), "22-3-2: into the Battle Area");
+  assert.equal(s.cards[first].mode, "active", "22-3-2: in Active Mode");
+  assert.ok(!zoneOf(s, "p1", "drop").includes(first), "22-3-2: a [Field] Extra does not go to the Drop as it is used");
+  assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "12-2-2: for its own energy cost");
+  const second = findG(s, "p1", "hand", "FIELD");
+  s = playG(s, { type: "activate", player: "p1", card: second, skill: 0 });
+  if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [first] });
+  assert.ok(zoneOf(s, "p1", "battle").includes(second));
+  assert.ok(zoneOf(s, "p1", "drop").includes(first), "22-3-5: the one already there goes to the Drop");
+  assertConsistentG(s);
+}
+
+{
+  // 22-3 widened (owner-approved 2 Oct 2026): "[Permanent] The [Field] skill
+  // on this card in your hand can also be activated at [Activate: Battle]
+  // timings" (BT29-041 "Fearsome Conquest", BT29-042 "Loyalty to Cooler").
+  // The wording compiles to a `permit` of `fieldBattle`, read from the hand…
+  const permanent = "[Permanent] The [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings.";
+  const compiled = compileSkill(parseSkills(permanent)[0]);
+  assert.deepEqual(compiled.unsupported, []);
+  assert.deepEqual(compiled.ops, [{ op: "permit", what: "fieldBattle", target: { sel: { special: "self" } }, until: "game" }]);
+  // …and only as a [Permanent]: the same words on an [Auto] are no standing rule.
+  assert.equal(compileSkill(parseSkills("[Auto] The [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings.")[0]).unsupported.length > 0, true, "an [Auto] saying it is not a standing permission");
+
+  DEFS.FIELDB = { ...DEFS["E-DRAW"], id: "FIELDB", name: "FIELDB", energyCost: 1, skill: `[Field]<br>${permanent}` };
+  DEFS.FIELD = { ...DEFS["E-DRAW"], id: "FIELD", name: "FIELD", energyCost: 1, skill: "[Field]" };
+  // V1 stays in hand so the offense combo step still has something to offer
+  // once FIELDB is out — the rules engine skips a combo step with nothing in it.
+  let s = stagedG({ hand: ["FIELD", "FIELDB", "V1"], energy: ["V1", "V1", "V1"] });
+  const plain = findG(s, "p1", "hand", "FIELD");
+  const battle = findG(s, "p1", "hand", "FIELDB");
+  assert.ok(canActivateG(s, plain) && canActivateG(s, battle), "22-3: both are offered at the Main Phase");
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  assert.equal(s.prompt.kind, "combo");
+  assert.ok(!canActivateG(s, plain), "22-3: a [Field] without the permission is not offered during a battle");
+  assert.deepEqual(
+    rejectedActionsG(s).find((r) => r.action.type === "activate" && r.action.card === plain)?.why,
+    [{ kind: "timing", window: "main" }],
+    "…and the reason is its window, the same on both engines",
+  );
+  assert.ok(canActivateG(s, battle), "BT29-041: with it, the [Field] skill is offered at [Activate: Battle] timings");
+  s = playG(s, { type: "activate", player: "p1", card: battle, skill: 0 });
+  assert.ok(zoneOf(s, "p1", "battle").includes(battle), "22-3-2: placed in the Battle Area during the battle");
+  assert.equal(s.cards[battle].mode, "active", "22-3-2: in Active Mode");
+  assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "12-2-2: for its own energy cost");
+  assert.equal(s.prompt.kind, "combo", "and the battle goes on");
+  assertConsistentG(s);
 }
 
 // 22-41's [Overlord] case moved to `keywords.ts`, which runs on both engines,

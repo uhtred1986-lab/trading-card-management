@@ -1180,8 +1180,11 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // 8-1-1 the other way round. Printed as a [Permanent] on most of the cards
     // that have it ("This card can attack Battle Cards in Active Mode"), so it
     // belongs here beside the prohibition it mirrors.
+    // `fieldBattle` (BT29-041/-042) is the one about the card in the hand —
+    // its [Field] line is used from there (22-3) — so it is read from the
+    // hand the way `altCost` above is.
     if (op.op === "permit") {
-      if (!inPlayNow) continue;
+      if (!inPlayNow && op.what !== "fieldBattle") continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "permit", target: id, value: { what: op.what, filter: op.filter } });
       continue;
     }
