@@ -355,19 +355,38 @@ export async function recentBatches(): Promise<{ id: number; note: string; n: nu
   return rows.map((r) => ({ id: r.id, note: r.note, n: ((r.batch as ConfirmBatch | null)?.rules ?? []).length }));
 }
 
-/** You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler. */
-export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null }> {
+/**
+ * You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler.
+ *
+ * An answer that saved no program is an error, not a success: the record is
+ * unchanged, and saying "the draft is in the block above" over it sent the
+ * owner looking for a change that never happened. `question` is Claude's one
+ * question when it was not sure — returned whether or not a program was saved,
+ * since it is what to add to the explanation before asking again.
+ */
+export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null; question: string | null }> {
   const row = await ruleById(db, id);
-  if (!row) return { error: "no such rule" };
+  if (!row) return { error: "no such rule", question: null };
+  let error: string | null = null;
+  let question: string | null = null;
   try {
     const r = await clarifyRule(db, row, explanation);
-    await db.insert(arenaFeedback).values({ kind: "card", noteId: row.id, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution: r.clarification.meaning });
+    question = (!r.clarification.confident || !r.saved) && r.clarification.question.trim() ? r.clarification.question.trim() : null;
+    if (r.rejected) {
+      error =
+        r.rejected === "invalid"
+          ? "Claude's program did not pass the engine's validator, so nothing was saved — the record is unchanged. The compiler brief was kept."
+          : "Claude found nothing the engine's steps can express, so nothing was saved — the record is unchanged. The compiler brief was kept.";
+    }
+    const resolution = [r.rejected ? `no program saved (${r.rejected})` : null, r.clarification.meaning, question ? `Claude asks: ${question}` : null].filter(Boolean).join(" — ");
+    await db.insert(arenaFeedback).values({ kind: "card", noteId: row.id, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution });
   } catch (err) {
-    return { error: describeAiError(err) };
+    return { error: describeAiError(err), question: null };
   }
+  // Revalidated on a refusal too: the brief was written either way.
   revalidatePath("/arena/rules");
   revalidatePath("/arena/feedback");
-  return { error: null };
+  return { error, question };
 }
 
 export async function startGameForm(formData: FormData) {
