@@ -676,6 +676,10 @@ export type Trigger =
   | "hiddenBySkill"
   /** "When this Hidden Mode card in a Battle Area is placed into its owner's Drop" (9-6-9-3's "unless specified otherwise"; BT28-117, BT28-118). */
   | "hiddenToDrop"
+  /** "When this card is switched to Revealed Mode" (BT29-116, BT29-125), whatever switched it — and half of "…to Revealed Mode or Hidden Mode" (BT29-121, BT29-122). */
+  | "switchedRevealed"
+  /** "When this card is switched to Hidden Mode" with no cause named (BT29-142's "played or switched to Hidden Mode"), and the other half of "…Revealed Mode or Hidden Mode". */
+  | "switchedHidden"
   /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"

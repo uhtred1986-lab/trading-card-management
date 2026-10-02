@@ -299,5 +299,30 @@ if (ENGINE !== "rules") {
     assertConsistentG(s);
   }
 
+  // ── BT29: switched to Revealed / Hidden Mode, whatever switched it ──────
+  {
+    def("HM-UP", { colors: ["White"], skill: "[Auto] When this card is switched to Revealed Mode, draw 1 card." });
+    def("HM-EITHER", { colors: ["White"], skill: "[Auto] When this card is switched to Revealed Mode or Hidden Mode, draw 1 card." });
+    def("HM-REVEAL", { skill: "[Activate: Main] Choose up to 1 card in your Battle Area and switch it to Revealed Mode." });
+    let s = arenaG({ battle: ["HM-UP", "HM-REVEAL"] });
+    const up = findG(s, "p1", "battle", "HM-UP");
+    s.cards[up].hidden = true;
+    let hand = handOf(s, "p1");
+    s = choose(playG(s, act(s, findG(s, "p1", "battle", "HM-REVEAL"))!), "p1", [up]);
+    assert.equal(s.cards[up].hidden, false);
+    assert.equal(handOf(s, "p1"), hand + 1, "switched to Revealed Mode: it answers");
+
+    // The opponent's skill hides it: "whatever switched it" answers too, and
+    // the front side does although the card is face down (23-5-2-4).
+    let t = arenaG({ hand: ["HM-HIDER"], energy: ["V1"], oppBattle: ["HM-EITHER"] });
+    const either = findG(t, "p2", "battle", "HM-EITHER");
+    hand = handOf(t, "p2");
+    t = choose(playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "HM-HIDER") }), "p1", [either]);
+    for (let i = 0; i < 5 && t.prompt.kind !== "main"; i++) t = playG(t, actsG(t)[0]);
+    assert.equal(t.cards[either].hidden, true);
+    assert.equal(handOf(t, "p2"), hand + 1, "switched to Hidden Mode by the opponent's skill: it answers");
+    assertConsistentG(t);
+  }
+
   for (const id of TEMP) delete DEFS[id];
 }

@@ -3665,6 +3665,14 @@
       "words": "when this card is switched to Hidden Mode by one of your skills"
     },
     {
+      "name": "switchedRevealed",
+      "words": "when this card is switched to Revealed Mode"
+    },
+    {
+      "name": "switchedHidden",
+      "words": "when this card is switched to Hidden Mode"
+    },
+    {
       "name": "restedByAlliance",
       "words": "when this card is rested by an [Alliance] skill"
     },
