@@ -1045,6 +1045,21 @@
       "doc": "\"switch the target of the attack to it\" (22-4-2)"
     },
     {
+      "name": "swapBattle",
+      "class": "primitive",
+      "signature": "{\"op\":\"swapBattle\",\"target\":TARGET}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        }
+      ],
+      "sentence": "switch your card that's in a battle with this card",
+      "doc": "\"switch your card that's in a battle with this card / the chosen card\" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its \"when this card attacks / is attacked\" are not made pending"
+    },
+    {
       "name": "comboFrom",
       "class": "macro over `move` + `negate`",
       "signature": "{\"op\":\"comboFrom\",\"target\":TARGET,\"negated\"?:true|false}",

@@ -567,6 +567,16 @@ export type Op =
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
   | { op: "redirectAttack"; target: Ref }
   /**
+   * "Switch your card that's in a battle with this card / the chosen card":
+   * `target` takes the place of the master's card in the battle in progress —
+   * the attack card if they attack, the guard card if they are attacked — and
+   * the card it replaces leaves the battle where it stands. 8-1-7-2: the
+   * battle goes on, and the new card's "when this card attacks" / "is
+   * attacked" are not made pending. The new card must be the master's own,
+   * in their Battle Area or Leader Area, and not already in the battle.
+   */
+  | { op: "swapBattle"; target: Ref }
+  /**
    * "Use up to 1 card with 5000 combo power from your Drop in a combo (with
    * its skills negated)" — into your Combo Area during a battle, for no combo
    * cost (5-7); it leaves with the other combo cards at the end of the battle.
@@ -1824,6 +1834,23 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (!id) break;
         h.setGuard(id, frame.card);
         h.pend("attacked", id);
+        break;
+      }
+
+      case "swapBattle": {
+        // 8-1-7-2: the master's card in the battle is changed by an effect.
+        // Which seat it holds is the battle's own answer — the attack card
+        // if the master attacks, the guard card if they were attacked — and
+        // no "when this card attacks / is attacked" is made pending for the
+        // card that takes it.
+        const b = h.battle();
+        if (!b) break;
+        const master = frame.master;
+        const out = h.masterOf(b.attacker) === master ? b.attacker : h.masterOf(b.guard) === master ? b.guard : null;
+        if (!out) break;
+        const id = h.resolveRef(frame, op.target).find((x) => x !== b.attacker && x !== b.guard && h.masterOf(x) === master && (h.areaOf(x) === "battle" || h.areaOf(x) === "leader"));
+        if (!id) break;
+        h.swapBattleCard(out, id);
         break;
       }
 
