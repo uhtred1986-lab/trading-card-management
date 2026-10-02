@@ -301,6 +301,26 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
+/** `choose`'s fields, named so its sentence can render the plain case with them. */
+const CHOOSE_FIELDS: OpField[] = [
+      { name: "sel", type: "selector", required: true },
+      { name: "as", type: "string", required: true },
+      { name: "reason", type: "string" },
+      { name: "chooser", type: "side" },
+      { name: "bindX", type: "boolean" },
+      {
+        name: "sumTo",
+        type: "amount",
+        offCard: "picks one card at a time until their sumAttr adds up to exactly this much, offering only the cards that still leave a way to the exact sum; the selector's count is not read, and a set that cannot be finished binds nothing — [Successor]'s cost (22-38-3)",
+      },
+      { name: "sumAttr", type: { enum: AMOUNT_ATTRS }, offCard: "the measure sumTo adds up — energyCost when left out" },
+      {
+        name: "atMost",
+        type: "amount",
+        offCard: "any number of the selected cards, up to this many read off the board as the choice is made — \"choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards\" (BT29-139); the selector's count is not read",
+      },
+    ];
+
 export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   draw: { fields: [n(), SIDE], sentence: "{side:opponent draws|draw} {n}" },
   // `to` names the Drop Area as well as the Warp (#137): left out it always
@@ -322,20 +342,18 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   shuffle: { fields: [SIDE], sentence: "shuffle" },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {
-    fields: [
-      { name: "sel", type: "selector", required: true },
-      { name: "as", type: "string", required: true },
-      { name: "reason", type: "string" },
-      { name: "chooser", type: "side" },
-      { name: "bindX", type: "boolean" },
-      {
-        name: "sumTo",
-        type: "amount",
-        offCard: "picks one card at a time until their sumAttr adds up to exactly this much, offering only the cards that still leave a way to the exact sum; the selector's count is not read, and a set that cannot be finished binds nothing — [Successor]'s cost (22-38-3)",
-      },
-      { name: "sumAttr", type: { enum: AMOUNT_ATTRS }, offCard: "the measure sumTo adds up — energyCost when left out" },
-    ],
-    sentence: "choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}",
+    fields: CHOOSE_FIELDS,
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"choose">;
+      // "Any number of …, up to the number of …" (BT29-139): the selector's own
+      // count is not read, so it is not said either.
+      if (op.atMost !== undefined) {
+        const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
+        const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
+        return `choose any number of ${cards}, up to ${bound}`;
+      }
+      return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+    },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
   look: {
@@ -1975,6 +1993,14 @@ const AREA_NOUNS: Partial<Record<ScriptArea, string>> = {
 function describeEach(sel: Selector): string {
   if (sel.special) return describeSelector(sel);
   const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
+  // A Hidden Mode card has no card type (23-5-2), so it is not a "Battle
+  // Card" or a "Unison Card" to count: "your Hidden Mode cards", and the area
+  // only when the selector names one.
+  if (sel.hidden === true && !sel.filter && !sel.mode) {
+    const areas = sel.areas?.length ? sel.areas : [sel.area ?? "play"];
+    const where = areas.length === 1 && areas[0] !== "play" ? ` in ${who}${ZONE_NOUNS[areas[0] as keyof typeof ZONE_NOUNS] ?? areas[0]}` : "";
+    return `${who}Hidden Mode cards${where}${describeNotSelf(sel)}`;
+  }
   const mode = describeMode(sel);
   const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
   return `${who}${nouns.join(" or ")}${mode}${describeNotSelf(sel)}`;

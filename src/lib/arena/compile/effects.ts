@@ -137,7 +137,10 @@ function refFor(clause: string, c: Ctx): Ref | null {
   }
   // "The card that was switched to Hidden Mode by this skill": the card the
   // price switched (BT28-121), or nothing to point at when the price chose none.
-  if (SWITCHED_BY_THIS_SKILL.test(clause)) return c.priceChoice ? { var: c.priceChoice } : null;
+  if (SWITCHED_BY_THIS_SKILL.test(clause)) {
+    const named = c.priceChoice ?? c.switchedHere;
+    return named ? { var: named } : null;
+  }
   // "Add a marker to the chosen card": the last choice. "**Cards chosen with
   // this card's skill** can't be switched to Active Mode" is the same thing
   // said the long way, and it used to read as this card — so the restriction
@@ -1765,7 +1768,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^switch (.+?) to (hidden|revealed) mode$/.exec(t))) {
     const ref = refFor(m[1], c);
     const hidden = m[2] === "hidden";
-    return ref ? withChoice(ref, clause, c, (target) => ({ op: "hidden", target, hidden })) : null;
+    return ref
+      ? withChoice(ref, clause, c, (target) => {
+          if ("var" in target) c.switchedHere = target.var;
+          return { op: "hidden", target, hidden };
+        })
+      : null;
   }
   // "Use up to 1 green card with 5000 combo power from your Drop in a combo
   // with its skills negated for the battle", "use this card from your Drop in
@@ -2009,6 +2017,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^choose (up to )?(\d+)$/.exec(t)) && c.lastSeen) {
     const v = `c${c.n++}`;
     return [{ op: "choose", sel: { fromVar: c.lastSeen, count: Number(m[2]), upTo: !!m[1] }, as: v, reason: clause }];
+  }
+
+  // "Choose any number of your opponent's Battle Cards up to the number of
+  // your Hidden Mode cards" (BT29-139): as many as the player likes, up to a
+  // count read off the board when the choice is made (`atMost`).
+  if ((m = /^choose any number of (.+?) up to the number of (.+)$/.exec(t))) {
+    const sel = parseTarget(m[1], undefined, c.lastSeen ?? undefined);
+    const counted = parseTarget(m[2]);
+    if (!sel || !counted || sel.special || sel.take != null) return null;
+    delete counted.count;
+    delete counted.upTo;
+    const v = `c${c.n++}`;
+    return [{ op: "choose", sel: { ...sel, count: undefined, upTo: true }, as: v, reason: clause, atMost: { count: counted } }];
   }
 
   // "Choose up to 1 of your Leaders or up to 1 of your white ≪Universe 7≫

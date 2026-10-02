@@ -1,7 +1,7 @@
 import type { Op, Ref, Selector } from "../vm/script";
 
 /** "The card that was switched to Hidden Mode by this skill" (BT28-105, BT28-121): the card the skill's price switched (`Ctx.priceChoice`). */
-export const SWITCHED_BY_THIS_SKILL = /\bthe card (?:that was )?switched to (?:hidden|revealed) mode by this skill\b/i;
+export const SWITCHED_BY_THIS_SKILL = /\b(?:all )?the cards? (?:that (?:was|were) )?switched to (?:hidden|revealed) mode by this skill\b/i;
 
 export interface Ctx {
   /** The variable the last `choose` bound. */
@@ -44,6 +44,12 @@ export interface Ctx {
    * BT28-121) is that card and no other. Absent when the price chose nothing.
    */
   priceChoice?: string;
+  /**
+   * The cards this skill's own effect last switched to Hidden or Revealed
+   * Mode — "then switch all the cards switched to Hidden Mode by this skill
+   * to Revealed Mode" (BT29-139), where the price switched nothing.
+   */
+  switchedHere?: string;
   /**
    * What "it"/"them" points at. Card text carries the subject from clause to
    * clause — "Switch this card to Active Mode and it gets +5000 power" means

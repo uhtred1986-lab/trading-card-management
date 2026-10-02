@@ -238,6 +238,13 @@
             "energyCost",
             "comboCost"
           ]
+        },
+        {
+          "name": "atMost",
+          "required": false,
+          "nullable": false,
+          "offCard": "any number of the selected cards, up to this many read off the board as the choice is made — \"choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards\" (BT29-139); the selector's count is not read",
+          "type": "amount"
         }
       ],
       "sentence": "choose 1 card in your Battle Area",

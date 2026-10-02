@@ -66,6 +66,11 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
   const energyToggle = one("[Auto] When this card is played, switch up to 1 of your energy to Revealed Mode or Hidden Mode.");
   assert.deepEqual(energyToggle.ops.map((o) => o.op), ["choose", "if"]);
   assert.equal((energyToggle.ops[0] as { sel: { hidden?: boolean } }).sel.hidden, undefined, "either mode may be chosen");
+  // BT29-139: as many as you like, up to a count read off the board.
+  assert.equal(
+    reads("[Counter: Attack] Negate the attack, choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards and switch them to Hidden Mode, then switch all the cards switched to Hidden Mode by this skill to Revealed Mode at the end of the turn."),
+    "negate the attack, choose any number of Battle Cards in your opponent's Battle Area, up to the number of your Hidden Mode cards, switch the chosen cards to Hidden Mode, at the end of the turn: switch the chosen cards to Revealed Mode",
+  );
   // BT31-148.
   assert.deepEqual(one("[Auto] When your opponent's card is played, switch this card to Revealed Mode with 1 marker on it.").ops.map((o) => o.op), ["hidden", "addMarker"]);
 }
@@ -270,6 +275,28 @@ if (ENGINE !== "rules") {
     assert.equal(t.cards[two].mode, "rest", "rested to pay");
     assert.ok(!t.battle || t.battle.negated, "and the attack is negated");
     assertConsistentG(t);
+  }
+
+  // ── BT29-139: up to the number of your Hidden Mode cards ────────────────
+  {
+    def("HM-CLAMP", { ...DEFS["E-NEGATE"], energyCost: 0, skill: "[Counter: Attack][Limit 1] Negate the attack, choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards and switch them to Hidden Mode, then switch all the cards switched to Hidden Mode by this skill to Revealed Mode at the end of the turn." });
+    let s = arenaG({ battle: ["V1", "V1", "V1"], oppHand: ["HM-CLAMP"], oppBattle: ["HM-WHITE", "HM-WHITE"] });
+    for (const id of zoneOf(s, "p2", "battle")) s.cards[id].hidden = true;
+    const mine = zoneOf(s, "p1", "battle").filter((id) => s.cards[id].cardId === "V1");
+    s = playG(s, { type: "attack", player: "p1", attacker: mine[0], target: leaderOf(s, "p2") });
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "HM-CLAMP"), skill: 0 });
+    let picks = 0;
+    while (s.prompt.kind === "chooseCards" && picks < 5) {
+      const cands = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+      s = playG(s, { type: "choose", player: "p2", cards: [cands[0]] });
+      picks++;
+    }
+    assert.equal(picks, 2, "two Hidden Mode cards: at most two picks");
+    assert.equal(mine.filter((id) => s.cards[id].hidden).length, 2, "two of the three switched face down");
+    for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) s = playG(s, actsG(s).find((a) => a.type === "pass" || (a.type === "counter" && !a.card) || (a.type === "block" && !a.card)) ?? actsG(s)[0]);
+    s = playG(s, { type: "endMain", player: "p1" });
+    assert.equal(mine.filter((id) => s.cards[id].hidden).length, 0, "and back up at the end of the turn");
+    assertConsistentG(s);
   }
 
   for (const id of TEMP) delete DEFS[id];

@@ -384,7 +384,7 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -1394,7 +1394,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "choose": {
-        const want = op.sel.count ?? 1;
+        // "Any number … up to the number of your Hidden Mode cards" (BT29-139):
+        // a bound read off the board, and the choice may stop short of it.
+        const bounded = op.atMost !== undefined;
+        const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : (op.sel.count ?? 1);
+        const upTo = bounded || !!op.sel.upTo;
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
           frame.vars[op.as] = picked;
@@ -1464,13 +1468,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
         // 5-2-5: take as many as possible when fewer are available than asked for.
         const left = want - sofar.length;
-        if (cands.length === 0) {
+        if (cands.length === 0 || left <= 0) {
           frame.awaiting = undefined;
           take(sofar);
           break;
         }
         // Only ask when the answer can differ: a forced pick is taken silently.
-        if (!op.sel.upTo && cands.length <= left) {
+        if (!upTo && cands.length <= left) {
           frame.awaiting = undefined;
           take([...sofar, ...cands]);
           break;
@@ -1484,10 +1488,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // 20-7: whoever the card says chooses, chooses.
           player: op.chooser ? sideOf(master, op.chooser)[0] : master,
           choice: {
-            reason: (op.reason ?? `${h.nameOf(frame.card)}: choose ${op.sel.upTo ? `up to ${want}` : want}`) + asked,
+            reason: (op.reason ?? `${h.nameOf(frame.card)}: choose ${upTo ? `up to ${want}` : want}`) + asked,
             candidates: cands,
             // One card per answer, so the menu is one action per card.
-            min: op.sel.upTo ? 0 : 1,
+            min: upTo ? 0 : 1,
             max: 1,
             continuation: op.as,
           },
