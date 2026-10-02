@@ -43,7 +43,7 @@
  */
 import type { EngineContext } from "../types";
 import { backCharactersOf, coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
-import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { other } from "../types";
 import { parseFilter, powerRelOk, type CardFilter } from "../text/filters";
@@ -1138,7 +1138,7 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
     if (frame.x === undefined) throw new Error("this program reads X, but nothing bound it");
     return frame.x * (a.times ?? 1);
   }
-  if ("life" in a) return lifeCount(game, state, frame.master, a.life) * (a.times ?? 1);
+  if ("life" in a) return perStep(lifeCount(game, state, frame.master, a.life), a.per) * (a.times ?? 1);
   if ("sumOf" in a) return resolveSelector(ctx, game, state, frame, a.sumOf).reduce((t, id) => t + measureOf(ctx, game, state, id, a.attr), 0) * (a.times ?? 1);
   if ("attr" in a) {
     // A ref that found none is nothing rather than an error, and one that found
@@ -1147,8 +1147,13 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
     const ids = resolveRef(ctx, game, state, frame, a.attr);
     return ids.length ? measureOf(ctx, game, state, ids[0], a.name) * (a.times ?? 1) : 0;
   }
-  if ("markers" in a) return markersOn(ctx, game, state, frame, a.markers) * (a.times ?? 1);
-  return resolveSelector(ctx, game, state, frame, a.count).length * (a.times ?? 1);
+  if ("markers" in a) return perStep(markersOn(ctx, game, state, frame, a.markers), a.per) * (a.times ?? 1);
+  return perStep(countSelected(ctx, game, state, frame, a.count), a.per) * (a.times ?? 1);
+}
+
+/** The cards a selector finds, counted as it says — by name under `differentNames` (BT18-104). */
+export function countSelected(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector): number {
+  return selectedCount(sel, resolveSelector(ctx, game, state, frame, sel), (id) => String(attrsNow(ctx, game, state, id).name ?? id));
 }
 
 // ── conditions (9-4) ────────────────────────────────────────────────────────
@@ -1159,7 +1164,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
   const leaderOf = (side: Side | undefined) => state.sides[side === "opponent" ? other(frame.master) : frame.master].zones[SETUP_ZONES.leader]?.[0] ?? null;
   switch (c.kind) {
     case "count":
-      return between(resolveSelector(ctx, game, state, frame, c.sel).length, c.atLeast, c.atMost);
+      return between(countSelected(ctx, game, state, frame, c.sel), c.atLeast, c.atMost);
     case "life":
       return between(lifeCount(game, state, frame.master, c.side), c.atLeast, c.atMost);
     case "leaderColor": {

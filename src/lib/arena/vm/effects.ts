@@ -332,6 +332,15 @@ export function endAfterChargeEffects(state: VmState, ev: GameEvent[], cards: st
   return dropEffects(state, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
+/**
+ * "…while this card is in a Battle Area" (`whileSourceInPlay`): every effect
+ * the card made with that duration ends as the card leaves the Battle Area —
+ * the legacy `endSourceEffects`, word for word.
+ */
+export function endSourceEffects(state: VmState, ev: GameEvent[], source: string): ContinuousEffect[] {
+  return dropEffects(state, ev, (e) => !(e.until === "whileSourceInPlay" && e.source === source));
+}
+
 export function dropEffectsOn(state: VmState, ev: GameEvent[], id: string): void {
   dropEffects(state, ev, (e) => e.target !== id);
 }
@@ -672,9 +681,11 @@ function collect(
     }
     // 8-1-1 / 5-7 lifted as a standing rule: "this card can attack Battle
     // Cards in Active Mode", "you can use your mono-red Rest Mode ≪Saiyan≫
-    // cards in combos" (BT18-001). In play only, like every [Permanent].
+    // cards in combos" (BT18-001). In play only, like every [Permanent] —
+    // except `fieldBattle` (BT29-041/-042), which is about the [Field] line
+    // used from the hand (22-3) and so is read there, as `altCost` is.
     if (op.op === "permit") {
-      if (!inPlayNow) continue;
+      if (!inPlayNow && op.what !== "fieldBattle") continue;
       const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });
       continue;

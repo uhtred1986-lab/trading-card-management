@@ -8,7 +8,7 @@ import { coversColors, eachNamedHolds, hasKeyword, keywordOf, printedNames, skil
 import { matches, powerRelOk } from "../text/filters";
 import { asksAQuestion, describeCond, describeScript } from "../vm/script-schema";
 import { legacyHost } from "./legacy-host";
-import { costModifierAs, modifyAttrAs, negateAs, replaceAs, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector } from "../vm/script";
+import { costModifierAs, modifyAttrAs, negateAs, perStep, replaceAs, selectedCount, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector } from "../vm/script";
 import type {
   Area,
   CardDef,
@@ -668,7 +668,7 @@ export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Am
     if (frame.x === undefined) throw new Error("this program reads X, but nothing bound it");
     return frame.x * (a.times ?? 1);
   }
-  if ("life" in a) return sideOf(frame.master, a.life).reduce((t, p) => t + s.players[p].life.length, 0) * (a.times ?? 1);
+  if ("life" in a) return perStep(sideOf(frame.master, a.life).reduce((t, p) => t + s.players[p].life.length, 0), a.per) * (a.times ?? 1);
   // `sumOf` before `attr`: both carry an `attr` key (the measure on the one,
   // the card on the other), so the narrower test has to come first.
   if ("sumOf" in a) return resolveSelector(ctx, s, frame, a.sumOf).reduce((t, id) => t + attrOf(ctx, s, id, a.attr), 0) * (a.times ?? 1);
@@ -680,14 +680,14 @@ export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Am
     const ids = resolveRef(ctx, s, frame, a.attr);
     return ids.length ? attrOf(ctx, s, ids[0], a.name) * (a.times ?? 1) : 0;
   }
-  if ("markers" in a) return markersOn(ctx, s, frame, a.markers) * (a.times ?? 1);
-  return resolveSelector(ctx, s, frame, a.count).length * (a.times ?? 1);
+  if ("markers" in a) return perStep(markersOn(ctx, s, frame, a.markers), a.per) * (a.times ?? 1);
+  return perStep(selectedCount(a.count, resolveSelector(ctx, s, frame, a.count), (id) => face(ctx, s, id).name), a.per) * (a.times ?? 1);
 }
 
 export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c: Cond): boolean {
   switch (c.kind) {
     case "count": {
-      const n = resolveSelector(ctx, s, frame, c.sel).length;
+      const n = selectedCount(c.sel, resolveSelector(ctx, s, frame, c.sel), (id) => face(ctx, s, id).name);
       return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
     }
     case "life": {
@@ -1180,8 +1180,11 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // 8-1-1 the other way round. Printed as a [Permanent] on most of the cards
     // that have it ("This card can attack Battle Cards in Active Mode"), so it
     // belongs here beside the prohibition it mirrors.
+    // `fieldBattle` (BT29-041/-042) is the one about the card in the hand —
+    // its [Field] line is used from there (22-3) — so it is read from the
+    // hand the way `altCost` above is.
     if (op.op === "permit") {
-      if (!inPlayNow) continue;
+      if (!inPlayNow && op.what !== "fieldBattle") continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "permit", target: id, value: { what: op.what, filter: op.filter } });
       continue;
     }
@@ -1362,6 +1365,10 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     inst.extraAttacks = 0;
     s.effects = s.effects.filter((e) => e.target !== id);
   }
+  // "…while this card is in a Battle Area": what the card made for that long
+  // ends as it leaves — a move from one Battle Area to another (20-9) is not
+  // leaving.
+  if (from?.area === "battle" && to !== "battle") endSourceEffects(ctx, s, ev, id);
   if (goesToPlay || goesToCombo) inst.enteredTurn = s.turn;
   // 22-31: [Energy-Exhaust] enters the Energy Area rested.
   if (to === "energy" && hasKeyword(d, "Energy-Exhaust")) inst.mode = "rest";
@@ -1497,6 +1504,14 @@ function dropEffects(ctx: GameContext, s: GameState, ev: GameEvent[], keep: (e: 
 
 export function endEffects(ctx: GameContext, s: GameState, ev: GameEvent[], until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
   dropEffects(ctx, s, ev, (e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+/**
+ * "…while this card is in a Battle Area" (`whileSourceInPlay`): every effect
+ * the card made with that duration ends as the card leaves the Battle Area.
+ */
+export function endSourceEffects(ctx: GameContext, s: GameState, ev: GameEvent[], source: string): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === "whileSourceInPlay" && e.source === source));
 }
 
 /**
@@ -1758,7 +1773,7 @@ export function canPayCostProgram(ctx: GameContext, s: GameState, p: PlayerId, c
       case "choose": {
         // "Up to" can always be paid with nothing (5-2-4).
         if (op.sel.upTo) break;
-        if (resolveSelector(ctx, s, frame, op.sel).length < (op.sel.count ?? 1)) return false;
+        if (selectedCount(op.sel, resolveSelector(ctx, s, frame, op.sel), (id) => face(ctx, s, id).name) < (op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":

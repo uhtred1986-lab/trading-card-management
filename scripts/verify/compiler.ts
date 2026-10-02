@@ -43,6 +43,7 @@ import {
 } from "./harness";
 import { validateProgram, type Op, type Script } from "../../src/lib/arena/vm/script";
 import { validateRule } from "../../src/lib/arena/lang/validate";
+import { deepEqual, parseRule, printRule, type Rule } from "../../src/lib/arena/lang";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { PlayerId } from "./harness";
 import { isVmState, legacyState } from "../../src/lib/arena/engines";
@@ -1435,9 +1436,62 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   assert.equal(perEnergyAmount.times, 1000);
   assert.equal(perEnergyAmount.count?.area, "energy");
   assert.equal(perEnergyAmount.count?.side, "you");
-  // "For each 2 energy" would mean dividing, which no amount can do, so it is
-  // left unread rather than read as the same thing.
-  assert.ok(one("[Auto] When this card attacks, this card gains +1000 power for each 2 energy you have for the turn.").unsupported.length, "for each 2 energy stays unread");
+  // "For each 2 energy" divides the count, which an amount can do since 2 Oct
+  // 2026: `per: 2`, whole steps of 2, rounded down.
+  const per2Energy = one("[Auto] When this card attacks, this card gains +1000 power for each 2 energy you have for the turn.");
+  assert.deepEqual(per2Energy.unsupported, [], "for each 2 energy you have");
+  assert.deepEqual((per2Energy.ops[0] as { amount: unknown }).amount, { count: { side: "you", area: "energy", count: 99, upTo: false }, per: 2, times: 1000 });
+
+  // ── "for every N" (2 Oct 2026) ───────────────────────────────────────────
+  //
+  // BT30-084, word for word: the count is the ≪Universe 2≫ cards in the Warp,
+  // in whole steps of 2, and the step is not lost to "for the battle" sitting
+  // between the power and the count.
+  {
+    const bt30 = one(
+      "[Activate: Battle] {1}, remove this card from the game : Choose up to 1 of your ≪Maiden Squadron≫ Battle Cards and it gets +5000 power for the battle for every 2 ≪Universe 2≫ cards in your Warp.",
+    );
+    assert.deepEqual(bt30.unsupported, [], "BT30-084 reads whole");
+    const pow = bt30.ops[1] as { op: string; target: unknown; until: string; amount: { count: { side: string; area: string; filter?: { traits: string[] } }; per?: number; times?: number } };
+    assert.equal(pow.op, "power");
+    assert.deepEqual(pow.target, { var: "c0" }, "the power goes to the chosen card");
+    assert.equal(pow.until, "battle");
+    assert.equal(pow.amount.per, 2, "for every 2");
+    assert.equal(pow.amount.times, 5000);
+    assert.equal(pow.amount.count.area, "warp");
+    assert.equal(pow.amount.count.side, "you");
+    assert.deepEqual(pow.amount.count.filter?.traits.map((t) => t.toLowerCase()), ["universe 2"]);
+    assert.match(describeScript(bt30.ops), /\+5000 power for every 2 of your cards in the Warp/);
+    // The record a row would hold, through the language and back, valid.
+    const rule = { kind: "activate:battle", trigger: [], cost: null, cond: null, ops: bt30.ops } as unknown as Rule;
+    const src = printRule(rule);
+    assert.match(src, /amount: count\(99 "≪universe 2≫" IN you\.warp\) \/ 2 \* 5000/);
+    const back = parseRule(src);
+    assert.ok(back.ok, "BT30-084's program parses");
+    assert.ok(deepEqual(back.value, rule), "BT30-084's program round-trips");
+    assert.equal(validateRule(back.value, "activate:battle"), null, "BT30-084's program validates");
+  }
+  // The leading marker form, a trailing marker total, a draw, and a cost
+  // reduction (BT13-076's shape) all take the same step.
+  {
+    const lead = one("[Permanent] For every 2 markers on this card, this card gets +5000 power during your turn.");
+    assert.deepEqual(lead.unsupported, [], "for every 2 markers on this card, …");
+    assert.deepEqual(((lead.ops[0] as { then: Op[] }).then[0] as { amount: unknown }).amount, { markers: { special: "self", count: 99, upTo: false }, per: 2, times: 5000 });
+    const trail = one("[Permanent] This card gets +5000 power for every 2 markers on it.");
+    assert.deepEqual((trail.ops[0] as { amount: unknown }).amount, { markers: { special: "self", count: 99, upTo: false }, per: 2, times: 5000 });
+    const draw = one("[Activate: Main] Draw 1 card for every 2 of your Battle Cards.");
+    assert.deepEqual(draw.unsupported, []);
+    assert.equal(((draw.ops[0] as { n: { per?: number } }).n).per, 2);
+    const cheaper = one("[Permanent] Reduce the energy cost of this card in your hand by 1 for every 2 cards in your Drop Area.");
+    assert.deepEqual(cheaper.unsupported, []);
+    const cheaperBy = (cheaper.ops[0] as { op: string; amount: { count: { side: string; area: string }; per?: number; times?: number } }).amount;
+    assert.equal(cheaper.ops[0].op, "costReduction");
+    assert.equal(cheaperBy.count.area, "drop");
+    assert.equal(cheaperBy.per, 2, "by 1 for every 2");
+    assert.equal(cheaperBy.times, undefined, "by 1: no multiplier");
+    // "For every 1" is "for each": no step at all, so no `per`.
+    assert.deepEqual((one("[Permanent] This card gets +5000 power for every 1 card in your Drop Area.").ops[0] as { amount: { per?: number } }).amount.per, undefined);
+  }
 
   // "{X}" and "Pay X energy" are the same price, and the effect reads it back.
   for (const priced of ["[Activate: Main] {X}: Draw X cards.", "[Activate: Main] Pay X energy: Draw X cards."]) {

@@ -53,7 +53,7 @@ const STILL_ON_THE_ORACLE: Record<string, string> = {
   "ai-vm": "stages each position on both engines and holds the rules engine's stateText, decklistText and Claude request to the legacy engine's byte for byte (#460); `language`'s state-text.txt fixture is the checked-in half that runs here",
 };
 
-const SUITES = ["text", "setup", "battles", "compiler", "keywords", "hidden", "next-activation", "readings", "wordings", "workflow", "contract", "deck-api", "language", "lang", "describe", "rulesets", "board-words", "primer", "game-page", "probe", "ai-vm", "vm", "engine-default", "poll-schedule", "narration"];
+const SUITES = ["text", "setup", "battles", "compiler", "keywords", "hidden", "while-source", "warp", "next-activation", "readings", "wordings", "workflow", "contract", "deck-api", "language", "lang", "describe", "rulesets", "board-words", "primer", "game-page", "probe", "ai-vm", "vm", "engine-default", "poll-schedule", "narration"];
 
 // A plain `.ts` file runs as CJS under `tsx`, which does not allow top-level
 // `await` — so the loop is a function `npm test`/`npm run test:rules` waits on

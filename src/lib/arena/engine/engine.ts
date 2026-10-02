@@ -18,7 +18,7 @@ import { costIsOnlyOrbs, costText, parseConditionClause } from "../compile";
 import { matches, parseCondition, parseFilter } from "../text/filters";
 import { legacyHost } from "./legacy-host";
 import { replacementPrompt, routeOf, savedXKey, stepScript, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "../vm/script";
-import { koCard, pendTriggers } from "./triggers";
+import { koCard, pendPlacedOnArrival, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "../vm/rng";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
 import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
@@ -461,6 +461,12 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
   if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master);
   const sk = skillsOfInstance(ctx, s, p.card).find((k) => k.index === p.skillIndex);
   if (!sk) return "done";
+  // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
+  // activate skills" (BT29-041) has its pending [Auto] cancelled.
+  if (sk.kind === "auto" && forbids(ctx, s, "activateSkill", { player: p.master, card: p.card })) {
+    note(ev, `${inst.cardId} can't activate skills, so its skill does not resolve`);
+    return "done";
+  }
   // 9-6-11: the skill resolves even if the card moved, unless it became impossible.
   if (sk.oncePerTurn || sk.limit != null) {
     const used = inst.usedThisTurn.filter((i) => i === sk.index).length;
@@ -686,6 +692,7 @@ function resolvePlay(
     note(ev, `${face(ctx, s, card).name} was played with its skills negated`);
   }
   s.resolving = null;
+  const pendedBefore = s.pending.length;
   pendTriggers(ctx, s, "played", card);
   // "When your opponent plays a Battle Card": watched by every card the other
   // player has in play, with the played card as the subject.
@@ -696,6 +703,9 @@ function resolvePlay(
   // valid in the area it now sits in (9-1-3-1) and the event it names has
   // happened, so a ≪God≫ card printing that line does see its own arrival.
   for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "youPlayed", id, card);
+  // 5-5-1: played into the Battle Area is placed there too (owner's ruling,
+  // 2 Oct 2026) — a Unison's area is not one.
+  pendPlacedOnArrival(ctx, s, card, pendedBefore);
   // 22-35-2 / 22-36-2: each pends when its owner plays *another* card with the
   // **same** keyword. They used to cross-match, so a [Villainous] card played
   // set off every [Heroic] on the board.
@@ -833,6 +843,9 @@ function resolveKeywordOrText(ctx: EngineContext, s: GameState, ev: GameEvent[],
         // 22-3: the Extra goes to the Battle Area; other [Field] Extras go to the Drop.
         for (const id of s.players[master].battle.slice()) if (has(ctx, s, id, "Field")) move(ctx, s, ev, id, "drop", master, { reason: "rule" });
         move(ctx, s, ev, card, "battle", master, { reason: "play", reveal: true });
+        // "When this card is placed in a Battle Area" (BT29-041, BT29-042):
+        // the Extra has arrived there, which is the moment it names.
+        pendPlacedOnArrival(ctx, s, card);
         return "done";
       default:
         break;
@@ -2348,7 +2361,9 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
         return `Overlord: return a Servant to the deck, draw 1`;
       }
       case "Field": {
-        if (timing !== "main" || !inHand || baseType(d) !== "EXTRA") return null;
+        // 22-3: an [Activate: Main] — and at [Activate: Battle] timings too
+        // while a [Permanent] says so for this card (`fieldBattle`, BT29-041).
+        if (!fieldTimingOk(ctx, s, card, timing) || !inHand || baseType(d) !== "EXTRA") return null;
         const c = playCost(ctx, s, card);
         if (!planPayment(ctx, s, p, c.total, c.specified)) return null;
         return `Field: place ${name} (${c.total})`;
@@ -2440,6 +2455,16 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
  * offer of the same skill and is not reported separately. Called only from
  * `rejectedActions`; `activatable` is untouched.
  */
+/**
+ * 22-3: [Field] is used at the Main Phase, and at [Activate: Battle] timings as
+ * well while a [Permanent] permits it for this card — "The [Field] skill on
+ * this card in your hand can also be activated at [Activate: Battle] timings"
+ * (BT29-041, BT29-042), a `permit` of `fieldBattle` read from the hand.
+ */
+function fieldTimingOk(ctx: EngineContext, s: GameState, card: string, timing: "main" | "battle"): boolean {
+  return timing === "main" || permits(ctx, s, card, "fieldBattle").length > 0;
+}
+
 function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle"): Requirement[] | null {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
@@ -2600,7 +2625,7 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
         return why;
       }
       case "Field": {
-        wantTiming("main");
+        if (!fieldTimingOk(ctx, s, card, timing)) wantTiming("main");
         wantZone("hand");
         if (baseType(d) !== "EXTRA") why.push({ kind: "cardType", card, needs: "an Extra Card" });
         const c = playCost(ctx, s, card);
