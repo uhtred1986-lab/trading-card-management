@@ -32,7 +32,7 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"modifyAttr","subject"?:"card"|"player"|"battle","target"?:TARGET,"side"?:"you"|"opponent","attr":"power"|"comboPower"|"colors"|…,"amount"?:AMOUNT,"values"?:["…"],"mode"?:"active"|"rest","sign"?:"add"|"remove","keyword"?:{"name":"Blocker"},"flag"?:true|false,"until"?:DURATION}
     the primitive under "power", "comboPower", "gains" and — since spec §2.5-1/§2.5-3 (#275) — "switchMode", "addMarker", "removeMarker", "grant", "hidden", "faceUp", "flip", "energyMarker" and "redirectAttack": one attribute of one subject, "amount" for a delta, "values" for the lists a card also counts as, and "mode"/"sign"/"keyword"/"flag" for the shapes those two have no room for. Those nine short spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean
   {"op":"power","target":TARGET,"amount":AMOUNT,"until":DURATION}
-    an amount may also be {"count":SELECTOR,"times":5000} (so much for each card), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)
+    an amount may also be {"count":SELECTOR,"times":5000} (so much for each card; add "per":2 for "for every 2 cards", rounded down), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)
   {"op":"comboPower","target":TARGET,"amount":AMOUNT,"until":DURATION}
   {"op":"grant","target":TARGET,"keyword":{"name":"Blocker"},"until":DURATION}
   {"op":"copySkills","target"?:TARGET,"from":TARGET,"which"?:"all","skill"?:N,"only"?:"keyword","until":DURATION}
@@ -46,6 +46,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     Hidden Mode / Revealed Mode (23-5)
   {"op":"redirectAttack","target":TARGET}
     "switch the target of the attack to it" (22-4-2)
+  {"op":"swapBattle","target":TARGET}
+    "switch your card that's in a battle with this card / the chosen card" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its "when this card attacks / is attacked" are not made pending
   {"op":"comboFrom","target":TARGET,"negated"?:true|false}
     "use it in a combo from your Drop (with its skills negated)" (5-7)
   {"op":"flip","target":TARGET}
@@ -101,7 +103,7 @@ AMOUNT is a number or an expression: {"var":"t"} (how many cards that name holds
   {"markers":SELECTOR,"times":N} (so much for each marker on them), {"life":"you"|"opponent"|"both","times":N}, {"sumPower":{"var":"t"}}, {"handUpTo":N},
   {"x":true,"times":N} (the X this skill's price was paid at — only where the price charges an X), {"attr":TARGET,"name":ATTR,"times":N} (one card's own measure),
   {"sumOf":SELECTOR,"attr":ATTR,"times":N} (that measure over every matching card, added up), or {"plus":[AMOUNT,N]} (that many and N more).
-  "times" multiplies; ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
+  "times" multiplies; on count, markers and life "per":N divides first, rounded down ("for every 2 cards": {"count":SELECTOR,"per":2,"times":5000}); ATTR is "power" | "comboPower" | "energyCost" | "comboCost".
 TARGET is {"var":"t"} for something chosen earlier, or {"sel":SELECTOR}.
   {"var":"looked","minus":"t"} is "the rest": the cards of one name that another name did not take.
 SELECTOR: {"side":"you"|"opponent"|"both","area":"deck"|"hand"|"drop"|"leader"|"battle"|"combo"|"energy"|"life"|"warp"|"unison"|"zDeck"|"zEnergy"|"removed"|"under"|"play","count":1,"upTo":true,"mode":"rest"|"active","filter":{...}}

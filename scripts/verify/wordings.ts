@@ -151,6 +151,22 @@ import type { EngineState, Trigger } from "./harness";
   }
 }
 
+{
+  // BT29-041, BT29-042: a [Field] Extra that says "when this card is placed in
+  // a Battle Area" answers its own [Field] arrival — once (5-5-1, owner's
+  // ruling of 2 Oct 2026).
+  DEFS["FIELD-ARRIVES"] = { ...DEFS["E-DRAW"], id: "FIELD-ARRIVES", name: "FIELD-ARRIVES", energyCost: 1, skill: "[Field]\n[Auto] When this card is placed in a Battle Area, draw 1 card." };
+  let s = stagedG({ hand: ["FIELD-ARRIVES"], energy: ["V1"] });
+  if (!rulesGap("wordings: a [Field] Extra's 'placed in a Battle Area' (5-5-1)", "the rules engine offers no [Field] activation — the case above", "#157")) {
+    const hand = zoneOf(s, "p1", "hand").length;
+    const card = findG(s, "p1", "hand", "FIELD-ARRIVES");
+    s = playG(s, { type: "activate", player: "p1", card, skill: 0 });
+    assert.ok(zoneOf(s, "p1", "battle").includes(card), "22-3-2: into the Battle Area");
+    assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "placed by its [Field]: one draw");
+    assertConsistentG(s);
+  }
+}
+
 // 22-41's [Overlord] case moved to `keywords.ts`, which runs on both engines,
 // when its keyword's `DO` was declared (Stage 7).
 

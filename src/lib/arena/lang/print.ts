@@ -101,8 +101,12 @@ export function printAmount(a: Amount): string {
     if (!fields.every((f) => f in bag)) continue;
     const args = spec.args.map((kind, i) => printExprArg(kind, bag[fields[i]]));
     const call = args.length ? `${spec.call}(${args.join(", ")})` : spec.call;
+    // `/ n` before `* n`, the order the engines apply them in: whole steps of
+    // n first, then so much for each step.
+    const per = spec.per ? bag.per : undefined;
+    const divided = per === undefined ? call : `${call} / ${per as number}`;
     const times = spec.times ? bag.times : undefined;
-    return times === undefined ? call : `${call} * ${times as number}`;
+    return times === undefined ? divided : `${divided} * ${times as number}`;
   }
   // Unreachable while `Amount` and `EXPR_SCHEMA` agree; `scripts/verify/lang.ts`
   // is what holds them to it. Printing the object beats printing nothing.

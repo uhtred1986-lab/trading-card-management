@@ -184,17 +184,24 @@ export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "
  * Every shape that was here before 20-5 is still spelled exactly as it was:
  * stored `card_rules.ops` rows carry these keys, so nothing here may be
  * renamed and nothing may change meaning. The new shapes are additions.
+ *
+ * `per` divides a board reading before `times` multiplies it: "+5000 power
+ * for every 2 ≪Universe 2≫ cards in your Warp" is `{count, per: 2, times:
+ * 5000}`, and five such cards are two steps of two, so +10000 — the
+ * remainder is dropped, never rounded up (2 Oct 2026). Only on `count`,
+ * `markers` and `life`, the readings a card says "for every N" of; see
+ * `perStep`.
  */
 export type Amount =
   | number
   | { var: string }
-  | { count: Selector; times?: number }
+  | { count: Selector; per?: number; times?: number }
   /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). The special case of `sumOf` that predates it, kept because rows spell it this way. */
   | { sumPower: { var: string } }
   /** "Draw cards until you have 4 cards in your hand": however many that takes, never fewer than none. */
   | { handUpTo: number }
   /** "For each marker on this card, +5000 power" — the markers on the selected cards, added up, the same board fact the `markers` condition asks about. */
-  | { markers: Selector; times?: number }
+  | { markers: Selector; per?: number; times?: number }
   /**
    * X: the number chosen when the skill was paid for (20-5). Read off the
    * script frame, which the activation puts it on; a program that says `X`
@@ -203,7 +210,7 @@ export type Amount =
    */
   | { x: true; times?: number }
   /** "For each card in your life area" — the life cards of one side, or both. */
-  | { life: Side; times?: number }
+  | { life: Side; per?: number; times?: number }
   /** "Power equal to that card's energy cost × 1000" — one card's own measure, times a printed number. */
   | { attr: Ref; name: AmountAttr; times?: number }
   /** "Power equal to the total combo power of the cards discarded by this skill" — the same measure over every selected card, added up. */
@@ -217,6 +224,13 @@ export type Amount =
  * place the rest at the bottom of your deck".
  */
 export type Ref = { var: string; minus?: string } | { sel: Selector };
+
+/**
+ * A board reading in whole steps of `per`, rounded down: "for every 2" of five
+ * cards is 2. Both engines' `amount` read the three `per` shapes through this,
+ * so the rounding is written once.
+ */
+export const perStep = (n: number, per: number | undefined): number => (per && per > 1 ? Math.floor(n / per) : n);
 
 export type Cond =
   | { kind: "count"; sel: Selector; atLeast?: number; atMost?: number }
@@ -574,6 +588,16 @@ export type Op =
   | { op: "hidden"; target: Ref; hidden: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
   | { op: "redirectAttack"; target: Ref }
+  /**
+   * "Switch your card that's in a battle with this card / the chosen card":
+   * `target` takes the place of the master's card in the battle in progress —
+   * the attack card if they attack, the guard card if they are attacked — and
+   * the card it replaces leaves the battle where it stands. 8-1-7-2: the
+   * battle goes on, and the new card's "when this card attacks" / "is
+   * attacked" are not made pending. The new card must be the master's own,
+   * in their Battle Area or Leader Area, and not already in the battle.
+   */
+  | { op: "swapBattle"; target: Ref }
   /**
    * "Use up to 1 card with 5000 combo power from your Drop in a combo (with
    * its skills negated)" — into your Combo Area during a battle, for no combo
@@ -1649,6 +1673,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
           const deferred = defers(replaced);
+          // 3-10: "when this card is sent from your deck to your Warp by your
+          // <Heles> card's skill" (BT30-106) asks where it came from, which is
+          // gone once it has moved.
+          const fromDeck = h.areaOf(id) === "deck";
           h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: op.cause ?? "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
@@ -1673,6 +1701,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               h.pend("leftBattleToDrop", id);
             }
           }
+          // Your own skill sent your own card from your deck to the Warp. The
+          // skill's card is the subject, so "by your <Heles> card's skill" is
+          // a condition the rule asks of it — the same way `restedBySkill`
+          // hands on the card that rested it.
+          if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
           if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
@@ -1835,6 +1868,23 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (!id) break;
         h.setGuard(id, frame.card);
         h.pend("attacked", id);
+        break;
+      }
+
+      case "swapBattle": {
+        // 8-1-7-2: the master's card in the battle is changed by an effect.
+        // Which seat it holds is the battle's own answer — the attack card
+        // if the master attacks, the guard card if they were attacked — and
+        // no "when this card attacks / is attacked" is made pending for the
+        // card that takes it.
+        const b = h.battle();
+        if (!b) break;
+        const master = frame.master;
+        const out = h.masterOf(b.attacker) === master ? b.attacker : h.masterOf(b.guard) === master ? b.guard : null;
+        if (!out) break;
+        const id = h.resolveRef(frame, op.target).find((x) => x !== b.attacker && x !== b.guard && h.masterOf(x) === master && (h.areaOf(x) === "battle" || h.areaOf(x) === "leader"));
+        if (!id) break;
+        h.swapBattleCard(out, id);
         break;
       }
 
