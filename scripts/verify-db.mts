@@ -565,6 +565,45 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(probe(rule, scenariosFor(rule)[0]).digest, stored.digest, "re-running it agrees with what was kept");
 }
 
+// ── The owner's word on a board is kept with the rule (#470) ───────────────
+// `card_rules.expectations` (migration 0039): each judged board — its key,
+// what should happen, the engine it was judged on — saved, read back, and
+// held against the rule as `arena:reprobe` holds it. One seeded mismatch: the
+// drafted rule draws when it is *played*, and the owner said it should fire
+// when it *attacks*.
+{
+  const { eq } = await import("drizzle-orm");
+  const { expectedRules, programOf, setExpectations } = await import("../src/lib/arena/rules-store.ts");
+  const { ruleFrom } = await import("../src/lib/arena/probe.ts");
+  const { expectationMismatches, readExpectations } = await import("../src/lib/arena/tryit.ts");
+  const { cardDefFrom } = await import("../src/lib/arena/load.ts");
+
+  const [row] = await db.select().from(schema.cardRules).where(eq(schema.cardRules.cardId, "BT18-030"));
+  assert.equal(row.expectations, null, "a rule carries no judgements until the owner makes one");
+  assert.deepEqual(await expectedRules(db), [], "and nothing to hold it to");
+
+  const said = [
+    { key: "play", title: "You play it", expected: "fired", verdict: "right", headline: "draws 1", applied: [], engine: "rules", at: "2026-10-02T09:00:00.000Z" },
+    { key: "attack", title: "It attacks the opponent's Leader", expected: "fired", verdict: "wrong", note: "it should draw when it attacks", engine: "rules", at: "2026-10-02T09:01:00.000Z" },
+  ];
+  await setExpectations(db, row.id, readExpectations(said));
+  const kept = await expectedRules(db);
+  assert.equal(kept.length, 1, "the judged rule is the one that comes back");
+  assert.deepEqual(readExpectations(kept[0].expectations), readExpectations(said), "the judgements read back as they were saved");
+
+  const [def] = await db.select().from(schema.cards).where(eq(schema.cards.id, "BT18-030"));
+  const rule = ruleFrom(kept[0], cardDefFrom(def), programOf(kept[0]));
+  const wrong = expectationMismatches(rule, readExpectations(kept[0].expectations));
+  assert.deepEqual(
+    wrong.map((m) => [m.key, m.line]),
+    [["attack", "expected fired, now didNotFire"]],
+    "the board judged right still is; the one the rule does not meet is reported as the owner said it",
+  );
+
+  await setExpectations(db, row.id, []);
+  assert.deepEqual(await expectedRules(db), [], "clearing them leaves nothing to hold the rule to");
+}
+
 // ── The hand-entered specified cost survives the catalog sync ──────────────
 // `cards.specified_cost` (migration 0034, issue #255) is the one column on
 // `cards` a person writes. The feed never carries it, so the upsert has to
@@ -848,6 +887,7 @@ await (await import("./verify-readiness.mts")).verifyReadiness(db);
 await (await import("./verify-invite.mts")).verifyInvite(db);
 await (await import("./verify-review.mts")).verifyReview(db);
 await (await import("./verify-game-flow.mts")).verifyGameFlow(db);
+await (await import("./verify-rule-review-db.mts")).verifyRuleReviewDb(db);
 
 await client.close();
 console.log("verify-db: all checks passed");

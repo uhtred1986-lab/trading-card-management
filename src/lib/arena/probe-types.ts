@@ -1,6 +1,7 @@
 import type { CardDef } from "./types";
 import type { Op } from "./vm/script";
 import type { SkillPrice } from "./vm/script";
+import type { RulePath } from "./lang/path";
 
 /** The rule under test, as the row holds it. */
 export interface ProbeRule {
@@ -19,6 +20,13 @@ export interface ProbeRule {
   unread: string[];
   /** The price before the colon, off the row's `cost`. */
   price: SkillPrice;
+  /**
+   * Whether `ops` is the row's hoisted IF wrapped back around its steps
+   * (`programOf`), so a traced probe can call the IF `cond` and its steps
+   * `ops[i]` (#470). Left out, a program of one `if` with no `else` is read
+   * as hoisted.
+   */
+  hoisted?: boolean;
 }
 
 export type ProbeFamily = "play" | "attack" | "combo" | "activateMain" | "activateBattle" | "copy" | "counter" | "permanent" | "keyword" | "moment" | "none";
@@ -38,7 +46,19 @@ export interface ProbeScenario {
   variant: ProbeVariant;
   /** The board in one line, as the select shows it. */
   title: string;
+  /**
+   * The numbers the rule's condition reads, set on this board (#470): how
+   * many matching cards are in the counted zone, a life total, whose turn it
+   * is — keyed by the path of the condition each one answers
+   * (`probe-edges.ts`). Absent on the trigger's own boards, which stage
+   * nothing for the condition.
+   */
+  knobs?: BoardKnobs;
 }
+
+/** A `count` or `life` condition's number, or `isTurnPlayer`'s side. */
+export type KnobValue = number | "you" | "opponent";
+export type BoardKnobs = Record<RulePath, KnobValue>;
 
 export type ProbeOutcome = "fired" | "blank" | "didNotFire" | "notOffered" | "inForce" | "noScenario" | "error";
 
@@ -59,4 +79,27 @@ export interface ProbeRun {
   outcome: ProbeOutcome;
   /** Stable over outcome + applied + result: what `arena:reprobe` compares. */
   digest: string;
+  /** What a traced run (`probe(…, { trace: true })`) knows about which block did what. Never part of `digest`. */
+  trace?: ProbeTrace;
+}
+
+/**
+ * Which block of the rule made each beat (#470, `probe-trace.ts`). Paths are
+ * `RulePath`s into the rule as the language holds it.
+ */
+export interface ProbeTrace {
+  /**
+   * One per line of `applied`: the op or condition that made it; `cond` (or
+   * `trigger`, with no IF) for the skill's own announcement; null for a beat
+   * the rule did not make — the move under test, the battle around it.
+   */
+  appliedPaths: (RulePath | null)[];
+  /** The steps that finished, in the order they did. */
+  reached: RulePath[];
+  /** Whether the rule's IF held on this board; null when it has none. */
+  held: boolean | null;
+  /** The engine's own remarks while the rule was tried (`note` events), markers taken out. */
+  notes: string[];
+  /** What the rule's own steps changed — `result`, less the game going on around it (the opponent's draw when the turn is run to its end). */
+  result: string[];
 }

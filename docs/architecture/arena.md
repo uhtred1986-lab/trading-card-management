@@ -65,6 +65,12 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   board driven entirely by `legalActions()` and one `Snapshot` — no client evaluates a rule.
   **Everything the board says about who is acting reads `live.waiting`, never the `snapshot`
   prop.** Doc: `docs/arena-code-map.md`.
+- **Rule review on the phone** (`/arena/rules/review`, #472): a deck's open and draft skills one at
+  a time, text first. **A span is never guessed** (`src/lib/arena/rule-review.ts`): the record
+  keeps no clause → printed-words link, so only its own text found exactly once on the line is
+  underlined (an `unread` clause or the cost's `text`, or a WHEN/IF/DO reading printed word for
+  word); every other clause is listed under the text. Wrong writes `explanation` (prefix
+  `Wrong (phone review)`), never the program; a flagged draft leaves the queue and Confirm all.
 - **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`): two people, two devices, one game. A 1 v 1
   belongs to its two seats and nobody else, over as well as playing. Doc: `docs/arena-code-map.md`.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): your hand, life and decklist are
@@ -77,9 +83,22 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and **never compiles card text at game time**; a row a person confirmed or corrected is never
   rewritten by a script. Doc: `docs/arena-code-map.md`, and for the owner's own walkthrough of
   correcting a record, `docs/arena-fixing-a-card.md`.
+- **The block builder** (`src/lib/arena/lang/blocks.ts`, `components/arena/rules/Blocks.tsx`,
+  `/arena/rules/build/[id]`, #469): a rule spelled out as WHEN · COST · IF · THEN blocks, **generated
+  from the schema** — what a clause may hold comes off `OP_SCHEMA`/`COND_SCHEMA`/`whenMoments()`/
+  `COST_ITEMS`, each blank's control off its `FieldType`, so a new row needs no builder change. One
+  component for the phone route and the workbench record; every edit goes through a `RulePath`
+  (`lang/path.ts`) into the one `Rule`. Proved by `scripts/verify/blocks.ts`; `/arena/rules/build/preview`
+  shows it on fixtures without a database (dev only).
 - **The probe** (`src/lib/arena/probe.ts`): says what the engine *does* with a rule, not what it
   should. Pure — no database, no network, and **no compiler**: `draft.ts` stays the only module
   that compiles card text. Doc: `docs/arena-code-map.md`.
+- **Try it → fix it** (`src/lib/arena/tryit.ts`, panel `components/arena/rules/tryit/`, actions
+  `app/arena/rules/probe-actions.ts`, #470): the builder's unsaved rule, probed on the boards its
+  trigger and condition call for, on the engine games use with legacy beside it. Each beat carries
+  the `RulePath` of its block, so a wrong row opens that block. **`probe()`'s own default stays
+  `FALLBACK_ENGINE`**: Try it passes the engine explicitly. The owner's judgements are
+  `card_rules.expectations`. Doc: `docs/arena-tooling.md`.
 - **Explaining a card** (`src/lib/arena/ai/clarify.ts`): plain-language explanations become a
   draft rule. **A ruling given in conversation goes to `card_rules.explanation` first** (`npm run
   arena:rule`), and the code change is made afterwards, deliberately. Doc: `docs/arena-code-map.md`.
@@ -109,7 +128,8 @@ npm run arena:draft    # Compile the catalog offline into card_rules drafts (--c
 npm run arena:rulesets # Rewrite src/lib/arena/rulesets/<game>/files.ts from the .rules files beside it
                        # (--check fails instead of writing); the loader itself reads no filesystem
 npm run arena:probe    # Try stored rules on a board built for each (--card, --set, --all, --limit, --fill)
-npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write)
+npm run arena:reprobe  # Re-run every probe a rule carries and list the ones whose answer moved (--write),
+                       # then every board the owner judged: "expected fired, now didNotFire"
 npm run arena:tally    # Compiler coverage over the live deckplanet catalog, with op/cond usage and unread
                        # clause shapes — no database needed (--misses N, --show "<a wording>")
 npm run arena:specified # The specified (coloured) half of a play's price: proves the catalog feed carries

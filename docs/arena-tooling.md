@@ -461,6 +461,20 @@ database is `contract/probe-rules-parity.json`, written by `verify/probe.ts` bes
 `probe-digests.json`: one row per harness card, both digests, and a named cause for each
 difference (`npx tsx scripts/verify-arena.ts --explain` prints them).
 
+**Try it and the owner's judgements (#470).** `scenariosFor` now ends with a met / not-met pair
+of boards for every condition a rule carries (`probe-edges.ts`: a count's n and n − 1, a life
+threshold and one past it, your turn and theirs, the parts of an `all`/`any`/`not`), keyed
+`attack|cond=3`; board 0 never moves, so stored digests do not either. `probe(…, { trace: true })`
+hands the engine the program with a `note` marker after every step (`probe-trace.ts`) and tags
+each `applied` line with the `RulePath` of the block that made it — a traced run concludes exactly
+what an untraced one does, which `scripts/verify/tryit.ts` holds every fixture to. A traced run
+also plays the rule's WHEN off the record rather than the printed text, as a game does.
+`lib/arena/tryit.ts` tries an unsaved rule on `DEFAULT_ENGINE` and `FALLBACK_ENGINE` and names the
+gate a rule that did not fire stopped at. The owner's ✓/✗ per board are kept in
+`card_rules.expectations`; after the digests, `arena:reprobe` re-runs those on the engine they were
+judged on and lists, separately, the ones the rule no longer meets — "expected fired, now
+didNotFire". `--write` never touches them.
+
 **Its blind spot is worth knowing**: the staged board is built in the card's
 favour, and it only stages what it has been taught to stage. It staged no
 markers at all until someone added that, so it could not distinguish a working

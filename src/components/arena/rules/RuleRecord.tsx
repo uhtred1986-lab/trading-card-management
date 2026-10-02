@@ -11,7 +11,8 @@ import type { Trigger } from "@/lib/arena/types";
 import { describeTrigger } from "@/lib/arena/gaps";
 import { parseRule, printRule, validateRule, type LangError, type Rule } from "@/lib/arena/lang";
 import { loadDbs } from "@/lib/arena/rulesets";
-import { CondChip, OpList, blankCond } from "./OpEditor";
+import { condReading, opReading, problemsOf } from "@/lib/arena/lang/blocks";
+import { RuleBlocks } from "./Blocks";
 
 /**
  * An `expected[]` entry, linked to its row on `/arena/rules/language` when it
@@ -220,6 +221,14 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   }
 
   const rule: Rule = useMemo(() => ({ kind: r.tag, trigger, cost, cond, ops }), [r.tag, trigger, cost, cond, ops]);
+  /** The block editor hands back a whole rule; the record keeps its four clauses apart. */
+  const setRule = (next: Rule) => {
+    setTrigger(next.trigger);
+    setCost(next.cost);
+    setCond(next.cond);
+    setOps(next.ops);
+  };
+  const problems = useMemo(() => (editing ? problemsOf(rule, r.tag) : []), [editing, rule, r.tag]);
   const program = useMemo(() => programOf(cond, ops), [cond, ops]);
   const reads = useMemo(() => describeScript(program, { permanent: r.permanent }), [program, r.permanent]);
   // A keyword line whose whole program is empty is not a blank skill: the
@@ -474,7 +483,16 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
         )}
       </p>
 
-      <div className="overflow-hidden rounded-2xl border border-space-700 bg-space-900/60">
+      {editing && (
+        <>
+          {/* The same blocks the phone builder (/arena/rules/build/[id]) is made of: one editor, not two. */}
+          <RuleBlocks rule={rule} onChange={setRule} problems={problems} permanent={r.permanent} />
+          <div className="rounded-xl border border-space-700 px-4 py-3 text-xs text-space-300">
+            The engine will: <b className="font-semibold text-space-50">{reads || "nothing"}</b>
+          </div>
+        </>
+      )}
+      <div className={`overflow-hidden rounded-2xl border border-space-700 bg-space-900/60 ${editing ? "hidden" : ""}`}>
         <Row k="WHEN" tone="text-ki-300">
           <Chip>
             [{r.kind}] · {whenLine(trigger, r.tag)}
@@ -492,17 +510,9 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
             <DeclarationLinks define="cost" names={costLinks(cost)} />
           </Row>
         )}
-        {(cond || editing) && (
+        {cond && (
           <Row k="IF" tone="text-dbs-blue">
-            {cond ? (
-              <Chip>
-                <CondChip cond={cond} editing={editing} onChange={setCond} onRemove={editing ? () => setCond(null) : undefined} />
-              </Chip>
-            ) : (
-              <button type="button" className="tap rounded-lg border border-dashed border-space-600 px-2 py-1 text-xs text-space-300" onClick={() => setCond(blankCond("isTurnPlayer"))}>
-                + condition
-              </button>
-            )}
+            <Chip>{condReading(cond)}</Chip>
           </Row>
         )}
         <Row k="DO" tone="text-ki-300">
@@ -512,8 +522,17 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                 played by the engine&rsquo;s <b className="font-semibold text-ki-300">{plays.tag}</b> rule
               </span>
             </Chip>
+          ) : ops.length ? (
+            <div className="flex w-full flex-col gap-1.5">
+              {ops.map((op, i) => (
+                <div key={i} className="flex items-center gap-1.5 rounded-lg border border-space-600 bg-space-800 px-2 py-1.5 text-[12px] text-space-100">
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-space-950 text-[10px] font-bold text-space-400">{i + 1}</span>
+                  <span>{opReading(op, r.permanent)}</span>
+                </div>
+              ))}
+            </div>
           ) : (
-            <OpList ops={ops} editing={editing} onChange={setOps} />
+            <div className="rounded-lg border border-loss/50 px-2 py-1.5 text-[12px] text-loss">nothing — the engine treats this skill as blank</div>
           )}
           {r.status === "open" &&
             !dirty &&
@@ -543,7 +562,12 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
             <div className="flex flex-wrap items-center gap-2">
               {editing ? (
                 <>
-                  <button type="button" disabled={pending || !!jsonError || !!textError} className={primary} onClick={() => run("Saved as corrected.", () => saveRuleAction(r.id, rule, explanation.trim() || null, patternWrong), true)}>
+                  {problems.length > 0 && (
+                    <span className="text-[11px] text-loss">
+                      {problems.length} thing{problems.length === 1 ? "" : "s"} to fix in the blocks
+                    </span>
+                  )}
+                  <button type="button" disabled={pending || !!jsonError || !!textError || problems.length > 0} className={primary} onClick={() => run("Saved as corrected.", () => saveRuleAction(r.id, rule, explanation.trim() || null, patternWrong), true)}>
                     Save as corrected
                   </button>
                   <button
@@ -578,6 +602,9 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                       Reopen for review
                     </button>
                   )}
+                  <Link href={`/arena/rules/build/${r.id}`} className={btn} title="Spell the rule out as WHEN / COST / IF / THEN blocks">
+                    {r.status === "open" ? "Build in blocks" : "Edit in blocks"}
+                  </Link>
                   <button type="button" className={btn} onClick={editText} title="Edit as text (e)">
                     {r.status === "open" ? "Write as text" : "Edit as text"}
                   </button>
@@ -589,8 +616,11 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                       ⋯
                     </summary>
                     <div className="absolute bottom-full right-0 z-30 mb-1 flex w-56 flex-col gap-1 rounded-xl border border-space-600 bg-space-900 p-2 shadow-lg">
+                      <Link href={`/arena/rules/build/${r.id}`} className={`${btn} text-center`}>
+                        Build in blocks (full screen)
+                      </Link>
                       <button type="button" className={btn} onClick={() => setEditing(true)}>
-                        Correct with the chips
+                        Correct with blocks here
                       </button>
                       <button type="button" className={btn} onClick={() => setExplainOpen(!explainOpen)}>
                         Explain to Claude
