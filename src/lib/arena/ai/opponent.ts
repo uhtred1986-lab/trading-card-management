@@ -357,7 +357,7 @@ ${CONDITIONS}
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
 AREA: ${vocab.areas.map((a) => `"${a}"`).join(" | ")}
-DURATION: ${vocab.durations.map((d) => `"${d}"`).join(" | ")} — "nextTurn" lasts through the opponent's turn and ends as yours begins.
+DURATION: ${vocab.durations.map((d) => `"${d}"`).join(" | ")} — "nextTurn" lasts through the opponent's turn and ends as yours begins; "whileSourceInPlay" lasts until the card that made it leaves the Battle Area.
 FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
   The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and
   {Angel Halo} a card *name* — "names", never "characters". A card names itself in braces and its character

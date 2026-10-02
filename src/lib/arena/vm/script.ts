@@ -27,8 +27,14 @@ export type Side = "you" | "opponent" | "both";
  * `afterNextCharge` outlives `nextTurn` by one step: "the chosen card will not
  * switch to Active Mode during your next Charge Phase" (7-2-7) has to still be
  * there when the Active Step runs, and `nextTurn` ends just before it.
+ *
+ * `whileSourceInPlay` is "…while this card is in a Battle Area" trailing an
+ * [Auto] or [Activate] effect (BT29-041, BT29-042): the effect holds until the
+ * card whose skill made it (its `source`) leaves the Battle Area, and no longer
+ * (9-9-2: it lasts for the period the effect names). A [Permanent]'s own
+ * "While this card is …" is a condition (`IF`), not this.
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";

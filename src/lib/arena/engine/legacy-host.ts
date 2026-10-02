@@ -112,6 +112,9 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       if (card.negated !== "all") card.negated.push(index);
     },
     addEffect: (e) => {
+      // "…while this card is in a Battle Area": a source already gone by the
+      // time the effect resolves gives it no period to last for at all.
+      if (e.until === "whileSourceInPlay" && (!e.source || areaOf(s, e.source) !== "battle")) return;
       addEffect(s, ev, e);
     },
     schedule: (d) => {

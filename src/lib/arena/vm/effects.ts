@@ -332,6 +332,15 @@ export function endAfterChargeEffects(state: VmState, ev: GameEvent[], cards: st
   return dropEffects(state, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
+/**
+ * "…while this card is in a Battle Area" (`whileSourceInPlay`): every effect
+ * the card made with that duration ends as the card leaves the Battle Area —
+ * the legacy `endSourceEffects`, word for word.
+ */
+export function endSourceEffects(state: VmState, ev: GameEvent[], source: string): ContinuousEffect[] {
+  return dropEffects(state, ev, (e) => !(e.until === "whileSourceInPlay" && e.source === source));
+}
+
 export function dropEffectsOn(state: VmState, ev: GameEvent[], id: string): void {
   dropEffects(state, ev, (e) => e.target !== id);
 }

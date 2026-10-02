@@ -277,6 +277,12 @@ function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op):
 
 function durationOf(clause: string): Duration {
   const t = clause.toLowerCase();
+  // "…and it can't activate skills while this card is in a Battle Area"
+  // (BT29-041, BT29-042): trailing an [Auto] or [Activate] effect, the effect
+  // lasts as long as the card that made it stays in a Battle Area. Only the
+  // trailing form: a [Permanent]'s "While this card is in …, …" leads its
+  // sentence and is a condition, read as one before any clause gets here.
+  if (/\bwhile this card is in (?:a|the|your) battle area\.?$/.test(t)) return "whileSourceInPlay";
   if (/for the (?:duration of (?:the|this) )?battle|during this battle/.test(t)) return "battle";
   if (/for the (?:duration of (?:the|this) )?game|during the game|in any area|in all areas/.test(t)) return "game";
   if (/until (?:the start of )?your opponent's next turn/.test(t)) return "opponentTurn";
@@ -624,7 +630,7 @@ function swapForEachAmount(op: Op, amountFor: (printed: number) => Amount): Op |
 // "During **that** turn" is the turn the sentence has been talking about,
 // which is this one — the same duration said with a different pronoun.
 const DURATION_TAIL_SRC =
-  "for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+";
+  "for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|while this card is in (?:a|the|your) battle area";
 /**
  * How long, on its own. A pattern that takes a whole *target phrase* off the
  * end of a clause has to cut the duration itself rather than work from
@@ -2322,6 +2328,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     return null;
   }
   if (/^attack\b/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
+  // "It can't activate skills" (BT29-041): the card's own [Activate] and
+  // [Auto] skills, both of which are *activated* (9-6-3-2 — an [Auto] that
+  // cannot be activated is cancelled), so `activateSkill` stops both.
+  if (/^activate (?:its |their )?skills\b/.test(rest)) return [{ op: "forbid", what: "activateSkill", until, target, ...withUnless }];
   if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
   if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];
   if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) return [{ op: "forbid", what: "switchToActive", until, target, ...withUnless }];

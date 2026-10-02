@@ -61,7 +61,7 @@ import type { EngineContext, GameEvent } from "../types";
 import type { ScriptHost } from "./script-host";
 import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
-import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
+import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule } from "./effects";
 import { tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow } from "./battle";
@@ -262,6 +262,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       addEffect(state, ev, { target: id, kind: "negateSkill", value: index, until: "game", source: id });
     },
     addEffect: (e) => {
+      // "…while this card is in a Battle Area": a source already gone by the
+      // time the effect resolves gives it no period to last for at all.
+      if (e.until === "whileSourceInPlay" && (!e.source || zoneOf(state, e.source) !== "battle")) return;
       addEffect(state, ev, e);
     },
     schedule: (d) => {
@@ -534,6 +537,10 @@ function moveTo(
   // 3-1-4: a card that changed area is a new card, so nothing that was in force
   // on it still is. A card moving *within* play carries them (3-1-4-1).
   if (!carry && from !== to) dropEffectsOn(state, ev, id);
+  // "…while this card is in a Battle Area": what the card made for that long
+  // ends as it leaves — a move from one Battle Area to another (20-9) is not
+  // leaving.
+  if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
   } else if (host && hostZone) {

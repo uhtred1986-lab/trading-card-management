@@ -461,6 +461,12 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
   if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master);
   const sk = skillsOfInstance(ctx, s, p.card).find((k) => k.index === p.skillIndex);
   if (!sk) return "done";
+  // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
+  // activate skills" (BT29-041) has its pending [Auto] cancelled.
+  if (sk.kind === "auto" && forbids(ctx, s, "activateSkill", { player: p.master, card: p.card })) {
+    note(ev, `${inst.cardId} can't activate skills, so its skill does not resolve`);
+    return "done";
+  }
   // 9-6-11: the skill resolves even if the card moved, unless it became impossible.
   if (sk.oncePerTurn || sk.limit != null) {
     const used = inst.usedThisTurn.filter((i) => i === sk.index).length;
