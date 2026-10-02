@@ -971,7 +971,7 @@ function orbTotals(
   const applies = (skillKind: string | undefined) => !skillKind || sk.kind.startsWith(skillKind);
   const mods = [
     ...staticEffects(ctx, s).filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind)),
-    ...s.effects.filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind)),
+    ...s.effects.filter((e) => e.kind === effectKind && e.target === card && applies(e.skillKind) && (e.uses ?? 1) > 0),
   ];
   for (const e of mods) {
     const by = e.value as number;
@@ -997,6 +997,25 @@ function orbTotals(
     }
   }
   return { total, specified, either };
+}
+
+/**
+ * "The next time you activate …, reduce its skill cost by {b}" (BT31-096):
+ * the line has just been paid for, so every one-use change to its price that
+ * `orbTotals` read for it is spent — one use off each, and a change with none
+ * left ends here rather than at its duration. Called once the price has been
+ * paid, never while a menu is only being built, so offering a line spends
+ * nothing. The rules engine's twin is `vm/costs.ts`' `spendSkillCostUses`.
+ */
+function spendSkillCostUses(s: GameState, ev: GameEvent[], card: string, sk: Skill): void {
+  const effectKind = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
+  const spent = s.effects.filter((e) => e.kind === effectKind && e.target === card && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)));
+  if (!spent.length) return;
+  for (const e of spent) e.uses = e.uses! - 1;
+  const ended = spent.filter((e) => e.uses === 0);
+  if (!ended.length) return;
+  s.effects = s.effects.filter((e) => !ended.includes(e));
+  for (const e of ended) ev.push({ type: "effectEnded", effect: e });
 }
 
 /** The rules for the face-up side of a card, as the game was given them — the skills it has taken on included (20-18). */
@@ -2929,6 +2948,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
           const pm = planPayment(ctx, s, p, c.total + orbs.total, mergeSpecified(c.specified, orbs.specified), action.pay, orbs.either);
           if (!pm) throw new IllegalAction("can't pay the counter's cost");
           pay(s, ev, p, pm);
+          spendSkillCostUses(s, ev, action.card, sk);
         }
         // 22-10-7: the card goes to the Drop; its effect resolves as the counter motion.
         // Which is why the battle has to write it down first: once it is in the
@@ -3029,6 +3049,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
           if (!pm) throw new IllegalAction("can't pay the skill cost");
           pay(s, ev, p, pm);
         }
+        spendSkillCostUses(s, ev, info.card, sk);
         if (sk.markerCost != null) payMarkerCost(s, ev, info.card, sk.markerCost);
         if (!canPayKeywordCosts(s, p, sk)) throw new IllegalAction("can't pay the skill cost");
         payKeywordCosts(ctx, s, ev, p, sk);
@@ -3079,6 +3100,12 @@ function requireMain(s: GameState, p: PlayerId): void {
 
 /** Pay a skill's cost and queue its resolution. Keyword skills with choices push a prompt. */
 function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number): void {
+  activateLine(ctx, s, ev, p, card, sk, explicitPay, alt, x);
+  // Paid for, whichever branch paid it: a one-use change to this line's price is spent.
+  spendSkillCostUses(s, ev, card, sk);
+}
+
+function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number): void {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
   const k = sk.keyword;

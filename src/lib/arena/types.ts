@@ -535,6 +535,14 @@ export interface ContinuousEffect {
   skillKind?: SkillKindPrefix;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
   colors?: (Color | "any")[];
+  /**
+   * `skillCost`/`evolveCost` only: how many more activations the change
+   * applies to. "The next time you activate an [Activate] skill of your
+   * Leader during this turn, reduce its skill cost by {b}" (BT31-096) is 1:
+   * the first activation it applies to spends it and it ends there, still
+   * bounded by `until`. Absent is every activation for the whole duration.
+   */
+  uses?: number;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
   /**

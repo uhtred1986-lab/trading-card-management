@@ -652,6 +652,8 @@ export type Op =
       alt?: Op[];
       orbs?: (Color | "any")[];
       until?: Duration;
+      /** `costReduction`'s `uses`, carried through unchanged. */
+      uses?: number;
     }
   /**
    * A [Permanent] cost reducer, applied while the card sits where the skill
@@ -683,6 +685,16 @@ export type Op =
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
       until?: Duration;
+      /**
+       * With `what: "skill"`/`"evolve"` and a duration: how many activations
+       * the change applies to before it ends — "**the next time** you activate
+       * an [Activate] skill of your Leader during this turn, reduce its skill
+       * cost by {b}" (BT31-096) is `uses: 1`. The first activation of a line
+       * the change reaches spends one; once none are left it is gone, and
+       * `until` still ends it unused. Absent is every activation in the
+       * duration. Not read on a [Permanent], which has no activation to count.
+       */
+      uses?: number;
       /**
        * With `what: "specified"`: no specified cost at all, every orb, read
        * after every other change to it — [Warrior of Universe 7]'s "treat as
@@ -2114,6 +2126,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 : op.what === "evolve"
                   ? "evolveCost"
                   : "cost";
+        // "The next time you activate …": a budget of activations, read once
+        // here. It means something only on a line's own price, which is the
+        // one place an activation spends it (`spendSkillCostUses`, both
+        // engines); a budget of nothing puts nothing in force.
+        const uses = op.uses != null && (kind === "skillCost" || kind === "evolveCost") ? op.uses : undefined;
+        if (uses !== undefined && uses <= 0) break;
         for (const id of h.resolveRef(frame, op.target)) {
           h.addEffect({
             master: frame.master,
@@ -2124,6 +2142,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             until: op.until ?? "turn",
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
             ...(op.colors?.length ? { colors: op.colors } : {}),
+            ...(uses !== undefined ? { uses } : {}),
           });
         }
         break;

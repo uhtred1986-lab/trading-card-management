@@ -299,6 +299,18 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     [{ op: "forbid", what: "attack", until: "turn", side: "opponent", filter: parseFilter("battle card"), uses: 1, unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } }],
     "forbid with uses and unless",
   );
+  // A one-use change to a skill line's price (BT31-096): "the next time you
+  // activate an [Activate] skill of your Leader during this turn, reduce its
+  // skill cost by {b}" — and the same budget on the primitive it lowers to.
+  tripOps([{ op: "costReduction", target: { sel: { special: "leader" } }, amount: 1, what: "skill", skillKind: "activate", colors: ["Black"], until: "turn", uses: 1 }], "costReduction with uses");
+  tripOps([{ op: "costModifier", target: { sel: { special: "leader" } }, amount: 1, what: "skill", skillKind: "activate", colors: ["Black"], until: "turn", uses: 1 }], "costModifier with uses");
+  {
+    const bt31096 = parseRule(
+      'WHEN [auto] played\nIF leaderMatches(filter: "black <vegito>")\nTHEN\n  power(target: [leader], amount: 5000, until: turn)\n  costReduction(target: [leader], amount: 1, what: skill, skillKind: activate, colors: [Black], until: turn, uses: 1)',
+    );
+    assert.ok(bt31096.ok, "BT31-096's program parses");
+    assert.equal(validateRule(bt31096.value, "auto"), null, "and validates");
+  }
 
   // `modifyAttr`'s two widened subjects and six new card attributes (spec
   // §2.5-1/§2.5-3, #275): the schema loop above already builds a maximal

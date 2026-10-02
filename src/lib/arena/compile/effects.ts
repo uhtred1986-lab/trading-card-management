@@ -2512,6 +2512,47 @@ const PURE_DURATION =
  * shows up unread, not whether it reads — left split, as before.
  */
 const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) (?:\d+ )?markers? on this card[.,]?$/i;
+/**
+ * "…the next time you activate an [Activate] skill of your Leader during this
+ * turn, reduce its skill cost by {b}" (BT31-096, BT31-092), "…the next time
+ * you activate the [Activate: Main/Battle] skill on {Support Broadcast} in
+ * your Battle Area during this turn, reduce the skill cost by {1}" (BT30-106).
+ * `splitClauses` cuts it at its comma into these two halves, neither a
+ * sentence alone; `nextActivationReduction` reads the pair.
+ */
+const NEXT_ACTIVATION = /^(?:and |then )?the next time you activate (.+?) (?:during )?this turn[.,]?$/i;
+const REDUCE_THAT_SKILL_COST = /^(?:then )?reduce (?:its|the|that skill's|the skill's) (?:skill )?cost(?: of (?:it|that skill))? by ((?:\{[rugykbw\d]+\})+|\d+)[.]?$/i;
+
+/**
+ * The one-use skill-cost change the pair above says: `uses: 1`, bounded by the
+ * turn. The scope is a kind of skill line on named cards — "an [Activate]
+ * skill of your Leader", "the [Activate: Main/Battle] skill on {X} in your
+ * Battle Area", "this card's [Activate: Main] skill" — and a tag's timing
+ * words ("Main/Battle") are not kept: `skillKind` has the kind and no more,
+ * which reaches both timings of the line, the only ones those cards print.
+ * Anything else in the scope is refused whole rather than guessed.
+ */
+function nextActivationReduction(scope: string, amountText: string, c: Ctx): Op[] | null {
+  const tag = (raw: string): SkillKindPrefix | null => {
+    const word = raw.trim().toLowerCase().split(/[:\s]/)[0];
+    return word === "activate" || word === "counter" || word === "auto" ? word : null;
+  };
+  let m: RegExpExecArray | null;
+  let kind: SkillKindPrefix | null = null;
+  let who: string | null = null;
+  if ((m = /^(?:an?|the|your) \[([a-z0-9:\- /]+)\] skill (?:of|on) (.+)$/i.exec(scope.trim()))) [kind, who] = [tag(m[1]), m[2]];
+  else if ((m = /^(.+?)'s? \[([a-z0-9:\- /]+)\] skill$/i.exec(scope.trim()))) [kind, who] = [tag(m[2]), m[1]];
+  if (!kind || !who) return null;
+  let target = refFor(who, c);
+  if (!target || (c.stale && target === c.stale)) return null;
+  // "The skill on {X} in your Battle Area" is every {X} there, not a choice of one.
+  if ("sel" in target && !target.sel.special && target.sel.count !== undefined) target = { sel: { ...target.sel, count: 99, upTo: undefined } };
+  const orbs = /^\d+$/.test(amountText) ? null : orbsIn(amountText);
+  const amount = orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(amountText);
+  if (!amount) return null;
+  return [{ op: "costReduction", target, amount, what: "skill", skillKind: kind, ...(orbs ? { colors: orbsToList(orbs) } : {}), until: "turn", uses: 1 }];
+}
+
 /** The two halves of the copied-skill wording (20-18); see the merge in `compileClauseList`. */
 const COPY_SKILL_CHOICE = /^choose (?:up to )?\d+ (?:of (?:the )?.+?'s (?:keyword )?skills?|(?:keyword )?skills? (?:on|of|from|in) .+?)[.,]?$/i;
 const GAINS_THAT_SKILL = /^.*?\bgains? that skill\b/i;
@@ -2554,6 +2595,20 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
   };
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
+    // "…the next time you activate X during this turn, reduce its skill cost
+    // by {b}": the two halves `splitClauses` cut apart, read as the pair.
+    const nextTime = NEXT_ACTIVATION.exec(clause.trim());
+    const reduce = nextTime && i + 1 < clauses.length ? REDUCE_THAT_SKILL_COST.exec(clauses[i + 1].trim()) : null;
+    if (nextTime && reduce) {
+      const ops = nextActivationReduction(nextTime[1], reduce[1], c);
+      if (ops) push(ops);
+      else {
+        refuse(clause);
+        refuse(clauses[i + 1]);
+      }
+      i++;
+      continue;
+    }
     // "During this turn, your opponent can't…", "…, until the end of your
     // opponent's turn, it can't attack" — a duration split off on its own
     // belongs to the clause after it, where `durationOf` will find it.

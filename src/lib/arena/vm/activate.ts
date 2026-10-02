@@ -85,7 +85,7 @@ import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFr
 import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
@@ -622,6 +622,9 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
   if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
+  // The price is charged (`vm/actions.ts`, before this): a one-use change to
+  // the line's own orbs ("the next time you activate …", BT31-096) is spent.
+  spendSkillCostUses(state, ev, card, sk);
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
   // Not for a keyword's own move: its `DO` says where the card goes, and
