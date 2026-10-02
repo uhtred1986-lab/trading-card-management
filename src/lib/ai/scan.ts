@@ -154,13 +154,16 @@ export async function identifyCards(
     ({ id, output } = await recordRun<ScanResult>(db, "scan_identify", { mode, ...(r.fallbackFrom ? { fallbackFrom: r.fallbackFrom } : {}) }, r.res, undefined, r.model));
   }
 
-  const detections: ScanDetection[] = [];
-  for (const [index, card] of output.cards.entries()) {
-    const seen = { ...card, box: cleanBox(card.box) };
-    const { list, exact } = await matchDetection(db, seen);
-    const { matchedBy, confidence } = assessMatch(seen, list[0] ?? null, exact);
-    detections.push({ index, seen, candidates: list, exact, matchedBy, matchConfidence: confidence });
-  }
+  // Each card on the photo is matched on its own, so all of them at once: a
+  // nine-card binder page was nine rounds of lookups one after another.
+  const detections: ScanDetection[] = await Promise.all(
+    output.cards.map(async (card, index) => {
+      const seen = { ...card, box: cleanBox(card.box) };
+      const { list, exact } = await matchDetection(db, seen);
+      const { matchedBy, confidence } = assessMatch(seen, list[0] ?? null, exact);
+      return { index, seen, candidates: list, exact, matchedBy, matchConfidence: confidence };
+    }),
+  );
   return { runId: id, result: output, detections, prepared };
 }
 
@@ -170,19 +173,25 @@ export async function matchDetection(db: Db, seen: { name: string; number: strin
   const found = new Map<string, ScanCandidate>();
   let exact = false;
 
+  // Every id looked up at once, then added in the order asked, so the list
+  // reads exactly as it did when they were looked up one by one.
   const push = async (ids: string[]) => {
-    for (const id of ids) {
-      if (found.has(id)) continue;
-      const hits = await quickSearch(db, id, 1);
-      const hit = hits.find((h) => h.id === id);
-      if (!hit) continue;
-      const prints = await db
-        .select({ id: cardPrints.id, label: cardPrints.label })
-        .from(cardPrints)
-        .where(sql`${cardPrints.cardId} = ${id}`)
-        .orderBy(cardPrints.isBase);
-      found.set(id, { ...hit, prints: prints.reverse() });
-    }
+    const todo = [...new Set(ids)].filter((id) => !found.has(id));
+    const looked = await Promise.all(
+      todo.map(async (id) => {
+        const [hits, prints] = await Promise.all([
+          quickSearch(db, id, 1),
+          db
+            .select({ id: cardPrints.id, label: cardPrints.label })
+            .from(cardPrints)
+            .where(sql`${cardPrints.cardId} = ${id}`)
+            .orderBy(cardPrints.isBase),
+        ]);
+        const hit = hits.find((h) => h.id === id);
+        return hit ? { ...hit, prints: prints.reverse() } : null;
+      }),
+    );
+    for (const [i, id] of todo.entries()) if (looked[i]) found.set(id, looked[i]);
   };
 
   if (base) {

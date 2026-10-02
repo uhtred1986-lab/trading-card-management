@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { COLORS, cardTypesFor, searchCards, type CardSearch } from "@/lib/catalog/queries";
-import { cachedAbilityKeywords, cachedListRarities, cachedListSets, cachedListTraits, cachedUsdEur } from "@/lib/cache/reads";
+import { cachedAbilityKeywords, cachedBasePricesForCards, cachedCardIdsWithAbility, cachedListRarities, cachedListSets, cachedListTraits, cachedUsdEur } from "@/lib/cache/reads";
 import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter } from "@/components/GameFilter";
 import { allocationForCards } from "@/lib/decks/reservations";
-import { basePricesForCards, priceForFinish } from "@/lib/pricing/queries";
+import { priceForFinish } from "@/lib/pricing/queries";
 import { formatCents } from "@/lib/money";
 import { CardTile } from "@/components/CardTile";
 import { CardList } from "@/components/CardList";
@@ -41,7 +41,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
   // a Fusion World view never offers a Masters set — or trait/ability — that
   // would empty the page.
   const [result, allSets, sets, rarities, traits, abilities, usdEur] = await Promise.all([
-    searchCards(db, search),
+    searchCards(db, search, cachedCardIdsWithAbility),
     cachedListSets(),
     search.game ? cachedListSets(search.game) : cachedListSets(),
     cachedListRarities(search.game),
@@ -51,7 +51,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
   ]);
   const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
   const ids = result.rows.map((r) => r.id);
-  const [prices, alloc] = await Promise.all([basePricesForCards(db, ids), allocationForCards(db, ids)]);
+  const [prices, alloc] = await Promise.all([cachedBasePricesForCards(ids), allocationForCards(db, ids)]);
 
   const qs = (overrides: Record<string, string | number | undefined>) => {
     const p = new URLSearchParams();

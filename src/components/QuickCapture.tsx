@@ -5,7 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import { addLot, discardLot, printsForCardAction } from "@/app/collection/actions";
 import type { ScanCandidate, ScanDetection } from "@/lib/ai/scan";
 import { REVIEW_THRESHOLD } from "@/lib/ai/scan-match";
-import { CONDITIONS } from "@/lib/collection/queries";
+import { CONDITIONS } from "@/lib/collection/constants";
 import type { DeckOption } from "@/lib/decks/add";
 import { downscaleImage } from "@/lib/scan/downscale";
 import { CardImage } from "./CardImage";

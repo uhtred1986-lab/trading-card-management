@@ -11,7 +11,8 @@ import type { Trigger } from "@/lib/arena/types";
 import { describeTrigger } from "@/lib/arena/gaps";
 import { parseRule, printRule, validateRule, type LangError, type Rule } from "@/lib/arena/lang";
 import { loadDbs } from "@/lib/arena/rulesets";
-import { CondChip, OpList, blankCond } from "./OpEditor";
+import { condReading, opReading, problemsOf } from "@/lib/arena/lang/blocks";
+import { RuleBlocks } from "./Blocks";
 
 /**
  * An `expected[]` entry, linked to its row on `/arena/rules/language` when it
@@ -195,10 +196,39 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   const [patternWrong, setPatternWrong] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  /** Claude's one question from the last "Ask Claude", when it was not sure. */
+  const [question, setQuestion] = useState<string | null>(null);
   const [orbsOpen, setOrbsOpen] = useState(false);
   const [orbs, setOrbs] = useState(r.specifiedCost?.entered ?? "");
 
+  // The chips are state seeded from the stored record, and the record is keyed
+  // by id alone — so a program written on the server (Claude's draft, the
+  // compiler's reading taken) reached the page on refresh and never the chips,
+  // which went on showing the old one as an unsaved edit. A new version is a
+  // new stored program: take it, and drop the edit made against the old one.
+  const [version, setVersion] = useState(r.version);
+  if (version !== r.version) {
+    setVersion(r.version);
+    setOps(r.ops);
+    setCond(r.cond);
+    setTrigger(r.trigger);
+    setCost(r.cost);
+    setJsonText(JSON.stringify(programOf(r.cond, r.ops), null, 2));
+    setJsonError(null);
+    setTextOpen(false);
+    setTextError(null);
+    setEditing(false);
+  }
+
   const rule: Rule = useMemo(() => ({ kind: r.tag, trigger, cost, cond, ops }), [r.tag, trigger, cost, cond, ops]);
+  /** The block editor hands back a whole rule; the record keeps its four clauses apart. */
+  const setRule = (next: Rule) => {
+    setTrigger(next.trigger);
+    setCost(next.cost);
+    setCond(next.cond);
+    setOps(next.ops);
+  };
+  const problems = useMemo(() => (editing ? problemsOf(rule, r.tag) : []), [editing, rule, r.tag]);
   const program = useMemo(() => programOf(cond, ops), [cond, ops]);
   const reads = useMemo(() => describeScript(program, { permanent: r.permanent }), [program, r.permanent]);
   // A keyword line whose whole program is empty is not a blank skill: the
@@ -224,6 +254,24 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
         if (advance && nav) router.push(nav.after, { scroll: false });
         else router.refresh();
       }
+    });
+  };
+
+  /**
+   * Not `run`: a refusal still refreshes (the brief was written either way),
+   * and Claude's question is kept beside the explanation box, whatever the
+   * outcome, so it can be answered there and asked again.
+   */
+  const askClaude = () => {
+    setError(null);
+    setDone(null);
+    setQuestion(null);
+    start(async () => {
+      const res = await explainRuleAction(r.id, explanation);
+      setQuestion(res.question);
+      if (res.error) setError(res.error);
+      else setDone(res.question ? "Claude's draft is in the block above, but it was not sure — see its question before confirming." : "Claude's draft is in the block above — confirm it if it is right.");
+      router.refresh();
     });
   };
 
@@ -435,7 +483,16 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
         )}
       </p>
 
-      <div className="overflow-hidden rounded-2xl border border-space-700 bg-space-900/60">
+      {editing && (
+        <>
+          {/* The same blocks the phone builder (/arena/rules/build/[id]) is made of: one editor, not two. */}
+          <RuleBlocks rule={rule} onChange={setRule} problems={problems} permanent={r.permanent} />
+          <div className="rounded-xl border border-space-700 px-4 py-3 text-xs text-space-300">
+            The engine will: <b className="font-semibold text-space-50">{reads || "nothing"}</b>
+          </div>
+        </>
+      )}
+      <div className={`overflow-hidden rounded-2xl border border-space-700 bg-space-900/60 ${editing ? "hidden" : ""}`}>
         <Row k="WHEN" tone="text-ki-300">
           <Chip>
             [{r.kind}] · {whenLine(trigger, r.tag)}
@@ -453,17 +510,9 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
             <DeclarationLinks define="cost" names={costLinks(cost)} />
           </Row>
         )}
-        {(cond || editing) && (
+        {cond && (
           <Row k="IF" tone="text-dbs-blue">
-            {cond ? (
-              <Chip>
-                <CondChip cond={cond} editing={editing} onChange={setCond} onRemove={editing ? () => setCond(null) : undefined} />
-              </Chip>
-            ) : (
-              <button type="button" className="tap rounded-lg border border-dashed border-space-600 px-2 py-1 text-xs text-space-300" onClick={() => setCond(blankCond("isTurnPlayer"))}>
-                + condition
-              </button>
-            )}
+            <Chip>{condReading(cond)}</Chip>
           </Row>
         )}
         <Row k="DO" tone="text-ki-300">
@@ -473,8 +522,17 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                 played by the engine&rsquo;s <b className="font-semibold text-ki-300">{plays.tag}</b> rule
               </span>
             </Chip>
+          ) : ops.length ? (
+            <div className="flex w-full flex-col gap-1.5">
+              {ops.map((op, i) => (
+                <div key={i} className="flex items-center gap-1.5 rounded-lg border border-space-600 bg-space-800 px-2 py-1.5 text-[12px] text-space-100">
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-space-950 text-[10px] font-bold text-space-400">{i + 1}</span>
+                  <span>{opReading(op, r.permanent)}</span>
+                </div>
+              ))}
+            </div>
           ) : (
-            <OpList ops={ops} editing={editing} onChange={setOps} />
+            <div className="rounded-lg border border-loss/50 px-2 py-1.5 text-[12px] text-loss">nothing — the engine treats this skill as blank</div>
           )}
           {r.status === "open" &&
             !dirty &&
@@ -504,7 +562,12 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
             <div className="flex flex-wrap items-center gap-2">
               {editing ? (
                 <>
-                  <button type="button" disabled={pending || !!jsonError || !!textError} className={primary} onClick={() => run("Saved as corrected.", () => saveRuleAction(r.id, rule, explanation.trim() || null, patternWrong), true)}>
+                  {problems.length > 0 && (
+                    <span className="text-[11px] text-loss">
+                      {problems.length} thing{problems.length === 1 ? "" : "s"} to fix in the blocks
+                    </span>
+                  )}
+                  <button type="button" disabled={pending || !!jsonError || !!textError || problems.length > 0} className={primary} onClick={() => run("Saved as corrected.", () => saveRuleAction(r.id, rule, explanation.trim() || null, patternWrong), true)}>
                     Save as corrected
                   </button>
                   <button
@@ -539,6 +602,9 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                       Reopen for review
                     </button>
                   )}
+                  <Link href={`/arena/rules/build/${r.id}`} className={btn} title="Spell the rule out as WHEN / COST / IF / THEN blocks">
+                    {r.status === "open" ? "Build in blocks" : "Edit in blocks"}
+                  </Link>
                   <button type="button" className={btn} onClick={editText} title="Edit as text (e)">
                     {r.status === "open" ? "Write as text" : "Edit as text"}
                   </button>
@@ -550,8 +616,11 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                       ⋯
                     </summary>
                     <div className="absolute bottom-full right-0 z-30 mb-1 flex w-56 flex-col gap-1 rounded-xl border border-space-600 bg-space-900 p-2 shadow-lg">
+                      <Link href={`/arena/rules/build/${r.id}`} className={`${btn} text-center`}>
+                        Build in blocks (full screen)
+                      </Link>
                       <button type="button" className={btn} onClick={() => setEditing(true)}>
-                        Correct with the chips
+                        Correct with blocks here
                       </button>
                       <button type="button" className={btn} onClick={() => setExplainOpen(!explainOpen)}>
                         Explain to Claude
@@ -647,11 +716,18 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
           </label>
           <textarea value={explanation} onChange={(e) => setExplanation(e.target.value)} rows={3} autoFocus className="w-full rounded-md border border-space-600 bg-space-900 p-2 text-xs text-space-100" placeholder="e.g. you pick one of your opponent's Battle Cards that costs 3 or less and put it on the bottom of their deck, but only if your leader is red" />
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={pending || !explanation.trim()} className={primary} onClick={() => run("Claude's draft is in the block above — confirm it if it is right.", () => explainRuleAction(r.id, explanation))}>
-              Ask Claude for a program
+            <button type="button" disabled={pending || !explanation.trim()} className={primary} onClick={askClaude}>
+              {question ? "Ask Claude again" : "Ask Claude for a program"}
             </button>
             <span className="text-[11px] text-space-500">Claude answers in the engine&rsquo;s own step language and writes the brief for the compiler. You still confirm it.</span>
           </div>
+          {question && (
+            <p className="rounded-lg border-l-2 border-ki-500 bg-space-900/60 p-2 text-[11px] text-space-200" aria-live="polite">
+              <span className="text-ki-300">Claude was not sure and asks: </span>
+              {question}
+              <span className="text-space-500"> — answer it in the box above and ask again.</span>
+            </p>
+          )}
         </div>
       )}
 

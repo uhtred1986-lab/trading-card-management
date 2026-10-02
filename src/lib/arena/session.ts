@@ -9,24 +9,25 @@
  *
  * The pure half is `snapshot.ts`; this half is the database and Claude.
  */
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { arenaGames, cards as cardsTable } from "@/db/schema";
+import { arenaGames } from "@/db/schema";
 import type { Action, PlayerId } from "./types";
-import { applyToGame, clearBeatsForTurn, loadArchivedGame, loadGame, type LoadedGame } from "./games";
+import { applyToGame, loadArchivedGame, loadGame, type LoadedGame } from "./games";
 import { advance, aiPlayerOf } from "./ai/run";
 import { longPollStepMs } from "./poll-schedule";
 import { archivedSnapshotFor, buildSnapshot, type Snapshot } from "./snapshot";
 import type { CardArt } from "./view";
 
-/** Card art for everything a state mentions. Tokens have none. */
-export async function artForGame(db: Db, game: LoadedGame): Promise<Record<string, CardArt>> {
-  const ids = [...new Set(Object.values(game.state.cards).map((c) => c.cardId))].filter((x) => !x.startsWith("TOKEN:"));
-  if (!ids.length) return {};
-  const rows = await db.select({ id: cardsTable.id, imageUrl: cardsTable.imageUrl, backImageUrl: cardsTable.backImageUrl }).from(cardsTable).where(inArray(cardsTable.id, ids));
-  const images: Record<string, CardArt> = {};
-  for (const r of rows) images[r.id] = { front: r.imageUrl, back: r.backImageUrl };
-  return images;
+/**
+ * Card art for everything a state mentions. Tokens have none.
+ *
+ * Read by `loadGame` in the query that reads the cards' definitions, so this
+ * is no second trip; it stays a function, and async, so a caller need not
+ * know where the art comes from.
+ */
+export async function artForGame(_db: Db, game: LoadedGame): Promise<Record<string, CardArt>> {
+  return game.art;
 }
 
 /**
@@ -63,9 +64,11 @@ export async function snapshotOf(db: Db, gameId: number, viewer: PlayerId | null
  * Claude. The opponent's turn is `advanceSession`, on its own request, so a
  * client can start animating your own move immediately.
  */
-export async function applyAction(db: Db, gameId: number, action: Action, viewer: PlayerId | null = null): Promise<Snapshot> {
-  await clearBeatsForTurn(db, gameId);
-  const game = await applyToGame(db, gameId, action);
+export async function applyAction(db: Db, gameId: number, action: Action, viewer: PlayerId | null = null, loaded?: LoadedGame): Promise<Snapshot> {
+  // `clearBeats`: your move starts a new story (`clearBeatsForTurn`), emptied
+  // in the same write as the move. `loaded` is the game the caller has just
+  // read to check the move against; the write is guarded by its version.
+  const game = await applyToGame(db, gameId, action, undefined, { game: loaded, clearBeats: true });
   return snapshotOfGame(db, game, viewer);
 }
 

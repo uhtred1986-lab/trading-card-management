@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { COLORS, cardTypesFor } from "@/lib/catalog/queries";
-import { cachedAbilityKeywords, cachedListSets, cachedListTraits } from "@/lib/cache/reads";
+import { cachedAbilityKeywords, cachedListSets, cachedListTraits, cachedPriceSource } from "@/lib/cache/reads";
 import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter } from "@/components/GameFilter";
 import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
@@ -49,20 +49,23 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   // and ability dropdowns follow the game filter, same as on /cards.
   // The header totals honour the game filter, so they agree with the list;
   // the grid reuses the same valuation instead of repeating it.
-  const all = await valuedLots(db, { game });
-  const [grid, list, allSets, sets, traits, abilities, decks, locations] = await Promise.all([
-    view === "grid" ? collectionCards(db, { ...filters, valued: all }) : null,
-    view === "list" ? collectionCopies(db, filters) : null,
+  // Prices come from the cache (held until the next price sync); the copies
+  // themselves are read fresh. Everything but the grid is independent of the
+  // valuation, so it is all read at once and the grid follows it.
+  const [all, list, allSets, sets, traits, abilities, decks, locations, owners] = await Promise.all([
+    valuedLots(db, { game, prices: cachedPriceSource }),
+    view === "list" ? collectionCopies(db, filters, cachedPriceSource) : null,
     cachedListSets(),
     game ? cachedListSets(game) : cachedListSets(),
     cachedListTraits(game),
     cachedAbilityKeywords(game),
     deckOptions(db),
     listLocations(db),
+    // Both views offer the same filters, so the owner list is always needed.
+    currentOwner().then((me) => ownerOptions(db, me)),
   ]);
+  const grid = view === "grid" ? await collectionCards(db, { ...filters, valued: all }) : null;
   const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
-  // Both views offer the same filters, so the owner list is always needed.
-  const owners = await ownerOptions(db, await currentOwner());
   const s = summarise(all.lots, all.usdEur);
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";

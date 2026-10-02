@@ -12,6 +12,18 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `ScriptHost` interface in `vm/script-host.ts`, the RNG in `vm/rng.ts`, and the state-free helpers
   (`programsOf`, token ids, `redirectOf`, `IllegalAction`, …) in `vm/common.ts`. `vm/` imports
   nothing from `engine/`. Doc: `docs/arena-code-map.md`.
+- **What the rules engine keeps between reads** (the performance pass of 2 Oct 2026): a skill
+  text's parse (`parseSkills`, per text) and a card's printed attributes (`attrsOf`, per
+  definition) are memoised and **frozen**, so a caller that mutates one throws instead of
+  corrupting every later read. The statics (`statics()` in `vm/program.ts`) are kept only for
+  the length of one `readingBoard(...)` call — `legalActions`, `rejectedActions`, `boardView`,
+  `candidatesOf`, `comboEligible` — so **nothing inside a `readingBoard` may change the state it
+  was handed in place**; try a move on a copy, as `restedAlready` and `apply` do. Measure an
+  engine change with a saved game replayed offline (load it once, then `engine.apply` its
+  `actions` from its `seed`) and compare every output before and after. Saved games
+  (`games.ts`): `loadGame` reads cards and rules in one round, keeps the art, and works
+  `legal` out on first read; `applyToGame` takes a game the caller already loaded and is
+  still guarded by its `version`.
 - **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/keywords`): the only
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
@@ -53,6 +65,12 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   board driven entirely by `legalActions()` and one `Snapshot` — no client evaluates a rule.
   **Everything the board says about who is acting reads `live.waiting`, never the `snapshot`
   prop.** Doc: `docs/arena-code-map.md`.
+- **Rule review on the phone** (`/arena/rules/review`, #472): a deck's open and draft skills one at
+  a time, text first. **A span is never guessed** (`src/lib/arena/rule-review.ts`): the record
+  keeps no clause → printed-words link, so only its own text found exactly once on the line is
+  underlined (an `unread` clause or the cost's `text`, or a WHEN/IF/DO reading printed word for
+  word); every other clause is listed under the text. Wrong writes `explanation` (prefix
+  `Wrong (phone review)`), never the program; a flagged draft leaves the queue and Confirm all.
 - **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`): two people, two devices, one game. A 1 v 1
   belongs to its two seats and nobody else, over as well as playing. Doc: `docs/arena-code-map.md`.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): your hand, life and decklist are
@@ -65,6 +83,13 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and **never compiles card text at game time**; a row a person confirmed or corrected is never
   rewritten by a script. Doc: `docs/arena-code-map.md`, and for the owner's own walkthrough of
   correcting a record, `docs/arena-fixing-a-card.md`.
+- **The block builder** (`src/lib/arena/lang/blocks.ts`, `components/arena/rules/Blocks.tsx`,
+  `/arena/rules/build/[id]`, #469): a rule spelled out as WHEN · COST · IF · THEN blocks, **generated
+  from the schema** — what a clause may hold comes off `OP_SCHEMA`/`COND_SCHEMA`/`whenMoments()`/
+  `COST_ITEMS`, each blank's control off its `FieldType`, so a new row needs no builder change. One
+  component for the phone route and the workbench record; every edit goes through a `RulePath`
+  (`lang/path.ts`) into the one `Rule`. Proved by `scripts/verify/blocks.ts`; `/arena/rules/build/preview`
+  shows it on fixtures without a database (dev only).
 - **The probe** (`src/lib/arena/probe.ts`): says what the engine *does* with a rule, not what it
   should. Pure — no database, no network, and **no compiler**: `draft.ts` stays the only module
   that compiles card text. Doc: `docs/arena-code-map.md`.
