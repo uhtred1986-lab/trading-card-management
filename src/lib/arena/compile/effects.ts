@@ -277,6 +277,12 @@ function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op):
 
 function durationOf(clause: string): Duration {
   const t = clause.toLowerCase();
+  // "…and it can't activate skills while this card is in a Battle Area"
+  // (BT29-041, BT29-042): trailing an [Auto] or [Activate] effect, the effect
+  // lasts as long as the card that made it stays in a Battle Area. Only the
+  // trailing form: a [Permanent]'s "While this card is in …, …" leads its
+  // sentence and is a condition, read as one before any clause gets here.
+  if (/\bwhile this card is in (?:a|the|your) battle area\.?$/.test(t)) return "whileSourceInPlay";
   if (/for the (?:duration of (?:the|this) )?battle|during this battle/.test(t)) return "battle";
   if (/for the (?:duration of (?:the|this) )?game|during the game|in any area|in all areas/.test(t)) return "game";
   if (/until (?:the start of )?your opponent's next turn/.test(t)) return "opponentTurn";
@@ -287,6 +293,9 @@ function durationOf(clause: string): Duration {
   // begins: the rest-lock wordings, which are the same duration said four ways.
   if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next charge phase|during your opponent's next turn/.test(t))
     return "nextTurn";
+  // "Your opponent can't attack until the end of **their** turn" (BT24-133):
+  // the pronoun is the opponent the clause names, so it is the same duration.
+  if (/\byour opponent\b/.test(t) && /until the end of their(?: next)? turn/.test(t)) return "nextTurn";
   return "turn";
 }
 
@@ -532,19 +541,31 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // reached with the count and the effect still both in hand; every other
   // leading "for each" phrase in the catalog is still split apart on its own
   // and stays unread, same as before.
-  const lead = /^for (?:each|every) (markers?\s+on\s+.+?)\s*,\s*(.+)$/.exec(t);
-  const m = lead ? null : /^(.+?)\s+(?:for each|equal to the number of)\s+(.+)$/.exec(t);
+  //
+  // "For every 2 ≪Universe 2≫ cards in your Warp" (BT30-084) is the same count
+  // in whole steps of 2, rounded down — `Amount`'s `per` (2 Oct 2026). The
+  // step size is read off the front of the counted phrase in either form;
+  // "for each 1 energy you have" is a step of 1, which is no step at all.
+  const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?)\s*,\s*(.+)$/.exec(t);
+  const m = lead ? null : /^(.+?)\s+(for each|for every|equal to the number of)\s+(.+)$/.exec(t);
   if (!lead && !m) return null;
-  const headSrc = lead ? lead[2] : m![1];
+  const headSrc = lead ? lead[3] : m![1];
   // What is being counted ends at its noun. "…+6000 power for each card in
   // your energy **and [Triple Strike] for the duration of the battle**"
   // carries on about the card, not about what is counted, and taking the whole
   // tail as the counted phrase dropped the keyword and the duration in
   // silence — the power lasted the turn instead of the battle. The leading
   // form has no such tail: the comma already ends the counted phrase.
-  const cut = lead ? null : /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m![2]);
-  const counted = lead ? lead[1] : cut ? m![2].slice(0, cut.index) : m![2];
-  const tail = lead ? "" : cut ? m![2].slice(cut.index) : "";
+  const cut = lead ? null : /(?:,?\s+and\s+\[)|(?:\s+for the (?:duration of the |rest of the )?(?:turn|battle|game)\b)|(?:\s+until\s)|(?:\s+during (?:this|your)\b)/i.exec(m![3]);
+  const countedSrc = lead ? lead[2] : cut ? m![3].slice(0, cut.index) : m![3];
+  const tail = lead ? "" : cut ? m![3].slice(cut.index) : "";
+  // "Equal to the number of 2 …" says nothing, so only a "for each/every"
+  // phrase may lead with its step size.
+  const stepped = !lead && m![2] !== "equal to the number of" ? /^(\d+)\s+(.+)$/.exec(countedSrc) : null;
+  const counted = stepped ? stepped[2] : countedSrc;
+  const step = Number(lead ? (lead[1] ?? 1) : stepped ? stepped[1] : 1);
+  if (!Number.isInteger(step) || step < 1) return null;
+  const per = step > 1 ? { per: step } : {};
   // "For each marker on X" is a marker total, not a count of matching cards —
   // reading it as `count` asked how many cards are named "this card" (always
   // 1) and printed a flat bonus with no markers in it at all.
@@ -560,11 +581,11 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // A count (or a marker total) reads the whole area, not one card out of it.
   const broad: Selector = { ...sel, count: 99, upTo: false };
   const amountFor = (printed: number): Amount =>
-    markersOn ? { markers: broad, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...(printed === 1 ? {} : { times: printed }) };
+    markersOn ? { markers: broad, ...per, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...per, ...(printed === 1 ? {} : { times: printed }) };
   // "Draw cards equal to the number of …" prints no number at all, because the
   // count is the number. Only the trailing "equal to" form says this; the
   // leading marker form always prints a number to multiply.
-  if (!lead && /^draw cards?$/.test(headSrc)) return [{ op: "draw", n: { count: broad } }];
+  if (!lead && /^draw cards?$/.test(headSrc)) return [{ op: "draw", n: { count: broad, ...per } }];
   // The tail goes back on the head, where the patterns that read "and
   // [Keyword]" and the duration can see it.
   const head = compileClause(`${headSrc}${tail}`, c);
@@ -580,8 +601,9 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
  * not this shape, where the noun is the area itself and the "1" is the size of
  * each step rather than a multiplier.
  *
- * Any other number would mean *dividing* the count, which no amount can do, so
- * "for each 2 energy" is left unread rather than read as this.
+ * Any other number divides the count — "for each 2 energy" is a step of 2,
+ * `Amount`'s `per` — and `compileForEach` takes it off the front before this
+ * is asked, so a number still here is one nothing read.
  */
 function energyYouHave(counted: string): Selector | null {
   const m = /^(?:(\d+) )?energy (you have|your opponent has)$/.exec(counted);
@@ -624,7 +646,7 @@ function swapForEachAmount(op: Op, amountFor: (printed: number) => Amount): Op |
 // "During **that** turn" is the turn the sentence has been talking about,
 // which is this one — the same duration said with a different pronoun.
 const DURATION_TAIL_SRC =
-  "for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+";
+  "for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|while this card is in (?:a|the|your) battle area";
 /**
  * How long, on its own. A pattern that takes a whole *target phrase* off the
  * end of a clause has to cut the duration itself rather than work from
@@ -786,7 +808,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // match on a word boundary rather than the end of the clause, so "gets
   // +5000 power for each card in your Drop" would otherwise read as a flat
   // +5000 and say nothing about having dropped the rest of the sentence.
-  if (/\bfor each\b|\bequal to the number of\b/.test(t)) {
+  if (/\bfor each\b|\bfor every\b|\bequal to the number of\b/.test(t)) {
     const counted = compileForEach(t, c);
     if (counted) return counted;
     // "For each marker on this card, **it** gets +5000 power" (EX19-21):
@@ -798,7 +820,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // be a marker total glued onto an effect (`PURE_FOREACH_MARKERS_ON_SELF`,
     // reattached above), a failure to compile the effect refuses the whole
     // clause rather than exposing that leftover phrase to anything else.
-    if (/^for (?:each|every) markers? on this card\s*,/.test(t)) return null;
+    if (/^for (?:each|every) (?:\d+ )?markers? on this card\s*,/.test(t)) return null;
   }
 
   // 20-13 (#278). "You skip your Offense Step" / "your opponent skips their
@@ -953,6 +975,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) the (top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in any order)?$`).exec(t)))
       return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom" }];
     if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their )?drop(?: area)?$`).test(t)) return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
+    // "…then send the rest to their owner's Warp" (BT30-106, 3-10).
+    if (new RegExp(`^send ${REST} to (?:your|the|its owner'?s?|their owners?'?s?|their) warps?$`).test(t)) return [{ op: "moveTo", target: rest, to: "warp" }];
   }
   if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
   // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
@@ -1246,7 +1270,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       { op: "costReduction", target: ref, amount: flat, what: "zEnergy" as const, until },
     ];
   }
-  if ((m = /^(reduce|increase|decrease) the ((?:energy|skill|evolve|combo|z-energy) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for each (.+))?$/.exec(qq))) {
+  if ((m = /^(reduce|increase|decrease) the ((?:energy|skill|evolve|combo|z-energy) )?costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+),?(?: for (?:each|every) (?:(\d+) )?(.+))?$/.exec(qq))) {
     // 20-21 works in both directions, and the sets print both: "increase the
     // energy cost of this card in your Battle Area by 2" is the same standing
     // effect with the sign turned round; "decrease" already reads as "reduce".
@@ -1254,7 +1278,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const kindWord = m[2];
     const targetText = m[3];
     const amountText = m[4];
-    const perText = m[5];
+    // "…by 1 for every 2 ≪Saiyan≫ cards" (BT13-076): whole steps of 2.
+    const perStepOf = m[5] === undefined ? 1 : Number(m[5]);
+    const perText = m[6];
     // The area the phrase names is part of the target, not noise: a reducer
     // for cards "in your hand" that selects cards in play does nothing at all,
     // which is what stripping it here used to produce.
@@ -1290,7 +1316,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (perText) {
       const per = parseTarget(perText);
       if (!per) return null;
-      by = { count: { ...per, count: undefined, upTo: undefined }, ...(flat === 1 ? {} : { times: flat }) };
+      by = { count: { ...per, count: undefined, upTo: undefined }, ...(perStepOf > 1 ? { per: perStepOf } : {}), ...(flat === 1 ? {} : { times: flat }) };
     }
     // The duration is read off the printed clause, not the qualifier-stripped
     // one: "…for the duration of the turn" is exactly what `stripQualifiers`
@@ -1674,6 +1700,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "permit", what: "comboRest", target: { sel: { special: "self" } }, until, ...(filter ? { filter } : {}) }];
   }
 
+  // 22-3 widened: "The [Field] skill on this card in your hand can also be
+  // activated at [Activate: Battle] timings" (BT29-041, BT29-042). [Field] is
+  // an [Activate: Main]; this lets its own line be used at the combo prompt
+  // too. A [Permanent] only — read from the hand, where the line is used.
+  if (c.permanent && /^the \[field\] skill on this card in your hand can (?:also )?be activated at \[activate: ?battle\] timings?$/.test(t)) {
+    return [{ op: "permit", what: "fieldBattle", target: { sel: { special: "self" } }, until: "game" }];
+  }
+
   // 20-9: "gain control of it until the end of the turn", "you gain control of
   // it", "gain control of the played card". Six cards, every one of them
   // pointing back at a card an earlier clause chose or a trigger named, which
@@ -1814,6 +1848,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "redirectAttack", target })) : null;
   }
+  // "Switch your card that's in a battle with this card / the chosen card"
+  // (8-1-7-2): the named card takes your seat in the battle, attacking or
+  // guarding (BT30-098, BT31-085).
+  if ((m = /^switch your card (?:that['’]s|that is) in (?:a|the) battle with (.+)$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "swapBattle", target })) : null;
+  }
 
   // KO (5-12).
   if ((m = /^ko (.+)$/.exec(t))) {
@@ -1841,9 +1882,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Under another card (23-2). Not an area, so it is not in the table below.
   // Only "under this card" is read: any other host is an antecedent the
   // compiler would have to guess at, and a wrong guess moves the wrong card.
+  // A counted target is a choice first (`withChoice`): "place **up to 3**
+  // cards … from your Drop under this card" (BT29-030) handed the selector
+  // straight to the move, which takes every card it matches.
   if ((m = /^(?:place|put) (.+?) (?:face ?up )?under this card$/.exec(t))) {
     const ref = refFor(m[1], c);
-    return ref ? [{ op: "moveTo", target: ref, to: "under" }] : null;
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under" })) : null;
   }
   // The same stack said from the other end: this card ends up underneath.
   if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {
@@ -2019,8 +2063,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // 9-1-5: "played … with its skills negated", which the sets print with and
     // without the article before "game".
     const negated: "turn" | "game" | undefined = /skills negated/.test(t) ? (m[3] === "game" ? "game" : "turn") : undefined;
-    const ref = refFor(m[1], c);
+    let ref = refFor(m[1], c);
     if (!ref) return null;
+    // "Look at up to 1 card from the top of your deck, **play up to 1 black
+    // ≪Maiden Squadron≫ card**, then send the rest to their owner's Warp"
+    // (BT30-106): the play's twin of the `add … to your hand` rule above.
+    // Standing after the look is what says the card comes out of the cards
+    // looked at; read as an unqualified card it was one already in play.
+    // Only a description of its own that names no area — "play this card",
+    // "play it" and "play up to 1 X from your hand" are what they say.
+    const desc = m[1];
+    if (c.lastSeen && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(desc))) {
+      const sel = parseTarget(desc, c.lastSeen);
+      if (sel && !sel.special) ref = { sel };
+    }
     const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
@@ -2248,10 +2304,27 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   const rest0 = m[2].trim();
   const unlessTail = /\s+unless\s+(.+)$/.exec(rest0);
   const unlessPlayBySkill = !!unlessTail && /^(?:it is |it's )?played by (?:card )?skills?$/.test(unlessTail[1].trim());
-  const unless = !unlessTail || unlessPlayBySkill ? null : parseConditionClause(`if ${unlessTail[1].trim()}`, true);
-  if (unlessTail && !unlessPlayBySkill && !unless) return null;
+  // 20-14-1: "…unless your opponent sends 2 cards from their hand to their
+  // Warp each time" is a price, not a condition (BT30-100).
+  const tax = unlessTail && !unlessPlayBySkill ? taxProgram(unlessTail[1].trim(), c) : null;
+  const unless = !unlessTail || unlessPlayBySkill || tax ? null : parseConditionClause(`if ${unlessTail[1].trim()}`, true);
+  if (unlessTail && !unlessPlayBySkill && !unless && !tax) return null;
   const rest = unlessTail && !unlessPlayBySkill ? rest0.slice(0, unlessTail.index).trim() : rest0;
   const withUnless = unless ? { unless: unless.cond } : {};
+  // The engine charges a tax on an attack only; on any other action the
+  // clause stays unread rather than becoming a ban or nothing at all.
+  if (tax) {
+    if (!/^attack\b/.test(rest) || /^attack (?:this card|it)\b/.test(rest)) return null;
+    const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
+    if (side) {
+      if (side !== tax.payer) return null;
+      if (/\bwith\b/.test(rest)) return null;
+      return [{ op: "forbid", what: "attack", side, until, unlessPay: tax.ops }];
+    }
+    const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
+    if (!target) return null;
+    return [{ op: "forbid", what: "attack", until, target, unlessPay: tax.ops }];
+  }
 
   // Deck-building restrictions are not rules of play (6-1); the engine takes
   // the deck it is given, so the clause is read and does nothing.
@@ -2322,6 +2395,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     return null;
   }
   if (/^attack\b/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
+  // "It can't activate skills" (BT29-041): the card's own [Activate] and
+  // [Auto] skills, both of which are *activated* (9-6-3-2 — an [Auto] that
+  // cannot be activated is cancelled), so `activateSkill` stops both.
+  if (/^activate (?:its |their )?skills\b/.test(rest)) return [{ op: "forbid", what: "activateSkill", until, target, ...withUnless }];
   if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
   if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];
   if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) return [{ op: "forbid", what: "switchToActive", until, target, ...withUnless }];
@@ -2345,6 +2422,40 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...withUnless }] : null;
   }
   return null;
+}
+
+/** The steps a tax may be made of: the price ops both engines can say in advance whether a player can pay (`canPayPriceProgram`). */
+const TAX_OPS = new Set<Op["op"]>(["discard", "mill", "choose", "moveTo", "switchMode", "removeMarker"]);
+
+/**
+ * 20-14-1's price: "your opponent sends 2 cards from their hand to their Warp
+ * each time" (BT30-100), read as the program the **payer** runs — said again
+ * from their chair ("send 2 cards from your hand to your Warp"), because the
+ * engine runs it with the acting player as "you". `payer` is who the clause
+ * names, so the caller can check it is the player the rule stops.
+ *
+ * Null for anything that is not "<player> <does something> each time", and
+ * for a price made of anything but the steps whose payability is known before
+ * they run: a tax the engine cannot promise is either a ban the card does not
+ * state or an attack that half-pays.
+ */
+function taxProgram(said: string, c: Ctx): { payer: Side; ops: Op[] } | null {
+  const m = /^(your opponent|they|you)\s+(.+?)\s+each time(?:\s+(?:until|for|during)\b.*)?$/.exec(said);
+  if (!m) return null;
+  const payer: Side = m[1] === "you" ? "you" : "opponent";
+  let clause = m[2];
+  if (payer === "opponent") {
+    // "sends" → "send", "pushes" → "push": the verb back to the imperative.
+    clause = clause.replace(/^(\w+?)(?:(?<=(?:ch|sh|ss|x))es|s)\b/, "$1");
+    clause = clause.replace(/\btheir\b/g, "your").replace(/\bthey\b/g, "you").replace(/\bthemselves\b/g, "yourself");
+  }
+  const ops = compileClause(clause, { ...c, choices: [...c.choices] });
+  if (!ops?.length || ops.some((o) => !TAX_OPS.has(o.op) || ("side" in o && o.side !== undefined && o.side !== "you"))) return null;
+  // The price runs with the acting card as "this card" (the attacker), and B
+  // is done before A is declared (20-14-1): "switch 1 of their Active Mode
+  // cards to Rest Mode" (BT24-133) paid with the attacker itself would leave
+  // nothing able to attack, so a choice in the price never offers it.
+  return { payer, ops: ops.map((o) => (o.op === "choose" ? { ...o, sel: { ...o.sel, notSelf: "card" as const } } : o)) };
 }
 
 function compileToken(clause: string, c: Ctx): Op[] | null {
@@ -2454,7 +2565,48 @@ const PURE_DURATION =
  * today, so merging their clause the same way would only change which text
  * shows up unread, not whether it reads — left split, as before.
  */
-const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) markers? on this card[.,]?$/i;
+const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) (?:\d+ )?markers? on this card[.,]?$/i;
+/**
+ * "…the next time you activate an [Activate] skill of your Leader during this
+ * turn, reduce its skill cost by {b}" (BT31-096, BT31-092), "…the next time
+ * you activate the [Activate: Main/Battle] skill on {Support Broadcast} in
+ * your Battle Area during this turn, reduce the skill cost by {1}" (BT30-106).
+ * `splitClauses` cuts it at its comma into these two halves, neither a
+ * sentence alone; `nextActivationReduction` reads the pair.
+ */
+const NEXT_ACTIVATION = /^(?:and |then )?the next time you activate (.+?) (?:during )?this turn[.,]?$/i;
+const REDUCE_THAT_SKILL_COST = /^(?:then )?reduce (?:its|the|that skill's|the skill's) (?:skill )?cost(?: of (?:it|that skill))? by ((?:\{[rugykbw\d]+\})+|\d+)[.]?$/i;
+
+/**
+ * The one-use skill-cost change the pair above says: `uses: 1`, bounded by the
+ * turn. The scope is a kind of skill line on named cards — "an [Activate]
+ * skill of your Leader", "the [Activate: Main/Battle] skill on {X} in your
+ * Battle Area", "this card's [Activate: Main] skill" — and a tag's timing
+ * words ("Main/Battle") are not kept: `skillKind` has the kind and no more,
+ * which reaches both timings of the line, the only ones those cards print.
+ * Anything else in the scope is refused whole rather than guessed.
+ */
+function nextActivationReduction(scope: string, amountText: string, c: Ctx): Op[] | null {
+  const tag = (raw: string): SkillKindPrefix | null => {
+    const word = raw.trim().toLowerCase().split(/[:\s]/)[0];
+    return word === "activate" || word === "counter" || word === "auto" ? word : null;
+  };
+  let m: RegExpExecArray | null;
+  let kind: SkillKindPrefix | null = null;
+  let who: string | null = null;
+  if ((m = /^(?:an?|the|your) \[([a-z0-9:\- /]+)\] skill (?:of|on) (.+)$/i.exec(scope.trim()))) [kind, who] = [tag(m[1]), m[2]];
+  else if ((m = /^(.+?)'s? \[([a-z0-9:\- /]+)\] skill$/i.exec(scope.trim()))) [kind, who] = [tag(m[2]), m[1]];
+  if (!kind || !who) return null;
+  let target = refFor(who, c);
+  if (!target || (c.stale && target === c.stale)) return null;
+  // "The skill on {X} in your Battle Area" is every {X} there, not a choice of one.
+  if ("sel" in target && !target.sel.special && target.sel.count !== undefined) target = { sel: { ...target.sel, count: 99, upTo: undefined } };
+  const orbs = /^\d+$/.test(amountText) ? null : orbsIn(amountText);
+  const amount = orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(amountText);
+  if (!amount) return null;
+  return [{ op: "costReduction", target, amount, what: "skill", skillKind: kind, ...(orbs ? { colors: orbsToList(orbs) } : {}), until: "turn", uses: 1 }];
+}
+
 /** The two halves of the copied-skill wording (20-18); see the merge in `compileClauseList`. */
 /** EX03-16's first half: the card names the [Evolve] played onto this one, and whether it must differ in name (group 2). */
 const EVOLVING_ONTO_SELF = /^when evolving this card into (?:an? )?([<≪{][^>≫}]+[>≫}])(?: cards?)?( with a different card name)?(?: from your hand)?$/i;
@@ -2501,6 +2653,20 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
   };
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
+    // "…the next time you activate X during this turn, reduce its skill cost
+    // by {b}": the two halves `splitClauses` cut apart, read as the pair.
+    const nextTime = NEXT_ACTIVATION.exec(clause.trim());
+    const reduce = nextTime && i + 1 < clauses.length ? REDUCE_THAT_SKILL_COST.exec(clauses[i + 1].trim()) : null;
+    if (nextTime && reduce) {
+      const ops = nextActivationReduction(nextTime[1], reduce[1], c);
+      if (ops) push(ops);
+      else {
+        refuse(clause);
+        refuse(clauses[i + 1]);
+      }
+      i++;
+      continue;
+    }
     // "During this turn, your opponent can't…", "…, until the end of your
     // opponent's turn, it can't attack" — a duration split off on its own
     // belongs to the clause after it, where `durationOf` will find it.

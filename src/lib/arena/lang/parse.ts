@@ -40,6 +40,7 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   otherThanSelf: (s) => (s.notSelf = "card"),
   otherThanCopies: (s) => (s.notSelf = "copies"),
   otherThanSameName: (s) => (s.notSelf = "name"),
+  differentNames: (s) => (s.differentNames = true),
   asPrinted: (s) => (s.printed = true),
 };
 
@@ -542,6 +543,7 @@ class Parser {
         out[fields[i]] = this.amountArg(kind);
       });
       if (spec.args.length) this.want(")");
+      if (spec.per && this.eatPunct("/")) out.per = this.number();
       if (spec.times && this.eatPunct("*")) out.times = this.number();
       return out as Amount;
     }

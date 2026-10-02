@@ -83,6 +83,22 @@ DEFINE KEYWORD Wish
 DEFINE KEYWORD Field
   TAKES ()
   text: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out."
+  -- A move (2 Oct 2026), offered as an [Activate: Main] from the hand
+  -- (22-3-2) — and at [Activate: Battle] timings as well while a [Permanent]
+  -- permits it for this card (`permit(what: fieldBattle)`, BT29-041/-042),
+  -- which `vm/activate.ts`'s `activationsOf` reads as widening the line's
+  -- kind to `activate:main/battle`. The price is the Extra's own energy cost
+  -- (12-2-2, `boundFor`), and the Extra is not put in the Drop as an Extra
+  -- used from the hand otherwise is: the `DO` plays it into the Battle Area in
+  -- Active Mode, and the onEnter hook below drops the [Field] Extra already
+  -- out (22-3-5). One difference from the legacy engine, recorded: the label
+  -- does not add the cost in brackets.
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  label: "Field: place {card}"
+  DO {
+    play(target: [self])
+  }
   HOOK onEnter {
     choose(sel: UP TO 1 "Extra Card with [Field]" IN you.battle otherThanSelf, as: "t")
     moveTo(target: $t, to: drop)
