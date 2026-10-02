@@ -358,19 +358,43 @@ export async function reviewOpenRules(db: Db, ids: string[], opts: { budget?: nu
   for (const row of open) {
     if (budget > 0 && out.asked >= budget) break;
     out.asked++;
-    try {
-      const r = await clarifyRule(db, row, null);
-      if (r.saved) {
-        out.drafted++;
-        out.stillOpen--;
-      } else {
-        out.failed++;
-        await db.insert(arenaFeedback).values({ kind: "rule", cardId: row.cardId, skillIndex: row.skillIndex, note: `Claude could not draft this at sync: ${r.clarification.question || r.clarification.meaning || "no program came back"}` });
-      }
-    } catch (err) {
-      out.failed++;
-      await db.insert(arenaFeedback).values({ kind: "rule", cardId: row.cardId, skillIndex: row.skillIndex, note: `Claude review failed at sync: ${err instanceof Error ? err.message : String(err)}` });
-    }
+    const r = await reviewOne(db, row, "at sync");
+    if (r.drafted) {
+      out.drafted++;
+      out.stillOpen--;
+    } else out.failed++;
   }
   return out;
+}
+
+/**
+ * One open row put to Claude, the same way the sync does it: a program comes
+ * back as Claude's draft, and a failure is noted in `arena_feedback` and the
+ * row left open. `when` says where it was asked ("at sync", "from the phone").
+ */
+async function reviewOne(db: Db, row: RuleRow, when: string): Promise<{ drafted: boolean; why: string | null }> {
+  try {
+    const r = await clarifyRule(db, row, null);
+    if (r.saved) return { drafted: true, why: null };
+    const why = r.clarification.question || r.clarification.meaning || "no program came back";
+    await db.insert(arenaFeedback).values({ kind: "rule", cardId: row.cardId, skillIndex: row.skillIndex, note: `Claude could not draft this ${when}: ${why}` });
+    return { drafted: false, why };
+  } catch (err) {
+    const why = err instanceof Error ? err.message : String(err);
+    await db.insert(arenaFeedback).values({ kind: "rule", cardId: row.cardId, skillIndex: row.skillIndex, note: `Claude review failed ${when}: ${why}` });
+    return { drafted: false, why };
+  }
+}
+
+/**
+ * The phone queue's "Ask Claude" (#472): the sync's drafting, for one open
+ * skill. Refused without a key rather than noted, since a person is waiting
+ * on the answer.
+ */
+export async function reviewOpenRule(db: Db, id: number): Promise<{ drafted: boolean; why: string | null }> {
+  const [row] = await db.select().from(cardRules).where(eq(cardRules.id, id));
+  if (!row) return { drafted: false, why: "no such rule" };
+  if (row.status !== "open") return { drafted: false, why: "only an open skill is drafted by Claude here" };
+  if (!hasAnthropic()) return { drafted: false, why: "ANTHROPIC_API_KEY is not set — this needs Claude." };
+  return reviewOne(db, row, "from the phone");
 }

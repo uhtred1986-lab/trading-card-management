@@ -65,6 +65,12 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   board driven entirely by `legalActions()` and one `Snapshot` — no client evaluates a rule.
   **Everything the board says about who is acting reads `live.waiting`, never the `snapshot`
   prop.** Doc: `docs/arena-code-map.md`.
+- **Rule review on the phone** (`/arena/rules/review`, #472): a deck's open and draft skills one at
+  a time, text first. **A span is never guessed** (`src/lib/arena/rule-review.ts`): the record
+  keeps no clause → printed-words link, so only its own text found exactly once on the line is
+  underlined (an `unread` clause or the cost's `text`, or a WHEN/IF/DO reading printed word for
+  word); every other clause is listed under the text. Wrong writes `explanation` (prefix
+  `Wrong (phone review)`), never the program; a flagged draft leaves the queue and Confirm all.
 - **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`): two people, two devices, one game. A 1 v 1
   belongs to its two seats and nobody else, over as well as playing. Doc: `docs/arena-code-map.md`.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): your hand, life and decklist are
