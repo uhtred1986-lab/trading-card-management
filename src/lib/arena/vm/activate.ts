@@ -81,16 +81,16 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
-import { HIDEABLE, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
+import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, resolveRef, resolveSelector, staticsNow } from "./program";
+import { attrsNow, forbiddenBy, permissions, resolveRef, resolveSelector, staticsNow } from "./program";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
 import { vmHost } from "./host";
@@ -199,7 +199,7 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // family of the kind it is offered as. Without a `game` there is no
     // declaration to read, and such a line is what it has always been: none.
     const keyword = game ? keywordMoveOf(game, skill) : undefined;
-    const kind = keyword?.offer ?? skill.kind;
+    const kind = keyword && game ? widenedOffer(ctx, game, state, card, keyword) : skill.kind;
     if (!families.has(familyOf(kind))) continue;
     // 22-46-5: the Z-Deck is where a keyword's own move may be used from
     // ([Z-Awaken], #155), and nothing else is: a Z-card's printed lines are
@@ -209,6 +209,21 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   return out;
+}
+
+/**
+ * The kind a keyword's own move is offered as: its declaration's `offer:`,
+ * widened to the battle's timings too when a [Permanent] says so for this card.
+ * "The [Field] skill on this card in your hand can also be activated at
+ * [Activate: Battle] timings" (BT29-041, BT29-042) is a `permit` of
+ * `fieldBattle`, read from the hand (`vm/effects.ts`), and it makes the [Field]
+ * line an `activate:main/battle` line — offered at the combo prompt as well
+ * (`vm/battle.ts`'s `BATTLE_SKILL_KINDS`), with every other gate unchanged.
+ */
+function widenedOffer(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, keyword: KeywordDef): string {
+  const offer = keyword.offer as string;
+  if (keyword.name !== "Field" || offer !== "activate:main") return offer;
+  return permissions(ctx, game, state, "fieldBattle").some((p) => p.target === card) ? "activate:main/battle" : offer;
 }
 
 // ── what a line costs ───────────────────────────────────────────────────────
@@ -607,9 +622,15 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
   if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
+  // The price is charged (`vm/actions.ts`, before this): a one-use change to
+  // the line's own orbs ("the next time you activate …", BT31-096) is spent.
+  spendSkillCostUses(state, ev, card, sk);
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
-  if (findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
+  // Not for a keyword's own move: its `DO` says where the card goes, and
+  // [Field]'s puts it in the Battle Area instead (22-3-2), as the legacy
+  // engine's `Field` case moves it straight there.
+  if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
     moved(ctx, game, state, ev, card, ACTIVATION_ZONES.drop, { owner: player, reveal: true });
   }
   // `inBattle` is the legacy `!!s.battle`: an [Activate: Battle] taken at the
@@ -683,7 +704,8 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
-        if (resolveSelector(ctx, game, state, frame, op.sel).filter(switches).length < (op.sel.count ?? 1)) return false;
+        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches);
+        if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id)) < (op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":
@@ -749,10 +771,13 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * `case`s announce the skill and then pay. A line with an effect of its own
  * ([Union-Absorb], every printed [Activate]) is announced as that effect
  * resolves, after the price, the legacy `skill.resolve` step. The log is what
- * a replay compares, so the order is the oracle's.
+ * a replay compares, so the order is the oracle's. [Field] is the exception
+ * the legacy engine makes too: its `Field` case pays the Extra's energy cost
+ * first and announces the skill as it resolves (`resolvesLater`), so it is
+ * announced after the price.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !!line.keyword && !line.script?.ops.length;
+  return !!line.keyword && line.keyword.name !== "Field" && !line.script?.ops.length;
 }
 
 /** The `skill` event for a line being used (9-6). */

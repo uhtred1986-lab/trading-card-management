@@ -255,6 +255,7 @@ export function untilWords(until: EffectUntil, o: { master: PlayerId | null; vie
       return (viewersTurn && w.you ? w.you : w.text).replace("{them}", o.them);
     }
     case "permanent":
+    case "whileSourceInPlay":
       // Which card holds it up, or — with none named — "its card".
       return o.sourceName ? w.text.replace("{source}", o.sourceName) : (w.bare ?? w.text);
   }
@@ -264,5 +265,5 @@ export function untilWords(until: EffectUntil, o: { master: PlayerId | null; vie
 export function effectLine(e: EffectView, o: { viewer: PlayerId; them: string; self?: string }): string {
   const when = untilWords(e.until, { master: e.by, viewer: o.viewer, them: o.them, sourceName: e.sourceName });
   const from = e.source && e.source === o.self ? "its own [Permanent]" : e.sourceName;
-  return `${e.label} · ${when}${from && e.until !== "permanent" ? ` · from ${from}` : from && e.source === o.self ? ` · ${from}` : ""}`;
+  return `${e.label} · ${when}${from && e.until !== "permanent" && !(e.until === "whileSourceInPlay" && e.sourceName) ?` · from ${from}` : from && e.source === o.self ? ` · ${from}` : ""}`;
 }

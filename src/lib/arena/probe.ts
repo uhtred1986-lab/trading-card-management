@@ -830,6 +830,7 @@ function countedDef(id: string, f: CardFilter | undefined, like: CardDef): CardD
     traits: f.traits,
     energyCost: cost,
     power,
+    ...(f.comboPowerMin != null || f.comboPowerMax != null ? { comboPower: f.comboPowerMin ?? f.comboPowerMax } : {}),
     ...(f.type ? { type: f.type as CardDef["type"] } : {}),
     ...(f.keywords.length ? { skill: f.keywords.map((k) => `[${k}]`).join(" ") } : {}),
   });

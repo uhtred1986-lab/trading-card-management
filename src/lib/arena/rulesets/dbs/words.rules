@@ -276,6 +276,13 @@ DEFINE WORDS untilGame
   of: until
   text: "for the rest of the game"
 
+-- "…while this card is in a Battle Area" on an [Auto]/[Activate] effect: ends
+-- as the card that made it leaves the Battle Area.
+DEFINE WORDS untilWhileSourceInPlay
+  of: until
+  text: "while {source} is in a Battle Area"
+  bare: "while its card is in a Battle Area"
+
 DEFINE WORDS untilPermanent
   of: until
   text: "while {source} is in play"
