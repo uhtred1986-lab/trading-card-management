@@ -1875,6 +1875,9 @@ function describeUnderHost(sel: Selector): string {
         : sel.area === "battle" || sel.area === "play" || sel.area == null
           ? "card"
           : `${sel.area} card`;
+  // "Your <Son Goku> Battle Card": the type word, now kept in the Battle Area
+  // (`selectorWords`), already is the noun.
+  if (kind === "card" && /\bbattle card$/.test(words)) return `${who}${words}`;
   return `${who}${words ? `${words} ` : ""}${kind}`;
 }
 
