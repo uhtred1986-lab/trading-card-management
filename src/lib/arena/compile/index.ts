@@ -55,11 +55,16 @@ function narrowHiddenChoices(sc: Script): Script {
   const chooses = new Map<string, Extract<Op, { op: "choose" }>>();
   const first = new Map<string, boolean>();
   const firstMode = new Map<string, "active" | "rest">();
+  const toggled = new Set<string>();
   const walk = (v: unknown): void => {
     if (Array.isArray(v)) return v.forEach(walk);
     if (!v || typeof v !== "object") return;
     const o = v as Record<string, unknown>;
     if (o.op === "choose" && typeof o.as === "string") chooses.set(o.as, o as Extract<Op, { op: "choose" }>);
+    // "Switch it to Revealed Mode or Hidden Mode" (BT28-150) asks which mode
+    // the chosen card is in and switches it to the other: either will do.
+    const asked = o.op === "if" ? (o.cond as { sel?: { fromVar?: string } } | undefined)?.sel?.fromVar : undefined;
+    if (asked) toggled.add(asked);
     if (o.op === "hidden" && o.target && typeof o.target === "object" && "var" in o.target) {
       const name = (o.target as { var: string }).var;
       if (!first.has(name)) first.set(name, o.hidden as boolean);
@@ -82,6 +87,7 @@ function narrowHiddenChoices(sc: Script): Script {
     narrowed.set(name, { ...ch, sel: { ...ch.sel, mode: mode === "rest" ? "active" : "rest" } });
   }
   for (const [name, hidden] of first) {
+    if (toggled.has(name)) continue;
     const ch = chooses.get(name);
     if (!ch || ch.sel.filter || ch.sel.hidden !== undefined || ch.sel.special || ch.sel.fromVar || ch.sel.take != null) continue;
     // Only where a card has the position at all (1-10-2): a card chosen out of

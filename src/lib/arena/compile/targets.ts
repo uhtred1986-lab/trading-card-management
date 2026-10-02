@@ -496,6 +496,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
   if (!allAreas && !area && !fromVar && filterFor(phrase, null)) area = "play";
+  // "You have a Hidden Mode card" (BT29-112) names no area, and a card is in
+  // Hidden Mode only where it has that position at all (1-10-2): the Battle,
+  // Energy and Unison Areas.
+  // The plural ("your opponent's Hidden Mode cards") reads as 20-1-6's "on
+  // the table" above, which leaves the Energy and Unison Areas out — so it is
+  // this reading too unless the phrase names a place itself.
+  const unplaced = !area || (area === "play" && !/\bin play\b|\barea\b|\bbattle cards?\b/.test(t));
+  const hiddenAnywhere = !allAreas && unplaced && !fromVar && !underSelf && !underHostSel && /\bhidden mode (?:[a-z-]+ )*cards?\b/.test(t);
+  if (hiddenAnywhere) area = "battle";
   // The pile under a card is the area, and it was named by words that have
   // already been taken off the phrase.
   if (!allAreas && !area && !fromVar && !underSelf && !underHostSel) return null;
@@ -590,6 +599,7 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, hidden, notSelf };
   if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, hidden, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, hidden, fromVar, notSelf };
+  if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, mode, hidden, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, mode, hidden, fromVar, take, fromEnd, notSelf };
 }
 

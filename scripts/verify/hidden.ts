@@ -53,6 +53,21 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
   assert.deepEqual(one("[Activate: Main] Choose 1 of your white Battle Cards and switch it to Hidden Mode: Increase this card's power by the original power on the front of the card that was switched to Hidden Mode by this skill for the turn.").unsupported, []);
   assert.deepEqual(one("[Auto] When this card attacks, choose up to 1 non-Extra card in your Battle Area and switch it to Revealed Mode or Hidden Mode.").unsupported, []);
   assert.equal(reads("[Auto] When your opponent activates a [Counter] skill, your opponent adds 2 cards from their hand to their energy in Hidden Mode."), "choose 2 cards in your opponent's hand, move the chosen cards to energy, switch the chosen cards to Hidden Mode");
+
+  // BT28-105b: a Leader or a described Battle Card, picked as a kind first.
+  const either = one("[Activate: Main] Choose 1 of your white Battle Cards and switch it to Hidden Mode: Choose up to 1 of your Leaders or up to 1 of your white ≪Universe 7≫ Battle Cards and increase that card's power by the original power on the front of the card that was switched to Hidden Mode by this skill for the turn.");
+  assert.deepEqual(either.unsupported, []);
+  assert.deepEqual(either.ops.map((o) => o.op), ["chooseMode", "power"]);
+  // A Hidden Mode card with no area named is one wherever a card has that position (1-10-2).
+  const anywhere = one("[Permanent] If you have a Hidden Mode card, reduce the energy cost of this card in your hand by 2.");
+  assert.deepEqual(anywhere.unsupported, []);
+  assert.match(JSON.stringify(anywhere.ops), /"areas":\["battle","energy","unison"\],"hidden":true/);
+  // BT30-112: "up to 1 of your energy … to Revealed Mode or Hidden Mode" chooses, then switches it to the other.
+  const energyToggle = one("[Auto] When this card is played, switch up to 1 of your energy to Revealed Mode or Hidden Mode.");
+  assert.deepEqual(energyToggle.ops.map((o) => o.op), ["choose", "if"]);
+  assert.equal((energyToggle.ops[0] as { sel: { hidden?: boolean } }).sel.hidden, undefined, "either mode may be chosen");
+  // BT31-148.
+  assert.deepEqual(one("[Auto] When your opponent's card is played, switch this card to Revealed Mode with 1 marker on it.").ops.map((o) => o.op), ["hidden", "addMarker"]);
 }
 
 if (ENGINE !== "rules") {
@@ -181,6 +196,22 @@ if (ENGINE !== "rules") {
     assert.ok(act(t, line), "a white energy pays {w}");
     t.cards[energy].hidden = true;
     assert.equal(act(t, line), undefined, "face down, it has no colour to pay it with");
+  }
+
+  // ── BT28-105b: "your Leaders or … Battle Cards", the front's original power ─
+  {
+    def("HM-GOKU-B", { colors: ["White"], skill: "[Activate: Main][Once per turn] Choose 1 of your white Battle Cards and switch it to Hidden Mode: Choose up to 1 of your Leaders or up to 1 of your white ≪Universe 7≫ Battle Cards and increase that card's power by the original power on the front of the card that was switched to Hidden Mode by this skill for the turn." });
+    let s = arenaG({ battle: ["HM-GOKU-B", "HM-WHITE"] });
+    const line = findG(s, "p1", "battle", "HM-GOKU-B");
+    const fuel = findG(s, "p1", "battle", "HM-WHITE");
+    const leader = leaderOf(s, "p1");
+    const before = powerOfG(s, leader);
+    s = choose(playG(s, act(s, line)!), "p1", [fuel]);
+    assert.equal(s.prompt.kind, "chooseMode", "a Leader or a Battle Card: the kind first (20-2)");
+    s = playG(s, { type: "chooseMode", player: "p1", index: 0 } as Action);
+    s = choose(s, "p1", [leader]);
+    assert.equal(powerOfG(s, leader), before + 25000, "the Leader gets the face-down card's front power");
+    assertConsistentG(s);
   }
 
   // ── BT28-106: Hidden Mode cards as energy, for one kind of skill cost ───
