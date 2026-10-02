@@ -3007,6 +3007,10 @@
       "part": "flag"
     },
     {
+      "field": "differentNames",
+      "part": "flag"
+    },
+    {
       "field": "printed",
       "part": "flag"
     }
@@ -3047,6 +3051,10 @@
     {
       "word": "otherThanCopies",
       "doc": "excludes every copy of this card, not only this one"
+    },
+    {
+      "word": "differentNames",
+      "doc": "the cards chosen may not share a card name (BT29-030's \"different card names\"); a count over it counts names, not cards (BT18-104)"
     },
     {
       "word": "asPrinted",
@@ -3308,6 +3316,22 @@
       "field": "originalPowerMax",
       "type": "number",
       "printed": "card with an original power of 3 or less",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
+      "field": "comboPowerMin",
+      "type": "number",
+      "printed": "card with 3 combo power or more",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
+      "field": "comboPowerMax",
+      "type": "number",
+      "printed": "card with 3 combo power or less",
       "openTo": [
         "number"
       ]

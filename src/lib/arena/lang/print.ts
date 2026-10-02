@@ -169,6 +169,7 @@ export function printSelector(sel: Selector): string {
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
   if (sel.notSelf === "card") parts.push("otherThanSelf");
   else if (sel.notSelf === "copies") parts.push("otherThanCopies");
+  if (sel.differentNames) parts.push("differentNames");
   if (sel.printed) parts.push("asPrinted");
   return parts.length ? parts.join(" ") : "any";
 }

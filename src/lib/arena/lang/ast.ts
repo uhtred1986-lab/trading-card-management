@@ -80,6 +80,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   hidden: "flag",
   ignoreBarrier: "flag",
   notSelf: "flag",
+  differentNames: "flag",
   printed: "flag",
 };
 type SelectorFieldMissing = Exclude<keyof Selector, keyof typeof SELECTOR_FIELDS>;
@@ -129,6 +130,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   powerMax: "number",
   originalPowerMin: "number",
   originalPowerMax: "number",
+  comboPowerMin: "number",
+  comboPowerMax: "number",
   originallySkillLess: "boolean",
   powerRel: "powerRel",
   z: "tri",

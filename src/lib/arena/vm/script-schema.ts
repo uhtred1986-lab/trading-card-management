@@ -1799,6 +1799,12 @@ export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
   else if (f.originalPowerMin != null && f.originalPowerMax != null) bits.push(`with an original power between ${f.originalPowerMin} and ${f.originalPowerMax}`);
   else if (f.originalPowerMax != null) bits.push(`with an original power of ${f.originalPowerMax} or less`);
   else if (f.originalPowerMin != null) bits.push(`with an original power of ${f.originalPowerMin} or more`);
+  // 2-8: "cards with 5000 combo power" (BT29-030), in the words `parseFilter`
+  // reads back.
+  if (f.comboPowerMin != null && f.comboPowerMin === f.comboPowerMax) bits.push(`with ${f.comboPowerMin} combo power`);
+  else if (f.comboPowerMin != null && f.comboPowerMax != null) bits.push(`with combo power between ${f.comboPowerMin} and ${f.comboPowerMax}`);
+  else if (f.comboPowerMax != null) bits.push(`with ${f.comboPowerMax} combo power or less`);
+  else if (f.comboPowerMin != null) bits.push(`with ${f.comboPowerMin} combo power or more`);
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
@@ -1972,7 +1978,10 @@ const describeMode = (sel: Selector): string => {
  * the sentence "all in each player's battle" said nothing about either way.
  */
 const describeNotSelf = (sel: Selector): string =>
-  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "") + (sel.printed ? " matching the description printed on this line" : "");
+  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "") +
+  // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
+  (sel.differentNames ? " with different card names" : "") +
+  (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);

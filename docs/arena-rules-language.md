@@ -81,7 +81,7 @@ SEL    := part+                                    parts in any order; "any" whe
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number
         | "BOTTOM" number | filter | "IN" places | "OF" side | flag
 places := ( side "." )? ( zone | zone ( "|" zone )+ | "ANY" "(" zone ( "|" zone )* ")" )
-flag   := "active" | "rest" | "hidden" | "revealed" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies" | "asPrinted"
+flag   := "active" | "rest" | "hidden" | "revealed" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies" | "differentNames" | "asPrinted"
 filter := "\"" printed filter text "\"" | "(" field "=" value ( "AND" … )* ")"
 item   := "{" colour "}"+ | "{" colour "/" colour "}" | ±n "marker" | "burst" n
         | "spiritBoost" n | "X" ( "min" number )? ( "max" number )? | "TEXT" "…"
@@ -1091,6 +1091,24 @@ COST {Yellow}
 IF leaderMatches(filter: "yellow <Korin>") AND count("originally skill-less battle card with an energy cost of 3" IN you.play) >= 1
 THEN
   play(target: [self])
+```
+
+### Combo power, and different card names (2 Oct 2026)
+
+2-8: combo power is a filter measure, `comboPowerMin`/`comboPowerMax`, printed "with 5000 combo
+power" (also read: "a combo power of 5000", "… or more/less", "combo power between A and B").
+"Different card names" is about the set rather than any one card, so it is the selector flag
+`differentNames`: a `choose` over it offers a card only while no card of the same name has been
+picked, and a `count(...)` or `count` condition over it counts names, not cards ("4 or more
+≪Bardock's Crew≫ cards with different card names in your energy", `BT18-104`). `BT29-030`, "[Auto]
+When this card is played, place up to 3 cards with 5000 combo power and different card names from
+your Drop under this card.":
+
+```
+WHEN [auto] played
+THEN
+  choose(sel: UP TO 3 "card with 5000 combo power" IN you.drop differentNames, as: "c0")
+  moveTo(target: $c0, to: under)
 ```
 
 ### 20-4. Unaffected by Skills

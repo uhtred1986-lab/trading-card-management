@@ -22,7 +22,7 @@ import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
 import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, describeScript, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/vm/script";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
-import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
+import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printFilter, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
 import { CTX, DEFS, stagedG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords } from "./harness";
 
@@ -586,6 +586,9 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { ignoreBarrier: true },
     { notSelf: "card" as const },
     { notSelf: "copies" as const },
+    // BT29-030's "different card names": about the set, so a flag.
+    { differentNames: true },
+    { side: "you" as const, area: "drop" as const, count: 3, upTo: true, differentNames: true },
     // #157: a keyword body's "the description printed on this line".
     { printed: true },
     { side: "you" as const, area: "hand" as const, count: 2, notSelf: "card" as const, printed: true },
@@ -643,6 +646,12 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { originalPowerMin: 10000 },
     { originalPowerMax: 15000 },
     { originallySkillLess: true },
+    // 2-8: "cards with 5000 combo power" (BT29-030).
+    { comboPowerMin: 5000, comboPowerMax: 5000 },
+    { comboPowerMin: 5000 },
+    { comboPowerMax: 10000 },
+    { comboPowerMin: 5000, comboPowerMax: 10000 },
+    { powerMin: 10000, powerMax: 10000, comboPowerMin: 5000, comboPowerMax: 5000 },
     { powerRel: { of: "self", cmp: "<=" } },
     // "…the chosen card's power" (BT19-096): measured against a bound
     // variable, not this card — the shape `compileClause` builds by filling
@@ -664,8 +673,34 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     "Extra Card with 15000 power or less",
     "red <Raditz: Br> card with an original power of 500",
     "originally skill-less Battle Card with an energy cost of 3 or less",
+    "card with 5000 combo power",
+    "card with a combo power of 5000 or more",
   ])
     tripFilter(parseFilter(text), `filter from "${text}"`);
+
+  // The combo-power measure prints in its own words, not as the field form —
+  // the printed form is what a person reads.
+  assert.equal(printFilter({ ...emptyFilter(), comboPowerMin: 5000, comboPowerMax: 5000 }), '"card with 5000 combo power"');
+}
+
+// ── BT29-030, written by hand in the language (2 Oct 2026) ──────────────────
+{
+  const src = [
+    "WHEN [auto] played",
+    "THEN",
+    '  choose(sel: UP TO 3 "card with 5000 combo power" IN you.drop differentNames, as: "c0")',
+    "  moveTo(target: $c0, to: under)",
+  ].join("\n");
+  const parsed = parseRule(src);
+  assert.ok(parsed.ok, `BT29-030's program does not parse: ${parsed.ok ? "" : JSON.stringify(parsed.error)}`);
+  if (parsed.ok) {
+    assert.equal(validateRule(parsed.value, "auto"), null, "BT29-030's program is not one the engine can run");
+    const choose = parsed.value.ops[0] as { op: string; sel: Selector };
+    assert.equal(choose.op, "choose");
+    assert.equal(choose.sel.differentNames, true);
+    assert.deepEqual([choose.sel.filter?.comboPowerMin, choose.sel.filter?.comboPowerMax], [5000, 5000]);
+    assert.equal(printRule(parsed.value), src, "and it prints back exactly as written");
+  }
 }
 
 // ── keyword literals ────────────────────────────────────────────────────────

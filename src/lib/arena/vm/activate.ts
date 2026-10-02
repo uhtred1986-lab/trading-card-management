@@ -81,7 +81,7 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
-import { HIDEABLE, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
+import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
@@ -683,7 +683,8 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
-        if (resolveSelector(ctx, game, state, frame, op.sel).filter(switches).length < (op.sel.count ?? 1)) return false;
+        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches);
+        if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id)) < (op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":
