@@ -23,6 +23,7 @@ to `recordRun` so `ai_runs.model` is the one that ran.
 | Deck summary (`deck.ts`), arena game review (`arena/ai/review.ts`) | Sonnet 5.5 | adaptive thinking, effort `medium` |
 | Scan identify (`scan.ts`) | Sonnet 5.5, Opus fallback | adaptive thinking, effort `medium` |
 | Wizard, set review, deck builder, from-card | Opus, unchanged | |
+| Arena "Teach it · In my words" (`arena/ai/teach.ts`, #473) | `MODEL` (Opus), as `clarify.ts` | adaptive thinking, effort `medium`; the language reference (`teach/words.ts` `languageForPrompt()`) is a 1 h-cached system block; `ai_runs.kind` `arena_teach` |
 | Arena Sparring / Tournament | unchanged (counter and blocker stay on Opus `medium`) | |
 
 **Scan fallback.** `readPhotoTiered` reads on Sonnet first and repeats the read on Opus when
