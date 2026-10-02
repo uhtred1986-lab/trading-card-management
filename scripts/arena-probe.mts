@@ -13,7 +13,10 @@
  * `--reprobe` is the other half: re-run the probe each row already carries and
  * list the ones whose answer moved. That is the point of storing it — after an
  * engine change, the rules that now play differently are a list rather than a
- * hope. `--write` accepts the new answers.
+ * hope. `--write` accepts the new answers. After the digests it re-runs every
+ * board the owner judged on Try it (`card_rules.expectations`, #470) and
+ * lists, separately, the ones that now contradict the owner — "expected
+ * fired, now didNotFire" — which `--write` never accepts.
  *
  * `--engine` (default `legacy`) is the engine the staged board is opened on
  * (`probe()`'s own `engineFor` switch); `probe()` never throws, so a rule
@@ -27,7 +30,8 @@ import { rows as rowsOf } from "../src/db/rows";
 import { isEngineId, type EngineId } from "../src/lib/arena/engines";
 import { probe, ruleFrom, scenariosFor, type ProbeRun } from "../src/lib/arena/probe";
 import { defsForCards } from "../src/lib/arena/load";
-import { probedRules, programOf, setProbe, worklist, type StoredProbe, type WorklistRow } from "../src/lib/arena/rules-store";
+import { expectedRules, probedRules, programOf, setProbe, worklist, type StoredProbe, type WorklistRow } from "../src/lib/arena/rules-store";
+import { expectationMismatches, readExpectations } from "../src/lib/arena/tryit";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
@@ -160,7 +164,28 @@ async function reprobe(): Promise<number> {
   }
   console.log(moved.length ? `\n${moved.length} of ${rules.length} answer differently:\n${moved.map((m) => `  ${m}`).join("\n")}` : `\nall ${rules.length} still answer the same way`);
   if (moved.length && !flag("write")) console.log("\n(--write to accept the new answers)");
+  await reexpect();
   return 0;
+}
+
+/**
+ * The owner's judgements (#470), apart from the digests above: a digest
+ * moving says a result changed; this says it is now *wrong* by the owner's
+ * own word — "expected fired, now didNotFire". Each is re-run on the engine
+ * it was judged on, whatever `--engine` says. `--write` never touches these:
+ * only the owner changes what should happen.
+ */
+async function reexpect(): Promise<void> {
+  const rules = await runnable(await expectedRules(db));
+  if (!rules.length) return;
+  const wrong: string[] = [];
+  let boards = 0;
+  for (const { row, rule } of rules) {
+    const expectations = readExpectations(row.expectations);
+    boards += expectations.length;
+    for (const m of expectationMismatches(rule, expectations)) wrong.push(`${row.cardId} [${row.skillIndex}] ${m.title}: ${m.line}`);
+  }
+  console.log(wrong.length ? `\n${wrong.length} of ${boards} judged boards no longer do what the owner said:\n${wrong.map((m) => `  ${m}`).join("\n")}` : `\nall ${boards} judged boards on ${rules.length} rules still do what the owner said`);
 }
 
 const failures = flag("reprobe") ? await reprobe() : await sweep();

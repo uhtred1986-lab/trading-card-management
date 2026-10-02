@@ -849,6 +849,15 @@ export const cardRules = pgTable(
      * never had.
      */
     probe: jsonb("probe"),
+    /**
+     * What *should* happen, board by board, as the owner said it on Try it
+     * (#470): each a board key (`attack|cond=3`), what was expected and the
+     * engine it was judged on (`Expectation`, `lib/arena/tryit.ts`). The
+     * rule's own tests — `arena:reprobe` reports "expected fired, now
+     * didNotFire" for a judgement the rule no longer meets, apart from a
+     * digest merely moving.
+     */
+    expectations: jsonb("expectations"),
     /** How often this skill has actually come up in a game the referee had to rule on. */
     timesSeen: integer("times_seen").notNull().default(0),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
