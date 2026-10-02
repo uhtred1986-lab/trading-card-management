@@ -424,6 +424,15 @@ DEFINE TRIGGER deckOrHandToDrop
   BIND "self"
   text: "when this card goes from your deck or hand to the Drop"
 
+-- §3-10 — when one of your skills sends this card from your deck to the Warp
+-- (BT30-106). The skill's card is the subject the program is handed, so "by
+-- your <Heles> card's skill" is a condition on it rather than a moment of its
+-- own. Pended by name from a skill's `moveTo`, as `removedFromBattle` is.
+DEFINE TRIGGER deckToWarpBySkill
+  ON moved(by: skill, byOpponent: false, from: deck, to: warp)
+  BIND "self"
+  text: "when one of your skills sends this card from your deck to the Warp"
+
 -- §22-32-3 — when this card is rested by an [Alliance] skill
 DEFINE TRIGGER restedByAlliance
   ON modeSwitched(by: Alliance, mode: rest)

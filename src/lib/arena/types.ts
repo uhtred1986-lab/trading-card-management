@@ -696,6 +696,13 @@ export type Trigger =
   /** "When this card in your deck or hand is placed into its owner's Drop" (BT29-109): out of a secret area, whatever put it there — a discard included. */
   | "deckOrHandToDrop"
   /**
+   * "When this card is sent from your deck to your Warp by your <Heles> card's
+   * skill" (3-10, BT30-106): one of your skills moved it out of your deck into
+   * the Warp. The skill's card is the `subject`, so what the card says about it
+   * ("your <Heles> card's") is a condition on the subject, not part of the moment.
+   */
+  | "deckToWarpBySkill"
+  /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"
    * (22-40), "when you play a Battle Card using [Over Realm]" (22-15).

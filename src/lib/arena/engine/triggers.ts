@@ -56,6 +56,8 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     trigger === "droppedFromBattle" ||
     trigger === "removedByOpponent" ||
     trigger === "addedToZEnergy" ||
+    // 3-10: the card answers from the Warp it was just sent to.
+    trigger === "deckToWarpBySkill" ||
     trigger === "evolveFromHandActivated" ||
     trigger === "counterFreeFromHand" ||
     // 3-9-2-1: the card this fires on is sitting in a Life Area.
