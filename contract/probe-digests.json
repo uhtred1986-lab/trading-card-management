@@ -483,6 +483,10 @@
     "outcome": "inForce",
     "digest": "8aa546a8"
   },
+  "PICKNEG#0": {
+    "outcome": "fired",
+    "digest": "3ba2f4a0"
+  },
   "PICKY-HUNTER#0": {
     "outcome": "inForce",
     "digest": "26d1430d"

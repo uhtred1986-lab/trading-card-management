@@ -107,6 +107,10 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       return { kind: "negate", label: "one skill negated" };
     case "negateSkillKind":
       return { kind: "negate", label: `[${KIND_WORDS[e.value as SkillKindPrefix]}] skills negated` };
+    // The one keyword the master picked (9-1-5) — `describeStatic`'s own label
+    // for the standing form, with a duration on it.
+    case "negateKeyword":
+      return { kind: "negate", label: `[${e.value as string}] negated` };
     case "forbid":
       return { kind: "forbid", label: e.forbid ? forbidLabel(e.forbid) : "forbidden" };
     case "permit":

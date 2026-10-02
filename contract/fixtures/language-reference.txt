@@ -865,7 +865,7 @@
     {
       "name": "negate",
       "class": "primitive",
-      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "target",
@@ -946,6 +946,12 @@
           ]
         },
         {
+          "name": "chosen",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
           "name": "until",
           "required": false,
           "nullable": false,
@@ -953,7 +959,7 @@
         }
       ],
       "sentence": "negate the skills of this card for the rest of the game",
-      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. Those four spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
+      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. \"keyword\" with \"chosen\" and no \"keyword\" lets the master pick one of the keyword skills the target has in force as the step resolves (\"negateChosenKeyword\"). Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
     },
     {
       "name": "negateSkills",
@@ -974,6 +980,27 @@
         }
       ],
       "sentence": "negate the skills of this card for the turn"
+    },
+    {
+      "name": "negateChosenKeyword",
+      "class": "macro over `negate`",
+      "signature": "{\"op\":\"negateChosenKeyword\",\"target\":TARGET,\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "choose up to 1 keyword skill of this card and negate it for the turn",
+      "doc": "\"choose up to 1 keyword skill on your opponent's Battle Cards and negate that skill for the turn\" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about"
     },
     {
       "name": "negateSkillsOfKind",

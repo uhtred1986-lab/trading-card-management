@@ -1983,6 +1983,99 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.equal(powerOfG(s, thief), 10000, "…and nothing else of the source came with it");
   assertConsistentG(s);
 }
+
+// ── 9-1-5: a keyword skill the player picks, negated for the turn (BT31-138) ─
+//
+// "Choose up to 1 keyword skill on your opponent's Battle Card or Unison and
+// negate that skill for the turn": the choice is of a *skill* among those the
+// cards have in force, and only that keyword stops applying — on that card, for
+// the turn. Both engines run the one interpreter case and read the effect in
+// their own keyword readers.
+{
+  // The compiler joins the two printed clauses into the one step, on the card
+  // that asked for it.
+  const bt31 = compileSkill(
+    parseSkills(
+      "[Activate: Main/Battle] Choose up to 1 of your white <Cell> cards and return it to your hand, choose up to 1 keyword skill on your opponent's Battle Card or Unison and negate that skill for the turn.",
+    )[0],
+  );
+  assert.deepEqual(bt31.unsupported, [], "BT31-138 reads whole");
+  assert.deepEqual(
+    bt31.ops.map((o) => o.op),
+    ["choose", "moveTo", "negateChosenKeyword"],
+    "…as the return and one pick-a-keyword negation, not a choice of a card with all its skills negated",
+  );
+  const step = bt31.ops[2] as Extract<(typeof bt31.ops)[number], { op: "negateChosenKeyword" }>;
+  assert.equal(step.until, "turn");
+  assert.ok("sel" in step.target && step.target.sel.side === "opponent" && step.target.sel.count == null, "…over every card the phrase finds — the “1” is the skill's count, not a choice of cards");
+
+  DEFS.TWOKW = { ...DEFS.V1, id: "TWOKW", name: "TWOKW", skill: "[Blocker]\n[Barrier]" };
+  DEFS.PICKNEG = {
+    ...DEFS.V1,
+    id: "PICKNEG",
+    name: "PICKNEG",
+    skill: "[Activate: Main] Choose up to 1 keyword skill on your opponent's Battle Cards and negate that skill for the turn.",
+  };
+  const compiled = compileSkill(parseSkills(DEFS.PICKNEG.skill)[0]);
+  assert.deepEqual(compiled.ops.map((o) => o.op), ["negateChosenKeyword"], "the one-clause-per-half wording reads as the one step");
+  // Off a record, as `card_rules` hands it over: the selector ignores [Barrier]
+  // so the [Barrier] card itself is on offer — whether [Barrier] keeps a skill
+  // on it from being chosen is a ruling still open, and not this test's subject.
+  const record = { ops: [{ op: "negateChosenKeyword", target: { sel: { side: "opponent", area: "battle", ignoreBarrier: true } }, until: "turn" }], unsupported: [] };
+  assert.equal(validateProgram(record.ops), true);
+  const ctx = {
+    ...CTX,
+    scripts: new Proxy({} as Record<string, unknown>, {
+      get: (_, key) => (key === "PICKNEG" ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  } as typeof CTX;
+  const run = (st: EngineState, ...actions: Parameters<typeof IMPL.apply>[2][]) => actions.reduce((x, a) => IMPL.apply(ctx, x, a).state, st);
+  const legal = (st: EngineState) => IMPL.legalActions(ctx, st).map((a) => a.action);
+
+  let s = arenaG({ battle: ["PICKNEG"], oppBattle: ["TWOKW"] });
+  const me = findG(s, "p1", "battle", "PICKNEG");
+  const guard = findG(s, "p2", "battle", "TWOKW");
+  assert.equal(hasG(s, guard, "Blocker"), true);
+  assert.equal(hasG(s, guard, "Barrier"), true);
+  const activate = legal(s).find((a) => a.type === "activate" && a.card === me);
+  assert.ok(activate, "the pick-a-keyword skill is offered");
+  s = run(s, activate);
+  assert.equal(s.prompt.kind, "chooseMode", "the player is asked which keyword skill, not which card");
+  const options = (s.prompt as { options: string[] }).options;
+  assert.deepEqual([...options].sort(), ["None", "[Barrier]", "[Blocker]"], `…among the keyword skills the card has, with the decline “up to 1” allows (got ${JSON.stringify(options)})`);
+  assert.equal(options[options.length - 1], "None");
+  s = run(s, { type: "chooseMode", player: "p1", index: options.indexOf("[Barrier]") });
+  assert.equal(hasG(s, guard, "Barrier"), false, "the picked keyword is negated");
+  assert.equal(hasG(s, guard, "Blocker"), true, "…and only that one");
+  const shown = IMPL.boardView(ctx, s, "p1", {}).them.battle.find((c) => c.id === guard);
+  assert.ok(shown?.effects?.some((e) => e.label === "[Barrier] negated"), `the board says which keyword is negated (got ${JSON.stringify(shown?.effects?.map((e) => e.label))})`);
+  assertConsistentG(s);
+
+  // [Blocker] still works: attacking p2's Leader opens the block, with the card on offer.
+  s = run(s, { type: "attack", player: "p1", attacker: me, target: leaderOf(s, "p2") });
+  assert.ok(
+    legal(s).some((a) => a.type === "block" && a.card === guard),
+    "[Blocker] is still in force on the card whose [Barrier] was negated",
+  );
+  s = run(s, { type: "block", player: "p2", card: null });
+
+  // …and the negation ends with the turn (9-9).
+  while (s.prompt.kind !== "main" || (s.prompt as { player: string }).player !== "p2") {
+    const next = legal(s).find((a) => a.type === "pass" || a.type === "endMain" || a.type === "charge" || a.type === "block" || a.type === "counter");
+    assert.ok(next, `the turn can be passed on (${s.prompt.kind})`);
+    s = run(s, next);
+  }
+  assert.equal(hasG(s, guard, "Barrier"), true, "[Barrier] is back once the turn is over");
+  assert.equal(s.effects.some((e) => e.kind === "negateKeyword"), false, "…and the negation is no longer in force");
+
+  // A target with no keyword skills is nothing to choose from: no question, no effect.
+  let bare = arenaG({ battle: ["PICKNEG"], oppBattle: ["V1"] });
+  const mine = findG(bare, "p1", "battle", "PICKNEG");
+  bare = run(bare, legal(bare).find((a) => a.type === "activate" && a.card === mine)!);
+  assert.notEqual(bare.prompt.kind, "chooseMode", "a card with no keyword skills is not asked about");
+  assert.equal(bare.effects.some((e) => e.kind === "negateKeyword"), false, "…and nothing is negated");
+  assertConsistentG(bare);
+}
 // ── 9-10: a replacement whose substitute is a program (#125) ───────────────
 
 // Both engines since 1 Oct 2026: a [Permanent]'s replacement is collected on

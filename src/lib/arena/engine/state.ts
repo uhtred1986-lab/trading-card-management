@@ -432,8 +432,12 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
       .filter((e) => e.kind === "negateKeyword" && e.target === id)
       .map((e) => e.value as KeywordSkill["name"]),
   );
+  if (gone.size && forbids(ctx, s, "beNegated", { card: id })) gone.clear();
+  // The same, picked by a skill for a span ("choose up to 1 keyword skill on …
+  // and negate that skill for the turn"): the prohibition was asked when the
+  // effect was made (`negateChosenKeyword`, script.ts), so it is not asked again.
+  for (const e of s.effects) if (e.kind === "negateKeyword" && e.target === id) gone.add(e.value as KeywordSkill["name"]);
   if (!gone.size) return out;
-  if (forbids(ctx, s, "beNegated", { card: id })) return out;
   return out.filter((k) => !gone.has(k.name));
 }
 

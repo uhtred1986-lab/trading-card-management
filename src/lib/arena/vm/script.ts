@@ -11,7 +11,7 @@
  */
 import { skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
-import { asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
+import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { sideOf } from "./common";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
@@ -546,8 +546,21 @@ export type Op =
    * is for the game. `negateAs` (script-schema.ts) is the one reading of it:
    * the interpreter, the statics and the sentence all go through the spelling
    * it stands for, so a program written either way does the same thing.
+   * `chosen` (with "keyword") names no keyword: the master picks one of the
+   * keyword skills `target` has in force as the step resolves — that is
+   * `negateChosenKeyword`.
    */
-  | { op: "negate"; target?: Ref; what: NegateScope; kind?: SkillKindPrefix; keyword?: KeywordSkill["name"]; until?: Duration }
+  | { op: "negate"; target?: Ref; what: NegateScope; kind?: SkillKindPrefix; keyword?: KeywordSkill["name"]; chosen?: boolean; until?: Duration }
+  /**
+   * "Choose up to 1 keyword skill on your opponent's Battle Cards and negate
+   * that skill for the turn" (9-1-5, BT31-138): the master picks one keyword
+   * skill among those every card `target` finds has in force right now, and
+   * only that keyword is negated on that card, for `until`. The choice is of a
+   * *skill*, so the menu lists keywords (with the card's name when several
+   * cards carry them) and ends with "None" for the printed "up to 1"; a target
+   * with no keyword skills asks nothing and does nothing.
+   */
+  | { op: "negateChosenKeyword"; target: Ref; until: Duration }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
   | { op: "hidden"; target: Ref; hidden: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
@@ -1907,6 +1920,37 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           else h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateSkills", value: 0, until: op.until });
         }
         break;
+
+      case "negateChosenKeyword": {
+        // 9-1-5: one keyword skill, picked by the master among those the
+        // target cards have in force *now* — a granted one included, a
+        // negated one not — and negated on that card alone for the duration.
+        const offered: { card: string; keyword: KeywordSkill["name"] }[] = [];
+        for (const id of h.resolveRef(frame, op.target)) {
+          if (!h.exists(id) || h.forbids("beNegated", { card: id })) continue;
+          for (const name of KEYWORD_NAMES) if (h.hasKeyword(id, name)) offered.push({ card: id, keyword: name });
+        }
+        if (!offered.length) break;
+        if (h.lastMode() == null || frame.awaiting !== "negateChosenKeyword") {
+          const several = new Set(offered.map((o) => o.card)).size > 1;
+          frame.awaiting = "negateChosenKeyword";
+          h.resume(frame);
+          h.ask({
+            kind: "chooseMode",
+            player: master,
+            reason: `${h.nameOf(frame.card)}: choose a keyword skill to negate`,
+            // "Up to 1" on every card printing this, so the last option declines.
+            options: [...offered.map((o) => (several ? `${h.nameOf(o.card)}: [${o.keyword}]` : `[${o.keyword}]`)), "None"],
+          });
+          return "wait";
+        }
+        const at = h.lastMode()!;
+        h.clearLastMode();
+        frame.awaiting = undefined;
+        const picked = offered[at];
+        if (picked) h.addEffect({ master: frame.master, source: frame.card, target: picked.card, kind: "negateKeyword", value: picked.keyword, until: op.until });
+        break;
+      }
 
       case "negateSkillsOfKind":
         // 9-1-5: one kind of skill, not the card. Kept as an effect for the

@@ -561,6 +561,7 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
   // 23-5-2-1: a skill a Hidden Mode card gains is ignored, so a granted
   // [Blocker] or [Barrier] is no more in force than a printed one.
   if (!card || card.hidden) return false;
+  if (keywordNegatedFor(state, id, name)) return false;
   for (const k of printedKeywords(ctx, state, id)) if (k.name === name) return true;
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
@@ -596,7 +597,17 @@ export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state:
   const out: KeywordSkill[] = printedKeywords(ctx, state, id);
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  return out;
+  return out.filter((k) => !keywordNegatedFor(state, id, k.name));
+}
+
+/**
+ * 9-1-5: one keyword skill of this card negated for a span — the one a
+ * `negateChosenKeyword` step had its master pick. Read last by both
+ * `hasKeyword` and `keywordsInForce`, so it beats a grant of the same keyword,
+ * the way the legacy `keywordsInForce` applies it.
+ */
+function keywordNegatedFor(state: VmState, id: string, name: KeywordSkill["name"]): boolean {
+  return state.effects.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name);
 }
 
 // ── the hook contract's own reading (#153, `vm/hook-contract.ts`) ──────────

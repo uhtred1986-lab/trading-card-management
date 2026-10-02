@@ -1509,6 +1509,25 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return null;
   }
 
+  // 9-1-5: "Choose up to 1 keyword skill on 1 of your opponent's Battle Cards
+  // and negate that skill for the turn" (BT31-138, BT8-045b, BT6-057), merged
+  // into one clause by `compileClauseList` like the copy above. The choice is of
+  // a *skill*, so no card is chosen first: every card the phrase finds is
+  // offered, and the count printed on the cards ("1 of …") is the skill's, not
+  // a choice of cards — kept, it would have made this a choice of a card and
+  // negated all of its skills, which is what it used to read as.
+  if ((m = /^choose (?:up to )?(?:\d+|a|an|one) (?:of (?:the )?)?keyword skills? (?:on|of) (.+?),? (?:and )?(?:negate (?:it|that skill)|that skill is negated)$/.exec(q))) {
+    const ref = refFor(m[1], c);
+    if (!ref) return null;
+    if ("sel" in ref && !ref.sel.special) {
+      const every = { ...ref.sel };
+      delete every.count;
+      delete every.upTo;
+      return [{ op: "negateChosenKeyword", target: { sel: every }, until: durationOf(t) }];
+    }
+    return [{ op: "negateChosenKeyword", target: ref, until: durationOf(t) }];
+  }
+
   // Granting keyword skills (20-18); one clause can grant several.
   if ((m = /^(.*?) gains? ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
     const ref = refFor(m[1], c);
@@ -2458,6 +2477,9 @@ const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) markers? on this card[
 /** The two halves of the copied-skill wording (20-18); see the merge in `compileClauseList`. */
 const COPY_SKILL_CHOICE = /^choose (?:up to )?\d+ (?:of (?:the )?.+?'s (?:keyword )?skills?|(?:keyword )?skills? (?:on|of|from|in) .+?)[.,]?$/i;
 const GAINS_THAT_SKILL = /^.*?\bgains? that skill\b/i;
+/** The two halves of "choose up to 1 keyword skill on … and negate that skill" (9-1-5); see the same merge. */
+const KEYWORD_SKILL_CHOICE = /^choose (?:up to )?(?:\d+|a|an|one) (?:of (?:the )?)?keyword skills? (?:on|of) .+?[.,]?$/i;
+const NEGATE_THAT_SKILL = /^(?:and )?(?:negate (?:it|that skill)|that skill is negated)\b/i;
 
 /** The clause loop, shared by a skill's body and by each modal option. */
 export function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
@@ -2510,6 +2532,13 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // Merged so `compileClause` reads the two as one `copySkills`; apart, the
     // first half compiled as a choice of cards and the second went unread.
     if (COPY_SKILL_CHOICE.test(clause.trim()) && i + 1 < clauses.length && GAINS_THAT_SKILL.test(clauses[i + 1].trim())) {
+      clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
+      continue;
+    }
+    // 9-1-5, the same shape: "choose up to 1 keyword skill on …" names the
+    // skill the next clause negates, and apart the first half read as a choice
+    // of a card and the second negated every skill of it.
+    if (KEYWORD_SKILL_CHOICE.test(clause.trim()) && i + 1 < clauses.length && NEGATE_THAT_SKILL.test(clauses[i + 1].trim())) {
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
     }

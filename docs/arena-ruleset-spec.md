@@ -161,6 +161,7 @@ disagree or if a row is missing from either.
 | `negate` | primitive | A rule stops applying (9-1-5): `what` is the scope — `skills`, `kind`, `keyword` or `own` — and `until` the span. Built by #276 as one row whose interpreter path is the four spellings' own cases (`negateAs`), so the rows below are declarable and nothing about negation is read twice. |
 | `negateSkills` | macro over `negate` | Scope: every skill of a card (9-1-5). |
 | `negateSkillsOfKind` | macro over `negate` | Scope: one printed skill kind of a card. |
+| `negateChosenKeyword` | macro over `negate` | Scope: one keyword skill the master picks among those the target cards have in force (`chosen: true`), negated on that card for a span (BT31-138). |
 | `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. |
 | `negateOwnSkill` | macro over `negate` | Scope: the skill resolving now, for the turn, the battle or the game. |
 | `hidden` | macro over `modifyAttr` | Attribute `hidden`: Hidden Mode and Revealed Mode (23-5). |
