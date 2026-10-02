@@ -27,6 +27,8 @@ import type { Color, KeywordSkill, Trigger } from "../types";
 import { COST_ITEMS, DEFINE_KINDS, EXPR_ATTRS, EXPR_SCHEMA, FILTER_FIELDS, PARAM_TYPES, REQUIREMENT_KINDS, fieldsOf, type Definition, type Guard, type Hole, type NegHole, type DefineField, type DefineFieldType, type DefineHook, type DefineKind, type DefineParam, type DefineRefusal, type EventPattern, type ExprArg, type FilterFieldType, type LangError, type Parsed, type PatternValue, type Rule } from "./ast";
 import type { Words } from "../rulesets/words";
 import { LangSyntaxError, lex, positionOf, type Token } from "./tokens";
+import { unreadFilterWords } from "./filter-words";
+import { describeFilter } from "../vm/script";
 
 /** The literal words a selector may end with, and what each sets. Exported so the generated language reference (`lang/reference.ts`) can list them without a second copy. */
 export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
@@ -696,7 +698,7 @@ class Parser {
   // ── the card filter ───────────────────────────────────────────────────────
 
   private filter(): CardFilter {
-    if (this.tok.kind === "string") return parseFilter(this.string());
+    if (this.tok.kind === "string") return this.printedFilter();
     const f = emptyFilter();
     this.want("(");
     this.skipNl();
@@ -713,6 +715,32 @@ class Parser {
       this.skipNl();
     }
     this.want(")");
+    return f;
+  }
+
+  /**
+   * A filter in its printed words — read only if `parseFilter` reads all of
+   * them. It passes over wording it does not know, so "card with 5000 combo
+   * power" came back as every card; a measure dropped like that is the silent
+   * widening the text view exists to refuse (see `lang/filter-words.ts`).
+   */
+  private printedFilter(): CardFilter {
+    const at = this.tok;
+    const text = this.string();
+    const f = parseFilter(text);
+    const unread = unreadFilterWords(text, f);
+    // `unreadable` is `parseFilter`'s own refusal — a bracketed word that is
+    // neither a keyword nor a skill kind — which the accounting above names
+    // too; the flag is checked as well so the two can never disagree.
+    if (unread.length || f.unreadable) {
+      const said = unread.length ? ` (${unread.map((w) => JSON.stringify(w)).join(", ")})` : "";
+      throw new LangSyntaxError(
+        `the filter ${JSON.stringify(text)} has words no filter measure reads${said}, and read without them it would match more cards than it says. ` +
+          `Say it the way a filter prints — this read as ${JSON.stringify(describeFilter(f))} — or field by field, e.g. (colors = [Red] AND costMax = 3)`,
+        at.start,
+        ["(field = value AND …)"],
+      );
+    }
     return f;
   }
 
