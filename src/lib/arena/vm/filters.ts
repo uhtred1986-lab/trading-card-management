@@ -91,6 +91,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   traits: { reads: ["traits"] },
   notTraits: { reads: ["traits"] },
   characterOrTrait: { reads: ["characters", "traits"] },
+  onlyCharacters: { reads: ["characters"] },
   names: { reads: ["name"], also: ["alsoNames"] },
   notNames: { reads: ["name"], also: ["alsoNames"] },
   namesIncluding: { reads: ["name"], also: ["alsoNames"] },
@@ -234,6 +235,8 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   if (f.characterOrTrait) {
     if (!f.characters.some((c) => same(characters, c)) && !f.traits.some((t) => same(traits, t))) return false;
   } else if (!characterOk || !traitOk) return false;
+  // "<Son Goku>-only" (BT29-108): nothing but the characters named.
+  if (f.onlyCharacters && !characters.every((c) => same(f.characters, c))) return false;
   if (f.notCharacters.some((c) => same(characters, c))) return false;
   if ((f.notCharactersIncluding ?? []).some((c) => part(characters, c))) return false;
 

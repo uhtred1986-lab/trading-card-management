@@ -44,7 +44,7 @@
 import type { EngineContext } from "../types";
 import { backCharactersOf, coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
 import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
-import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, PlayerId, Prohibition, Skill } from "../types";
+import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { other } from "../types";
 import { parseFilter, powerRelOk, type CardFilter } from "../text/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
@@ -521,6 +521,32 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
     case "energyCost":
       return num(now.costOf);
   }
+}
+
+/**
+ * Every rule of the game lifted right now (8-1-1, 5-7): a resolved skill's
+ * `permit` effect for its span, and a [Permanent]'s standing one. Each says
+ * which card it is about (`target` — the attacker for `attackActive`, the
+ * card granting it for `comboRest`), whose rule it is, and which cards it
+ * lets in.
+ */
+export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter }[] {
+  const out: { target: string; master: PlayerId; filter?: CardFilter }[] = [];
+  for (const e of state.effects) {
+    const p = e.kind === "permit" ? e.permit : undefined;
+    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}) });
+  }
+  for (const e of staticsNow(ctx, game, state)) {
+    const p = e.value as Permission;
+    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}) });
+  }
+  return out;
+}
+
+/** Does this card answer a permission's description? None means any card. A Hidden Mode card answers none (23-5-2). */
+export function permitted(ctx: EngineContext, game: GameDefinition, state: VmState, filter: CardFilter | undefined, id: string): boolean {
+  if (state.cards[id]?.hidden) return false;
+  return !filter || predicateOf(filter, game)(attrsNow(ctx, game, state, id));
 }
 
 /**

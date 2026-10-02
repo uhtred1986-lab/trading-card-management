@@ -224,6 +224,13 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /revealed/.test(switchedTo(t));
     case "switchedHidden":
       return /hidden/.test(switchedTo(t));
+    // 23-2: a card going into a pile under another (BT29-140).
+    case "placedUnder":
+      return /when this card is placed under\b/.test(t);
+    // Out of the deck or the hand into the Drop (BT29-109) — "in your deck or
+    // hand", either order, or just one of them.
+    case "deckOrHandToDrop":
+      return /when this card in your (?:deck|hand)(?: or (?:deck|hand))? is (?:placed|put|sent) (?:in|into) (?:its owner'?s|your) drop/.test(t);
     case "hiddenToDrop":
       return /when this hidden mode card(?: in (?:a|your) battle area)? is placed (?:in|into) (?:its owner'?s|your|a) drop/.test(t);
     case "addedToZEnergy":

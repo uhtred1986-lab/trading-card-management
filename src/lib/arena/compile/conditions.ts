@@ -212,8 +212,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If the Battle Card being played has an energy cost of 7 or less" — a
   // [Counter: Play] asking about the card it is answering (9-6). The card is
   // not in play yet, so it can only be named, never chosen.
-  if ((m = /^the (?:battle |extra |unison )?card being played (?:has|is) (.+)$/.exec(t))) {
-    const filter = filterFor(m[1], null);
+  if ((m = /^the (battle |extra |unison )?card being played (?:has|is) (.+)$/.exec(t))) {
+    // The type word is a measure too: "the **Battle** Card being played"
+    // (BT29-112) is not an Extra being played, whatever its cost.
+    const filter = filterFor(`${m[1] ?? ""}card ${m[2]}`, null);
     if (!filter) return null;
     return { cond: { kind: "count", sel: { special: "resolving", filter }, atLeast: 1 }, subject: { sel: { special: "resolving" } } };
   }

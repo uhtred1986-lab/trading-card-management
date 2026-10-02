@@ -416,8 +416,15 @@ export interface Prohibition {
  * parser cannot read fails rather than permitting everything.
  */
 export interface Permission {
-  what: "attackActive";
-  /** Which active cards may be attacked. Absent means any of them. */
+  /**
+   * `attackActive`: the card may attack Battle Cards in Active Mode (8-1-1).
+   * `comboRest`: its master may use Battle Cards in Rest Mode in combos (5-7)
+   * — "you can use your mono-red Rest Mode ≪Saiyan≫ cards in combos"
+   * (BT18-001, BT29-129); the target is the card granting it, and `filter`
+   * says which rested cards.
+   */
+  what: "attackActive" | "comboRest";
+  /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }
 
@@ -684,6 +691,10 @@ export type Trigger =
   | "switchedRevealed"
   /** "When this card is switched to Hidden Mode" with no cause named (BT29-142's "played or switched to Hidden Mode"), and the other half of "…Revealed Mode or Hidden Mode". */
   | "switchedHidden"
+  /** "When this card is placed under a … card" (23-2, BT29-140): the card going into a pile; what it says about the host is a condition on the card on top. */
+  | "placedUnder"
+  /** "When this card in your deck or hand is placed into its owner's Drop" (BT29-109): out of a secret area, whatever put it there — a discard included. */
+  | "deckOrHandToDrop"
   /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"

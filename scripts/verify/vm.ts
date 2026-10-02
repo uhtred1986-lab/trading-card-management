@@ -359,6 +359,7 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   notCharactersIncluding: { notCharactersIncluding: ["BLOCK"] },
   traits: { traits: ["Saiyan"] },
   characterOrTrait: { characterOrTrait: true, characters: ["V1"], traits: ["Saiyan"] },
+  onlyCharacters: { onlyCharacters: true, characters: ["V1"] },
   notTraits: { notTraits: ["Saiyan"] },
   names: { names: ["BIG"] },
   notNames: { notNames: ["BIG"] },

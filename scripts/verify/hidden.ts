@@ -361,5 +361,88 @@ if (ENGINE !== "rules") {
     assertConsistentG(s);
   }
 
+  // ── the rest of the BT29 cards' lines ───────────────────────────────────
+  {
+    // 5-7 lifted: Rest Mode cards in combos (BT18-001, BT29-129).
+    def("HM-RESTCOMBO", { skill: "[Permanent] You can use your Rest Mode cards in combos." });
+    let s = arenaG({ battle: ["HM-RESTCOMBO", "V1"], energy: ["V1"] });
+    const tired = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === "V1")!;
+    s.cards[tired].mode = "rest";
+    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+    for (let i = 0; i < 6 && s.prompt.kind !== "combo"; i++) s = playG(s, actsG(s).find((a) => (a.type === "counter" || a.type === "block") && !a.card) ?? actsG(s)[0]);
+    assert.ok(actsG(s).some((a) => a.type === "combo" && a.card === tired), "a rested Battle Card is offered for the combo");
+    let t = arenaG({ battle: ["V1"], energy: ["V1"] });
+    const plain = zoneOf(t, "p1", "battle")[0];
+    t.cards[plain].mode = "rest";
+    t = playG(t, { type: "attack", player: "p1", attacker: leaderOf(t, "p1"), target: leaderOf(t, "p2") });
+    for (let i = 0; i < 6 && t.prompt.kind !== "combo" && t.prompt.kind !== "main"; i++) t = playG(t, actsG(t).find((a) => (a.type === "counter" || a.type === "block") && !a.card) ?? actsG(t)[0]);
+    assert.ok(!actsG(t).some((a) => a.type === "combo" && a.card === plain), "and without the permission it is not");
+
+    // 8-1-1 lifted by a [Permanent], which the rules engine now reads.
+    def("HM-ACTIVEHUNTER", { skill: "[Permanent] This card can attack Battle Cards in Active Mode." });
+    const u = arenaG({ battle: ["HM-ACTIVEHUNTER"], oppBattle: ["V-BLUE"] });
+    const hunter = findG(u, "p1", "battle", "HM-ACTIVEHUNTER");
+    const awake = zoneOf(u, "p2", "battle")[0];
+    assert.ok(actsG(u).some((a) => a.type === "attack" && a.attacker === hunter && a.target === awake), "an Active Battle Card is a target for this attacker");
+    assert.ok(!actsG(u).some((a) => a.type === "attack" && a.attacker === leaderOf(u, "p1") && a.target === awake), "and for no other");
+
+    // "When this card in your deck or hand is placed into its owner's Drop" (BT29-109).
+    def("HM-DROPWATCH", { skill: "[Auto] When this card in your deck or hand is placed into its owner's Drop, draw 1 card." });
+    def("HM-TOSS", { skill: "[Activate: Main] Choose 1 card in your hand and place it in your Drop Area." });
+    let v = arenaG({ hand: ["HM-DROPWATCH"], battle: ["HM-TOSS"] });
+    const watcher = findG(v, "p1", "hand", "HM-DROPWATCH");
+    const hand = handOf(v, "p1");
+    v = choose(playG(v, act(v, findG(v, "p1", "battle", "HM-TOSS"))!), "p1", [watcher]);
+    assert.ok(zoneOf(v, "p1", "drop").includes(watcher));
+    assert.equal(handOf(v, "p1"), hand - 1 + 1, "it left the hand and drew on the way to the Drop");
+
+    // "When this card is placed under a <Vegito> card with a [Union] skill" (BT29-140).
+    def("HM-BURIED", { skill: "[Auto] When this card is placed under a <Vegito> card with a [Union] skill, draw 1 card." });
+    def("HM-VEGITO-U", { characters: ["Vegito"], skill: "[Union-Potara] <Son Goku> card and <Vegeta> card.<br>[Activate: Main] Choose up to 1 card in your hand and place it under this card." });
+    def("HM-PILE", { characters: ["Gotenks"], skill: "[Activate: Main] Choose up to 1 card in your hand and place it under this card." });
+    for (const [host, draws] of [["HM-VEGITO-U", 1], ["HM-PILE", 0]] as const) {
+      let w = arenaG({ hand: ["HM-BURIED"], battle: [host] });
+      const buried = findG(w, "p1", "hand", "HM-BURIED");
+      const before = handOf(w, "p1");
+      w = choose(playG(w, act(w, findG(w, "p1", "battle", host))!), "p1", [buried]);
+      assert.equal(handOf(w, "p1"), before - 1 + draws, draws ? "under a <Vegito> with [Union]: it answers" : "under any other card: it does not");
+    }
+
+    // "-only" (BT29-108): a Leader that is <Son Goku> and nothing else.
+    def("HM-ONLY", { skill: "[Activate: Main] If your Leader is a red <L-RED>-only card, draw 1 card." });
+    def("HM-PAIRLEADER", { ...DEFS["L-RED"], characters: ["L-RED", "Vegeta"], back: undefined });
+    for (const [leader, draws] of [[undefined, 1], ["HM-PAIRLEADER", 0]] as const) {
+      let x = arenaG({ battle: ["HM-ONLY"] });
+      if (leader) x.cards[leaderOf(x, "p1")].cardId = leader;
+      const before = handOf(x, "p1");
+      x = playG(x, act(x, findG(x, "p1", "battle", "HM-ONLY"))!);
+      assert.equal(handOf(x, "p1"), before + draws, draws ? "a single-character Leader answers" : "a Leader with a second character does not");
+    }
+
+    // "Place it in its owner's Drop instead of playing it" (BT29-112).
+    def("HM-STOPPER", { ...DEFS["E-NEGATE"], skill: "[Counter: Play] If the Battle Card being played has an energy cost of 3 or less, place it in its owner's Drop instead of playing it." });
+    let z = arenaG({ hand: ["V1"], energy: ["V1", "V1"], oppHand: ["HM-STOPPER"], oppEnergy: ["V1"] });
+    const played = findG(z, "p1", "hand", "V1");
+    z = playG(z, { type: "play", player: "p1", card: played });
+    z = playG(z, { type: "counter", player: "p2", card: findG(z, "p2", "hand", "HM-STOPPER"), skill: 0 });
+    assert.ok(zoneOf(z, "p1", "drop").includes(played), "the play is stopped and the card goes to the Drop");
+    assertConsistentG(z);
+
+    // BT29-148's price: the card goes from the hand to the Z-Deck face up, and only with 2 opponent energy.
+    def("HM-OMEGA", { colors: ["White"], skill: "[Activate: Main]{1}, if your opponent has 2 or more energy and you place this card from your hand into its owner's Z-Deck face-up: Draw 1 card." });
+    let o = arenaG({ hand: ["HM-OMEGA"], energy: ["V1"], oppEnergy: ["V-BLUE"] });
+    const omega = findG(o, "p1", "hand", "HM-OMEGA");
+    const energyNow = zoneOf(o, "p2", "energy").length;
+    if (energyNow < 2) assert.equal(act(o, omega), undefined, "under 2 opponent energy: not offered");
+    o = arenaG({ hand: ["HM-OMEGA"], energy: ["V1"], oppEnergy: ["V-BLUE", "V-BLUE", "V-BLUE"] });
+    const omega2 = findG(o, "p1", "hand", "HM-OMEGA");
+    const h0 = handOf(o, "p1");
+    o = playG(o, act(o, omega2)!);
+    assert.ok(zoneOf(o, "p1", "zDeck").includes(omega2), "paid by placing it in the Z-Deck");
+    assert.equal(o.cards[omega2].faceUp, true, "face up");
+    assert.equal(handOf(o, "p1"), h0 - 1 + 1);
+    assertConsistentG(o);
+  }
+
   for (const id of TEMP) delete DEFS[id];
 }

@@ -38,7 +38,7 @@ import type { GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
 import { addEffect } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
-import { log } from "./events";
+import { fire, log } from "./events";
 import { moved } from "./flow";
 import type { VmState } from "./state";
 import { attrsNow, queryHookStatics } from "./program";
@@ -269,6 +269,9 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
     if (b.guard === host) b.guard = card;
   }
   log(ev, { type: "stack", top: card, under: state.cards[card].under.slice() });
+  // It has not left the area (23-2-2-2), but going under is still a moment
+  // the card may name: "when this card is placed under a … card" (BT29-140).
+  fire(ctx, game, state, { event: "placedUnder", card: host, controller: player, args: { to: "under" } });
 }
 
 /** The base type a zone is chosen by (14-1, 19-1) — `vm/filters.ts`'s reading of the same attribute. */

@@ -804,7 +804,7 @@ export type Op =
    * says which active cards, and a description the parser cannot read must
    * fail the clause rather than permit every one of them.
    */
-  | { op: "permit"; what: "attackActive"; until: Duration; target: Ref; filter?: CardFilter }
+  | { op: "permit"; what: "attackActive" | "comboRest"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or

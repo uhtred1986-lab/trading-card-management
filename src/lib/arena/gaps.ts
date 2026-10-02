@@ -124,6 +124,8 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   hiddenToDrop: "when this card goes from a Battle Area to the Drop in Hidden Mode",
   switchedRevealed: "when this card is switched to Revealed Mode",
   switchedHidden: "when this card is switched to Hidden Mode",
+  placedUnder: "when this card is placed under a card",
+  deckOrHandToDrop: "when this card goes from your deck or hand to the Drop",
   unionActivated: "when you activate a [Union] skill",
   unionAbsorbActivated: "when this card's [Union-Absorb] is activated",
   overlordActivated: "when you activate an [Overlord] skill",

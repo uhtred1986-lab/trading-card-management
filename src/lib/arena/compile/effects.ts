@@ -1534,6 +1534,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) (?:(?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)|(?:returned) to (?:its owner'?s?|their owners?'?s?|your|their) (hand)s?)(?: instead)?(?: of being played)?$/.exec(
         t,
       );
+    // The same said actively: "place it in its owner's Drop **instead of
+    // playing it**" (BT29-112) — only a play being resolved is something a
+    // card can be placed somewhere instead of playing.
+    const placedInstead = /^place (?:it|that card|the (?:battle |extra |unison )?card being played) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?) instead of playing it$/.exec(t);
+    if (placedInstead) {
+      const to: ScriptArea = placedInstead[1] ? "drop" : placedInstead[2] ? "warp" : "deck";
+      return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
+    }
     if (stopped && /instead of being played|instead$/.test(t)) {
       // 22-13-4-5-1-1 names the hand form specially: a card "returned to its
       // owner's hand instead of being played" does *not* then go to the Drop.
@@ -1652,6 +1660,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const filter = filterFor(what, null);
     if (!filter) return null;
     return [{ op: "permit", what: "attackActive", target: ref, until: durationOf(t), filter }];
+  }
+
+  // 5-7 lifted: "you can use your mono-red Rest Mode ≪Saiyan≫ cards in
+  // combos" (BT18-001), "during this turn, you can use white Rest Mode
+  // <Vegeta: GT> cards in combos" (BT29-129). A combo normally takes a card
+  // from the hand or an Active Battle Card; this lets the rested ones in.
+  if ((m = /^(?:during this turn,? )?(?:you (?:can|may) )?use (?:your )?(.*?)\s*rest mode (.*?)cards? in combos?(?: during this turn| for the turn)?$/.exec(t))) {
+    const said = `${m[1]} ${m[2]}card`.trim();
+    const filter = filterFor(said, null);
+    if (filter === null) return null;
+    const until: Duration = /during this turn|for the turn/.test(t) ? "turn" : durationOf(t);
+    return [{ op: "permit", what: "comboRest", target: { sel: { special: "self" } }, until, ...(filter ? { filter } : {}) }];
   }
 
   // 20-9: "gain control of it until the end of the turn", "you gain control of
@@ -1867,8 +1887,30 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return ref ? [...withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "deck" })), { op: "shuffle" }] : null;
   }
 
+  // 3-12: a card placed in the Z-Deck, face up or not — "place this card from
+  // your hand into its owner's Z-Deck face-up" (BT29-147, -148's price),
+  // "place up to 1 black <Fu> or <Cumber> card in your Z-Deck face up" after
+  // a look (BT22-115), "place that card from your Drop face-up in your
+  // Z-Deck" (BT25-077), "place this card face-up in your Z-Deck" (BT26-097).
+  // "Face up" is where it lies there, never a description of the card.
+  if ((m = /^place (.+?)(?: from (?:your|their) (drop|hand|warp|deck)(?: area)?)?( face[- ]up)? (?:in|into) (?:its owner'?s?|your|their) z-decks?( face[- ]up)?$/.exec(t))) {
+    const said = m[1].replace(/\s+face[- ]up$/, "");
+    const faceUp = !!(m[3] || m[4] || /\s+face[- ]up$/.test(m[1]));
+    const from = m[2];
+    const pronoun = BARE_TARGET.test(said) || /^(?:that|this|the chosen) card\b/.test(said);
+    let ref: Ref | null;
+    if (pronoun) ref = refFor(from && /^this card$/.test(said) ? `this card from your ${from}` : said, c);
+    else if (from) ref = refFor(`${said} in your ${from}`, c);
+    else if (c.lastSeen) {
+      // After "look at …", the card comes from what was looked at (20-12).
+      const sel = parseTarget(said, c.lastSeen, c.lastSeen);
+      ref = sel ? { sel: { ...sel, fromVar: sel.fromVar ?? c.lastSeen } } : null;
+    } else ref = refFor(said, c);
+    return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "zDeck", ...(faceUp ? { faceUp: true, reveal: true } : {}) })) : null;
+  }
+
   // Area moves (3-1).
-  const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; owner?: Side }][] = [
+  const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; owner?: Side; faceUp?: boolean }][] = [
     // "their owners' decks", "its owner's hand": several cards go to several
     // owners' areas, which `moveTo` does one card at a time anyway.
     [/^place (.+?) (?:in|into) (?:its owner'?s?|their owners?'?s?|their|your|the) drops?(?: area)?s?$/, "drop", { reveal: true }],
@@ -2716,7 +2758,9 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // clause is read as usual and then wrapped in the offer.
     // "You can only play mono-yellow ≪Saiyan≫ cards" is a prohibition rather
     // than an offer, and is read by `compileProhibition`.
-    const offered = /^(?:you may|you can(?! only)|the player may)\s+\S/i.test(said.trim());
+    // "You can use … Rest Mode … cards in combos" lifts a rule (5-7); it is a
+    // permission standing for the turn, not a choice made now.
+    const offered = /^(?:you may|you can(?! only)|the player may)\s+\S/i.test(said.trim()) && !/^you can use .*\brest mode\b.* in combos?\b/i.test(said.trim());
     const optional = !c.permanent && offered;
     // Only as a fallback: several patterns read the subject themselves and say
     // it better than this can — "your opponent sends 1 card from their hand to
