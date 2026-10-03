@@ -5,6 +5,7 @@ labels: backlog, ready-for-agent, bug, area:arena-vm, area:arena-rulesets, phase
 stage: 9
 issue: 327
 touches: src/lib/arena/vm/cards.ts, src/lib/arena/vm/program.ts, src/lib/arena/rulesets/dbs/attributes.rules, scripts/verify/vm.ts
+status: closed
 ---
 **Source:** `src/lib/arena/vm/cards.ts` (`CATALOG`, keyed by `keyof CardDef`), `src/lib/arena/vm/program.ts` (`attrsNow`), `src/lib/arena/rulesets/dbs/attributes.rules` (the `back` attribute's own text); `docs/arena-ruleset-spec.md` §3's list of what the grammar cannot say. Found by #166's pre-flip review.
 

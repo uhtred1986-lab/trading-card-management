@@ -160,7 +160,8 @@ assert.ok(!expanded.includes("{{children}}"));
 
 {
   const exists = new Set(["src/lib/arena/engine/cards.ts", "docs/arena-tooling.md"]);
-  const existsFn = (p: string) => exists.has(p.replace(/^\/+/, ""));
+  // missingSourcePaths builds the path with path.join, which uses backslashes on Windows.
+  const existsFn = (p: string) => exists.has(p.replace(/\\/g, "/").replace(/^\/+/, ""));
 
   const clean = parseIssueFile(
     "check-clean.md",

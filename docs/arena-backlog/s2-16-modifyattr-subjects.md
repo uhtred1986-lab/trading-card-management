@@ -4,6 +4,7 @@ milestone: Arena M1 — Rules correctness and parser coverage
 labels: backlog, ready-for-agent, enhancement, area:arena-lang, area:arena-engine, area:arena-vm, area:arena-rulesets, phase:rules-stage2, model:opus-5
 stage: 2
 issue: 275
+status: closed
 ---
 **Source:** #137 (owner's decision of 13 Sep 2026); `docs/arena-ruleset-spec.md` §2.5-1 and §2.5-3; `src/lib/arena/rulesets/dbs/ops.rules` (the rows waiting on `subject`: `energyMarker`, `switchMode`, `grant`, `hidden`, `redirectAttack`, `flip`, `faceUp`, `addMarker`, `removeMarker`, `gains`); the `modifyAttr` row in `src/lib/arena/vm/script-schema.ts`; `src/lib/arena/rulesets/dbs/attributes.rules`; `src/lib/arena/vm/effects.ts` (layers); the player-attributes issue (Stage 5, split from #146) for the player subject.
 

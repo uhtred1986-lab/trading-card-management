@@ -494,7 +494,8 @@ if (ENGINE === "rules") {
     console.log(`verify-arena: wrote probe-rules-parity.json (${total} rules, ${moved} differ from legacy, all explained)`);
   } else {
     assert.ok(fs.existsSync(summaryFile), "contract/probe-rules-parity.json is missing — run `npm run contract:emit`");
-    assert.equal(summaryText, fs.readFileSync(summaryFile, "utf8"), "the rules-engine probe sweep no longer matches contract/probe-rules-parity.json — review the diff and run `npm run contract:emit` if the change is deliberate (a rules-engine gap closing, most likely)");
+    // A Windows checkout with core.autocrlf has the file in CRLF; the sweep writes LF.
+    assert.equal(summaryText, fs.readFileSync(summaryFile, "utf8").replace(/\r\n/g, "\n"),"the rules-engine probe sweep no longer matches contract/probe-rules-parity.json — review the diff and run `npm run contract:emit` if the change is deliberate (a rules-engine gap closing, most likely)");
     console.log(`verify/probe: ${total - moved}/${total} fixture digests are the same on the rules engine; ${moved} differ, each explained`);
   }
 }
