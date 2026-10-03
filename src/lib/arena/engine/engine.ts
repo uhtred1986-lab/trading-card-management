@@ -151,6 +151,19 @@ function wait(s: GameState, prompt: Prompt): "wait" {
   return "wait";
 }
 
+/**
+ * A keyword's cost that places chosen cards in the Drop ([Union-Fusion]'s
+ * pair, [Aegis], [Revive]): a card it took out of the hand was discarded by
+ * a skill (1-6, 1-7-1, 20-7-4), so "when this card is placed in your Drop
+ * Area from your hand by a skill" answers — the rules engine runs these as
+ * `moveTo(…, cause: cost)` and reaches the same moment through `moveTo`.
+ */
+function dropAsCost(ctx: EngineContext, s: GameState, ev: GameEvent[], id: string, p: PlayerId): void {
+  const fromHand = areaOf(s, id) === "hand";
+  move(ctx, s, ev, id, "drop", p, { reason: "cost" });
+  if (fromHand && areaOf(s, id) === "drop") pendTriggers(ctx, s, "droppedFromHand", id);
+}
+
 function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep): "done" | "wait" {
   switch (step.op) {
     case "prompt":
@@ -1593,7 +1606,7 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
       delete s.continuations.union;
       if (info.variant === "Fusion") {
         // 22-13-4-4: the two revealed cards go to the Drop as the skill cost, then the card is played.
-        for (const id of chosen) move(ctx, s, ev, id, "drop", p, { reason: "cost" });
+        for (const id of chosen) dropAsCost(ctx, s, ev, id, p);
         s.flow.unshift({ op: "play.resolve", card: info.card, player: p });
         return "done";
       }
@@ -1638,7 +1651,7 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
         note(ev, "Aegis: the cards dropped did not cover the colours, so nothing happened");
         return "done";
       }
-      for (const id of chosen) move(ctx, s, ev, id, "drop", p, { reason: "cost" });
+      for (const id of chosen) dropAsCost(ctx, s, ev, id, p);
       // 22-30-5: up to two energy from Rest to Active.
       const rested = s.players[p].energy.filter((id) => s.cards[id].mode === "rest");
       if (!rested.length) return "done";
@@ -1675,7 +1688,7 @@ function chooseApply(ctx: EngineContext, s: GameState, ev: GameEvent[], step: Ex
         return "done";
       }
       if (areaOf(s, info.card) !== "drop") return "done";
-      for (const id of chosen) move(ctx, s, ev, id, "drop", p, { reason: "cost" });
+      for (const id of chosen) dropAsCost(ctx, s, ev, id, p);
       // 22-34-4: played from the Drop, and no second Revive this turn.
       s.continuations[`revived:${info.card}`] = s.turn;
       s.resolving = { card: info.card, player: p };

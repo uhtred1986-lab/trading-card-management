@@ -895,6 +895,21 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   assert.equal(ok("WHEN [auto] played\nTHEN\n  draw(n: 1)", "permanent")?.field, "kind", "the printed tag comes off the card and is not editable");
   assert.equal(ok("WHEN [auto] whenever\nTHEN")?.field, "trigger", "a moment the engine never fires is a skill that never happens");
   assert.equal(ok("WHEN [auto] evolveFromHandActivated | unionAbsorbActivated | counterFreeFromHand\nTHEN"), null);
+  // 20-7: SD13-05, the whole record — "if this card is placed in your Drop
+  // Area from your hand by a skill, you may play this card from your Drop Area".
+  const sd13 = [
+    "WHEN [auto] droppedFromHand",
+    'IF leaderMatches(filter: "green <frieza>") AND count("green unison card" IN you.unison) >= 1',
+    "THEN",
+    '  may(ops: {\n    choose(sel: [self] IN drop, as: "p0", reason: "you may play this card from your Drop Area")\n    play(target: $p0)\n  }, reason: "play this card from your Drop Area")',
+  ].join("\n");
+  assert.equal(ok(sd13), null, "SD13-05's program is one the engine can play");
+  const parsedSd13 = parseRule(sd13);
+  assert.ok(parsedSd13.ok);
+  if (parsedSd13.ok) {
+    assert.deepEqual(parsedSd13.value.trigger, ["droppedFromHand"]);
+    assert.equal(printRule(parsedSd13.value), sd13, "and it prints back as written");
+  }
   assert.equal(ok("WHEN [auto] played | played\nTHEN")?.field, "trigger");
   assert.equal(ok("WHEN [auto] played\nCOST {Red/Red}\nTHEN"), null, "two of the same colour is odd but sayable");
   assert.equal(ok("WHEN [auto] played\nTHEN"), null, "a rule that does nothing is valid");

@@ -673,6 +673,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   removedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
   droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill" } },
   leftBattleToDrop: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
+  // 20-7: the hand's side of `droppedFromBattle`, pended by name from `moveTo`
+  // for a card a skill's effect or price took out of the hand.
+  droppedFromHand: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill" } },
   // 3-10: pended by `moveTo` when your skill sends your card from your deck to
   // the Warp (BT30-106); the plain `moved` moment carries no cause, so the
   // name is what says a skill of yours did it.

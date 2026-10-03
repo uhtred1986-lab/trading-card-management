@@ -130,6 +130,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // hand is that moment and not this.
     case "droppedFromBattle":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t);
+    // The hand's side of the same sentence (SD13-05, BT7-127, BT11-022): a
+    // skill discarded it, as its effect or as its cost (1-6, 1-7-1, 20-7-4).
+    // SD13-05 says "**If** this card is placed …" after a condition before the
+    // colon; it is the same moment, and the compiler drops it as a trigger.
+    case "droppedFromHand":
+      return /(?:when|if) this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill/.test(t);
     // The same sentence with no cause named at all, which is every cause: a
     // skill putting it there and a battle KO alike. Kept apart from the one
     // above because that one *does* name a cause, and a KO is not it.

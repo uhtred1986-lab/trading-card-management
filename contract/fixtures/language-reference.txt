@@ -3659,6 +3659,10 @@
       "words": "when a skill sends this card from a Battle Area to the Drop"
     },
     {
+      "name": "droppedFromHand",
+      "words": "when a skill sends this card from your hand to the Drop"
+    },
+    {
       "name": "leftBattleToDrop",
       "words": "when this card goes from a Battle Area to the Drop"
     },

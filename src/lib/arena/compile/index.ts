@@ -24,7 +24,10 @@ import { filterFor, parseTarget, subjectFilterOf } from "./targets";
  * [Awaken] and [Wish] are deliberately absent: their text after the colon is a
  * real effect, and the engine does need it compiled.
  */
-const KEYWORD_HANDLES_THE_LINE = new Set<KeywordSkill["name"]>(["Evolve", "Union", "Over Realm", "Swap", "Overlord", "Z-Awaken", "Z-Stack", "Field", "Attack", "Revenge", "Offering"]);
+/** SD13-05's trigger, printed with "if" (`droppedFromHand` in `text/triggers.ts`). */
+const IF_DROPPED_FROM_HAND = /^if this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill\b/i;
+
+const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union", "Over Realm", "Swap", "Overlord", "Z-Awaken", "Z-Stack", "Field", "Attack", "Revenge", "Offering"]);
 
 
 export function compileSkill(skill: Skill): Script {
@@ -273,7 +276,10 @@ function compileSkillText(skill: Skill): Script {
   // that clause is dropped. A leading "if …" is a condition, not a trigger, and
   // stays — it must compile or the skill goes to the referee.
   let triggerCond: Cond | null = null;
-  if (skill.kind === "auto" && (clauses.length > 1 || modal) && /^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "")) {
+  // "If this card is placed in your Drop Area from your hand by a skill"
+  // (SD13-05, behind a condition before the colon) is the trigger said with
+  // "if" — `droppedFromHand`, the same moment as "when" — and not a condition.
+  if (skill.kind === "auto" && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? ""))) {
     const trigger = clauses.shift()!;
     // The dropped trigger is still what the sentence is about: "When this card
     // is sent to the Warp …, add **it** to your hand" means this card. Without

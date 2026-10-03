@@ -1698,6 +1698,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const dest = op.to === "play" ? "battle" : op.to;
           let replaced: ReplacementResult | null | undefined;
           const leftBattle = frame.moveLoop.leftBattle ?? (h.areaOf(id) === "battle");
+          // 20-7: a card this skill takes out of its owner's hand — a discard
+          // by its effect, or by its price (1-6, 1-7-1: the cost is part of the
+          // skill). Read before the move; a card waiting on a replacement
+          // question has not moved yet, so it reads the same on the way back.
+          const leftHand = h.areaOf(id) === "hand" && (op.cause === undefined || op.cause === "effect" || op.cause === "cost");
           if (frame.awaiting === "replaceMove") {
             replaced = pickedReplacement(frame.moveLoop, h.lastMode());
             h.clearLastMode();
@@ -1748,6 +1753,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               h.pend("leftBattleToDrop", id);
             }
           }
+          // "When this card is placed in your Drop Area from your hand by a
+          // skill" (SD13-05, BT7-127, BT11-022) — the hand's side of the above.
+          if (leftHand && h.areaOf(id) === "drop") h.pend("droppedFromHand", id);
           // Your own skill sent your own card from your deck to the Warp. The
           // skill's card is the subject, so "by your <Heles> card's skill" is
           // a condition the rule asks of it — the same way `restedBySkill`

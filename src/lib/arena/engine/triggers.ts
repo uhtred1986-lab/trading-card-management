@@ -54,6 +54,7 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     trigger === "unisonToDrop" ||
     trigger === "removedFromBattle" ||
     trigger === "droppedFromBattle" ||
+    trigger === "droppedFromHand" ||
     trigger === "removedByOpponent" ||
     trigger === "addedToZEnergy" ||
     // 3-10: the card answers from the Warp it was just sent to.

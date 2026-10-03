@@ -1797,3 +1797,78 @@ import type { EngineState, Trigger } from "./harness";
   assert.ok(reading.includes("if this card has 15000 or more power"), reading);
   assert.ok(reading.includes("[Barrier]") && reading.includes("[Blocker]"), reading);
 }
+
+{
+  // 20-7: "when this card is placed in your Drop Area from your hand by a
+  // skill" (SD13-05, BT7-127, BT11-022), the hand's side of
+  // `droppedFromBattle`. These three answered to no moment at all.
+  const fires = (text: string) => autoTriggerMatches(parseSkills(text)[0], "droppedFromHand");
+  const SD13 =
+    "[auto] If your Leader Card is a green <Frieza> card and you have a green Unison Card in play: If this card is placed in your Drop Area from your hand by a skill, you may play this card from your Drop Area.";
+  assert.ok(fires("[Auto] When this card is placed in your Drop Area from your hand by a skill, draw 1 card."));
+  assert.ok(fires(SD13), 'SD13-05 says it with "if"');
+  assert.ok(!fires("[Auto] When this card is placed in a Drop Area from a Battle Area by a skill, draw 1 card."), "the Battle Area's sentence is not this one");
+  assert.ok(!fires("[Auto] When this card in your hand is placed in your Drop, draw 1 card."), "nor the one that names no cause (`deckOrHandToDrop`)");
+  // SD13-05's effect: the "if" clause is dropped as the trigger, and what is
+  // left is a may around choosing this card in the Drop and playing it, under
+  // the condition before the colon.
+  const sd13 = compileSkill(parseSkills(SD13)[0]);
+  assert.deepEqual(sd13.unsupported, []);
+  assert.equal(describeScript(sd13.ops), "if your leader is Green <frieza> and there are 1 or more green Unison Cards in your Unison Area: you may: choose this card, play the chosen cards");
+  const may = (sd13.ops[0] as unknown as { then: { op: string; ops: { op: string; sel?: { special?: string; area?: string } }[] }[] }).then[0];
+  assert.equal(may.op, "may");
+  assert.deepEqual(may.ops.map((o) => o.op), ["choose", "play"]);
+  assert.deepEqual([may.ops[0].sel?.special, may.ops[0].sel?.area], ["self", "drop"], "this card, in the Drop");
+
+  // Through the engine, both of them.
+  DEFS.DFH = { ...DEFS.V1, id: "DFH", name: "DFH", characters: ["DFH"], skill: "[Auto] When this card is placed in your Drop Area from your hand by a skill, draw 1 card." };
+  DEFS.DFHDISCARD = { ...DEFS.V1, id: "DFHDISCARD", name: "DFHDISCARD", characters: ["DFHDISCARD"], skill: "[Auto] When you play this card, choose 1 card in your hand and discard it." };
+  DEFS.DFHPRICE = { ...DEFS.V1, id: "DFHPRICE", name: "DFHPRICE", characters: ["DFHPRICE"], skill: "[Activate: Main] Choose 1 card in your hand and discard it: Draw 1 card." };
+  DEFS.DFHDROP = { ...DEFS.V1, id: "DFHDROP", name: "DFHDROP", characters: ["DFHDROP"], skill: "[Auto] When you play this card, choose 1 <DFH> card in your Battle Area and place it in its owner's Drop Area." };
+  const pick = (s: EngineState, card: string) => (s.prompt.kind === "chooseCards" ? playG(s, { type: "choose", player: "p1", cards: [card] }) : s);
+
+  // A skill's effect discards it: it answers.
+  {
+    let s = stagedG({ hand: ["DFHDISCARD", "DFH"], energy: ["V1", "V1"] });
+    const dfh = findG(s, "p1", "hand", "DFH");
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DFHDISCARD") });
+    s = pick(s, dfh);
+    assert.ok(zoneOf(s, "p1", "drop").includes(dfh), "it was discarded");
+    assert.equal(zoneOf(s, "p1", "hand").length, 1, "20-7: discarded by a skill, so it drew a card");
+    assertConsistentG(s);
+  }
+  // A skill's price discards it: the cost is part of the skill (1-6-1, 1-7-1).
+  {
+    let s = stagedG({ hand: ["DFH"], energy: ["V1"], battle: ["DFHPRICE"] });
+    const dfh = findG(s, "p1", "hand", "DFH");
+    const price = findG(s, "p1", "battle", "DFHPRICE");
+    const act = actsG(s).find((a) => a.type === "activate" && a.card === price);
+    assert.ok(act, "the price can be paid");
+    s = playG(s, act!);
+    s = pick(s, dfh);
+    assert.ok(zoneOf(s, "p1", "drop").includes(dfh), "the price was paid with it");
+    assert.equal(zoneOf(s, "p1", "hand").length, 2, "the effect's draw, and the discarded card's own");
+    assertConsistentG(s);
+  }
+  // From the Battle Area by a skill: `droppedFromBattle`'s moment, not this one.
+  {
+    let s = stagedG({ hand: ["DFHDROP"], energy: ["V1"], battle: ["DFH"] });
+    const dfh = findG(s, "p1", "battle", "DFH");
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DFHDROP") });
+    s = pick(s, dfh);
+    assert.ok(zoneOf(s, "p1", "drop").includes(dfh), "it went to the Drop");
+    assert.equal(zoneOf(s, "p1", "hand").length, 0, "not from the hand, so no draw");
+    assertConsistentG(s);
+  }
+  // 3-3-4: there is no hand limit, so the end of a turn discards nothing —
+  // a full hand passes the turn whole, and nothing answers.
+  {
+    let s = stagedG({ hand: Array.from({ length: 12 }, () => "DFH") });
+    s = playG(s, { type: "endMain", player: "p1" });
+    assert.equal(s.turnPlayer, "p2");
+    assert.equal(zoneOf(s, "p1", "hand").length, 12, "3-3-4: no hand-size discard at the end of the turn");
+    assert.equal(zoneOf(s, "p1", "drop").length, 0);
+    assertConsistentG(s);
+  }
+  for (const id of ["DFH", "DFHDISCARD", "DFHPRICE", "DFHDROP"]) delete DEFS[id];
+}
