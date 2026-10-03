@@ -83,6 +83,13 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and **never compiles card text at game time**; a row a person confirmed or corrected is never
   rewritten by a script. Doc: `docs/arena-code-map.md`, and for the owner's own walkthrough of
   correcting a record, `docs/arena-fixing-a-card.md`.
+  **A stored program has no key the engine does not know** (3 Oct 2026, BT31-132's `from` for
+  `fromVar`): `programProblem` (`vm/script-schema.ts`) refuses a stray key on a step, condition,
+  selector, ref, amount, mode or filter by name and path, and `validateRule`/`validateProgram`
+  answer with it. A *partial* filter is accepted and stored whole (`completeFilters`, applied by
+  `readRule` and `saveRule`), and `describeFilter`/`printFilter` read one without crashing.
+  `saveRule` re-validates every write, so no writer — workbench, Explain to Claude, the
+  referee's drafts — can skip the gate.
 - **The block builder** (`src/lib/arena/lang/blocks.ts`, `components/arena/rules/Blocks.tsx`,
   `/arena/rules/build/[id]`, #469): a rule spelled out as WHEN · COST · IF · THEN blocks, **generated
   from the schema** — what a clause may hold comes off `OP_SCHEMA`/`COND_SCHEMA`/`whenMoments()`/

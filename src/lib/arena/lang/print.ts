@@ -213,7 +213,9 @@ function printFilterValue(kind: FilterFieldType, v: unknown): string {
  * know, so a filter printed in words it cannot re-read would come back *wider*
  * than it went in — the silent widening ground rule 5 forbids.
  */
-export function printFilter(f: CardFilter): string {
+export function printFilter(given: Partial<CardFilter>): string {
+  // A stored filter may leave measures out; it is printed as the whole filter it means.
+  const f: CardFilter = { ...emptyFilter(), ...given };
   // A filter a body leaves a field of open (`colors = $colors`, #155) has no
   // words that could say the hole, so it is written field by field.
   const open = FILTER_FIELD_NAMES.some((name) => isHole(f[name]));
