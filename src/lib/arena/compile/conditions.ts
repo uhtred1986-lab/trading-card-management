@@ -446,6 +446,12 @@ function parseCountCondition(t: string): Cond | null {
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, rest] = m;
+  // "If you have **7** [Dragon Ball] cards in your Drop" (BT25-019): a bare
+  // number with no "or more" is still the number asked for, at least that
+  // many ("you have **0** cards in your hand", P-736: none). Left in the phrase
+  // it was read as the size of a choice and then
+  // thrown away with the choice, and the condition asked for one card.
+  const bare = !none && !num ? /^(\d+) (?!or\b)/.exec(rest) : null;
   // "you have" / "your opponent has" says whose cards, which the phrase after
   // the number usually does not repeat.
   const mine = /^you have/.test(t);
@@ -468,7 +474,7 @@ function parseCountCondition(t: string): Cond | null {
       delete sel.count;
       delete sel.upTo;
       if (none) conds.push({ kind: "count", sel, atMost: 0 });
-      else if (!num) conds.push({ kind: "count", sel, atLeast: 1 });
+      else if (!num) conds.push({ kind: "count", sel, ...(bare && bare[1] === "0" ? { atMost: 0 } : { atLeast: bare ? Number(bare[1]) : 1 }) });
       else conds.push({ kind: "count", sel, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) });
     }
     return { kind: "any", conds };
@@ -481,6 +487,6 @@ function parseCountCondition(t: string): Cond | null {
   delete sel.count;
   delete sel.upTo;
   if (none) return { kind: "count", sel, atMost: 0 };
-  if (!num) return { kind: "count", sel, atLeast: 1 };
+  if (!num) return { kind: "count", sel, ...(bare && bare[1] === "0" ? { atMost: 0 } : { atLeast: bare ? Number(bare[1]) : 1 }) };
   return { kind: "count", sel, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
 }

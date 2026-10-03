@@ -1865,6 +1865,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
         t,
       ))
   ) {
+    // "Place **up to 1 ≪Frieza's Army≫ card with {Battle With Vegeta} in its
+    // card name** under the played card" (BT29-057b) describes a card and
+    // names no area to take it from. Read with no area it became a card "you
+    // have in play" — a guess, and one that moves the wrong card — so a
+    // counted description with no area stays unread.
+    // "From the top of your deck", "from under this card", "among them" all
+    // say where; "in its card name" does not.
+    if (/^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, ""))) return null;
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
     return host && ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
@@ -1942,6 +1950,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   ];
   for (const [re, to, opts] of MOVES) {
     if ((m = re.exec(t))) {
+      // "Add up to 2 [Dragon Ball] cards to your hand" after "look at your deck
+      // and life" (BT21-027): a counted description that says nowhere where the
+      // cards come from. Read with no area it chose them from the cards you
+      // have in play, which is never where a card "added to your hand" is.
+      if (to === "hand" && /^add /.test(t) && /^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among|of)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, ""))) return null;
       const ref = refFor(m[1], c);
       return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
     }
