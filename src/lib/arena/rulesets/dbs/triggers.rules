@@ -58,6 +58,14 @@ DEFINE TRIGGER played
   BIND "self"
   text: "when this card is played"
 
+-- §22-15 — when this card is played using [Over Realm]: the same arrival,
+-- made by [Over Realm]'s own move, which says so on its `play` (`using:` in
+-- keywords.rules). An ordinary play carries no `using`, so it never matches.
+DEFINE TRIGGER playedUsingOverRealm
+  ON moved(asPlay: true, to: battle, using: "Over Realm")
+  BIND "self"
+  text: "when this card is played using [Over Realm]"
+
 -- §5-5 — when you play a card
 DEFINE TRIGGER youPlayed
   ON moved(asPlay: true, to: [battle, unison], watcher: controller)

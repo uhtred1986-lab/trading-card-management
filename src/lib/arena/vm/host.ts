@@ -467,6 +467,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(r?.negated ? { negatedForTurn: true } : {}),
           ...(opts.markers !== undefined ? { markers: opts.markers } : {}),
           ...(carry && answered ? { carry: { from: carry.from, n: Math.min(Math.max(0, answered), carry.max) } } : {}),
+          ...(opts.using ? { using: opts.using } : {}),
         });
         if (r) state.resolving = null;
       }

@@ -277,6 +277,13 @@ export type Cond =
    */
   | { kind: "battled"; sel: Selector }
   /**
+   * "During the turn you played it with [Over Realm]" (P-048, 22-15): was one
+   * of these cards played this turn by that keyword's own move? The card's
+   * memory of the play — set as the `play … using: "Over Realm"` lands, gone
+   * when the turn ends or the card changes area (3-1-4).
+   */
+  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" }
+  /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
    * filter, because what the sentence asks about is as often the *mode* of a
@@ -474,7 +481,7 @@ export type Op =
    * read. Without it the card is played beside the host instead of onto it.
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
-  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount }
+  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -2364,7 +2371,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":
