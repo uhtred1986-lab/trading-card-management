@@ -211,6 +211,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
         s.cards[id].extraAttacks = 0;
         s.cards[id].usedMarkerSkill = false;
         s.cards[id].battledThisTurn = false;
+        delete s.cards[id].playedUsing;
       }
       const ps = s.players[s.turnPlayer];
       ps.overRealmsThisTurn = 0;
@@ -386,7 +387,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     }
 
     case "play.resolve":
-      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated, step.empowerCarry);
+      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated, step.empowerCarry, step.using);
     case "skill.resolve": {
       const sk = skillsOfInstance(ctx, s, step.card).find((k) => k.index === step.skill);
       if (!sk) return "done";
@@ -633,6 +634,7 @@ function resolvePlay(
   onto?: string,
   negated?: "turn" | "game",
   empowerCarry?: number,
+  using?: string,
 ): "done" | "wait" {
   const d = def(ctx, s, card);
   const bt = baseType(d);
@@ -710,6 +712,13 @@ function resolvePlay(
   s.resolving = null;
   const pendedBefore = s.pending.length;
   pendTriggers(ctx, s, "played", card);
+  // 22-15: "when this card is played using [Over Realm]" — the same arrival,
+  // and only when [Over Realm]'s own move made it (the `using` its step
+  // carries). An ordinary play of the card carries none and is `played` alone.
+  if (using === "Over Realm") pendTriggers(ctx, s, "playedUsingOverRealm", card);
+  // …and the card remembers it for the rest of the turn: P-048's "during the
+  // turn you played it with [Over Realm]" (`playedUsing`).
+  if (using) s.cards[card].playedUsing = using;
   // "When your opponent plays a Battle Card": watched by every card the other
   // player has in play, with the played card as the subject.
   for (const id of cardsInPlay(s, other(p))) pendTriggers(ctx, s, "opponentPlayed", id, card);
@@ -3351,7 +3360,7 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     // this keyword, so the moment is here rather than in the ordinary play.
     for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "overRealmPlayed", id, card);
     s.resolving = { card, player: p };
-    s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p });
+    s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card, player: p, using: "Over Realm" });
     return;
   }
   if (k?.name === "Successor") {

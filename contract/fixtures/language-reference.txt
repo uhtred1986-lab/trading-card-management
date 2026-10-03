@@ -475,6 +475,16 @@
           "nullable": false,
           "offCard": "the markers a Unison arrives with, paid for as its cost (13-2-3) — part of the arrival, so markers a [Empower] carries across land after them (22-45-3, #157); the `playUnison` move's own word",
           "type": "amount"
+        },
+        {
+          "name": "using",
+          "required": false,
+          "nullable": false,
+          "offCard": "the keyword whose own move this play is — [Over Realm]'s (22-15) — carried onto the arrival's `moved` moment, so \"when this card is played using [Over Realm]\" (`playedUsingOverRealm`) answers that play and not an ordinary one",
+          "type": "enum",
+          "enumValues": [
+            "Over Realm"
+          ]
         }
       ],
       "sentence": "play this card",
@@ -2542,6 +2552,30 @@
       "sentence": "1 card in your Battle Area has been in a battle this turn"
     },
     {
+      "kind": "playedUsing",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"playedUsing\",\"sel\":SELECTOR,\"what\":\"Over Realm\"}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "Over Realm"
+          ]
+        }
+      ],
+      "sentence": "1 card in your Battle Area was played with [Over Realm] this turn",
+      "doc": "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4)"
+    },
+    {
       "kind": "every",
       "class": "macro over `count` + `not`",
       "signature": "{\"kind\":\"every\",\"sel\":SELECTOR,\"matching\":SELECTOR}",
@@ -3588,6 +3622,10 @@
     {
       "name": "played",
       "words": "when this card is played"
+    },
+    {
+      "name": "playedUsingOverRealm",
+      "words": "when this card is played using [Over Realm]"
     },
     {
       "name": "youPlayed",

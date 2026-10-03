@@ -5,8 +5,8 @@
  * pattern knows is simply passed over — right for the compiler, which reads
  * printed card text, and wrong for the text view, which promises to refuse
  * what it cannot parse rather than guess (docs/arena-fixing-a-card.md). A rule
- * that says `"card with 5000 combo cost"` comes back as every card: there is
- * no combo-cost measure, and nothing would say so.
+ * that says `"card with a glittering frame"` comes back as every card: there
+ * is no frame measure, and nothing would say so.
  *
  * The check is an accounting of words. The filter is printed back with
  * `describeFilter` — the printed form `lang/print.ts` writes and the form the

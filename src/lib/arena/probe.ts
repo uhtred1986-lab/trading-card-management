@@ -181,7 +181,7 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
 
 // ── which board the rule needs ─────────────────────────────────────────────
 
-const PLAY_TRIGGERS = ["played", "youPlayed", "placed", "evolvedInto", "opponentPlayed", "overRealmPlayed"];
+const PLAY_TRIGGERS = ["played", "youPlayed", "placed", "evolvedInto", "opponentPlayed", "overRealmPlayed", "playedUsingOverRealm"];
 const BATTLE_TRIGGERS = ["attacks", "attacked", "kos", "dealtDamage", "opponentAttacks", "battleEnd", "yourLeaderAttacked", "offenseStart", "defenseStart", "damageStart", "blockerUsed", "koed"];
 const COMBO_TRIGGERS = ["comboed", "youCombo", "opponentCombos"];
 const MOMENT_TRIGGERS = ["turnEnd", "mainEnd", "mainStart", "chargeStart", "opponentTurnEnd", "opponentTurnStart", "opponentMainStart"];
@@ -658,7 +658,18 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId, trace
   }
 
   const goals: Goal[] = [];
-  if (family === "play" && fromHand) {
+  // 22-15: "when this card is played using [Over Realm]" answers only that
+  // play, so the board is the one [Over Realm] can be used on — X cards in your
+  // Drop, black for the dark variant — and the move waited for is that one.
+  const overRealm = rule.trigger.includes("playedUsingOverRealm") ? skillsOf(rule.def, rule.side).find((sk) => sk.keyword?.name === "Over Realm") : undefined;
+  if (family === "play" && fromHand && overRealm?.keyword?.name === "Over Realm") {
+    const { x, dark } = overRealm.keyword;
+    const filler = dark ? `${FILLER}-BLACK` : FILLER;
+    if (dark) ctx.defs[filler] = body(filler, { colors: ["Black"], name: "Black Fighter" });
+    for (let i = 0; i < Math.max(1, x); i++) put(ctx, s, YOU, filler, "drop");
+    input.push(`${Math.max(1, x)} ${dark ? "black " : ""}card${Math.max(1, x) === 1 ? "" : "s"} in your Drop, for [${dark ? "Dark " : ""}Over Realm ${x}]`);
+    goals.push({ what: `play ${rule.def.name} using [Over Realm]`, by: YOU, at: ["main"], match: (a) => a.type === "activate" && a.card === card && a.skill === overRealm.index });
+  } else if (family === "play" && fromHand) {
     goals.push({ what: `play ${rule.def.name}`, by: YOU, at: ["main"], match: (a) => onCard(a, card) && ["play", "playZ", "playUnison", "activate"].includes(a.type) });
   } else if (family === "play") {
     // A Leader's or Unison's "when you play a card": somebody else's card is played.
