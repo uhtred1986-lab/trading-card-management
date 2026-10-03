@@ -276,9 +276,6 @@ function compileSkillText(skill: Skill): Script {
   // that clause is dropped. A leading "if …" is a condition, not a trigger, and
   // stays — it must compile or the skill goes to the referee.
   let triggerCond: Cond | null = null;
-  // The Extra's description on an `extraActivated` trigger, kept apart so a
-  // price condition before the colon does not drop it (below).
-  let extraSubject: Cond | null = null;
   // "If this card is placed in your Drop Area from your hand by a skill"
   // (SD13-05, behind a condition before the colon) is the trigger said with
   // "if" — `droppedFromHand`, the same moment as "when" — and not a condition.
@@ -341,7 +338,6 @@ function compileSkillText(skill: Skill): Script {
       // condition on that subject and the skill stays where it was printed.
       const subject = subjectFilterOf(trigger);
       if (subject) triggerCond = { kind: "count", sel: { special: "subject", filter: subject }, atLeast: 1 };
-      if (subject && /^when you activate /i.test(trigger.trim())) extraSubject = triggerCond;
     }
     // "When this card attacks and KOs an opponent's Battle Card", "when this
     // card is revealed from the top of your deck and placed in your Drop Area"
@@ -353,7 +349,10 @@ function compileSkillText(skill: Skill): Script {
     // …" — a condition riding on the trigger, split off the same way (9-1-3).
     // A clause with its own "if" is a condition in the ordinary chain; only a
     // bare one rode in on the trigger.
-    if (clauses.length > 1 && !/^(?:if|when|while|during)\b/i.test(clauses[0].trim())) {
+    // An effect is never one: "When this card is used in a combo, **choose up
+    // to 1 of your opponent's Battle Cards in Rest Mode that isn't attacking**
+    // and KO it" (BT19-114) was read as a condition, and the KO fell on this card.
+    if (clauses.length > 1 && !/^(?:if|when|while|during|choose|you may)\b/i.test(clauses[0].trim())) {
       const riding = parseConditionClause(clauses[0], true);
       if (riding) {
         triggerCond = riding.cond;
@@ -410,13 +409,13 @@ function compileSkillText(skill: Skill): Script {
   // compiler cannot read fails the skill rather than running it unconditionally.
   const priced = costText(skill.cost);
   const priceCond = ops.length && !engineChecks ? priceCondition(skill) : null;
-  // The Extra's description goes inside it: "If you have 2 or more energy:
-  // When you activate a **blue Extra** from your hand, …" (BT29-029) is both,
-  // and returning the price's alone would fire for an Extra of any colour.
-  // Only for `extraActivated`: every other trigger's condition is still
-  // dropped beside a price condition — a wider change (~40 skills) that
-  // wants its own audit.
-  if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: extraSubject ? [{ op: "if", cond: extraSubject, then: ops }] : ops }], unsupported };
+  // The trigger's own condition goes inside it. "If your Leader is red: When
+  // your **blue <Son Goku> card** is played, …" is both, and returning the
+  // price's condition alone dropped what the trigger said about its subject —
+  // so the skill fired for any card that was played, KO'd or activated
+  // (BT29-029's blue Extra, and some forty skills before it). The same holds
+  // for a condition riding on the trigger and for the host of "placed under".
+  if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: triggerCond ? [{ op: "if", cond: triggerCond, then: ops }] : ops }], unsupported };
   // A condition the compiler cannot read fails the skill. An *action* price is
   // not this: the engine charges that separately, so it leaves the program be.
   if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(priced)) {

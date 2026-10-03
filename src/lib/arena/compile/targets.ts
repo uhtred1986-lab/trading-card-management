@@ -665,6 +665,10 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   // is wrong in that direction is worse than no filter at all, so alternatives
   // are refused outright.
   if (!phrase) return undefined;
+  // "When you play a yellow card from your Drop **or a Z-Battle Card**"
+  // (BT18-090b): the alternative sits after the place the phrase stops at,
+  // and reading the first half alone would stop the skill on the second.
+  if (/ or (?:an?|1|up to \d+) /.test(t.slice(t.indexOf(phrase) + phrase.length))) return undefined;
   // …but "an energy cost of 5 **or** less" is one bound, not two kinds, and
   // `parseFilter` reads it whole.
   if (/ or /.test(phrase.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, ""))) return undefined;

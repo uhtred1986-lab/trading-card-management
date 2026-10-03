@@ -1401,6 +1401,33 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
 }
 
 {
+  // A condition before the colon and a trigger about another card are both
+  // the skill's: "If your Leader Card is red: When your **blue** Battle
+  // Card is played, draw 1 card." The price's condition used to be returned alone, so
+  // the trigger's description of the played card was dropped and any card set
+  // it off.
+  const TEXT = "[Auto] If your Leader Card is red: When your blue Battle Card is played, draw 1 card.";
+  const plain = JSON.parse(JSON.stringify(compileSkill(parseSkills(TEXT)[0]).ops));
+  assert.equal(plain[0].op, "if", "the price's condition, outermost");
+  assert.equal(plain[0].then[0].op, "if", "…and the subject's inside it");
+  assert.equal(plain[0].then[0].cond.sel.special, "subject");
+  assert.deepEqual(plain[0].then[0].cond.sel.filter.colors, ["Blue"]);
+  DEFS.PLAYWATCH = { ...DEFS.V1, id: "PLAYWATCH", name: "PLAYWATCH", skill: TEXT };
+  for (const [played, fires] of [
+    ["V-BLUE", true],
+    ["V1", false],
+  ] as const) {
+    let s = arenaG({ hand: [played], energy: [played], battle: ["PLAYWATCH"] });
+    const hand = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", played) });
+    assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + (fires ? 1 : 0), `${played}: the watcher ${fires ? "draws" : "does not draw"}`);
+    assert.equal(s.prompt.kind, "main");
+    assertConsistentG(s);
+  }
+  delete DEFS.PLAYWATCH;
+}
+
+{
   // 22-33: [Offering] — when this Battle Card is played, its master's
   // opponent may put one of their life cards in their Drop Area; if they
   // don't, its master draws 2. The question is the opponent's, with the two
