@@ -296,6 +296,7 @@ const NEGATE_FIELDS: OpField[] = [
   { name: "what", type: { enum: NEGATE_SCOPES }, required: true },
   { name: "kind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "keyword", type: { enum: KEYWORD_NAMES } },
+  { name: "chosen", type: "boolean" },
   { name: "until", type: "duration" },
 ];
 const POSITION = { enum: ["top", "bottom"] } as const;
@@ -515,9 +516,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     // The sentence is the spelling's own, so the workbench reads a lowered
     // program in the same words as the record it came from.
     sentence: (raw, r) => describeScript([negateAs(raw as OpOf<"negate">)], r),
-    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. Those four spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
+    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. "keyword" with "chosen" and no "keyword" lets the master pick one of the keyword skills the target has in force as the step resolves ("negateChosenKeyword"). Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
   },
   negateSkills: { fields: [TARGET, UNTIL], sentence: "negate the skills of {target}{until}" },
+  negateChosenKeyword: {
+    fields: [TARGET, UNTIL],
+    sentence: "choose up to 1 keyword skill of {target} and negate it{until}",
+    doc: '"choose up to 1 keyword skill on your opponent\'s Battle Cards and negate that skill for the turn" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about',
+  },
   negateSkillsOfKind: {
     fields: [TARGET, { name: "kind", type: { enum: SKILL_KIND_PREFIXES }, required: true }, UNTIL],
     sentence: "negate the [{kind:auto=Auto|activate=Activate|counter=Counter|permanent=Permanent}] skills of {target}{until}",
@@ -884,6 +890,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   negate:             "primitive",
   negateSkills:       "macro over `negate`",
   negateSkillsOfKind: "macro over `negate`",
+  negateChosenKeyword: "macro over `negate`",
   hidden:             "macro over `modifyAttr`",
   redirectAttack:     "macro over `modifyAttr`",
   swapBattle:         "primitive",
@@ -1353,6 +1360,10 @@ export function negateAs(op: Op): Op {
     case "kind":
       return op.kind ? { op: "negateSkillsOfKind", target, kind: op.kind, until } : { op: "note", text: "negate: no skill kind named" };
     case "keyword":
+      // "Choose up to 1 keyword skill on … and negate it": the keyword is the
+      // master's pick at resolution, so the call names none. Naming one *and*
+      // saying chosen is two answers to one question, and reads as neither.
+      if (op.chosen) return op.keyword ? { op: "note", text: "negate: a chosen keyword names none" } : { op: "negateChosenKeyword", target, until };
       return op.keyword ? { op: "negateKeyword", keyword: op.keyword, ...(op.target ? { target: op.target } : {}) } : { op: "note", text: "negate: no keyword named" };
     case "own":
       if (until === "turn" || until === "battle") return { op: "negateOwnSkill", until };
@@ -1598,7 +1609,7 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
  * The steps that stop and ask somebody something. `discard` is one of them: it
  * is rewritten by `stepScript` into a `choose` the owner answers and a move.
  */
-const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard"]);
+const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard", "negateChosenKeyword"]);
 
 /**
  * Does this program stop to ask a question, anywhere inside it? Read by
@@ -1614,6 +1625,8 @@ export function asksAQuestion(ops: unknown): boolean {
     if (typeof o.op === "string" && PROMPTING_OPS.has(o.op as Op["op"])) return true;
     // A reveal to the master alone is the `look` it lowers from (#137).
     if (o.op === "reveal" && o.audience === "you") return true;
+    // A keyword picked as the step resolves is the `negateChosenKeyword` it stands for.
+    if (o.op === "negate" && o.what === "keyword" && o.chosen === true) return true;
     if (asksAQuestion(o.ops) || asksAQuestion(o.then) || asksAQuestion(o.else) || asksAQuestion(o.with)) return true;
     return Array.isArray(o.modes) && o.modes.some((m) => asksAQuestion((m as { ops?: unknown }).ops));
   });

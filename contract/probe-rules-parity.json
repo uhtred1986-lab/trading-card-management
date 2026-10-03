@@ -1414,6 +1414,17 @@
     },
     "same": true
   },
+  "PICKNEG#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "3ba2f4a0"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "3ba2f4a0"
+    },
+    "same": true
+  },
   "PICKY-HUNTER#0": {
     "legacy": {
       "outcome": "inForce",

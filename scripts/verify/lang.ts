@@ -240,6 +240,27 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   tripOps([{ op: "battleDamage", atLeast: 3 }], "battleDamage — [Triple Strike]");
   tripOps([{ op: "battleDamage", allMarkers: true, wins: true }], "battleDamage — [Victory Strike]");
   tripOps([{ op: "battleDamage", atLeast: 2, to: "drop", allMarkers: true, wins: true }], "battleDamage, every field");
+  // 9-1-5, a keyword the player picks (BT31-138): the spelling, the primitive
+  // it stands for, and the card's whole program as the compiler writes it.
+  tripOps([{ op: "negateChosenKeyword", target: { sel: { side: "opponent", areas: ["battle", "unison"] } }, until: "turn" }], "negateChosenKeyword");
+  tripOps([{ op: "negate", target: { sel: { side: "opponent", areas: ["battle", "unison"] } }, what: "keyword", chosen: true, until: "turn" }], "negate a chosen keyword");
+  {
+    const bt31138: Rule = {
+      kind: "activate:main/battle" as Rule["kind"],
+      trigger: [],
+      cost: null,
+      cond: null,
+      ops: [
+        { op: "choose", sel: { side: "you", area: "play", filter: parseFilter("white <Cell> card"), count: 1, upTo: true }, as: "c0", reason: "Choose up to 1 of your white <Cell> cards" },
+        { op: "moveTo", target: { var: "c0" }, to: "hand" },
+        { op: "negateChosenKeyword", target: { sel: { side: "opponent", area: "battle", areas: ["battle", "unison"] } }, until: "turn" },
+      ],
+    };
+    trip(bt31138, "BT31-138");
+    const back = parseRule(printRule(bt31138));
+    assert.ok(back.ok, "BT31-138's program parses");
+    if (back.ok) assert.equal(validateRule(back.value, "activate:main/battle"), null, "…and validates");
+  }
   tripOps([{ op: "battleDamage" }], "battleDamage, no field");
   // …and [Dual Attack]'s count, with a number and with the keyword's own `$x`.
   tripCond({ kind: "attacked", sel: { special: "self" }, atLeast: 2 }, "attacked");

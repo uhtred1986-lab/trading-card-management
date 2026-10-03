@@ -92,6 +92,7 @@
 --   grant                modifyAttr               declared (#275)
 --   negateSkills         negate                   declared (#276)
 --   negateSkillsOfKind   negate                   declared (#276)
+--   negateChosenKeyword  negate                   declared (BT31-138)
 --   hidden               modifyAttr               declared (#275)
 --   redirectAttack       modifyAttr               declared (#275)
 --   comboFrom            move + negate            declared (#137)
@@ -250,10 +251,10 @@ DEFINE OP ko
 
 -- ── a rule that stops applying (§2.2, 9-1-5, #276) ──────────────────────────
 --
--- Four spellings, one primitive: `negate(target, what: skills | kind | keyword
--- | own, kind?, keyword?, until?)` reads a card's skills, a printed kind of
--- them, a named keyword everywhere, or the skill resolving now, and stops it
--- for a duration. `negateAs` (`vm/script-schema.ts`) is the interpreter's
+-- Five spellings, one primitive: `negate(target, what: skills | kind | keyword
+-- | own, kind?, keyword?, chosen?, until?)` reads a card's skills, a printed
+-- kind of them, a named keyword everywhere, a keyword the master picks, or the
+-- skill resolving now, and stops it for a duration. `negateAs` (`vm/script-schema.ts`) is the interpreter's
 -- own reading in the other direction — a `negate(…)` call read back as one of
 -- the four — and each row here is built to invert it exactly, so a program
 -- written the declared way and one written the primitive's own way say the
@@ -286,6 +287,17 @@ DEFINE OP negateKeyword
   }
   text: "the target loses the named keyword skill"
   doc: "what `negateKeyword` means: one named keyword taken away, wherever the card sits — no duration of its own, unlike the other three"
+
+-- §9-1-5 — "choose up to 1 keyword skill on your opponent's Battle Card or
+-- Unison and negate that skill for the turn" (BT31-138): the keyword is the
+-- master's pick as the step resolves, among those the target has in force.
+DEFINE OP negateChosenKeyword
+  TAKES (target: ref, until: duration)
+  DO {
+    negate(target: $target, what: keyword, chosen: true, until: $until)
+  }
+  text: "the master picks one keyword skill the target has, and it stops applying, for the duration"
+  doc: "what `negateChosenKeyword` means: one keyword skill, picked as the step resolves among those the target cards have in force, negated on its card for the duration (9-1-5)"
 
 -- §9-1-5 — "negate this skill for the turn / battle / game"
 DEFINE OP negateOwnSkill
