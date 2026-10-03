@@ -908,7 +908,7 @@ DEFINE KEYWORD Servant
 -- B: onEnter — a real program, run once as the card arrives
 DEFINE KEYWORD Field
   HOOK onEnter {
-    choose(sel: 1 "other Field Extra" IN you.battle, as: "t")
+    choose(sel: 1 "extra card with [Field]" IN you.battle otherThanSelf, as: "t")
     moveTo(target: $t, to: drop)
   }
 
@@ -949,7 +949,7 @@ DEFINE KEYWORD Deflect
 -- C: onAttackDeclared — a real program, run as the attack is declared
 DEFINE KEYWORD Alliance
   HOOK onAttackDeclared {
-    choose(sel: 1 "a card of the named colours" IN you.battle, as: "t")
+    choose(sel: 1 "card" IN you.battle, as: "t")
     modifyAttr(target: $t, attr: mode, mode: rest)
   }
 

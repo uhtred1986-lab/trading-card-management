@@ -157,6 +157,15 @@ exact. `parseFilter` ignores wording it does not know, so a filter printed in wo
 re-read would come back *wider* than it went in, which is the silent widening ground rule 5
 forbids.
 
+The same holds on the way **in**. A quoted filter whose words `parseFilter` does not all read is
+refused, naming the words it passed over — `"card with 5000 combo power"` used to parse as a filter
+on *any* card, since there is no combo-power measure. The check (`lang/filter-words.ts`) prints the
+filter back with `describeFilter` and requires every source word to appear in that reading or be
+grammar ("a", "with", "of"; "other" only as "other than"), with plurals, hyphens and colour
+spellings evened out. A filter `printFilter` wrote in words passes by construction. A bare "other"
+(`"other Field Extra"`) is refused too — say `otherThanSelf` on the selector — and so is an area
+inside the quotes (`"Battle Card in your Drop Area"`), which belongs in `IN`.
+
 ## 3b. The definition grammar
 
 The second of the language's three uses: a **game's own definition**, written as declarations in
