@@ -81,16 +81,16 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
-import { HIDEABLE, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
+import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import { costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, resolveRef, resolveSelector, staticsNow } from "./program";
+import { attrsNow, forbiddenBy, permissions, resolveRef, resolveSelector, staticsNow } from "./program";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
 import { vmHost } from "./host";
@@ -133,7 +133,7 @@ export interface ActivationLine {
  * rather than reading a keyword's price off nothing. What would replace them is
  * `DEFINE KEYWORD` bodies naming their own pools, which is Stage 7's (#153).
  */
-export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison", zDeck: "zDeck", zEnergy: "zEnergy" } as const;
+export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison", zDeck: "zDeck", zEnergy: "zEnergy", overRealmWarp: "warp" } as const;
 
 /** Every zone this module names, for the check `createGame` makes against the declarations. */
 export const ACTIVATION_ZONE_NAMES = [...new Set(Object.values(ACTIVATION_ZONES))];
@@ -199,16 +199,42 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // family of the kind it is offered as. Without a `game` there is no
     // declaration to read, and such a line is what it has always been: none.
     const keyword = game ? keywordMoveOf(game, skill) : undefined;
-    const kind = keyword?.offer ?? skill.kind;
+    const kind = keyword && game ? widenedOffer(ctx, game, state, card, keyword) : skill.kind;
     if (!families.has(familyOf(kind))) continue;
     // 22-46-5: the Z-Deck is where a keyword's own move may be used from
     // ([Z-Awaken], #155), and nothing else is: a Z-card's printed lines are
     // valid once it is in play, so a line there that is no keyword's move is
     // no candidate at all — the legacy menu never asks about one.
     if (!keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.zDeck) continue;
+    // 22-15 widened: the Warp is where nothing is used from, except an [Over
+    // Realm] line whose own card's [Permanent] says it "can be activated from
+    // its owner's Warp under the same conditions as if it were in your hand"
+    // (BT31-150) — a `permit` of `overRealmFromWarp`, read while the card is
+    // in the Warp (`vm/effects.ts`). Every other gate is the keyword's own.
+    if (findCard(state, card)?.zone === ACTIVATION_ZONES.overRealmWarp && !(game && keyword?.name === "Over Realm" && overRealmFromWarp(ctx, game, state, card))) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   return out;
+}
+
+/** 22-15 widened (BT31-150): does a `permit` of `overRealmFromWarp` stand for this card, which is in the Warp? The legacy `overRealmFromWarp`'s twin. */
+function overRealmFromWarp(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): boolean {
+  return permissions(ctx, game, state, "overRealmFromWarp").some((p) => p.target === card);
+}
+
+/**
+ * The kind a keyword's own move is offered as: its declaration's `offer:`,
+ * widened to the battle's timings too when a [Permanent] says so for this card.
+ * "The [Field] skill on this card in your hand can also be activated at
+ * [Activate: Battle] timings" (BT29-041, BT29-042) is a `permit` of
+ * `fieldBattle`, read from the hand (`vm/effects.ts`), and it makes the [Field]
+ * line an `activate:main/battle` line — offered at the combo prompt as well
+ * (`vm/battle.ts`'s `BATTLE_SKILL_KINDS`), with every other gate unchanged.
+ */
+function widenedOffer(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, keyword: KeywordDef): string {
+  const offer = keyword.offer as string;
+  if (keyword.name !== "Field" || offer !== "activate:main") return offer;
+  return permissions(ctx, game, state, "fieldBattle").some((p) => p.target === card) ? "activate:main/battle" : offer;
 }
 
 // ── what a line costs ───────────────────────────────────────────────────────
@@ -233,9 +259,9 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
  * (`activationAlt`), which stands in for the energy cost and leaves the
  * skill's own orbs to pay.
  */
-export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true): BoundAmounts {
+export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true, onto?: string): BoundAmounts {
   const sk = line.skill;
-  const own = skillOrbs(ctx, game, state, line.card, sk);
+  const own = skillOrbs(ctx, game, state, line.card, sk, onto);
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
   if (withCardPrice && inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
@@ -258,6 +284,21 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : sk.cost,
   };
+}
+
+/**
+ * EX03-16: the Battle Cards an [Evolve] line has a price change scoped to
+ * (`costReduction`'s `onto`) that it could evolve onto — each one a second
+ * candidate of the line, naming its base, beside the ordinary one. The legacy
+ * `evolveOntoBases`, in the same order: the Battle Area's own.
+ */
+export function evolveOntoBases(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine): string[] {
+  if (line.skill.keyword?.name !== "Evolve") return [];
+  const scoped = (e: { kind: string; target?: string; onto?: string[] }) => e.kind === "evolveCost" && e.target === line.card && !!e.onto?.length;
+  const bases = new Set([...staticsNow(ctx, game, state).filter(scoped), ...state.effects.filter(scoped)].flatMap((e) => e.onto ?? []));
+  if (!bases.size) return [];
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex };
+  return resolveSelector(ctx, game, state, frame, { area: "battle", side: "you", printed: true }).filter((id) => bases.has(id));
 }
 
 /**
@@ -601,15 +642,21 @@ const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim()
  * counter window around it is not opened: the legacy engine opens it with no
  * candidates at all, so there is nothing to answer it with.
  */
-export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number): void {
+export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string): void {
   const { card, skill: sk } = line;
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
   if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
+  // The price is charged (`vm/actions.ts`, before this): a one-use change to
+  // the line's own orbs ("the next time you activate …", BT31-096) is spent.
+  spendSkillCostUses(state, ev, card, sk);
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
-  if (findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
+  // Not for a keyword's own move: its `DO` says where the card goes, and
+  // [Field]'s puts it in the Battle Area instead (22-3-2), as the legacy
+  // engine's `Field` case moves it straight there.
+  if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
     moved(ctx, game, state, ev, card, ACTIVATION_ZONES.drop, { owner: player, reveal: true });
   }
   // `inBattle` is the legacy `!!s.battle`: an [Activate: Battle] taken at the
@@ -628,7 +675,9 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // [Wish]'s flip of the Leader (22-25-4).
   const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []);
   // 20-5: the X the price was paid at is what the effect reads as `X`.
-  const effect: ScriptFrame = { ops: program, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, ...(x === undefined ? {} : { x }) };
+  // EX03-16: an [Evolve]'s base named with the activation is the keyword's
+  // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
+  const effect: ScriptFrame = { ops: program, ip: 0, vars: onto === undefined ? {} : { base: [onto] }, card, master: player, skillIndex: sk.index, ...(x === undefined ? {} : { x }) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -683,7 +732,8 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
-        if (resolveSelector(ctx, game, state, frame, op.sel).filter(switches).length < (op.sel.count ?? 1)) return false;
+        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches);
+        if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id)) < (op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":
@@ -749,10 +799,13 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * `case`s announce the skill and then pay. A line with an effect of its own
  * ([Union-Absorb], every printed [Activate]) is announced as that effect
  * resolves, after the price, the legacy `skill.resolve` step. The log is what
- * a replay compares, so the order is the oracle's.
+ * a replay compares, so the order is the oracle's. [Field] is the exception
+ * the legacy engine makes too: its `Field` case pays the Extra's energy cost
+ * first and announces the skill as it resolves (`resolvesLater`), so it is
+ * announced after the price.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !!line.keyword && !line.script?.ops.length;
+  return !!line.keyword && line.keyword.name !== "Field" && !line.script?.ops.length;
 }
 
 /** The `skill` event for a line being used (9-6). */

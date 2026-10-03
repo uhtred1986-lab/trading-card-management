@@ -4,6 +4,7 @@ issue: 135
 milestone: Arena M6 — Definitions in the language (Stage 3)
 labels: backlog, ready-for-agent, enhancement, area:arena-rulesets, phase:rules-stage3, model:sonnet-5
 stage: 3
+status: closed
 ---
 **Source:** plan Stage 3; `KEYWORD_NAMES` (39) in `src/lib/arena/vm/script.ts` and `src/lib/arena/glossary.ts` (the written record of what each keyword means and what the engine does); `src/lib/arena/wording.ts`, `narration.ts`, `view.ts` (`questionFor`, `comboQuestion`), `ai/view.ts` (`RULES_PRIMER`); rule manual §22.
 

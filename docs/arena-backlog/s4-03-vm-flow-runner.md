@@ -4,6 +4,7 @@ issue: 140
 milestone: Arena M7 — Rules engine core (Stage 4)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-rulesets, phase:rules-stage4, model:opus-5
 stage: 4
+status: closed
 ---
 **Source:** plan Stage 4 ("the flow runner over `STEP` programs (`turn.rules`, the End-Phase repeat as a bounded loop)"); `exec()` in `src/lib/arena/engine/engine.ts` (~lines 219–443, the phase/step switch) and `state.flow` (the data step list the legacy engine already has); rule manual §7 (turn structure), §8 (phases).
 

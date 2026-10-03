@@ -431,6 +431,33 @@ import {
   assert.equal(powerIn(CTX, s, pile), base + 10000, "two cards under it, +10000");
 }
 
+{
+  // "For every 2" (BT30-084's wording, 2 Oct 2026): whole steps of 2, rounded
+  // down, on whichever engine the harness runs. Five matching cards in the
+  // Warp are two steps, +10000 — never +12500 and never the +25000 that
+  // reading it as "for each" would give. A card without the trait is not
+  // counted at all.
+  DEFS.U2 = { ...DEFS.V1, id: "U2", name: "U2", traits: ["Universe 2"] };
+  DEFS.EVERY2 = { ...DEFS.V1, id: "EVERY2", name: "EVERY2", skill: "[Permanent] This card gets +5000 power for every 2 ≪Universe 2≫ cards in your Warp." };
+  const s = stagedG({ battle: ["EVERY2"] });
+  const every = zoneOf(s, "p1", "battle")[0];
+  const base = powerIn(CTX, s, every);
+  const warp = (n: number, cardId: string) => {
+    for (const id of zoneOf(s, "p1", "deck").slice(0, n)) {
+      s.cards[id].cardId = cardId;
+      moveG(s, id, "warp", "p1");
+    }
+  };
+  warp(1, "U2");
+  assert.equal(powerIn(CTX, s, every), base, "one card is no whole step of 2");
+  warp(1, "V1");
+  assert.equal(powerIn(CTX, s, every), base, "a card without the trait is not counted");
+  warp(4, "U2");
+  assert.equal(powerIn(CTX, s, every), base + 10000, "five ≪Universe 2≫ cards are two steps of 2: +10000");
+  warp(1, "U2");
+  assert.equal(powerIn(CTX, s, every), base + 15000, "six are three");
+}
+
 // ── what a replacement replaces (9-10) ─────────────────────────────────────
 
 {
@@ -997,6 +1024,54 @@ import {
   assert.ok(zoneOf(s, "p1", "battle").includes(sleeping), "it was placed");
   assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "SUMMON left the hand, the draw came in");
   assertConsistentG(s);
+}
+
+{
+  // 5-5-1: playing a card places it in the Battle Area, so "when this card is
+  // placed in a Battle Area" answers a play from the hand as well (owner's
+  // ruling, 2 Oct 2026) — once, not once as a play and again as a placing.
+  DEFS.ARRIVES2 = { ...DEFS.V1, id: "ARRIVES2", name: "ARRIVES2", energyCost: 1, skill: "[Auto] When this card is placed in a Battle Area, draw 1 card." };
+  let s = stagedG({ hand: ["ARRIVES2"], energy: ["V1"] });
+  const hand = zoneOf(s, "p1", "hand").length;
+  const card = findG(s, "p1", "hand", "ARRIVES2");
+  s = playG(s, { type: "play", player: "p1", card });
+  assert.ok(zoneOf(s, "p1", "battle").includes(card), "it was played");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "5-5-1: played is placed — one draw, not none and not two");
+  assertConsistentG(s);
+}
+
+{
+  // A skill that names both moments ("when you play this card or when this
+  // card is placed …") answers a play once: the play is the placing (5-5-1),
+  // one arrival. Placed by a skill, it answers once as well.
+  DEFS.BOTHWAYS = {
+    ...DEFS.V1,
+    id: "BOTHWAYS",
+    name: "BOTHWAYS",
+    energyCost: 1,
+    characters: ["BOTHWAYS"],
+    skill: "[Auto] When you play this card or when this card is placed in a Battle Area, draw 1 card.",
+  };
+  const sk = parseSkills(DEFS.BOTHWAYS.skill!)[0];
+  assert.ok(autoTriggerMatches(sk, "played") && autoTriggerMatches(sk, "placed"), "the fixture names both moments");
+
+  let s = stagedG({ hand: ["BOTHWAYS"], energy: ["V1"] });
+  const hand = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "BOTHWAYS") });
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "played: one draw for one arrival");
+  assertConsistentG(s);
+
+  DEFS.SUMMON2 = { ...DEFS.V1, id: "SUMMON2", name: "SUMMON2", energyCost: 1, skill: "[Auto] When you play this card, place up to 1 <BOTHWAYS> card from your Drop into your Battle Area." };
+  let t = stagedG({ hand: ["SUMMON2"], energy: ["V1"] });
+  const sleeping = zoneOf(t, "p1", "deck").find((id) => t.cards[id].cardId === "V1")!;
+  t.cards[sleeping].cardId = "BOTHWAYS";
+  moveG(t, sleeping, "drop", "p1");
+  const before = zoneOf(t, "p1", "hand").length;
+  t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "SUMMON2") });
+  if (t.prompt.kind === "chooseCards") t = playG(t, { type: "choose", player: "p1", cards: [sleeping] });
+  assert.ok(zoneOf(t, "p1", "battle").includes(sleeping), "it was placed");
+  assert.equal(zoneOf(t, "p1", "hand").length, before - 1 + 1, "placed by a skill: one draw");
+  assertConsistentG(t);
 }
 
 {
@@ -1630,4 +1705,103 @@ import {
     one("[Auto] When this card attacks, draw 1 card for each of your Battle Cards.").ops.map((o) => o.op),
     ["draw"],
   );
+}
+
+// ── combo power as a measure (2-8), and "different card names" (BT29-030) ──
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  type Sel = { area?: string; count?: number; upTo?: boolean; differentNames?: true; filter?: { comboPowerMin: number | null; comboPowerMax: number | null; powerMin: number | null; powerMax: number | null } };
+
+  // The filter reads every wording the catalog uses, and a bare power beside
+  // it is still the power.
+  const combo = (text: string) => {
+    const f = parseFilter(text);
+    return [f.comboPowerMin, f.comboPowerMax, f.powerMin, f.powerMax];
+  };
+  assert.deepEqual(combo("card with 5000 combo power"), [5000, 5000, null, null], "it used to parse with the measure dropped");
+  assert.deepEqual(combo("card with a combo power of 5000"), [5000, 5000, null, null]);
+  assert.deepEqual(combo("card with a combo power of 5000 or more"), [5000, null, null, null]);
+  assert.deepEqual(combo("card with 5000 combo power or less"), [null, 5000, null, null]);
+  assert.deepEqual(combo("card with 10000 or more combo power"), [10000, null, null, null]);
+  assert.deepEqual(combo("card with combo power between 5000 and 10000"), [5000, 10000, null, null], "and 'power between' inside it is not also a power bound");
+  assert.deepEqual(combo("Battle Card with 10000 power and 5000 combo power"), [5000, 5000, 10000, 10000]);
+  assert.deepEqual(combo("Battle Card with 10000 power"), [null, null, 10000, 10000], "a plain power is not a combo power");
+
+  // BT29-030, whole: a choice first (a count is never "take every match"),
+  // the combo power on the filter, and the set's names on the selector.
+  const bt29 = one("[Auto] When this card is played, place up to 3 cards with 5000 combo power and different card names from your Drop under this card.");
+  assert.deepEqual(bt29.unsupported, [], "the 'and different card names' is part of the description, not a clause of its own");
+  assert.deepEqual(
+    bt29.ops.map((o) => o.op),
+    ["choose", "moveTo"],
+  );
+  const sel = (bt29.ops[0] as { sel: Sel }).sel;
+  assert.deepEqual([sel.area, sel.count, sel.upTo, sel.differentNames], ["drop", 3, true, true]);
+  assert.deepEqual([sel.filter?.comboPowerMin, sel.filter?.comboPowerMax], [5000, 5000]);
+  assert.deepEqual((bt29.ops[1] as { target: unknown; to: string }).target, { var: "c0" }, "the move takes the chosen cards, not every match");
+
+  // BT18-104's count: names, not cards.
+  const crew = one("[Auto] When you play this card, if you have 4 or more ≪Bardock's Crew≫ cards with different card names in your energy, draw 1 card.");
+  assert.deepEqual(crew.unsupported, []);
+  const counted = (crew.ops[0] as { cond: { kind: string; sel: Sel; atLeast: number } }).cond;
+  assert.deepEqual([counted.kind, counted.sel.area, counted.sel.differentNames, counted.atLeast], ["count", "energy", true, 4]);
+
+  // "+5000 combo power" given to a card is a change, not a measure of it.
+  const pump = one("[Auto] When you play this card, choose 1 of your Battle Cards and it gets +5000 combo power for the turn.");
+  assert.equal((pump.ops[0] as { sel: Sel }).sel.filter?.comboPowerMin, null);
+}
+
+{
+  // The engine side, on whichever engine runs: a choice under
+  // `differentNames` stops offering a card once its namesake is picked, a
+  // namesake handed in anyway is refused, and the combo-power filter offers
+  // only the 5000s.
+  const BT29030 = "[Auto] When this card is played, place up to 3 cards with 5000 combo power and different card names from your Drop under this card.";
+  DEFS["DN-HOST"] = { ...DEFS.V1, id: "DN-HOST", name: "DN-HOST", characters: ["DN-HOST"], energyCost: 1, comboPower: 5000, skill: BT29030 };
+  DEFS["DN-ALPHA"] = { ...DEFS.V1, id: "DN-ALPHA", name: "Alpha", characters: ["Alpha"], comboPower: 5000, skill: null };
+  DEFS["DN-ALPHA2"] = { ...DEFS.V1, id: "DN-ALPHA2", name: "Alpha", characters: ["Alpha"], comboPower: 5000, skill: null };
+  DEFS["DN-BETA"] = { ...DEFS.V1, id: "DN-BETA", name: "Beta", characters: ["Beta"], comboPower: 5000, skill: null };
+  DEFS["DN-BIG"] = { ...DEFS.V1, id: "DN-BIG", name: "Gamma", characters: ["Gamma"], comboPower: 10000, skill: null };
+  const dropped = ["DN-ALPHA", "DN-ALPHA2", "DN-BETA", "DN-BIG"];
+  let s = stagedG({ hand: ["DN-HOST", ...dropped], energy: ["V1"] });
+  const [a1, a2, b, big] = dropped.map((id) => findG(s, "p1", "hand", id));
+  for (const id of [a1, a2, b, big]) moveG(s, id, "drop", "p1");
+  const host = findG(s, "p1", "hand", "DN-HOST");
+  s = playG(s, { type: "play", player: "p1", card: host });
+  assert.equal(s.prompt.kind, "chooseCards");
+  const offered = () => (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+  assert.deepEqual([...offered()].sort(), [a1, a2, b].sort(), "every 5000-combo-power card is offered, and the 10000 is not");
+  s = playG(s, { type: "choose", player: "p1", cards: [a1] });
+  assert.equal(s.prompt.kind, "chooseCards", "two more may still be chosen");
+  assert.deepEqual(offered(), [b], "the second Alpha is no longer on offer");
+  assert.throws(() => playG(s, { type: "choose", player: "p1", cards: [a2] }), /invalid choice/, "a namesake handed in anyway is refused");
+  s = playG(s, { type: "choose", player: "p1", cards: [b] });
+  assert.notEqual(s.prompt.kind, "chooseCards", "with no third name left, the choice is over");
+  assert.deepEqual([...s.cards[host].under].sort(), [a1, b].sort(), "one Alpha and the Beta went under, and nothing else");
+  assert.ok(zoneOf(s, "p1", "drop").includes(a2) && zoneOf(s, "p1", "drop").includes(big));
+  assertConsistentG(s);
+}
+
+{
+  // A count over `differentNames` counts names: two copies of one card are
+  // one name, so "2 or more cards with different card names in your energy"
+  // needs two different cards there.
+  DEFS["DN-COUNTER"] = {
+    ...DEFS.V1,
+    id: "DN-COUNTER",
+    name: "DN-COUNTER",
+    characters: ["DN-COUNTER"],
+    energyCost: 0,
+    skill: "[Auto] When you play this card, if you have 2 or more cards with different card names in your energy, draw 1 card.",
+  };
+  DEFS["DN-OTHER"] = { ...DEFS.V1, id: "DN-OTHER", name: "DN-OTHER", characters: ["DN-OTHER"], skill: null };
+  const drawn = (energy: string[]) => {
+    let s = stagedG({ hand: ["DN-COUNTER"], energy });
+    const hand = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DN-COUNTER") });
+    return zoneOf(s, "p1", "hand").length - (hand - 1);
+  };
+  assert.equal(drawn(["V1", "V1"]), 0, "two copies of one card are one name");
+  assert.equal(drawn(["V1", "DN-OTHER"]), 1, "two names draw");
 }

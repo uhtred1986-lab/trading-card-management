@@ -3,6 +3,7 @@ title: Arena: support keyword parse for [Empower XY/ZY]
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
 labels: backlog, blocked, enhancement, area:arena-compiler, phase:capability-gap, model:sonnet-5
 stage: ui
+status: closed
 ---
 **Source:** `docs/arena-markers-stage-scope.md` §2 item 2 and §4 step D; rule manual 22-45-3-1; `keywordOf` in `src/lib/arena/text/cards.ts` (~line 217, `^empower(?: ([a-z]+))?(?: (\d+))?$`).
 

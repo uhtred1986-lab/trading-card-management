@@ -260,6 +260,10 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // 5-5-1: a play into the Battle Area is also a placing (owner's ruling,
+      // 2 Oct 2026), so one arrival matches `played` and `placed` both. A
+      // skill whose record says both answers that arrival once, as `played`.
+      if (match.trigger === "placed" && pended.some((p) => p.card === match.card && p.skillIndex === sk.index && p.trigger === "played")) continue;
       const subject = match.subject !== undefined ? { subject: match.subject } : {};
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject };
       state.pending.push(pending);

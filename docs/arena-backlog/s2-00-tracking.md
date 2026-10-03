@@ -5,6 +5,7 @@ milestone: Arena M1 — Rules correctness and parser coverage
 labels: epic, backlog, area:arena-compiler, area:arena-engine, phase:rules-stage2
 stage: 2
 tracking: true
+status: closed
 ---
 Stage 2 of the rules-language programme (`docs/arena-history-lessons.md`, entries dated 9 Sep 2026; the approved plan is summarised in `docs/arena-backlog.md` §1). The aim of the programme is **fix each card by setting the right DSL statement**; Stage 2 makes that possible for the ~3,400 clauses the compiler cannot read today, by giving the language the *mechanisms* they need and by removing readings that are wrong.
 

@@ -11,7 +11,7 @@
  */
 import { skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
-import { asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
+import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { sideOf } from "./common";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
@@ -27,8 +27,14 @@ export type Side = "you" | "opponent" | "both";
  * `afterNextCharge` outlives `nextTurn` by one step: "the chosen card will not
  * switch to Active Mode during your next Charge Phase" (7-2-7) has to still be
  * there when the Active Step runs, and `nextTurn` ends just before it.
+ *
+ * `whileSourceInPlay` is "…while this card is in a Battle Area" trailing an
+ * [Auto] or [Activate] effect (BT29-041, BT29-042): the effect holds until the
+ * card whose skill made it (its `source`) leaves the Battle Area, and no longer
+ * (9-9-2: it lasts for the period the effect names). A [Permanent]'s own
+ * "While this card is …" is a condition (`IF`), not this.
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";
@@ -70,7 +76,18 @@ export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader"
  * it stands for before any engine looks at it, so those two cases stay the
  * one reading of either, and a `with` that is not empty is a `note`.
  */
-export type ReplaceEvent = "leave" | "ko" | "play" | "life" | "attack" | "counter";
+/**
+ * `"marker"`: this card (a Unison) would lose a marker — only ever with
+ * `by: "attack"`, the 13-5-2 removal an opponent's attack makes on a Unison
+ * guard ("if this card would lose a marker from an opponent's attack, you may
+ * … instead", SD13-02). The Damage Step is the one site that asks, once per
+ * marker (5-13-4-2: removing X markers is "remove 1 marker" X times, and
+ * 9-10-2-3 applies a replacement once per event). Always a substitute: the
+ * marker stays and the program runs. A marker paid as a cost or removed by a
+ * skill is not this moment, and `validateProgram` refuses any other `by` so a
+ * rule cannot claim a moment nothing reads.
+ */
+export type ReplaceEvent = "leave" | "ko" | "play" | "life" | "marker" | "attack" | "counter";
 
 export interface Selector {
   side?: Side;
@@ -118,10 +135,23 @@ export interface Selector {
    * Clan≫ card among them **other than copies of this card**". Refusing to
    * *resolve* to this card is only half of it: read as nothing, the phrase
    * still offered this card among the candidates, so "they get -15000 power"
-   * hit the card printing it. `"copies"` excludes every card of the same
+   * hit the card printing it. `"name"` excludes every card sharing this
+   * card's card name — "a <Broly> with a different card name" (EX03-16), so a
+   * reprint under another number is excluded too. `"copies"` excludes every card of the same
    * name, which is what that longer wording says.
    */
-  notSelf?: "card" | "copies";
+  notSelf?: "card" | "copies" | "name";
+  /**
+   * "Place up to 3 cards with 5000 combo power **and different card names**
+   * from your Drop under this card" (BT29-030): a constraint on the *set*
+   * rather than on any one card, so no filter can say it. A `choose` over it
+   * stops offering a card once one of the same name has been picked; a count
+   * over it ("4 or more ≪Bardock's Crew≫ cards with different card names in
+   * your energy", BT18-104) counts names, not cards (`selectedCount`).
+   * `resolveSelector` itself ignores it — every card stays a candidate until
+   * a namesake is chosen.
+   */
+  differentNames?: true;
   /**
    * Only cards matching the description printed on the line this program
    * belongs to (`asPrinted`): [Evolve]{2}: <Nail> finds a <Nail>, [Swap 3]'s
@@ -133,6 +163,17 @@ export interface Selector {
    * writes it: the compiler reads a description into a filter itself.
    */
   printed?: true;
+}
+
+/**
+ * How many the cards a selector found are, as that selector counts them: one
+ * per card, or one per card name under `differentNames` ("4 or more
+ * ≪Bardock's Crew≫ cards with different card names in your energy",
+ * BT18-104). Both engines' `count` conditions and amounts read through this,
+ * so the two cannot count the same board differently.
+ */
+export function selectedCount(sel: Selector, ids: readonly string[], nameOf: (id: string) => string): number {
+  return sel.differentNames ? new Set(ids.map((id) => nameOf(id).toLowerCase())).size : ids.length;
 }
 
 /**
@@ -162,17 +203,24 @@ export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "
  * Every shape that was here before 20-5 is still spelled exactly as it was:
  * stored `card_rules.ops` rows carry these keys, so nothing here may be
  * renamed and nothing may change meaning. The new shapes are additions.
+ *
+ * `per` divides a board reading before `times` multiplies it: "+5000 power
+ * for every 2 ≪Universe 2≫ cards in your Warp" is `{count, per: 2, times:
+ * 5000}`, and five such cards are two steps of two, so +10000 — the
+ * remainder is dropped, never rounded up (2 Oct 2026). Only on `count`,
+ * `markers` and `life`, the readings a card says "for every N" of; see
+ * `perStep`.
  */
 export type Amount =
   | number
   | { var: string }
-  | { count: Selector; times?: number }
+  | { count: Selector; per?: number; times?: number }
   /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). The special case of `sumOf` that predates it, kept because rows spell it this way. */
   | { sumPower: { var: string } }
   /** "Draw cards until you have 4 cards in your hand": however many that takes, never fewer than none. */
   | { handUpTo: number }
   /** "For each marker on this card, +5000 power" — the markers on the selected cards, added up, the same board fact the `markers` condition asks about. */
-  | { markers: Selector; times?: number }
+  | { markers: Selector; per?: number; times?: number }
   /**
    * X: the number chosen when the skill was paid for (20-5). Read off the
    * script frame, which the activation puts it on; a program that says `X`
@@ -181,7 +229,7 @@ export type Amount =
    */
   | { x: true; times?: number }
   /** "For each card in your life area" — the life cards of one side, or both. */
-  | { life: Side; times?: number }
+  | { life: Side; per?: number; times?: number }
   /** "Power equal to that card's energy cost × 1000" — one card's own measure, times a printed number. */
   | { attr: Ref; name: AmountAttr; times?: number }
   /** "Power equal to the total combo power of the cards discarded by this skill" — the same measure over every selected card, added up. */
@@ -195,6 +243,13 @@ export type Amount =
  * place the rest at the bottom of your deck".
  */
 export type Ref = { var: string; minus?: string } | { sel: Selector };
+
+/**
+ * A board reading in whole steps of `per`, rounded down: "for every 2" of five
+ * cards is 2. Both engines' `amount` read the three `per` shapes through this,
+ * so the rounding is written once.
+ */
+export const perStep = (n: number, per: number | undefined): number => (per && per > 1 ? Math.floor(n / per) : n);
 
 export type Cond =
   | { kind: "count"; sel: Selector; atLeast?: number; atMost?: number }
@@ -221,6 +276,13 @@ export type Cond =
    * memory, which lasts the turn. Whose turn it was is asked separately.
    */
   | { kind: "battled"; sel: Selector }
+  /**
+   * "During the turn you played it with [Over Realm]" (P-048, 22-15): was one
+   * of these cards played this turn by that keyword's own move? The card's
+   * memory of the play — set as the `play … using: "Over Realm"` lands, gone
+   * when the turn ends or the card changes area (3-1-4).
+   */
+  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
@@ -419,7 +481,7 @@ export type Op =
    * read. Without it the card is played beside the host instead of onto it.
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
-  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount }
+  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -546,12 +608,35 @@ export type Op =
    * is for the game. `negateAs` (script-schema.ts) is the one reading of it:
    * the interpreter, the statics and the sentence all go through the spelling
    * it stands for, so a program written either way does the same thing.
+   * `chosen` (with "keyword") names no keyword: the master picks one of the
+   * keyword skills `target` has in force as the step resolves — that is
+   * `negateChosenKeyword`.
    */
-  | { op: "negate"; target?: Ref; what: NegateScope; kind?: SkillKindPrefix; keyword?: KeywordSkill["name"]; until?: Duration }
+  | { op: "negate"; target?: Ref; what: NegateScope; kind?: SkillKindPrefix; keyword?: KeywordSkill["name"]; chosen?: boolean; until?: Duration }
+  /**
+   * "Choose up to 1 keyword skill on your opponent's Battle Cards and negate
+   * that skill for the turn" (9-1-5, BT31-138): the master picks one keyword
+   * skill among those every card `target` finds has in force right now, and
+   * only that keyword is negated on that card, for `until`. The choice is of a
+   * *skill*, so the menu lists keywords (with the card's name when several
+   * cards carry them) and ends with "None" for the printed "up to 1"; a target
+   * with no keyword skills asks nothing and does nothing.
+   */
+  | { op: "negateChosenKeyword"; target: Ref; until: Duration }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
   | { op: "hidden"; target: Ref; hidden: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
   | { op: "redirectAttack"; target: Ref }
+  /**
+   * "Switch your card that's in a battle with this card / the chosen card":
+   * `target` takes the place of the master's card in the battle in progress —
+   * the attack card if they attack, the guard card if they are attacked — and
+   * the card it replaces leaves the battle where it stands. 8-1-7-2: the
+   * battle goes on, and the new card's "when this card attacks" / "is
+   * attacked" are not made pending. The new card must be the master's own,
+   * in their Battle Area or Leader Area, and not already in the battle.
+   */
+  | { op: "swapBattle"; target: Ref }
   /**
    * "Use up to 1 card with 5000 combo power from your Drop in a combo (with
    * its skills negated)" — into your Combo Area during a battle, for no combo
@@ -600,6 +685,10 @@ export type Op =
       alt?: Op[];
       orbs?: (Color | "any")[];
       until?: Duration;
+      /** `costReduction`'s `onto`: an [Evolve] price changed only when played onto one of these cards. */
+      onto?: Ref;
+      /** `costReduction`'s `uses`, carried through unchanged. */
+      uses?: number;
     }
   /**
    * A [Permanent] cost reducer, applied while the card sits where the skill
@@ -632,12 +721,32 @@ export type Op =
       skillKind?: SkillKindPrefix;
       until?: Duration;
       /**
+       * With `what: "skill"`/`"evolve"` and a duration: how many activations
+       * the change applies to before it ends — "**the next time** you activate
+       * an [Activate] skill of your Leader during this turn, reduce its skill
+       * cost by {b}" (BT31-096) is `uses: 1`. The first activation of a line
+       * the change reaches spends one; once none are left it is gone, and
+       * `until` still ends it unused. Absent is every activation in the
+       * duration. Not read on a [Permanent], which has no activation to count.
+       */
+      uses?: number;
+      /**
        * With `what: "specified"`: no specified cost at all, every orb, read
        * after every other change to it — [Warrior of Universe 7]'s "treat as
        * having no specified cost" (22-19-2). A `DEFINE KEYWORD` body's word,
        * on no card (`OpField.offCard`, #154); `amount` is not read with it.
        */
       all?: boolean;
+      /**
+       * With `what: "evolve"`: the change holds only for an [Evolve] played
+       * **onto** one of these cards (22-5-5). EX03-16's "when evolving this
+       * card into a <Broly> with a different card name from your hand, the
+       * [evolve] cost is decreased by {g}{g}" is `onto: [self]`. The base is
+       * part of the move — the activation's own `onto` — so the discounted
+       * price is offered once per base it covers, beside the ordinary one,
+       * and never reaches an [Evolve] played onto any other card.
+       */
+      onto?: Ref;
     }
   /**
    * Take a keyword skill away from a card (9-1-5). Unlike `negateSkills`, which
@@ -695,7 +804,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "ko" | "skillOrKo" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -788,8 +897,10 @@ export type Op =
    * cards, or a `side` for one about a player ("your opponent can't attack
    * with Battle Cards"), optionally narrowed by a filter. `uses` allows that
    * many uses before the prohibition applies; `unless` is the escape condition.
+   * `unlessPay` is 20-14-1's other escape, a price: the acting player may run
+   * it, in their own frame, to take the action anyway — each time (`attack` only).
    */
-  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean; uses?: Amount; unless?: Cond }
+  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean; uses?: Amount; unless?: Cond; unlessPay?: Op[] }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
    * which only stops a skill from *choosing* it. `from`/`fromFilter` say
@@ -803,8 +914,11 @@ export type Op =
    * "This card can attack Battle Cards in Active Mode" (8-1-1). `filter`
    * says which active cards, and a description the parser cannot read must
    * fail the clause rather than permit every one of them.
+   * `overRealmFromWarp` (BT31-150): the target's [Over Realm] skill may be
+   * activated from its owner's Warp as from the hand (22-15); read while the
+   * card is in the Warp.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest"; until: Duration; target: Ref; filter?: CardFilter }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1149,6 +1263,27 @@ export function replacementPrompt(card: string, to: Area, choices: ReplacementCh
   };
 }
 
+/**
+ * 9-10-2/9-10-3's question over one marker a Unison is about to lose to an
+ * attack (13-5-2, SD13-02): each `marker` replacement in words, and — when
+ * every one is optional — losing the marker as usual, last.
+ */
+export function markerReplacementPrompt(card: string, choices: ReplacementChoice[], allowNone: boolean): { reason: string; options: string[] } {
+  return {
+    reason: `${card}: choose what happens instead of losing a marker`,
+    options: [...choices.map((c) => `Instead: ${describeScript(c.ops ?? [])}`), ...(allowNone ? ["Lose the marker"] : [])],
+  };
+}
+
+/**
+ * A `marker` replacement's substitute as a program of its own, for the two
+ * engines' Damage Steps to queue: the Unison whose marker it kept is the
+ * `subject`, and `replacing` keeps the program from replacing its own moves.
+ */
+export function markerSubstituteFrame(id: string, c: ReplacementChoice, master: PlayerId): ScriptFrame {
+  return { ops: c.ops ?? [], ip: 0, vars: {}, card: c.source, master: c.master ?? master, subject: id, replacing: id, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}) };
+}
+
 function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: number | null): ReplacementResult | null | undefined {
   if (!loop.choices?.length) return undefined;
   if (index == null || index < 0 || index >= loop.choices.length) return null;
@@ -1447,11 +1582,20 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           return "wait";
         }
 
-        const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id));
+        // "…and different card names" (BT29-030): a card whose name is
+        // already among the picks is no longer on offer.
+        const nameKey = (id: string) => h.nameOf(id).toLowerCase();
+        const taken = new Set(op.sel.differentNames ? sofar.map(nameKey) : []);
+        const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)));
 
         const answer = h.lastChoice();
         if (answer && frame.awaiting === op.as) {
-          const picked = [...sofar, ...answer.filter((id) => cands.includes(id))];
+          const picked = [...sofar];
+          for (const id of answer) {
+            if (!cands.includes(id) || picked.includes(id)) continue;
+            if (op.sel.differentNames && picked.some((o) => nameKey(o) === nameKey(id))) continue;
+            picked.push(id);
+          }
           h.clearLastChoice();
           // A choice is made one card at a time (the board asks by tapping),
           // so a "choose 2" comes back here for the second card. Declining a
@@ -1474,7 +1618,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           break;
         }
         // Only ask when the answer can differ: a forced pick is taken silently.
-        if (!upTo && cands.length <= left) {
+        // Under "different card names" two namesakes among the candidates are
+        // a real choice between them, even when there are few enough to take.
+        const namesakes = !!op.sel.differentNames && new Set(cands.map(nameKey)).size < cands.length;
+        if (!upTo && !namesakes && cands.length <= left) {
           frame.awaiting = undefined;
           take([...sofar, ...cands]);
           break;
@@ -1593,6 +1740,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const dest = op.to === "play" ? "battle" : op.to;
           let replaced: ReplacementResult | null | undefined;
           const leftBattle = frame.moveLoop.leftBattle ?? (h.areaOf(id) === "battle");
+          // 20-7: a card this skill takes out of its owner's hand — a discard
+          // by its effect, or by its price (1-6, 1-7-1: the cost is part of the
+          // skill). Read before the move; a card waiting on a replacement
+          // question has not moved yet, so it reads the same on the way back.
+          const leftHand = h.areaOf(id) === "hand" && (op.cause === undefined || op.cause === "effect" || op.cause === "cost");
           if (frame.awaiting === "replaceMove") {
             replaced = pickedReplacement(frame.moveLoop, h.lastMode());
             h.clearLastMode();
@@ -1615,6 +1767,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
           const deferred = defers(replaced);
+          // 3-10: "when this card is sent from your deck to your Warp by your
+          // <Heles> card's skill" (BT30-106) asks where it came from, which is
+          // gone once it has moved.
+          const fromDeck = h.areaOf(id) === "deck";
           h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: op.cause ?? "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
@@ -1639,6 +1795,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               h.pend("leftBattleToDrop", id);
             }
           }
+          // "When this card is placed in your Drop Area from your hand by a
+          // skill" (SD13-05, BT7-127, BT11-022) — the hand's side of the above.
+          if (leftHand && h.areaOf(id) === "drop") h.pend("droppedFromHand", id);
+          // Your own skill sent your own card from your deck to the Warp. The
+          // skill's card is the subject, so "by your <Heles> card's skill" is
+          // a condition the rule asks of it — the same way `restedBySkill`
+          // hands on the card that rested it.
+          if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
           if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
@@ -1804,6 +1968,23 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
       }
 
+      case "swapBattle": {
+        // 8-1-7-2: the master's card in the battle is changed by an effect.
+        // Which seat it holds is the battle's own answer — the attack card
+        // if the master attacks, the guard card if they were attacked — and
+        // no "when this card attacks / is attacked" is made pending for the
+        // card that takes it.
+        const b = h.battle();
+        if (!b) break;
+        const master = frame.master;
+        const out = h.masterOf(b.attacker) === master ? b.attacker : h.masterOf(b.guard) === master ? b.guard : null;
+        if (!out) break;
+        const id = h.resolveRef(frame, op.target).find((x) => x !== b.attacker && x !== b.guard && h.masterOf(x) === master && (h.areaOf(x) === "battle" || h.areaOf(x) === "leader"));
+        if (!id) break;
+        h.swapBattleCard(out, id);
+        break;
+      }
+
       // The primitive the two cases below are spellings of
       // (`docs/arena-ruleset-spec.md` §2.3). It makes the same continuous
       // effects, so a rule written either way plays identically; the list
@@ -1908,6 +2089,37 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         }
         break;
 
+      case "negateChosenKeyword": {
+        // 9-1-5: one keyword skill, picked by the master among those the
+        // target cards have in force *now* — a granted one included, a
+        // negated one not — and negated on that card alone for the duration.
+        const offered: { card: string; keyword: KeywordSkill["name"] }[] = [];
+        for (const id of h.resolveRef(frame, op.target)) {
+          if (!h.exists(id) || h.forbids("beNegated", { card: id })) continue;
+          for (const name of KEYWORD_NAMES) if (h.hasKeyword(id, name)) offered.push({ card: id, keyword: name });
+        }
+        if (!offered.length) break;
+        if (h.lastMode() == null || frame.awaiting !== "negateChosenKeyword") {
+          const several = new Set(offered.map((o) => o.card)).size > 1;
+          frame.awaiting = "negateChosenKeyword";
+          h.resume(frame);
+          h.ask({
+            kind: "chooseMode",
+            player: master,
+            reason: `${h.nameOf(frame.card)}: choose a keyword skill to negate`,
+            // "Up to 1" on every card printing this, so the last option declines.
+            options: [...offered.map((o) => (several ? `${h.nameOf(o.card)}: [${o.keyword}]` : `[${o.keyword}]`)), "None"],
+          });
+          return "wait";
+        }
+        const at = h.lastMode()!;
+        h.clearLastMode();
+        frame.awaiting = undefined;
+        const picked = offered[at];
+        if (picked) h.addEffect({ master: frame.master, source: frame.card, target: picked.card, kind: "negateKeyword", value: picked.keyword, until: op.until });
+        break;
+      }
+
       case "negateSkillsOfKind":
         // 9-1-5: one kind of skill, not the card. Kept as an effect for the
         // duration the card printed — "in all areas" compiles to the game,
@@ -1933,7 +2145,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), player: players[0] },
             });
           break;
         }
@@ -1948,6 +2160,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             what: op.what,
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
+            ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
@@ -2024,8 +2237,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 : op.what === "evolve"
                   ? "evolveCost"
                   : "cost";
+        // EX03-16: an [Evolve] price changed only when it is played onto these.
+        const onto = kind === "evolveCost" && op.onto ? { onto: h.resolveRef(frame, op.onto) } : {};
+        // "The next time you activate …": a budget of activations, read once
+        // here. It means something only on a line's own price, which is the
+        // one place an activation spends it (`spendSkillCostUses`, both
+        // engines); a budget of nothing puts nothing in force.
+        const uses = op.uses != null && (kind === "skillCost" || kind === "evolveCost") ? op.uses : undefined;
+        if (uses !== undefined && uses <= 0) break;
         for (const id of h.resolveRef(frame, op.target)) {
           h.addEffect({
+            ...onto,
             master: frame.master,
             source: frame.card,
             target: id,
@@ -2034,6 +2256,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             until: op.until ?? "turn",
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
             ...(op.colors?.length ? { colors: op.colors } : {}),
+            ...(uses !== undefined ? { uses } : {}),
           });
         }
         break;
@@ -2148,7 +2371,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

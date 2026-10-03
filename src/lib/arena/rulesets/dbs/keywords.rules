@@ -83,6 +83,22 @@ DEFINE KEYWORD Wish
 DEFINE KEYWORD Field
   TAKES ()
   text: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out."
+  -- A move (2 Oct 2026), offered as an [Activate: Main] from the hand
+  -- (22-3-2) — and at [Activate: Battle] timings as well while a [Permanent]
+  -- permits it for this card (`permit(what: fieldBattle)`, BT29-041/-042),
+  -- which `vm/activate.ts`'s `activationsOf` reads as widening the line's
+  -- kind to `activate:main/battle`. The price is the Extra's own energy cost
+  -- (12-2-2, `boundFor`), and the Extra is not put in the Drop as an Extra
+  -- used from the hand otherwise is: the `DO` plays it into the Battle Area in
+  -- Active Mode, and the onEnter hook below drops the [Field] Extra already
+  -- out (22-3-5). One difference from the legacy engine, recorded: the label
+  -- does not add the cost in brackets.
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  label: "Field: place {card}"
+  DO {
+    play(target: [self])
+  }
   HOOK onEnter {
     choose(sel: UP TO 1 "Extra Card with [Field]" IN you.battle otherThanSelf, as: "t")
     moveTo(target: $t, to: drop)
@@ -375,13 +391,18 @@ DEFINE KEYWORD Evolve
   -- from your hand" is the move's `keywordActivated(from: hand)`. The stack
   -- keeps the host's place, mode and power effects (`play … onto`,
   -- `vm/play.ts`'s `stackOnto`). [Xeno-Evolve] sends the host to the Warp and
-  -- plays this card beside where it was (22-5-6).
+  -- plays this card beside where it was (22-5-6). A base named with the
+  -- activation (`onto`, offered where a price change is scoped to that base —
+  -- EX03-16, `vm/activate.ts`'s `evolveOntoBases`) arrives already bound as
+  -- `$base`, and is not asked for again.
   offer: "activate:main"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
   REFUSE target(reason: "no {line} in your Battle Area") UNLESS count(IN you.battle asPrinted) >= 1
   label: "{variant} {card} onto a {line}"
   DO {
-    choose(sel: 1 IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+    if(cond: count(FROM $base) <= 0, then: {
+      choose(sel: 1 IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+    })
     if(cond: oneOf(value: $variant, of: ["Xeno-Evolve"]), then: {
       moveTo(target: $base, to: warp)
       play(target: [self])
@@ -439,10 +460,21 @@ DEFINE KEYWORD "Over Realm"
   -- the Warp as the turn ends (for the dark variant too, which 22-23 does not
   -- ask for — the legacy engine's approximation, kept so the two agree), and
   -- it is played through the [Counter: Play] window. "when you play a card
-  -- using [Over Realm]" is the move's `keywordActivated`. One difference,
+  -- using [Over Realm]" is the move's `keywordActivated`; "when this card is
+  -- played using [Over Realm]" is the play's own `moved`, which `using:` marks
+  -- as this keyword's (`playedUsingOverRealm`). One difference,
   -- recorded: the refusal for too few cards does not add "(N there)".
+  -- From the Warp as well (owner-approved 2 Oct 2026) while the card's own
+  -- [Permanent] says "This card's [Over Realm] skill can be activated from
+  -- its owner's Warp under the same conditions as if it were in your hand"
+  -- (BT31-150): a `permit` of `overRealmFromWarp`, read in the Warp. The
+  -- `activate` action's FOR names the Warp, and `vm/activate.ts`'s
+  -- `activationsOf` offers no line there but this one, and this one only
+  -- under that permission — so the zone gate below may accept the Warp, and
+  -- every other gate (the count, the shared limit, the whole-Drop cost, the
+  -- return to the Warp as the turn ends) is the hand's, unchanged.
   offer: "activate:main"
-  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE zone(area: hand) UNLESS any([count([self] IN you.hand) >= 1, count([self] IN you.warp) >= 1])
   REFUSE oncePerTurn(what: "Over Realm") UNLESS any([NOT playerAttr(name: "overRealms", atLeast: 1), all([count("card with [Wormhole]" IN you.play) >= 1, NOT playerAttr(name: "overRealms", atLeast: 2)])])
   REFUSE condition(text: "{x} or more {dark?black }cards in your Drop Area") UNLESS any([all([NOT flag(value: $dark), count(IN you.drop) >= $x]), all([flag(value: $dark), count((colors = [Black]) IN you.drop) >= $x])])
   label: "{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"
@@ -452,7 +484,7 @@ DEFINE KEYWORD "Over Realm"
     delay(at: turnCleanup, ops: {
       moveTo(target: [self] IN you.battle, to: warp)
     }, label: "back to the Warp as the turn ends")
-    play(target: [self], counterWindow: true)
+    play(target: [self], counterWindow: true, using: "Over Realm")
   }
 
 -- 22-22

@@ -4,6 +4,7 @@ issue: 142
 milestone: Arena M7 — Rules engine core (Stage 4)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage4, model:opus-5
 stage: 4
+status: closed
 ---
 **Source:** plan Stage 4 ("effect layers, delayed effects, checkpoints, prompts; `stepScript` shared with the old engine where the op is generic"); `src/lib/arena/vm/script.ts` (`stepScript`, `ScriptFrame`, `OP_SCHEMA`), `state.ts` (`ContinuousEffect`, `DelayedEffect`, `staticEffects`); `src/lib/arena/effects.ts` (the one place a rule in force becomes a label).
 
