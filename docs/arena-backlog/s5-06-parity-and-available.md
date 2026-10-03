@@ -4,6 +4,7 @@ milestone: Arena M8 — Rules engine actions and costs (Stage 5)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-ui, phase:rules-stage5, model:opus-5
 stage: 5
 touches: src/lib/arena/vm/, src/lib/arena/engines.ts
+status: closed
 ---
 **Source:** plan Stage 5 exit ("`arena-diff` on the `harness.ts` staged games and on `arena:playthrough` scripts shows no divergence"); `ENGINE_INFO` in `src/lib/arena/engines.ts`; the `/arena` new-game form and `/arena/match`; `docs/arena-client-contract.md` (`Snapshot.game.engine`).
 

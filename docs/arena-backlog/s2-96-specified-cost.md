@@ -3,6 +3,7 @@ title: Arena: implement specified-cost reducer mechanics
 milestone: Arena M1 — Rules correctness and parser coverage
 labels: backlog, ready-for-agent, enhancement, area:arena-engine, area:arena-compiler, phase:rules-stage2, model:opus-5
 stage: 2
+status: closed
 ---
 **Source:** `docs/arena-markers-stage-scope.md` §2 (item 3) and §4 (step A); `docs/arena-next-session-prompt.md` §4(c); the comment above `specifiedOps` in `src/lib/arena/engine/state.ts` (~line 1775); the owner's ruling of 9 Sep 2026 recorded with `npm run arena:rule -- --list`.
 

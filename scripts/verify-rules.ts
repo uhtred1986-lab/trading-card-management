@@ -25,8 +25,12 @@ import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecif
 import { cardDefFrom } from "../src/lib/arena/load";
 import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-preview";
 import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
-import { specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/text/cards";
+import { parseSkills, specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/text/cards";
+import { describeTrigger, triggersOf } from "../src/lib/arena/gaps";
+import { compileSkill } from "../src/lib/arena/compile";
 import { cardImage, cardImageSizeFor } from "../src/lib/catalog/card-image";
+import { deepEqual, parseRule, printRule, unreadFilterWords } from "../src/lib/arena/lang";
+import { parseFilter } from "../src/lib/arena/text/filters";
 
 // ── catalog shaping ────────────────────────────────────────────────────────
 assert.equal(baseNumber("BT18-020_SPR"), "BT18-020");
@@ -805,4 +809,99 @@ assert.equal(specifiedCostWords({}), "no colour");
   assert.equal(cardImage(undefined, "thumb"), undefined);
   assert.equal(cardImageSizeFor(56), "thumb");
   assert.equal(cardImageSizeFor(128), "medium");
+}
+
+// ── "when this card is played using [Over Realm]" is its own moment (2 Oct 2026) ──
+// Read as `played` — its opening words — these skills fired on an ordinary
+// play as well (P-067, EX02-05, BT3-110 …). Both printed wordings, and the dark
+// variant, are `playedUsingOverRealm` and nothing else; the plain wording and
+// the watcher on other cards are untouched.
+{
+  const whenOf = (text: string) => triggersOf(parseSkills(text).find((sk) => sk.kind === "auto")!);
+  assert.deepEqual(whenOf("[Auto] When you play this card using [Over Realm], draw 1 card."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Auto] When this card is played using [Over Realm], activate this skill. Draw 2 cards."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Auto] When this card is played using [Dark Over Realm], draw 1 card."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Over Realm 4]{2}\n[Auto] When you play this card using [Over Realm], KO up to 1 of your opponent's Battle Cards."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Auto] When you play this card, draw 1 card."), ["played"], "the plain wording is still `played`");
+  assert.deepEqual(whenOf("[Auto] When this card is played, draw 1 card."), ["played"]);
+  assert.deepEqual(whenOf("[Auto] When you play a Battle Card using [Over Realm], draw 1 card."), ["overRealmPlayed"], "the watcher on other cards is unchanged");
+  assert.equal(describeTrigger(["playedUsingOverRealm"]), "when this card is played using [Over Realm]");
+}
+// ── "…during the turn you played it with [Over Realm]" is a condition (P-048) ──
+// The attack is the moment; the rest of the trigger sentence asks the card's
+// memory of the [Over Realm] play (`playedUsing`). Dropped with the trigger,
+// it fired on every attack of every turn.
+{
+  const sk = parseSkills("[Auto] When this card attacks during the turn you played it with [Over Realm], draw 1 card.").find((x) => x.kind === "auto")!;
+  assert.deepEqual(triggersOf(sk), ["attacks"]);
+  assert.deepEqual(compileSkill(sk), { ops: [{ op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] }], unsupported: [] });
+  const passive = parseSkills("[Auto] When this card attacks during the turn this card was played using [Dark Over Realm], draw 1 card.").find((x) => x.kind === "auto")!;
+  assert.deepEqual(compileSkill(passive).ops[0], { op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] });
+  const plain = parseSkills("[Auto] When this card attacks, draw 1 card.").find((x) => x.kind === "auto")!;
+  assert.deepEqual(compileSkill(plain).ops, [{ op: "draw", n: 1 }], "an attack trigger without it is unconditional");
+}
+// ── a quoted filter is read whole or refused ───────────────────────────────
+// `parseFilter` passes over words it has no pattern for, so a rule that said
+// "card with 5000 combo power" was stored as a filter on *any* card — there
+// is no combo-power measure, and nothing said so. The text view refuses what
+// it cannot read (docs/arena-fixing-a-card.md), so the parser names the words
+// and points at the printed form or the predicate form.
+{
+  const chooseFrom = (filter: string) => parseRule(`WHEN [auto] played\nTHEN\n  choose(sel: UP TO 3 ${filter} IN you.drop, as: "c0")\n  moveTo(target: $c0, to: under, under: [self])`);
+  const refused = (filter: string, words: string[]) => {
+    const r = chooseFrom(JSON.stringify(filter));
+    assert.equal(r.ok, false, `refused: ${filter}`);
+    if (r.ok) return;
+    for (const w of words) assert.ok(r.error.message.includes(JSON.stringify(w)), `the refusal of ${JSON.stringify(filter)} names ${JSON.stringify(w)}: ${r.error.message}`);
+    assert.match(r.error.message, /field by field/, "and points at the predicate form");
+    assert.equal(r.error.line, 3, "on the line that says it");
+  };
+  refused("card with a glittering frame", ["glittering", "frame"]);
+  refused("other Field Extra", ["other", "field"]);
+  refused("a card of the named colours", ["named", "colour"]);
+  refused("Battle Card in your Drop Area", ["drop", "area"]);
+  refused("card with [Not A Keyword]", ["[not a keyword]"]);
+  // Not a dropped word but a mis-read: `parseFilter`'s "N power or less"
+  // pattern takes the "000" after the comma, so this reads as power 0 or
+  // less. The accounting catches that too — the number it read is not the
+  // number written — and refusing beats storing the wrong bound.
+  refused("battle cards with 25,000 power or less", ["25000"]);
+  assert.deepEqual(unreadFilterWords("card with a glittering frame", parseFilter("card with a glittering frame")), ["glittering", "frame"]);
+  // Combo power was the first example of a dropped word here; #486 made it a
+  // measure (comboPowerMin/Max), so it now reads whole — see the list below.
+  assert.deepEqual(unreadFilterWords("card with 5000 combo power", parseFilter("card with 5000 combo power")), []);
+
+  // Every wording `parseFilter` does read still parses, in the card's own
+  // words as well as the reading's — plurals, hyphens, either word order.
+  for (const words of [
+    "red card",
+    "card with 5000 combo power",
+    "blue ≪Saiyan≫ card with an energy cost of 3 or less",
+    "Battle Cards with 25000 or less power",
+    "non-black Battle Cards",
+    "card other than <Grand Supreme Kai>",
+    "Earthling Tokens",
+    "Multicolored card",
+    "face-up ≪Boujack Brigade≫ cards",
+    "Extra Card with [Field]",
+    "yellow <Son Goku> card with an energy cost of 3 and 5000 power",
+    "Battle Card with power less than or equal to this card's power",
+    "Battle Card with power no more than this card's power",
+    "red Extra Card with an energy cost of 1 and no keyword skills",
+  ]) {
+    const r = chooseFrom(JSON.stringify(words));
+    assert.ok(r.ok, `reads whole: ${words}${r.ok ? "" : ` — ${r.error.message}`}`);
+    if (r.ok) assert.deepEqual(unreadFilterWords(words, parseFilter(words)), []);
+  }
+
+  // The predicate form says the same as the words, and a filter printed in
+  // words always reads back: `printFilter` only uses words that round-trip.
+  const pred = chooseFrom("(colors = [Blue] AND traits = [Saiyan] AND costMax = 3)");
+  const said = chooseFrom('"blue ≪Saiyan≫ card with an energy cost of 3 or less"');
+  assert.ok(pred.ok && said.ok);
+  if (pred.ok && said.ok) assert.deepEqual(pred.value, said.value, "the predicate form and the printed form are one filter");
+  if (said.ok) {
+    const again = parseRule(printRule(said.value));
+    assert.ok(again.ok && deepEqual(again.value, said.value), "the printed rule reads back");
+  }
 }

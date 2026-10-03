@@ -70,19 +70,19 @@ import { IllegalAction } from "./common";
 import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import { canCombo } from "../text/cards";
 import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../types";
-import { describeScript, replacementPrompt, routeOf, type Op, type ScriptFrame } from "./script";
+import { describeScript, markerReplacementPrompt, markerSubstituteFrame, replacementPrompt, routeOf, taxLabel, type Op, type ScriptFrame } from "./script";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../compile";
-import { altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, type BoundAmounts } from "./costs";
+import { altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import type { VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
 import { canPayPriceProgram } from "./activate";
 import { fireHook } from "./hooks";
-import { lifeReplacementChoices } from "./replace";
-import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard } from "./program";
+import { lifeReplacementChoices, markerReplacementChoices } from "./replace";
+import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
 import type { VmBattle, VmState } from "./state";
@@ -94,7 +94,7 @@ export function attackLegalActions(ctx: EngineContext, game: GameDefinition, sta
   const out: LegalAction[] = [];
   for (const attacker of eligibleAttackers(ctx, game, state, player)) {
     for (const target of targetsFor(ctx, game, state, player, attacker)) {
-      const label = `Attack ${nameOf(ctx, state, target)} with ${nameOf(ctx, state, attacker)} (${powerOf(ctx, game, state, attacker)} vs ${powerOf(ctx, game, state, target)})`;
+      const label = `Attack ${nameOf(ctx, state, target)} with ${nameOf(ctx, state, attacker)} (${powerOf(ctx, game, state, attacker)} vs ${powerOf(ctx, game, state, target)})${taxLabel(taxesOn(ctx, game, state, "attack", { player, card: attacker }).map((t) => t.ops))}`;
       out.push({ action: { type: "attack", player, attacker, target }, label });
     }
   }
@@ -121,6 +121,12 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
     throw new IllegalAction("that attack is not offered");
   }
   const attacker = action.attacker;
+  // 20-14-1: "can't attack unless … each time" — the price is paid first, by
+  // the attacking player and in their own frame, and the attack is taken after
+  // it. The programs go in front of the battle the attack opens, so they run
+  // before the Attack Step's first checkpoint resolves anything.
+  const taxes = taxesOn(ctx, game, state, "attack", { player: action.player, card: attacker });
+  for (const tax of taxes.reverse()) state.programs.unshift({ ops: tax.ops, ip: 0, vars: {}, card: attacker, master: action.player });
   setMode(ctx, game, state, ev, attacker, "rest");
   // 8-1, #156: the count [Dual Attack]'s `attacked` condition reads.
   state.cards[attacker].attacksThisTurn = (state.cards[attacker].attacksThisTurn ?? 0) + 1;
@@ -177,6 +183,10 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   if (inst.mode !== "active") why.push({ kind: "mode", card: attacker, mode: (inst.mode as "active" | "rest" | null) ?? "active" });
   const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker });
   if (banned) why.push({ kind: "forbidden", ...banned });
+  // 20-14-1: a tax nobody can pay is a ban — "if action B is not taken … action A can't be declared".
+  for (const tax of taxesOn(ctx, game, state, "attack", { player, card: attacker })) {
+    if (!canPayPriceProgram(ctx, game, state, player, attacker, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
+  }
   if (!why.length && !targetsFor(ctx, game, state, player, attacker).length) why.push({ kind: "target", reason: "nothing may be attacked" });
   return why;
 }
@@ -652,6 +662,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
       return "asked";
     }
     chargeCost(ctx, game, state, ev, action.player, plan.payment, card, ["energy"]);
+    spendSkillCostUses(state, ev, card, sk);
   }
   // 22-10-7: the battle writes the counter down before it is lost in the
   // Drop (staging spec §3.1) — the battle's own record, so a [Counter: Play]
@@ -903,6 +914,7 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // picks up at that card, without re-reading the battle (the legacy
   // `battleDamage`'s `resume`, which goes straight to `damageLife`).
   if (b?.damage) return dealDamage(ctx, game, state, ev, other(state.turnPlayer));
+  if (b?.markerLoss) return loseMarkers(ctx, game, state, ev);
   if (!b || b.negated || !battleIntact(state)) return abortToEnd(game, state);
   b.step = "damage";
   log(ev, { type: "battleStep", step: "damage" });
@@ -925,13 +937,12 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       return dealDamage(ctx, game, state, ev, defP);
     } else if (state.sides[defP].zones.unison?.includes(b.guard)) {
       // 13-5-2: markers come off instead of a KO — X for [Strike X], every
-      // one for [Victory Strike] (13-5-2-2), one otherwise.
+      // one for [Victory Strike] (13-5-2-2), one otherwise — one at a time
+      // (5-13-4-2), each one's `marker` replacement asked (SD13-02).
       const inst = state.cards[b.guard];
       const want = how.allMarkers ? inst.markers : (how.atLeast ?? 1);
-      const n = Math.min(want, inst.markers);
-      inst.markers = Math.max(0, inst.markers - want);
-      log(ev, { type: "markers", card: b.guard, delta: -n, total: inst.markers });
-      fire(ctx, game, state, { event: "markerRemoved", card: b.guard, controller: defP, args: {} });
+      b.markerLoss = { remaining: Math.min(want, inst.markers), lost: 0 };
+      return loseMarkers(ctx, game, state, ev);
     } else if (!hasKeyword(ctx, game, state, b.guard, "Indestructible")) {
       // 22-12: "can't be KO'd... as a result of battle" — battle's own KO,
       // not an effect's, so it is read directly rather than through the hook
@@ -940,6 +951,68 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // see `docs/arena-ruleset-spec.md` §4.3).
       koCard(ctx, game, state, ev, b.guard, b.attacker);
     }
+  }
+}
+
+/**
+ * 13-5-2's markers coming off a Unison guard, one at a time — the legacy
+ * `loseMarkers`, over `state.battle.markerLoss` instead of a flow step's
+ * `resume`. Removing X markers is "remove 1 marker" X times (5-13-4-2), and
+ * each removal is its own event for a `marker` replacement (9-10-2-3):
+ * SD13-02's "if this card would lose a marker from an opponent's attack, you
+ * may place 1 card from your life in your Drop Area instead".
+ *
+ * 9-10-2's choice between several, or 9-10-3's "you may", is put to the
+ * Unison's master as a `replaceMove` and answered through `resumeDamage`,
+ * the life card's own re-entry. A substitute taken goes to the front of
+ * `state.programs` (it may ask — "choose 1 card in your Life Area"); with
+ * markers still to come, the step frame's `reask` brings this work back once
+ * that program has run, the way an [Activate: Battle] re-asks the combo step.
+ * The markers actually lost are logged as one event and `markerRemoved`
+ * fires once, at the end: a battle no replacement touches reads as before.
+ */
+function loseMarkers(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void | "wait" {
+  const b = state.battle!;
+  const m = b.markerLoss!;
+  const guard = b.guard;
+  const defP = other(state.turnPlayer);
+  const inst = state.cards[guard];
+  while (m.remaining > 0 && state.sides[defP].zones.unison?.includes(guard) && inst.markers > 0) {
+    const choices = markerReplacementChoices(ctx, game, state, guard);
+    const allowNone = choices.length > 0 && choices.every((c) => c.optional);
+    let taken: (typeof choices)[number] | null;
+    if (m.awaiting) {
+      const index = state.lastMode;
+      state.lastMode = null;
+      delete m.awaiting;
+      taken = index == null || index < 0 || index >= choices.length ? null : choices[index];
+    } else if (choices.length > 1 || allowNone) {
+      m.awaiting = true;
+      const prompt = markerReplacementPrompt(nameOf(ctx, state, guard), choices, allowNone);
+      state.prompt = { kind: "replaceMove", player: defP, card: guard, reason: prompt.reason, options: prompt.options };
+      return "wait";
+    } else {
+      taken = choices[0] ?? null;
+    }
+    m.remaining--;
+    if (taken) {
+      // 9-10-1-1: this marker is not lost; the substitute happens in its place.
+      log(ev, { type: "note", text: `${nameOf(ctx, state, guard)} keeps its marker; ${describeScript(taken.ops ?? [])} instead` });
+      state.programs.unshift(markerSubstituteFrame(guard, taken, defP));
+      if (m.remaining > 0) {
+        const top = state.flow[state.flow.length - 1];
+        if (top) top.reask = true;
+        return;
+      }
+      break;
+    }
+    inst.markers--;
+    m.lost++;
+  }
+  delete b.markerLoss;
+  if (m.lost) {
+    log(ev, { type: "markers", card: guard, delta: -m.lost, total: inst.markers });
+    fire(ctx, game, state, { event: "markerRemoved", card: guard, controller: defP, args: {} });
   }
 }
 
@@ -1036,7 +1109,7 @@ function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev
  * way `applyCombo` re-asks the combo step. True when it was.
  */
 export function resumeDamage(state: VmState): boolean {
-  if (!state.battle?.damage?.awaiting) return false;
+  if (!state.battle?.damage?.awaiting && !state.battle?.markerLoss?.awaiting) return false;
   const top = state.flow[state.flow.length - 1];
   if (top) delete top.asking;
   return true;

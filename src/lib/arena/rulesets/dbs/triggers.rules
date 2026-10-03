@@ -58,6 +58,14 @@ DEFINE TRIGGER played
   BIND "self"
   text: "when this card is played"
 
+-- §22-15 — when this card is played using [Over Realm]: the same arrival,
+-- made by [Over Realm]'s own move, which says so on its `play` (`using:` in
+-- keywords.rules). An ordinary play carries no `using`, so it never matches.
+DEFINE TRIGGER playedUsingOverRealm
+  ON moved(asPlay: true, to: battle, using: "Over Realm")
+  BIND "self"
+  text: "when this card is played using [Over Realm]"
+
 -- §5-5 — when you play a card
 DEFINE TRIGGER youPlayed
   ON moved(asPlay: true, to: [battle, unison], watcher: controller)
@@ -70,9 +78,12 @@ DEFINE TRIGGER opponentPlayed
   BIND "subject"
   text: "when your opponent plays a card"
 
--- §5-5-4 — when this card is placed in a Battle Area
+-- §5-5-4 — when this card is placed in a Battle Area. 5-5-1: playing a card
+-- places it in the Battle Area, so a play is one of the ways this happens and
+-- the pattern does not ask `asPlay` (owner's ruling, 2 Oct 2026). A skill whose
+-- record also says `played` answers the one arrival once (`vm/triggers.ts`).
 DEFINE TRIGGER placed
-  ON moved(asPlay: false, to: battle)
+  ON moved(to: battle)
   BIND "self"
   text: "when this card is placed in a Battle Area"
 
@@ -195,6 +206,16 @@ DEFINE TRIGGER droppedFromBattle
   ON moved(by: skill, from: battle, to: drop)
   BIND "self"
   text: "when a skill sends this card from a Battle Area to the Drop"
+
+-- §20-7 — when a skill sends this card from your hand to the Drop: a
+-- discard by a skill's effect or as its cost (1-6, 1-7-1, 20-7-4). Pended by
+-- name from a skill's own move, like `droppedFromBattle` above; a card leaving
+-- the hand by the rules (an Extra after it is activated, 12-2-2) says no
+-- `by: skill` and is not this.
+DEFINE TRIGGER droppedFromHand
+  ON moved(by: skill, from: hand, to: drop)
+  BIND "self"
+  text: "when a skill sends this card from your hand to the Drop"
 
 -- §3-1-5 — when this card goes from a Battle Area to the Drop
 DEFINE TRIGGER leftBattleToDrop
@@ -434,6 +455,15 @@ DEFINE TRIGGER deckOrHandToDrop
   ON moved(from: [deck, hand], to: drop)
   BIND "self"
   text: "when this card goes from your deck or hand to the Drop"
+
+-- §3-10 — when one of your skills sends this card from your deck to the Warp
+-- (BT30-106). The skill's card is the subject the program is handed, so "by
+-- your <Heles> card's skill" is a condition on it rather than a moment of its
+-- own. Pended by name from a skill's `moveTo`, as `removedFromBattle` is.
+DEFINE TRIGGER deckToWarpBySkill
+  ON moved(by: skill, byOpponent: false, from: deck, to: warp)
+  BIND "self"
+  text: "when one of your skills sends this card from your deck to the Warp"
 
 -- §22-32-3 — when this card is rested by an [Alliance] skill
 DEFINE TRIGGER restedByAlliance

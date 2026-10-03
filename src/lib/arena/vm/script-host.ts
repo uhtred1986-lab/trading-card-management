@@ -228,6 +228,12 @@ export interface ScriptHost {
   battle(): BattleView | null;
   /** 8-1: the attack is redirected at this card, by that source. */
   setGuard(guard: string, by: string): void;
+  /**
+   * 8-1-7-2: `into` becomes the attack card or the guard card in place of
+   * `out`, which leaves the battle where it stands. No "when this card
+   * attacks / is attacked" is made pending.
+   */
+  swapBattleCard(out: string, into: string): void;
   /** 8-6: the attack does not happen. */
   negateAttack(): void;
   /**
@@ -262,7 +268,9 @@ export interface ScriptHost {
   /**
    * `counterWindow` (#155): the play a keyword's own move makes opens the
    * [Counter: Play] window first (9-6). `"wait"` when the host stopped to ask
-   * the opponent, with `frame` held until the window closes.
+   * the opponent, with `frame` held until the window closes. `using` names the
+   * keyword whose own move this play is ([Over Realm], 22-15), carried onto
+   * the arrival so `playedUsingOverRealm` can tell it from an ordinary play.
    */
-  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true; markers?: number }, frame: ScriptFrame): "wait" | void;
+  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; negated?: "turn" | "game"; counterWindow?: true; markers?: number; using?: string }, frame: ScriptFrame): "wait" | void;
 }
