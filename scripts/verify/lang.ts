@@ -832,6 +832,17 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     ruleOf([{ op: "draw", n: 1 }], { trigger: ["played"] as Trigger[] }),
     ruleOf([{ op: "draw", n: 1 }], { trigger: ["played", "attacks", "battleEnd"] as Trigger[] }),
     ruleOf([{ op: "draw", n: 1 }], { trigger: ["evolveFromHandActivated", "unionAbsorbActivated", "counterFreeFromHand"] as Trigger[] }),
+    // 12-1-3: an Extra activated from the hand, with the Extra as the subject (BT29-029).
+    ruleOf(
+      [
+        {
+          op: "if",
+          cond: { kind: "count", sel: { special: "subject", filter: parseFilter("blue Extra") }, atLeast: 1 },
+          then: [{ op: "draw", n: 2 }, { op: "lifeDownTo", n: 6 }, { op: "flip", target: { sel: { special: "self" } } }],
+        },
+      ],
+      { trigger: ["extraActivated"] as Trigger[], cond: { kind: "count", sel: { side: "you", area: "energy" }, atLeast: 2 } },
+    ),
     ruleOf([{ op: "draw", n: 1 }], { cost: cost({ orbs: { Red: 2, any: 1 } }) }),
     ruleOf([{ op: "draw", n: 1 }], { cost: cost({ either: [["Red", "Blue"]] }) }),
     ruleOf([{ op: "draw", n: 1 }], { cost: cost({ orbs: { Red: 1 }, either: [["Green", "Yellow"], ["Red", "Black"]], marker: -1, burst: 2, spiritBoost: 1 }) }),
@@ -908,6 +919,23 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   assert.equal(ok("WHEN [auto] played\nTHEN\n  draw(n: 1)", "permanent")?.field, "kind", "the printed tag comes off the card and is not editable");
   assert.equal(ok("WHEN [auto] whenever\nTHEN")?.field, "trigger", "a moment the engine never fires is a skill that never happens");
   assert.equal(ok("WHEN [auto] evolveFromHandActivated | unionAbsorbActivated | counterFreeFromHand\nTHEN"), null);
+  // BT29-029 skill 10, as the compiler drafts it.
+  assert.equal(
+    ok(
+      [
+        "WHEN [auto] extraActivated",
+        'COST TEXT "If you have 2 or more energy", IF count(IN you.energy) >= 2',
+        "IF count(IN you.energy) >= 2",
+        "THEN",
+        '  if(cond: count([subject] "blue extra card") >= 1, then: {',
+        "    draw(n: 2)",
+        "    lifeDownTo(n: 6)",
+        "    flip(target: [self])",
+        "  })",
+      ].join("\n"),
+    ),
+    null,
+  );
   // 20-7: SD13-05, the whole record — "if this card is placed in your Drop
   // Area from your hand by a skill, you may play this card from your Drop Area".
   const sd13 = [

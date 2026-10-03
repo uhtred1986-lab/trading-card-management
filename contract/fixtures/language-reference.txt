@@ -3804,6 +3804,10 @@
       "words": "when your opponent activates a [Counter] skill"
     },
     {
+      "name": "extraActivated",
+      "words": "when you activate an Extra Card from your hand"
+    },
+    {
       "name": "counterFreeFromHand",
       "words": "when you activate this card's [Counter] from your hand without paying its energy cost"
     },

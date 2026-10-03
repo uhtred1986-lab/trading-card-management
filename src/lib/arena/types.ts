@@ -762,6 +762,13 @@ export type Trigger =
   | "overlordActivated"
   | "overRealmPlayed"
   /**
+   * "When you activate a blue Extra from your hand" (12-1-3, BT29-029): an
+   * Extra Card's [Activate] or [Counter] skill used from its owner's hand —
+   * [Field] included — watched by that player's cards in play. The Extra is
+   * the `subject`, so what the clause says about it is a condition on it.
+   */
+  | "extraActivated"
+  /**
    * "When you play this card using [Over Realm]", "when this card is played
    * using [Over Realm]" (22-15): the card's own arrival, and only when the play
    * was [Over Realm]'s. An ordinary play of the same card is `played` and not

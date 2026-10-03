@@ -270,12 +270,15 @@ function compileSkillText(skill: Skill): Script {
   // effects resolve (22-2-4), so "flip this card over" in their text is not an
   // effect. On any other skill it is (a Leader's [Auto] that awakens it).
   const engineChecks = skill.keyword?.name === "Awaken" || skill.keyword?.name === "Wish";
-  if (engineChecks) for (let i = clauses.length - 1; i >= 0; i--) if (/^(?:then )?flip (?:this card|it) (?:over|onto its back)[.]?$/i.test(clauses[i].trim())) clauses.splice(i, 1);
+  if (engineChecks) for (let i = clauses.length - 1; i >= 0; i--) if (/^(?:then )?flip (?:this card|it) (?:over|onto its back|to its back(?: side)?)[.]?$/i.test(clauses[i].trim())) clauses.splice(i, 1);
   // An [Auto] skill restates its own trigger ("When this card attacks, draw 1
   // card"); by the time the effect resolves the trigger has already fired, so
   // that clause is dropped. A leading "if …" is a condition, not a trigger, and
   // stays — it must compile or the skill goes to the referee.
   let triggerCond: Cond | null = null;
+  // The Extra's description on an `extraActivated` trigger, kept apart so a
+  // price condition before the colon does not drop it (below).
+  let extraSubject: Cond | null = null;
   // "If this card is placed in your Drop Area from your hand by a skill"
   // (SD13-05, behind a condition before the colon) is the trigger said with
   // "if" — `droppedFromHand`, the same moment as "when" — and not a condition.
@@ -322,8 +325,14 @@ function compileSkillText(skill: Skill): Script {
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a
     // trigger about some *other* card, which the engine already binds as the
     // trigger's subject. Without this, "it" had nothing to point at.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger)) {
-      c.lastTarget = { sel: { special: "subject" } };
+    //
+    // "When you activate a Red/Blue multicolor Extra" (BT20-009) names no
+    // "your" and is still about another card, the Extra (12-1-3,
+    // `extraActivated`): its description is read as a condition below, but
+    // "that card" is not pointed at it — BT31-086b's "activate the [Activate]
+    // skill of that card from its owner's Drop" would read as a play.
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you activate (?:an?|1) /i.test(trigger.trim())) {
+      if (/\byour\b/i.test(trigger)) c.lastTarget = { sel: { special: "subject" } };
       // The dropped clause also said *which* card, and dropping it dropped
       // that: "when your opponent plays a **Battle Card**" fired when they
       // played an Extra, and "when your **≪Saiyan≫** card attacks" fired for
@@ -332,6 +341,7 @@ function compileSkillText(skill: Skill): Script {
       // condition on that subject and the skill stays where it was printed.
       const subject = subjectFilterOf(trigger);
       if (subject) triggerCond = { kind: "count", sel: { special: "subject", filter: subject }, atLeast: 1 };
+      if (subject && /^when you activate /i.test(trigger.trim())) extraSubject = triggerCond;
     }
     // "When this card attacks and KOs an opponent's Battle Card", "when this
     // card is revealed from the top of your deck and placed in your Drop Area"
@@ -400,7 +410,13 @@ function compileSkillText(skill: Skill): Script {
   // compiler cannot read fails the skill rather than running it unconditionally.
   const priced = costText(skill.cost);
   const priceCond = ops.length && !engineChecks ? priceCondition(skill) : null;
-  if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: ops }], unsupported };
+  // The Extra's description goes inside it: "If you have 2 or more energy:
+  // When you activate a **blue Extra** from your hand, …" (BT29-029) is both,
+  // and returning the price's alone would fire for an Extra of any colour.
+  // Only for `extraActivated`: every other trigger's condition is still
+  // dropped beside a price condition — a wider change (~40 skills) that
+  // wants its own audit.
+  if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: extraSubject ? [{ op: "if", cond: extraSubject, then: ops }] : ops }], unsupported };
   // A condition the compiler cannot read fails the skill. An *action* price is
   // not this: the engine charges that separately, so it leaves the program be.
   if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(priced)) {

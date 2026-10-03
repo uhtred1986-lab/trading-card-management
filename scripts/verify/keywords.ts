@@ -1299,6 +1299,108 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
 }
 
 {
+  // 12-1-3: "activating an Extra Card" is using its [Activate] or [Counter]
+  // skill from the hand — `extraActivated`, watched by that player's cards in
+  // play, with the Extra as the subject (BT29-029 "Cooler").
+  const COOLER = "[auto] If you have 2 or more energy: When you activate a blue Extra from your hand, draw 2 cards, add cards from your life to your hand until you have 6 life left, then flip this card to its back side.";
+  const trig = (text: string) => autoTriggerMatches(parseSkills(text)[0], "extraActivated");
+  assert.ok(trig(COOLER), "BT29-029's wording");
+  assert.ok(trig("[auto][once per turn] When you activate a red Extra from your hand, draw 1 card."), "BT29-001b");
+  assert.ok(trig("[Auto] When you activate a Red/Blue multicolor Extra, draw 1 card."), "12-1-3: from the hand unless it says otherwise");
+  assert.ok(!trig("[Auto] When you activate this card, draw 1 card."), "this card's own activation is `played`");
+  assert.ok(!trig("[Auto][Once per turn] When you activate a green Extra Card with an original energy cost of 2 and the [Field] skill, draw 1 card."), "a description the filter reads short does not fire at all");
+  assert.ok(!trig("[Auto][Limit 1] If your Leader is red: When you activate a mono-red Extra from your hand by paying the cost, draw 1 card."), "nor one that names how it was paid");
+  assert.ok(!trig("[auto] When you activate the [activate: battle] skill on a red Extra Card in your hand or Drop Area, draw 1 card."), "nor one that names another area");
+  // The program: the price's condition, the Extra's colour, then the effect.
+  const cooler = compileSkill(parseSkills(COOLER)[0]);
+  assert.deepEqual(cooler.unsupported, []);
+  const plain = JSON.parse(JSON.stringify(cooler.ops));
+  const blueFilter = plain[0].then[0].cond.sel.filter;
+  assert.deepEqual(plain, [
+    {
+      op: "if",
+      cond: { kind: "count", sel: { side: "you", area: "energy" }, atLeast: 2 },
+      then: [
+        {
+          op: "if",
+          cond: { kind: "count", sel: { special: "subject", filter: blueFilter }, atLeast: 1 },
+          then: [{ op: "draw", n: 2 }, { op: "lifeDownTo", n: 6 }, { op: "flip", target: { sel: { special: "self" } } }],
+        },
+      ],
+    },
+  ]);
+  assert.deepEqual([blueFilter.colors, blueFilter.type], [["Blue"], "EXTRA"], "a blue Extra");
+
+  DEFS.XBLUE = { ...DEFS["E-DRAW"], id: "XBLUE", name: "XBLUE", colors: ["Blue"], skill: "[Activate: Main] Draw 1 card." };
+  DEFS.XRED = { ...DEFS["E-DRAW"], id: "XRED", name: "XRED", colors: ["Red"], skill: "[Activate: Main] Draw 1 card." };
+  DEFS.XWATCH = { ...DEFS.V1, id: "XWATCH", name: "XWATCH", skill: "[Auto] When you activate a blue Extra from your hand, draw 1 card." };
+  DEFS.XCOOLER = { ...DEFS["L-BLUE"], id: "XCOOLER", name: "XCOOLER", skill: COOLER, back: { name: "XCOOLER awakened", power: 15000, skill: null } };
+  const activate = (s: EngineState, id: string) => playG(s, { type: "activate", player: "p1", card: findG(s, "p1", "hand", id), skill: 0 });
+
+  // A blue Extra from the hand: the watcher draws, beside the Extra's own draw.
+  let s = arenaG({ hand: ["XBLUE"], energy: ["V-BLUE"], battle: ["XWATCH"] });
+  let hand = zoneOf(s, "p1", "hand").length;
+  s = activate(s, "XBLUE");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1 + 1, "the Extra's draw, and the watcher's");
+  assert.equal(s.prompt.kind, "main");
+  assertConsistentG(s);
+
+  // A red one: the Extra resolves, and the watcher does not answer.
+  s = arenaG({ hand: ["XRED"], energy: ["V1"], battle: ["XWATCH"] });
+  hand = zoneOf(s, "p1", "hand").length;
+  s = activate(s, "XRED");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "the Extra's own draw only");
+  assertConsistentG(s);
+
+  // The opponent's watcher does not answer to your Extra.
+  s = arenaG({ hand: ["XBLUE"], energy: ["V-BLUE"], oppBattle: ["XWATCH"] });
+  const theirs = zoneOf(s, "p2", "hand").length;
+  hand = zoneOf(s, "p1", "hand").length;
+  s = activate(s, "XBLUE");
+  assert.equal(zoneOf(s, "p2", "hand").length, theirs, "their watcher is about *their* Extras");
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1);
+  assertConsistentG(s);
+
+  // BT29-029: the Leader draws 2, takes life down to 6 and flips — with 2 or
+  // more energy, and only for a blue Extra.
+  for (const [extra, energy, fires] of [
+    ["XBLUE", ["V-BLUE", "V-BLUE"], true],
+    ["XRED", ["V1", "V1"], false],
+    ["XBLUE", ["V-BLUE"], false],
+  ] as const) {
+    let c = arenaG({ hand: [extra], energy: [...energy] });
+    const leader = leaderOf(c, "p1");
+    c.cards[leader].cardId = "XCOOLER";
+    const life = zoneOf(c, "p1", "life").length;
+    hand = zoneOf(c, "p1", "hand").length;
+    c = activate(c, extra);
+    const label = `${extra} with ${energy.length} energy`;
+    assert.equal(c.cards[leader].flipped, fires, `${label}: the Leader flips`);
+    assert.equal(zoneOf(c, "p1", "life").length, fires ? 6 : life, `${label}: life down to 6`);
+    assert.equal(zoneOf(c, "p1", "hand").length, hand - 1 + 1 + (fires ? 2 + (life - 6) : 0), `${label}: the hand`);
+    assert.equal(c.prompt.kind, "main");
+    assertConsistentG(c);
+  }
+  // An Extra's [Counter] from the hand is activating it too (12-1-3): the
+  // countering player's watcher answers, the attacker's does not.
+  DEFS.XNEG = { ...DEFS["E-NEGATE"], id: "XNEG", name: "XNEG", colors: ["Blue"] };
+  s = arenaG({ battle: ["XWATCH"], oppHand: ["XNEG"], oppEnergy: ["V-BLUE"], oppBattle: ["XWATCH"] });
+  const neg = findG(s, "p2", "hand", "XNEG");
+  const mine = zoneOf(s, "p1", "hand").length;
+  const theirsBefore = zoneOf(s, "p2", "hand").length;
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  s = playG(s, { type: "counter", player: "p2", card: neg });
+  // 3-8-2 on the rules engine: the energy marker the fixture leaves p2 is a
+  // second way to pay, so the price is asked; the energy is the answer here.
+  if (s.prompt.kind === "payCost") s = playG(s, { type: "payCost", player: "p2", option: 0 });
+  assert.equal(s.battle, null, "the counter resolved");
+  assert.equal(zoneOf(s, "p2", "hand").length, theirsBefore - 1 + 1, "the countering player's watcher draws");
+  assert.equal(zoneOf(s, "p1", "hand").length, mine, "the attacker's does not");
+  assertConsistentG(s);
+  for (const id of ["XBLUE", "XRED", "XWATCH", "XCOOLER", "XNEG"]) delete DEFS[id];
+}
+
+{
   // 22-33: [Offering] — when this Battle Card is played, its master's
   // opponent may put one of their life cards in their Drop Area; if they
   // don't, its master draws 2. The question is the opponent's, with the two

@@ -672,7 +672,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
-  fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: alt?.pay !== "none" } });
+  fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: alt?.pay !== "none", extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
   const program = showing.scripts.bySkill[sk.index]?.ops ?? [];
   // 4-3-3: an action price runs as its own program in front of the effect and
   // hands on what it chose ("the card that was switched to Hidden Mode by

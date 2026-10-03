@@ -1802,8 +1802,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
   // "You may flip this card over" on a Leader's [Auto]: the Leader awakens
   // (22-2-4 says how a flip works; this says when). A card without a back
-  // side is left as it is.
-  if ((m = /^(?:you may )?flip (.+?) (?:over|onto its back)$/.exec(t))) {
+  // side is left as it is. "Flip this card **to its back side**" (BT29-029)
+  // is the same one-way flip, said the long way — read for this card only:
+  // the long form about "your Leader" or a card in the life is a separate
+  // wording family, left for its own audit.
+  if ((m = /^(?:you may )?flip (.+?) (?:over|onto its back)$/.exec(t)) || (m = /^(?:you may )?flip (this card) to its back(?: side)?$/.exec(t))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "flip", target: ref }] : null;
   }

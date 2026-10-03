@@ -653,6 +653,12 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // "When your blue <Son Goku> card is KO'd" — the same question about the
     // card that just died (21-14).
     /^(?:your|your opponent's|an opponent's|one of your|one of your opponent's) (.+?) (?:is|are) ko'd\b/.exec(t)?.[1] ??
+    // "When you activate a blue Extra from your hand" — the Extra being used
+    // (12-1-3, `extraActivated`). The hand is where every such Extra comes
+    // from, so it says nothing about which card. Not with a bracketed skill
+    // or an "original" measure, which `parseFilter` reads short, nor "by
+    // paying the cost" — the trigger refuses those too (`text/triggers.ts`).
+    /^you activate (?:an?|1) ((?![^[]*\[)(?!.*\b(?:original|by)\b).+?\bextra\b.*?)(?: from your hand)?$/.exec(t)?.[1] ??
     null;
   // "A Battle Card **or** Unison Card" is two kinds, and `parseFilter` keeps
   // only one of them — which would stop the skill on the other. A filter that
