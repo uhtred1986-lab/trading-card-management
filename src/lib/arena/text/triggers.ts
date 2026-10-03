@@ -130,6 +130,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // hand is that moment and not this.
     case "droppedFromBattle":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t);
+    // The hand's side of the same sentence (SD13-05, BT7-127, BT11-022): a
+    // skill discarded it, as its effect or as its cost (1-6, 1-7-1, 20-7-4).
+    // SD13-05 says "**If** this card is placed …" after a condition before the
+    // colon; it is the same moment, and the compiler drops it as a trigger.
+    case "droppedFromHand":
+      return /(?:when|if) this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill/.test(t);
     // The same sentence with no cause named at all, which is every cause: a
     // skill putting it there and a battle KO alike. Kept apart from the one
     // above because that one *does* name a cause, and a KO is not it.
@@ -231,6 +237,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // hand", either order, or just one of them.
     case "deckOrHandToDrop":
       return /when this card in your (?:deck|hand)(?: or (?:deck|hand))? is (?:placed|put|sent) (?:in|into) (?:its owner'?s|your) drop/.test(t);
+    // Out of the deck into the Warp by one of *your* skills (3-10, BT30-106):
+    // "…by your <Heles> card's skill", "…by one of your skills". Which card's
+    // skill is a condition on the subject (`compileSkill`), so the moment is
+    // any skill of yours. "By a skill" names either player's and is not this.
+    case "deckToWarpBySkill":
+      return /when this card (?:in your deck is sent (?:from your deck )?|is sent from your deck )to (?:your|its owner'?s) warp by (?:one of )?your\b[^,.]{0,60}?\bskills?\b/.test(t);
     case "hiddenToDrop":
       return /when this hidden mode card(?: in (?:a|your) battle area)? is placed (?:in|into) (?:its owner'?s|your|a) drop/.test(t);
     case "addedToZEnergy":
@@ -280,8 +292,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // here or every combo card would fire twice.
     case "youCombo":
       return /when you (?:use a card in a combo|combo)\b/.test(t) && !/when you combo with this card/.test(t);
-    // 5-5: placed, not played. A card that says both is caught by `played`
-    // first, so this only ever adds the ones that say only this.
+    // 5-5-4: placed in a Battle Area, which a play is too (5-5-1, owner's
+    // ruling of 2 Oct 2026) — the engines fire it for both. A skill that says
+    // both this and `played` answers a play once (`vm/triggers.ts`,
+    // `engine/triggers.ts`'s `pendPlacedOnArrival`).
     case "placed":
       return /when this card is placed in (?:a|your|their|an opponent's) battle area/.test(t);
     case "energyToDrop":

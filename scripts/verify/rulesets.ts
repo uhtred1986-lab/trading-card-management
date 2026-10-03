@@ -698,6 +698,7 @@ if (dbs.ok) {
       "look",
       "may",
       "negateAttack",
+      "negateChosenKeyword",
       "negateCounter",
       "negateKeyword",
       "negateOwnSkill",

@@ -71,7 +71,7 @@ THEN   := "THEN" ( stmt )*                         one per line
 stmt   := name "(" ( value | field ":" value ) ( "," field ":" value )* ")"
 cond   := comparison | name "(" … ")" | "NOT" cond | cond "AND" cond | cond "OR" cond | "(" cond ")"
 expr   := term ( ( "+" | "-" ) number )*           left-associative; the right side is always printed
-term   := number | "$" name | call ( "*" number )?
+term   := number | "$" name | call ( "/" number )? ( "*" number )?   "/" on count, markers, life
 call   := "count" "(" SEL ")" | "markers" "(" SEL ")" | "sumPower" "(" "$" name ")"
         | "handUpTo" "(" number ")" | "X" | "life" "(" side ")"
         | "attr" "(" REF "," attr ")" | "sumOf" "(" SEL "," attr ")"
@@ -81,7 +81,7 @@ SEL    := part+                                    parts in any order; "any" whe
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number
         | "BOTTOM" number | filter | "IN" places | "OF" side | flag
 places := ( side "." )? ( zone | zone ( "|" zone )+ | "ANY" "(" zone ( "|" zone )* ")" )
-flag   := "active" | "rest" | "hidden" | "revealed" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies" | "asPrinted"
+flag   := "active" | "rest" | "hidden" | "revealed" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies" | "otherThanSameName" | "differentNames" | "asPrinted"
 filter := "\"" printed filter text "\"" | "(" field "=" value ( "AND" … )* ")"
 item   := "{" colour "}"+ | "{" colour "/" colour "}" | ±n "marker" | "burst" n
         | "spiritBoost" n | "X" ( "min" number )? ( "max" number )? | "TEXT" "…"
@@ -105,6 +105,15 @@ the effect that follows it, which is how "discard any number of cards: … X car
 
 The right-hand side of `*`, `+` and `-` is always a printed number. No card multiplies one reading of the
 board by another, and allowing it would leave the printed form ambiguous about which was read first.
+
+**`/ n` is "for every n", rounded down** (2 Oct 2026). `count(SEL) / 2 * 5000` is BT30-084's
+"+5000 power for every 2 ≪Universe 2≫ cards in your Warp": the reading in whole steps of 2, then
+5000 for each step, so five cards are two steps and +10000 — the remainder never counts. It is
+stored as `per` beside `times` (`{"count": …, "per": 2, "times": 5000}`), it is written only on
+`count`, `markers` and `life`, the readings a card says "for every n" of, and it is always a whole
+number of at least 2: `validateRule` refuses `per: 1` (it says nothing) and anything that is not a
+whole number. The divisor comes before the multiplier because that is the order both engines apply
+them in; there is no general division, only this step.
 
 `PAYWITH` names cards this price may be settled with instead of energy (20-19). Each one is rested
 exactly as an energy card is and never moves, standing in for one energy — of its own colours
@@ -1093,6 +1102,24 @@ THEN
   play(target: [self])
 ```
 
+### Combo power, and different card names (2 Oct 2026)
+
+2-8: combo power is a filter measure, `comboPowerMin`/`comboPowerMax`, printed "with 5000 combo
+power" (also read: "a combo power of 5000", "… or more/less", "combo power between A and B").
+"Different card names" is about the set rather than any one card, so it is the selector flag
+`differentNames`: a `choose` over it offers a card only while no card of the same name has been
+picked, and a `count(...)` or `count` condition over it counts names, not cards ("4 or more
+≪Bardock's Crew≫ cards with different card names in your energy", `BT18-104`). `BT29-030`, "[Auto]
+When this card is played, place up to 3 cards with 5000 combo power and different card names from
+your Drop under this card.":
+
+```
+WHEN [auto] played
+THEN
+  choose(sel: UP TO 3 "card with 5000 combo power" IN you.drop differentNames, as: "c0")
+  moveTo(target: $c0, to: under)
+```
+
 ### 20-4. Unaffected by Skills
 
 9-1-4/20-4-1: a card no skill may touch. The `immune` op already says this for the ordinary case —
@@ -1290,6 +1317,19 @@ The manual's own example for this heading, `BT13-030`'s "your opponent can't att
 the turn unless they give the attacking card -5000 power for the turn each time", needs an escape
 that is itself a repeatable cost rather than a boolean `Cond` — a harder shape `unless` does not
 reach yet, which is why this row cites a simpler real card instead of the manual's own.
+
+A repeatable cost is `forbid`'s `unlessPay` since 2 Oct 2026, for an attack: a program the attacker
+runs in their own frame before each attack, the attack refused when they cannot pay it. `BT30-100`'s
+"that card can't attack unless your opponent sends 2 cards from their hand to their warp each time":
+
+```
+forbid(what: attack, until: nextTurn, target: $c0, unlessPay: {
+  discard(n: 2, to: warp)
+})
+```
+
+`BT13-030` itself is still out of reach: its price ("give the attacking card -5000 power") is not a
+step whose payability the engines know in advance, so the clause stays unread.
 
 ### 20-15. If Declared
 

@@ -67,12 +67,23 @@
   },
   "ARRIVES#0": {
     "legacy": {
-      "outcome": "didNotFire",
-      "digest": "d55f4c52"
+      "outcome": "fired",
+      "digest": "b3dceee2"
     },
     "rules": {
-      "outcome": "didNotFire",
-      "digest": "d55f4c52"
+      "outcome": "fired",
+      "digest": "b3dceee2"
+    },
+    "same": true
+  },
+  "ARRIVES2#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "3680fcfa"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "3680fcfa"
     },
     "same": true
   },
@@ -184,6 +195,17 @@
     "rules": {
       "outcome": "notOffered",
       "digest": "7cee2d23"
+    },
+    "same": true
+  },
+  "BOTHWAYS#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "160ec8f1"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "160ec8f1"
     },
     "same": true
   },
@@ -430,6 +452,28 @@
     },
     "same": true
   },
+  "DN-COUNTER#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "cc4f7a36"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "cc4f7a36"
+    },
+    "same": true
+  },
+  "DN-HOST#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "357d2d9e"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "357d2d9e"
+    },
+    "same": true
+  },
   "DOWNALL#0": {
     "legacy": {
       "outcome": "inForce",
@@ -639,14 +683,25 @@
     },
     "same": true
   },
+  "EVERY2#0": {
+    "legacy": {
+      "outcome": "inForce",
+      "digest": "1a31b1b4"
+    },
+    "rules": {
+      "outcome": "inForce",
+      "digest": "1a31b1b4"
+    },
+    "same": true
+  },
   "EVO#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "c84aadcf"
+      "digest": "73cc3842"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "96be7a90"
+      "digest": "995254b5"
     },
     "same": false,
     "cause": "evolve-moved-twice"
@@ -681,6 +736,28 @@
     "rules": {
       "outcome": "fired",
       "digest": "c02c8607"
+    },
+    "same": true
+  },
+  "FIELD-ARRIVES#10": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "465c59fa"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "465c59fa"
+    },
+    "same": true
+  },
+  "FIELDB#10": {
+    "legacy": {
+      "outcome": "inForce",
+      "digest": "49f36b12"
+    },
+    "rules": {
+      "outcome": "inForce",
+      "digest": "49f36b12"
     },
     "same": true
   },
@@ -776,14 +853,13 @@
   "GRAVE#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "13cd596c"
+      "digest": "fe91e119"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "6d2e9b52"
+      "digest": "fe91e119"
     },
-    "same": false,
-    "cause": "legacy-habits"
+    "same": true
   },
   "GRUDGE#0": {
     "legacy": {
@@ -1350,6 +1426,17 @@
     },
     "same": true
   },
+  "PICKNEG#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "3ba2f4a0"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "3ba2f4a0"
+    },
+    "same": true
+  },
   "PICKY-HUNTER#0": {
     "legacy": {
       "outcome": "inForce",
@@ -1757,6 +1844,17 @@
     "rules": {
       "outcome": "fired",
       "digest": "08e62634"
+    },
+    "same": true
+  },
+  "SUMMON2#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "5ac1d7fa"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "5ac1d7fa"
     },
     "same": true
   },

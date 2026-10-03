@@ -756,7 +756,7 @@
         }
       ],
       "sentence": "this card +1 power for the turn",
-      "doc": "an amount may also be {\"count\":SELECTOR,\"times\":5000} (so much for each card), {\"sumPower\":{\"var\":\"rested\"}} (the total power of named cards) or {\"sumOf\":SELECTOR,\"attr\":\"comboPower\"} (any measure of them, added up)"
+      "doc": "an amount may also be {\"count\":SELECTOR,\"times\":5000} (so much for each card; add \"per\":2 for \"for every 2 cards\", rounded down), {\"sumPower\":{\"var\":\"rested\"}} (the total power of named cards) or {\"sumOf\":SELECTOR,\"attr\":\"comboPower\"} (any measure of them, added up)"
     },
     {
       "name": "comboPower",
@@ -865,7 +865,7 @@
     {
       "name": "negate",
       "class": "primitive",
-      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "target",
@@ -946,6 +946,12 @@
           ]
         },
         {
+          "name": "chosen",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
           "name": "until",
           "required": false,
           "nullable": false,
@@ -953,7 +959,7 @@
         }
       ],
       "sentence": "negate the skills of this card for the rest of the game",
-      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. Those four spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
+      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. \"keyword\" with \"chosen\" and no \"keyword\" lets the master pick one of the keyword skills the target has in force as the step resolves (\"negateChosenKeyword\"). Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
     },
     {
       "name": "negateSkills",
@@ -974,6 +980,27 @@
         }
       ],
       "sentence": "negate the skills of this card for the turn"
+    },
+    {
+      "name": "negateChosenKeyword",
+      "class": "macro over `negate`",
+      "signature": "{\"op\":\"negateChosenKeyword\",\"target\":TARGET,\"until\":DURATION}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "until",
+          "required": true,
+          "nullable": false,
+          "type": "duration"
+        }
+      ],
+      "sentence": "choose up to 1 keyword skill of this card and negate it for the turn",
+      "doc": "\"choose up to 1 keyword skill on your opponent's Battle Cards and negate that skill for the turn\" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about"
     },
     {
       "name": "negateSkillsOfKind",
@@ -1043,6 +1070,21 @@
       ],
       "sentence": "switch the target of the attack to this card",
       "doc": "\"switch the target of the attack to it\" (22-4-2)"
+    },
+    {
+      "name": "swapBattle",
+      "class": "primitive",
+      "signature": "{\"op\":\"swapBattle\",\"target\":TARGET}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        }
+      ],
+      "sentence": "switch your card that's in a battle with this card",
+      "doc": "\"switch your card that's in a battle with this card / the chosen card\" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its \"when this card attacks / is attacked\" are not made pending"
     },
     {
       "name": "comboFrom",
@@ -1207,7 +1249,7 @@
     {
       "name": "costModifier",
       "class": "primitive",
-      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION}",
+      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"onto\"?:TARGET,\"uses\"?:N}",
       "fields": [
         {
           "name": "target",
@@ -1323,6 +1365,18 @@
           "required": false,
           "nullable": false,
           "type": "duration"
+        },
+        {
+          "name": "onto",
+          "required": false,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "uses",
+          "required": false,
+          "nullable": false,
+          "type": "number"
         }
       ],
       "sentence": "",
@@ -1331,7 +1385,7 @@
     {
       "name": "costReduction",
       "class": "macro over `costModifier`",
-      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION}",
+      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"uses\"?:N,\"onto\"?:TARGET}",
       "fields": [
         {
           "name": "target",
@@ -1396,15 +1450,27 @@
           "type": "duration"
         },
         {
+          "name": "uses",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
           "name": "all",
           "required": false,
           "nullable": false,
           "offCard": "with what: \"specified\", no specified cost at all — every orb, after every other change to it, and amount is not read — [Warrior of Universe 7]'s ≪Universe 7≫ cards (22-19-2), the leaf of its altPayment hook",
           "type": "boolean"
+        },
+        {
+          "name": "onto",
+          "required": false,
+          "nullable": false,
+          "type": "ref"
         }
       ],
       "sentence": "this card costs 1 less",
-      "doc": "[Permanent] only unless a duration is given (20-21): \"reduce the energy cost of your <Son Goku> cards in your hand by 1\" — the selector names the area the text names, usually the hand; \"skill\"/\"evolve\" are orb costs read by `orbTotals` for one skill on one card; \"zEnergy\" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. \"specified\" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count."
+      "doc": "[Permanent] only unless a duration is given (20-21): \"reduce the energy cost of your <Son Goku> cards in your hand by 1\" — the selector names the area the text names, usually the hand; \"skill\"/\"evolve\" are orb costs read by `orbTotals` for one skill on one card, and \"onto\" scopes an \"evolve\" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); \"zEnergy\" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. \"specified\" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. \"uses\" (with \"skill\"/\"evolve\" and a duration) is how many activations the change reaches before it ends — \"the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}\" (BT31-096) is uses 1, until \"turn\"; the activation that pays a line it reaches spends one, and \"until\" still ends it unused."
     },
     {
       "name": "negateKeyword",
@@ -1869,7 +1935,7 @@
     {
       "name": "forbid",
       "class": "primitive",
-      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"uses\"?:AMOUNT,\"unless\"?:COND}",
+      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…]}",
       "fields": [
         {
           "name": "what",
@@ -1940,10 +2006,16 @@
           "required": false,
           "nullable": false,
           "type": "cond"
+        },
+        {
+          "name": "unlessPay",
+          "required": false,
+          "nullable": false,
+          "type": "ops"
         }
       ],
       "sentence": "you can't attack for the turn",
-      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"placeEnergy\" | \"beMovedBySkill\" | \"beNegated\""
+      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"unlessPay\" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame (\"you\" is whoever acts), before the action and every time they take it — refused when they cannot pay it; only \"what\":\"attack\" takes one so far (BT30-100). \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"placeEnergy\" | \"beMovedBySkill\" | \"beNegated\""
     },
     {
       "name": "immune",
@@ -1982,7 +2054,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\",\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
       "fields": [
         {
           "name": "what",
@@ -1991,7 +2063,8 @@
           "type": "enum",
           "enumValues": [
             "attackActive",
-            "comboRest"
+            "comboRest",
+            "fieldBattle"
           ]
         },
         {
@@ -2014,7 +2087,7 @@
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
-      "doc": "a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it). The filter says *which* cards — leave it out only when the card does"
+      "doc": "a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), or \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase). The filter says *which* cards — leave it out only when the card does"
     },
     {
       "name": "if",
@@ -3009,6 +3082,10 @@
       "part": "flag"
     },
     {
+      "field": "differentNames",
+      "part": "flag"
+    },
+    {
       "field": "printed",
       "part": "flag"
     }
@@ -3049,6 +3126,14 @@
     {
       "word": "otherThanCopies",
       "doc": "excludes every copy of this card, not only this one"
+    },
+    {
+      "word": "otherThanSameName",
+      "doc": "excludes every card with this card's card name — \"a <Broly> with a different card name\" (EX03-16)"
+    },
+    {
+      "word": "differentNames",
+      "doc": "the cards chosen may not share a card name (BT29-030's \"different card names\"); a count over it counts names, not cards (BT18-104)"
     },
     {
       "word": "asPrinted",
@@ -3315,6 +3400,22 @@
       ]
     },
     {
+      "field": "comboPowerMin",
+      "type": "number",
+      "printed": "card with 3 combo power or more",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
+      "field": "comboPowerMax",
+      "type": "number",
+      "printed": "card with 3 combo power or less",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
       "field": "originallySkillLess",
       "type": "boolean",
       "printed": "originally skill-less",
@@ -3347,7 +3448,7 @@
         "selector"
       ],
       "example": "count(SELECTOR)",
-      "maxExample": "count(SELECTOR) * 5000"
+      "maxExample": "count(SELECTOR) / 2 * 5000"
     },
     {
       "key": "markers",
@@ -3356,7 +3457,7 @@
         "selector"
       ],
       "example": "markers(SELECTOR)",
-      "maxExample": "markers(SELECTOR) * 5000"
+      "maxExample": "markers(SELECTOR) / 2 * 5000"
     },
     {
       "key": "sumPower",
@@ -3388,7 +3489,7 @@
         "side"
       ],
       "example": "life(you)",
-      "maxExample": "life(both) * 2"
+      "maxExample": "life(both) / 2 * 2"
     },
     {
       "key": "attr",
@@ -3560,6 +3661,10 @@
       "words": "when a skill sends this card from a Battle Area to the Drop"
     },
     {
+      "name": "droppedFromHand",
+      "words": "when a skill sends this card from your hand to the Drop"
+    },
+    {
       "name": "leftBattleToDrop",
       "words": "when this card goes from a Battle Area to the Drop"
     },
@@ -3692,6 +3797,10 @@
       "words": "when this card goes from your deck or hand to the Drop"
     },
     {
+      "name": "deckToWarpBySkill",
+      "words": "when one of your skills sends this card from your deck to the Warp"
+    },
+    {
       "name": "restedByAlliance",
       "words": "when this card is rested by an [Alliance] skill"
     },
@@ -3734,7 +3843,7 @@
       "is": "cards bound by an earlier step"
     },
     {
-      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · game",
+      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · game · whileSourceInPlay",
       "is": "a side, a zone, a duration"
     },
     {

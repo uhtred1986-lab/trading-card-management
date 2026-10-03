@@ -61,7 +61,7 @@ import type { EngineContext, GameEvent } from "../types";
 import type { ScriptHost } from "./script-host";
 import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
-import { addEffect, dropEffectsOn, negatedSkillsOf, schedule } from "./effects";
+import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule } from "./effects";
 import { tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow } from "./battle";
@@ -262,6 +262,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       addEffect(state, ev, { target: id, kind: "negateSkill", value: index, until: "game", source: id });
     },
     addEffect: (e) => {
+      // "…while this card is in a Battle Area": a source already gone by the
+      // time the effect resolves gives it no period to last for at all.
+      if (e.until === "whileSourceInPlay" && (!e.source || zoneOf(state, e.source) !== "battle")) return;
       addEffect(state, ev, e);
     },
     schedule: (d) => {
@@ -361,6 +364,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       if (!state.battle) return;
       state.battle.guard = guard;
       log(ev, { type: "guardChanged", guard, by });
+    },
+    swapBattleCard: (out, into) => {
+      const b = state.battle;
+      if (!b || (b.attacker !== out && b.guard !== out)) return;
+      // 8-1-7-2: the new card is in the battle from here on, as a card played
+      // on top of one is (`vm/play.ts`'s `stackOnto`).
+      state.cards[into].battledThisTurn = true;
+      if (b.attacker === out) b.attacker = into;
+      else b.guard = into;
+      log(ev, { type: "note", text: `${nameOfCard(ctx, state, into)} takes ${nameOfCard(ctx, state, out)}'s place in the battle` });
     },
     negateAttack: () => {
       if (!state.battle) return;
@@ -534,6 +547,10 @@ function moveTo(
   // 3-1-4: a card that changed area is a new card, so nothing that was in force
   // on it still is. A card moving *within* play carries them (3-1-4-1).
   if (!carry && from !== to) dropEffectsOn(state, ev, id);
+  // "…while this card is in a Battle Area": what the card made for that long
+  // ends as it leaves — a move from one Battle Area to another (20-9) is not
+  // leaving.
+  if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
   } else if (host && hostZone) {
@@ -628,7 +645,14 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // pended. Left as a broadcast, a token's `played` (19-1) would also reach
   // every "when you play a card" watcher in play, which the legacy engine
   // never pends for a token (#146).
-  pendAutos(ctx, game, state, { event: moment.event, card: id, controller, args: { ...moment.args, ...(subject ? { by: subject } : {}) } }, (m) => m.card === id && m.trigger === trigger);
+  //
+  // A subject handed in with a self-moment is the card that caused it — the
+  // skill's card for `deckToWarpBySkill` — and goes on the pending entry, as
+  // the legacy `pend(trigger, card, subject)` puts it, so "your <Heles>
+  // card's skill" can be asked of it. It is not a pattern argument: written
+  // over `by` it turned `by: skill` into a card id, which no declaration asks.
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: id, controller, args: moment.args }, (m) => m.card === id && m.trigger === trigger);
+  if (subject) for (const p of pended) p.subject ??= subject;
 }
 
 /**
@@ -649,6 +673,13 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   removedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
   droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill" } },
   leftBattleToDrop: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
+  // 20-7: the hand's side of `droppedFromBattle`, pended by name from `moveTo`
+  // for a card a skill's effect or price took out of the hand.
+  droppedFromHand: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill" } },
+  // 3-10: pended by `moveTo` when your skill sends your card from your deck to
+  // the Warp (BT30-106); the plain `moved` moment carries no cause, so the
+  // name is what says a skill of yours did it.
+  deckToWarpBySkill: { event: "moved", args: { from: "deck", to: "warp", asPlay: false, by: "skill", byOpponent: false } },
   // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
   // first keyword to run one), and `triggers.rules` declares the moment.
   markerRemoved: { event: "markerRemoved", args: {} },
@@ -660,7 +691,7 @@ const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "rest
 /**
  * The names `stepScript`'s `moveTo` pends right after `moveTo` above has
  * already fired the `moved` moment they are declared on — `placed`
- * (`moved(asPlay: false, to: battle)`), `addedToZEnergy` (`moved(to:
+ * (`moved(to: battle)`), `addedToZEnergy` (`moved(to:
  * zEnergy)`) and `leftBattleToDrop` (`moved(from: battle, to: drop)`) match
  * that moment as it is, so pending them again by name answered every such
  * skill twice: a card placed by a skill drew two cards for "when this card is

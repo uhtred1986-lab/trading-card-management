@@ -117,7 +117,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
  * `subject` — `modifyAttrAs` is what reads the two together.
  */
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
-export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game"] as const satisfies readonly Duration[];
+export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game", "whileSourceInPlay"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
@@ -212,6 +212,12 @@ const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenA
 
 const SIDE: OpField = { name: "side", type: "side", default: "you" };
 const TARGET: OpField = { name: "target", type: "ref", required: true };
+/**
+ * With what: "evolve", the change holds only for an [Evolve] played onto one
+ * of these cards (22-5-5) — EX03-16's `onto: [self]`. Shared by
+ * `costReduction` and `costModifier`, which `costModifierAs` hands it across.
+ */
+const ONTO: OpField = { name: "onto", type: "ref" };
 /** `costReduction`'s fields, named so its `sentence` function (below) can hand them to `renderTemplate` for the non-"specified" branch without reaching into `OP_SCHEMA` mid-construction. */
 const COST_REDUCTION_FIELDS: OpField[] = [
   TARGET,
@@ -220,12 +226,14 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
+  { name: "uses", type: "number" },
   {
     name: "all",
     type: "boolean",
     offCard:
       'with what: "specified", no specified cost at all — every orb, after every other change to it, and amount is not read — [Warrior of Universe 7]\'s ≪Universe 7≫ cards (22-19-2), the leaf of its altPayment hook',
   },
+  ONTO,
 ];
 /**
  * `costModifier`'s fields — the union of `costReduction`'s and `altCost`'s,
@@ -246,6 +254,8 @@ const COST_MODIFIER_FIELDS: OpField[] = [
   { name: "alt", type: "ops" },
   { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
+  ONTO,
+  { name: "uses", type: "number" },
 ];
 const MODE = { enum: ["active", "rest"] } as const;
 /**
@@ -286,6 +296,7 @@ const NEGATE_FIELDS: OpField[] = [
   { name: "what", type: { enum: NEGATE_SCOPES }, required: true },
   { name: "kind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "keyword", type: { enum: KEYWORD_NAMES } },
+  { name: "chosen", type: "boolean" },
   { name: "until", type: "duration" },
 ];
 const POSITION = { enum: ["top", "bottom"] } as const;
@@ -303,7 +314,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -353,7 +364,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // count is not read, so it is not said either.
       if (op.atMost !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
+        const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined && op.atMost.per === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
         return `choose any number of ${cards}, up to ${bound}`;
       }
       return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
@@ -481,7 +492,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   power: {
     fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL],
     sentence: "{target} {amount:power}{until}",
-    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)',
+    doc: 'an amount may also be {"count":SELECTOR,"times":5000} (so much for each card; add "per":2 for "for every 2 cards", rounded down), {"sumPower":{"var":"rested"}} (the total power of named cards) or {"sumOf":SELECTOR,"attr":"comboPower"} (any measure of them, added up)',
   },
   comboPower: { fields: [TARGET, { name: "amount", type: "amount", required: true }, UNTIL], sentence: "{target} {amount:combo power}{until}" },
   grant: { fields: [TARGET, { name: "keyword", type: "keyword", required: true }, UNTIL], sentence: "{target} gains [{keyword}]{until}" },
@@ -505,9 +516,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     // The sentence is the spelling's own, so the workbench reads a lowered
     // program in the same words as the record it came from.
     sentence: (raw, r) => describeScript([negateAs(raw as OpOf<"negate">)], r),
-    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. Those four spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
+    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. "keyword" with "chosen" and no "keyword" lets the master pick one of the keyword skills the target has in force as the step resolves ("negateChosenKeyword"). Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
   },
   negateSkills: { fields: [TARGET, UNTIL], sentence: "negate the skills of {target}{until}" },
+  negateChosenKeyword: {
+    fields: [TARGET, UNTIL],
+    sentence: "choose up to 1 keyword skill of {target} and negate it{until}",
+    doc: '"choose up to 1 keyword skill on your opponent\'s Battle Cards and negate that skill for the turn" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about',
+  },
   negateSkillsOfKind: {
     fields: [TARGET, { name: "kind", type: { enum: SKILL_KIND_PREFIXES }, required: true }, UNTIL],
     sentence: "negate the [{kind:auto=Auto|activate=Activate|counter=Counter|permanent=Permanent}] skills of {target}{until}",
@@ -515,6 +531,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   hidden: { fields: [TARGET, { name: "hidden", type: "boolean", required: true }], sentence: "switch {target} to {hidden:Hidden|Revealed} Mode", doc: "Hidden Mode / Revealed Mode (23-5)" },
   redirectAttack: { fields: [TARGET], sentence: "switch the target of the attack to {target}", doc: '"switch the target of the attack to it" (22-4-2)' },
+  swapBattle: {
+    fields: [TARGET],
+    sentence: "switch your card that's in a battle with {target}",
+    doc: '"switch your card that\'s in a battle with this card / the chosen card" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its "when this card attacks / is attacked" are not made pending',
+  },
   comboFrom: { fields: [TARGET, { name: "negated", type: "boolean" }], sentence: "use {target} in a combo{negated? with its skills negated}", doc: '"use it in a combo from your Drop (with its skills negated)" (5-7)' },
   flip: { fields: [TARGET], sentence: "flip {target} over", doc: 'a Leader awakens ("flip this card over", 22-2-4)' },
   faceUp: { fields: [TARGET, { name: "faceUp", type: "boolean", default: true }], sentence: "turn {target} face {faceUp:up|down}", doc: "turn a card in a life area face up (3-9-2-1); false turns it back down" },
@@ -559,7 +580,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
         const scoped = op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
-        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}`;
+        // EX03-16: a change scoped to the card the [Evolve] lands on.
+        // "The next time you activate …" (BT31-096): spent by the activations it reaches.
+        const budget = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
+        if (op.onto) return `the ${noun}${scoped} of ${describeRef(op.target)} is ${describeCostChange(op.amount)} when evolving onto ${describeRef(op.onto)}${budget}`;
+        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${budget}`;
       }
       if (op.all) return `${describeRef(op.target)} has no specified cost`;
       const counts = new Map<string, number>();
@@ -568,7 +593,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const amt = typeof op.amount === "number" ? op.amount : 0;
       return `${describeRef(op.target)}'s specified cost is ${amt < 0 ? `${-amt} more` : `${amt} less`}${orbs ? ` (${orbs})` : ""}`;
     },
-    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card; "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count.',
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card, and "onto" scopes an "evolve" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. "uses" (with "skill"/"evolve" and a duration) is how many activations the change reaches before it ends — "the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}" (BT31-096) is uses 1, until "turn"; the activation that pays a line it reaches spends one, and "until" still ends it unused.',
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {
@@ -713,6 +738,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "bySkill", type: "boolean" },
       { name: "uses", type: "amount" },
       { name: "unless", type: "cond" },
+      { name: "unlessPay", type: "ops" },
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"forbid">;
@@ -727,10 +753,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // of *which* cards replaces that word rather than following it.
       const verb = which ? what.replace(/\s+cards?$/, "") : what;
       const budget = op.uses != null ? ` ${op.uses === 1 ? "once more" : `${describeAmount(op.uses)} more times`}` : "";
-      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : "";
+      // 20-14-1's price, said from the payer's side: the program's "you" is
+      // whoever takes the action, not this card's controller.
+      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
       return `${who} can't ${verb}${which ? ` ${which}` : ""}${budget}${escape}${forThe(op.until, r)}`;
     },
-    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
+    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; only "what":"attack" takes one so far (BT30-100). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
   immune: {
     fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],
@@ -748,9 +776,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const cards = op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards";
         return `you can use your ${cards} in Rest Mode in combos${forThe(op.until, r)}`;
       }
+      if (op.what === "fieldBattle") return `the [Field] skill on ${describeRef(op.target)} in your hand can also be activated at [Activate: Battle] timings`;
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },
-    doc: 'a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it). The filter says *which* cards — leave it out only when the card does',
+    doc: 'a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), or "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase). The filter says *which* cards — leave it out only when the card does',
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
   chooseMode: {
@@ -864,8 +893,10 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   negate:             "primitive",
   negateSkills:       "macro over `negate`",
   negateSkillsOfKind: "macro over `negate`",
+  negateChosenKeyword: "macro over `negate`",
   hidden:             "macro over `modifyAttr`",
   redirectAttack:     "macro over `modifyAttr`",
+  swapBattle:         "primitive",
   comboFrom:          "macro over `move` + `negate`",
   flip:               "macro over `modifyAttr`",
   faceUp:             "macro over `modifyAttr`",
@@ -935,6 +966,8 @@ export function costModifierAs(op: Op): Op {
     ...(op.skillKind ? { skillKind: op.skillKind } : {}),
     ...(op.colors?.length ? { colors: op.colors } : {}),
     ...(op.until !== undefined ? { until: op.until } : {}),
+    ...(op.onto ? { onto: op.onto } : {}),
+    ...(op.uses !== undefined ? { uses: op.uses } : {}),
   };
 }
 
@@ -1330,6 +1363,10 @@ export function negateAs(op: Op): Op {
     case "kind":
       return op.kind ? { op: "negateSkillsOfKind", target, kind: op.kind, until } : { op: "note", text: "negate: no skill kind named" };
     case "keyword":
+      // "Choose up to 1 keyword skill on … and negate it": the keyword is the
+      // master's pick at resolution, so the call names none. Naming one *and*
+      // saying chosen is two answers to one question, and reads as neither.
+      if (op.chosen) return op.keyword ? { op: "note", text: "negate: a chosen keyword names none" } : { op: "negateChosenKeyword", target, until };
       return op.keyword ? { op: "negateKeyword", keyword: op.keyword, ...(op.target ? { target: op.target } : {}) } : { op: "note", text: "negate: no keyword named" };
     case "own":
       if (until === "turn" || until === "battle") return { op: "negateOwnSkill", until };
@@ -1566,6 +1603,10 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
     // Unison — so `event: marker` names it and `by: attack` belongs to it
     // alone: either without the other is a moment nothing reads.
     if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return false;
+    // 20-14-1: a tax is charged where the action is taken, and only the attack
+    // charges one so far — a price on any other action would be a rule that
+    // silently stopped forbidding anything.
+    if (o.op === "forbid" && o.unlessPay !== undefined && (o.what !== "attack" || !(o.unlessPay as unknown[]).length || o.unless !== undefined)) return false;
     if (o.op === "choose" && o.bindX === true) bound = true;
   }
   return true;
@@ -1575,7 +1616,7 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
  * The steps that stop and ask somebody something. `discard` is one of them: it
  * is rewritten by `stepScript` into a `choose` the owner answers and a move.
  */
-const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard"]);
+const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard", "negateChosenKeyword"]);
 
 /**
  * Does this program stop to ask a question, anywhere inside it? Read by
@@ -1591,6 +1632,8 @@ export function asksAQuestion(ops: unknown): boolean {
     if (typeof o.op === "string" && PROMPTING_OPS.has(o.op as Op["op"])) return true;
     // A reveal to the master alone is the `look` it lowers from (#137).
     if (o.op === "reveal" && o.audience === "you") return true;
+    // A keyword picked as the step resolves is the `negateChosenKeyword` it stands for.
+    if (o.op === "negate" && o.what === "keyword" && o.chosen === true) return true;
     if (asksAQuestion(o.ops) || asksAQuestion(o.then) || asksAQuestion(o.else) || asksAQuestion(o.with)) return true;
     return Array.isArray(o.modes) && o.modes.some((m) => asksAQuestion((m as { ops?: unknown }).ops));
   });
@@ -1606,6 +1649,20 @@ function readsUnboundX(v: unknown, xBound: boolean): boolean {
   const a = v as Record<string, unknown>;
   if (a.x === true) return true;
   return Array.isArray(a.plus) && readsUnboundX(a.plus[0], xBound);
+}
+
+/**
+ * A `per` divides a reading into whole steps (2 Oct 2026), so it is a whole
+ * number of at least 2 — 1 says nothing a missing `per` doesn't, and 0 or a
+ * fraction is a division the rule manual's rounding has no answer for. Walked
+ * through `plus` the same way `readsUnboundX` is.
+ */
+function perHolds(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return true;
+  const a = v as Record<string, unknown>;
+  if (Array.isArray(a.plus)) return perHolds(a.plus[0]);
+  if (a.per === undefined) return true;
+  return ("count" in a || "markers" in a || "life" in a) && Number.isInteger(a.per) && (a.per as number) >= 2;
 }
 
 function selectorHolds(v: unknown): boolean {
@@ -1640,6 +1697,7 @@ function fieldHolds(type: FieldType, v: unknown, depth: number, xBound: boolean)
   switch (type) {
     case "amount":
       if (readsUnboundX(v, xBound)) return false;
+      if (!perHolds(v)) return false;
       return typeof v === "number" || (typeof v === "object" && v !== null);
     // A ref is a bound name or a selector — a bare selector written where a
     // ref belongs ({"special":"self"} for {"sel":{"special":"self"}}) is the
@@ -1806,6 +1864,12 @@ export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
   else if (f.originalPowerMin != null && f.originalPowerMax != null) bits.push(`with an original power between ${f.originalPowerMin} and ${f.originalPowerMax}`);
   else if (f.originalPowerMax != null) bits.push(`with an original power of ${f.originalPowerMax} or less`);
   else if (f.originalPowerMin != null) bits.push(`with an original power of ${f.originalPowerMin} or more`);
+  // 2-8: "cards with 5000 combo power" (BT29-030), in the words `parseFilter`
+  // reads back.
+  if (f.comboPowerMin != null && f.comboPowerMin === f.comboPowerMax) bits.push(`with ${f.comboPowerMin} combo power`);
+  else if (f.comboPowerMin != null && f.comboPowerMax != null) bits.push(`with combo power between ${f.comboPowerMin} and ${f.comboPowerMax}`);
+  else if (f.comboPowerMax != null) bits.push(`with ${f.comboPowerMax} combo power or less`);
+  else if (f.comboPowerMin != null) bits.push(`with ${f.comboPowerMin} combo power or more`);
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
@@ -1979,7 +2043,10 @@ const describeMode = (sel: Selector): string => {
  * the sentence "all in each player's battle" said nothing about either way.
  */
 const describeNotSelf = (sel: Selector): string =>
-  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : "") + (sel.printed ? " matching the description printed on this line" : "");
+  (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : sel.notSelf === "name" ? " with a different card name from this card" : "") +
+  // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
+  (sel.differentNames ? " with different card names" : "") +
+  (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);
@@ -1997,10 +2064,10 @@ function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
     if ("plus" in a) return `${describeAmount(a.plus[0], noun)} and ${a.plus[1] < 0 ? `${-a.plus[1]} less` : `${a.plus[1]} more`}`;
-    if ("count" in a) return `+${a.times ?? 1} ${noun} for each of ${describeEach(a.count)}`;
-    if ("markers" in a) return `+${a.times ?? 1} ${noun} for each marker on ${describeEach(a.markers)}`;
+    if ("count" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per)} of ${describeEach(a.count)}`;
+    if ("markers" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
     if ("x" in a) return a.times === undefined ? `+X ${noun}` : `+${a.times} ${noun} for each X`;
-    if ("life" in a) return `+${a.times ?? 1} ${noun} for each life ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+    if ("life" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
     if ("sumOf" in a) return `${noun} equal to the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
     if ("attr" in a) return `${noun} equal to ${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
     return `+that many ${noun}`;
@@ -2011,11 +2078,17 @@ function describeAmount(a: Amount, noun?: string): string {
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
   if ("x" in a) return a.times === undefined ? "X" : `${a.times} for each X`;
-  if ("life" in a) return `${a.times ?? 1} for each life ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+  if ("life" in a) return `${a.times ?? 1} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
   if ("sumOf" in a) return `the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
   if ("attr" in a) return `${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
-  if ("markers" in a) return `${a.times ?? 1} for each marker on ${describeEach(a.markers)}`;
-  return `${a.times ?? 1} for each of ${describeEach(a.count)}`;
+  if ("markers" in a) return `${a.times ?? 1} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
+  return `${a.times ?? 1} ${forEvery(a.per)} of ${describeEach(a.count)}`;
+}
+
+/** "for each marker", or "for every 2 markers" when the reading is divided (`Amount`'s `per`). */
+function forEvery(per: number | undefined, noun?: string, plural = `${noun}s`): string {
+  if (!per || per < 2) return noun ? `for each ${noun}` : "for each";
+  return noun ? `for every ${per} ${plural}` : `for every ${per}`;
 }
 
 /** The area as a person would name it, for "for each of your Battle Cards". */
@@ -2070,6 +2143,7 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   opponentTurn: " until the start of your opponent's next turn",
   afterNextCharge: " through your next Charge Phase",
   game: " for the rest of the game",
+  whileSourceInPlay: " while this card is in a Battle Area",
 };
 const forThe = (until: Duration | undefined, r: RenderOptions) => (r.permanent || !until ? "" : DURATION_IN_WORDS[until]);
 
@@ -2170,6 +2244,15 @@ export function describeScript(ops: Op[], o: RenderOptions = {}): string {
     if (text) parts.push(text);
   }
   return parts.join(", ");
+}
+
+/**
+ * What an offered move also costs, said on its button (20-14-1, a `forbid`'s
+ * `unlessPay`): " — first pay: discard 2 to the Warp". Empty with no tax. One
+ * definition for both engines' menus, so the two labels cannot drift apart.
+ */
+export function taxLabel(taxes: Op[][]): string {
+  return taxes.length ? ` — first pay: ${taxes.map((ops) => describeScript(ops)).join("; ")}` : "";
 }
 
 /**

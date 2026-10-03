@@ -164,6 +164,8 @@ export interface VmStatic {
   skillKind?: SkillKindPrefix;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
   colors?: (Color | "any")[];
+  /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
+  onto?: string[];
 }
 
 /**
@@ -330,6 +332,15 @@ export function endTurnRelativeEffects(state: VmState, ev: GameEvent[]): Continu
  */
 export function endAfterChargeEffects(state: VmState, ev: GameEvent[], cards: string[]): ContinuousEffect[] {
   return dropEffects(state, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
+}
+
+/**
+ * "…while this card is in a Battle Area" (`whileSourceInPlay`): every effect
+ * the card made with that duration ends as the card leaves the Battle Area —
+ * the legacy `endSourceEffects`, word for word.
+ */
+export function endSourceEffects(state: VmState, ev: GameEvent[], source: string): ContinuousEffect[] {
+  return dropEffects(state, ev, (e) => !(e.until === "whileSourceInPlay" && e.source === source));
 }
 
 export function dropEffectsOn(state: VmState, ev: GameEvent[], id: string): void {
@@ -533,7 +544,7 @@ function collect(
       // The escape clause is a sentence of *this* card, so it records whose
       // card it is: "you" and "your opponent" in it are read from that chair
       // and not from the chair of whoever is trying to act.
-      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
       } else {
@@ -615,8 +626,10 @@ function collect(
         const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
         if (value == null) continue;
         const kind = op.what === "evolve" ? "evolveCost" : "skillCost";
+        // EX03-16: an [Evolve] price changed only when it is played onto these.
+        const onto = kind === "evolveCost" && op.onto ? { onto: targets(frame, { ...op, target: op.onto }) } : {};
         for (const id of targets(frame, op))
-          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}) });
+          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
         continue;
       }
       const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
@@ -675,9 +688,11 @@ function collect(
     }
     // 8-1-1 / 5-7 lifted as a standing rule: "this card can attack Battle
     // Cards in Active Mode", "you can use your mono-red Rest Mode ≪Saiyan≫
-    // cards in combos" (BT18-001). In play only, like every [Permanent].
+    // cards in combos" (BT18-001). In play only, like every [Permanent] —
+    // except `fieldBattle` (BT29-041/-042), which is about the [Field] line
+    // used from the hand (22-3) and so is read there, as `altCost` is.
     if (op.op === "permit") {
-      if (!inPlayNow) continue;
+      if (!inPlayNow && op.what !== "fieldBattle") continue;
       const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });
       continue;
