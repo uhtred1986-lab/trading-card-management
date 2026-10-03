@@ -1425,6 +1425,31 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     assertConsistentG(s);
   }
   delete DEFS.PLAYWATCH;
+
+  // "When **you play** a blue Battle Card" names no "your", and is still about
+  // the card played: the description is a condition on the subject. Without
+  // one, this watcher drew for any card its player played.
+  const YOU = "[Auto] When you play a blue Battle Card, draw 1 card.";
+  const you = JSON.parse(JSON.stringify(compileSkill(parseSkills(YOU)[0]).ops));
+  assert.equal(you[0].op, "if");
+  assert.equal(you[0].cond.sel.special, "subject");
+  assert.deepEqual([you[0].cond.sel.filter.colors, you[0].cond.sel.filter.type], [["Blue"], "BATTLE"]);
+  // "With an energy cost of 4" is part of the description; "using [Over Realm]" is not.
+  const cost = JSON.parse(JSON.stringify(compileSkill(parseSkills("[Auto] When you play a blue Battle Card with an energy cost of 4 or more, draw 1 card.")[0]).ops));
+  assert.equal(cost[0].cond.sel.filter.costMin, 4);
+  DEFS.YOUWATCH = { ...DEFS.V1, id: "YOUWATCH", name: "YOUWATCH", skill: YOU };
+  for (const [played, fires] of [
+    ["V-BLUE", true],
+    ["V1", false],
+  ] as const) {
+    let s = arenaG({ hand: [played], energy: [played], battle: ["YOUWATCH"] });
+    const hand = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", played) });
+    assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + (fires ? 1 : 0), `"when you play a blue Battle Card", ${played}: the watcher ${fires ? "draws" : "does not draw"}`);
+    assert.equal(s.prompt.kind, "main");
+    assertConsistentG(s);
+  }
+  delete DEFS.YOUWATCH;
 }
 
 {

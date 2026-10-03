@@ -645,7 +645,13 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     .replace(/[,.]\s*$/, "")
     .trim();
   const phrase =
-    /^(?:your opponent|you) plays? (?:an?|1|up to \d+|\d+) (.+?)(?: (?:from|in|to|with|by) .*)?$/.exec(t)?.[1] ??
+    // "With an energy cost of 4" is part of the description and stays in it;
+    // a place ("from your Drop") or a means ("using [Over Realm]", "by a
+    // skill") is not, and is what the trigger itself answers or refuses.
+    /^(?:your opponent|you) plays? (?:an?|1|up to \d+|\d+) (.+?)(?: (?:from|in|to|by|using) .*)?$/.exec(t)?.[1] ??
+    // "When you combo with a skill-less card" (BT6-105b, `youCombo`): the card
+    // used in the combo. Not "…using this card's skill", which is a means.
+    /^you combo with (?:an?|1) ((?!.*\busing\b).+)$/.exec(t)?.[1] ??
     // The word "card" stays in the phrase: taking it out of the capture let
     // the lazy group stop at "battle", and "battle" alone narrows nothing.
     /^(?:your|your opponent's) (.+?) is played\b/.exec(t)?.[1] ??
@@ -671,7 +677,8 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   if (/ or (?:an?|1|up to \d+) /.test(t.slice(t.indexOf(phrase) + phrase.length))) return undefined;
   // …but "an energy cost of 5 **or** less" is one bound, not two kinds, and
   // `parseFilter` reads it whole.
-  if (/ or /.test(phrase.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, ""))) return undefined;
+  // So is "15000 power or more" (BT19-018).
+  if (/ or /.test(phrase.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, ""))) return undefined;
   // A trigger whose subject description cannot be read is left unfiltered
   // rather than failed: an over-fire is bad, a filter that stops a skill that
   // should happen is worse (ground rule 6).
