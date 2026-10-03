@@ -204,11 +204,14 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   beKOdBySkill: "be KO'd by skills",
   beChosen: "be chosen by skills",
   switchToActive: "switch to Active Mode",
+  switchEnergyToActive: "switch energy to Active Mode",
   placeEnergy: "place cards in the Energy Area",
   beMovedBySkill: "be removed from a Battle Area by skills",
   beNegated: "have their skills negated",
 };
 const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
+/** The actions a `forbid` may put a price on (`unlessPay`, 20-14-1): the ones both engines charge one where the action is taken. */
+export const TAXABLE: ReadonlySet<ForbiddenAction> = new Set(["attack", "play", "switchEnergyToActive"]);
 
 const SIDE: OpField = { name: "side", type: "side", default: "you" };
 const TARGET: OpField = { name: "target", type: "ref", required: true };
@@ -744,12 +747,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "uses", type: "amount" },
       { name: "unless", type: "cond" },
       { name: "unlessPay", type: "ops" },
+      { name: "byTypes", type: { list: { enum: ["LEADER", "BATTLE", "EXTRA", "UNISON"] } } },
+      { name: "turnPlayer", type: "boolean" },
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"forbid">;
       // A rule aimed at a card reads the other way round: the card is what is
       // played, not what plays. "You can't play …" is the player's version.
-      const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : "you";
+      const who = op.target ? describeRef(op.target) : op.turnPlayer ? "the turn player" : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
       const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? " by a skill" : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
       // Which cards the ban is about, when it is about cards rather than the
       // player: "you can't play cards" said nothing about *which*.
@@ -758,12 +763,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // of *which* cards replaces that word rather than following it.
       const verb = which ? what.replace(/\s+cards?$/, "") : what;
       const budget = op.uses != null ? ` ${op.uses === 1 ? "once more" : `${describeAmount(op.uses)} more times`}` : "";
+      // BT8-051: whose skill it has to be.
+      const by = op.byTypes?.length ? ` with the skill of ${op.byTypes.map((t) => (t === "LEADER" ? "a Leader Card" : t === "BATTLE" ? "a Battle Card" : t === "EXTRA" ? "an Extra Card" : "a Unison Card")).join(" or ")}` : "";
       // 20-14-1's price, said from the payer's side: the program's "you" is
       // whoever takes the action, not this card's controller.
       const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
-      return `${who} can't ${verb}${which ? ` ${which}` : ""}${budget}${escape}${forThe(op.until, r)}`;
+      return `${who} can't ${verb}${which ? ` ${which}` : ""}${by}${budget}${escape}${forThe(op.until, r)}`;
     },
-    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; only "what":"attack" takes one so far (BT30-100). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
+    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; "what":"attack" (BT30-100), "play" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and "switchEnergyToActive" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. "byTypes" narrows a rule to an action a skill of those card types takes ("the skill of a Battle Card or Extra Card"), and "turnPlayer":true to whoever's turn it is ("if the turn player would …"). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
   immune: {
     fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],
@@ -1620,10 +1627,11 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
     // Unison — so `event: marker` names it and `by: attack` belongs to it
     // alone: either without the other is a moment nothing reads.
     if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return false;
-    // 20-14-1: a tax is charged where the action is taken, and only the attack
-    // charges one so far — a price on any other action would be a rule that
-    // silently stopped forbidding anything.
-    if (o.op === "forbid" && o.unlessPay !== undefined && (o.what !== "attack" || !(o.unlessPay as unknown[]).length || o.unless !== undefined)) return false;
+    // 20-14-1: a tax is charged where the action is taken, and only the
+    // attack, a declared play and a skill's switch of energy to Active Mode
+    // charge one — a price on any other action would be a rule that silently
+    // stopped forbidding anything.
+    if (o.op === "forbid" && o.unlessPay !== undefined && (!TAXABLE.has(o.what as ForbiddenAction) || !(o.unlessPay as unknown[]).length || o.unless !== undefined)) return false;
     if (o.op === "choose" && o.bindX === true) bound = true;
   }
   return true;

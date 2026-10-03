@@ -39,10 +39,10 @@ import { IllegalAction } from "./common";
 import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import type { VmAltCost } from "./effects";
 import { other, type Action, type PlayerId, type Prompt, type Requirement } from "../types";
-import type { Cond, Selector } from "./script";
+import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationAlt, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
+import { activationAlt, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -50,7 +50,7 @@ import { answered } from "./flow";
 import { predicateOf } from "./filters";
 import { vmHost } from "./host";
 import { keywordRefusalCond, keywordWords } from "./keyword-do";
-import { attrsNow, forbiddenBy, readingBoard } from "./program";
+import { attrsNow, forbiddenBy, readingBoard, taxesOn, type TaxInForce } from "./program";
 import { SETUP_ZONES } from "./zones";
 import type { VmState } from "./state";
 
@@ -602,6 +602,14 @@ const DECLARABLE_ACTIONS: Partial<Record<Action["type"], "card" | "cardWithX" | 
  * engine's own menu and rejection labels use.
  */
 function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, c: Candidate, offered: boolean): string {
+  const words = labelWords(ctx, game, state, def, c, offered);
+  // 20-14-1: an offered move that carries a price says so on its button, in
+  // the words the attack's and the legacy play's use (`taxLabel`).
+  const player = askedPlayer(state);
+  return offered && c.card !== null && player ? words + taxLabel(declaredTaxes(ctx, game, state, def, player, c.card).map((t) => t.ops)) : words;
+}
+
+function labelWords(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, c: Candidate, offered: boolean): string {
   const label = def.label ?? def.name;
   const card = c.card;
   // The answer that takes no card has words of its own, because "Charge" said
@@ -637,6 +645,25 @@ function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def:
 function askedPlayer(state: VmState): PlayerId | null {
   const prompt = state.prompt;
   return "player" in prompt && prompt.player ? prompt.player : null;
+}
+
+/**
+ * 20-14-1 on a declared move: every price in force on what the move's own
+ * `REFUSE forbidden(what: …)` lines ask about — "your opponent can't play it
+ * unless they send 3 cards from their Drop to their owner's Warp" (BT31-093)
+ * on `play`. Read off the declaration rather than by move name, so a move is
+ * taxed exactly where it is forbidden; a price that cannot be paid is refused
+ * by that same line (`holds`), and one that can is charged by `applyDeclared`.
+ */
+function declaredTaxes(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, card: string): TaxInForce[] {
+  const out: TaxInForce[] = [];
+  const walk = (c: Cond): void => {
+    if (c.kind === "not") return walk(c.cond);
+    if (c.kind === "all" || c.kind === "any") return c.conds.forEach(walk);
+    if (c.kind === "forbidden") out.push(...taxesOn(ctx, game, state, c.what, { player, card, ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }) }));
+  };
+  for (const r of def.refusals ?? []) walk(r.unless);
+  return out;
 }
 
 // ── taking one ──────────────────────────────────────────────────────────────
@@ -774,6 +801,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     for (const m of keywordMoments) fire(ctx, game, state, m);
   } else {
     runProgram(state, def, player, chosen);
+    if (card !== null) chargeTaxes(ctx, game, state, def, player, card, action);
   }
 
   // 7-3-4: a move declared `again:` leaves the question on the table — the
@@ -823,6 +851,30 @@ function runProgram(state: VmState, def: ActionDef, player: PlayerId, chosen: Ca
   const x = def.cost?.length ? chosen.price.energy : undefined;
   state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player, ...(x === undefined ? {} : { x }) });
 }
+
+/**
+ * 20-14-1: the prices a declared move carries, paid **first** — each its own
+ * frame in front of the move's `DO`, run by the actor in their own frame with
+ * the card the move is about as "this card", so a price's "other than this
+ * card" never spends the card being played.
+ *
+ * A play's [Counter: Play] window (9-6) is opened by `vm/index.ts` over the
+ * `DO` it finds at the front of the queue, before anything runs; with a price
+ * there instead, the window is the `DO`'s own to open once the price is paid
+ * (`counterWindow`, the way a keyword's play opens it, #155) — so the price is
+ * paid as the play is declared and before anyone may answer it, the legacy
+ * order (`script.step`s ahead of `counter`).
+ */
+function chargeTaxes(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, player: PlayerId, card: string, action: Action): void {
+  const taxes = declaredTaxes(ctx, game, state, def, player, card);
+  if (!taxes.length) return;
+  const run = state.programs[0];
+  if (run && def.do.length && run.ops === def.do && PLAYS.has(action.type)) run.ops = run.ops.map((o): Op => (o.op === "play" ? { ...o, counterWindow: true } : o));
+  for (const t of [...taxes].reverse()) state.programs.unshift({ ops: t.ops, ip: 0, vars: {}, card, master: player });
+}
+
+/** The moves that are a play the opponent may answer (9-6), `vm/battle.ts`'s `PLAY_MOVES`. */
+const PLAYS: ReadonlySet<Action["type"]> = new Set(["play", "playUnison", "playZ"]);
 
 /** The questions an action answers: its own `prompts:`, or every question its phases ask. */
 function promptsOf(game: GameDefinition, def: ActionDef): Prompt["kind"][] {
@@ -929,7 +981,14 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
         ...(cond.bySkill === undefined ? {} : { bySkill: cond.bySkill }),
       });
       if (rule && found) Object.assign(found, rule);
-      return rule !== null;
+      if (rule) return true;
+      // 20-14-1: a price the actor cannot pay is a ban — "if action B is not
+      // taken … action A can't be declared" — named with the price.
+      if (card === null) return false;
+      const opts = { player: me, card, ...(cond.bySkill === undefined ? {} : { bySkill: cond.bySkill }) };
+      const unpaid = taxesOn(ctx, game, state, cond.what, opts).find((t) => !canPayPriceProgram(ctx, game, state, me, card, t.ops));
+      if (unpaid && found) Object.assign(found, { by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
+      return !!unpaid;
     }
     case "count": {
       const n = counted(ctx, game, state, cond.sel, me, card);

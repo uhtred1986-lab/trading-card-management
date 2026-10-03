@@ -71,7 +71,8 @@ import { emit, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, taxesOn, zoneOf } from "./program";
+import { canPayPriceProgram } from "./activate";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
@@ -130,6 +131,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // The same predicate a `REFUSE` gates a move on, so an instruction and a
     // menu cannot disagree about what is forbidden.
     forbids: (what, opts) => forbids(ctx, game, state, what, opts ?? {}),
+    taxesOn: (what, opts) => taxesOn(ctx, game, state, what, opts).map((t) => t.ops),
+    canPayTax: (player, card, ops) => canPayPriceProgram(ctx, game, state, player, card, ops),
 
     // ── the language's own readings ──────────────────────────────────────
     resolveSelector: (frame, sel) => resolveSelector(ctx, game, state, frame, sel),

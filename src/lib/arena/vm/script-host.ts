@@ -124,7 +124,15 @@ export interface ScriptHost {
   /** Which turn it is (7-1). */
   turn(): number;
   /** 0-2-5: is this action forbidden right now? */
-  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean }): boolean;
+  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string }): boolean;
+  /**
+   * 20-14-1: the prices in force on this action (`Prohibition.pay`), each a
+   * program the acting player runs in their own frame — the rules `forbids`
+   * skips. `source` is the card whose skill takes the action (BT8-051).
+   */
+  taxesOn(what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string }): Op[][];
+  /** Can this player pay this price program right now, with `card` as "this card"? The engine's own payability check (`canPayPriceProgram` / `canPayCostProgram`). */
+  canPayTax(player: PlayerId, card: string, ops: Op[]): boolean;
 
   // ── the language's own readings ──────────────────────────────────────────
 

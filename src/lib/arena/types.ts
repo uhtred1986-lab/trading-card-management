@@ -377,6 +377,14 @@ export type ForbiddenAction =
   | "beKOdBySkill"
   | "beChosen"
   | "switchToActive"
+  /**
+   * A skill switching cards in an Energy Area to Active Mode — "if the turn
+   * player would use the skill of a Battle Card or Extra Card to switch energy
+   * to Active Mode, they can't … unless …" (BT8-051). Asked by the `switchMode`
+   * op, once per switch, of the energy it would stand up; no card is the
+   * subject, the skill's card is the `source`.
+   */
+  | "switchEnergyToActive"
   | "placeEnergy"
   /** "Can't be removed from a Battle Area by your opponent's skills" (20-14): a move by a skill, not by a battle. */
   | "beMovedBySkill"
@@ -394,10 +402,21 @@ export interface Prohibition {
    * action anyway, **each time** — "that card can't attack unless your
    * opponent sends 2 cards from their hand to their Warp each time" (BT30-100).
    * The program is run in the payer's frame ("you" is whoever acts), before the
-   * action is taken; an action nobody can pay for is refused. Only `attack`
-   * carries one so far (`validateProgram` refuses it on any other action).
+   * action is taken; an action nobody can pay for is refused. `attack`,
+   * `play` (a play the player declares, BT31-093) and `switchEnergyToActive`
+   * (paid mid-resolution or the switch does not happen, BT8-051) carry one;
+   * `validateProgram` refuses it on any other action.
    */
   pay?: Op[];
+  /**
+   * Only an action a **skill** of one of these card types takes: "if the turn
+   * player would use the skill of a Battle Card or Extra Card to switch energy
+   * …" (BT8-051). Matched against the card whose skill it is (`source` in the
+   * matchers' options); an action no skill takes is not this rule's.
+   */
+  byTypes?: ("LEADER" | "BATTLE" | "EXTRA" | "UNISON")[];
+  /** Binds only the turn player — "if **the turn player** would …" (BT8-051): whoever's turn it is, whichever side made the rule. */
+  turnPlayer?: boolean;
   /**
    * The controller of the card that made the rule. An `unless` is a clause of
    * that card's text, so "you" and "your opponent" in it are read from that

@@ -8,6 +8,7 @@ import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { AREA_WORDS, filterFor, parseTarget, selfFrom } from "./targets";
+import { unreadFilterWords } from "../lang/filter-words";
 
 /**
  * The counts a printed price may be spelled out as. Only as far as the
@@ -2364,8 +2365,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   const unlessTail = /\s+unless\s+(.+)$/.exec(rest0);
   const unlessPlayBySkill = !!unlessTail && /^(?:it is |it's )?played by (?:card )?skills?$/.test(unlessTail[1].trim());
   // 20-14-1: "…unless your opponent sends 2 cards from their hand to their
-  // Warp each time" is a price, not a condition (BT30-100).
-  const tax = unlessTail && !unlessPlayBySkill ? taxProgram(unlessTail[1].trim(), c) : null;
+  // Warp each time" is a price, not a condition (BT30-100). A play and a
+  // switch of energy are one act each, so their price needs no "each time"
+  // to be one: "can't play it unless they send 3 cards from their Drop to
+  // their owner's Warp" (BT31-093) is paid by every play it taxes.
+  const oneAct = /^(?:play\b|switch energy to active mode\b)/.test(rest0);
+  const tax = unlessTail && !unlessPlayBySkill ? taxProgram(unlessTail[1].trim(), c, oneAct ? (/^play\b/.test(rest0) ? "play" : "switch") : "attack") : null;
   const unless = !unlessTail || unlessPlayBySkill || tax ? null : parseConditionClause(`if ${unlessTail[1].trim()}`, true);
   if (unlessTail && !unlessPlayBySkill && !unless && !tax) return null;
   const rest = unlessTail && !unlessPlayBySkill ? rest0.slice(0, unlessTail.index).trim() : rest0;
@@ -2373,6 +2378,39 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // The engine charges a tax on an attack only; on any other action the
   // clause stays unread rather than becoming a ban or nothing at all.
   if (tax) {
+    // "Your opponent can't play Battle Cards unless they …" (BT31-093,
+    // BT31-150, said that way by `taxWordings`): a price on every play the
+    // player declares of the cards it names — a rule about a player, paid by
+    // that player.
+    const play = /^play (.+?)(?:\s+(?:until|for|during)\b.*)?$/.exec(rest);
+    if (play) {
+      const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
+      if (!side || side !== tax.payer) return null;
+      const what = play[1].trim();
+      if (/^cards?$/.test(what)) return [{ op: "forbid", what: "play", side, until, unlessPay: tax.ops }];
+      const filter = filterFor(what, null);
+      const type: "UNISON" | "EXTRA" | "BATTLE" | null = /\bunison cards?\b/.test(what) ? "UNISON" : /\bextra cards?\b/.test(what) ? "EXTRA" : /\bbattle cards?\b/.test(what) ? "BATTLE" : null;
+      if (filter === null || (!filter && !type)) return null;
+      const which = { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) };
+      // A description read only in part taxes more plays than the card does:
+      // "a Battle Card with an original power the same as your declared
+      // number" (BT23-055) is not every Battle Card.
+      if (unreadFilterWords(what, which).length) return null;
+      return [{ op: "forbid", what: "play", side, until, filter: which, unlessPay: tax.ops }];
+    }
+    // "The turn player can't switch energy to Active Mode with the skills of
+    // Battle Cards or Extra Cards unless they …" (BT8-051, said that way by
+    // `taxWordings`): whoever's turn it is, and only by those cards' skills.
+    const sw = /^switch energy to active mode(?: with the skills? of (.+?))?(?:\s+(?:until|for|during)\b.*)?$/.exec(rest);
+    if (sw) {
+      if (subject !== "the turn player") return null;
+      const named = sw[1] ?? "";
+      const byTypes = (["LEADER", "BATTLE", "EXTRA", "UNISON"] as const).filter((t) => new RegExp(`\\b${t.toLowerCase()} cards?\\b`).test(named));
+      // "…of Battle Cards or Extra Cards" and nothing else: a description the
+      // type words do not cover would be read wider than it is printed.
+      if (sw[1] && named.replace(/\b(?:leader|battle|extra|unison) cards?\b|\bor\b|\ban?\b|,/g, "").trim()) return null;
+      return [{ op: "forbid", what: "switchEnergyToActive", side: "both", turnPlayer: true, until, ...(byTypes.length ? { byTypes: [...byTypes] } : {}), unlessPay: tax.ops }];
+    }
     if (!/^attack\b/.test(rest) || /^attack (?:this card|it)\b/.test(rest)) return null;
     const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
     if (side) {
@@ -2483,6 +2521,39 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   return null;
 }
 
+/**
+ * 20-14-1's prices said **around** the action they tax, put back in the shape
+ * `compileProhibition` reads — "<player> can't <act> unless <price>" — before
+ * the sentence is cut into clauses:
+ *
+ * - "when your opponent's Battle Card is played, your opponent can't play it
+ *   unless they send 3 cards from their Drop to their owner's Warp" (BT31-093,
+ *   and BT31-150's "…card is played, they can't play it unless …"): the
+ *   "when" is not a trigger but the act the price is charged on — "your
+ *   opponent can't play Battle Card unless they …".
+ * - "for the duration of the game, if the turn player would use the skill of a
+ *   Battle Card or Extra Card to switch energy to Active Mode, they can't
+ *   switch energy to Active Mode unless they choose 5 cards from their Drop
+ *   Area and send them to their Warp" (BT8-051): "the turn player can't switch
+ *   energy to active mode with the skills of Battle Card or Extra Card for the
+ *   duration of the game unless they send 5 cards from their drop area to
+ *   their warp" — the choice is the sending's own, and said as one verb the
+ *   price is not cut in two at its "and".
+ *
+ * Anything else comes back as it went.
+ */
+export function taxWordings(text: string): string {
+  return text
+    .replace(
+      /\bwhen (your opponent's|your) (.+?) (?:is|are) played, (?:your opponent|they|you) can(?:'|no)t play (?:it|them) unless\b/gi,
+      (_m, whose: string, what: string) => `${/opponent/i.test(whose) ? "your opponent" : "you"} can't play ${what} unless`,
+    )
+    .replace(
+      /\b(?:then )?(for the duration of the game|during the game), if the turn player would use the skills? of (?:an? )?(.+?) to switch energy to active mode, they can(?:'|no)t switch energy to active mode unless they choose (\d+) cards? from their drop(?: area)? and send them to their warp\b/gi,
+      (_m, lasts: string, whose: string, n: string) => `the turn player can't switch energy to active mode with the skills of ${whose} ${lasts} unless they send ${n} cards from their drop area to their warp`,
+    );
+}
+
 /** The steps a tax may be made of: the price ops both engines can say in advance whether a player can pay (`canPayPriceProgram`). */
 const TAX_OPS = new Set<Op["op"]>(["discard", "mill", "choose", "moveTo", "switchMode", "removeMarker"]);
 
@@ -2498,18 +2569,46 @@ const TAX_OPS = new Set<Op["op"]>(["discard", "mill", "choose", "moveTo", "switc
  * they run: a tax the engine cannot promise is either a ban the card does not
  * state or an attack that half-pays.
  */
-function taxProgram(said: string, c: Ctx): { payer: Side; ops: Op[] } | null {
-  const m = /^(your opponent|they|you)\s+(.+?)\s+each time(?:\s+(?:until|for|during)\b.*)?$/.exec(said);
+function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" = "attack"): { payer: Side; ops: Op[] } | null {
+  // An attack's price says "each time"; a play's and a switch's need not
+  // (one act each), but then the sentence's own duration may follow it.
+  const m =
+    /^(your opponent|they|you)\s+(.+?)\s+each time(?:\s+(?:until|for|during)\b.*)?$/.exec(said) ??
+    (on === "attack" ? null : /^(your opponent|they|you)\s+(.+?)(?:\s+(?:until the end of .+|for the (?:duration of the )?(?:turn|game)|during .+))?$/.exec(said));
   if (!m) return null;
   const payer: Side = m[1] === "you" ? "you" : "opponent";
   let clause = m[2];
+  // "…to their owner's Warp" (BT31-093) is the Warp of the cards' owner —
+  // "its owner's" — and not "your owner's" once the pronouns turn round.
+  clause = clause.replace(/\btheir owner'?s\b/g, "its owner's");
   if (payer === "opponent") {
     // "sends" → "send", "pushes" → "push": the verb back to the imperative.
     clause = clause.replace(/^(\w+?)(?:(?<=(?:ch|sh|ss|x))es|s)\b/, "$1");
     clause = clause.replace(/\btheir\b/g, "your").replace(/\bthey\b/g, "you").replace(/\bthemselves\b/g, "yourself");
   }
-  const ops = compileClause(clause, { ...c, choices: [...c.choices] });
-  if (!ops?.length || ops.some((o) => !TAX_OPS.has(o.op) || ("side" in o && o.side !== undefined && o.side !== "you"))) return null;
+  const read = compileClause(clause, { ...c, choices: [...c.choices] });
+  if (!read?.length || read.some((o) => !TAX_OPS.has(o.op) || ("side" in o && o.side !== undefined && o.side !== "you"))) return null;
+  // A play's price is paid while the card is still in the hand it is played
+  // from (5-5-2-1): "send 1 card from your hand" is never the card itself.
+  // A `discard` cannot say so, so it is said as the choice and the move it
+  // stands for — and the choice below rules the card out.
+  const ops =
+    on === "play"
+      ? read.flatMap((o, i): Op[] =>
+          o.op === "discard" && typeof o.n === "number"
+            ? [
+                { op: "choose", sel: { side: "you", area: "hand", count: o.n }, as: `tax${i}`, reason: `send ${o.n} card${o.n === 1 ? "" : "s"} from your hand to your ${o.to ?? "drop"}` },
+                { op: "moveTo", target: { var: `tax${i}` }, to: o.to ?? "drop", reveal: true },
+              ]
+            : [o],
+        )
+      : read;
+  if (on === "play" && ops.some((o) => o.op === "discard")) return null;
+  // A choice nothing is then done to is half a price: "unless they choose 3
+  // cards from their hand **and** place them in their Drop Area" (BT6-023) is
+  // cut at its "and" before it gets here, and the half left is not the price.
+  const named = (as: string) => ops.some((o) => o.op !== "choose" && JSON.stringify(o).includes(`"var":"${as}"`));
+  if (ops.some((o) => o.op === "choose" && !named(o.as))) return null;
   // The price runs with the acting card as "this card" (the attacker), and B
   // is done before A is declared (20-14-1): "switch 1 of their Active Mode
   // cards to Rest Mode" (BT24-133) paid with the attacker itself would leave
