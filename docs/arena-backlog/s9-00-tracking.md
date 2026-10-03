@@ -4,6 +4,7 @@ milestone: Arena M12 — Parity and the flip (Stage 9)
 labels: epic, backlog, area:arena-vm, phase:rules-stage9
 stage: 9
 tracking: true
+status: closed
 ---
 Stage 9 of the rules-language programme (Opus 5 review, size M). The rules engine is proven against the oracle on everything the app has ever recorded, and becomes the default.
 

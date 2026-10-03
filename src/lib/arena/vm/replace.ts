@@ -71,7 +71,7 @@ function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
  * `life` replacement answers no Battle Area departure at all.
  */
 function causeMatches(game: GameDefinition, state: VmState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor): boolean {
-  if (r.kind === "life") return false;
+  if (r.kind === "life" || r.kind === "marker") return false;
   if (r.by === "skill" && reason !== "effect") return false;
   if (r.by === "ko" && reason !== "ko") return false;
   if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
@@ -122,6 +122,22 @@ export function lifeReplacementChoices(ctx: EngineContext, game: GameDefinition,
     if (r.kind !== "life" || r.master !== owner || (r.lifeTo && r.lifeTo !== dest)) continue;
     if (r.ops && applyingReplacement) continue;
     out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
+  }
+  return out;
+}
+
+/**
+ * Every `marker` replacement standing in front of this Unison losing one
+ * marker to an attack (13-5-2, SD13-02) — the legacy
+ * `markerReplacementChoicesFor`, the one reader `vm/battle.ts`'s Damage Step
+ * asks, once per marker (5-13-4-2). Scoped by target, like the Battle Area
+ * family; always a substitute, which the caller queues as a program.
+ */
+export function markerReplacementChoices(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): ReplacementChoice[] {
+  const out: ReplacementChoice[] = [];
+  for (const { source, r } of standing(ctx, game, state, id)) {
+    if (r.kind !== "marker" || !r.ops?.length) continue;
+    out.push({ source, optional: r.optional, ops: r.ops, ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
   }
   return out;
 }

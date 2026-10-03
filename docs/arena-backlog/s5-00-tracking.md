@@ -4,6 +4,7 @@ milestone: Arena M8 — Rules engine actions and costs (Stage 5)
 labels: epic, backlog, area:arena-vm, area:arena-rulesets, phase:rules-stage5
 stage: 5
 tracking: true
+status: closed
 ---
 Stage 5 of the rules-language programme (Opus 5, size XL). The rules engine learns to **act**: `actions.rules` declares every action as `WHEN / FOR / COST / DO / REFUSE`, and the interpreter derives `legalActions` and `rejectedActions` from those declarations instead of from hand-written predicates and their `whyNot*` twins; `costs.rules` parameterises payment.
 

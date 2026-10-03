@@ -85,6 +85,14 @@ export interface VmBattle {
    * word. Absent on every battle that never asked, so no stored state changes.
    */
   damage?: VmDamage;
+  /**
+   * 13-5-2's markers coming off a Unison guard, part way through: set only
+   * while the Damage Step is waiting on a `marker` replacement's question, or
+   * on a substitute it queued, so the step resumes at the next marker — the
+   * legacy `battle.markers` flow step's `resume`. Absent on every battle that
+   * never asked.
+   */
+  markerLoss?: { remaining: number; lost: number; awaiting?: true };
   /** 20-13: the battle steps skipped in this battle, so the combo offer that belongs to a skipped step is not made either. */
   skipped?: ("offense" | "defense")[];
   /**

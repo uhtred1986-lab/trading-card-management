@@ -133,6 +133,15 @@ export interface VmCard {
    */
   attacksThisTurn?: number;
   /**
+   * 22-15: the keyword whose own move played this card this turn ("Over
+   * Realm", the `play … using:` that landed it) — what `playedUsing` reads for
+   * P-048's "during the turn you played it with [Over Realm]". Set by
+   * `resolvePlay`, cleared by `endTurn` and by a change of area (3-1-4).
+   * Absent otherwise, so a board with no [Over Realm] play is byte-for-byte
+   * what it was.
+   */
+  playedUsing?: string;
+  /**
    * 14-1-4: this card is a Z-card, which `moveCard` removes from the game when
    * it leaves play. Set by `newCard` from the definition's type and left off
    * for every other card, so a state without a Z-card is byte-for-byte what it
@@ -388,4 +397,5 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   card.flipped = false;
   card.hidden = false;
   delete card.attacksThisTurn;
+  delete card.playedUsing;
 }

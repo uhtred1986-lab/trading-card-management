@@ -14,6 +14,7 @@ import type { Parsed, Rule } from "./ast";
  */
 export { printRule, printOps, printOp, printCond, printCost, printSelector, printFilter, printAmount, printRef, printDefinition, printDefinitions, canonical, deepEqual } from "./print";
 export { parseDefinitions, ENGINE_WORDS, SELECTOR_FLAGS } from "./parse";
+export { unreadFilterWords } from "./filter-words";
 
 /**
  * A card's rule, read against the **game's** words: an area is a zone

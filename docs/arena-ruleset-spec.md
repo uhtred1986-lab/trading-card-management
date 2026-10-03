@@ -161,10 +161,12 @@ disagree or if a row is missing from either.
 | `negate` | primitive | A rule stops applying (9-1-5): `what` is the scope — `skills`, `kind`, `keyword` or `own` — and `until` the span. Built by #276 as one row whose interpreter path is the four spellings' own cases (`negateAs`), so the rows below are declarable and nothing about negation is read twice. |
 | `negateSkills` | macro over `negate` | Scope: every skill of a card (9-1-5). |
 | `negateSkillsOfKind` | macro over `negate` | Scope: one printed skill kind of a card. |
+| `negateChosenKeyword` | macro over `negate` | Scope: one keyword skill the master picks among those the target cards have in force (`chosen: true`), negated on that card for a span (BT31-138). |
 | `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. |
 | `negateOwnSkill` | macro over `negate` | Scope: the skill resolving now, for the turn, the battle or the game. |
 | `hidden` | macro over `modifyAttr` | Attribute `hidden`: Hidden Mode and Revealed Mode (23-5). |
 | `redirectAttack` | macro over `modifyAttr` | The guard is an attribute of the **battle in progress** (8-1, 22-4-2) — the second widening in §2.5. |
+| `swapBattle` | primitive | "Switch your card that's in a battle with …" (8-1-7-2). Not `redirectAttack`'s attribute: which seat changes — the attack card or the guard card — is the battle's answer at the moment it runs (whichever is the master's), so no call can name one attribute to set. The battle goes on with the new card; the old one stays where it is. |
 | `comboFrom` | macro over `move` + `negate` | Into the Combo Area with the cause `combo` (5-7), optionally with the card's skills negated. Declared since #137, the `negate` under `GIVEN $negated`; `comboFromAs` folds the two steps back into the one whose case checks 5-7-2 and pends the combo moments. |
 | `flip` | macro over `modifyAttr` | Attribute `flipped`: which face of a Leader is in play (22-2-4). |
 | `faceUp` | macro over `modifyAttr` | Attribute `faceUp` on a card in a Life Area (3-9-2-1). |
@@ -212,6 +214,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `markers` | macro over `count` | `markers(SELECTOR)` is already an expression (§2.6); this row is a bound on it. |
 | `inBattle` | macro over `count` | "Attacking", "being attacked" and "in a battle" are roles of the battle in progress; as filter fields they are a count of the cards in the role. |
 | `battled` | macro over `count` | "Has been in a battle this turn" is a flag the engine keeps on the card; as a filter field it counts. |
+| `playedUsing` | macro over `count` | "During the turn you played it with [Over Realm]" (P-048, 22-15): the keyword whose own move played the card this turn, a fact both engines keep on the card (`playedUsing`, set as the `play … using:` lands, cleared at the turn's end and on a change of area); as a filter field it counts. |
 | `every` | macro over `count` + `not` | Every card the first selector finds is also one the second finds: a bound of zero on the difference, plus the bound that makes the empty case false (0-2-4-1) rather than vacuously true. |
 | `any` | primitive | Disjunction. A clause list is already a conjunction; nothing else says "or". |
 | `all` | macro over `any` + `not` | De Morgan. The interpreter may keep the case for legibility; the language does not need it. |
@@ -906,7 +909,7 @@ DEFINE KEYWORD Servant
 -- B: onEnter — a real program, run once as the card arrives
 DEFINE KEYWORD Field
   HOOK onEnter {
-    choose(sel: 1 "other Field Extra" IN you.battle, as: "t")
+    choose(sel: 1 "extra card with [Field]" IN you.battle otherThanSelf, as: "t")
     moveTo(target: $t, to: drop)
   }
 
@@ -947,7 +950,7 @@ DEFINE KEYWORD Deflect
 -- C: onAttackDeclared — a real program, run as the attack is declared
 DEFINE KEYWORD Alliance
   HOOK onAttackDeclared {
-    choose(sel: 1 "a card of the named colours" IN you.battle, as: "t")
+    choose(sel: 1 "card" IN you.battle, as: "t")
     modifyAttr(target: $t, attr: mode, mode: rest)
   }
 
