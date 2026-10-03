@@ -42,7 +42,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../types";
-import { backCharactersOf, coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
+import { backCharactersOf, baseType, coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { other } from "../types";
@@ -824,7 +824,7 @@ function ruleApplies(
   state: VmState,
   what: ForbiddenAction,
   rule: RuleInForce,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean },
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string },
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
@@ -833,6 +833,14 @@ function ruleApplies(
   if (f.bySkill !== undefined && opts.bySkill !== undefined && f.bySkill !== opts.bySkill) return false;
   if (rule.target && rule.target !== opts.card) return false;
   if (f.player && opts.player && f.player !== opts.player) return false;
+  // BT8-051: "if the turn player would use the skill of a Battle Card or Extra
+  // Card to …" — only an action that skill takes, and only the turn player's.
+  if (f.byTypes?.length) {
+    const by = opts.source ? state.cards[opts.source] : undefined;
+    const printed = by ? ctx.defs[by.cardId] : undefined;
+    if (!printed || !f.byTypes.includes(baseType(printed))) return false;
+  }
+  if (f.turnPlayer && opts.player !== state.turnPlayer) return false;
   if (f.filter || f.name) {
     if (!opts.card || !state.cards[opts.card]) return false;
     if (f.filter && !predicateOf(f.filter, game)(attrsNow(ctx, game, state, opts.card))) return false;
@@ -856,7 +864,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; hooks?: boolean } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -874,7 +882,7 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; hooks?: boolean } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
@@ -925,7 +933,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     if (!rule.forbid.pay?.length || (rule.forbid.uses ?? 0) > 0) continue;
@@ -962,7 +970,7 @@ export function forbiddenForCard(ctx: EngineContext, game: GameDefinition, state
  * whose budget is still unspent, so the action that spends the last use is the
  * one that turns the rule on.
  */
-export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): void {
+export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string } = {}): void {
   for (const e of state.effects) {
     if (e.kind !== "forbid" || !e.forbid || (e.forbid.uses ?? 0) <= 0) continue;
     if (!ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid }, opts)) continue;

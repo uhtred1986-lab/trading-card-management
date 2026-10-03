@@ -4,7 +4,7 @@ import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, KeywordSkill, Skill } from "../types";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
-import { compileClauseList, holdForGame, splitModal } from "./effects";
+import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
 import { compileCostProgram, costText, counterAltCost, priceCondition, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
@@ -264,8 +264,12 @@ function compileSkillText(skill: Skill): Script {
     const at = /^c(\d+)$/.exec(c.priceChoice);
     if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
   }
-  const modal = splitModal(text);
-  const clauses = splitClauses(modal ? modal.head : text);
+  // 20-14-1's prices said around the action they tax (BT31-093, BT8-051),
+  // put back in the one shape `compileProhibition` reads before the sentence
+  // is cut — cut first, the trigger-like half and the ban land in two clauses.
+  const spoken = taxWordings(text);
+  const modal = splitModal(spoken);
+  const clauses = splitClauses(modal ? modal.head : spoken);
   // [Awaken] and [Wish] check their own condition in the engine before the
   // skill is offered (22-2, 22-20), and the engine flips the Leader after the
   // effects resolve (22-2-4), so "flip this card over" in their text is not an

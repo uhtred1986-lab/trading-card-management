@@ -2140,6 +2140,12 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
     }
   }
   out.push({ action: { type: "endMain", player: p }, label: "End turn" });
+  // 20-14-1: a play that carries a price says so on its button — every play
+  // of the card, at every X and at any alternative price, pays it.
+  for (const o of out) {
+    const a = o.action;
+    if (a.type === "play" || a.type === "playUnison" || a.type === "playZ") o.label += taxLabel(playTaxes(ctx, s, p, a.card).map((t) => t.ops));
+  }
   return out;
 }
 
@@ -2331,7 +2337,26 @@ function canPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string): b
   const d = def(ctx, s, card);
   if (s.players[p].battle.some((id) => has(ctx, s, id, "Unique") && face(ctx, s, id).name === d.name)) return false;
   // A play the player declares, which is what "except by skills" bans.
-  return !forbids(ctx, s, "play", { player: p, card, bySkill: false });
+  if (forbids(ctx, s, "play", { player: p, card, bySkill: false })) return false;
+  // 20-14-1: a price on playing it that the player cannot pay is a ban.
+  return playTaxes(ctx, s, p, card).every((t) => canPayCostProgram(ctx, s, p, card, t.ops));
+}
+
+/**
+ * 20-14-1 on a play the player declares — "when your opponent's Battle Card
+ * is played, your opponent can't play it unless they send 3 cards from their
+ * Drop to their owner's Warp" (BT31-093): every price in force on playing this
+ * card. An additional cost of the play (5-5-2-1): offered with "— first pay",
+ * refused when it cannot be paid, and paid as the play is declared, ahead of
+ * the [Counter: Play] window, by the player playing it, in their own frame.
+ */
+function playTaxes(ctx: EngineContext, s: GameState, p: PlayerId, card: string): ReturnType<typeof taxesOn> {
+  return taxesOn(ctx, s, "play", { player: p, card, bySkill: false });
+}
+
+/** The price frames a declared play runs before its [Counter: Play] window: one `script.step` per tax, the played card as "this card", the player playing it as "you". */
+function playTaxSteps(ctx: EngineContext, s: GameState, p: PlayerId, card: string): FlowStep[] {
+  return playTaxes(ctx, s, p, card).map((t): FlowStep => ({ op: "script.step", frame: { ops: t.ops, ip: 0, vars: {}, card, master: p } }));
 }
 
 /**
@@ -2345,6 +2370,9 @@ function whyNotPlay(ctx: EngineContext, s: GameState, p: PlayerId, card: string)
   if (twin) why.push({ kind: "forbidden", by: face(ctx, s, twin).name });
   const f = forbiddenBy(ctx, s, "play", { player: p, card, bySkill: false });
   if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
+  for (const tax of playTaxes(ctx, s, p, card)) {
+    if (!canPayCostProgram(ctx, s, p, card, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
+  }
   return why;
 }
 
@@ -2922,6 +2950,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "BATTLE") throw new IllegalAction("not a playable Battle Card");
       if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
+      // 20-14-1: read before the energy is paid, so the board the rules are
+      // matched against is the one the play was declared on.
+      const taxes = playTaxSteps(ctx, s, p, action.card);
       spendProhibitionUse(ctx, s, "play", { player: p, card: action.card, bySkill: false });
       // 5-3: the card may print another price for playing it.
       if (action.alt) {
@@ -2937,7 +2968,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         pay(s, ev, p, pm);
       }
       s.resolving = { card: action.card, player: p };
-      s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p }, { op: "turn.promptMain" });
+      s.flow.unshift(...taxes, { op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p }, { op: "turn.promptMain" });
       break;
     }
     case "playUnison": {
@@ -2946,6 +2977,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       const d = def(ctx, s, action.card);
       if (baseType(d) !== "UNISON") throw new IllegalAction("not a Unison card");
       if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
+      // 20-14-1: read before the energy is paid, so the board the rules are
+      // matched against is the one the play was declared on.
+      const taxes = playTaxSteps(ctx, s, p, action.card);
       spendProhibitionUse(ctx, s, "play", { player: p, card: action.card, bySkill: false });
       const x = d.energyCost === "X" ? action.x : (d.energyCost ?? 0);
       if (d.energyCost === "X" && x < 1) throw new IllegalAction("X must be at least 1");
@@ -2956,7 +2990,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!pm) throw new IllegalAction("can't pay the energy cost");
       pay(s, ev, p, pm);
       s.resolving = { card: action.card, player: p };
-      s.flow.unshift({ op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p, markers: pm.rest.length + pm.markers }, { op: "turn.promptMain" });
+      s.flow.unshift(...taxes, { op: "counter", window: "play", responder: other(p) }, { op: "play.resolve", card: action.card, player: p, markers: pm.rest.length + pm.markers }, { op: "turn.promptMain" });
       break;
     }
     case "playZ": {
@@ -2966,6 +3000,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!isZ(d)) throw new IllegalAction("only Z-cards can be played from the Z-Deck");
       if (d.type === "Z-LEADER") throw new IllegalAction("Z-Leaders enter through [Z-Awaken]");
       if (!canPlay(ctx, s, p, action.card)) throw new IllegalAction("that card can't be played now");
+      // 20-14-1: read before the energy is paid, so the board the rules are
+      // matched against is the one the play was declared on.
+      const taxes = playTaxSteps(ctx, s, p, action.card);
       spendProhibitionUse(ctx, s, "play", { player: p, card: action.card, bySkill: false });
       const x = d.energyCost === "X" ? (action.x ?? 0) : (d.energyCost ?? 0);
       const c = playCost(ctx, s, action.card, x);
@@ -2977,6 +3014,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       pay(s, ev, p, pm);
       s.resolving = { card: action.card, player: p };
       s.flow.unshift(
+        ...taxes,
         { op: "counter", window: "play", responder: other(p) },
         { op: "play.resolve", card: action.card, player: p, markers: d.type === "Z-UNISON" ? pm.rest.length + pm.markers : undefined },
         { op: "turn.promptMain" },

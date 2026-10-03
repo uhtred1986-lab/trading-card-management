@@ -1340,6 +1340,37 @@ forbid(what: attack, until: nextTurn, target: $c0, unlessPay: {
 `BT13-030` itself is still out of reach: its price ("give the attacking card -5000 power") is not a
 step whose payability the engines know in advance, so the clause stays unread.
 
+Since 3 Oct 2026 two more actions take one. **A play the player declares** (`what: play`) pays it as
+an additional cost of the play (5-5-2-1): offered with "— first pay: …", refused when it cannot be
+paid, and paid as the play is declared, before the [Counter: Play] window. `BT31-150`'s "until the
+end of your opponent's turn, when your opponent's card is played, they can't play it unless they
+send 1 card from their hand to its owner's Warp" — the price's choice never offers the card being
+played:
+
+```
+forbid(what: play, until: nextTurn, side: opponent, unlessPay: {
+  choose(sel: 1 IN you.hand otherThanSelf, as: "c1", reason: "send 1 card from your hand to its owner's warp")
+  moveTo(target: $c1, to: warp)
+})
+```
+
+**A skill switching energy to Active Mode** (`what: switchEnergyToActive`) is asked mid-resolution:
+the skill's controller pays, or that energy stays in Rest Mode. `byTypes` names the card types whose
+skills the rule is about and `turnPlayer: true` binds only whoever's turn it is — `BT8-051`'s "if the
+turn player would use the skill of a Battle Card or Extra Card to switch energy to Active Mode, they
+can't switch energy to Active Mode unless they choose 5 cards from their Drop Area and send them to
+their Warp":
+
+```
+forbid(what: switchEnergyToActive, until: game, side: both, unlessPay: {
+  choose(sel: 5 IN you.drop otherThanSelf, as: "c0", reason: "send 5 cards from your drop area to your warp")
+  moveTo(target: $c0, to: warp)
+}, byTypes: [BATTLE, EXTRA], turnPlayer: true)
+```
+
+A play a *skill* makes is not taxed yet (the `play` op, both engines): only the declared plays
+(`play`, `playUnison`, `playZ`) pay.
+
 ### 20-15. If Declared
 
 20-15-1: from when an action is declared until it is taken (or something is known to have that

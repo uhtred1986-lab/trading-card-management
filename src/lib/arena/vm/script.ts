@@ -906,9 +906,27 @@ export type Op =
    * with Battle Cards"), optionally narrowed by a filter. `uses` allows that
    * many uses before the prohibition applies; `unless` is the escape condition.
    * `unlessPay` is 20-14-1's other escape, a price: the acting player may run
-   * it, in their own frame, to take the action anyway — each time (`attack` only).
+   * it, in their own frame, to take the action anyway — each time (`attack`,
+   * `play`, `switchEnergyToActive`). `byTypes` narrows it to an action a skill
+   * of those card types takes, and `turnPlayer` to whoever's turn it is
+   * (BT8-051's "if the turn player would use the skill of a Battle Card or
+   * Extra Card to switch energy to Active Mode").
    */
-  | { op: "forbid"; what: ForbiddenAction; until: Duration; target?: Ref; side?: Side; filter?: CardFilter; sameNameAsSelf?: boolean; bySkill?: boolean; uses?: Amount; unless?: Cond; unlessPay?: Op[] }
+  | {
+      op: "forbid";
+      what: ForbiddenAction;
+      until: Duration;
+      target?: Ref;
+      side?: Side;
+      filter?: CardFilter;
+      sameNameAsSelf?: boolean;
+      bySkill?: boolean;
+      uses?: Amount;
+      unless?: Cond;
+      unlessPay?: Op[];
+      byTypes?: ("LEADER" | "BATTLE" | "EXTRA" | "UNISON")[];
+      turnPlayer?: true;
+    }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
    * which only stops a skill from *choosing* it. `from`/`fromFilter` say
@@ -1322,6 +1340,41 @@ function substituteFrame(h: ScriptHost, id: string, r: ReplacementResult): Scrip
 
 /** The name a `choose … sumTo` binds one card to while it reads that card's measure through `amount`. */
 const SUM_ONE = "__one";
+
+
+/** Name of the variable a paid-for switch names its energy by (BT8-051): a price already paid, so the switch is not taxed again. Never a name a card's program writes. */
+const TAX_PAID_VAR = "§taxPaid";
+
+/** `switchMode` on these cards, with the moments a switch to Rest Mode pends (1-10). */
+function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "switchMode" }>, ids: string[], master: PlayerId): void {
+  for (const id of ids) {
+    const was = h.modeOf(id);
+    // The switch says what caused it — this skill, and the keyword whose
+    // skill it is when a keyword body names one (#157) — so a host that
+    // fires the moment itself can tell "by one of your skills" from "by
+    // an [Alliance] skill" (the rules engine's `modeSwitched(by: …)`).
+    h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}) });
+    // "When this card is switched to Rest Mode by one of your skills"
+    // (1-10): the card and the skill both have to be yours, which is what
+    // "your" says — an opponent resting it is not this moment.
+    if (op.mode === "rest" && was === "active" && h.modeOf(id) === "rest") {
+      const area = h.areaOf(id);
+      // A keyword's own switch is that keyword's moment and not the
+      // general one: the legacy [Alliance] case pends only "…by an
+      // [Alliance] skill" on the cards it rests.
+      if (op.by) {
+        const named = RESTED_BY_KEYWORD[op.by];
+        if (named) h.pend(named, id, frame.card);
+      } else if (h.masterOf(id) === master) h.pend("restedBySkill", id, frame.card);
+      // The other end of it: your skill resting one of *theirs*, watched
+      // by your cards in play. The printed wording names their Battle
+      // Cards and energy, so that is where it is pended and nowhere else.
+      else if (area === "battle" || area === "energy") {
+        for (const w of h.cardsInPlay(master)) h.pend("restedTheirsBySkill", w, id);
+      }
+    }
+  }
+}
 
 /**
  * Run a program until it finishes or needs a decision. Returns "wait" with a
@@ -1829,35 +1882,50 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
       }
 
-      case "switchMode":
-        for (const id of h.resolveRef(frame, op.target)) {
-          const was = h.modeOf(id);
-          // The switch says what caused it — this skill, and the keyword whose
-          // skill it is when a keyword body names one (#157) — so a host that
-          // fires the moment itself can tell "by one of your skills" from "by
-          // an [Alliance] skill" (the rules engine's `modeSwitched(by: …)`).
-          h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}) });
-          // "When this card is switched to Rest Mode by one of your skills"
-          // (1-10): the card and the skill both have to be yours, which is what
-          // "your" says — an opponent resting it is not this moment.
-          if (op.mode === "rest" && was === "active" && h.modeOf(id) === "rest") {
-            const area = h.areaOf(id);
-            // A keyword's own switch is that keyword's moment and not the
-            // general one: the legacy [Alliance] case pends only "…by an
-            // [Alliance] skill" on the cards it rests.
-            if (op.by) {
-              const named = RESTED_BY_KEYWORD[op.by];
-              if (named) h.pend(named, id, frame.card);
-            } else if (h.masterOf(id) === master) h.pend("restedBySkill", id, frame.card);
-            // The other end of it: your skill resting one of *theirs*, watched
-            // by your cards in play. The printed wording names their Battle
-            // Cards and energy, so that is where it is pended and nowhere else.
-            else if (area === "battle" || area === "energy") {
-              for (const w of h.cardsInPlay(master)) h.pend("restedTheirsBySkill", w, id);
+      case "switchMode": {
+        let switching = h.resolveRef(frame, op.target);
+        // BT8-051, 20-14-1: "if the turn player would use the skill of a
+        // Battle Card or Extra Card to switch energy to Active Mode, they
+        // can't … unless they choose 5 cards from their Drop Area and send
+        // them to their Warp". Asked here, mid-resolution, of the energy this
+        // switch would stand up: forbidden outright, it stays where it is;
+        // taxed, the rest switches now and the skill's controller is asked —
+        // in a frame of its own, so the price's choices never touch this
+        // skill's variables — to pay for it or leave it in Rest Mode.
+        const paidFor = "var" in op.target && op.target.var === TAX_PAID_VAR;
+        if (op.mode === "active" && !paidFor) {
+          const energy = switching.filter((id) => h.areaOf(id) === "energy" && h.modeOf(id) !== "active");
+          const ask = { player: master, bySkill: true, source: frame.card };
+          if (energy.length && h.forbids("switchEnergyToActive", ask)) {
+            h.note(`${h.nameOf(frame.card)}: energy can't be switched to Active Mode`);
+            switching = switching.filter((id) => !energy.includes(id));
+          } else if (energy.length) {
+            const taxes = h.taxesOn("switchEnergyToActive", ask);
+            if (taxes.length) {
+              switching = switching.filter((id) => !energy.includes(id));
+              const price = taxes.flat();
+              const said = `${energy.length} energy`;
+              const decline: Op = { op: "note", text: `${h.nameOf(frame.card)}: the price was not paid, so ${said} stays in Rest Mode` };
+              const pay: Op[] = [...price, { op: "switchMode", target: { var: TAX_PAID_VAR }, mode: "active", ...(op.by ? { by: op.by } : {}) }];
+              const tax: ScriptFrame = {
+                ops: taxes.every((ops) => h.canPayTax(master, frame.card, ops))
+                  ? [{ op: "chooseMode", chooser: "you", reason: `${h.nameOf(frame.card)}: switch ${said} to Active Mode only by paying ${describeScript(price)}`, modes: [{ label: `Pay ${describeScript(price)} and switch ${said} to Active Mode`, ops: pay }, { label: `Don't pay — ${said} stays in Rest Mode`, ops: [decline] }] }]
+                  : [{ op: "note", text: `${h.nameOf(frame.card)}: ${said} can't be switched to Active Mode — the price (${describeScript(price)}) can't be paid` }],
+                ip: 0,
+                vars: { [TAX_PAID_VAR]: energy },
+                card: frame.card,
+                master,
+              };
+              switchAll(h, frame, op, switching, master);
+              frame.ip++;
+              h.interrupt(tax, frame);
+              return "done";
             }
           }
         }
+        switchAll(h, frame, op, switching, master);
         break;
+      }
 
       // 20-9: control, as one move. Out of scope on purpose (#126): a Leader
       // or a Unison Card, which the manual gives no route to take and whose
@@ -2153,7 +2221,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), player: players[0] },
             });
           break;
         }
@@ -2168,7 +2236,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             what: op.what,
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
-            ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}),
+            ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,

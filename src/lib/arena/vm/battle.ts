@@ -553,6 +553,9 @@ export function openPlayCounterWindow(ctx: EngineContext, game: GameDefinition, 
   // front, bound to the card it plays; anything else there is not a play this
   // window could stand in front of.
   if (!card || !frame || frame.card !== card || frame.skillIndex !== undefined) return false;
+  // A play with a price (20-14-1) has the price's frames in front and its
+  // `DO` opening the window itself once they are paid (`chargeTaxes`).
+  if (frame.ops !== game.actions[action.type]?.do) return false;
   state.resolving = { card, player: action.player };
   const responder = other(action.player);
   const candidates = counterCandidates(ctx, game, state, responder, "play");

@@ -2,7 +2,7 @@
  * The legacy engine as a `ScriptHost` (`vm/script-host.ts`), split out of
  * that file when the interface moved to `vm/` (#118). Goes with `engine/`.
  */
-import { addEffect, addSkip, amount, areaOf, cardNow, cardsInPlay, condHolds, def, draw, face, forbids, has, move, note, placeUnder, replacementChoicesFor, resolveRef, resolveSelector, schedule, setMode, skillsOfInstance } from "./state";
+import { addEffect, addSkip, amount, areaOf, canPayCostProgram, cardNow, cardsInPlay, condHolds, def, draw, face, forbids, taxesOn, has, move, note, placeUnder, replacementChoicesFor, resolveRef, resolveSelector, schedule, setMode, skillsOfInstance } from "./state";
 import { tokenCardId } from "../vm/common";
 import type { GameContext } from "../types";
 import { koCard, masterOf, pendPlacedWatchers, pendTriggers } from "./triggers";
@@ -50,6 +50,8 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
     playerName: (p) => s.players[p].name,
     turn: () => s.turn,
     forbids: (what, opts) => forbids(ctx, s, what, opts ?? {}),
+    taxesOn: (what, opts) => taxesOn(ctx, s, what, opts).map((t) => t.ops),
+    canPayTax: (player, card, ops) => canPayCostProgram(ctx, s, player, card, ops),
 
     resolveSelector: (frame, sel) => resolveSelector(ctx, s, frame, sel),
     resolveRef: (frame, ref) => resolveRef(ctx, s, frame, ref),
