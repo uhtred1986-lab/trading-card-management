@@ -7,7 +7,7 @@
  * mechanism report (`gaps.ts`) groups by it. Moved out of the legacy
  * `engine/triggers.ts` (#118); nothing here reads a game.
  */
-import { effectHead, trailingTrigger } from "./cards";
+import { effectHead, maskNames, trailingTrigger } from "./cards";
 import { parseFilter } from "./filters";
 import type { Skill, Trigger } from "../types";
 
@@ -77,7 +77,8 @@ function switchedTo(t: string): string {
  * fired at the wrong moment.
  */
 export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
-  const t = (sk.cost + " " + sk.effect).toLowerCase();
+  // A {name} is one word here — its comma and its "by" are the name's (P-526).
+  const t = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
   /**
    * The timing triggers name a moment, and a card may equally well *mention*
    * that moment in the middle of an effect — "…, and at the end of the turn,
@@ -91,7 +92,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
    * front is all that takes, since every timing trigger below is anchored
    * there, and the phrase carries no wording the others look for.
    */
-  const printed = effectHead(sk.effect);
+  const effect = maskNames(sk.effect);
+  const printed = effectHead(effect.text);
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
   switch (trigger) {
@@ -234,7 +236,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       const kinds = said.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, "");
       // "Original" (20-3-1) is a measure the filter reads as the current cost.
       if (/ or |\[|\bby\b|\busing\b|\bwithout\b|\bfrom\b|\bin your\b|\boriginal\b/.test(kinds)) return false;
-      return !parseFilter(said).unreadable;
+      return !parseFilter(effect.unmask(said)).unreadable;
     }
     // 1-10: the narrower [Alliance] wording just below is read first, so a card
     // that names the keyword is not also caught by this.

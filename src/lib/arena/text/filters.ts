@@ -379,6 +379,17 @@ export function parseFilter(text: string): CardFilter {
     if (!kw) f.unreadable = true;
     else if (!f.keywords.includes(kw.name)) f.keywords.push(kw.name);
   }
+  // "7 **[Dragon Ball]** cards in your Drop" (BT25-019): the tag written in
+  // front of the noun, as a kind of card. Read nowhere, it was dropped in
+  // silence and any card in the Drop counted. A keyword is a requirement like
+  // "with [X]"; anything else in that place makes the description unreadable.
+  for (const m of lower.matchAll(/(?:^|[\s(])\[([a-z0-9:\- ]+)\](?= (?:battle |extra |unison |leader )?cards?\b)/g)) {
+    const before = lower.slice(0, m.index + (m[0].startsWith("[") ? 0 : 1));
+    if (/(?:\bwith(?: an?| the)?|\bwithout|non-)\s*$/.test(before)) continue;
+    const kw = keywordOf(m[1].trim());
+    if (!kw) f.unreadable = true;
+    else if (!f.keywords.includes(kw.name)) f.keywords.push(kw.name);
+  }
   // "Battle Cards **without [Barrier]** in Active Mode" — the same thing
   // "non-[Barrier]" says, written the long way. Sixteen of the cards that let
   // an active card be attacked carve out [Barrier] like this, and a

@@ -1877,3 +1877,47 @@ import type { EngineState, Trigger } from "./harness";
   }
   for (const id of ["DFH", "DFHDISCARD", "DFHPRICE", "DFHDROP"]) delete DEFS[id];
 }
+
+// ── what #502 made reachable: BT25-019's price, BT29-057b's effect ─────────
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const plain = (x: unknown) => JSON.parse(JSON.stringify(x ?? null));
+
+  // "If you have **7** [Dragon Ball] cards in your Drop" (BT25-019): the bare
+  // number is the count asked for, and the tag in front of the noun is a
+  // keyword the cards must carry. It read "1 or more cards in your Drop".
+  const dragon = plain(parseConditionClause("if you have 7 [Dragon Ball] cards in your Drop", true)?.cond);
+  assert.equal(dragon.atLeast, 7);
+  assert.deepEqual(dragon.sel.filter.keywords, ["Dragon Ball"]);
+  const bt25 = plain(
+    priceCondition(
+      parseSkills(
+        "[Auto] If you have 7 [Dragon Ball] cards in your Drop and you place this card in its owner's Drop: When your {King Piccolo, Restored Youth and Ultimate Evil Power} is played, choose up to 1 of that card and it gains [Critical] for the turn.",
+      )[0],
+    )?.cond,
+  );
+  assert.equal(bt25.atLeast, 7, "BT25-019's price condition");
+  assert.deepEqual(bt25.sel.filter.keywords, ["Dragon Ball"]);
+  // "You have **0** cards in your hand" is none, not "at least 0" (P-736).
+  assert.equal(plain(parseConditionClause("if you have 0 cards in your hand", true)?.cond).atMost, 0);
+  // The same attributive tag elsewhere: "a green [Field] Extra Card".
+  assert.deepEqual(parseFilter("green [Field] Extra Card").keywords, ["Field"]);
+  assert.ok(parseFilter("[Nonsense] cards").unreadable, "a tag that is no keyword is not a description");
+  assert.deepEqual(parseFilter("cards with [Blocker]").keywords, ["Blocker"], '…and "with [X]" still reads as before');
+
+  // BT29-057b: a counted description placed under a card, naming no area to
+  // take it from, is not read as a card "you have in play".
+  const bt29 = one(
+    "[auto][once per turn] When your {Vegeta, Back From the Brink of Death} is played, place up to 1 ≪Frieza's Army≫ card with {Battle With Vegeta} in its card name under the played card, and the played card gains all of the [permanent] skills on the card placed under it until the end of your turn.",
+  );
+  assert.ok(
+    bt29.unsupported.some((u) => /^place up to 1/i.test(u)),
+    "the place stays unread",
+  );
+  assert.ok(!JSON.stringify(bt29.ops).includes('"area":"play"'), "and nothing is chosen from play");
+  // Where the text does say where, it still reads (BT19-097).
+  assert.deepEqual(one("[Activate: Main] Look at up to 7 cards from the top of your deck, place up to 2 green Extras among them under your Leader, then shuffle your deck.").unsupported, []);
+  // "Add up to 2 [Dragon Ball] cards to your hand" with no area (BT21-027)
+  // is not read as cards you have in play either.
+  assert.ok(one("[Auto] When this card is played, look at your deck and life, add up to 2 [Dragon Ball] cards to your hand.").unsupported.length > 0);
+}

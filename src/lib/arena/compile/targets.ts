@@ -1,4 +1,5 @@
 import { parseFilter, type CardFilter } from "../text/filters";
+import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
 
@@ -639,7 +640,10 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
  * *wrong* filter would stop a skill that should happen, which is worse.
  */
 export function subjectFilterOf(trigger: string): CardFilter | undefined {
-  const t = trigger
+  // "A {Son Goku, Joined by Destiny}" is one name: its comma and its "by" are
+  // not where the description stops (P-526). Read masked, unmasked below.
+  const names = maskNames(trigger);
+  const t = names.text
     .toLowerCase()
     .replace(/^\s*when\s+/, "")
     .replace(/[,.]\s*$/, "")
@@ -682,7 +686,7 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   // A trigger whose subject description cannot be read is left unfiltered
   // rather than failed: an over-fire is bad, a filter that stops a skill that
   // should happen is worse (ground rule 6).
-  return filterFor(phrase, null) ?? undefined;
+  return filterFor(names.unmask(phrase).toLowerCase(), null) ?? undefined;
 }
 
 
