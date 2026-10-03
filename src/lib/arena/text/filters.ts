@@ -507,8 +507,11 @@ export function parseFilter(text: string): CardFilter {
   if ((m = /powers? between ([\d,]+) and ([\d,]+)/.exec(pw))) {
     f.powerMin = Number(m[1].replace(/,/g, ""));
     f.powerMax = Number(m[2].replace(/,/g, ""));
-  } else if ((m = /(\d+) power or less/.exec(pw))) f.powerMax = Number(m[1]);
-  else if ((m = /(\d+) power or more/.exec(pw))) f.powerMin = Number(m[1]);
+  // The number may carry a thousands comma — "Battle Cards with 25,000 power
+  // or less" — as the reversed order below and the cost lines already allow;
+  // with `\d+` the bound took only the "000" after the comma and read as 0.
+  } else if ((m = /([\d,]+) power or less/.exec(pw))) f.powerMax = num(m[1]);
+  else if ((m = /([\d,]+) power or more/.exec(pw))) f.powerMin = num(m[1]);
   // The sets print the same bound with the words the other way round —
   // "Battle Cards with 25000 **or less power**" — on 41 lines, and only the
   // first order was read, so some thirty-eight selectors carried no bound at
@@ -521,7 +524,7 @@ export function parseFilter(text: string): CardFilter {
   // <Son Goku> card with an energy cost of 3 and 5000 power". Only after
   // "with"/"and", so that "it gets +5000 power for the turn" is not read as a
   // bound on the target.
-  else if ((m = /\b(?:with|and) (\d+) power\b/.exec(pw))) f.powerMin = f.powerMax = Number(m[1]);
+  else if ((m = /\b(?:with|and) ([\d,]+) power\b/.exec(pw))) f.powerMin = f.powerMax = num(m[1]);
   // "with power less than or equal to this card's power", "with power greater
   // than this card's power" — measured against the card the skill is on.
   if (
