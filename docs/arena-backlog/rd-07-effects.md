@@ -5,6 +5,7 @@ milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
 touches: src/app/globals.css, src/components/arena/stage/StageCard.tsx, src/components/arena/stage/BattleParts.tsx, src/components/arena/stage/DuelBand.tsx, src/components/arena/stage/Takeover.tsx, src/components/arena/stage/StageZones.tsx, src/components/arena/stage/motion.ts
+status: closed
 ---
 **Source:** `docs/arena-board-redesign-spec.md` §5 (the motion table) and decision 7; frames `docs/arena-redesign/fx-lab-effects.jpg`, `docs/arena-redesign/phone-07-clash-defend.jpg`, `docs/arena-redesign/phone-08-clash-break-through.jpg`, `docs/arena-redesign/phone-09-life-break.jpg`, `docs/arena-redesign/desk-08-clash-break-through.jpg`, `docs/arena-redesign/phone-10-victory.jpg`; `src/components/arena/stage/StageCard.tsx` (the `Moment` type); `src/components/arena/stage/motion.ts` (`baseMs`); `src/components/arena/stage/BattleParts.tsx` (`BattleVerdict`); prototype `docs/arena-redesign/prototype/arena.css` (the keyframes named below).
 

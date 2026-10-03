@@ -5,6 +5,7 @@ milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: epic, backlog, area:arena-ui, area:arena-workbench, phase:arena-home
 stage: ui
 tracking: true
+status: closed
 ---
 **Source:** `docs/arena-home-spec.md`; the "DBS Arena Redesign" canvas, rows *Arena home — launch a game in one tap* and *Rules workbench — one queue of card rules*.
 
