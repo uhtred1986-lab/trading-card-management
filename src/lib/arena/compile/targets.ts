@@ -210,7 +210,68 @@ function parseAreasOtherThan(text: string): { matched: string; listed: ScriptAre
  */
 const DIFFERENT_NAMES = /\s*\b(?:(?:with|and|of|having) )?different (?:card )?names\b/i;
 
+/**
+ * "Choose any number of your opponent's Battle Cards **for which the total
+ * cost adds up to 5 or less** and KO them" (BT3-036), and the other ways the
+ * sets print it: "of which the total power adds up to 30000 or less" (BT1-024),
+ * "whose total energy costs add up to 3 or less" (EB1-25), "that add up to a
+ * total energy cost of 4 or less" (BT10-144, "…cost **to** 6 or less" on
+ * BT10-140), "with energy costs that add up to a total of 4 or less"
+ * (DB2-067), "with a (combined) total energy cost of 8 or less" (BT31-090),
+ * "whose total power is less than or equal to this card's power" (BT30-003).
+ * A bound on the sum of the chosen cards, not on any one of them, so it is
+ * taken out of the phrase before the description is read and comes back as
+ * the selector's `sumAtMost`. "Cost" is the energy cost (1-2-5).
+ *
+ * Until 3 Oct 2026 the "that add up to a total energy cost of 4" family was
+ * read as "every card with an energy cost of 4 or less" (BT10-144, BT13-130,
+ * BT24-124, BT29-104 …), "…a total power of 30000 or less" as every card
+ * (BT15-030), and "…cost to 6 or less" as six cards (BT10-140); the rest were
+ * refused (`SUMMED_COUNT`). A bound from below ("adds up to 6 or more",
+ * TB1-030, BT12-017's price) is not this and stays refused.
+ */
+const SUM_MEASURE = String.raw`(?:energy |combo )?(?:cost|power)s?`;
+const SUM_LIMIT = String.raw`(?:[\d,]+ or less|less than or equal to this card's (?:power|energy cost))`;
+const SUM_BOUND = new RegExp(
+  String.raw`\s*,?\s*\b(?:(?:of|for) which|whose|with|that|which)\s+(?:` +
+    String.raw`(?:the |a )?(?:combined )?total ${SUM_MEASURE} (?:adds? up to|is|of)\s+(?:a total of )?${SUM_LIMIT}` +
+    String.raw`|${SUM_MEASURE} (?:that |which )?adds? up to (?:a total of )?${SUM_LIMIT}` +
+    String.raw`|adds? up to a (?:combined )?total ${SUM_MEASURE} (?:of|to)\s+${SUM_LIMIT}` +
+    ")",
+  "i",
+);
+/** A summed bound this grammar cannot state — read off another card ("…less than or equal to the energy cost of the card you placed", DB2-093). Refused, not read as a bound on each card. */
+export const SUM_UNREAD = /\btotal (?:energy |combo )?(?:cost|power)s? (?:is )?(?:less|greater|more) than\b/i;
+
+function sumBoundOf(said: string): NonNullable<Selector["sumAtMost"]> | null {
+  const t = said.toLowerCase();
+  const measure = /\b(?:(energy|combo) )?(cost|power)s?\b/.exec(t.replace(/\bthis card's (?:power|energy cost)\b/, ""));
+  if (!measure) return null;
+  const attr = measure[2] === "power" ? (measure[1] === "combo" ? "comboPower" : "power") : measure[1] === "combo" ? "comboCost" : "energyCost";
+  const n = /([\d,]+) or less/.exec(t);
+  if (n) return { attr, total: Number(n[1].replace(/,/g, "")) };
+  const own = /this card's (power|energy cost)/.exec(t);
+  if (!own) return null;
+  return { attr, total: { attr: { sel: { special: "self" } }, name: own[1] === "power" ? "power" : "energyCost" } };
+}
+
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  const summed = SUM_BOUND.exec(phrase);
+  if (summed) {
+    const bound = sumBoundOf(summed[0]);
+    // Only a choice of several cards has a sum: "any number of", or "up to N".
+    if (!bound || !/\bany number of\b|\bup to \d/i.test(phrase)) return null;
+    const rest = phrase.replace(summed[0], " ").replace(/\s+/g, " ").trim();
+    const sel = parseTarget(rest, looked, pool);
+    if (!sel || sel.special || sel.take != null || sel.sumAtMost) return null;
+    // "Choose any number of Battle Cards with 20000 power or less with energy
+    // costs that add up to a total of 4 or less" (DB2-010) names no owner, so
+    // it is a Battle Card in either Battle Area (20-1-2) — not only yours,
+    // which is what a counted choice with no owner otherwise reads as.
+    const owned = /\b(?:your|their|opponent'?s?|owner'?s?)\b/i.test(rest);
+    return { ...sel, count: sel.upTo ? sel.count : 99, upTo: true, ...(!owned && sel.area === "battle" && !sel.fromVar ? { side: "both" as const } : {}), sumAtMost: bound };
+  }
+  if (SUM_UNREAD.test(phrase)) return null;
   const different = DIFFERENT_NAMES.exec(phrase);
   if (!different) return parseTargetPhrase(phrase, looked, pool);
   const sel = parseTargetPhrase(phrase.replace(different[0], " ").replace(/\s+/g, " ").trim(), looked, pool);

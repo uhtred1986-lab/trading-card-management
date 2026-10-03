@@ -1639,6 +1639,7 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
     // stopped forbidding anything.
     if (o.op === "forbid" && o.unlessPay !== undefined && (!TAXABLE.has(o.what as ForbiddenAction) || !(o.unlessPay as unknown[]).length || o.unless !== undefined)) return false;
     if (o.op === "choose" && o.bindX === true) bound = true;
+    if (strayBound(o)) return false;
   }
   return true;
 }
@@ -1699,7 +1700,34 @@ function perHolds(v: unknown): boolean {
 function selectorHolds(v: unknown): boolean {
   if (typeof v !== "object" || v === null) return false;
   const special = (v as { special?: unknown }).special;
-  return special === undefined || (SPECIAL_TARGETS as readonly string[]).includes(special as string);
+  if (special !== undefined && !(SPECIAL_TARGETS as readonly string[]).includes(special as string)) return false;
+  // `TOTAL energyCost <= 5` (BT3-036): a measure and an amount, and a bound
+  // on a set — so never on a special, which names one card.
+  const sum = (v as { sumAtMost?: unknown }).sumAtMost;
+  if (sum === undefined) return true;
+  if (typeof sum !== "object" || sum === null || special !== undefined) return false;
+  const { attr, total } = sum as { attr?: unknown; total?: unknown };
+  return (AMOUNT_ATTRS as readonly unknown[]).includes(attr) && (typeof total === "number" || (typeof total === "object" && total !== null)) && perHolds(total);
+}
+
+/**
+ * Is a summed bound (`Selector.sumAtMost`) written anywhere but on a
+ * `choose`'s own selector? Only the choice reads it — `resolveSelector` does
+ * not — so on a `ko`'s target, inside a `count` or under a `sumTo` choice it
+ * would be every card the selector describes, the bound read as nothing.
+ * Nested programs are walked too: they are part of the same value.
+ */
+function strayBound(v: unknown, top = true): boolean {
+  if (typeof v !== "object" || v === null) return false;
+  if (Array.isArray(v)) return v.some((x) => strayBound(x, false));
+  const o = v as Record<string, unknown>;
+  if (!top && "sumAtMost" in o) return true;
+  if (o.op === "choose" && o.sel && typeof o.sel === "object") {
+    const { sumAtMost, ...rest } = o.sel as Record<string, unknown>;
+    if (sumAtMost !== undefined && o.sumTo !== undefined) return true;
+    return strayBound(rest, false) || Object.entries(o).some(([k, x]) => k !== "sel" && strayBound(x, false));
+  }
+  return Object.values(o).some((x) => strayBound(x, false));
 }
 
 /**
@@ -1712,6 +1740,8 @@ function condShapeHolds(v: unknown, depth: number, xBound: boolean): boolean {
   const c = v as Record<string, unknown>;
   const spec = typeof c.kind === "string" ? COND_SCHEMA[c.kind as Cond["kind"]] : undefined;
   if (!spec) return false;
+  // A condition never chooses, so a summed bound in one is read as nothing.
+  if (strayBound(c)) return false;
   return spec.fields.every((f) => {
     const x = c[f.name];
     if (x === undefined) return !f.required;
@@ -2013,7 +2043,11 @@ export function describeSelector(sel: Selector, all = "all"): string {
       : sel.count == null
         ? all
         : sel.count === 99
-          ? "all"
+          ? // "Choose any number of … whose total cost adds up to 5 or less"
+            // (BT3-036): every card is not the choice when a sum bounds it.
+            sel.upTo && sel.sumAtMost
+            ? "any number of"
+            : "all"
           : sel.upTo
             ? `up to ${sel.count}`
             : `${sel.count}`;
@@ -2077,6 +2111,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : sel.notSelf === "name" ? " with a different card name from this card" : "") +
   // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
   (sel.differentNames ? " with different card names" : "") +
+  // "…for which the total cost adds up to 5 or less" (BT3-036): about the set too.
+  (sel.sumAtMost ? ` whose total ${ATTR_NOUNS[sel.sumAtMost.attr]} is ${describeAmount(sel.sumAtMost.total)} or less` : "") +
   (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {

@@ -175,6 +175,8 @@ export function printSelector(sel: Selector): string {
   else if (sel.notSelf === "copies") parts.push("otherThanCopies");
   else if (sel.notSelf === "name") parts.push("otherThanSameName");
   if (sel.differentNames) parts.push("differentNames");
+  // "…whose total cost adds up to 5 or less" (BT3-036): `TOTAL energyCost <= 5`.
+  if (sel.sumAtMost !== undefined) parts.push(`TOTAL ${sel.sumAtMost.attr} <= ${printAmount(sel.sumAtMost.total)}`);
   if (sel.printed) parts.push("asPrinted");
   return parts.length ? parts.join(" ") : "any";
 }

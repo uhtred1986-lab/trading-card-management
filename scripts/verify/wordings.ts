@@ -2025,13 +2025,16 @@ import type { EngineState, Trigger } from "./harness";
   // "Up to a total of 3" is up to 3 (BT21-051), not exactly 3.
   const total = parseTarget("up to a total of 3 Battle Cards in your opponent's Battle Area or Drop");
   assert.deepEqual([total?.count, total?.upTo], [3, true]);
-  // A bound on the sum of the chosen cards, and a count per kind, are not a
-  // selector's count: refused, and "KO them" is not pointed at the card an
-  // earlier clause chose (TB1-053).
-  assert.equal(parseTarget("any number of your opponent's Battle Cards whose total energy costs add up to 3 or less"), null);
+  // A bound on the sum of the chosen cards is not a selector's count: since 3
+  // Oct 2026 it is the selector's `sumAtMost`, never a count of 3. A count
+  // per kind is still refused. Either way "KO them" is not pointed at the
+  // card an earlier clause chose (TB1-053).
+  const summed = parseTarget("any number of your opponent's Battle Cards whose total energy costs add up to 3 or less");
+  assert.deepEqual([summed?.count, summed?.upTo, summed?.sumAtMost], [99, true, { attr: "energyCost", total: 3 }]);
   assert.equal(parseTarget("up to 1 each of <Son Goten> and <Trunks: Youth> from your deck"), null);
   const tb = one("[Auto] When you play this card, choose 1 card in your life and add it to your hand. If you do so, choose any number of your opponent's Battle Cards for which the total cost adds up to 3 or less and KO them.");
-  assert.ok(!JSON.stringify(tb.ops).includes('"ko"'), "no KO lands on the life card");
+  const ko = JSON.stringify(tb.ops).match(/"op":"ko","target":\{"var":"(c\d+)"\}/);
+  assert.ok(ko && ko[1] !== "c0", "the KO lands on the opponent's chosen cards, not on the life card");
   // "Play it in your opponent's Battle Area" (BT15-118) is not a play into your own.
   assert.ok(one("[Activate: Main] Play up to 1 blue Battle Card from your Drop in your opponent's Battle Area in Rest Mode.").unsupported.length > 0);
 }

@@ -7,7 +7,7 @@ import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
-import { AREA_WORDS, EACH_COUNT, SUMMED_COUNT, filterFor, parseTarget, selfFrom } from "./targets";
+import { AREA_WORDS, EACH_COUNT, SUMMED_COUNT, SUM_UNREAD, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
 /**
@@ -2818,7 +2818,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // them" landed on a card an earlier clause had chosen (TB1-053). So is a
     // count per area or kind ("up to 1 each of …", `EACH_COUNT`): BT14-092b's
     // "switch them to Rest Mode" fell on the card its price had chosen.
-    if (TWO_NAMED_CARDS.test(text) || SUMMED_COUNT.test(text) || EACH_COUNT.test(text)) c.twoNamedCardsRefused = true;
+    if (TWO_NAMED_CARDS.test(text) || SUMMED_COUNT.test(text) || SUM_UNREAD.test(text) || EACH_COUNT.test(text)) c.twoNamedCardsRefused = true;
   };
   const push = (ops: Op[]) => {
     const g = groups[groups.length - 1];

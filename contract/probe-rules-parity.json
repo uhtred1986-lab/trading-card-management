@@ -1658,6 +1658,17 @@
     },
     "same": true
   },
+  "SB-HOST#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "ddfe0774"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "ddfe0774"
+    },
+    "same": true
+  },
   "SEARCH#0": {
     "legacy": {
       "outcome": "fired",

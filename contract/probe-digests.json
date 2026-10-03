@@ -599,6 +599,10 @@
     "outcome": "fired",
     "digest": "7dc41913"
   },
+  "SB-HOST#0": {
+    "outcome": "fired",
+    "digest": "ddfe0774"
+  },
   "SEARCH#0": {
     "outcome": "fired",
     "digest": "2fabfcbf"

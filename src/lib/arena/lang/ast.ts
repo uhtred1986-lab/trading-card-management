@@ -62,7 +62,7 @@ export type Parsed<T> = { ok: true; value: T } | { ok: false; error: LangError }
  * order. The parser accepts them in any order, because a person typing a flag
  * after the area is not making a mistake.
  */
-export type SelectorPart = "special" | "fromVar" | "count" | "take" | "filter" | "places" | "flag";
+export type SelectorPart = "special" | "fromVar" | "count" | "take" | "filter" | "places" | "flag" | "sum";
 
 export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   special: "special",
@@ -81,6 +81,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   ignoreBarrier: "flag",
   notSelf: "flag",
   differentNames: "flag",
+  sumAtMost: "sum",
   printed: "flag",
 };
 type SelectorFieldMissing = Exclude<keyof Selector, keyof typeof SELECTOR_FIELDS>;
