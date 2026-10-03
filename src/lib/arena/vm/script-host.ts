@@ -228,6 +228,12 @@ export interface ScriptHost {
   battle(): BattleView | null;
   /** 8-1: the attack is redirected at this card, by that source. */
   setGuard(guard: string, by: string): void;
+  /**
+   * 8-1-7-2: `into` becomes the attack card or the guard card in place of
+   * `out`, which leaves the battle where it stands. No "when this card
+   * attacks / is attacked" is made pending.
+   */
+  swapBattleCard(out: string, into: string): void;
   /** 8-6: the attack does not happen. */
   negateAttack(): void;
   /**

@@ -5,6 +5,7 @@ labels: backlog, ready-for-agent, bug, area:arena-vm, phase:rules-stage9, model:
 stage: 9
 issue: 326
 touches: src/lib/arena/vm/actions.ts, scripts/verify/vm.ts
+status: closed
 ---
 **Source:** `src/lib/arena/vm/actions.ts` (`select`, `counted`); `src/lib/arena/vm/program.ts` (`attrsNow`); found by #166's pre-flip review.
 

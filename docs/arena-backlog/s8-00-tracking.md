@@ -4,6 +4,7 @@ milestone: Arena M11 — Everything else from config (Stage 8)
 labels: epic, backlog, area:arena-vm, area:arena-ui, area:arena-workbench, phase:rules-stage8
 stage: 8
 tracking: true
+status: closed
 ---
 Stage 8 of the rules-language programme (Sonnet 5, size M). What is still TypeScript *about DBS* — the words the board uses, the questions a prompt asks, the glossary, the room lighting, the model's primer, the probe fixtures — reads from the definition when a game is on the rules engine; the AI plays on it; and the definition itself is visible in the app.
 

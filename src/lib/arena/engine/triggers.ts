@@ -54,8 +54,11 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     trigger === "unisonToDrop" ||
     trigger === "removedFromBattle" ||
     trigger === "droppedFromBattle" ||
+    trigger === "droppedFromHand" ||
     trigger === "removedByOpponent" ||
     trigger === "addedToZEnergy" ||
+    // 3-10: the card answers from the Warp it was just sent to.
+    trigger === "deckToWarpBySkill" ||
     trigger === "evolveFromHandActivated" ||
     trigger === "counterFreeFromHand" ||
     // 3-9-2-1: the card this fires on is sitting in a Life Area.
@@ -74,6 +77,29 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     if (sk.limit != null && used >= sk.limit) continue;
     s.pending.push({ card, skillIndex: sk.index, master, trigger, subject });
   }
+}
+
+/**
+ * "When this card is placed in a Battle Area" for a card that has just arrived
+ * there by being played or by its [Field] (22-3). 5-5-1: playing a card places
+ * it in the Battle Area, so a play fires `placed` as well as `played` (owner's
+ * ruling, 2 Oct 2026). A move by a skill pends `placed` from the interpreter's
+ * `moveTo` instead, so this is only the arrivals that go round it. A skill
+ * already pended as `played` for this arrival (`since` is the queue length
+ * before that) answers it once.
+ */
+export function pendPlacedOnArrival(ctx: GameContext, s: GameState, card: string, since: number = s.pending.length): void {
+  if (areaOf(s, card) !== "battle") return;
+  const played = new Set(
+    s.pending
+      .slice(since)
+      .filter((p) => p.card === card && p.trigger === "played")
+      .map((p) => p.skillIndex),
+  );
+  const at = s.pending.length;
+  pendTriggers(ctx, s, "placed", card);
+  const fresh = s.pending.splice(at).filter((p) => !played.has(p.skillIndex));
+  s.pending.push(...fresh);
 }
 
 /** 5-12 / 21-14: move a Battle Card from the Battle Area to its owner's Drop Area. */

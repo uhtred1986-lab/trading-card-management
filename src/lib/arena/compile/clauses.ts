@@ -36,7 +36,9 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
  * Only counted when the clause so far opened a description with "with", which
  * is the word that turns the rest of the phrase into a filter.
  */
-const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
+// "…with 5000 combo power **and different card names**" (BT29-030) is the same
+// shape: a second measure of the set being chosen, not a second clause.
+const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|\d+ combo power|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
 
 /**
  * "Choose all of your opponent's skill-less Battle Cards **and** Battle Cards
@@ -162,7 +164,7 @@ export function splitClauses(text: string): string[] {
       if (
         (ch === "," || ch === ";") &&
         !inNameList(text, i) &&
-        !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for each\b/i.test(text.slice(i))))
+        !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for (?:each|every)\b/i.test(text.slice(i))))
       ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3))))) {

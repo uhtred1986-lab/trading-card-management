@@ -4,6 +4,7 @@ issue: 141
 milestone: Arena M7 — Rules engine core (Stage 4)
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage4, model:opus-5
 stage: 4
+status: closed
 ---
 **Source:** plan Stage 4 ("`pendTriggers` as event-pattern matching"); `triggers.rules` from Stage 3; `src/lib/arena/engine/triggers.ts` (`pendTriggers`, `skillAnswersTo`, `PendingAuto`, checkpoints); rule manual 9-6 and 9-6-9; `docs/arena-rules-language.md` §7.
 

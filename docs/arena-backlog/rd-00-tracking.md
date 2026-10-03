@@ -5,6 +5,7 @@ milestone: Arena M16 — Board redesign: play feel and card review
 labels: epic, backlog, area:arena-ui, phase:board-redesign
 stage: ui
 tracking: true
+status: closed
 ---
 **Source:** `docs/arena-board-redesign-spec.md`; `docs/arena-redesign/README.md` (the reference frames).
 
