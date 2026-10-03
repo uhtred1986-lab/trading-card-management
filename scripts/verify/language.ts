@@ -126,6 +126,14 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.deepEqual(negateAs({ op: "negate", what: "kind", kind: "counter", target: { var: "t" }, until: "turn" }), { op: "negateSkillsOfKind", target: { var: "t" }, kind: "counter", until: "turn" });
   assert.deepEqual(negateAs({ op: "negate", what: "keyword", keyword: "Blocker", target: { var: "t" } }), { op: "negateKeyword", keyword: "Blocker", target: { var: "t" } });
   assert.deepEqual(negateAs({ op: "negate", what: "keyword", keyword: "Blocker" }), { op: "negateKeyword", keyword: "Blocker" });
+  // A keyword the master picks as the step resolves (BT31-138): `chosen`
+  // names none, and one that names a keyword *and* says chosen is a note.
+  assert.deepEqual(negateAs({ op: "negate", what: "keyword", chosen: true, target: { var: "t" }, until: "turn" }), { op: "negateChosenKeyword", target: { var: "t" }, until: "turn" });
+  assert.equal(negateAs({ op: "negate", what: "keyword", keyword: "Blocker", chosen: true }).op, "note", "a chosen keyword that also names one was guessed rather than noted");
+  assert.equal(
+    describeScript([{ op: "negate", what: "keyword", chosen: true, target: { var: "t" }, until: "turn" }]),
+    "choose up to 1 keyword skill of the chosen cards and negate it for the turn",
+  );
   assert.deepEqual(negateAs({ op: "negate", what: "own" }), { op: "negateOwnSkill" });
   assert.deepEqual(negateAs({ op: "negate", what: "own", until: "turn" }), { op: "negateOwnSkill", until: "turn" });
   assert.equal(negateAs({ op: "negate", what: "kind", until: "turn" }).op, "note", "a `kind` scope with no skill kind was guessed rather than noted");
@@ -434,6 +442,7 @@ import type { CardFilter, SchemaOp } from "./harness";
       "negateSkills",
       "negateSkillsOfKind",
       "negateKeyword",
+      "negateChosenKeyword",
       "negateOwnSkill",
       "energyMarker",
       "redirectAttack",

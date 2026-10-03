@@ -112,6 +112,9 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       if (card.negated !== "all") card.negated.push(index);
     },
     addEffect: (e) => {
+      // "…while this card is in a Battle Area": a source already gone by the
+      // time the effect resolves gives it no period to last for at all.
+      if (e.until === "whileSourceInPlay" && (!e.source || areaOf(s, e.source) !== "battle")) return;
       addEffect(s, ev, e);
     },
     schedule: (d) => {
@@ -171,6 +174,15 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       if (!s.battle) return;
       s.battle.guard = guard;
       ev.push({ type: "guardChanged", guard, by });
+    },
+    swapBattleCard: (out, into) => {
+      const b = s.battle;
+      if (!b || (b.attacker !== out && b.guard !== out)) return;
+      // 8-1-7-2: the new card is in the battle from here on (`joinsBattle`).
+      inst(into).battledThisTurn = true;
+      if (b.attacker === out) b.attacker = into;
+      else b.guard = into;
+      note(ev, `${face(ctx, s, into).name} takes ${face(ctx, s, out).name}'s place in the battle`);
     },
     negateAttack: () => {
       if (!s.battle) return;

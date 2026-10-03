@@ -4,6 +4,7 @@ milestone: Arena M9 — Rules engine battle (Stage 6)
 labels: epic, backlog, area:arena-vm, area:arena-rulesets, phase:rules-stage6
 stage: 6
 tracking: true
+status: closed
 ---
 Stage 6 of the rules-language programme (Opus 5, size L). The battle sub-flow — attack declaration, the blocker window, the counter windows, combo, power comparison, damage, KO, Z-Energy — written as `rulesets/dbs/battle.rules` and run by the Stage 4 flow runner.
 
