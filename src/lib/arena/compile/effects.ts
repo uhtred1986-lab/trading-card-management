@@ -7,7 +7,7 @@ import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
-import { AREA_WORDS, filterFor, parseTarget, selfFrom } from "./targets";
+import { AREA_WORDS, EACH_COUNT, SUMMED_COUNT, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
 /**
@@ -503,7 +503,8 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // 20-12-3: after looking, the cards go back where they were; the order is
   // the player's and changes nothing the engine tracks.
   if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
-  if (/^shuffle any (?:secret )?areas? you looked (?:through|at)(?: with this skill)?$/.test(t)) return "skip";
+  // "…using this skill" (BT13-122, BT16-072) is the same words as "with".
+  if (/^shuffle any (?:secret )?areas? you looked (?:through|at)(?: (?:with|using) this skill)?$/.test(t)) return "skip";
   if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
   // 20-13-1 read straight: skipping a turn or a span of phases already says
   // where play proceeds from, so a trailing clause that only names that
@@ -2119,6 +2120,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // choice, or the choice would go looking for a card already rested.
   if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(t))) {
     if (/token/.test(t)) return compileToken(clause, c);
+    // "…and play it **in your opponent's Battle Area**" (BT15-118, BT18-087):
+    // the card goes to the other side of the table, and `play` has no word for
+    // whose Battle Area it lands in — read without it, the card was played
+    // into your own. Left unread (ground rule 5).
+    if (/\b(?:in|into) (?:your|their|an|the) opponent'?s battle areas?\b/.test(m[1])) return null;
     const mode = m[2] as "rest" | "active" | undefined;
     // 9-1-5: "played … with its skills negated", which the sets print with and
     // without the article before "game".
@@ -2806,7 +2812,13 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // See `c.twoNamedCardsRefused` and the `refFor` check it feeds: a refused
     // two-named-card search is the one case where a stale target that is not
     // `self` must still block the pronoun after it.
-    if (TWO_NAMED_CARDS.test(text)) c.twoNamedCardsRefused = true;
+    // A choice bounded by the *sum* of the chosen cards' costs ("any number
+    // of … whose total cost adds up to 3 or less and KO them", `SUMMED_COUNT`)
+    // is the same trap: refused, it left the last choice standing, and "KO
+    // them" landed on a card an earlier clause had chosen (TB1-053). So is a
+    // count per area or kind ("up to 1 each of …", `EACH_COUNT`): BT14-092b's
+    // "switch them to Rest Mode" fell on the card its price had chosen.
+    if (TWO_NAMED_CARDS.test(text) || SUMMED_COUNT.test(text) || EACH_COUNT.test(text)) c.twoNamedCardsRefused = true;
   };
   const push = (ops: Op[]) => {
     const g = groups[groups.length - 1];

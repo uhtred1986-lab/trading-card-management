@@ -94,7 +94,37 @@ const AREA_NAMED: Record<string, ScriptArea> = {
 // "In **your opponent's** Battle Area or Drop": the possessive sits where the
 // first area word was expected, so the pair went unread and the phrase fell
 // through to whichever single area matched first.
-const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?) or (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/;
+// "From your deck **and/or** (your) life" (BT13-122, BT16-072, BT18-002,
+// BT25-028) is the same pair: one choice made across both areas, in any mix.
+// Read as "or" alone, the second area was dropped and the search looked only
+// in the deck.
+const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?) (?:and\/or|or) (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/;
+
+/**
+ * "Add up to **a total of** 2 [Dragon Ball] cards **from among all cards in**
+ * your deck and/or your life" (BT25-028, BT25-002, BT25-026), "choose up to a
+ * total of 3 Battle Cards in your opponent's Battle Area or Drop" (BT21-051):
+ * "a total of" says the count is one count across every area or kind named,
+ * which is what a selector's count already is — so it is "up to 2". And "from
+ * among all cards in your deck" is the deck, not *all* of it: read as written,
+ * the "all" made the choice a sweep and the skill took every [Dragon Ball]
+ * card in the deck. Both are said the short way before the phrase is read.
+ *
+ * Not "…energy costs that **add up to** a total of 4 or less" (DB2-010,
+ * DB2-067, EB1-68): a bound on the sum of the chosen cards' costs, which a
+ * selector cannot state. Those are refused (`SUMMED_COUNT`) rather than read as
+ * a choice of four cards.
+ */
+function saidTheShortWay(phrase: string): string {
+  return phrase
+    .replace(/\bup to a total of (\d+)\b/gi, "up to $1")
+    .replace(/\ba total of (\d+)\b(?! or (?:less|more|fewer|greater))/gi, "$1")
+    .replace(/\b(?:from )?among all (?:of )?(?:the )?cards (in|from) /gi, (_all, prep: string) => `${prep.toLowerCase()} `);
+}
+/** "…with energy costs that add up to (a total of) 4 or less": a bound on a sum of the chosen cards (see `saidTheShortWay`). */
+/** "Up to 1 (card) each of/from …": a count per area or per kind (see `parseTargetPhrase`). */
+export const EACH_COUNT = /\b\d+ (?:[a-z-]+ )*?(?:cards? )?each (?:of|from|in)\b/i;
+export const SUMMED_COUNT = /\b(?:costs?|power) (?:that |which )?adds? up to\b|\badds? up to (?:a total of )?\d+ or (?:less|more|fewer|greater)\b/i;
 
 /**
  * "…in all of your areas" (3-1-1): every area a player has, rather than one of
@@ -206,6 +236,13 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // than guessed at (ground rule 5); a two-name search is a primitive of its
   // own, not built.
   if (TWO_NAMED_CARDS.test(phrase)) return null;
+  if (SUMMED_COUNT.test(phrase)) return null;
+  // "Up to 1 Battle Card **each** from your deck and/or Drop" (SD19-03), "up
+  // to 1 each of ≪Prison Planet≫ cards with energy costs of 3 and 4"
+  // (P-664): a count per area or per kind, which one selector's count is not.
+  // Read as one choice, the "and/or" pair made it one card from either place.
+  if (EACH_COUNT.test(phrase)) return null;
+  phrase = saidTheShortWay(phrase);
   let t = phrase.toLowerCase();
   // Qualifiers this grammar does not read, and cannot afford to drop: they
   // narrow a phrase to a handful of cards by their *history* — which cards
@@ -669,6 +706,11 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // or an "original" measure, which `parseFilter` reads short, nor "by
     // paying the cost" — the trigger refuses those too (`text/triggers.ts`).
     /^you activate (?:an?|1) ((?![^[]*\[)(?!.*\b(?:original|by)\b).+?\bextra\b.*?)(?: from your hand)?$/.exec(t)?.[1] ??
+    // "When a {Scouter} is placed in your Battle Area", "when one of your blue
+    // Z-Extras is placed in a Battle Area" — the card arriving (5-5-4,
+    // `yourCardPlaced`). The trigger refuses a description with a place or a
+    // means in it (`text/triggers.ts`), so none is cut off here.
+    /^(?:an?|1|one of your|your) ((?!opponent|this card\b).+?) (?:is|are) placed in (?:your|a) battle area$/.exec(t)?.[1] ??
     null;
   // "A Battle Card **or** Unison Card" is two kinds, and `parseFilter` keeps
   // only one of them — which would stop the skill on the other. A filter that

@@ -5,7 +5,7 @@
 import { addEffect, addSkip, amount, areaOf, canPayCostProgram, cardNow, cardsInPlay, condHolds, def, draw, face, forbids, taxesOn, has, move, note, placeUnder, replacementChoicesFor, resolveRef, resolveSelector, schedule, setMode, skillsOfInstance } from "./state";
 import { tokenCardId } from "../vm/common";
 import type { GameContext } from "../types";
-import { koCard, masterOf, pendTriggers } from "./triggers";
+import { koCard, masterOf, pendPlacedWatchers, pendTriggers } from "./triggers";
 import type { Op } from "../vm/script";
 import type { Area, Color, FlowStep, GameEvent, GameState, PlayerId } from "../types";
 import type { ScriptHost } from "../vm/script-host";
@@ -148,7 +148,12 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
     },
 
     pendingCount: () => s.pending.length,
-    pend: (trigger, card, subject) => pendTriggers(ctx, s, trigger, card, subject),
+    pend: (trigger, card, subject) => {
+      pendTriggers(ctx, s, trigger, card, subject);
+      // A skill placing a card in a Battle Area (`moveTo`) is also "a card is
+      // placed in your Battle Area" for the rest of that side (`yourCardPlaced`).
+      if (trigger === "placed") pendPlacedWatchers(ctx, s, card);
+    },
     dropPendsOfOtherColours: (before, source) => {
       const colors = source && s.cards[source] ? cardNow(ctx, s, source).colors : [];
       s.pending = s.pending.filter((e, i) => {

@@ -1,4 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
+import { TURN_END_AFTER_PLACED } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, KeywordSkill, Skill } from "../types";
 import { splitClauses, stripNotes } from "./clauses";
@@ -305,6 +306,11 @@ function compileSkillText(skill: Skill): Script {
     if (/\bduring the turn (?:you played (?:it|this card)|(?:it|this card) was played) (?:with|using) \[(?:dark )?over realm[^\]]*\]/i.test(trigger)) {
       triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" };
     }
+    // "At the end of a turn in which this card was placed in a Battle Area"
+    // (BT15-118, 5-5-4): the moment is every turn's end (`turnEnd` and
+    // `opponentTurnEnd`), and the rest of the sentence is a condition on it —
+    // the card's memory of arriving this turn, played or placed (5-5-1).
+    if (TURN_END_AFTER_PLACED.test(trigger.trim().toLowerCase())) triggerCond = { kind: "placedThisTurn", sel: { special: "self" } };
     // "When this card is sent from your deck to your Warp by your <Heles>
     // card's skill" (BT30-106, 3-10): the moment is any skill of yours
     // (`deckToWarpBySkill`), and the skill's card is the subject — so which

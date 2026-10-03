@@ -54,7 +54,14 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
  * same precedent as "when you play or combo with this card" below.
  */
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
-const EVERY_MAIN_START = /^at the (?:beginning|start) of (?:(?:you|your) (?:and|or) your opponent'?s main phases?|each player'?s main phase)\b/;
+/**
+ * "At the end of **a turn in which this card was placed in a Battle Area**"
+ * (BT15-118): every turn's end, either player's, and the rest of the sentence
+ * is a condition the compiler puts on it — the card's memory of arriving in a
+ * Battle Area this turn (`placedThisTurn`). Played counts (5-5-1).
+ */
+export const TURN_END_AFTER_PLACED = /^at the end of a turn in which this card was placed in (?:a|your) battle area\b/;
+const EVERY_MAIN_START =/^at the (?:beginning|start) of (?:(?:you|your) (?:and|or) your opponent'?s main phases?|each player'?s main phase)\b/;
 
 /**
  * 22-15: "When you play this card using [Over Realm]", "when this card is
@@ -194,9 +201,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // end of your turn" also acted at the end of the opponent's, and 13 that
     // wait for the opponent's turn fired a turn early as well.
     case "turnEnd":
-      return /^at the end of (?:your|the|this) turn\b/.test(head) || EVERY_TURN_END.test(head);
+      return /^at the end of (?:your|the|this) turn\b/.test(head) || EVERY_TURN_END.test(head) || TURN_END_AFTER_PLACED.test(head);
     case "opponentTurnEnd":
-      return /^at the end of your opponent'?s turn\b/.test(head) || EVERY_TURN_END.test(head);
+      return /^at the end of your opponent'?s turn\b/.test(head) || EVERY_TURN_END.test(head) || TURN_END_AFTER_PLACED.test(head);
     case "opponentTurnStart":
       return /^at the (?:beginning|start) of your opponent'?s turn\b/.test(head);
     case "mainStart":
@@ -331,6 +338,20 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // `engine/triggers.ts`'s `pendPlacedOnArrival`).
     case "placed":
       return /when this card is placed in (?:a|your|their|an opponent's) battle area/.test(t);
+    // The same arrival, about another card: "when a {Scouter} is placed in
+    // your Battle Area" (BT23-066), "when one of your blue Z-Extras is placed
+    // in a Battle Area" (BT22-032b). Played or placed by a skill alike (5-5-1).
+    // The description becomes a condition on the subject, so — like
+    // `extraActivated` — one the compiler cannot read whole does not fire at
+    // all: an alternative ("a red **or** blue …"), a place it came from or a
+    // means ("from your Drop", "by a skill", "using …") are left as gaps.
+    case "yourCardPlaced": {
+      const m = /^when (?:an?|1|one of your|your) (?!opponent)([^,:]{1,90}?) (?:is|are) placed in (?:your|a) battle area(?:,|$)/.exec(head);
+      if (!m || /^this card\b/.test(m[1])) return false;
+      const kinds = m[1].replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, "");
+      if (/ or |\bfrom\b|\bby\b|\busing\b|\bunder\b|\bwithout\b|\bin your\b/.test(kinds)) return false;
+      return !parseFilter(effect.unmask(m[1])).unreadable;
+    }
     case "energyToDrop":
       return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
     case "unisonToDrop":

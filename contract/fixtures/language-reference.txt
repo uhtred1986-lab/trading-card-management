@@ -2596,6 +2596,21 @@
       "doc": "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4)"
     },
     {
+      "kind": "placedThisTurn",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"placedThisTurn\",\"sel\":SELECTOR}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        }
+      ],
+      "sentence": "1 card in your Battle Area was placed in a Battle Area this turn",
+      "doc": "did one of these cards arrive in a Battle Area this turn, played or placed by a skill (5-5-1, 5-5-4)? \"At the end of a turn in which this card was placed in a Battle Area\" (BT15-118). The card remembers the arrival until the turn ends or it changes area (3-1-4)"
+    },
+    {
       "kind": "every",
       "class": "macro over `count` + `not`",
       "signature": "{\"kind\":\"every\",\"sel\":SELECTOR,\"matching\":SELECTOR}",
@@ -3659,6 +3674,10 @@
     {
       "name": "placed",
       "words": "when this card is placed in a Battle Area"
+    },
+    {
+      "name": "yourCardPlaced",
+      "words": "when a card is placed in your Battle Area"
     },
     {
       "name": "attacks",

@@ -284,6 +284,14 @@ export type Cond =
    */
   | { kind: "playedUsing"; sel: Selector; what: "Over Realm" }
   /**
+   * "At the end of a turn in which this card was placed in a Battle Area"
+   * (BT15-118, 5-5-4): did one of these cards arrive in a Battle Area this
+   * turn, played or placed by a skill (5-5-1)? The card's memory of the
+   * arrival — set as it lands there from another area, gone when the turn
+   * ends or the card changes area (3-1-4).
+   */
+  | { kind: "placedThisTurn"; sel: Selector }
+  /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
    * filter, because what the sentence asks about is as often the *mode* of a

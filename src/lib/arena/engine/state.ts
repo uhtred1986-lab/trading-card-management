@@ -748,6 +748,9 @@ export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c:
     // P-048's "during the turn you played it with [Over Realm]" (22-15).
     case "playedUsing":
       return resolveSelector(ctx, s, frame, c.sel).some((id) => s.cards[id]?.playedUsing === c.what);
+    // BT15-118's "a turn in which this card was placed in a Battle Area" (5-5-4).
+    case "placedThisTurn":
+      return resolveSelector(ctx, s, frame, c.sel).some((id) => !!s.cards[id]?.placedThisTurn);
     case "every": {
       const ids = resolveSelector(ctx, s, frame, c.sel);
       // Nothing there is not "all of it" — see the note on the Cond.
@@ -1413,8 +1416,12 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     inst.usedThisTurn = [];
     inst.extraAttacks = 0;
     delete inst.playedUsing;
+    delete inst.placedThisTurn;
     s.effects = s.effects.filter((e) => e.target !== id);
   }
+  // 5-5-4: a card arriving in a Battle Area remembers it for the turn,
+  // played or placed alike (5-5-1) — BT15-118's `placedThisTurn`.
+  if (to === "battle" && from?.area !== "battle") inst.placedThisTurn = true;
   // "…while this card is in a Battle Area": what the card made for that long
   // ends as it leaves — a move from one Battle Area to another (20-9) is not
   // leaving.

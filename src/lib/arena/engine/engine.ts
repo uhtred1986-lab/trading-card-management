@@ -212,6 +212,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
         s.cards[id].usedMarkerSkill = false;
         s.cards[id].battledThisTurn = false;
         delete s.cards[id].playedUsing;
+        delete s.cards[id].placedThisTurn;
       }
       const ps = s.players[s.turnPlayer];
       ps.overRealmsThisTurn = 0;

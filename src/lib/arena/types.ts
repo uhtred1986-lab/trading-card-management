@@ -268,6 +268,13 @@ export interface CardInstance {
    * when the card changes area (3-1-4); absent otherwise.
    */
   playedUsing?: string;
+  /**
+   * 5-5-4: this card arrived in a Battle Area this turn, played or placed by a
+   * skill (5-5-1) — BT15-118's "at the end of a turn in which this card was
+   * placed in a Battle Area", the `placedThisTurn` condition. Set by `move`,
+   * cleared in `turn.next` and when the card changes area (3-1-4).
+   */
+  placedThisTurn?: boolean;
   /** Skills negated by effects (index list) or all skills. */
   negated: number[] | "all";
 }
@@ -804,6 +811,14 @@ export type Trigger =
    * not cover the rest, and 42 skills say only the second.
    */
   | "placed"
+  /**
+   * "When a {Scouter} is placed in your Battle Area" (BT23-066), "when one of
+   * your blue Z-Extras is placed in a Battle Area" (BT22-032b): another card
+   * arriving in your Battle Area, played or placed by a skill (5-5-1, 5-5-4),
+   * watched by your cards in play. The card is the `subject`, so what the
+   * clause says about it is a condition on it.
+   */
+  | "yourCardPlaced"
   | "energyToDrop"
   | "unisonToDrop"
   | "markerRemoved"

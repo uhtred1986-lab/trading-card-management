@@ -142,6 +142,15 @@ export interface VmCard {
    */
   playedUsing?: string;
   /**
+   * 5-5-4: this card arrived in a Battle Area this turn, played or placed by a
+   * skill (5-5-1) — what `placedThisTurn` reads for BT15-118's "at the end of
+   * a turn in which this card was placed in a Battle Area". Set by `moved`
+   * (`vm/flow.ts`) and a skill's `moveTo` (`vm/host.ts`) as the card lands
+   * there from another area, cleared by `endTurn` and by a change of area
+   * (3-1-4). Absent otherwise.
+   */
+  placedThisTurn?: true;
+  /**
    * 14-1-4: this card is a Z-card, which `moveCard` removes from the game when
    * it leaves play. Set by `newCard` from the definition's type and left off
    * for every other card, so a state without a Z-card is byte-for-byte what it
@@ -398,4 +407,5 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   card.hidden = false;
   delete card.attacksThisTurn;
   delete card.playedUsing;
+  delete card.placedThisTurn;
 }
