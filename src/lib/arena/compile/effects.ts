@@ -406,6 +406,21 @@ function parseWouldMoveFromLife(clause: string): { to?: "hand" | "drop" } | null
 }
 
 /**
+ * 13-5-2's marker loss as a replaceable moment (SD13-02): "if this card would
+ * lose a marker from an opponent's attack", "if it would lose a marker from an
+ * attack" (BT10-125 — an attack on your Unison is always the opponent's, 8-1-1)
+ * and "if a marker would be removed from this card by an opponent's attack".
+ * The card is always the permanent's own, so "it" stays `self`.
+ */
+function parseWouldLoseMarker(clause: string): boolean {
+  const t = clean(clause);
+  return (
+    /^if (?:this card|it) would lose a marker from an (?:opponent's )?attack$/.test(t) ||
+    /^if a marker would be removed from this card by an (?:opponent's )?attack$/.test(t)
+  );
+}
+
+/**
  * Timings that push the rest of the sentence into the future (1-7-2-1-1):
  * "At the end of the turn, KO it", "During your opponent's next turn, …".
  * Everything after the phrase becomes a delayed program rather than something
@@ -2842,6 +2857,20 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       c.lastTarget = { sel: { special: "subject" } };
       continue;
     }
+    if (parseWouldLoseMarker(clause)) {
+      c.replacing = { event: "marker" };
+      c.lastTarget = { sel: { special: "self" } };
+      // "…by an opponent's attack, once per turn, you may add 1 card from
+      // under this card to your hand instead" (BT29-044): the limit is split
+      // off on its own, and alone it would close the replacement empty-handed
+      // and leave the substitute to compile as a plain effect. It belongs to
+      // the clause after it, where `oncePerTurn` reads it.
+      if (/^once per turn[.,]?$/i.test(clauses[i + 1]?.trim() ?? "") && i + 2 < clauses.length) {
+        clauses[i + 2] = `once per turn, ${clauses[i + 2].trim()}`;
+        clauses.splice(i + 1, 1);
+      }
+      continue;
+    }
 
     // A timing phrase opens a group too, and everything after it happens then
     // rather than now. A condition already in front of it still applies, and
@@ -3078,7 +3107,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       // not in a Battle Area at all, so the printed skill did nothing. It is a
       // substitute, and falls through to the branch below.
       const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self";
-      if (replaceEvent !== "life" && only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under && !oncePerTurn) {
+      if (replaceEvent !== "life" && replaceEvent !== "marker" && only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under && !oncePerTurn) {
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
         const filter = subject ? filterFor(subject, "battle") : undefined;
@@ -3113,6 +3142,11 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
             ? got.map((o) => (o.op === "moveTo" && o.to === "hand" && "var" in o.target && revealedAs.has(o.target.var) ? { ...o, faceUp: true } : o))
             : got;
         const withOps: Op[] = oncePerTurn ? [...revealedOps, { op: "negateOwnSkill", until: "turn" }] : revealedOps;
+        // 13-5-2: a marker kept, the one moment `by: "attack"` names.
+        if (replaceEvent === "marker") {
+          push([{ op: "replace", event: "marker", by: "attack", with: withOps, ...(offered || heldOffer ? { optional: true } : {}) }]);
+          continue;
+        }
         push([
           {
             op: "replace",

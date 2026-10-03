@@ -76,7 +76,18 @@ export type SpecialTarget = "self" | "attacker" | "guard" | "subject" | "leader"
  * it stands for before any engine looks at it, so those two cases stay the
  * one reading of either, and a `with` that is not empty is a `note`.
  */
-export type ReplaceEvent = "leave" | "ko" | "play" | "life" | "attack" | "counter";
+/**
+ * `"marker"`: this card (a Unison) would lose a marker — only ever with
+ * `by: "attack"`, the 13-5-2 removal an opponent's attack makes on a Unison
+ * guard ("if this card would lose a marker from an opponent's attack, you may
+ * … instead", SD13-02). The Damage Step is the one site that asks, once per
+ * marker (5-13-4-2: removing X markers is "remove 1 marker" X times, and
+ * 9-10-2-3 applies a replacement once per event). Always a substitute: the
+ * marker stays and the program runs. A marker paid as a cost or removed by a
+ * skill is not this moment, and `validateProgram` refuses any other `by` so a
+ * rule cannot claim a moment nothing reads.
+ */
+export type ReplaceEvent = "leave" | "ko" | "play" | "life" | "marker" | "attack" | "counter";
 
 export interface Selector {
   side?: Side;
@@ -786,7 +797,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "ko" | "skillOrKo" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -1240,6 +1251,27 @@ export function replacementPrompt(card: string, to: Area, choices: ReplacementCh
       ...(allowNone ? [`Keep going to ${area(to)}`] : []),
     ],
   };
+}
+
+/**
+ * 9-10-2/9-10-3's question over one marker a Unison is about to lose to an
+ * attack (13-5-2, SD13-02): each `marker` replacement in words, and — when
+ * every one is optional — losing the marker as usual, last.
+ */
+export function markerReplacementPrompt(card: string, choices: ReplacementChoice[], allowNone: boolean): { reason: string; options: string[] } {
+  return {
+    reason: `${card}: choose what happens instead of losing a marker`,
+    options: [...choices.map((c) => `Instead: ${describeScript(c.ops ?? [])}`), ...(allowNone ? ["Lose the marker"] : [])],
+  };
+}
+
+/**
+ * A `marker` replacement's substitute as a program of its own, for the two
+ * engines' Damage Steps to queue: the Unison whose marker it kept is the
+ * `subject`, and `replacing` keeps the program from replacing its own moves.
+ */
+export function markerSubstituteFrame(id: string, c: ReplacementChoice, master: PlayerId): ScriptFrame {
+  return { ops: c.ops ?? [], ip: 0, vars: {}, card: c.source, master: c.master ?? master, subject: id, replacing: id, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}) };
 }
 
 function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: number | null): ReplacementResult | null | undefined {

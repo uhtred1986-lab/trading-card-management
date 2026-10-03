@@ -949,6 +949,18 @@
     },
     "same": true
   },
+  "KEEPER#0": {
+    "legacy": {
+      "outcome": "inForce",
+      "digest": "00264035"
+    },
+    "rules": {
+      "outcome": "inForce",
+      "digest": "12145185"
+    },
+    "same": false,
+    "cause": "rule-processing"
+  },
   "KILLER#0": {
     "legacy": {
       "outcome": "fired",
@@ -2063,6 +2075,17 @@
     "rules": {
       "outcome": "notOffered",
       "digest": "e2ce4101"
+    },
+    "same": true
+  },
+  "UNMARK#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "46dfe8cb"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "46dfe8cb"
     },
     "same": true
   },
