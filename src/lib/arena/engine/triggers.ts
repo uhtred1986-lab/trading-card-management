@@ -100,6 +100,21 @@ export function pendPlacedOnArrival(ctx: GameContext, s: GameState, card: string
   pendTriggers(ctx, s, "placed", card);
   const fresh = s.pending.splice(at).filter((p) => !played.has(p.skillIndex));
   s.pending.push(...fresh);
+  pendPlacedWatchers(ctx, s, card);
+}
+
+/**
+ * "When a {Scouter} is placed in your Battle Area" (`yourCardPlaced`, 5-5-4):
+ * the cards in play on the side whose Battle Area `card` has just arrived in,
+ * with it as the subject. Pended wherever `placed` is — a play, a [Field]
+ * Extra's arrival (`pendPlacedOnArrival`) and a skill's move (the
+ * interpreter's `moveTo`, through `legacyHost`'s `pend`) — so the two
+ * moments answer the same arrivals. The arriving card hears it too, as
+ * `youPlayed` does: its skills are valid in the area it now sits in (9-1-3-1).
+ */
+export function pendPlacedWatchers(ctx: GameContext, s: GameState, card: string): void {
+  if (areaOf(s, card) !== "battle") return;
+  for (const id of cardsInPlay(s, masterOf(s, card))) pendTriggers(ctx, s, "yourCardPlaced", id, card);
 }
 
 /** 5-12 / 21-14: move a Battle Card from the Battle Area to its owner's Drop Area. */

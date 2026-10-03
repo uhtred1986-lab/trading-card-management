@@ -552,6 +552,8 @@ function moveTo(
   // ends as it leaves — a move from one Battle Area to another (20-9) is not
   // leaving.
   if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
+  // 5-5-4: arriving in a Battle Area is remembered for the turn (`placedThisTurn`).
+  if (to === "battle" && from !== "battle") state.cards[id].placedThisTurn = true;
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
   } else if (host && hostZone) {

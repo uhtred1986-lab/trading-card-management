@@ -99,6 +99,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   opponentCombos: "when your opponent combos",
   youCombo: "when you combo",
   placed: "when this card is placed in a Battle Area",
+  yourCardPlaced: "when a card is placed in your Battle Area",
   removedFromBattle: "when this card is removed from a Battle Area by a skill",
   removedByOpponent: "when this card is removed from a Battle Area by an opponent's skill",
   droppedFromBattle: "when a skill sends this card from a Battle Area to the Drop",

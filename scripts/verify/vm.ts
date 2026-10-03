@@ -1004,8 +1004,11 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // A pattern argument the moment does not carry never matches: `played`
     // asks `asPlay` and this moment does not say it. `placed` asks only where
     // the card went (5-5-1: a play is a placing too, owner's ruling of 2 Oct
-    // 2026), so it is the one declaration this moment answers.
-    assert.deepEqual(matchTriggers(DBS, s, { event: "moved", card: id, controller: "p1", args: { to: "battle" } }).map((m) => m.trigger), ["placed"], "a `moved` moment that does not say whether it was a play matched a declaration that asks");
+    // 2026), so it is the one self declaration this moment answers — and its
+    // watcher, `yourCardPlaced`, asks every card p1 has in play as well.
+    const answered = matchTriggers(DBS, s, { event: "moved", card: id, controller: "p1", args: { to: "battle" } });
+    assert.deepEqual(answered.filter((m) => m.trigger !== "yourCardPlaced").map((m) => m.trigger), ["placed"], "a `moved` moment that does not say whether it was a play matched a declaration that asks");
+    assert.ok(answered.filter((m) => m.trigger === "yourCardPlaced").every((m) => m.subject === id), "a card placed in a Battle Area is the subject its watchers are asked about");
     // A declaration that watches a side cannot be answered by a moment that
     // says whose it is nowhere — said loudly, because a silent empty list here
     // is a skill that never fires with nothing to explain it.

@@ -1921,3 +1921,117 @@ import type { EngineState, Trigger } from "./harness";
   // is not read as cards you have in play either.
   assert.ok(one("[Auto] When this card is played, look at your deck and life, add up to 2 [Dragon Ball] cards to your hand.").unsupported.length > 0);
 }
+
+{
+  // 5-5-4 with 5-5-1: "when a <description> is placed in your Battle Area"
+  // (`yourCardPlaced`; BT23-066, BT22-032b, P-416) — another card arriving,
+  // played or placed by a skill alike, with the description a condition on it.
+  // Until 3 Oct 2026 these answered to no moment and never fired.
+  const W = "[Auto] When a blue Battle Card is placed in your Battle Area, draw 1 card.";
+  const sk = parseSkills(W)[0];
+  assert.ok(autoTriggerMatches(sk, "yourCardPlaced"), "the wording names the watcher");
+  assert.ok(!autoTriggerMatches(sk, "placed") && !autoTriggerMatches(sk, "youPlayed"), "…not the card's own arrival, and not only a play");
+  const gate = JSON.parse(JSON.stringify(compileSkill(sk).ops))[0];
+  assert.equal(gate.op, "if");
+  assert.equal(gate.cond.sel.special, "subject");
+  assert.deepEqual([gate.cond.sel.filter.colors, gate.cond.sel.filter.type], [["Blue"], "BATTLE"]);
+  // A description that cannot be checked whole does not fire at all.
+  for (const text of [
+    "[Auto] When a red or blue Battle Card is placed in your Battle Area, draw 1 card.",
+    "[Auto] When a blue Battle Card is placed in your Battle Area from your Drop, draw 1 card.",
+    "[Auto] When a blue Battle Card is placed in your Battle Area by a skill, draw 1 card.",
+    "[Auto] When this card is placed in your Battle Area, draw 1 card.",
+    "[Auto] When your opponent's Battle Card is placed in a Battle Area, draw 1 card.",
+  ]) assert.ok(!autoTriggerMatches(parseSkills(text)[0], "yourCardPlaced"), text);
+  // The catalog's descriptions: a Z-Extra in the plural (BT22-032b), and a
+  // keyword tag in front of the type (P-416).
+  const z = JSON.parse(JSON.stringify(compileSkill(parseSkills("[Auto][Once per turn] When one of your blue Z-Extras is placed in a Battle Area, draw 1 card.")[0]).ops))[0];
+  assert.deepEqual([z.cond.sel.filter.colors, z.cond.sel.filter.type, z.cond.sel.filter.z], [["Blue"], "EXTRA", true]);
+  const field = JSON.parse(JSON.stringify(compileSkill(parseSkills("[Auto] When a yellow [Field] Extra is placed in your Battle Area, draw 1 card.")[0]).ops))[0];
+  assert.deepEqual([field.cond.sel.filter.colors, field.cond.sel.filter.type, field.cond.sel.filter.keywords], [["Yellow"], "EXTRA", ["Field"]]);
+  assert.equal(parseFilter("blue Battle Cards or Z-Unisons").z, null, "one half of an alternative does not make the other a Z-card");
+
+  // Played: a blue Battle Card draws, a red one does not.
+  DEFS.PLACEWATCH = { ...DEFS.V1, id: "PLACEWATCH", name: "PLACEWATCH", skill: W };
+  for (const [played, fires] of [
+    ["V-BLUE", true],
+    ["V1", false],
+  ] as const) {
+    let s = stagedG({ hand: [played], energy: [played], battle: ["PLACEWATCH"] });
+    const hand = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", played) });
+    assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + (fires ? 1 : 0), `"when a blue Battle Card is placed in your Battle Area", ${played} played: the watcher ${fires ? "draws" : "does not draw"}`);
+    assertConsistentG(s);
+  }
+  // Placed by a skill: the same moment (5-5-4), once.
+  DEFS.SUMMONB = { ...DEFS.V1, id: "SUMMONB", name: "SUMMONB", skill: "[Auto] When you play this card, place up to 1 blue Battle Card from your Drop into your Battle Area." };
+  let t = stagedG({ hand: ["SUMMONB"], energy: ["V1"], battle: ["PLACEWATCH"] });
+  const sleeping = zoneOf(t, "p1", "deck").find((id) => t.cards[id].cardId === "V1")!;
+  t.cards[sleeping].cardId = "V-BLUE";
+  moveG(t, sleeping, "drop", "p1");
+  const before = zoneOf(t, "p1", "hand").length;
+  t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "SUMMONB") });
+  if (t.prompt.kind === "chooseCards") t = playG(t, { type: "choose", player: "p1", cards: [sleeping] });
+  assert.ok(zoneOf(t, "p1", "battle").includes(sleeping), "it was placed");
+  assert.equal(zoneOf(t, "p1", "hand").length, before - 1 + 1, "placed by a skill: the watcher draws once (and not for the red card that placed it)");
+  assertConsistentG(t);
+  delete DEFS.PLACEWATCH;
+  delete DEFS.SUMMONB;
+}
+
+{
+  // BT15-118: "At the end of a turn in which this card was placed in a Battle
+  // Area" — every turn's end, with the card's memory of arriving this turn as
+  // a condition (`placedThisTurn`, 5-5-4 with 5-5-1). Cleared with the turn.
+  const AFTER = "[Auto] At the end of a turn in which this card was placed in a Battle Area, draw 1 card.";
+  const sk = parseSkills(AFTER)[0];
+  assert.ok(autoTriggerMatches(sk, "turnEnd") && autoTriggerMatches(sk, "opponentTurnEnd"), "a turn: either player's");
+  const gate = JSON.parse(JSON.stringify(compileSkill(sk).ops))[0];
+  assert.deepEqual(gate.cond, { kind: "placedThisTurn", sel: { special: "self" } });
+  assert.equal(describeScript(compileSkill(sk).ops), "if this card was placed in a Battle Area this turn: draw 1");
+  DEFS.AFTERPLACED = { ...DEFS.V1, id: "AFTERPLACED", name: "AFTERPLACED", skill: AFTER };
+  DEFS.PLAINONE = { ...DEFS.V1, id: "PLAINONE", name: "PLAINONE" };
+  // Measured against a control game, because passing the turn draws a card of
+  // its own (7-3).
+  const run = (cardId: string) => {
+    let g = stagedG({ hand: [cardId], energy: ["V1"] });
+    g = playG(g, { type: "play", player: "p1", card: findG(g, "p1", "hand", cardId) });
+    const start = zoneOf(g, "p1", "hand").length;
+    g = playG(g, { type: "endMain", player: "p1" });
+    const own = zoneOf(g, "p1", "hand").length - start;
+    g = playG(g, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
+    assertConsistentG(g);
+    return { own, theirs: zoneOf(g, "p1", "hand").length - start - own };
+  };
+  const none = run("PLAINONE");
+  const placed = run("AFTERPLACED");
+  assert.equal(placed.own - none.own, 1, "played this turn: it draws at the end of the turn");
+  assert.equal(placed.theirs - none.theirs, 0, "…and not at the end of the next one, when it was not placed");
+  delete DEFS.AFTERPLACED;
+  delete DEFS.PLAINONE;
+}
+
+{
+  // BT25-028: "add up to a total of 2 [Dragon Ball] cards from among all cards
+  // in your deck and/or your life to your hand" is one choice of up to 2
+  // across both areas — read before as every [Dragon Ball] card in the deck.
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const r = one("[Auto] When this card is played, add up to a total of 2 [Dragon Ball] cards from among all cards in your deck and/or your life to your hand, then shuffle any areas you looked through with this skill.");
+  assert.deepEqual(r.unsupported, []);
+  const ch = r.ops[0] as { op: string; sel: { count?: number; upTo?: boolean; area?: string; areas?: string[]; filter?: { keywords: string[] } } };
+  assert.equal(ch.op, "choose");
+  assert.deepEqual([ch.sel.count, ch.sel.upTo, ch.sel.areas, ch.sel.filter?.keywords], [2, true, ["deck", "life"], ["Dragon Ball"]]);
+  assert.deepEqual(r.ops.map((o) => o.op), ["choose", "moveTo"]);
+  // "Up to a total of 3" is up to 3 (BT21-051), not exactly 3.
+  const total = parseTarget("up to a total of 3 Battle Cards in your opponent's Battle Area or Drop");
+  assert.deepEqual([total?.count, total?.upTo], [3, true]);
+  // A bound on the sum of the chosen cards, and a count per kind, are not a
+  // selector's count: refused, and "KO them" is not pointed at the card an
+  // earlier clause chose (TB1-053).
+  assert.equal(parseTarget("any number of your opponent's Battle Cards whose total energy costs add up to 3 or less"), null);
+  assert.equal(parseTarget("up to 1 each of <Son Goten> and <Trunks: Youth> from your deck"), null);
+  const tb = one("[Auto] When you play this card, choose 1 card in your life and add it to your hand. If you do so, choose any number of your opponent's Battle Cards for which the total cost adds up to 3 or less and KO them.");
+  assert.ok(!JSON.stringify(tb.ops).includes('"ko"'), "no KO lands on the life card");
+  // "Play it in your opponent's Battle Area" (BT15-118) is not a play into your own.
+  assert.ok(one("[Activate: Main] Play up to 1 blue Battle Card from your Drop in your opponent's Battle Area in Rest Mode.").unsupported.length > 0);
+}
