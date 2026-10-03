@@ -916,7 +916,7 @@ function promptsOf(game: GameDefinition, def: ActionDef): Prompt["kind"][] {
  * §7); this is the part a menu needs, and #142 is where the two become one.
  */
 function select(ctx: EngineContext, game: GameDefinition, state: VmState, sel: Selector, me: PlayerId): string[] {
-  const rich = (["special", "fromVar", "underHost", "take", "fromEnd", "hidden", "ignoreBarrier", "notSelf", "differentNames"] as const).find((f) => sel[f] !== undefined);
+  const rich = (["special", "fromVar", "underHost", "take", "fromEnd", "hidden", "ignoreBarrier", "notSelf", "differentNames", "sumAtMost"] as const).find((f) => sel[f] !== undefined);
   if (rich) throw new RulesetBroken(state.game, `an action's FOR selects by ${rich}, and this interpreter reads a side, an area, a filter and a mode so far (#142)`);
   const areas = sel.areas ?? (sel.area ? [sel.area] : []);
   if (!areas.length) throw new RulesetBroken(state.game, "an action's FOR names no area, so there is nowhere to look for a candidate");

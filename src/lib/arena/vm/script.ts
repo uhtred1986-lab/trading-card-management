@@ -153,6 +153,21 @@ export interface Selector {
    */
   differentNames?: true;
   /**
+   * "Choose any number of your opponent's Battle Cards **for which the total
+   * cost adds up to 5 or less** and KO them" (BT3-036): another bound on the
+   * *set* — the chosen cards' `attr` values added up may not pass `total`.
+   * Cost here is the card's energy cost as every other reading takes it — the
+   * total cost, specified cost included (1-2-2, 1-2-5), as it stands now
+   * (20-21-2) — and a token with no energy cost counts as 0, which 19-1-6-1-1
+   * says such a choice may include. A `choose` over it offers only the cards
+   * that still fit under what is left of the bound, so the offer shrinks as
+   * the running sum grows and no chooser, the AI included, can pass it.
+   * `resolveSelector` ignores it like `differentNames`, so only a `choose`'s
+   * own selector may carry it (`validateProgram`): anywhere else it would be
+   * read as every card it describes.
+   */
+  sumAtMost?: { attr: AmountAttr; total: Amount };
+  /**
    * Only cards matching the description printed on the line this program
    * belongs to (`asPrinted`): [Evolve]{2}: <Nail> finds a <Nail>, [Swap 3]'s
    * "<Goku> with an energy cost of 3" a Goku of cost 3 (22-5, 22-22). A
@@ -1647,7 +1662,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // already among the picks is no longer on offer.
         const nameKey = (id: string) => h.nameOf(id).toLowerCase();
         const taken = new Set(op.sel.differentNames ? sofar.map(nameKey) : []);
-        const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)));
+        // "…for which the total cost adds up to 5 or less" (BT3-036): what is
+        // left of the bound after the picks so far, and only the cards that
+        // still fit under it are on offer — the offer shrinks as the sum
+        // grows, so neither a player nor the AI (which picks among the
+        // candidates it is handed) can pass it. No bound is no limit.
+        const bound = op.sel.sumAtMost;
+        const measure = (id: string) => (bound ? h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: bound.attr }) : 0);
+        let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
+        const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!bound || measure(id) <= room));
 
         const answer = h.lastChoice();
         if (answer && frame.awaiting === op.as) {
@@ -1655,6 +1678,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           for (const id of answer) {
             if (!cands.includes(id) || picked.includes(id)) continue;
             if (op.sel.differentNames && picked.some((o) => nameKey(o) === nameKey(id))) continue;
+            // A host handing several cards at once is held to the bound card
+            // by card, the same as one answer at a time would be.
+            if (bound) {
+              const v = measure(id);
+              if (v > room) continue;
+              room -= v;
+            }
             picked.push(id);
           }
           h.clearLastChoice();
@@ -1682,7 +1712,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // Under "different card names" two namesakes among the candidates are
         // a real choice between them, even when there are few enough to take.
         const namesakes = !!op.sel.differentNames && new Set(cands.map(nameKey)).size < cands.length;
-        if (!upTo && !namesakes && cands.length <= left) {
+        // Under a summed bound, taking every candidate is forced only when
+        // all of them fit under it together.
+        const allFit = !bound || cands.reduce((n, id) => n + measure(id), 0) <= room;
+        if (!upTo && !namesakes && allFit && cands.length <= left) {
           frame.awaiting = undefined;
           take([...sofar, ...cands]);
           break;
@@ -1690,7 +1723,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.awaiting = op.as;
         frame.vars[op.as] = sofar;
         h.resume(frame);
-        const asked = left === 1 ? "" : ` (${left} more)`;
+        const asked = (left === 1 ? "" : ` (${left} more)`) + (bound ? ` (${bound.attr === "energyCost" ? "energy cost" : bound.attr} ${room} or less left)` : "");
         h.ask({
           kind: "chooseCards",
           // 20-7: whoever the card says chooses, chooses.

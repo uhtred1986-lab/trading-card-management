@@ -1805,3 +1805,127 @@ import {
   assert.equal(drawn(["V1", "V1"]), 0, "two copies of one card are one name");
   assert.equal(drawn(["V1", "DN-OTHER"]), 1, "two names draw");
 }
+
+// ── a choice bounded by a sum (BT3-036, 3 Oct 2026) ─────────────────────────
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  type Bounded = { side?: string; area?: string; count?: number; upTo?: boolean; differentNames?: true; sumAtMost?: { attr: string; total: unknown }; filter?: { costMax: number | null; powerMax: number | null } };
+  const chosen = (text: string): Bounded => {
+    const s = one(text);
+    assert.deepEqual(s.unsupported, [], `${text} left something unread`);
+    const c = s.ops.find((o) => o.op === "choose") as { sel: Bounded } | undefined;
+    assert.ok(c, `${text} chose nothing`);
+    return c!.sel;
+  };
+
+  // BT3-036 itself, whole: the move, then a choice bounded by the sum of the
+  // costs, then the KO of what was chosen.
+  const bt3 = one("[Auto] At the end of the battle after this card attacks, place this card at the bottom of your deck. Then choose any number of your opponent's Battle Cards for which the total cost adds up to 5 or less and KO them.");
+  assert.deepEqual(bt3.unsupported, []);
+  assert.deepEqual(
+    bt3.ops.map((o) => o.op),
+    ["moveTo", "choose", "ko"],
+  );
+  const bt3sel = (bt3.ops[1] as { sel: Bounded }).sel;
+  assert.deepEqual([bt3sel.side, bt3sel.area, bt3sel.count, bt3sel.upTo], ["opponent", "battle", 99, true], "any number of them");
+  assert.deepEqual(bt3sel.sumAtMost, { attr: "energyCost", total: 5 }, "the cost is the energy cost (1-2-5)");
+  assert.equal(bt3sel.filter?.costMax, null, "and no one card's cost is bounded");
+  assert.deepEqual((bt3.ops[2] as { target: unknown }).target, { var: "c0" });
+
+  // Every wording of the family the sets print, and what it bounds.
+  const family: [string, string, unknown][] = [
+    ["[Activate: Main] Choose any number of opponent Battle Cards of which the total power adds up to 30000 or less and KO those cards.", "power", 30000],
+    ["[Auto] When you play this card, choose any number of your opponent's Battle Cards of which the total cost adds up to 6 or less and KO them.", "energyCost", 6],
+    ["[Counter: Attack] Choose any number of your opponent's Battle Cards that add up to a total energy cost of 2 or less and KO them.", "energyCost", 2],
+    ["[Auto] When this card is played, choose any number of your opponent's Battle Cards that add up to a total energy cost to 6 or less and send them to their owners' Warps.", "energyCost", 6],
+    ["[Counter: Attack] Negate the attack, then choose any number of your opponent's Battle Cards whose total energy costs add up to 3 or less and KO them.", "energyCost", 3],
+    ["[Auto] When you play this card, choose any number of your opponent's Battle Cards with energy costs that add up to a total of 4 or less and KO them.", "energyCost", 4],
+    ["[Counter: Attack] Negate the attack, then choose any number of your opponent's Battle Cards with a total energy cost of 1 or less and those cards get -10000 power for the turn.", "energyCost", 1],
+    ["[Auto] When this card is played, choose any number of your opponent's Battle Cards with a combined total energy cost of 8 or less, ignoring [barrier], and send them to their owner's Warp.", "energyCost", 8],
+    ["[Activate: Battle] Choose any number of your opponent's Battle Cards that add up to a total power of 30000 or less and KO them.", "power", 30000],
+    ["[Auto] When this card attacks, choose any number of your opponent's Battle Cards whose total power is less than or equal to this card's power, and KO them.", "power", { attr: { sel: { special: "self" } }, name: "power" }],
+  ];
+  for (const [text, attr, total] of family) {
+    const sel = chosen(text);
+    assert.deepEqual(sel.sumAtMost, { attr, total }, text);
+    assert.deepEqual([sel.side, sel.area, sel.upTo], ["opponent", "battle", true], text);
+    assert.deepEqual([sel.filter?.costMax ?? null, sel.filter?.powerMax ?? null], [null, null], `${text}: the sum is not a bound on each card (it used to read as one)`);
+  }
+
+  // A bound on each card beside the bound on the sum keeps both.
+  const both = chosen("[Auto] When you play this card, choose any number of your opponent's Battle Cards with energy costs of 5 or less that add up to a total energy cost of 5 or less and KO them.");
+  assert.deepEqual([both.filter?.costMax, both.sumAtMost], [5, { attr: "energyCost", total: 5 }], "BT9-097 read as 'choose 5' until now");
+  // "Different card names" and a sum on one choice (EB1-68).
+  const heroines = chosen("[Activate: Main] Choose any number of ≪Heroine≫ cards in your hand with energy costs of 5 or less and different card names whose energy costs add up to a total of 10 or less and play them.");
+  assert.deepEqual([heroines.area, heroines.differentNames, heroines.filter?.costMax, heroines.sumAtMost], ["hand", true, 5, { attr: "energyCost", total: 10 }]);
+  // No owner named: a Battle Card in either Battle Area (20-1-2).
+  assert.equal(chosen("[Auto] When you play this card, choose any number of Battle Cards with 20000 power or less with energy costs that add up to a total of 4 or less and KO them.").side, "both");
+
+  // A sum bounded from below is not this, and stays unread (TB1-030).
+  const below = one("[Auto] When this card attacks a Leader Card, your opponent chooses any number of cards from their hand, Battle Area, or Energy Area for which the total cost adds up to 6 or more and places them in the Drop Area.");
+  assert.ok(!below.ops.some((o) => o.op === "choose"), "'6 or more' is not a bound from above");
+  // A sum bounded by another card's measure is not read either — and the "KO
+  // them" after it does not fall on the card the skill chose before (DB2-093).
+  const placed = one(
+    "[Counter: Attack] Negate the attack, then you may choose 1 of your Battle Cards, negate its skills, and place it in its owner's Drop Area. If you do, draw 1 card, then choose any number of your opponent's non-token Battle Cards with a total energy cost less than or equal to the energy cost of the card you placed in a Drop Area with this skill, and KO them.",
+  );
+  assert.ok(
+    placed.unsupported.some((u) => /total energy cost less than/.test(u)),
+    "the bound it cannot state is refused",
+  );
+  assert.ok(placed.unsupported.includes("KO them"), "and 'KO them' is not aimed at your own card");
+}
+
+{
+  // The engine side, on whichever engine runs. Opponent's Battle Cards cost
+  // 2, 3 and 4 under "total cost 5 or less" (BT3-036's effect, on a play
+  // trigger): {2, 3} may be KO'd, {2, 4} not.
+  const BOUNDED = "[Auto] When you play this card, choose any number of your opponent's Battle Cards for which the total cost adds up to 5 or less and KO them.";
+  DEFS["SB-HOST"] = { ...DEFS.V1, id: "SB-HOST", name: "SB-HOST", characters: ["SB-HOST"], energyCost: 1, skill: BOUNDED };
+  for (const n of [2, 3, 4]) DEFS[`SB-C${n}`] = { ...DEFS["V-BLUE"], id: `SB-C${n}`, name: `SB-C${n}`, characters: [`SB-C${n}`], energyCost: n, skill: null };
+  const start = () => {
+    let s = stagedG({ hand: ["SB-HOST"], energy: ["V1"], oppBattle: ["SB-C2", "SB-C3", "SB-C4"] });
+    const [c2, c3, c4] = [2, 3, 4].map((n) => findG(s, "p2", "battle", `SB-C${n}`));
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SB-HOST") });
+    assert.equal(s.prompt.kind, "chooseCards");
+    return { s, c2, c3, c4 };
+  };
+  const offered = (s: ReturnType<typeof stagedG>) => [...(s.prompt as { choice: { candidates: string[] } }).choice.candidates].sort();
+
+  {
+    const at = start();
+    let s = at.s;
+    const { c2, c3, c4 } = at;
+    assert.deepEqual(offered(s), [c2, c3, c4].sort(), "each one fits under 5 alone");
+    s = playG(s, { type: "choose", player: "p1", cards: [c2] });
+    assert.equal(s.prompt.kind, "chooseCards", "3 is left, so the choice goes on");
+    assert.deepEqual(offered(s), [c3], "the 4 no longer fits beside the 2");
+    assert.throws(() => playG(s, { type: "choose", player: "p1", cards: [c4] }), /invalid choice/, "{2, 4} is refused");
+    s = playG(s, { type: "choose", player: "p1", cards: [c3] });
+    assert.notEqual(s.prompt.kind, "chooseCards", "nothing fits in what is left");
+    assert.ok(zoneOf(s, "p2", "drop").includes(c2) && zoneOf(s, "p2", "drop").includes(c3), "{2, 3} is KO'd");
+    assert.ok(zoneOf(s, "p2", "battle").includes(c4), "and the 4 stays");
+    assertConsistentG(s);
+  }
+
+  // Every path the menu allows — and the AI picks only among the actions it
+  // is offered — ends with a set whose costs add up to 5 or less.
+  {
+    const first = start().s;
+    const cost = (id: string) => Number(first.cards[id].cardId.slice("SB-C".length));
+    const ends = new Set<string>();
+    const walk = (s: ReturnType<typeof stagedG>): void => {
+      if (s.prompt.kind !== "chooseCards") {
+        const gone = zoneOf(s, "p2", "drop").filter((id) => s.cards[id].cardId.startsWith("SB-C"));
+        const total = gone.reduce((n, id) => n + cost(id), 0);
+        assert.ok(total <= 5, `a path KO'd ${gone.map(cost).join("+")} = ${total}`);
+        ends.add(gone.map(cost).sort().join("+"));
+        return;
+      }
+      for (const a of actsG(s)) if (a.type === "choose") walk(playG(structuredClone(s), a));
+    };
+    walk(first);
+    assert.ok(ends.has("2+3") && ends.has("4") && !ends.has("2+4") && !ends.has("3+4"), `the reachable sets were ${[...ends].join(", ")}`);
+  }
+}

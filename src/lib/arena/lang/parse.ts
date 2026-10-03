@@ -646,6 +646,15 @@ class Parser {
       this.places(sel);
       return;
     }
+    // `TOTAL energyCost <= 5`: the chosen cards' measure, added up, may not
+    // pass the bound — "…for which the total cost adds up to 5 or less"
+    // (BT3-036). Only `<=`: no card bounds a choice's sum from below yet.
+    if (this.eatKw("TOTAL")) {
+      const attr = this.enumValue(EXPR_ATTRS);
+      if (!this.eatPunct("<=")) this.fail("a TOTAL bound needs <=", ["<="]);
+      sel.sumAtMost = { attr, total: this.amount() };
+      return;
+    }
     const at = this.tok;
     const w = this.text();
     const flag = SELECTOR_FLAGS[w];

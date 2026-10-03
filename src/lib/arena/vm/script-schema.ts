@@ -1658,6 +1658,8 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "forbid" && o.unlessPay !== undefined && (!TAXABLE.has(o.what as ForbiddenAction) || !(o.unlessPay as unknown[]).length || o.unless !== undefined))
       return `${step}: only an attack, a declared play or a switch of energy to Active Mode is taxed with "unlessPay", and never beside "unless"`;
     if (o.op === "choose" && o.bindX === true) bound = true;
+    const stray2 = strayBound(o, step);
+    if (stray2) return stray2;
   }
   return null;
 }
@@ -1758,6 +1760,7 @@ const SELECTOR_KEYS = {
   ignoreBarrier: 1,
   notSelf: 1,
   differentNames: 1,
+  sumAtMost: 1,
   printed: 1,
 } as const satisfies Record<keyof Selector, 1>;
 const SELECTOR_KEY_NAMES = Object.keys(SELECTOR_KEYS);
@@ -1797,6 +1800,20 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   }
   for (const k of ["upTo", "fromEnd", "ignoreBarrier", "hidden"]) if (v[k] !== undefined && typeof v[k] !== "boolean") return wrong(k, "true or false");
   for (const k of ["differentNames", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
+  // `TOTAL energyCost <= 5` (BT3-036): a measure and an amount, and a bound
+  // on a set — so never on a special, which names one card. Where it may
+  // stand at all is `strayBound`'s question.
+  if (v.sumAtMost !== undefined) {
+    const sum = v.sumAtMost;
+    if (!isRecord(sum)) return wrong("sumAtMost", "{ attr, total }");
+    const strayed = unknownKey(sum, ["attr", "total"]);
+    if (strayed) return `${at}.sumAtMost has no field ${JSON.stringify(strayed)}${hintFor(strayed, ["attr", "total"])}`;
+    if (!(AMOUNT_ATTRS as readonly unknown[]).includes(sum.attr)) return `${at}.sumAtMost.attr is one of ${AMOUNT_ATTRS.join(", ")}, not ${JSON.stringify(sum.attr)}`;
+    if (sum.total === undefined) return `${at}.sumAtMost.total is required`;
+    const bad = amountProblem(sum.total, true, `${at}.sumAtMost.total`);
+    if (bad) return bad;
+    if (v.special !== undefined) return `${at}.sumAtMost bounds a set of cards, and ${JSON.stringify(v.special)} names one`;
+  }
   if (v.underHost !== undefined) {
     const bad = selectorProblem(v.underHost, `${at}.underHost`, depth + 1);
     if (bad) return bad;
@@ -1918,6 +1935,33 @@ function amountProblem(v: unknown, xBound: boolean, at: string): string | null {
 }
 
 /**
+ * Why a summed bound (`Selector.sumAtMost`) is written where nothing reads it,
+ * or `null`. Only a `choose` reads it, and only on its own selector —
+ * `resolveSelector` does not — so on a `ko`'s target, inside a `count`, under
+ * a host or beside a `sumTo` it would be every card the selector describes,
+ * the bound read as nothing (BT3-036). Nested programs are walked too: a
+ * `choose` inside one is still a choose.
+ */
+function strayBound(v: unknown, at: string, top = true): string | null {
+  if (Array.isArray(v)) {
+    for (const x of v) {
+      const bad = strayBound(x, at, false);
+      if (bad) return bad;
+    }
+    return null;
+  }
+  if (!isRecord(v)) return null;
+  if (!top && v.sumAtMost !== undefined) return `${at}: "sumAtMost" (TOTAL … <=) bounds a choice, so only a choose's own selector may carry it — anywhere else it is read as every card`;
+  const rest = (o: Record<string, unknown>, skip: string) => Object.entries(o).filter(([k]) => k !== skip).map(([, x]) => x);
+  if (v.op === "choose" && isRecord(v.sel)) {
+    if (v.sel.sumAtMost !== undefined && v.sumTo !== undefined) return `${at}: a choice adds up to exactly "sumTo" or stays under "sumAtMost", not both`;
+    return strayBound(rest(v.sel, "sumAtMost"), at, false) ?? strayBound(rest(v, "sel"), at, false);
+  }
+  return strayBound(Object.values(v), at, false);
+}
+
+
+/**
  * A condition's shape, from `COND_SCHEMA`. Until this existed the validator
  * asked only for a `kind`, so a condition missing the selector it counts was
  * stored happily and threw when a game read it.
@@ -1934,7 +1978,8 @@ export function condProblem(v: unknown, depth = 0, xBound = false, at = "cond"):
     const bad = fieldProblem(f, v[f.name], depth, xBound, `${here}.${f.name}`);
     if (bad) return bad;
   }
-  return null;
+  // A condition never chooses, so a summed bound in one is read as nothing.
+  return strayBound(v, here);
 }
 
 function fieldProblem(f: OpField, v: unknown, depth: number, xBound: boolean, at: string): string | null {
@@ -2245,7 +2290,11 @@ export function describeSelector(sel: Selector, all = "all"): string {
       : sel.count == null
         ? all
         : sel.count === 99
-          ? "all"
+          ? // "Choose any number of … whose total cost adds up to 5 or less"
+            // (BT3-036): every card is not the choice when a sum bounds it.
+            sel.upTo && sel.sumAtMost
+            ? "any number of"
+            : "all"
           : sel.upTo
             ? `up to ${sel.count}`
             : `${sel.count}`;
@@ -2309,6 +2358,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : sel.notSelf === "name" ? " with a different card name from this card" : "") +
   // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
   (sel.differentNames ? " with different card names" : "") +
+  // "…for which the total cost adds up to 5 or less" (BT3-036): about the set too.
+  (sel.sumAtMost ? ` whose total ${ATTR_NOUNS[sel.sumAtMost.attr]} is ${describeAmount(sel.sumAtMost.total)} or less` : "") +
   (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {

@@ -701,6 +701,10 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     // BT29-030's "different card names": about the set, so a flag.
     { differentNames: true },
     { side: "you" as const, area: "drop" as const, count: 3, upTo: true, differentNames: true },
+    // BT3-036's "for which the total cost adds up to 5 or less": a bound on the set.
+    { side: "opponent" as const, area: "battle" as const, count: 99, upTo: true, sumAtMost: { attr: "energyCost" as const, total: 5 } },
+    { side: "opponent" as const, area: "battle" as const, count: 99, upTo: true, ignoreBarrier: true, sumAtMost: { attr: "power" as const, total: { attr: { sel: { special: "self" as const } }, name: "power" as const } } },
+    { side: "you" as const, area: "hand" as const, count: 99, upTo: true, differentNames: true, sumAtMost: { attr: "energyCost" as const, total: 10 } },
     // #157: a keyword body's "the description printed on this line".
     { printed: true },
     { side: "you" as const, area: "hand" as const, count: 2, notSelf: "card" as const, printed: true },
@@ -813,6 +817,50 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     assert.deepEqual([choose.sel.filter?.comboPowerMin, choose.sel.filter?.comboPowerMax], [5000, 5000]);
     assert.equal(printRule(parsed.value), src, "and it prints back exactly as written");
   }
+}
+
+// ── BT3-036, a choice bounded by a sum (3 Oct 2026) ─────────────────────────
+{
+  // Skill 10 as the compiler writes it, printed by `printRule`.
+  const src = [
+    "WHEN [auto] battleEnd",
+    "THEN",
+    "  moveTo(target: [self], to: deck, position: bottom)",
+    '  choose(sel: UP TO 99 "battle card" IN opponent.battle TOTAL energyCost <= 5, as: "c0")',
+    "  ko(target: $c0)",
+  ].join("\n");
+  const parsed = parseRule(src);
+  assert.ok(parsed.ok, `BT3-036's program does not parse: ${parsed.ok ? "" : JSON.stringify(parsed.error)}`);
+  if (parsed.ok) {
+    assert.equal(validateRule(parsed.value, "auto"), null, "BT3-036's program is not one the engine can run");
+    const choose = parsed.value.ops[1] as { op: string; sel: Selector };
+    assert.equal(choose.op, "choose");
+    assert.deepEqual(choose.sel.sumAtMost, { attr: "energyCost", total: 5 });
+    assert.equal(printRule(parsed.value), src, "and it prints back exactly as written");
+  }
+  // An expression for the bound: "…less than or equal to this card's power" (BT30-003).
+  const own = parseRule('WHEN [auto] attacks\nTHEN\n  choose(sel: UP TO 99 IN opponent.battle TOTAL power <= attr([self], power), as: "c0")\n  ko(target: $c0)');
+  assert.ok(own.ok && validateRule(own.value, "auto") === null);
+  // Only `<=`: no card bounds a choice's sum from below yet.
+  assert.equal(parseRule('WHEN [auto] played\nTHEN\n  choose(sel: UP TO 99 IN opponent.battle TOTAL energyCost >= 5, as: "c0")').ok, false);
+
+  // The bound is read by a `choose` alone; anywhere else it would be every
+  // card the selector describes, so the validator refuses it there.
+  const bound = { side: "opponent" as const, area: "battle" as const, sumAtMost: { attr: "energyCost" as const, total: 5 } };
+  const valid = (ops: Op[]) => validateRule({ kind: "auto", trigger: ["played"] as Trigger[], ops }, "auto") === null;
+  assert.ok(valid([{ op: "choose", sel: { ...bound, count: 99, upTo: true }, as: "c0" }, { op: "ko", target: { var: "c0" } }]));
+  assert.ok(!valid([{ op: "ko", target: { sel: bound } }]), "a KO of a bounded selector would KO every card");
+  assert.ok(!valid([{ op: "if", cond: { kind: "count", sel: bound, atLeast: 1 }, then: [{ op: "draw", n: 1 }] }]), "nor may a count carry it");
+  assert.ok(!valid([{ op: "choose", sel: bound, as: "c0", sumTo: 5 }]), "an exact sum and a bound are not one choice");
+  assert.ok(!valid([{ op: "choose", sel: { special: "self", sumAtMost: bound.sumAtMost }, as: "c0" }]), "one card has no sum");
+  assert.ok(!valid([{ op: "choose", sel: { ...bound, sumAtMost: { attr: "colour" as never, total: 5 } }, as: "c0" }]), "the measure is one of the amount attributes");
+  assert.ok(valid([{ op: "may", ops: [{ op: "choose", sel: bound, as: "c0" }] } as Op]), "a choose inside a nested program is still a choose");
+  // And each refusal says why, naming the field (#507's problem-reporting path).
+  assert.match(programProblem([{ op: "ko", target: { sel: bound } }]) ?? "", /sumAtMost.*only a choose's own selector/);
+  assert.match(programProblem([{ op: "choose", sel: bound, as: "c0", sumTo: 5 }]) ?? "", /"sumTo".*"sumAtMost"/);
+  assert.match(programProblem([{ op: "choose", sel: { ...bound, sumAtMost: { attr: "colour" as never, total: 5 } }, as: "c0" }]) ?? "", /sel\.sumAtMost\.attr is one of/);
+  assert.match(programProblem([{ op: "choose", sel: { special: "self", sumAtMost: bound.sumAtMost }, as: "c0" }]) ?? "", /sumAtMost bounds a set/);
+  assert.match(programProblem([{ op: "choose", sel: { ...bound, sumAtMost: { attr: "power", totl: 5 } as never }, as: "c0" }]) ?? "", /sumAtMost has no field "totl"/);
 }
 
 // ── keyword literals ────────────────────────────────────────────────────────

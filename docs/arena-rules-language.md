@@ -80,6 +80,7 @@ REF    := "$" name ( "MINUS" "$" name )? | SEL
 SEL    := part+                                    parts in any order; "any" when there are none
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number
         | "BOTTOM" number | filter | "IN" places | "OF" side | flag
+        | "TOTAL" attr "<=" expr                   a choose's bound on the chosen cards' sum
 places := ( side "." )? ( zone | zone ( "|" zone )+ | "ANY" "(" zone ( "|" zone )* ")" )
 flag   := "active" | "rest" | "hidden" | "revealed" | "fromEnd" | "ignoringBarrier" | "otherThanSelf" | "otherThanCopies" | "otherThanSameName" | "differentNames" | "asPrinted"
 filter := "\"" printed filter text "\"" | "(" field "=" value ( "AND" … )* ")"
@@ -1128,6 +1129,28 @@ THEN
   choose(sel: UP TO 3 "card with 5000 combo power" IN you.drop differentNames, as: "c0")
   moveTo(target: $c0, to: under)
 ```
+
+### A choice bounded by a sum (3 Oct 2026)
+
+"Any number of … for which the total cost adds up to 5 or less" bounds the set too: the selector
+part `TOTAL attr <= expr` (`Selector.sumAtMost`). A `choose` over it offers only the cards that
+still fit under what is left of the bound, so no chooser can pass it; "cost" is the energy cost
+(1-2-5), and a token with none counts as 0 (19-1-6-1-1). Only a `choose`'s own selector may carry
+it — the validator refuses it on a `ko` target or in a `count`, where it would be read as every
+card. `BT3-036`, skill 10, "[Auto] At the end of the battle after this card attacks, place this
+card at the bottom of your deck. Then choose any number of your opponent's Battle Cards for which
+the total cost adds up to 5 or less and KO them.":
+
+```
+WHEN [auto] battleEnd
+THEN
+  moveTo(target: [self], to: deck, position: bottom)
+  choose(sel: UP TO 99 "battle card" IN opponent.battle TOTAL energyCost <= 5, as: "c0")
+  ko(target: $c0)
+```
+
+The bound may be an expression: `BT30-003`'s "whose total power is less than or equal to this
+card's power" is `TOTAL power <= attr([self], power)`.
 
 ### 20-4. Unaffected by Skills
 
