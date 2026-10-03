@@ -327,6 +327,8 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   tripOps([{ op: "setPlayerAttr", name: "overRealms", add: 1 }], "setPlayerAttr adding to a counted fact");
   tripCond({ kind: "not", cond: { kind: "playerAttr", name: "overRealms", atLeast: 2 } }, "NOT playerAttr at least");
   tripCond({ kind: "flag", value: true }, "flag");
+  // …and the [Permanent] that lets it be used from the Warp (BT31-150).
+  tripOps([{ op: "permit", what: "overRealmFromWarp", target: { sel: { special: "self" } }, until: "game" }], "permit overRealmFromWarp");
   // …and [Empower]'s: the `markerCarry` leaf, with and without a colour, and
   // the paid markers as part of the play.
   tripOps([{ op: "carryMarkers", upTo: 2, color: "Red" }], "carryMarkers from a red Unison");

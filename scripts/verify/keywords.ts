@@ -370,8 +370,74 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.ok(zoneOf(d, "p1", "battle").includes(dark));
   assert.equal(zoneOf(d, "p1", "drop").length, 0, "the whole Drop, black or not, to the Warp");
   assertConsistentG(d);
+
+  // 22-15 widened (owner-approved 2 Oct 2026): "[Permanent] This card's [Over
+  // Realm] skill can be activated from its owner's Warp under the same
+  // conditions as if it were in your hand" (BT31-150 skill 20). A `permit` of
+  // `overRealmFromWarp`, read while the card is in the Warp: the same count,
+  // the same shared limit, the same whole-Drop cost and the same return.
+  const fromWarp = "[Permanent] This card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand.";
+  assert.deepEqual(compileSkill(parseSkills(fromWarp)[0]).ops, [{ op: "permit", what: "overRealmFromWarp", target: { sel: { special: "self" } }, until: "game" }]);
+  assert.ok(compileSkill(parseSkills(fromWarp.replace("[Permanent]", "[Auto]"))[0]).unsupported.length > 0, "an [Auto] saying it is no standing permission");
+  DEFS.ORWARP = { ...DEFS.V1, id: "ORWARP", name: "ORWARP", energyCost: 5, skill: `[Over Realm 3]{1}<br>${fromWarp}` };
+  const inWarp = (battle: string[] = ["ORWATCH"]) => {
+    const g = arenaG({ hand: ["ORWARP", "ORX"], battle, energy: ["V1", "V1", "V1"] });
+    const w = findG(g, "p1", "hand", "ORWARP");
+    const plain = findG(g, "p1", "hand", "ORX");
+    stageMoveG(g, w, "warp", "p1");
+    stageMoveG(g, plain, "warp", "p1");
+    return { g, w, plain };
+  };
+  const wp = inWarp();
+  toDrop(wp.g, 2);
+  assert.ok(!canActivateG(wp.g, wp.w), "22-15-3 from the Warp too: two cards in the Drop is fewer than 3");
+  assert.deepEqual(rejectedActionsG(wp.g).find((x) => x.action.type === "activate" && x.action.card === wp.w)?.why[0].kind, "condition", "and the reason is the hand's");
+  toDrop(wp.g, 1);
+  assert.ok(canActivateG(wp.g, wp.w), "BT31-150: with the permission, offered from the Warp");
+  assert.ok(labelsG(wp.g).includes("Over Realm 3: play ORWARP (Drop → Warp)"));
+  assert.ok(!canActivateG(wp.g, wp.plain), "without it, an [Over Realm] card in the Warp is not offered");
+  assert.equal(rejectedActionsG(wp.g).find((x) => "card" in x.action && x.action.card === wp.plain), undefined, "…and is no move to explain either, the same on both engines");
+  const wpDrop = zoneOf(wp.g, "p1", "drop").slice();
+  r = step(wp.g, { type: "activate", player: "p1", card: wp.w, skill: 0 });
+  assert.deepEqual(
+    r.beats,
+    ["skill ORWARP", "mode V1 rest", "move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "delayed ORWARP", "move ORWARP warp>battle", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
+    "the same beats as from the hand, the play from the Warp",
+  );
+  assert.ok(wpDrop.every((id) => zoneOf(r.s, "p1", "warp").includes(id)), "22-15-4: every card of the Drop to the Warp");
+  assert.ok(zoneOf(r.s, "p1", "battle").includes(wp.w));
+  r = step(r.s, { type: "endMain", player: "p1" });
+  assert.ok(r.beats.includes("move ORWARP battle>warp"), "22-15-6: back to the Warp as the turn ends");
+  assertConsistentG(r.s);
+  // 22-15-7: the one use a turn is shared between the hand and the Warp, both ways.
+  {
+    // Warp first, then the hand: refused.
+    let g = arenaG({ hand: ["ORWARP", "ORX"], energy: ["V1", "V1", "V1"] });
+    const w = findG(g, "p1", "hand", "ORWARP");
+    const h = findG(g, "p1", "hand", "ORX");
+    stageMoveG(g, w, "warp", "p1");
+    toDrop(g, 3);
+    g = playG(g, { type: "activate", player: "p1", card: w, skill: 0 });
+    toDrop(g, 3);
+    assert.ok(!canActivateG(g, h), "22-15-7: used from the Warp, the hand's is spent too");
+    assert.deepEqual(rejectedActionsG(g).find((x) => x.action.type === "activate" && x.action.card === h)?.why[0], { kind: "oncePerTurn", what: "Over Realm" });
+    assertConsistentG(g);
+  }
+  {
+    // The hand first, then the Warp: refused.
+    let g = arenaG({ hand: ["ORWARP", "ORX"], energy: ["V1", "V1", "V1"] });
+    const w = findG(g, "p1", "hand", "ORWARP");
+    const h = findG(g, "p1", "hand", "ORX");
+    stageMoveG(g, w, "warp", "p1");
+    toDrop(g, 3);
+    g = playG(g, { type: "activate", player: "p1", card: h, skill: 0 });
+    toDrop(g, 3);
+    assert.ok(!canActivateG(g, w), "22-15-7: used from the hand, the Warp's is spent too");
+    assert.deepEqual(rejectedActionsG(g).find((x) => x.action.type === "activate" && x.action.card === w)?.why[0], { kind: "oncePerTurn", what: "Over Realm" });
+    assertConsistentG(g);
+  }
   // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
-  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK"]) delete DEFS[id];
+  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK", "ORWARP"]) delete DEFS[id];
 }
 
 {

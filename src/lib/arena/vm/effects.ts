@@ -464,19 +464,24 @@ export function permanents(
 ): VmStatic[] {
   const out: VmStatic[] = [];
   const inPlay = new Set(inPlayZones(game));
-  const zones = [...inPlay, "hand", "zDeck"].filter((zone) => game.zones[zone]?.place !== false);
+  // The Warp only for the one permission about the card's own line used from
+  // there (`overRealmFromWarp`, BT31-150) — nothing else a [Permanent] says
+  // holds from the Warp, the same as the legacy `staticEffects`.
+  const zones = [...inPlay, "hand", "zDeck", "warp"].filter((zone) => game.zones[zone]?.place !== false);
   for (const p of Object.keys(state.sides) as PlayerId[]) {
     for (const zone of zones) {
       for (const src of state.sides[p].zones[zone] ?? []) {
         const card = state.cards[src];
         if (!card || card.hidden || skillsNegated(state, src)) continue;
         const showing = skillsShowing(ctx, state, src);
+        if (zone === "warp" && !showing.skills.some((sk) => sk.keyword?.name === "Over Realm")) continue;
         for (const sk of showing.skills) {
           if (sk.kind !== "permanent") continue;
           if (skillNegated(state, src, sk.index, sk.kind)) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
-          collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, program.ops, inPlay.has(zone), targets, holds, measure);
+          const ops = zone === "warp" ? program.ops.filter((op) => op.op === "permit" && op.what === "overRealmFromWarp") : program.ops;
+          collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
         }
       }
     }
@@ -690,9 +695,11 @@ function collect(
     // Cards in Active Mode", "you can use your mono-red Rest Mode ≪Saiyan≫
     // cards in combos" (BT18-001). In play only, like every [Permanent] —
     // except `fieldBattle` (BT29-041/-042), which is about the [Field] line
-    // used from the hand (22-3) and so is read there, as `altCost` is.
+    // used from the hand (22-3) and so is read there, as `altCost` is, and
+    // `overRealmFromWarp` (BT31-150), which is about the card's own
+    // [Over Realm] line used from the Warp and so is read there.
     if (op.op === "permit") {
-      if (!inPlayNow && op.what !== "fieldBattle") continue;
+      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp") continue;
       const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });
       continue;
