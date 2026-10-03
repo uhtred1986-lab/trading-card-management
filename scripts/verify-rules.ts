@@ -812,7 +812,8 @@ assert.equal(specifiedCostWords({}), "no colour");
 // ── a quoted filter is read whole or refused ───────────────────────────────
 // `parseFilter` passes over words it has no pattern for, so a rule that said
 // "card with 5000 combo power" was stored as a filter on *any* card — there
-// is no combo-power measure, and nothing said so. The text view refuses what
+// was no combo-power measure then (#486 has since added one, so the refused
+// example is now "combo cost"), and nothing said so. The text view refuses what
 // it cannot read (docs/arena-fixing-a-card.md), so the parser names the words
 // and points at the printed form or the predicate form.
 {
@@ -825,17 +826,25 @@ assert.equal(specifiedCostWords({}), "no colour");
     assert.match(r.error.message, /field by field/, "and points at the predicate form");
     assert.equal(r.error.line, 3, "on the line that says it");
   };
-  refused("card with 5000 combo power", ["5000", "combo", "power"]);
+  refused("card with 5000 combo cost", ["5000", "combo", "cost"]);
   refused("other Field Extra", ["other", "field"]);
   refused("a card of the named colours", ["named", "colour"]);
   refused("Battle Card in your Drop Area", ["drop", "area"]);
   refused("card with [Not A Keyword]", ["[not a keyword]"]);
-  // Not a dropped word but a mis-read: `parseFilter`'s "N power or less"
-  // pattern takes the "000" after the comma, so this reads as power 0 or
-  // less. The accounting catches that too — the number it read is not the
-  // number written — and refusing beats storing the wrong bound.
-  refused("battle cards with 25,000 power or less", ["25000"]);
-  assert.deepEqual(unreadFilterWords("card with 5000 combo power", parseFilter("card with 5000 combo power")), ["5000", "combo", "power"]);
+  // A thousands comma used to be a mis-read: the "N power or less" pattern took
+  // the "000" after the comma and stored power 0 or less (the accounting
+  // refused it). The power patterns now read `[\d,]+`, so it reads whole.
+  for (const [words, field] of [
+    ["battle cards with 25,000 power or less", { powerMax: 25000 }],
+    ["Battle Cards with 15,000 power or more", { powerMin: 15000 }],
+    ["yellow card with an energy cost of 3 and 10,000 power", { powerMin: 10000, powerMax: 10000 }],
+  ] as const) {
+    const r = chooseFrom(JSON.stringify(words));
+    assert.ok(r.ok, `reads whole: ${words}${r.ok ? "" : ` — ${r.error.message}`}`);
+    const f = parseFilter(words);
+    for (const [k, v] of Object.entries(field)) assert.equal(f[k as keyof typeof f], v, `${words}: ${k}`);
+  }
+  assert.deepEqual(unreadFilterWords("card with 5000 combo cost", parseFilter("card with 5000 combo cost")), ["5000", "combo", "cost"]);
 
   // Every wording `parseFilter` does read still parses, in the card's own
   // words as well as the reading's — plurals, hyphens, either word order.
@@ -843,6 +852,7 @@ assert.equal(specifiedCostWords({}), "no colour");
     "red card",
     "blue ≪Saiyan≫ card with an energy cost of 3 or less",
     "Battle Cards with 25000 or less power",
+    "card with 5000 combo power",
     "non-black Battle Cards",
     "card other than <Grand Supreme Kai>",
     "Earthling Tokens",
