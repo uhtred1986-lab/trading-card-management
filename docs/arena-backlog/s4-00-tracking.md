@@ -5,6 +5,7 @@ milestone: Arena M7 — Rules engine core (Stage 4)
 labels: epic, backlog, area:arena-vm, phase:rules-stage4
 stage: 4
 tracking: true
+status: closed
 ---
 Stage 4 of the rules-language programme (plan summary in `docs/arena-backlog.md` §1; Opus 5, size XL). The new engine, `src/lib/arena/vm/`, built **beside** the frozen `src/lib/arena/engine/` behind the shared `Engine` interface in `src/lib/arena/engines.ts`. It interprets the Stage 3 definition: attributes, zones, the flow runner over `STEP` programs, event-pattern trigger matching, effect layers, delayed effects, checkpoints and prompts.
 

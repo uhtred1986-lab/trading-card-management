@@ -3,6 +3,7 @@ title: Arena: add Empower inheritance transfer beat and board animation
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
 labels: backlog, ready-for-agent, enhancement, area:arena-contract, area:arena-ui, phase:capability-gap, model:sonnet-5
 stage: ui
+status: closed
 ---
 **Source:** `docs/arena-markers-stage-scope.md` §3 and §4 step C; `docs/arena-client-contract.md` (a `Snapshot` change is a contract change); `src/lib/arena/beats.ts`, `narration.ts`, `src/components/arena/stage/ArenaStage.tsx`.
 

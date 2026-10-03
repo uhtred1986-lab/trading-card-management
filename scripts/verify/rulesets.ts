@@ -698,6 +698,7 @@ if (dbs.ok) {
       "look",
       "may",
       "negateAttack",
+      "negateChosenKeyword",
       "negateCounter",
       "negateKeyword",
       "negateOwnSkill",
@@ -1085,7 +1086,7 @@ if (dbs.ok) {
     // proves the same thing either way (a real move, run as the card arrives).
     onEnter: {
       keyword: "Field",
-      def: 'DEFINE KEYWORD Field\n  TAKES ()\n  text: "x"\n  HOOK onEnter {\n    choose(sel: 1 "other Field Extra" IN you.battle, as: "t")\n    moveTo(target: $t, to: hand)\n  }',
+      def: 'DEFINE KEYWORD Field\n  TAKES ()\n  text: "x"\n  HOOK onEnter {\n    choose(sel: 1 "extra card with [Field]" IN you.battle otherThanSelf, as: "t")\n    moveTo(target: $t, to: hand)\n  }',
     },
     onLeave: { keyword: "Revive", def: 'DEFINE KEYWORD Revive\n  TAKES ()\n  text: "x"\n  HOOK onLeave {\n    play(target: [self])\n  }' },
     afterSkill: { keyword: "Heroic", def: 'DEFINE KEYWORD Heroic\n  TAKES ()\n  text: "x"\n  HOOK afterSkill {\n    draw(n: 1)\n  }' },
@@ -1101,16 +1102,21 @@ if (dbs.ok) {
     },
     onAttackDeclared: {
       keyword: "Alliance",
-      def: 'DEFINE KEYWORD Alliance\n  TAKES ()\n  text: "x"\n  HOOK onAttackDeclared {\n    choose(sel: 1 "a card of the named colours" IN you.battle, as: "t")\n    modifyAttr(target: $t, attr: mode, mode: rest)\n  }',
+      def: 'DEFINE KEYWORD Alliance\n  TAKES ()\n  text: "x"\n  HOOK onAttackDeclared {\n    choose(sel: 1 "card" IN you.battle, as: "t")\n    modifyAttr(target: $t, attr: mode, mode: rest)\n  }',
     },
     beforeDamage: {
       keyword: "Critical",
       def: 'DEFINE KEYWORD Critical\n  TAKES ()\n  text: "x"\n  HOOK beforeDamage {\n    battleDamage(to: drop)\n  }',
     },
     battleEnd: { keyword: "Revenge", def: 'DEFINE KEYWORD Revenge\n  TAKES ()\n  text: "x"\n  HOOK battleEnd {\n    ko(target: [attacker])\n  }' },
+    // "card" rather than "a card with the same name": no filter field says
+    // "the same name" (arena-ruleset-spec.md, 22-39), and the parser refuses
+    // words it cannot read rather than dropping them to "card" in silence.
+    // Alliance's "card" above stood in for "a card of the named colours" the
+    // same way, and Field's "other Field Extra" now says what it meant.
     playRefused: {
       keyword: "Unique",
-      def: 'DEFINE KEYWORD Unique\n  TAKES ()\n  text: "x"\n  HOOK playRefused {\n    if(cond: count("a card with the same name" IN you.battle) >= 1, then: { forbid(what: play, until: turn) })\n  }',
+      def: 'DEFINE KEYWORD Unique\n  TAKES ()\n  text: "x"\n  HOOK playRefused {\n    if(cond: count("card" IN you.battle) >= 1, then: { forbid(what: play, until: turn) })\n  }',
     },
     chargeLimit: {
       keyword: "Energy-Exhaust",

@@ -261,6 +261,13 @@ export interface CardInstance {
    * turn; whose turn that was is a condition of its own.
    */
   battledThisTurn: boolean;
+  /**
+   * 22-15: the keyword whose own move played this card this turn ("Over
+   * Realm") — P-048's "during the turn you played it with [Over Realm]", the
+   * `playedUsing` condition. Set by `resolvePlay`, cleared in `turn.next` and
+   * when the card changes area (3-1-4); absent otherwise.
+   */
+  playedUsing?: string;
   /** Skills negated by effects (index list) or all skills. */
   negated: number[] | "all";
 }
@@ -383,6 +390,15 @@ export interface Prohibition {
   /** Escape condition: while this holds, the prohibition does not apply. */
   unless?: Cond;
   /**
+   * 20-14-1's other escape: a price the acting player may pay to take the
+   * action anyway, **each time** — "that card can't attack unless your
+   * opponent sends 2 cards from their hand to their Warp each time" (BT30-100).
+   * The program is run in the payer's frame ("you" is whoever acts), before the
+   * action is taken; an action nobody can pay for is refused. Only `attack`
+   * carries one so far (`validateProgram` refuses it on any other action).
+   */
+  pay?: Op[];
+  /**
    * The controller of the card that made the rule. An `unless` is a clause of
    * that card's text, so "you" and "your opponent" in it are read from that
    * chair — not from the chair of whoever is trying to act.
@@ -422,8 +438,19 @@ export interface Permission {
    * — "you can use your mono-red Rest Mode ≪Saiyan≫ cards in combos"
    * (BT18-001, BT29-129); the target is the card granting it, and `filter`
    * says which rested cards.
+   * `overRealmFromWarp`: the target's own [Over Realm] skill may be activated
+   * from its owner's Warp under the same conditions as from the hand (22-15)
+   * — "This card's [Over Realm] skill can be activated from its owner's Warp
+   * under the same conditions as if it were in your hand" (BT31-150). Read
+   * while the card is in the Warp, where the line is then used; `filter` is
+   * not read.
+   * `fieldBattle`: the target's own [Field] skill may be used from the hand at
+   * [Activate: Battle] timings as well as the Main Phase's (22-3) — "The
+   * [Field] skill on this card in your hand can also be activated at
+   * [Activate: Battle] timings" (BT29-041, BT29-042). Read from the hand,
+   * where the skill is used; `filter` is not read.
    */
-  what: "attackActive" | "comboRest";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }
@@ -488,16 +515,18 @@ export interface ContinuousEffect {
    * `negateSkill`: one skill of the card, by index in `value` (9-1-5, "negate
    * this skill for the turn"). `negateSkillKind`: every skill of one kind,
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
-   * for the turn").
+   * for the turn"). `negateKeyword`: one keyword skill of the card, named in
+   * `value` — the one the master picked ("choose up to 1 keyword skill on … and
+   * negate that skill for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
+  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "negateKeyword" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | SkillKindPrefix | { colors: (Color | "any")[]; sign: 1 | -1 };
+  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | { colors: (Color | "any")[]; sign: 1 | -1 };
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
@@ -530,8 +559,18 @@ export interface ContinuousEffect {
   skillKind?: SkillKindPrefix;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
   colors?: (Color | "any")[];
+  /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
+  onto?: string[];
+  /**
+   * `skillCost`/`evolveCost` only: how many more activations the change
+   * applies to. "The next time you activate an [Activate] skill of your
+   * Leader during this turn, reduce its skill cost by {b}" (BT31-096) is 1:
+   * the first activation it applies to spends it and it ends there, still
+   * bounded by `until`. Absent is every activation for the whole duration.
+   */
+  uses?: number;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
   /**
    * The card whose skill made it, so a client can say "+5000 power from
    * Kaio-ken" and a refusal can name what forbids it. Absent on effects the
@@ -658,6 +697,15 @@ export type Trigger =
   | "droppedFromBattle"
   /** The same sentence with no cause named, which is every cause: a skill and a battle KO alike. */
   | "leftBattleToDrop"
+  /**
+   * "When [or "If"] this card is placed in your Drop Area from your hand by a
+   * skill" (SD13-05, BT7-127, BT11-022): the hand's side of `droppedFromBattle`.
+   * A discard by a skill's effect or as a skill's cost (1-6, 1-7-1: the cost is
+   * part of the skill; 20-7-4: placing a card from the hand in the Drop is a
+   * discard), never a card leaving the hand by the rules — an Extra going to
+   * the Drop once it is activated (12-2-2) is not this.
+   */
+  | "droppedFromHand"
   /** "When your Leader Card is attacked" printed on a Battle Card (8-1). */
   | "yourLeaderAttacked"
   /** "When you take damage from an opponent's non-keyword skill" and its mirror (21-3). */
@@ -696,6 +744,13 @@ export type Trigger =
   /** "When this card in your deck or hand is placed into its owner's Drop" (BT29-109): out of a secret area, whatever put it there — a discard included. */
   | "deckOrHandToDrop"
   /**
+   * "When this card is sent from your deck to your Warp by your <Heles> card's
+   * skill" (3-10, BT30-106): one of your skills moved it out of your deck into
+   * the Warp. The skill's card is the `subject`, so what the card says about it
+   * ("your <Heles> card's") is a condition on the subject, not part of the moment.
+   */
+  | "deckToWarpBySkill"
+  /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"
    * (22-40), "when you play a Battle Card using [Over Realm]" (22-15).
@@ -713,12 +768,21 @@ export type Trigger =
    * the `subject`, so what the clause says about it is a condition on it.
    */
   | "extraActivated"
+  /**
+   * "When you play this card using [Over Realm]", "when this card is played
+   * using [Over Realm]" (22-15): the card's own arrival, and only when the play
+   * was [Over Realm]'s. An ordinary play of the same card is `played` and not
+   * this — compiled as `played`, these skills fired on every play (2 Oct 2026).
+   * `overRealmPlayed` is the watcher on *other* cards.
+   */
+  | "playedUsingOverRealm"
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**
-   * A card *placed* in a Battle Area rather than played (5-5): by a skill, by
-   * [Over Realm], by an Evolve. "When this card is played" does not cover it,
-   * and 30 cards say only the second.
+   * A card *placed* in a Battle Area (5-5-4): by a skill, by [Over Realm], by
+   * an Evolve, by its [Field] — and by being played, since 5-5-1 makes a play
+   * a placing (owner's ruling, 2 Oct 2026). "When this card is played" does
+   * not cover the rest, and 42 skills say only the second.
    */
   | "placed"
   | "energyToDrop"
@@ -825,7 +889,8 @@ export type Action =
   | { type: "growUnison"; player: PlayerId; card: string }
   /** `alt`: pay the printed alternative instead of the energy cost ([Invoker], 22-37). */
   /** `x` is the value an X price is paid at (20-5) — the same field, and the same meaning, as `play`'s. */
-  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean; x?: number }
+  /** `onto`: an [Evolve]'s base, named with the activation — offered only where a price change is scoped to that base (`costReduction`'s `onto`, EX03-16); the card then lands on it without a question. */
+  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean; x?: number; onto?: string }
   | { type: "attack"; player: PlayerId; attacker: string; target: string }
   | { type: "endMain"; player: PlayerId }
   | { type: "combo"; player: PlayerId; card: string; pay?: string[] }
@@ -963,7 +1028,7 @@ export type FlowStep =
    * is played — `resolvePlay` asks then and requeues this same step with the
    * answer on it, so the step never asks twice.
    */
-  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game"; empowerCarry?: number }
+  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game"; empowerCarry?: number; using?: string }
   | { op: "script.step"; frame: ScriptFrame }
   | { op: "flipLeader"; card: string }
   | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger; x?: number }
@@ -982,6 +1047,8 @@ export type FlowStep =
    * rather than asking about the next card.
    */
   | { op: "battle.damage"; resume?: { taken: string[]; remaining: number; critical: boolean; awaiting?: true } }
+  /** 13-5-2 / 5-13-4-2: a Unison guard's markers coming off one at a time, each one's `marker` replacement asked (SD13-02); `lost` is how many have actually come off so far. */
+  | { op: "battle.markers"; resume: { remaining: number; lost: number; awaiting?: true } }
   | { op: "battle.end" }
   | { op: "battle.zEnergy"; player: PlayerId }
   | { op: "battle.cleanup" }
@@ -1114,8 +1181,14 @@ export interface Replacement {
    * means "leave"/"ko"/"play", every existing effect; `by`/`bySide` are not
    * asked when this is set, and `lifeReplacementsFor` is the reader instead
    * of `causeMatches`.
+   *
+   * `"marker"`: a Unison losing one marker to an attack (13-5-2) — "if this
+   * card would lose a marker from an opponent's attack, you may … instead"
+   * (SD13-02). Always a substitute, never a redirect: the marker stays and the
+   * program runs. Read by `markerReplacementChoices` on the Damage Step alone,
+   * once per marker (5-13-4-2), never by `causeMatches`.
    */
-  kind?: "life";
+  kind?: "life" | "marker";
   /** For `kind: "life"`: narrows to the one destination named, or answers to either when absent — both cards print "to your hand or … your Drop Area". */
   lifeTo?: "hand" | "drop";
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */

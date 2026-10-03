@@ -210,8 +210,14 @@ function substValue(field: OpField, value: unknown, args: Args): unknown {
   switch (field.type) {
     case "amount":
       return substAmount(value as Amount, args);
-    case "ref":
-      return substRef(value as Ref, args);
+    case "ref": {
+      // An optional ref the call left out is the field left out, the way an
+      // omitted hole is (`fill`) — `costReduction`'s `onto: $onto` (EX03-16)
+      // is absent on every call but the one that scopes an [Evolve] price.
+      const ref = value as Ref;
+      if (!field.required && field.default === undefined && ref && typeof ref === "object" && "var" in ref && ref.var !== undefined && args.get(ref.var)?.value === undefined && args.has(ref.var)) return undefined;
+      return substRef(ref, args);
+    }
     case "selector":
       return substSelector(value as Selector, args);
     case "cond":

@@ -36,6 +36,7 @@ import {
   priceOf,
   rejectedActionsG,
   sentence,
+  settledG,
   skillNegatedG,
   splitClauses,
   stageMoveG,
@@ -43,6 +44,26 @@ import {
   zoneOf,
 } from "./harness";
 import { legacyState, type EngineState } from "../../src/lib/arena/engines";
+import { compileCard } from "../../src/lib/arena/compile";
+import { triggersOf } from "../../src/lib/arena/gaps";
+import { parseFilter } from "../../src/lib/arena/text/filters";
+import type { EngineContext } from "../../src/lib/arena/types";
+import type { CardScripts, Op } from "../../src/lib/arena/vm/script";
+
+/** A card's compiled programs, by skill index. */
+const compileSkillsOf = (id: string) => compileCard(DEFS[id]).bySkill;
+
+/** `ctx` with one skill of one card answered by a hand-written record instead of the compiler's reading — a drafted rule, the way the arena reads `card_rules`. */
+function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec: { ops: Op[]; trigger: string[] }): EngineContext {
+  const scripts = new Proxy({} as Record<string, CardScripts>, {
+    get(_, key) {
+      const base = (ctx.scripts as Record<string, CardScripts>)[key as string];
+      if (key !== cardId || !base) return base;
+      return { ...base, bySkill: { ...base.bySkill, [index]: { ...base.bySkill[index], ops: rec.ops, trigger: rec.trigger, unsupported: [] } }, unsupported: [], complete: true };
+    },
+  });
+  return { ...ctx, scripts } as EngineContext;
+}
 
 /**
  * #158: this suite runs on both engines now, through the same state-interface
@@ -177,6 +198,74 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.ok(actsG(s).some((a) => a.type === "activate" && a.card === findG(s, "p1", "hand", "XENO")), "an [Evolve] cost reduction pays the line's orb");
   delete DEFS.EVOCHEAP;
 
+  // EX03-16: an [Evolve] price changed only onto this card (`costReduction`'s
+  // `onto: [self]`). The discounted [Evolve] is its own offer, naming its base;
+  // onto any other base, or for a <Broly> of the same card name, the price is
+  // the printed one.
+  DEFS.DWBROLY = {
+    ...DEFS.V1,
+    id: "DWBROLY",
+    name: "Deathless Warrior Broly",
+    characters: ["Broly"],
+    colors: ["Green"],
+    skill: "[Permanent] When evolving this card into a <Broly> with a different card name from your hand, the [evolve] cost is decreased by {g} {g}.",
+  };
+  {
+    const read = compileSkill(parseSkills(DEFS.DWBROLY.skill)[0]);
+    assert.deepEqual(read.unsupported, [], "EX03-16's wording is read whole");
+    const op = read.ops[0] as Extract<(typeof read.ops)[number], { op: "costReduction" }>;
+    assert.equal(op.op, "costReduction", "…as a cost change");
+    assert.equal(op.what, "evolve", "…to the [Evolve] price");
+    assert.deepEqual(op.onto, { sel: { special: "self" } }, "…only onto this card");
+    assert.equal(op.amount, 2, "…by two orbs");
+    assert.deepEqual(op.colors, ["Green", "Green"], "…both green");
+    assert.ok("sel" in op.target && op.target.sel.area === "hand" && op.target.sel.notSelf === "name", "…for the <Broly> cards in the hand with a different card name");
+  }
+  DEFS.BROLYB = { ...DEFS.V1, id: "BROLYB", name: "BROLYB", characters: ["Broly"], colors: ["Green"] };
+  DEFS.BROLYEVO = { ...DEFS.V1, id: "BROLYEVO", name: "BROLYEVO", characters: ["Broly"], colors: ["Green"], energyCost: 4, skill: "[Evolve]{g}{g}{g}: <Broly>" };
+  DEFS.BROLYSAME = { ...DEFS.V1, id: "BROLYSAME", name: "Deathless Warrior Broly", characters: ["Broly"], colors: ["Green"], energyCost: 4, skill: "[Evolve]{g}{g}{g}: <Broly>" };
+  DEFS.EVOGREEN = { ...DEFS.V1, id: "EVOGREEN", name: "EVOGREEN", colors: ["Green"] };
+  const evolves = (s: ReturnType<typeof arenaG>, card: string) => IMPL.legalActions(CTX, s).filter((l) => l.action.type === "activate" && l.action.card === card && !l.action.alt);
+  const ontoOf = (a: { action: unknown }) => (a.action as { onto?: string }).onto;
+  const restedEnergy = (s: ReturnType<typeof arenaG>) => zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length;
+
+  // One green energy: only the discounted [Evolve] onto EX03-16 is affordable.
+  s = arenaG({ hand: ["BROLYEVO"], battle: ["DWBROLY", "BROLYB"], energy: ["EVOGREEN"] });
+  let dw = findG(s, "p1", "battle", "DWBROLY");
+  let other = findG(s, "p1", "battle", "BROLYB");
+  let evo = findG(s, "p1", "hand", "BROLYEVO");
+  let offers = evolves(s, evo);
+  assert.deepEqual(offers.map(ontoOf), [dw], "EX03-16: with {g} only the [Evolve] onto this card is offered — onto another <Broly> it costs the printed {g}{g}{g}");
+  assert.equal(offers[0].cost?.energy, 1, "…at {g}{g} less");
+  assert.equal(offers[0].label, "Evolve BROLYEVO onto Deathless Warrior Broly", "…and the row names its base");
+  s = playG(s, offers[0].action);
+  assert.notEqual(s.prompt.kind, "chooseCards", "the base named with the activation is not asked for again");
+  assert.ok(zoneOf(s, "p1", "battle").includes(evo) && s.cards[evo].under.includes(dw), "…and the card lands on EX03-16");
+  assert.ok(zoneOf(s, "p1", "battle").includes(other), "…not on the other <Broly>");
+  assert.equal(restedEnergy(s), 1, "…for one energy");
+  assertConsistentG(s);
+
+  // Three green energy: the printed price onto another base, beside the discounted row.
+  s = arenaG({ hand: ["BROLYEVO"], battle: ["DWBROLY", "BROLYB"], energy: ["EVOGREEN", "EVOGREEN", "EVOGREEN"] });
+  dw = findG(s, "p1", "battle", "DWBROLY");
+  other = findG(s, "p1", "battle", "BROLYB");
+  evo = findG(s, "p1", "hand", "BROLYEVO");
+  offers = evolves(s, evo);
+  assert.deepEqual(offers.map(ontoOf), [undefined, dw], "the ordinary [Evolve] and the one onto EX03-16 are both offered");
+  assert.equal(offers[0].cost?.energy, 3, "the ordinary row is the printed price");
+  s = playG(s, offers[0].action);
+  if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [other] });
+  assert.ok(s.cards[evo].under.includes(other), "evolving onto another <Broly> …");
+  assert.equal(restedEnergy(s), 3, "… costs {g}{g}{g}: the discount does not reach it");
+  assertConsistentG(s);
+
+  // A <Broly> with the same card name gets no discount: with {g} nothing is offered.
+  s = arenaG({ hand: ["BROLYSAME"], battle: ["DWBROLY"], energy: ["EVOGREEN"] });
+  assert.deepEqual(evolves(s, findG(s, "p1", "hand", "BROLYSAME")), [], "EX03-16: a <Broly> of the same card name is not discounted");
+  s = arenaG({ hand: ["BROLYSAME"], battle: ["DWBROLY"], energy: ["EVOGREEN", "EVOGREEN", "EVOGREEN"] });
+  assert.deepEqual(evolves(s, findG(s, "p1", "hand", "BROLYSAME")).map(ontoOf), [undefined], "…it evolves onto EX03-16 at the printed price only");
+  for (const id of ["DWBROLY", "BROLYB", "BROLYEVO", "BROLYSAME", "EVOGREEN"]) delete DEFS[id];
+
   // 22-13-4: [Union-Fusion] drops one of each named character from the hand.
   DEFS.FUSE = { ...DEFS.V1, id: "FUSE", name: "FUSE", energyCost: 3, skill: "[Union-Fusion]{r}: <V1> <UNI-B>" };
   s = arenaG({ hand: ["FUSE", "V1"], energy: ["V1"] });
@@ -301,8 +390,194 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.ok(zoneOf(d, "p1", "battle").includes(dark));
   assert.equal(zoneOf(d, "p1", "drop").length, 0, "the whole Drop, black or not, to the Warp");
   assertConsistentG(d);
+
+  // "When you play this card using [Over Realm]" (22-15, 2 Oct 2026): the
+  // card's own [Auto] answers the play [Over Realm] makes, and an ordinary
+  // play of the same card is not that moment. Read as `played`, it was.
+  DEFS.ORSELF = {
+    ...DEFS.V1,
+    id: "ORSELF",
+    name: "ORSELF",
+    energyCost: 2,
+    skill: "[Over Realm 3]{1}\n[Auto] When you play this card using [Over Realm], draw 1 card.",
+  };
+  let plain = arenaG({ hand: ["ORSELF"], energy: ["V1", "V1"] });
+  const plainCard = findG(plain, "p1", "hand", "ORSELF");
+  const plainHand = zoneOf(plain, "p1", "hand").length;
+  r = step(plain, { type: "play", player: "p1", card: plainCard });
+  plain = r.s;
+  assert.ok(zoneOf(plain, "p1", "battle").includes(plainCard), "played the ordinary way");
+  assert.equal(zoneOf(plain, "p1", "hand").length, plainHand - 1, "an ordinary play is not the [Over Realm] play: nothing drawn");
+  assert.ok(!r.beats.includes("skill ORSELF"), "and the [Auto] is not announced");
+  assertConsistentG(plain);
+
+  const realm = arenaG({ hand: ["ORSELF"], energy: ["V1", "V1"] });
+  const realmCard = findG(realm, "p1", "hand", "ORSELF");
+  toDrop(realm, 3);
+  const realmHand = zoneOf(realm, "p1", "hand").length;
+  const orMove = actsG(realm).find((a) => a.type === "activate" && a.card === realmCard && !a.alt);
+  assert.ok(orMove, "the [Over Realm] move is offered");
+  r = step(realm, orMove);
+  assert.ok(zoneOf(r.s, "p1", "battle").includes(realmCard), "played by [Over Realm]");
+  assert.equal(zoneOf(r.s, "p1", "hand").length, realmHand, "played using [Over Realm]: the [Auto] draws once");
+  assert.equal(r.beats.filter((b) => b.startsWith("draw ")).length, 1, "once, not twice");
+  assertConsistentG(r.s);
+
+  // P-048's "when this card attacks during the turn you played it with [Over
+  // Realm]" (22-15): the attack is the moment, and `playedUsing` — the card's
+  // memory of the [Over Realm] play, which lasts the turn — is the condition.
+  DEFS.ORTURN = {
+    ...DEFS.V1,
+    id: "ORTURN",
+    name: "ORTURN",
+    energyCost: 2,
+    skill: "[Over Realm 3]{1}\n[Auto] When this card attacks during the turn you played it with [Over Realm], draw 1 card.",
+  };
+  const turnSkill = parseSkills(DEFS.ORTURN.skill).find((sk) => sk.kind === "auto")!;
+  assert.deepEqual(triggersOf(turnSkill), ["attacks"], "the attack is the moment");
+  const turnAuto = compileSkillsOf("ORTURN")[turnSkill.index];
+  assert.deepEqual(turnAuto?.ops[0], { op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] }, "and the turn it was Over-Realmed in is the condition");
+  /** Attack the opponent's Leader and answer nothing until the Main Phase is back: what the attack drew. */
+  const attackDraws = (g: EngineState, attacker: string) => {
+    let res = step(g, { type: "attack", player: "p1", attacker, target: leaderOf(g, "p2") });
+    const seen = [...res.beats];
+    while (res.s.prompt.kind !== "main" && res.s.prompt.kind !== "gameOver") {
+      res = step(res.s, { type: "pass", player: (res.s.prompt as { player: PlayerId }).player });
+      seen.push(...res.beats);
+    }
+    return { g: res.s, draws: seen.filter((b) => b.startsWith("draw ")).length };
+  };
+  // Played with [Over Realm]: it attacks the same turn and draws.
+  let turnG = arenaG({ hand: ["ORTURN"], energy: ["V1", "V1"] });
+  const turnCard = findG(turnG, "p1", "hand", "ORTURN");
+  toDrop(turnG, 3);
+  turnG = playG(turnG, actsG(turnG).find((a) => a.type === "activate" && a.card === turnCard && !a.alt)!);
+  assert.ok(zoneOf(turnG, "p1", "battle").includes(turnCard));
+  const realmAttack = attackDraws(turnG, turnCard);
+  assert.equal(realmAttack.draws, 1, "an attack the turn it was played with [Over Realm] fires the [Auto]");
+  assertConsistentG(realmAttack.g);
+  // Played the ordinary way: the same attack fires nothing.
+  turnG = arenaG({ hand: ["ORTURN"], energy: ["V1", "V1"] });
+  const plainTurn = findG(turnG, "p1", "hand", "ORTURN");
+  turnG = playG(turnG, { type: "play", player: "p1", card: plainTurn });
+  assert.equal(attackDraws(turnG, plainTurn).draws, 0, "played normally, its attack is not the [Over Realm] turn's");
+  // A later turn: the memory is gone with the turn it was made in. The card
+  // goes to the Warp as that turn ends (22-15-6), so it is put back in the
+  // Battle Area by hand — a raw splice that leaves the copy's fields alone,
+  // which is what shows that the turn's end cleared them.
+  turnG = arenaG({ hand: ["ORTURN"], energy: ["V1", "V1"] });
+  const laterCard = findG(turnG, "p1", "hand", "ORTURN");
+  toDrop(turnG, 3);
+  turnG = playG(turnG, actsG(turnG).find((a) => a.type === "activate" && a.card === laterCard && !a.alt)!);
+  assert.equal(turnG.cards[laterCard].playedUsing, "Over Realm", "the copy remembers the [Over Realm] play");
+  turnG = playG(turnG, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" }, { type: "charge", player: "p1", card: null });
+  assert.equal(turnG.prompt.kind, "main", "p1's next Main Phase");
+  assert.equal(turnG.cards[laterCard].playedUsing, undefined, "and forgets it when the turn ends");
+  stageMoveG(turnG, laterCard, "battle", "p1");
+  turnG.cards[laterCard].mode = "active";
+  assert.equal(attackDraws(turnG, laterCard).draws, 0, "an attack on a later turn fires nothing");
+
+  // The whole of P-048, as a record: the opponent sends a card from their
+  // hand to their Warp, and if it was a Battle Card you combo with it.
+  DEFS.P048T = { ...DEFS.ORTURN, id: "P048T", name: "P048T", skill: "[Over Realm 3]{1}\n[Auto] When this card attacks during the turn you played it with [Over Realm], your opponent chooses 1 card from their hand and sends it to their Warp. If that card was a Battle Card, combo with it in your Combo Area." };
+  const p048Index = parseSkills(DEFS.P048T.skill).find((sk) => sk.kind === "auto")!.index;
+  const p048Ops: Op[] = [
+    { op: "choose", sel: { side: "opponent", area: "hand", count: 1 }, as: "c0", chooser: "opponent", reason: "choose 1 card in your hand to send to your Warp" },
+    { op: "moveTo", target: { var: "c0" }, to: "warp" },
+    { op: "if", cond: { kind: "varMatches", var: "c0", filter: parseFilter("Battle Card") }, then: [{ op: "comboFrom", target: { var: "c0" } }] },
+  ];
+  const p048Program: Op[] = [{ op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: p048Ops }];
+  assert.ok(validateProgram(p048Program), "P-048's program is a valid one");
+  const p048Ctx = withSkillRecord(CTX, "P048T", p048Index, { ops: p048Program, trigger: ["attacks"] });
+  /** P-048 Over-Realmed and attacking; the opponent sends `pick` (a card id of their hand's) to their Warp. */
+  const p048Sends = (pick: string) => {
+    let g = arenaG({ hand: ["P048T"], energy: ["V1", "V1"], oppHand: ["V1", "E-NEGATE"] });
+    const me = findG(g, "p1", "hand", "P048T");
+    toDrop(g, 3);
+    const sent = findG(g, "p2", "hand", pick);
+    g = IMPL.apply(p048Ctx, g, actsG(g).find((a) => a.type === "activate" && a.card === me && !a.alt)!).state;
+    g = IMPL.apply(p048Ctx, g, { type: "attack", player: "p1", attacker: me, target: leaderOf(g, "p2") }).state;
+    for (let guard = 0; g.prompt.kind !== "chooseCards" && g.prompt.kind !== "main" && guard < 20; guard++) g = IMPL.apply(p048Ctx, g, { type: "pass", player: (g.prompt as { player: PlayerId }).player }).state;
+    assert.equal(g.prompt.kind, "chooseCards", "the opponent is asked for a card from their hand");
+    assert.equal((g.prompt as { player: PlayerId }).player, "p2", "and they are the one who chooses");
+    assert.ok((g.prompt as { choice: { candidates: string[] } }).choice.candidates.includes(sent));
+    g = IMPL.apply(p048Ctx, g, { type: "choose", player: "p2", cards: [sent] }).state;
+    assert.ok(!zoneOf(g, "p2", "hand").includes(sent), "out of their hand");
+    assertConsistentG(g);
+    return { g, sent };
+  };
+  const battleSent = p048Sends("V1");
+  assert.ok(zoneOf(battleSent.g, "p1", "combo").includes(battleSent.sent), "a Battle Card: from their Warp into your Combo Area");
+  const extraSent = p048Sends("E-NEGATE");
+  assert.ok(zoneOf(extraSent.g, "p2", "warp").includes(extraSent.sent), "not a Battle Card: it stays in their Warp");
+  assert.ok(!zoneOf(extraSent.g, "p1", "combo").includes(extraSent.sent), "and no combo is made with it");
+  // 22-15 widened (owner-approved 2 Oct 2026): "[Permanent] This card's [Over
+  // Realm] skill can be activated from its owner's Warp under the same
+  // conditions as if it were in your hand" (BT31-150 skill 20). A `permit` of
+  // `overRealmFromWarp`, read while the card is in the Warp: the same count,
+  // the same shared limit, the same whole-Drop cost and the same return.
+  const fromWarp = "[Permanent] This card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand.";
+  assert.deepEqual(compileSkill(parseSkills(fromWarp)[0]).ops, [{ op: "permit", what: "overRealmFromWarp", target: { sel: { special: "self" } }, until: "game" }]);
+  assert.ok(compileSkill(parseSkills(fromWarp.replace("[Permanent]", "[Auto]"))[0]).unsupported.length > 0, "an [Auto] saying it is no standing permission");
+  DEFS.ORWARP = { ...DEFS.V1, id: "ORWARP", name: "ORWARP", energyCost: 5, skill: `[Over Realm 3]{1}<br>${fromWarp}` };
+  const inWarp = (battle: string[] = ["ORWATCH"]) => {
+    const g = arenaG({ hand: ["ORWARP", "ORX"], battle, energy: ["V1", "V1", "V1"] });
+    const w = findG(g, "p1", "hand", "ORWARP");
+    const plain = findG(g, "p1", "hand", "ORX");
+    stageMoveG(g, w, "warp", "p1");
+    stageMoveG(g, plain, "warp", "p1");
+    return { g, w, plain };
+  };
+  const wp = inWarp();
+  toDrop(wp.g, 2);
+  assert.ok(!canActivateG(wp.g, wp.w), "22-15-3 from the Warp too: two cards in the Drop is fewer than 3");
+  assert.deepEqual(rejectedActionsG(wp.g).find((x) => x.action.type === "activate" && x.action.card === wp.w)?.why[0].kind, "condition", "and the reason is the hand's");
+  toDrop(wp.g, 1);
+  assert.ok(canActivateG(wp.g, wp.w), "BT31-150: with the permission, offered from the Warp");
+  assert.ok(labelsG(wp.g).includes("Over Realm 3: play ORWARP (Drop → Warp)"));
+  assert.ok(!canActivateG(wp.g, wp.plain), "without it, an [Over Realm] card in the Warp is not offered");
+  assert.equal(rejectedActionsG(wp.g).find((x) => "card" in x.action && x.action.card === wp.plain), undefined, "…and is no move to explain either, the same on both engines");
+  const wpDrop = zoneOf(wp.g, "p1", "drop").slice();
+  r = step(wp.g, { type: "activate", player: "p1", card: wp.w, skill: 0 });
+  assert.deepEqual(
+    r.beats,
+    ["skill ORWARP", "mode V1 rest", "move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "delayed ORWARP", "move ORWARP warp>battle", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
+    "the same beats as from the hand, the play from the Warp",
+  );
+  assert.ok(wpDrop.every((id) => zoneOf(r.s, "p1", "warp").includes(id)), "22-15-4: every card of the Drop to the Warp");
+  assert.ok(zoneOf(r.s, "p1", "battle").includes(wp.w));
+  r = step(r.s, { type: "endMain", player: "p1" });
+  assert.ok(r.beats.includes("move ORWARP battle>warp"), "22-15-6: back to the Warp as the turn ends");
+  assertConsistentG(r.s);
+  // 22-15-7: the one use a turn is shared between the hand and the Warp, both ways.
+  {
+    // Warp first, then the hand: refused.
+    let g = arenaG({ hand: ["ORWARP", "ORX"], energy: ["V1", "V1", "V1"] });
+    const w = findG(g, "p1", "hand", "ORWARP");
+    const h = findG(g, "p1", "hand", "ORX");
+    stageMoveG(g, w, "warp", "p1");
+    toDrop(g, 3);
+    g = playG(g, { type: "activate", player: "p1", card: w, skill: 0 });
+    toDrop(g, 3);
+    assert.ok(!canActivateG(g, h), "22-15-7: used from the Warp, the hand's is spent too");
+    assert.deepEqual(rejectedActionsG(g).find((x) => x.action.type === "activate" && x.action.card === h)?.why[0], { kind: "oncePerTurn", what: "Over Realm" });
+    assertConsistentG(g);
+  }
+  {
+    // The hand first, then the Warp: refused.
+    let g = arenaG({ hand: ["ORWARP", "ORX"], energy: ["V1", "V1", "V1"] });
+    const w = findG(g, "p1", "hand", "ORWARP");
+    const h = findG(g, "p1", "hand", "ORX");
+    stageMoveG(g, w, "warp", "p1");
+    toDrop(g, 3);
+    g = playG(g, { type: "activate", player: "p1", card: h, skill: 0 });
+    toDrop(g, 3);
+    assert.ok(!canActivateG(g, w), "22-15-7: used from the hand, the Warp's is spent too");
+    assert.deepEqual(rejectedActionsG(g).find((x) => x.action.type === "activate" && x.action.card === w)?.why[0], { kind: "oncePerTurn", what: "Over Realm" });
+    assertConsistentG(g);
+  }
   // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
-  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK"]) delete DEFS[id];
+  for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK", "ORSELF", "ORTURN", "P048T", "ORWARP"]) delete DEFS[id];
 }
 
 {
@@ -1712,6 +1987,82 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.equal(r.battle?.guard, big, "the attack now goes at BIG");
 }
 
+// "Switch your card that's in a battle with the chosen card" (8-1-7-2,
+// BT30-098 / BT31-085): the chosen card takes the master's seat in the battle
+// — the guard card when they are attacked, the attack card when they attack —
+// and the battle resolves with it. The ids are this block's own and leave
+// DEFS again at its end, so the probe sweep is unchanged by them.
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  DEFS["E-SWAPG"] = { ...DEFS["E-NEGATE"], id: "E-SWAPG", name: "E-SWAPG", skill: "[Counter: Attack] Choose 1 of your Battle Cards and switch your card that's in a battle with the chosen card." };
+  DEFS["E-SWAPA"] = { ...DEFS["E-DRAW"], id: "E-SWAPA", name: "E-SWAPA", skill: "[Activate: Battle] Choose 1 of your Battle Cards and switch your card that's in a battle with the chosen card." };
+  assert.deepEqual(
+    one(DEFS["E-SWAPG"].skill!).ops.map((o) => o.op),
+    ["choose", "swapBattle"],
+  );
+  // "Play this card, switch your card that's in a battle with this card" — the
+  // card itself, once it has been played (BT30-098).
+  assert.deepEqual(
+    one("[Counter: Counter] Play this card, switch your card that's in a battle with this card.").ops.map((o) => o.op),
+    ["choose", "play", "swapBattle"],
+  );
+  assert.deepEqual(one("[Counter: Counter] Play this card, switch your card that's in a battle with this card.").ops[2], { op: "swapBattle", target: { sel: { special: "self" } } });
+
+  // The guard card: p1's Leader (10000) attacks p2's V1 (10000), which would
+  // be KO'd; p2 swaps BIG (25000) in, so the attack bounces off and V1 stays.
+  {
+    let s = arenaG({ oppHand: ["E-SWAPG"], oppEnergy: ["V1"], oppBattle: ["V1", "BIG"] });
+    const [v1, big] = zoneOf(s, "p2", "battle");
+    s.cards[v1].mode = "rest";
+    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: v1 });
+    assert.equal(s.prompt.kind, "counter", "the [Counter: Attack] window");
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "E-SWAPG"), skill: 0 });
+    if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p2", cards: [big] });
+    assert.equal(s.battle?.guard, big, "BIG is the guard card now");
+    assert.equal(s.battle?.attacker, leaderOf(s, "p1"), "the attack card is unchanged");
+    for (let i = 0; i < 8 && s.battle; i++) s = playG(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
+    assert.equal(s.battle, null, "the battle ended");
+    assert.ok(zoneOf(s, "p2", "battle").includes(v1), "V1 left the battle and was not KO'd");
+    assert.ok(zoneOf(s, "p2", "battle").includes(big), "BIG (25000) held against 10000");
+    assertConsistentG(s);
+  }
+
+  // The attack card: p1's V1 (10000) attacks p2's BIG (25000), which would
+  // bounce off; p1 swaps its own BIG in, and 25000 against 25000 KOs p2's BIG.
+  {
+    let s = arenaG({ hand: ["E-SWAPA"], energy: ["V1"], battle: ["V1", "BIG"], oppBattle: ["BIG"] });
+    const [v1, mine] = zoneOf(s, "p1", "battle");
+    const theirs = zoneOf(s, "p2", "battle")[0];
+    settledG(s, v1);
+    s.cards[theirs].mode = "rest";
+    s = playG(s, { type: "attack", player: "p1", attacker: v1, target: theirs });
+    assert.equal(s.prompt.kind, "combo");
+    const swap = findG(s, "p1", "hand", "E-SWAPA");
+    s = playG(s, { type: "activate", player: "p1", card: swap, skill: 0 });
+    if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [mine] });
+    assert.equal(s.battle?.attacker, mine, "p1's BIG is the attack card now");
+    assert.equal(s.battle?.guard, theirs, "the guard card is unchanged");
+    for (let i = 0; i < 8 && s.battle; i++) s = playG(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
+    assert.equal(s.battle, null, "the battle ended");
+    assert.ok(zoneOf(s, "p2", "drop").includes(theirs), "p2's BIG was KO'd by the new attack card");
+    assert.ok(zoneOf(s, "p1", "battle").includes(v1) && zoneOf(s, "p1", "battle").includes(mine), "both of p1's cards are still in play");
+    assertConsistentG(s);
+  }
+
+  // Outside a battle, or naming a card already in it, the op does nothing.
+  {
+    let s = arenaG({ oppHand: ["E-SWAPG"], oppEnergy: ["V1"], oppBattle: ["V1"] });
+    const v1 = zoneOf(s, "p2", "battle")[0];
+    s.cards[v1].mode = "rest";
+    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: v1 });
+    s = playG(s, { type: "counter", player: "p2", card: findG(s, "p2", "hand", "E-SWAPG"), skill: 0 });
+    if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p2", cards: [v1] });
+    assert.equal(s.battle?.guard, v1, "the guard card cannot take its own place");
+  }
+  delete DEFS["E-SWAPG"];
+  delete DEFS["E-SWAPA"];
+}
+
 {
   // A selector resolves to every card it matches, so a move whose target has
   // a number in it has to be a choice first — "add 1 card from your Drop to
@@ -2160,6 +2511,99 @@ import { legacyState, type EngineState } from "../../src/lib/arena/engines";
   assert.equal(hasG(s, thief, "Blocker"), true, "the chosen keyword is in force on the target");
   assert.equal(powerOfG(s, thief), 10000, "…and nothing else of the source came with it");
   assertConsistentG(s);
+}
+
+// ── 9-1-5: a keyword skill the player picks, negated for the turn (BT31-138) ─
+//
+// "Choose up to 1 keyword skill on your opponent's Battle Card or Unison and
+// negate that skill for the turn": the choice is of a *skill* among those the
+// cards have in force, and only that keyword stops applying — on that card, for
+// the turn. Both engines run the one interpreter case and read the effect in
+// their own keyword readers.
+{
+  // The compiler joins the two printed clauses into the one step, on the card
+  // that asked for it.
+  const bt31 = compileSkill(
+    parseSkills(
+      "[Activate: Main/Battle] Choose up to 1 of your white <Cell> cards and return it to your hand, choose up to 1 keyword skill on your opponent's Battle Card or Unison and negate that skill for the turn.",
+    )[0],
+  );
+  assert.deepEqual(bt31.unsupported, [], "BT31-138 reads whole");
+  assert.deepEqual(
+    bt31.ops.map((o) => o.op),
+    ["choose", "moveTo", "negateChosenKeyword"],
+    "…as the return and one pick-a-keyword negation, not a choice of a card with all its skills negated",
+  );
+  const step = bt31.ops[2] as Extract<(typeof bt31.ops)[number], { op: "negateChosenKeyword" }>;
+  assert.equal(step.until, "turn");
+  assert.ok("sel" in step.target && step.target.sel.side === "opponent" && step.target.sel.count == null, "…over every card the phrase finds — the “1” is the skill's count, not a choice of cards");
+
+  DEFS.TWOKW = { ...DEFS.V1, id: "TWOKW", name: "TWOKW", skill: "[Blocker]\n[Barrier]" };
+  DEFS.PICKNEG = {
+    ...DEFS.V1,
+    id: "PICKNEG",
+    name: "PICKNEG",
+    skill: "[Activate: Main] Choose up to 1 keyword skill on your opponent's Battle Cards and negate that skill for the turn.",
+  };
+  const compiled = compileSkill(parseSkills(DEFS.PICKNEG.skill)[0]);
+  assert.deepEqual(compiled.ops.map((o) => o.op), ["negateChosenKeyword"], "the one-clause-per-half wording reads as the one step");
+  // Off a record, as `card_rules` hands it over: the selector ignores [Barrier]
+  // so the [Barrier] card itself is on offer — whether [Barrier] keeps a skill
+  // on it from being chosen is a ruling still open, and not this test's subject.
+  const record = { ops: [{ op: "negateChosenKeyword", target: { sel: { side: "opponent", area: "battle", ignoreBarrier: true } }, until: "turn" }], unsupported: [] };
+  assert.equal(validateProgram(record.ops), true);
+  const ctx = {
+    ...CTX,
+    scripts: new Proxy({} as Record<string, unknown>, {
+      get: (_, key) => (key === "PICKNEG" ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+    }),
+  } as typeof CTX;
+  const run = (st: EngineState, ...actions: Parameters<typeof IMPL.apply>[2][]) => actions.reduce((x, a) => IMPL.apply(ctx, x, a).state, st);
+  const legal = (st: EngineState) => IMPL.legalActions(ctx, st).map((a) => a.action);
+
+  let s = arenaG({ battle: ["PICKNEG"], oppBattle: ["TWOKW"] });
+  const me = findG(s, "p1", "battle", "PICKNEG");
+  const guard = findG(s, "p2", "battle", "TWOKW");
+  assert.equal(hasG(s, guard, "Blocker"), true);
+  assert.equal(hasG(s, guard, "Barrier"), true);
+  const activate = legal(s).find((a) => a.type === "activate" && a.card === me);
+  assert.ok(activate, "the pick-a-keyword skill is offered");
+  s = run(s, activate);
+  assert.equal(s.prompt.kind, "chooseMode", "the player is asked which keyword skill, not which card");
+  const options = (s.prompt as { options: string[] }).options;
+  assert.deepEqual([...options].sort(), ["None", "[Barrier]", "[Blocker]"], `…among the keyword skills the card has, with the decline “up to 1” allows (got ${JSON.stringify(options)})`);
+  assert.equal(options[options.length - 1], "None");
+  s = run(s, { type: "chooseMode", player: "p1", index: options.indexOf("[Barrier]") });
+  assert.equal(hasG(s, guard, "Barrier"), false, "the picked keyword is negated");
+  assert.equal(hasG(s, guard, "Blocker"), true, "…and only that one");
+  const shown = IMPL.boardView(ctx, s, "p1", {}).them.battle.find((c) => c.id === guard);
+  assert.ok(shown?.effects?.some((e) => e.label === "[Barrier] negated"), `the board says which keyword is negated (got ${JSON.stringify(shown?.effects?.map((e) => e.label))})`);
+  assertConsistentG(s);
+
+  // [Blocker] still works: attacking p2's Leader opens the block, with the card on offer.
+  s = run(s, { type: "attack", player: "p1", attacker: me, target: leaderOf(s, "p2") });
+  assert.ok(
+    legal(s).some((a) => a.type === "block" && a.card === guard),
+    "[Blocker] is still in force on the card whose [Barrier] was negated",
+  );
+  s = run(s, { type: "block", player: "p2", card: null });
+
+  // …and the negation ends with the turn (9-9).
+  while (s.prompt.kind !== "main" || (s.prompt as { player: string }).player !== "p2") {
+    const next = legal(s).find((a) => a.type === "pass" || a.type === "endMain" || a.type === "charge" || a.type === "block" || a.type === "counter");
+    assert.ok(next, `the turn can be passed on (${s.prompt.kind})`);
+    s = run(s, next);
+  }
+  assert.equal(hasG(s, guard, "Barrier"), true, "[Barrier] is back once the turn is over");
+  assert.equal(s.effects.some((e) => e.kind === "negateKeyword"), false, "…and the negation is no longer in force");
+
+  // A target with no keyword skills is nothing to choose from: no question, no effect.
+  let bare = arenaG({ battle: ["PICKNEG"], oppBattle: ["V1"] });
+  const mine = findG(bare, "p1", "battle", "PICKNEG");
+  bare = run(bare, legal(bare).find((a) => a.type === "activate" && a.card === mine)!);
+  assert.notEqual(bare.prompt.kind, "chooseMode", "a card with no keyword skills is not asked about");
+  assert.equal(bare.effects.some((e) => e.kind === "negateKeyword"), false, "…and nothing is negated");
+  assertConsistentG(bare);
 }
 // ── 9-10: a replacement whose substitute is a program (#125) ───────────────
 
@@ -2998,5 +3442,96 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   const shown = IMPL.toBeats(CTX, taken.state, taken.events, 0).list.find((b) => b.t === "move" && b.card === life && b.to === "hand");
   assert.ok(shown && shown.t === "move" && shown.reveal === true, "the move to hand carries `reveal`");
   assertConsistentG(taken.state);
+}
+
+// ── event: "marker" — a Unison's marker kept, at 13-5-2 ─────────────────────
+// SD13-02 skill 0 (owner-approved, 2 Oct 2026): "If this card would lose a
+// marker from an opponent's attack, you may place 1 card from your life in
+// your Drop Area instead." Both engines: the Damage Step asks once per marker
+// (5-13-4-2, 9-10-2-3), and a marker a skill removes is not this moment.
+{
+  const KEEP_TEXT = "[Permanent] If this card would lose a marker from an opponent's attack, you may place 1 card from your life in your Drop Area instead.";
+  DEFS.KEEPER = { ...DEFS.U1, id: "KEEPER", name: "KEEPER", skill: KEEP_TEXT };
+  DEFS.UNMARK = { ...DEFS.V1, id: "UNMARK", name: "UNMARK", skill: "[Activate: Main] Choose up to 1 of your opponent's Unison Cards and remove a marker from it." };
+  const rule = compileSkill(parseSkills(KEEP_TEXT)[0]);
+  assert.deepEqual(rule.unsupported, [], "the moment and the substitute both read");
+  assert.deepEqual(
+    rule.ops.map((o) => (o.op === "replace" ? { event: o.event, by: o.by, optional: o.optional } : o.op)),
+    [{ event: "marker", by: "attack", optional: true }],
+    "read as replace(event: marker, by: attack), optional",
+  );
+
+  /** p1's KEEPER in the Unison Area with 3 markers; p2's turn, `attacker` (and `extra`) in p2's Battle Area. */
+  const attacked = (attacker: string, extra: string[] = []): { s: EngineState; u: string } => {
+    let g = arenaG({ hand: ["KEEPER"], energy: ["V1", "V1", "V1"], oppBattle: [attacker, ...extra] });
+    g = playG(g, { type: "playUnison", player: "p1", card: findG(g, "p1", "hand", "KEEPER"), x: 3 });
+    const u = unisonOf(g, "p1")!;
+    g = playG(g, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+    return { s: g, u };
+  };
+  /** Answer the substitute's own question — which life card goes — with the first one offered. */
+  const pickLife = (g: EngineState): EngineState => {
+    if (g.prompt.kind !== "chooseCards") return g;
+    const cands = g.prompt.choice.candidates;
+    assert.ok(cands.every((id) => zoneOf(g, "p1", "life").includes(id)), "the substitute's choice is of p1's own life cards");
+    return playG(g, { type: "choose", player: "p1", cards: [cands[0]] });
+  };
+
+  // Taken: the marker stays, a life card goes to the Drop instead.
+  {
+    const { s, u } = attacked("BIG");
+    const lifeBefore = zoneOf(s, "p1", "life").length;
+    const dropBefore = zoneOf(s, "p1", "drop").length;
+    let g = playG(s, { type: "attack", player: "p2", attacker: findG(s, "p2", "battle", "BIG"), target: u }, { type: "pass", player: "p2" });
+    assert.equal(g.prompt.kind, "replaceMove", "9-10-3: whether to keep the marker is asked");
+    assert.equal((g.prompt as { player: string }).player, "p1", "asked of the Unison's master, not the attacker");
+    assert.equal((g.prompt as { options: string[] }).options.length, 2, "the offer, and losing the marker as usual");
+    g = pickLife(playG(g, { type: "chooseMode", player: "p1", index: 0 }));
+    assert.equal(g.cards[u].markers, 3, "taken: the marker stays (9-10-1-1)");
+    assert.equal(zoneOf(g, "p1", "life").length, lifeBefore - 1, "taken: one life card fewer");
+    assert.equal(zoneOf(g, "p1", "drop").length, dropBefore + 1, "taken: and it is in the Drop Area");
+    assert.equal(g.prompt.kind, "main", "the battle finishes behind the substitute");
+    assertConsistentG(g);
+  }
+
+  // Declined: the marker comes off as 13-5-2-3 says, and life is untouched.
+  {
+    const { s, u } = attacked("BIG");
+    const lifeBefore = zoneOf(s, "p1", "life").length;
+    let g = playG(s, { type: "attack", player: "p2", attacker: findG(s, "p2", "battle", "BIG"), target: u }, { type: "pass", player: "p2" });
+    assert.equal(g.prompt.kind, "replaceMove");
+    g = playG(g, { type: "chooseMode", player: "p1", index: 1 });
+    assert.equal(g.cards[u].markers, 2, "declined: one marker lost");
+    assert.equal(zoneOf(g, "p1", "life").length, lifeBefore, "declined: life untouched");
+    assert.equal(g.prompt.kind, "main");
+    assertConsistentG(g);
+  }
+
+  // [Double Strike]: two markers, two events (5-13-4-2) — each asked on its own.
+  {
+    const { s, u } = attacked("DOUBLE");
+    const lifeBefore = zoneOf(s, "p1", "life").length;
+    let g = playG(s, { type: "attack", player: "p2", attacker: findG(s, "p2", "battle", "DOUBLE"), target: u }, { type: "pass", player: "p2" });
+    assert.equal(g.prompt.kind, "replaceMove", "the first marker's question");
+    g = pickLife(playG(g, { type: "chooseMode", player: "p1", index: 0 }));
+    assert.equal(g.prompt.kind, "replaceMove", "5-13-4-2: the second marker is its own event, asked again");
+    g = playG(g, { type: "chooseMode", player: "p1", index: 1 });
+    assert.equal(g.cards[u].markers, 2, "one kept, one lost");
+    assert.equal(zoneOf(g, "p1", "life").length, lifeBefore - 1, "one life card paid for the one kept");
+    assert.equal(g.prompt.kind, "main");
+    assertConsistentG(g);
+  }
+
+  // A marker a skill removes is not an attack's: no replacement is offered.
+  {
+    const { s, u } = attacked("BIG", ["UNMARK"]);
+    const lifeBefore = zoneOf(s, "p1", "life").length;
+    let g = playG(s, { type: "activate", player: "p2", card: findG(s, "p2", "battle", "UNMARK"), skill: 0 });
+    if (g.prompt.kind === "chooseCards") g = playG(g, { type: "choose", player: "p2", cards: [u] });
+    assert.notEqual(g.prompt.kind, "replaceMove", "no replacement for a skill's removal");
+    assert.equal(g.cards[u].markers, 2, "the skill's marker came off");
+    assert.equal(zoneOf(g, "p1", "life").length, lifeBefore, "and no life card went for it");
+    assertConsistentG(g);
+  }
 }
 

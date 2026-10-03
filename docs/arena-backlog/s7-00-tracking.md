@@ -4,6 +4,7 @@ milestone: Arena M10 — Keywords as macros (Stage 7)
 labels: epic, backlog, area:arena-vm, area:arena-rulesets, phase:rules-stage7
 stage: 7
 tracking: true
+status: closed
 ---
 Stage 7 of the rules-language programme (Opus 5, size XL). The 39 keyword skills the parser knows (`KEYWORD_NAMES` in `src/lib/arena/vm/script.ts`) become **bodies in `keywords.rules`** written against a fixed contract of interpreter **hook points** (`src/lib/arena/vm/hooks.ts`), replacing the legacy engine's 27+ inline `has()` sites. One hook group per commit; `scripts/verify/keywords.ts` (958 lines) and `battles.ts` on the rules engine green after each.
 
