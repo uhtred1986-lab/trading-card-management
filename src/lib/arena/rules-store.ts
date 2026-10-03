@@ -9,7 +9,8 @@
 import { and, asc, eq, ilike, inArray, isNotNull, ne, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
-import { describeScript, type CardScripts, type Op } from "./vm/script";
+import { completeFilters, describeScript, type CardScripts, type Op } from "./vm/script";
+import { validateRule } from "./lang/validate";
 import { type CardDef } from "./types";
 import type { Cond, PayWith, SkillPrice, XCost } from "./vm/script";
 import type { Trigger } from "./types";
@@ -119,9 +120,20 @@ export interface RuleWrite {
  * whatever was there and bumps the version; `reads` is regenerated so the row
  * never says one thing and does another.
  */
-export async function saveRule(db: Db, w: RuleWrite): Promise<RuleRow> {
-  const existing = await db.query.cardRules.findFirst({ where: and(eq(cardRules.cardId, w.cardId), eq(cardRules.side, w.side), eq(cardRules.skillIndex, w.skillIndex)) });
-  const kind = existing?.kind ?? w.kind ?? "";
+export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
+  const existing = await db.query.cardRules.findFirst({ where: and(eq(cardRules.cardId, given.cardId), eq(cardRules.side, given.side), eq(cardRules.skillIndex, given.skillIndex)) });
+  const kind = existing?.kind ?? given.kind ?? "";
+  // Every writer of a person's or Claude's program comes through here — the
+  // workbench (after `readRule`), Explain to Claude (`clarify`) and the
+  // referee's drafts (`ai/run`) — so this is the one gate none of them can
+  // skip (3 Oct 2026, BT31-132). The WHEN is not re-read: a write that leaves
+  // it out keeps the row's, and `readRule` has already checked one that is
+  // handed in; nor is a price the write leaves out (the two writers that leave
+  // it out check their program with no X bound, as this does). Filters are
+  // stored whole (`completeFilters`).
+  const w: RuleWrite = { ...given, ops: completeFilters(given.ops), cond: given.cond ? completeFilters(given.cond) : given.cond, ...(given.cost !== undefined ? { cost: completeFilters(given.cost) } : {}) };
+  const bad = validateRule({ kind, trigger: [], cost: w.cost ?? null, cond: w.cond ?? null, ops: w.ops }, kind);
+  if (bad) throw new Error(`${w.cardId} [${w.skillIndex}]: refused to store a rule the engine cannot run — ${bad.message}`);
   // The hoisted condition is part of the program, so the reading has to be of
   // the whole thing; describing the steps alone dropped the IF from the line
   // the workbench shows back.

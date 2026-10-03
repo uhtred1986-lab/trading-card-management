@@ -188,6 +188,56 @@ export interface CardFilter {
   z: boolean | null;
 }
 
+/**
+ * Every field of a `CardFilter` and the kind of value it holds: the language's
+ * predicate form (`lang/ast.ts` re-exports it) and the list `filterProblem`
+ * (`vm/script-schema.ts`) checks a stored filter's keys and values against.
+ */
+export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel";
+
+export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
+  colors: "colors",
+  notColors: "colors",
+  monoColor: "boolean",
+  multiColor: "boolean",
+  characters: "strings",
+  notCharacters: "strings",
+  charactersIncluding: "strings",
+  notCharactersIncluding: "strings",
+  traits: "strings",
+  notTraits: "strings",
+  characterOrTrait: "boolean",
+  onlyCharacters: "boolean",
+  names: "strings",
+  notNames: "strings",
+  namesIncluding: "strings",
+  notNamesIncluding: "strings",
+  keywords: "keywords",
+  notKeywords: "keywords",
+  type: "cardType",
+  notType: "cardType",
+  skillKind: "skillKind",
+  unreadable: "boolean",
+  noKeywords: "boolean",
+  faceUp: "boolean",
+  token: "boolean",
+  notToken: "boolean",
+  costMin: "number",
+  costMax: "number",
+  powerMin: "number",
+  powerMax: "number",
+  originalPowerMin: "number",
+  originalPowerMax: "number",
+  comboPowerMin: "number",
+  comboPowerMax: "number",
+  originallySkillLess: "boolean",
+  powerRel: "powerRel",
+  z: "tri",
+};
+type FilterFieldMissing = Exclude<keyof CardFilter, keyof typeof FILTER_FIELDS>;
+const _everyFilterFieldWritten: FilterFieldMissing extends never ? true : never = true;
+void _everyFilterFieldWritten;
+
 const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "Green", yellow: "Yellow", black: "Black", white: "White" };
 
 /**

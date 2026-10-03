@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransiti
 import { createPortal } from "react-dom";
 import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, reopenRuleAction, saveRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
 import { keywordPlays } from "@/lib/arena/glossary";
-import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/vm/script";
+import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, programProblem, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/vm/script";
 import type { Trigger } from "@/lib/arena/types";
 import { describeTrigger } from "@/lib/arena/gaps";
 import { parseRule, printRule, validateRule, type LangError, type Rule } from "@/lib/arena/lang";
@@ -283,8 +283,9 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   const readJson = () => {
     try {
       const parsed: unknown = JSON.parse(jsonText);
-      if (!validateProgram(parsed)) {
-        setJsonError("not a valid program — every step needs its required fields and known values");
+      const bad = programProblem(parsed);
+      if (bad || !validateProgram(parsed)) {
+        setJsonError(`not a valid program — ${bad ?? "every step needs its required fields and known values"}`);
         return;
       }
       setJsonError(null);
