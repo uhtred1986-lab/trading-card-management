@@ -19,10 +19,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
-import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, describeScript, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/vm/script";
+import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, completeFilters, describeFilter, describeScript, programProblem, validateProgram, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/vm/script";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
-import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printFilter, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
+import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printFilter, printOps, printSelector, readRule, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
 import { CTX, DEFS, stagedG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords, compileSkill, parseSkills } from "./harness";
 
@@ -855,6 +855,12 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   assert.ok(!valid([{ op: "choose", sel: { special: "self", sumAtMost: bound.sumAtMost }, as: "c0" }]), "one card has no sum");
   assert.ok(!valid([{ op: "choose", sel: { ...bound, sumAtMost: { attr: "colour" as never, total: 5 } }, as: "c0" }]), "the measure is one of the amount attributes");
   assert.ok(valid([{ op: "may", ops: [{ op: "choose", sel: bound, as: "c0" }] } as Op]), "a choose inside a nested program is still a choose");
+  // And each refusal says why, naming the field (#507's problem-reporting path).
+  assert.match(programProblem([{ op: "ko", target: { sel: bound } }]) ?? "", /sumAtMost.*only a choose's own selector/);
+  assert.match(programProblem([{ op: "choose", sel: bound, as: "c0", sumTo: 5 }]) ?? "", /"sumTo".*"sumAtMost"/);
+  assert.match(programProblem([{ op: "choose", sel: { ...bound, sumAtMost: { attr: "colour" as never, total: 5 } }, as: "c0" }]) ?? "", /sel\.sumAtMost\.attr is one of/);
+  assert.match(programProblem([{ op: "choose", sel: { special: "self", sumAtMost: bound.sumAtMost }, as: "c0" }]) ?? "", /sumAtMost bounds a set/);
+  assert.match(programProblem([{ op: "choose", sel: { ...bound, sumAtMost: { attr: "power", totl: 5 } as never }, as: "c0" }]) ?? "", /sumAtMost has no field "totl"/);
 }
 
 // ── keyword literals ────────────────────────────────────────────────────────
@@ -1029,7 +1035,11 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
       }
     }
     for (const rec of skillRecords(DEFS[id])) {
-      trip({ kind: rec.kind, trigger: rec.trigger as Trigger[], cost: rec.cost, cond: rec.cond, ops: rec.ops }, `record ${rec.cardId} [${rec.skillIndex}]`);
+      const record: Rule = { kind: rec.kind, trigger: rec.trigger as Trigger[], cost: rec.cost, cond: rec.cond, ops: rec.ops };
+      trip(record, `record ${rec.cardId} [${rec.skillIndex}]`);
+      // 3 Oct 2026: the validator refuses every key it does not know, so a
+      // compiler draft carrying a stray one would be a row nobody could save.
+      assert.equal(validateRule(record, rec.kind)?.message ?? null, null, `record ${rec.cardId} [${rec.skillIndex}] validates`);
       records++;
     }
   }
@@ -1267,6 +1277,75 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   // Written by hand, the condition on the cause reads at the rule's IF too.
   const byHand = parseRule('WHEN [auto] deckToWarpBySkill\nIF count([subject] "<Heles>") >= 1\nTHEN\n  look(n: 1, as: "looked")');
   assert.ok(byHand.ok && validateRule(byHand.value, "auto") === null, "an IF on the cause is a rule the validator accepts");
+}
+
+// ── BT31-132: a key the engine does not know is refused by name (3 Oct 2026) ─
+//
+// The stored rule said `"from": "looked"` where a selector says `fromVar`, so
+// the engine ignored it and chose from the Battle Area; its filter was partial
+// and crashed `describeFilter` on `notColors`. Unknown keys are refused at
+// every level, naming the key; a partial filter is accepted, made whole by
+// `readRule`, and never crashes a reader.
+{
+  const partial = { colors: ["White"], traits: ["Android"] } as unknown as CardFilter;
+  const bt31132 = ruleOf([
+    { op: "look", n: 3, as: "looked" },
+    { op: "choose", sel: { from: "looked", upTo: true, count: 1, filter: partial } as unknown as Selector, as: "t" },
+  ] as Op[]);
+  const bad = validateRule(bt31132, "auto");
+  assert.equal(bad?.field, "ops", "BT31-132's stored shape is refused");
+  assert.match(bad?.message ?? "", /"from"/, "the refusal names the stray key");
+  assert.match(bad?.message ?? "", /fromVar/, "…and the field it should have been");
+  assert.match(bad?.message ?? "", /ops\[1\] \(choose\)\.sel/, "…and where it is");
+  assert.equal(programProblem(bt31132.ops)?.includes('"from"'), true, "programProblem says the same to the referee's paths");
+  assert.equal(validateProgram(bt31132.ops), false, "validateProgram refuses it too");
+
+  // The same program with the field spelled right, and the filter left partial.
+  const fixed = ruleOf([
+    { op: "look", n: 3, as: "looked" },
+    { op: "choose", sel: { fromVar: "looked", upTo: true, count: 1, filter: partial }, as: "t" },
+  ]);
+  assert.equal(validateRule(fixed, "auto"), null, "a partial filter is a filter");
+  assert.doesNotThrow(() => describeFilter(partial), "describeFilter reads a partial filter");
+  assert.equal(describeFilter(partial), describeFilter({ ...emptyFilter(), colors: ["White"], traits: ["Android"] }), "…as the whole filter it means");
+  assert.doesNotThrow(() => printFilter(partial), "printFilter reads one");
+  assert.doesNotThrow(() => printRule(fixed), "printRule reads one");
+  assert.doesNotThrow(() => describeScript(fixed.ops), "describeScript reads one");
+  const read = readRule(fixed, "auto");
+  assert.ok("rule" in read, "readRule accepts it");
+  if ("rule" in read) {
+    const sel = (read.rule.ops[1] as Extract<Op, { op: "choose" }>).sel;
+    assert.deepEqual(sel.filter, { ...emptyFilter(), colors: ["White"], traits: ["Android"] }, "readRule hands back the filter made whole");
+    trip(read.rule, "BT31-132, fixed and made whole");
+  }
+  assert.deepEqual(completeFilters({ op: "permit", what: "attackActive", until: "turn", target: { sel: { special: "self" } }, filter: { token: true } }), { op: "permit", what: "attackActive", until: "turn", target: { sel: { special: "self" } }, filter: { ...emptyFilter(), token: true } }, "an op's own filter field is made whole too");
+
+  // A filter's measures are checked by name and by kind.
+  const withFilter = (filter: unknown) => validateRule(ruleOf([{ op: "choose", sel: { side: "you", area: "battle", count: 1, filter: filter as CardFilter }, as: "t" }]), "auto")?.message ?? null;
+  assert.match(withFilter({ colour: ["White"] }) ?? "", /no measure "colour"/, "a misspelt measure is refused by name");
+  assert.match(withFilter({ colors: "White" }) ?? "", /colors cannot be/, "a list given as a word is refused");
+  assert.match(withFilter({ colors: ["Purple"] }) ?? "", /colors cannot be/, "a colour the game lacks is refused");
+  assert.match(withFilter({ type: "battle" }) ?? "", /type cannot be/, "a card type is upper case");
+  assert.equal(withFilter({ costMax: 3, z: null }), null);
+
+  // …and on every other level: a step, a condition, a ref, an amount, a mode.
+  const stray = (ops: unknown, cond: unknown = null) => validateRule({ ...ruleOf(ops as Op[]), cond: cond as Cond | null }, "auto")?.message ?? null;
+  assert.match(stray([{ op: "draw", n: 1, count: 2 }]) ?? "", /ops\[0\] \(draw\) has no field "count"/, "a step's stray key");
+  assert.match(stray([], { kind: "count", sel: { side: "you", area: "hand" }, atLeast: 1, most: 3 }) ?? "", /cond \(count\) has no field "most"/, "a condition's stray key");
+  assert.match(stray([{ op: "ko", target: { var: "t", sel: { special: "self" } } }]) ?? "", /bound name or a selector, not both/, "a ref that is both");
+  assert.match(stray([{ op: "ko", target: { sel: { special: "self", zone: "battle" } } }]) ?? "", /no field "zone" — did you mean "area"\?/, "a selector inside a ref");
+  assert.match(stray([{ op: "draw", n: { count: { side: "you", area: "hand" }, each: 2 } }]) ?? "", /ops\[0\] \(draw\)\.n has no field "each"/, "an amount's stray key");
+  assert.match(stray([{ op: "chooseMode", modes: [{ label: "a", ops: [], text: "x" }] }]) ?? "", /has no field "text"/, "a mode's stray key");
+  assert.match(stray([{ op: "may", ops: [{ op: "choose", sel: { from: "x" }, as: "t" }] }]) ?? "", /ops\[0\] \(may\)\.ops\[0\] \(choose\)\.sel has no field "from"/, "nested programs say the whole path");
+  assert.match(stray([{ op: "choose", sel: { side: "you", area: "battle", underHost: { special: "leader", colors: [] } }, as: "t" }]) ?? "", /underHost has no field "colors"/, "a host selector is a selector too");
+  // A key holding `undefined` is no key — JSON never writes one, and the
+  // compiler's spreads leave them about.
+  assert.equal(stray([{ op: "draw", n: 1, side: undefined }]), null);
+
+  // The price's own selectors, conditions and programs say where, too.
+  const priced = (cost: Partial<CostRecord>) => validateRule(ruleOf([], { kind: "activate:main", cost: { ...BARE_COST, ...cost } as CostRecord }), "activate:main")?.message ?? null;
+  assert.match(priced({ payWith: [{ sel: { side: "you", area: "battle", from: "x" } as unknown as Selector, as: "energy" }] }) ?? "", /cost\.payWith\.sel has no field "from"/);
+  assert.match(priced({ program: [{ op: "draw", n: 1, why: "x" }] as unknown as Op[] }) ?? "", /cost\.program\[0\] \(draw\) has no field "why"/);
 }
 
 console.log("verify/lang: the rules language round-trips");

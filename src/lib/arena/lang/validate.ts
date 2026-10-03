@@ -17,15 +17,12 @@
  * The moments a WHEN may name are the **game's** (`rulesets/words.ts`, #137),
  * off `triggers.rules`, rather than a constant of the engine's.
  */
-import { OP_SCHEMA, validateProgram, type Cond, type CostRecord, type Op } from "../vm/script";
+import { OP_SCHEMA, completeFilters, condProblem, programProblem, selectorProblem, type CostRecord } from "../vm/script";
 import { whenMoments } from "../rulesets/words";
 import type { Rule } from "./ast";
 
 export type Invalid = { field: "rule" | "kind" | "trigger" | "cost" | "cond" | "ops"; message: string };
 
-const condOk = (c: unknown): boolean => validateProgram([{ op: "if", cond: c as Cond, then: [] }]);
-/** The same check a step's own selector gets, borrowed through the simplest condition that takes one. */
-const selOk = (sel: unknown): boolean => condOk({ kind: "count", sel });
 /** What a payer may stand in for, read off the `payWith` op rather than kept as a second colour list (20-19). */
 const PAY_AS = (OP_SCHEMA.payWith.fields.find((f) => f.name === "as")!.type as { enum: readonly string[] }).enum;
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -46,7 +43,10 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
   const unknown = (rule.trigger as string[]).filter((t) => !moments.includes(t));
   if (unknown.length) return { field: "trigger", message: `the engine knows no moment called ${unknown.map((t) => JSON.stringify(t)).join(", ")} — a trigger it never fires is a skill that never happens` };
   if (new Set(rule.trigger as string[]).size !== rule.trigger.length) return { field: "trigger", message: "the same moment is named twice" };
-  if (rule.cond != null && !condOk(rule.cond)) return { field: "cond", message: "that condition is not one the engine can ask" };
+  if (rule.cond != null) {
+    const bad = condProblem(rule.cond, 0, false, "cond");
+    if (bad) return { field: "cond", message: `that condition is not one the engine can ask — ${bad}` };
+  }
   if (rule.cost != null) {
     const bad = costProblem(rule.cost);
     if (bad) return { field: "cost", message: bad };
@@ -62,21 +62,24 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
   // `validateProgram` applies inside a program: a `bindX` in a branch has not
   // bound anything unless the branch ran.
   const xBound = isObject(rule.cost) && (isObject((rule.cost as Record<string, unknown>).x) || bindsX((rule.cost as Record<string, unknown>).program));
-  if (!validateProgram(rule.ops, 0, xBound)) {
-    return {
-      field: "ops",
-      message: xBound
-        ? "that is not a valid program — every step needs its required fields and known values"
-        : "that is not a valid program — every step needs its required fields and known values, and X may only be used when the price charges an X or its own choice binds one",
-    };
-  }
+  //
+  // Every step, condition, selector and filter is checked key by key
+  // (3 Oct 2026): BT31-132 was stored with `"from"` where a selector says
+  // `fromVar`, and the engine chose from the Battle Area instead.
+  const bad = programProblem(rule.ops, 0, xBound, "ops");
+  if (bad) return { field: "ops", message: `that is not a valid program — ${bad}` };
   return null;
 }
 
-/** The same check, narrowing: `null` back means the value really is a `Rule`. */
+/**
+ * The same check, narrowing: `null` back means the value really is a `Rule`.
+ * The rule handed back has every filter made whole (`completeFilters`): a
+ * partial filter is accepted, since Claude writes only the measures it means,
+ * but it is stored as the whole filter it means.
+ */
 export function readRule(rule: unknown, kind: string): { rule: Rule } | { error: Invalid } {
   const bad = validateRule(rule, kind);
-  return bad ? { error: bad } : { rule: rule as Rule };
+  return bad ? { error: bad } : { rule: completeFilters(rule as Rule) };
 }
 
 /** Does this price's program bind X, at its own top level? */
@@ -104,11 +107,18 @@ function costProblem(cost: unknown): string | null {
     if (!Array.isArray(c.payWith) || !c.payWith.length) return "a price that names payers names at least one";
     for (const pw of c.payWith as unknown[]) {
       if (!isObject(pw)) return "a payer is a selector and what it counts as";
-      if (!isObject(pw.sel) || !selOk(pw.sel)) return "the price names a payer the engine cannot pick out";
+      const sel = selectorProblem(pw.sel, "cost.payWith.sel");
+      if (sel) return `the price names a payer the engine cannot pick out — ${sel}`;
       if (typeof pw.as !== "string" || !PAY_AS.includes(pw.as)) return "a payer stands in for energy or for one coloured orb";
     }
   }
-  if (c.condition != null && !condOk(c.condition)) return "the price states a condition the engine cannot ask";
-  if (c.program != null && !validateProgram(c.program as Op[])) return "the price charges a program the engine cannot run";
+  if (c.condition != null) {
+    const bad = condProblem(c.condition, 0, false, "cost.condition");
+    if (bad) return `the price states a condition the engine cannot ask — ${bad}`;
+  }
+  if (c.program != null) {
+    const bad = programProblem(c.program, 0, false, "cost.program");
+    if (bad) return `the price charges a program the engine cannot run — ${bad}`;
+  }
   return null;
 }

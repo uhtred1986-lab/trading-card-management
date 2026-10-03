@@ -12,7 +12,7 @@
  * tables below close that, and the `never` checks under them make a new field
  * fail `npm run typecheck` until it is described.
  */
-import type { CardFilter } from "../text/filters";
+import { FILTER_FIELDS, type CardFilter, type FilterFieldType } from "../text/filters";
 import { COLORS, type Amount, type AmountAttr, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector, type Side } from "../vm/script";
 import type { Requirement, SkillKind, Trigger } from "../types";
 
@@ -96,50 +96,7 @@ void _everySelectorFieldWritten;
  * reads; this is the fallback for the filters whose words `parseFilter` does
  * not read back exactly, and the round-trip promise rests on it.
  */
-export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel";
-
-export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
-  colors: "colors",
-  notColors: "colors",
-  monoColor: "boolean",
-  multiColor: "boolean",
-  characters: "strings",
-  notCharacters: "strings",
-  charactersIncluding: "strings",
-  notCharactersIncluding: "strings",
-  traits: "strings",
-  notTraits: "strings",
-  characterOrTrait: "boolean",
-  onlyCharacters: "boolean",
-  names: "strings",
-  notNames: "strings",
-  namesIncluding: "strings",
-  notNamesIncluding: "strings",
-  keywords: "keywords",
-  notKeywords: "keywords",
-  type: "cardType",
-  notType: "cardType",
-  skillKind: "skillKind",
-  unreadable: "boolean",
-  noKeywords: "boolean",
-  faceUp: "boolean",
-  token: "boolean",
-  notToken: "boolean",
-  costMin: "number",
-  costMax: "number",
-  powerMin: "number",
-  powerMax: "number",
-  originalPowerMin: "number",
-  originalPowerMax: "number",
-  comboPowerMin: "number",
-  comboPowerMax: "number",
-  originallySkillLess: "boolean",
-  powerRel: "powerRel",
-  z: "tri",
-};
-type FilterFieldMissing = Exclude<keyof CardFilter, keyof typeof FILTER_FIELDS>;
-const _everyFilterFieldWritten: FilterFieldMissing extends never ? true : never = true;
-void _everyFilterFieldWritten;
+export { FILTER_FIELDS, type FilterFieldType } from "../text/filters";
 
 export const FILTER_FIELD_NAMES = Object.keys(FILTER_FIELDS) as (keyof CardFilter)[];
 

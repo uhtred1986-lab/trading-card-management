@@ -1,4 +1,4 @@
-import type { CardFilter } from "../text/filters";
+import { FILTER_FIELDS, emptyFilter, type CardFilter, type FilterFieldType } from "../text/filters";
 import { keywordName } from "../text/cards";
 // `AmountAttr` and `CardAttr` are deliberately two lists, not one: `CardAttr`
 // is what `modifyAttr` may *write* (colours, characters, traits and names among
@@ -1610,38 +1610,58 @@ export function discardAs(ops: readonly Op[], ip: number): Folded | null {
 }
 
 export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is Op[] {
-  if (!Array.isArray(ops) || depth > 4) return false;
+  return programProblem(ops, depth, xBound) === null;
+}
+
+/**
+ * Why a program is not one the engine can run, naming the step and the field
+ * (3 Oct 2026) — or `null` when it is. `validateProgram` is this answered yes
+ * or no; the workbench's Save and every other writer say the reason.
+ *
+ * Every key is checked, not only the ones a step needs: BT31-132's stored rule
+ * said `"from": "looked"` where a selector says `fromVar`, the interpreter
+ * ignored the word it did not know, and the choice was offered from the
+ * Battle Area instead of the cards looked at. A misspelt field is refused by
+ * name rather than dropped, on a step, a condition, a selector, a ref, an
+ * amount and a filter alike.
+ */
+export function programProblem(ops: unknown, depth = 0, xBound = false, at = "ops"): string | null {
+  if (!Array.isArray(ops)) return `${at} is not a list of steps`;
+  if (depth > 4) return `${at} is nested too deeply`;
   // 20-5: X is legal only once something has bound it — the price, said by
   // `CostRecord.x` and passed in as `xBound`, or a `choose` earlier in this
   // same program carrying `bindX`. A step is checked against what is bound
   // *before* it, so "draw X, then choose X cards" is refused and "choose any
   // number of cards, then draw X" is not.
   let bound = xBound;
-  for (const raw of ops) {
-    if (!raw || typeof raw !== "object") return false;
-    const o = raw as Record<string, unknown>;
+  for (const [i, raw] of ops.entries()) {
+    const here = `${at}[${i}]`;
+    if (!isRecord(raw)) return `${here} is not a step`;
+    const o = raw;
     const spec = typeof o.op === "string" ? OP_SCHEMA[o.op as Op["op"]] : undefined;
-    if (!spec) return false;
-    const ok = spec.fields.every((f) => {
-      const v = o[f.name];
-      if (v === undefined) return !f.required;
-      if (v === null) return !!f.nullable;
-      return fieldHolds(f.type, v, depth, bound);
-    });
-    if (!ok) return false;
+    if (!spec) return `${here}: the engine has no step called ${JSON.stringify(o.op)}`;
+    const step = `${here} (${o.op as string})`;
+    const stray = unknownKey(o, ["op", ...spec.fields.map((f) => f.name)]);
+    if (stray) return `${step} has no field ${JSON.stringify(stray)}${hintFor(stray, spec.fields)}`;
+    for (const f of spec.fields) {
+      const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
+      if (bad) return bad;
+    }
     // A marker loss is read at one moment only — 13-5-2's, an attack on a
     // Unison — so `event: marker` names it and `by: attack` belongs to it
     // alone: either without the other is a moment nothing reads.
-    if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return false;
+    if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return `${step}: "event": "marker" and "by": "attack" are only ever written together`;
     // 20-14-1: a tax is charged where the action is taken, and only the
     // attack, a declared play and a skill's switch of energy to Active Mode
     // charge one — a price on any other action would be a rule that silently
     // stopped forbidding anything.
-    if (o.op === "forbid" && o.unlessPay !== undefined && (!TAXABLE.has(o.what as ForbiddenAction) || !(o.unlessPay as unknown[]).length || o.unless !== undefined)) return false;
+    if (o.op === "forbid" && o.unlessPay !== undefined && (!TAXABLE.has(o.what as ForbiddenAction) || !(o.unlessPay as unknown[]).length || o.unless !== undefined))
+      return `${step}: only an attack, a declared play or a switch of energy to Active Mode is taxed with "unlessPay", and never beside "unless"`;
     if (o.op === "choose" && o.bindX === true) bound = true;
-    if (strayBound(o)) return false;
+    const stray2 = strayBound(o, step);
+    if (stray2) return stray2;
   }
-  return true;
+  return null;
 }
 
 /**
@@ -1697,101 +1717,325 @@ function perHolds(v: unknown): boolean {
   return ("count" in a || "markers" in a || "life" in a) && Number.isInteger(a.per) && (a.per as number) >= 2;
 }
 
-function selectorHolds(v: unknown): boolean {
-  if (typeof v !== "object" || v === null) return false;
-  const special = (v as { special?: unknown }).special;
-  if (special !== undefined && !(SPECIAL_TARGETS as readonly string[]).includes(special as string)) return false;
-  // `TOTAL energyCost <= 5` (BT3-036): a measure and an amount, and a bound
-  // on a set — so never on a special, which names one card.
-  const sum = (v as { sumAtMost?: unknown }).sumAtMost;
-  if (sum === undefined) return true;
-  if (typeof sum !== "object" || sum === null || special !== undefined) return false;
-  const { attr, total } = sum as { attr?: unknown; total?: unknown };
-  return (AMOUNT_ATTRS as readonly unknown[]).includes(attr) && (typeof total === "number" || (typeof total === "object" && total !== null)) && perHolds(total);
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** The first key of `o` not among `allowed`, if any. A key holding `undefined` is no key at all, the way JSON drops it. */
+function unknownKey(o: Record<string, unknown>, allowed: readonly string[]): string | null {
+  return Object.keys(o).find((k) => o[k] !== undefined && !allowed.includes(k)) ?? null;
 }
 
 /**
- * Is a summed bound (`Selector.sumAtMost`) written anywhere but on a
- * `choose`'s own selector? Only the choice reads it — `resolveSelector` does
- * not — so on a `ko`'s target, inside a `count` or under a `sumTo` choice it
- * would be every card the selector describes, the bound read as nothing.
- * Nested programs are walked too: they are part of the same value.
+ * The words that have been written for a field that is called something else.
+ * `from` is BT31-132's; the rest are the same mistake's neighbours. Only a
+ * hint — the refusal names the stray key whether or not one is known.
  */
-function strayBound(v: unknown, top = true): boolean {
-  if (typeof v !== "object" || v === null) return false;
-  if (Array.isArray(v)) return v.some((x) => strayBound(x, false));
-  const o = v as Record<string, unknown>;
-  if (!top && "sumAtMost" in o) return true;
-  if (o.op === "choose" && o.sel && typeof o.sel === "object") {
-    const { sumAtMost, ...rest } = o.sel as Record<string, unknown>;
-    if (sumAtMost !== undefined && o.sumTo !== undefined) return true;
-    return strayBound(rest, false) || Object.entries(o).some(([k, x]) => k !== "sel" && strayBound(x, false));
-  }
-  return Object.values(o).some((x) => strayBound(x, false));
+const FIELD_ALIASES: Record<string, string> = { from: "fromVar", var: "fromVar", zone: "area", zones: "areas", upto: "upTo", player: "side", owner: "side", amount: "n" };
+
+function hintFor(stray: string, known: readonly (string | OpField)[]): string {
+  const names = known.map((k) => (typeof k === "string" ? k : k.name));
+  const alias = FIELD_ALIASES[stray] ?? FIELD_ALIASES[stray.toLowerCase()];
+  const near = alias && names.includes(alias) ? alias : names.find((n) => n.toLowerCase() === stray.toLowerCase());
+  return near ? ` — did you mean ${JSON.stringify(near)}?` : ` (it takes ${names.map((n) => JSON.stringify(n)).join(", ")})`;
 }
+
+/**
+ * Every key a `Selector` may carry. `satisfies` keeps it the type's own list:
+ * a field added to `Selector` and not here fails the typecheck, and a key
+ * written here that the type lacks does too.
+ */
+const SELECTOR_KEYS = {
+  side: 1,
+  area: 1,
+  areas: 1,
+  filter: 1,
+  special: 1,
+  mode: 1,
+  hidden: 1,
+  fromVar: 1,
+  underHost: 1,
+  count: 1,
+  upTo: 1,
+  take: 1,
+  fromEnd: 1,
+  ignoreBarrier: 1,
+  notSelf: 1,
+  differentNames: 1,
+  sumAtMost: 1,
+  printed: 1,
+} as const satisfies Record<keyof Selector, 1>;
+const SELECTOR_KEY_NAMES = Object.keys(SELECTOR_KEYS);
+const NOT_SELF = ["card", "copies", "name"] as const satisfies readonly NonNullable<Selector["notSelf"]>[];
+const SELECTOR_MODES = ["active", "rest"] as const satisfies readonly NonNullable<Selector["mode"]>[];
+
+/** A `DEFINE KEYWORD` body's parameter (`$colors`, #155): filled in when the keyword is expanded, so any value may stand there until then. */
+const isHoleValue = (v: unknown): boolean => isRecord(v) && ((typeof v.hole === "string" && Object.keys(v).length === 1) || (isRecord(v.neg) && typeof v.neg.hole === "string"));
+const isCount = (v: unknown): boolean => typeof v === "number" && Number.isInteger(v) && v >= 0;
+
+/**
+ * Why a selector is not one, or `null`. Every field is checked by its type and
+ * an unknown one is refused by name — the engine reads a selector by its keys,
+ * so a key it does not know is a measure silently dropped, which always widens
+ * the choice (ground rule 5).
+ */
+export function selectorProblem(v: unknown, at = "sel", depth = 0): string | null {
+  if (!isRecord(v)) return `${at} is not a selector`;
+  if (depth > 4) return `${at} is nested too deeply`;
+  const stray = unknownKey(v, SELECTOR_KEY_NAMES);
+  if (stray) return `${at} has no field ${JSON.stringify(stray)}${hintFor(stray, SELECTOR_KEY_NAMES)}`;
+  const wrong = (field: string, what: string) => `${at}.${field} is ${what}, not ${JSON.stringify(v[field])}`;
+  const is = (x: unknown, list: readonly string[]) => typeof x === "string" && list.includes(x);
+  if (v.special !== undefined && !is(v.special, SPECIAL_TARGETS)) return wrong("special", `one of ${SPECIAL_TARGETS.join(", ")}`);
+  if (v.side !== undefined && !is(v.side, SIDES)) return wrong("side", "you, opponent or both");
+  if (v.area !== undefined && !is(v.area, AREAS)) return wrong("area", "an area");
+  if (v.areas !== undefined && !(Array.isArray(v.areas) && v.areas.length > 0 && v.areas.every((a) => is(a, AREAS)))) return wrong("areas", "a list of areas");
+  if (v.mode !== undefined && !is(v.mode, SELECTOR_MODES)) return wrong("mode", "active or rest");
+  if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
+  if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
+  // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
+  // `TOP X IN you.deck` (`rulesets/*.rules`) — is the amount it was handed,
+  // which the step that wrote it has already checked for an unbound X.
+  for (const k of ["count", "take"]) {
+    if (v[k] === undefined || isCount(v[k])) continue;
+    if (!isRecord(v[k]) || amountProblem(v[k], true, `${at}.${k}`)) return wrong(k, "a whole number or an amount");
+  }
+  for (const k of ["upTo", "fromEnd", "ignoreBarrier", "hidden"]) if (v[k] !== undefined && typeof v[k] !== "boolean") return wrong(k, "true or false");
+  for (const k of ["differentNames", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
+  // `TOTAL energyCost <= 5` (BT3-036): a measure and an amount, and a bound
+  // on a set — so never on a special, which names one card. Where it may
+  // stand at all is `strayBound`'s question.
+  if (v.sumAtMost !== undefined) {
+    const sum = v.sumAtMost;
+    if (!isRecord(sum)) return wrong("sumAtMost", "{ attr, total }");
+    const strayed = unknownKey(sum, ["attr", "total"]);
+    if (strayed) return `${at}.sumAtMost has no field ${JSON.stringify(strayed)}${hintFor(strayed, ["attr", "total"])}`;
+    if (!(AMOUNT_ATTRS as readonly unknown[]).includes(sum.attr)) return `${at}.sumAtMost.attr is one of ${AMOUNT_ATTRS.join(", ")}, not ${JSON.stringify(sum.attr)}`;
+    if (sum.total === undefined) return `${at}.sumAtMost.total is required`;
+    const bad = amountProblem(sum.total, true, `${at}.sumAtMost.total`);
+    if (bad) return bad;
+    if (v.special !== undefined) return `${at}.sumAtMost bounds a set of cards, and ${JSON.stringify(v.special)} names one`;
+  }
+  if (v.underHost !== undefined) {
+    const bad = selectorProblem(v.underHost, `${at}.underHost`, depth + 1);
+    if (bad) return bad;
+  }
+  if (v.filter !== undefined) return filterProblem(v.filter, `${at}.filter`);
+  return null;
+}
+
+const CARD_TYPES = ["LEADER", "BATTLE", "EXTRA", "UNISON"] as const satisfies readonly NonNullable<CardFilter["type"]>[];
+const POWER_REL_OF: readonly unknown[] = ["self", "chosen"] satisfies NonNullable<CardFilter["powerRel"]>["of"][];
+const POWER_REL_CMP: readonly unknown[] = ["<=", "<", ">=", ">"] satisfies NonNullable<CardFilter["powerRel"]>["cmp"][];
+
+function filterValueHolds(kind: FilterFieldType, x: unknown): boolean {
+  switch (kind) {
+    case "strings":
+    case "keywords":
+      return Array.isArray(x) && x.every((y) => typeof y === "string");
+    case "colors":
+      return Array.isArray(x) && x.every((y) => typeof y === "string" && (COLORS as readonly string[]).includes(y));
+    case "cardType":
+      return x === null || (typeof x === "string" && (CARD_TYPES as readonly string[]).includes(x));
+    case "skillKind":
+      return x === null || (typeof x === "string" && (SKILL_KIND_PREFIXES as readonly string[]).includes(x));
+    case "boolean":
+      return typeof x === "boolean";
+    case "tri":
+      return x === null || typeof x === "boolean";
+    case "number":
+      return x === null || (typeof x === "number" && Number.isFinite(x));
+    case "powerRel":
+      return x === null || (isRecord(x) && !unknownKey(x, ["of", "cmp", "var"]) && POWER_REL_OF.includes(x.of) && POWER_REL_CMP.includes(x.cmp) && (x.var === undefined || typeof x.var === "string"));
+  }
+}
+
+/**
+ * Why a filter is not a `CardFilter`, or `null`. A filter may be **partial** —
+ * Claude writes only the measures it means, and older rows were stored that
+ * way — and the rest are read at rest (`completeFilter`). What it may not do
+ * is name a measure that does not exist, or give one a value of the wrong
+ * kind: either is a measure the predicate never applies.
+ */
+export function filterProblem(v: unknown, at = "filter"): string | null {
+  if (!isRecord(v)) return `${at} is not a filter`;
+  const names = Object.keys(FILTER_FIELDS);
+  const stray = unknownKey(v, names);
+  if (stray) return `${at} has no measure ${JSON.stringify(stray)}${hintFor(stray, names)}`;
+  for (const [name, kind] of Object.entries(FILTER_FIELDS) as [keyof CardFilter, FilterFieldType][]) {
+    const x = v[name];
+    if (x === undefined || isHoleValue(x)) continue;
+    if (!filterValueHolds(kind, x)) return `${at}.${name} cannot be ${JSON.stringify(x)}`;
+  }
+  return null;
+}
+
+/** A filter with every measure it leaves out at rest — the shape the engine, the printer and the workbench all read. */
+export function completeFilter(f: Partial<CardFilter>): CardFilter {
+  return { ...emptyFilter(), ...f };
+}
+
+/** The fields that hold a `CardFilter`: a selector's own, and every op or condition field the schema types `filter`. */
+const FILTER_KEYS = new Set(["filter", ...[...Object.values(OP_SCHEMA), ...Object.values(COND_SCHEMA)].flatMap((spec) => spec.fields.filter((f) => f.type === "filter").map((f) => f.name))]);
+
+/**
+ * The same value with every filter in it made whole (`completeFilter`). What a
+ * rule is stored as: a partial filter is a shape Claude writes and older rows
+ * hold, and every reader since 3 Oct 2026 tolerates one, but a row that says
+ * each measure is one no reader has to.
+ */
+export function completeFilters<T>(v: T): T {
+  if (Array.isArray(v)) return v.map(completeFilters) as T;
+  if (!isRecord(v)) return v;
+  return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, FILTER_KEYS.has(k) && isRecord(x) && !isHoleValue(x) ? completeFilter(x as Partial<CardFilter>) : completeFilters(x)])) as T;
+}
+
+const REF_KEYS = ["var", "minus", "sel"];
+
+function refProblem(v: unknown, at: string): string | null {
+  if (!isRecord(v)) return `${at} is not a card reference`;
+  const stray = unknownKey(v, REF_KEYS);
+  if (stray) return `${at} has no field ${JSON.stringify(stray)}${hintFor(stray, REF_KEYS)}`;
+  // A ref is a bound name or a selector — a bare selector written where a
+  // ref belongs ({"special":"self"} for {"sel":{"special":"self"}}) is the
+  // mistake Claude makes most, and read as a ref it threw while being
+  // described. Refused here, by name.
+  if (typeof v.var === "string") {
+    if (v.sel !== undefined) return `${at} is a bound name or a selector, not both`;
+    return v.minus === undefined || typeof v.minus === "string" ? null : `${at}.minus is a bound name`;
+  }
+  if (v.var !== undefined) return `${at}.var is a bound name`;
+  if (v.minus !== undefined) return `${at}.minus belongs to a bound name`;
+  if (v.sel === undefined) return `${at} is neither a bound name ("var") nor a selector ("sel")`;
+  return selectorProblem(v.sel, `${at}.sel`);
+}
+
+const AMOUNT_KEYS = ["var", "count", "per", "times", "sumPower", "handUpTo", "markers", "x", "life", "attr", "name", "sumOf", "plus"];
+
+function amountProblem(v: unknown, xBound: boolean, at: string): string | null {
+  if (typeof v === "number") return Number.isFinite(v) ? null : `${at} is not a number`;
+  if (!isRecord(v)) return `${at} is not an amount`;
+  if (isHoleValue(v)) return null;
+  const stray = unknownKey(v, AMOUNT_KEYS);
+  if (stray) return `${at} has no field ${JSON.stringify(stray)}${hintFor(stray, AMOUNT_KEYS)}`;
+  if (readsUnboundX(v, xBound)) return `${at} says X, and nothing before it binds one — X may only be used when the price charges an X or its own choice binds one`;
+  if (!perHolds(v)) return `${at}.per is a whole number of at least 2, on a count, markers or life`;
+  for (const k of ["count", "markers", "sumOf"]) {
+    if (v[k] === undefined) continue;
+    const bad = selectorProblem(v[k], `${at}.${k}`);
+    if (bad) return bad;
+  }
+  if (v.attr !== undefined) {
+    const bad = refProblem(v.attr, `${at}.attr`);
+    if (bad) return bad;
+  }
+  if (v.plus !== undefined) {
+    if (!Array.isArray(v.plus) || v.plus.length !== 2 || typeof v.plus[1] !== "number") return `${at}.plus is an amount and a printed number`;
+    return amountProblem(v.plus[0], xBound, `${at}.plus[0]`);
+  }
+  return null;
+}
+
+/**
+ * Why a summed bound (`Selector.sumAtMost`) is written where nothing reads it,
+ * or `null`. Only a `choose` reads it, and only on its own selector —
+ * `resolveSelector` does not — so on a `ko`'s target, inside a `count`, under
+ * a host or beside a `sumTo` it would be every card the selector describes,
+ * the bound read as nothing (BT3-036). Nested programs are walked too: a
+ * `choose` inside one is still a choose.
+ */
+function strayBound(v: unknown, at: string, top = true): string | null {
+  if (Array.isArray(v)) {
+    for (const x of v) {
+      const bad = strayBound(x, at, false);
+      if (bad) return bad;
+    }
+    return null;
+  }
+  if (!isRecord(v)) return null;
+  if (!top && v.sumAtMost !== undefined) return `${at}: "sumAtMost" (TOTAL … <=) bounds a choice, so only a choose's own selector may carry it — anywhere else it is read as every card`;
+  const rest = (o: Record<string, unknown>, skip: string) => Object.entries(o).filter(([k]) => k !== skip).map(([, x]) => x);
+  if (v.op === "choose" && isRecord(v.sel)) {
+    if (v.sel.sumAtMost !== undefined && v.sumTo !== undefined) return `${at}: a choice adds up to exactly "sumTo" or stays under "sumAtMost", not both`;
+    return strayBound(rest(v.sel, "sumAtMost"), at, false) ?? strayBound(rest(v, "sel"), at, false);
+  }
+  return strayBound(Object.values(v), at, false);
+}
+
 
 /**
  * A condition's shape, from `COND_SCHEMA`. Until this existed the validator
  * asked only for a `kind`, so a condition missing the selector it counts was
  * stored happily and threw when a game read it.
  */
-function condShapeHolds(v: unknown, depth: number, xBound: boolean): boolean {
-  if (typeof v !== "object" || v === null || depth > 4) return false;
-  const c = v as Record<string, unknown>;
-  const spec = typeof c.kind === "string" ? COND_SCHEMA[c.kind as Cond["kind"]] : undefined;
-  if (!spec) return false;
+export function condProblem(v: unknown, depth = 0, xBound = false, at = "cond"): string | null {
+  if (!isRecord(v)) return `${at} is not a condition`;
+  if (depth > 4) return `${at} is nested too deeply`;
+  const spec = typeof v.kind === "string" ? COND_SCHEMA[v.kind as Cond["kind"]] : undefined;
+  if (!spec) return `${at}: the engine has no condition called ${JSON.stringify(v.kind)}`;
+  const here = `${at} (${v.kind as string})`;
+  const stray = unknownKey(v, ["kind", ...spec.fields.map((f) => f.name)]);
+  if (stray) return `${here} has no field ${JSON.stringify(stray)}${hintFor(stray, spec.fields)}`;
+  for (const f of spec.fields) {
+    const bad = fieldProblem(f, v[f.name], depth, xBound, `${here}.${f.name}`);
+    if (bad) return bad;
+  }
   // A condition never chooses, so a summed bound in one is read as nothing.
-  if (strayBound(c)) return false;
-  return spec.fields.every((f) => {
-    const x = c[f.name];
-    if (x === undefined) return !f.required;
-    if (x === null) return !!f.nullable;
-    return fieldHolds(f.type, x, depth, xBound);
-  });
+  return strayBound(v, here);
 }
 
-function fieldHolds(type: FieldType, v: unknown, depth: number, xBound: boolean): boolean {
+function fieldProblem(f: OpField, v: unknown, depth: number, xBound: boolean, at: string): string | null {
+  if (v === undefined) return f.required ? `${at} is required` : null;
+  if (v === null) return f.nullable ? null : `${at} cannot be null`;
+  const type = f.type;
+  const no = (what: string) => `${at} is ${what}, not ${JSON.stringify(v)}`;
   if (typeof type === "object") {
-    if ("enum" in type) return typeof v === "string" && type.enum.includes(v);
-    return Array.isArray(v) && v.every((x) => (type.list === "string" ? typeof x === "string" : typeof x === "string" && type.list.enum.includes(x)));
+    if ("enum" in type) return typeof v === "string" && type.enum.includes(v) ? null : no(`one of ${type.enum.join(", ")}`);
+    const ok = Array.isArray(v) && v.every((x) => (type.list === "string" ? typeof x === "string" : typeof x === "string" && type.list.enum.includes(x)));
+    return ok ? null : no(type.list === "string" ? "a list of words" : `a list of ${type.list.enum.join(", ")}`);
   }
   switch (type) {
     case "amount":
-      if (readsUnboundX(v, xBound)) return false;
-      if (!perHolds(v)) return false;
-      return typeof v === "number" || (typeof v === "object" && v !== null);
-    // A ref is a bound name or a selector — a bare selector written where a
-    // ref belongs ({"special":"self"} for {"sel":{"special":"self"}}) is the
-    // mistake Claude makes most, and read as a ref it threw while being
-    // described. Refused here, it comes back as "not a valid program".
+      return amountProblem(v, xBound, at);
     case "ref":
-      return typeof v === "object" && v !== null && (typeof (v as { var?: unknown }).var === "string" || selectorHolds((v as { sel?: unknown }).sel));
+      return refProblem(v, at);
     case "selector":
-      return selectorHolds(v);
+      return selectorProblem(v, at);
     case "cond":
-      return condShapeHolds(v, depth, xBound);
+      return condProblem(v, depth, xBound, at);
     case "conds":
-      return Array.isArray(v) && v.length > 0 && v.every((c) => condShapeHolds(c, depth + 1, xBound));
+      if (!Array.isArray(v) || !v.length) return `${at} is a list of one condition or more`;
+      for (const [i, c] of v.entries()) {
+        const bad = condProblem(c, depth + 1, xBound, `${at}[${i}]`);
+        if (bad) return bad;
+      }
+      return null;
     case "filter":
-      return typeof v === "object" && v !== null;
+      return filterProblem(v, at);
     case "keyword":
-      return typeof v === "object" && v !== null && typeof (v as { name?: unknown }).name === "string";
+      return isRecord(v) && typeof v.name === "string" ? null : no("a keyword skill");
     case "side":
-      return typeof v === "string" && (SIDES as readonly string[]).includes(v);
+      return typeof v === "string" && (SIDES as readonly string[]).includes(v) ? null : no("you, opponent or both");
     case "area":
-      return typeof v === "string" && (AREAS as readonly string[]).includes(v);
+      return typeof v === "string" && (AREAS as readonly string[]).includes(v) ? null : no("an area");
     case "duration":
-      return typeof v === "string" && (DURATIONS as readonly string[]).includes(v);
+      return typeof v === "string" && (DURATIONS as readonly string[]).includes(v) ? null : no("a duration");
     case "ops":
-      return validateProgram(v, depth + 1, xBound);
+      return programProblem(v, depth + 1, xBound, at);
     case "modes":
-      return Array.isArray(v) && v.length > 0 && v.every((m) => !!m && typeof m === "object" && validateProgram((m as { ops?: unknown }).ops, depth + 1, xBound));
+      if (!Array.isArray(v) || !v.length) return `${at} is a list of one mode or more`;
+      for (const [i, m] of v.entries()) {
+        if (!isRecord(m)) return `${at}[${i}] is not a mode`;
+        const stray = unknownKey(m, ["label", "ops"]);
+        if (stray) return `${at}[${i}] has no field ${JSON.stringify(stray)} (a mode is a "label" and its "ops")`;
+        const bad = programProblem(m.ops, depth + 1, xBound, `${at}[${i}].ops`);
+        if (bad) return bad;
+      }
+      return null;
     case "string":
-      return typeof v === "string";
+      return typeof v === "string" ? null : no("a word");
     case "number":
-      return typeof v === "number" && Number.isFinite(v);
+      return typeof v === "number" && Number.isFinite(v) ? null : no("a number");
     case "boolean":
-      return typeof v === "boolean";
+      return typeof v === "boolean" ? null : no("true or false");
   }
 }
 
@@ -1843,7 +2087,10 @@ const once = (op: { oncePerTurn?: true }): string => (op.oncePerTurn ? "once per
 /** "BATTLE" → "Battle Card", the card type as the card prints it. */
 const typeNoun = (type: string, plural: boolean): string => `${type.charAt(0)}${type.slice(1).toLowerCase()} ${plural ? "Cards" : "Card"}`;
 
-export function describeFilter(f: CardFilter, noun?: FilterNoun): string {
+export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): string {
+  // A stored filter may be partial (Claude writes only the measures it means),
+  // and a missing list crashed the workbench and the printer on BT31-132.
+  const f = completeFilter(given);
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
