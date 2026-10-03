@@ -277,6 +277,22 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     tripOps([{ op: "play", target: { sel: { special: "self" } }, counterWindow: true, using: "Over Realm" }], "play … using");
     tripCond({ kind: "playedUsing", sel: { side: "you", area: "battle" }, what: "Over Realm" }, "playedUsing over a selector");
   }
+  // BT15-118's "at the end of a turn in which this card was placed in a Battle
+  // Area" (5-5-4): the condition, printed, read back and described, and the
+  // whole record as the compiler drafts its trigger — with `yourCardPlaced`
+  // (BT23-066) beside it.
+  {
+    const placed: Cond = { kind: "placedThisTurn", sel: { special: "self" } };
+    tripCond(placed, "placedThisTurn");
+    assert.equal(printCond(placed), "placedThisTurn(sel: [self])");
+    assert.equal(describeScript([{ op: "if", cond: placed, then: [{ op: "draw", n: 1 }] }]), "if this card was placed in a Battle Area this turn: draw 1");
+    const rule = ruleOf([{ op: "if", cond: placed, then: [{ op: "draw", n: 1 }] }], { trigger: ["turnEnd", "opponentTurnEnd"] as Trigger[] });
+    trip(rule, "turnEnd | opponentTurnEnd with placedThisTurn");
+    assert.equal(validateRule(rule, "auto"), null);
+    const watcher = ruleOf([{ op: "if", cond: { kind: "count", sel: { special: "subject", filter: parseFilter("{scouter}") }, atLeast: 1 }, then: [{ op: "draw", n: 1 }] }], { trigger: ["yourCardPlaced"] as Trigger[] });
+    trip(watcher, "yourCardPlaced");
+    assert.equal(validateRule(watcher, "auto"), null);
+  }
   // #154: group A's word, a step with no field — alone, and where [Alliance]
   // writes it, after the cost it rests and under the `if` that asks whether
   // there was one.

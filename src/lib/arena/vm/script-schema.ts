@@ -1117,6 +1117,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4)",
   },
+  placedThisTurn: {
+    fields: [SEL],
+    sentence: (raw) => `${describeSelector((raw as CondOf<"placedThisTurn">).sel, "any of the")} was placed in a Battle Area this turn`,
+    doc: "did one of these cards arrive in a Battle Area this turn, played or placed by a skill (5-5-1, 5-5-4)? \"At the end of a turn in which this card was placed in a Battle Area\" (BT15-118). The card remembers the arrival until the turn ends or it changes area (3-1-4)",
+  },
   every: {
     fields: [SEL, { name: "matching", type: "selector", required: true }],
     sentence: (raw) => {
@@ -1298,6 +1303,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   inBattle:       "macro over `count`",
   battled:        "macro over `count`",
   playedUsing:    "macro over `count`",
+  placedThisTurn: "macro over `count`",
   every:         "macro over `count` + `not`",
   any:            "primitive",
   all:            "macro over `any` + `not`",

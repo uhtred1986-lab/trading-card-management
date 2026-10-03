@@ -383,7 +383,9 @@ export function parseFilter(text: string): CardFilter {
   // front of the noun, as a kind of card. Read nowhere, it was dropped in
   // silence and any card in the Drop counted. A keyword is a requirement like
   // "with [X]"; anything else in that place makes the description unreadable.
-  for (const m of lower.matchAll(/(?:^|[\s(])\[([a-z0-9:\- ]+)\](?= (?:battle |extra |unison |leader )?cards?\b)/g)) {
+  // "A yellow **[Field]** Extra is placed in your Battle Area" (P-416): the
+  // same tag in front of the type said without "card".
+  for (const m of lower.matchAll(/(?:^|[\s(])\[([a-z0-9:\- ]+)\](?= (?:(?:battle |extra |unison |leader )?cards?|extras?|unisons?)\b)/g)) {
     const before = lower.slice(0, m.index + (m[0].startsWith("[") ? 0 : 1));
     if (/(?:\bwith(?: an?| the)?|\bwithout|non-)\s*$/.test(before)) continue;
     const kw = keywordOf(m[1].trim());
@@ -403,7 +405,10 @@ export function parseFilter(text: string): CardFilter {
     const kw = keywordOf(m[1]);
     if (kw && !f.notKeywords.includes(kw.name)) f.notKeywords.push(kw.name);
   }
-  if (/\bz-(leader|battle|extra|unison)\b|\bz-card\b/.test(lower)) f.z = true;
+  // "One of your blue **Z-Extras**" (BT22-032b): the plural is the same kind —
+  // but not as one half of "your Battle Cards **or Z-Unisons**" (BT24-112b),
+  // where it would rule out the other half.
+  if (/\bz-(leader|battle|extra|unison)\b|\bz-card\b/.test(lower) || (/(?<!\b(?:or|and) )\bz-(?:leader|battle|extra|unison|card)s\b/.test(lower) && !/\b(?:or|and) z-[a-z]+s\b/.test(lower))) f.z = true;
   // "Choose 1 of your Earthling Tokens", "up to 2 Cell Jr. tokens in your
   // Battle Area", "switch 1 of your Chilled Army tokens to rest" (19). The
   // name sits straight before the word, but a character class that admits

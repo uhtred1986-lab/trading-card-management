@@ -313,6 +313,8 @@ const STEP_WORK: Record<string, Work> = {
         delete inst.attacksThisTurn;
         // 22-15: "the turn you played it with [Over Realm]" is this one only.
         delete inst.playedUsing;
+        // 5-5-4: so is "a turn in which this card was placed in a Battle Area".
+        delete inst.placedThisTurn;
       }
       // Every `DEFINE ATTRIBUTE of: player, reset: turnStart` fact returns to
       // its rest value here, off the declaration rather than by name (issue
@@ -939,6 +941,9 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // borrowed card's loan standing, so it outlived the card (#459,
   // `verify/keywords.ts`'s TAKER2 case).
   if (from !== to) state.effects = state.effects.filter((e) => !(e.target === id && e.kind === "control"));
+  // 5-5-4: a card arriving in a Battle Area remembers it for the turn —
+  // played or placed alike (5-5-1). Not a move from one Battle Area to another.
+  if (to === "battle" && from !== "battle" && state.cards[id]) state.cards[id].placedThisTurn = true;
   // "…while this card is in a Battle Area": what the card made for that long
   // ends as it leaves (`vm/host.ts`'s `moveTo` says the same for a skill's move).
   if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
