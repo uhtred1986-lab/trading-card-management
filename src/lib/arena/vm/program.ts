@@ -43,7 +43,7 @@
  */
 import type { EngineContext } from "../types";
 import { backCharactersOf, coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
-import { costModifierAs, negateAs, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
+import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { other } from "../types";
 import { parseFilter, powerRelOk, type CardFilter } from "../text/filters";
@@ -561,6 +561,7 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
   // 23-5-2-1: a skill a Hidden Mode card gains is ignored, so a granted
   // [Blocker] or [Barrier] is no more in force than a printed one.
   if (!card || card.hidden) return false;
+  if (keywordNegatedFor(state, id, name)) return false;
   for (const k of printedKeywords(ctx, state, id)) if (k.name === name) return true;
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
@@ -596,7 +597,17 @@ export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state:
   const out: KeywordSkill[] = printedKeywords(ctx, state, id);
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
   for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  return out;
+  return out.filter((k) => !keywordNegatedFor(state, id, k.name));
+}
+
+/**
+ * 9-1-5: one keyword skill of this card negated for a span — the one a
+ * `negateChosenKeyword` step had its master pick. Read last by both
+ * `hasKeyword` and `keywordsInForce`, so it beats a grant of the same keyword,
+ * the way the legacy `keywordsInForce` applies it.
+ */
+function keywordNegatedFor(state: VmState, id: string, name: KeywordSkill["name"]): boolean {
+  return state.effects.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name);
 }
 
 // ── the hook contract's own reading (#153, `vm/hook-contract.ts`) ──────────
@@ -868,6 +879,8 @@ export function forbiddenBy(
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     if ((rule.forbid.uses ?? 0) > 0) continue;
+    // A rule with a price is a tax, not a ban: `taxesOn` below is what reads it.
+    if (rule.forbid.pay) continue;
     const viewer = opts.player ?? (opts.card && state.cards[opts.card] ? masterOf(game, state, opts.card) : undefined);
     const master = rule.forbid.master;
     return {
@@ -896,6 +909,32 @@ export function forbiddenBy(
   return null;
 }
 
+/** One price a rule in force charges for an action (20-14-1), with the words a refusal names it by. */
+export interface TaxInForce {
+  ops: Op[];
+  by: string | null;
+  until: EffectUntil;
+}
+
+/**
+ * 20-14-1, "you can't do A unless you do B … each time": every rule in force
+ * that lets this action happen **only after** a price is paid (`Prohibition.pay`).
+ *
+ * The same rules and matcher `forbiddenBy` reads, which skips these — a tax is
+ * not a ban. Each applies to every action of its kind, so the caller charges
+ * all of them, in this order, every time; whether they *can* be paid is the
+ * caller's question (`canPayPriceProgram`), asked of the acting player.
+ */
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): TaxInForce[] {
+  const out: TaxInForce[] = [];
+  for (const rule of prohibitions(ctx, game, state, opts.card)) {
+    if (!rule.forbid.pay?.length || (rule.forbid.uses ?? 0) > 0) continue;
+    if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
+    out.push({ ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until });
+  }
+  return out;
+}
+
 /**
  * The card-only half of 20-14: a rule in force that names **this card** as its
  * target. The legacy `forbiddenForCard`, test for test — no filter, no player,
@@ -905,7 +944,7 @@ export function forbiddenBy(
  */
 export function forbiddenForCard(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, card: string): boolean {
   for (const rule of prohibitions(ctx, game, state, card, { hooks: false })) {
-    if (rule.target !== card || rule.forbid.what !== what || (rule.forbid.uses ?? 0) > 0) continue;
+    if (rule.target !== card || rule.forbid.what !== what || (rule.forbid.uses ?? 0) > 0 || rule.forbid.pay) continue;
     if (escapeHolds(ctx, game, state, rule.forbid, { card }, rule.source)) continue;
     return true;
   }
@@ -1052,6 +1091,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.notSelf && frame.card) {
       if (id === frame.card) return false;
       if (sel.notSelf === "copies" && state.cards[frame.card] && card.cardId === state.cards[frame.card].cardId) return false;
+      if (sel.notSelf === "name" && state.cards[frame.card] && ctx.defs[card.cardId]?.name === ctx.defs[state.cards[frame.card].cardId]?.name) return false;
     }
     // A named target that also names an area only matches while it is there: a
     // delayed effect resolves turns later, and by then "this card" may have
@@ -1138,7 +1178,7 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
     if (frame.x === undefined) throw new Error("this program reads X, but nothing bound it");
     return frame.x * (a.times ?? 1);
   }
-  if ("life" in a) return lifeCount(game, state, frame.master, a.life) * (a.times ?? 1);
+  if ("life" in a) return perStep(lifeCount(game, state, frame.master, a.life), a.per) * (a.times ?? 1);
   if ("sumOf" in a) return resolveSelector(ctx, game, state, frame, a.sumOf).reduce((t, id) => t + measureOf(ctx, game, state, id, a.attr), 0) * (a.times ?? 1);
   if ("attr" in a) {
     // A ref that found none is nothing rather than an error, and one that found
@@ -1147,8 +1187,13 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
     const ids = resolveRef(ctx, game, state, frame, a.attr);
     return ids.length ? measureOf(ctx, game, state, ids[0], a.name) * (a.times ?? 1) : 0;
   }
-  if ("markers" in a) return markersOn(ctx, game, state, frame, a.markers) * (a.times ?? 1);
-  return resolveSelector(ctx, game, state, frame, a.count).length * (a.times ?? 1);
+  if ("markers" in a) return perStep(markersOn(ctx, game, state, frame, a.markers), a.per) * (a.times ?? 1);
+  return perStep(countSelected(ctx, game, state, frame, a.count), a.per) * (a.times ?? 1);
+}
+
+/** The cards a selector finds, counted as it says — by name under `differentNames` (BT18-104). */
+export function countSelected(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector): number {
+  return selectedCount(sel, resolveSelector(ctx, game, state, frame, sel), (id) => String(attrsNow(ctx, game, state, id).name ?? id));
 }
 
 // ── conditions (9-4) ────────────────────────────────────────────────────────
@@ -1159,7 +1204,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
   const leaderOf = (side: Side | undefined) => state.sides[side === "opponent" ? other(frame.master) : frame.master].zones[SETUP_ZONES.leader]?.[0] ?? null;
   switch (c.kind) {
     case "count":
-      return between(resolveSelector(ctx, game, state, frame, c.sel).length, c.atLeast, c.atMost);
+      return between(countSelected(ctx, game, state, frame, c.sel), c.atLeast, c.atMost);
     case "life":
       return between(lifeCount(game, state, frame.master, c.side), c.atLeast, c.atMost);
     case "leaderColor": {

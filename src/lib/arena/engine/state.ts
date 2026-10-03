@@ -8,7 +8,7 @@ import { coversColors, eachNamedHolds, hasKeyword, keywordOf, printedNames, skil
 import { matches, powerRelOk } from "../text/filters";
 import { asksAQuestion, describeCond, describeScript } from "../vm/script-schema";
 import { legacyHost } from "./legacy-host";
-import { costModifierAs, modifyAttrAs, negateAs, replaceAs, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector } from "../vm/script";
+import { costModifierAs, modifyAttrAs, negateAs, perStep, replaceAs, selectedCount, stepScript, type Amount, type AmountAttr, type CardScripts, type Cond, type Op, type PayWith, type Ref, type Script, type ScriptArea, type ScriptFrame, type Selector } from "../vm/script";
 import type {
   Area,
   CardDef,
@@ -432,8 +432,12 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
       .filter((e) => e.kind === "negateKeyword" && e.target === id)
       .map((e) => e.value as KeywordSkill["name"]),
   );
+  if (gone.size && forbids(ctx, s, "beNegated", { card: id })) gone.clear();
+  // The same, picked by a skill for a span ("choose up to 1 keyword skill on …
+  // and negate that skill for the turn"): the prohibition was asked when the
+  // effect was made (`negateChosenKeyword`, script.ts), so it is not asked again.
+  for (const e of s.effects) if (e.kind === "negateKeyword" && e.target === id) gone.add(e.value as KeywordSkill["name"]);
   if (!gone.size) return out;
-  if (forbids(ctx, s, "beNegated", { card: id })) return out;
   return out.filter((k) => !gone.has(k.name));
 }
 
@@ -572,6 +576,7 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     if (sel.notSelf && frame.card) {
       if (id === frame.card) return false;
       if (sel.notSelf === "copies" && s.cards[frame.card] && inst.cardId === s.cards[frame.card].cardId) return false;
+      if (sel.notSelf === "name" && s.cards[frame.card] && ctx.defs[inst.cardId]?.name === ctx.defs[s.cards[frame.card].cardId]?.name) return false;
     }
     // A named target that also names an area only matches while it is there.
     // A delayed effect resolves turns later, and by then "this card" may have
@@ -668,7 +673,7 @@ export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Am
     if (frame.x === undefined) throw new Error("this program reads X, but nothing bound it");
     return frame.x * (a.times ?? 1);
   }
-  if ("life" in a) return sideOf(frame.master, a.life).reduce((t, p) => t + s.players[p].life.length, 0) * (a.times ?? 1);
+  if ("life" in a) return perStep(sideOf(frame.master, a.life).reduce((t, p) => t + s.players[p].life.length, 0), a.per) * (a.times ?? 1);
   // `sumOf` before `attr`: both carry an `attr` key (the measure on the one,
   // the card on the other), so the narrower test has to come first.
   if ("sumOf" in a) return resolveSelector(ctx, s, frame, a.sumOf).reduce((t, id) => t + attrOf(ctx, s, id, a.attr), 0) * (a.times ?? 1);
@@ -680,14 +685,14 @@ export function amount(ctx: GameContext, s: GameState, frame: ScriptFrame, a: Am
     const ids = resolveRef(ctx, s, frame, a.attr);
     return ids.length ? attrOf(ctx, s, ids[0], a.name) * (a.times ?? 1) : 0;
   }
-  if ("markers" in a) return markersOn(ctx, s, frame, a.markers) * (a.times ?? 1);
-  return resolveSelector(ctx, s, frame, a.count).length * (a.times ?? 1);
+  if ("markers" in a) return perStep(markersOn(ctx, s, frame, a.markers), a.per) * (a.times ?? 1);
+  return perStep(selectedCount(a.count, resolveSelector(ctx, s, frame, a.count), (id) => face(ctx, s, id).name), a.per) * (a.times ?? 1);
 }
 
 export function condHolds(ctx: GameContext, s: GameState, frame: ScriptFrame, c: Cond): boolean {
   switch (c.kind) {
     case "count": {
-      const n = resolveSelector(ctx, s, frame, c.sel).length;
+      const n = selectedCount(c.sel, resolveSelector(ctx, s, frame, c.sel), (id) => face(ctx, s, id).name);
       return (c.atLeast == null || n >= c.atLeast) && (c.atMost == null || n <= c.atMost);
     }
     case "life": {
@@ -854,6 +859,8 @@ export interface StaticEffect {
   skillKind?: SkillKindPrefix;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
   colors?: (Color | "any")[];
+  /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
+  onto?: string[];
 }
 
 /**
@@ -1048,8 +1055,10 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       // can be evaluated.
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? amount(ctx, s, frame, op.amount) : null;
       if (value == null) continue;
+      // EX03-16: an [Evolve] price changed only when it is played onto these.
+      const onto = kind === "evolveCost" && op.onto ? { onto: staticTargets(ctx, s, frame, op.onto) } : {};
       for (const id of staticTargets(ctx, s, frame, op.target))
-        out.push({ source, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}) });
+        out.push({ source, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
       continue;
     }
     // "In all areas", so it is read wherever the card is — which is the point
@@ -1144,7 +1153,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const player = op.side && op.side !== "both" ? sideOf(master, op.side)[0] : undefined;
       const name = op.sameNameAsSelf ? face(ctx, s, source).name : undefined;
       const uses = op.uses != null ? amount(ctx, s, frame, op.uses) : undefined;
-      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "forbid", target: id, value: forbid });
       } else {
@@ -1180,8 +1189,11 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
     // 8-1-1 the other way round. Printed as a [Permanent] on most of the cards
     // that have it ("This card can attack Battle Cards in Active Mode"), so it
     // belongs here beside the prohibition it mirrors.
+    // `fieldBattle` (BT29-041/-042) is the one about the card in the hand —
+    // its [Field] line is used from there (22-3) — so it is read from the
+    // hand the way `altCost` above is.
     if (op.op === "permit") {
-      if (!inPlayNow) continue;
+      if (!inPlayNow && op.what !== "fieldBattle") continue;
       for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "permit", target: id, value: { what: op.what, filter: op.filter } });
       continue;
     }
@@ -1362,6 +1374,10 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     inst.extraAttacks = 0;
     s.effects = s.effects.filter((e) => e.target !== id);
   }
+  // "…while this card is in a Battle Area": what the card made for that long
+  // ends as it leaves — a move from one Battle Area to another (20-9) is not
+  // leaving.
+  if (from?.area === "battle" && to !== "battle") endSourceEffects(ctx, s, ev, id);
   if (goesToPlay || goesToCombo) inst.enteredTurn = s.turn;
   // 22-31: [Energy-Exhaust] enters the Energy Area rested.
   if (to === "energy" && hasKeyword(d, "Energy-Exhaust")) inst.mode = "rest";
@@ -1497,6 +1513,14 @@ function dropEffects(ctx: GameContext, s: GameState, ev: GameEvent[], keep: (e: 
 
 export function endEffects(ctx: GameContext, s: GameState, ev: GameEvent[], until: ContinuousEffect["until"], forPlayer?: PlayerId): void {
   dropEffects(ctx, s, ev, (e) => !(e.until === until && (forPlayer == null || e.ownerTurn === forPlayer)));
+}
+
+/**
+ * "…while this card is in a Battle Area" (`whileSourceInPlay`): every effect
+ * the card made with that duration ends as the card leaves the Battle Area.
+ */
+export function endSourceEffects(ctx: GameContext, s: GameState, ev: GameEvent[], source: string): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === "whileSourceInPlay" && e.source === source));
 }
 
 /**
@@ -1662,6 +1686,8 @@ export function forbids(ctx: GameContext, s: GameState, what: ForbiddenAction, o
   for (const { target, source, forbid: f } of rules) {
     if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
     if ((f.uses ?? 0) > 0) continue;
+    // A rule with a price is a tax, not a ban (20-14-1): `taxesOn` reads it.
+    if (f.pay) continue;
     return true;
   }
   return false;
@@ -1689,9 +1715,31 @@ export function forbiddenBy(
   for (const { target, source, until, forbid: f } of rules) {
     if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
     if ((f.uses ?? 0) > 0) continue;
+    // A rule with a price is a tax, not a ban (20-14-1): `taxesOn` reads it.
+    if (f.pay) continue;
     return { by: source && s.cards[source] ? face(ctx, s, source).name : null, until, ...(f.unless ? { unless: unlessInWords(f, opts.player ?? (opts.card && s.cards[opts.card] ? masterOf(s, opts.card) : undefined)) } : {}) };
   }
   return null;
+}
+
+/**
+ * 20-14-1, "you can't do A unless you do B … each time": the prices rules in
+ * force charge for this action (`Prohibition.pay`), every one of them every
+ * time — the rules `forbids` reads and skips, matched the same way. Whether
+ * they can be paid is the caller's question (`canPayCostProgram`), asked of
+ * the acting player, in whose frame each program runs.
+ */
+export function taxesOn(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): { ops: Op[]; by: string | null; until: EffectUntil }[] {
+  const rules: { target: string; source: string | null; until: EffectUntil; forbid: Prohibition }[] = [];
+  for (const e of s.effects) if (e.kind === "forbid" && e.forbid) rules.push({ target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid });
+  for (const e of staticEffects(ctx, s)) if (e.kind === "forbid") rules.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition });
+  const out: { ops: Op[]; by: string | null; until: EffectUntil }[] = [];
+  for (const { target, source, until, forbid: f } of rules) {
+    if (!f.pay?.length || (f.uses ?? 0) > 0) continue;
+    if (!matchesProhibition(ctx, s, what, target, f, opts, source)) continue;
+    out.push({ ops: f.pay, by: source && s.cards[source] ? face(ctx, s, source).name : null, until });
+  }
+  return out;
 }
 
 export function spendProhibitionUse(ctx: GameContext, s: GameState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): void {
@@ -1728,7 +1776,7 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
   if (
     s.effects.some((e) => {
       if (e.kind !== "forbid" || e.target !== card || e.forbid?.what !== what) return false;
-      if ((e.forbid.uses ?? 0) > 0) return false;
+      if ((e.forbid.uses ?? 0) > 0 || e.forbid.pay) return false;
       if (ctx && unlessHolds(ctx, s, e.forbid, { card }, e.source ?? null)) return false;
       return true;
     })
@@ -1758,7 +1806,7 @@ export function canPayCostProgram(ctx: GameContext, s: GameState, p: PlayerId, c
       case "choose": {
         // "Up to" can always be paid with nothing (5-2-4).
         if (op.sel.upTo) break;
-        if (resolveSelector(ctx, s, frame, op.sel).length < (op.sel.count ?? 1)) return false;
+        if (selectedCount(op.sel, resolveSelector(ctx, s, frame, op.sel), (id) => face(ctx, s, id).name) < (op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":

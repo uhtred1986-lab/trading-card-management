@@ -42,7 +42,7 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import type { Cond, Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationAlt, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
+import { activationAlt, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -90,6 +90,12 @@ export interface Candidate {
    * nothing: the alternative is the whole of what is paid.
    */
   alt?: VmAltCost;
+  /**
+   * EX03-16: the base an [Evolve] candidate is priced for and lands on — a
+   * further candidate of the same line, offered only where a price change is
+   * scoped to that base (`costReduction`'s `onto`, `evolveOntoBases`).
+   */
+  onto?: string;
   why: Requirement[];
   /**
    * What the move costs this candidate, read once (#148). The menu wears it and
@@ -253,6 +259,16 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   if (alt) {
     const altPrice = def.cost?.length ? priceFor(ctx, game, state, def, line.card, alt.bound) : freePrice();
     if (!def.cost?.length || planCost(ctx, game, restedAlready(state, alt.resting), player, altPrice, line.card).ok) out.push({ card: line.card, skill: line.skillIndex, alt: alt.alt, why: [], price: altPrice });
+  }
+  // EX03-16: an [Evolve] whose price changes only onto a named base is a
+  // candidate once per such base, at the price that base gives it — the
+  // legacy menu's own extra row. Asked only of a line every gate but the
+  // price lets through, since the price is the one thing the base changes.
+  if (why.every((w) => w.kind === "energy" || w.kind === "energyColour") && def.cost?.length) {
+    for (const base of evolveOntoBases(ctx, game, state, player, line)) {
+      const ontoPrice = priceFor(ctx, game, state, def, line.card, boundFor(ctx, game, state, player, line, true, base));
+      if (planCost(ctx, game, state, player, ontoPrice, line.card).ok) out.push({ card: line.card, skill: line.skillIndex, onto: base, why: [], price: ontoPrice });
+    }
   }
   return out;
 }
@@ -524,7 +540,7 @@ function actionFor(game: GameDefinition, def: ActionDef, player: PlayerId, c: Ca
   // does not say which of its nine the player reached for (#147).
   if (shape === "cardSkill") {
     if (c.skill === undefined) throw new RulesetBroken(game.id, `DEFINE ACTION ${JSON.stringify(def.name)} is about a skill line and this candidate names none`);
-    return { type: def.name, player, card, skill: c.skill, ...(c.alt ? { alt: true } : {}), ...(c.x !== undefined ? { x: c.x } : {}) } as unknown as Action;
+    return { type: def.name, player, card, skill: c.skill, ...(c.alt ? { alt: true } : {}), ...(c.x !== undefined ? { x: c.x } : {}), ...(c.onto !== undefined ? { onto: c.onto } : {}) } as unknown as Action;
   }
   // 1-2-2-2: an X-cost card carries the value it was offered at (issue #270);
   // a fixed-cost card played by the same declaration carries none, exactly as
@@ -605,6 +621,9 @@ function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def:
   if (c.alt) return `${label} ${name} (${c.alt.pay === "none" ? "for no energy" : `by adding ${c.alt.n} from your life to your hand`})`;
   if (c.skill === undefined) return `${label} ${name}`;
   const line = lineOf(ctx, game, state, def, card, c.skill);
+  // EX03-16: the row names the base it is priced for, in the legacy words.
+  const evolve = line?.skill.keyword?.name === "Evolve" ? line.skill.keyword : null;
+  if (c.onto !== undefined && evolve) return `${evolve.variant} ${name} onto ${ctx.defs[state.cards[c.onto]?.cardId ?? ""]?.name ?? c.onto}`;
   // A keyword's own move wears its declaration's words on the menu — the
   // legacy engine's own ("Overlord: return a Servant to the deck, draw 1") —
   // and is refused under the generic row's, which is how the legacy
@@ -672,9 +691,11 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // 5-3: an alternative price is a second candidate for the same card, and
   // `alt: true` on the action is which one was meant.
   const alt = def.alt !== undefined && (action as { alt?: boolean }).alt === true;
+  // EX03-16: a base named with an [Evolve] is which of its candidates was meant.
+  const onto = (action as { onto?: string }).onto;
   // A candidate that carries its own X is matched by that X alone: an X
   // line's rows differ by X while their energy also counts the line's orbs.
-  const chosen = candidates.find((c) => c.card === card && c.skill === skill && !!c.alt === alt && (x === undefined || (c.x !== undefined ? c.x === x : c.price.energy === x)));
+  const chosen = candidates.find((c) => c.card === card && c.skill === skill && !!c.alt === alt && c.onto === onto && (x === undefined || (c.x !== undefined ? c.x === x : c.price.energy === x)));
   if (!chosen) throw new IllegalAction(card === null ? `${def.label ?? def.name} is not offered now` : `${card} is not one of the cards ${def.label ?? def.name} is offered for`);
   // The candidate's own reasons rather than a second reading of them: an
   // activation's gates are read off the line and the price sits inside them, so
@@ -748,7 +769,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // A keyword's own move is a second moment as well — "when you activate an
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
     const keywordMoments = keywordActivationMoments(state, player, line);
-    resolveActivation(ctx, game, state, ev, player, line, chosen.x);
+    resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto);
     fire(ctx, game, state, moment);
     for (const m of keywordMoments) fire(ctx, game, state, m);
   } else {
@@ -843,7 +864,7 @@ function promptsOf(game: GameDefinition, def: ActionDef): Prompt["kind"][] {
  * §7); this is the part a menu needs, and #142 is where the two become one.
  */
 function select(ctx: EngineContext, game: GameDefinition, state: VmState, sel: Selector, me: PlayerId): string[] {
-  const rich = (["special", "fromVar", "underHost", "take", "fromEnd", "hidden", "ignoreBarrier", "notSelf"] as const).find((f) => sel[f] !== undefined);
+  const rich = (["special", "fromVar", "underHost", "take", "fromEnd", "hidden", "ignoreBarrier", "notSelf", "differentNames"] as const).find((f) => sel[f] !== undefined);
   if (rich) throw new RulesetBroken(state.game, `an action's FOR selects by ${rich}, and this interpreter reads a side, an area, a filter and a mode so far (#142)`);
   const areas = sel.areas ?? (sel.area ? [sel.area] : []);
   if (!areas.length) throw new RulesetBroken(state.game, "an action's FOR names no area, so there is nowhere to look for a candidate");

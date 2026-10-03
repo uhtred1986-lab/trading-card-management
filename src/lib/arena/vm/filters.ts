@@ -120,6 +120,9 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   originalPowerMin: { reads: ["originalPower"] },
   originalPowerMax: { reads: ["originalPower"] },
   originallySkillLess: { reads: ["skill"] },
+  // 2-8: "cards with 5000 combo power" (BT29-030).
+  comboPowerMin: { reads: ["comboPower"] },
+  comboPowerMax: { reads: ["comboPower"] },
   faceUp: { instance: "which copy of the card is face up is about the instance in its area (3-9-2-1), not about the card" },
   powerRel: { instance: "a bound read off another card the skill has chosen, so it is applied where that card is known" },
   unreadable: { instance: "the compiler refused the phrase: the selector offers nothing rather than a card failing to match" },
@@ -265,6 +268,11 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   if (f.originalPowerMin != null && (original == null || original < f.originalPowerMin)) return false;
   if (f.originalPowerMax != null && (original == null || original > f.originalPowerMax)) return false;
   if (f.originallySkillLess && text(attrs.skill)) return false;
+  // 2-8: the combo power as it stands, the way `power` above is read — the
+  // `comboPower` attribute carries the same 9-9-1 layers.
+  const combo = number(attrs.comboPower);
+  if (f.comboPowerMin != null && (combo == null || combo < f.comboPowerMin)) return false;
+  if (f.comboPowerMax != null && (combo == null || combo > f.comboPowerMax)) return false;
   return true;
 }
 

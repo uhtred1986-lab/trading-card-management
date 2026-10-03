@@ -168,7 +168,28 @@ function parseAreasOtherThan(text: string): { matched: string; listed: ScriptAre
  * nothing had bound after a reveal, which is a choice with no candidates
  * (BT13-024, BT6-074).
  */
+/**
+ * "Place up to 3 cards with 5000 combo power **and different card names** from
+ * your Drop under this card" (BT29-030), "4 or more ≪Bardock's Crew≫ cards
+ * **with different card names** in your energy" (BT18-104): a measure of the
+ * set, not of any one card, so it is taken out of the phrase before the
+ * description is read and comes back as the selector's `differentNames`.
+ * Read as nothing until 2 Oct 2026 — two copies of one card answered a choice
+ * or a count the text says needs two names.
+ */
+const DIFFERENT_NAMES = /\s*\b(?:(?:with|and|of|having) )?different (?:card )?names\b/i;
+
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  const different = DIFFERENT_NAMES.exec(phrase);
+  if (!different) return parseTargetPhrase(phrase, looked, pool);
+  const sel = parseTargetPhrase(phrase.replace(different[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+  // Only a choice or a count among several cards can differ in names; a
+  // special names one card, and the words on it would be a misreading.
+  if (!sel || sel.special) return null;
+  return { ...sel, differentNames: true };
+}
+
+function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Selector | null {
   // "1 <Android 17> card and 1 <Hell Fighter 17> card—both green and with
   // energy costs of 1—from your deck and/or Drop", "choose up to 1 red <Son
   // Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area and add
@@ -698,6 +719,9 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     f.originalPowerMin != null ||
     f.originalPowerMax != null ||
     f.originallySkillLess ||
+    // "Cards with 5000 combo power" (BT29-030), the same lesson again.
+    f.comboPowerMin != null ||
+    f.comboPowerMax != null ||
     f.powerRel != null ||
     f.monoColor ||
     // A colour narrows an energy area as much as any other: "your blue energy"

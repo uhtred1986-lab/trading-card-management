@@ -22,9 +22,9 @@ import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
 import { AREAS, COND_SCHEMA, KEYWORD_NAMES, OP_SCHEMA, SPECIAL_TARGETS, describeScript, type Amount, type Cond, type CostRecord, type FieldType, type Op, type OpField, type Selector } from "../../src/lib/arena/vm/script";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
-import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
+import { DEFINE_KINDS, DEFINE_SCHEMA, EXPR_ATTRS, EXPR_LITERALS, EXPR_SCHEMA, fieldsOf, parseDefinitions, parseRule, printDefinition, printDefinitions, printRule, printCond, printFilter, printOps, printSelector, validateRule, deepEqual, type Definition, type DefineFieldType, type DefineKind, type Rule } from "../../src/lib/arena/lang";
 import { parseCond } from "../../src/lib/arena/lang/parse";
-import { CTX, DEFS, stagedG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords } from "./harness";
+import { CTX, DEFS, stagedG, findG, parseFilter, pendedG, rulesFromCompiler, skillRecords, compileSkill, parseSkills } from "./harness";
 
 /** A rule with nothing but its steps, for the round trips that are about the program. */
 const ruleOf = (ops: Op[], rest: Partial<Rule> = {}): Rule => ({ kind: "auto", trigger: [], cost: null, cond: null, ops, ...rest });
@@ -153,6 +153,13 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     { x: true, times: 1000 },
     { life: "you" },
     { life: "both", times: 2 },
+    // "For every 2" (2 Oct 2026): divided first, then multiplied — with and
+    // without a multiplier, on each of the three shapes that take it.
+    { count: { side: "you", area: "warp", count: 99 }, per: 2, times: 5000 },
+    { count: { side: "you", area: "drop", count: 99 }, per: 3 },
+    { markers: { special: "self" }, per: 2, times: 5000 },
+    { life: "you", per: 2 },
+    { plus: [{ count: { side: "you", area: "warp", count: 99 }, per: 2 }, 1] },
     { attr: { var: "t" }, name: "energyCost" },
     { attr: { sel: { special: "self" } }, name: "power", times: 1000 },
     // "The attacking card's original power" (20-3-1, BT19-129): the printed
@@ -182,17 +189,37 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
         if (fields.every((f) => f in (a as Record<string, unknown>))) {
           written.add(spec.key);
           if (spec.times && "times" in (a as Record<string, unknown>)) written.add(`${spec.key}*`);
+          if (spec.per && "per" in (a as Record<string, unknown>)) written.add(`${spec.key}/`);
           return;
         }
       }
     };
     AMOUNTS.forEach(mark);
-    const wanted = EXPR_SCHEMA.flatMap((spec) => [spec.key, ...(spec.times ? [`${spec.key}*`] : [])]);
+    const wanted = EXPR_SCHEMA.flatMap((spec) => [spec.key, ...(spec.times ? [`${spec.key}*`] : []), ...(spec.per ? [`${spec.key}/`] : [])]);
     assert.deepEqual(
       wanted.filter((k) => !written.has(k)),
       [],
-      "every EXPR_SCHEMA row, with and without its multiplier, is round-tripped above",
+      "every EXPR_SCHEMA row, with and without its multiplier and its divisor, is round-tripped above",
     );
+  }
+
+  // The divisor's spelling, read and printed: `/ n` before `* n`, the order
+  // the engines apply them in.
+  {
+    const src = "WHEN [permanent]\nTHEN\n  power(target: [self], amount: count(99 IN you.warp) / 2 * 5000, until: game)";
+    const r = parseRule(src);
+    assert.ok(r.ok, r.ok ? "" : r.error.message);
+    assert.deepEqual((r.value.ops[0] as { amount: unknown }).amount, { count: { side: "you", area: "warp", count: 99 }, per: 2, times: 5000 }, "count(…) / 2 * 5000");
+    assert.equal(printRule(r.value), src, "and it prints back the same");
+    // The validator holds a divisor to a whole number of at least 2, on the
+    // shapes that take one, inside a sum as well.
+    const valid = (amount: unknown) =>
+      validateRule({ kind: "permanent", trigger: [], cost: null, cond: null, ops: [{ op: "power", target: { sel: { special: "self" } }, amount, until: "game" }] }, "permanent");
+    assert.equal(valid({ count: { side: "you", area: "warp", count: 99 }, per: 2, times: 5000 }), null);
+    assert.equal(valid({ plus: [{ life: "you", per: 2 }, 1] }), null);
+    for (const per of [0, 1, 1.5, -2, "2"]) assert.equal(valid({ count: { side: "you", area: "warp", count: 99 }, per })?.field, "ops", `per: ${JSON.stringify(per)} is refused`);
+    assert.equal(valid({ attr: { var: "t" }, name: "power", per: 2 })?.field, "ops", "attr takes no divisor");
+    assert.equal(valid({ plus: [{ count: { side: "you", area: "warp", count: 99 }, per: 1 }, 1] })?.field, "ops", "the divisor is checked inside a sum too");
   }
 
   // 20-5: the price that binds X, minimal and with both its bounds.
@@ -213,6 +240,27 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   tripOps([{ op: "battleDamage", atLeast: 3 }], "battleDamage — [Triple Strike]");
   tripOps([{ op: "battleDamage", allMarkers: true, wins: true }], "battleDamage — [Victory Strike]");
   tripOps([{ op: "battleDamage", atLeast: 2, to: "drop", allMarkers: true, wins: true }], "battleDamage, every field");
+  // 9-1-5, a keyword the player picks (BT31-138): the spelling, the primitive
+  // it stands for, and the card's whole program as the compiler writes it.
+  tripOps([{ op: "negateChosenKeyword", target: { sel: { side: "opponent", areas: ["battle", "unison"] } }, until: "turn" }], "negateChosenKeyword");
+  tripOps([{ op: "negate", target: { sel: { side: "opponent", areas: ["battle", "unison"] } }, what: "keyword", chosen: true, until: "turn" }], "negate a chosen keyword");
+  {
+    const bt31138: Rule = {
+      kind: "activate:main/battle" as Rule["kind"],
+      trigger: [],
+      cost: null,
+      cond: null,
+      ops: [
+        { op: "choose", sel: { side: "you", area: "play", filter: parseFilter("white <Cell> card"), count: 1, upTo: true }, as: "c0", reason: "Choose up to 1 of your white <Cell> cards" },
+        { op: "moveTo", target: { var: "c0" }, to: "hand" },
+        { op: "negateChosenKeyword", target: { sel: { side: "opponent", area: "battle", areas: ["battle", "unison"] } }, until: "turn" },
+      ],
+    };
+    trip(bt31138, "BT31-138");
+    const back = parseRule(printRule(bt31138));
+    assert.ok(back.ok, "BT31-138's program parses");
+    if (back.ok) assert.equal(validateRule(back.value, "activate:main/battle"), null, "…and validates");
+  }
   tripOps([{ op: "battleDamage" }], "battleDamage, no field");
   // …and [Dual Attack]'s count, with a number and with the keyword's own `$x`.
   tripCond({ kind: "attacked", sel: { special: "self" }, atLeast: 2 }, "attacked");
@@ -240,6 +288,29 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     [{ op: "costReduction", target: { sel: { side: "you", areas: ["hand", "zDeck"], filter: { ...emptyFilter(), traits: ["Universe 7"] } } }, amount: 0, what: "specified", all: true }],
     "costReduction, every orb of the specified cost",
   );
+  // EX03-16: an [Evolve] price changed only onto this card, for <Broly> cards
+  // of a different card name — `onto` and `otherThanSameName`, as the
+  // compiler writes them, round-tripped and validated as the [Permanent] it is.
+  {
+    const ex0316: Rule = ruleOf(
+      [
+        {
+          op: "costReduction",
+          target: { sel: { side: "you", area: "hand", count: 99, filter: { ...emptyFilter(), characters: ["Broly"] }, notSelf: "name" } },
+          amount: 2,
+          what: "evolve",
+          colors: ["Green", "Green"],
+          onto: { sel: { special: "self" } },
+          until: "game",
+        },
+      ],
+      { kind: "permanent" },
+    );
+    trip(ex0316, "costReduction onto [self] — EX03-16");
+    assert.equal(validateRule(ex0316, "permanent"), null, "EX03-16's program is a valid [Permanent] rule");
+    assert.match(printRule(ex0316), /onto: \[self\]/, "…and `onto` prints as a ref");
+    assert.match(printRule(ex0316), /otherThanSameName/, "…and the different-name exclusion as its own selector word");
+  }
   tripOps(
     [
       {
@@ -272,6 +343,18 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     [{ op: "forbid", what: "attack", until: "turn", side: "opponent", filter: parseFilter("battle card"), uses: 1, unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } }],
     "forbid with uses and unless",
   );
+  // A one-use change to a skill line's price (BT31-096): "the next time you
+  // activate an [Activate] skill of your Leader during this turn, reduce its
+  // skill cost by {b}" — and the same budget on the primitive it lowers to.
+  tripOps([{ op: "costReduction", target: { sel: { special: "leader" } }, amount: 1, what: "skill", skillKind: "activate", colors: ["Black"], until: "turn", uses: 1 }], "costReduction with uses");
+  tripOps([{ op: "costModifier", target: { sel: { special: "leader" } }, amount: 1, what: "skill", skillKind: "activate", colors: ["Black"], until: "turn", uses: 1 }], "costModifier with uses");
+  {
+    const bt31096 = parseRule(
+      'WHEN [auto] played\nIF leaderMatches(filter: "black <vegito>")\nTHEN\n  power(target: [leader], amount: 5000, until: turn)\n  costReduction(target: [leader], amount: 1, what: skill, skillKind: activate, colors: [Black], until: turn, uses: 1)',
+    );
+    assert.ok(bt31096.ok, "BT31-096's program parses");
+    assert.equal(validateRule(bt31096.value, "auto"), null, "and validates");
+  }
 
   // `modifyAttr`'s two widened subjects and six new card attributes (spec
   // §2.5-1/§2.5-3, #275): the schema loop above already builds a maximal
@@ -586,6 +669,9 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { ignoreBarrier: true },
     { notSelf: "card" as const },
     { notSelf: "copies" as const },
+    // BT29-030's "different card names": about the set, so a flag.
+    { differentNames: true },
+    { side: "you" as const, area: "drop" as const, count: 3, upTo: true, differentNames: true },
     // #157: a keyword body's "the description printed on this line".
     { printed: true },
     { side: "you" as const, area: "hand" as const, count: 2, notSelf: "card" as const, printed: true },
@@ -643,6 +729,12 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { originalPowerMin: 10000 },
     { originalPowerMax: 15000 },
     { originallySkillLess: true },
+    // 2-8: "cards with 5000 combo power" (BT29-030).
+    { comboPowerMin: 5000, comboPowerMax: 5000 },
+    { comboPowerMin: 5000 },
+    { comboPowerMax: 10000 },
+    { comboPowerMin: 5000, comboPowerMax: 10000 },
+    { powerMin: 10000, powerMax: 10000, comboPowerMin: 5000, comboPowerMax: 5000 },
     { powerRel: { of: "self", cmp: "<=" } },
     // "…the chosen card's power" (BT19-096): measured against a bound
     // variable, not this card — the shape `compileClause` builds by filling
@@ -664,8 +756,34 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     "Extra Card with 15000 power or less",
     "red <Raditz: Br> card with an original power of 500",
     "originally skill-less Battle Card with an energy cost of 3 or less",
+    "card with 5000 combo power",
+    "card with a combo power of 5000 or more",
   ])
     tripFilter(parseFilter(text), `filter from "${text}"`);
+
+  // The combo-power measure prints in its own words, not as the field form —
+  // the printed form is what a person reads.
+  assert.equal(printFilter({ ...emptyFilter(), comboPowerMin: 5000, comboPowerMax: 5000 }), '"card with 5000 combo power"');
+}
+
+// ── BT29-030, written by hand in the language (2 Oct 2026) ──────────────────
+{
+  const src = [
+    "WHEN [auto] played",
+    "THEN",
+    '  choose(sel: UP TO 3 "card with 5000 combo power" IN you.drop differentNames, as: "c0")',
+    "  moveTo(target: $c0, to: under)",
+  ].join("\n");
+  const parsed = parseRule(src);
+  assert.ok(parsed.ok, `BT29-030's program does not parse: ${parsed.ok ? "" : JSON.stringify(parsed.error)}`);
+  if (parsed.ok) {
+    assert.equal(validateRule(parsed.value, "auto"), null, "BT29-030's program is not one the engine can run");
+    const choose = parsed.value.ops[0] as { op: string; sel: Selector };
+    assert.equal(choose.op, "choose");
+    assert.equal(choose.sel.differentNames, true);
+    assert.deepEqual([choose.sel.filter?.comboPowerMin, choose.sel.filter?.comboPowerMax], [5000, 5000]);
+    assert.equal(printRule(parsed.value), src, "and it prints back exactly as written");
+  }
 }
 
 // ── keyword literals ────────────────────────────────────────────────────────
@@ -965,6 +1083,60 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   assert.equal(say([{ op: "moveTo", target: { sel: { take: { plus: [{ life: "you" }, -3] } as unknown as number, side: "you", area: "life" } }, to: "hand" }]), say([{ op: "lifeDownTo", n: 3, side: "you" }]));
   // A reveal to both reads as it always did.
   assert.equal(say([{ op: "reveal", sel: { side: "opponent", area: "hand" }, as: "seen", audience: "both" }]), say([{ op: "reveal", sel: { side: "opponent", area: "hand" }, as: "seen" }]));
+}
+
+// `swapBattle` (8-1-7-2): BT30-098's and BT31-085 (back)'s programs, compiled
+// from their printed text, print, parse back to the same record and validate.
+{
+  const base = { ...DEFS.V1, colors: ["Black"], energyCost: 7 } as (typeof DEFS)[string];
+  const cards = [
+    { ...base, id: "SWAP-98", skill: "[Counter: Counter] If your life is at 2 or less and your ≪Universe 2≫ card is in a battle: Play this card, switch your card that's in a battle with this card, then play up to 1 black ≪Maiden Squadron≫ card from your Warp on top of this card in Active Mode." },
+    { ...base, id: "SWAP-85", skill: "[Activate: Battle] [Once per turn] [Burst 1] If this card is in a battle: Choose up to 1 <Vegito> or <Vegito: Xeno> card -- both black and with an energy cost of 7 -- and switch your card that's in a battle with the chosen card." },
+  ];
+  for (const def of cards) {
+    const [rec] = skillRecords(def);
+    assert.deepEqual(rec.unread, [], `${def.id}: every clause is read`);
+    const rule: Rule = { kind: rec.kind, trigger: rec.trigger as Trigger[], cost: rec.cost, cond: rec.cond, ops: rec.ops };
+    const text = printRule(rule);
+    assert.match(text, /swapBattle\(target: (\[self\]|\$c0)\)/, `${def.id}: the swap is in the program`);
+    const back = parseRule(text);
+    assert.ok(back.ok, `${def.id}: the printed program parses`);
+    if (back.ok) {
+      assert.ok(deepEqual(back.value, rule), `${def.id}: it parses back to the same record`);
+      assert.equal(validateRule(back.value, rec.kind), null, `${def.id}: the validator accepts it`);
+    }
+  }
+  assert.equal(describeScript([{ op: "swapBattle", target: { var: "c0" } }]), "switch your card that's in a battle with the chosen cards");
+}
+
+// ── BT30-106: sent from your deck to the Warp by your <Heles> card's skill ──
+//
+// The moment is a WHEN word the validator knows, and the program the compiler
+// drafts for the card — the cause as a condition on the subject, the play out
+// of the look, the rest to the Warp — prints, reads back and validates.
+{
+  const sk = parseSkills("[auto] When this card is sent from your deck to your Warp by your <Heles> card's skill, look at up to 1 card from the top of your deck, play up to 1 black ≪Maiden Squadron≫ card, then send the rest to their owner's Warp.")[0];
+  const compiled = compileSkill(sk);
+  assert.deepEqual(compiled.unsupported, []);
+  const rule: Rule = { kind: "auto", trigger: ["deckToWarpBySkill"], cost: null, cond: null, ops: compiled.ops };
+  assert.equal(validateRule(rule, "auto"), null);
+  trip(rule, "BT30-106's drafted rule");
+  assert.equal(
+    printRule(rule),
+    [
+      "WHEN [auto] deckToWarpBySkill",
+      "THEN",
+      '  if(cond: count([subject] "<Heles>") >= 1, then: {',
+      "    look(n: 1, as: \"looked\")",
+      '    choose(sel: FROM $looked UP TO 1 "black ≪maiden squadron≫" OF you, as: "p0", reason: "play up to 1 black ≪Maiden Squadron≫ card")',
+      "    play(target: $p0)",
+      "    moveTo(target: $looked MINUS $p0, to: warp)",
+      "  })",
+    ].join("\n"),
+  );
+  // Written by hand, the condition on the cause reads at the rule's IF too.
+  const byHand = parseRule('WHEN [auto] deckToWarpBySkill\nIF count([subject] "<Heles>") >= 1\nTHEN\n  look(n: 1, as: "looked")');
+  assert.ok(byHand.ok && validateRule(byHand.value, "auto") === null, "an IF on the cause is a rule the validator accepts");
 }
 
 console.log("verify/lang: the rules language round-trips");

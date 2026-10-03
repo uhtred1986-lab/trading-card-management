@@ -383,6 +383,15 @@ export interface Prohibition {
   /** Escape condition: while this holds, the prohibition does not apply. */
   unless?: Cond;
   /**
+   * 20-14-1's other escape: a price the acting player may pay to take the
+   * action anyway, **each time** — "that card can't attack unless your
+   * opponent sends 2 cards from their hand to their Warp each time" (BT30-100).
+   * The program is run in the payer's frame ("you" is whoever acts), before the
+   * action is taken; an action nobody can pay for is refused. Only `attack`
+   * carries one so far (`validateProgram` refuses it on any other action).
+   */
+  pay?: Op[];
+  /**
    * The controller of the card that made the rule. An `unless` is a clause of
    * that card's text, so "you" and "your opponent" in it are read from that
    * chair — not from the chair of whoever is trying to act.
@@ -422,8 +431,13 @@ export interface Permission {
    * — "you can use your mono-red Rest Mode ≪Saiyan≫ cards in combos"
    * (BT18-001, BT29-129); the target is the card granting it, and `filter`
    * says which rested cards.
+   * `fieldBattle`: the target's own [Field] skill may be used from the hand at
+   * [Activate: Battle] timings as well as the Main Phase's (22-3) — "The
+   * [Field] skill on this card in your hand can also be activated at
+   * [Activate: Battle] timings" (BT29-041, BT29-042). Read from the hand,
+   * where the skill is used; `filter` is not read.
    */
-  what: "attackActive" | "comboRest";
+  what: "attackActive" | "comboRest" | "fieldBattle";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }
@@ -488,16 +502,18 @@ export interface ContinuousEffect {
    * `negateSkill`: one skill of the card, by index in `value` (9-1-5, "negate
    * this skill for the turn"). `negateSkillKind`: every skill of one kind,
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
-   * for the turn").
+   * for the turn"). `negateKeyword`: one keyword skill of the card, named in
+   * `value` — the one the master picked ("choose up to 1 keyword skill on … and
+   * negate that skill for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
+  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "negateKeyword" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | SkillKindPrefix | { colors: (Color | "any")[]; sign: 1 | -1 };
+  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | { colors: (Color | "any")[]; sign: 1 | -1 };
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
@@ -530,8 +546,18 @@ export interface ContinuousEffect {
   skillKind?: SkillKindPrefix;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
   colors?: (Color | "any")[];
+  /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
+  onto?: string[];
+  /**
+   * `skillCost`/`evolveCost` only: how many more activations the change
+   * applies to. "The next time you activate an [Activate] skill of your
+   * Leader during this turn, reduce its skill cost by {b}" (BT31-096) is 1:
+   * the first activation it applies to spends it and it ends there, still
+   * bounded by `until`. Absent is every activation for the whole duration.
+   */
+  uses?: number;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game";
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
   /**
    * The card whose skill made it, so a client can say "+5000 power from
    * Kaio-ken" and a refusal can name what forbids it. Absent on effects the
@@ -705,6 +731,13 @@ export type Trigger =
   /** "When this card in your deck or hand is placed into its owner's Drop" (BT29-109): out of a secret area, whatever put it there — a discard included. */
   | "deckOrHandToDrop"
   /**
+   * "When this card is sent from your deck to your Warp by your <Heles> card's
+   * skill" (3-10, BT30-106): one of your skills moved it out of your deck into
+   * the Warp. The skill's card is the `subject`, so what the card says about it
+   * ("your <Heles> card's") is a condition on the subject, not part of the moment.
+   */
+  | "deckToWarpBySkill"
+  /**
    * A keyword skill being used, watched by that player's cards in play:
    * "when you activate a [Union] skill" (22-13), "…an [Overlord] skill"
    * (22-40), "when you play a Battle Card using [Over Realm]" (22-15).
@@ -718,9 +751,10 @@ export type Trigger =
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**
-   * A card *placed* in a Battle Area rather than played (5-5): by a skill, by
-   * [Over Realm], by an Evolve. "When this card is played" does not cover it,
-   * and 30 cards say only the second.
+   * A card *placed* in a Battle Area (5-5-4): by a skill, by [Over Realm], by
+   * an Evolve, by its [Field] — and by being played, since 5-5-1 makes a play
+   * a placing (owner's ruling, 2 Oct 2026). "When this card is played" does
+   * not cover the rest, and 42 skills say only the second.
    */
   | "placed"
   | "energyToDrop"
@@ -827,7 +861,8 @@ export type Action =
   | { type: "growUnison"; player: PlayerId; card: string }
   /** `alt`: pay the printed alternative instead of the energy cost ([Invoker], 22-37). */
   /** `x` is the value an X price is paid at (20-5) — the same field, and the same meaning, as `play`'s. */
-  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean; x?: number }
+  /** `onto`: an [Evolve]'s base, named with the activation — offered only where a price change is scoped to that base (`costReduction`'s `onto`, EX03-16); the card then lands on it without a question. */
+  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean; x?: number; onto?: string }
   | { type: "attack"; player: PlayerId; attacker: string; target: string }
   | { type: "endMain"; player: PlayerId }
   | { type: "combo"; player: PlayerId; card: string; pay?: string[] }
