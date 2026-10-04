@@ -19,7 +19,8 @@ The owner wants, in this order:
 1. **Switch between API and subscription.** The same calls run on the Anthropic API (key) or on the
    owner's Claude plan through the Claude Agent SDK (`CLAUDE_CODE_OAUTH_TOKEN` from
    `claude setup-token`).
-2. **Swap the vendor.** Replacing Anthropic is writing one adapter file. No page, route, Server
+2. **Swap the vendor.** Replacing Anthropic is writing one adapter file — and OpenRouter is built
+   in this milestone, with a model picker in the settings. No page, route, Server
    Function, arena module or script changes.
 3. **Both work locally and on Vercel** (the Android client is unaffected: it only talks to our
    server).
@@ -70,6 +71,7 @@ src/lib/ai/
     index.ts                 registry: id → provider
     anthropic-api.ts         @anthropic-ai/sdk, ANTHROPIC_API_KEY / APP_ANTHROPIC_API_KEY
     anthropic-agent-sdk.ts   @anthropic-ai/claude-agent-sdk, CLAUDE_CODE_OAUTH_TOKEN (Claude plan)
+    openrouter.ts            OpenRouter (any vendor's model through one key), OPENROUTER_API_KEY
     fake.ts                  scripted answers for npm test — never a network call
 ```
 
@@ -130,6 +132,7 @@ export interface AiProvider {
   label: string;
   capabilities(): Capabilities;
   available(): Promise<Availability>;   // cheap; cached by the router
+  listModels(): Promise<ModelInfo[]>;   // for the settings' model picker (see below)
   generate(req: AiRequest): Promise<AiResult>;
 }
 ```
@@ -168,7 +171,8 @@ Then two checks:
   `ai_settings.fallbackOnUnavailable` is on (logged), else `unavailable` with a readable message.
 
 `ai_settings` is a new single-row table (Drizzle, additive): `provider`, `fallbackProvider`,
-`fallbackOnUnavailable`, `taskOverrides` (jsonb), `updatedAt`. The settings page edits it; the arena
+`fallbackOnUnavailable`, `taskOverrides` (jsonb: provider and/or model per task), `models` (jsonb:
+provider → tier → model id), `updatedAt`. The settings page edits it; the arena
 admin sees the active provider, players never do.
 
 ## Models (`models.ts`)
@@ -223,6 +227,43 @@ set. The bundling question it answers: does the binary go into every function th
 or into one internal route the adapter calls (API routes are allowed in this repo; it would be
 admin/Basic-Auth-guarded like the rest)? Plan B, only with the owner's go: the SDK inside a Vercel
 Sandbox.
+
+## OpenRouter (`openrouter.ts`) — the second vendor, chosen by the owner (4 Oct 2026)
+
+OpenRouter puts many vendors' models behind one key and one OpenAI-compatible API
+(`https://openrouter.ai/api/v1`). It is built in this milestone, not later. Rules — **verify every
+field against OpenRouter's docs, never from memory**:
+
+- Key `OPENROUTER_API_KEY`, server-only, in `.env.local` and Vercel. Plain `fetch` (or the `openai`
+  package pointed at the base URL) — either way only inside `providers/`.
+- Mapping: system blocks → the system message; `Part`s → content parts (images as data URLs);
+  `output: json` → `response_format` with a JSON schema only when the model lists
+  `structured_outputs`, otherwise JSON in text plus core's one validation retry.
+- `effort` → OpenRouter's `reasoning` only when the model lists it, else dropped. Cache hints are
+  passed through only for model families where OpenRouter documents `cache_control` (Anthropic's);
+  ignored otherwise.
+- Errors: 401 → `auth`, 402 (credits used up) → `usage_limit` with a readable message, 429 →
+  `rate_limit`, 5xx → `provider`.
+- **Capabilities are per model**, not per provider: the router checks the *chosen model's*
+  `architecture.input_modalities` and `supported_parameters`. `scan_identify` on a model without image input goes to the fallback or fails with `unsupported` — never a silent downgrade. The arena's legal-move validation applies to every model's answer unchanged.
+- `listModels()` reads `GET /api/v1/models` (id, name, `context_length`, `pricing` per token,
+  `architecture.input_modalities`, `supported_parameters`), cached ~1 h.
+- `billed: true`; cost from the model's listed price, or OpenRouter's reported cost when the response
+  carries it.
+- Optional app-attribution headers as OpenRouter documents them.
+
+## The model selector
+
+Every provider answers `listModels(): Promise<ModelInfo[]>` with
+`ModelInfo = { id, label, contextLength, capabilities: { vision, json, tools }, usdPerMTok: { in, out } }`
+— the Anthropic adapters from `models.ts`, OpenRouter from its live list. The settings page has a
+**model picker per tier and, optionally, per task**: searchable, showing price and context, and
+filtered to models that can do what the task needs (image input for `scan_identify`; structured output preferred everywhere). The choice is stored in
+`ai_settings.models` (jsonb: provider → tier → model id, plus a model in `taskOverrides`).
+
+Model precedence for a call: `req.model` in code → the per-task model in `ai_settings` → the per-tier
+model in `ai_settings` for the active provider → env (none today; `MODEL`, `SONNET_MODEL`, `FAST_MODEL` are the code defaults) → the `models.ts` default. Changing a
+model never rewrites a stored answer.
 
 ## Adding a vendor later
 
