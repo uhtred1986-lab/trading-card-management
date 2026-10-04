@@ -594,6 +594,20 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
 }
 
 {
+  // #539: "…during your opponent's next Charge Phase" stops the Charge Phase's
+  // switch alone — a skill of theirs may still stand the card up that turn.
+  let s = stagedG({ hand: ["CHARGELOCK"], energy: ["V1"], oppBattle: ["BIG"], oppHand: ["STANDALL"], oppEnergy: ["V1"] });
+  const locked = findG(s, "p2", "battle", "BIG");
+  s.cards[locked].mode = "rest";
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "CHARGELOCK") });
+  s = playG(s, { type: "endMain", player: "p1" });
+  assert.equal(s.cards[locked].mode, "rest", "7-2-7 did not stand it up");
+  s = playG(s, { type: "charge", player: "p2", card: null });
+  s = playG(s, { type: "play", player: "p2", card: findG(s, "p2", "hand", "STANDALL") });
+  assert.equal(s.cards[locked].mode, "active", "a skill may still switch it to Active Mode");
+}
+
+{
   // "You can't play copies of this card" is about the name, not the card.
   let s = stagedG({ hand: ["NOCOPIES", "NOCOPIES"], energy: ["V1", "V1"] });
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "NOCOPIES") });

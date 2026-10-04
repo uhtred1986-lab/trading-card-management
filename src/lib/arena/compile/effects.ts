@@ -2527,7 +2527,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   if (/^activate (?:its |their )?skills\b/.test(rest)) return [{ op: "forbid", what: "activateSkill", until, target, ...withUnless }];
   if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
   if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];
-  if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) return [{ op: "forbid", what: "switchToActive", until, target, ...withUnless }];
+  if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) {
+    // "…during your opponent's next Charge Phase" (BT3-085, BT3-101, XD1-01,
+    // #539): the Charge Phase's switch alone, not a skill's later that turn.
+    const inCharge = /\bduring (?:your opponent'?s|their) next charge phase\b/.test(t);
+    return [{ op: "forbid", what: inCharge ? "switchToActiveInCharge" : "switchToActive", until, target, ...withUnless }];
+  }
   if (/^be ko'?d\b/.test(rest)) {
     // "by skills" is the narrow rule; a bare "can't be KO'd" covers the battle too.
     const bySkill = /\bby (?:your opponent's |your )?skills?\b/.test(rest);
@@ -2864,8 +2869,32 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     const g = groups[groups.length - 1];
     (g.sink ?? g.ops).push(...ops);
   };
+  // "…if your Leader Card is blue and your life is at 4 or less, this card
+  // gains +10000 combo power. Then, choose up to 1 card … Then, **if** there
+  // are no cards in your opponent's Combo Area, draw 1 card" (BT3-043, #539):
+  // a clause after "Then," stays under the condition already open — the
+  // return did — and a "Then, if …" is one more condition *within* it rather
+  // than a fresh one that escapes it (owner's ruling, 4 Oct 2026).
+  let afterThen = false;
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
+    const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
+    afterThen = /^then[.,]?$/i.test(clause.trim());
+    // "Choose all of your opponent's Battle Cards and energy and switch them to
+    // Rest Mode" (BT3-084, #539): two areas, each with its own noun. Read as one
+    // phrase it was the Battle Cards *in the Energy Area*, which is nothing.
+    const bothKinds = /^choose all (?:of )?(your opponent's|your) battle cards and (?:all (?:of )?(?:their|your) )?energy$/i.exec(clause.trim().replace(/[.,]$/, ""));
+    const bothSwitch = bothKinds && i + 1 < clauses.length ? /^(?:and |then )?switch them to (rest|active) mode[.]?$/i.exec(clauses[i + 1].trim()) : null;
+    if (bothKinds && bothSwitch) {
+      const side = bothKinds[1].toLowerCase() === "your" ? "you" : "opponent";
+      const mode = bothSwitch[1].toLowerCase() as "rest" | "active";
+      push([
+        { op: "switchMode", target: { sel: { side, area: "battle", filter: { ...parseFilter("Battle Card") }, count: 99 } }, mode },
+        { op: "switchMode", target: { sel: { side, area: "energy", count: 99 } }, mode },
+      ]);
+      i++;
+      continue;
+    }
     // "…the next time you activate X during this turn, reduce its skill cost
     // by {b}": the two halves `splitClauses` cut apart, read as the pair.
     const nextTime = NEXT_ACTIVATION.exec(clause.trim());
@@ -3146,6 +3175,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     const cond = parseConditionClause(clause, chaining);
     if (cond) {
       if (chaining) open.conds.push(cond.cond);
+      else if (thenHere && open.conds.length && !open.delay) groups.push({ conds: [...open.conds, cond.cond], ops: [] });
       else groups.push({ conds: [cond.cond], ops: [] });
       if (cond.subject) c.lastTarget = cond.subject;
       continue;

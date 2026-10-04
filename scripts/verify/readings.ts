@@ -2076,3 +2076,21 @@ import {
   assert.ok(parseFilter("Battle Card with an energy cost less than or equal to your current energy").unreadable, "cost ≤ current energy is refused");
   assert.ok(parseFilter("red Unison Cards with a specified cost of 2").unreadable, "a specified cost is refused");
 }
+
+// ── #539: "Then, if" under the open condition; Battle Cards and energy ──────
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const bt3 = JSON.stringify(one("[Auto] When you combo with this card, if your Leader Card is blue and your life is at 4 or less, this card gains +10000 combo power for the duration of the turn. Then, choose up to 1 card in your opponent's Combo Area and return it to their owner's hand. Then, if there are no cards in your opponent's Combo Area, draw 1 card.").ops);
+  // The draw sits under the blue-Leader condition: both if-groups name it.
+  assert.equal(bt3.split('"leaderMatches"').length - 1, 2, "BT3-043: the draw is under the blue Leader too");
+  const bt84 = one("[Auto] When a card evolves into this card, choose all of your opponent's Battle Cards and energy and switch them to Rest Mode.");
+  assert.deepEqual(bt84.unsupported, []);
+  assert.deepEqual(
+    bt84.ops.map((o) => [o.op, (o as { target: { sel: { area: string } } }).target.sel.area]),
+    [
+      ["switchMode", "battle"],
+      ["switchMode", "energy"],
+    ],
+    "BT3-084: Battle Cards and energy, both",
+  );
+}

@@ -1964,6 +1964,7 @@
             "beKOdBySkill",
             "beChosen",
             "switchToActive",
+            "switchToActiveInCharge",
             "switchEnergyToActive",
             "placeEnergy",
             "beMovedBySkill",
@@ -2045,7 +2046,7 @@
         }
       ],
       "sentence": "you can't attack for the turn",
-      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"unlessPay\" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame (\"you\" is whoever acts), before the action and every time they take it — refused when they cannot pay it; \"what\":\"attack\" (BT30-100), \"play\" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and \"switchEnergyToActive\" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. \"byTypes\" narrows a rule to an action a skill of those card types takes (\"the skill of a Battle Card or Extra Card\"), and \"turnPlayer\":true to whoever's turn it is (\"if the turn player would …\"). \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"switchEnergyToActive\" | \"placeEnergy\" | \"beMovedBySkill\" | \"beNegated\""
+      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"unlessPay\" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame (\"you\" is whoever acts), before the action and every time they take it — refused when they cannot pay it; \"what\":\"attack\" (BT30-100), \"play\" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and \"switchEnergyToActive\" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. \"byTypes\" narrows a rule to an action a skill of those card types takes (\"the skill of a Battle Card or Extra Card\"), and \"turnPlayer\":true to whoever's turn it is (\"if the turn player would …\"). \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"switchToActiveInCharge\" | \"switchEnergyToActive\" | \"placeEnergy\" | \"beMovedBySkill\" | \"beNegated\""
     },
     {
       "name": "immune",
@@ -2827,6 +2828,7 @@
             "beKOdBySkill",
             "beChosen",
             "switchToActive",
+            "switchToActiveInCharge",
             "switchEnergyToActive",
             "placeEnergy",
             "beMovedBySkill",

@@ -264,6 +264,17 @@
     },
     "same": true
   },
+  "CHARGELOCK#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "69d752fc"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "69d752fc"
+    },
+    "same": true
+  },
   "CHEAPCOMBO#0": {
     "legacy": {
       "outcome": "inForce",
@@ -1844,6 +1855,17 @@
     "rules": {
       "outcome": "fired",
       "digest": "d79988e6"
+    },
+    "same": true
+  },
+  "STANDALL#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "80b9ac04"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "80b9ac04"
     },
     "same": true
   },

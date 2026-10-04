@@ -275,6 +275,9 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       const mine = [ps.leader, ps.unison, ...ps.battle, ...ps.energy].filter((id): id is string => !!id);
       for (const id of mine) {
         if (has(ctx, s, id, "Servant")) continue;
+        // "…can't switch to Active Mode during your opponent's next Charge
+        // Phase" (#539): this step's switch alone.
+        if (forbiddenForCard(s, "switchToActiveInCharge", id, ctx)) continue;
         setMode(s, ev, id, "active", ctx);
       }
       // "…will not switch to Active Mode during your next Charge Phase": the

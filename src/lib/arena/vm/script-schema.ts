@@ -206,6 +206,7 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   beKOdBySkill: "be KO'd by skills",
   beChosen: "be chosen by skills",
   switchToActive: "switch to Active Mode",
+  switchToActiveInCharge: "switch to Active Mode in the Charge Phase",
   switchEnergyToActive: "switch energy to Active Mode",
   placeEnergy: "place cards in the Energy Area",
   beMovedBySkill: "be removed from a Battle Area by skills",

@@ -95,6 +95,10 @@
     "outcome": "fired",
     "digest": "949c0104"
   },
+  "CHARGELOCK#0": {
+    "outcome": "fired",
+    "digest": "69d752fc"
+  },
   "CHEAPCOMBO#0": {
     "outcome": "inForce",
     "digest": "778b074c"
@@ -666,6 +670,10 @@
   "STACKER#0": {
     "outcome": "fired",
     "digest": "d79988e6"
+  },
+  "STANDALL#0": {
+    "outcome": "fired",
+    "digest": "80b9ac04"
   },
   "STEALER#0": {
     "outcome": "fired",

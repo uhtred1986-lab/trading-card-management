@@ -247,6 +247,9 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("XENERGY", { energyCost: 1, skill: "[Auto] When this card attacks, this card gains +1000 power for each 1 energy you have for the duration of the turn." }),
   // #536: what the attack is aimed at is part of the moment (SD5-01, BT6-014).
   card("ATK-LEADER", { energyCost: 1, skill: "[Auto] When this card attacks a Leader Card, draw 1 card." }),
+  // #539: "can't switch to Active Mode during your opponent's next Charge Phase" — the Charge Phase alone.
+  card("CHARGELOCK", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards in Rest Mode. That card cannot switch to Active Mode during your opponent's next Charge Phase." }),
+  card("STANDALL", { energyCost: 1, skill: "[Auto] When you play this card, switch all of your Battle Cards to Active Mode." }),
   card("ATK-BATTLE", { energyCost: 1, skill: "[Auto] When this card attacks a Battle Card, draw 1 card." }),
 ]);
 // What a real game gets from `card_rules` once every card is drafted: the
