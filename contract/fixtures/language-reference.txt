@@ -3149,6 +3149,10 @@
       "part": "flag"
     },
     {
+      "field": "notInBattle",
+      "part": "flag"
+    },
+    {
       "field": "notSelf",
       "part": "flag"
     },
@@ -3193,6 +3197,10 @@
     {
       "word": "ignoringBarrier",
       "doc": "may target a card with [Barrier] all the same"
+    },
+    {
+      "word": "notInBattle",
+      "doc": "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)"
     },
     {
       "word": "otherThanSelf",

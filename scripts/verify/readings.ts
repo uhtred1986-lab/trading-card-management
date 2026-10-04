@@ -2062,3 +2062,11 @@ import {
     "an or inside an and is bracketed",
   );
 }
+
+// "…that's not in a battle" (BT29-036, #537): the selector leaves the battle's cards out.
+{
+  const s = compileSkill(parseSkills("[Auto][Limit 1] When this card is played, draw 1 card, then choose up to 1 of your opponent's Battle Cards that's not in a battle and return it to its owner's hand.")[0]);
+  assert.deepEqual(s.unsupported, []);
+  const c = s.ops.find((o) => o.op === "choose") as { sel: { notInBattle?: true; side?: string; area?: string } } | undefined;
+  assert.deepEqual([c?.sel.side, c?.sel.area, c?.sel.notInBattle], ["opponent", "battle", true], "BT29-036: not the card in the battle");
+}

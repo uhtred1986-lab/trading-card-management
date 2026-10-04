@@ -272,6 +272,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     return { ...sel, count: sel.upTo ? sel.count : 99, upTo: true, ...(!owned && sel.area === "battle" && !sel.fromVar ? { side: "both" as const } : {}), sumAtMost: bound };
   }
   if (SUM_UNREAD.test(phrase)) return null;
+  // "…Battle Cards that's not in a battle" (BT29-036, BT29-029, #537): the
+  // attack card and the guard card are left out (8-1-2). Dropped, the choice
+  // reached the very card the battle was being fought with.
+  const notFighting = /\s*,?\s*(?:that'?s|that is|that are|which (?:is|are))?\s*not (?:in|currently in) (?:a|the) battle\b/i.exec(phrase);
+  if (notFighting) {
+    const sel = parseTarget(phrase.replace(notFighting[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special) return null;
+    return { ...sel, notInBattle: true };
+  }
   const different = DIFFERENT_NAMES.exec(phrase);
   if (!different) return parseTargetPhrase(phrase, looked, pool);
   const sel = parseTargetPhrase(phrase.replace(different[0], " ").replace(/\s+/g, " ").trim(), looked, pool);

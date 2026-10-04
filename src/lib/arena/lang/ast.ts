@@ -79,6 +79,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   mode: "flag",
   hidden: "flag",
   ignoreBarrier: "flag",
+  notInBattle: "flag",
   notSelf: "flag",
   differentNames: "flag",
   sumAtMost: "sum",

@@ -1766,6 +1766,7 @@ const SELECTOR_KEYS = {
   take: 1,
   fromEnd: 1,
   ignoreBarrier: 1,
+  notInBattle: 1,
   notSelf: 1,
   differentNames: 1,
   sumAtMost: 1,
@@ -1798,6 +1799,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.areas !== undefined && !(Array.isArray(v.areas) && v.areas.length > 0 && v.areas.every((a) => is(a, AREAS)))) return wrong("areas", "a list of areas");
   if (v.mode !== undefined && !is(v.mode, SELECTOR_MODES)) return wrong("mode", "active or rest");
   if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
+  if (v.notInBattle !== undefined && v.notInBattle !== true) return wrong("notInBattle", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
   // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
   // `TOP X IN you.deck` (`rulesets/*.rules`) — is the amount it was handed,
@@ -2381,6 +2383,7 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : sel.notSelf === "name" ? " with a different card name from this card" : "") +
   // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
   (sel.differentNames ? " with different card names" : "") +
+  (sel.notInBattle ? " that is not in a battle" : "") +
   // "…for which the total cost adds up to 5 or less" (BT3-036): about the set too.
   (sel.sumAtMost ? ` whose total ${ATTR_NOUNS[sel.sumAtMost.attr]} is ${describeAmount(sel.sumAtMost.total)} or less` : "") +
   (sel.printed ? " matching the description printed on this line" : "");

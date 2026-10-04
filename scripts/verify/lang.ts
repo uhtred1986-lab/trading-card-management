@@ -1366,3 +1366,6 @@ console.log("verify/lang: the rules language round-trips");
     tripOps(s.ops, `either-description: ${text.slice(0, 60)}`);
   }
 }
+
+// #537: `notInBattle` prints as its flag word and reads back.
+tripOps([{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, upTo: true, notInBattle: true }, as: "c0" } as Op], "notInBattle");

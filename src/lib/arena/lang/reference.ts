@@ -173,6 +173,7 @@ const SELECTOR_FLAG_DOCS: Record<keyof typeof SELECTOR_FLAGS, string> = {
   revealed: "cards in Revealed Mode (23-5)",
   fromEnd: "count from the bottom of the area's order instead of the top",
   ignoringBarrier: "may target a card with [Barrier] all the same",
+  notInBattle: "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)",
   otherThanSelf: "excludes this card",
   otherThanCopies: "excludes every copy of this card, not only this one",
   otherThanSameName: "excludes every card with this card's card name — \"a <Broly> with a different card name\" (EX03-16)",
