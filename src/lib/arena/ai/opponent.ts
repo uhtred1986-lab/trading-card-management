@@ -99,7 +99,7 @@ const MoveSchema = z.object({
  */
 function systemBlocks(ctx: EngineContext, s: EngineState, p: PlayerId) {
   return [
-    { text: RULES_PRIMER, cache: "long" as const },
+    { text: RULES_PRIMER },
     {
       text: `YOUR DECK (${nameOf(s, p)}):\n${decklistText(ctx, s, p)}`,
       cache: "long" as const,

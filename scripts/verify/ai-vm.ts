@@ -36,7 +36,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 import { chooseMove } from "../../src/lib/arena/ai/opponent";
 import { decklistText, stateText } from "../../src/lib/arena/ai/view";
 import { createFakeProvider } from "../../src/lib/ai/providers/fake";
-import { registerProvider } from "../../src/lib/ai/providers";
+import { registerProvider, resetProviders } from "../../src/lib/ai/providers";
 
 const card = (id: string, o: Partial<CardDef> = {}): CardDef => ({
   id,
@@ -218,53 +218,142 @@ function toCombo(s: EngineState, eid: EngineId): EngineState {
   assert.ok(t.includes("phase main.") && t.includes("BATTLE (offense): L-RED [10,000] attacks L-BLUE [10,000]"), `the battle line is missing or wrong on the rules engine:\n${t}`);
 }
 
-// A real decision on the rules engine is put to Claude, not refused — and the
-// request carries the same words as the legacy engine's for the same position.
-// The model call is a stub; nothing here can reach the network.
+// Acceptance and real decisions: capture env before tests, restore after
 {
   process.env.ANTHROPIC_API_KEY = "sk-test-not-a-real-key";
-  const fakeProvider = createFakeProvider({
-    id: "anthropic-api",
-    script: () => ({
-      json: { move: 1, say: "Your move." },
-      usage: { input: 100, output: 5, cacheRead: 0 },
-    }),
-  });
-  registerProvider(fakeProvider);
+  process.env.ANTHROPIC_BASE_URL = "http://127.0.0.1:9";
+  const env = { key: process.env.ANTHROPIC_API_KEY, app: process.env.APP_ANTHROPIC_API_KEY, base: process.env.ANTHROPIC_BASE_URL };
 
-  const runs: unknown[] = [];
-  const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
   try {
-    const s0 = staged();
-    const s: Staged = { legacy: toCombo(s0.legacy, "legacy"), rules: toCombo(s0.rules, "rules") };
-    const asked: Record<EngineId, { question: string; system: string; moves: string[] }> = {} as never;
-    for (const eid of both) {
-      const legal = engineFor(eid).legalActions(CTX, s[eid]);
-      assert.ok(legal.length > 1, `${eid}: the combo question has only one answer, so nothing would be asked`);
-      const before = fakeProvider.requests.length;
-      const choice = await chooseMove(db, CTX, s[eid], legal, "p1", "tournament");
-      assert.equal(fakeProvider.requests.length, before + 1, `${eid}: chooseMove did not ask the (stubbed) model`);
-      assert.equal(choice.how, "chosen by Claude", `${eid}: ${choice.how}`);
-      assert.equal(choice.index, 1);
-      assert.equal(choice.say, "Your move.");
-      assert.ok(choice.spend && choice.spend.input === 100, `${eid}: the spend was not read off the answer`);
-      const req = fakeProvider.requests[fakeProvider.requests.length - 1];
-      const userMessage = req.messages[0];
-      assert.ok(userMessage.role === "user", `${eid}: expected user message`);
-      const textPart = userMessage.parts.find((p) => p.type === "text");
-      assert.ok(textPart && textPart.type === "text", `${eid}: no text part in user message`);
-      const [question, menu] = textPart.text.split("\n\nLEGAL MOVES:\n");
-      assert.equal(menu.split("\n\n")[0].split("\n").length, legal.length, `${eid}: the menu sent is not the legal list`);
-      const moves = legal.map((l) => (l.action.type === "combo" ? `combo ${l.action.card ? s[eid].cards[l.action.card].cardId : "pass"}` : l.action.type));
-      const systemText = req.system.map((b) => b.text).join("\n");
-      asked[eid] = { question, system: systemText, moves };
+    // Acceptance: out-of-range and non-numeric answers are rejected exactly as today.
+    {
+      // Out-of-range answer: move = legal.length
+      {
+        const fakeProvider = createFakeProvider({
+          id: "anthropic-api",
+          script: () => ({
+            json: { move: 99, say: "Out of range." },
+            usage: { input: 100, output: 5, cacheRead: 0 },
+          }),
+        });
+        registerProvider(fakeProvider);
+        const runs: unknown[] = [];
+        const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
+        const s = newGame();
+        let s1 = rules.apply(CTX, s, { type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "charge", player: "p1", card: null }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "endMain", player: "p1" }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "charge", player: "p2", card: null }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "endMain", player: "p2" }).state as VmState;
+        const legal = rules.legalActions(CTX, s1);
+        const choice = await chooseMove(db, CTX, s1, legal, "p1", "sparring");
+        assert.equal(choice.index, 0, "out-of-range answer should fallback to index 0");
+        assert.equal(choice.how, "Claude answered 99, which is not on the list — took the first move", "out-of-range fallback message");
+      }
+
+      // Non-integer answer: move = 1.5
+      {
+        const fakeProvider = createFakeProvider({
+          id: "anthropic-api",
+          script: () => ({
+            json: { move: 1.5, say: "Fractional." },
+            usage: { input: 100, output: 5, cacheRead: 0 },
+          }),
+        });
+        registerProvider(fakeProvider);
+        const runs: unknown[] = [];
+        const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
+        const s = newGame();
+        let s1 = rules.apply(CTX, s, { type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "charge", player: "p1", card: null }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "endMain", player: "p1" }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "charge", player: "p2", card: null }).state as VmState;
+        s1 = rules.apply(CTX, s1, { type: "endMain", player: "p2" }).state as VmState;
+        const legal = rules.legalActions(CTX, s1);
+        const choice = await chooseMove(db, CTX, s1, legal, "p1", "sparring");
+        assert.equal(choice.index, 0, "non-integer answer should fallback to index 0");
+        assert.ok(choice.how.includes("not on the list"), "non-integer fallback message");
+      }
+
+      // Single legal move: no model call
+      {
+        const fakeProvider = createFakeProvider({
+          id: "anthropic-api",
+          script: () => {
+            throw new Error("should not be called with only one legal move");
+          },
+        });
+        registerProvider(fakeProvider);
+        const runs: unknown[] = [];
+        const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
+        const s = newGame();
+        assert.equal(s.prompt.kind, "chooseFirst");
+        const legal = rules.legalActions(CTX, s);
+        const beforeReq = fakeProvider.requests.length;
+        const choice = await chooseMove(db, CTX, s, legal, (s.prompt as { player: PlayerId }).player, "sparring");
+        assert.equal(fakeProvider.requests.length, beforeReq, "single legal move should not call the model");
+        assert.equal(choice.spend, null, "single legal move has no spend");
+      }
     }
-    assert.equal(asked.rules.question, asked.legacy.question, "the question put to Claude differs between the engines");
-    assert.equal(asked.rules.system, asked.legacy.system, "the system prompt (primer and decklist) differs between the engines");
-    assert.deepEqual([...asked.rules.moves].sort(), [...asked.legacy.moves].sort(), "the menu offers different moves on the two engines");
-    assert.ok(asked.rules.question.includes("whether to add combo power in the Offense Step") && asked.rules.question.includes("L-RED attacks L-BLUE: 10,000 against 10,000"), `the combo question was not worked out on the rules engine:\n${asked.rules.question}`);
-    assert.ok(asked.rules.system.includes("YOUR DECK (You)"), "the decklist block does not name the seat");
+
+    // A real decision on the rules engine is put to Claude, not refused — and the
+    // request carries the same words as the legacy engine's for the same position.
+    // The model call is a stub; nothing here can reach the network.
+    {
+      const fakeProvider = createFakeProvider({
+        id: "anthropic-api",
+        script: () => ({
+          json: { move: 1, say: "Your move." },
+          usage: { input: 100, output: 5, cacheRead: 0 },
+        }),
+      });
+      registerProvider(fakeProvider);
+
+      const runs: unknown[] = [];
+      const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
+      const s0 = staged();
+      const s: Staged = { legacy: toCombo(s0.legacy, "legacy"), rules: toCombo(s0.rules, "rules") };
+      const asked: Record<EngineId, { question: string; system: string; moves: string[] }> = {} as never;
+      for (const eid of both) {
+        const legal = engineFor(eid).legalActions(CTX, s[eid]);
+        assert.ok(legal.length > 1, `${eid}: the combo question has only one answer, so nothing would be asked`);
+        const before = fakeProvider.requests.length;
+        const choice = await chooseMove(db, CTX, s[eid], legal, "p1", "tournament");
+        assert.equal(fakeProvider.requests.length, before + 1, `${eid}: chooseMove did not ask the (stubbed) model`);
+        assert.equal(choice.how, "chosen by Claude", `${eid}: ${choice.how}`);
+        assert.equal(choice.index, 1);
+        assert.equal(choice.say, "Your move.");
+        assert.ok(choice.spend && choice.spend.input === 100, `${eid}: the spend was not read off the answer`);
+        const req = fakeProvider.requests[fakeProvider.requests.length - 1];
+        const userMessage = req.messages[0];
+        assert.ok(userMessage.role === "user", `${eid}: expected user message`);
+        const textPart = userMessage.parts.find((p) => p.type === "text");
+        assert.ok(textPart && textPart.type === "text", `${eid}: no text part in user message`);
+        const [question, menu] = textPart.text.split("\n\nLEGAL MOVES:\n");
+        assert.equal(menu.split("\n\n")[0].split("\n").length, legal.length, `${eid}: the menu sent is not the legal list`);
+        const moves = legal.map((l) => (l.action.type === "combo" ? `combo ${l.action.card ? s[eid].cards[l.action.card].cardId : "pass"}` : l.action.type));
+        const systemText = req.system.map((b) => b.text).join("\n");
+        asked[eid] = { question, system: systemText, moves };
+      }
+      assert.equal(asked.rules.question, asked.legacy.question, "the question put to Claude differs between the engines");
+      assert.equal(asked.rules.system, asked.legacy.system, "the system prompt (primer and decklist) differs between the engines");
+      assert.deepEqual([...asked.rules.moves].sort(), [...asked.legacy.moves].sort(), "the menu offers different moves on the two engines");
+      assert.ok(asked.rules.question.includes("whether to add combo power in the Offense Step") && asked.rules.question.includes("L-RED attacks L-BLUE: 10,000 against 10,000"), `the combo question was not worked out on the rules engine:\n${asked.rules.question}`);
+      assert.ok(asked.rules.system.includes("YOUR DECK (You)"), "the decklist block does not name the seat");
+    }
   } finally {
+    resetProviders();
+    // Restore env vars to their original state
+    if (env.key === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = env.key;
+    if (env.app === undefined) delete process.env.APP_ANTHROPIC_API_KEY;
+    else process.env.APP_ANTHROPIC_API_KEY = env.app;
+    if (env.base === undefined) delete process.env.ANTHROPIC_BASE_URL;
+    else process.env.ANTHROPIC_BASE_URL = env.base;
   }
 }
 

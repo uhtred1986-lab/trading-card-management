@@ -7,8 +7,10 @@ const restrictedImports = {
   rules: {
     "no-restricted-imports": [
       "error",
-      "@anthropic-ai/sdk",
-      "@anthropic-ai/claude-agent-sdk",
+      {
+        paths: ["@anthropic-ai/sdk", "@anthropic-ai/claude-agent-sdk"],
+        patterns: ["@anthropic-ai/sdk/*", "@anthropic-ai/claude-agent-sdk/*"],
+      },
     ],
   },
 };
