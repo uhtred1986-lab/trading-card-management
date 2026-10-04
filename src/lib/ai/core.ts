@@ -6,16 +6,16 @@
  */
 import { z, type ZodType } from "zod";
 import { AiError } from "./errors";
-import { route } from "./router";
+import { resolve } from "./router";
 import type { AiMessage, AiRequest, AiResult, Usage } from "./types";
 
 const addUsage = (a: Usage, b: Usage): Usage => ({ input: a.input + b.input, output: a.output + b.output, cacheRead: a.cacheRead + b.cacheRead, cacheWrite: a.cacheWrite + b.cacheWrite });
 
 /** One request on the routed provider. A vendor's own error never gets out: it is an `AiError`. */
 export async function generate(req: AiRequest): Promise<AiResult> {
-  const provider = await route(req);
+  const { provider, request } = await resolve(req);
   try {
-    return await provider.generate(req);
+    return await provider.generate(request);
   } catch (err) {
     if (err instanceof AiError) throw err;
     throw new AiError("provider", err instanceof Error ? err.message : String(err), { provider: provider.id, cause: err });

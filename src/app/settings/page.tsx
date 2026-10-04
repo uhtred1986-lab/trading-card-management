@@ -10,6 +10,10 @@ import { ENGINE_IDS, ENGINE_INFO } from "@/lib/arena/engines";
 import { LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { TurnLighting } from "@/components/arena/TurnLighting";
+import { AiSettingsBlock } from "@/components/settings/AiSettingsBlock";
+import { providerPanels } from "@/lib/ai/panel";
+import { loadSettings } from "@/lib/ai/settings-db";
+import { isArenaAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 /** Sync actions can run for a couple of minutes on Vercel's fluid compute. */
@@ -28,6 +32,7 @@ export default async function SettingsPage() {
   const skin = skinFrom(jar.get(SKIN_COOKIE)?.value);
   const lighting = lightingFrom(jar.get(LIGHTING_COOKIE)?.value);
   const engine = await defaultEngine(db);
+  const [aiSettings, aiPanels, aiAdmin] = await Promise.all([loadSettings(db), providerPanels(), isArenaAdmin()]);
 
   return (
     <div className="space-y-6">
@@ -130,6 +135,8 @@ export default async function SettingsPage() {
         </div>
         <p className="mt-1 text-xs text-space-300">Keep a list of binders, boxes and shelves, then file individual copies — or a whole selection at once — so you can find a card when you want it.</p>
       </section>
+
+      <AiSettingsBlock settings={aiSettings} panels={aiPanels} admin={aiAdmin} />
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
         <h2 className="mb-2 font-semibold text-space-50">Integrations</h2>

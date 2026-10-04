@@ -884,6 +884,7 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
 await (await import("./verify-db-sync-writes.mts")).verifySyncWrites(db, client);
 await (await import("./verify-ai-runs.mts")).verifyAiRuns(db);
 await (await import("./verify-ai-features-db.mts")).verifyAiFeaturesDb(db);
+await (await import("./verify-ai-settings-db.mts")).verifyAiSettingsDb(db);
 await (await import("./verify-readiness.mts")).verifyReadiness(db);
 await (await import("./verify-invite.mts")).verifyInvite(db);
 await (await import("./verify-review.mts")).verifyReview(db);

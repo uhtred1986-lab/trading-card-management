@@ -894,6 +894,25 @@ export const aiRuns = pgTable(
 );
 
 /**
+ * Which AI provider and models run which calls (#516): a single row, `id` 1,
+ * edited on /settings. No row means nothing is configured and every call runs
+ * on `anthropic-api` with the code's own models. `models` holds each
+ * provider's per-tier model plus the three arena slots
+ * (`arena.sparring`, `arena.tournament.key`, `arena.tournament.other`); see
+ * `src/lib/ai/settings.ts` for the shape and the router for the precedence.
+ */
+export const aiSettings = pgTable("ai_settings", {
+  id: integer("id").primaryKey().default(1),
+  provider: text("provider"),
+  fallbackProvider: text("fallback_provider"),
+  fallbackOnUnavailable: boolean("fallback_on_unavailable").notNull().default(false),
+  /** `{ [RunKind]: { provider?, model? } }` */
+  taskOverrides: jsonb("task_overrides").notNull().default({}),
+  models: jsonb("models").notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Logins. The app has no session system: `src/proxy.ts` checks HTTP Basic Auth
  * against these rows (and against the BASIC_AUTH_* env pair, which always works
  * so a bad row can't lock everyone out). `owner` is what gets stamped on cards

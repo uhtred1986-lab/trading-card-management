@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify-arena.ts --rules-only && tsx scripts/verify/tryit.ts && tsx scripts/verify-cache.mts && tsx scripts/verify-db.mts && tsx scripts/verify/arena-admin.ts && tsx scripts/verify/blocks.ts && tsx scripts/verify/rule-review.ts && tsx scripts/verify/backlog.ts && tsx scripts/verify/diff-report.ts && tsx scripts/verify/teach.ts && tsx scripts/verify/ai-contract.ts && tsx scripts/verify/ai-features.ts",
+    "test": "tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify-arena.ts --rules-only && tsx scripts/verify/tryit.ts && tsx scripts/verify-cache.mts && tsx scripts/verify-db.mts && tsx scripts/verify/arena-admin.ts && tsx scripts/verify/blocks.ts && tsx scripts/verify/rule-review.ts && tsx scripts/verify/backlog.ts && tsx scripts/verify/diff-report.ts && tsx scripts/verify/teach.ts && tsx scripts/verify/ai-contract.ts && tsx scripts/verify/ai-features.ts && tsx scripts/verify/ai-router.ts",
     "test:rules": "tsx scripts/verify-arena.ts --engine rules",
     "test:rules-only": "tsx scripts/verify-arena.ts --rules-only",
     "contract:emit": "tsx scripts/verify-arena.ts --emit && tsx scripts/verify-arena.ts --engine rules --emit",

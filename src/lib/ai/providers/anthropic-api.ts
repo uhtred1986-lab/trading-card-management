@@ -7,7 +7,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { aiError, AiError } from "../errors";
-import { ANTHROPIC_MODELS, ANTHROPIC_TIERS } from "../models";
+import { ANTHROPIC_MODELS, ANTHROPIC_TIERS, modelsOf } from "../models";
 import type { AiProvider, AiRequest, AiResult, Availability, Capabilities, ModelInfo, Part, SystemBlock } from "../types";
 
 const ID = "anthropic-api";
@@ -116,10 +116,11 @@ export function createAnthropicApiProvider(opts: AnthropicApiOptions = {}): AiPr
     },
     async available(): Promise<Availability> {
       if (opts.fetch || opts.client || anthropicKey()) return { ok: true };
-      return { ok: false, reason: "ANTHROPIC_API_KEY is not set." };
+      return { ok: false, reason: "ANTHROPIC_API_KEY is not set — AI features are disabled." };
     },
     async listModels(): Promise<ModelInfo[]> {
-      return Object.entries(ANTHROPIC_MODELS).map(([id, m]) => ({ id, label: m.label, capabilities: { vision: m.vision, json: true, tools: true } }));
+      // From models.ts. No context length: the repo does not record one, and a number made up here would be shown as fact.
+      return modelsOf(ID).map((m) => ({ id: m.id, label: m.label, capabilities: { vision: m.vision, json: true, tools: true }, usdPerMTok: { in: m.usdPerMTok.input, out: m.usdPerMTok.output } }));
     },
     async generate(req: AiRequest): Promise<AiResult> {
       if (!opts.client && !opts.fetch && !anthropicKey()) throw aiError("unavailable", LABEL, { provider: ID, detail: "ANTHROPIC_API_KEY is not set — AI features are disabled." });
