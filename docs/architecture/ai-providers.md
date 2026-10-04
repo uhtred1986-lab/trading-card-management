@@ -1,7 +1,7 @@
 # AI providers: one contract, swappable vendors
 
 **Status: built, milestone "AI providers — one contract, API or subscription, any vendor".**
-The router, OpenRouter, and the subscription adapter are merged; docs and a paid smoke test follow in #519.
+Built in #521, #523, #524, #525, #526, #527, #528, #529 and #530; the design sections below are kept as written, and the "As built" sections and the list below record where the build differs. Still open: the owner's rulings on #518 (the plan on Vercel).
 Ximilar (scan recognition) is a separate integration and out of scope.
 
 ## Why
@@ -32,10 +32,12 @@ The owner wants, in this order:
 
 ## What changed on the way
 
-- **Vision off on the subscription** (until a live scan proves the CLI reads images): `scan_identify` goes to the fallback provider or fails with `unsupported`.
-- **OpenRouter model picker** shows only structured-output models (the arena's legal-move answers need JSON); other models are available elsewhere but not for tasks needing JSON.
-- **Vercel size gate** on the Agent SDK (#518): the 246 MB `claude` binary is build-gated on `AI_AGENT_SDK=1` (off by default, inert if set), so the `anthropic-agent-sdk` adapter is unavailable on Vercel until the owner rules on the size question (large-functions beta or a single admin route).
-- **Token expiry tracking** (`CLAUDE_CODE_OAUTH_TOKEN_CREATED`): the settings page warns for the last 30 days before the ~1-year expiry; the subscription adapter's `available()` check fails after it.
+- **Vision is off on the plan** (#527): the adapter sends image blocks, but `capabilities().vision` is `false` until a live scan proves the CLI reads them, so `scan_identify` goes to the fallback provider or fails with `unsupported`.
+- **The arena pins its slot's provider** (#526): Sparring and Tournament run on their `arena.*` slot (`{ provider, model }`) as a hard pin, so neither the global provider nor a fallback moves the opponent.
+- **Pickers offer structured-output models only** (#526, #528): an OpenRouter model counts as JSON-capable only when it lists `structured_outputs`; others still work through the schema in the prompt and core's one retry.
+- **The plan on Vercel is build-gated** (#529): the 246 MB `claude` binary is added only to a build made with `AI_AGENT_SDK=1`, which with today's route list would push 27 functions past 250 MB, so the flag must not be set in Vercel before the #518 rulings.
+- **Token expiry** (#527): `CLAUDE_CODE_OAUTH_TOKEN_CREATED` + 365 days; /settings warns for the last 30 days and `available()` fails after it.
+- **`recordRun` reads the model and provider from the result** (#521, #524), so a caller no longer passes the model.
 
 ## Today (what the migration must keep working)
 
@@ -359,9 +361,8 @@ model never rewrites a stored answer.
 
 ## Token renewal (subscription adapter)
 
-To refresh the Claude plan token:
-
-1. Run `claude setup-token` and log in; the CLI writes the new token to `~/.config/claude/config.json`.
-2. Set `CLAUDE_CODE_OAUTH_TOKEN` in Vercel's project settings to the new token value.
-3. Set `CLAUDE_CODE_OAUTH_TOKEN_CREATED` in Vercel and `.env.local` to today's date (YYYY-MM-DD format).
-4. The settings page on `/settings` shows a warning for the last 30 days before the ~1-year expiry; `available()` fails after it.
+1. Run `claude setup-token` on a machine logged in to the Claude plan; it prints a long-lived token.
+2. Put it in `CLAUDE_CODE_OAUTH_TOKEN` in `.env.local` (and, once the #518 rulings allow the plan on Vercel, in the Vercel project settings).
+3. Set `CLAUDE_CODE_OAUTH_TOKEN_CREATED` to today's date (`YYYY-MM-DD`) in the same places.
+4. /settings then warns for the last 30 days before the ~1-year expiry, and `available()` fails after it; renew by repeating these steps.
+5. Check with Test connection on /settings (one tiny call on the plan) or `npm run ai:smoke -- --provider anthropic-agent-sdk --yes`.

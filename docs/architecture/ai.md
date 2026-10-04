@@ -14,8 +14,8 @@ Read before touching deck analysis, the wizard, card scanning, the cart explaine
 ## Models and spend (owner's ruling, 1 Oct 2026, #381)
 
 Model ids, providers, capabilities and list prices are in `docs/architecture/ai-providers.md` (see
-**Models** and **As built** sections). `npm run ai:spend` reports cost per provider. Always pass the model
-to `recordRun` so `ai_runs.model` is the one that ran.
+**Models** and **As built** sections). `npm run ai:spend` reports billed and notional cost per provider.
+`recordRun` takes the model and provider from the call's result, so `ai_runs` records what actually ran.
 
 | Call | Model | Request shape |
 |---|---|---|

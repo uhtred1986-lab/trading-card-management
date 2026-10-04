@@ -10,6 +10,8 @@
  *
  *   --provider <id>    anthropic-api | anthropic-agent-sdk | openrouter | fake   (required)
  *   --task <kind>      specific test (text, json, image, all); default all
+ *   --model <id>       the model to call; required where the provider has no tier table (openrouter),
+ *                      otherwise the provider's `fast` tier model
  *   --yes              confirm that this spends money or plan usage
  *
  * Every call is standalone; they do not depend on each other. Image is skipped if the
@@ -34,10 +36,15 @@ const has = (name: string) => args.includes(`--${name}`);
 
 const providerId = flag("provider");
 const task = flag("task") ?? "all";
+const model = flag("model");
 const delay = Math.max(0, Number(flag("delay") ?? 0) || 0);
 
 if (!providerId) {
-  console.error("usage: npm run ai:smoke -- --provider <anthropic-api|anthropic-agent-sdk|openrouter|fake> [--task all|text|json|image] [--yes]");
+  console.error("usage: npm run ai:smoke -- --provider <anthropic-api|anthropic-agent-sdk|openrouter|fake> [--model <id>] [--task all|text|json|image] [--yes]");
+  process.exit(2);
+}
+if (providerId === "openrouter" && !model) {
+  console.error('OpenRouter has no tier table: pass the model to call: --model <id>, any id from its /models list (the /settings picker shows them).');
   process.exit(2);
 }
 if (providerId !== "fake" && !has("yes")) {
@@ -52,6 +59,7 @@ const tiny = (id: string, o: Partial<AiRequest> = {}): AiRequest => ({
   messages: [{ role: "user", parts: [{ type: "text", text: id }] }],
   maxTokens: 100,
   provider: providerId as unknown as string,
+  ...(model ? { model } : {}),
   ...o,
 });
 
