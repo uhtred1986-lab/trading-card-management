@@ -262,6 +262,28 @@ import type { EngineState, PlayerId } from "./harness";
   assert.equal(zoneOf(s, "p2", "life").length, 6);
 }
 
+// #536: "when this card attacks a Leader Card" / "… a Battle Card" fire only on
+// that kind of attack (8-1-3); the target is a condition on the moment.
+{
+  const handAfter = (attacker: string, atLeader: boolean): { before: number; after: number } => {
+    let s = arenaG({ battle: [attacker], oppBattle: ["V-BLUE"] });
+    const mine = zoneOf(s, "p1", "battle")[0];
+    const opp = zoneOf(s, "p2", "battle")[0];
+    s.cards[opp].mode = "rest";
+    const before = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "attack", player: "p1", attacker: mine, target: atLeader ? leaderOf(s, "p2") : opp });
+    return { before, after: zoneOf(s, "p1", "hand").length };
+  };
+  const leaderHit = handAfter("ATK-LEADER", true);
+  assert.equal(leaderHit.after, leaderHit.before + 1, "attacking the Leader draws");
+  const battleHit = handAfter("ATK-LEADER", false);
+  assert.equal(battleHit.after, battleHit.before, "attacking a Battle Card does not");
+  const onBattle = handAfter("ATK-BATTLE", false);
+  assert.equal(onBattle.after, onBattle.before + 1, "'attacks a Battle Card' draws on a Battle Card");
+  const onLeader = handAfter("ATK-BATTLE", true);
+  assert.equal(onLeader.after, onLeader.before, "…and not on the Leader");
+}
+
 // [Victory Strike] (22-18-2): life damage by attacking wins the game; against a
 // Unison it takes every marker, where [Double Strike] takes two and a plain
 // attack one (13-5-2-2/13-5-2-3). Both engines since #156 (`beforeDamage`).

@@ -327,6 +327,13 @@ function compileSkillText(skill: Skill): Script {
         triggerCond = { kind: "count", sel: { special: "subject", filter: cause }, atLeast: 1 };
       }
     }
+    // "When this card attacks a Leader Card" / "… attacks a Battle Card"
+    // (SD5-01, BT6-014, 8-1-3): the moment is the attack, and what it attacks
+    // is a condition on the card being attacked. Dropped with the trigger, the
+    // skill fired on every attack (owner's card review, 4 Oct 2026, #536).
+    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(leader|battle) card\b/i.exec(trigger.trim());
+    if (attacking)
+      triggerCond = { kind: "inBattle", sel: { area: attacking[1].toLowerCase() === "leader" ? "leader" : "battle", side: "opponent" }, role: "guard" };
     if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a
@@ -372,7 +379,7 @@ function compileSkillText(skill: Skill): Script {
     if (clauses.length > 1 && !/^(?:if|when|while|during|choose|you may)\b/i.test(clauses[0].trim())) {
       const riding = parseConditionClause(clauses[0], true);
       if (riding) {
-        triggerCond = riding.cond;
+        triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, riding.cond] } : riding.cond;
         clauses.shift();
       }
     }

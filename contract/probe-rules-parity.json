@@ -98,6 +98,28 @@
     },
     "same": true
   },
+  "ATK-BATTLE#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "6b1c5df5"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "6b1c5df5"
+    },
+    "same": true
+  },
+  "ATK-LEADER#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "389c15c4"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "389c15c4"
+    },
+    "same": true
+  },
   "ATKSKIP#0": {
     "legacy": {
       "outcome": "inForce",
