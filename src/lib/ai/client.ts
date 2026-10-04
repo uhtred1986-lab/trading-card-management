@@ -64,6 +64,8 @@ export async function recordRun<T>(
       model: model ?? (legacy ? MODEL : response.model),
       provider: legacy ? "anthropic-api" : response.provider,
       billed: legacy ? true : response.billed,
+      // Only when the adapter reported one; the column stays null (and the recorded row shape unchanged) otherwise.
+      ...(!legacy && response.costMicros !== undefined ? { costMicros: response.costMicros } : {}),
       input: input as object,
       output: output as object,
       ...tokens,

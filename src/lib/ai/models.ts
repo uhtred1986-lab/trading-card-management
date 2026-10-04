@@ -113,6 +113,14 @@ export function costMicros(spend: { model: string; input: number; output: number
   return Math.round(dollars * 1_000_000);
 }
 
+/**
+ * What an arena call costs: the adapter's own figure when it reported one at call time (OpenRouter's
+ * `usage.cost`, #520), else {@link costMicros} on the model that was asked for.
+ */
+export function spendMicros(spend: { model: string; input: number; output: number; cached: number; provider?: ProviderId; costMicros?: number }): number {
+  return spend.costMicros ?? costMicros(spend);
+}
+
 /** The Anthropic API's models, read off {@link MODELS}. A model that is not listed is sent no effort and no thinking. */
 export const ANTHROPIC_MODELS: Record<string, ModelCaps & { label: string }> = Object.fromEntries(
   modelsOf("anthropic-api").map((m) => [m.id, { label: m.label, effort: m.effort, adaptiveThinking: m.adaptiveThinking, vision: m.vision }]),

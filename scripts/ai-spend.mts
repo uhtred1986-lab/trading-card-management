@@ -8,7 +8,8 @@
  * input price and cache writes at 1.25×; the API's `input_tokens` excludes both.
  * Rows from before #380 carry no cache figures (shown as "-" and counted as zero),
  * so their cost is a floor. Rows from before #515 read as "anthropic-api" and
- * billed=true. Billed and notional (subscription) cost are totalled apart, per provider.
+ * billed=true. Runs that stored `cost_micros` (OpenRouter) are priced by it; all others by the formula above.
+ * Billed and notional (subscription) cost are totalled apart, per provider.
  */
 import nextEnv from "@next/env";
 const { loadEnvConfig } = nextEnv;
@@ -18,7 +19,7 @@ loadEnvConfig(process.cwd());
 const { sql } = await import("drizzle-orm");
 const { db } = await import("../src/db/index.ts");
 const { rows } = await import("../src/db/rows.ts");
-const { priceOf } = await import("../src/lib/ai/models.ts");
+const { rowUsd } = await import("../src/lib/ai/spend.ts");
 
 const days = Math.max(1, Number(process.argv[2] ?? 30) || 30);
 
@@ -33,6 +34,11 @@ type Row = {
   cache_read: number;
   cache_write: number;
   with_cache_data: number;
+  stored_micros: number;
+  legacy_input: number;
+  legacy_output: number;
+  legacy_cache_read: number;
+  legacy_cache_write: number;
 };
 const result = rows<Row>(
   await db.execute(sql`
@@ -42,17 +48,20 @@ const result = rows<Row>(
       coalesce(sum(output_tokens), 0)::bigint::float8 as output,
       coalesce(sum(cache_read_tokens), 0)::bigint::float8 as cache_read,
       coalesce(sum(cache_creation_tokens), 0)::bigint::float8 as cache_write,
-      count(cache_read_tokens)::int as with_cache_data
+      count(cache_read_tokens)::int as with_cache_data,
+      coalesce(sum(cost_micros), 0)::bigint::float8 as stored_micros,
+      coalesce(sum(input_tokens) filter (where cost_micros is null), 0)::bigint::float8 as legacy_input,
+      coalesce(sum(output_tokens) filter (where cost_micros is null), 0)::bigint::float8 as legacy_output,
+      coalesce(sum(cache_read_tokens) filter (where cost_micros is null), 0)::bigint::float8 as legacy_cache_read,
+      coalesce(sum(cache_creation_tokens) filter (where cost_micros is null), 0)::bigint::float8 as legacy_cache_write
     from ai_runs
     where created_at >= now() - make_interval(days => ${days})
     group by provider, billed, kind, model
   `),
 );
 
-const usd = (r: Row) => {
-  const p = priceOf(r.model, r.provider);
-  return (r.input * p.input + r.cache_read * p.input * 0.1 + r.cache_write * p.input * 1.25 + r.output * p.output) / 1_000_000;
-};
+// A run's stored cost (OpenRouter, #520) is used as it is; a run without one is priced from its tokens (`src/lib/ai/spend.ts`).
+const usd = rowUsd;
 const n = (x: number) => Math.round(x).toLocaleString("en-US");
 
 const sorted = [...result].sort((a, b) => usd(b) - usd(a));

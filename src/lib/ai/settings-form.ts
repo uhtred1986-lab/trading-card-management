@@ -2,9 +2,13 @@
  * Turning what the /settings forms post into new {@link AiSettings} (#516).
  * Pure, so a check can prove that a hand-made post cannot store a model a
  * picker would not have offered: every model is looked up in the provider's
- * own list and must have what the task or slot needs.
+ * own list and must have what the task or slot needs, unless that list could
+ * not be fetched (an empty list restricts nothing; the pattern is
+ * gullet-cove-dm's `checkSettingsInput`). A provider with no built-in tier
+ * table (OpenRouter) also has to come with models: see {@link checkModelsChosen}.
  */
 import { ARENA_NEEDS, needsOf, TASK_IDS, type ModelNeeds } from "./catalog";
+import { TIERS } from "./models";
 import type { RunKind } from "./client";
 import { ARENA_SLOTS, TIER_IDS, type AiSettings, type ArenaSlot, type ModelRef, type TaskOverride } from "./settings";
 import type { ModelInfo, ProviderId, Tier } from "./types";
@@ -25,14 +29,41 @@ export function decodeRef(v: string | null | undefined): ModelRef | null {
 export const IMAGE_TIERS: readonly Tier[] = ["standard", "best"];
 
 function fits(lists: ModelLists, ref: ModelRef, needs: ModelNeeds): boolean {
-  const m = lists[ref.provider]?.find((x) => x.id === ref.model);
+  const list = lists[ref.provider];
+  if (!list) return false;
+  // A list that could not be fetched is empty: it says nothing, so it restricts nothing. A model the list does know is still held to what the task needs.
+  if (list.length === 0) return true;
+  const m = list.find((x) => x.id === ref.model);
   return !!m && (!needs.vision || m.capabilities.vision) && (!needs.json || m.capabilities.json);
+}
+
+/** provider id → how to name it in a message (the registry's labels); the id itself when absent. */
+export type ProviderNames = Record<string, string>;
+
+/**
+ * A provider with no tier table (everything but the two Anthropic ones) has no default model, so every call
+ * on it would go out without one. The global provider and the fallback need all three tiers set for them in the
+ * same settings; a task override naming such a provider needs the task's model or those three tiers. Run on
+ * the *resulting* settings of every form that can break it: the provider form, the tiers form (removing a tier
+ * model a saved choice relies on) and the tasks form. Throws a message naming the provider.
+ */
+export function checkModelsChosen(s: AiSettings, names: ProviderNames = {}): void {
+  const tiersSet = (p: string) => TIER_IDS.every((t) => !!s.tiers[p]?.[t]);
+  const needsModels = (p: string | null | undefined): p is string => !!p && !TIERS[p] && !tiersSet(p);
+  const name = (p: string) => names[p] ?? p;
+  const pick = (p: string) => `Pick ${name(p)}'s models for fast, standard and best first`;
+  if (needsModels(s.provider)) throw new Error(`${pick(s.provider)}: ${name(s.provider)} has no default models, so it cannot be the main provider without them.`);
+  if (needsModels(s.fallbackProvider)) throw new Error(`${pick(s.fallbackProvider)}: ${name(s.fallbackProvider)} has no default models, so it cannot be the fallback without them.`);
+  for (const task of TASK_IDS) {
+    const o = s.taskOverrides[task];
+    if (o && !o.model && needsModels(o.provider)) throw new Error(`${pick(o.provider)}, or choose its model for ${task}: ${name(o.provider)} has no default models.`);
+  }
 }
 
 const clean = (v: string | null | undefined): string | null => (v && v.trim() ? v.trim() : null);
 
 /** The global provider, the fallback and its switch. An unknown provider id is refused. */
-export function applyProviderForm(s: AiSettings, f: { provider?: string | null; fallbackProvider?: string | null; fallbackOnUnavailable?: boolean }, known: ProviderId[]): AiSettings {
+export function applyProviderForm(s: AiSettings, f: { provider?: string | null; fallbackProvider?: string | null; fallbackOnUnavailable?: boolean }, known: ProviderId[], names: ProviderNames = {}): AiSettings {
   const pick = (v: string | null | undefined): ProviderId | null => {
     const id = clean(v);
     if (!id) return null;
@@ -42,11 +73,13 @@ export function applyProviderForm(s: AiSettings, f: { provider?: string | null; 
   const provider = pick(f.provider);
   const fallbackProvider = pick(f.fallbackProvider);
   if (provider && provider === fallbackProvider) throw new Error("The fallback has to be a different provider from the main one.");
-  return { ...s, provider, fallbackProvider, fallbackOnUnavailable: !!f.fallbackOnUnavailable && !!fallbackProvider };
+  const next = { ...s, provider, fallbackProvider, fallbackOnUnavailable: !!f.fallbackOnUnavailable && !!fallbackProvider };
+  checkModelsChosen(next, names);
+  return next;
 }
 
 /** `tiers`: `"<provider>|<tier>"` → model id (empty = the table's default). */
-export function applyTiersForm(s: AiSettings, tiers: Record<string, string>, lists: ModelLists): AiSettings {
+export function applyTiersForm(s: AiSettings, tiers: Record<string, string>, lists: ModelLists, names: ProviderNames = {}): AiSettings {
   const next: AiSettings["tiers"] = {};
   for (const [key, raw] of Object.entries(tiers)) {
     const model = clean(raw);
@@ -57,11 +90,13 @@ export function applyTiersForm(s: AiSettings, tiers: Record<string, string>, lis
     if (!fits(lists, { provider, model }, needs)) throw new Error(`${model} cannot be the ${tier} model${needs.vision ? ": the card scan reads images on it" : ""}.`);
     (next[provider] ??= {})[tier] = model;
   }
-  return { ...s, tiers: next };
+  const out = { ...s, tiers: next };
+  checkModelsChosen(out, names);
+  return out;
 }
 
 /** `tasks[task]`: `provider` (or empty) and `model` as `"<provider>|<model>"` (or empty). */
-export function applyTasksForm(s: AiSettings, tasks: Record<string, { provider?: string; model?: string }>, lists: ModelLists): AiSettings {
+export function applyTasksForm(s: AiSettings, tasks: Record<string, { provider?: string; model?: string }>, lists: ModelLists, names: ProviderNames = {}): AiSettings {
   const next: AiSettings["taskOverrides"] = {};
   for (const task of TASK_IDS) {
     const f = tasks[task];
@@ -78,7 +113,9 @@ export function applyTasksForm(s: AiSettings, tasks: Record<string, { provider?:
     }
     if (o) next[task] = o;
   }
-  return { ...s, taskOverrides: next };
+  const out = { ...s, taskOverrides: next };
+  checkModelsChosen(out, names);
+  return out;
 }
 
 /** `slots`: slot → `"<provider>|<model>"` (empty = today's default). Only models with structured output are accepted. */
