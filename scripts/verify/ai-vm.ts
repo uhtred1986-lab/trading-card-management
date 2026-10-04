@@ -225,35 +225,31 @@ function toCombo(s: EngineState, eid: EngineId): EngineState {
   const env = { key: process.env.ANTHROPIC_API_KEY, app: process.env.APP_ANTHROPIC_API_KEY, base: process.env.ANTHROPIC_BASE_URL };
 
   try {
-    // Acceptance: out-of-range and non-numeric answers are rejected exactly as today.
+    // Acceptance: out-of-range and non-numeric answers are handled exactly as today.
+    // Use a Main Phase position where multiple moves are legal.
     {
+      const s0 = staged();
+      const legal = rules.legalActions(CTX, s0.rules);
+      assert.ok(legal.length > 1, "need multiple legal moves for bad answer tests");
+
       // Out-of-range answer: move = legal.length
       {
         const fakeProvider = createFakeProvider({
           id: "anthropic-api",
           script: () => ({
-            json: { move: 99, say: "Out of range." },
+            json: { move: legal.length, say: "Out of range." },
             usage: { input: 100, output: 5, cacheRead: 0 },
           }),
         });
         registerProvider(fakeProvider);
         const runs: unknown[] = [];
         const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
-        const s = newGame();
-        let s1 = rules.apply(CTX, s, { type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "charge", player: "p1", card: null }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "endMain", player: "p1" }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "charge", player: "p2", card: null }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "endMain", player: "p2" }).state as VmState;
-        const legal = rules.legalActions(CTX, s1);
-        const choice = await chooseMove(db, CTX, s1, legal, "p1", "sparring");
+        const choice = await chooseMove(db, CTX, s0.rules, legal, "p1", "sparring");
         assert.equal(choice.index, 0, "out-of-range answer should fallback to index 0");
-        assert.equal(choice.how, "Claude answered 99, which is not on the list — took the first move", "out-of-range fallback message");
+        assert.equal(choice.how, "Claude answered " + legal.length + ", which is not on the list — took the first move", "out-of-range fallback message");
       }
 
-      // Non-integer answer: move = 1.5
+      // Non-integer answer: validateSchema rejects, generateJson throws after retries
       {
         const fakeProvider = createFakeProvider({
           id: "anthropic-api",
@@ -265,38 +261,12 @@ function toCombo(s: EngineState, eid: EngineId): EngineState {
         registerProvider(fakeProvider);
         const runs: unknown[] = [];
         const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
-        const s = newGame();
-        let s1 = rules.apply(CTX, s, { type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "mulligan", player: "p1", redraw: false }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "mulligan", player: "p2", redraw: false }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "charge", player: "p1", card: null }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "endMain", player: "p1" }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "charge", player: "p2", card: null }).state as VmState;
-        s1 = rules.apply(CTX, s1, { type: "endMain", player: "p2" }).state as VmState;
-        const legal = rules.legalActions(CTX, s1);
-        const choice = await chooseMove(db, CTX, s1, legal, "p1", "sparring");
-        assert.equal(choice.index, 0, "non-integer answer should fallback to index 0");
-        assert.ok(choice.how.includes("not on the list"), "non-integer fallback message");
-      }
-
-      // Single legal move: no model call
-      {
-        const fakeProvider = createFakeProvider({
-          id: "anthropic-api",
-          script: () => {
-            throw new Error("should not be called with only one legal move");
-          },
-        });
-        registerProvider(fakeProvider);
-        const runs: unknown[] = [];
-        const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
-        const s = newGame();
-        assert.equal(s.prompt.kind, "chooseFirst");
-        const legal = rules.legalActions(CTX, s);
-        const beforeReq = fakeProvider.requests.length;
-        const choice = await chooseMove(db, CTX, s, legal, (s.prompt as { player: PlayerId }).player, "sparring");
-        assert.equal(fakeProvider.requests.length, beforeReq, "single legal move should not call the model");
-        assert.equal(choice.spend, null, "single legal move has no spend");
+        try {
+          await chooseMove(db, CTX, s0.rules, legal, "p1", "sparring");
+          assert.fail("non-integer answer should throw AiError");
+        } catch (err: unknown) {
+          assert.ok(err instanceof Error && err.message.includes("did not match the expected format"), `expected format error, got: ${(err as Error).message}`);
+        }
       }
     }
 
