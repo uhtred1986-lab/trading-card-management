@@ -12,12 +12,12 @@
  * rule's own row — the program in `ops`, the brief beside it — so what Claude
  * decided is never in a different place from what it decided about.
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cards as cardsTable, cardRules } from "@/db/schema";
-import { MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
+import { hasAnthropic, recordRun } from "@/lib/ai/client";
+import { generateJson } from "@/lib/ai/core";
 import { parseSkills } from "../text/cards";
 import { validateProgram, type Op } from "../vm/script";
 import { clauseShape } from "../gaps";
@@ -89,40 +89,47 @@ export async function clarifyRule(db: Db, rule: RuleToClarify, explanation: stri
   const skill = parseSkills(side === "back" ? card.backSkill : card.skill).find((s) => s.index === rule.skillIndex);
   const said = explanation?.trim() ?? "";
 
-  const res = await anthropic().messages.parse({
-    model: MODEL,
-    max_tokens: 8000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "high", format: zodOutputFormat(ClarificationSchema) },
+  const res = await generateJson({
+    task: "arena_clarify",
+    tier: "best",
+    maxTokens: 8000,
+    thinking: "adaptive",
+    effort: "high",
+    schema: ClarificationSchema,
     system: [
-      { type: "text", text: EFFECT_LANGUAGE, cache_control: { type: "ephemeral", ttl: "1h" } },
-      { type: "text", text: BRIEF_SPEC },
+      { text: EFFECT_LANGUAGE, cache: "long" },
+      { text: BRIEF_SPEC },
     ],
     messages: [
       {
         role: "user",
-        content: [
-          `CARD: ${card.name} (${card.id}), ${card.cardType}, ${card.colors.join("/")}, cost ${card.energyCost ?? "—"}, ${card.power ?? "—"} power.`,
-          `THE SKILL LINE: ${rule.printed.replace(/\s+/g, " ")}`,
-          skill ? `The engine reads the tags as: ${skill.kind}${skill.cost ? `, cost "${skill.cost}"` : ""}.` : "",
-          `THE PART IT COULD NOT READ: "${clause}"`,
-          "",
-          said ? `THE OWNER, WHO PLAYS THIS GAME, EXPLAINS IT LIKE THIS:` : "NOBODY HAS EXPLAINED THIS CARD. Read it yourself, as the printed rules text of a released card; where the text is genuinely ambiguous, say so in `question` and set `confident` to false.",
-          said,
-          "",
-          `${siblings.length} card${siblings.length === 1 ? "" : "s"} phrase it the same way: ${siblings.map((s) => s.cardId).join(", ")}.`,
-          "",
-          said
-            ? "Give the program for this card, and the brief for teaching the compiler the wording. Trust the owner's explanation over your own reading of the text where they differ, but say so in `meaning` if they differ."
-            : "Give the program for this card, and the brief for teaching the compiler the wording.",
-        ]
-          .filter(Boolean)
-          .join("\n"),
+        parts: [
+          {
+            type: "text",
+            text: [
+              `CARD: ${card.name} (${card.id}), ${card.cardType}, ${card.colors.join("/")}, cost ${card.energyCost ?? "—"}, ${card.power ?? "—"} power.`,
+              `THE SKILL LINE: ${rule.printed.replace(/\s+/g, " ")}`,
+              skill ? `The engine reads the tags as: ${skill.kind}${skill.cost ? `, cost "${skill.cost}"` : ""}.` : "",
+              `THE PART IT COULD NOT READ: "${clause}"`,
+              "",
+              said ? `THE OWNER, WHO PLAYS THIS GAME, EXPLAINS IT LIKE THIS:` : "NOBODY HAS EXPLAINED THIS CARD. Read it yourself, as the printed rules text of a released card; where the text is genuinely ambiguous, say so in `question` and set `confident` to false.",
+              said,
+              "",
+              `${siblings.length} card${siblings.length === 1 ? "" : "s"} phrase it the same way: ${siblings.map((s) => s.cardId).join(", ")}.`,
+              "",
+              said
+                ? "Give the program for this card, and the brief for teaching the compiler the wording. Trust the owner's explanation over your own reading of the text where they differ, but say so in `meaning` if they differ."
+                : "Give the program for this card, and the brief for teaching the compiler the wording.",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          },
+        ],
       },
     ],
   });
 
-  const { output } = await recordRun<Clarification>(db, "arena_clarify", { ruleId: rule.id, cardId: rule.cardId, explanation: said || null }, res, undefined, MODEL);
+  const { output } = await recordRun<Clarification>(db, "arena_clarify", { ruleId: rule.id, cardId: rule.cardId, explanation: said || null }, res);
 
   // Unparseable JSON is an invalid answer, not an empty one: falling back to
   // `[]` would pass the validator and read as "nothing to express".

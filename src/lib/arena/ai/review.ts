@@ -6,12 +6,12 @@
  * matters is the shape of the game, not where the cards ended up. The advice
  * is written to feed the Deck Improvement Wizard, so it names cards.
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
-import { SONNET_MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
+import { hasAnthropic, recordRun } from "@/lib/ai/client";
+import { generateJson } from "@/lib/ai/core";
 import type { PlayerId } from "../types";
 import { loadGame } from "../games";
 import { sideName } from "../engines";
@@ -39,29 +39,39 @@ export async function reviewGame(db: Db, gameId: number): Promise<GameReview | n
   // Always p1: against Claude the human is the first player, and in hot-seat
   // and 1 v 1 both sides are people, so the review is written from p1's chair.
   const human: PlayerId = "p1";
-  const res = await anthropic().messages.parse({
-    model: SONNET_MODEL,
-    max_tokens: 6000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "medium", format: zodOutputFormat(GameReviewSchema) },
-    system:
-      "You are coaching a Dragon Ball Super Card Game player after a game they just played. Be specific and concrete, name cards and turns, and keep every point to one sentence. Do not flatter. If the game was decided by draws rather than decisions, say so plainly rather than inventing a lesson.",
+  const res = await generateJson({
+    task: "arena_review",
+    tier: "standard",
+    maxTokens: 6000,
+    thinking: "adaptive",
+    effort: "medium",
+    schema: GameReviewSchema,
+    system: [
+      {
+        text: "You are coaching a Dragon Ball Super Card Game player after a game they just played. Be specific and concrete, name cards and turns, and keep every point to one sentence. Do not flatter. If the game was decided by draws rather than decisions, say so plainly rather than inventing a lesson.",
+      },
+    ],
     messages: [
       {
         role: "user",
-        content: [
-          `RESULT: ${outcome} on turn ${s.turn}.`,
-          `The player you are coaching is ${sideName(s, human)}; their opponent was ${sideName(s, human === "p1" ? "p2" : "p1")}.`,
-          "",
-          `THEIR DECK:\n${decklistText(game.ctx, s, human)}`,
-          "",
-          `EVENT LOG:\n${game.log.join("\n")}`,
-        ].join("\n"),
+        parts: [
+          {
+            type: "text",
+            text: [
+              `RESULT: ${outcome} on turn ${s.turn}.`,
+              `The player you are coaching is ${sideName(s, human)}; their opponent was ${sideName(s, human === "p1" ? "p2" : "p1")}.`,
+              "",
+              `THEIR DECK:\n${decklistText(game.ctx, s, human)}`,
+              "",
+              `EVENT LOG:\n${game.log.join("\n")}`,
+            ].join("\n"),
+          },
+        ],
       },
     ],
   });
 
-  const { output } = await recordRun<GameReview>(db, "arena_review", { gameId, outcome }, res, game.p1DeckId ?? undefined, SONNET_MODEL);
+  const { output } = await recordRun<GameReview>(db, "arena_review", { gameId, outcome }, res, game.p1DeckId ?? undefined);
   await db
     .update(arenaGames)
     .set({ review: JSON.stringify(output), reviewAt: new Date() })
