@@ -18,13 +18,21 @@ import { CODE_TTL_MS, LAST_SEEN_THROTTLE_MS, generateCode, hashCode, hashDeviceT
 
 /** Whether a normalised address has an `sl_accounts` row (an added SL, or an owner who set a name). */
 export async function isAddedSl(db: Db, email: string): Promise<boolean> {
-  const [row] = await db.select({ id: slAccounts.id }).from(slAccounts).where(eq(slAccounts.email, normaliseEmail(email))).limit(1);
+  const [row] = await db
+    .select({ id: slAccounts.id })
+    .from(slAccounts)
+    .where(eq(slAccounts.email, normaliseEmail(email)))
+    .limit(1);
   return row !== undefined;
 }
 
 /** The owner name an SL acts under: their row's, else `defaultSlOwner`. */
 export async function slOwner(db: Db, email: string, env: AuthEnv): Promise<string> {
-  const [row] = await db.select({ owner: slAccounts.owner }).from(slAccounts).where(eq(slAccounts.email, normaliseEmail(email))).limit(1);
+  const [row] = await db
+    .select({ owner: slAccounts.owner })
+    .from(slAccounts)
+    .where(eq(slAccounts.email, normaliseEmail(email)))
+    .limit(1);
   return row?.owner ?? defaultSlOwner(email, env);
 }
 
@@ -286,7 +294,9 @@ export async function unassignedOwners(db: Db, env: AuthEnv): Promise<Unassigned
     db.select({ owner: ownedCards.owner, n: count() }).from(ownedCards).where(isNull(ownedCards.archivedAt)).groupBy(ownedCards.owner),
     db.select({ owner: decks.owner, n: count() }).from(decks).groupBy(decks.owner),
   ]);
-  const known = new Set([...playerOwners.map((p) => p.owner), ...sls.map((s) => s.owner)]);
+  // The Basic Auth env pair is an SL too while it lasts, and its name is theirs.
+  const legacy = env.BASIC_AUTH_USER?.trim();
+  const known = new Set([...playerOwners.map((p) => p.owner), ...sls.map((s) => s.owner), ...(legacy ? [legacy] : [])]);
   const out = new Map<string | null, UnassignedOwner>();
   const bucket = (owner: string | null) => {
     let b = out.get(owner);
@@ -319,7 +329,13 @@ export async function recordJoinAttempt(db: Db, keyHash: string, now: Date): Pro
   const minuteAgo = new Date(now.getTime() - 60 * 1000);
   await db.delete(joinAttempts).where(lt(joinAttempts.createdAt, hourAgo));
   await db.insert(joinAttempts).values({ keyHash, createdAt: now });
-  const [hour] = await db.select({ n: count() }).from(joinAttempts).where(and(eq(joinAttempts.keyHash, keyHash), gt(joinAttempts.createdAt, hourAgo)));
-  const [minute] = await db.select({ n: count() }).from(joinAttempts).where(and(eq(joinAttempts.keyHash, keyHash), gt(joinAttempts.createdAt, minuteAgo)));
+  const [hour] = await db
+    .select({ n: count() })
+    .from(joinAttempts)
+    .where(and(eq(joinAttempts.keyHash, keyHash), gt(joinAttempts.createdAt, hourAgo)));
+  const [minute] = await db
+    .select({ n: count() })
+    .from(joinAttempts)
+    .where(and(eq(joinAttempts.keyHash, keyHash), gt(joinAttempts.createdAt, minuteAgo)));
   return { limited: joinRateLimited(Number(minute?.n ?? 0), Number(hour?.n ?? 0)) };
 }

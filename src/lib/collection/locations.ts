@@ -6,9 +6,10 @@
  * Locations are archived rather than deleted when they fall out of use, so the
  * copies still say where they were last kept.
  */
-import { asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { decks, ownedCards, storageLocations } from "@/db/schema";
+import { deckScope, lotScope, type OwnerScope } from "./scope";
 
 export interface StorageLocation {
   id: number;
@@ -22,7 +23,8 @@ export interface StorageLocation {
   decks: number;
 }
 
-export async function listLocations(db: Db, includeArchived = true): Promise<StorageLocation[]> {
+/** The places, with how many cards and decks sit in each — counting only `scope`'s (a player's own). */
+export async function listLocations(db: Db, includeArchived = true, scope?: OwnerScope): Promise<StorageLocation[]> {
   // Counted with a plain grouped query rather than a correlated subquery in a
   // `sql` template — that renders without the correlation and returns 0 for all.
   const [places, counts, deckCounts] = await Promise.all([
@@ -33,11 +35,12 @@ export async function listLocations(db: Db, includeArchived = true): Promise<Sto
     db
       .select({ locationId: ownedCards.locationId, n: sql<number>`count(*)::int` })
       .from(ownedCards)
-      .where(isNull(ownedCards.archivedAt))
+      .where(and(isNull(ownedCards.archivedAt), lotScope(scope)))
       .groupBy(ownedCards.locationId),
     db
       .select({ locationId: decks.locationId, n: sql<number>`count(*)::int` })
       .from(decks)
+      .where(deckScope(scope))
       .groupBy(decks.locationId),
   ]);
   const held = new Map(counts.map((c) => [c.locationId, c.n]));

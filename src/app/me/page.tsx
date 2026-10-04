@@ -30,7 +30,9 @@ export default async function MePage() {
               <li key={d.id} className="flex flex-wrap items-center gap-2 py-2">
                 <span className="text-space-100">{d.label}</span>
                 {d.id === viewer.deviceId ? <span className="rounded bg-ki-500/20 px-1.5 text-[11px] text-ki-300">this one</span> : null}
-                <span className="text-xs text-space-400">joined {when(d.createdAt)} · last seen {when(d.lastSeenAt)}</span>
+                <span className="text-xs text-space-400">
+                  joined {when(d.createdAt)} · last seen {when(d.lastSeenAt)}
+                </span>
                 {d.id !== viewer.deviceId ? (
                   <form action={disconnectMyDeviceAction.bind(null, d.id)} className="ml-auto">
                     <button type="submit" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-100 hover:bg-space-800">

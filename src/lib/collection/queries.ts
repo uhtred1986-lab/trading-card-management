@@ -7,6 +7,7 @@ import { sameKeyword } from "@/lib/decks/cardRules";
 import type { Currency } from "@/lib/money";
 import { latestUsdEur } from "@/lib/pricing/fx";
 import { basePricesAsOf, priceForFinish, pricesForPrints, type PriceSource } from "@/lib/pricing/queries";
+import { lotScope, type OwnerScope } from "./scope";
 
 /**
  * Where a valuation reads its prices (`PriceSource`): straight from the
@@ -31,7 +32,8 @@ export async function knownOwners(db: Db): Promise<string[]> {
     .sort((a, b) => a.localeCompare(b));
 }
 
-export async function lotsForCard(db: Db, cardId: string) {
+/** One card's copies, within `scope` (`OwnerScope`: a player sees only their own). */
+export async function lotsForCard(db: Db, cardId: string, scope?: OwnerScope) {
   return db
     .select({
       id: ownedCards.id,
@@ -49,7 +51,7 @@ export async function lotsForCard(db: Db, cardId: string) {
     })
     .from(ownedCards)
     .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
-    .where(and(eq(ownedCards.cardId, cardId), isNull(ownedCards.archivedAt)))
+    .where(and(eq(ownedCards.cardId, cardId), isNull(ownedCards.archivedAt), lotScope(scope)))
     .orderBy(desc(ownedCards.createdAt));
 }
 
@@ -76,9 +78,10 @@ export type ValuedCollection = { lots: ValuedLot[]; usdEur: number | null };
  * Every lot, valued. Used by the dashboard and the collection list.
  *
  * `game` narrows to one game's cards, which is what makes the collection
- * header's totals agree with the filter above the grid.
+ * header's totals agree with the filter above the grid. `scope` narrows to
+ * the lots the looker may see (`OwnerScope`: a player's own only).
  */
-export async function valuedLots(db: Db, opts: { game?: Game; prices?: PriceSource } = {}): Promise<ValuedCollection> {
+export async function valuedLots(db: Db, opts: { game?: Game; prices?: PriceSource; scope?: OwnerScope } = {}): Promise<ValuedCollection> {
   const source = opts.prices ?? pricesFrom(db);
   const [lots, usdEur] = await Promise.all([
     db
@@ -93,7 +96,7 @@ export async function valuedLots(db: Db, opts: { game?: Game; prices?: PriceSour
         locationId: ownedCards.locationId,
       })
       .from(ownedCards)
-      .where(and(isNull(ownedCards.archivedAt), opts.game ? sql`exists (select 1 from ${cards} c where c.id = ${ownedCards.cardId} and c.game = ${opts.game})` : undefined)),
+      .where(and(isNull(ownedCards.archivedAt), lotScope(opts.scope), opts.game ? sql`exists (select 1 from ${cards} c where c.id = ${ownedCards.cardId} and c.game = ${opts.game})` : undefined)),
     source.usdEur(),
   ]);
   const prices = await source.prices(printIdsOf(lots));
@@ -200,11 +203,13 @@ export async function collectionCards(
     deck?: (number | "none")[];
     owner?: string;
     sort?: "value" | "name" | "number" | "recent";
-    /** `valuedLots(db, { game: opts.game })` already computed by the caller; skips the repeat. */
+    /** `valuedLots(db, { game: opts.game, scope: opts.scope })` already computed by the caller; skips the repeat. */
     valued?: ValuedCollection;
+    /** Whose lots may be seen at all (`OwnerScope`); `owner` above is the filter within it. */
+    scope?: OwnerScope;
   } = {},
 ) {
-  const { lots: allLots, usdEur } = opts.valued ?? (await valuedLots(db, { game: opts.game }));
+  const { lots: allLots, usdEur } = opts.valued ?? (await valuedLots(db, { game: opts.game, scope: opts.scope }));
   let lots = allLots;
   if (opts.owner) lots = opts.owner === "none" ? lots.filter((l) => !l.owner) : lots.filter((l) => l.owner === opts.owner);
   if (opts.location === "none") lots = lots.filter((l) => l.locationId == null);
@@ -344,6 +349,8 @@ export async function collectionCopies(
     /** A username, or "none" for copies nobody has claimed. */
     owner?: string;
     sort?: "value" | "name" | "number" | "recent";
+    /** Whose lots may be seen at all (`OwnerScope`); `owner` above is the filter within it. */
+    scope?: OwnerScope;
   } = {},
   /** Where the prices come from — see `PriceSource`. */
   priceSource?: PriceSource,
@@ -386,7 +393,7 @@ export async function collectionCopies(
       .innerJoin(cards, eq(cards.id, ownedCards.cardId))
       .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
       .leftJoin(storageLocations, eq(storageLocations.id, ownedCards.locationId))
-      .where(isNull(ownedCards.archivedAt)),
+      .where(and(isNull(ownedCards.archivedAt), lotScope(opts.scope))),
     source.usdEur(),
   ]);
 
@@ -496,7 +503,7 @@ export interface ArchivedCopy {
  * `/collection/archived`. Ordered newest-archived-first, since that's the
  * order a "did I just delete that?" check wants.
  */
-export async function archivedCopies(db: Db): Promise<ArchivedCopy[]> {
+export async function archivedCopies(db: Db, scope?: OwnerScope): Promise<ArchivedCopy[]> {
   const rows = await db
     .select({
       id: ownedCards.id,
@@ -511,7 +518,7 @@ export async function archivedCopies(db: Db): Promise<ArchivedCopy[]> {
     .from(ownedCards)
     .innerJoin(cards, eq(cards.id, ownedCards.cardId))
     .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
-    .where(sql`${ownedCards.archivedAt} is not null`)
+    .where(and(sql`${ownedCards.archivedAt} is not null`, lotScope(scope)))
     .orderBy(desc(ownedCards.archivedAt));
   return rows.map((r) => ({ ...r, archivedAt: r.archivedAt! }));
 }

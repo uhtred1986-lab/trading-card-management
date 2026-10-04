@@ -11,6 +11,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
+import { eq } from "drizzle-orm";
 import {
   createPlayer,
   deletePlayer,
@@ -95,7 +96,10 @@ assert.equal(await previewJoinCode(db, first.code, NOW), null, "a new code repla
 assert.equal(await previewJoinCode(db, second.code, later(24 * 60 * 60 * 1000 + 1)), null, "expired");
 assert.equal(await issueJoinCode(db, 99999, NOW, "Pat"), null, "no such player");
 const stored = await db.select().from(schema.playerJoinCodes);
-assert.ok(stored.every((r) => r.codeHash !== second.code && r.codeHash.length === 64), "only a hash is stored");
+assert.ok(
+  stored.every((r) => r.codeHash !== second.code && r.codeHash.length === 64),
+  "only a hash is stored",
+);
 
 // ── Redeem: once, and the device is the player's ──
 const joined = await redeemJoinCode(db, second.code, "iPhone · Browser", NOW);
@@ -137,7 +141,10 @@ assert.deepEqual(
   ],
 );
 assert.deepEqual(await reassignOwner(db, null, "Carla"), { lots: 1, decks: 1 });
-assert.deepEqual((await unassignedOwners(db, ENV)).map((u) => u.owner), ["ghost"]);
+assert.deepEqual(
+  (await unassignedOwners(db, ENV)).map((u) => u.owner),
+  ["ghost"],
+);
 
 // ── Disconnect ──
 assert.equal(await revokeDevice(db, joined.deviceId, NOW, migrated[0].id), false, "not another player's device");
@@ -158,6 +165,46 @@ for (let i = 0; i < 11; i++) results.push((await recordJoinAttempt(db, "k1", lat
 assert.deepEqual(results, [...Array(10).fill(false), true], "the eleventh in a minute is refused");
 assert.equal((await recordJoinAttempt(db, "k2", NOW)).limited, false, "keys are separate");
 assert.equal((await recordJoinAttempt(db, "k1", later(61_000))).limited, false, "a minute later it opens again");
+
+// ── Reservations are per owner (4 Oct 2026) ──
+{
+  const { allocationForCards, buildConflicts } = await import("../src/lib/decks/reservations.ts");
+  const { fileDeckAtLocation } = await import("../src/lib/decks/filing.ts");
+  await db.insert(schema.cards).values({ id: "BT18-021", setCode: "BT18", name: "Goku", cardType: "BATTLE", rarity: "Common[C]", rarityCode: "C", searchText: "y" });
+  await db.insert(schema.cardPrints).values({ id: "BT18-021", cardId: "BT18-021", suffix: "", label: "Standard", rarity: "C", isBase: true });
+  // Eve owns one Goku, Finn owns three.
+  await db.insert(schema.ownedCards).values([
+    { cardId: "BT18-021", printId: "BT18-021", owner: "Eve" },
+    { cardId: "BT18-021", printId: "BT18-021", owner: "Finn" },
+    { cardId: "BT18-021", printId: "BT18-021", owner: "Finn" },
+    { cardId: "BT18-021", printId: "BT18-021", owner: "Finn" },
+  ]);
+  const [finnDeck] = await db.insert(schema.decks).values({ name: "Finn's", game: "dbs", owner: "Finn", isBuilt: true }).returning({ id: schema.decks.id });
+  await db.insert(schema.deckCards).values({ deckId: finnDeck.id, cardId: "BT18-021", zone: "main", quantity: 3 });
+  const [eveDeck] = await db.insert(schema.decks).values({ name: "Eve's", game: "dbs", owner: "Eve" }).returning({ id: schema.decks.id });
+  await db.insert(schema.deckCards).values({ deckId: eveDeck.id, cardId: "BT18-021", zone: "main", quantity: 1 });
+
+  assert.deepEqual((await allocationForCards(db, ["BT18-021"], "Eve")).get("BT18-021"), { owned: 1, reserved: 0, available: 1 }, "Finn's built deck does not touch Eve's copy");
+  assert.deepEqual((await allocationForCards(db, ["BT18-021"], "Finn")).get("BT18-021"), { owned: 3, reserved: 3, available: 0 });
+  assert.deepEqual((await allocationForCards(db, ["BT18-021"])).get("BT18-021"), { owned: 4, reserved: 3, available: 1 }, "an SL's whole view adds everyone up");
+  assert.deepEqual(await buildConflicts(db, eveDeck.id), [], "Eve can build hers from her own copy, whatever Finn has built");
+  const [eveDeck2] = await db.insert(schema.decks).values({ name: "Eve's second", game: "dbs", owner: "Eve" }).returning({ id: schema.decks.id });
+  await db.insert(schema.deckCards).values({ deckId: eveDeck2.id, cardId: "BT18-021", zone: "main", quantity: 2 });
+  const short = await buildConflicts(db, eveDeck2.id);
+  assert.equal(short[0]?.owned, 1, "only Eve's own copies count for Eve's deck");
+  assert.equal(short[0]?.short, 1);
+
+  // Filing moves only the deck owner's copies.
+  const [box] = await db.insert(schema.storageLocations).values({ name: "Eve's box" }).returning({ id: schema.storageLocations.id });
+  await db.update(schema.decks).set({ isBuilt: true, locationId: box.id }).where(eq(schema.decks.id, eveDeck.id));
+  const filed = await fileDeckAtLocation(db, eveDeck.id);
+  assert.equal(filed.filed, 1);
+  const finnsCopies = await db.select().from(schema.ownedCards).where(eq(schema.ownedCards.owner, "Finn"));
+  assert.ok(
+    finnsCopies.every((c) => c.locationId === null),
+    "Finn's copies stay where they were",
+  );
+}
 
 console.log("verify-access-db: ok");
 process.exit(0);

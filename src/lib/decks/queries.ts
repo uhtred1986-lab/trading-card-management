@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks, storageLocations } from "@/db/schema";
 import { deckRules, gameOr, type Game } from "@/lib/catalog/games";
 import { allocationForCards, type Allocation } from "./reservations";
+import { deckScope, type OwnerScope } from "@/lib/collection/scope";
 import { legality, legalityForDecks, RULES } from "./legality";
 
 export { legality, RULES };
@@ -41,29 +42,28 @@ export interface CardDeckMembership {
  * particular copy, so this belongs to the card as a whole rather than to a
  * row of the collection table.
  */
-export async function decksForCard(db: Db, cardId: string): Promise<CardDeckMembership[]> {
+export async function decksForCard(db: Db, cardId: string, scope?: OwnerScope): Promise<CardDeckMembership[]> {
   const rows = await db
     .select({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, zone: deckCards.zone, quantity: deckCards.quantity })
     .from(deckCards)
     .innerJoin(decks, eq(decks.id, deckCards.deckId))
-    .where(eq(deckCards.cardId, cardId))
+    .where(and(eq(deckCards.cardId, cardId), deckScope(scope)))
     .orderBy(desc(decks.isBuilt), asc(decks.name));
   return rows.map((r) => ({ ...r, zone: r.zone as Zone }));
 }
 
 /**
- * A deck is visible to its owner; a deck with a null owner is visible to
- * everyone (issue #279, the `owned_cards.owner` precedent). `viewer` is the
- * looker's `currentOwner()` — omit it (or pass null) for "no identity",
- * which shows every deck: the app running open has none either, the same
- * hole `proxy.ts`/`seatOf` already have and no wider. Exported so
- * `leaders/queries.ts`'s own deck join applies the identical rule.
+ * Which decks a looker sees, by `OwnerScope` (`src/lib/collection/scope.ts`):
+ * a player only their own (a deck with no owner is an SL's to hand out, from
+ * Settings → Users & access); an SL, and local dev, every deck (`undefined`).
+ * Pass `currentScope()`. Exported so `leaders/queries.ts`'s own deck join
+ * applies the identical rule.
  */
-export function visibleToViewer(viewer?: string | null) {
-  return viewer ? or(isNull(decks.owner), eq(decks.owner, viewer)) : undefined;
+export function visibleToViewer(scope?: OwnerScope) {
+  return deckScope(scope);
 }
 
-export async function listDecks(db: Db, opts: { game?: Game; viewer?: string | null } = {}) {
+export async function listDecks(db: Db, opts: { game?: Game; viewer?: OwnerScope } = {}) {
   const rows = await db
     .select({
       id: decks.id,
@@ -124,8 +124,12 @@ export interface DeckCardRow {
   alloc: Allocation;
 }
 
-/** `viewer` hides a deck owned by someone else — the caller treats null the same as not found. */
-export async function getDeck(db: Db, id: number, viewer?: string | null) {
+/**
+ * `viewer` (an `OwnerScope`) hides a deck the looker may not see — the caller
+ * treats null the same as not found. The cards' allocation counts the deck
+ * owner's own copies and built decks, whoever looks.
+ */
+export async function getDeck(db: Db, id: number, viewer?: OwnerScope) {
   // The deck and its cards together: the cards need only the id.
   const [deck, rows] = await Promise.all([
     db.query.decks.findFirst({ where: eq(decks.id, id) }),
@@ -156,10 +160,10 @@ export async function getDeck(db: Db, id: number, viewer?: string | null) {
       .orderBy(asc(deckCards.zone), asc(sql`nullif(regexp_replace(${cards.energyCost}, '\\D', '', 'g'), '')::int`), asc(cards.name)),
   ]);
   if (!deck) return null;
-  if (viewer && deck.owner && deck.owner !== viewer) return null;
+  if (viewer !== undefined && deck.owner !== viewer) return null;
   const game = gameOr(deck.game);
 
-  const alloc = await allocationForCards(db, [...new Set(rows.map((r) => r.cardId))]);
+  const alloc = await allocationForCards(db, [...new Set(rows.map((r) => r.cardId))], deck.owner);
   const cardsOut: DeckCardRow[] = rows.map((r) => ({ ...r, zone: r.zone as Zone, game: gameOr(r.game), alloc: alloc.get(r.cardId)! }));
   return { ...deck, game, cards: cardsOut, legality: legality(cardsOut, game) };
 }

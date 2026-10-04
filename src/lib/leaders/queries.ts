@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardSets, cards, deckCards, decks, ownedCards } from "@/db/schema";
+import { lotScope, type OwnerScope } from "@/lib/collection/scope";
 import { gameOr, type Game } from "@/lib/catalog/games";
 import { legalityForDecks, type DeckStatus } from "@/lib/decks/legality";
 import { visibleToViewer } from "@/lib/decks/queries";
@@ -20,9 +21,15 @@ export interface OwnedLeader {
   decks: { id: number; name: string; isBuilt: boolean; game: Game; mainCount: number; status: DeckStatus }[];
 }
 
-/** Every LEADER card in the collection, with the decks it leads (`viewer` hides another login's decks, issue #279). */
-export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game; viewer?: string | null } = {}): Promise<OwnedLeader[]> {
-  const where = and(eq(cards.cardType, "LEADER"), isNull(ownedCards.archivedAt), ...(opts.color ? [sql`${opts.color} = any(${cards.colors})`] : []), ...(opts.game ? [eq(cards.game, opts.game)] : []));
+/** Every LEADER card in the collection, with the decks it leads. `viewer` (an `OwnerScope`) narrows both to what the looker may see. */
+export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game; viewer?: OwnerScope } = {}): Promise<OwnedLeader[]> {
+  const where = and(
+    eq(cards.cardType, "LEADER"),
+    isNull(ownedCards.archivedAt),
+    lotScope(opts.viewer),
+    ...(opts.color ? [sql`${opts.color} = any(${cards.colors})`] : []),
+    ...(opts.game ? [eq(cards.game, opts.game)] : []),
+  );
   const rows = await db
     .select({
       id: cards.id,

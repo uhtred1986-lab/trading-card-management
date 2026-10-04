@@ -37,10 +37,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       ) : null}
 
       {google ? (
-        <a
-          href={LOGIN_START_PATH}
-          className="tap flex items-center justify-center gap-2 rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950 hover:bg-ki-400"
-        >
+        <a href={LOGIN_START_PATH} className="tap flex items-center justify-center gap-2 rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950 hover:bg-ki-400">
           Sign in with Google
         </a>
       ) : null}

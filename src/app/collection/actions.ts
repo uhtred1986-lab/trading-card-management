@@ -4,7 +4,9 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { cardPrints, ownedCards } from "@/db/schema";
-import { currentOwner } from "@/lib/auth";
+import { requireSignedIn, requireSl } from "@/lib/auth";
+import { assertOwnDeck, assertOwnDeckIf, assertOwnLots, ownerFor } from "@/lib/auth/ownership";
+import { lotScope } from "@/lib/collection/scope";
 import { addCardsToDeck } from "@/lib/decks/add";
 import { createLocation, listLocations, setCopyLocations } from "@/lib/collection/locations";
 import { expand } from "@/lib/collection/lots";
@@ -63,8 +65,11 @@ function revalidate(cardId: string) {
  * that deck (leader slot / Z-deck / main by card type).
  */
 export async function addLot(input: LotInput, deckId: number | null = null): Promise<{ ids: number[]; cardId: string; added: number; deckAdded: number }> {
-  const [cardId, fallback] = await Promise.all([cardIdForPrint(input.printId), currentOwner()]);
-  const owner = input.owner?.trim() || fallback;
+  const viewer = await requireSignedIn();
+  await assertOwnDeckIf(viewer, deckId);
+  const cardId = await cardIdForPrint(input.printId);
+  // A player's cards are always their own; an SL may enter someone else's.
+  const owner = ownerFor(viewer, input.owner?.trim() || undefined, viewer.owner);
   const rows = expand({ printId: input.printId, cardId, owner, ...normalise(input) }, input.quantity);
   const result = await db.transaction(async (tx) => {
     const inserted = await tx.insert(ownedCards).values(rows).returning({ id: ownedCards.id });
@@ -78,10 +83,12 @@ export async function addLot(input: LotInput, deckId: number | null = null): Pro
 
 /** Bulk entry (Path B): every row in one transaction so a typo doesn't half-commit. */
 export async function addLots(inputs: LotInput[], deckId: number | null = null): Promise<{ added: number; deckAdded: number }> {
+  const viewer = await requireSignedIn();
+  await assertOwnDeckIf(viewer, deckId);
   const clean = inputs.filter((i) => i.printId);
   if (clean.length === 0) return { added: 0, deckAdded: 0 };
-  const [cardIds, fallback] = await Promise.all([Promise.all(clean.map((i) => cardIdForPrint(i.printId))), currentOwner()]);
-  const rows = clean.flatMap((i, idx) => expand({ printId: i.printId, cardId: cardIds[idx], owner: i.owner?.trim() || fallback, ...normalise(i) }, i.quantity));
+  const cardIds = await Promise.all(clean.map((i) => cardIdForPrint(i.printId)));
+  const rows = clean.flatMap((i, idx) => expand({ printId: i.printId, cardId: cardIds[idx], owner: ownerFor(viewer, i.owner?.trim() || undefined, viewer.owner), ...normalise(i) }, i.quantity));
   const deckAdded = await db.transaction(async (tx) => {
     await tx.insert(ownedCards).values(rows);
     return deckId
@@ -105,6 +112,7 @@ export async function addLots(inputs: LotInput[], deckId: number | null = null):
  * which market price the lot is valued at.
  */
 export async function setLotFinishAction(lotId: number, foil: boolean): Promise<{ ok: boolean }> {
+  await assertOwnLots(await requireSignedIn(), [lotId]);
   const [row] = await db
     .update(ownedCards)
     .set({ finish: foil ? "foil" : "normal", updatedAt: new Date() })
@@ -129,6 +137,7 @@ export async function setLotFinishAction(lotId: number, foil: boolean): Promise<
  * one collection row and into another, and the counts would just change.
  */
 export async function setLotPrintAction(lotId: number, printId: string): Promise<{ ok: boolean; error?: string }> {
+  await assertOwnLots(await requireSignedIn(), [lotId]);
   const lot = await db.query.ownedCards.findFirst({ where: eq(ownedCards.id, lotId), columns: { cardId: true } });
   if (!lot) return { ok: false, error: "That copy no longer exists." };
 
@@ -144,9 +153,11 @@ export async function setLotPrintAction(lotId: number, printId: string): Promise
 /**
  * Re-assign one physical card to a different owner (or to nobody). Only the
  * card page offers this — adding and the collection popover keep using the
- * logged-in user, which is right almost always.
+ * logged-in user, which is right almost always. SL-only: a player could
+ * otherwise give cards away, or take them.
  */
 export async function setLotOwnerAction(lotId: number, owner: string | null): Promise<{ ok: boolean; owner: string | null }> {
+  await requireSl();
   const clean = owner?.trim().slice(0, 64) || null;
   const [row] = await db.update(ownedCards).set({ owner: clean, updatedAt: new Date() }).where(eq(ownedCards.id, lotId)).returning({ cardId: ownedCards.cardId });
   if (!row) return { ok: false, owner: null };
@@ -155,6 +166,7 @@ export async function setLotOwnerAction(lotId: number, owner: string | null): Pr
 }
 
 export async function updateLot(id: number, input: LotInput): Promise<void> {
+  await assertOwnLots(await requireSignedIn(), [id]);
   const cardId = await cardIdForPrint(input.printId);
   await db
     .update(ownedCards)
@@ -170,6 +182,7 @@ export async function updateLot(id: number, input: LotInput): Promise<void> {
  * copy that was never really "owned" (e.g. undoing a save from moments ago).
  */
 export async function deleteLot(id: number): Promise<void> {
+  await assertOwnLots(await requireSignedIn(), [id]);
   const [row] = await db.update(ownedCards).set({ archivedAt: new Date(), updatedAt: new Date() }).where(eq(ownedCards.id, id)).returning({ cardId: ownedCards.cardId });
   if (row) revalidate(row.cardId);
   revalidatePath("/collection/archived");
@@ -177,12 +190,14 @@ export async function deleteLot(id: number): Promise<void> {
 
 /** A real delete — only for undoing a save made moments ago; never for removing an established copy. */
 export async function discardLot(id: number): Promise<void> {
+  await assertOwnLots(await requireSignedIn(), [id]);
   const [row] = await db.delete(ownedCards).where(eq(ownedCards.id, id)).returning({ cardId: ownedCards.cardId });
   if (row) revalidate(row.cardId);
 }
 
 /** Bring an archived lot back into the collection. */
 export async function restoreLotAction(id: number): Promise<{ ok: boolean }> {
+  await assertOwnLots(await requireSignedIn(), [id]);
   const [row] = await db.update(ownedCards).set({ archivedAt: null, updatedAt: new Date() }).where(eq(ownedCards.id, id)).returning({ cardId: ownedCards.cardId });
   if (row) revalidate(row.cardId);
   revalidatePath("/collection/archived");
@@ -191,6 +206,7 @@ export async function restoreLotAction(id: number): Promise<{ ok: boolean }> {
 
 /** Permanently remove an archived lot — there is no coming back from this. */
 export async function purgeLotAction(id: number): Promise<{ ok: boolean }> {
+  await assertOwnLots(await requireSignedIn(), [id]);
   const [row] = await db.delete(ownedCards).where(eq(ownedCards.id, id)).returning({ cardId: ownedCards.cardId });
   if (row) revalidate(row.cardId);
   revalidatePath("/collection/archived");
@@ -207,8 +223,9 @@ export interface CopyRow {
   locationId: number | null;
 }
 
-/** The individual physical cards of one card id, for the collection popover. */
+/** The individual physical cards of one card id, for the collection popover — a player's own only. */
 export async function copiesForCardAction(cardId: string): Promise<CopyRow[]> {
+  const viewer = await requireSignedIn();
   const rows = await db
     .select({
       id: ownedCards.id,
@@ -221,13 +238,14 @@ export async function copiesForCardAction(cardId: string): Promise<CopyRow[]> {
     })
     .from(ownedCards)
     .innerJoin(cardPrints, eq(cardPrints.id, ownedCards.printId))
-    .where(and(eq(ownedCards.cardId, cardId), isNull(ownedCards.archivedAt)))
+    .where(and(eq(ownedCards.cardId, cardId), isNull(ownedCards.archivedAt), lotScope(viewer.kind === "player" ? viewer.owner : undefined)))
     .orderBy(ownedCards.id);
   return rows;
 }
 
 /** Add one more physical copy, matching the newest one you already own. */
 export async function addCopyAction(cardId: string): Promise<CopyRow[]> {
+  const viewer = await requireSignedIn();
   const existing = await copiesForCardAction(cardId);
   const like = existing[existing.length - 1];
   const printId =
@@ -238,7 +256,7 @@ export async function addCopyAction(cardId: string): Promise<CopyRow[]> {
   await db.insert(ownedCards).values({
     printId,
     cardId,
-    owner: await currentOwner(),
+    owner: viewer.owner,
     condition: like?.condition ?? "NM",
     finish: like?.finish ?? "normal",
     language: like?.language ?? "EN",
@@ -249,12 +267,14 @@ export async function addCopyAction(cardId: string): Promise<CopyRow[]> {
 
 /** Archive one physical copy (restorable from /collection/archived) and hand back what is left. */
 export async function removeCopyAction(lotId: number, cardId: string): Promise<CopyRow[]> {
+  await assertOwnLots(await requireSignedIn(), [lotId]);
   await db.update(ownedCards).set({ archivedAt: new Date(), updatedAt: new Date() }).where(eq(ownedCards.id, lotId));
   revalidate(cardId);
   return copiesForCardAction(cardId);
 }
 
 export async function setCopyFinishAction(lotId: number, foil: boolean, cardId: string): Promise<CopyRow[]> {
+  await assertOwnLots(await requireSignedIn(), [lotId]);
   await db
     .update(ownedCards)
     .set({ finish: foil ? "foil" : "normal", updatedAt: new Date() })
@@ -265,6 +285,7 @@ export async function setCopyFinishAction(lotId: number, foil: boolean, cardId: 
 
 /** Put this card into a deck (leader slot / Z-deck / main by card type). */
 export async function assignToDeckAction(cardId: string, deckId: number, quantity = 1): Promise<{ added: number }> {
+  await assertOwnDeck(await requireSignedIn(), deckId);
   const r = await addCardsToDeck(db, deckId, [{ cardId, quantity }]);
   revalidatePath(`/decks/${deckId}`);
   revalidatePath("/decks");
@@ -274,12 +295,14 @@ export async function assignToDeckAction(cardId: string, deckId: number, quantit
 
 /** Prints of a card for pickers (standard first). */
 export async function printsForCardAction(cardId: string): Promise<{ id: string; label: string }[]> {
+  await requireSignedIn();
   const rows = await db.query.cardPrints.findMany({ where: eq(cardPrints.cardId, cardId), columns: { id: true, label: true, isBase: true } });
   return rows.sort((a, b) => Number(b.isBase) - Number(a.isBase) || a.id.localeCompare(b.id)).map(({ id, label }) => ({ id, label }));
 }
 
 /** Form-action wrappers so plain <form> posts work without client JS. */
 export async function addLotForm(formData: FormData) {
+  await requireSignedIn();
   const deckId = Number(formData.get("deckId")) || null;
   await addLot(
     {
@@ -297,6 +320,7 @@ export async function addLotForm(formData: FormData) {
 }
 
 export async function deleteLotForm(formData: FormData) {
+  await requireSignedIn();
   await deleteLot(Number(formData.get("id")));
 }
 
@@ -313,10 +337,10 @@ function cleanIds(lotIds: number[]): number[] {
   return [...new Set(lotIds.filter((n) => Number.isInteger(n) && n > 0))].slice(0, MAX_BULK);
 }
 
-/** Re-assign the selected copies to an owner, or to nobody. */
 /** Mass-assign a storage location, so a shelf-full can be filed in one go. */
 export async function bulkSetLocationAction(lotIds: number[], locationId: number | null): Promise<{ updated: number }> {
   const ids = cleanIds(lotIds);
+  await assertOwnLots(await requireSignedIn(), ids);
   if (ids.length === 0) return { updated: 0 };
   const cardIds = await setCopyLocations(db, ids, locationId);
   revalidateCards(cardIds);
@@ -331,6 +355,7 @@ export async function bulkSetLocationAction(lotIds: number[], locationId: number
  * how a playset gets entered once you have typed the first one in.
  */
 export async function cloneCopyAction(lotId: number, times = 1): Promise<{ added: number; cardId: string | null }> {
+  await assertOwnLots(await requireSignedIn(), [lotId]);
   const n = Math.min(Math.max(1, Math.floor(times)), MAX_CLONES);
   const source = await db.query.ownedCards.findFirst({ where: eq(ownedCards.id, lotId) });
   if (!source) return { added: 0, cardId: null };
@@ -356,6 +381,7 @@ export async function cloneCopyAction(lotId: number, times = 1): Promise<{ added
 
 /** File one copy, from the card page or the grid popover. */
 export async function setLotLocationAction(lotId: number, locationId: number | null): Promise<{ ok: boolean }> {
+  await assertOwnLots(await requireSignedIn(), [lotId]);
   const cardIds = await setCopyLocations(db, [lotId], locationId);
   revalidateCards(cardIds);
   revalidatePath("/collection");
@@ -368,6 +394,8 @@ export async function setLotLocationAction(lotId: number, locationId: number | n
  * reused rather than rejected — from here that is what you meant.
  */
 export async function addLocationAction(name: string, lotIds: number[] = []): Promise<{ id: number; name: string } | { error: string }> {
+  const viewer = await requireSignedIn();
+  await assertOwnLots(viewer, cleanIds(lotIds));
   const clean = name.trim().slice(0, 80);
   if (!clean) return { error: "Give the location a name." };
   const created = await createLocation(db, clean, null);
@@ -383,7 +411,9 @@ export async function addLocationAction(name: string, lotIds: number[] = []): Pr
   return { id: place.id, name: place.name };
 }
 
+/** Re-assign the selected copies to an owner, or to nobody. SL-only, like `setLotOwnerAction`. */
 export async function bulkSetOwnerAction(lotIds: number[], owner: string | null): Promise<{ updated: number }> {
+  await requireSl();
   const ids = cleanIds(lotIds);
   if (ids.length === 0) return { updated: 0 };
   const clean = owner?.trim().slice(0, 64) || null;
@@ -395,6 +425,7 @@ export async function bulkSetOwnerAction(lotIds: number[], owner: string | null)
 /** Mark the selected copies foil or non-foil — this changes what they are worth. */
 export async function bulkSetFinishAction(lotIds: number[], foil: boolean): Promise<{ updated: number }> {
   const ids = cleanIds(lotIds);
+  await assertOwnLots(await requireSignedIn(), ids);
   if (ids.length === 0) return { updated: 0 };
   const rows = await db
     .update(ownedCards)
@@ -408,6 +439,7 @@ export async function bulkSetFinishAction(lotIds: number[], foil: boolean): Prom
 /** Archives the selected copies (restorable from /collection/archived) rather than deleting them. */
 export async function bulkDeleteCopiesAction(lotIds: number[]): Promise<{ deleted: number }> {
   const ids = cleanIds(lotIds);
+  await assertOwnLots(await requireSignedIn(), ids);
   if (ids.length === 0) return { deleted: 0 };
   const rows = await db.update(ownedCards).set({ archivedAt: new Date(), updatedAt: new Date() }).where(inArray(ownedCards.id, ids)).returning({ cardId: ownedCards.cardId });
   revalidateCards(rows.map((r) => r.cardId));
@@ -418,6 +450,7 @@ export async function bulkDeleteCopiesAction(lotIds: number[]): Promise<{ delete
 /** Bring archived copies back into the collection. */
 export async function bulkRestoreCopiesAction(lotIds: number[]): Promise<{ restored: number }> {
   const ids = cleanIds(lotIds);
+  await assertOwnLots(await requireSignedIn(), ids);
   if (ids.length === 0) return { restored: 0 };
   const rows = await db.update(ownedCards).set({ archivedAt: null, updatedAt: new Date() }).where(inArray(ownedCards.id, ids)).returning({ cardId: ownedCards.cardId });
   revalidateCards(rows.map((r) => r.cardId));
@@ -428,6 +461,7 @@ export async function bulkRestoreCopiesAction(lotIds: number[]): Promise<{ resto
 /** Permanently remove archived copies — there is no coming back from this. */
 export async function bulkPurgeCopiesAction(lotIds: number[]): Promise<{ purged: number }> {
   const ids = cleanIds(lotIds);
+  await assertOwnLots(await requireSignedIn(), ids);
   if (ids.length === 0) return { purged: 0 };
   const rows = await db.delete(ownedCards).where(inArray(ownedCards.id, ids)).returning({ cardId: ownedCards.cardId });
   revalidateCards(rows.map((r) => r.cardId));
@@ -442,6 +476,9 @@ export async function bulkPurgeCopiesAction(lotIds: number[]): Promise<{ purged:
  */
 export async function bulkAddToDeckAction(lotIds: number[], deckId: number): Promise<{ added: number }> {
   const ids = cleanIds(lotIds);
+  const viewer = await requireSignedIn();
+  await assertOwnLots(viewer, ids);
+  await assertOwnDeck(viewer, deckId);
   if (ids.length === 0 || !deckId) return { added: 0 };
   const rows = await db.select({ cardId: ownedCards.cardId }).from(ownedCards).where(inArray(ownedCards.id, ids));
   const totals = new Map<string, number>();

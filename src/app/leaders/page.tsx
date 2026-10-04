@@ -7,7 +7,7 @@ import { GameFilter } from "@/components/GameFilter";
 import { mainCountLabel, mainCountOk } from "@/lib/decks/legality";
 import { DeckStatusBadge } from "@/components/DeckStatusBadge";
 import { ownedLeaders } from "@/lib/leaders/queries";
-import { currentOwner } from "@/lib/auth";
+import { currentScope, requireSignedInPage } from "@/lib/auth";
 import { BuildDeckButton } from "@/components/BuildDeckButton";
 import { CardFaces } from "@/components/CardFaces";
 import { ColorPill, RarityBadge } from "@/components/ColorPill";
@@ -20,12 +20,13 @@ type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v || undefined);
 
 export default async function LeadersPage({ searchParams }: { searchParams: Promise<Params> }) {
+  await requireSignedInPage();
   const sp = await searchParams;
   const color = one(sp.color);
   const game = parseGame(one(sp.game));
   // Fetched once for both filters: the game is cheap to apply here, and
   // `ownedLeaders` does a legality pass that is not worth running twice.
-  const ofColour = await ownedLeaders(db, { color, viewer: await currentOwner() });
+  const ofColour = await ownedLeaders(db, { color, viewer: await currentScope() });
   const leaders = game ? ofColour.filter((l) => l.game === game) : ofColour;
   // The chosen game stays offered even when the colour filter empties it.
   const gamesPresent = GAMES.filter((g) => g === game || ofColour.some((l) => l.game === g));

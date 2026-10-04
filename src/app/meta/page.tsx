@@ -5,6 +5,7 @@ import { buyLink } from "@/lib/meta/leaderboard";
 import { cachedLeaderboard, cachedResultCards } from "@/lib/cache/reads";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
+import { requireSignedInPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v |
 const DAYS = 90;
 
 export default async function MetaPage({ searchParams }: { searchParams: Promise<Params> }) {
+  await requireSignedInPage();
   const sp = await searchParams;
   const game = parseGame(one(sp.game));
 

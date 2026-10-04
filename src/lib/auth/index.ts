@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { parseBasicAuth } from "@/lib/auth-header";
@@ -92,15 +93,19 @@ async function viewerUncached(): Promise<Viewer | null> {
   return null;
 }
 
-/** The viewer of this request, or null for nobody (outside a request, or a stale cookie on a public page). */
-export async function getViewer(): Promise<Viewer | null> {
+/**
+ * The viewer of this request, or null for nobody (outside a request, or a
+ * stale cookie on a public page). Worked out once per request (`cache`), so a
+ * page's guard, scope and owner reads share one session check.
+ */
+export const getViewer = cache(async (): Promise<Viewer | null> => {
   try {
     return await viewerUncached();
   } catch {
     // `cookies()` outside a request (a script) — nobody.
     return null;
   }
-}
+});
 
 /** The SL signed in with Google on this request, or null. */
 export async function currentSession(): Promise<{ email: string } | null> {
@@ -122,6 +127,17 @@ export async function currentUser(): Promise<string | null> {
 export async function currentOwner(): Promise<string | null> {
   const v = await getViewer();
   return v?.owner ?? null;
+}
+
+/**
+ * Whose cards and decks this request may see (`OwnerScope`,
+ * `src/lib/collection/scope.ts`): a player their own owner name only; an SL,
+ * and local dev, everyone's (`undefined`). Pass it to every collection, deck
+ * and reservation read.
+ */
+export async function currentScope(): Promise<string | undefined> {
+  const v = await getViewer();
+  return v?.kind === "player" ? v.owner : undefined;
 }
 
 /**
@@ -159,6 +175,17 @@ export async function requireSignedIn(): Promise<Viewer> {
   const v = await getViewer();
   if (!v) throw new AccessDenied("Sign-in required.");
   return v;
+}
+
+/**
+ * The first statement of every route handler behind the proxy: the viewer, or
+ * the answer to send instead (401 nobody, 403 a player on an SL-only route).
+ */
+export async function routeViewer(opts: { sl?: boolean } = {}): Promise<{ ok: true; viewer: Viewer } | { ok: false; response: Response }> {
+  const v = await getViewer();
+  if (!v) return { ok: false, response: new Response("Sign-in required", { status: 401 }) };
+  if (opts.sl && v.kind !== "sl") return { ok: false, response: new Response("Only an SL can do that", { status: 403 }) };
+  return { ok: true, viewer: v };
 }
 
 /** The first statement of every SL-only page: a player goes home, nobody goes to `/login`. */

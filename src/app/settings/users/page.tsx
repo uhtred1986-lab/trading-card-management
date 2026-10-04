@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { currentUser } from "@/lib/auth";
+import { currentUser, requireSlPage } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
 import { knownOwners } from "@/lib/collection/queries";
 import { UsersAdmin } from "@/components/UsersAdmin";
@@ -8,6 +8,7 @@ import { UsersAdmin } from "@/components/UsersAdmin";
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
+  await requireSlPage();
   const [users, me, cardOwners] = await Promise.all([listUsers(db), currentUser(), knownOwners(db)]);
   const envUser = process.env.BASIC_AUTH_USER ?? null;
 

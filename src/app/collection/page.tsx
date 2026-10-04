@@ -7,7 +7,7 @@ import { GameFilter } from "@/components/GameFilter";
 import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
 import { ownerOptions } from "@/lib/collection/owners";
 import { listLocations } from "@/lib/collection/locations";
-import { currentOwner } from "@/lib/auth";
+import { currentOwner, currentScope, requireSignedInPage } from "@/lib/auth";
 import { formatCents } from "@/lib/money";
 import { parseViewMode } from "@/lib/view-mode";
 import { CardTile } from "@/components/CardTile";
@@ -24,6 +24,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v |
 const many = (v: string | string[] | undefined) => (Array.isArray(v) ? v : v ? [v] : []);
 
 export default async function CollectionPage({ searchParams }: { searchParams: Promise<Params> }) {
+  const viewer = await requireSignedInPage();
+  const scope = await currentScope();
   const sp = await searchParams;
   const q = one(sp.q);
   const set = one(sp.set);
@@ -42,7 +44,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   const deckParams = many(sp.deck);
   const deck = deckParams.map((d) => (d === "none" ? ("none" as const) : Number(d))).filter((d) => d === "none" || Number.isInteger(d));
   const owner = one(sp.owner);
-  const filters: Parameters<typeof collectionCopies>[1] = { q, set, game, color, type, trait, ability, finish, sort, location, deck, owner };
+  const filters: Parameters<typeof collectionCopies>[1] = { q, set, game, color, type, trait, ability, finish, sort, location, deck, owner, scope };
 
   // The grid aggregates by card; the list is one row per physical copy. Only
   // the one being shown is fetched — both walk every lot. The set, keyword
@@ -53,16 +55,16 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
   // themselves are read fresh. Everything but the grid is independent of the
   // valuation, so it is all read at once and the grid follows it.
   const [all, list, allSets, sets, traits, abilities, decks, locations, owners] = await Promise.all([
-    valuedLots(db, { game, prices: cachedPriceSource }),
+    valuedLots(db, { game, prices: cachedPriceSource, scope }),
     view === "list" ? collectionCopies(db, filters, cachedPriceSource) : null,
     cachedListSets(),
     game ? cachedListSets(game) : cachedListSets(),
     cachedListTraits(game),
     cachedAbilityKeywords(game),
-    deckOptions(db),
-    listLocations(db),
+    deckOptions(db, { scope }),
+    listLocations(db, true, scope),
     // Both views offer the same filters, so the owner list is always needed.
-    currentOwner().then((me) => ownerOptions(db, me)),
+    currentOwner().then((me) => ownerOptions(db, me, viewer.kind === "player")),
   ]);
   const grid = view === "grid" ? await collectionCards(db, { ...filters, valued: all }) : null;
   const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
@@ -181,15 +183,17 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             ))}
           </div>
         </details>
-        <select name="owner" defaultValue={owner ?? ""} className={select}>
-          <option value="">Anyone</option>
-          {owners.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-          <option value="none">No owner set</option>
-        </select>
+        {viewer.kind === "player" ? null : (
+          <select name="owner" defaultValue={owner ?? ""} className={select}>
+            <option value="">Anyone</option>
+            {owners.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+            <option value="none">No owner set</option>
+          </select>
+        )}
         <LiveSearch
           defaultValue={q}
           placeholder="Filter by name or number"

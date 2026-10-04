@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
+import { assertOwnBatch, ownsScanPhoto } from "@/lib/auth/ownership";
 import { describeAiError, hasAnthropic } from "@/lib/ai/client";
 import { identifyCards, prepareImage } from "@/lib/ai/scan";
 import { markPhoto, photoBytes, replaceItems, storePhoto } from "@/lib/scan/batches";
+import { routeViewer } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -16,11 +18,21 @@ export const maxDuration = 120;
  * crop them later on any device. They are deleted when the batch finishes.
  */
 export async function POST(req: Request) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   if (!hasAnthropic()) return NextResponse.json({ error: "ANTHROPIC_API_KEY is not set." }, { status: 503 });
   const form = await req.formData();
   const mode = form.get("mode") === "batch" ? "batch" : "single";
   const batchId = Number(form.get("batchId"));
   const retryPhotoId = Number(form.get("photoId")) || null;
+  // A player scans into their own batches only.
+  try {
+    if (retryPhotoId) {
+      if (!(await ownsScanPhoto(auth.viewer, retryPhotoId))) return NextResponse.json({ error: "Not found." }, { status: 404 });
+    } else if (Number.isInteger(batchId)) await assertOwnBatch(auth.viewer, batchId);
+  } catch {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
 
   let photoId: number;
   let prepared;

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { listOpenBatches } from "@/lib/scan/batches";
+import { requireSignedInPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function AddPage() {
+  await requireSignedInPage();
   const open = await listOpenBatches(db);
   return (
     <div className="mx-auto max-w-2xl space-y-4">

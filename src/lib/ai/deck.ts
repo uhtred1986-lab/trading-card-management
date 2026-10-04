@@ -7,6 +7,7 @@ import { and, asc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cardSets, cards, decks, ownedCards } from "@/db/schema";
+import { lotScope } from "@/lib/collection/scope";
 import { textArray } from "@/db/sqlx";
 import { currentLineFor, gameOfSetCode } from "@/lib/catalog/sets";
 import { deckRules, gameInfo, type Game } from "@/lib/catalog/games";
@@ -199,7 +200,8 @@ async function candidatePool(db: Db, deck: NonNullable<Awaited<ReturnType<typeof
       .selectDistinct(select)
       .from(cards)
       .innerJoin(ownedCards, eq(ownedCards.cardId, cards.id))
-      .where(and(...base, isNull(ownedCards.archivedAt)))
+      // The deck owner's own copies: a player's wizard never offers someone else's cards.
+      .where(and(...base, isNull(ownedCards.archivedAt), lotScope(deck.owner)))
       .limit(POOL_CAP);
   }
   const deckSets = [...new Set(deck.cards.map((c) => c.cardId.split("-")[0]))];
@@ -280,7 +282,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context 
     : [];
   const m = new Map(meta.map((r) => [r.id, r]));
   const { allocationForCards } = await import("@/lib/decks/reservations");
-  const alloc = await allocationForCards(db, ids);
+  const alloc = await allocationForCards(db, ids, deck.owner);
   const swaps: WizardSwap[] = output.swaps
     .filter((s) => m.has(s.inCardId) && m.has(s.outCardId))
     .map((s) => ({

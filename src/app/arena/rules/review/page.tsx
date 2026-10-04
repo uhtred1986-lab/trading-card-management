@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { RuleReview } from "@/components/arena/rules/RuleReview";
-import { isArenaAdmin } from "@/lib/auth";
+import { isArenaAdmin, requireSlPage } from "@/lib/auth";
 import { deckCardSets } from "@/lib/arena/readiness";
 import { recentFired, reviewQueue } from "@/lib/arena/rule-review-store";
 import { listDecks } from "@/lib/decks/queries";
@@ -20,6 +20,7 @@ export const dynamic = "force-dynamic";
  * check it again themselves.
  */
 export default async function RuleReviewPage({ searchParams }: { searchParams: Promise<{ deck?: string }> }) {
+  await requireSlPage();
   const wanted = Number((await searchParams).deck);
   const decks = (await listDecks(db, { game: "dbs" })).filter((d) => d.leader && d.mainCount >= 50);
   const deckCards = await deckCardSets(

@@ -5,15 +5,26 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
 - **Reservations are computed, never stored** (`src/lib/decks/reservations.ts`): reserved = sum of
   `deck_cards` across decks with `is_built`; available = owned − reserved. Marking a deck built is
   **blocked outright** when it would over-reserve, and `buildConflicts` lists the exact shortfall.
-- **Lot owner**: every `owned_cards` row records `owner` = the Basic Auth username
-  (`currentUser()`); null when the app runs open. Every path that creates lots stamps it — keep
-  that true for new paths.
+  **Since 4 Oct 2026 a built deck reserves from its own owner's lots only** (owner's decision, when
+  collections became private): `buildConflicts` counts the deck owner's copies and their other built
+  decks; `allocationForCards` takes an `OwnerScope`.
+- **Collections are private** (`src/lib/collection/scope.ts`, docs/architecture/auth.md): a player
+  sees, counts and touches only lots and decks stamped with their own owner name; an SL sees
+  everyone's (`OwnerScope` `undefined`). Every collection, deck, reservation and want-list read takes
+  the looker's scope (`currentScope()`); every action that takes a lot, deck, batch or suggestion id
+  checks it (`src/lib/auth/ownership.ts`). Lots and decks with no owner are an SL's to hand to a
+  player from Settings → Users & access.
+- **Lot owner**: every `owned_cards` row records `owner` = the viewer's owner name
+  (`currentOwner()`: a player's, an SL's, or the Basic Auth login's); null when the app runs open.
+  Every path that creates lots stamps it — keep that true for new paths. A player's lots always
+  carry their own name (`ownerFor`); only an SL may enter or re-own someone else's.
 - **Decks belong to a login too** (`decks.owner`, issue #279): stamped from `currentOwner()` on
   every path that creates a deck — keep that true for new ones. A deck's owner also gates
-  *visibility* (`listDecks`/`getDeck` hide a deck owned by someone else); a deck id that isn't
-  yours answers `not_found`. Reservations do **not** follow ownership — every built deck counts
-  against the shared collection regardless of owner. Deck transfer between logins and the
+  *visibility* (`listDecks`/`getDeck` take an `OwnerScope`); a deck id that isn't yours answers
+  `not_found`. A deck with no owner is visible to SLs only. Deck transfer between logins and the
   workbench's rule-coverage pages are deliberately out of scope.
+- **The shopping list is per owner** (`want_list.owner`, migration 0043): one row per owner and
+  card; an SL also sees the wants from before lists were per owner.
 - **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`): a deck saves in any
   state; `legality(rows, game)` labels it **legal / incomplete / illegal** with per-card flags. The
   one thing actually *refused* is over-reserving a **built** deck — that's ownership, not legality.

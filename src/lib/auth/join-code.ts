@@ -40,7 +40,9 @@ export function isWellFormedCode(code: string): boolean {
 
 /** SHA-256 (hex) of a normalised code: all the database ever holds of it. */
 export function hashCode(code: string): string {
-  return createHash("sha256").update(`join-code:${normaliseCode(code)}`).digest("hex");
+  return createHash("sha256")
+    .update(`join-code:${normaliseCode(code)}`)
+    .digest("hex");
 }
 
 /** A device's secret: 32 random bytes, base64url. Lives only in the player's signed cookie. */

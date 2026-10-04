@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { getDeck, ZONE_LABEL, ZONES, zonesFor, deckToText } from "@/lib/decks/queries";
-import { currentOwner } from "@/lib/auth";
+import { currentScope, requireSignedInPage } from "@/lib/auth";
 import { copyLimit, mainCountLabel, mainCountOk, type DeckLegality } from "@/lib/decks/legality";
 import { deckRules, GAME_INFO, type Game } from "@/lib/catalog/games";
 import { GameSelect } from "@/components/GameFilter";
@@ -26,18 +26,21 @@ import { deleteDeckForm, duplicateDeckForm, importDeckListForm, updateDeckForm }
 export const dynamic = "force-dynamic";
 
 export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireSignedInPage();
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();
   // Read together: none of these needs another's answer, only the id.
   // Archived places are listed too, so a deck already filed in one still shows
   // where it is.
-  const owner = await currentOwner();
-  const [deck, suggestions, locations] = await Promise.all([getDeck(db, id, owner), suggestionsForDeck(db, id), listLocations(db)]);
+  const scope = await currentScope();
+  const [deck, locations] = await Promise.all([getDeck(db, id, scope), listLocations(db, true, scope)]);
   if (!deck) notFound();
+  // Read only once the deck is known to be the looker's to see.
+  const suggestions = await suggestionsForDeck(db, id);
   const conflicts = deck.isBuilt ? [] : await buildConflicts(db, id);
   const tiedUpIds = conflicts.filter((c) => c.reservedElsewhere > 0).map((c) => c.cardId);
-  const reserversMap = tiedUpIds.length ? await decksReservingFor(db, tiedUpIds, id) : new Map<string, { id: number; name: string; quantity: number }[]>();
+  const reserversMap = tiedUpIds.length ? await decksReservingFor(db, tiedUpIds, id, deck.owner) : new Map<string, { id: number; name: string; quantity: number }[]>();
   const reservers = Object.fromEntries(reserversMap);
   const deckLocation = locations.find((l) => l.id === deck.locationId) ?? null;
   const leader = deck.cards.find((c) => c.zone === "leader");

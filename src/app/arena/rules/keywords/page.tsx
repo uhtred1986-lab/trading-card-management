@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { KEYWORDS, MODIFIERS, READING_RULES, SKILL_TYPES, SUPPORT_LABEL, keywordsByGroup, type Support } from "@/lib/arena/glossary";
 import { loadDbs } from "@/lib/arena/rulesets";
+import { requireSlPage } from "@/lib/auth";
 
 export const metadata = { title: "Keywords the engine knows" };
 
@@ -19,7 +20,8 @@ const SUPPORT_CLASS: Record<Support, string> = {
  * engine's own keyword union, so this page cannot fall behind the parser
  * without the build saying so.
  */
-export default function KeywordsPage() {
+export default async function KeywordsPage() {
+  await requireSlPage();
   const groups = keywordsByGroup();
   const total = Object.keys(KEYWORDS).length;
   const approximate = Object.values(KEYWORDS).filter((k) => k.support === "partial").length;

@@ -8,7 +8,8 @@ import { quickSearch } from "@/lib/catalog/queries";
 import { gameOr, type Game } from "@/lib/catalog/games";
 import { describeAiError, hasAnthropic } from "@/lib/ai/client";
 import { suggestDeck } from "@/lib/ai/deck-builder";
-import { currentOwner } from "@/lib/auth";
+import { currentOwner, currentScope, requireSignedIn } from "@/lib/auth";
+import { lotScope } from "@/lib/collection/scope";
 
 export type BuildDeckResponse = { ok: true; deckId: number; mainCount: number; toBuy: number } | { ok: false; error: string };
 
@@ -31,6 +32,7 @@ export interface LeaderChoice {
  * are searched, and picking one settles which rules the draft is built to.
  */
 export async function searchLeadersAction(q: string): Promise<LeaderChoice[]> {
+  await requireSignedIn();
   if (q.trim().length < 2) return [];
   const leaders = await quickSearch(db, q, 12, "LEADER");
   if (leaders.length === 0) return [];
@@ -44,6 +46,7 @@ export async function searchLeadersAction(q: string): Promise<LeaderChoice[]> {
           leaders.map((l) => l.id),
         ),
         isNull(ownedCards.archivedAt),
+        lotScope(await currentScope()),
       ),
     )
     .groupBy(ownedCards.cardId);
@@ -52,6 +55,7 @@ export async function searchLeadersAction(q: string): Promise<LeaderChoice[]> {
 }
 
 export async function buildDeckAction(leaderId: string): Promise<BuildDeckResponse> {
+  await requireSignedIn();
   if (!hasAnthropic()) return { ok: false, error: "ANTHROPIC_API_KEY is not set." };
   try {
     const { deckId, sanitised } = await suggestDeck(db, leaderId, await currentOwner());

@@ -7,9 +7,11 @@ import { explainCart, type CartExplanation } from "@/lib/ai/cart";
 import { refreshListingsForCard, CardTraderDisabled } from "@/lib/marketplace/cardtrader";
 import { cartSettings, optimiseCart, saveCartSettings } from "@/lib/marketplace/cart";
 import type { Want } from "@/lib/marketplace/optimizer";
+import { requireSignedIn, requireSl } from "@/lib/auth";
 
 /** Live refresh of every wanted card's listings, one card at a time (10 req/s ceiling). */
 export async function refreshWantsAction(wants: Want[]): Promise<{ ok: true; cards: number } | { ok: false; error: string }> {
+  await requireSignedIn();
   try {
     let n = 0;
     for (const w of wants) {
@@ -24,6 +26,7 @@ export async function refreshWantsAction(wants: Want[]): Promise<{ ok: true; car
 }
 
 export async function explainCartAction(wants: Want[]): Promise<{ ok: true; explanation: CartExplanation } | { ok: false; error: string }> {
+  await requireSignedIn();
   try {
     const cfg = await cartSettings(db);
     const r = await optimiseCart(db, wants, cfg);
@@ -34,7 +37,9 @@ export async function explainCartAction(wants: Want[]): Promise<{ ok: true; expl
   }
 }
 
+/** The optimiser's shipping and country settings are one row for the whole app: an SL's to change. */
 export async function saveCartSettingsForm(formData: FormData) {
+  await requireSl();
   const countries = String(formData.get("countries") ?? "")
     .split(/[,\s]+/)
     .map((c) => c.trim().toUpperCase())

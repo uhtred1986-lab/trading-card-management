@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { decisionsFor } from "@/lib/arena/ai/debug";
 import { isVersus, loadGame, seatOf } from "@/lib/arena/games";
-import { currentUser, isArenaAdmin } from "@/lib/auth";
+import { currentUser, isArenaAdmin, requireSlPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ const money = (micros: number) => (micros === 0 ? "—" : micros < 10_000 ? `${(
  * the time and money went.
  */
 export default async function ArenaDebugPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireSlPage();
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();

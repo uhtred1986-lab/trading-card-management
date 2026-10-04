@@ -4,6 +4,7 @@ import { ACTION_BAR_ID, RuleRecord, type RecordProps } from "@/components/arena/
 import type { Rule } from "@/lib/arena/lang";
 import { openingFocus } from "@/lib/arena/lang/blocks";
 import { emptyFilter } from "@/lib/arena/text/filters";
+import { requireSlPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,7 @@ function recordOf(fx: (typeof FIXTURES)[string]): RecordProps {
 }
 
 export default async function BuildPreviewPage({ searchParams }: { searchParams: Promise<{ rule?: string; focus?: string; record?: string }> }) {
+  await requireSlPage();
   if (process.env.NODE_ENV === "production") notFound();
   const q = await searchParams;
   const fx = FIXTURES[q.rule ?? "tidecaller"] ?? FIXTURES.tidecaller;

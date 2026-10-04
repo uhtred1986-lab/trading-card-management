@@ -136,7 +136,10 @@ export function AccessAdmin({ isOwner, myEmail, players, sls, unassigned }: { is
                       onSubmit={(e) => {
                         e.preventDefault();
                         const f = new FormData(e.currentTarget);
-                        run(() => updatePlayerAction(p.id, String(f.get("name")), String(f.get("owner"))), () => setEditing(null));
+                        run(
+                          () => updatePlayerAction(p.id, String(f.get("name")), String(f.get("owner"))),
+                          () => setEditing(null),
+                        );
                       }}
                     >
                       <input name="name" defaultValue={p.name} aria-label="Name" className={`${input} min-w-0 flex-1`} />
@@ -240,10 +243,19 @@ export function AccessAdmin({ isOwner, myEmail, players, sls, unassigned }: { is
           className="flex flex-wrap gap-2 border-t border-space-800 pt-3"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => createPlayerAction(newPlayer.name, newPlayer.owner), () => setNewPlayer({ name: "", owner: "" }));
+            run(
+              () => createPlayerAction(newPlayer.name, newPlayer.owner),
+              () => setNewPlayer({ name: "", owner: "" }),
+            );
           }}
         >
-          <input value={newPlayer.name} onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })} placeholder="Player name" aria-label="Player name" className={`${input} min-w-0 flex-1`} />
+          <input
+            value={newPlayer.name}
+            onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
+            placeholder="Player name"
+            aria-label="Player name"
+            className={`${input} min-w-0 flex-1`}
+          />
           <input
             value={newPlayer.owner}
             onChange={(e) => setNewPlayer({ ...newPlayer, owner: e.target.value })}
@@ -300,8 +312,8 @@ export function AccessAdmin({ isOwner, myEmail, players, sls, unassigned }: { is
       <section className="space-y-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3">
         <h2 className="font-semibold text-space-50">SLs</h2>
         <p className="text-xs text-space-300">
-          SLs sign in with Google and can do everything, including this page. Owners come from Vercel (SL_EMAILS) and can&apos;t be removed here. Changing an owner name doesn&apos;t
-          move existing cards — give them over from Unassigned.
+          SLs sign in with Google and can do everything, including this page. Owners come from Vercel (SL_EMAILS) and can&apos;t be removed here. Changing an owner name doesn&apos;t move existing
+          cards — give them over from Unassigned.
         </p>
         <ul className="divide-y divide-space-800">
           {sls.map((s) => (
@@ -341,7 +353,10 @@ export function AccessAdmin({ isOwner, myEmail, players, sls, unassigned }: { is
             className="flex flex-wrap gap-2 border-t border-space-800 pt-3"
             onSubmit={(e) => {
               e.preventDefault();
-              run(() => addSlAction(newSl.email, newSl.owner), () => setNewSl({ email: "", owner: "" }));
+              run(
+                () => addSlAction(newSl.email, newSl.owner),
+                () => setNewSl({ email: "", owner: "" }),
+              );
             }}
           >
             <input

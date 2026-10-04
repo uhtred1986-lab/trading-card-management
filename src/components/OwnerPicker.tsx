@@ -7,7 +7,8 @@ const NEW = "__new";
 /**
  * "These cards belong to…" on the add screens, for when you are entering
  * someone else's cards. Defaults to your own owner name, so the common case
- * costs nothing.
+ * costs nothing. Hidden when `owners` is empty — a player, whose cards are
+ * always stamped with their own owner name on the server anyway.
  */
 export function OwnerPicker({
   owners,
@@ -26,6 +27,8 @@ export function OwnerPicker({
   const [draft, setDraft] = useState("");
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
   const options = [...new Set([...owners, ...(value ? [value] : [])])].sort((a, b) => a.localeCompare(b));
+  // No names to choose from means the looker may not choose (a player): their cards are always their own.
+  if (owners.length === 0) return null;
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "rounded-xl border border-space-700/70 bg-space-900/50 p-2"}`}>

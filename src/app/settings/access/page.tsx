@@ -29,8 +29,8 @@ export default async function AccessPage() {
       </div>
 
       <p className="rounded-xl border border-space-700/70 bg-space-900/40 p-3 text-xs text-space-300">
-        <span className="text-space-100">Players</span> join with a one-time code from here and stay signed in on that phone. They see only their own cards and decks, and can
-        use everything except Settings and the arena&apos;s rules workbench. <span className="text-space-100">SLs</span> sign in with Google and see everyone&apos;s.
+        <span className="text-space-100">Players</span> join with a one-time code from here and stay signed in on that phone. They see only their own cards and decks, and can use everything except
+        Settings and the arena&apos;s rules workbench. <span className="text-space-100">SLs</span> sign in with Google and see everyone&apos;s.
       </p>
 
       <AccessAdmin

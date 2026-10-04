@@ -6,13 +6,15 @@ import { lastSyncRuns } from "@/lib/sync";
 import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { formatCents, formatPct } from "@/lib/money";
 import { CardImage } from "@/components/CardImage";
+import { requireSignedInPage, currentScope } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  await requireSignedInPage();
   // Valued once (the heavy price join) and handed to movers and breakdown.
   // Prices from the cache (held until the next price sync); the lots themselves are read fresh.
-  const [valued, sync] = await Promise.all([valuedLots(db, { prices: cachedPriceSource }), lastSyncRuns(db)]);
+  const [valued, sync] = await Promise.all([valuedLots(db, { prices: cachedPriceSource, scope: await currentScope() }), lastSyncRuns(db)]);
   const { lots, usdEur } = valued;
   const [mv, bd] = await Promise.all([movers(db, 7, 8, valued, cachedPriceSource), breakdown(db, {}, valued)]);
   const s = summarise(lots, usdEur);

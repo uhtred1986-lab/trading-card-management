@@ -2,11 +2,13 @@ import Link from "next/link";
 import { db } from "@/db";
 import { archivedCopies } from "@/lib/collection/queries";
 import { ArchivedList } from "@/components/ArchivedList";
+import { currentScope, requireSignedInPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function ArchivedCollectionPage() {
-  const rows = await archivedCopies(db);
+  await requireSignedInPage();
+  const rows = await archivedCopies(db, await currentScope());
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">

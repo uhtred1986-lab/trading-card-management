@@ -6,18 +6,19 @@
  * Reservations count at the card level — a foil copy still satisfies a deck
  * slot for that card.
  *
- * **Ownership of a deck (`decks.owner`, issue #279) does not change what
- * "reserved" means**: every query here counts every built deck regardless of
- * who owns it, whoever is asking. The collection (`owned_cards`) is already
- * shared across logins, so a card is either physically free or it isn't —
- * scoping reservations to "your decks" would let two owners double-book the
- * same physical copy. Deck *visibility* is filtered elsewhere
- * (`src/lib/decks/queries.ts`'s `viewer` param); what a deck reserves is not.
+ * **A built deck reserves copies from its own owner's lots only** (owner's
+ * decision, 4 Oct 2026, when collections became private per player): each
+ * owner's cards are their own physical copies, so one player's deck can never
+ * block another's. Every query takes an `OwnerScope`
+ * (`src/lib/collection/scope.ts`): a name counts that owner's lots and built
+ * decks; `undefined` counts everyone's together (an SL's whole view);
+ * `buildConflicts` always uses the deck's own owner.
  */
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { rows } from "@/db/rows";
 import { deckCards, decks, ownedCards } from "@/db/schema";
+import { deckScope, lotScope, type OwnerScope } from "@/lib/collection/scope";
 
 export interface Allocation {
   owned: number;
@@ -25,7 +26,7 @@ export interface Allocation {
   available: number;
 }
 
-export async function allocationForCards(db: Db, cardIds: string[]): Promise<Map<string, Allocation>> {
+export async function allocationForCards(db: Db, cardIds: string[], scope?: OwnerScope): Promise<Map<string, Allocation>> {
   const out = new Map<string, Allocation>();
   if (cardIds.length === 0) return out;
 
@@ -33,13 +34,13 @@ export async function allocationForCards(db: Db, cardIds: string[]): Promise<Map
     db
       .select({ cardId: ownedCards.cardId, n: sql<number>`count(*)::int` })
       .from(ownedCards)
-      .where(and(inArray(ownedCards.cardId, cardIds), isNull(ownedCards.archivedAt)))
+      .where(and(inArray(ownedCards.cardId, cardIds), isNull(ownedCards.archivedAt), lotScope(scope)))
       .groupBy(ownedCards.cardId),
     db
       .select({ cardId: deckCards.cardId, n: sql<number>`coalesce(sum(${deckCards.quantity}), 0)::int` })
       .from(deckCards)
       .innerJoin(decks, eq(decks.id, deckCards.deckId))
-      .where(and(inArray(deckCards.cardId, cardIds), eq(decks.isBuilt, true)))
+      .where(and(inArray(deckCards.cardId, cardIds), eq(decks.isBuilt, true), deckScope(scope)))
       .groupBy(deckCards.cardId),
   ]);
 
@@ -65,12 +66,15 @@ export interface BuildConflict {
 /**
  * What would go wrong if `deckId` were marked built right now. Empty means it
  * can be built. Reservations from *this* deck are excluded so re-checking an
- * already-built deck is stable.
+ * already-built deck is stable. Only the deck owner's lots and built decks
+ * count (`is not distinct from`, so a deck with no owner counts the lots and
+ * decks with none).
  */
 export async function buildConflicts(db: Db, deckId: number): Promise<BuildConflict[]> {
   const found = rows<{ card_id: string; name: string; needed: number; owned: number; reserved_elsewhere: number }>(
     await db.execute(sql`
-    with need as (
+    with me as (select owner from decks where id = ${deckId}),
+    need as (
       select dc.card_id, sum(dc.quantity)::int as needed
       from deck_cards dc where dc.deck_id = ${deckId}
       group by dc.card_id
@@ -78,12 +82,14 @@ export async function buildConflicts(db: Db, deckId: number): Promise<BuildConfl
     own as (
       select o.card_id, count(*)::int as owned
       from owned_cards o where o.card_id in (select card_id from need) and o.archived_at is null
+        and o.owner is not distinct from (select owner from me)
       group by o.card_id
     ),
     res as (
       select dc.card_id, sum(dc.quantity)::int as reserved
       from deck_cards dc join decks d on d.id = dc.deck_id
       where d.is_built and d.id <> ${deckId} and dc.card_id in (select card_id from need)
+        and d.owner is not distinct from (select owner from me)
       group by dc.card_id
     )
     select need.card_id, c.name, need.needed,
@@ -108,13 +114,13 @@ export async function buildConflicts(db: Db, deckId: number): Promise<BuildConfl
   }));
 }
 
-/** Which built decks currently reserve a card (for the card detail page). */
-export async function decksReserving(db: Db, cardId: string) {
+/** Which built decks currently reserve a card (for the card detail page), within `scope`. */
+export async function decksReserving(db: Db, cardId: string, scope?: OwnerScope) {
   return db
     .select({ id: decks.id, name: decks.name, quantity: sql<number>`sum(${deckCards.quantity})::int` })
     .from(deckCards)
     .innerJoin(decks, eq(decks.id, deckCards.deckId))
-    .where(and(eq(deckCards.cardId, cardId), eq(decks.isBuilt, true)))
+    .where(and(eq(deckCards.cardId, cardId), eq(decks.isBuilt, true), deckScope(scope)))
     .groupBy(decks.id, decks.name);
 }
 
@@ -130,12 +136,14 @@ export interface Reserver {
  * drops the deck you're shopping for, so an already-built deck rechecking its
  * own shortfall doesn't list itself as the reason cards are unavailable.
  */
-export async function decksReservingFor(db: Db, cardIds: string[], excludeDeckId?: number): Promise<Map<string, Reserver[]>> {
+export async function decksReservingFor(db: Db, cardIds: string[], excludeDeckId?: number, scope?: OwnerScope): Promise<Map<string, Reserver[]>> {
   const out = new Map<string, Reserver[]>();
   if (cardIds.length === 0) return out;
 
   const conditions = [inArray(deckCards.cardId, cardIds), eq(decks.isBuilt, true)];
   if (excludeDeckId != null) conditions.push(ne(decks.id, excludeDeckId));
+  const owned = deckScope(scope);
+  if (owned) conditions.push(owned);
 
   const found = await db
     .select({ cardId: deckCards.cardId, id: decks.id, name: decks.name, quantity: sql<number>`sum(${deckCards.quantity})::int` })

@@ -13,7 +13,7 @@ import { TurnLighting } from "@/components/arena/TurnLighting";
 import { AiSettingsBlock } from "@/components/settings/AiSettingsBlock";
 import { providerPanels } from "@/lib/ai/panel";
 import { loadSettings } from "@/lib/ai/settings-db";
-import { currentSession, isArenaAdmin } from "@/lib/auth";
+import { currentSession, isArenaAdmin, requireSlPage } from "@/lib/auth";
 import { signOut } from "@/app/login/actions";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export default async function SettingsPage() {
+  await requireSlPage();
   const { latest, recent } = await lastSyncRuns(db);
   const catalog = latest.get("catalog");
   const prices = latest.get("prices");

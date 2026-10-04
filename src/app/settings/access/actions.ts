@@ -4,19 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { requireSl } from "@/lib/auth";
-import {
-  cleanName,
-  createPlayer,
-  deleteOpenCodes,
-  deletePlayer,
-  isPlausibleEmail,
-  issueJoinCode,
-  reassignOwner,
-  removeSl,
-  revokeDevice,
-  updatePlayer,
-  upsertSl,
-} from "@/lib/auth/access";
+import { cleanName, createPlayer, deleteOpenCodes, deletePlayer, isPlausibleEmail, issueJoinCode, reassignOwner, removeSl, revokeDevice, updatePlayer, upsertSl } from "@/lib/auth/access";
 import { isSlEmail, normaliseEmail, publicOrigin } from "@/lib/auth/core";
 import { joinUrl } from "@/lib/auth/join-url";
 import { forgetAccessCache } from "@/lib/auth/proxy-checks";
@@ -38,10 +26,9 @@ function done(message: string): AccessResult {
   return { ok: true, message };
 }
 
-async function requireOwnerSl() {
-  const sl = await requireSl();
-  const owner = sl.via !== "google" || isSlEmail(sl.email, process.env.SL_EMAILS);
-  return { sl, owner };
+/** An owner: an address in `SL_EMAILS`, or the Basic Auth env pair / open local dev while those last. */
+function isOwnerSl(sl: Awaited<ReturnType<typeof requireSl>>): boolean {
+  return sl.via !== "google" || isSlEmail(sl.email, process.env.SL_EMAILS);
 }
 
 // ── Players ────────────────────────────────────────────────────────────────
@@ -110,8 +97,8 @@ export async function giveToPlayerAction(fromOwner: string | null, playerId: num
 // ── SLs ────────────────────────────────────────────────────────────────────
 
 export async function addSlAction(rawEmail: string, rawOwner: string): Promise<AccessResult> {
-  const { sl, owner } = await requireOwnerSl();
-  if (!owner) return { ok: false, error: "Only an owner can add SLs." };
+  const sl = await requireSl();
+  if (!isOwnerSl(sl)) return { ok: false, error: "Only an owner can add SLs." };
   const email = normaliseEmail(rawEmail);
   if (!isPlausibleEmail(email)) return { ok: false, error: "That doesn't look like a Google address." };
   const name = cleanName(rawOwner);
@@ -122,8 +109,8 @@ export async function addSlAction(rawEmail: string, rawOwner: string): Promise<A
 }
 
 export async function removeSlAction(rawEmail: string): Promise<AccessResult> {
-  const { owner } = await requireOwnerSl();
-  if (!owner) return { ok: false, error: "Only an owner can remove SLs." };
+  const sl = await requireSl();
+  if (!isOwnerSl(sl)) return { ok: false, error: "Only an owner can remove SLs." };
   const email = normaliseEmail(rawEmail);
   if (isSlEmail(email, process.env.SL_EMAILS)) return { ok: false, error: "Owners are set in Vercel (SL_EMAILS), not here." };
   await removeSl(db, email);
@@ -133,9 +120,9 @@ export async function removeSlAction(rawEmail: string): Promise<AccessResult> {
 
 /** Sets the owner name an SL acts under. An SL may set their own; an owner may set anyone's. */
 export async function setSlOwnerAction(rawEmail: string, rawOwner: string): Promise<AccessResult> {
-  const { sl, owner } = await requireOwnerSl();
+  const sl = await requireSl();
   const email = normaliseEmail(rawEmail);
-  if (!owner && email !== sl.email) return { ok: false, error: "You can only change your own owner name." };
+  if (!isOwnerSl(sl) && email !== sl.email) return { ok: false, error: "You can only change your own owner name." };
   const name = cleanName(rawOwner);
   if (!name) return { ok: false, error: "Owner names need 1–60 characters." };
   await upsertSl(db, email, name, sl.email ?? sl.login ?? "owner");

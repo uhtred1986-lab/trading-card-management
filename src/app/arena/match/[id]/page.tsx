@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { inviteView, matchById } from "@/lib/arena/matches";
 import { isLocked, readiness } from "@/lib/arena/readiness";
 import { listDecks } from "@/lib/decks/queries";
-import { currentOwner, currentUser } from "@/lib/auth";
+import { currentScope, currentUser, requireSignedInPage } from "@/lib/auth";
 import { CardImage } from "@/components/CardImage";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
@@ -25,6 +25,7 @@ export const dynamic = "force-dynamic";
  * `joinMatch` refuses them again on the server.
  */
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireSignedInPage();
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
   const match = await matchById(db, id);
@@ -79,7 +80,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   }
 
   // Guest: only the guest's own (visible) decks, the original game's only.
-  const decks = me ? (await listDecks(db, { game: "dbs", viewer: await currentOwner() })).filter((d) => d.leader && d.mainCount >= 50) : [];
+  const decks = me ? (await listDecks(db, { game: "dbs", viewer: await currentScope() })).filter((d) => d.leader && d.mainCount >= 50) : [];
   const ready = await readiness(db, decks.map((d) => d.id));
   const firstReady = decks.find((d) => !isLocked(ready.get(d.id)))?.id;
 

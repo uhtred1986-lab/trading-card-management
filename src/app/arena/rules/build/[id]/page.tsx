@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { FullRuleBuilder } from "@/components/arena/rules/FullRuleBuilder";
-import { isArenaAdmin } from "@/lib/auth";
+import { isArenaAdmin, requireSlPage } from "@/lib/auth";
 import type { Rule } from "@/lib/arena/lang";
 import { openingFocus } from "@/lib/arena/lang/blocks";
 import { ruleById } from "@/lib/arena/rules-store";
@@ -20,6 +20,7 @@ export const metadata = { title: "Build a rule" };
  * one empty and in focus. `?focus=ops[1]` opens on any block by its `RulePath`.
  */
 export default async function BuildRulePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireSlPage();
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
   const row = await ruleById(db, id);

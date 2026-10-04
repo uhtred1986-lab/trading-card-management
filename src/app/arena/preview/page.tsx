@@ -6,6 +6,7 @@ import { skinFrom } from "@/lib/arena/skin";
 import { stagingFrom } from "@/lib/arena/staging";
 import type { Pace } from "@/lib/arena/pace";
 import { PreviewStage } from "./PreviewStage";
+import { requireSlPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ function snapshotFixtures(): string[] {
  * Neon; production answers 404.
  */
 export default async function ArenaPreviewPage({ searchParams }: { searchParams: Promise<{ fixture?: string; skin?: string; staging?: string; pace?: string; turn?: string; fx?: string; admin?: string; referee?: string; replay?: string }> }) {
+  await requireSlPage();
   if (process.env.NODE_ENV === "production") notFound();
   const q = await searchParams;
   const names = snapshotFixtures();

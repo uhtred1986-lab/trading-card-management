@@ -8,6 +8,7 @@ import { and, asc, desc, eq, isNull, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cardSets, cards, deckCards, decks, ownedCards } from "@/db/schema";
+import { lotScope, type OwnerScope } from "@/lib/collection/scope";
 import { textArray } from "@/db/sqlx";
 import { deckRules, gameInfo, gameOr, type Game } from "@/lib/catalog/games";
 import { currentLineFor } from "@/lib/catalog/sets";
@@ -60,7 +61,8 @@ const select = {
   limitedTo: cards.limitedTo,
 };
 
-export async function buildPools(db: Db, leaderId: string): Promise<{ leader: typeof cards.$inferSelect; game: Game; owned: PoolCard[]; buy: PoolCard[] }> {
+/** `owner` narrows "owned" to that owner's lots (`OwnerScope`); omit it for everyone's. */
+export async function buildPools(db: Db, leaderId: string, owner?: OwnerScope): Promise<{ leader: typeof cards.$inferSelect; game: Game; owned: PoolCard[]; buy: PoolCard[] }> {
   const leader = await db.query.cards.findFirst({ where: eq(cards.id, leaderId) });
   if (!leader) throw new Error("Leader not found");
   if (leader.cardType !== "LEADER") throw new Error(`${leader.name} is not a Leader card`);
@@ -73,7 +75,7 @@ export async function buildPools(db: Db, leaderId: string): Promise<{ leader: ty
     .select({ ...select, owned: sql<number>`count(*)::int` })
     .from(cards)
     .innerJoin(ownedCards, eq(ownedCards.cardId, cards.id))
-    .where(and(...onColour, isNull(ownedCards.archivedAt)))
+    .where(and(...onColour, isNull(ownedCards.archivedAt), lotScope(owner)))
     .groupBy(cards.id)
     .orderBy(asc(cards.id))
     .limit(OWNED_CAP);
@@ -158,7 +160,7 @@ function ruleLines(rules: KeywordDeckRule[]): string[] {
 
 /** `owner` is stamped on the deck it creates, the same as every other deck-creating path (issue #279). */
 export async function suggestDeck(db: Db, leaderId: string, owner: string | null = null): Promise<{ deckId: number; draft: DeckDraft; sanitised: SanitisedDraft }> {
-  const { leader, game, owned, buy } = await buildPools(db, leaderId);
+  const { leader, game, owned, buy } = await buildPools(db, leaderId, owner ?? undefined);
   if (owned.length + buy.length < 30) throw new Error("Not enough on-colour cards in the catalog for this leader.");
   const pool = new Map<string, PoolCard>([...owned, ...buy].map((c) => [c.id, c]));
   const info = gameInfo(game);

@@ -4,7 +4,7 @@ import { ReviewScreen, type ReviewScreenData } from "@/components/arena/ReviewSc
 import { isVersus, seatOf } from "@/lib/arena/games";
 import { loadReview } from "@/lib/arena/review-load";
 import { gamesWithFlags } from "@/lib/arena/review-store";
-import { currentUser, isArenaAdmin } from "@/lib/auth";
+import { currentUser, isArenaAdmin, requireSlPage } from "@/lib/auth";
 import { fixtureData } from "./fixture";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,7 @@ const int = (v: string | string[] | undefined): number | undefined => {
  * database behind it, the way `/arena/preview` does for the board.
  */
 export default async function ArenaReviewPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireSlPage();
   if (!(await isArenaAdmin())) notFound();
   const q = await searchParams;
   const all = q.all === "1";

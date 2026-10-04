@@ -10,6 +10,7 @@ import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cardSets, cards, deckCards, decks, ownedCards } from "@/db/schema";
+import { lotScope, type OwnerScope } from "@/lib/collection/scope";
 import { textArray } from "@/db/sqlx";
 import { gameInfo, gameOr, type Game } from "@/lib/catalog/games";
 import { currentLineFor } from "@/lib/catalog/sets";
@@ -93,7 +94,8 @@ interface CardPools {
  * a Leader is only offered if its colours are a superset of the seed card's,
  * which guarantees every pool card stays legal whichever candidate is picked.
  */
-export async function buildPoolsForCard(db: Db, cardId: string): Promise<CardPools> {
+/** `owner` narrows "owned" to that owner's lots (`OwnerScope`); omit it for everyone's. */
+export async function buildPoolsForCard(db: Db, cardId: string, owner?: OwnerScope): Promise<CardPools> {
   const seed = await db.query.cards.findFirst({ where: eq(cards.id, cardId) });
   if (!seed) throw new Error("Card not found");
   if (seed.cardType === "LEADER") throw new Error(`${seed.name} is a Leader — use "Build a deck with Claude" on the Leaders page instead.`);
@@ -110,7 +112,7 @@ export async function buildPoolsForCard(db: Db, cardId: string): Promise<CardPoo
     .select({ ...cardSelect, owned: sql<number>`count(*)::int` })
     .from(cards)
     .innerJoin(ownedCards, eq(ownedCards.cardId, cards.id))
-    .where(and(...onColour))
+    .where(and(...onColour, lotScope(owner)))
     .groupBy(cards.id)
     .orderBy(asc(cards.id))
     .limit(OWNED_CAP);
@@ -127,7 +129,7 @@ export async function buildPoolsForCard(db: Db, cardId: string): Promise<CardPoo
     .select({ ...leaderSelect, owned: sql<number>`count(*)::int` })
     .from(cards)
     .innerJoin(ownedCards, eq(ownedCards.cardId, cards.id))
-    .where(and(...leaderOnColour))
+    .where(and(...leaderOnColour, lotScope(owner)))
     .groupBy(cards.id)
     .orderBy(asc(cards.id))
     .limit(OWNED_LEADER_CAP);
@@ -151,7 +153,7 @@ export async function buildPoolsForCard(db: Db, cardId: string): Promise<CardPoo
 
 /** `owner` is stamped on the deck it creates, the same as every other deck-creating path (issue #279). */
 export async function suggestDeckFromCard(db: Db, cardId: string, owner: string | null = null): Promise<{ deckId: number; leaderId: string; leaderName: string; draft: DeckFromCardDraft; mainCount: number; toBuy: number }> {
-  const { seed, game, owned, buy, leaders } = await buildPoolsForCard(db, cardId);
+  const { seed, game, owned, buy, leaders } = await buildPoolsForCard(db, cardId, owner ?? undefined);
   if (owned.length + buy.length < 30) throw new Error("Not enough on-colour cards in the catalog for this card.");
   if (leaders.length === 0) throw new Error("No Leader in the catalog can legally play this card's colours.");
   const pool = new Map<string, PoolCard>([...owned, ...buy].map((c) => [c.id, c]));

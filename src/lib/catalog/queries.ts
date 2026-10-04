@@ -29,6 +29,8 @@ export interface CardSearch {
   /** A §22 keyword ability the card carries: "Blocker", "Double Strike". */
   ability?: string;
   owned?: "yes" | "no";
+  /** Whose copies "owned" counts: a player's own name; left out, everyone's (an SL). */
+  ownedBy?: string;
   sort?: "number" | "name" | "newest";
   page?: number;
   pageSize?: number;
@@ -65,8 +67,9 @@ function whereFor(s: CardSearch, abilityIds?: string[]): SQL | undefined {
   if (s.rarity) parts.push(eq(cards.rarityCode, s.rarity));
   if (s.trait) parts.push(sql`${s.trait} = any(${cards.traits})`);
   if (abilityIds) parts.push(abilityIds.length ? inArray(cards.id, abilityIds) : sql`false`);
-  if (s.owned === "yes") parts.push(sql`exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null)`);
-  if (s.owned === "no") parts.push(sql`not exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null)`);
+  const mine = s.ownedBy === undefined ? sql`` : sql` and o.owner = ${s.ownedBy}`;
+  if (s.owned === "yes") parts.push(sql`exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null${mine})`);
+  if (s.owned === "no") parts.push(sql`not exists (select 1 from ${ownedCards} o where o.card_id = ${cards.id} and o.archived_at is null${mine})`);
   return parts.length ? and(...parts) : undefined;
 }
 

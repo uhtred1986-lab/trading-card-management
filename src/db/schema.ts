@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 /*
  * ──────────────────────────────────────────────────────────────────────────
@@ -605,9 +605,15 @@ export const wantList = pgTable(
     note: text("note"),
     /** The deck the want came from, if any. */
     deckId: integer("deck_id").references(() => decks.id, { onDelete: "set null" }),
+    /**
+     * Whose shopping list it is, stamped like `owned_cards.owner`; null for a
+     * want from before lists were per owner (an SL's to see). One row per
+     * owner and card.
+     */
+    owner: text("owner"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("want_list_card_unique").on(t.cardId)],
+  (t) => [unique("want_list_owner_card_unique").on(t.owner, t.cardId).nullsNotDistinct()],
 );
 
 /** Every Claude call, kept so results can be re-shown without re-paying for them. */

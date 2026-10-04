@@ -4,6 +4,7 @@ import { BoardSettingsSheet } from "@/components/arena/BoardSettingsSheet";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { STAGING_COOKIE, stagingFrom } from "@/lib/arena/staging";
 import { getRepoUrl } from "@/lib/github";
+import { isArenaAdmin } from "@/lib/auth";
 import { ReferenceDrawer } from "@/components/arena/rules/ReferenceDrawer";
 import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
 
@@ -33,6 +34,8 @@ export function readable(c: RuleCounts): string {
 const item = "tap flex items-center rounded-md px-3 py-2 text-sm text-space-100 hover:bg-space-800";
 
 export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; kpis?: ArenaKpis }) {
+  // The Rules side, rule review, feedback and the engine setting are SL-only (docs/architecture/auth.md); a player is not shown the way in.
+  const sl = await isArenaAdmin();
   // Board settings show the same cookies the game page reads (`/arena/[id]`).
   const jar = await cookies();
   const skin = skinFrom(jar.get(SKIN_COOKIE)?.value);
@@ -50,9 +53,11 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "ot
           <Link href="/arena" aria-current={side === "play" ? "page" : undefined} className={seg(side === "play")}>
             Play
           </Link>
-          <Link href="/arena/rules" aria-current={side === "rules" ? "page" : undefined} className={seg(side === "rules")}>
-            Rules
-          </Link>
+          {sl ? (
+            <Link href="/arena/rules" aria-current={side === "rules" ? "page" : undefined} className={seg(side === "rules")}>
+              Rules
+            </Link>
+          ) : null}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
@@ -78,28 +83,34 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "ot
                 </Link>
                 <BoardSettingsSheet skin={skin} staging={staging} className={`${item} w-full text-left`} />
               </div>
-              {/* The phone's rule review (#472): every deck's open and draft skills, one at a time. */}
-              <Link href="/arena/rules/review" className={item}>
-                <span>
-                  Rule review
-                  <small className="block text-[11px] text-space-400">Check how the engine reads your cards&rsquo; text</small>
-                </span>
-              </Link>
-              <Link href="/arena/feedback" className={item}>
-                <span className="sm:hidden">Report a problem</span>
-                <span className="hidden sm:inline">What you told the arena</span>
-              </Link>
-              <Link href="/settings#arena-engine" className={`${item} hidden sm:flex`}>
-                Settings → Arena engine
-              </Link>
+              {/* The phone's rule review (#472): every deck's open and draft skills, one at a time. SL-only, like the rest of the workbench. */}
+              {sl ? (
+                <>
+                  <Link href="/arena/rules/review" className={item}>
+                    <span>
+                      Rule review
+                      <small className="block text-[11px] text-space-400">Check how the engine reads your cards&rsquo; text</small>
+                    </span>
+                  </Link>
+                  <Link href="/arena/feedback" className={item}>
+                    <span className="sm:hidden">Report a problem</span>
+                    <span className="hidden sm:inline">What you told the arena</span>
+                  </Link>
+                  <Link href="/settings#arena-engine" className={`${item} hidden sm:flex`}>
+                    Settings → Arena engine
+                  </Link>
+                </>
+              ) : null}
               {/* The admin entry joins here once #350's admin check exists. */}
               <div className="mt-1 border-t border-space-700 pt-1 sm:hidden">
                 <div className="px-3 pt-1 text-[10px] uppercase tracking-wider text-space-400">
                   Rules, decks and collection <span className="normal-case">· made for the computer</span>
                 </div>
-                <Link href="/arena/rules" className={item}>
-                  Rules
-                </Link>
+                {sl ? (
+                  <Link href="/arena/rules" className={item}>
+                    Rules
+                  </Link>
+                ) : null}
                 <Link href="/" className={item}>
                   Decks and collection
                 </Link>

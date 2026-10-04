@@ -8,11 +8,13 @@ import type { SetReview } from "@/lib/ai/deck";
 import { CardImage } from "@/components/CardImage";
 import { SubmitButton } from "@/components/SubmitButton";
 import { reviewSetForm } from "./actions";
+import { requireSlPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export default async function SetReviewPage({ params }: { params: Promise<{ code: string }> }) {
+  await requireSlPage();
   const { code } = await params;
   const set = await db.query.cardSets.findFirst({ where: eq(cardSets.code, code) });
   if (!set) notFound();

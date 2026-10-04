@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { cards } from "@/db/schema";
 import { quickSearch } from "@/lib/catalog/queries";
 import { parseSpoken, spokenQuantity } from "@/lib/scan/voice";
+import { requireSignedIn } from "@/lib/auth";
 
 export interface SpokenCard {
   id: string;
@@ -42,6 +43,7 @@ async function load(cardId: string): Promise<{ card: SpokenCard; prints: { id: s
  * the digits is real — then, failing that, as a card name.
  */
 export async function resolveSpokenAction(alternatives: string[]): Promise<SpokenResult> {
+  await requireSignedIn();
   const heard = alternatives[0]?.trim() ?? "";
   if (!heard) return { ok: false, heard, reason: "Nothing was picked up." };
 

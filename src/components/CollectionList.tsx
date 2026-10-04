@@ -20,6 +20,7 @@ const NEW = "__new";
  * card id, so there is no way to point at *this* copy and hand it to someone
  * else. Here the row is the copy, and every bulk action takes lot ids.
  */
+/** `owners` empty means the looker may not reassign owners (a player): the bulk owner control is hidden. */
 export function CollectionList({ rows, owners, decks, locations }: { rows: CollectionCopy[]; owners: string[]; decks: DeckOption[]; locations: StorageLocation[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
@@ -196,7 +197,7 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
             Clear
           </button>
 
-          {newOwner ? (
+          {owners.length === 0 ? null : newOwner ? (
             <span className="flex items-center gap-1">
               <input
                 autoFocus

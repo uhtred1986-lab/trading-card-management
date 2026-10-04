@@ -138,7 +138,13 @@ async function main() {
   const added = async (e: string) => e === "added@example.com";
   assert.equal(await isAllowedSl("Added@Example.com", ENV, added), true);
   assert.equal(await isAllowedSl("added@example.com", ENV), false, "no check, no added SL");
-  assert.equal(await isAllowedSl("x@example.com", ENV, async () => { throw new Error("db down"); }), false, "a failing check refuses");
+  assert.equal(
+    await isAllowedSl("x@example.com", ENV, async () => {
+      throw new Error("db down");
+    }),
+    false,
+    "a failing check refuses",
+  );
   const addedToken = await signSession("added@example.com", SECRET, NOW);
   assert.ok(await verifySession(addedToken, ENV, NOW, added));
   assert.equal(await verifySession(addedToken, ENV, NOW, async () => false), null, "removing the row signs them out");
@@ -159,7 +165,8 @@ async function main() {
   assert.equal(playerNeedsRefresh(vp!, later(SESSION_REFRESH_AFTER_SECONDS)), true);
 
   // ── SL-only paths and the player's decision ──
-  for (const p of ["/settings", "/settings/access", "/settings/users", "/arena/rules", "/arena/rules/review", "/arena/review", "/arena/feedback", "/arena/12/debug", "/sets/BT18/review"]) assert.equal(isSlOnlyPath(p), true, p);
+  for (const p of ["/settings", "/settings/access", "/settings/users", "/arena/rules", "/arena/rules/review", "/arena/review", "/arena/feedback", "/arena/12/debug", "/sets/BT18/review"])
+    assert.equal(isSlOnlyPath(p), true, p);
   for (const p of ["/", "/collection", "/decks/3", "/arena", "/arena/12", "/arena/match/4", "/sets/BT18", "/settingsx", "/me", "/cart"]) assert.equal(isSlOnlyPath(p), false, p);
   assert.equal(isPublicPath(JOIN_PAGE), true);
   assert.equal(isPublicPath(JOIN_REDEEM_PATH), true);
@@ -181,7 +188,10 @@ async function main() {
   for (const ch of "0O1IL") assert.equal(CODE_ALPHABET.includes(ch), false, ch);
   const g = generateCode();
   assert.equal(isWellFormedCode(g), true);
-  assert.equal(generateCode(() => 0), "AAAAAA");
+  assert.equal(
+    generateCode(() => 0),
+    "AAAAAA",
+  );
   assert.equal(normaliseCode(" abc-23 4 "), "ABC234");
   assert.equal(isWellFormedCode("ABC23"), false);
   assert.equal(isWellFormedCode("ABC230"), false, "0 is not in the alphabet");

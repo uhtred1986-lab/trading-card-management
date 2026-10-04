@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
+import { canOpenGame } from "@/lib/auth/ownership";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { hasAnthropic } from "@/lib/ai/client";
 import { GameOver } from "@/components/arena/GameOver";
@@ -13,7 +14,7 @@ import { decisionsFor } from "@/lib/arena/ai/debug";
 import { adminDebugOf } from "@/lib/arena/admin-debug";
 import { flagsForGame } from "@/lib/arena/review-store";
 import { isVersus, loadArchivedGame, loadGame, modeLabel, seatOf } from "@/lib/arena/games";
-import { currentUser, isArenaAdmin } from "@/lib/auth";
+import { currentUser, isArenaAdmin, requireSignedInPage } from "@/lib/auth";
 import { artForGame, snapshotOfGame } from "@/lib/arena/session";
 import { archivedSnapshotFor } from "@/lib/arena/snapshot";
 import { LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
@@ -27,9 +28,12 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export default async function ArenaGamePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ skin?: string; staging?: string }> }) {
+  const viewer = await requireSignedInPage();
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();
+  // A player opens only their own games (`canOpenGame`); anyone else's does not exist for them.
+  if (!(await canOpenGame(viewer, id))) notFound();
 
   // Which skin. The query wins for one page load (`?skin=anime`), the cookie
   // is the setting; read here so the markup the server sends is already the
