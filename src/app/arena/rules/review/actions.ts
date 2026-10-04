@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { currentUser, isArenaAdmin } from "@/lib/auth";
+import { currentUser, isArenaAdmin, requireSl } from "@/lib/auth";
 import { reviewOpenRule } from "@/lib/arena/draft";
 import { parsePath } from "@/lib/arena/lang/path";
 import { WRONG_REASONS, type ClauseTag, type WrongReason } from "@/lib/arena/rule-review";
@@ -28,6 +28,7 @@ function revalidate() {
 
 /** Wrong: the clause and the reason, and an optional note, onto the row's `explanation`. The rule stays a draft. */
 export async function flagWrongAction(id: number, raw: { tag: unknown; path: unknown; reason: unknown; note: unknown }): Promise<{ error: string | null; receipt: FlagReceipt | null }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: NOT_ADMIN, receipt: null };
   const tag = TAGS.find((t) => t === raw.tag);
   const reason = WRONG_REASONS.find((r) => r === raw.reason) as WrongReason | undefined;
@@ -51,6 +52,7 @@ export async function flagWrongAction(id: number, raw: { tag: unknown; path: unk
 
 /** Undo of Wrong. */
 export async function unflagWrongAction(receipt: FlagReceipt): Promise<{ error: string | null }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: NOT_ADMIN };
   if (!Number.isInteger(receipt?.ruleId) || !Number.isInteger(receipt?.feedbackId) || typeof receipt?.written !== "string") return { error: "there is nothing to undo" };
   await unflagWrong(db, { ruleId: receipt.ruleId, feedbackId: receipt.feedbackId, written: receipt.written, previous: typeof receipt.previous === "string" ? receipt.previous : null });
@@ -65,6 +67,7 @@ export async function unflagWrongAction(receipt: FlagReceipt): Promise<{ error: 
  * so the phone can mark the ones in its queue.
  */
 export async function confirmSameWordingAction(id: number): Promise<{ error: string | null; confirmed: number; batchId: number | null; ids: number[] }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: NOT_ADMIN, confirmed: 0, batchId: null, ids: [] };
   const same = await sameWordingIds(db, id);
   if (!same) return { error: "this rule is not a draft with a pattern to confirm", confirmed: 0, batchId: null, ids: [] };
@@ -75,6 +78,7 @@ export async function confirmSameWordingAction(id: number): Promise<{ error: str
 
 /** Ask Claude: the sync's drafting (`draft.ts`) for this one open skill; what comes back is a draft to check. */
 export async function askClaudeAction(id: number, keep: { decks: string[]; firedIn: number | null }): Promise<{ error: string | null; item: ReviewItem | null }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: "only an arena admin can ask Claude for a draft", item: null };
   const r = await reviewOpenRule(db, id);
   revalidate();

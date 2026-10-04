@@ -1,8 +1,10 @@
 import { db } from "@/db";
+import { canOpenGame } from "@/lib/auth/ownership";
 import { chooseSchema, fail, ok, readJson, seatFor } from "@/lib/arena/api";
 import { IllegalAction } from "@/lib/arena/vm/common";
 import { isVersus, loadGame, StaleGame } from "@/lib/arena/games";
 import { applyAction, snapshotOfGame } from "@/lib/arena/session";
+import { routeViewer } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,8 +17,12 @@ export const maxDuration = 60;
  * it just did instead of waiting out the opponent's whole turn.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return fail("bad_request", "game id must be a number");
+  // A player opens only their own games; a game they may not open does not exist for them.
+  if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
 
   const parsed = chooseSchema.safeParse(await readJson(req));
   if (!parsed.success) return fail("bad_request", "expected { index, basedOn? }");
@@ -57,8 +63,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
 /** The board, so a client can re-read it after a `stale` refusal. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return fail("bad_request", "game id must be a number");
+  // A player opens only their own games; a game they may not open does not exist for them.
+  if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
   const game = await loadGame(db, id);
   if (!game) return fail("not_found", `no game ${id}`);
   const seat = await seatFor(game);

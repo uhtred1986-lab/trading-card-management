@@ -216,9 +216,9 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const owned = byCard.get("BT18-020")!.find((s) => s.inCardId === "BT18-021")!;
   assert.equal(typeof owned.inAvailable, "number");
   assert.equal(owned.wanted, false);
-  await addWant(db, "BT18-021", 1, null, d.id);
+  await addWant(db, null, "BT18-021", 1, null, d.id);
   assert.equal((await suggestionsForDeck(db, d.id)).get("BT18-020")!.find((s) => s.inCardId === "BT18-021")!.wanted, true, "already on the shopping list");
-  assert.equal((await listWants(db)).length, 1);
+  assert.equal((await listWants(db, null)).length, 1);
 
   // Applying or dismissing takes it out of the open set.
   await markSuggestion(db, byCard.get("BT18-020")![0].id, "applied");
@@ -741,9 +741,10 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal((await faces(["BT24-902"])).get("BT24-902")!.back, mastersImageUrl("BT24-902_b"), "the official back wins over the backfill");
 }
 
-// ── A deck belongs to a login (issue #279) ──────────────────────────────────
-// Two owners, each with their own deck, plus one nobody claimed: each login
-// sees their own decks and the unowned one, never the other login's.
+// ── A deck belongs to a login (issue #279), and is private (4 Oct 2026) ─────
+// Two owners, each with their own deck, plus one nobody claimed: a player sees
+// only their own decks; a deck with no owner is an SL's to hand out, so only
+// the everyone-view (an SL, `viewer` undefined) shows it.
 {
   const { listDecks, getDeck } = await import("../src/lib/decks/queries.ts");
   const { inArray } = await import("drizzle-orm");
@@ -752,17 +753,17 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   const [nobodys] = await db.insert(schema.decks).values({ name: "Unowned deck" }).returning({ id: schema.decks.id });
 
   const asAlice = new Set((await listDecks(db, { viewer: "alice" })).map((d) => d.id));
-  assert.ok(asAlice.has(mine.id) && asAlice.has(nobodys.id) && !asAlice.has(theirs.id), "alice sees her own deck and the unowned one, not bob's");
+  assert.ok(asAlice.has(mine.id) && !asAlice.has(nobodys.id) && !asAlice.has(theirs.id), "alice sees her own deck only");
   const asBob = new Set((await listDecks(db, { viewer: "bob" })).map((d) => d.id));
-  assert.ok(asBob.has(theirs.id) && asBob.has(nobodys.id) && !asBob.has(mine.id), "bob sees his own deck and the unowned one, not alice's");
-  const noIdentity = new Set((await listDecks(db)).map((d) => d.id));
-  assert.ok(noIdentity.has(mine.id) && noIdentity.has(theirs.id) && noIdentity.has(nobodys.id), "no viewer (app running open) hides nothing — the same hole as elsewhere, no wider");
+  assert.ok(asBob.has(theirs.id) && !asBob.has(nobodys.id) && !asBob.has(mine.id), "bob sees his own deck only");
+  const asSl = new Set((await listDecks(db)).map((d) => d.id));
+  assert.ok(asSl.has(mine.id) && asSl.has(theirs.id) && asSl.has(nobodys.id), "an SL (no scope) sees every deck");
 
   assert.ok(await getDeck(db, mine.id, "alice"), "alice can open her own deck");
   assert.equal(await getDeck(db, theirs.id, "alice"), null, "alice cannot open bob's deck");
-  assert.ok(await getDeck(db, nobodys.id, "alice"), "an unowned deck opens for anyone");
+  assert.equal(await getDeck(db, nobodys.id, "alice"), null, "an unowned deck is an SL's");
   assert.ok(await getDeck(db, theirs.id, "bob"), "bob can open his own deck");
-  assert.ok(await getDeck(db, theirs.id), "no viewer opens any deck, same as listDecks");
+  assert.ok(await getDeck(db, theirs.id), "an SL opens any deck");
 
   await db.delete(schema.decks).where(inArray(schema.decks.id, [mine.id, theirs.id, nobodys.id]));
 }

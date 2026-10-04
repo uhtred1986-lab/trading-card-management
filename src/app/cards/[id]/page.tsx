@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { cachedCard, cachedPricesForPrints, cachedTcgUrl, cachedUsdEur } from "@/lib/cache/reads";
 import { CONDITIONS, LANGUAGES, knownOwners, lotsForCard } from "@/lib/collection/queries";
-import { currentUser } from "@/lib/auth";
+import { currentUser, requireSignedInPage, currentScope } from "@/lib/auth";
 import { LotOwnerPicker } from "@/components/LotOwnerPicker";
 import { LotLocationPicker } from "@/components/LotLocationPicker";
 import { listLocations } from "@/lib/collection/locations";
@@ -26,6 +26,8 @@ import { addLotForm, deleteLotForm } from "@/app/collection/actions";
 export const dynamic = "force-dynamic";
 
 export default async function CardPage({ params }: { params: Promise<{ id: string }> }) {
+  const viewer = await requireSignedInPage();
+  const scope = await currentScope();
   const { id: rawId } = await params;
   const id = decodeURIComponent(rawId);
   const card = await cachedCard(id);
@@ -34,19 +36,20 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   const printIds = card.prints.map((p) => p.id);
   const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me, locations, inDecks, tcgUrl] = await Promise.all([
     cachedPricesForPrints(printIds),
-    allocationForCards(db, [id]),
-    lotsForCard(db, id),
-    decksReserving(db, id),
+    allocationForCards(db, [id], scope),
+    lotsForCard(db, id, scope),
+    decksReserving(db, id, scope),
     cachedUsdEur(),
     // Only decks that could legally hold this card are offered as a target.
-    deckOptions(db, { game: gameOr(card.game) }),
-    knownOwners(db),
+    deckOptions(db, { game: gameOr(card.game), scope }),
+    // A player never sees other owners' names; the owner pickers are an SL's.
+    viewer.kind === "player" ? Promise.resolve([] as string[]) : knownOwners(db),
     currentUser(),
-    listLocations(db),
-    decksForCard(db, id),
+    listLocations(db, true, scope),
+    decksForCard(db, id, scope),
     cachedTcgUrl(id),
   ]);
-  const owners = [...new Set([...ownersUsed, ...(me ? [me] : [])])];
+  const owners = viewer.kind === "player" ? [] : [...new Set([...ownersUsed, ...(me ? [me] : [])])];
   const a = alloc.get(id)!;
   const eur = (usd: number | null) => (usd == null ? "—" : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD"));
   const printOptions = card.prints.map((p) => ({ id: p.id, label: p.label, rarity: p.rarity }));
@@ -196,7 +199,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                   <span className="text-xs text-space-300">{l.language}</span>
                   {l.pricePaidCents != null ? <span className="text-xs text-space-300">paid {formatCents(l.pricePaidCents, l.currency as "EUR" | "USD")} each</span> : null}
                   {l.acquiredOn ? <span className="text-xs text-space-300">{l.acquiredOn}</span> : null}
-                  <LotOwnerPicker lotId={l.id} owner={l.owner} known={owners} />
+                  {viewer.kind === "sl" ? <LotOwnerPicker lotId={l.id} owner={l.owner} known={owners} /> : null}
                   <LotLocationPicker lotId={l.id} locationId={l.locationId} locations={locations} />
                   {l.notes ? <span className="text-xs italic text-space-300">{l.notes}</span> : null}
                   <form action={deleteLotForm} className="ml-auto">

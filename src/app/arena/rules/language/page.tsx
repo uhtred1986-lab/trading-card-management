@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { languageReference, type RefCond, type RefOp } from "@/lib/arena/lang/reference";
+import { requireSlPage } from "@/lib/auth";
 
 export const metadata = { title: "The rules language" };
 
@@ -85,7 +86,8 @@ function CondCard({ cond }: { cond: RefCond }) {
  * write after THEN" answered by the same rows the compiler, the printer and
  * the parser already read.
  */
-export default function LanguageReferencePage() {
+export default async function LanguageReferencePage() {
+  await requireSlPage();
   const ref = languageReference();
 
   return (

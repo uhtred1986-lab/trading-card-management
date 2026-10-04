@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { ok } from "@/lib/arena/api";
 import { deckSummary, type DeckListPayload } from "@/lib/arena/deck-api";
 import { deckInputFor } from "@/lib/arena/load";
-import { currentOwner } from "@/lib/auth";
+import { currentScope, routeViewer } from "@/lib/auth";
 import { gameOr } from "@/lib/catalog/games";
 import { listDecks } from "@/lib/decks/queries";
 
@@ -18,8 +18,10 @@ export const dynamic = "force-dynamic";
  * already authenticates through the proxy.
  */
 export async function GET(req: Request) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   const game = gameOr(new URL(req.url).searchParams.get("game"));
-  const rows = await listDecks(db, { game, viewer: await currentOwner() });
+  const rows = await listDecks(db, { game, viewer: await currentScope() });
   const decks = await Promise.all(rows.map(async (row) => deckSummary(row, (await deckInputFor(db, row.id)) !== null)));
   return ok({ decks } satisfies DeckListPayload);
 }

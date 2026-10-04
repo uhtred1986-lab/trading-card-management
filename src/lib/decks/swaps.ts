@@ -7,9 +7,9 @@
  * — by then the collection and the meta have both moved — and expired rows are
  * swept whenever a deck's suggestions are read, so nothing needs a cron.
  */
-import { aliasedTable, and, asc, desc, eq, lt, sql } from "drizzle-orm";
+import { aliasedTable, and, asc, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cards, deckSwaps, wantList } from "@/db/schema";
+import { cards, decks, deckSwaps, wantList } from "@/db/schema";
 import { allocationForCards } from "./reservations";
 
 /** The card being replaced — the same table joined a second time. */
@@ -118,7 +118,10 @@ export async function suggestionsForDeck(db: Db, deckId: number): Promise<Map<st
     .orderBy(asc(deckSwaps.outCardId), sql`case ${deckSwaps.priority} when 'high' then 0 when 'medium' then 1 else 2 end`, desc(deckSwaps.createdAt));
   if (rows.length === 0) return new Map();
 
-  const [alloc, wanted] = await Promise.all([allocationForCards(db, [...new Set(rows.map((r) => r.inCardId))]), db.select({ cardId: wantList.cardId }).from(wantList)]);
+  // The deck owner's copies and shopping list: a player's wizard never counts someone else's.
+  const deck = await db.query.decks.findFirst({ where: eq(decks.id, deckId), columns: { owner: true } });
+  const owner = deck?.owner ?? null;
+  const [alloc, wanted] = await Promise.all([allocationForCards(db, [...new Set(rows.map((r) => r.inCardId))], owner), db.select({ cardId: wantList.cardId }).from(wantList).where(wantsOf(owner))]);
   const onList = new Set(wanted.map((w) => w.cardId));
 
   const out = new Map<string, SwapSuggestion[]>();
@@ -157,22 +160,34 @@ export interface WantRow {
   imageUrl: string | null;
 }
 
-export async function addWant(db: Db, cardId: string, quantity: number, note: string | null, deckId: number | null): Promise<void> {
+/**
+ * Whose wants a list shows: an owner's own, plus — for an SL (`includeUnowned`)
+ * — the wants from before lists were per owner. `null` is the no-owner list
+ * (local dev, where nobody signs in).
+ */
+function wantsOf(owner: string | null, includeUnowned = false) {
+  if (owner === null) return isNull(wantList.owner);
+  return includeUnowned ? or(eq(wantList.owner, owner), isNull(wantList.owner)) : eq(wantList.owner, owner);
+}
+
+/** Adds to `owner`'s shopping list (their `currentOwner()`). */
+export async function addWant(db: Db, owner: string | null, cardId: string, quantity: number, note: string | null, deckId: number | null): Promise<void> {
   await db
     .insert(wantList)
-    .values({ cardId, quantity: Math.max(1, quantity), note, deckId })
+    .values({ cardId, quantity: Math.max(1, quantity), note, deckId, owner })
     .onConflictDoUpdate({
-      target: wantList.cardId,
+      target: [wantList.owner, wantList.cardId],
       // Wanting it again means wanting more of it, not a second row.
       set: { quantity: sql`${wantList.quantity} + ${Math.max(1, quantity)}`, note: sql`coalesce(excluded.note, ${wantList.note})` },
     });
 }
 
-export async function removeWant(db: Db, cardId: string): Promise<void> {
-  await db.delete(wantList).where(eq(wantList.cardId, cardId));
+export async function removeWant(db: Db, owner: string | null, cardId: string, includeUnowned = false): Promise<void> {
+  await db.delete(wantList).where(and(eq(wantList.cardId, cardId), wantsOf(owner, includeUnowned)));
 }
 
-export async function listWants(db: Db): Promise<WantRow[]> {
+/** `owner`'s shopping list; an SL (`includeUnowned`) also sees the wants from before lists were per owner. */
+export async function listWants(db: Db, owner: string | null, includeUnowned = false): Promise<WantRow[]> {
   return db
     .select({
       id: wantList.id,
@@ -185,5 +200,6 @@ export async function listWants(db: Db): Promise<WantRow[]> {
     })
     .from(wantList)
     .innerJoin(cards, eq(cards.id, wantList.cardId))
+    .where(wantsOf(owner, includeUnowned))
     .orderBy(desc(wantList.createdAt));
 }

@@ -77,7 +77,8 @@ export async function verifyReadiness(db: Db): Promise<void> {
   await db.update(schema.decks).set({ owner: "alice" }).where(eq(schema.decks.id, locked));
   assert.equal((await deckCardStates(db, locked, "bob")).length, 0, "another login's deck is hidden");
   assert.equal((await deckCardStates(db, locked, "alice")).length, 3);
-  assert.equal((await deckCardStates(db, locked, null)).length, 3, "running open sees every deck");
+  assert.equal((await deckCardStates(db, locked, undefined)).length, 3, "an SL (no scope) sees every deck");
+  assert.equal((await deckCardStates(db, locked, null)).length, 0, "the no-owner scope sees only decks with no owner");
   await db.update(schema.decks).set({ owner: null }).where(eq(schema.decks.id, locked));
 
   // The block, on every path that starts a game.

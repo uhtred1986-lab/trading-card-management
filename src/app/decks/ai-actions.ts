@@ -6,12 +6,15 @@ import { describeAiError, hasAnthropic } from "@/lib/ai/client";
 import { runWizard, summariseDeck, type DeckSummary } from "@/lib/ai/deck";
 import { addWant, markSuggestion, removeWant, suggestionsForDeck, type SwapSuggestion } from "@/lib/decks/swaps";
 import { setDeckCard } from "./actions";
+import { requireSignedIn } from "@/lib/auth";
+import { assertOwnDeck, assertOwnDeckIf, assertOwnSuggestion } from "@/lib/auth/ownership";
 
 export type SummaryResponse = { ok: true; summary: DeckSummary } | { ok: false; error: string };
 export type WizardResponse = { ok: true; assessment: string; count: number } | { ok: false; error: string };
 export type SwapActionResponse = { ok: true } | { ok: false; error: string };
 
 export async function summariseDeckAction(deckId: number): Promise<SummaryResponse> {
+  await assertOwnDeck(await requireSignedIn(), deckId);
   if (!hasAnthropic()) return { ok: false, error: "ANTHROPIC_API_KEY is not set." };
   try {
     const { summary } = await summariseDeck(db, deckId);
@@ -27,6 +30,7 @@ export async function summariseDeckAction(deckId: number): Promise<SummaryRespon
  * under the cards they concern rather than handing them back for one screen.
  */
 export async function wizardAction(deckId: number, scope: "owned" | "any", context: string | null): Promise<WizardResponse> {
+  await assertOwnDeck(await requireSignedIn(), deckId);
   if (!hasAnthropic()) return { ok: false, error: "ANTHROPIC_API_KEY is not set." };
   try {
     const r = await runWizard(db, deckId, scope, context?.trim() || null);
@@ -39,11 +43,15 @@ export async function wizardAction(deckId: number, scope: "owned" | "any", conte
 
 /** The suggestions for one deck, keyed by the card each proposes replacing. */
 export async function suggestionsAction(deckId: number): Promise<Record<string, SwapSuggestion[]>> {
+  await assertOwnDeck(await requireSignedIn(), deckId);
   return Object.fromEntries(await suggestionsForDeck(db, deckId));
 }
 
 /** Swap the cards over: out goes down, in goes up, in the deck's own zone. */
 export async function applySwapAction(deckId: number, swap: { id?: number; outCardId: string; outQuantity: number; inCardId: string; inQuantity: number; zone?: string }): Promise<SwapActionResponse> {
+  const viewer = await requireSignedIn();
+  await assertOwnDeck(viewer, deckId);
+  if (swap.id) await assertOwnSuggestion(viewer, swap.id);
   const { deckCardQuantity } = await import("./actions");
   const zone = (swap.zone ?? "main") as "leader" | "main" | "z" | "side";
   const outNow = await deckCardQuantity(deckId, swap.outCardId, zone);
@@ -61,6 +69,7 @@ export async function applySwapAction(deckId: number, swap: { id?: number; outCa
 }
 
 export async function dismissSuggestionAction(id: number): Promise<SwapActionResponse> {
+  await assertOwnSuggestion(await requireSignedIn(), id);
   const row = await markSuggestion(db, id, "dismissed");
   if (row) revalidatePath(`/decks/${row.deckId}`);
   return { ok: true };
@@ -68,14 +77,18 @@ export async function dismissSuggestionAction(id: number): Promise<SwapActionRes
 
 /** Park a card you'd have to buy, so the cart optimiser can price it later. */
 export async function wantCardAction(cardId: string, quantity: number, note: string | null, deckId: number | null): Promise<SwapActionResponse> {
-  await addWant(db, cardId, quantity, note, deckId);
+  const viewer = await requireSignedIn();
+  await assertOwnDeckIf(viewer, deckId);
+  await addWant(db, viewer.owner, cardId, quantity, note, deckId);
   revalidatePath("/cart");
   if (deckId) revalidatePath(`/decks/${deckId}`);
   return { ok: true };
 }
 
 export async function unwantCardAction(cardId: string): Promise<SwapActionResponse> {
-  await removeWant(db, cardId);
+  const viewer = await requireSignedIn();
+  // An SL also clears the wants from before shopping lists were per owner, which they see too.
+  await removeWant(db, viewer.owner, cardId, viewer.kind === "sl");
   revalidatePath("/cart");
   return { ok: true };
 }

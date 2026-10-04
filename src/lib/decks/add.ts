@@ -6,9 +6,10 @@
  * allowed and the deck is flagged illegal afterwards (src/lib/decks/legality.ts).
  * Silently dropping a card the user just scanned would be worse than a flag.
  */
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
+import { deckScope, type OwnerScope } from "@/lib/collection/scope";
 import { deckRules, gameOr, type Game } from "@/lib/catalog/games";
 import type { Zone } from "./queries";
 
@@ -19,11 +20,12 @@ export interface DeckOption {
   game: Game;
 }
 
-export async function deckOptions(db: Db, opts: { game?: Game } = {}): Promise<DeckOption[]> {
+/** The decks a card can be added to; `scope` (`OwnerScope`) keeps a player to their own. */
+export async function deckOptions(db: Db, opts: { game?: Game; scope?: OwnerScope } = {}): Promise<DeckOption[]> {
   const rows = await db
     .select({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, game: decks.game })
     .from(decks)
-    .where(opts.game ? eq(decks.game, opts.game) : undefined)
+    .where(and(opts.game ? eq(decks.game, opts.game) : undefined, deckScope(opts.scope)))
     .orderBy(decks.name);
   return rows.map((r) => ({ ...r, game: gameOr(r.game) }));
 }

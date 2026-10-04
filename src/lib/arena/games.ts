@@ -590,10 +590,19 @@ export async function clearBeats(db: Db, id: number): Promise<void> {
  * every other mode is listed as it always was. Filtering after the fetch keeps
  * this one query and one shape, and the list is 20 rows.
  */
-export async function listGames(db: Db, limit = 20, user: string | null = null) {
+/**
+ * `owner` (a player's) narrows the list to games they may open: their own 1 v
+ * 1 seats, and any other game whose first deck is theirs (`canOpenGame`).
+ */
+function ownGames(owner: string | undefined) {
+  return owner === undefined ? undefined : sql`(${arenaGames.mode} = 'versus' or exists (select 1 from decks d where d.id = ${arenaGames.p1DeckId} and d.owner = ${owner}))`;
+}
+
+export async function listGames(db: Db, limit = 20, user: string | null = null, owner?: string) {
   const rows = await db
     .select(GAME_LIST_COLUMNS)
     .from(arenaGames)
+    .where(ownGames(owner))
     .orderBy(desc(arenaGames.updatedAt))
     .limit(limit * 2);
   return rows.filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null).slice(0, limit);
@@ -605,11 +614,11 @@ export async function listGames(db: Db, limit = 20, user: string | null = null) 
  * it behind twenty finished ones; this one is bounded by status instead, and
  * uses the partial shape of the same list so a row renders the same way.
  */
-export async function listPlayingGames(db: Db, limit = 10, user: string | null = null) {
+export async function listPlayingGames(db: Db, limit = 10, user: string | null = null, owner?: string) {
   const rows = await db
     .select(GAME_LIST_COLUMNS)
     .from(arenaGames)
-    .where(eq(arenaGames.status, "playing"))
+    .where(and(eq(arenaGames.status, "playing"), ownGames(owner)))
     .orderBy(desc(arenaGames.updatedAt))
     .limit(limit * 2);
   return rows.filter((g) => !isVersus(g.mode) || seatOf(g, user) !== null).slice(0, limit);

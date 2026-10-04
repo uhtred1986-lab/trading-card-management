@@ -9,6 +9,7 @@
  * cards. Drafts never block.
  */
 import { sql } from "drizzle-orm";
+import type { OwnerScope } from "@/lib/collection/scope";
 import type { Db } from "@/db";
 import { rows } from "@/db/rows";
 import type { CardRuleState, DeckPreviewCard } from "./deck-preview";
@@ -119,11 +120,11 @@ export async function deckCardSets(db: Db, deckIds: number[]): Promise<Map<numbe
 /**
  * Every card of one deck with its worst rule state, in one query (#368, the
  * "See the cards" sheet). The state is the same worst-of-rows rank `readiness`
- * counts by, so the sheet and the strip above it never disagree. `viewer`
- * hides a deck owned by someone else the way `getDeck` does: the answer is an
+ * counts by, so the sheet and the strip above it never disagree. `viewer` (an
+ * `OwnerScope`) hides a deck the looker may not see the way `getDeck` does: the answer is an
  * empty list. A card in two zones comes back once per zone.
  */
-export async function deckCardStates(db: Db, deckId: number, viewer?: string | null): Promise<DeckPreviewCard[]> {
+export async function deckCardStates(db: Db, deckId: number, viewer?: OwnerScope): Promise<DeckPreviewCard[]> {
   const result = await db.execute(sql`
     SELECT dc.card_id AS "cardId", dc.zone AS "zone", dc.quantity AS "quantity",
            c.name AS "name", c.card_type AS "cardType", c.colors AS "colors",
@@ -133,7 +134,7 @@ export async function deckCardStates(db: Db, deckId: number, viewer?: string | n
     JOIN cards c ON c.id = dc.card_id
     LEFT JOIN card_rules r ON r.card_id = dc.card_id
     WHERE dc.deck_id = ${deckId}
-      ${viewer ? sql`AND (d.owner IS NULL OR d.owner = ${viewer})` : sql``}
+      ${viewer === undefined ? sql`` : viewer === null ? sql`AND d.owner IS NULL` : sql`AND d.owner = ${viewer}`}
     GROUP BY dc.card_id, dc.zone, dc.quantity, c.name, c.card_type, c.colors, c.energy_cost, c.image_url
   `);
   type Row = { cardId: string; zone: string; quantity: number; name: string; cardType: string; colors: string[]; energyCost: string | null; imageUrl: string | null; rank: number | null };

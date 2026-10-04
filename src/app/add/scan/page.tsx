@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { deckOptions } from "@/lib/decks/add";
 import { ownerOptions } from "@/lib/collection/owners";
 import { listLocations } from "@/lib/collection/locations";
-import { currentOwner } from "@/lib/auth";
+import { currentOwner, requireSignedInPage, currentScope } from "@/lib/auth";
 import { getBatch, listOpenBatches } from "@/lib/scan/batches";
 import { ScanFlow } from "@/components/ScanFlow";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -14,18 +14,22 @@ export const dynamic = "force-dynamic";
 type Params = Record<string, string | string[] | undefined>;
 
 export default async function ScanPage({ searchParams }: { searchParams: Promise<Params> }) {
+  const viewer = await requireSignedInPage();
+  const scope = await currentScope();
   const sp = await searchParams;
   const raw = Array.isArray(sp.batch) ? sp.batch[0] : sp.batch;
   const batchId = raw ? Number(raw) : null;
   const owner = await currentOwner();
   const [open, current, decks, owners, locations] = await Promise.all([
-    listOpenBatches(db),
+    listOpenBatches(db, scope),
     batchId ? getBatch(db, batchId) : null,
-    deckOptions(db),
-    ownerOptions(db, owner),
-    listLocations(db, false),
+    deckOptions(db, { scope }),
+    ownerOptions(db, owner, viewer.kind === "player"),
+    listLocations(db, false, scope),
   ]);
-  const active = current && current.batch.status === "open" ? current : null;
+  // Someone else's batch is not offered to a player, even by id in the URL.
+  const visible = current && (scope === undefined || current.batch.owner === scope) ? current : null;
+  const active = visible && visible.batch.status === "open" ? visible : null;
   const others = open.filter((b) => b.id !== active?.batch.id);
 
   return (

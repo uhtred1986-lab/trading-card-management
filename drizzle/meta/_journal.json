@@ -295,6 +295,20 @@
       "when": 1791114319134,
       "tag": "0041_legal_blue_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791130312778,
+      "tag": "0042_outstanding_wallop",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791131313079,
+      "tag": "0043_busy_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

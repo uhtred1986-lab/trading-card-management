@@ -15,6 +15,7 @@ import { listDecks } from "@/lib/decks/queries";
 import { lastSyncRuns } from "@/lib/sync";
 import { recentBatches } from "../actions";
 import { buildRecord, historyOf, probeScenarios } from "./record";
+import { requireSlPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ function patchOf(patch: Record<string, string>): Partial<Queue> {
 }
 
 export default async function RulesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireSlPage();
   const qu = parseQueue(await searchParams);
 
   // Every deck the arena can play, whoever owns it (see the note above).

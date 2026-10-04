@@ -2,10 +2,12 @@ import Link from "next/link";
 import { db } from "@/db";
 import { listLocations } from "@/lib/collection/locations";
 import { LocationsAdmin } from "@/components/LocationsAdmin";
+import { requireSlPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function LocationsPage() {
+  await requireSlPage();
   const locations = await listLocations(db);
   const filed = locations.reduce((n, l) => n + l.cards, 0);
 

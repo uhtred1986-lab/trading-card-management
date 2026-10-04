@@ -86,7 +86,8 @@ export async function setBatchDeck(db: Db, batchId: number, deckId: number | nul
   await db.update(scanBatches).set({ deckId, updatedAt: new Date() }).where(eq(scanBatches.id, batchId));
 }
 
-export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
+/** The open scan batches; `owner` (a player's) keeps the list to their own. */
+export async function listOpenBatches(db: Db, owner?: string): Promise<ScanBatchSummary[]> {
   const batches = await db
     .select({
       id: scanBatches.id,
@@ -101,7 +102,7 @@ export async function listOpenBatches(db: Db): Promise<ScanBatchSummary[]> {
     })
     .from(scanBatches)
     .leftJoin(decks, eq(decks.id, scanBatches.deckId))
-    .where(eq(scanBatches.status, "open"))
+    .where(and(eq(scanBatches.status, "open"), owner === undefined ? undefined : eq(scanBatches.owner, owner)))
     .orderBy(desc(scanBatches.updatedAt));
   if (batches.length === 0) return [];
   const ids = batches.map((b) => b.id);

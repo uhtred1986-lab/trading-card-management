@@ -14,7 +14,7 @@ import { and, eq, ilike, inArray, ne, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { describeAiError, hasAnthropic } from "@/lib/ai/client";
-import { isArenaAdmin } from "@/lib/auth";
+import { isArenaAdmin, requireSl } from "@/lib/auth";
 import { claudeTeacher } from "@/lib/arena/ai/teach";
 import { RULE_CLAUSES, type RuleClause } from "@/lib/arena/lang/path";
 import { ruleById } from "@/lib/arena/rules-store";
@@ -47,6 +47,7 @@ function turnsOf(raw: unknown): TeachTurn[] | null {
  * parsed and validated, or one question with tap answers, or why neither.
  */
 export async function teachInWordsAction(ruleId: number, clause: RuleClause, said: string, turns: TeachTurn[]): Promise<TeachOutcome> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { kind: "error", message: "admins only" };
   const which = clauseOf(clause);
   const answered = turnsOf(turns);
@@ -96,6 +97,7 @@ const POOL = 80;
  * are `rankLike`'s.
  */
 export async function likeCardsAction(ruleId: number, clause: RuleClause, query = ""): Promise<LikeResult> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: "admins only", clauseWords: "", matches: [] };
   const which = clauseOf(clause);
   if (!which) return { error: "no such clause", clauseWords: "", matches: [] };

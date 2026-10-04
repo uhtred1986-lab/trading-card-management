@@ -4,6 +4,7 @@ import { GameFilter } from "@/components/GameFilter";
 import { CardImage } from "@/components/CardImage";
 import { OFFICIAL_NEWS_LINKS } from "@/lib/catalog/news";
 import { cachedRecentCards } from "@/lib/cache/reads";
+import { requireSignedInPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v |
 const DAYS = 30;
 
 export default async function MetaNewsPage({ searchParams }: { searchParams: Promise<Params> }) {
+  await requireSignedInPage();
   const sp = await searchParams;
   const game = parseGame(one(sp.game));
 

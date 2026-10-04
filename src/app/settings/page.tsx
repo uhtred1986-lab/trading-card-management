@@ -13,13 +13,15 @@ import { TurnLighting } from "@/components/arena/TurnLighting";
 import { AiSettingsBlock } from "@/components/settings/AiSettingsBlock";
 import { providerPanels } from "@/lib/ai/panel";
 import { loadSettings } from "@/lib/ai/settings-db";
-import { isArenaAdmin } from "@/lib/auth";
+import { currentSession, isArenaAdmin, requireSlPage } from "@/lib/auth";
+import { signOut } from "@/app/login/actions";
 
 export const dynamic = "force-dynamic";
 /** Sync actions can run for a couple of minutes on Vercel's fluid compute. */
 export const maxDuration = 300;
 
 export default async function SettingsPage() {
+  await requireSlPage();
   const { latest, recent } = await lastSyncRuns(db);
   const catalog = latest.get("catalog");
   const prices = latest.get("prices");
@@ -32,11 +34,21 @@ export default async function SettingsPage() {
   const skin = skinFrom(jar.get(SKIN_COOKIE)?.value);
   const lighting = lightingFrom(jar.get(LIGHTING_COOKIE)?.value);
   const engine = await defaultEngine(db);
-  const [aiSettings, aiPanels, aiAdmin] = await Promise.all([loadSettings(db), providerPanels(), isArenaAdmin()]);
+  const [aiSettings, aiPanels, aiAdmin, session] = await Promise.all([loadSettings(db), providerPanels(), isArenaAdmin(), currentSession()]);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-space-50">Settings & data sync</h1>
+      <div className="flex flex-wrap items-baseline gap-3">
+        <h1 className="text-xl font-semibold text-space-50">Settings & data sync</h1>
+        {session ? (
+          <form action={signOut} className="ml-auto flex items-baseline gap-2 text-xs text-space-400">
+            <span>signed in as {session.email}</span>
+            <button type="submit" className="tap rounded-md border border-space-600 px-3 py-1 text-space-100 hover:bg-space-800">
+              Sign out
+            </button>
+          </form>
+        ) : null}
+      </div>
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -118,12 +130,18 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-semibold text-space-50">Logins & owners</h2>
-          <Link href="/settings/users" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-100 hover:bg-space-800">
-            Manage logins →
+          <h2 className="font-semibold text-space-50">Users & access</h2>
+          <Link href="/settings/access" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-100 hover:bg-space-800">
+            Manage users →
           </Link>
         </div>
-        <p className="mt-1 text-xs text-space-300">Add people who can sign in, change their passwords, and choose the owner name each login records on the cards it adds.</p>
+        <p className="mt-1 text-xs text-space-300">
+          Add players and give each a one-time join code for their phone, disconnect devices, add SLs, and hand unassigned cards to a player.{" "}
+          <Link href="/settings/users" className="underline hover:text-ki-300">
+            Old password logins
+          </Link>{" "}
+          still work for now.
+        </p>
       </section>
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">

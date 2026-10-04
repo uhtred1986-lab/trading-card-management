@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { describeAiError, hasAnthropic } from "@/lib/ai/client";
 import { identifyCards } from "@/lib/ai/scan";
+import { routeViewer } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -12,6 +13,8 @@ export const maxDuration = 60;
  * confirmed lot is written (via addLot).
  */
 export async function POST(req: Request) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   if (!hasAnthropic()) return NextResponse.json({ error: "ANTHROPIC_API_KEY is not set." }, { status: 503 });
   const form = await req.formData();
   const file = form.get("image");

@@ -11,6 +11,7 @@ import { CardTile } from "@/components/CardTile";
 import { CardList } from "@/components/CardList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { parseViewMode } from "@/lib/view-mode";
+import { requireSignedInPage, currentScope } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,8 @@ function one(v: string | string[] | undefined): string | undefined {
 }
 
 export default async function CardsPage({ searchParams }: { searchParams: Promise<Params> }) {
+  await requireSignedInPage();
+  const scope = await currentScope();
   const sp = await searchParams;
   const view = parseViewMode(one(sp.view));
   const search: CardSearch = {
@@ -41,7 +44,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
   // a Fusion World view never offers a Masters set — or trait/ability — that
   // would empty the page.
   const [result, allSets, sets, rarities, traits, abilities, usdEur] = await Promise.all([
-    searchCards(db, search, cachedCardIdsWithAbility),
+    searchCards(db, { ...search, ownedBy: scope }, cachedCardIdsWithAbility),
     cachedListSets(),
     search.game ? cachedListSets(search.game) : cachedListSets(),
     cachedListRarities(search.game),
@@ -51,7 +54,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
   ]);
   const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
   const ids = result.rows.map((r) => r.id);
-  const [prices, alloc] = await Promise.all([cachedBasePricesForCards(ids), allocationForCards(db, ids)]);
+  const [prices, alloc] = await Promise.all([cachedBasePricesForCards(ids), allocationForCards(db, ids, scope)]);
 
   const qs = (overrides: Record<string, string | number | undefined>) => {
     const p = new URLSearchParams();

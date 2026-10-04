@@ -15,7 +15,8 @@ import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
 import { abandonGame, applyToGame, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode, type LoadedGame } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
-import { currentOwner, currentUser, isArenaAdmin } from "@/lib/auth";
+import { currentOwner, currentUser, isArenaAdmin, requireSignedIn, requireSl } from "@/lib/auth";
+import { assertOwnDeck, canOpenGame } from "@/lib/auth/ownership";
 import { flagTurn as storeFlagTurn, reopenFlag, reviewFlag, type FlagLine } from "@/lib/arena/review-store";
 import { advance } from "@/lib/arena/ai/run";
 import { reviewGame } from "@/lib/arena/ai/review";
@@ -37,6 +38,7 @@ import { syncFeedbackItem, syncAllFeedbackItems, type FeedbackItem } from "@/lib
  * flashes the other one on load.
  */
 export async function chooseSkin(gameId: number | undefined, skin: ArenaSkin) {
+  await requireSignedIn();
   (await cookies()).set(SKIN_COOKIE, skin, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   // The skin paints the whole app now, so every page is stale.
   revalidatePath("/", "layout");
@@ -53,6 +55,7 @@ export async function chooseSkin(gameId: number | undefined, skin: ArenaSkin) {
  * staging paints nothing outside the board.
  */
 export async function chooseStaging(gameId: number | undefined, staging: ArenaStaging) {
+  await requireSignedIn();
   (await cookies()).set(STAGING_COOKIE, staging, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   revalidatePath(gameId == null ? "/arena" : `/arena/${gameId}`);
 }
@@ -67,8 +70,10 @@ export async function chooseStaging(gameId: number | undefined, staging: ArenaSt
  * it is only worth that if it can be replayed.
  */
 export async function reportBug(gameId: number, note: string, cardId?: string | null): Promise<{ error: string | null }> {
+  await requireSignedIn();
   const text = note.trim();
   if (!text) return { error: "say what went wrong, in a few words" };
+  if (!(await canOpenGame(await requireSignedIn(), gameId))) return { error: "this is not your game" };
   const game = await loadGame(db, gameId);
   if (!game) return { error: "no such game" };
   // A report carries the whole state, both hands included. Either player in a
@@ -103,6 +108,7 @@ export async function reportBug(gameId: number, note: string, cardId?: string | 
  * back the flag already there.
  */
 export async function flagThisTurn(gameId: number, note: string | null): Promise<{ error: string | null; flag: FlagLine | null; created: boolean }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: "admins only", flag: null, created: false };
   const game = await loadGame(db, gameId);
   if (!game) return { error: "no such game", flag: null, created: false };
@@ -115,6 +121,7 @@ export async function flagThisTurn(gameId: number, note: string | null): Promise
 
 /** The review screen's two buttons: save the reviewer's note, and Resolve (or put a resolved flag back). Admin-only, checked here. */
 export async function reviewFlagAction(flagId: number, formData: FormData): Promise<void> {
+  await requireSl();
   if (!(await isArenaAdmin())) throw new Error("admins only");
   const intent = String(formData.get("intent") ?? "save");
   const reviewerNote = String(formData.get("reviewerNote") ?? "");
@@ -124,6 +131,7 @@ export async function reviewFlagAction(flagId: number, formData: FormData): Prom
 }
 
 export async function setFeedbackStatus(id: number, status: "open" | "fixed" | "wontfix") {
+  await requireSl();
   await db
     .update(arenaFeedback)
     .set({ status, resolvedAt: status === "open" ? null : new Date() })
@@ -132,6 +140,7 @@ export async function setFeedbackStatus(id: number, status: "open" | "fixed" | "
 }
 
 export async function syncFeedbackToGitHubAction(id: number): Promise<void> {
+  await requireSl();
   const [row] = await db.select().from(arenaFeedback).where(eq(arenaFeedback.id, id)).limit(1);
   if (!row) return;
   try {
@@ -143,6 +152,7 @@ export async function syncFeedbackToGitHubAction(id: number): Promise<void> {
 }
 
 export async function syncAllFeedbackAction(): Promise<void> {
+  await requireSl();
   const rows = await db.select().from(arenaFeedback);
   try {
     await syncAllFeedbackItems(rows as unknown as FeedbackItem[]);
@@ -178,6 +188,7 @@ async function noteRule(id: number, note: string, resolution: string | null) {
  * inside one press is not a press — and `arena:probe --fill` catches those up.
  */
 export async function confirmRuleAction(id: number): Promise<{ error: string | null }> {
+  await requireSl();
   // The four actions that write a rule refuse anyone but an admin (#469): the
   // block builder makes writing one from a phone easy, so the server is where
   // that is decided, not the button.
@@ -201,6 +212,7 @@ export async function confirmRuleAction(id: number): Promise<{ error: string | n
 
 /** A confirmed or corrected record goes back to draft, program untouched, to be looked at again. */
 export async function reopenRuleAction(id: number): Promise<{ error: string | null }> {
+  await requireSl();
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
   await reopenRule(db, id);
@@ -223,6 +235,7 @@ export async function reopenRuleAction(id: number): Promise<{ error: string | nu
  * misread.
  */
 export async function saveRuleAction(id: number, rule: unknown, explanation: string | null, patternWrong = false): Promise<{ error: string | null }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY };
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
@@ -252,6 +265,7 @@ export async function saveRuleAction(id: number, rule: unknown, explanation: str
  * convention unseen. An empty box clears the entry, back to unknown.
  */
 export async function setSpecifiedCostAction(cardId: string, text: string): Promise<{ error: string | null }> {
+  await requireSl();
   const [row] = await db.select({ energyCost: cards.energyCost }).from(cards).where(eq(cards.id, cardId));
   if (!row) return { error: "no such card" };
   if (!/^x$/i.test((row.energyCost ?? "").trim())) return { error: "only an X-cost card takes a specified-cost entry — a fixed cost's orbs are filled by convention" };
@@ -270,6 +284,7 @@ export async function setSpecifiedCostAction(cardId: string, text: string): Prom
 
 /** An empty program, owned by the person: the skill does nothing the engine should carry out. */
 export async function blankRuleAction(id: number, explanation: string | null): Promise<{ error: string | null }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY };
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
@@ -280,6 +295,7 @@ export async function blankRuleAction(id: number, explanation: string | null): P
 
 /** The compiler now reads the text differently, and the person yields to it. */
 export async function takeCompilerAction(id: number): Promise<{ error: string | null }> {
+  await requireSl();
   await takeCompilerDiff(db, id);
   await noteRule(id, "took the compiler's newer reading", (await ruleById(db, id))?.reads ?? null);
   return { error: null };
@@ -287,6 +303,7 @@ export async function takeCompilerAction(id: number): Promise<{ error: string | 
 
 /** …or keeps their own; the diff is cleared until the compiler changes its mind again. */
 export async function keepMineAction(id: number): Promise<{ error: string | null }> {
+  await requireSl();
   await setCompilerDiff(db, id, null);
   await noteRule(id, "kept their own reading over the compiler's", null);
   return { error: null };
@@ -331,6 +348,7 @@ function filterInWords(f: RuleFilter): string {
  * those, and nothing that happened afterwards.
  */
 export async function confirmAllAction(rawFilter: unknown): Promise<{ error: string | null; confirmed: number; batchId: number | null }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY, confirmed: 0, batchId: null };
   const filter = readFilter(rawFilter);
   const batch = await confirmMatching(db, filter);
@@ -345,6 +363,7 @@ export async function confirmAllAction(rawFilter: unknown): Promise<{ error: str
 
 /** …and take it back. A row edited since is left alone, and said so. */
 export async function undoConfirmAction(batchId: number): Promise<{ error: string | null; reverted: number; kept: number }> {
+  await requireSl();
   const row = await db.query.arenaFeedback.findFirst({ where: eq(arenaFeedback.id, batchId) });
   const batch = row?.batch as ConfirmBatch | null | undefined;
   if (!row || !batch?.rules?.length) return { error: "there is nothing to undo", reverted: 0, kept: 0 };
@@ -361,6 +380,7 @@ export async function undoConfirmAction(batchId: number): Promise<{ error: strin
 
 /** The bulk confirms that can still be taken back, newest first. */
 export async function recentBatches(): Promise<{ id: number; note: string; n: number }[]> {
+  await requireSl();
   const rows = await db.select({ id: arenaFeedback.id, note: arenaFeedback.note, batch: arenaFeedback.batch }).from(arenaFeedback).where(and(eq(arenaFeedback.kind, "rule"), isNotNull(arenaFeedback.batch))).orderBy(desc(arenaFeedback.id)).limit(5);
   return rows.map((r) => ({ id: r.id, note: r.note, n: ((r.batch as ConfirmBatch | null)?.rules ?? []).length }));
 }
@@ -375,6 +395,7 @@ export async function recentBatches(): Promise<{ id: number; note: string; n: nu
  * since it is what to add to the explanation before asking again.
  */
 export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null; question: string | null }> {
+  await requireSl();
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule", question: null };
   let error: string | null = null;
@@ -400,6 +421,7 @@ export async function explainRuleAction(id: number, explanation: string): Promis
 }
 
 export async function startGameForm(formData: FormData) {
+  await requireSignedIn();
   const deck = Number(formData.get("deck"));
   const opponent = String(formData.get("opponent") ?? "sparring");
   if (!(["sparring", "tournament", "versus", "hotseat"] as string[]).includes(opponent)) throw new Error("pick an opponent");
@@ -410,6 +432,9 @@ export async function startGameForm(formData: FormData) {
   // instead of throwing.
   const { engine } = engineForMode(await defaultEngine(db), mode);
   if (!Number.isInteger(deck)) throw new Error("pick a deck");
+  // A player plays their own decks only (both sides, outside a 1 v 1).
+  const viewer = await requireSignedIn();
+  await assertOwnDeck(viewer, deck);
 
   // Every game is recorded; who may *read* the record is the admin gate (#350).
   const debug = true;
@@ -426,6 +451,7 @@ export async function startGameForm(formData: FormData) {
   // pass-and-play. `claudeDeck` names both, since the form shows one select.
   const other = Number(formData.get("claudeDeck"));
   if (!Number.isInteger(other)) throw new Error("pick the deck the other side plays");
+  await assertOwnDeck(viewer, other);
   const id = await startGame(db, deck, other, mode, debug, undefined, engine);
   revalidatePath("/arena");
   redirect(`/arena/${id}`);
@@ -445,6 +471,8 @@ export async function startGameForm(formData: FormData) {
  * from the caller's own deck of that game (the host's for the host).
  */
 export async function rematch(gameId: number): Promise<{ error: string | null }> {
+  await requireSignedIn();
+  if (!(await canOpenGame(await requireSignedIn(), gameId))) return { error: "no such game" };
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
   if (!row || row.snapshot) return { error: "no such game" };
   if (row.status === "playing") return { error: "the game is not over yet" };
@@ -471,9 +499,11 @@ export async function rematch(gameId: number): Promise<{ error: string | null }>
 
 /** Take the empty seat in someone's 1 v 1, with a deck of your own. */
 export async function joinMatchForm(formData: FormData) {
+  await requireSignedIn();
   const matchId = Number(formData.get("match"));
   const deckId = Number(formData.get("deck"));
   if (!Number.isInteger(matchId) || !Number.isInteger(deckId)) throw new Error("pick a deck");
+  await assertOwnDeck(await requireSignedIn(), deckId);
   const gameId = await joinMatch(db, matchId, await currentUser(), deckId, await currentOwner());
   revalidatePath("/arena");
   redirect(`/arena/${gameId}`);
@@ -481,6 +511,7 @@ export async function joinMatchForm(formData: FormData) {
 
 /** Called off before anyone joined. */
 export async function cancelMatchAction(matchId: number) {
+  await requireSignedIn();
   await cancelMatch(db, matchId, await currentUser());
   revalidatePath("/arena");
   redirect("/arena");
@@ -495,6 +526,7 @@ export async function cancelMatchAction(matchId: number) {
  * (`docs/arena-client-contract.md` §5).
  */
 export async function matchGameId(matchId: number): Promise<{ gameId: number | null; status: string }> {
+  await requireSignedIn();
   const m = await matchById(db, matchId);
   return { gameId: m?.gameId ?? null, status: m?.status ?? "cancelled" };
 }
@@ -511,6 +543,7 @@ export async function matchGameId(matchId: number): Promise<{ gameId: number | n
  * cards by asking for them.
  */
 export async function act(gameId: number, action: Action): Promise<{ error: string | null }> {
+  await requireSignedIn();
   let applied: LoadedGame;
   try {
     const refused = await refuse(gameId, true);
@@ -550,6 +583,7 @@ async function refuse(gameId: number, needTurn: boolean): Promise<string | null>
     .from(arenaGames)
     .where(eq(arenaGames.id, gameId))
     .limit(1);
+  if (!(await canOpenGame(await requireSignedIn(), gameId))) return "this is not your game";
   if (!row || !isVersus(row.mode)) return null;
   const seat = seatOf(row, await currentUser());
   if (!seat) return "this is not your game";
@@ -561,6 +595,7 @@ async function refuse(gameId: number, needTurn: boolean): Promise<string | null>
 
 /** Used when a page loads and it is already Claude's turn, or a ruling is pending. */
 export async function advanceGame(gameId: number): Promise<{ error: string | null }> {
+  await requireSignedIn();
   // A ruling belongs to neither player, so either seat may ask for one — but
   // only a seat.
   const refused = await refuse(gameId, false);
@@ -571,6 +606,7 @@ export async function advanceGame(gameId: number): Promise<{ error: string | nul
 }
 
 export async function requestReview(gameId: number): Promise<{ error: string | null }> {
+  await requireSignedIn();
   const refused = await refuse(gameId, false);
   if (refused) return { error: refused };
   try {
@@ -583,6 +619,7 @@ export async function requestReview(gameId: number): Promise<{ error: string | n
 }
 
 export async function abandon(gameId: number) {
+  await requireSignedIn();
   // Either seat may give up, and it ends the game for both.
   if (await refuse(gameId, false)) return;
   await abandonGame(db, gameId);
@@ -597,6 +634,7 @@ export async function abandon(gameId: number) {
  * a stored probe all try the same rule.
  */
 export async function probeRuleFor(id: number): Promise<{ rule: ProbeRule; scenarios: ProbeScenario[] } | null> {
+  await requireSl();
   const row = await ruleById(db, id);
   if (!row) return null;
   const defs = await defsForCards(db, [row.cardId]);
@@ -608,6 +646,7 @@ export async function probeRuleFor(id: number): Promise<{ rule: ProbeRule; scena
 
 /** Run one rule on one board. Pure once the row is read, so it costs a query and nothing else. */
 export async function probeRuleAction(id: number, scenarioKey?: string): Promise<{ error: string | null; run: ProbeRun | null }> {
+  await requireSl();
   const found = await probeRuleFor(id);
   if (!found) return { error: "no such rule", run: null };
   const scenario = found.scenarios.find((s) => s.key === scenarioKey) ?? found.scenarios[0];
@@ -619,6 +658,7 @@ export async function probeRuleAction(id: number, scenarioKey?: string): Promise
  * pure engine, so the whole set costs the one query the rule was read with.
  */
 export async function probeAllAction(id: number): Promise<{ error: string | null; runs: { key: string; title: string; outcome: ProbeRun["outcome"]; headline: string }[] }> {
+  await requireSl();
   const found = await probeRuleFor(id);
   if (!found) return { error: "no such rule", runs: [] };
   return {

@@ -15,11 +15,14 @@
  * first one's box when the two share a card.
  *
  * The sideboard is left alone: it is a scratch zone, not part of the deck you
- * physically carry.
+ * physically carry. Only the deck owner's own copies are ever moved, and only
+ * their other built decks count as homes — another player's box is never
+ * touched (`src/lib/collection/scope.ts`).
  */
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { deckCards, decks, ownedCards, storageLocations } from "@/db/schema";
+import { deckScope, lotScope } from "@/lib/collection/scope";
 
 export interface FilingResult {
   /** Copies actually moved. Zero when everything was already in place. */
@@ -55,11 +58,11 @@ export async function fileDeckAtLocation(db: Db, deckId: number): Promise<Filing
     db
       .select({ id: ownedCards.id, cardId: ownedCards.cardId, locationId: ownedCards.locationId })
       .from(ownedCards)
-      .where(and(inArray(ownedCards.cardId, cardIds), isNull(ownedCards.archivedAt))),
+      .where(and(inArray(ownedCards.cardId, cardIds), isNull(ownedCards.archivedAt), lotScope(deck.owner))),
     db
       .selectDistinct({ locationId: decks.locationId })
       .from(decks)
-      .where(and(eq(decks.isBuilt, true), ne(decks.id, deckId))),
+      .where(and(eq(decks.isBuilt, true), ne(decks.id, deckId), deckScope(deck.owner))),
   ]);
 
   const claimed = new Set(otherHomes.map((h) => h.locationId).filter((x): x is number => x != null && x !== target));

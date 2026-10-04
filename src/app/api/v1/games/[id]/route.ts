@@ -1,11 +1,12 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { canOpenGame } from "@/lib/auth/ownership";
 import { arenaGames } from "@/db/schema";
 import { fail, ok, pollParams, seatFor } from "@/lib/arena/api";
 import { isVersus, loadArchivedGame, loadGame, seatOf } from "@/lib/arena/games";
 import { snapshotOfGame, waitForBeats } from "@/lib/arena/session";
 import { archivedSnapshotFor } from "@/lib/arena/snapshot";
-import { currentUser } from "@/lib/auth";
+import { currentUser, routeViewer } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 /** A long-poll holds the function for its whole wait; `pollParams` caps it at 30 s. */
@@ -20,8 +21,12 @@ export const maxDuration = 60;
  * jump at the end of a minute of thinking. Without them it answers at once.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return fail("bad_request", "game id must be a number");
+  // A player opens only their own games; a game they may not open does not exist for them.
+  if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
 
   const { sinceBeat, waitMs } = pollParams(new URL(req.url));
 

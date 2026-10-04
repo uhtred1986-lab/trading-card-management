@@ -22,13 +22,20 @@ decks (owner's decision, 4 Sep 2026).
 Owner is in Austria: the display currency is EUR; TCGplayer prices are USD and converted at the
 ECB rate stored in `fx_rates`. Price paid is entered in EUR.
 
-**Auth is HTTP Basic Auth in `src/proxy.ts`** (same pattern as gullet-cove-dm), active only when
-`BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` are both set — they are set in Vercel for Production and
-Preview, and deliberately *not* in `.env.local`, so local dev runs open. `/api/sync/*` is exempt
-because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` instead. The web-app
-manifest, `/icons/*` and `/sw.js` are exempt too — the browser fetches them without credentials, so
-behind auth the app cannot be installed at all. Removing either variable exposes the whole database.
-The arena's engine internals (REF badge, "Engine reads", raw ids and log, `/arena/[id]/debug`) show only to an admin: `isArenaAdmin()` (`src/lib/auth/admin.ts`) is true for a login listed in `ARENA_ADMINS` (comma-separated, case-insensitive) or whenever Basic Auth is off; with auth on and the list unset, nobody is admin.
+**Auth is the gullet-cove-dm sign-in** (`docs/architecture/auth.md`). **SLs** (admins) sign in with
+Google at `/login` (`AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SL_EMAILS` for the owners;
+more SLs in `sl_accounts`); signed `dbs-session` cookie, `src/lib/auth/core.ts`. **Players** join with a
+one-time code from Settings → Users & access (`/join?c=CODE`, 24 h, single use) and stay signed in on
+that device (`dbs-player` cookie, re-checked against `player_devices` every request). Players see only
+their own cards and decks and nothing SL-only (`isSlOnlyPath`: Settings, the arena workbench, review,
+debug, set review). Basic Auth still works beside it during the move — the `BASIC_AUTH_USER`/
+`BASIC_AUTH_PASSWORD` pair (an SL) and `app_users` rows (players, or SLs when listed in `ARENA_ADMINS`),
+also via `/password-login`. With Google set up, a signed-out page goes to `/login`; without it the Basic
+popup appears as before; with nothing set (local dev) the app runs open and everyone is an SL. An SL
+with no `sl_accounts` row acts under `BASIC_AUTH_USER`. `/api/sync/*` and `/api/ai/agent-sdk` skip the
+proxy and check their own bearer secret. The web-app manifest, `/icons/*` and `/sw.js` are exempt too —
+the browser fetches them without credentials, so behind auth the app cannot be installed at all.
+The arena's engine internals (REF badge, "Engine reads", raw ids and log, `/arena/[id]/debug`) show only to an SL: `isArenaAdmin()` (`src/lib/auth/index.ts`).
 
 **Previews are off (only `main` deploys), so the next note matters only if that is reverted.
 Vercel's own deployment protection is ON for Preview** (verified 6 Sep 2026: a preview URL
@@ -97,6 +104,7 @@ The Data sources and Architecture sections moved out of this file unchanged (iss
 | Catalog import, deckplanet/Bandai/TCGplayer/CardTrader/FX sources, card images, leader faces, errata, prices, the optimiser | `docs/architecture/catalog-and-sync.md` |
 | Ownership, reservations, deck legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
 | Deck analysis, wizard, card scanning, cart explainer, "Build a deck with Claude" | `docs/architecture/ai.md` |
+| Sign-in and access: Google for SLs, join codes for players, guards, private collections, the admin page | `docs/architecture/auth.md` |
 | The provider-neutral AI layer (API vs subscription, swapping vendors): contract, routing, ledger | `docs/architecture/ai-providers.md` |
 | Server actions, raw SQL (`rows()`, `textArray()`), the SessionStart hook | `docs/architecture/db.md` |
 | The arena: engines, compiler, rules language, rulesets, workbench, UI, opponent, probe, arena scripts | `docs/architecture/arena.md`, then `docs/arena-tooling.md` and `docs/arena-code-map.md` |
@@ -106,7 +114,8 @@ Large docs: `docs/arena-history-lessons.md` (199 KB) and `docs/arena-code-map.md
 
 ## Hard rules (detail in the docs above)
 
-- **Reservations are computed, never stored**; over-reserving a *built* deck is the one thing refused. `collection-and-decks.md`
+- **Reservations are computed, never stored**; over-reserving a *built* deck is the one thing refused; a built deck reserves only its owner's copies. `collection-and-decks.md`
+- **Every Server Function, page and route checks who is asking itself** (`requireSl`/`requireSignedIn`, `requireSlPage`/`requireSignedInPage`, `routeViewer`), and every read of lots, decks or wants takes `currentScope()`; `scripts/verify/guards.ts` fails `npm test` on a missing guard. `auth.md`
 - **Legality is a flag, never a block**: `legality(rows, game)` labels, it never refuses. `collection-and-decks.md`
 - **Errata are fixed in `errata.ts`, never by UPDATE**: the catalog upsert overwrites `skill`. `catalog-and-sync.md`
 - **Keep `coalesce` on `image_url` and `cards.specified_cost`** in the catalog upsert, or a sync erases them. `catalog-and-sync.md`

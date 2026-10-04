@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { sql } from "drizzle-orm";
 import { db } from "@/db";
+import { players } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
 import { lastPlayedDecks, listGames, listPlayingGames } from "@/lib/arena/games";
 import { listOpenMatches } from "@/lib/arena/matches";
-import { currentOwner, currentUser } from "@/lib/auth";
+import { currentScope, currentUser, requireSignedInPage } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
 import { isLocked, readiness } from "@/lib/arena/readiness";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
@@ -15,6 +17,7 @@ import { startGameForm } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function ArenaPage({ searchParams }: { searchParams: Promise<{ deck?: string; tab?: string; list?: string }> }) {
+  await requireSignedInPage();
   // `?deck=<id>` preselects a deck: GameOver's "Change deck" (#358).
   const sp = await searchParams;
   const wanted = Number(sp.deck);
@@ -22,16 +25,22 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
   // The engine reads the original game's rule manual and nothing else, so
   // Fusion World decks are simply not offered here (owner's decision).
   const me = await currentUser();
-  const [decks, games, playing, matches, users] = await Promise.all([
-    listDecks(db, { game: "dbs", viewer: await currentOwner() }),
-    listGames(db, 20, me),
-    listPlayingGames(db, 10, me),
+  const scope = await currentScope();
+  const [decks, games, playing, matches, users, playerCount] = await Promise.all([
+    listDecks(db, { game: "dbs", viewer: scope }),
+    listGames(db, 20, me, scope),
+    listPlayingGames(db, 10, me, scope),
     listOpenMatches(db),
     listUsers(db).catch(() => []),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(players)
+      .then((r) => Number(r[0]?.n ?? 0))
+      .catch(() => 0),
   ]);
-  // A 1 v 1 is two people, and a person here is an `app_users` row. Without a
-  // second one the form would only throw, so it says so instead.
-  const canVersus = users.filter((u) => u.isActive).length >= 2 && !!me;
+  // A 1 v 1 is two people: a password login or a player, plus whoever is here.
+  // Without a second one the form would only throw, so it says so instead.
+  const canVersus = users.filter((u) => u.isActive).length + playerCount >= 1 && !!me;
   // What games of each kind have actually cost, rather than an estimate.
   const costs = { sparring: "~12¢ a game", tournament: "~25¢ a game" };
   for (const mode of ["sparring", "tournament"] as const) {

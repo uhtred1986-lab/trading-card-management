@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DBS_FILES, loadDbs } from "@/lib/arena/rulesets";
 import { leadingComment, printedByFile } from "@/lib/arena/rulesets/print-by-file";
+import { requireSlPage } from "@/lib/auth";
 
 export const metadata = { title: "The game, as files" };
 
@@ -19,7 +20,8 @@ const FILE_ORDER = ["game.rules", "attributes.rules", "zones.rules", "ops.rules"
  * beside it as a note, since the language has no comment of its own for the
  * printer to keep.
  */
-export default function RulesGamePage() {
+export default async function RulesGamePage() {
+  await requireSlPage();
   const loaded = loadDbs();
   if (!loaded.ok) {
     return (

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 /*
  * ──────────────────────────────────────────────────────────────────────────
@@ -605,9 +605,15 @@ export const wantList = pgTable(
     note: text("note"),
     /** The deck the want came from, if any. */
     deckId: integer("deck_id").references(() => decks.id, { onDelete: "set null" }),
+    /**
+     * Whose shopping list it is, stamped like `owned_cards.owner`; null for a
+     * want from before lists were per owner (an SL's to see). One row per
+     * owner and card.
+     */
+    owner: text("owner"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("want_list_card_unique").on(t.cardId)],
+  (t) => [unique("want_list_owner_card_unique").on(t.owner, t.cardId).nullsNotDistinct()],
 );
 
 /** Every Claude call, kept so results can be re-shown without re-paying for them. */
@@ -929,6 +935,93 @@ export const appUsers = pgTable("app_users", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * SLs (admins) beyond the owners in `SL_EMAILS`, and the owner name every SL
+ * acts under (docs/architecture/auth.md). An owner in `SL_EMAILS` needs no row
+ * to sign in; a row only gives them an owner name. Only an owner may add or
+ * remove a row. `email` is normalised (trimmed, lower case).
+ */
+export const slAccounts = pgTable("sl_accounts", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  /** Stamped on the cards and decks this SL adds; see `owned_cards.owner`. */
+  owner: text("owner").notNull(),
+  /** The owner who added it, normalised. */
+  addedBy: text("added_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * A player: someone who signs in with a join code, never a password. `owner`
+ * is the name stamped on their cards and decks, and the only lots and decks
+ * they see. Deleting a player cascades to their codes and devices, which signs
+ * every device out on its next request.
+ */
+export const players = pgTable("players", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  owner: text("owner").notNull(),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * One-time join codes: six characters, single use, 24 hours. Only the code's
+ * SHA-256 is stored; the plain code exists only in the SL's page until a
+ * reload. One open code per player — a new one deletes the old.
+ */
+export const playerJoinCodes = pgTable(
+  "player_join_codes",
+  {
+    id: serial("id").primaryKey(),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdBy: text("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("player_join_codes_hash_unique").on(t.codeHash), index("player_join_codes_player_idx").on(t.playerId)],
+);
+
+/**
+ * A phone or browser a player joined from. The `dbs-player` cookie carries a
+ * random token whose SHA-256 is `tokenHash`; every request re-reads this row,
+ * so "Disconnect" (`revokedAt`) refuses the device's next request.
+ */
+export const playerDevices = pgTable(
+  "player_devices",
+  {
+    id: serial("id").primaryKey(),
+    playerId: integer("player_id")
+      .notNull()
+      .references(() => players.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    label: text("label").notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("player_devices_player_idx").on(t.playerId)],
+);
+
+/**
+ * The join rate limit: one row per attempt, keyed by an HMAC of the caller's
+ * IP (the address itself is never stored). Rows older than an hour are pruned
+ * on every write.
+ */
+export const joinAttempts = pgTable(
+  "join_attempts",
+  {
+    id: serial("id").primaryKey(),
+    keyHash: text("key_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("join_attempts_key_idx").on(t.keyHash, t.createdAt)],
+);
 
 /**
  * A turn an admin flagged for later review (issue #351), from the board's admin

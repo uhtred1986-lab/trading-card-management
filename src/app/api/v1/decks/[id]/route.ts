@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { fail, ok } from "@/lib/arena/api";
 import { deckDetail } from "@/lib/arena/deck-api";
 import { deckInputFor } from "@/lib/arena/load";
-import { currentOwner } from "@/lib/auth";
+import { currentScope, routeViewer } from "@/lib/auth";
 import { getDeck } from "@/lib/decks/queries";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +15,11 @@ export const dynamic = "force-dynamic";
  * deck page (issue #279) — `getDeck` is what actually hides it.
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return fail("bad_request", "deck id must be a number");
-  const deck = await getDeck(db, id, await currentOwner());
+  const deck = await getDeck(db, id, await currentScope());
   if (!deck) return fail("not_found", `no deck ${id}`);
   const playable = (await deckInputFor(db, id)) !== null;
   return ok(deckDetail(deck, playable));

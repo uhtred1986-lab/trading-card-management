@@ -3,14 +3,16 @@ import { db } from "@/db";
 import { deckOptions } from "@/lib/decks/add";
 import { ownerOptions } from "@/lib/collection/owners";
 import { listLocations } from "@/lib/collection/locations";
-import { currentOwner } from "@/lib/auth";
+import { currentOwner, requireSignedInPage, currentScope } from "@/lib/auth";
 import { BulkEntry } from "@/components/BulkEntry";
 
 export const dynamic = "force-dynamic";
 
 export default async function BulkPage() {
+  const viewer = await requireSignedInPage();
   const owner = await currentOwner();
-  const [decks, owners, locations] = await Promise.all([deckOptions(db), ownerOptions(db, owner), listLocations(db, false)]);
+  const scope = await currentScope();
+  const [decks, owners, locations] = await Promise.all([deckOptions(db, { scope }), ownerOptions(db, owner, viewer.kind === "player"), listLocations(db, false, scope)]);
   return (
     <div className="space-y-3">
       <div className="flex items-baseline gap-3">

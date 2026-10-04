@@ -12,6 +12,7 @@ import { syncFx } from "@/lib/pricing/fx";
 import { syncPrices } from "@/lib/pricing/tcgcsv";
 import { runSync } from "@/lib/sync";
 import { expireTagsFromAction, type CacheTag } from "@/lib/cache/tags";
+import { requireSl } from "@/lib/auth";
 
 /**
  * A failed sync is already recorded in `sync_runs` by `runSync`; swallowing
@@ -30,16 +31,19 @@ async function quietly(tags: CacheTag[], fn: () => Promise<unknown>): Promise<vo
 }
 
 export async function syncCatalogAction(): Promise<void> {
+  await requireSl();
   await quietly(["catalog"], () => runSync(db, "catalog", () => syncCatalog(db)));
 }
 
 export async function syncCardTraderAction(): Promise<void> {
+  await requireSl();
   const { syncCardTraderCatalog } = await import("@/lib/marketplace/cardtrader");
   // CardTrader backfills leader faces into `cards`.
   await quietly(["catalog"], () => runSync(db, "cardtrader", () => syncCardTraderCatalog(db)));
 }
 
 export async function syncPricesAction(): Promise<void> {
+  await requireSl();
   // The price sync also backfills card art and set release dates.
   await quietly(["prices", "catalog"], async () => {
     await runSync(db, "fx", () => syncFx(db));
@@ -48,12 +52,14 @@ export async function syncPricesAction(): Promise<void> {
 }
 
 export async function syncMetaAction(): Promise<void> {
+  await requireSl();
   const { syncMeta } = await import("@/lib/meta/sync");
   await quietly(["meta"], () => runSync(db, "meta", () => syncMeta(db)));
 }
 
 /** The engine a new arena game is made on unless the form says otherwise (`engines.ts`). A setting, so it is flipped without a deploy. */
 export async function chooseEngineAction(id: string): Promise<void> {
+  await requireSl();
   await setDefaultEngine(db, engineOr(id));
   revalidatePath("/settings");
   revalidatePath("/arena");
@@ -61,6 +67,7 @@ export async function chooseEngineAction(id: string): Promise<void> {
 
 /** Which skin paints the app: the same cookie the board's toggle sets. */
 export async function chooseSkinAction(skin: string): Promise<void> {
+  await requireSl();
   (await cookies()).set(SKIN_COOKIE, skinFrom(skin), { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   revalidatePath("/", "layout");
 }
@@ -77,6 +84,7 @@ export async function chooseSkinAction(skin: string): Promise<void> {
  * defaults" means here.
  */
 export async function chooseLightingAction(blob: string): Promise<void> {
+  await requireSl();
   const prefs = lightingFrom(blob);
   (await cookies()).set(LIGHTING_COOKIE, encodeLighting(prefs), { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   revalidatePath("/", "layout");

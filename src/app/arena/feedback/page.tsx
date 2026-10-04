@@ -5,6 +5,7 @@ import { arenaFeedback, arenaGames, cards as cardsTable } from "@/db/schema";
 import { listRemoteIssues, getFeedbackGitHubLink } from "@/lib/github";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { setFeedbackStatus, syncFeedbackToGitHubAction, syncAllFeedbackAction } from "../actions";
+import { requireSlPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ const KINDS: Record<string, { label: string; hint: string }> = {
  * energy anyway, or that a wording means something other than it appears to.
  */
 export default async function FeedbackPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireSlPage();
   const sp = await searchParams;
   const want = (Array.isArray(sp.status) ? sp.status[0] : sp.status) ?? "open";
   const status = want === "all" ? null : want === "fixed" ? "fixed" : "open";

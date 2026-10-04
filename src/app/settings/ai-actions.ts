@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { isArenaAdmin } from "@/lib/auth";
+import { isArenaAdmin, requireSl } from "@/lib/auth";
 import { TASK_IDS } from "@/lib/ai/catalog";
 import { providerPanels } from "@/lib/ai/panel";
 import { getProvider, providerIds } from "@/lib/ai/providers";
@@ -36,6 +36,7 @@ async function edit(fn: () => Promise<void>): Promise<AiFormState> {
 }
 
 export async function saveProviderAction(_prev: AiFormState, f: FormData): Promise<AiFormState> {
+  await requireSl();
   return edit(async () => {
     const next = applyProviderForm(
       await loadSettings(db),
@@ -47,6 +48,7 @@ export async function saveProviderAction(_prev: AiFormState, f: FormData): Promi
 }
 
 export async function saveTiersAction(_prev: AiFormState, f: FormData): Promise<AiFormState> {
+  await requireSl();
   return edit(async () => {
     const tiers: Record<string, string> = {};
     for (const [k, v] of f.entries()) if (k.startsWith("tier:") && typeof v === "string") tiers[k.slice("tier:".length)] = v;
@@ -55,6 +57,7 @@ export async function saveTiersAction(_prev: AiFormState, f: FormData): Promise<
 }
 
 export async function saveTasksAction(_prev: AiFormState, f: FormData): Promise<AiFormState> {
+  await requireSl();
   return edit(async () => {
     const tasks: Record<string, { provider?: string; model?: string }> = {};
     for (const task of TASK_IDS) tasks[task] = { provider: text(f, `provider:${task}`), model: text(f, `model:${task}`) };
@@ -63,6 +66,7 @@ export async function saveTasksAction(_prev: AiFormState, f: FormData): Promise<
 }
 
 export async function saveArenaAction(_prev: AiFormState, f: FormData): Promise<AiFormState> {
+  await requireSl();
   return edit(async () => {
     const slots = Object.fromEntries(ARENA_SLOTS.map((s) => [s, text(f, `arena:${s}`)]));
     await saveSettings(db, applyArenaForm(await loadSettings(db), slots, await lists()));
@@ -73,6 +77,7 @@ export type TestState = { ok: boolean; message: string } | null;
 
 /** One tiny prompt on one provider. A paid call on a paid provider: it runs only from the button. */
 export async function testConnectionAction(_prev: TestState, f: FormData): Promise<TestState> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { ok: false, message: "Only an admin can test a provider." };
   const provider = getProvider(text(f, "provider"));
   if (!provider) return { ok: false, message: "There is no such provider." };

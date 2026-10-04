@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { listDecks } from "@/lib/decks/queries";
-import { currentOwner } from "@/lib/auth";
+import { currentScope, requireSignedInPage } from "@/lib/auth";
 import { mainCountLabel, mainCountOk } from "@/lib/decks/legality";
 import { GAMES, GAME_INFO, parseGame } from "@/lib/catalog/games";
 import { GameFilter, GameSelect } from "@/components/GameFilter";
@@ -19,11 +19,12 @@ export const dynamic = "force-dynamic";
 type Params = Record<string, string | string[] | undefined>;
 
 export default async function DecksPage({ searchParams }: { searchParams: Promise<Params> }) {
+  await requireSignedInPage();
   const sp = await searchParams;
   const raw = Array.isArray(sp.show) ? sp.show[0] : sp.show;
   const show: "all" | "built" | "virtual" = raw === "built" || raw === "virtual" ? raw : "all";
   const game = parseGame(Array.isArray(sp.game) ? sp.game[0] : sp.game);
-  const all = await listDecks(db, { viewer: await currentOwner() });
+  const all = await listDecks(db, { viewer: await currentScope() });
   const gamesPresent = GAMES.filter((g) => all.some((d) => d.game === g));
   const decks = game ? all.filter((d) => d.game === game) : all;
   const built = decks.filter((d) => d.isBuilt);

@@ -13,6 +13,8 @@ import { formatCents } from "@/lib/money";
 import { CartTools } from "@/components/CartTools";
 import { SubmitButton } from "@/components/SubmitButton";
 import { saveCartSettingsForm } from "./actions";
+import { requireSignedInPage, type Viewer } from "@/lib/auth";
+import { assertOwnDeck } from "@/lib/auth/ownership";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -27,10 +29,11 @@ export interface WantBreakdown {
 }
 
 /** `?deck=12` → the deck's shortfall; `?cards=BT18-020:2,BT18-021:1` → explicit. */
-async function wantsFrom(sp: Params): Promise<{ wants: Want[]; source: string; breakdown: Map<string, WantBreakdown>; deckId: number | null }> {
+async function wantsFrom(sp: Params, viewer: Viewer): Promise<{ wants: Want[]; source: string; breakdown: Map<string, WantBreakdown>; deckId: number | null }> {
   const deck = one(sp.deck);
   if (deck) {
     const deckId = Number(deck);
+    await assertOwnDeck(viewer, deckId);
     const conflicts = await buildConflicts(db, deckId);
     const breakdown = new Map(conflicts.map((c) => [c.cardId, { owned: c.owned, reservedElsewhere: c.reservedElsewhere }]));
     return { wants: conflicts.map((c) => ({ cardId: c.cardId, quantity: c.short })), source: `deck ${deck}`, breakdown, deckId };
@@ -38,10 +41,10 @@ async function wantsFrom(sp: Params): Promise<{ wants: Want[]; source: string; b
   if (one(sp.want) !== "0") {
     // Default source: the saved shopping list, so swap suggestions you parked
     // are priced without having to build a URL.
-    const wants = await listWants(db);
+    const wants = await listWants(db, viewer.owner, viewer.kind === "sl");
     if (wants.length && !one(sp.cards)) {
       const mapped = wants.map((w) => ({ cardId: w.cardId, quantity: w.quantity }));
-      const breakdown = await breakdownFor(mapped);
+      const breakdown = await breakdownFor(mapped, viewer);
       return { wants: mapped, source: "shopping list", breakdown, deckId: null };
     }
   }
@@ -54,14 +57,16 @@ async function wantsFrom(sp: Params): Promise<{ wants: Want[]; source: string; b
       const [id, q] = s.split(":");
       return { cardId: id.toUpperCase(), quantity: Math.max(1, Number(q) || 1) };
     });
-  const breakdown = await breakdownFor(wants);
+  const breakdown = await breakdownFor(wants, viewer);
   return { wants, source: "list", breakdown, deckId: null };
 }
 
-async function breakdownFor(wants: Want[]): Promise<Map<string, WantBreakdown>> {
+/** What the looker owns and has tied up: their own copies and built decks (everyone's in local dev, where nobody has a name). */
+async function breakdownFor(wants: Want[], viewer: Viewer): Promise<Map<string, WantBreakdown>> {
   const alloc = await allocationForCards(
     db,
     wants.map((w) => w.cardId),
+    viewer.owner ?? undefined,
   );
   const out = new Map<string, WantBreakdown>();
   for (const [id, a] of alloc) out.set(id, { owned: a.owned, reservedElsewhere: a.reserved });
@@ -69,8 +74,9 @@ async function breakdownFor(wants: Want[]): Promise<Map<string, WantBreakdown>> 
 }
 
 export default async function CartPage({ searchParams }: { searchParams: Promise<Params> }) {
+  const viewer = await requireSignedInPage();
   const sp = await searchParams;
-  const { wants, source, breakdown, deckId: sourceDeckId } = await wantsFrom(sp);
+  const { wants, source, breakdown, deckId: sourceDeckId } = await wantsFrom(sp, viewer);
   const cfg = await cartSettings(db);
   const names = wants.length
     ? await db
@@ -86,7 +92,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
   const result = wants.length ? await optimiseCart(db, wants, cfg) : null;
   const tiedUpIds = wants.filter((w) => (breakdown.get(w.cardId)?.reservedElsewhere ?? 0) > 0).map((w) => w.cardId);
-  const reservers = tiedUpIds.length ? await decksReservingFor(db, tiedUpIds, sourceDeckId ?? undefined) : new Map<string, Reserver[]>();
+  const reservers = tiedUpIds.length ? await decksReservingFor(db, tiedUpIds, sourceDeckId ?? undefined, viewer.owner ?? undefined) : new Map<string, Reserver[]>();
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1 text-sm text-space-100";
   const deckId = one(sp.deck);
 
@@ -109,7 +115,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
         </p>
       </div>
 
-      <WantList rows={await listWants(db)} />
+      <WantList rows={await listWants(db, viewer.owner, viewer.kind === "sl")} />
 
       {wants.length === 0 ? (
         <div className="rounded-xl border border-dashed border-space-700 p-6 text-sm text-space-300">
@@ -173,30 +179,33 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
         </>
       )}
 
-      <details className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
-        <summary className="cursor-pointer text-sm font-semibold text-space-100">Shipping estimates & preferences</summary>
-        <form action={saveCartSettingsForm} className="mt-2 grid gap-2 sm:grid-cols-2">
-          <label className="text-xs text-space-300">
-            CardTrader Zero parcel (€)
-            <input name="hub" defaultValue={(cfg.hubShippingCents / 100).toFixed(2)} className={input} />
-          </label>
-          <label className="text-xs text-space-300">
-            Direct seller estimate (€) <span className="text-space-400">— replaced by real rates when live</span>
-            <input name="direct" defaultValue={(cfg.directShippingCents / 100).toFixed(2)} className={input} />
-          </label>
-          <label className="text-xs text-space-300">
-            Only sellers from (country codes, blank = any)
-            <input name="countries" defaultValue={cfg.countries.join(", ")} placeholder="AT, DE, IT" className={input} />
-          </label>
-          <label className="text-xs text-space-300">
-            Soft preferences (for the AI explanation)
-            <input name="preferences" defaultValue={cfg.preferences} placeholder="Prefer fewer sellers unless it costs more than €2" className={input} />
-          </label>
-          <SubmitButton pendingLabel="Saving…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600 sm:col-span-2">
-            Save
-          </SubmitButton>
-        </form>
-      </details>
+      {/* One settings row for the whole app, so an SL's to change. */}
+      {viewer.kind === "sl" ? (
+        <details className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-space-100">Shipping estimates & preferences</summary>
+          <form action={saveCartSettingsForm} className="mt-2 grid gap-2 sm:grid-cols-2">
+            <label className="text-xs text-space-300">
+              CardTrader Zero parcel (€)
+              <input name="hub" defaultValue={(cfg.hubShippingCents / 100).toFixed(2)} className={input} />
+            </label>
+            <label className="text-xs text-space-300">
+              Direct seller estimate (€) <span className="text-space-400">— replaced by real rates when live</span>
+              <input name="direct" defaultValue={(cfg.directShippingCents / 100).toFixed(2)} className={input} />
+            </label>
+            <label className="text-xs text-space-300">
+              Only sellers from (country codes, blank = any)
+              <input name="countries" defaultValue={cfg.countries.join(", ")} placeholder="AT, DE, IT" className={input} />
+            </label>
+            <label className="text-xs text-space-300">
+              Soft preferences (for the AI explanation)
+              <input name="preferences" defaultValue={cfg.preferences} placeholder="Prefer fewer sellers unless it costs more than €2" className={input} />
+            </label>
+            <SubmitButton pendingLabel="Saving…" className="tap rounded-md bg-space-700 px-3 py-1.5 text-sm text-space-50 hover:bg-space-600 sm:col-span-2">
+              Save
+            </SubmitButton>
+          </form>
+        </details>
+      ) : null}
     </div>
   );
 }

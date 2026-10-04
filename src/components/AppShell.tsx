@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomTabs } from "./BottomTabs";
 import { HeaderNav } from "./HeaderNav";
-import { SECONDARY_ITEMS, isArenaShell, isFullBleed } from "@/lib/navigation";
+import { isArenaShell, isFullBleed, secondaryItems } from "@/lib/navigation";
 
 /**
  * The app's chrome, and the one screen that does without it.
@@ -16,8 +16,12 @@ import { SECONDARY_ITEMS, isArenaShell, isFullBleed } from "@/lib/navigation";
  * `usePathname` is read during server rendering too, so the chrome is right on
  * the first paint and never flashes in and out.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+/** `isSl`: an SL (or local dev) gets Settings in the navigation; a player gets their own page instead. */
+export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: boolean }) {
   const pathname = usePathname();
+
+  // The sign-in and join pages have nowhere to go yet: no header, no tabs.
+  if (pathname === "/login" || pathname === "/join") return <main className="flex min-h-dvh w-full flex-col px-4">{children}</main>;
 
   if (isFullBleed(pathname)) {
     return (
@@ -43,10 +47,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="text-lg font-semibold tracking-tight text-ki-400">DBS</span>
             <span className="hidden text-xs uppercase tracking-widest text-space-300 min-[420px]:inline">Card Companion</span>
           </Link>
-          <HeaderNav />
+          <HeaderNav isSl={isSl} />
           {/* The five bottom tabs cannot grow, so everything else lives here on a phone (Arena is the first tab). */}
           <div className="ml-auto flex gap-1 sm:hidden">
-            {SECONDARY_ITEMS.filter((item) => item.href !== "/arena").map((item) => (
+            {secondaryItems(isSl).filter((item) => item.href !== "/arena").map((item) => (
               <Link key={item.href} href={item.href} className="tap flex items-center rounded-md px-2 text-xs text-space-300 hover:text-space-50">
                 {item.short ?? item.label}
               </Link>

@@ -17,7 +17,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { cardRules } from "@/db/schema";
-import { isArenaAdmin } from "@/lib/auth";
+import { isArenaAdmin, requireSl } from "@/lib/auth";
 import { readRule } from "@/lib/arena/lang";
 import { defsForCards } from "@/lib/arena/load";
 import { ruleById, setExpectations } from "@/lib/arena/rules-store";
@@ -33,6 +33,7 @@ const MAX_EXTRA = 24;
  * engine games use and on the legacy one beside it.
  */
 export async function tryRuleAction(cardId: string, side: "front" | "back", skillIndex: number, rule: unknown, boards: string[] = []): Promise<{ error: string | null; result: TryResult | null }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: REFUSED, result: null };
   const [row] = await db
     .select({ kind: cardRules.kind })
@@ -51,6 +52,7 @@ export async function tryRuleAction(cardId: string, side: "front" | "back", skil
 
 /** `tryRuleAction` for the rule row the builder is editing. */
 export async function tryRuleByIdAction(ruleId: number, rule: unknown, boards: string[] = []): Promise<{ error: string | null; result: TryResult | null }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: REFUSED, result: null };
   const row = await ruleById(db, ruleId);
   if (!row) return { error: "no such rule", result: null };
@@ -59,6 +61,7 @@ export async function tryRuleByIdAction(ruleId: number, rule: unknown, boards: s
 
 /** The owner's judgements on this rule, as stored. */
 export async function expectationsAction(ruleId: number): Promise<{ error: string | null; expectations: Expectation[] }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: REFUSED, expectations: [] };
   const row = await ruleById(db, ruleId);
   if (!row) return { error: "no such rule", expectations: [] };
@@ -73,6 +76,7 @@ export async function expectationsAction(ruleId: number): Promise<{ error: strin
  * expectation is dropped.
  */
 export async function saveExpectationsAction(ruleId: number, expectations: unknown): Promise<{ error: string | null; saved: number }> {
+  await requireSl();
   if (!(await isArenaAdmin())) return { error: REFUSED, saved: 0 };
   const row = await ruleById(db, ruleId);
   if (!row) return { error: "no such rule", saved: 0 };

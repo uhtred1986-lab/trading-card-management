@@ -1,19 +1,25 @@
 import { db } from "@/db";
+import { assertOwnDeck } from "@/lib/auth/ownership";
 import { fail, newGameSchema, ok, readJson } from "@/lib/arena/api";
 import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineForMode, listGames, startGame } from "@/lib/arena/games";
-import { currentUser } from "@/lib/auth";
+import { currentUser, routeViewer } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   const limit = Number(new URL(req.url).searchParams.get("limit") ?? 20);
   // A 1 v 1 is listed only to the two people in it, same as on the web.
-  return ok({ games: await listGames(db, Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 100) : 20, await currentUser()) });
+  const owner = auth.viewer.kind === "player" ? auth.viewer.owner : undefined;
+  return ok({ games: await listGames(db, Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 100) : 20, await currentUser(), owner) });
 }
 
 export async function POST(req: Request) {
+  const auth = await routeViewer();
+  if (!auth.ok) return auth.response;
   const parsed = newGameSchema.safeParse(await readJson(req));
   if (!parsed.success) return fail("bad_request", "expected { p1DeckId, p2DeckId, mode?, debug?, engine? }");
   const { p1DeckId, p2DeckId, mode, debug, engine } = parsed.data;
@@ -30,6 +36,13 @@ export async function POST(req: Request) {
   // `engine` comes back either way: a client that left it out still needs to
   // know what it got, since the game keeps it for good.
   const resolved = engine ? { engine, note: null } : engineForMode(await defaultEngine(db), mode);
+  // A player plays their own decks only; one that isn't theirs does not exist for them.
+  try {
+    await assertOwnDeck(auth.viewer, p1DeckId);
+    await assertOwnDeck(auth.viewer, p2DeckId);
+  } catch {
+    return fail("not_found", "no such deck");
+  }
   try {
     const id = await startGame(db, p1DeckId, p2DeckId, mode, debug, undefined, resolved.engine);
     return ok({ id, engine: resolved.engine, ...(resolved.note ? { engineNote: resolved.note } : {}) });

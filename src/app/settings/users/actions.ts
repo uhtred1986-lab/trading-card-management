@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { passwordProblem, usernameProblem } from "@/lib/auth/password";
 import { createUser, deleteUser, setUserActive, setUserOwner, setUserPassword } from "@/lib/auth/users";
+import { requireSl } from "@/lib/auth";
 
 export type UserResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -13,6 +14,7 @@ function done(message: string): UserResult {
 }
 
 export async function createUserAction(username: string, password: string, owner: string): Promise<UserResult> {
+  await requireSl();
   const name = username.trim();
   const nameProblem = usernameProblem(name);
   if (nameProblem) return { ok: false, error: nameProblem };
@@ -29,6 +31,7 @@ export async function createUserAction(username: string, password: string, owner
 }
 
 export async function setPasswordAction(id: number, password: string): Promise<UserResult> {
+  await requireSl();
   const problem = passwordProblem(password);
   if (problem) return { ok: false, error: problem };
   await setUserPassword(db, id, password);
@@ -36,17 +39,20 @@ export async function setPasswordAction(id: number, password: string): Promise<U
 }
 
 export async function setOwnerAction(id: number, owner: string): Promise<UserResult> {
+  await requireSl();
   if (!owner.trim()) return { ok: false, error: "An owner name is required." };
   await setUserOwner(db, id, owner);
   return done("Owner updated — new cards this login adds will use it.");
 }
 
 export async function setActiveAction(id: number, isActive: boolean): Promise<UserResult> {
+  await requireSl();
   await setUserActive(db, id, isActive);
   return done(isActive ? "Login enabled." : "Login disabled.");
 }
 
 export async function deleteUserAction(id: number): Promise<UserResult> {
+  await requireSl();
   await deleteUser(db, id);
   return done("Login deleted. Cards they added keep their owner name.");
 }
