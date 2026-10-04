@@ -123,6 +123,10 @@ export const TIERS: Record<string, Record<Tier, string>> = {
   "anthropic-api": { fast: FAST_MODEL, standard: SONNET_MODEL, best: MODEL },
 };
 
+// The same Claude models on the plan (Agent SDK adapter, #517). Prices are the notional API list prices, for `ai:spend`; nothing is billed.
+MODELS["anthropic-agent-sdk"] = MODELS["anthropic-api"].map((m) => ({ ...m, provider: "anthropic-agent-sdk" }));
+TIERS["anthropic-agent-sdk"] = { ...TIERS["anthropic-api"] };
+
 /** The Anthropic API's model for each tier. */
 export const ANTHROPIC_TIERS: Record<Tier, string> = TIERS["anthropic-api"];
 

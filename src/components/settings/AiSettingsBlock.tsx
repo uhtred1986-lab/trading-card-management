@@ -55,6 +55,7 @@ export function AiSettingsBlock({ settings, panels, admin }: { settings: AiSetti
                   <span className="text-xs text-space-300">{p.status.ok ? "ready" : p.status.reason}</span>
                 </div>
                 <p className="ml-4 text-[11px] text-space-300">{ago(p.checkedAt)}</p>
+                {p.notice ? <p className="ml-4 text-[11px] text-loss">{p.notice}</p> : null}
               </div>
               {admin ? <TestConnection provider={p.id} action={testConnectionAction} /> : null}
             </li>
