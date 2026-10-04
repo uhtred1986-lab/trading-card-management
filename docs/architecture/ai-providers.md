@@ -1,9 +1,8 @@
 # AI providers: one contract, swappable vendors
 
-**Status: design, milestone "AI providers — one contract, API or subscription, any vendor".**
-Written 4 Oct 2026 from the code at `5a55bca`. The issues in that milestone build it; this file is
-the contract they build against. Ximilar (scan recognition) is a separate integration and out of
-scope.
+**Status: built, milestone "AI providers — one contract, API or subscription, any vendor".**
+The router, OpenRouter, and the subscription adapter are merged; docs and a paid smoke test follow in #519.
+Ximilar (scan recognition) is a separate integration and out of scope.
 
 ## Why
 
@@ -30,6 +29,13 @@ The owner wants, in this order:
 > **Feature code speaks the contract in `src/lib/ai/`; only `src/lib/ai/providers/*` may import a
 > vendor SDK.** An ESLint `no-restricted-imports` fence enforces it (`@anthropic-ai/sdk`,
 > `@anthropic-ai/sdk/helpers/*`, `@anthropic-ai/claude-agent-sdk`, any future vendor package).
+
+## What changed on the way
+
+- **Vision off on the subscription** (until a live scan proves the CLI reads images): `scan_identify` goes to the fallback provider or fails with `unsupported`.
+- **OpenRouter model picker** shows only structured-output models (the arena's legal-move answers need JSON); other models are available elsewhere but not for tasks needing JSON.
+- **Vercel size gate** on the Agent SDK (#518): the 246 MB `claude` binary is build-gated on `AI_AGENT_SDK=1` (off by default, inert if set), so the `anthropic-agent-sdk` adapter is unavailable on Vercel until the owner rules on the size question (large-functions beta or a single admin route).
+- **Token expiry tracking** (`CLAUDE_CODE_OAUTH_TOKEN_CREATED`): the settings page warns for the last 30 days before the ~1-year expiry; the subscription adapter's `available()` check fails after it.
 
 ## Today (what the migration must keep working)
 
@@ -350,3 +356,12 @@ model never rewrites a stored answer.
 - **JSON** is asked for in the system prompt (the Zod schema as JSON Schema) and validated by core, with its one retry; the SDK's native `outputFormat` is not used. **Images** go in as image blocks of one streamed user message, but `vision` is declared `false` until a live scan on the plan proves the CLI reads them, so `scan_identify` goes to the fallback provider. `maxTokens` is not passed: the SDK has no option for it.
 - **Token.** `CLAUDE_CODE_OAUTH_TOKEN` or `APP_CLAUDE_CODE_OAUTH_TOKEN`; `CLAUDE_CODE_OAUTH_TOKEN_CREATED` (YYYY-MM-DD) plus 365 days is the expiry; /settings warns for the last 30 days and `available()` fails after it.
 - **Availability.** On Vercel false unless `AI_AGENT_SDK=1` (#518, inert by default; with the flag, the same checks as locally; the child gets `CLAUDE_CONFIG_DIR=/tmp/claude-config`; `next.config.ts` puts the linux-x64 `claude` binary into the AI-calling functions only in a build made with `AI_AGENT_SDK=1` (246 MB: see the size table on #518), sizes via `npm run ai:trace-sizes`, latency via `npm run ai:latency`); locally false without a token or after an auth failure until a call succeeds. It makes no model call, so a probe costs no plan usage; the owner's Test connection is the live check.
+
+## Token renewal (subscription adapter)
+
+To refresh the Claude plan token:
+
+1. Run `claude setup-token` and log in; the CLI writes the new token to `~/.config/claude/config.json`.
+2. Set `CLAUDE_CODE_OAUTH_TOKEN` in Vercel's project settings to the new token value.
+3. Set `CLAUDE_CODE_OAUTH_TOKEN_CREATED` in Vercel and `.env.local` to today's date (YYYY-MM-DD format).
+4. The settings page on `/settings` shows a warning for the last 30 days before the ~1-year expiry; `available()` fails after it.
