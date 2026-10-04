@@ -22,13 +22,18 @@ decks (owner's decision, 4 Sep 2026).
 Owner is in Austria: the display currency is EUR; TCGplayer prices are USD and converted at the
 ECB rate stored in `fx_rates`. Price paid is entered in EUR.
 
-**Auth is HTTP Basic Auth in `src/proxy.ts`** (same pattern as gullet-cove-dm), active only when
-`BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` are both set — they are set in Vercel for Production and
-Preview, and deliberately *not* in `.env.local`, so local dev runs open. `/api/sync/*` is exempt
-because the Vercel cron can't send credentials; it is guarded by `CRON_SECRET` instead. The web-app
-manifest, `/icons/*` and `/sw.js` are exempt too — the browser fetches them without credentials, so
-behind auth the app cannot be installed at all. Removing either variable exposes the whole database.
-The arena's engine internals (REF badge, "Engine reads", raw ids and log, `/arena/[id]/debug`) show only to an admin: `isArenaAdmin()` (`src/lib/auth/admin.ts`) is true for a login listed in `ARENA_ADMINS` (comma-separated, case-insensitive) or whenever Basic Auth is off; with auth on and the list unset, nobody is admin.
+**Auth is moving from HTTP Basic Auth to the gullet-cove-dm sign-in** (`docs/architecture/auth.md`).
+Step 1 is live: SLs (admins) sign in with Google at `/login` (`AUTH_SECRET`, `GOOGLE_CLIENT_ID`,
+`GOOGLE_CLIENT_SECRET`, `SL_EMAILS`; signed `dbs-session` cookie, `src/lib/auth/core.ts`). Basic Auth
+still works beside it — the `BASIC_AUTH_USER`/`BASIC_AUTH_PASSWORD` pair and `app_users` rows, also via
+`/password-login` — until players get join codes. With Google set up, a signed-out page goes to
+`/login`; without it the Basic popup appears as before; with nothing set (local dev) the app runs open.
+An SL acts under the name `BASIC_AUTH_USER` (`slUsername`), so keep that variable until SL accounts carry
+their own owner name. `/api/sync/*` and `/api/ai/agent-sdk` skip the proxy and check their own bearer
+secret. The web-app manifest, `/icons/*` and `/sw.js` are exempt too — the browser fetches them without
+credentials, so behind auth the app cannot be installed at all. Removing every auth variable exposes the
+whole database.
+The arena's engine internals (REF badge, "Engine reads", raw ids and log, `/arena/[id]/debug`) show only to an admin: `isArenaAdmin()` (`src/lib/auth/index.ts`) is true for a Google-signed-in SL, for a login listed in `ARENA_ADMINS` (comma-separated, case-insensitive), or whenever no auth is on; with Basic Auth on and the list unset, nobody signed in with a password is admin.
 
 **Previews are off (only `main` deploys), so the next note matters only if that is reverted.
 Vercel's own deployment protection is ON for Preview** (verified 6 Sep 2026: a preview URL
@@ -97,6 +102,7 @@ The Data sources and Architecture sections moved out of this file unchanged (iss
 | Catalog import, deckplanet/Bandai/TCGplayer/CardTrader/FX sources, card images, leader faces, errata, prices, the optimiser | `docs/architecture/catalog-and-sync.md` |
 | Ownership, reservations, deck legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
 | Deck analysis, wizard, card scanning, cart explainer, "Build a deck with Claude" | `docs/architecture/ai.md` |
+| Sign-in: Google for SLs, the proxy's decision, Basic Auth during the move | `docs/architecture/auth.md` |
 | The provider-neutral AI layer (API vs subscription, swapping vendors): contract, routing, ledger | `docs/architecture/ai-providers.md` |
 | Server actions, raw SQL (`rows()`, `textArray()`), the SessionStart hook | `docs/architecture/db.md` |
 | The arena: engines, compiler, rules language, rulesets, workbench, UI, opponent, probe, arena scripts | `docs/architecture/arena.md`, then `docs/arena-tooling.md` and `docs/arena-code-map.md` |

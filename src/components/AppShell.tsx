@@ -19,6 +19,9 @@ import { SECONDARY_ITEMS, isArenaShell, isFullBleed } from "@/lib/navigation";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  // The sign-in page has nowhere to go yet: no header, no tabs.
+  if (pathname === "/login") return <main className="flex min-h-dvh w-full flex-col px-4">{children}</main>;
+
   if (isFullBleed(pathname)) {
     return (
       <main

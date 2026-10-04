@@ -1,83 +1,78 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { parseBasicAuth } from "@/lib/auth-header";
+import { LOGIN_PAGE, SESSION_COOKIE, decide, googleConfigured, sessionCookieOptions, signSession, verifySession } from "@/lib/auth/core";
+import { basicChallenge, checkBasicAuth } from "@/lib/auth/basic";
 
 /**
- * HTTP Basic Auth in front of everything — the app has no login page.
+ * The lock in front of every request the matcher sends here. Two ways in while
+ * the app moves off HTTP Basic Auth (docs/architecture/auth.md):
  *
- * Two sources of credentials, in this order:
- *   1. BASIC_AUTH_USER / BASIC_AUTH_PASSWORD from the environment. This pair
- *      always works, so a mistake in the users table can never lock everyone
- *      out, and it is what bootstraps the first login.
- *   2. Rows in `app_users`, managed at /settings/users.
+ *   1. an SL session cookie from the Google sign-in at `/login`
+ *      (`AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SL_EMAILS`);
+ *   2. HTTP Basic Auth as before: the BASIC_AUTH_USER / BASIC_AUTH_PASSWORD pair,
+ *      which always works so a bad row can't lock everyone out, or a row in
+ *      `app_users` (`src/lib/auth/basic.ts`).
  *
- * With neither configured the app runs open, which is what local dev wants.
- * `/api/sync/*` is exempt: Vercel's cron can't send credentials, and that
- * route already requires the CRON_SECRET bearer token. `/api/ai/agent-sdk` (exactly that path) is exempt
- * for the same reason: its callers are other functions, and it refuses anything without the
- * AI_AGENT_SDK_SECRET header (#518).
+ * With Google set up, a signed-out page goes to `/login` (which links the old
+ * password sign-in at `/password-login`) and an API route or Server Function
+ * call gets a 401. Without it the browser's Basic Auth popup appears, exactly
+ * as before. With nothing configured at all the app runs open — local dev.
+ * The decision is `decide()` in `src/lib/auth/core.ts`, tested by
+ * `scripts/verify/auth.ts`; this file is only the I/O.
  *
- * The web-app manifest, its icons and the service worker are exempt too. The
- * browser fetches all three without credentials, so behind auth they 401 and
- * the app cannot be installed to a home screen at all. What they give away is
- * the app's name, its icon and a list of public card-image hosts — no data,
- * and no way in. Everything that reads the database stays protected.
+ * `/api/sync/*` is not matched: Vercel's cron can't sign in, and that route
+ * requires the CRON_SECRET bearer token. `/api/ai/agent-sdk` (exactly that
+ * path) is not matched for the same reason: its callers are other functions,
+ * and it refuses anything without the AI_AGENT_SDK_SECRET header (#518).
+ *
+ * The web-app manifest, its icons and the service worker are not matched
+ * either. The browser fetches all three without credentials, so behind auth
+ * they 401 and the app cannot be installed to a home screen at all. What they
+ * give away is the app's name, its icon and a list of public card-image hosts —
+ * no data, and no way in.
  *
  * Next 16 runs this on the Node.js runtime, so the database is reachable here.
- * Verifying a scrypt hash costs ~100 ms, so an accepted header is remembered
- * for a few minutes instead of being re-derived on every request.
  */
-
-const ACCEPTED_TTL_MS = 5 * 60_000;
-const accepted = new Map<string, number>();
-
-function remember(header: string) {
-  accepted.set(header, Date.now() + ACCEPTED_TTL_MS);
-  // The map only ever holds the handful of logins in use; prune expired ones.
-  if (accepted.size > 50) for (const [k, exp] of accepted) if (exp < Date.now()) accepted.delete(k);
-}
-
-function challenge() {
-  return new Response("Authentication required", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="DBS Card Companion"' },
-  });
-}
-
 export async function proxy(request: NextRequest) {
-  const header = request.headers.get("authorization");
-  const envUser = process.env.BASIC_AUTH_USER;
-  const envPassword = process.env.BASIC_AUTH_PASSWORD;
+  const now = new Date();
+  const env = process.env;
+  const verified = await verifySession(request.cookies.get(SESSION_COOKIE)?.value, env, now);
+  const basic = verified ? { ok: false, configured: true } : await checkBasicAuth(request.headers.get("authorization"));
+  const { pathname } = request.nextUrl;
+  const decision = decide(
+    {
+      pathname,
+      isAction: request.method === "POST" && request.headers.has("next-action"),
+      isApi: pathname === "/api" || pathname.startsWith("/api/"),
+    },
+    { verified, basicOk: basic.ok, basicConfigured: basic.configured, googleOn: googleConfigured(env) },
+    now,
+  );
 
-  const cached = header ? accepted.get(header) : undefined;
-  if (cached && cached > Date.now()) return NextResponse.next();
-
-  if (envUser && envPassword && header === "Basic " + Buffer.from(`${envUser}:${envPassword}`).toString("base64")) {
-    remember(header!);
-    return NextResponse.next();
-  }
-
-  const creds = parseBasicAuth(header);
-  let hasUsers = false;
-  try {
-    const { db } = await import("@/db");
-    const { appUsers } = await import("@/db/schema");
-    const { authenticate } = await import("@/lib/auth/users");
-    hasUsers = (await db.select({ id: appUsers.id }).from(appUsers).limit(1)).length > 0;
-    if (creds && hasUsers && (await authenticate(db, creds.username, creds.password))) {
-      remember(header!);
+  switch (decision.kind) {
+    case "pass":
       return NextResponse.next();
+    case "pass-refresh": {
+      const response = NextResponse.next();
+      response.cookies.set(SESSION_COOKIE, await signSession(decision.email, env.AUTH_SECRET, now), sessionCookieOptions(env));
+      return response;
     }
-  } catch {
-    // The database is unreachable: fall back to the env pair alone rather than
-    // locking the app open or shut on an outage.
+    case "home":
+      return NextResponse.redirect(new URL("/", request.url));
+    case "login":
+      return NextResponse.redirect(new URL(LOGIN_PAGE, request.url));
+    case "unauthorised":
+      return new Response("Sign-in required", { status: 401 });
+    case "challenge":
+      return basicChallenge();
   }
-
-  // Nothing configured anywhere — local dev runs open, as it always has.
-  if (!envUser && !envPassword && !hasUsers) return NextResponse.next();
-  return challenge();
 }
 
 export const config = {
-  matcher: "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/sync/|api/ai/agent-sdk$).*)",
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/sync/|api/ai/agent-sdk$).*)",
+    // A Server Function POST runs on whatever route it is posted to, so it always meets the proxy,
+    // even on a path the entry above skips.
+    { source: "/:path*", has: [{ type: "header", key: "next-action" }] },
+  ],
 };

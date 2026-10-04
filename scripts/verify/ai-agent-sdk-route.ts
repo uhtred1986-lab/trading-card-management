@@ -326,12 +326,13 @@ async function availability(): Promise<void> {
 
 /** `src/proxy.ts` exempts exactly the route from Basic Auth, and nothing new besides what was exempt before. */
 function proxyExemption(): void {
-  const matcher = (proxyConfig as { matcher: string }).matcher;
+  // The first matcher entry is the path list; the second only sends every Server Function POST through the proxy.
+  const matcher = (proxyConfig as unknown as { matcher: [string, ...unknown[]] }).matcher[0];
   const re = new RegExp(`^${matcher}$`);
   const protectedPath = (p: string) => re.test(p);
   assert.equal(protectedPath(ROUTE_PATH), false, "the route is exempt");
   for (const p of [ROUTE_PATH + "/", ROUTE_PATH + "/x", ROUTE_PATH + "x", "/api/ai", "/api/ai/other", "/api/ai/agent-sdk-debug", "/api/scan", "/api/v1/games", "/decks", "/settings", "/", "/api/syncx"]) {
-    assert.equal(protectedPath(p), true, `${p} stays behind Basic Auth`);
+    assert.equal(protectedPath(p), true, `${p} stays behind the sign-in`);
   }
   for (const p of ["/api/sync/prices", "/api/sync/meta", "/icons/a.png", "/manifest.webmanifest", "/sw.js", "/favicon.ico", "/_next/static/a.js"]) {
     assert.equal(protectedPath(p), false, `${p} stays exempt`);
