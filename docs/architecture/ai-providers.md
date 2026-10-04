@@ -320,11 +320,33 @@ model never rewrites a stored answer.
 - **Access.** The AI block is editable by an arena admin (`isArenaAdmin()`); everyone else sees it
   read-only. Test connection is a real call on a paid provider and writes no `ai_runs` row.
 
+## As built: OpenRouter (#520)
+
+- **Where.** `providers/openrouter.ts`, plain `fetch` to `https://openrouter.ai/api/v1`, key
+  `OPENROUTER_API_KEY`. Optional attribution: `OPENROUTER_APP_URL` (sent as `HTTP-Referer`; the title
+  `X-OpenRouter-Title`, default "Trading Card Management" or `OPENROUTER_APP_TITLE`, goes only with it).
+- **Capabilities per model** come from `GET /models` (cached 1 h, stale list kept if a refresh fails):
+  `architecture.input_modalities` has `image` → vision; `supported_parameters` has `structured_outputs`
+  → `capabilities.json` (so the pickers offer only those models), `reasoning`, `tools`. A model that
+  does not list `structured_outputs` gets the schema in its prompt and core's one retry instead.
+  `AiProvider.prepare()` (optional) lets the router load that list before it checks the chosen model.
+- **Sent only where listed.** `reasoning` (`{effort}`, or `{enabled:true}` for adaptive thinking alone)
+  needs `reasoning` in the model's parameters; `cache_control` (5 min / `ttl: "1h"`) only on
+  `anthropic/*` models.
+- **Usage.** `prompt_tokens_details.cached_tokens` and `cache_write_tokens` are cache read / write;
+  `input` is `prompt_tokens` minus both (the docs do not say whether `prompt_tokens` includes them; the
+  OpenAI convention is assumed). Cost is the listed price through `priceOf` (`rememberModelPrices`); the
+  reported `usage.cost` is not read.
+- **Errors.** 401 `auth`, 402 `usage_limit`, 408 `timeout`, 429 `rate_limit`, anything else `provider`;
+  an `error` object inside a 200 (body or choice) is mapped by its own `code`. `finish_reason`
+  `content_filter` or a `message.refusal` is `refusal`; `length` is `max_tokens`.
+- **`available()`** needs the key and a `GET /key` answering 200 (cached 5 min when good).
+
 ## As built: the subscription adapter (#517)
 
 - **Where.** `providers/anthropic-agent-sdk.ts` (id `anthropic-agent-sdk`), registered in `providers/index.ts`; its models and tiers are the Claude ones in `models.ts` (notional prices, for `ai:spend`; the picker shows none). The SDK is loaded with a dynamic `import()` on first use, so it is not in the bundle of routes that merely import the registry. Checks: `scripts/verify/ai-agent-sdk.ts` (stubbed `query()`).
 - **SDK options used** (verified against `sdk.d.ts` 0.3.289): `tools: []`, `maxTurns: 1`, `settingSources: []`, `strictMcpConfig`, `persistSession: false`, `permissionPrompts: "none"`, `systemPrompt` (string), `model`, `effort`, `thinking`, `cwd`, `env`, `abortController`.
 - **Child environment** is an allow-list (`PATH`, `HOME`, temp/profile and proxy variables), plus `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`. The API keys are not on the list, so they cannot leak.
-- **JSON** is asked for in the system prompt (the Zod schema as JSON Schema) and validated by core, with its one retry; the SDK's native `outputFormat` is not used. **Images** go in as image blocks of one streamed user message. `maxTokens` is not passed: the SDK has no option for it.
+- **JSON** is asked for in the system prompt (the Zod schema as JSON Schema) and validated by core, with its one retry; the SDK's native `outputFormat` is not used. **Images** go in as image blocks of one streamed user message, but `vision` is declared `false` until a live scan on the plan proves the CLI reads them, so `scan_identify` goes to the fallback provider. `maxTokens` is not passed: the SDK has no option for it.
 - **Token.** `CLAUDE_CODE_OAUTH_TOKEN` or `APP_CLAUDE_CODE_OAUTH_TOKEN`; `CLAUDE_CODE_OAUTH_TOKEN_CREATED` (YYYY-MM-DD) plus 365 days is the expiry; /settings warns for the last 30 days and `available()` fails after it.
 - **Availability.** False on Vercel (`process.env.VERCEL`) until #518; false without a token or after an auth failure until a call succeeds. It makes no model call, so a probe costs no plan usage; the owner's Test connection is the live check.

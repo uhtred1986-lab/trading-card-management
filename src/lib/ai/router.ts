@@ -90,6 +90,15 @@ function cannot(provider: AiProvider, model: string | undefined, req: AiRequest)
   return undefined;
 }
 
+/** Lets a provider load its per-model capabilities before the router asks about a model; never fails the call. */
+async function warm(provider: AiProvider): Promise<void> {
+  try {
+    await provider.prepare?.();
+  } catch {
+    /* the capability check then works with what is known */
+  }
+}
+
 export async function resolve(req: AiRequest, settings?: AiSettings): Promise<Routed> {
   const s = settings ?? (await getSettings());
   const override = s.taskOverrides[req.task];
@@ -108,6 +117,7 @@ export async function resolve(req: AiRequest, settings?: AiSettings): Promise<Ro
   // An override that names a model but no provider belongs to whichever provider the task gets; one that names both, to its own.
   const model = req.model ?? modelOn(id, req, s, !override?.provider || override.provider === id);
 
+  await warm(provider);
   const unfit = cannot(provider, model, req);
   const down = unfit ? undefined : await availabilityOf(provider);
   const problem = unfit ?? (down && !down.ok ? down.reason : undefined);
@@ -123,6 +133,7 @@ export async function resolve(req: AiRequest, settings?: AiSettings): Promise<Ro
   if (!fb) throw aiError(kind, provider.label, { provider: id, detail: `${problem} The fallback provider "${fallbackId}" does not exist.` });
   // A model named in code, or by the first provider's override, means nothing on another vendor; only the tier does.
   const fbModel = modelOn(fb.id, req, s, override?.provider === fb.id) ?? (req.model && modelEntry(req.model, fb.id) ? req.model : undefined);
+  await warm(fb);
   const fbProblem = !fbModel && !req.tier ? "there is no model to run this on" : cannot(fb, fbModel, req);
   const fbDown = fbProblem ? undefined : await availabilityOf(fb);
   const fbWhy = fbProblem ?? (fbDown && !fbDown.ok ? fbDown.reason : undefined);

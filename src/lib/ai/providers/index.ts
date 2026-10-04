@@ -2,9 +2,11 @@
 import type { AiProvider, ProviderId } from "../types";
 import { createAnthropicAgentSdkProvider } from "./anthropic-agent-sdk";
 import { createAnthropicApiProvider } from "./anthropic-api";
+import { createOpenRouterProvider } from "./openrouter";
 
 const defaults: Record<string, () => AiProvider> = {
   "anthropic-api": () => createAnthropicApiProvider(),
+  openrouter: () => createOpenRouterProvider(),
   "anthropic-agent-sdk": () => createAnthropicAgentSdkProvider(),
 };
 
