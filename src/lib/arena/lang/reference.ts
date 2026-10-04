@@ -211,6 +211,11 @@ export function sampleFilterValue(t: FilterFieldType): unknown {
       return 3;
     case "powerRel":
       return { cmp: "<=", of: "self" };
+    case "filters":
+      return [
+        { ...emptyFilter(), colors: ["Red"], characters: ["Son Goku"] },
+        { ...emptyFilter(), type: "EXTRA" },
+      ];
   }
 }
 

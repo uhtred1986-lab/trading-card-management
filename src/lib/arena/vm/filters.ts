@@ -91,6 +91,8 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   traits: { reads: ["traits"] },
   notTraits: { reads: ["traits"] },
   characterOrTrait: { reads: ["characters", "traits"] },
+  // Its alternatives' own measures are what it reads; `measuresUsed` walks them.
+  anyOf: { reads: [] },
   onlyCharacters: { reads: ["characters"] },
   names: { reads: ["name"], also: ["alsoNames"] },
   notNames: { reads: ["name"], also: ["alsoNames"] },
@@ -149,7 +151,10 @@ export function usesMeasure(filter: Partial<CardFilter>, field: keyof CardFilter
 
 /** The fields this filter actually measures. */
 export function measuresUsed(filter: Partial<CardFilter>): (keyof CardFilter)[] {
-  return FILTER_FIELD_NAMES.filter((field) => usesMeasure(filter, field));
+  const own = FILTER_FIELD_NAMES.filter((field) => usesMeasure(filter, field));
+  // "Either description" (#537) measures whatever its alternatives measure.
+  if (!filter.anyOf?.length) return own;
+  return [...new Set([...own, ...filter.anyOf.flatMap((alt) => measuresUsed(alt))])];
 }
 
 /** Every attribute this filter may read — the ones it needs and the ones it widens with (see `Measure`). */
@@ -208,6 +213,8 @@ export function predicateOf(filter: Partial<CardFilter>, game: GameDefinition): 
  * description mean *either* of them unless the card is asked to be multicolour.
  */
 function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
+  // Either description in full (#537), as the legacy `matches` reads it.
+  if (f.anyOf?.length && !f.anyOf.some((alt) => matchesAttrs({ ...emptyFilter(), ...alt }, attrs))) return false;
   const type = text(attrs.type) ?? "";
   if (f.z != null && type.startsWith("Z-") !== f.z) return false;
   if (f.token && type !== "TOKEN") return false;

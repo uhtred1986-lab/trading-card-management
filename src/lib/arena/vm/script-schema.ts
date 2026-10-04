@@ -1847,6 +1847,8 @@ function filterValueHolds(kind: FilterFieldType, x: unknown): boolean {
       return x === null || (typeof x === "number" && Number.isFinite(x));
     case "powerRel":
       return x === null || (isRecord(x) && !unknownKey(x, ["of", "cmp", "var"]) && POWER_REL_OF.includes(x.of) && POWER_REL_CMP.includes(x.cmp) && (x.var === undefined || typeof x.var === "string"));
+    case "filters":
+      return Array.isArray(x) && x.length >= 2 && x.every((y) => filterProblem(y) === null);
   }
 }
 
@@ -2093,6 +2095,15 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // A stored filter may be partial (Claude writes only the measures it means),
   // and a missing list crashed the workbench and the printer on BT31-132.
   const f = completeFilter(given);
+  // "A <Veku: Br> card or a red <Son Goku: Br> card" (#537): each alternative
+  // in its own words, then whatever the filter asks beside them.
+  if (f.anyOf?.length) {
+    const either = f.anyOf.map((alt) => describeFilter(alt, noun ?? { plural: false })).join(" or ");
+    const { anyOf: _alts, ...rest } = f;
+    void _alts;
+    const besides = describeFilter(rest, noun);
+    return besides === describeFilter({}, noun) ? either : `${either} (and ${besides})`;
+  }
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");

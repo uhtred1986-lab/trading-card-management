@@ -2233,6 +2233,29 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "chooseMode", modes: [{ label: label(printed?.[1], "the first"), ops: [a] }, { label: label(printed?.[2], "the other"), ops: [b] }], reason: clause }];
   }
 
+  // "Choose up to 1 of your opponent's Leader Cards or Battle Cards" (BT3-030),
+  // "1 of your Leader Cards or Unison Cards" (SD13-04), "up to 1 of your red
+  // Leader Cards or red Battle Cards" (BT3-010), "your Leader Cards or green
+  // Unison Cards" (SD13-03): the same two kinds as above said with one count,
+  // and until #537 read as the Leader alone. Each half keeps its own words —
+  // "green" is the Unison's, not the Leader's — and the player picks the kind.
+  if ((m = /^choose (up to )?(\d+) of (your opponent's|your) ((?:[a-z-]+ )*?)leader cards? or ((?:[a-z-]+ )*?(?:battle|unison) cards?)$/.exec(t))) {
+    const [, upTo, n, owner, leaderWords, other] = m;
+    const desc = leaderWords.trim();
+    const filter = desc ? filterFor(desc, "leader") : undefined;
+    if (filter === null) return null;
+    const side = owner === "your" ? "you" : "opponent";
+    const leader: Selector = { side, area: "leader", count: Number(n), upTo: !!upTo, ...(filter ? { filter } : {}) };
+    const rest = parseTarget(`${upTo ?? ""}${n} of ${owner} ${other}`);
+    if (!rest || rest.fromVar || rest.special || rest.take != null) return null;
+    const printed = /^choose (?:up to )?\d+ of (?:your opponent's|your) (.+?) or (.+)$/i.exec(clause.trim());
+    const v = `c${c.n++}`;
+    const a: Op = { op: "choose", sel: leader, as: v, reason: clause };
+    const b: Op = { op: "choose", sel: rest, as: v, reason: clause };
+    track(a, c);
+    return [{ op: "chooseMode", modes: [{ label: printed?.[1] ?? "a Leader Card", ops: [a] }, { label: printed?.[2] ?? "the other", ops: [b] }], reason: clause }];
+  }
+
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.
   if (/^choose /.test(t)) {
     let sel = parseTarget(clause, undefined, c.lastSeen ?? undefined);

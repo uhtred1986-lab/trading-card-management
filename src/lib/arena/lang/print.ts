@@ -206,6 +206,9 @@ function printFilterValue(kind: FilterFieldType, v: unknown): string {
       // "the chosen card's power" (BT19-096) carries which choice it means.
       return r.of === "chosen" && r.var ? `chosen $${r.var} ${r.cmp}` : `${r.of} ${r.cmp}`;
     }
+    // "Either description" (#537): each alternative as a filter of its own.
+    case "filters":
+      return `[${(v as CardFilter[]).map((alt) => printFilter(alt)).join(", ")}]`;
   }
 }
 

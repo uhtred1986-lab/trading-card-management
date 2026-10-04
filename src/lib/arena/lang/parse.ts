@@ -783,6 +783,8 @@ class Parser {
         const cmp = this.tok.kind === "punct" ? this.toks[this.i++].text : this.fail("expected a comparison", ["<=", "<", ">=", ">"]);
         return v === undefined ? { of, cmp } : { of, cmp, var: v };
       }
+      case "filters":
+        return this.list(() => this.filter());
     }
   }
 

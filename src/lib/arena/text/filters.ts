@@ -46,6 +46,16 @@ export interface CardFilter {
    */
   characterOrTrait: boolean;
   /**
+   * "A <Veku: Br> card **or** a red <Son Goku: Br> card" (BT6-009), "a blue
+   * ≪Cooler's Armored Squadron≫ card or a blue Extra with an energy cost of 0"
+   * (BT29-035): two descriptions, each with its own words, and a card answers
+   * by meeting either one in full. Every other field still has to hold
+   * beside it. Absent on every filter that is one description, which is
+   * nearly all of them; the compiler writes it only for an "or" whose halves
+   * would otherwise share words they do not share (#537).
+   */
+  anyOf?: CardFilter[];
+  /**
    * "A black <Son Goku>**-only** card" (BT29-108, 52 skills): a card whose
    * characters are only the ones named — not a card that lists <Son Goku>
    * among others, the way a fusion or a pair card does.
@@ -209,7 +219,7 @@ export interface CardFilter {
  * predicate form (`lang/ast.ts` re-exports it) and the list `filterProblem`
  * (`vm/script-schema.ts`) checks a stored filter's keys and values against.
  */
-export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel";
+export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel" | "filters";
 
 export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   colors: "colors",
@@ -223,6 +233,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   traits: "strings",
   notTraits: "strings",
   characterOrTrait: "boolean",
+  anyOf: "filters",
   onlyCharacters: "boolean",
   names: "strings",
   notNames: "strings",
@@ -317,6 +328,65 @@ export function emptyFilter(): CardFilter {
 }
 
 export function parseFilter(text: string): CardFilter {
+  return eitherFilter(text) ?? parseOneFilter(text);
+}
+
+/** The list measures an "or" between two descriptions already reads as either. */
+const OR_ABLE: (keyof CardFilter)[] = ["characters", "charactersIncluding", "names", "namesIncluding", "traits", "characterOrTrait"];
+const CARD_NOUN = /\b(?:battle |extra |leader |unison )?(?:cards?|extras?|leaders?|unisons?)\b/i;
+
+/**
+ * "A <Veku: Br> card or a red <Son Goku: Br> card" (BT6-009), "white <Cell>
+ * cards or white Extras" (BT31-119), "a blue <Cooler> card, blue ≪Cooler's
+ * Armored Squadron≫ card, or blue Extra with an energy cost of 0" (BT29-035):
+ * whole descriptions joined by "or", each with its own words. Read as one
+ * description, every word landed on every card — "red" on the <Veku: Br>, "an
+ * energy cost of 0" on the <Cooler> — or a second card type replaced the first
+ * (#537). Split only when every piece names a card noun, and only when the
+ * pieces differ in more than the names an "or" already reads as either; "<Son
+ * Goku> card or <Vegeta> card" stays one filter, as it always read.
+ */
+function eitherFilter(text: string): CardFilter | null {
+  const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  if (!/\bor\b/i.test(t)) return null;
+  // Split at top level only: names carry commas and "or"s of their own.
+  const pieces: string[] = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (ch === "<" || ch === "≪" || ch === "{" || ch === "[") depth++;
+    else if (ch === ">" || ch === "≫" || ch === "}" || ch === "]") depth = Math.max(0, depth - 1);
+    if (depth) continue;
+    const rest = t.slice(i);
+    const sep = /^(?:,\s*(?:and\/or|or)\s+|,\s+|\s+and\/or\s+|\s+or\s+)/i.exec(rest);
+    // "less than **or** equal to", "5000 power **or** more": a comparison's
+    // "or", not a second description.
+    const comparing = sep && (/\bthan$/i.test(t.slice(0, i)) || /^(?:less|more|fewer|equal|lower|higher|greater|above|below)\b/i.test(rest.slice(sep[0].length)));
+    if (sep && !comparing && i > from) {
+      pieces.push(t.slice(from, i));
+      from = i + sep[0].length;
+      i = from - 1;
+    }
+  }
+  pieces.push(t.slice(from));
+  if (pieces.length < 2) return null;
+  const cleaned = pieces.map((p) => p.trim().replace(/^(?:a|an|1|up to \d+|any number of)\s+/i, ""));
+  if (!cleaned.every((p) => CARD_NOUN.test(p) && !/^(?:less|more|fewer)\b/i.test(p))) return null;
+  const alts = cleaned.map((p) => parseOneFilter(p));
+  if (alts.some((a) => a.unreadable)) return null;
+  // Halves that are nothing but a card type name the areas of a pair —
+  // "your opponent's Battle Cards or Unisons" is two areas, and the selector
+  // says that. Anything else beside the type ("white <Cell> cards or white
+  // Extras") is two descriptions.
+  const EMPTY = JSON.stringify({ ...emptyFilter(), type: null });
+  if (alts.every((a) => JSON.stringify({ ...a, type: null }) === EMPTY)) return null;
+  const shape = (a: CardFilter) => JSON.stringify({ ...a, ...Object.fromEntries(OR_ABLE.map((k) => [k, null])) });
+  if (alts.every((a) => shape(a) === shape(alts[0]))) return null;
+  return { ...emptyFilter(), anyOf: alts };
+}
+
+function parseOneFilter(text: string): CardFilter {
   const f = emptyFilter();
   let t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   // "Choose up to 1 Battle Card **other than** <Grand Supreme Kai>" (SD15-01,
@@ -638,6 +708,8 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   // `card_rules` row, a referee ruling — carries only the fields it means, and
   // read as written it crashed the engine on the first `.some`. Fill it up.
   const f: CardFilter = { ...emptyFilter(), ...given };
+  // Either description in full (#537).
+  if (f.anyOf?.length && !f.anyOf.some((alt) => matches(d, alt))) return false;
   if (f.z != null && d.type.startsWith("Z-") !== f.z) return false;
   if (f.token && d.type !== "TOKEN") return false;
   if (f.notToken && d.type === "TOKEN") return false;

@@ -1970,3 +1970,74 @@ import {
   // "an energy cost of 1 or 5" is a measure, not a count.
   assert.ok(!one("[Auto] At the end of your turn, you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode.").unsupported.some((u) => /1 or 5/.test(u) && /^you may add/.test(u)), "a cost of 1 or 5 does not trip the count refusal");
 }
+
+// ── "A or B": two kinds, or two descriptions (#537, owner's card review 4 Oct 2026) ──
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  // "your Leader Cards or Battle/Unison Cards": the player picks the kind, and
+  // each half keeps its own words (SD13-03's "green" is the Unison's).
+  const kinds = (text: string) => {
+    const s = one(text);
+    assert.deepEqual(s.unsupported, [], text);
+    const mode = JSON.stringify(s.ops).includes('"chooseMode"') ? (JSON.parse(JSON.stringify(s.ops)).flatMap(function walk(o: { op?: string; then?: unknown[]; modes?: { ops: { sel: { area: string; filter?: { colors: string[] } } }[] }[] }): unknown[] {
+      if (o.op === "chooseMode") return [o];
+      return (o.then ?? []).flatMap((x) => walk(x as never));
+    })[0] as { modes: { ops: { sel: { area: string; side: string; filter?: { colors: string[] } } }[] }[] }) : null;
+    assert.ok(mode, `${text}: no choice between kinds`);
+    return mode!.modes.map((m) => [m.ops[0].sel.side, m.ops[0].sel.area, m.ops[0].sel.filter?.colors ?? []]);
+  };
+  assert.deepEqual(kinds("[Activate: Battle] Switch this card to Rest Mode: If it's your turn, choose up to 1 of your opponent's Leader Cards or Battle Cards. It loses -5000 power for the duration of the battle."), [
+    ["opponent", "leader", []],
+    ["opponent", "battle", []],
+  ], "BT3-030: the Leader or a Battle Card");
+  assert.deepEqual(kinds("[Auto] When this card is played, choose up to 1 of your Leader Cards or green Unison Cards and it gets +10000 power for the turn."), [
+    ["you", "leader", []],
+    ["you", "unison", ["Green"]],
+  ], "SD13-03: green is the Unison's");
+  assert.deepEqual(kinds("[auto] When you play this card, draw 1 card, then choose up to 1 of your red Leader Cards or red Battle Cards. It gains +5000 power for the duration of the turn."), [
+    ["you", "leader", ["Red"]],
+    ["you", "battle", ["Red"]],
+  ], "BT3-010: red either way");
+
+  // Two descriptions in one filter: each alternative whole.
+  type Alt = { colors: string[]; characters: string[]; traits: string[]; type: string | null; costMax: number | null };
+  const alts = (text: string): Alt[] => {
+    const s = one(text);
+    assert.deepEqual(s.unsupported, [], text);
+    const c = s.ops.find((o) => o.op === "choose") as { sel: { filter?: { anyOf?: Alt[] } } } | undefined;
+    assert.ok(c?.sel.filter?.anyOf, `${text}: not read as either description`);
+    return c!.sel.filter!.anyOf!;
+  };
+  const bt6 = alts("[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 <Veku: Br> card or red <Son Goku: Br> card among them and add it to your hand, place the remaining cards at the bottom of your deck in any order.");
+  assert.deepEqual(bt6.map((a) => [a.characters, a.colors]), [
+    [["Veku: Br"], []],
+    [["Son Goku: Br"], ["Red"]],
+  ], "BT6-009: red is Son Goku's alone");
+  const bt29 = alts("[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue <Cooler> card, blue ≪Cooler's Armored Squadron≫ card, or blue Extra with an energy cost of 0 to your hand, then shuffle your deck.");
+  assert.deepEqual(bt29.map((a) => [a.characters.length > 0, a.traits.length > 0, a.type, a.costMax]), [
+    [true, false, null, null],
+    [false, true, null, null],
+    [false, false, "EXTRA", 0],
+  ], "BT29-035: cost 0 is the Extra's alone");
+  const bt31 = alts("[Auto] When this card is played, place a total of up to 2 white <Cell> cards or white Extras from your deck into your Drop, then shuffle your deck.");
+  assert.deepEqual(bt31.map((a) => [a.characters.map((x) => x.toLowerCase()), a.type]), [
+    [["cell"], null],
+    [[], "EXTRA"],
+  ], "BT31-119: a <Cell> card or an Extra");
+
+  // Names alone already read as either, and stay one filter.
+  const plain = one("[Auto] When you play this card, choose up to 1 <Son Goku> card or <Vegeta> card from your deck and add it to your hand. Then shuffle your deck.");
+  const plainSel = (plain.ops[0] as { sel: { filter?: { anyOf?: unknown; characters: string[] } } }).sel;
+  assert.equal(plainSel.filter?.anyOf, undefined, "two names are one filter");
+  assert.deepEqual(plainSel.filter?.characters, ["Son Goku", "Vegeta"]);
+  // A comparison's "or" is not a second description.
+  assert.equal(parseFilter("Battle Card with power less than or equal to this card's power").anyOf, undefined, "less than or equal to");
+  assert.equal(parseFilter("Battle Card with 15000 power or more").anyOf, undefined, "or more");
+
+  // Both engines' matchers agree on an either-filter (vm.ts sweeps every field);
+  // here, that it answers the alternatives and nothing between them.
+  const f = parseFilter("<V1> card or blue card with an energy cost of 0");
+  assert.ok(matches(DEFS.V1, f), "V1 answers the first description");
+  assert.ok(!matches(DEFS["V-BLUE"], f), "V-BLUE is blue but costs more than 0");
+}

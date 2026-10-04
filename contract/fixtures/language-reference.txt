@@ -3307,6 +3307,14 @@
       ]
     },
     {
+      "field": "anyOf",
+      "type": "filters",
+      "printed": "red <Son Goku> card or Extra Card",
+      "openTo": [
+        "string"
+      ]
+    },
+    {
       "field": "onlyCharacters",
       "type": "boolean",
       "printed": "card",

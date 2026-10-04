@@ -825,6 +825,8 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
   // "Play" spans both areas, so naming either type narrows nothing there.
   if (area === "play" && (f.type === "BATTLE" || f.type === "LEADER")) f.type = null;
   const narrows =
+    // "Either description" (#537) narrows as its alternatives do.
+    (f.anyOf?.length ?? 0) > 0 ||
     f.type != null ||
     f.notType != null ||
     f.multiColor ||

@@ -1354,3 +1354,15 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
 }
 
 console.log("verify/lang: the rules language round-trips");
+
+// #537: "either description" round-trips — each alternative in its own form.
+{
+  for (const text of [
+    "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 <Veku: Br> card or red <Son Goku: Br> card among them and add it to your hand, place the remaining cards at the bottom of your deck in any order.",
+    "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue <Cooler> card, blue ≪Cooler's Armored Squadron≫ card, or blue Extra with an energy cost of 0 to your hand, then shuffle your deck.",
+  ]) {
+    const s = compileSkill(parseSkills(text)[0]);
+    assert.deepEqual(s.unsupported, [], text);
+    tripOps(s.ops, `either-description: ${text.slice(0, 60)}`);
+  }
+}
