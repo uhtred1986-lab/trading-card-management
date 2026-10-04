@@ -319,3 +319,25 @@ model never rewrites a stored answer.
   remembered from a provider's `listModels()`) counts as "cannot read images".
 - **Access.** The AI block is editable by an arena admin (`isArenaAdmin()`); everyone else sees it
   read-only. Test connection is a real call on a paid provider and writes no `ai_runs` row.
+
+## As built: OpenRouter (#520)
+
+- **Where.** `providers/openrouter.ts`, plain `fetch` to `https://openrouter.ai/api/v1`, key
+  `OPENROUTER_API_KEY`. Optional attribution: `OPENROUTER_APP_URL` (sent as `HTTP-Referer`; the title
+  `X-OpenRouter-Title`, default "Trading Card Management" or `OPENROUTER_APP_TITLE`, goes only with it).
+- **Capabilities per model** come from `GET /models` (cached 1 h, stale list kept if a refresh fails):
+  `architecture.input_modalities` has `image` → vision; `supported_parameters` has `structured_outputs`
+  → `capabilities.json` (so the pickers offer only those models), `reasoning`, `tools`. A model that
+  does not list `structured_outputs` gets the schema in its prompt and core's one retry instead.
+  `AiProvider.prepare()` (optional) lets the router load that list before it checks the chosen model.
+- **Sent only where listed.** `reasoning` (`{effort}`, or `{enabled:true}` for adaptive thinking alone)
+  needs `reasoning` in the model's parameters; `cache_control` (5 min / `ttl: "1h"`) only on
+  `anthropic/*` models.
+- **Usage.** `prompt_tokens_details.cached_tokens` and `cache_write_tokens` are cache read / write;
+  `input` is `prompt_tokens` minus both (the docs do not say whether `prompt_tokens` includes them; the
+  OpenAI convention is assumed). Cost is the listed price through `priceOf` (`rememberModelPrices`); the
+  reported `usage.cost` is not read.
+- **Errors.** 401 `auth`, 402 `usage_limit`, 408 `timeout`, 429 `rate_limit`, anything else `provider`;
+  an `error` object inside a 200 (body or choice) is mapped by its own `code`. `finish_reason`
+  `content_filter` or a `message.refusal` is `refusal`; `length` is `max_tokens`.
+- **`available()`** needs the key and a `GET /key` answering 200 (cached 5 min when good).

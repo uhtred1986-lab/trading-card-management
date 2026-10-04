@@ -97,6 +97,11 @@ export interface AiProvider {
   /** Cheap; the router caches it. */
   available(): Promise<Availability>;
   listModels(): Promise<ModelInfo[]>;
+  /**
+   * Optional: loads what the provider needs to judge a model's capabilities (OpenRouter's model list), so the
+   * router can check the chosen model before it sends. The router ignores a failure here.
+   */
+  prepare?(): Promise<void>;
   /** One request, one answer. Throws {@link AiError}, never a vendor's error. */
   generate(req: AiRequest): Promise<AiResult>;
 }
