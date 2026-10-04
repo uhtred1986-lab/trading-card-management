@@ -4,7 +4,6 @@
  * legal cards worth buying. The draft is validated here before it becomes a
  * (virtual) deck; owned/buy flags come from the collection, never from the model.
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { and, asc, desc, eq, isNull, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
@@ -13,7 +12,8 @@ import { textArray } from "@/db/sqlx";
 import { deckRules, gameInfo, gameOr, type Game } from "@/lib/catalog/games";
 import { currentLineFor } from "@/lib/catalog/sets";
 import { hasKeyword, rulesFor, type KeywordDeckRule } from "@/lib/decks/cardRules";
-import { MODEL, anthropic, recordRun } from "./client";
+import { generateJson } from "./core";
+import { recordRun } from "./client";
 import { cardLine } from "./deck";
 
 export const DeckDraftSchema = z.object({
@@ -179,16 +179,18 @@ export async function suggestDeck(db: Db, leaderId: string, owner: string | null
   const poolBlock = `CARD POOL (OWN×n = owned copies, BUY = would need buying):\n${[...owned, ...buy].map(line).join("\n")}`;
   const ask = `LEADER: ${cardLine({ ...leader, traits: leader.traits }, 400)}${leader.backName ? `\nLEADER BACK: ${leader.backName} — ${(leader.backSkill ?? "").replace(/<br\s*\/?>/gi, " / ")}` : ""}\n\nDraft the deck.`;
 
-  const res = await anthropic().messages.parse({
-    model: MODEL,
-    max_tokens: 12000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "high", format: zodOutputFormat(DeckDraftSchema) },
+  const res = await generateJson({
+    task: "deck_builder",
+    tier: "best",
+    maxTokens: 12000,
+    thinking: "adaptive",
+    effort: "high",
+    schema: DeckDraftSchema,
     system: [
-      { type: "text", text: system },
-      { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } },
+      { text: system },
+      { text: poolBlock, cache: "short" },
     ],
-    messages: [{ role: "user", content: ask }],
+    messages: [{ role: "user", parts: [{ type: "text", text: ask }] }],
   });
   const { output: draft } = await recordRun<DeckDraft>(db, "deck_builder", { leaderId, game, mode: "build", ownedPool: owned.length, buyPool: buy.length }, res);
   const sanitised = sanitiseDraft(draft, pool, game);
