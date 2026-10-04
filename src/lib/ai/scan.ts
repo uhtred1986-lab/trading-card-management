@@ -14,9 +14,9 @@ import { z } from "zod";
 import type { Db } from "@/db";
 import { cardPrints } from "@/db/schema";
 import { quickSearch } from "@/lib/catalog/queries";
-import { generate, generateJson, extractJson } from "./core";
+import { generateJson } from "./core";
 import { AiError } from "./errors";
-import { recordRun } from "./client";
+import { SONNET_MODEL, recordRun } from "./client";
 import { assessMatch, cleanBox, needsOpusFallback, normaliseNumber, type Box, type MatchedBy } from "./scan-match";
 import type { AiResult } from "./types";
 
@@ -101,101 +101,48 @@ function scanInstruction(mode: "single" | "batch"): string {
 }
 
 /** One read of one photo on the given tier. Sonnet and Opus take the same request shape. */
-export async function readPhoto(tier: "standard" | "best", prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch") {
-  try {
-    return await generateJson({
-      task: "scan_identify",
-      tier,
-      maxTokens: 8000,
-      thinking: "adaptive",
-      effort: "medium",
-      schema: ScanSchema,
-      system: [{ text: SCAN_SYSTEM }],
-      messages: [
-        {
-          role: "user",
-          parts: [
-            { type: "image", mediaType: prepared.mediaType, base64: prepared.data },
-            { type: "text", text: scanInstruction(mode) },
-          ],
-        },
-      ],
-    });
-  } catch (err) {
-    // On refusal or API errors, re-throw
-    if (err instanceof AiError && (err.kind === "refusal" || err.kind === "auth" || err.kind === "rate_limit")) {
-      throw err;
-    }
-    // On bad_output, re-throw to let readPhotoTiered handle fallback
-    if (err instanceof AiError && err.kind === "bad_output") {
-      throw err;
-    }
-    // Other errors, re-throw
-    throw err;
-  }
+export function readPhoto(tier: "standard" | "best", prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch") {
+  return generateJson({
+    task: "scan_identify",
+    tier,
+    maxTokens: 8000,
+    thinking: "adaptive",
+    effort: "medium",
+    schema: ScanSchema,
+    system: [{ text: SCAN_SYSTEM }],
+    messages: [
+      {
+        role: "user",
+        parts: [
+          { type: "image", mediaType: prepared.mediaType, base64: prepared.data },
+          { type: "text", text: scanInstruction(mode) },
+        ],
+      },
+    ],
+  });
 }
 
+type ScanRead = AiResult<ScanResult>;
+
 /**
- * Sonnet first, Opus only when Sonnet's answer is unparseable (bad_output)
- * or low-confidence ({@link needsOpusFallback}). A refusal, or an error such
- * as a rejected key or a rate limit, is not retried on Opus. Returns every
- * read that came back, in order, so the caller can record each one; the last
- * is the answer.
+ * Sonnet first, Opus only when Sonnet's answer is unparseable (`bad_output`)
+ * or low-confidence ({@link needsOpusFallback}). A refusal, or any other
+ * error such as a rejected key or a rate limit, is not retried on Opus.
+ * Returns every read that came back, in order, so the caller can record each
+ * one; the last is the answer.
  */
-export async function readPhotoTiered(prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch"): Promise<{ model: string; res: AiResult<ScanResult | undefined>; fallbackFrom?: string }[]> {
-  // Try Sonnet first
-  let firstRaw: AiResult | null = null;
-  let firstParsed: ScanResult | undefined;
+export async function readPhotoTiered(prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch"): Promise<{ model: string; res: ScanRead; fallbackFrom?: string }[]> {
+  let first: ScanRead | null = null;
   try {
-    firstRaw = await generate({
-      task: "scan_identify",
-      tier: "standard",
-      maxTokens: 8000,
-      thinking: "adaptive",
-      effort: "medium",
-      system: [{ text: SCAN_SYSTEM }],
-      messages: [
-        {
-          role: "user",
-          parts: [
-            { type: "image", mediaType: prepared.mediaType, base64: prepared.data },
-            { type: "text", text: scanInstruction(mode) },
-          ],
-        },
-      ],
-    });
-    // Check for refusal or rate limit/auth errors - throw immediately
-    if (firstRaw.stop === "refusal") {
-      throw new AiError("refusal", "The model declined this request.", { provider: firstRaw.provider });
-    }
-    // Try to parse the response
-    try {
-      const parsed = ScanSchema.parse(extractJson(firstRaw.text));
-      firstParsed = parsed;
-    } catch {
-      // Unparseable - will fallback to Opus
-    }
+    first = await readPhoto("standard", prepared, mode);
   } catch (err) {
-    // On refusal or API errors (auth/rate_limit), throw immediately
-    if (err instanceof AiError && (err.kind === "refusal" || err.kind === "auth" || err.kind === "rate_limit")) {
-      throw err;
-    }
-    // Other errors: fall through to fallback
+    if (!(err instanceof AiError) || err.kind !== "bad_output") throw err;
   }
-
-  // If Sonnet succeeded and doesn't need fallback, return it
-  if (firstRaw && firstParsed && !needsOpusFallback(firstParsed, mode)) {
-    return [{ model: firstRaw.model, res: { ...firstRaw, parsed: firstParsed } }];
-  }
-
-  // Fallback to Opus
-  const second = await readPhoto("best", prepared, mode);
-  const results: { model: string; res: AiResult<ScanResult | undefined>; fallbackFrom?: string }[] = [];
-  if (firstRaw) {
-    results.push({ model: firstRaw.model, res: { ...firstRaw, parsed: firstParsed } });
-  }
-  results.push({ model: second.model, res: second, fallbackFrom: firstRaw?.model });
-  return results;
+  if (first?.parsed && !needsOpusFallback(first.parsed, mode)) return [{ model: first.model, res: first }];
+  // An unparseable first read has no model on it; the standard tier's model is what it ran on.
+  const second = { model: "", res: await readPhoto("best", prepared, mode), fallbackFrom: first?.model ?? SONNET_MODEL };
+  second.model = second.res.model;
+  return first?.parsed ? [{ model: first.model, res: first }, second] : [second];
 }
 
 export async function identifyCards(
@@ -207,12 +154,8 @@ export async function identifyCards(
 
   let id = 0;
   let output!: ScanResult;
-  const tieredResults = await readPhotoTiered(prepared, mode);
-  for (const r of tieredResults) {
-    // Only record runs that have valid parsed output (last one always does)
-    if (r.res.parsed) {
-      ({ id, output } = await recordRun<ScanResult>(db, "scan_identify", { mode, ...(r.fallbackFrom ? { fallbackFrom: r.fallbackFrom } : {}) }, r.res as any));
-    }
+  for (const r of await readPhotoTiered(prepared, mode)) {
+    ({ id, output } = await recordRun<ScanResult>(db, "scan_identify", { mode, ...(r.fallbackFrom ? { fallbackFrom: r.fallbackFrom } : {}) }, r.res));
   }
 
   // Each card on the photo is matched on its own, so all of them at once: a

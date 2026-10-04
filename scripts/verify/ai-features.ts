@@ -13,50 +13,9 @@ import assert from "node:assert/strict";
 import { z } from "zod";
 import { generateJson } from "../../src/lib/ai/core";
 import { AiError } from "../../src/lib/ai/errors";
-import { createAnthropicApiProvider } from "../../src/lib/ai/providers/anthropic-api";
+import { anthropicHarness, type Wire } from "./ai-harness";
 import { registerProvider, resetProviders } from "../../src/lib/ai/providers";
 import { readPhoto, readPhotoTiered } from "../../src/lib/ai/scan";
-import type { AiProvider } from "../../src/lib/ai/types";
-
-type Wire = { url: string; body: Record<string, unknown> };
-
-interface Harness {
-  make(script: { text?: string; json?: unknown; stop?: "refusal" | "end" | "max_tokens"; usage?: Record<string, number> }[]): {
-    provider: AiProvider;
-    wire(): Wire[];
-  };
-}
-
-/** The Anthropic adapter on a recorded transport. */
-function anthropicHarness(): Harness {
-  return {
-    make(script) {
-      const wire: Wire[] = [];
-      const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
-        wire.push({ url: String(url), body });
-        const a = script[Math.min(wire.length - 1, script.length - 1)];
-        const text = a.text ?? (a.json !== undefined ? JSON.stringify(a.json) : "");
-        const u = a.usage ?? {};
-        return new Response(
-          JSON.stringify({
-            id: "msg_test",
-            type: "message",
-            role: "assistant",
-            model: String(body.model),
-            content: [{ type: "text", text }],
-            stop_reason: a.stop === "refusal" ? "refusal" : a.stop === "max_tokens" ? "max_tokens" : "end_turn",
-            stop_sequence: null,
-            usage: { input_tokens: u.input ?? 0, output_tokens: u.output ?? 0, cache_read_input_tokens: u.cacheRead ?? 0, cache_creation_input_tokens: u.cacheWrite ?? 0 },
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }) as typeof fetch;
-      const provider = { ...createAnthropicApiProvider({ fetch: fetchImpl }), id: "anthropic-api" };
-      return { provider, wire: () => wire };
-    },
-  };
-}
 
 async function testScanRequests(): Promise<void> {
   const h = anthropicHarness();
@@ -71,7 +30,8 @@ async function testScanRequests(): Promise<void> {
   assert.equal(w.model, "claude-sonnet-5-5", "scan Sonnet tier");
   assert.equal(w.max_tokens, 8000, "scan max_tokens");
   assert.deepEqual(w.thinking, { type: "adaptive" }, "scan thinking");
-  assert.equal((w.output_config as any)?.effort, "medium", "scan effort");
+  assert.equal((w.output_config as { effort?: string })?.effort, "medium", "scan effort");
+  assert.equal((w.output_config as { format?: { type?: string } })?.format?.type, "json_schema", "scan asks for structured output, as before");
   assert.equal(typeof w.system, "string", "scan system as string");
   const msgs = (w.messages as { role: string; content: { type: string }[] }[])[0];
   assert.deepEqual(
@@ -83,46 +43,51 @@ async function testScanRequests(): Promise<void> {
   resetProviders();
 }
 
+const sure = { cards: [{ name: "Son Goku", number: "BT1-031", confidence: 0.97, position: "only card", box: { x: 0.1, y: 0.1, w: 0.8, h: 0.8 }, notes: null }], unreadable: 0 };
+const unsure = { cards: [{ name: "Son Goku", number: "BT1-03?", confidence: 0.4, position: "only card", box: { x: 0.1, y: 0.1, w: 0.8, h: 0.8 }, notes: null }], unreadable: 0 };
+const prepared = { data: "AA", mediaType: "image/jpeg" as const };
+const models = (w: Wire[]) => w.map((x) => x.body.model);
+
 async function testScanFallback(): Promise<void> {
-  // Test unparseable Sonnet → Opus fallback
+  // A sure Sonnet read is the answer: one call, no fallback.
   {
-    const h = anthropicHarness();
-    const run = h.make([
-      { text: "not json at all" }, // Sonnet attempt (generateJson retries once)
-      { text: "still not json" }, // Sonnet retry
-      { json: { cards: [], unreadable: 0 } }, // Opus succeeds
-    ]);
+    const run = anthropicHarness().make([{ json: sure }]);
     registerProvider(run.provider);
-
-    const prepared = { data: "AA", mediaType: "image/jpeg" as const };
-    const results = await readPhotoTiered(prepared, "single");
-
-    // After Sonnet fails to parse even after core's retry, Opus is called
-    assert.equal(results.length, 2, "two results recorded: Sonnet and Opus");
-    assert.equal(results[0].model, "claude-sonnet-5-5", "first is Sonnet");
-    assert.equal(results[1].model, "claude-opus-5", "second is Opus");
-    assert.equal(results[1].fallbackFrom, "claude-sonnet-5-5", "fallbackFrom is real model id");
-    assert.equal(run.wire().length, 3, "three wire calls: Sonnet (2 retries) + Opus");
-
+    const r = await readPhotoTiered(prepared, "single");
+    assert.deepEqual(models(run.wire()), ["claude-sonnet-5-5"], "a sure read makes one Sonnet call");
+    assert.deepEqual(r.map((x) => [x.model, x.fallbackFrom]), [["claude-sonnet-5-5", undefined]]);
     resetProviders();
   }
-
-  // Test refusal → no fallback
+  // Unparseable on Sonnet (bad_output after core's one retry) → Opus; the unparseable read is not recorded, as before.
   {
-    const h = anthropicHarness();
-    const run = h.make([{ text: "I can't help", stop: "refusal" }]);
+    const run = anthropicHarness().make([{ text: "not json" }, { text: "still not json" }, { json: sure }]);
     registerProvider(run.provider);
-
-    const prepared = { data: "AA", mediaType: "image/jpeg" as const };
-    try {
-      await readPhotoTiered(prepared, "single");
-      assert.fail("should have thrown on refusal");
-    } catch (err) {
-      assert.ok(err instanceof AiError, "throws AiError");
-      assert.equal((err as AiError).kind, "refusal", "error kind is refusal");
-      assert.equal(run.wire().length, 1, "one wire call: Sonnet only, no Opus");
-    }
-
+    const r = await readPhotoTiered(prepared, "single");
+    assert.deepEqual(models(run.wire()), ["claude-sonnet-5-5", "claude-sonnet-5-5", "claude-opus-5"], "unparseable: Sonnet, its one retry, then Opus");
+    assert.deepEqual(r.map((x) => [x.model, x.fallbackFrom]), [["claude-opus-5", "claude-sonnet-5-5"]], "only the Opus read is recorded, with fallbackFrom = Sonnet's id");
+    assert.ok(r.every((x) => x.res.parsed), "every returned read is parsed, so recordRun accepts each");
+  }
+  resetProviders();
+  // Low confidence (needsOpusFallback) → both reads recorded, Opus last with fallbackFrom.
+  {
+    const run = anthropicHarness().make([{ json: unsure }, { json: sure }]);
+    registerProvider(run.provider);
+    const r = await readPhotoTiered(prepared, "single");
+    assert.deepEqual(models(run.wire()), ["claude-sonnet-5-5", "claude-opus-5"], "low confidence falls back to Opus");
+    assert.deepEqual(r.map((x) => [x.model, x.fallbackFrom]), [["claude-sonnet-5-5", undefined], ["claude-opus-5", "claude-sonnet-5-5"]]);
+    resetProviders();
+  }
+  // Refusal, rate limit, rejected key, server error: thrown, never retried on Opus.
+  for (const [label, answer, kind] of [
+    ["refusal", { text: "I can't help", stop: "refusal" as const }, "refusal"],
+    ["rate limit", { status: 429 }, "rate_limit"],
+    ["rejected key", { status: 401 }, "auth"],
+    ["server error", { status: 500 }, "provider"],
+  ] as const) {
+    const run = anthropicHarness().make([answer]);
+    registerProvider(run.provider);
+    await assert.rejects(readPhotoTiered(prepared, "single"), (err: unknown) => err instanceof AiError && err.kind === kind, `${label}: thrown as ${kind}`);
+    assert.deepEqual(models(run.wire()), ["claude-sonnet-5-5"], `${label}: no Opus call`);
     resetProviders();
   }
 }
