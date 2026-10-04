@@ -21,7 +21,9 @@
 import { z } from "zod";
 import type { Db } from "@/db";
 import { hasAnthropic, recordRun } from "@/lib/ai/client";
+import { arenaModel, arenaSlotFor } from "@/lib/ai/arena-models";
 import { generateJson } from "@/lib/ai/core";
+import { getSettings } from "@/lib/ai/settings";
 import { other, type EngineContext, type LegalAction, type PlayerId } from "../types";
 import { validateProgram, type Op } from "../vm/script";
 import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../vm/script";
@@ -41,7 +43,7 @@ export interface Choice {
   /** One line of table talk, or null when no model was asked. */
   say: string | null;
   /** Null when the decision was taken without an API call. */
-  spend: { model: string; input: number; output: number; cached: number } | null;
+  spend: { model: string; provider?: string; input: number; output: number; cached: number } | null;
   /** Why it was decided this way, for the log. */
   how: string;
 }
@@ -181,15 +183,16 @@ function freeChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p:
   return null;
 }
 
-/** Tournament sends the decisions that shape a turn to the stronger model. */
-function tierFor(tier: Tier, s: EngineState): { tier: "fast" | "standard" | "best"; effort?: "low" | "medium" | "high" } {
-  if (tier === "sparring") return { tier: "fast" };
-  // `combo` joined the list after a Tournament game in which Claude spent
-  // three cards on a turn-3 attack it was already winning: how much of a hand
-  // to spend on one battle is exactly the kind of judgement the tier is for,
-  // and it had been going to the fast model every time.
-  const heavy = s.prompt.kind === "main" || s.prompt.kind === "counter" || s.prompt.kind === "blocker" || s.prompt.kind === "combo";
-  return heavy ? { tier: "best", effort: "medium" } : { tier: "fast" };
+/**
+ * Which of the three arena model slots (/settings, #516) decides this prompt.
+ * Tournament sends the decisions that shape a turn to the stronger model; the
+ * list of those prompt kinds (`main`, `counter`, `blocker`, `combo`) is in
+ * `arena-models.ts`. `combo` joined it after a Tournament game in which Claude
+ * spent three cards on a turn-3 attack it was already winning: how much of a
+ * hand to spend on one battle is exactly the kind of judgement the tier is for.
+ */
+function slotFor(tier: Tier, s: EngineState) {
+  return arenaSlotFor(tier, s.prompt.kind);
 }
 
 // ── the decision ───────────────────────────────────────────────────────────
@@ -198,19 +201,22 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
   if (!legal.length) throw new Error("no legal move to choose from");
   const free = freeChoice(ctx, s, legal, p);
   if (free) return { index: free.index, say: null, spend: null, how: free.how };
-  if (!hasAnthropic()) return { index: 0, say: null, spend: null, how: "no API key — took the first legal move" };
+  // The slot's provider and model: the owner's choice on /settings, else Haiku (Sparring, Tournament's other prompts) or Opus (Tournament's key prompts).
+  const chosenModel = arenaModel(slotFor(tier, s), await getSettings());
+  if (chosenModel.provider === "anthropic-api" && !hasAnthropic()) return { index: 0, say: null, spend: null, how: "no API key — took the first legal move" };
   // Everything below reads the table through `tableOf` (`./table.ts`, #457),
   // so a real decision is put to Claude on either engine, in the same words
   // for the same position.
-  const { tier: tierName, effort } = tierFor(tier, s);
   const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence of table talk. Your opponent reads that sentence, so never name or hint at a card in your hand, your life or your deck.`;
 
   const res = await generateJson({
     task: "arena_move",
-    tier: tierName,
+    provider: chosenModel.provider,
+    model: chosenModel.model,
     maxTokens: 1500,
-    ...(tierName === "best" ? { thinking: "adaptive" } : {}),
-    ...(effort ? { effort } : {}),
+    // Sent only where the model has them: the adapter drops both on Haiku.
+    ...(chosenModel.thinking ? { thinking: chosenModel.thinking } : {}),
+    ...(chosenModel.effort ? { effort: chosenModel.effort } : {}),
     schema: MoveSchema,
     system: systemBlocks(ctx, s, p),
     messages: [{ role: "user", parts: [{ type: "text", text: question }] }],
@@ -223,7 +229,7 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
   return {
     index,
     say: output.say?.trim() || null,
-    spend: { model: res.model, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead },
+    spend: { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead },
     how: index === output.move ? "chosen by Claude" : `Claude answered ${output.move}, which is not on the list — took the first move`,
   };
 }
@@ -374,7 +380,7 @@ export async function ruleOnCard(
   db: Db,
   request: { cardId: string; cardName: string; text: string; unsupported: string[] },
   situation: string,
-): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; input: number; output: number; cached: number } | null }> {
+): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; provider?: string; input: number; output: number; cached: number } | null }> {
   if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", valid: false, spend: null };
   const res = await generateJson({
     task: "arena_referee",
@@ -403,7 +409,7 @@ export async function ruleOnCard(
   } catch {
     ops = [];
   }
-  const spend = { model: res.model, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead };
+  const spend = { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead };
   // A malformed ruling is treated as "nothing happens" rather than trusted.
   if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend };
   return { ops: ops as Op[], why: output.why, valid: true, spend };

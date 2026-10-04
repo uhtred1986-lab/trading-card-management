@@ -307,8 +307,6 @@ async function main(): Promise<void> {
       setSettingsLoader(async () => {
         throw new Error("db down");
       });
-      const warn = console.warn;
-      console.warn = () => {};
       assert.equal(await getSettings(), NO_SETTINGS, "a failing database means defaults, not a failed model call");
       setSettingsLoader(null);
 
