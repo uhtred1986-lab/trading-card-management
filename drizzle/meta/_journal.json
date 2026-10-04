@@ -288,6 +288,13 @@
       "when": 1791112089245,
       "tag": "0040_legal_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791114319134,
+      "tag": "0041_legal_blue_marvel",
+      "breakpoints": true
     }
   ]
 }

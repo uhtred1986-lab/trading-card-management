@@ -43,7 +43,17 @@ export function aiPlayerOf(game: { mode: string }): PlayerId | null {
   return game.mode === "sparring" || game.mode === "tournament" ? "p2" : null;
 }
 
-async function addSpend(db: Db, gameId: number, spend: { model: string; input: number; output: number; cached: number } | null): Promise<number> {
+/**
+ * What a decision row records as its model (admin views only, never the
+ * players'): the model alone on the Anthropic API, as it always was, and
+ * `provider · model` on any other provider so an admin sees who answered.
+ */
+export function decisionModel(spend: { model: string; provider?: string } | null): string | null {
+  if (!spend) return null;
+  return spend.provider && spend.provider !== "anthropic-api" ? `${spend.provider} · ${spend.model}` : spend.model;
+}
+
+async function addSpend(db: Db, gameId: number, spend: { model: string; provider?: string; input: number; output: number; cached: number } | null): Promise<number> {
   if (!spend) return 0;
   const micros = costMicros(spend);
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
@@ -144,7 +154,7 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
         kind: "move",
         decidedBy: choice.spend ? (choice.how.startsWith("Claude answered") ? "fallback" : "claude") : "rule",
         how: choice.how,
-        model: choice.spend?.model ?? null,
+        model: decisionModel(choice.spend),
         menu: game.legal.map((l) => l.label),
         chosenIndex: choice.index,
         chosenLabel: chosen.label,
@@ -196,7 +206,7 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
     kind: "referee",
     decidedBy: ruling.spend ? "claude" : "rule",
     how: `${req.cardName}: ${ruling.why}`,
-    model: ruling.spend?.model ?? null,
+    model: decisionModel(ruling.spend),
     menu: req.unsupported,
     chosenLabel: `${ruling.ops.length} operation${ruling.ops.length === 1 ? "" : "s"}`,
     promptText: game.debug && ruling.spend ? `${req.text}\n\n${situation}` : null,

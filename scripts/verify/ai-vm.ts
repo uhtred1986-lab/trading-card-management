@@ -38,7 +38,8 @@ import { decklistText, stateText } from "../../src/lib/arena/ai/view";
 import { createFakeProvider } from "../../src/lib/ai/providers/fake";
 import { registerProvider, resetProviders } from "../../src/lib/ai/providers";
 import { createAnthropicApiProvider } from "../../src/lib/ai/providers/anthropic-api";
-import type { AiProvider } from "../../src/lib/ai/types";
+import type { AiProvider, AiRequest } from "../../src/lib/ai/types";
+import { NO_SETTINGS, setSettingsLoader } from "../../src/lib/ai/settings";
 import { EFFECT_LANGUAGE, ruleOnCard } from "../../src/lib/arena/ai/opponent";
 import { clarifyRule, type RuleToClarify } from "../../src/lib/arena/ai/clarify";
 import { claudeTeacher } from "../../src/lib/arena/ai/teach";
@@ -440,6 +441,57 @@ function toCombo(s: EngineState, eid: EngineId): EngineState {
         assert.equal(b.model, "claude-haiku-4-5");
         assert.equal(b.thinking, undefined);
         assert.equal(b.output_config.effort, undefined);
+      }
+
+      // #516: the arena model slots, through chooseMove, on fake providers — every prompt kind, with nothing configured and with slots set.
+      {
+        const ids = ["main", "counter", "blocker", "combo", "attack", "offering", "chooseTarget", "payCost", "anythingElse"];
+        const heavy = new Set(["main", "counter", "blocker", "combo"]);
+        const asKind = (kind: string) => ({ ...s0.rules, prompt: { kind, player: "p1" } }) as unknown as VmState;
+        // Whichever provider answers writes the request it got here.
+        const seen: AiRequest[] = [];
+        const answer = (req: AiRequest) => (seen.push(req), { json: ANSWER, usage: { input: 1, output: 1, cacheRead: 0 } });
+        const run = async (tier: "sparring" | "tournament", kind: string) => {
+          seen.length = 0;
+          registerProvider(createFakeProvider({ id: "anthropic-api", script: answer }));
+          const choice = await chooseMove(stubDb(), CTX, asKind(kind), mainLegal, "p1", tier);
+          assert.equal(seen.length, 1, `${tier} ${kind}: the model is asked once`);
+          return { req: seen[0], choice };
+        };
+
+        // Nothing configured: today's split on every kind.
+        setSettingsLoader(null);
+        for (const kind of ids) {
+          const sp = await run("sparring", kind);
+          assert.deepEqual([sp.req.provider, sp.req.model, sp.req.thinking, sp.req.effort], ["anthropic-api", "claude-haiku-4-5", undefined, undefined], `sparring ${kind} runs on Haiku`);
+          const t = await run("tournament", kind);
+          assert.equal(t.req.provider, "anthropic-api");
+          assert.equal(t.req.model, heavy.has(kind) ? "claude-opus-5" : "claude-haiku-4-5", `tournament ${kind}`);
+          assert.equal(t.req.thinking, heavy.has(kind) ? "adaptive" : undefined, `tournament ${kind} thinking`);
+          assert.equal(t.req.effort, heavy.has(kind) ? "medium" : undefined, `tournament ${kind} effort`);
+          assert.equal(t.choice.spend?.provider, "anthropic-api");
+        }
+
+        // Slots set: Sparring and Tournament's key prompts go to another provider's models; the unset slot keeps its default.
+        setSettingsLoader(async () => ({
+          ...NO_SETTINGS,
+          arena: { sparring: { provider: "alt", model: "alt/spar" }, "tournament.key": { provider: "alt", model: "alt/key" } },
+        }));
+        const alt = createFakeProvider({ id: "alt", script: answer });
+        registerProvider(alt);
+        for (const kind of ["main", "offering"]) {
+          const sp = await run("sparring", kind);
+          assert.equal(sp.req.provider, "alt", `sparring ${kind} follows the slot`);
+          assert.equal(sp.req.model, "alt/spar");
+          assert.equal(sp.req.thinking, undefined);
+          assert.equal(sp.choice.spend?.provider, "alt", "the provider is reported with the spend");
+        }
+        const key = await run("tournament", "combo");
+        assert.deepEqual([key.req.provider, key.req.model, key.req.thinking, key.req.effort], ["alt", "alt/key", "adaptive", "medium"]);
+        const other = await run("tournament", "offering");
+        assert.deepEqual([other.req.provider, other.req.model], ["anthropic-api", "claude-haiku-4-5"], "an unset slot keeps its default");
+        assert.equal(alt.requests.length, 3, "the slot's provider answered exactly the three slotted decisions");
+        setSettingsLoader(null);
       }
 
       // ruleOnCard (the referee).

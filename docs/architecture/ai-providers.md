@@ -296,3 +296,26 @@ model never rewrites a stored answer.
 - Router checks: precedence, capability fallback, availability fallback on/off, no silent downgrade.
 - Arena: an illegal or out-of-range answer from any provider is rejected exactly as today.
 - `npm run ai:smoke` (live, paid) is the owner's to run, per provider.
+
+## As built: router and settings (#516)
+
+- **Where things are.** `src/lib/ai/settings.ts` (types, parsing a stored row, the loader hook),
+  `settings-db.ts` (the `ai_settings` row), `router.ts` (`resolve(req)` returns the provider and the
+  request with its model filled in), `catalog.ts` (tasks, groups, picker filters), `settings-form.ts`
+  (what a form post may store), `arena-models.ts` (`arenaModel(slot, settings)`), `test-connection.ts`.
+  The UI is `components/settings/AiSettingsBlock.tsx` on `/settings`, edits go through
+  `app/settings/ai-actions.ts`.
+- **Settings reach the router through a loader.** `src/instrumentation.ts` registers the database at
+  server start (only with `DATABASE_URL`). With no loader — `npm test`, scripts, `tsx` — the router
+  sees "nothing configured": `anthropic-api` on the `models.ts` tiers. A failing read also falls back
+  to that, with a warning; reads are reused for 15 s and a save drops them.
+- **`ai_settings.models`** is one object: `{ "<provider>": { fast?, standard?, best? }, "arena.sparring"?,
+  "arena.tournament.key"?, "arena.tournament.other"? }`; a slot is `{ provider, model }`.
+- **A request pinned in code (`req.provider`) is never rerouted**: if that provider is down or cannot
+  do the task it fails (`unavailable` / `unsupported`). Capability fallback and the fallback on
+  unavailable apply to everything else. On a fallback the first provider's model id is dropped and the
+  fallback's own tier model is used.
+- **Capability is checked per model too**: a model known to have no image input (from `models.ts`, or
+  remembered from a provider's `listModels()`) counts as "cannot read images".
+- **Access.** The AI block is editable by an arena admin (`isArenaAdmin()`); everyone else sees it
+  read-only. Test connection is a real call on a paid provider and writes no `ai_runs` row.
