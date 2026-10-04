@@ -62,6 +62,8 @@ export async function recordRun<T>(
       kind,
       deckId: deckId ?? null,
       model: model ?? (legacy ? MODEL : response.model),
+      provider: legacy ? "anthropic-api" : response.provider,
+      billed: legacy ? true : response.billed,
       input: input as object,
       output: output as object,
       ...tokens,

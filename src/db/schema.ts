@@ -884,6 +884,10 @@ export const aiRuns = pgTable(
     cacheReadTokens: integer("cache_read_tokens"),
     /** `usage.cache_creation_input_tokens`, same caveat. */
     cacheCreationTokens: integer("cache_creation_tokens"),
+    /** Provider id: "anthropic-api", "anthropic-agent-sdk", etc. (#515) */
+    provider: text("provider").notNull().default("anthropic-api"),
+    /** Whether this call was billed per token (false for subscriptions). (#515) */
+    billed: boolean("billed").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("ai_runs_deck_idx").on(t.deckId)],

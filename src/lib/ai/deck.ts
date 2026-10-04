@@ -3,7 +3,6 @@
  * (explicit replace X → Y swaps), and new-set reviews. Everything reasons
  * from catalog card text we hold — no forum scraping.
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { and, asc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
@@ -13,24 +12,29 @@ import { currentLineFor, gameOfSetCode } from "@/lib/catalog/sets";
 import { deckRules, gameInfo, type Game } from "@/lib/catalog/games";
 import { deckToText, getDeck, type DeckCardRow } from "@/lib/decks/queries";
 import { hasKeyword, rulesFor } from "@/lib/decks/cardRules";
-import { MODEL, SONNET_MODEL, anthropic, recordRun } from "./client";
+import { generateJson } from "./core";
+import { recordRun } from "./client";
 
 /**
  * The two games share a brand and nothing else, so the model is told which one
  * it is looking at before anything else — a Fusion World deck analysed as if
  * it were Masters would be confidently wrong about its own rules.
  */
-function systemFor(game: Game): string {
+function systemFor(game: Game) {
   const info = gameInfo(game);
   const r = info.deck;
   return [
-    `You are an expert ${info.promptName} deck analyst.`,
-    "Reason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.",
-    "Refer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.",
-    `Deck rules for this game: 1 Leader, ${r.main}–${r.mainMax} cards in the main deck, at most ${r.copies} copies of a card number` +
-      (r.zMax > 0 ? `, and a Z-Deck of up to ${r.zMax} Z- cards.` : ", and no Z-Deck at all.") +
-      (r.colorStrict ? " Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak." : " Off-colour cards are legal but usually a mistake."),
-  ].join("\n");
+    {
+      text: [
+        `You are an expert ${info.promptName} deck analyst.`,
+        "Reason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.",
+        "Refer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.",
+        `Deck rules for this game: 1 Leader, ${r.main}–${r.mainMax} cards in the main deck, at most ${r.copies} copies of a card number` +
+          (r.zMax > 0 ? `, and a Z-Deck of up to ${r.zMax} Z- cards.` : ", and no Z-Deck at all.") +
+          (r.colorStrict ? " Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak." : " Off-colour cards are legal but usually a mistake."),
+      ].join("\n"),
+    },
+  ];
 }
 
 /** Compact one-line card row for prompts. */
@@ -110,15 +114,17 @@ export async function summariseDeck(db: Db, deckId: number): Promise<{ runId: nu
 
 ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Summarise this deck.`;
 
-  const res = await anthropic().messages.parse({
-    model: SONNET_MODEL,
-    max_tokens: 8000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "medium", format: zodOutputFormat(DeckSummarySchema) },
+  const res = await generateJson({
+    task: "deck_summary",
+    tier: "standard",
+    maxTokens: 8000,
+    thinking: "adaptive",
+    effort: "medium",
+    schema: DeckSummarySchema,
     system: systemFor(deck.game),
-    messages: [{ role: "user", content: prompt }],
+    messages: [{ role: "user", parts: [{ type: "text", text: prompt }] }],
   });
-  const { id, output } = await recordRun<DeckSummary>(db, "deck_summary", { deckId }, res, deckId, SONNET_MODEL);
+  const { id, output } = await recordRun<DeckSummary>(db, "deck_summary", { deckId }, res, deckId);
   const text = [
     `**${output.archetype}** — ${output.gamePlan}`,
     output.strengths.length ? `Strong: ${output.strengths.join("; ")}` : "",
@@ -234,16 +240,18 @@ ${bannedBlock}
 ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context ? `WHAT THE PLAYER WANTS FROM THIS PASS:\n${context}\n\n` : ""}Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly ${rules.main} cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the ${rules.copies}-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3.${context ? " Weigh the player's request above over general improvements." : ""}`;
 
   const call = (message: string) =>
-    anthropic().messages.parse({
-      model: MODEL,
-      max_tokens: 12000,
-      thinking: { type: "adaptive" },
-      output_config: { effort: "high", format: zodOutputFormat(WizardSchema) },
+    generateJson({
+      task: "deck_wizard",
+      tier: "best",
+      maxTokens: 12000,
+      thinking: "adaptive",
+      effort: "high",
+      schema: WizardSchema,
       system: [
-        { type: "text", text: systemFor(deck.game) },
-        { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } },
+        ...systemFor(deck.game),
+        { text: poolBlock, cache: "short" },
       ],
-      messages: [{ role: "user", content: message }],
+      messages: [{ role: "user", parts: [{ type: "text", text: message }] }],
     });
 
   const res = await call(ask);
@@ -337,17 +345,24 @@ export async function reviewSet(db: Db, setCode: string): Promise<{ runId: numbe
   if (rows.length === 0) throw new Error(`No cards in set ${setCode}`);
   const set = await db.query.cardSets.findFirst({ where: eq(cardSets.code, setCode) });
 
-  const res = await anthropic().messages.parse({
-    model: MODEL,
-    max_tokens: 12000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "high", format: zodOutputFormat(SetReviewSchema) },
+  const res = await generateJson({
+    task: "set_review",
+    tier: "best",
+    maxTokens: 12000,
+    thinking: "adaptive",
+    effort: "high",
+    schema: SetReviewSchema,
     // A Fusion World set has to be reviewed against Fusion World's rules.
     system: systemFor(gameOfSetCode(setCode)),
     messages: [
       {
         role: "user",
-        content: `NEW SET: ${set?.name ?? setCode} (${rows.length} cards)\n${rows.map((c) => cardLine(c, 280)).join("\n")}\n\nReview this set: standout cards, the archetypes it enables or upgrades, and sleepers.`,
+        parts: [
+          {
+            type: "text",
+            text: `NEW SET: ${set?.name ?? setCode} (${rows.length} cards)\n${rows.map((c) => cardLine(c, 280)).join("\n")}\n\nReview this set: standout cards, the archetypes it enables or upgrades, and sleepers.`,
+          },
+        ],
       },
     ],
   });

@@ -6,7 +6,6 @@
  * pool, copy-limit sanitisation, virtual-deck persistence) reuses that
  * module so the two wizards stay in lock-step.
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
@@ -15,7 +14,8 @@ import { textArray } from "@/db/sqlx";
 import { gameInfo, gameOr, type Game } from "@/lib/catalog/games";
 import { currentLineFor } from "@/lib/catalog/sets";
 import { rulesFor } from "@/lib/decks/cardRules";
-import { MODEL, anthropic, recordRun } from "./client";
+import { generateJson } from "./core";
+import { recordRun } from "./client";
 import { cardLine } from "./deck";
 import { sanitiseDraft, type PoolCard } from "./deck-builder";
 
@@ -182,17 +182,19 @@ export async function suggestDeckFromCard(db: Db, cardId: string, owner: string 
   const poolBlock = `CARD POOL (OWN×n = owned copies, BUY = would need buying):\n${[...owned, ...buy].map(cardRow).join("\n")}`;
   const ask = `SEED CARD: ${cardLine(seed, 400)}\n\nPick a Leader and draft the deck around this card.`;
 
-  const res = await anthropic().messages.parse({
-    model: MODEL,
-    max_tokens: 12000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "high", format: zodOutputFormat(DeckFromCardDraftSchema) },
+  const res = await generateJson({
+    task: "deck_from_card",
+    tier: "best",
+    maxTokens: 12000,
+    thinking: "adaptive",
+    effort: "high",
+    schema: DeckFromCardDraftSchema,
     system: [
-      { type: "text", text: system },
-      { type: "text", text: leaderBlock, cache_control: { type: "ephemeral" } },
-      { type: "text", text: poolBlock, cache_control: { type: "ephemeral" } },
+      { text: system },
+      { text: leaderBlock, cache: "short" },
+      { text: poolBlock, cache: "short" },
     ],
-    messages: [{ role: "user", content: ask }],
+    messages: [{ role: "user", parts: [{ type: "text", text: ask }] }],
   });
   const { output: draft } = await recordRun<DeckFromCardDraft>(db, "deck_from_card", { cardId, game, mode: "from-card", leaderPool: leaders.length, ownedPool: owned.length, buyPool: buy.length }, res);
 
