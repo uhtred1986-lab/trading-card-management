@@ -16,13 +16,9 @@ const restrictedImports = {
   },
 };
 
-// Provider files are allowed to import vendor SDKs; plus the #513 files that have not moved onto the contract yet
+// Only the provider adapters import a vendor SDK.
 const exceptions = {
-  files: [
-    "src/lib/ai/providers/**",  // Vendor adapters import the SDKs
-    "src/lib/ai/deck*.ts",      // remove when #513 merges
-    "src/lib/ai/scan*.ts",      // remove when #513 merges
-  ],
+  files: ["src/lib/ai/providers/**"],
   rules: {
     "no-restricted-imports": "off",
   },
