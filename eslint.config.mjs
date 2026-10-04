@@ -3,26 +3,25 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 // Restrict @anthropic-ai/sdk imports to providers only; all feature code goes through the contract.
+const message = "Vendor AI SDKs are imported only by the provider adapters in src/lib/ai/providers. Go through the contract in src/lib/ai (generate / generateJson).";
 const restrictedImports = {
   rules: {
     "no-restricted-imports": [
       "error",
       {
-        paths: ["@anthropic-ai/sdk", "@anthropic-ai/claude-agent-sdk"],
-        patterns: ["@anthropic-ai/sdk/*", "@anthropic-ai/claude-agent-sdk/*"],
+        paths: ["@anthropic-ai/sdk", "@anthropic-ai/claude-agent-sdk"].map((name) => ({ name, message })),
+        patterns: [{ group: ["@anthropic-ai/sdk/*", "@anthropic-ai/claude-agent-sdk/*"], message }],
       },
     ],
   },
 };
 
-// Provider files are allowed to import vendor SDKs; also temporary exceptions for #513, #515 which still convert
+// Provider files are allowed to import vendor SDKs; plus the #513 files that have not moved onto the contract yet
 const exceptions = {
   files: [
     "src/lib/ai/providers/**",  // Vendor adapters import the SDKs
-    "src/lib/ai/deck*.ts",      // #513 still uses SDK (being converted)
-    "src/lib/ai/scan*.ts",      // #513 still uses SDK (being converted)
-    "scripts/verify/ai-contract.ts",  // #515 may use SDK
-    "scripts/verify-ai-runs.mts",     // #515 may use SDK
+    "src/lib/ai/deck*.ts",      // remove when #513 merges
+    "src/lib/ai/scan*.ts",      // remove when #513 merges
   ],
   rules: {
     "no-restricted-imports": "off",
