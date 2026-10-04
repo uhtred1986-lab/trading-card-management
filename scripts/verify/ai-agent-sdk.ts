@@ -291,6 +291,10 @@ async function options(): Promise<void> {
   // buildChildEnv on its own, and the APP_ token name.
   const e = buildChildEnv("tok", { ANTHROPIC_API_KEY: "a", APP_ANTHROPIC_API_KEY: "b", PATH: "p", HOME: "h", FOO: "bar" });
   assert.deepEqual(e, { PATH: "p", HOME: "h", CLAUDE_CODE_OAUTH_TOKEN: "tok", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1" });
+  // On Vercel the child's config directory moves under /tmp (the only writable place); locally it is left alone.
+  assert.equal((e as Record<string, string>).CLAUDE_CONFIG_DIR, undefined);
+  assert.equal(buildChildEnv("tok", { VERCEL: "1" }).CLAUDE_CONFIG_DIR, "/tmp/claude-config");
+  assert.equal(buildChildEnv("tok", { VERCEL: "1", TMPDIR: "/var/tmp" }).CLAUDE_CONFIG_DIR, "/var/tmp/claude-config");
   const viaApp = play([{ text: "ok" }], { env: { CLAUDE_CODE_OAUTH_TOKEN: undefined, APP_CLAUDE_CODE_OAUTH_TOKEN: "app-tok" } });
   await generate(ask());
   assert.equal((viaApp.calls[0].options.env as Record<string, string>).CLAUDE_CODE_OAUTH_TOKEN, "app-tok");
@@ -342,8 +346,10 @@ async function timeouts(): Promise<void> {
 
 async function availability(): Promise<void> {
   const saved = process.env.VERCEL;
+  const savedFlag = process.env.AI_AGENT_SDK;
   try {
     delete process.env.VERCEL;
+    delete process.env.AI_AGENT_SDK;
     const mk = (env: Record<string, string | undefined>) => createAnthropicAgentSdkProvider({ query: stub([{ text: "x" }]).query, env });
     assert.deepEqual(await mk({ CLAUDE_CODE_OAUTH_TOKEN: TOKEN }).available(), { ok: true });
     assert.deepEqual(await mk({ APP_CLAUDE_CODE_OAUTH_TOKEN: TOKEN }).available(), { ok: true });
@@ -355,14 +361,28 @@ async function availability(): Promise<void> {
 
     process.env.VERCEL = "1";
     const onVercel = await mk({ CLAUDE_CODE_OAUTH_TOKEN: TOKEN }).available();
-    assert.equal(onVercel.ok, false, "unavailable on Vercel until #518");
-    assert.match(onVercel.ok ? "" : onVercel.reason, /Vercel/);
+    assert.equal(onVercel.ok, false, "unavailable on Vercel unless AI_AGENT_SDK=1 (#518)");
+    assert.match(onVercel.ok ? "" : onVercel.reason, /AI_AGENT_SDK=1/);
+    process.env.AI_AGENT_SDK = "true"; // only the exact value "1" switches it on
+    assert.equal((await mk({ CLAUDE_CODE_OAUTH_TOKEN: TOKEN }).available()).ok, false);
+    process.env.AI_AGENT_SDK = "1";
+    assert.deepEqual(await mk({ CLAUDE_CODE_OAUTH_TOKEN: TOKEN }).available(), { ok: true }, "flag on: same checks as locally");
+    const noTok = await mk({}).available();
+    assert.equal(noTok.ok, false);
+    assert.match(noTok.ok ? "" : noTok.reason, /CLAUDE_CODE_OAUTH_TOKEN/);
+    const onS = stub([{ text: "hello" }]);
+    const flagged = createAnthropicAgentSdkProvider({ query: onS.query, env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN, VERCEL: "1" } });
+    await flagged.generate(ask());
+    assert.equal((onS.calls[0].options.env as Record<string, string>).CLAUDE_CONFIG_DIR, "/tmp/claude-config");
+    delete process.env.AI_AGENT_SDK;
     const s = stub([{ text: "x" }]);
     await rejects(createAnthropicAgentSdkProvider({ query: s.query, env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN } }).generate(ask()), "unavailable");
     assert.equal(s.calls.length, 0, "no query is started on Vercel");
   } finally {
     if (saved === undefined) delete process.env.VERCEL;
     else process.env.VERCEL = saved;
+    if (savedFlag === undefined) delete process.env.AI_AGENT_SDK;
+    else process.env.AI_AGENT_SDK = savedFlag;
   }
 
   // A rejected token marks the provider unavailable until a call succeeds.
