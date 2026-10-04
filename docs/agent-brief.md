@@ -41,6 +41,40 @@ Neon is one database for production, preview and dev, with a spend limit. Stay o
   generated SQL, and stop and report anything destructive. A pushed branch has migrated
   nothing; only a production deploy of `main` does (`scripts/vercel-build.mjs`).
 
+### When the owner asks for live data (rule review, a query)
+
+The owner allows reads of Neon for work that is *about* the data — the rule review queue
+(`card_rules` with status `open`/`draft`), answering a question about their collection or decks.
+Writes still only on their say-so, and through the repo's own scripts (`arena:rule`, …), never ad
+hoc `UPDATE`s.
+
+**The environment's `DATABASE_URL` is not this app's database.** The Claude Code on the web
+environment is shared with the owner's other projects, and its `DATABASE_URL` (and
+`NEON_PROJECT_ID`) belong to the gullet-cove-dm app — no `cards`, `decks` or `card_rules` there.
+Take this app's **pooled** URL from the Vercel project instead (`VERCEL_TOKEN` is in the
+environment), keep it in the session scratchpad, and never commit, print or paste it:
+
+```bash
+OUT="$SCRATCH/card-db.env"   # the session scratchpad, not the repo
+T=$(curl -sS --retry 3 -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v9/projects?limit=50" \
+  | python3 -c "import json,sys;p=[p for p in json.load(sys.stdin)['projects'] if p['name']=='trading-card-management'][0];print(p['id'],p['accountId'])")
+set -- $T
+ID=$(curl -sS --retry 3 -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v10/projects/$1/env?teamId=$2" \
+  | python3 -c "import json,sys;print([e['id'] for e in json.load(sys.stdin)['envs'] if e['key']=='DATABASE_URL'][0])")
+curl -sS --retry 3 -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v1/projects/$1/env/$ID?teamId=$2" \
+  | python3 -c "import json,sys;print(\"DATABASE_URL='%s'\" % json.load(sys.stdin)['value'])" > "$OUT"
+chmod 600 "$OUT"
+set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this sandbox
+```
+
+- **Quote the value** (the snippet does): the URL contains `&`, and an unquoted `. file`
+  backgrounds half the line and echoes the password into the transcript.
+- The host must be `ep-…-pooler…eu-central-1…`. Prove it is the right database before trusting
+  it: `select to_regclass('public.card_rules')` must not be null.
+- `api.vercel.com` through the agent proxy sometimes drops mid-request — `--retry 3`, or rerun.
+- Only that variable, only in the one shell command that needs it; don't `export` it into a file
+  under the repo or into `.env.local`.
+
 ## Running things (the habits that cost most when missed)
 
 - **Run `npm test`, `npm run build` and CI waits in the foreground.** A backgrounded run

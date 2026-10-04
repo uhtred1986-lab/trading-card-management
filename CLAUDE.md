@@ -54,6 +54,9 @@ builds), and still skips agent-branch previews as a fallback.
 `DATABASE_URL` — `arena:diff`, `arena:playthrough`, `arena:reprobe`, `arena:specified`,
 `db:check`, `db:migrate`, `sync:*` — unless the issue's acceptance cannot be met any other way;
 it says which acceptance bullet it could not verify instead, and the owner runs that one.
+Reading live data when the owner asks (the rule review, a question about their decks) is allowed;
+the environment's own `DATABASE_URL` is **another app's** database, so take this app's pooled URL
+from Vercel as `docs/agent-brief.md` → "When the owner asks for live data" shows.
 
 
 ## Working efficiently in this repo
