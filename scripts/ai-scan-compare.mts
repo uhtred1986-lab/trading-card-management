@@ -84,11 +84,13 @@ async function matched(cards: { name: string; number: string | null; confidence:
 let same = 0;
 let fellBack = 0;
 const different: string[] = [];
+let lastTiered: Awaited<ReturnType<typeof readPhotoTiered>> | null = null;
 for (const [i, p] of photos.entries()) {
   const base = (await readPhoto("best", p.prepared, p.mode)).parsed;
   const tiered = await readPhotoTiered(p.prepared, p.mode);
+  lastTiered = tiered;
   const last = tiered[tiered.length - 1];
-  const used = tiered.length > 1 ? `sonnet -> opus` : last.model;
+  const used = tiered.length > 1 ? `${tiered[0].model} -> ${last.model}` : last.model;
   if (tiered.length > 1) fellBack++;
   const next = last.res.parsed;
   const a = base ? await matched(base.cards) : ["(unparseable)"];
@@ -99,7 +101,7 @@ for (const [i, p] of photos.entries()) {
   console.log(`${String(i + 1).padStart(2)}. ${p.label} [${p.mode}] via ${used}: ${ok ? "IDENTICAL" : "DIFFERENT"}  ${a.join(", ")}${ok ? "" : `\n      new: ${b.join(", ")}`}`);
 }
 
-console.log(`\n${same}/${photos.length} photos matched identically; ${fellBack} fell back to opus.`);
+console.log(`\n${same}/${photos.length} photos matched identically; ${fellBack} fell back to ${lastTiered && lastTiered.length > 0 ? lastTiered[lastTiered.length - 1].model : "opus"}.`);
 if (different.length) console.log(`Different: ${different.join("; ")}`);
 if (photos.length < 20) console.log("Fewer than 20 photos: the acceptance bar is not met.");
 process.exit(different.length || photos.length < 20 ? 1 : 0);

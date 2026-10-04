@@ -124,7 +124,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Summarise 
     system: systemFor(deck.game),
     messages: [{ role: "user", parts: [{ type: "text", text: prompt }] }],
   });
-  const { id, output } = await recordRun<DeckSummary>(db, "deck_summary", { deckId }, res);
+  const { id, output } = await recordRun<DeckSummary>(db, "deck_summary", { deckId }, res, deckId);
   const text = [
     `**${output.archetype}** — ${output.gamePlan}`,
     output.strengths.length ? `Strong: ${output.strengths.join("; ")}` : "",
@@ -255,7 +255,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context 
     });
 
   const res = await call(ask);
-  const { id, output } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, poolSize: pool.length }, res);
+  const { id, output } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, poolSize: pool.length }, res, deckId);
 
   // One focused follow-up if a banned card was still missed, rather than
   // shipping a deck that can't be played with a suggestion list that says so.
@@ -266,7 +266,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context 
         .map((c) => `${c.quantity}× ${c.cardId} ${c.name} (${c.zone})`)
         .join("\n")}`,
     );
-    const { output: extra } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, mode: "banned-retry", missed: missed.map((c) => c.cardId) }, retry);
+    const { output: extra } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, mode: "banned-retry", missed: missed.map((c) => c.cardId) }, retry, deckId);
     for (const s of extra.swaps) {
       if (missed.some((c) => c.cardId === s.outCardId) && !output.swaps.some((x) => x.outCardId === s.outCardId)) {
         output.swaps.push({ ...s, priority: "high" });
