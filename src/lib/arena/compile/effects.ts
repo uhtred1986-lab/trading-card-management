@@ -2880,6 +2880,21 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     const clause = clauses[i];
     const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
     afterThen = /^then[.,]?$/i.test(clause.trim());
+    // "…from your deck or life and add them to your hand. Then shuffle any
+    // areas you looked through" (SD7-01, #539): after searching the deck it is
+    // shuffled (20-12-3). The sentence was skipped as a reminder, so a search
+    // left the deck in the order it was searched in.
+    if (/^(?:then,? )?shuffle any (?:secret )?areas? you looked (?:through|at)\b/i.test(clause.trim())) {
+      if (c.choices.some((ch) => ch.sel.area === "deck" || ch.sel.areas?.includes("deck"))) push([{ op: "shuffle" }]);
+      continue;
+    }
+    // "Place cards from the top of your deck under X **until there are 5 cards
+    // under** X" (BT2-009, #539): a count up to a total, which no move says.
+    // It read as moving the cards already under it; refused instead.
+    if (/\buntil there are \d+ cards? under\b/i.test(clause)) {
+      refuse(clause);
+      continue;
+    }
     // "Choose all of your opponent's Battle Cards and energy and switch them to
     // Rest Mode" (BT3-084, #539): two areas, each with its own noun. Read as one
     // phrase it was the Battle Cards *in the Energy Area*, which is nothing.
