@@ -21,6 +21,7 @@
     "ai:scan-compare": "tsx scripts/ai-scan-compare.mts",
     "ai:latency": "tsx scripts/ai-latency.mts",
     "ai:smoke": "tsx scripts/ai-smoke.mts",
+    "ai:plan-token": "tsx scripts/ai-plan-token.mts",
     "ai:trace-sizes": "tsx scripts/ai-trace-sizes.mts",
     "db:migrate:http": "tsx scripts/db-migrate.mts",
     "sync:catalog": "tsx scripts/sync-catalog.mts",
