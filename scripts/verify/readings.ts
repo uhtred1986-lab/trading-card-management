@@ -17,6 +17,7 @@ import {
   compileSkill,
   costIsOnlyOrbs,
   costText,
+  describeCond,
   findG,
   forbidsG,
   koCardG,
@@ -1928,4 +1929,190 @@ import {
     walk(first);
     assert.ok(ends.has("2+3") && ends.has("4") && !ends.has("2+4") && !ends.has("3+4"), `the reachable sets were ${[...ends].join(", ")}`);
   }
+}
+
+// ── "choose N … if you do" owes all N (#538, owner's card review 4 Oct 2026) ──
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  type IfChose = { op: string; cond?: { kind: string; var?: string; atLeast?: number }; then?: unknown[] };
+  const hung = (text: string): IfChose["cond"] => {
+    const s = one(text);
+    assert.deepEqual(s.unsupported, [], `${text} left something unread`);
+    const find = (ops: IfChose[]): IfChose["cond"] | undefined => {
+      for (const o of ops) {
+        if (o.op === "if" && o.cond?.kind === "chose") return o.cond;
+        if (o.then) {
+          const inner = find(o.then as IfChose[]);
+          if (inner) return inner;
+        }
+      }
+      return undefined;
+    };
+    const c = find(s.ops as IfChose[]);
+    assert.ok(c, `${text}: nothing hangs on the choice`);
+    return c;
+  };
+  // BT3-109: one card moved used to warp the opponent's whole board.
+  assert.equal(
+    hung("[Auto] When a card evolves into this card, if your Leader Card is black, you may choose 5 cards from your Warp and place them in the Drop Area. If you do so, send all of your opponent's Battle Cards to their Warp.")?.atLeast,
+    5,
+    "BT3-109: all 5 or nothing",
+  );
+  assert.equal(
+    hung("[Auto] When this card is removed from a Battle Area by a skill or KO'd, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green <Broly: Br> card with an energy cost of 7 from your hand and play it.")?.atLeast,
+    2,
+    "SD8-03: both cards",
+  );
+  // "Up to 2 … if you do" is satisfied by one.
+  assert.equal(hung("[Auto] When this card attacks, choose up to 2 cards in your hand and place them in the Drop Area. If you do, draw 2 cards.")?.atLeast, undefined, "up to N: one is enough");
+  // BT6-063: "1 or 2" has a floor the choice cannot say — refused, not read as exactly 1.
+  assert.ok(one("[Auto] When this card is KO'd, choose 1 or 2 cards from your life and add them to your hand.").unsupported.length > 0, "1 or 2 is refused");
+  // "an energy cost of 1 or 5" is a measure, not a count.
+  assert.ok(!one("[Auto] At the end of your turn, you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode.").unsupported.some((u) => /1 or 5/.test(u) && /^you may add/.test(u)), "a cost of 1 or 5 does not trip the count refusal");
+}
+
+// ── "A or B": two kinds, or two descriptions (#537, owner's card review 4 Oct 2026) ──
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  // "your Leader Cards or Battle/Unison Cards": the player picks the kind, and
+  // each half keeps its own words (SD13-03's "green" is the Unison's).
+  const kinds = (text: string) => {
+    const s = one(text);
+    assert.deepEqual(s.unsupported, [], text);
+    const mode = JSON.stringify(s.ops).includes('"chooseMode"') ? (JSON.parse(JSON.stringify(s.ops)).flatMap(function walk(o: { op?: string; then?: unknown[]; modes?: { ops: { sel: { area: string; filter?: { colors: string[] } } }[] }[] }): unknown[] {
+      if (o.op === "chooseMode") return [o];
+      return (o.then ?? []).flatMap((x) => walk(x as never));
+    })[0] as { modes: { ops: { sel: { area: string; side: string; filter?: { colors: string[] } } }[] }[] }) : null;
+    assert.ok(mode, `${text}: no choice between kinds`);
+    return mode!.modes.map((m) => [m.ops[0].sel.side, m.ops[0].sel.area, m.ops[0].sel.filter?.colors ?? []]);
+  };
+  assert.deepEqual(kinds("[Activate: Battle] Switch this card to Rest Mode: If it's your turn, choose up to 1 of your opponent's Leader Cards or Battle Cards. It loses -5000 power for the duration of the battle."), [
+    ["opponent", "leader", []],
+    ["opponent", "battle", []],
+  ], "BT3-030: the Leader or a Battle Card");
+  assert.deepEqual(kinds("[Auto] When this card is played, choose up to 1 of your Leader Cards or green Unison Cards and it gets +10000 power for the turn."), [
+    ["you", "leader", []],
+    ["you", "unison", ["Green"]],
+  ], "SD13-03: green is the Unison's");
+  assert.deepEqual(kinds("[auto] When you play this card, draw 1 card, then choose up to 1 of your red Leader Cards or red Battle Cards. It gains +5000 power for the duration of the turn."), [
+    ["you", "leader", ["Red"]],
+    ["you", "battle", ["Red"]],
+  ], "BT3-010: red either way");
+
+  // Two descriptions in one filter: each alternative whole.
+  type Alt = { colors: string[]; characters: string[]; traits: string[]; type: string | null; costMax: number | null };
+  const alts = (text: string): Alt[] => {
+    const s = one(text);
+    assert.deepEqual(s.unsupported, [], text);
+    const c = s.ops.find((o) => o.op === "choose") as { sel: { filter?: { anyOf?: Alt[] } } } | undefined;
+    assert.ok(c?.sel.filter?.anyOf, `${text}: not read as either description`);
+    return c!.sel.filter!.anyOf!;
+  };
+  const bt6 = alts("[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 <Veku: Br> card or red <Son Goku: Br> card among them and add it to your hand, place the remaining cards at the bottom of your deck in any order.");
+  assert.deepEqual(bt6.map((a) => [a.characters, a.colors]), [
+    [["Veku: Br"], []],
+    [["Son Goku: Br"], ["Red"]],
+  ], "BT6-009: red is Son Goku's alone");
+  const bt29 = alts("[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue <Cooler> card, blue ≪Cooler's Armored Squadron≫ card, or blue Extra with an energy cost of 0 to your hand, then shuffle your deck.");
+  assert.deepEqual(bt29.map((a) => [a.characters.length > 0, a.traits.length > 0, a.type, a.costMax]), [
+    [true, false, null, null],
+    [false, true, null, null],
+    [false, false, "EXTRA", 0],
+  ], "BT29-035: cost 0 is the Extra's alone");
+  const bt31 = alts("[Auto] When this card is played, place a total of up to 2 white <Cell> cards or white Extras from your deck into your Drop, then shuffle your deck.");
+  assert.deepEqual(bt31.map((a) => [a.characters.map((x) => x.toLowerCase()), a.type]), [
+    [["cell"], null],
+    [[], "EXTRA"],
+  ], "BT31-119: a <Cell> card or an Extra");
+
+  // Names alone already read as either, and stay one filter.
+  const plain = one("[Auto] When you play this card, choose up to 1 <Son Goku> card or <Vegeta> card from your deck and add it to your hand. Then shuffle your deck.");
+  const plainSel = (plain.ops[0] as { sel: { filter?: { anyOf?: unknown; characters: string[] } } }).sel;
+  assert.equal(plainSel.filter?.anyOf, undefined, "two names are one filter");
+  assert.deepEqual(plainSel.filter?.characters, ["Son Goku", "Vegeta"]);
+  // A comparison's "or" is not a second description.
+  assert.equal(parseFilter("Battle Card with power less than or equal to this card's power").anyOf, undefined, "less than or equal to");
+  assert.equal(parseFilter("Battle Card with 15000 power or more").anyOf, undefined, "or more");
+
+  // Both engines' matchers agree on an either-filter (vm.ts sweeps every field);
+  // here, that it answers the alternatives and nothing between them.
+  const f = parseFilter("<V1> card or blue card with an energy cost of 0");
+  assert.ok(matches(DEFS.V1, f), "V1 answers the first description");
+  assert.ok(!matches(DEFS["V-BLUE"], f), "V-BLUE is blue but costs more than 0");
+}
+
+// ── qualifiers the "or"/"and" used to drop (#537, part 2) ───────────────────
+
+{
+  // "an energy cost of 1 or 5" (BT29-032): either cost, not the first alone.
+  const two = parseFilter("blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5");
+  assert.deepEqual(two.anyOf?.map((a) => [a.costMin, a.costMax]), [
+    [1, 1],
+    [5, 5],
+  ], "BT29-032: 1 or 5");
+  assert.equal(parseFilter("Battle Card with an energy cost of 4 or less").anyOf, undefined, "4 or less is a bound");
+  // "…cost of 5 or less and [Swap]" (BT4-095): the keyword is required too.
+  assert.deepEqual(parseFilter("≪Goku's Lineage≫ with an energy cost of 5 or less and [Swap]").keywords, ["Swap"], "BT4-095: and [Swap]");
+  // (A or B) and C reads with its brackets (BT30-096, BT31-128).
+  assert.equal(
+    describeCond({ kind: "all", conds: [{ kind: "any", conds: [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }] }, { kind: "life", side: "you", atLeast: 1 }] } as never),
+    `(${describeCond({ kind: "any", conds: [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }] } as never)}) and ${describeCond({ kind: "life", side: "you", atLeast: 1 } as never)}`,
+    "an or inside an and is bracketed",
+  );
+}
+
+// "…that's not in a battle" (BT29-036, #537): the selector leaves the battle's cards out.
+{
+  const s = compileSkill(parseSkills("[Auto][Limit 1] When this card is played, draw 1 card, then choose up to 1 of your opponent's Battle Cards that's not in a battle and return it to its owner's hand.")[0]);
+  assert.deepEqual(s.unsupported, []);
+  const c = s.ops.find((o) => o.op === "choose") as { sel: { notInBattle?: true; side?: string; area?: string } } | undefined;
+  assert.deepEqual([c?.sel.side, c?.sel.area, c?.sel.notInBattle], ["opponent", "battle", true], "BT29-036: not the card in the battle");
+}
+
+// Measures no filter carries are refused, not dropped (#537): BT5-119, SD15-01.
+{
+  assert.ok(parseFilter("Battle Card with an energy cost less than or equal to your current energy").unreadable, "cost ≤ current energy is refused");
+  assert.ok(parseFilter("red Unison Cards with a specified cost of 2").unreadable, "a specified cost is refused");
+}
+
+// ── #539: "Then, if" under the open condition; Battle Cards and energy ──────
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const bt3 = JSON.stringify(one("[Auto] When you combo with this card, if your Leader Card is blue and your life is at 4 or less, this card gains +10000 combo power for the duration of the turn. Then, choose up to 1 card in your opponent's Combo Area and return it to their owner's hand. Then, if there are no cards in your opponent's Combo Area, draw 1 card.").ops);
+  // The draw sits under the blue-Leader condition: both if-groups name it.
+  assert.equal(bt3.split('"leaderMatches"').length - 1, 2, "BT3-043: the draw is under the blue Leader too");
+  const bt84 = one("[Auto] When a card evolves into this card, choose all of your opponent's Battle Cards and energy and switch them to Rest Mode.");
+  assert.deepEqual(bt84.unsupported, []);
+  assert.deepEqual(
+    bt84.ops.map((o) => [o.op, (o as { target: { sel: { area: string } } }).target.sel.area]),
+    [
+      ["switchMode", "battle"],
+      ["switchMode", "energy"],
+    ],
+    "BT3-084: Battle Cards and energy, both",
+  );
+}
+
+// #539: a combo card's end of the battle, and "a blue or yellow … card is played".
+{
+  const sk = parseSkills("[Auto] At the end of a battle in which you combo with this card from your hand during your opponent's turn, if your Leader Card is red, play this card in Rest Mode.")[0];
+  assert.ok(autoTriggerMatches(sk, "comboed") && !autoTriggerMatches(sk, "battleEnd"), "BT6-010 answers its own move to the Drop");
+  const s = compileSkill(sk);
+  assert.deepEqual((s.ops[0] as { cond: unknown }).cond, { kind: "not", cond: { kind: "isTurnPlayer" } }, "…during the opponent's turn");
+  const xd = parseSkills("[Auto] When a blue or yellow ≪Universe 6≫ card is played in your Battle Area, that card gets +5000 power for the duration of the turn, then choose up to 1 card in your life and add it to your hand.")[0];
+  assert.ok(autoTriggerMatches(xd, "youPlayed"), "XD1-01 has its trigger");
+  const cond = (compileSkill(xd).ops[0] as { cond?: { sel?: { filter?: { colors: string[] } } } }).cond;
+  assert.deepEqual(cond?.sel?.filter?.colors, ["Blue", "Yellow"], "…for a blue or yellow card only");
+}
+
+// #539: "10 or more total <A> or <B>" is one count; a searched deck is shuffled; "until there are 5 under" is refused.
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const bt2 = one("[Auto] When this card attacks, draw 1 card, and if there are 10 or more total <Son Goku> or <Vegeta> in your Drop Area, this card gains +5000 power and [Double Strike] for the duration of the turn.");
+  const cond = (bt2.ops[1] as { cond: { kind: string; atLeast?: number; sel?: { filter?: { characters: string[] } } } }).cond;
+  assert.deepEqual([cond.kind, cond.atLeast, cond.sel?.filter?.characters.map((x) => x.toLowerCase())], ["count", 10, ["son goku", "vegeta"]], "BT2-001: both names, one total");
+  assert.deepEqual(one("[Activate: Main] Switch this card to Rest Mode: Choose up to 2 [Dragon Ball] cards from your deck or life and add them to your hand. Then shuffle any areas you looked through.").ops.map((o) => o.op), ["choose", "moveTo", "shuffle"], "SD7-01: the deck is shuffled");
+  assert.ok(one("[Auto] When this card KOs your opponent's Battle Card, place cards from the top of your deck under your {Majin Buu's Sealed Ball} until there are 5 cards under {Majin Buu's Sealed Ball}.").unsupported.length > 0, "BT2-009 is refused, not misread");
 }

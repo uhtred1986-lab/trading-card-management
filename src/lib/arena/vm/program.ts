@@ -1113,6 +1113,8 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // 23-5-2: a Hidden Mode selector asks *for* the very cards the rule below
     // would exclude from a filtered choice, so it is answered ahead of it.
     if (sel.hidden != null && card.hidden !== sel.hidden) return false;
+    // "…that's not in a battle" (8-1-2, #537).
+    if (sel.notInBattle && state.battle && (state.battle.attacker === id || state.battle.guard === id)) return false;
     if (sel.notSelf && frame.card) {
       if (id === frame.card) return false;
       if (sel.notSelf === "copies" && state.cards[frame.card] && card.cardId === state.cards[frame.card].cardId) return false;

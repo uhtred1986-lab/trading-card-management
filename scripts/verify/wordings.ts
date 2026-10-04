@@ -2021,7 +2021,8 @@ import type { EngineState, Trigger } from "./harness";
   const ch = r.ops[0] as { op: string; sel: { count?: number; upTo?: boolean; area?: string; areas?: string[]; filter?: { keywords: string[] } } };
   assert.equal(ch.op, "choose");
   assert.deepEqual([ch.sel.count, ch.sel.upTo, ch.sel.areas, ch.sel.filter?.keywords], [2, true, ["deck", "life"], ["Dragon Ball"]]);
-  assert.deepEqual(r.ops.map((o) => o.op), ["choose", "moveTo"]);
+  // …and the deck it searched is shuffled after (20-12-3; owner's card review, #539).
+  assert.deepEqual(r.ops.map((o) => o.op), ["choose", "moveTo", "shuffle"]);
   // "Up to a total of 3" is up to 3 (BT21-051), not exactly 3.
   const total = parseTarget("up to a total of 3 Battle Cards in your opponent's Battle Area or Drop");
   assert.deepEqual([total?.count, total?.upTo], [3, true]);

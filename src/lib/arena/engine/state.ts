@@ -618,6 +618,8 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     if (sel.hidden != null && inst.hidden !== sel.hidden) return false;
     // "…other than this card" / "…other than copies of this card": the one
     // card the phrase says the target is not.
+    // "…that's not in a battle" (8-1-2, #537).
+    if (sel.notInBattle && s.battle && (s.battle.attacker === id || s.battle.guard === id)) return false;
     if (sel.notSelf && frame.card) {
       if (id === frame.card) return false;
       if (sel.notSelf === "copies" && s.cards[frame.card] && inst.cardId === s.cards[frame.card].cardId) return false;

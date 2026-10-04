@@ -245,6 +245,14 @@ const DEFS: Record<string, CardDef> = defsFrom([
   card("XDRAW", { energyCost: 1, skill: "[Activate: Main] Pay X energy: Draw X cards." }),
   card("XMARKERS", { energyCost: 1, skill: "[Permanent] This card gets +3000 power for each marker on it." }),
   card("XENERGY", { energyCost: 1, skill: "[Auto] When this card attacks, this card gains +1000 power for each 1 energy you have for the duration of the turn." }),
+  // #536: what the attack is aimed at is part of the moment (SD5-01, BT6-014).
+  card("ATK-LEADER", { energyCost: 1, skill: "[Auto] When this card attacks a Leader Card, draw 1 card." }),
+  // #539: "can't switch to Active Mode during your opponent's next Charge Phase" — the Charge Phase alone.
+  card("CHARGELOCK", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards in Rest Mode. That card cannot switch to Active Mode during your opponent's next Charge Phase." }),
+  card("STANDALL", { energyCost: 1, skill: "[Auto] When you play this card, switch all of your Battle Cards to Active Mode." }),
+  // #539: "at the end of the battle after you combo with this card from your hand, play this card".
+  card("COMBOBACK", { energyCost: 3, skill: "[Auto] At the end of the battle after you combo with this card from your hand, play this card in Rest Mode." }),
+  card("ATK-BATTLE", { energyCost: 1, skill: "[Auto] When this card attacks a Battle Card, draw 1 card." }),
 ]);
 // What a real game gets from `card_rules` once every card is drafted: the
 // tests need no database, so the drafter's own compile stands in for the rows

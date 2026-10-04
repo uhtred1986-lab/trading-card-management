@@ -445,7 +445,12 @@ function parseCountCondition(t: string): Cond | null {
   // (BT2-032, BT2-006).
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
-  const [, none, num, dir, rest] = m;
+  const [, none, num, dir, said] = m;
+  // "10 or more **total** <Son Goku> or <Vegeta> in your Drop Area" (BT2-001,
+  // #539): one count over both names, not either name reaching 10 alone. The
+  // filter already reads two names as either, so the "or" is not split.
+  const total = /^total\s+/i.test(said);
+  const rest = total ? said.replace(/^total\s+/i, "") : said;
   // "If you have **7** [Dragon Ball] cards in your Drop" (BT25-019): a bare
   // number with no "or more" is still the number asked for, at least that
   // many ("you have **0** cards in your hand", P-736: none). Left in the phrase
@@ -457,7 +462,7 @@ function parseCountCondition(t: string): Cond | null {
   const mine = /^you have/.test(t);
   const theirs = /^your opponent has/.test(t);
 
-  const parts = splitDisjunction(rest);
+  const parts = total ? [rest] : splitDisjunction(rest);
   if (parts.length > 1) {
     const trailingAreaMatch = /\s+(in (?:play(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?|(?:a|an|the|your|your opponent's) [a-z- ]+? area|(?:your|your opponent's) (?:drop|warp|hand|energy|deck|life|combo|battle|unison|z-deck|z-energy)|play))$/i.exec(parts[parts.length - 1]);
     const trailingArea = trailingAreaMatch ? trailingAreaMatch[1] : null;

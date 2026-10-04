@@ -131,6 +131,11 @@ export interface Selector {
   /** Card text may say "ignoring [Barrier]", which lifts 22-16 for this choice. */
   ignoreBarrier?: boolean;
   /**
+   * "…that's not in a battle" (BT29-036, BT29-029, #537): not the attack card or
+   * the guard card of the battle in progress (8-1-2). Outside a battle, every card.
+   */
+  notInBattle?: true;
+  /**
    * "Choose all Battle Cards **other than this card**", "play up to 1 ≪Demon
    * Clan≫ card among them **other than copies of this card**". Refusing to
    * *resolve* to this card is only half of it: read as nothing, the phrase

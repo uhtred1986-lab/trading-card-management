@@ -98,6 +98,28 @@
     },
     "same": true
   },
+  "ATK-BATTLE#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "6b1c5df5"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "6b1c5df5"
+    },
+    "same": true
+  },
+  "ATK-LEADER#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "389c15c4"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "389c15c4"
+    },
+    "same": true
+  },
   "ATKSKIP#0": {
     "legacy": {
       "outcome": "inForce",
@@ -242,6 +264,17 @@
     },
     "same": true
   },
+  "CHARGELOCK#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "69d752fc"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "69d752fc"
+    },
+    "same": true
+  },
   "CHEAPCOMBO#0": {
     "legacy": {
       "outcome": "inForce",
@@ -261,6 +294,17 @@
     "rules": {
       "outcome": "fired",
       "digest": "0989bd66"
+    },
+    "same": true
+  },
+  "COMBOBACK#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "0080e0c0"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "0080e0c0"
     },
     "same": true
   },
@@ -1822,6 +1866,17 @@
     "rules": {
       "outcome": "fired",
       "digest": "d79988e6"
+    },
+    "same": true
+  },
+  "STANDALL#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "80b9ac04"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "80b9ac04"
     },
     "same": true
   },

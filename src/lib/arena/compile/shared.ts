@@ -12,7 +12,7 @@ export interface Ctx {
    * "place **the chosen opponent Battle Card** under **the chosen <Majin
    * Buu>**" (BT3-052, BT3-054) — and the description is what says which.
    */
-  choices: { var: string; sel: Selector }[];
+  choices: { var: string; sel: Selector; reason?: string }[];
   /**
    * A [Permanent] never *acts*, so its "you can …" is a standing permission
    * rather than an offer to do something now (9-5-1) — and wrapping one in a

@@ -395,6 +395,13 @@ export type ForbiddenAction =
   | "beChosen"
   | "switchToActive"
   /**
+   * Only the Charge Phase's own switch (7-2-7): "it can't switch to Active
+   * Mode **during your opponent's next Charge Phase**" (BT3-085, BT3-101,
+   * XD1-01, #539). A skill may still switch the card to Active later that
+   * turn, which a plain `switchToActive` would refuse.
+   */
+  | "switchToActiveInCharge"
+  /**
    * A skill switching cards in an Energy Area to Active Mode — "if the turn
    * player would use the skill of a Battle Card or Extra Card to switch energy
    * to Active Mode, they can't … unless …" (BT8-051). Asked by the `switchMode`

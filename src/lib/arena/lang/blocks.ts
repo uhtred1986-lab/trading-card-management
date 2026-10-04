@@ -438,6 +438,7 @@ export function filterOptions(t: FilterFieldType): readonly string[] | null {
     case "tri":
     case "number":
     case "powerRel":
+    case "filters":
       return null;
   }
 }

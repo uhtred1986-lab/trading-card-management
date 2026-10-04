@@ -2233,6 +2233,29 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "chooseMode", modes: [{ label: label(printed?.[1], "the first"), ops: [a] }, { label: label(printed?.[2], "the other"), ops: [b] }], reason: clause }];
   }
 
+  // "Choose up to 1 of your opponent's Leader Cards or Battle Cards" (BT3-030),
+  // "1 of your Leader Cards or Unison Cards" (SD13-04), "up to 1 of your red
+  // Leader Cards or red Battle Cards" (BT3-010), "your Leader Cards or green
+  // Unison Cards" (SD13-03): the same two kinds as above said with one count,
+  // and until #537 read as the Leader alone. Each half keeps its own words —
+  // "green" is the Unison's, not the Leader's — and the player picks the kind.
+  if ((m = /^choose (up to )?(\d+) of (your opponent's|your) ((?:[a-z-]+ )*?)leader cards? or ((?:[a-z-]+ )*?(?:battle|unison) cards?)$/.exec(t))) {
+    const [, upTo, n, owner, leaderWords, other] = m;
+    const desc = leaderWords.trim();
+    const filter = desc ? filterFor(desc, "leader") : undefined;
+    if (filter === null) return null;
+    const side = owner === "your" ? "you" : "opponent";
+    const leader: Selector = { side, area: "leader", count: Number(n), upTo: !!upTo, ...(filter ? { filter } : {}) };
+    const rest = parseTarget(`${upTo ?? ""}${n} of ${owner} ${other}`);
+    if (!rest || rest.fromVar || rest.special || rest.take != null) return null;
+    const printed = /^choose (?:up to )?\d+ of (?:your opponent's|your) (.+?) or (.+)$/i.exec(clause.trim());
+    const v = `c${c.n++}`;
+    const a: Op = { op: "choose", sel: leader, as: v, reason: clause };
+    const b: Op = { op: "choose", sel: rest, as: v, reason: clause };
+    track(a, c);
+    return [{ op: "chooseMode", modes: [{ label: printed?.[1] ?? "a Leader Card", ops: [a] }, { label: printed?.[2] ?? "the other", ops: [b] }], reason: clause }];
+  }
+
   // Choosing (5-2). Late, because many clauses open with "choose" plus an action.
   if (/^choose /.test(t)) {
     let sel = parseTarget(clause, undefined, c.lastSeen ?? undefined);
@@ -2504,7 +2527,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   if (/^activate (?:its |their )?skills\b/.test(rest)) return [{ op: "forbid", what: "activateSkill", until, target, ...withUnless }];
   if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
   if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];
-  if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) return [{ op: "forbid", what: "switchToActive", until, target, ...withUnless }];
+  if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) {
+    // "…during your opponent's next Charge Phase" (BT3-085, BT3-101, XD1-01,
+    // #539): the Charge Phase's switch alone, not a skill's later that turn.
+    const inCharge = /\bduring (?:your opponent'?s|their) next charge phase\b/.test(t);
+    return [{ op: "forbid", what: inCharge ? "switchToActiveInCharge" : "switchToActive", until, target, ...withUnless }];
+  }
   if (/^be ko'?d\b/.test(rest)) {
     // "by skills" is the narrow rule; a bare "can't be KO'd" covers the battle too.
     const bySkill = /\bby (?:your opponent's |your )?skills?\b/.test(rest);
@@ -2690,13 +2718,30 @@ export function holdForGame(ops: Op[]): Op[] {
 }
 
 /**
+ * "You may choose 5 cards from your Warp and place them in the Drop Area. If
+ * you do so, …" (BT3-109, #538): the offer is optional, so the choice is
+ * compiled as up to 5 — but what hangs on it is owed only when all 5 were
+ * chosen. With fewer, the player did not do it. "Choose **up to** 2 … if you
+ * do" is a different sentence: one card is enough there. Read off the choice's
+ * own printed words, which is all that tells the two apart once both are
+ * `upTo`.
+ */
+function exactCount(c: Ctx, v: string): { atLeast?: number } {
+  const made = [...c.choices].reverse().find((ch) => ch.var === v);
+  const n = made?.sel.count ?? 1;
+  const said = made?.reason ?? "";
+  if (n <= 1 || n >= 99 || /\bup to\b|\bany number\b/i.test(said)) return {};
+  return { atLeast: n };
+}
+
+/**
  * What an op leaves behind for the clauses after it: which cards "it" means,
  * and which name a later "if that card is …" is asking about.
  */
 function track(o: Op, c: Ctx): void {
   if (o.op === "choose") {
     c.last = o.as;
-    c.choices.push({ var: o.as, sel: o.sel });
+    c.choices.push({ var: o.as, sel: o.sel, reason: o.reason });
     c.lastTarget = { var: o.as };
   } else if (o.op === "reveal") {
     c.lastSeen = o.as;
@@ -2824,8 +2869,47 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     const g = groups[groups.length - 1];
     (g.sink ?? g.ops).push(...ops);
   };
+  // "…if your Leader Card is blue and your life is at 4 or less, this card
+  // gains +10000 combo power. Then, choose up to 1 card … Then, **if** there
+  // are no cards in your opponent's Combo Area, draw 1 card" (BT3-043, #539):
+  // a clause after "Then," stays under the condition already open — the
+  // return did — and a "Then, if …" is one more condition *within* it rather
+  // than a fresh one that escapes it (owner's ruling, 4 Oct 2026).
+  let afterThen = false;
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
+    const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
+    afterThen = /^then[.,]?$/i.test(clause.trim());
+    // "…from your deck or life and add them to your hand. Then shuffle any
+    // areas you looked through" (SD7-01, #539): after searching the deck it is
+    // shuffled (20-12-3). The sentence was skipped as a reminder, so a search
+    // left the deck in the order it was searched in.
+    if (/^(?:then,? )?shuffle any (?:secret )?areas? you looked (?:through|at)\b/i.test(clause.trim())) {
+      if (c.choices.some((ch) => ch.sel.area === "deck" || ch.sel.areas?.includes("deck"))) push([{ op: "shuffle" }]);
+      continue;
+    }
+    // "Place cards from the top of your deck under X **until there are 5 cards
+    // under** X" (BT2-009, #539): a count up to a total, which no move says.
+    // It read as moving the cards already under it; refused instead.
+    if (/\buntil there are \d+ cards? under\b/i.test(clause)) {
+      refuse(clause);
+      continue;
+    }
+    // "Choose all of your opponent's Battle Cards and energy and switch them to
+    // Rest Mode" (BT3-084, #539): two areas, each with its own noun. Read as one
+    // phrase it was the Battle Cards *in the Energy Area*, which is nothing.
+    const bothKinds = /^choose all (?:of )?(your opponent's|your) battle cards and (?:all (?:of )?(?:their|your) )?energy$/i.exec(clause.trim().replace(/[.,]$/, ""));
+    const bothSwitch = bothKinds && i + 1 < clauses.length ? /^(?:and |then )?switch them to (rest|active) mode[.]?$/i.exec(clauses[i + 1].trim()) : null;
+    if (bothKinds && bothSwitch) {
+      const side = bothKinds[1].toLowerCase() === "your" ? "you" : "opponent";
+      const mode = bothSwitch[1].toLowerCase() as "rest" | "active";
+      push([
+        { op: "switchMode", target: { sel: { side, area: "battle", filter: { ...parseFilter("Battle Card") }, count: 99 } }, mode },
+        { op: "switchMode", target: { sel: { side, area: "energy", count: 99 } }, mode },
+      ]);
+      i++;
+      continue;
+    }
     // "…the next time you activate X during this turn, reduce its skill cost
     // by {b}": the two halves `splitClauses` cut apart, read as the pair.
     const nextTime = NEXT_ACTIVATION.exec(clause.trim());
@@ -2917,7 +3001,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // them — an offer the player accepted ("you may draw 1 card") or a choice
     // they made. The offer is the commoner of the two and had nothing to read
     // until `may` existed, so "if you don't" was simply a gap.
-    const decided: Cond | null = c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last } : null;
+    const decided: Cond | null = c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last, ...exactCount(c, c.last) } : null;
     if (conn === "ifDone") {
       // "You may place 1 card from your hand in the Drop Area. **If you do so,**
       // draw 1 card": the clause before it already hung its own half of the
@@ -3106,6 +3190,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     const cond = parseConditionClause(clause, chaining);
     if (cond) {
       if (chaining) open.conds.push(cond.cond);
+      else if (thenHere && open.conds.length && !open.delay) groups.push({ conds: [...open.conds, cond.cond], ops: [] });
       else groups.push({ conds: [cond.cond], ops: [] });
       if (cond.subject) c.lastTarget = cond.subject;
       continue;

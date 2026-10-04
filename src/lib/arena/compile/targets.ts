@@ -1,4 +1,4 @@
-import { parseFilter, type CardFilter } from "../text/filters";
+import { parseFilter, readsOr, type CardFilter } from "../text/filters";
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
@@ -272,6 +272,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     return { ...sel, count: sel.upTo ? sel.count : 99, upTo: true, ...(!owned && sel.area === "battle" && !sel.fromVar ? { side: "both" as const } : {}), sumAtMost: bound };
   }
   if (SUM_UNREAD.test(phrase)) return null;
+  // "…Battle Cards that's not in a battle" (BT29-036, BT29-029, #537): the
+  // attack card and the guard card are left out (8-1-2). Dropped, the choice
+  // reached the very card the battle was being fought with.
+  const notFighting = /\s*,?\s*(?:that'?s|that is|that are|which (?:is|are))?\s*not (?:in|currently in) (?:a|the) battle\b/i.exec(phrase);
+  if (notFighting) {
+    const sel = parseTarget(phrase.replace(notFighting[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special) return null;
+    return { ...sel, notInBattle: true };
+  }
   const different = DIFFERENT_NAMES.exec(phrase);
   if (!different) return parseTargetPhrase(phrase, looked, pool);
   const sel = parseTargetPhrase(phrase.replace(different[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
@@ -637,6 +646,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   let count = 1;
   let upTo = false;
   let m: RegExpExecArray | null;
+  // "Choose 1 or 2 cards from your life" (BT6-063, #538): a count with a
+  // floor and a ceiling. A choice has a count and an up-to and nothing in
+  // between, so the first number alone read it as exactly 1 — the player could
+  // never take the second card. Refused rather than read narrower or wider.
+  if (/(?:^|\s)(\d+) or (\d+) (?:[a-z-]+ )*cards?\b/.test(t.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, " ").replace(/\d+000\b/g, "").replace(/energy cost (?:of )?\d+(?: or \d+)?/g, ""))) return null;
   if ((m = /\bup to (\d+)\b/.exec(t))) {
     count = Number(m[1]);
     upTo = true;
@@ -757,6 +771,9 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // The word "card" stays in the phrase: taking it out of the capture let
     // the lazy group stop at "battle", and "battle" alone narrows nothing.
     /^(?:your|your opponent's) (.+?) is played\b/.exec(t)?.[1] ??
+    // "When a blue or yellow ≪Universe 6≫ card is played in your Battle Area"
+    // (XD1-01, #539): the card played, said the passive way.
+    /^(?:an?|1) (.+? card) is played in your battle area\b/.exec(t)?.[1] ??
     /^(?:your|your opponent's) (.+?) attacks\b/.exec(t)?.[1] ??
     // "When your blue <Son Goku> card is KO'd" — the same question about the
     // card that just died (21-14).
@@ -785,7 +802,9 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   // …but "an energy cost of 5 **or** less" is one bound, not two kinds, and
   // `parseFilter` reads it whole.
   // So is "15000 power or more" (BT19-018).
-  if (/ or /.test(phrase.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, ""))) return undefined;
+  // An "or" the filter reads whole — "a blue or yellow ≪Universe 6≫ card"
+  // (XD1-01, #539) — is not two kinds it would read one of.
+  if (/ or /.test(phrase.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) && !readsOr(names.unmask(phrase))) return undefined;
   // A trigger whose subject description cannot be read is left unfiltered
   // rather than failed: an over-fire is bad, a filter that stops a skill that
   // should happen is worse (ground rule 6).
@@ -820,6 +839,8 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
   // "Play" spans both areas, so naming either type narrows nothing there.
   if (area === "play" && (f.type === "BATTLE" || f.type === "LEADER")) f.type = null;
   const narrows =
+    // "Either description" (#537) narrows as its alternatives do.
+    (f.anyOf?.length ?? 0) > 0 ||
     f.type != null ||
     f.notType != null ||
     f.multiColor ||

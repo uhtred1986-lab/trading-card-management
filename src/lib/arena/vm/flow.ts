@@ -268,6 +268,8 @@ const STEP_WORK: Record<string, Work> = {
           // same way `vm/battle.ts` reads it for a mode beat's `locked` (#459,
           // `verify/compiler.ts`'s RESTLOCK case).
           if (mode === "active" && forbiddenForCard(ctx, game, state, "switchToActive", id)) continue;
+          // "…during your opponent's next Charge Phase" (#539): this step's switch alone.
+          if (mode === "active" && forbiddenForCard(ctx, game, state, "switchToActiveInCharge", id)) continue;
           card.mode = mode;
           // 1-10-1: the switch is a moment (`modeSwitched`), and this one has no
           // `by:` — the Charge Phase stands cards up as a rule of the turn, not

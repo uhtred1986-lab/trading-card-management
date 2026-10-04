@@ -35,6 +35,14 @@
     "outcome": "inForce",
     "digest": "4fb94674"
   },
+  "ATK-BATTLE#0": {
+    "outcome": "fired",
+    "digest": "6b1c5df5"
+  },
+  "ATK-LEADER#0": {
+    "outcome": "fired",
+    "digest": "389c15c4"
+  },
   "ATKSKIP#0": {
     "outcome": "inForce",
     "digest": "802339ea"
@@ -87,6 +95,10 @@
     "outcome": "fired",
     "digest": "949c0104"
   },
+  "CHARGELOCK#0": {
+    "outcome": "fired",
+    "digest": "69d752fc"
+  },
   "CHEAPCOMBO#0": {
     "outcome": "inForce",
     "digest": "778b074c"
@@ -94,6 +106,10 @@
   "CHEAPENER#0": {
     "outcome": "fired",
     "digest": "0989bd66"
+  },
+  "COMBOBACK#0": {
+    "outcome": "fired",
+    "digest": "0080e0c0"
   },
   "COMBOWATCH#0": {
     "outcome": "didNotFire",
@@ -658,6 +674,10 @@
   "STACKER#0": {
     "outcome": "fired",
     "digest": "d79988e6"
+  },
+  "STANDALL#0": {
+    "outcome": "fired",
+    "digest": "80b9ac04"
   },
   "STEALER#0": {
     "outcome": "fired",

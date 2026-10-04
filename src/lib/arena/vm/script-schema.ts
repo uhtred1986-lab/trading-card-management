@@ -206,6 +206,7 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   beKOdBySkill: "be KO'd by skills",
   beChosen: "be chosen by skills",
   switchToActive: "switch to Active Mode",
+  switchToActiveInCharge: "switch to Active Mode in the Charge Phase",
   switchEnergyToActive: "switch energy to Active Mode",
   placeEnergy: "place cards in the Energy Area",
   beMovedBySkill: "be removed from a Battle Area by skills",
@@ -1148,7 +1149,13 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)",
   },
   any: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"any">).conds.map(describeCond).join(", or "), doc: "at least one of the conditions holds (disjunction)" },
-  all: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"all">).conds.map(describeCond).join(" and "), doc: "every condition holds (conjunction)" },
+  all: {
+    fields: [{ name: "conds", type: "conds", required: true }],
+    // "(black, or ≪Universe≫) and 2 or more energy" (BT30-096, #537): an
+    // "or" inside an "and" is bracketed, or the sentence reads the other way.
+    sentence: (raw) => (raw as CondOf<"all">).conds.map((c) => (c.kind === "any" ? `(${describeCond(c)})` : describeCond(c))).join(" and "),
+    doc: "every condition holds (conjunction)",
+  },
   leaderFlipped: {
     fields: [
       { name: "side", type: "side" },
@@ -1760,6 +1767,7 @@ const SELECTOR_KEYS = {
   take: 1,
   fromEnd: 1,
   ignoreBarrier: 1,
+  notInBattle: 1,
   notSelf: 1,
   differentNames: 1,
   sumAtMost: 1,
@@ -1792,6 +1800,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.areas !== undefined && !(Array.isArray(v.areas) && v.areas.length > 0 && v.areas.every((a) => is(a, AREAS)))) return wrong("areas", "a list of areas");
   if (v.mode !== undefined && !is(v.mode, SELECTOR_MODES)) return wrong("mode", "active or rest");
   if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
+  if (v.notInBattle !== undefined && v.notInBattle !== true) return wrong("notInBattle", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
   // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
   // `TOP X IN you.deck` (`rulesets/*.rules`) — is the amount it was handed,
@@ -1847,6 +1856,8 @@ function filterValueHolds(kind: FilterFieldType, x: unknown): boolean {
       return x === null || (typeof x === "number" && Number.isFinite(x));
     case "powerRel":
       return x === null || (isRecord(x) && !unknownKey(x, ["of", "cmp", "var"]) && POWER_REL_OF.includes(x.of) && POWER_REL_CMP.includes(x.cmp) && (x.var === undefined || typeof x.var === "string"));
+    case "filters":
+      return Array.isArray(x) && x.length >= 2 && x.every((y) => filterProblem(y) === null);
   }
 }
 
@@ -2093,6 +2104,15 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // A stored filter may be partial (Claude writes only the measures it means),
   // and a missing list crashed the workbench and the printer on BT31-132.
   const f = completeFilter(given);
+  // "A <Veku: Br> card or a red <Son Goku: Br> card" (#537): each alternative
+  // in its own words, then whatever the filter asks beside them.
+  if (f.anyOf?.length) {
+    const either = f.anyOf.map((alt) => describeFilter(alt, noun ?? { plural: false })).join(" or ");
+    const { anyOf: _alts, ...rest } = f;
+    void _alts;
+    const besides = describeFilter(rest, noun);
+    return besides === describeFilter({}, noun) ? either : `${either} (and ${besides})`;
+  }
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
@@ -2364,6 +2384,7 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : sel.notSelf === "name" ? " with a different card name from this card" : "") +
   // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
   (sel.differentNames ? " with different card names" : "") +
+  (sel.notInBattle ? " that is not in a battle" : "") +
   // "…for which the total cost adds up to 5 or less" (BT3-036): about the set too.
   (sel.sumAtMost ? ` whose total ${ATTR_NOUNS[sel.sumAtMost.attr]} is ${describeAmount(sel.sumAtMost.total)} or less` : "") +
   (sel.printed ? " matching the description printed on this line" : "");

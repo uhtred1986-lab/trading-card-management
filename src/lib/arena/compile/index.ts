@@ -311,6 +311,13 @@ function compileSkillText(skill: Skill): Script {
     // `opponentTurnEnd`), and the rest of the sentence is a condition on it —
     // the card's memory of arriving this turn, played or placed (5-5-1).
     if (TURN_END_AFTER_PLACED.test(trigger.trim().toLowerCase())) triggerCond = { kind: "placedThisTurn", sel: { special: "self" } };
+    // "At the end of a battle in which you combo with this card from your hand
+    // **during your opponent's turn**" (BT6-010, #539): the moment is
+    // `comboed`; whose turn it is, a condition on it. Known approximation:
+    // "from your hand" is not checked — nothing remembers where a combo card
+    // came from, and almost every combo is from the hand.
+    if (/^at the end of (?:the|a|this) battle(?: after| in which) you combo/i.test(trigger.trim()) && /\bduring your opponent'?s turn\b/i.test(trigger))
+      triggerCond = { kind: "not", cond: { kind: "isTurnPlayer" } };
     // "When this card is sent from your deck to your Warp by your <Heles>
     // card's skill" (BT30-106, 3-10): the moment is any skill of yours
     // (`deckToWarpBySkill`), and the skill's card is the subject — so which
@@ -327,6 +334,13 @@ function compileSkillText(skill: Skill): Script {
         triggerCond = { kind: "count", sel: { special: "subject", filter: cause }, atLeast: 1 };
       }
     }
+    // "When this card attacks a Leader Card" / "… attacks a Battle Card"
+    // (SD5-01, BT6-014, 8-1-3): the moment is the attack, and what it attacks
+    // is a condition on the card being attacked. Dropped with the trigger, the
+    // skill fired on every attack (owner's card review, 4 Oct 2026, #536).
+    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(leader|battle) card\b/i.exec(trigger.trim());
+    if (attacking)
+      triggerCond = { kind: "inBattle", sel: { area: attacking[1].toLowerCase() === "leader" ? "leader" : "battle", side: "opponent" }, role: "guard" };
     if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a
@@ -372,7 +386,7 @@ function compileSkillText(skill: Skill): Script {
     if (clauses.length > 1 && !/^(?:if|when|while|during|choose|you may)\b/i.test(clauses[0].trim())) {
       const riding = parseConditionClause(clauses[0], true);
       if (riding) {
-        triggerCond = riding.cond;
+        triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, riding.cond] } : riding.cond;
         clauses.shift();
       }
     }
