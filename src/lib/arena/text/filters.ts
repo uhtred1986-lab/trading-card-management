@@ -499,6 +499,12 @@ function parseOneFilter(text: string): CardFilter {
   // one is only about the keywords, so a card with an [Auto] and no keyword
   // still qualifies.
   if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
+  // Two measures no filter field carries (#537): "with a specified cost of 2"
+  // (SD15-01, SD13-04) and "an energy cost less than or equal to your current
+  // energy" (BT5-119, SD7-01). Dropped, the description offered every card the
+  // rest of it named — the widening ground rule 5 forbids — so the phrase is
+  // refused instead, and the skill goes to the referee.
+  if (/\bspecified cost\b|\benergy costs? (?:of )?(?:less than or equal to|no (?:more|greater) than|equal to or less than) (?:the (?:amount|number) of )?your (?:current )?energy\b/.test(lower)) f.unreadable = true;
   // "An originally skill-less Battle Card" (20-3-1): printed with no text at
   // all, which the catalog only ever writes with the adverb — see
   // `originallySkillLess` above for why bare "skill-less" is a separate

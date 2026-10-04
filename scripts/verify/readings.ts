@@ -2070,3 +2070,9 @@ import {
   const c = s.ops.find((o) => o.op === "choose") as { sel: { notInBattle?: true; side?: string; area?: string } } | undefined;
   assert.deepEqual([c?.sel.side, c?.sel.area, c?.sel.notInBattle], ["opponent", "battle", true], "BT29-036: not the card in the battle");
 }
+
+// Measures no filter carries are refused, not dropped (#537): BT5-119, SD15-01.
+{
+  assert.ok(parseFilter("Battle Card with an energy cost less than or equal to your current energy").unreadable, "cost ≤ current energy is refused");
+  assert.ok(parseFilter("red Unison Cards with a specified cost of 2").unreadable, "a specified cost is refused");
+}
