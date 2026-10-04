@@ -97,6 +97,7 @@ The Data sources and Architecture sections moved out of this file unchanged (iss
 | Catalog import, deckplanet/Bandai/TCGplayer/CardTrader/FX sources, card images, leader faces, errata, prices, the optimiser | `docs/architecture/catalog-and-sync.md` |
 | Ownership, reservations, deck legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
 | Deck analysis, wizard, card scanning, cart explainer, "Build a deck with Claude" | `docs/architecture/ai.md` |
+| The provider-neutral AI layer (API vs subscription, swapping vendors): contract, routing, ledger | `docs/architecture/ai-providers.md` |
 | Server actions, raw SQL (`rows()`, `textArray()`), the SessionStart hook | `docs/architecture/db.md` |
 | The arena: engines, compiler, rules language, rulesets, workbench, UI, opponent, probe, arena scripts | `docs/architecture/arena.md`, then `docs/arena-tooling.md` and `docs/arena-code-map.md` |
 | Original feature spec (written before Fusion World) | `dbs-tcg-app-feature-summary.md` |
