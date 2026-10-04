@@ -4,7 +4,9 @@
  * the provider and billed fields are filled from AiResult or default to
  * anthropic-api/true for legacy responses. Checks that costMicros is byte-identical
  * for existing models over various token mixes, and that dynamic model pricing
- * via rememberModelPrices works (#515).
+ * via rememberModelPrices works (#515). The cost an adapter reports at call time (#520) lands in
+ * `ai_runs.cost_micros` (null when absent), and `ai:spend`'s row arithmetic (`src/lib/ai/spend.ts`)
+ * uses it when present and the old token formula, written out literally here, otherwise.
  * Kept in its own file so verify-db.mts only gains one line.
  */
 import assert from "node:assert/strict";
@@ -13,6 +15,7 @@ import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
 import { recordRun } from "../src/lib/ai/client.ts";
 import { ANTHROPIC_MODELS, ANTHROPIC_TIERS, PRICES, costMicros, rememberModelPrices, priceOf, modelEntry } from "../src/lib/ai/models.ts";
+import { rowUsd } from "../src/lib/ai/spend.ts";
 import type { ModelInfo } from "../src/lib/ai/types.ts";
 
 export async function verifyAiRuns(db: Db): Promise<void> {
@@ -97,6 +100,35 @@ export async function verifyAiRuns(db: Db): Promise<void> {
   // Test: priceOf falls back to Opus when model not found
   assert.deepEqual(priceOf("unknown-model", "openrouter"), { input: 5, output: 25 }, "priceOf falls back to Opus for unknown model");
 
+  // #520: the cost recorded at call time. Stored when the result has one, null when it has none (Anthropic's adapters, legacy responses).
+  const base = { text: "{}", parsed, stop: "end" as const, usage: { input: 1000, output: 500, cacheRead: 2000, cacheWrite: 400 }, provider: "openrouter", model: "openai/gpt-x-mini", billed: true, latencyMs: 1 };
+  const withCost = await recordRun(db, "cart_explain", {}, { ...base, costMicros: 450 });
+  const noCost = await recordRun(db, "cart_explain", {}, base);
+  const [rc] = await db.select().from(schema.aiRuns).where(eq(schema.aiRuns.id, withCost.id));
+  const [rn] = await db.select().from(schema.aiRuns).where(eq(schema.aiRuns.id, noCost.id));
+  assert.equal(rc.costMicros, 450, "recordRun stores AiResult.costMicros");
+  assert.equal(rc.model, "openai/gpt-x-mini", "ai_runs.model is the requested id");
+  assert.equal(rn.costMicros, null, "no cost reported: null");
+  assert.equal(row.costMicros, null, "an Anthropic result stores null");
+  assert.equal(row2.costMicros, null, "a legacy response stores null");
+
+  // ai:spend's arithmetic. A row without a stored cost is priced exactly as the script always did (the formula is written out here, not imported).
+  const oldUsd = (r: { input: number; output: number; cache_read: number; cache_write: number }, p: { input: number; output: number }) =>
+    (r.input * p.input + r.cache_read * p.input * 0.1 + r.cache_write * p.input * 1.25 + r.output * p.output) / 1_000_000;
+  const tok = { input: 523_456, output: 234_567, cache_read: 89_012, cache_write: 12_345 };
+  const legacyRow = { provider: "anthropic-api", model: "claude-sonnet-5-5", stored_micros: 0, legacy_input: tok.input, legacy_output: tok.output, legacy_cache_read: tok.cache_read, legacy_cache_write: tok.cache_write };
+  assert.equal(rowUsd(legacyRow), oldUsd(tok, { input: 2, output: 10 }), "a legacy / Anthropic row is priced as before");
+  assert.equal(rowUsd({ ...legacyRow, model: "claude-opus-5" }), oldUsd(tok, { input: 5, output: 25 }), "Opus row unchanged");
+  assert.equal(rowUsd({ ...legacyRow, provider: "anthropic-agent-sdk", model: "claude-haiku-4-5" }), oldUsd(tok, { input: 1, output: 5 }), "a plan row is unchanged");
+  // OpenRouter rows with a stored cost: the stored sum, whatever the model's id would be priced as (an id nobody remembered would read as Opus).
+  const stored = { provider: "openrouter", model: "vendor/never-listed", stored_micros: 450, legacy_input: 0, legacy_output: 0, legacy_cache_read: 0, legacy_cache_write: 0 };
+  assert.equal(rowUsd(stored), 0.00045, "the stored cost is used");
+  // A group with both kinds (rows from before the column, and rows after): stored sum plus the formula on the rest only.
+  const mixed = { ...stored, legacy_input: 1_000_000, legacy_output: 0 };
+  assert.equal(rowUsd(mixed, () => ({ input: 2, output: 10 })), 0.00045 + 2, "stored rows as stored, legacy rows by tokens");
+
+  await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, withCost.id));
+  await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, noCost.id));
   await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, aiResult.id));
   await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, legacy.id));
 }

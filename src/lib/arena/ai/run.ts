@@ -14,7 +14,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
-import { costMicros } from "@/lib/ai/models";
+import { spendMicros } from "@/lib/ai/models";
 import { skillsOf } from "../text/cards";
 import { type Action, type Area, type PlayerId } from "../types";
 import { markRuleSeen, saveRule } from "../rules-store";
@@ -27,7 +27,7 @@ import { tableOf } from "./table";
 import { chooseMove, ruleOnCard, type Tier } from "./opponent";
 
 /** Re-exported from models.ts for backward compatibility (#515). */
-export { PRICES, costMicros } from "@/lib/ai/models";
+export { PRICES, costMicros, spendMicros } from "@/lib/ai/models";
 
 /**
  * In a game against Claude, Claude is always the second player.
@@ -53,9 +53,9 @@ export function decisionModel(spend: { model: string; provider?: string } | null
   return spend.provider && spend.provider !== "anthropic-api" ? `${spend.provider} · ${spend.model}` : spend.model;
 }
 
-async function addSpend(db: Db, gameId: number, spend: { model: string; provider?: string; input: number; output: number; cached: number } | null): Promise<number> {
+async function addSpend(db: Db, gameId: number, spend: { model: string; provider?: string; input: number; output: number; cached: number; costMicros?: number } | null): Promise<number> {
   if (!spend) return 0;
-  const micros = costMicros(spend);
+  const micros = spendMicros(spend);
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
   if (!row) return micros;
   await db

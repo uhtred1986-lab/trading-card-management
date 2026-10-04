@@ -10,6 +10,15 @@
  * Capabilities are per model, read from `GET /models`: image input from
  * `architecture.input_modalities`, structured output / reasoning / tools from
  * `supported_parameters`. A model that does not list a feature is never sent it.
+ *
+ * Hardened with the patterns of the sister repo gullet-cove-dm: a model without a fixed price (a missing or
+ * negative `pricing.prompt`/`completion`) is not listed; `reasoning.effort` is sent only if the model's
+ * `reasoning.supported_efforts` allows it; a model id without a `vendor/` prefix stops early with a readable
+ * message; and the cost of a call is taken at call time, from `usage.cost` else the listed per-token prices
+ * (`pricing.input_cache_read` / `input_cache_write` for cached tokens). Docs relied on:
+ * https://openrouter.ai/docs/api-reference/overview (usage.cost, "Cost in credits"),
+ * https://openrouter.ai/docs/api-reference/models/get-models (pricing fields, `reasoning.supported_efforts`),
+ * https://openrouter.ai/docs/guides/best-practices/reasoning-tokens (effort values, per-model efforts).
  */
 import { z } from "zod";
 import { aiError, AiError, type AiErrorKind } from "../errors";
@@ -32,13 +41,18 @@ export interface ModelCaps {
   structured: boolean;
   reasoning: boolean;
   tools: boolean;
+  /** The efforts the model accepts (`reasoning.supported_efforts`); null when it lists none, which means any. */
+  efforts: string[] | null;
+  /** USD per token, to price a call whose response carries no cost. A cache price the model does not list is null. */
+  perToken: { in: number; out: number; cacheRead: number | null; cacheWrite: number | null };
 }
 
 interface RawModel {
   id?: unknown;
   name?: unknown;
   context_length?: unknown;
-  pricing?: { prompt?: unknown; completion?: unknown };
+  pricing?: { prompt?: unknown; completion?: unknown; input_cache_read?: unknown; input_cache_write?: unknown };
+  reasoning?: { supported_efforts?: unknown } | null;
   architecture?: { input_modalities?: unknown; output_modalities?: unknown };
   supported_parameters?: unknown;
 }
@@ -52,6 +66,12 @@ export function perMTok(perToken: unknown): number | undefined {
   return Number((n * 1_000_000).toPrecision(10));
 }
 
+/** USD per token as a number; missing, unparsable or negative → null. */
+function perToken(v: unknown): number | null {
+  const n = typeof v === "string" || typeof v === "number" ? Number(v) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 /** One model of the list as the picker wants it, with the capabilities the adapter keeps. */
 export function parseModel(raw: RawModel): { info: ModelInfo; caps: ModelCaps } | undefined {
   if (typeof raw.id !== "string" || !raw.id) return undefined;
@@ -59,11 +79,18 @@ export function parseModel(raw: RawModel): { info: ModelInfo; caps: ModelCaps } 
   const out = strings(raw.architecture?.output_modalities);
   if (out.length && !out.includes("text")) return undefined;
   const params = strings(raw.supported_parameters);
+  // No fixed price (a router such as openrouter/auto answers -1; a missing price is the same) → cannot be priced, so it is not offered.
+  const priceIn = perToken(raw.pricing?.prompt);
+  const priceOut = perToken(raw.pricing?.completion);
+  if (priceIn === null || priceOut === null) return undefined;
+  const efforts = raw.reasoning?.supported_efforts;
   const caps: ModelCaps = {
     vision: strings(raw.architecture?.input_modalities).includes("image"),
     structured: params.includes("structured_outputs"),
     reasoning: params.includes("reasoning"),
     tools: params.includes("tools"),
+    efforts: Array.isArray(efforts) ? strings(efforts) : null,
+    perToken: { in: priceIn, out: priceOut, cacheRead: perToken(raw.pricing?.input_cache_read), cacheWrite: perToken(raw.pricing?.input_cache_write) },
   };
   const inPrice = perMTok(raw.pricing?.prompt);
   const outPrice = perMTok(raw.pricing?.completion);
@@ -116,6 +143,23 @@ function jsonSchemaOf(schema: z.ZodType): Record<string, unknown> {
   return out;
 }
 
+/** `vendor/model` is what OpenRouter takes. Anything else (no model chosen, or the table's Claude default that reached this provider) stops here, readably. */
+export function modelFor(model: string | undefined): string {
+  if (!model || !model.includes("/")) {
+    throw new AiError("unsupported", `No OpenRouter model is chosen${model ? ` (got "${model}")` : ""} — pick a model in the AI settings.`, { provider: ID });
+  }
+  return model;
+}
+
+/** Millionths of a dollar for a call: the response's own `usage.cost` (USD), else the model's listed per-token prices (cache read and write at their own price, else the input price); undefined when neither is known. */
+export function costOf(usage: Completion["usage"], caps: ModelCaps | undefined, tokens: { input: number; output: number; cacheRead: number; cacheWrite: number }): number | undefined {
+  const reported = usage?.cost;
+  if (typeof reported === "number" && Number.isFinite(reported) && reported >= 0) return Math.round(reported * 1_000_000);
+  if (!caps) return undefined;
+  const p = caps.perToken;
+  return Math.round((tokens.input * p.in + tokens.output * p.out + tokens.cacheRead * (p.cacheRead ?? p.in) + tokens.cacheWrite * (p.cacheWrite ?? p.in)) * 1_000_000);
+}
+
 /** The chat-completions body for `req` on `model` whose capabilities are `caps` (unknown: nothing optional is sent). Exported so a check can show it. */
 export function buildOpenRouterBody(req: AiRequest, model: string, caps: ModelCaps | undefined): Record<string, unknown> {
   const schema = req.output?.kind === "json" ? jsonSchemaOf(req.output.schema) : undefined;
@@ -123,7 +167,9 @@ export function buildOpenRouterBody(req: AiRequest, model: string, caps: ModelCa
   // Without native structured output the schema goes in the prompt, and core validates (and retries once).
   const hint = schema && !native ? `Answer with only a JSON value that matches this JSON Schema, with no other text:\n${JSON.stringify(schema)}` : undefined;
   const system = systemMessage(req.system, model, hint);
-  const reasoning = caps?.reasoning ? (req.effort ? { effort: req.effort } : req.thinking === "adaptive" ? { enabled: true } : undefined) : undefined;
+  // An effort goes out only where the model lists it (no list = any); otherwise the adaptive-thinking switch, if asked for.
+  const effortOk = !!req.effort && (caps?.efforts == null || caps.efforts.includes(req.effort));
+  const reasoning = caps?.reasoning ? (req.effort && effortOk ? { effort: req.effort } : req.thinking === "adaptive" ? { enabled: true } : undefined) : undefined;
   return {
     model,
     max_tokens: req.maxTokens,
@@ -168,7 +214,8 @@ interface Completion {
   model?: unknown;
   error?: unknown;
   choices?: Choice[];
-  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number } };
+  /** `cost` is in credits, which are US dollars. */
+  usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number; prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number } };
 }
 
 export function createOpenRouterProvider(opts: OpenRouterOptions = {}): AiProvider {
@@ -244,8 +291,7 @@ export function createOpenRouterProvider(opts: OpenRouterOptions = {}): AiProvid
     },
     async generate(req: AiRequest): Promise<AiResult> {
       if (!key()) throw aiError("unavailable", LABEL, { provider: ID, detail: "OPENROUTER_API_KEY is not set." });
-      const model = req.model;
-      if (!model) throw new AiError("unsupported", "An OpenRouter request needs a model — choose one in the settings.", { provider: ID });
+      const model = modelFor(req.model);
       let caps: ModelCaps | undefined;
       try {
         caps = (await load()).caps.get(model);
@@ -285,13 +331,19 @@ export function createOpenRouterProvider(opts: OpenRouterOptions = {}): AiProvid
       const cacheWrite = Number(u.prompt_tokens_details?.cache_write_tokens ?? 0) || 0;
       // `prompt_tokens` is taken to include the cached tokens (the OpenAI convention; the docs do not say). The contract's `input` excludes them.
       const input = Math.max(0, (Number(u.prompt_tokens ?? 0) || 0) - cacheRead - cacheWrite);
+      const output = Number(u.completion_tokens ?? 0) || 0;
+      const cost = costOf(u, caps, { input, output, cacheRead, cacheWrite });
+      const served = typeof body?.model === "string" && body.model && body.model !== model ? body.model : undefined;
       return {
         text: text || refusalText,
         stop: refused ? "refusal" : choice.finish_reason === "length" ? "max_tokens" : "end",
-        usage: { input, output: Number(u.completion_tokens ?? 0) || 0, cacheRead, cacheWrite },
+        usage: { input, output, cacheRead, cacheWrite },
         provider: ID,
-        model: typeof body?.model === "string" && body.model ? body.model : model,
+        // The id we asked for: prices are remembered under it, so it is what the call is recorded and priced by.
+        model,
+        ...(served ? { servedModel: served } : {}),
         billed: true,
+        ...(cost !== undefined ? { costMicros: cost } : {}),
         latencyMs: now() - started,
       };
     },

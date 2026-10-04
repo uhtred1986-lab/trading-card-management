@@ -894,6 +894,8 @@ export const aiRuns = pgTable(
     provider: text("provider").notNull().default("anthropic-api"),
     /** Whether this call was billed per token (false for subscriptions). (#515) */
     billed: boolean("billed").notNull().default(true),
+    /** What the call cost in millionths of a US dollar, when the adapter knew it at call time (OpenRouter, #520). Null: price it from the tokens. */
+    costMicros: integer("cost_micros"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("ai_runs_deck_idx").on(t.deckId)],

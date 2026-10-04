@@ -17,7 +17,9 @@ import { z } from "zod";
 import { generate, generateJson } from "../../src/lib/ai/core";
 import { explainCart } from "../../src/lib/ai/cart";
 import { AiError, describeAiError, type AiErrorKind } from "../../src/lib/ai/errors";
-import { costMicros, priceOf } from "../../src/lib/ai/models";
+import { recordRun } from "../../src/lib/ai/client";
+import { costMicros, priceOf, spendMicros } from "../../src/lib/ai/models";
+import { applyProviderForm, applyTasksForm, applyTiersForm, type ModelLists } from "../../src/lib/ai/settings-form";
 import { createOpenRouterProvider, perMTok } from "../../src/lib/ai/providers/openrouter";
 import { createFakeProvider } from "../../src/lib/ai/providers/fake";
 import { registerProvider, resetProviders } from "../../src/lib/ai/providers";
@@ -38,6 +40,7 @@ const SONNET = "anthropic/claude-sonnet-5.5"; // images, structured_outputs, rea
 const MINI = "openai/gpt-x-mini"; // structured_outputs, no reasoning, no images
 const PLAIN = "meta/plain-text"; // text only, no structured_outputs
 const SEER = "vendor/seer"; // images, no structured_outputs
+const EFF = "vendor/effort-limited"; // reasoning with `supported_efforts: [low, medium]`, structured_outputs, priced
 
 /** Shaped like the documented `GET /api/v1/models` response (prices are strings, USD per token). */
 const MODELS_FIXTURE = {
@@ -77,6 +80,16 @@ const MODELS_FIXTURE = {
       architecture: { input_modalities: ["text", "image"], output_modalities: ["text"] },
       supported_parameters: ["max_tokens"],
     },
+    {
+      id: EFF,
+      name: "Vendor: Effort limited",
+      context_length: 64000,
+      pricing: { prompt: "0.000001", completion: "0.000004", input_cache_read: "0.0000001" },
+      architecture: { input_modalities: ["text"], output_modalities: ["text"] },
+      supported_parameters: ["max_tokens", "reasoning", "structured_outputs"],
+      reasoning: { supported_efforts: ["medium", "low"], default_effort: "medium", default_enabled: true },
+    },
+    { id: "vendor/unpriced", name: "No price listed", context_length: 4000, pricing: {}, architecture: { input_modalities: ["text"], output_modalities: ["text"] }, supported_parameters: ["structured_outputs"] },
     { id: "openrouter/auto", name: "Auto Router", context_length: 2000000, pricing: { prompt: "-1", completion: "-1" }, architecture: { input_modalities: ["text"], output_modalities: ["text"] }, supported_parameters: ["max_tokens"] },
     { id: "vendor/painter", name: "Painter", context_length: 4000, pricing: { prompt: "0.000001", completion: "0.000001" }, architecture: { input_modalities: ["text"], output_modalities: ["image"] }, supported_parameters: [] },
   ],
@@ -90,6 +103,10 @@ interface Step {
   refusalField?: string;
   usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
   status?: number;
+  /** The model id the response claims to have served (default: the requested one). */
+  servedModel?: string;
+  /** `usage.cost` in USD (default 0.001); null leaves it out. */
+  cost?: number | null;
   /** A 200 whose body is an error. */
   errorIn200?: { code: number; message: string };
   errorInChoice?: { code: number; message: string };
@@ -142,14 +159,14 @@ function make(script: Step[], opts: { apiKey?: string } = {}): Run {
     const finish = a.stop === "refusal" ? "content_filter" : a.stop === "max_tokens" ? "length" : "stop";
     return json({
       id: "gen-test",
-      model: JSON.parse(String(init?.body ?? "{}")).model,
+      model: a.servedModel ?? JSON.parse(String(init?.body ?? "{}")).model,
       choices: [{ index: 0, finish_reason: finish, ...(a.errorInChoice ? { error: a.errorInChoice } : {}), message: { role: "assistant", content: text, ...(a.refusalField ? { refusal: a.refusalField } : {}) } }],
       usage: {
         prompt_tokens: (us.input ?? 0) + (us.cacheRead ?? 0) + (us.cacheWrite ?? 0),
         completion_tokens: us.output ?? 0,
         total_tokens: (us.input ?? 0) + (us.output ?? 0),
         prompt_tokens_details: { cached_tokens: us.cacheRead ?? 0, cache_write_tokens: us.cacheWrite ?? 0 },
-        cost: 0.001,
+        ...(a.cost === null ? {} : { cost: a.cost ?? 0.001 }),
       },
     });
   }) as typeof fetch;
@@ -204,6 +221,7 @@ async function contract(): Promise<void> {
     assert.equal(r.billed, true);
     assert.equal(r.provider, "openrouter");
     assert.equal(r.model, MINI);
+    assert.equal(r.costMicros, 1000, "usage.cost (USD 0.001) is carried as micro-dollars");
     assert.equal(typeof r.latencyMs, "number");
     const c = run.chat[0];
     assert.ok(c.url.endsWith("/api/v1/chat/completions"), c.url);
@@ -361,7 +379,7 @@ async function models(): Promise<void> {
 
   const run = make([{ text: "x" }]);
   const list = await run.provider.listModels();
-  assert.deepEqual(list.map((m) => m.id), [SONNET, MINI, PLAIN, SEER, "openrouter/auto"], "an image-only model is not a chat model");
+  assert.deepEqual(list.map((m) => m.id), [SONNET, MINI, PLAIN, SEER, EFF], "an image-only model is not a chat model; a model with no fixed price (openrouter/auto at -1, one with no price) is not listed");
   const by = Object.fromEntries(list.map((m) => [m.id, m]));
   assert.deepEqual(by[SONNET], {
     id: SONNET,
@@ -375,11 +393,12 @@ async function models(): Promise<void> {
   assert.deepEqual(by[PLAIN].capabilities, { vision: false, json: false, tools: false });
   assert.deepEqual(by[PLAIN].usdPerMTok, { in: 0, out: 0 });
   assert.deepEqual(by[SEER].capabilities, { vision: true, json: false, tools: false });
-  assert.equal(by["openrouter/auto"].usdPerMTok, undefined, "a router with no fixed price has none");
+  assert.equal(by["openrouter/auto"], undefined, "a router with no fixed price is not offered");
+  assert.equal(by["vendor/unpriced"], undefined, "a model with no listed price is not offered");
 
   // The picker (from #516) offers only models that give structured output, and for the scan only those that see.
   const picks = (task: Parameters<typeof needsOf>[0]) => pickable({ openrouter: list }, needsOf(task)).map((m) => m.id);
-  assert.deepEqual(picks("cart_explain"), [SONNET, MINI]);
+  assert.deepEqual(picks("cart_explain"), [SONNET, MINI, EFF]);
   assert.deepEqual(picks("scan_identify"), [SONNET]);
 
   // Prices reach priceOf / costMicros through rememberModelPrices.
@@ -538,6 +557,15 @@ async function arena(): Promise<void> {
     assert.equal(good.index, 1);
     assert.equal(good.spend?.provider, "openrouter");
     assert.equal(run.chat[0].body.model, MINI, "the slot's model was sent");
+    assert.equal(good.spend?.costMicros, 1000, "the arena spend carries OpenRouter's own cost");
+    assert.equal(spendMicros(good.spend!), 1000);
+
+    // The response names another model than the one asked for, and carries no cost: priced by the requested id's listed price (100 in, 5 out at $0.15/$0.60 per M = 18 micro-dollars), never as Opus ($5/$25 would be 625).
+    run = play([{ json: { move: 1, say: "Fine." }, usage: { input: 100, output: 5 }, servedModel: "openai/gpt-x-mini-2026-02-01", cost: null }]);
+    const served = await chooseMove(stubDb(), CTX, state, legal, "p1", "sparring");
+    assert.equal(served.spend?.model, MINI, "the spend is under the requested model id");
+    assert.equal(spendMicros(served.spend!), 18);
+    assert.notEqual(spendMicros(served.spend!), costMicros({ model: "claude-opus-5", input: 100, output: 5, cached: 0 }));
 
     // Out of range (either end): the first move, with the same words as on Claude, after one request.
     for (const bad of [legal.length, -1]) {
@@ -567,11 +595,125 @@ async function arena(): Promise<void> {
   }
 }
 
+/**
+ * The hardening ported from gullet-cove-dm: OpenRouter needs a model (settings refuse a provider without
+ * models; a routed call carries one), an unreachable model list does not block a save, the cost is taken at call
+ * time and recorded under the requested id, unpriced models are not listed, an effort goes out only where the
+ * model lists it, and a model id with no vendor prefix stops early.
+ */
+async function hardening(): Promise<void> {
+  const names = { openrouter: "OpenRouter" };
+  const known = ["anthropic-api", "anthropic-agent-sdk", "openrouter"];
+  const tiers3 = { openrouter: { fast: MINI, standard: SONNET, best: SONNET } };
+
+  // Bug 1: a provider with no tier table saved without models used to be accepted, and every call then went out with no model.
+  assert.throws(() => applyProviderForm(NO_SETTINGS, { provider: "openrouter" }, known, names), /Pick OpenRouter's models for fast, standard and best first/, "global provider without tiers");
+  assert.throws(() => applyProviderForm(NO_SETTINGS, { provider: "anthropic-api", fallbackProvider: "openrouter" }, known, names), /Pick OpenRouter's models for fast, standard and best first/, "fallback provider without tiers");
+  // Two of three tiers is not enough: this router uses all three.
+  assert.throws(() => applyProviderForm(settings({ tiers: { openrouter: { fast: MINI, standard: SONNET } } }), { provider: "openrouter" }, known, names), /fast, standard and best/);
+  const lists: ModelLists = { "anthropic-api": [], openrouter: await make([{ text: "x" }]).provider.listModels() };
+  assert.throws(() => applyTasksForm(NO_SETTINGS, { cart_explain: { provider: "openrouter" } }, lists, names), /Pick OpenRouter's models/, "a provider-only task override without tiers");
+  // With a model for the task, or with the three tiers, it is accepted.
+  assert.deepEqual(applyTasksForm(NO_SETTINGS, { cart_explain: { model: `openrouter|${MINI}` } }, lists, names).taskOverrides, { cart_explain: { provider: "openrouter", model: MINI } });
+  assert.deepEqual(applyTasksForm(settings({ tiers: tiers3 }), { cart_explain: { provider: "openrouter" } }, lists, names).taskOverrides, { cart_explain: { provider: "openrouter" } });
+  const withTiers = settings({ tiers: tiers3 });
+  const asGlobal = applyProviderForm(withTiers, { provider: "openrouter" }, known, names);
+  const asFallback = applyProviderForm(withTiers, { provider: "anthropic-api", fallbackProvider: "openrouter", fallbackOnUnavailable: true }, known, names);
+  assert.equal(asGlobal.provider, "openrouter");
+  assert.equal(asFallback.fallbackProvider, "openrouter");
+  // The forms are saved separately: removing tier models that a saved global, fallback or override relies on is refused too.
+  assert.throws(() => applyTiersForm(asGlobal, {}, lists, names), /Pick OpenRouter's models/, "tiers cleared under a saved global");
+  assert.throws(() => applyTiersForm(asFallback, { "openrouter|fast": MINI }, lists, names), /Pick OpenRouter's models/, "one tier left under a saved fallback");
+  assert.throws(() => applyTiersForm(settings({ ...withTiers, taskOverrides: { cart_explain: { provider: "openrouter" } } }), {}, lists, names), /Pick OpenRouter's models/, "tiers cleared under a saved override");
+  assert.deepEqual(applyTiersForm(asGlobal, { "openrouter|fast": MINI, "openrouter|standard": SONNET, "openrouter|best": SONNET }, lists, names).tiers, tiers3, "all three kept: accepted");
+  // Providers with a table are untouched: no tiers needed.
+  assert.equal(applyProviderForm(NO_SETTINGS, { provider: "anthropic-agent-sdk", fallbackProvider: "anthropic-api" }, known, names).provider, "anthropic-agent-sdk");
+
+  // ...and the routed call carries a model: global, fallback and override all resolve a tier to the saved model.
+  const reset = () => {
+    resetProviders();
+    forgetAvailability();
+    setSettingsLoader(null);
+  };
+  reset();
+  registerProvider(make([{ text: "x" }]).provider);
+  const viaGlobal = await resolve(ask({ provider: undefined, model: undefined, tier: "standard" }), asGlobal);
+  assert.deepEqual([viaGlobal.provider.id, viaGlobal.request.model], ["openrouter", SONNET], "global");
+  const viaTask = await resolve(ask({ provider: undefined, model: undefined, tier: "fast" }), settings({ tiers: tiers3, taskOverrides: { cart_explain: { provider: "openrouter" } } }));
+  assert.deepEqual([viaTask.provider.id, viaTask.request.model], ["openrouter", MINI], "provider-only task override");
+  registerProvider(createFakeProvider({ id: "anthropic-api", script: [{ json: {} }], capabilities: { vision: false, json: true } }));
+  const scan: AiRequest = { task: "scan_identify", tier: "best", system: [{ text: "s" }], maxTokens: 10, messages: [{ role: "user", parts: [{ type: "image", mediaType: "image/png", base64: "AA" }, ...text("read")] }] };
+  const viaFallback = await resolve(scan, asFallback);
+  assert.deepEqual([viaFallback.provider.id, viaFallback.via, viaFallback.request.model], ["openrouter", "fallback", SONNET], "fallback");
+  reset();
+
+  // Bug 4: an unreachable model list (empty) no longer fails a save with "cannot run"; a known model is still held to what the task needs.
+  const down: ModelLists = { openrouter: [] };
+  assert.deepEqual(applyTasksForm(NO_SETTINGS, { scan_identify: { model: "openrouter|vendor/anything" } }, down, names).taskOverrides, { scan_identify: { provider: "openrouter", model: "vendor/anything" } }, "empty list = no restriction");
+  assert.deepEqual(applyTiersForm(NO_SETTINGS, { "openrouter|fast": MINI, "openrouter|standard": SONNET, "openrouter|best": SONNET }, down, names).tiers, tiers3);
+  assert.throws(() => applyTasksForm(NO_SETTINGS, { scan_identify: { model: `openrouter|${MINI}` } }, lists, names), /cannot run scan_identify/, "a known text-only model still cannot read the scan");
+  assert.throws(() => applyTasksForm(NO_SETTINGS, { cart_explain: { model: "openrouter|not/in-the-list" } }, lists, names), /cannot run cart_explain/, "a non-empty list still restricts");
+  assert.throws(() => applyTasksForm(NO_SETTINGS, { cart_explain: { model: "nobody|x/y" } }, down, names), /cannot run/, "an unknown provider is still refused");
+
+  // Bug 2: the cost is recorded at call time, and under the requested model id.
+  const priced = async (step: Step, req: Partial<AiRequest>) => {
+    reset();
+    const run = play([step]);
+    return { r: await generate(ask(req)), run };
+  };
+  // usage.cost present: used as is (USD → micro-dollars).
+  assert.equal((await priced({ text: "x", usage: { input: 1000, output: 500 }, cost: 0.0123 }, { model: SONNET })).r.costMicros, 12300);
+  // Absent: the listed per-token prices, cache read and write at their own prices. Sonnet: 1000 in, 500 out, 2000 cache read, 400 cache write.
+  assert.equal((await priced({ text: "x", usage: { input: 1000, output: 500, cacheRead: 2000, cacheWrite: 400 }, cost: null }, { model: SONNET })).r.costMicros, 8400, "1000*$2 + 500*$10 + 2000*$0.2 + 400*$2.5 per M");
+  // A cache price the model does not list: cached tokens at the input price.
+  assert.equal((await priced({ text: "x", usage: { input: 1000, cacheRead: 1000 }, cost: null }, { model: MINI })).r.costMicros, 300);
+  // No cost and no listed price (a model the list does not know): nothing is claimed.
+  assert.equal((await priced({ text: "x", usage: { input: 1000 }, cost: null }, { model: "unlisted/model" })).r.costMicros, undefined);
+  // The response names another model: the cost, the model and the recorded row are those of the requested id.
+  const same = await priced({ text: "x", usage: { input: 1000, output: 500 }, cost: null }, { model: MINI });
+  const other = await priced({ text: "x", usage: { input: 1000, output: 500 }, cost: null, servedModel: "openai/gpt-x-mini-2026-02-01" }, { model: MINI });
+  assert.equal(other.r.model, MINI, "result.model is the id we asked for");
+  assert.equal(other.r.servedModel, "openai/gpt-x-mini-2026-02-01", "what was served is kept apart, informational");
+  assert.equal(same.r.servedModel, undefined);
+  assert.equal(other.r.costMicros, same.r.costMicros, "a different served id leaves the cost unchanged");
+  assert.equal(other.r.costMicros, 450, "1000*$0.15 + 500*$0.60 per M, not Opus");
+  const rows: Record<string, unknown>[] = [];
+  const db = { insert: () => ({ values: (v: Record<string, unknown>) => ({ returning: async () => (rows.push(v), [{ id: 1 }]) }) }) };
+  await recordRun(db as never, "cart_explain", {}, { ...other.r, parsed: { ok: true } });
+  assert.equal(rows[0].model, MINI, "ai_runs.model is the requested id");
+  assert.equal(rows[0].costMicros, 450, "ai_runs stores the cost");
+  reset();
+
+  // Effort only where the model lists it: `supported_efforts` [medium, low] → high is not sent (adaptive thinking alone then enables), medium is.
+  const body = async (req: Partial<AiRequest>): Promise<Record<string, unknown>> => {
+    reset();
+    const run = play([{ text: "ok" }]);
+    await generate(ask(req));
+    return run.chat[0].body;
+  };
+  assert.deepEqual((await body({ model: EFF, effort: "medium" })).reasoning, { effort: "medium" });
+  assert.deepEqual((await body({ model: EFF, effort: "low" })).reasoning, { effort: "low" });
+  assert.equal((await body({ model: EFF, effort: "high" })).reasoning, undefined, "high is not in supported_efforts");
+  assert.deepEqual((await body({ model: EFF, effort: "high", thinking: "adaptive" })).reasoning, { enabled: true });
+  assert.deepEqual((await body({ model: SONNET, effort: "high" })).reasoning, { effort: "high" }, "no list = any effort");
+
+  // Prefix guard: an id without `vendor/` (the table's Claude default, or nothing) stops before any request.
+  for (const model of ["claude-opus-5", undefined]) {
+    reset();
+    const run = play([{ text: "x" }]);
+    const err = await rejects(generate(ask({ model, tier: "fast" })), "unsupported");
+    assert.match(err.message, /pick a model in the AI settings/);
+    assert.equal(run.chat.length, 0, "nothing was sent");
+  }
+  reset();
+}
+
 async function main(): Promise<void> {
   try {
     await contract();
     await options();
     await models();
+    await hardening();
     await routing();
     await arena();
   } finally {
@@ -579,7 +721,7 @@ async function main(): Promise<void> {
     forgetAvailability();
     setSettingsLoader(null);
   }
-  console.log("  ai-openrouter: the contract cases on a recorded OpenRouter transport (text, image, JSON with and without structured_outputs, refusal, errors, cached-token usage, billed); reasoning and cache hints only where a model lists them; the model list, prices per MTok and the 1 h cache; routing per task and globally, a text-only model on the scan; the arena's legal-move validation on an OpenRouter model");
+  console.log("  ai-openrouter: the contract cases on a recorded OpenRouter transport (text, image, JSON with and without structured_outputs, refusal, errors, cached-token usage, billed); reasoning and cache hints only where a model lists them; the model list, prices per MTok and the 1 h cache; routing per task and globally, a text-only model on the scan; the arena's legal-move validation on an OpenRouter model; hardening (a provider without a tier table needs models in settings, an unreachable list does not block a save, cost at call time under the requested id, unpriced models unlisted, effort only where supported, the vendor-prefix guard)");
 }
 
 main().catch((err) => {

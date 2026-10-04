@@ -43,7 +43,7 @@ export interface Choice {
   /** One line of table talk, or null when no model was asked. */
   say: string | null;
   /** Null when the decision was taken without an API call. */
-  spend: { model: string; provider?: string; input: number; output: number; cached: number } | null;
+  spend: { model: string; provider?: string; input: number; output: number; cached: number; costMicros?: number } | null;
   /** Why it was decided this way, for the log. */
   how: string;
 }
@@ -229,7 +229,7 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
   return {
     index,
     say: output.say?.trim() || null,
-    spend: { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead },
+    spend: { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) },
     how: index === output.move ? "chosen by Claude" : `Claude answered ${output.move}, which is not on the list — took the first move`,
   };
 }
@@ -380,7 +380,7 @@ export async function ruleOnCard(
   db: Db,
   request: { cardId: string; cardName: string; text: string; unsupported: string[] },
   situation: string,
-): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; provider?: string; input: number; output: number; cached: number } | null }> {
+): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; provider?: string; input: number; output: number; cached: number; costMicros?: number } | null }> {
   if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", valid: false, spend: null };
   const res = await generateJson({
     task: "arena_referee",
@@ -409,7 +409,7 @@ export async function ruleOnCard(
   } catch {
     ops = [];
   }
-  const spend = { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead };
+  const spend = { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) };
   // A malformed ruling is treated as "nothing happens" rather than trusted.
   if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend };
   return { ops: ops as Op[], why: output.why, valid: true, spend };

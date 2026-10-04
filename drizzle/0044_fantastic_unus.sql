@@ -1,0 +1,1 @@
+ALTER TABLE "ai_runs" ADD COLUMN "cost_micros" integer;

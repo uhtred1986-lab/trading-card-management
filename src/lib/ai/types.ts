@@ -64,9 +64,18 @@ export interface AiResult<T = unknown> {
   stop: "end" | "max_tokens" | "refusal";
   usage: Usage;
   provider: ProviderId;
+  /** The model id the caller asked for: what the call is recorded and priced under. A vendor that served another id keeps it in {@link servedModel}. */
   model: string;
   /** False when the call ran on a subscription rather than per token. */
   billed: boolean;
+  /**
+   * What the call cost, in millionths of a US dollar, when the adapter knows it at call time (OpenRouter: the
+   * response's own `usage.cost`, else the model's listed prices). Absent for the Anthropic adapters, whose cost
+   * stays the list-price formula of `models.ts` (`costMicros`).
+   */
+  costMicros?: number;
+  /** The model id the vendor says it served, when that differs from {@link model}. Informational only. */
+  servedModel?: string;
   latencyMs: number;
 }
 

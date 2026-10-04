@@ -64,6 +64,7 @@ export async function recordRun<T>(
       model: model ?? (legacy ? MODEL : response.model),
       provider: legacy ? "anthropic-api" : response.provider,
       billed: legacy ? true : response.billed,
+      costMicros: legacy ? null : (response.costMicros ?? null),
       input: input as object,
       output: output as object,
       ...tokens,

@@ -18,6 +18,10 @@ async function lists(): Promise<ModelLists> {
   return Object.fromEntries((await providerPanels()).map((p) => [p.id, p.models]));
 }
 
+async function names(): Promise<Record<string, string>> {
+  return Object.fromEntries(providerIds().flatMap((id) => { const p = getProvider(id); return p ? [[id, p.label]] : []; }));
+}
+
 const text = (f: FormData, key: string): string => {
   const v = f.get(key);
   return typeof v === "string" ? v : "";
@@ -42,6 +46,7 @@ export async function saveProviderAction(_prev: AiFormState, f: FormData): Promi
       await loadSettings(db),
       { provider: text(f, "provider"), fallbackProvider: text(f, "fallbackProvider"), fallbackOnUnavailable: f.get("fallbackOnUnavailable") === "on" },
       providerIds(),
+      await names(),
     );
     await saveSettings(db, next);
   });
@@ -52,7 +57,7 @@ export async function saveTiersAction(_prev: AiFormState, f: FormData): Promise<
   return edit(async () => {
     const tiers: Record<string, string> = {};
     for (const [k, v] of f.entries()) if (k.startsWith("tier:") && typeof v === "string") tiers[k.slice("tier:".length)] = v;
-    await saveSettings(db, applyTiersForm(await loadSettings(db), tiers, await lists()));
+    await saveSettings(db, applyTiersForm(await loadSettings(db), tiers, await lists(), await names()));
   });
 }
 
@@ -61,7 +66,7 @@ export async function saveTasksAction(_prev: AiFormState, f: FormData): Promise<
   return edit(async () => {
     const tasks: Record<string, { provider?: string; model?: string }> = {};
     for (const task of TASK_IDS) tasks[task] = { provider: text(f, `provider:${task}`), model: text(f, `model:${task}`) };
-    await saveSettings(db, applyTasksForm(await loadSettings(db), tasks, await lists()));
+    await saveSettings(db, applyTasksForm(await loadSettings(db), tasks, await lists(), await names()));
   });
 }
 

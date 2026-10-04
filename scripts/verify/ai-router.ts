@@ -262,7 +262,9 @@ async function main(): Promise<void> {
       assert.throws(() => applyArenaForm(s0, { sparring: "a|invented" }, lists), /no structured output/);
       assert.deepEqual(applyArenaForm(s0, { "tournament.key": "a|text", "tournament.other": "" }, lists).arena, { "tournament.key": { provider: "a", model: "text" } });
       assert.throws(() => applyTasksForm(s0, { scan_identify: { model: "a|text" } }, lists), /cannot run scan_identify/);
-      assert.deepEqual(applyTasksForm(s0, { scan_identify: { model: "a|sees" }, cart_explain: { provider: "b" } }, lists).taskOverrides, {
+      // "b" has no tier table, so a provider-only override needs its three tiers (see the OpenRouter hardening checks).
+      const s0b = settings({ tiers: { b: { fast: "b-text", standard: "b-text", best: "b-text" } } });
+      assert.deepEqual(applyTasksForm(s0b, { scan_identify: { model: "a|sees" }, cart_explain: { provider: "b" } }, lists).taskOverrides, {
         scan_identify: { provider: "a", model: "sees" },
         cart_explain: { provider: "b" },
       });
@@ -270,7 +272,7 @@ async function main(): Promise<void> {
       assert.deepEqual(applyTiersForm(s0, { "a|fast": "text", "a|best": "sees", "a|standard": "" }, lists).tiers, { a: { fast: "text", best: "sees" } });
       assert.throws(() => applyProviderForm(s0, { provider: "x" }, ["a"]), /no AI provider/);
       assert.throws(() => applyProviderForm(s0, { provider: "a", fallbackProvider: "a" }, ["a"]), /different/);
-      assert.equal(applyProviderForm(s0, { provider: "a", fallbackOnUnavailable: true }, ["a"]).fallbackOnUnavailable, false, "no fallback provider, nothing to switch on");
+      assert.equal(applyProviderForm(s0, { provider: "anthropic-api", fallbackOnUnavailable: true }, ["anthropic-api"]).fallbackOnUnavailable, false, "no fallback provider, nothing to switch on");
       assert.deepEqual(decodeRef(encodeRef({ provider: "or", model: "vendor/m:free" })), { provider: "or", model: "vendor/m:free" });
       assert.equal(decodeRef("nonsense"), null);
     }
