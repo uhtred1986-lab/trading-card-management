@@ -23,6 +23,9 @@ const AGENT_SDK_ROUTES = [
  */
 const AGENT_SDK_BINARY = ["./node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/**/*"];
 
+/** The spike is off unless AI_AGENT_SDK=1 is set when the app is built (Vercel exposes project variables at build time). */
+const AGENT_SDK_BUILD = process.env.AI_AGENT_SDK === "1";
+
 // Route keys are globs and Next matches them as substrings ("/decks" also catches "/api/v1/decks"; Turbopack
 // rejects any key that tries to anchor itself), so a few small routes that cannot call a model carry the binary
 // too. `npm run ai:trace-sizes` shows which. Brackets of a dynamic segment are escaped.
@@ -49,9 +52,11 @@ const nextConfig: NextConfig = {
   },
   // The Claude Agent SDK (the "Claude plan" provider, #518) finds its native `claude` binary with
   // createRequire at run time, so it must stay a real node_modules package instead of a bundled
-  // chunk; the binary itself is added to the AI-calling functions below.
-  outputFileTracingIncludes: Object.fromEntries(AGENT_SDK_ROUTES.map((r) => [escapeRoute(r), AGENT_SDK_BINARY])),
-  serverExternalPackages: ["@anthropic-ai/claude-agent-sdk"],
+  // chunk; the binary itself is added to the AI-calling functions. All of it is behind AI_AGENT_SDK=1 at BUILD time
+  // (the same variable the adapter reads at run time): the binary is 246 MB, so adding it to a function is not free
+  // (see ai:trace-sizes), and a default build must stay exactly what it was.
+  ...(AGENT_SDK_BUILD ? { outputFileTracingIncludes: Object.fromEntries(AGENT_SDK_ROUTES.map((r) => [escapeRoute(r), AGENT_SDK_BINARY])) } : {}),
+  ...(AGENT_SDK_BUILD ? { serverExternalPackages: ["@anthropic-ai/claude-agent-sdk"] } : {}),
   // Scan uploads are multi-megabyte phone photos; the default 1 MB body limit
   // would reject them before the server action ever sees the file.
   experimental: {

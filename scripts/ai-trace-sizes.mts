@@ -6,7 +6,8 @@
  * Sizes are shown in decimal MB (the 250 MB limit is compared as 250,000,000 bytes, the stricter reading) and in MiB.
  *
  * Reads the `.next/server/**\/*.nft.json` trace files that `next build` writes (run
- * `DATABASE_URL=postgres://u:p@localhost:5432/db npm run build` first; no database is touched). Each
+ * `AI_AGENT_SDK=1 DATABASE_URL=postgres://u:p@localhost:5432/db npm run build` first: next.config.ts adds the
+ * binary only to a build made with AI_AGENT_SDK=1; no database is touched). Each
  * trace lists the files one route's function needs; their sizes, plus the route's own entry file,
  * are summed (a file shared by two listings counts once per function). Also lists the functions that
  * trace the SDK but do NOT carry the binary — `outputFileTracingIncludes` in `next.config.ts` misses
@@ -84,7 +85,7 @@ const mb = (b: number) => (b / 1_000_000).toFixed(1);
 const mib = (b: number) => (b / 1_048_576).toFixed(1);
 const pct = (b: number) => `${((b / limit) * 100).toFixed(0)}%`;
 const carry = fns.filter((f) => f.binaries.length).sort((a, b) => b.bytes - a.bytes);
-const missing = fns.filter((f) => f.sdk && !f.binaries.length && !f.route.startsWith("/instrumentation"));
+const missing = fns.filter((f) => carry.length && f.sdk && !f.binaries.length && !f.route.startsWith("/instrumentation"));
 const plain = fns.filter((f) => !f.binaries.length);
 const over = carry.filter((f) => f.bytes > limit);
 
@@ -92,6 +93,7 @@ const row = (cells: string[]) => (md ? `| ${cells.join(" | ")} |` : cells.map((c
 const head = (cells: string[]) => (md ? `${row(cells)}\n|${cells.map((_, i) => (i === 0 ? "---" : "---:")).join("|")}|` : row(cells));
 
 console.log(`Functions in .next/server: ${fns.length}; carrying the claude binary: ${carry.length}; limit ${limitMb} MB uncompressed (decimal MB)\n`);
+if (!carry.length) console.log("No function carries the binary — the build was made without AI_AGENT_SDK=1 (the default, inert build).");
 if (carry.length) {
   console.log(head(["function", "files", "MB", "MiB", "of limit"]));
   for (const f of carry) console.log(row([f.route, String(f.files), mb(f.bytes), mib(f.bytes), pct(f.bytes)]));
