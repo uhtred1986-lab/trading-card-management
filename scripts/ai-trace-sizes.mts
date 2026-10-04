@@ -9,9 +9,10 @@
  * `AI_AGENT_SDK=1 DATABASE_URL=postgres://u:p@localhost:5432/db npm run build` first: next.config.ts adds the
  * binary only to a build made with AI_AGENT_SDK=1; no database is touched). Each
  * trace lists the files one route's function needs; their sizes, plus the route's own entry file,
- * are summed (a file shared by two listings counts once per function). Also lists the functions that
- * trace the SDK but do NOT carry the binary — `outputFileTracingIncludes` in `next.config.ts` misses
- * them — and exits 1 when there are any, or when a function is over the limit.
+ * are summed (a file shared by two listings counts once per function). Exits 1 unless the binary is carried by
+ * exactly one function, `/api/ai/agent-sdk` (owner ruling, #518: every other function reaches the plan through
+ * that route), or when that function is over the limit. Functions that trace the SDK's JavaScript but not the
+ * binary are counted for information; they forward to the route.
  *
  *   --limit <MB>   the limit to compare with (default 250, decimal megabytes: the stricter reading)
  *   --top <n>      also show the n largest functions overall (default 5)
@@ -46,6 +47,7 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
+const ONLY_CARRIER = "/api/ai/agent-sdk";
 const BINARY = /node_modules\/@anthropic-ai\/claude-agent-sdk-[a-z0-9-]+\/claude(\.exe)?$/;
 const SDK = /node_modules\/@anthropic-ai\/claude-agent-sdk\//;
 
@@ -85,7 +87,9 @@ const mb = (b: number) => (b / 1_000_000).toFixed(1);
 const mib = (b: number) => (b / 1_048_576).toFixed(1);
 const pct = (b: number) => `${((b / limit) * 100).toFixed(0)}%`;
 const carry = fns.filter((f) => f.binaries.length).sort((a, b) => b.bytes - a.bytes);
-const missing = fns.filter((f) => carry.length && f.sdk && !f.binaries.length && !f.route.startsWith("/instrumentation"));
+const sdkOnly = fns.filter((f) => carry.length && f.sdk && !f.binaries.length && !f.route.startsWith("/instrumentation"));
+const strays = carry.filter((f) => f.route !== ONLY_CARRIER);
+const routeMissing = carry.length > 0 && !carry.some((f) => f.route === ONLY_CARRIER);
 const plain = fns.filter((f) => !f.binaries.length);
 const over = carry.filter((f) => f.bytes > limit);
 
@@ -111,8 +115,10 @@ if (top > 0) {
   console.log(`\nlargest ${top} functions overall:`);
   for (const f of [...fns].sort((a, b) => b.bytes - a.bytes).slice(0, top)) console.log(`  ${mb(f.bytes).padStart(7)} MB  ${f.route}${f.binaries.length ? "  (binary)" : ""}`);
 }
-if (missing.length) {
-  console.log(`\nThese functions trace the SDK but carry no binary — add them to AGENT_SDK_ROUTES in next.config.ts:`);
-  for (const f of missing) console.log(`  ${f.route}`);
+if (sdkOnly.length) console.log(`\n${sdkOnly.length} functions trace the SDK's JavaScript but carry no binary (they forward to ${ONLY_CARRIER}); largest ${mb(Math.max(...sdkOnly.map((f) => f.bytes)))} MB`);
+if (strays.length) {
+  console.log(`\nThese functions carry the binary but only ${ONLY_CARRIER} may — narrow outputFileTracingIncludes in next.config.ts:`);
+  for (const f of strays) console.log(`  ${f.route}`);
 }
-process.exit(missing.length || over.length ? 1 : 0);
+if (routeMissing) console.log(`\n${ONLY_CARRIER} does not carry the binary.`);
+process.exit(strays.length || routeMissing || over.length ? 1 : 0);

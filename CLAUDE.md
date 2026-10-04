@@ -132,7 +132,8 @@ tolerate a missing `.env.local`, so an environment that provides the variables i
 `CLAUDE_CODE_OAUTH_TOKEN` (Claude plan token from `claude setup-token`), `APP_CLAUDE_CODE_OAUTH_TOKEN` (alias, read when the first is absent),
 `CLAUDE_CODE_OAUTH_TOKEN_CREATED` (YYYY-MM-DD, for token expiry tracking), `OPENROUTER_API_KEY` (API key for OpenRouter),
 `OPENROUTER_APP_URL` (optional attribution). `npm run ai:smoke` is one paid call per capability (the owner's to run).
-**Important:** `AI_AGENT_SDK=1` must **not** be set in Vercel yet (the 246 MB binary would cause function size limit failures; see #518).
+The Claude plan on Vercel runs through one route, `/api/ai/agent-sdk`, guarded by `AI_AGENT_SDK_SECRET` and exempt from Basic Auth in `src/proxy.ts` (#518).
+**Important:** `AI_AGENT_SDK=1` must **not** be set in Vercel until the route PR is merged and its size (`npm run ai:trace-sizes`, under 250 MB) has been measured.
 
 The Neon database is in **`eu-central-1`** (AWS Frankfurt), so `vercel.json` pins functions to
 **`fra1`**, the Vercel region co-located with it. That pin used to live only in the Vercel dashboard,

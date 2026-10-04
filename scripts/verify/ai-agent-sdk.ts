@@ -350,7 +350,7 @@ async function availability(): Promise<void> {
   try {
     delete process.env.VERCEL;
     delete process.env.AI_AGENT_SDK;
-    const mk = (env: Record<string, string | undefined>) => createAnthropicAgentSdkProvider({ query: stub([{ text: "x" }]).query, env });
+    const mk = (env: Record<string, string | undefined>) => createAnthropicAgentSdkProvider({ query: stub([{ text: "x" }]).query, env, remote: false });
     assert.deepEqual(await mk({ CLAUDE_CODE_OAUTH_TOKEN: TOKEN }).available(), { ok: true });
     assert.deepEqual(await mk({ APP_CLAUDE_CODE_OAUTH_TOKEN: TOKEN }).available(), { ok: true });
     const none = await mk({}).available();
@@ -371,12 +371,12 @@ async function availability(): Promise<void> {
     assert.equal(noTok.ok, false);
     assert.match(noTok.ok ? "" : noTok.reason, /CLAUDE_CODE_OAUTH_TOKEN/);
     const onS = stub([{ text: "hello" }]);
-    const flagged = createAnthropicAgentSdkProvider({ query: onS.query, env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN, VERCEL: "1" } });
+    const flagged = createAnthropicAgentSdkProvider({ query: onS.query, env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN, VERCEL: "1" }, remote: false });
     await flagged.generate(ask());
     assert.equal((onS.calls[0].options.env as Record<string, string>).CLAUDE_CONFIG_DIR, "/tmp/claude-config");
     delete process.env.AI_AGENT_SDK;
     const s = stub([{ text: "x" }]);
-    await rejects(createAnthropicAgentSdkProvider({ query: s.query, env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN } }).generate(ask()), "unavailable");
+    await rejects(createAnthropicAgentSdkProvider({ query: s.query, env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN }, remote: false }).generate(ask()), "unavailable");
     assert.equal(s.calls.length, 0, "no query is started on Vercel");
   } finally {
     if (saved === undefined) delete process.env.VERCEL;

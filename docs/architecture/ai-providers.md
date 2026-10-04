@@ -35,7 +35,7 @@ The owner wants, in this order:
 - **Vision is off on the plan** (#527): the adapter sends image blocks, but `capabilities().vision` is `false` until a live scan proves the CLI reads them, so `scan_identify` goes to the fallback provider or fails with `unsupported`.
 - **The arena pins its slot's provider** (#526): Sparring and Tournament run on their `arena.*` slot (`{ provider, model }`) as a hard pin, so neither the global provider nor a fallback moves the opponent.
 - **Pickers offer structured-output models only** (#526, #528): an OpenRouter model counts as JSON-capable only when it lists `structured_outputs`; others still work through the schema in the prompt and core's one retry.
-- **The plan on Vercel is build-gated** (#529): the 246 MB `claude` binary is added only to a build made with `AI_AGENT_SDK=1`, which with today's route list would push 27 functions past 250 MB, so the flag must not be set in Vercel before the #518 rulings.
+- **The plan on Vercel runs through one route** (#529, #518): the 246 MB `claude` binary is added only to a build made with `AI_AGENT_SDK=1`, and only to `/api/ai/agent-sdk` (249.5 MB, `npm run ai:trace-sizes`). Every other function forwards its plan request there over HTTPS with the `AI_AGENT_SDK_SECRET` header (owner ruling, 4 Oct 2026; no large-functions beta, no Sandbox). Set `AI_AGENT_SDK=1` in Vercel only once this is merged and the size has been measured on a real deploy.
 - **Token expiry** (#527): `CLAUDE_CODE_OAUTH_TOKEN_CREATED` + 365 days; /settings warns for the last 30 days and `available()` fails after it.
 - **`recordRun` reads the model and provider from the result** (#521, #524), so a caller no longer passes the model.
 
@@ -231,10 +231,14 @@ deployment: the binary is in the function bundle (`outputFileTracingIncludes`, m
 `serverExternalPackages`), the function stays under 250 MB uncompressed (or uses the large-functions
 beta, which needs the owner's go), and cold-start latency is acceptable. Only `main` deploys, so the
 spike ships **inert**: an admin-only "Test connection" that does nothing unless `AI_AGENT_SDK=1` is
-set. The bundling question it answers: does the binary go into every function that can call a model,
-or into one internal route the adapter calls (API routes are allowed in this repo; it would be
-admin/Basic-Auth-guarded like the rest)? Plan B, only with the owner's go: the SDK inside a Vercel
-Sandbox.
+set. The bundling question it answered: every AI-calling function would carry the binary and 27 of
+them would pass 250 MB, so the owner ruled (4 Oct 2026) for **one internal route** that carries it
+(`src/app/api/ai/agent-sdk/route.ts`, `providers/agent-sdk-remote.ts`). No Sandbox, no large-functions
+beta, no per-task `arena_move` override. Guard: a shared secret (`AI_AGENT_SDK_SECRET`, header
+`x-ai-agent-sdk-secret`, constant-time compare, 401 when unset or wrong) instead of a browser login,
+because the callers are functions; `src/proxy.ts` exempts exactly that path from Basic Auth. The wire
+is the request minus the Zod schema (already folded into the system prompt) and the answer or a
+serialized `AiError` back; the caller's core validates JSON as for a local run.
 
 ## OpenRouter (`openrouter.ts`) — the second vendor, chosen by the owner (4 Oct 2026)
 
@@ -357,7 +361,7 @@ model never rewrites a stored answer.
 - **Child environment** is an allow-list (`PATH`, `HOME`, temp/profile and proxy variables), plus `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`. The API keys are not on the list, so they cannot leak.
 - **JSON** is asked for in the system prompt (the Zod schema as JSON Schema) and validated by core, with its one retry; the SDK's native `outputFormat` is not used. **Images** go in as image blocks of one streamed user message, but `vision` is declared `false` until a live scan on the plan proves the CLI reads them, so `scan_identify` goes to the fallback provider. `maxTokens` is not passed: the SDK has no option for it.
 - **Token.** `CLAUDE_CODE_OAUTH_TOKEN` or `APP_CLAUDE_CODE_OAUTH_TOKEN`; `CLAUDE_CODE_OAUTH_TOKEN_CREATED` (YYYY-MM-DD) plus 365 days is the expiry; /settings warns for the last 30 days and `available()` fails after it.
-- **Availability.** On Vercel false unless `AI_AGENT_SDK=1` (#518, inert by default; with the flag, the same checks as locally; the child gets `CLAUDE_CONFIG_DIR=/tmp/claude-config`; `next.config.ts` puts the linux-x64 `claude` binary into the AI-calling functions only in a build made with `AI_AGENT_SDK=1` (246 MB: see the size table on #518), sizes via `npm run ai:trace-sizes`, latency via `npm run ai:latency`); locally false without a token or after an auth failure until a call succeeds. It makes no model call, so a probe costs no plan usage; the owner's Test connection is the live check.
+- **Availability.** On Vercel false unless `AI_AGENT_SDK=1` (#518, inert by default). With the flag: the token checks plus `AI_AGENT_SDK_SECRET`, and no model call or SDK load in the caller. `generate()` there forwards to `/api/ai/agent-sdk` (`providers/agent-sdk-remote.ts`; URL from `AI_AGENT_SDK_URL`, else `VERCEL_PROJECT_PRODUCTION_URL` on production, else `VERCEL_URL`; timeout 140 s under the route's `maxDuration` 150 s, the adapter's own 110 s inside) and re-throws the route's `AiError` kind; transport failures are `unavailable` / `timeout` / `provider`. The route runs the same adapter in-process (child gets `CLAUDE_CONFIG_DIR=/tmp/claude-config`). `next.config.ts` puts the linux-x64 `claude` binary into that one route only in a build made with `AI_AGENT_SDK=1` (and drops three unused SDK files from it to stay under 250 MB), `npm run ai:trace-sizes` fails if any other function carries it; latency via `npm run ai:latency`; locally false without a token or after an auth failure until a call succeeds. It makes no model call, so a probe costs no plan usage; the owner's Test connection is the live check.
 
 ## Token renewal (subscription adapter)
 
