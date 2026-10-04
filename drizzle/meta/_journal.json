@@ -281,6 +281,13 @@
       "when": 1790932835841,
       "tag": "0039_married_marrow",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791112089245,
+      "tag": "0040_legal_spiral",
+      "breakpoints": true
     }
   ]
 }

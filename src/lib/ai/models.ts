@@ -2,8 +2,8 @@
  * The models the app runs, by name and by tier. The ids and the owner's rulings
  * behind them (3 Sep and 1 Oct 2026, #381) live here so a provider adapter can
  * read them without importing `client.ts` (which imports the provider
- * registry). Prices, the per-provider tables and the settings' model picker
- * join this file in #515 and #516.
+ * registry). Prices (#515), the per-provider tables and the settings' model picker
+ * join this file in #516.
  */
 import type { Tier } from "./types";
 
@@ -31,6 +31,20 @@ export interface ModelCaps {
   effort: boolean;
   adaptiveThinking: boolean;
   vision: boolean;
+}
+
+/** Anthropic list prices, US dollars per million tokens (checked 4 Sep 2026). */
+export const PRICES: Record<string, { input: number; output: number }> = {
+  "claude-opus-5": { input: 5, output: 25 },
+  "claude-sonnet-5-5": { input: 2, output: 10 },
+  "claude-haiku-4-5": { input: 1, output: 5 },
+};
+
+/** Millionths of a dollar for one call. Cached input is billed at a tenth. */
+export function costMicros(spend: { model: string; input: number; output: number; cached: number }): number {
+  const p = PRICES[spend.model] ?? PRICES["claude-opus-5"];
+  const dollars = (spend.input * p.input + spend.cached * p.input * 0.1 + spend.output * p.output) / 1_000_000;
+  return Math.round(dollars * 1_000_000);
 }
 
 /** The Anthropic API's models. A model that is not listed is sent no effort and no thinking. */

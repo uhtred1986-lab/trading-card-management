@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
+import { costMicros } from "@/lib/ai/models";
 import { skillsOf } from "../text/cards";
 import { type Action, type Area, type PlayerId } from "../types";
 import { markRuleSeen, saveRule } from "../rules-store";
@@ -25,19 +26,8 @@ import { shownName, stateText } from "./view";
 import { tableOf } from "./table";
 import { chooseMove, ruleOnCard, type Tier } from "./opponent";
 
-/** Anthropic list prices, US dollars per million tokens (checked 4 Sep 2026). */
-export const PRICES: Record<string, { input: number; output: number }> = {
-  "claude-opus-5": { input: 5, output: 25 },
-  "claude-sonnet-5-5": { input: 2, output: 10 },
-  "claude-haiku-4-5": { input: 1, output: 5 },
-};
-
-/** Millionths of a dollar for one call. Cached input is billed at a tenth. */
-export function costMicros(spend: { model: string; input: number; output: number; cached: number }): number {
-  const p = PRICES[spend.model] ?? PRICES["claude-opus-5"];
-  const dollars = (spend.input * p.input + spend.cached * p.input * 0.1 + spend.output * p.output) / 1_000_000;
-  return Math.round(dollars * 1_000_000);
-}
+/** Re-exported from models.ts for backward compatibility (#515). */
+export { PRICES, costMicros } from "@/lib/ai/models";
 
 /**
  * In a game against Claude, Claude is always the second player.
