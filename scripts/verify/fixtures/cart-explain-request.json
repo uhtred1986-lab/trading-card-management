@@ -1,0 +1,75 @@
+{
+  "request": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "output_config": {
+      "format": {
+        "type": "json_schema",
+        "schema": {
+          "$defs": {
+            "__schema0": {
+              "type": "string"
+            },
+            "__schema1": {
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "properties": {
+            "recommendation": {
+              "type": "string",
+              "description": "2–4 sentences: which plan to pick and why"
+            },
+            "tradeoffs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "description": "{maxItems: 5}"
+            },
+            "warnings": {
+              "type": "array",
+              "description": "Missing cards, vacationing sellers, odd prices, non-EU sellers\n\n{maxItems: 5}",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "recommendation",
+            "tradeoffs",
+            "warnings"
+          ],
+          "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+        }
+      }
+    },
+    "system": "You help a Dragon Ball Super card collector in Austria choose between shopping-cart plans computed by a deterministic optimiser. Do not recompute totals; reason about the trade-offs given. Prices are EUR.",
+    "messages": [
+      {
+        "role": "user",
+        "content": "CHEAPEST PLAN: total €15.00 across 1 seller(s)\n  ShopA (AT): items €12.00 + shipping €3.00 — 2× BT1-001 @ €6.00\n  missing: 1× BT1-002\n\nFEWEST-SELLERS PLAN: not possible\n\nBUYER PREFERENCES: no vacationing sellers\n\nExplain which to choose."
+      }
+    ]
+  },
+  "run": {
+    "kind": "cart_explain",
+    "deckId": null,
+    "model": "claude-haiku-4-5",
+    "input": {
+      "preferences": "no vacationing sellers"
+    },
+    "output": {
+      "recommendation": "Pick the cheapest.",
+      "tradeoffs": [
+        "one"
+      ],
+      "warnings": []
+    },
+    "inputTokens": 10,
+    "outputTokens": 20,
+    "cacheReadTokens": 0,
+    "cacheCreationTokens": 0
+  }
+}
