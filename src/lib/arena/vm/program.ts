@@ -398,6 +398,8 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // Mode card grants none at all (23-5-2), which `base.skill` being absent
   // there already gives for free.
   if (game.attributes.keywords) base.keywords = printedKeywordNames(typeof base.skill === "string" ? base.skill : null);
+  // 1-5-9, 9-1-4: a filter's bare "skill-less" — the legacy `skillLessNow`.
+  if (game.attributes.skillLess) base.skillLess = skillLessNow(ctx, state, id, standing);
   // The value every layer is applied *to*, so an attribute the base left out —
   // a hidden card's power — stays out rather than falling back to the catalog
   // row the spread above would have carried.
@@ -424,6 +426,21 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (typeof current === "number") out[fact.attr] = current + fact.delta;
   }
   return out;
+}
+
+/**
+ * 1-5-9, 9-1-4: the card has no skill in force — every line its face shows
+ * (copies included, 20-18) is negated or there is none, and no keyword is
+ * granted to it by an effect or a [Permanent] in force (`standing`, which
+ * `attrsNow` has already read). A Hidden Mode card has no text to read at
+ * all (23-5-2). The legacy engine's `skillLessNow`, over this engine's state.
+ */
+function skillLessNow(ctx: EngineContext, state: VmState, id: string, standing: readonly VmStatic[]): boolean {
+  const card = state.cards[id];
+  if (!card || card.hidden) return true;
+  if (!skillsNegated(state, id) && skillsShowing(ctx, state, id).skills.some((sk) => !skillNegated(state, id, sk.index, sk.kind))) return false;
+  const granted = (e: { kind: string; target?: string; value?: unknown }) => e.kind === "keyword" && e.target === id && !keywordNegatedFor(state, id, (e.value as KeywordSkill)?.name);
+  return !state.effects.some(granted) && !standing.some(granted);
 }
 
 /**

@@ -381,6 +381,7 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   originalPowerMin: { originalPowerMin: 15000 },
   originalPowerMax: { originalPowerMax: 10000 },
   originallySkillLess: { originallySkillLess: true },
+  skillLess: { skillLess: true },
   comboPowerMin: { comboPowerMin: 5000 },
   comboPowerMax: { comboPowerMax: 5000 },
   faceUp: { faceUp: true },

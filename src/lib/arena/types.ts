@@ -61,6 +61,16 @@ export interface CardDef {
    * through, so nothing that reads a catalog row has to know about it.
    */
   alsoNames?: string[];
+  /**
+   * Whether the card has no skill in force right now (1-5-9, 9-1-4): none
+   * printed or every one negated, and none granted or copied. What a filter's
+   * bare "skill-less" asks (`CardFilter.skillLess`).
+   *
+   * Set only by `cardNow`, and read lazily there, because it asks the table
+   * about negations and grants and almost no filter wants it. Absent on a
+   * catalog row, where `matches` falls back to the printed text.
+   */
+  skillLess?: boolean;
 }
 
 /** One printed skill line, parsed by `cards.ts`. */

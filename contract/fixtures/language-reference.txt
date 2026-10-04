@@ -3499,6 +3499,14 @@
       ]
     },
     {
+      "field": "skillLess",
+      "type": "boolean",
+      "printed": "skill-less",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
       "field": "powerRel",
       "type": "powerRel",
       "printed": "card with power less than or equal to this card's power",

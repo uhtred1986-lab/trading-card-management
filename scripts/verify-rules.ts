@@ -879,6 +879,15 @@ assert.equal(specifiedCostWords({}), "no colour");
   // Combo power was the first example of a dropped word here; #486 made it a
   // measure (comboPowerMin/Max), so it now reads whole — see the list below.
   assert.deepEqual(unreadFilterWords("card with 5000 combo power", parseFilter("card with 5000 combo power")), []);
+  // "Skill-less" was dropped the same way until 3 Oct 2026; now a measure,
+  // and the predicate form names it too.
+  assert.deepEqual(unreadFilterWords("skill-less Battle Card", parseFilter("skill-less Battle Card")), []);
+  {
+    const pred = chooseFrom("(skillLess = true AND type = BATTLE)");
+    const said = chooseFrom('"skill-less Battle Card"');
+    assert.ok(pred.ok, `the predicate form reads skillLess${pred.ok ? "" : ` — ${pred.error.message}`}`);
+    if (pred.ok && said.ok) assert.deepEqual(pred.value, said.value, "skillLess: the predicate form and the words are one filter");
+  }
 
   // Every wording `parseFilter` does read still parses, in the card's own
   // words as well as the reading's — plurals, hyphens, either word order.
@@ -897,6 +906,9 @@ assert.equal(specifiedCostWords({}), "no colour");
     "Battle Card with power less than or equal to this card's power",
     "Battle Card with power no more than this card's power",
     "red Extra Card with an energy cost of 1 and no keyword skills",
+    // 1-5-9, 9-1-4: bare "skill-less" is a measure of its own since 3 Oct 2026.
+    "red skill-less Battle Cards",
+    "yellow originally skill-less Battle Card",
   ]) {
     const r = chooseFrom(JSON.stringify(words));
     assert.ok(r.ok, `reads whole: ${words}${r.ok ? "" : ` — ${r.error.message}`}`);
