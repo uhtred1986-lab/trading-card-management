@@ -329,6 +329,16 @@ model never rewrites a stored answer.
   fallback's own tier model is used.
 - **Capability is checked per model too**: a model known to have no image input (from `models.ts`, or
   remembered from a provider's `listModels()`) counts as "cannot read images".
+- **A provider with no tier table needs models.** Only the two Anthropic providers have default models
+  (`TIERS` in `models.ts`); a call routed to any other (OpenRouter) with no model would fail. So
+  `checkModelsChosen` (`settings-form.ts`) runs on the *resulting* settings of the provider, tiers and
+  tasks forms: the global provider and the fallback need all three tiers set for them, a task override
+  naming such a provider needs the task's model or those three tiers, and clearing tier models a saved
+  choice relies on is refused, each with a message naming the provider. The arena slots always carry a
+  model and are not checked.
+- **An unreachable model list does not block a save.** An empty list (the provider's `listModels()`
+  failed) restricts nothing; a model the list does know is still held to what the task needs. (Pattern
+  from `gullet-cove-dm`'s `checkSettingsInput`.)
 - **Access.** The AI block is editable by an arena admin (`isArenaAdmin()`); everyone else sees it
   read-only. Test connection is a real call on a paid provider and writes no `ai_runs` row.
 
@@ -347,8 +357,25 @@ model never rewrites a stored answer.
   `anthropic/*` models.
 - **Usage.** `prompt_tokens_details.cached_tokens` and `cache_write_tokens` are cache read / write;
   `input` is `prompt_tokens` minus both (the docs do not say whether `prompt_tokens` includes them; the
-  OpenAI convention is assumed). Cost is the listed price through `priceOf` (`rememberModelPrices`); the
-  reported `usage.cost` is not read.
+  OpenAI convention is assumed).
+- **Cost is taken at call time** (`AiResult.costMicros`, millionths of a dollar): the response's
+  `usage.cost` (credits, i.e. USD) if present, else the model's listed per-token prices, cache reads and
+  writes at `pricing.input_cache_read` / `input_cache_write` (the input price when not listed), else
+  absent. It is stored in `ai_runs.cost_micros` (nullable), added to the arena game's total, and used by
+  `ai:spend` as stored (`src/lib/ai/spend.ts`); a row without it (Anthropic's, or from before) is priced
+  by the old token formula. The Anthropic adapters leave it undefined.
+- **The requested id is the id.** `result.model` is the model asked for, which is what `ai_runs`, the
+  arena spend and the remembered prices use; an id the response says it served instead is kept in the
+  optional `servedModel` and priced by nothing.
+- **Hardening** (patterns from the sister repo `gullet-cove-dm`, credited): a model with no fixed price
+  (missing or negative `pricing.prompt`/`completion`, e.g. `openrouter/auto`) is not listed;
+  `reasoning.effort` goes out only when the model's `reasoning.supported_efforts` (when it lists any)
+  contains it, else adaptive thinking alone enables reasoning; a model id with no `vendor/` prefix
+  (nothing chosen, or the table's Claude default) fails early with `unsupported` ("pick a model in the
+  AI settings"). Fields confirmed against https://openrouter.ai/docs/api-reference/overview (`usage.cost`),
+  https://openrouter.ai/docs/api-reference/models/get-models (pricing fields, `reasoning.supported_efforts`)
+  and https://openrouter.ai/docs/guides/best-practices/reasoning-tokens; the docs do not say that a
+  negative price means "varies" (that is gullet-cove's reading of the router entries).
 - **Errors.** 401 `auth`, 402 `usage_limit`, 408 `timeout`, 429 `rate_limit`, anything else `provider`;
   an `error` object inside a 200 (body or choice) is mapped by its own `code`. `finish_reason`
   `content_filter` or a `message.refusal` is `refusal`; `length` is `max_tokens`.
