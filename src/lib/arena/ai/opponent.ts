@@ -18,10 +18,10 @@
  *   5. Two tiers: Sparring runs everything on Haiku 4.5; Tournament sends the
  *      Main Phase and counter windows to Opus 5 (the owner's choice).
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Db } from "@/db";
-import { FAST_MODEL, MODEL, anthropic, hasAnthropic, recordRun } from "@/lib/ai/client";
+import { hasAnthropic, recordRun } from "@/lib/ai/client";
+import { generateJson } from "@/lib/ai/core";
 import { other, type EngineContext, type LegalAction, type PlayerId } from "../types";
 import { validateProgram, type Op } from "../vm/script";
 import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../vm/script";
@@ -99,11 +99,10 @@ const MoveSchema = z.object({
  */
 function systemBlocks(ctx: EngineContext, s: EngineState, p: PlayerId) {
   return [
-    { type: "text" as const, text: RULES_PRIMER },
+    { text: RULES_PRIMER, cache: "long" as const },
     {
-      type: "text" as const,
       text: `YOUR DECK (${nameOf(s, p)}):\n${decklistText(ctx, s, p)}`,
-      cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
+      cache: "long" as const,
     },
   ];
 }
@@ -183,14 +182,14 @@ function freeChoice(ctx: EngineContext, s: EngineState, legal: LegalAction[], p:
 }
 
 /** Tournament sends the decisions that shape a turn to the stronger model. */
-function modelFor(tier: Tier, s: EngineState): { model: string; effort?: "low" | "medium" } {
-  if (tier === "sparring") return { model: FAST_MODEL };
+function tierFor(tier: Tier, s: EngineState): { tier: "fast" | "standard" | "best"; effort?: "low" | "medium" | "high" } {
+  if (tier === "sparring") return { tier: "fast" };
   // `combo` joined the list after a Tournament game in which Claude spent
   // three cards on a turn-3 attack it was already winning: how much of a hand
   // to spend on one battle is exactly the kind of judgement the tier is for,
   // and it had been going to the fast model every time.
   const heavy = s.prompt.kind === "main" || s.prompt.kind === "counter" || s.prompt.kind === "blocker" || s.prompt.kind === "combo";
-  return heavy ? { model: MODEL, effort: "medium" } : { model: FAST_MODEL };
+  return heavy ? { tier: "best", effort: "medium" } : { tier: "fast" };
 }
 
 // ── the decision ───────────────────────────────────────────────────────────
@@ -203,28 +202,28 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
   // Everything below reads the table through `tableOf` (`./table.ts`, #457),
   // so a real decision is put to Claude on either engine, in the same words
   // for the same position.
-  const { model, effort } = modelFor(tier, s);
+  const { tier: tierName, effort } = tierFor(tier, s);
   const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence of table talk. Your opponent reads that sentence, so never name or hint at a card in your hand, your life or your deck.`;
 
-  const res = await anthropic().messages.parse({
-    model,
-    max_tokens: 1500,
-    // Haiku 4.5 rejects both adaptive thinking and output_config.effort.
-    ...(model === MODEL ? { thinking: { type: "adaptive" as const } } : {}),
-    output_config: { ...(effort ? { effort } : {}), format: zodOutputFormat(MoveSchema) },
+  const res = await generateJson({
+    task: "arena_move",
+    tier: tierName,
+    maxTokens: 1500,
+    ...(tierName === "best" ? { thinking: "adaptive" } : {}),
+    ...(effort ? { effort } : {}),
+    schema: MoveSchema,
     system: systemBlocks(ctx, s, p),
-    messages: [{ role: "user", content: question }],
+    messages: [{ role: "user", parts: [{ type: "text", text: question }] }],
   });
 
-  const { output } = await recordRun<z.infer<typeof MoveSchema>>(db, "arena_move", { prompt: s.prompt.kind, turn: s.turn, moves: legal.length }, res, undefined, model);
+  const { output } = await recordRun<z.infer<typeof MoveSchema>>(db, "arena_move", { prompt: s.prompt.kind, turn: s.turn, moves: legal.length }, res);
   // The engine still refuses anything illegal; this only keeps an out-of-range
   // answer from throwing before it gets there.
   const index = Number.isInteger(output.move) && output.move >= 0 && output.move < legal.length ? output.move : 0;
-  const usage = res.usage as { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number };
   return {
     index,
     say: output.say?.trim() || null,
-    spend: { model, input: usage.input_tokens, output: usage.output_tokens, cached: usage.cache_read_input_tokens ?? 0 },
+    spend: { model: res.model, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead },
     how: index === output.move ? "chosen by Claude" : `Claude answered ${output.move}, which is not on the list — took the first move`,
   };
 }
@@ -377,28 +376,34 @@ export async function ruleOnCard(
   situation: string,
 ): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; input: number; output: number; cached: number } | null }> {
   if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", valid: false, spend: null };
-  const res = await anthropic().messages.parse({
-    model: MODEL,
-    max_tokens: 4000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "medium", format: zodOutputFormat(RulingSchema) },
-    system: [{ type: "text", text: EFFECT_LANGUAGE, cache_control: { type: "ephemeral", ttl: "1h" } }],
+  const res = await generateJson({
+    task: "arena_referee",
+    tier: "best",
+    maxTokens: 4000,
+    thinking: "adaptive",
+    effort: "medium",
+    schema: RulingSchema,
+    system: [{ text: EFFECT_LANGUAGE, cache: "long" }],
     messages: [
       {
         role: "user",
-        content: `CARD: ${request.cardName} (${request.cardId})\nFULL SKILL LINE: ${request.text}\nThe parts the engine could not read: ${request.unsupported.join(" | ")}\n\nSITUATION:\n${situation}\n\nGive the operations for this skill, now.`,
+        parts: [
+          {
+            type: "text",
+            text: `CARD: ${request.cardName} (${request.cardId})\nFULL SKILL LINE: ${request.text}\nThe parts the engine could not read: ${request.unsupported.join(" | ")}\n\nSITUATION:\n${situation}\n\nGive the operations for this skill, now.`,
+          },
+        ],
       },
     ],
   });
-  const { output } = await recordRun<z.infer<typeof RulingSchema>>(db, "arena_referee", { cardId: request.cardId, unsupported: request.unsupported }, res, undefined, MODEL);
+  const { output } = await recordRun<z.infer<typeof RulingSchema>>(db, "arena_referee", { cardId: request.cardId, unsupported: request.unsupported }, res);
   let ops: unknown;
   try {
     ops = JSON.parse(output.program);
   } catch {
     ops = [];
   }
-  const usage = res.usage as { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number };
-  const spend = { model: MODEL, input: usage.input_tokens, output: usage.output_tokens, cached: usage.cache_read_input_tokens ?? 0 };
+  const spend = { model: res.model, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead };
   // A malformed ruling is treated as "nothing happens" rather than trusted.
   if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend };
   return { ops: ops as Op[], why: output.why, valid: true, spend };

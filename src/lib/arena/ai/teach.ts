@@ -8,25 +8,27 @@
  * once, at most three questions — is the pure loop in `teach/words.ts`; this
  * file only supplies its `ask`.
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { Db } from "@/db";
-import { MODEL, anthropic, recordRun } from "@/lib/ai/client";
+import { recordRun } from "@/lib/ai/client";
+import { generateJson } from "@/lib/ai/core";
 import { TeachReplySchema, type AskTeach, type TeachReply } from "../teach/words";
 
 /** An `ask` for `teachInWords` that calls Claude and records the run against the rule. */
 export function claudeTeacher(db: Db, meta: { ruleId: number; cardId: string; clause: string }): AskTeach {
   return async (prompt) => {
-    const res = await anthropic().messages.parse({
-      model: MODEL,
-      max_tokens: 8000,
-      thinking: { type: "adaptive" },
+    const res = await generateJson({
+      task: "arena_teach",
+      tier: "best",
+      maxTokens: 8000,
+      thinking: "adaptive",
       // `medium`, not clarify's `high`: this one is answered on a phone, a
       // tap at a time, and a refused rule is retried with the parser's error.
-      output_config: { effort: "medium", format: zodOutputFormat(TeachReplySchema) },
-      system: [{ type: "text", text: prompt.system, cache_control: { type: "ephemeral", ttl: "1h" } }],
-      messages: [{ role: "user", content: prompt.user }],
+      effort: "medium",
+      schema: TeachReplySchema,
+      system: [{ text: prompt.system, cache: "long" }],
+      messages: [{ role: "user", parts: [{ type: "text", text: prompt.user }] }],
     });
-    const { output } = await recordRun<TeachReply>(db, "arena_teach", { ...meta, user: prompt.user }, res, undefined, MODEL);
+    const { output } = await recordRun<TeachReply>(db, "arena_teach", { ...meta, user: prompt.user }, res);
     return output;
   };
 }

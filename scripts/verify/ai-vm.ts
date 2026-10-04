@@ -35,7 +35,8 @@ import { zoneOf, type ZoneArea } from "../../src/lib/arena/engine-state";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { chooseMove } from "../../src/lib/arena/ai/opponent";
 import { decklistText, stateText } from "../../src/lib/arena/ai/view";
-import { anthropic } from "../../src/lib/ai/client";
+import { createFakeProvider } from "../../src/lib/ai/providers/fake";
+import { registerProvider } from "../../src/lib/ai/providers";
 
 const card = (id: string, o: Partial<CardDef> = {}): CardDef => ({
   id,
@@ -221,19 +222,16 @@ function toCombo(s: EngineState, eid: EngineId): EngineState {
 // request carries the same words as the legacy engine's for the same position.
 // The model call is a stub; nothing here can reach the network.
 {
-  const env = { key: process.env.ANTHROPIC_API_KEY, app: process.env.APP_ANTHROPIC_API_KEY, base: process.env.ANTHROPIC_BASE_URL };
   process.env.ANTHROPIC_API_KEY = "sk-test-not-a-real-key";
-  // Belt and braces: were the stub ever bypassed, the request would go nowhere.
-  process.env.ANTHROPIC_BASE_URL = "http://127.0.0.1:9";
-  const client = anthropic();
-  const messages = client.messages as unknown as { parse: (body: unknown) => Promise<unknown> };
-  const original = messages.parse;
-  const requests: { system: { text: string }[]; messages: { content: string }[]; model: string }[] = [];
-  messages.parse = async (body: unknown) => {
-    requests.push(body as (typeof requests)[number]);
-    return { parsed_output: { move: 1, say: "Your move." }, usage: { input_tokens: 100, output_tokens: 5, cache_read_input_tokens: 0 }, stop_reason: "end_turn" };
-  };
-  assert.equal(anthropic().messages.parse as unknown, messages.parse, "the model stub is not the client chooseMove will use");
+  const fakeProvider = createFakeProvider({
+    id: "anthropic-api",
+    script: () => ({
+      json: { move: 1, say: "Your move." },
+      usage: { input: 100, output: 5, cacheRead: 0 },
+    }),
+  });
+  registerProvider(fakeProvider);
+
   const runs: unknown[] = [];
   const db = { insert: () => ({ values: (v: unknown) => ({ returning: async () => (runs.push(v), [{ id: runs.length }]) }) }) } as unknown as Parameters<typeof chooseMove>[0];
   try {
@@ -243,18 +241,23 @@ function toCombo(s: EngineState, eid: EngineId): EngineState {
     for (const eid of both) {
       const legal = engineFor(eid).legalActions(CTX, s[eid]);
       assert.ok(legal.length > 1, `${eid}: the combo question has only one answer, so nothing would be asked`);
-      const before = requests.length;
+      const before = fakeProvider.requests.length;
       const choice = await chooseMove(db, CTX, s[eid], legal, "p1", "tournament");
-      assert.equal(requests.length, before + 1, `${eid}: chooseMove did not ask the (stubbed) model`);
+      assert.equal(fakeProvider.requests.length, before + 1, `${eid}: chooseMove did not ask the (stubbed) model`);
       assert.equal(choice.how, "chosen by Claude", `${eid}: ${choice.how}`);
       assert.equal(choice.index, 1);
       assert.equal(choice.say, "Your move.");
       assert.ok(choice.spend && choice.spend.input === 100, `${eid}: the spend was not read off the answer`);
-      const req = requests[requests.length - 1];
-      const [question, menu] = req.messages[0].content.split("\n\nLEGAL MOVES:\n");
+      const req = fakeProvider.requests[fakeProvider.requests.length - 1];
+      const userMessage = req.messages[0];
+      assert.ok(userMessage.role === "user", `${eid}: expected user message`);
+      const textPart = userMessage.parts.find((p) => p.type === "text");
+      assert.ok(textPart && textPart.type === "text", `${eid}: no text part in user message`);
+      const [question, menu] = textPart.text.split("\n\nLEGAL MOVES:\n");
       assert.equal(menu.split("\n\n")[0].split("\n").length, legal.length, `${eid}: the menu sent is not the legal list`);
       const moves = legal.map((l) => (l.action.type === "combo" ? `combo ${l.action.card ? s[eid].cards[l.action.card].cardId : "pass"}` : l.action.type));
-      asked[eid] = { question, system: req.system.map((b) => b.text).join("\n"), moves };
+      const systemText = req.system.map((b) => b.text).join("\n");
+      asked[eid] = { question, system: systemText, moves };
     }
     assert.equal(asked.rules.question, asked.legacy.question, "the question put to Claude differs between the engines");
     assert.equal(asked.rules.system, asked.legacy.system, "the system prompt (primer and decklist) differs between the engines");
@@ -262,11 +265,6 @@ function toCombo(s: EngineState, eid: EngineId): EngineState {
     assert.ok(asked.rules.question.includes("whether to add combo power in the Offense Step") && asked.rules.question.includes("L-RED attacks L-BLUE: 10,000 against 10,000"), `the combo question was not worked out on the rules engine:\n${asked.rules.question}`);
     assert.ok(asked.rules.system.includes("YOUR DECK (You)"), "the decklist block does not name the seat");
   } finally {
-    messages.parse = original;
-    for (const [k, v] of [["ANTHROPIC_API_KEY", env.key], ["APP_ANTHROPIC_API_KEY", env.app], ["ANTHROPIC_BASE_URL", env.base]] as const) {
-      if (v === undefined) delete process.env[k];
-      else process.env[k] = v;
-    }
   }
 }
 
