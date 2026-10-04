@@ -2,11 +2,11 @@
  * Claude explains the optimiser's output in plain language and applies the
  * user's soft preferences. It never does the arithmetic — see optimizer.ts.
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Db } from "@/db";
 import type { Plan } from "@/lib/marketplace/optimizer";
-import { FAST_MODEL, anthropic, recordRun } from "./client";
+import { recordRun } from "./client";
+import { generateJson } from "./core";
 
 export const CartExplanationSchema = z.object({
   recommendation: z.string().describe("2–4 sentences: which plan to pick and why"),
@@ -26,21 +26,25 @@ function planText(label: string, p: Plan | null): string {
 }
 
 export async function explainCart(db: Db, best: Plan, fewestSellers: Plan | null, preferences: string): Promise<{ runId: number; explanation: CartExplanation }> {
-  const res = await anthropic().messages.parse({
+  const res = await generateJson({
+    task: "cart_explain",
     // Haiku 4.5 (#381): prose over numbers the optimiser already computed. It
-    // rejects adaptive thinking and `output_config.effort`, so neither is sent.
-    model: FAST_MODEL,
-    max_tokens: 4000,
-    output_config: { format: zodOutputFormat(CartExplanationSchema) },
-    system:
-      "You help a Dragon Ball Super card collector in Austria choose between shopping-cart plans computed by a deterministic optimiser. Do not recompute totals; reason about the trade-offs given. Prices are EUR.",
+    // rejects adaptive thinking and `output_config.effort`, so neither is asked for.
+    tier: "fast",
+    maxTokens: 4000,
+    schema: CartExplanationSchema,
+    system: [
+      {
+        text: "You help a Dragon Ball Super card collector in Austria choose between shopping-cart plans computed by a deterministic optimiser. Do not recompute totals; reason about the trade-offs given. Prices are EUR.",
+      },
+    ],
     messages: [
       {
         role: "user",
-        content: `${planText("CHEAPEST PLAN", best)}\n\n${planText("FEWEST-SELLERS PLAN", fewestSellers)}\n\nBUYER PREFERENCES: ${preferences || "none stated"}\n\nExplain which to choose.`,
+        parts: [{ type: "text", text: `${planText("CHEAPEST PLAN", best)}\n\n${planText("FEWEST-SELLERS PLAN", fewestSellers)}\n\nBUYER PREFERENCES: ${preferences || "none stated"}\n\nExplain which to choose.` }],
       },
     ],
   });
-  const { id, output } = await recordRun<CartExplanation>(db, "cart_explain", { preferences }, res, undefined, FAST_MODEL);
+  const { id, output } = await recordRun<CartExplanation>(db, "cart_explain", { preferences }, res);
   return { runId: id, explanation: output };
 }
