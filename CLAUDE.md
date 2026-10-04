@@ -128,6 +128,12 @@ Claude Code on the web reserves `ANTHROPIC_API_KEY` for its own session and refu
 interactive transactions, so it is for the scripts, not the app server. The `arena:*` scripts
 tolerate a missing `.env.local`, so an environment that provides the variables itself needs none.
 
+**AI providers** (`docs/architecture/ai-providers.md`): `AI_PROVIDER` (anthropic-api, anthropic-agent-sdk, openrouter; default anthropic-api),
+`CLAUDE_CODE_OAUTH_TOKEN` (Claude plan token from `claude setup-token`), `APP_CLAUDE_CODE_OAUTH_TOKEN` (alias, read when the first is absent),
+`CLAUDE_CODE_OAUTH_TOKEN_CREATED` (YYYY-MM-DD, for token expiry tracking), `OPENROUTER_API_KEY` (API key for OpenRouter),
+`OPENROUTER_APP_URL` (optional attribution). `npm run ai:smoke` is one paid call per capability (the owner's to run).
+**Important:** `AI_AGENT_SDK=1` must **not** be set in Vercel yet (the 246 MB binary would cause function size limit failures; see #518).
+
 The Neon database is in **`eu-central-1`** (AWS Frankfurt), so `vercel.json` pins functions to
 **`fra1`**, the Vercel region co-located with it. That pin used to live only in the Vercel dashboard,
 where nothing in the repo recorded it and nothing would catch it drifting back to the `iad1`

@@ -13,9 +13,9 @@ Read before touching deck analysis, the wizard, card scanning, the cart explaine
 
 ## Models and spend (owner's ruling, 1 Oct 2026, #381)
 
-Model ids live in `src/lib/ai/client.ts` (`MODEL` Opus, `SONNET_MODEL`, `FAST_MODEL` Haiku); list
-prices in `PRICES` (`src/lib/arena/ai/run.ts`), which `npm run ai:spend` reads. Always pass the model
-to `recordRun` so `ai_runs.model` is the one that ran.
+Model ids, providers, capabilities and list prices are in `docs/architecture/ai-providers.md` (see
+**Models** and **As built** sections). `npm run ai:spend` reports billed and notional cost per provider.
+`recordRun` takes the model and provider from the call's result, so `ai_runs` records what actually ran.
 
 | Call | Model | Request shape |
 |---|---|---|
