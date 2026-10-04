@@ -41,6 +41,13 @@ const DAY_MS = 86_400_000;
 export const DEFAULT_TIMEOUT_MS = 110_000;
 
 /** `CLAUDE_CODE_OAUTH_TOKEN`, or `APP_CLAUDE_CODE_OAUTH_TOKEN` where Claude Code on the web reserves the first name. */
+/** On Vercel the subscription is off unless `AI_AGENT_SDK=1` (#518): the spike ships inert. Locally it is always allowed. */
+export function agentSdkAllowed(source: Env = process.env): boolean {
+  return !source.VERCEL || source.AI_AGENT_SDK === "1";
+}
+
+const NOT_ON_VERCEL = "The Claude plan is switched off on Vercel — set AI_AGENT_SDK=1 to try it (#518).";
+
 export function agentSdkToken(env: Env = process.env): string | undefined {
   return env.CLAUDE_CODE_OAUTH_TOKEN || env.APP_CLAUDE_CODE_OAUTH_TOKEN || undefined;
 }
@@ -84,6 +91,8 @@ export function buildChildEnv(token: string, source: Env = process.env): Record<
   for (const k of PASS_THROUGH) if (source[k]) env[k] = source[k] as string;
   env.CLAUDE_CODE_OAUTH_TOKEN = token;
   env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = "1";
+  // A Vercel function can write only under /tmp; the CLI keeps its config and session files in this directory.
+  if (source.VERCEL) env.CLAUDE_CONFIG_DIR = path.join(source.TMPDIR || "/tmp", "claude-config");
   return env;
 }
 
@@ -189,7 +198,7 @@ export function createAnthropicAgentSdkProvider(opts: AgentSdkOptions = {}): AiP
       return { vision: false, json: true, streaming: false, cacheHints: false, batch: false };
     },
     async available(): Promise<Availability> {
-      if (process.env.VERCEL) return { ok: false, reason: "The Claude plan is not available on Vercel yet (#518); it runs locally." };
+      if (!agentSdkAllowed(process.env)) return { ok: false, reason: NOT_ON_VERCEL };
       if (!agentSdkToken(env)) return { ok: false, reason: "CLAUDE_CODE_OAUTH_TOKEN is not set — run `claude setup-token` and put the token in .env.local." };
       const exp = tokenExpiry(env.CLAUDE_CODE_OAUTH_TOKEN_CREATED);
       if (exp?.state === "expired") return { ok: false, reason: exp.message ?? "The Claude plan token has expired." };
@@ -209,7 +218,7 @@ export function createAnthropicAgentSdkProvider(opts: AgentSdkOptions = {}): AiP
     },
     async generate(req: AiRequest): Promise<AiResult> {
       const token = agentSdkToken(env);
-      if (process.env.VERCEL) throw aiError("unavailable", LABEL, { provider: AGENT_SDK_ID, detail: "The Claude plan is not available on Vercel yet (#518)." });
+      if (!agentSdkAllowed(process.env)) throw aiError("unavailable", LABEL, { provider: AGENT_SDK_ID, detail: NOT_ON_VERCEL });
       if (!token) throw aiError("unavailable", LABEL, { provider: AGENT_SDK_ID, detail: "CLAUDE_CODE_OAUTH_TOKEN is not set." });
       if (!loggedCache && req.system.some((b) => b.cache && b.cache !== "none")) {
         loggedCache = true;
