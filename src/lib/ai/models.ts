@@ -11,9 +11,7 @@
  * multipliers used in `scripts/ai-spend.mts`). Dynamic model pricing from
  * providers' `listModels()` is cached via `rememberModelPrices()`.
  */
-import type { ProviderId } from "./types";
-import type { Tier } from "./types";
-import type { ModelInfo } from "./types";
+import type { ModelInfo, ProviderId, Tier } from "./types";
 
 /** Opus: the heavy tier. */
 export const MODEL = "claude-opus-5";
@@ -52,6 +50,9 @@ export interface ModelEntry {
   /** US dollars per million tokens: input, output, cache read (0.1× input), cache write (1.25× input). */
   usdPerMTok: { input: number; output: number; cacheRead: number; cacheWrite: number };
 }
+
+/** Prices a provider reported from `listModels()` for models in no table, keyed `provider:model`. */
+const rememberedModelPrices = new Map<string, ModelEntry>();
 
 /** The models the app runs, by provider. Today only anthropic-api; other vendors join in #520. */
 const MODELS: Record<string, ModelEntry[]> = {
@@ -93,44 +94,39 @@ export function modelsOf(provider: ProviderId = "anthropic-api"): ModelEntry[] {
 
 /** Get one model by id. Checks the table first, then remembered prices (for vendor-supplied models). */
 export function modelEntry(id: string, provider: ProviderId = "anthropic-api"): ModelEntry | undefined {
-  const found = modelsOf(provider).find((m) => m.id === id);
-  if (found) return found;
-  // Check remembered prices from listModels() for this provider and model.
-  const remembered = rememberedModelPrices.get(`${provider}:${id}`);
-  if (remembered) return remembered;
-  return undefined;
+  return modelsOf(provider).find((m) => m.id === id) ?? rememberedModelPrices.get(`${provider}:${id}`);
 }
 
-/** Anthropic list prices, US dollars per million tokens: derived from MODELS for backward compatibility. */
-export const PRICES: Record<string, { input: number; output: number }> = {
-  "claude-opus-5": { input: 5, output: 25 },
-  "claude-sonnet-5-5": { input: 2, output: 10 },
-  "claude-haiku-4-5": { input: 1, output: 5 },
-};
+/** Anthropic list prices, US dollars per million tokens, read off {@link MODELS} (the shape callers had from `arena/ai/run.ts`). */
+export const PRICES: Record<string, { input: number; output: number }> = Object.fromEntries(
+  modelsOf("anthropic-api").map((m) => [m.id, { input: m.usdPerMTok.input, output: m.usdPerMTok.output }]),
+);
 
 /**
- * Millionths of a dollar for one call. Input and output at list price; cache
- * reads at 0.1×, cache writes at 1.25×.
+ * Millionths of a dollar for one call: input and output at list price, cached
+ * reads at a tenth of the input price (cache writes are not counted, as before
+ * #515). A model in no table is priced as Opus, as before.
  */
-export function costMicros(spend: { model: string; input: number; output: number; cached: number }): number {
-  const p = PRICES[spend.model] ?? PRICES["claude-opus-5"];
+export function costMicros(spend: { model: string; input: number; output: number; cached: number; provider?: ProviderId }): number {
+  const p = priceOf(spend.model, spend.provider);
   const dollars = (spend.input * p.input + spend.cached * p.input * 0.1 + spend.output * p.output) / 1_000_000;
   return Math.round(dollars * 1_000_000);
 }
 
-/** The Anthropic API's models. A model that is not listed is sent no effort and no thinking. */
-export const ANTHROPIC_MODELS: Record<string, ModelCaps & { label: string }> = {
-  [MODEL]: { label: "Claude Opus 5", effort: true, adaptiveThinking: true, vision: true },
-  [SONNET_MODEL]: { label: "Claude Sonnet 5.5", effort: true, adaptiveThinking: true, vision: true },
-  [FAST_MODEL]: { label: "Claude Haiku 4.5", effort: false, adaptiveThinking: false, vision: true },
+/** The Anthropic API's models, read off {@link MODELS}. A model that is not listed is sent no effort and no thinking. */
+export const ANTHROPIC_MODELS: Record<string, ModelCaps & { label: string }> = Object.fromEntries(
+  modelsOf("anthropic-api").map((m) => [m.id, { label: m.label, effort: m.effort, adaptiveThinking: m.adaptiveThinking, vision: m.vision }]),
+);
+
+/** The model for each tier, per provider. Today only the Anthropic API; #516 lets the settings override it. */
+export const TIERS: Record<string, Record<Tier, string>> = {
+  "anthropic-api": { fast: FAST_MODEL, standard: SONNET_MODEL, best: MODEL },
 };
 
 /** The Anthropic API's model for each tier. */
-export const ANTHROPIC_TIERS: Record<Tier, string> = { fast: FAST_MODEL, standard: SONNET_MODEL, best: MODEL };
+export const ANTHROPIC_TIERS: Record<Tier, string> = TIERS["anthropic-api"];
 
 /** Remember model prices from a provider's `listModels()` so priceOf() can use them. Called by provider adapters. */
-const rememberedModelPrices = new Map<string, ModelEntry>();
-
 export function rememberModelPrices(provider: ProviderId, models: ModelInfo[]): void {
   for (const m of models) {
     if (m.usdPerMTok) {
@@ -157,7 +153,7 @@ export function rememberModelPrices(provider: ProviderId, models: ModelInfo[]): 
 
 /** Get the price of a model, checking the table first, then remembered prices, then falling back to Opus. */
 export function priceOf(model: string, provider: ProviderId = "anthropic-api"): { input: number; output: number } {
-  const entry = modelEntry(model, provider);
+  const entry = modelEntry(model, provider) ?? modelEntry(model, "anthropic-api");
   if (entry) return { input: entry.usdPerMTok.input, output: entry.usdPerMTok.output };
   // Fall back to the default (Opus) as costMicros does.
   return PRICES["claude-opus-5"];

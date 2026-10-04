@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
 import { recordRun } from "../src/lib/ai/client.ts";
-import { costMicros, rememberModelPrices, priceOf, modelEntry } from "../src/lib/ai/models.ts";
+import { ANTHROPIC_MODELS, ANTHROPIC_TIERS, PRICES, costMicros, rememberModelPrices, priceOf, modelEntry } from "../src/lib/ai/models.ts";
 import type { ModelInfo } from "../src/lib/ai/types.ts";
 
 export async function verifyAiRuns(db: Db): Promise<void> {
@@ -82,6 +82,17 @@ export async function verifyAiRuns(db: Db): Promise<void> {
   assert.deepEqual(priceOf("meta-llama/llama-2-7b", "openrouter"), { input: 0.001, output: 0.002 }, "rememberModelPrices stores model prices");
   assert.deepEqual(priceOf("mistralai/mistral-7b", "openrouter"), { input: 0.0005, output: 0.0015 }, "remembered price is used");
   assert.equal(modelEntry("meta-llama/llama-2-7b", "openrouter")?.vision, false, "remembered model info includes capabilities");
+
+  assert.equal(costMicros({ model: "meta-llama/llama-2-7b", provider: "openrouter", input: 1_000_000, output: 1_000_000, cached: 0 }), 3_000, "costMicros prices a remembered model at its listed price");
+
+  // The derived tables read exactly as the literals they replaced (#512, run.ts before #515).
+  assert.deepEqual(PRICES, { "claude-opus-5": { input: 5, output: 25 }, "claude-sonnet-5-5": { input: 2, output: 10 }, "claude-haiku-4-5": { input: 1, output: 5 } }, "PRICES changed");
+  assert.deepEqual(ANTHROPIC_MODELS, {
+    "claude-opus-5": { label: "Claude Opus 5", effort: true, adaptiveThinking: true, vision: true },
+    "claude-sonnet-5-5": { label: "Claude Sonnet 5.5", effort: true, adaptiveThinking: true, vision: true },
+    "claude-haiku-4-5": { label: "Claude Haiku 4.5", effort: false, adaptiveThinking: false, vision: true },
+  }, "ANTHROPIC_MODELS changed");
+  assert.deepEqual(ANTHROPIC_TIERS, { fast: "claude-haiku-4-5", standard: "claude-sonnet-5-5", best: "claude-opus-5" }, "ANTHROPIC_TIERS changed");
 
   // Test: priceOf falls back to Opus when model not found
   assert.deepEqual(priceOf("unknown-model", "openrouter"), { input: 5, output: 25 }, "priceOf falls back to Opus for unknown model");
