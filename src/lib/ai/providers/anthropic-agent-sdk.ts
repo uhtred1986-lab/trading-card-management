@@ -183,8 +183,10 @@ export function createAnthropicAgentSdkProvider(opts: AgentSdkOptions = {}): AiP
     id: AGENT_SDK_ID,
     label: "Claude plan (Agent SDK)",
     capabilities(): Capabilities {
-      // vision and json are declared because scripts/verify/ai-agent-sdk.ts proves the adapter's side of each.
-      return { vision: true, json: true, streaming: false, cacheHints: false, batch: false };
+      // json: core validates the answer itself, and scripts/verify/ai-agent-sdk.ts proves that path end to end.
+      // vision stays false until a live scan on the plan proves the CLI reads the image blocks (#517: unproven
+      // stays false), so the router sends scan_identify to the fallback provider meanwhile.
+      return { vision: false, json: true, streaming: false, cacheHints: false, batch: false };
     },
     async available(): Promise<Availability> {
       if (process.env.VERCEL) return { ok: false, reason: "The Claude plan is not available on Vercel yet (#518); it runs locally." };
@@ -203,7 +205,7 @@ export function createAnthropicAgentSdkProvider(opts: AgentSdkOptions = {}): AiP
     },
     async listModels(): Promise<ModelInfo[]> {
       // No prices: on the plan there is no per-token bill to show.
-      return modelsOf(AGENT_SDK_ID).map((m) => ({ id: m.id, label: m.label, capabilities: { vision: m.vision, json: true, tools: false } }));
+      return modelsOf(AGENT_SDK_ID).map((m) => ({ id: m.id, label: m.label, capabilities: { vision: false, json: true, tools: false } }));
     },
     async generate(req: AiRequest): Promise<AiResult> {
       const token = agentSdkToken(env);

@@ -118,10 +118,18 @@ async function contract(): Promise<void> {
     assert.equal(typeof r.latencyMs, "number");
   }
 
-  // An image goes in as an image block of one streamed user message, before the text.
+  // Vision is unproven on the plan, so the router refuses an image request here (no fallback set) without calling the CLI…
   {
     const run = play([{ text: "a card" }]);
-    const r = await generate(ask({ task: "scan_identify", tier: "standard", messages: [{ role: "user", parts: [{ type: "image", mediaType: "image/jpeg", base64: "AAAA" }, ...text("which card?")] }] }));
+    const img = ask({ task: "scan_identify", tier: "standard", messages: [{ role: "user", parts: [{ type: "image", mediaType: "image/jpeg", base64: "AAAA" }, ...text("which card?")] }] });
+    await rejects(generate(img), "unsupported");
+    assert.equal(run.calls.length, 0, "an image request never reaches the CLI while vision is unproven");
+  }
+  // …while the adapter itself already sends an image as an image block of one streamed user message, before the text,
+  // ready for the day a live scan proves the CLI reads it and vision is switched on.
+  {
+    const run = play([{ text: "a card" }]);
+    const r = await run.provider.generate({ ...ask({ task: "scan_identify", tier: "standard", messages: [{ role: "user", parts: [{ type: "image", mediaType: "image/jpeg", base64: "AAAA" }, ...text("which card?")] }] }), model: "claude-sonnet-5-5" });
     assert.equal(r.text, "a card");
     const prompt = run.calls[0].prompt as AsyncIterable<SDKUserMessage>;
     assert.equal(typeof prompt, "object", "an image request streams a user message");
@@ -367,7 +375,7 @@ async function availability(): Promise<void> {
   assert.equal((await p.available()).ok, true);
 
   // Declared capabilities: what the checks above prove.
-  assert.deepEqual(p.capabilities(), { vision: true, json: true, streaming: false, cacheHints: false, batch: false });
+  assert.deepEqual(p.capabilities(), { vision: false, json: true, streaming: false, cacheHints: false, batch: false }, "vision unproven on the plan, so false");
   const models = await p.listModels();
   assert.deepEqual(models.map((m) => m.id), ["claude-opus-5", "claude-sonnet-5-5", "claude-haiku-4-5"]);
   assert.ok(models.every((m) => m.usdPerMTok === undefined && m.capabilities.json));

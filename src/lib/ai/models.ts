@@ -124,7 +124,7 @@ export const TIERS: Record<string, Record<Tier, string>> = {
 };
 
 // The same Claude models on the plan (Agent SDK adapter, #517). Prices are the notional API list prices, for `ai:spend`; nothing is billed.
-MODELS["anthropic-agent-sdk"] = MODELS["anthropic-api"].map((m) => ({ ...m, provider: "anthropic-agent-sdk" }));
+MODELS["anthropic-agent-sdk"] = MODELS["anthropic-api"].map((m) => ({ ...m, provider: "anthropic-agent-sdk", vision: false }));
 TIERS["anthropic-agent-sdk"] = { ...TIERS["anthropic-api"] };
 
 /** The Anthropic API's model for each tier. */
