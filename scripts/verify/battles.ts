@@ -284,6 +284,19 @@ import type { EngineState, PlayerId } from "./harness";
   assert.equal(onLeader.after, onLeader.before, "…and not on the Leader");
 }
 
+// #539: "at the end of the battle after you combo with this card from your
+// hand, play this card in Rest Mode" — the combo card's end of the battle is
+// its move to the Drop (8-5-8, `comboed`); read as `battleEnd` it never fired.
+{
+  let s = arenaG({ hand: ["COMBOBACK"] });
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  const c = findG(s, "p1", "hand", "COMBOBACK");
+  s = playG(s, { type: "combo", player: "p1", card: c });
+  s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  assert.ok(zoneOf(s, "p1", "battle").includes(c), "the combo card is played after the battle");
+  assert.equal(s.cards[c].mode, "rest", "…in Rest Mode");
+}
+
 // [Victory Strike] (22-18-2): life damage by attacking wins the game; against a
 // Unison it takes every marker, where [Double Strike] takes two and a plain
 // attack one (13-5-2-2/13-5-2-3). Both engines since #156 (`beforeDamage`).

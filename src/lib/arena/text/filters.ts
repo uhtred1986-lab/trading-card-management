@@ -331,6 +331,17 @@ export function parseFilter(text: string): CardFilter {
   return eitherFilter(text) ?? parseOneFilter(text);
 }
 
+/**
+ * Does `parseFilter` read this description's "or" whole — as either colour,
+ * either name, or either description (`anyOf`)? The trigger readers ask
+ * before trusting a subject with an "or" in it (#539): one read short would
+ * stop the skill on the half it dropped.
+ */
+export function readsOr(text: string): boolean {
+  const f = parseFilter(text.replace(/^(?:an?|1|up to \d+|\d+|your)\s+/i, ""));
+  return !f.unreadable && (f.colors.length > 1 || f.characters.length + f.traits.length + f.names.length > 1 || !!f.anyOf?.length);
+}
+
 /** The list measures an "or" between two descriptions already reads as either. */
 const OR_ABLE: (keyof CardFilter)[] = ["characters", "charactersIncluding", "names", "namesIncluding", "traits", "characterOrTrait"];
 const CARD_NOUN = /\b(?:battle |extra |leader |unison )?(?:cards?|extras?|leaders?|unisons?)\b/i;

@@ -391,7 +391,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
     }
 
     case "play.resolve":
-      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated, step.empowerCarry, step.using);
+      return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated, step.empowerCarry, step.using, step.mode);
     case "skill.resolve": {
       const sk = skillsOfInstance(ctx, s, step.card).find((k) => k.index === step.skill);
       if (!sk) return "done";
@@ -639,6 +639,10 @@ function resolvePlay(
   negated?: "turn" | "game",
   empowerCarry?: number,
   using?: string,
+  // "Play this card in Rest Mode" from a program (`host.playThen`, #539): the
+  // shared interpreter's word for what `continuations.playRest` says on this
+  // engine's own path. Dropped, every such play arrived Active.
+  mode?: "active" | "rest",
 ): "done" | "wait" {
   const d = def(ctx, s, card);
   const bt = baseType(d);
@@ -693,7 +697,7 @@ function resolvePlay(
     // play beside it.
     if (onto && areaOf(s, onto) === "battle") stackOnto(ctx, s, ev, card, onto, p);
     else move(ctx, s, ev, card, "battle", p, { reason: "play", reveal: true });
-    if (s.continuations.playRest === card) {
+    if (s.continuations.playRest === card || mode === "rest") {
       setMode(s, ev, card, "rest");
       delete s.continuations.playRest;
     }

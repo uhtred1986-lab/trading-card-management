@@ -297,6 +297,17 @@
     },
     "same": true
   },
+  "COMBOBACK#0": {
+    "legacy": {
+      "outcome": "fired",
+      "digest": "0080e0c0"
+    },
+    "rules": {
+      "outcome": "fired",
+      "digest": "0080e0c0"
+    },
+    "same": true
+  },
   "COMBOWATCH#0": {
     "legacy": {
       "outcome": "didNotFire",

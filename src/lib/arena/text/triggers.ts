@@ -8,7 +8,7 @@
  * `engine/triggers.ts` (#118); nothing here reads a game.
  */
 import { effectHead, maskNames, trailingTrigger } from "./cards";
-import { parseFilter } from "./filters";
+import { parseFilter, readsOr } from "./filters";
 import type { Skill, Trigger } from "../types";
 
 /** Keyword [Auto] skills and the events that make them pending (22). */
@@ -53,6 +53,14 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
  * them can happen at a time (7-1), so it fires once per turn either way. The
  * same precedent as "when you play or combo with this card" below.
  */
+/**
+ * "At the end of the battle after you combo with this card (from your hand)"
+ * (BT6-010, BT2-010, TB1-055, BT3-091, #539): the end of the battle *for a combo
+ * card* is the moment it goes from the Combo Area to the Drop (8-5-8), which
+ * is `comboed`. Read as `battleEnd` it never fired — that moment asks the
+ * cards in play, and by then this one is in the Drop.
+ */
+const COMBO_BATTLE_END = /^at the end of (?:the|a|this) battle(?: after| in which) you (?:combo|combod|comboed|used?) (?:with )?this card/;
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
 /**
  * "At the end of **a turn in which this card was placed in a Battle Area**"
@@ -292,8 +300,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "dealtDamage":
       return /when this card deals damage|when you deal damage/.test(t);
     case "battleEnd":
-      return /^at the end of (?:the|a|this) battle\b/.test(head);
+      // "…after you combo with this card" is the combo card's own end of the
+      // battle, `comboed` below (#539).
+      return /^at the end of (?:the|a|this) battle\b/.test(head) && !COMBO_BATTLE_END.test(head);
     case "comboed":
+      if (COMBO_BATTLE_END.test(head)) return true;
       return /when you use this card in a combo|when this card(?: in your hand)? is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(
         t,
       );
@@ -321,7 +332,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // not fire at all. "A blue **or** yellow ≪Universe 6≫ card" is the shape
       // that matters: `parseFilter` keeps one colour of the two, so the whole
       // trigger stays an honest gap rather than buffing whatever was played.
-      return !/ or /.test(said);
+      // Since #537 the filter reads "or" between colours, names and whole
+      // descriptions (`anyOf`), so an "or" it reads in full no longer stands
+      // in the way (XD1-01, owner's card review): only one it cannot read does.
+      return !/ or /.test(said) || readsOr(said);
     }
     case "opponentAttacks":
       return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t);

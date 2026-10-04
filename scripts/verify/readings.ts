@@ -2094,3 +2094,15 @@ import {
     "BT3-084: Battle Cards and energy, both",
   );
 }
+
+// #539: a combo card's end of the battle, and "a blue or yellow … card is played".
+{
+  const sk = parseSkills("[Auto] At the end of a battle in which you combo with this card from your hand during your opponent's turn, if your Leader Card is red, play this card in Rest Mode.")[0];
+  assert.ok(autoTriggerMatches(sk, "comboed") && !autoTriggerMatches(sk, "battleEnd"), "BT6-010 answers its own move to the Drop");
+  const s = compileSkill(sk);
+  assert.deepEqual((s.ops[0] as { cond: unknown }).cond, { kind: "not", cond: { kind: "isTurnPlayer" } }, "…during the opponent's turn");
+  const xd = parseSkills("[Auto] When a blue or yellow ≪Universe 6≫ card is played in your Battle Area, that card gets +5000 power for the duration of the turn, then choose up to 1 card in your life and add it to your hand.")[0];
+  assert.ok(autoTriggerMatches(xd, "youPlayed"), "XD1-01 has its trigger");
+  const cond = (compileSkill(xd).ops[0] as { cond?: { sel?: { filter?: { colors: string[] } } } }).cond;
+  assert.deepEqual(cond?.sel?.filter?.colors, ["Blue", "Yellow"], "…for a blue or yellow card only");
+}

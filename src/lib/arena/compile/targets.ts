@@ -1,4 +1,4 @@
-import { parseFilter, type CardFilter } from "../text/filters";
+import { parseFilter, readsOr, type CardFilter } from "../text/filters";
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
@@ -771,6 +771,9 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // The word "card" stays in the phrase: taking it out of the capture let
     // the lazy group stop at "battle", and "battle" alone narrows nothing.
     /^(?:your|your opponent's) (.+?) is played\b/.exec(t)?.[1] ??
+    // "When a blue or yellow ≪Universe 6≫ card is played in your Battle Area"
+    // (XD1-01, #539): the card played, said the passive way.
+    /^(?:an?|1) (.+? card) is played in your battle area\b/.exec(t)?.[1] ??
     /^(?:your|your opponent's) (.+?) attacks\b/.exec(t)?.[1] ??
     // "When your blue <Son Goku> card is KO'd" — the same question about the
     // card that just died (21-14).
@@ -799,7 +802,9 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   // …but "an energy cost of 5 **or** less" is one bound, not two kinds, and
   // `parseFilter` reads it whole.
   // So is "15000 power or more" (BT19-018).
-  if (/ or /.test(phrase.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, ""))) return undefined;
+  // An "or" the filter reads whole — "a blue or yellow ≪Universe 6≫ card"
+  // (XD1-01, #539) — is not two kinds it would read one of.
+  if (/ or /.test(phrase.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) && !readsOr(names.unmask(phrase))) return undefined;
   // A trigger whose subject description cannot be read is left unfiltered
   // rather than failed: an over-fire is bad, a filter that stops a skill that
   // should happen is worse (ground rule 6).

@@ -250,6 +250,8 @@ const DEFS: Record<string, CardDef> = defsFrom([
   // #539: "can't switch to Active Mode during your opponent's next Charge Phase" — the Charge Phase alone.
   card("CHARGELOCK", { energyCost: 1, skill: "[Auto] When you play this card, choose 1 of your opponent's Battle Cards in Rest Mode. That card cannot switch to Active Mode during your opponent's next Charge Phase." }),
   card("STANDALL", { energyCost: 1, skill: "[Auto] When you play this card, switch all of your Battle Cards to Active Mode." }),
+  // #539: "at the end of the battle after you combo with this card from your hand, play this card".
+  card("COMBOBACK", { energyCost: 3, skill: "[Auto] At the end of the battle after you combo with this card from your hand, play this card in Rest Mode." }),
   card("ATK-BATTLE", { energyCost: 1, skill: "[Auto] When this card attacks a Battle Card, draw 1 card." }),
 ]);
 // What a real game gets from `card_rules` once every card is drafted: the

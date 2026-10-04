@@ -107,6 +107,10 @@
     "outcome": "fired",
     "digest": "0989bd66"
   },
+  "COMBOBACK#0": {
+    "outcome": "fired",
+    "digest": "0080e0c0"
+  },
   "COMBOWATCH#0": {
     "outcome": "didNotFire",
     "digest": "5266a50a"

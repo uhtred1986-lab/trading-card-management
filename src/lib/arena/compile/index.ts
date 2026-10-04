@@ -311,6 +311,13 @@ function compileSkillText(skill: Skill): Script {
     // `opponentTurnEnd`), and the rest of the sentence is a condition on it —
     // the card's memory of arriving this turn, played or placed (5-5-1).
     if (TURN_END_AFTER_PLACED.test(trigger.trim().toLowerCase())) triggerCond = { kind: "placedThisTurn", sel: { special: "self" } };
+    // "At the end of a battle in which you combo with this card from your hand
+    // **during your opponent's turn**" (BT6-010, #539): the moment is
+    // `comboed`; whose turn it is, a condition on it. Known approximation:
+    // "from your hand" is not checked — nothing remembers where a combo card
+    // came from, and almost every combo is from the hand.
+    if (/^at the end of (?:the|a|this) battle(?: after| in which) you combo/i.test(trigger.trim()) && /\bduring your opponent'?s turn\b/i.test(trigger))
+      triggerCond = { kind: "not", cond: { kind: "isTurnPlayer" } };
     // "When this card is sent from your deck to your Warp by your <Heles>
     // card's skill" (BT30-106, 3-10): the moment is any skill of yours
     // (`deckToWarpBySkill`), and the skill's card is the subject — so which
