@@ -1,19 +1,11 @@
 import type { NextConfig } from "next";
 
 /**
- * Routes whose function can reach the AI layer (`src/lib/ai/*`) and so can end up starting the
- * Claude Agent SDK. Found from the build: every `.nft.json` that traces `claude-agent-sdk`
- * (`npm run ai:trace-sizes` lists them and fails when one is missing from here). Server actions
- * run inside the page that renders them, so pages are listed, not the actions.
+ * The ONE route whose function carries the Claude Agent SDK's `claude` binary (#518, owner ruling 4 Oct 2026):
+ * 246 MB fits under Vercel's 250 MB only alone. Every other function reaches the plan by calling this route
+ * (src/lib/ai/providers/agent-sdk-remote.ts). `npm run ai:trace-sizes` fails when any other function carries it.
  */
-const AGENT_SDK_ROUTES = [
-  "/add/bulk", "/add/quick", "/add/scan", "/cards/[id]", "/cart", "/decks", "/decks/[id]", "/leaders", "/settings",
-  "/sets/[code]/review",
-  "/arena", "/arena/[id]", "/arena/feedback", "/arena/match/[id]", "/arena/preview", "/arena/review",
-  "/arena/rules", "/arena/rules/build/[id]", "/arena/rules/build/preview", "/arena/rules/review",
-  "/api/scan", "/api/scan/quick", "/api/sync/prices",
-  "/api/v1/games/[id]", "/api/v1/games/[id]/abandon", "/api/v1/games/[id]/actions", "/api/v1/games/[id]/advance",
-];
+const AGENT_SDK_ROUTE = "/api/ai/agent-sdk";
 
 /**
  * The `claude` binary the SDK spawns lives in an optional platform package that the SDK finds with
@@ -23,13 +15,14 @@ const AGENT_SDK_ROUTES = [
  */
 const AGENT_SDK_BINARY = ["./node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/**/*"];
 
+/**
+ * Files of the SDK package the file tracer pulls into the function although nothing at run time reads them
+ * (the browser build, the bridge entry and the `core*` chunks of the "./core" export; `sdk.mjs` imports none of them). They cost 3.5 MB, and without them the route is 249.4 MB, with 0.6 MB to spare.
+ */
+const AGENT_SDK_UNUSED = ["./node_modules/@anthropic-ai/claude-agent-sdk/browser-sdk.js", "./node_modules/@anthropic-ai/claude-agent-sdk/bridge.mjs", "./node_modules/@anthropic-ai/claude-agent-sdk/core*.mjs"];
+
 /** The spike is off unless AI_AGENT_SDK=1 is set when the app is built (Vercel exposes project variables at build time). */
 const AGENT_SDK_BUILD = process.env.AI_AGENT_SDK === "1";
-
-// Route keys are globs and Next matches them as substrings ("/decks" also catches "/api/v1/decks"; Turbopack
-// rejects any key that tries to anchor itself), so a few small routes that cannot call a model carry the binary
-// too. `npm run ai:trace-sizes` shows which. Brackets of a dynamic segment are escaped.
-const escapeRoute = (r: string) => r.replace(/[[\]]/g, "\\$&");
 
 const nextConfig: NextConfig = {
   // Keep standalone output for self-hosted builds, but let Vercel package the
@@ -52,10 +45,10 @@ const nextConfig: NextConfig = {
   },
   // The Claude Agent SDK (the "Claude plan" provider, #518) finds its native `claude` binary with
   // createRequire at run time, so it must stay a real node_modules package instead of a bundled
-  // chunk; the binary itself is added to the AI-calling functions. All of it is behind AI_AGENT_SDK=1 at BUILD time
+  // chunk; the binary itself is added to the one internal route. All of it is behind AI_AGENT_SDK=1 at BUILD time
   // (the same variable the adapter reads at run time): the binary is 246 MB, so adding it to a function is not free
   // (see ai:trace-sizes), and a default build must stay exactly what it was.
-  ...(AGENT_SDK_BUILD ? { outputFileTracingIncludes: Object.fromEntries(AGENT_SDK_ROUTES.map((r) => [escapeRoute(r), AGENT_SDK_BINARY])) } : {}),
+  ...(AGENT_SDK_BUILD ? { outputFileTracingIncludes: { [AGENT_SDK_ROUTE]: AGENT_SDK_BINARY }, outputFileTracingExcludes: { [AGENT_SDK_ROUTE]: AGENT_SDK_UNUSED } } : {}),
   ...(AGENT_SDK_BUILD ? { serverExternalPackages: ["@anthropic-ai/claude-agent-sdk"] } : {}),
   // Scan uploads are multi-megabyte phone photos; the default 1 MB body limit
   // would reject them before the server action ever sees the file.

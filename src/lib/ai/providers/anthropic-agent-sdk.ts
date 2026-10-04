@@ -24,6 +24,7 @@ import { z } from "zod";
 import type { Options, Query, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { aiError, AiError } from "../errors";
 import { modelEntry, modelsOf, TIERS } from "../models";
+import { forwardToRoute, toWire, type ForwardOptions } from "./agent-sdk-remote";
 import type { AiProvider, AiRequest, AiResult, Availability, Capabilities, ModelInfo, Part, SystemBlock, Usage } from "../types";
 
 type Env = Record<string, string | undefined>;
@@ -107,6 +108,13 @@ export interface AgentSdkOptions {
   /** Working directory for the child. Defaults to a fresh empty directory under `os.tmpdir()`. */
   cwd?: string;
   log?: (msg: string) => void;
+  /**
+   * True: forward `generate()` to the one route that carries the binary (agent-sdk-remote.ts).
+   * Defaults to true on Vercel and false elsewhere; the route itself passes false.
+   */
+  remote?: boolean;
+  /** Transport for the remote path: a stub `fetch` in the checks. */
+  forward?: Pick<ForwardOptions, "fetch" | "timeoutMs">;
 }
 
 async function loadQuery(): Promise<QueryFn> {
@@ -185,6 +193,7 @@ export function createAnthropicAgentSdkProvider(opts: AgentSdkOptions = {}): AiP
   let dir: string | undefined = opts.cwd;
   let loggedCache = false;
   let lastAuthFailure: string | undefined;
+  const remote = () => opts.remote ?? !!process.env.VERCEL;
 
   const workDir = (): string => (dir ??= fs.mkdtempSync(path.join(os.tmpdir(), "tcm-agent-sdk-")));
 
@@ -203,6 +212,11 @@ export function createAnthropicAgentSdkProvider(opts: AgentSdkOptions = {}): AiP
       const exp = tokenExpiry(env.CLAUDE_CODE_OAUTH_TOKEN_CREATED);
       if (exp?.state === "expired") return { ok: false, reason: exp.message ?? "The Claude plan token has expired." };
       if (lastAuthFailure) return { ok: false, reason: lastAuthFailure };
+      if (remote()) {
+        // The binary lives in the one route (#518); no model call, no SDK load here.
+        if (!env.AI_AGENT_SDK_SECRET) return { ok: false, reason: "AI_AGENT_SDK_SECRET is not set — the Claude plan on Vercel runs through an internal route that this secret guards." };
+        return { ok: true };
+      }
       if (!opts.query) {
         try {
           await loadQuery();
@@ -226,6 +240,18 @@ export function createAnthropicAgentSdkProvider(opts: AgentSdkOptions = {}): AiP
       }
 
       const model = modelFor(req);
+      if (remote()) {
+        const started = Date.now();
+        try {
+          const r = await forwardToRoute(toWire(req, model, systemPromptOf(req)), AGENT_SDK_ID, LABEL, req.signal, { env, ...opts.forward });
+          lastAuthFailure = undefined;
+          return { ...r, provider: AGENT_SDK_ID, billed: false, latencyMs: Date.now() - started };
+        } catch (err) {
+          // The route reports a rejected plan token as `auth`; remember it like a local failure.
+          if (err instanceof AiError && err.kind === "auth") lastAuthFailure = err.message;
+          throw err;
+        }
+      }
       const entry = modelEntry(model, AGENT_SDK_ID);
       const ac = new AbortController();
       const options: Options = {

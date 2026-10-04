@@ -13,7 +13,9 @@ import { parseBasicAuth } from "@/lib/auth-header";
  *
  * With neither configured the app runs open, which is what local dev wants.
  * `/api/sync/*` is exempt: Vercel's cron can't send credentials, and that
- * route already requires the CRON_SECRET bearer token.
+ * route already requires the CRON_SECRET bearer token. `/api/ai/agent-sdk` (exactly that path) is exempt
+ * for the same reason: its callers are other functions, and it refuses anything without the
+ * AI_AGENT_SDK_SECRET header (#518).
  *
  * The web-app manifest, its icons and the service worker are exempt too. The
  * browser fetches all three without credentials, so behind auth they 401 and
@@ -77,5 +79,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/sync/).*)",
+  matcher: "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/sync/|api/ai/agent-sdk$).*)",
 };
