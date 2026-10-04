@@ -365,6 +365,12 @@ model never rewrites a stored answer.
 
 ## Token renewal (subscription adapter)
 
+**One command:** `npm run ai:plan-token` (`scripts/ai-plan-token.mts`) runs `claude setup-token`, reads the
+pasted token hidden, sets `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN_CREATED` in Vercel
+(Production and Preview) and in `.env.local`. `--rotate-secret` also sets a new random `AI_AGENT_SDK_SECRET`;
+`--enable` / `--disable` set `AI_AGENT_SDK` (only after the #518 conditions above). Vercel picks the values up
+with the next deploy. By hand, the steps are:
+
 1. Run `claude setup-token` on a machine logged in to the Claude plan; it prints a long-lived token.
 2. Put it in `CLAUDE_CODE_OAUTH_TOKEN` in `.env.local` (and, once the #518 rulings allow the plan on Vercel, in the Vercel project settings).
 3. Set `CLAUDE_CODE_OAUTH_TOKEN_CREATED` to today's date (`YYYY-MM-DD`) in the same places.
