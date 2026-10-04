@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify-arena.ts --rules-only && tsx scripts/verify/tryit.ts && tsx scripts/verify-cache.mts && tsx scripts/verify-db.mts && tsx scripts/verify/arena-admin.ts && tsx scripts/verify/auth.ts && tsx scripts/verify/blocks.ts && tsx scripts/verify/rule-review.ts && tsx scripts/verify/backlog.ts && tsx scripts/verify/diff-report.ts && tsx scripts/verify/teach.ts && tsx scripts/verify/ai-contract.ts && tsx scripts/verify/ai-features.ts && tsx scripts/verify/ai-router.ts && tsx scripts/verify/ai-agent-sdk.ts && tsx scripts/verify/ai-agent-sdk-route.ts && tsx scripts/verify/ai-openrouter.ts",
+    "test": "tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify-arena.ts --rules-only && tsx scripts/verify/tryit.ts && tsx scripts/verify-cache.mts && tsx scripts/verify-db.mts && tsx scripts/verify/arena-admin.ts && tsx scripts/verify/auth.ts && tsx scripts/verify-access-db.mts && tsx scripts/verify/blocks.ts && tsx scripts/verify/rule-review.ts && tsx scripts/verify/backlog.ts && tsx scripts/verify/diff-report.ts && tsx scripts/verify/teach.ts && tsx scripts/verify/ai-contract.ts && tsx scripts/verify/ai-features.ts && tsx scripts/verify/ai-router.ts && tsx scripts/verify/ai-agent-sdk.ts && tsx scripts/verify/ai-agent-sdk-route.ts && tsx scripts/verify/ai-openrouter.ts",
     "test:rules": "tsx scripts/verify-arena.ts --engine rules",
     "test:rules-only": "tsx scripts/verify-arena.ts --rules-only",
     "contract:emit": "tsx scripts/verify-arena.ts --emit && tsx scripts/verify-arena.ts --engine rules --emit",
@@ -66,6 +66,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "^0.35.3",
+    "uqr": "0.1.3",
     "zod": "^4.5.4"
   },
   "devDependencies": {

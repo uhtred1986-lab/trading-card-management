@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { CALLBACK_PATH, FLOW_COOKIE, LOGIN_PAGE, SESSION_COOKIE, flowCookieOptions, publicOrigin, sessionCookieOptions } from "@/lib/auth/core";
 import { completeSignIn, googleConfig } from "@/lib/auth/google-oauth";
+import { checkAddedSl } from "@/lib/auth/proxy-checks";
 
 /**
  * Google sends the SL back here. Registered on the Google OAuth client as
@@ -9,7 +10,7 @@ import { completeSignIn, googleConfig } from "@/lib/auth/google-oauth";
  *
  * `completeSignIn` checks `state` against the signed flow cookie, trades the
  * code with the PKCE verifier, and signs a session only for a verified address
- * in `SL_EMAILS`. Anyone else goes back to `/login` with the refusal in words
+ * in `SL_EMAILS` or added in Settings → Users & access. Anyone else goes back to `/login` with the refusal in words
  * and no cookie; nothing is stored for them. The flow cookie is cleared either
  * way. Docs: docs/architecture/auth.md.
  */
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   let result: Awaited<ReturnType<typeof completeSignIn>>;
   try {
-    result = await completeSignIn(await googleConfig(process.env), callbackUrl, flowCookie, process.env, now);
+    result = await completeSignIn(await googleConfig(process.env), callbackUrl, flowCookie, process.env, now, checkAddedSl);
   } catch {
     result = { ok: false, reason: "failed" };
   }

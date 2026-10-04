@@ -129,12 +129,18 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-semibold text-space-50">Logins & owners</h2>
-          <Link href="/settings/users" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-100 hover:bg-space-800">
-            Manage logins →
+          <h2 className="font-semibold text-space-50">Users & access</h2>
+          <Link href="/settings/access" className="tap rounded-md border border-space-600 px-3 py-1 text-xs text-space-100 hover:bg-space-800">
+            Manage users →
           </Link>
         </div>
-        <p className="mt-1 text-xs text-space-300">Add people who can sign in, change their passwords, and choose the owner name each login records on the cards it adds.</p>
+        <p className="mt-1 text-xs text-space-300">
+          Add players and give each a one-time join code for their phone, disconnect devices, add SLs, and hand unassigned cards to a player.{" "}
+          <Link href="/settings/users" className="underline hover:text-ki-300">
+            Old password logins
+          </Link>{" "}
+          still work for now.
+        </p>
       </section>
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">

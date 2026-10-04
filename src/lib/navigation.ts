@@ -28,6 +28,11 @@ export const SECONDARY_ITEMS: NavItem[] = [
   { href: "/settings", label: "Settings & sync", short: "Settings" },
 ];
 
+/** A player has no Settings: their own page (`/me`, devices and sign-out) takes its place. */
+export function secondaryItems(isSl: boolean): NavItem[] {
+  return isSl ? SECONDARY_ITEMS : SECONDARY_ITEMS.map((i) => (i.href === "/settings" ? { href: "/me", label: "Me" } : i));
+}
+
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);

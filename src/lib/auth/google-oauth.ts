@@ -8,7 +8,7 @@
  * Docs: docs/architecture/auth.md.
  */
 import * as client from "openid-client";
-import { isSlEmail, signFlow, signSession, verifyFlow, type AuthEnv, type OAuthFlow } from "./core";
+import { isAllowedSl, type AddedSlCheck, signFlow, signSession, verifyFlow, type AuthEnv, type OAuthFlow } from "./core";
 
 export const GOOGLE_ISSUER = "https://accounts.google.com";
 
@@ -71,9 +71,9 @@ export type SignInResult =
 /**
  * The callback: check `state` against the signed flow cookie, trade the code
  * (with the PKCE verifier) for tokens, read the verified address, and sign a
- * session only for an address in `SL_EMAILS`. Never throws.
+ * session only for an address in `SL_EMAILS` or an added SL (`isAddedSl`). Never throws.
  */
-export async function completeSignIn(config: client.Configuration, callbackUrl: URL, flowCookie: string | undefined, env: AuthEnv, now: Date): Promise<SignInResult> {
+export async function completeSignIn(config: client.Configuration, callbackUrl: URL, flowCookie: string | undefined, env: AuthEnv, now: Date, isAddedSl?: AddedSlCheck): Promise<SignInResult> {
   const flow = await verifyFlow(flowCookie, env.AUTH_SECRET, now);
   const returnedState = callbackUrl.searchParams.get("state");
   if (!flow || !returnedState || returnedState !== flow.state) return { ok: false, reason: "state" };
@@ -94,6 +94,6 @@ export async function completeSignIn(config: client.Configuration, callbackUrl: 
 
   const email = typeof claims?.email === "string" ? claims.email : null;
   if (!email || claims?.email_verified !== true) return { ok: false, reason: "refused" };
-  if (!isSlEmail(email, env.SL_EMAILS)) return { ok: false, reason: "refused" };
+  if (!(await isAllowedSl(email, env, isAddedSl))) return { ok: false, reason: "refused" };
   return { ok: true, email, sessionCookie: await signSession(email, env.AUTH_SECRET, now) };
 }

@@ -1,59 +1,177 @@
 import { cookies, headers } from "next/headers";
-import { parseBasicUser } from "@/lib/auth-header";
+import { redirect } from "next/navigation";
+import { parseBasicAuth } from "@/lib/auth-header";
 
-import { isAdminUser } from "./admin";
-import { SESSION_COOKIE, slUsername, verifySession, type SlSession } from "./core";
+import { isAdminUser, parseAdmins } from "./admin";
+import { PLAYER_COOKIE, SESSION_COOKIE, defaultSlOwner, googleConfigured, verifyPlayer, verifySession } from "./core";
 
 export { parseBasicAuth, parseBasicUser } from "@/lib/auth-header";
 
 /**
- * The SL signed in with Google on this request, or null. Re-verified on every
- * call (signature, expiry, still in `SL_EMAILS`), never trusted from the proxy.
+ * Who is asking, worked out afresh on every call from the request's cookies
+ * and headers — never trusted from the proxy (docs/architecture/auth.md):
+ *
+ * - `sl`: signed in with Google and still an SL (`SL_EMAILS` or `sl_accounts`);
+ *   or, while Basic Auth lasts, the `BASIC_AUTH_USER` pair or an `app_users`
+ *   login listed in `ARENA_ADMINS`; or anyone at all when no auth is
+ *   configured (local dev, `via: "open"`, owner null).
+ * - `player`: a joined device whose row is live (`playerId` set), or an
+ *   `app_users` login that is not in `ARENA_ADMINS` (`playerId` null).
+ *
+ * `owner` is the name stamped on what they add and, for a player, the only
+ * lots and decks they see.
  */
-export async function currentSession(): Promise<SlSession | null> {
-  const verified = await verifySession((await cookies()).get(SESSION_COOKIE)?.value, process.env, new Date());
-  return verified?.session ?? null;
+export type Viewer =
+  | { kind: "sl"; via: "google" | "basic" | "open"; email: string | null; login: string | null; owner: string | null }
+  | { kind: "player"; via: "code" | "basic"; playerId: number | null; deviceId: number | null; name: string; login: string; owner: string };
+
+async function lazyDb() {
+  const { db } = await import("@/db");
+  return db;
+}
+
+async function viewerUncached(): Promise<Viewer | null> {
+  const env = process.env;
+  const now = new Date();
+  const jar = await cookies();
+
+  const slToken = jar.get(SESSION_COOKIE)?.value;
+  if (slToken) {
+    const verified = await verifySession(slToken, env, now, async (email) => {
+      const { isAddedSl } = await import("./access");
+      return isAddedSl(await lazyDb(), email);
+    });
+    if (verified) {
+      const email = verified.session.email;
+      let owner = defaultSlOwner(email, env);
+      try {
+        const { slOwner } = await import("./access");
+        owner = await slOwner(await lazyDb(), email, env);
+      } catch {
+        // No database: the default name still keeps their own cards theirs.
+      }
+      return { kind: "sl", via: "google", email, login: owner, owner };
+    }
+  }
+
+  const playerToken = jar.get(PLAYER_COOKIE)?.value;
+  if (playerToken) {
+    const verified = await verifyPlayer(playerToken, env.AUTH_SECRET, now);
+    if (verified) {
+      try {
+        const { resolvePlayerDevice } = await import("./access");
+        const p = await resolvePlayerDevice(await lazyDb(), verified.claims, now);
+        if (p) return { kind: "player", via: "code", playerId: p.playerId, deviceId: p.deviceId, name: p.name, login: p.owner, owner: p.owner };
+      } catch {
+        // Fail closed: an unreadable device is no session.
+      }
+    }
+  }
+
+  const basic = parseBasicAuth((await headers()).get("authorization"));
+  if (basic) {
+    // The proxy already accepted this header (env pair or an active `app_users` row); nothing else reaches a page.
+    const username = basic.username;
+    let owner = username;
+    try {
+      const { ownerForUsername } = await import("./users");
+      owner = (await ownerForUsername(await lazyDb(), username)) ?? username;
+    } catch {
+      // Keep the username as the owner.
+    }
+    const envPair = !!(env.BASIC_AUTH_USER && env.BASIC_AUTH_PASSWORD) && username === env.BASIC_AUTH_USER;
+    if (envPair || parseAdmins(env.ARENA_ADMINS).includes(username.trim().toLowerCase())) {
+      return { kind: "sl", via: "basic", email: null, login: username, owner };
+    }
+    return { kind: "player", via: "basic", playerId: null, deviceId: null, name: username, login: username, owner };
+  }
+
+  // No credentials at all got past the proxy only when nothing is configured: local dev, everyone is the SL.
+  const basicEnv = !!(env.BASIC_AUTH_USER && env.BASIC_AUTH_PASSWORD);
+  if (!googleConfigured(env) && !basicEnv) return { kind: "sl", via: "open", email: null, login: null, owner: null };
+  return null;
+}
+
+/** The viewer of this request, or null for nobody (outside a request, or a stale cookie on a public page). */
+export async function getViewer(): Promise<Viewer | null> {
+  try {
+    return await viewerUncached();
+  } catch {
+    // `cookies()` outside a request (a script) — nobody.
+    return null;
+  }
+}
+
+/** The SL signed in with Google on this request, or null. */
+export async function currentSession(): Promise<{ email: string } | null> {
+  const v = await getViewer();
+  return v?.kind === "sl" && v.via === "google" && v.email ? { email: v.email } : null;
 }
 
 /**
- * Who is using the app right now: an SL's name (`slUsername`) when they signed
- * in with Google, else the HTTP Basic Auth username the proxy accepted (see
- * src/proxy.ts), or null when the app runs open (local dev).
+ * Who is using the app right now, for arena seats, flags and feedback: the
+ * owner name of an SL or player, the Basic Auth username, or null when the
+ * app runs open (local dev).
  */
 export async function currentUser(): Promise<string | null> {
-  const session = await currentSession();
-  if (session) return slUsername(session.email, process.env);
-  return parseBasicUser((await headers()).get("authorization"));
+  const v = await getViewer();
+  return v?.login ?? null;
 }
 
-/**
- * The name to stamp on cards this login adds. Usually the username, but a
- * login can be pointed at a different owner in /settings/users — two people
- * sharing one owner, or one person adding on someone else's behalf.
- *
- * The database is imported lazily so `currentUser()` still works in contexts
- * that have no connection string.
- */
+/** The name to stamp on cards and decks this person adds, and (for a player) the only ones they see. */
 export async function currentOwner(): Promise<string | null> {
-  const username = await currentUser();
-  if (!username) return null;
-  try {
-    const { db } = await import("@/db");
-    const { ownerForUsername } = await import("./users");
-    return await ownerForUsername(db, username);
-  } catch {
-    return username;
-  }
+  const v = await getViewer();
+  return v?.owner ?? null;
 }
 
 /**
  * Whether this request may see the arena's internals (issue #350). Server-side
  * only: pass the answer down as a boolean prop, never work it out on the client.
- * An SL signed in with Google always may; otherwise see `./admin.ts` — listed in
- * `ARENA_ADMINS`, or the app is open.
+ * Every SL may; see `./admin.ts` for the Basic Auth rule kept for scripts.
  */
 export async function isArenaAdmin(): Promise<boolean> {
-  if (await currentSession()) return true;
+  const v = await getViewer();
+  if (v?.kind === "sl") return true;
+  if (v) return false;
   const { ARENA_ADMINS, BASIC_AUTH_USER, BASIC_AUTH_PASSWORD } = process.env;
-  return isAdminUser(await currentUser(), { ARENA_ADMINS, BASIC_AUTH_USER, BASIC_AUTH_PASSWORD });
+  return isAdminUser(null, { ARENA_ADMINS, BASIC_AUTH_USER, BASIC_AUTH_PASSWORD });
+}
+
+// ── Guards ─────────────────────────────────────────────────────────────────
+
+/** Thrown by an action guard. Next shows it as a failed action; only a tampered call ever meets it. */
+export class AccessDenied extends Error {
+  constructor(message = "Not allowed.") {
+    super(message);
+    this.name = "AccessDenied";
+  }
+}
+
+/** Opens every Server Function and route only an SL may call. */
+export async function requireSl(): Promise<Extract<Viewer, { kind: "sl" }>> {
+  const v = await getViewer();
+  if (v?.kind !== "sl") throw new AccessDenied(v ? "Only an SL can do that." : "Sign-in required.");
+  return v;
+}
+
+/** Opens every Server Function and route any signed-in person may call. */
+export async function requireSignedIn(): Promise<Viewer> {
+  const v = await getViewer();
+  if (!v) throw new AccessDenied("Sign-in required.");
+  return v;
+}
+
+/** The first statement of every SL-only page: a player goes home, nobody goes to `/login`. */
+export async function requireSlPage(): Promise<Extract<Viewer, { kind: "sl" }>> {
+  const v = await getViewer();
+  if (!v) redirect("/login");
+  if (v.kind !== "sl") redirect("/");
+  return v;
+}
+
+/** The first statement of every other page. */
+export async function requireSignedInPage(): Promise<Viewer> {
+  const v = await getViewer();
+  if (!v) redirect("/login");
+  return v;
 }

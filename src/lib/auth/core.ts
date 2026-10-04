@@ -17,11 +17,19 @@ import { SignJWT, jwtVerify } from "jose";
 export const SESSION_COOKIE = "dbs-session";
 /** The OAuth round trip's short-lived cookie: state, PKCE verifier, nonce. */
 export const FLOW_COOKIE = "dbs-oauth";
+/** A player's device: `{ role: "player", playerId, deviceId, tok }`, signed, its own audience. */
+export const PLAYER_COOKIE = "dbs-player";
 
 export const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 /** Sliding expiry: a session older than this is re-issued for another 30 days. */
 export const SESSION_REFRESH_AFTER_SECONDS = 24 * 60 * 60;
 export const FLOW_TTL_SECONDS = 10 * 60;
+/** A joined device stays signed in for 180 days, sliding. */
+export const PLAYER_TTL_SECONDS = 180 * 24 * 60 * 60;
+/** The player cookie is re-issued once it is a day old, like the SL's. */
+export const PLAYER_REFRESH_AFTER_SECONDS = 24 * 60 * 60;
+/** The JWT audience that tells a player cookie from an SL one, whatever its claims say. */
+const PLAYER_AUDIENCE = "dbs-player";
 
 /** Where Google sends the SL back. Registered on the Google OAuth client for production and localhost:3000. */
 export const CALLBACK_PATH = "/api/auth/callback/google";
@@ -34,6 +42,12 @@ export const LOGIN_PAGE = "/login";
  * re-send Basic credentials only below the directory that asked for them).
  */
 export const PASSWORD_LOGIN_PATH = "/password-login";
+/** Where a player redeems a join code (`/join?c=CODE` is the QR and the invite link). */
+export const JOIN_PAGE = "/join";
+/** The join's confirm step: a route, because a signed-out browser may not call a Server Function. */
+export const JOIN_REDEEM_PATH = "/api/join";
+/** A player's own page: their devices and sign-out. */
+export const PLAYER_HOME = "/me";
 
 /** Only the environment variables these helpers read. */
 export type AuthEnv = {
@@ -46,6 +60,8 @@ export type AuthEnv = {
 };
 
 export type SlSession = { role: "sl"; email: string };
+/** A player: one person and the device they joined from, both re-checked against the device row on every request. */
+export type PlayerSession = { role: "player"; playerId: number; deviceId: number };
 
 // ── Who is an SL ───────────────────────────────────────────────────────────
 
@@ -112,19 +128,40 @@ export async function signSession(email: string, secret: string | undefined, now
 export type VerifiedSession = { session: SlSession; issuedAt: number; expiresAt: number };
 
 /**
+ * Asks whether a normalised address is one of the SLs added in Settings
+ * (`sl_accounts`). Only asked for an address not in `SL_EMAILS`, so an owner's
+ * request never waits on the database. Must answer `false`, not throw, when it
+ * can't tell (fail closed).
+ */
+export type AddedSlCheck = (email: string) => Promise<boolean>;
+
+/** `SL_EMAILS` first, then the added SLs. */
+export async function isAllowedSl(email: string | null | undefined, env: AuthEnv, isAddedSl?: AddedSlCheck): Promise<boolean> {
+  if (isSlEmail(email, env.SL_EMAILS)) return true;
+  if (!isAddedSl || typeof email !== "string") return false;
+  const wanted = normaliseEmail(email);
+  if (!wanted) return false;
+  try {
+    return await isAddedSl(wanted);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The session in `token`, or `null` for anything wrong with it: no token, a bad
  * signature, expired, a payload that is not exactly an SL, or an address that
- * has since left `SL_EMAILS` (so removing an address signs it out on its next
- * request). Never throws.
+ * is no longer an SL (so removing one signs it out on its next request).
+ * Never throws.
  */
-export async function verifySession(token: string | undefined | null, env: AuthEnv, now: Date): Promise<VerifiedSession | null> {
+export async function verifySession(token: string | undefined | null, env: AuthEnv, now: Date, isAddedSl?: AddedSlCheck): Promise<VerifiedSession | null> {
   const key = keyOf(env.AUTH_SECRET);
   if (!token || !key) return null;
   try {
     const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"], currentDate: now });
     if (payload.role !== "sl" || typeof payload.email !== "string") return null;
     if (typeof payload.iat !== "number" || typeof payload.exp !== "number") return null;
-    if (!isSlEmail(payload.email, env.SL_EMAILS)) return null;
+    if (!(await isAllowedSl(payload.email, env, isAddedSl))) return null;
     return { session: { role: "sl", email: payload.email }, issuedAt: payload.iat, expiresAt: payload.exp };
   } catch {
     return null;
@@ -151,6 +188,56 @@ export function sessionCookieOptions(env: AuthEnv): CookieOptions {
 /** Scoped to `/api/auth`: only the login start and the callback ever see it. */
 export function flowCookieOptions(env: AuthEnv): CookieOptions {
   return { httpOnly: true, sameSite: "lax", secure: env.NODE_ENV === "production", path: "/api/auth", maxAge: FLOW_TTL_SECONDS };
+}
+
+// ── The player's device cookie ─────────────────────────────────────────────
+
+/** What a player cookie carries. `tok` is random; the device row stores only its SHA-256. */
+export type PlayerClaims = { playerId: number; deviceId: number; tok: string };
+
+/**
+ * A signed (HS256) player token with its own audience, so it can never pass as
+ * an SL session (and an SL token never passes as a player one). It proves only
+ * what this server once issued; `./access.ts` still checks the device row.
+ */
+export async function signPlayer(claims: PlayerClaims, secret: string | undefined, now: Date): Promise<string> {
+  const key = keyOf(secret);
+  if (!key) throw new Error("AUTH_SECRET is missing or shorter than 32 characters.");
+  const iat = seconds(now);
+  return new SignJWT({ role: "player", playerId: claims.playerId, deviceId: claims.deviceId, tok: claims.tok })
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setAudience(PLAYER_AUDIENCE)
+    .setIssuedAt(iat)
+    .setExpirationTime(iat + PLAYER_TTL_SECONDS)
+    .sign(key);
+}
+
+export type VerifiedPlayer = { claims: PlayerClaims; issuedAt: number; expiresAt: number };
+
+/** The claims in a player cookie, or `null` for anything wrong with it. Never throws. */
+export async function verifyPlayer(token: string | undefined | null, secret: string | undefined, now: Date): Promise<VerifiedPlayer | null> {
+  const key = keyOf(secret);
+  if (!token || !key) return null;
+  try {
+    const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"], audience: PLAYER_AUDIENCE, currentDate: now });
+    const { role, playerId, deviceId, tok } = payload;
+    if (role !== "player") return null;
+    if (!Number.isSafeInteger(playerId) || !Number.isSafeInteger(deviceId)) return null;
+    if (typeof tok !== "string" || tok.length < 32) return null;
+    if (typeof payload.iat !== "number" || typeof payload.exp !== "number") return null;
+    return { claims: { playerId: playerId as number, deviceId: deviceId as number, tok }, issuedAt: payload.iat, expiresAt: payload.exp };
+  } catch {
+    return null;
+  }
+}
+
+/** Sliding expiry for a player: re-issued once a day, so 180 days without opening it signs the device out. */
+export function playerNeedsRefresh(verified: VerifiedPlayer, now: Date): boolean {
+  return seconds(now) - verified.issuedAt >= PLAYER_REFRESH_AFTER_SECONDS;
+}
+
+export function playerCookieOptions(env: AuthEnv): CookieOptions {
+  return { httpOnly: true, sameSite: "lax", secure: env.NODE_ENV === "production", path: "/", maxAge: PLAYER_TTL_SECONDS };
 }
 
 // ── The OAuth round trip's own cookie ──────────────────────────────────────
@@ -195,20 +282,39 @@ export async function verifyFlow(token: string | undefined | null, secret: strin
  */
 export function isPublicPath(pathname: string): boolean {
   if (pathname === LOGIN_PAGE || pathname === LOGIN_START_PATH || pathname === CALLBACK_PATH) return true;
-  if (pathname === PASSWORD_LOGIN_PATH) return true;
+  if (pathname === PASSWORD_LOGIN_PATH || pathname === JOIN_PAGE || pathname === JOIN_REDEEM_PATH) return true;
   if (pathname === "/manifest.webmanifest" || pathname === "/sw.js" || pathname === "/favicon.ico") return true;
   if (pathname.startsWith("/icons/") || pathname.startsWith("/_next/")) return true;
+  return false;
+}
+
+/**
+ * The SL-only areas, for the proxy's coarse check: Settings, the arena's rules
+ * workbench, rule review, feedback and the debug views, and the set review.
+ * Each page and action checks again itself; this only sends a player away
+ * before anything renders. `/settings/access`'s actions post here too.
+ */
+export function isSlOnlyPath(pathname: string): boolean {
+  if (pathname === "/settings" || pathname.startsWith("/settings/")) return true;
+  if (pathname === "/arena/rules" || pathname.startsWith("/arena/rules/")) return true;
+  if (pathname === "/arena/review" || pathname === "/arena/feedback") return true;
+  if (/^\/arena\/\d+\/debug$/.test(pathname)) return true;
+  if (/^\/sets\/[^/]+\/review$/.test(pathname)) return true;
   return false;
 }
 
 export type ProxyDecision =
   | { kind: "pass" }
   | { kind: "pass-refresh"; email: string }
-  /** Signed in and on `/login`: back to the home page. */
+  /** A player whose cookie is a day old: pass, and re-issue it. */
+  | { kind: "pass-refresh-player" }
+  /** Signed in and on `/login` or `/join`, or a player on an SL page: to the home page. */
   | { kind: "home" }
   | { kind: "login" }
   | { kind: "unauthorised" }
-  /** Google is not set up: the browser's Basic Auth popup, as before. */
+  /** Signed in, but not allowed here (a player on an SL-only API or action). */
+  | { kind: "forbidden" }
+  /** Google is not set up and nobody is signed in: the browser's Basic Auth popup, as before. */
   | { kind: "challenge" };
 
 export type ProxyRequest = { pathname: string; isAction: boolean; isApi: boolean };
@@ -217,6 +323,8 @@ export type ProxyRequest = { pathname: string; isAction: boolean; isApi: boolean
  * What `src/proxy.ts` does with one request, as data.
  *
  * - `verified`: a valid SL session cookie.
+ * - `player`: a player cookie whose device the proxy found live, and whether
+ *   it is due for a refresh.
  * - `basicOk`: the request carries a Basic Auth header the old checks accept
  *   (the env pair or an `app_users` row).
  * - `basicConfigured`: Basic Auth would be asked for at all (the env pair is
@@ -230,13 +338,20 @@ export type ProxyRequest = { pathname: string; isAction: boolean; isApi: boolean
  */
 export function decide(
   req: ProxyRequest,
-  state: { verified: VerifiedSession | null; basicOk: boolean; basicConfigured: boolean; googleOn: boolean },
+  state: { verified: VerifiedSession | null; player?: { refresh: boolean } | null; basicOk: boolean; basicConfigured: boolean; googleOn: boolean },
   now: Date,
 ): ProxyDecision {
-  const { verified, basicOk, basicConfigured, googleOn } = state;
+  const { verified, player, basicOk, basicConfigured, googleOn } = state;
   if (verified) {
-    if (req.pathname === LOGIN_PAGE) return { kind: "home" };
+    if (req.pathname === LOGIN_PAGE || req.pathname === JOIN_PAGE) return { kind: "home" };
     return needsRefresh(verified, now) ? { kind: "pass-refresh", email: verified.session.email } : { kind: "pass" };
+  }
+  if (player) {
+    if (req.pathname === LOGIN_PAGE || req.pathname === JOIN_PAGE) return { kind: "home" };
+    if (isSlOnlyPath(req.pathname)) return req.isAction || req.isApi ? { kind: "forbidden" } : { kind: "home" };
+    if (isPublicPath(req.pathname) && req.isAction) return { kind: "unauthorised" };
+    // Never refreshed on a Server Function call: its response may set cookies of its own.
+    return player.refresh && !req.isAction ? { kind: "pass-refresh-player" } : { kind: "pass" };
   }
   if (basicOk) return { kind: "pass" };
   if (!googleOn && !basicConfigured) return { kind: "pass" };
@@ -262,13 +377,12 @@ export function publicOrigin(headers: Headers, fallbackOrigin: string): string {
 }
 
 /**
- * The name an SL session acts under everywhere the app stamps or compares an
- * owner (cards, decks, arena games, `ARENA_ADMINS`). Until SL accounts carry
- * their own owner name (next step of the move), an SL is the owner who used to
- * sign in with the `BASIC_AUTH_USER` pair, so their cards and decks stay
- * theirs; without that variable it is the address itself.
+ * The owner name of an SL with no `sl_accounts` row (an owner from
+ * `SL_EMAILS` who has not set one in Settings → Users & access): the owner who
+ * used to sign in with the `BASIC_AUTH_USER` pair, so their cards and decks
+ * stay theirs; without that variable it is the address itself.
  */
-export function slUsername(email: string, env: AuthEnv): string {
+export function defaultSlOwner(email: string, env: AuthEnv): string {
   const legacy = env.BASIC_AUTH_USER?.trim();
   return legacy ? legacy : normaliseEmail(email);
 }

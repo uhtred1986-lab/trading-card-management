@@ -1,9 +1,9 @@
-import { LOGIN_START_PATH, PASSWORD_LOGIN_PATH, googleConfigured } from "@/lib/auth/core";
+import { JOIN_PAGE, LOGIN_START_PATH, PASSWORD_LOGIN_PATH, googleConfigured } from "@/lib/auth/core";
 
 export const dynamic = "force-dynamic";
 
 const ERRORS: Record<string, string> = {
-  refused: "That Google account is not on the SL list. Pick another account, or sign in with your password below.",
+  refused: "That Google account is not on the SL list. Pick another account, sign in with your password, or join with a code below.",
   state: "The sign-in took too long or was started in another tab. Please try again.",
   failed: "Google sign-in did not go through. Please try again in a moment.",
   config: "Google sign-in is not set up on this server yet. Sign in with your password below.",
@@ -51,6 +51,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           Sign in with password
         </a>
       </div>
+
+      <a href={JOIN_PAGE} className="tap rounded-lg border border-space-600 px-4 py-3 text-center text-sm text-space-100 hover:bg-space-800">
+        Got a join code from your SL? Enter it here
+      </a>
     </div>
   );
 }
