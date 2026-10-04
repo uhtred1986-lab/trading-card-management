@@ -2690,13 +2690,30 @@ export function holdForGame(ops: Op[]): Op[] {
 }
 
 /**
+ * "You may choose 5 cards from your Warp and place them in the Drop Area. If
+ * you do so, …" (BT3-109, #538): the offer is optional, so the choice is
+ * compiled as up to 5 — but what hangs on it is owed only when all 5 were
+ * chosen. With fewer, the player did not do it. "Choose **up to** 2 … if you
+ * do" is a different sentence: one card is enough there. Read off the choice's
+ * own printed words, which is all that tells the two apart once both are
+ * `upTo`.
+ */
+function exactCount(c: Ctx, v: string): { atLeast?: number } {
+  const made = [...c.choices].reverse().find((ch) => ch.var === v);
+  const n = made?.sel.count ?? 1;
+  const said = made?.reason ?? "";
+  if (n <= 1 || n >= 99 || /\bup to\b|\bany number\b/i.test(said)) return {};
+  return { atLeast: n };
+}
+
+/**
  * What an op leaves behind for the clauses after it: which cards "it" means,
  * and which name a later "if that card is …" is asking about.
  */
 function track(o: Op, c: Ctx): void {
   if (o.op === "choose") {
     c.last = o.as;
-    c.choices.push({ var: o.as, sel: o.sel });
+    c.choices.push({ var: o.as, sel: o.sel, reason: o.reason });
     c.lastTarget = { var: o.as };
   } else if (o.op === "reveal") {
     c.lastSeen = o.as;
@@ -2917,7 +2934,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // them — an offer the player accepted ("you may draw 1 card") or a choice
     // they made. The offer is the commoner of the two and had nothing to read
     // until `may` existed, so "if you don't" was simply a gap.
-    const decided: Cond | null = c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last } : null;
+    const decided: Cond | null = c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last, ...exactCount(c, c.last) } : null;
     if (conn === "ifDone") {
       // "You may place 1 card from your hand in the Drop Area. **If you do so,**
       // draw 1 card": the clause before it already hung its own half of the

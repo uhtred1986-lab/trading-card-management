@@ -1929,3 +1929,44 @@ import {
     assert.ok(ends.has("2+3") && ends.has("4") && !ends.has("2+4") && !ends.has("3+4"), `the reachable sets were ${[...ends].join(", ")}`);
   }
 }
+
+// ── "choose N … if you do" owes all N (#538, owner's card review 4 Oct 2026) ──
+
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  type IfChose = { op: string; cond?: { kind: string; var?: string; atLeast?: number }; then?: unknown[] };
+  const hung = (text: string): IfChose["cond"] => {
+    const s = one(text);
+    assert.deepEqual(s.unsupported, [], `${text} left something unread`);
+    const find = (ops: IfChose[]): IfChose["cond"] | undefined => {
+      for (const o of ops) {
+        if (o.op === "if" && o.cond?.kind === "chose") return o.cond;
+        if (o.then) {
+          const inner = find(o.then as IfChose[]);
+          if (inner) return inner;
+        }
+      }
+      return undefined;
+    };
+    const c = find(s.ops as IfChose[]);
+    assert.ok(c, `${text}: nothing hangs on the choice`);
+    return c;
+  };
+  // BT3-109: one card moved used to warp the opponent's whole board.
+  assert.equal(
+    hung("[Auto] When a card evolves into this card, if your Leader Card is black, you may choose 5 cards from your Warp and place them in the Drop Area. If you do so, send all of your opponent's Battle Cards to their Warp.")?.atLeast,
+    5,
+    "BT3-109: all 5 or nothing",
+  );
+  assert.equal(
+    hung("[Auto] When this card is removed from a Battle Area by a skill or KO'd, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green <Broly: Br> card with an energy cost of 7 from your hand and play it.")?.atLeast,
+    2,
+    "SD8-03: both cards",
+  );
+  // "Up to 2 … if you do" is satisfied by one.
+  assert.equal(hung("[Auto] When this card attacks, choose up to 2 cards in your hand and place them in the Drop Area. If you do, draw 2 cards.")?.atLeast, undefined, "up to N: one is enough");
+  // BT6-063: "1 or 2" has a floor the choice cannot say — refused, not read as exactly 1.
+  assert.ok(one("[Auto] When this card is KO'd, choose 1 or 2 cards from your life and add them to your hand.").unsupported.length > 0, "1 or 2 is refused");
+  // "an energy cost of 1 or 5" is a measure, not a count.
+  assert.ok(!one("[Auto] At the end of your turn, you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode.").unsupported.some((u) => /1 or 5/.test(u) && /^you may add/.test(u)), "a cost of 1 or 5 does not trip the count refusal");
+}

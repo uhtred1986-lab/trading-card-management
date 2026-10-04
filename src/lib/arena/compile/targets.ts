@@ -637,6 +637,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   let count = 1;
   let upTo = false;
   let m: RegExpExecArray | null;
+  // "Choose 1 or 2 cards from your life" (BT6-063, #538): a count with a
+  // floor and a ceiling. A choice has a count and an up-to and nothing in
+  // between, so the first number alone read it as exactly 1 — the player could
+  // never take the second card. Refused rather than read narrower or wider.
+  if (/(?:^|\s)(\d+) or (\d+) (?:[a-z-]+ )*cards?\b/.test(t.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, " ").replace(/\d+000\b/g, "").replace(/energy cost (?:of )?\d+(?: or \d+)?/g, ""))) return null;
   if ((m = /\bup to (\d+)\b/.exec(t))) {
     count = Number(m[1]);
     upTo = true;
