@@ -24,7 +24,7 @@ loadEnvConfig(process.cwd());
 const { sql } = await import("drizzle-orm");
 const { db } = await import("../src/db/index.ts");
 const { rows } = await import("../src/db/rows.ts");
-const { MODEL, SONNET_MODEL, hasAnthropic } = await import("../src/lib/ai/client.ts");
+const { hasAnthropic } = await import("../src/lib/ai/client.ts");
 const { prepareImage, readPhoto, readPhotoTiered, matchDetection } = await import("../src/lib/ai/scan.ts");
 const { assessMatch, cleanBox } = await import("../src/lib/ai/scan-match.ts");
 type Prepared = Awaited<ReturnType<typeof prepareImage>>;
@@ -85,12 +85,12 @@ let same = 0;
 let fellBack = 0;
 const different: string[] = [];
 for (const [i, p] of photos.entries()) {
-  const base = (await readPhoto(MODEL, p.prepared, p.mode)).parsed_output;
+  const base = (await readPhoto("best", p.prepared, p.mode)).parsed;
   const tiered = await readPhotoTiered(p.prepared, p.mode);
   const last = tiered[tiered.length - 1];
-  const used = tiered.length > 1 ? `${SONNET_MODEL} -> ${MODEL}` : last.model;
+  const used = tiered.length > 1 ? `sonnet -> opus` : last.model;
   if (tiered.length > 1) fellBack++;
-  const next = last.res.parsed_output;
+  const next = last.res.parsed;
   const a = base ? await matched(base.cards) : ["(unparseable)"];
   const b = next ? await matched(next.cards) : ["(unparseable)"];
   const ok = JSON.stringify(a) === JSON.stringify(b);
@@ -99,7 +99,7 @@ for (const [i, p] of photos.entries()) {
   console.log(`${String(i + 1).padStart(2)}. ${p.label} [${p.mode}] via ${used}: ${ok ? "IDENTICAL" : "DIFFERENT"}  ${a.join(", ")}${ok ? "" : `\n      new: ${b.join(", ")}`}`);
 }
 
-console.log(`\n${same}/${photos.length} photos matched identically; ${fellBack} fell back to ${MODEL}.`);
+console.log(`\n${same}/${photos.length} photos matched identically; ${fellBack} fell back to opus.`);
 if (different.length) console.log(`Different: ${different.join("; ")}`);
 if (photos.length < 20) console.log("Fewer than 20 photos: the acceptance bar is not met.");
 process.exit(different.length || photos.length < 20 ? 1 : 0);

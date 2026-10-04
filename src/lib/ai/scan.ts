@@ -8,15 +8,14 @@
  * catalog card is, on confirmation. Several photos = several calls; the
  * client fans them out one request each.
  */
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { sql } from "drizzle-orm";
 import sharp from "sharp";
 import { z } from "zod";
 import type { Db } from "@/db";
 import { cardPrints } from "@/db/schema";
 import { quickSearch } from "@/lib/catalog/queries";
-import Anthropic from "@anthropic-ai/sdk";
-import { MODEL, SONNET_MODEL, anthropic, recordRun } from "./client";
+import { generateJson } from "./core";
+import { recordRun } from "./client";
 import { assessMatch, cleanBox, needsOpusFallback, normaliseNumber, type Box, type MatchedBy } from "./scan-match";
 
 /** Longest edge sent to the model; keeps image tokens bounded (~1.2k per image). */
@@ -99,19 +98,21 @@ function scanInstruction(mode: "single" | "batch"): string {
     : "This photo shows several Dragon Ball Super Card Game cards (a binder page, a spread, or a pile), from either the original game or Fusion World, possibly mixed. List every distinct card you can see, reading each card number and name. Work systematically across the image, left to right then top to bottom.";
 }
 
-/** One read of one photo on the given model. Sonnet 5.5 and Opus take the same request shape. */
-export function readPhoto(model: string, prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch") {
-  return anthropic().messages.parse({
-    model,
-    max_tokens: 8000,
-    thinking: { type: "adaptive" },
-    output_config: { effort: "medium", format: zodOutputFormat(ScanSchema) },
-    system: SCAN_SYSTEM,
+/** One read of one photo on the given tier. Sonnet and Opus take the same request shape. */
+export async function readPhoto(tier: "standard" | "best", prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch") {
+  return generateJson({
+    task: "scan_identify",
+    tier,
+    maxTokens: 8000,
+    thinking: "adaptive",
+    effort: "medium",
+    schema: ScanSchema,
+    system: [{ text: SCAN_SYSTEM }],
     messages: [
       {
         role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: prepared.mediaType, data: prepared.data } },
+        parts: [
+          { type: "image", mediaType: prepared.mediaType, base64: prepared.data },
           { type: "text", text: scanInstruction(mode) },
         ],
       },
@@ -119,26 +120,35 @@ export function readPhoto(model: string, prepared: Pick<PreparedImage, "data" | 
   });
 }
 
-type ScanRead = Awaited<ReturnType<typeof readPhoto>>;
-
 /**
- * Sonnet first, Opus only when Sonnet's answer is unparseable (the SDK throws
- * a non-API error, or `parsed_output` is null) or low-confidence
- * ({@link needsOpusFallback}). A refusal, or an API error such as a rejected
- * key or a rate limit, is not retried on Opus. Returns every read that came
- * back, in order, so the caller can record each one; the last is the answer.
+ * Sonnet first, Opus only when Sonnet's answer is unparseable (bad_output)
+ * or low-confidence ({@link needsOpusFallback}). A refusal, or an error such
+ * as a rejected key or a rate limit, is not retried on Opus. Returns every
+ * read that came back, in order, so the caller can record each one; the last
+ * is the answer.
  */
-export async function readPhotoTiered(prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch"): Promise<{ model: string; res: ScanRead; fallbackFrom?: string }[]> {
-  let first: ScanRead | null = null;
+export async function readPhotoTiered(prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch"): Promise<{ model: string; res: Awaited<ReturnType<typeof readPhoto>>; fallbackFrom?: string }[]> {
+  let first: Awaited<ReturnType<typeof readPhoto>> | null = null;
   try {
-    first = await readPhoto(SONNET_MODEL, prepared, mode);
+    first = await readPhoto("standard", prepared, mode);
   } catch (err) {
-    if (err instanceof Anthropic.APIError) throw err;
+    // On auth/rate/refusal errors, throw immediately without retry
+    if (err instanceof Error && (err.message.includes("auth") || err.message.includes("rate") || err.message.includes("declined"))) {
+      throw err;
+    }
   }
-  if (first?.stop_reason === "refusal") return [{ model: SONNET_MODEL, res: first }];
-  if (first?.parsed_output && !needsOpusFallback(first.parsed_output, mode)) return [{ model: SONNET_MODEL, res: first }];
-  const second = { model: MODEL, res: await readPhoto(MODEL, prepared, mode), fallbackFrom: SONNET_MODEL };
-  return first?.parsed_output ? [{ model: SONNET_MODEL, res: first }, second] : [second];
+  // If Sonnet succeeded and doesn't need fallback, return it
+  if (first && first.stop !== "refusal" && !needsOpusFallback(first.parsed!, mode)) {
+    return [{ model: "sonnet", res: first }];
+  }
+  // Fallback to Opus on bad_output or needsOpusFallback
+  const second = await readPhoto("best", prepared, mode);
+  const results: { model: string; res: Awaited<ReturnType<typeof readPhoto>>; fallbackFrom?: string }[] = [];
+  if (first && first.stop !== "refusal") {
+    results.push({ model: "sonnet", res: first });
+  }
+  results.push({ model: "opus", res: second, fallbackFrom: first ? "sonnet" : undefined });
+  return results;
 }
 
 export async function identifyCards(
@@ -151,7 +161,7 @@ export async function identifyCards(
   let id = 0;
   let output!: ScanResult;
   for (const r of await readPhotoTiered(prepared, mode)) {
-    ({ id, output } = await recordRun<ScanResult>(db, "scan_identify", { mode, ...(r.fallbackFrom ? { fallbackFrom: r.fallbackFrom } : {}) }, r.res, undefined, r.model));
+    ({ id, output } = await recordRun<ScanResult>(db, "scan_identify", { mode, ...(r.fallbackFrom ? { fallbackFrom: r.fallbackFrom } : {}) }, r.res));
   }
 
   // Each card on the photo is matched on its own, so all of them at once: a
