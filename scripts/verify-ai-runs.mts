@@ -2,8 +2,9 @@
  * verify-db checks for `recordRun` (#380, #515): the cache token fields of a
  * usage object land in `ai_runs`, and a usage object without them stores nulls;
  * the provider and billed fields are filled from AiResult or default to
- * anthropic-api/true for legacy responses. Checks that costMicros is unchanged
- * for existing models (#515).
+ * anthropic-api/true for legacy responses. Checks that costMicros is byte-identical
+ * for existing models over various token mixes, and that dynamic model pricing
+ * via rememberModelPrices works (#515).
  * Kept in its own file so verify-db.mts only gains one line.
  */
 import assert from "node:assert/strict";
@@ -11,7 +12,8 @@ import { eq } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
 import { recordRun } from "../src/lib/ai/client.ts";
-import { costMicros } from "../src/lib/ai/models.ts";
+import { costMicros, rememberModelPrices, priceOf, modelEntry } from "../src/lib/ai/models.ts";
+import type { ModelInfo } from "../src/lib/ai/types.ts";
 
 export async function verifyAiRuns(db: Db): Promise<void> {
   const parsed = { ok: true };
@@ -45,20 +47,44 @@ export async function verifyAiRuns(db: Db): Promise<void> {
   assert.equal(row2.provider, "anthropic-api", "legacy response defaults to anthropic-api provider");
   assert.equal(row2.billed, true, "legacy response defaults to billed=true");
 
-  // Test: costMicros is unchanged for existing models
-  const costs: Record<string, number> = {
-    "claude-opus-5": costMicros({ model: "claude-opus-5", input: 1_000_000, output: 1_000_000, cached: 0 }),
-    "claude-sonnet-5-5": costMicros({ model: "claude-sonnet-5-5", input: 1_000_000, output: 1_000_000, cached: 0 }),
-    "claude-haiku-4-5": costMicros({ model: "claude-haiku-4-5", input: 1_000_000, output: 1_000_000, cached: 0 }),
+  // Test: costMicros is byte-identical for existing models over various token mixes
+  // Opus: input 5, output 25 per MTok; cache read at 0.1×
+  const opusFormula = (input: number, output: number, cached: number): number => {
+    return Math.round((input * 5 + cached * 5 * 0.1 + output * 25) / 1_000_000 * 1_000_000);
   };
-  assert.equal(costs["claude-opus-5"], 30_000_000, "Opus: 5 + 25 = 30 USD");
-  assert.equal(costs["claude-sonnet-5-5"], 12_000_000, "Sonnet: 2 + 10 = 12 USD");
-  assert.equal(costs["claude-haiku-4-5"], 6_000_000, "Haiku: 1 + 5 = 6 USD");
+  assert.equal(costMicros({ model: "claude-opus-5", input: 1_000_000, output: 1_000_000, cached: 0 }), opusFormula(1_000_000, 1_000_000, 0), "Opus 1M+1M+0");
+  assert.equal(costMicros({ model: "claude-opus-5", input: 523_456, output: 234_567, cached: 89_012 }), opusFormula(523_456, 234_567, 89_012), "Opus non-round tokens with cache");
+  assert.equal(costMicros({ model: "claude-opus-5", input: 1, output: 1, cached: 1 }), opusFormula(1, 1, 1), "Opus tiny inputs");
 
-  // Test: costMicros with cache
-  const cached = costMicros({ model: "claude-opus-5", input: 1_000_000, output: 1_000_000, cached: 1_000_000 });
-  const expectedCached = Math.round((1_000_000 * 5 + 1_000_000 * 5 * 0.1 + 1_000_000 * 25) / 1_000_000 * 1_000_000);
-  assert.equal(cached, expectedCached, "cache read is 10% of input price");
+  // Sonnet: input 2, output 10 per MTok
+  const sonnetFormula = (input: number, output: number, cached: number): number => {
+    return Math.round((input * 2 + cached * 2 * 0.1 + output * 10) / 1_000_000 * 1_000_000);
+  };
+  assert.equal(costMicros({ model: "claude-sonnet-5-5", input: 1_000_000, output: 1_000_000, cached: 0 }), sonnetFormula(1_000_000, 1_000_000, 0), "Sonnet 1M+1M+0");
+  assert.equal(costMicros({ model: "claude-sonnet-5-5", input: 456_789, output: 111_222, cached: 333_444 }), sonnetFormula(456_789, 111_222, 333_444), "Sonnet non-round tokens with cache");
+
+  // Haiku: input 1, output 5 per MTok
+  const haikuFormula = (input: number, output: number, cached: number): number => {
+    return Math.round((input * 1 + cached * 1 * 0.1 + output * 5) / 1_000_000 * 1_000_000);
+  };
+  assert.equal(costMicros({ model: "claude-haiku-4-5", input: 1_000_000, output: 1_000_000, cached: 0 }), haikuFormula(1_000_000, 1_000_000, 0), "Haiku 1M+1M+0");
+  assert.equal(costMicros({ model: "claude-haiku-4-5", input: 99_999, output: 88_888, cached: 77_777 }), haikuFormula(99_999, 88_888, 77_777), "Haiku non-round tokens with cache");
+
+  // Unknown model falls back to Opus pricing
+  assert.equal(costMicros({ model: "claude-future-9", input: 100_000, output: 50_000, cached: 10_000 }), opusFormula(100_000, 50_000, 10_000), "unknown model falls back to Opus");
+
+  // Test: dynamic model pricing via rememberModelPrices and priceOf
+  const openrouterModels: ModelInfo[] = [
+    { id: "meta-llama/llama-2-7b", label: "Llama 2 7B", capabilities: { vision: false, json: true, tools: true }, usdPerMTok: { in: 0.001, out: 0.002 } },
+    { id: "mistralai/mistral-7b", label: "Mistral 7B", capabilities: { vision: false, json: true, tools: true }, usdPerMTok: { in: 0.0005, out: 0.0015 } },
+  ];
+  rememberModelPrices("openrouter", openrouterModels);
+  assert.deepEqual(priceOf("meta-llama/llama-2-7b", "openrouter"), { input: 0.001, output: 0.002 }, "rememberModelPrices stores model prices");
+  assert.deepEqual(priceOf("mistralai/mistral-7b", "openrouter"), { input: 0.0005, output: 0.0015 }, "remembered price is used");
+  assert.equal(modelEntry("meta-llama/llama-2-7b", "openrouter")?.vision, false, "remembered model info includes capabilities");
+
+  // Test: priceOf falls back to Opus when model not found
+  assert.deepEqual(priceOf("unknown-model", "openrouter"), { input: 5, output: 25 }, "priceOf falls back to Opus for unknown model");
 
   await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, aiResult.id));
   await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, legacy.id));
