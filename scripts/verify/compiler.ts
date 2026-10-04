@@ -10,6 +10,7 @@ import {
   DEFS,
   IMPL,
   actsG,
+  addEffectG,
   assertConsistentG,
   autoTriggerMatches,
   cardNowG,
@@ -396,6 +397,46 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   assert.ok(sel.filter, "the filter was thrown away as narrowing nothing, the same bug BT19-130 had (issue #238)");
   assert.equal(sel.filter?.originallySkillLess, true);
   assert.deepEqual(wrapped.then, [{ op: "draw", n: 1 }]);
+}
+
+{
+  // Bare "skill-less" (1-5-9, 9-1-4): no skill in force *now*. `parseFilter`
+  // dropped the word until 3 Oct 2026, so "KO 1 of your opponent's skill-less
+  // Battle Cards" offered every Battle Card. The adverb keeps the two apart.
+  assert.equal(parseFilter("your opponent's skill-less Battle Cards").skillLess, true);
+  assert.equal(parseFilter("your opponent's skill-less Battle Cards").originallySkillLess, false);
+  assert.equal(parseFilter("an originally skill-less Battle Card").skillLess, false, "\"originally\" is the printed card, not this measure");
+  const ko = compileSkill(parseSkills("[Activate: Main] Choose up to 1 of your opponent's skill-less Battle Cards and KO it.")[0]);
+  assert.deepEqual(ko.unsupported, []);
+  const choose = ko.ops.find((o) => o.op === "choose") as Extract<Op, { op: "choose" }> | undefined;
+  assert.equal(choose?.sel.filter?.skillLess, true, "the measure reaches the selector rather than being thrown away as narrowing nothing");
+
+  // On the table, on whichever engine this run plays: V1 prints nothing,
+  // PUMP an [Activate: Main], BLOCKER a bare [Blocker] (a keyword is a skill,
+  // 22-1).
+  const s = stagedG({ battle: ["V1", "PUMP", "BLOCKER"] });
+  const plain = findG(s, "p1", "battle", "V1");
+  const pump = findG(s, "p1", "battle", "PUMP");
+  const blocker = findG(s, "p1", "battle", "BLOCKER");
+  const bare = parseFilter("skill-less Battle Card");
+  const printed = parseFilter("originally skill-less Battle Card");
+  assert.ok(matchesG(s, plain, bare), "a card with no text is skill-less");
+  assert.ok(!matchesG(s, pump, bare), "a card with an [Activate: Main] is not");
+  assert.ok(!matchesG(s, blocker, bare), "nor is one whose only skill is a keyword");
+
+  // 9-1-4: every skill negated — the whole card, or its one line by index —
+  // and it is treated as skill-less. "Originally" still reads the print.
+  addEffectG(s, [], { target: pump, kind: "negateSkills", value: 0, until: "turn", master: "p2" });
+  assert.ok(matchesG(s, pump, bare), "9-1-4: a card with all its skills negated is skill-less");
+  assert.ok(!matchesG(s, pump, printed), "…but was not originally");
+  addEffectG(s, [], { target: blocker, kind: "negateSkill", value: 0, until: "turn", master: "p2" });
+  assert.ok(matchesG(s, blocker, bare), "9-1-4: its only line negated by index, too");
+
+  // A skill gained is a skill in force: V1 given [Blocker] is no longer
+  // skill-less, though it still was originally.
+  addEffectG(s, [], { target: plain, kind: "keyword", value: { name: "Blocker" }, until: "turn", master: "p1" });
+  assert.ok(!matchesG(s, plain, bare), "a card that gained [Blocker] has a skill");
+  assert.ok(matchesG(s, plain, printed), "…and is still originally skill-less");
 }
 
 {

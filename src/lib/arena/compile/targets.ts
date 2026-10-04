@@ -843,6 +843,9 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     f.originalPowerMin != null ||
     f.originalPowerMax != null ||
     f.originallySkillLess ||
+    // Bare "skill-less" (1-5-9, 9-1-4), added 3 Oct 2026 — and listed here in
+    // the same commit, for the reason the comment above gives.
+    f.skillLess ||
     // "Cards with 5000 combo power" (BT29-030), the same lesson again.
     f.comboPowerMin != null ||
     f.comboPowerMax != null ||

@@ -155,10 +155,26 @@ export interface CardFilter {
    * with no text at all, whether or not a later effect granted it a skill —
    * narrower than "skill-less" on its own, which would also ask about a skill
    * negated for the turn (9-1-4) or one this filter has no way to see was
-   * granted. Bare "skill-less" stays unread (issue #238 is scoped to the
-   * "originally" wording the catalog actually prints).
+   * granted. Bare "skill-less" is `skillLess`, below.
    */
   originallySkillLess: boolean;
+  /**
+   * "Your opponent's **skill-less** Battle Cards", "a red skill-less Battle
+   * Card" — some 250 printed skills. 1-5-9: a card that lacks card text; and
+   * 9-1-4: a card all of whose skills are negated is treated as one. So this
+   * is the card as it stands *now*: no printed skill still in force (none
+   * printed, or every one negated) and no skill it has been granted or has
+   * copied (20-18) — a keyword "gained" is a skill like any other (22-1).
+   * Until 3 Oct 2026 `parseFilter` dropped the word, and every such
+   * description offered cards with text as readily as cards without.
+   *
+   * `matches` is a pure function of a `CardDef`, so the live answer arrives on
+   * the def itself — `CardDef.skillLess`, filled by `cardNow` — and a bare
+   * catalog row with no table to ask answers off its printed text, the same
+   * reading `originallySkillLess` makes. On the rules engine it is the
+   * declared `skillLess` attribute (`attributes.rules`), seeded by `attrsNow`.
+   */
+  skillLess: boolean;
   /**
    * "with power less than or equal to this card's power" — a bound read off
    * the card whose skill this is, so it is applied where the skill runs
@@ -231,6 +247,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   comboPowerMin: "number",
   comboPowerMax: "number",
   originallySkillLess: "boolean",
+  skillLess: "boolean",
   powerRel: "powerRel",
   z: "tri",
 };
@@ -293,6 +310,7 @@ export function emptyFilter(): CardFilter {
     comboPowerMin: null,
     comboPowerMax: null,
     originallySkillLess: false,
+    skillLess: false,
     powerRel: null,
     z: null,
   };;
@@ -406,9 +424,13 @@ export function parseFilter(text: string): CardFilter {
   if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
   // "An originally skill-less Battle Card" (20-3-1): printed with no text at
   // all, which the catalog only ever writes with the adverb — see
-  // `originallySkillLess` above for why bare "skill-less" is a separate,
-  // still-unread gap.
+  // `originallySkillLess` above for why bare "skill-less" is a separate
+  // measure.
   if (/\boriginally skill-less\b/.test(lower)) f.originallySkillLess = true;
+  // Bare "skill-less" (1-5-9, 9-1-4): no skill in force now. Only where the
+  // adverb is absent — "originally" asks about the printed card alone, and a
+  // skill negated or granted since must not move that answer.
+  if (/(?<!\boriginally )\bskill-less\b/.test(lower)) f.skillLess = true;
   // "…**with [Blocker]**", "…with an [Evolve] skill", "…with [Counter]
   // skills". A requirement, and dropping it chose any card in the area (83
   // selectors). "Without" and "non-" are read below as the opposite; anything
@@ -674,6 +696,9 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   if (f.originalPowerMin != null && (d.power == null || d.power < f.originalPowerMin)) return false;
   if (f.originalPowerMax != null && (d.power == null || d.power > f.originalPowerMax)) return false;
   if (f.originallySkillLess && d.skill) return false;
+  // 1-5-9, 9-1-4: `cardNow` says whether the card has a skill in force; a
+  // catalog row read with no table under it has only its printed text.
+  if (f.skillLess && !(d.skillLess ?? !d.skill)) return false;
   // 2-8: the printed combo power — `cardNow` never rewrites it, the same as
   // `d.power` above.
   const combo = typeof d.comboPower === "number" ? d.comboPower : null;

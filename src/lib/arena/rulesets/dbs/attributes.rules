@@ -153,6 +153,17 @@ DEFINE ATTRIBUTE alsoNames                                                -- §2
   printed: false
   text: "the card names a skill gave this card in all areas; it answers to these as well as to its printed name, never instead of it (20-1)"
 
+-- 1-5-9 / 9-1-4 — what a filter's bare "skill-less" asks. Not `skill`, which
+-- is the printed text box: a card whose every skill is negated is treated as
+-- skill-less (9-1-4), and one that has gained or copied a skill (20-18) has
+-- one. `attrsNow` works it out off the table, the way `alsoNames` above is
+-- filled from the effects in force rather than from the catalog row.
+DEFINE ATTRIBUTE skillLess                                                -- §1-5-9, §9-1-4
+  of: card
+  value: boolean
+  printed: false
+  text: "whether the card has no skill in force: none printed, or every one negated (9-1-4), and none granted or copied; a Hidden Mode card has no text to read (23-5-2)"
+
 -- ── a card's state on the table (spec §2.5-1/§2.5-3, #275) ─────────────────
 --
 -- `modifyAttr` reached one card and six attributes before this issue

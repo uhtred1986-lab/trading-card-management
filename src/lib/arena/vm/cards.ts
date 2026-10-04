@@ -111,6 +111,9 @@ const CATALOG: Record<keyof CardDef, Reader> = {
   skill: (d) => d.skill ?? undefined,
   back: (d) => d.back != null,
   alsoNames: (d) => d.alsoNames ?? [],
+  // 1-5-9: a catalog row with no table under it has only its printed text to
+  // go by; `attrsNow` replaces this with the answer off the table (9-1-4).
+  skillLess: (d) => d.skillLess ?? !d.skill,
 };
 
 /**

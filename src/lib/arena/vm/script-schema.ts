@@ -180,13 +180,15 @@ void _everyPromptKindListed;
  * still something it *has*), `skill` (2-4, the whole text box before any is
  * gained or negated), `back` (1-9: whether a second face exists, not what is
  * on it — that face has no kind of its own yet) and `alsoNames` (20-1,
- * `printed: false` since a skill grants it rather than the card printing it).
+ * `printed: false` since a skill grants it rather than the card printing it)
+ * and `skillLess` (1-5-9, 9-1-4: no skill in force, `printed: false` because
+ * a negation or a grant moves it).
  * `attributes.rules` also declares three derived `of: card` attributes with
  * no `CardDef` field at all (`costOf`, `comboCostOf`, `zEnergyCostOf`,
  * 20-21) — real values the board computes, so `scripts/verify/rulesets.ts`
  * sets those three aside by name rather than by shape.
  */
-export const CARD_ATTRIBUTES = ["id", "name", "type", "colors", "energyCost", "zEnergyCost", "power", "comboCost", "comboPower", "skill", "characters", "traits", "back", "specifiedCost", "alsoNames"] as const satisfies readonly (keyof CardDef)[];
+export const CARD_ATTRIBUTES = ["id", "name", "type", "colors", "energyCost", "zEnergyCost", "power", "comboCost", "comboPower", "skill", "characters", "traits", "back", "specifiedCost", "alsoNames", "skillLess"] as const satisfies readonly (keyof CardDef)[];
 type MissingCardAttribute = Exclude<keyof CardDef, (typeof CARD_ATTRIBUTES)[number]>;
 const _everyCardAttributeListed: MissingCardAttribute extends never ? true : never = true;
 void _everyCardAttributeListed;
@@ -2121,6 +2123,10 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // printed after it, `parseFilter` would still read it (it looks for the
   // phrase anywhere), but the catalog never writes it that way.
   if (f.originallySkillLess) bits.push("originally skill-less");
+  // Bare "skill-less" (1-5-9, 9-1-4), in the same place. The adverb is what
+  // tells `parseFilter` the two apart, so a filter asking both (no card prints
+  // that; a hand-written rule could) says the word twice rather than once.
+  if (f.skillLess) bits.push("skill-less");
   // The noun has to be settled before the trailing measures are hung off it,
   // and a name asked for **in part** is one of those — printed after the word
   // it qualifies, the way the card prints it.

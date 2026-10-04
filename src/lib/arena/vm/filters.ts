@@ -120,6 +120,11 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   originalPowerMin: { reads: ["originalPower"] },
   originalPowerMax: { reads: ["originalPower"] },
   originallySkillLess: { reads: ["skill"] },
+  // Bare "skill-less" (1-5-9, 9-1-4) is about the skills in force *now* —
+  // negations and grants included — which `attrsNow` works out off the table
+  // into an attribute of its own; `skill` is the printed text box and cannot
+  // say. A bag with no table under it falls back to that text (below).
+  skillLess: { reads: ["skillLess"] },
   // 2-8: "cards with 5000 combo power" (BT29-030).
   comboPowerMin: { reads: ["comboPower"] },
   comboPowerMax: { reads: ["comboPower"] },
@@ -268,6 +273,9 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   if (f.originalPowerMin != null && (original == null || original < f.originalPowerMin)) return false;
   if (f.originalPowerMax != null && (original == null || original > f.originalPowerMax)) return false;
   if (f.originallySkillLess && text(attrs.skill)) return false;
+  // 1-5-9, 9-1-4: seeded by `attrsNow`; the legacy `matches` reads the
+  // printed text when `cardNow` has not answered, and so does this.
+  if (f.skillLess && !(typeof attrs.skillLess === "boolean" ? attrs.skillLess : !text(attrs.skill))) return false;
   // 2-8: the combo power as it stands, the way `power` above is read — the
   // `comboPower` attribute carries the same 9-9-1 layers.
   const combo = number(attrs.comboPower);

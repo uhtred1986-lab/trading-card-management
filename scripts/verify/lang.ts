@@ -762,6 +762,10 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { originalPowerMin: 10000 },
     { originalPowerMax: 15000 },
     { originallySkillLess: true },
+    // Bare "skill-less" (1-5-9, 9-1-4), and both at once — the adverb is the
+    // one word that tells them apart on the way back in.
+    { skillLess: true },
+    { skillLess: true, originallySkillLess: true },
     // 2-8: "cards with 5000 combo power" (BT29-030).
     { comboPowerMin: 5000, comboPowerMax: 5000 },
     { comboPowerMin: 5000 },
@@ -789,6 +793,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     "Extra Card with 15000 power or less",
     "red <Raditz: Br> card with an original power of 500",
     "originally skill-less Battle Card with an energy cost of 3 or less",
+    "red skill-less Battle Card with an energy cost of 1",
     "card with 5000 combo power",
     "card with a combo power of 5000 or more",
   ])

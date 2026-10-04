@@ -284,7 +284,7 @@ export function cardNow(ctx: GameContext, s: GameState, id: string): CardDef {
       ? { ...d, ...face(ctx, s, id) }
       : d;
   const gains = staticEffects(ctx, s).filter((e) => e.kind === "gains" && e.target === id);
-  if (!gains.length) return base;
+  if (!gains.length) return withSkillLess(ctx, s, id, { ...base });
   const out = { ...base, traits: [...base.traits], characters: [...base.characters], colors: [...base.colors], alsoNames: [...(base.alsoNames ?? [])] };
   const add = (list: string[], more: string[]) => {
     for (const x of more) if (!list.some((y) => y.toLowerCase() === x.toLowerCase())) list.push(x);
@@ -298,7 +298,32 @@ export function cardNow(ctx: GameContext, s: GameState, id: string): CardDef {
     // filter naming either finds the card (`namesOf` in `filters.ts`).
     add(out.alsoNames, g.names ?? []);
   }
+  return withSkillLess(ctx, s, id, out);
+}
+
+/**
+ * `CardDef.skillLess` on `cardNow`'s copy, as a getter: answering it asks
+ * every continuous effect about negations and grants, and only a filter
+ * saying "skill-less" ever reads it. Enumerable, so a spread of the def
+ * (a flipped Leader's condition) carries the live answer rather than
+ * dropping back to the printed text.
+ */
+function withSkillLess(ctx: GameContext, s: GameState, id: string, out: CardDef): CardDef {
+  Object.defineProperty(out, "skillLess", { enumerable: true, configurable: true, get: () => skillLessNow(ctx, s, id) });
   return out;
+}
+
+/**
+ * 1-5-9, 9-1-4: the card has no skill in force — every printed (or copied,
+ * 20-18) line it shows is negated or there is none, and no keyword is granted
+ * to it. A Hidden Mode card has no text to read at all (23-5-2) and answers
+ * yes, the same as `originallySkillLess` reads its blanked face.
+ */
+export function skillLessNow(ctx: GameContext, s: GameState, id: string): boolean {
+  const inst = s.cards[id];
+  if (!inst || inst.hidden) return true;
+  if (skillsOfInstance(ctx, s, id).some((sk) => !skillNegated(s, id, sk.index, sk.kind))) return false;
+  return keywordsInForce(ctx, s, id).length === 0;
 }
 
 export function player(s: GameState, p: PlayerId): PlayerState {
