@@ -348,6 +348,13 @@ const CARD_NOUN = /\b(?:battle |extra |leader |unison )?(?:cards?|extras?|leader
  */
 function eitherFilter(text: string): CardFilter | null {
   const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  // "…with an energy cost of 1 or 5" (BT29-032, #537): two costs, either one.
+  // Read as a bound it was the first number alone. "4 or less" is not this.
+  const costs = /\benergy costs? (?:of )?(\d+) or (\d+)\b(?!\s*or\b)/i.exec(t);
+  if (costs) {
+    const at = (n: string) => parseFilter(t.slice(0, costs.index) + t.slice(costs.index).replace(costs[0], `energy cost of ${n}`));
+    return { ...emptyFilter(), anyOf: [at(costs[1]), at(costs[2])] };
+  }
   if (!/\bor\b/i.test(t)) return null;
   // Split at top level only: names carry commas and "or"s of their own.
   const pieces: string[] = [];
@@ -506,7 +513,9 @@ function parseOneFilter(text: string): CardFilter {
   // selectors). "Without" and "non-" are read below as the opposite; anything
   // else in brackets that is neither a keyword nor a skill kind makes the
   // whole description unreadable, because guessing selects the wrong cards.
-  for (const m of lower.matchAll(/\bwith (?:an?|the )?\s*\[([a-z0-9:\- /]+)\](?: skills?)?/g)) {
+  // "…with an energy cost of 5 or less **and [Swap]**" (BT4-095, #537): the
+  // keyword joined to the measure before it is required just the same.
+  for (const m of lower.matchAll(/\b(?:with|and) (?:an?|the )?\s*\[([a-z0-9:\- /]+)\](?: skills?)?/g)) {
     const word = m[1].trim();
     const kind: SkillKindPrefix | null = /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
     if (kind) {

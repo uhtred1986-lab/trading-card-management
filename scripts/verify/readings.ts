@@ -17,6 +17,7 @@ import {
   compileSkill,
   costIsOnlyOrbs,
   costText,
+  describeCond,
   findG,
   forbidsG,
   koCardG,
@@ -2040,4 +2041,24 @@ import {
   const f = parseFilter("<V1> card or blue card with an energy cost of 0");
   assert.ok(matches(DEFS.V1, f), "V1 answers the first description");
   assert.ok(!matches(DEFS["V-BLUE"], f), "V-BLUE is blue but costs more than 0");
+}
+
+// ── qualifiers the "or"/"and" used to drop (#537, part 2) ───────────────────
+
+{
+  // "an energy cost of 1 or 5" (BT29-032): either cost, not the first alone.
+  const two = parseFilter("blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5");
+  assert.deepEqual(two.anyOf?.map((a) => [a.costMin, a.costMax]), [
+    [1, 1],
+    [5, 5],
+  ], "BT29-032: 1 or 5");
+  assert.equal(parseFilter("Battle Card with an energy cost of 4 or less").anyOf, undefined, "4 or less is a bound");
+  // "…cost of 5 or less and [Swap]" (BT4-095): the keyword is required too.
+  assert.deepEqual(parseFilter("≪Goku's Lineage≫ with an energy cost of 5 or less and [Swap]").keywords, ["Swap"], "BT4-095: and [Swap]");
+  // (A or B) and C reads with its brackets (BT30-096, BT31-128).
+  assert.equal(
+    describeCond({ kind: "all", conds: [{ kind: "any", conds: [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }] }, { kind: "life", side: "you", atLeast: 1 }] } as never),
+    `(${describeCond({ kind: "any", conds: [{ kind: "isTurnPlayer" }, { kind: "life", side: "you", atMost: 4 }] } as never)}) and ${describeCond({ kind: "life", side: "you", atLeast: 1 } as never)}`,
+    "an or inside an and is bracketed",
+  );
 }

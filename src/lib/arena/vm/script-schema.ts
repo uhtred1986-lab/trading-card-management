@@ -1148,7 +1148,13 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: "every card the first selector finds is also one the second finds; false when there is nothing to find (0-2-4-1)",
   },
   any: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"any">).conds.map(describeCond).join(", or "), doc: "at least one of the conditions holds (disjunction)" },
-  all: { fields: [{ name: "conds", type: "conds", required: true }], sentence: (raw) => (raw as CondOf<"all">).conds.map(describeCond).join(" and "), doc: "every condition holds (conjunction)" },
+  all: {
+    fields: [{ name: "conds", type: "conds", required: true }],
+    // "(black, or ≪Universe≫) and 2 or more energy" (BT30-096, #537): an
+    // "or" inside an "and" is bracketed, or the sentence reads the other way.
+    sentence: (raw) => (raw as CondOf<"all">).conds.map((c) => (c.kind === "any" ? `(${describeCond(c)})` : describeCond(c))).join(" and "),
+    doc: "every condition holds (conjunction)",
+  },
   leaderFlipped: {
     fields: [
       { name: "side", type: "side" },
