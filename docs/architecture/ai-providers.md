@@ -261,6 +261,20 @@ Every provider answers `listModels(): Promise<ModelInfo[]>` with
 filtered to models that can do what the task needs (image input for `scan_identify`; structured output preferred everywhere). The choice is stored in
 `ai_settings.models` (jsonb: provider → tier → model id, plus a model in `taskOverrides`).
 
+**Arena modes** (owner, 4 Oct 2026) get their own block on the settings page, separate from the tiers,
+so changing the `fast` tier never silently changes the arena. Three slots, each `{ provider, model }`
+in `ai_settings.models`:
+
+| Slot | Decides | Default |
+|---|---|---|
+| `arena.sparring` | every Sparring decision | `FAST_MODEL` (Haiku 4.5) |
+| `arena.tournament.key` | Tournament `main`, `counter`, `blocker`, `combo` prompts | `MODEL` (Opus 5), effort `medium` |
+| `arena.tournament.other` | every other Tournament decision | `FAST_MODEL` |
+
+`modelFor` in `arena/ai/opponent.ts` keeps the list of key prompt kinds and asks the router for the
+slot's model. The pickers offer only models with structured output (the answer is a move number from
+the legal list). The referee (`arena_referee`) stays an ordinary per-task override.
+
 Model precedence for a call: `req.model` in code → the per-task model in `ai_settings` → the per-tier
 model in `ai_settings` for the active provider → env (none today; `MODEL`, `SONNET_MODEL`, `FAST_MODEL` are the code defaults) → the `models.ts` default. Changing a
 model never rewrites a stored answer.
