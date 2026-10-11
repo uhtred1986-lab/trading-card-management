@@ -36,13 +36,14 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - #567 / PR #590: independent atomic AI usage ledger, duplicate-call protection and concurrent accounting.
 - #546 / PR #591: recoverable polling, request deadlines, Offline/Reconnecting status and Retry.
 - #565 / PR #592: reproducible engine and persisted-acknowledgement performance baseline.
+- #571 / PR #594: exact card trigger/filter readings, including real Awaken exceptions.
 
 These PRs have local verification and orchestrator review; they are not delivered yet. Main commit
 `74701713` (PR #586) currently has no reported Vercel status. The required deployment ordering in
 `docs/agent-brief.md` holds the next merge while independent implementation continues.
 The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
 with the implementation PRs that merge before it. Active isolated work covers #544 interrupted
-outcomes, #571 exact card triggers and #555 Aegis eligibility. The locally reproduced additional
+outcomes, #553 static identity/keyword layers and #555 Aegis eligibility. The locally reproduced additional
 Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
 
 ## Reconciliation decisions
