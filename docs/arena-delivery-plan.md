@@ -38,9 +38,9 @@ Issue bodies contain scoped build instructions, named acceptance scenarios and v
 
 | Issue / plan key | Priority | Work | Prerequisites / state | Canonical file |
 |---|---|---|---|---|
-| [#543](https://github.com/uhtred1986-lab/trading-card-management/issues/543) T01 | P0 | Verify deck readiness per printed skill and runtime capability | Ready; check hot files | [pv-t01.md](arena-backlog/pv-t01.md) |
+| [#543](https://github.com/uhtred1986-lab/trading-card-management/issues/543) T01 | P0 | Verify deck readiness per printed skill and runtime capability | Merged [#585](https://github.com/uhtred1986-lab/trading-card-management/pull/585) | [pv-t01.md](arena-backlog/pv-t01.md) |
 | [#544](https://github.com/uhtred1986-lab/trading-card-management/issues/544) T02 | P0 | Stop unsupported resolution with a typed interrupted outcome | Ready; check hot files | [pv-t02.md](arena-backlog/pv-t02.md) |
-| [#545](https://github.com/uhtred1986-lab/trading-card-management/issues/545) T03 | P0 | Use monotonic game revision and action identity across clients | Ready; check hot files | [pv-t03.md](arena-backlog/pv-t03.md) |
+| [#545](https://github.com/uhtred1986-lab/trading-card-management/issues/545) T03 | P0 | Use monotonic game revision and action identity across clients | Merged [#586](https://github.com/uhtred1986-lab/trading-card-management/pull/586) | [pv-t03.md](arena-backlog/pv-t03.md) |
 | [#546](https://github.com/uhtred1986-lab/trading-card-management/issues/546) T04 | P1 | Make reconnection visible and cancel abandoned polling | [#545](https://github.com/uhtred1986-lab/trading-card-management/issues/545) | [pv-t04.md](arena-backlog/pv-t04.md) |
 | [#547](https://github.com/uhtred1986-lab/trading-card-management/issues/547) T05 | P1 | Pin immutable match rules and export reproducible replay bundles | [#545](https://github.com/uhtred1986-lab/trading-card-management/issues/545) | [pv-t05.md](arena-backlog/pv-t05.md) |
 

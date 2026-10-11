@@ -23,6 +23,12 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - [ ] #580 **P2/P3** — Android after web contract (Arena M4 — Android client enablement); exit: #105 and #106 consume the settled auth/snapshot/ability contract with polling and playback parity.
 - [ ] #511 **P2** — AI efficiency and live verification (AI providers — one contract, API or subscription, any vendor); exit: #381 implements the recorded cost ruling; #518 completes owner-run verification of already-built route; #511 records the result.
 
+## Delivery progress — 11 Oct 2026
+
+- #543 delivered in PR #585: per-printed-skill readiness distinguishes missing readings and runtime support.
+- #545 delivered in PR #586: authoritative revision, durable action identity and stale-request recovery; Android Gradle validation remains blocked by repository connectivity.
+- Owner-requested repository maintenance #583 delivered in PR #584: duplicate GitHub test, BugBot and acceptance workflows removed. Local verification and production deployment remain.
+
 ## Reconciliation decisions
 
 - Extend completed #348 pager and completed #352/#366 design/home programmes; do not reopen finished issues merely for new scope.
