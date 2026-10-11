@@ -19,12 +19,14 @@ import type { ArenaMode, Spotlight } from "./games";
 import { DEFAULT_GAME, type Game } from "@/lib/catalog/games";
 
 /** Bumped only when a field is removed or its meaning changes. */
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;
 
 export interface Snapshot {
   contract: typeof CONTRACT_VERSION;
   game: {
     id: number;
+    /** Authoritative row revision; unrelated to the animation beat sequence. */
+    revision: number;
     mode: ArenaMode;
     /**
      * Which engine is playing this game (`engines.ts`) and which card game
@@ -76,8 +78,15 @@ export interface Snapshot {
   over: { winner: PlayerId | null; reason: string } | null;
 }
 
+/** Reconcile server responses without allowing an older render or poll to roll a board back. */
+export function reconcileSnapshot(current: Snapshot, incoming: Snapshot): Snapshot {
+  return incoming.game.id !== current.game.id || incoming.game.revision > current.game.revision ? incoming : current;
+}
+
 export interface SnapshotInput {
   id: number;
+  /** Missing only in hand-built historical fixtures. */
+  revision?: number;
   mode: ArenaMode;
   /**
    * Left off by tests built by hand, which are all on the legacy engine and
@@ -181,6 +190,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     contract: CONTRACT_VERSION,
     game: {
       id: input.id,
+      revision: input.revision ?? 0,
       mode: input.mode,
       engine: input.engine ?? FALLBACK_ENGINE,
       game: input.game ?? DEFAULT_GAME,
@@ -240,14 +250,15 @@ const ARCHIVED_TAPS: Tappable = { byCard: {}, bare: [], attackTargets: {} };
  * archived before both seats' snapshots existed), which the caller treats
  * the same as "no such game".
  */
-export function archivedSnapshotFor(store: StoredSnapshot, seat: PlayerId | null): Snapshot | null {
+export function archivedSnapshotFor(store: StoredSnapshot, seat: PlayerId | null, revision?: number): Snapshot | null {
   const picked = seat ? store[seat] : store.shared;
   if (!picked) return null;
   const rest: Snapshot = { ...picked };
   delete rest.rejected;
   return {
     ...rest,
-    game: { ...picked.game, archived: true },
+    contract: CONTRACT_VERSION,
+    game: { ...picked.game, revision: revision ?? picked.game.revision ?? 0, archived: true },
     legal: [],
     taps: ARCHIVED_TAPS,
     waiting: null,

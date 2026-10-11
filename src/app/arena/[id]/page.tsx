@@ -64,7 +64,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
     // ever read (issue #335's acceptance for the 1 v 1 case).
     const seat = seatOf(archived, await currentUser());
     if (isVersus(archived.mode) && !seat) notFound();
-    const snap = archivedSnapshotFor(archived.store, isVersus(archived.mode) ? seat : null);
+    const snap = archivedSnapshotFor(archived.store, isVersus(archived.mode) ? seat : null, archived.version);
     if (!snap) notFound();
 
     return (
@@ -155,7 +155,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
           </Link>
         )}
         {playing && (
-          <form action={abandon.bind(null, id)}>
+          <form action={abandon.bind(null, id, snap.game.revision, crypto.randomUUID())}>
             <SubmitButton pendingLabel="Giving up…" className="tap text-space-400 hover:text-loss">
               give up
             </SubmitButton>

@@ -42,6 +42,8 @@ data class Snapshot(
 @Serializable
 data class GameInfo(
     val id: Int,
+    /** Monotonic authoritative game revision; older servers decode as zero. */
+    val revision: Int = 0,
     /** "hotseat" | "sparring" | "tournament" | "versus" — a String, so a new mode is not a crash. */
     val mode: String,
     val status: String,

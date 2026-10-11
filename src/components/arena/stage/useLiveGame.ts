@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Snapshot } from "@/lib/arena/snapshot";
+import { useEffect, useRef, useState } from "react";
+import { reconcileSnapshot, type Snapshot } from "@/lib/arena/snapshot";
 
 /**
  * Claude's turn, as it is decided rather than after it is over.
@@ -26,23 +26,26 @@ import type { Snapshot } from "@/lib/arena/snapshot";
  * it did before: one jump when the server action finally returns.
  */
 export function useLiveGame(gameId: number, fromServer: Snapshot, active: boolean): Snapshot {
-  // The last snapshot React rendered from the server. Its identity only
-  // changes when the server actually re-rendered, which is exactly when its
-  // version should win over anything polled.
-  const [server, setServer] = useState(fromServer);
   const [live, setLive] = useState(fromServer);
+  const latest = useRef(fromServer);
 
-  if (server !== fromServer) {
-    setServer(fromServer);
-    setLive(fromServer);
-  }
+  useEffect(() => {
+    const newest = reconcileSnapshot(latest.current, fromServer);
+    if (newest === fromServer) {
+      latest.current = newest;
+      setLive(newest);
+    }
+  }, [fromServer]);
 
+  const startRevision = fromServer.game.revision;
   const startSeq = fromServer.beats?.seq ?? 0;
 
   useEffect(() => {
     if (!active) return;
     let stopped = false;
-    let since = startSeq;
+    const sameGame = latest.current.game.id === gameId;
+    let sinceRevision = sameGame ? Math.max(startRevision, latest.current.game.revision) : startRevision;
+    let sinceBeat = sameGame ? Math.max(startSeq, latest.current.beats?.seq ?? 0) : startSeq;
 
     // A human opponent can think for minutes, over a phone that changes
     // network on the way. Against Claude a dropped poll cost nothing — the
@@ -56,7 +59,7 @@ export function useLiveGame(gameId: number, fromServer: Snapshot, active: boolea
       while (!stopped) {
         let next: Snapshot;
         try {
-          const res = await fetch(`/api/v1/games/${gameId}?sinceBeat=${since}&wait=15`, { cache: "no-store" });
+          const res = await fetch(`/api/v1/games/${gameId}?sinceRevision=${sinceRevision}&sinceBeat=${sinceBeat}&wait=15`, { cache: "no-store" });
           // A 404 means this login may not read the game; retrying cannot help.
           if (res.status === 404) return;
           if (!res.ok) throw new Error(String(res.status));
@@ -69,13 +72,20 @@ export function useLiveGame(gameId: number, fromServer: Snapshot, active: boolea
         }
         if (stopped) return;
         const seq = next.beats?.seq ?? 0;
-        if (seq > since) {
-          since = seq;
-          setLive(next);
+        if (next.game.revision > sinceRevision) {
+          sinceRevision = next.game.revision;
+          sinceBeat = Math.max(sinceBeat, seq);
+          // Server renders and poll responses can arrive out of order. Keep
+          // the highest authoritative row revision already observed.
+          const newest = reconcileSnapshot(latest.current, next);
+          if (newest === next) {
+            latest.current = newest;
+            setLive(newest);
+          }
         }
-        // Once the game is waiting on you again there is nothing left to watch;
-        // the server action's own revalidate delivers the authoritative board.
-        if (next.waiting !== "opponent" && next.waiting !== "referee") return;
+        if (seq > sinceBeat) sinceBeat = seq;
+        if (next.game.status !== "playing") return;
+        if (next.game.mode !== "versus" && next.waiting !== "opponent" && next.waiting !== "referee") return;
       }
     };
 
@@ -83,7 +93,7 @@ export function useLiveGame(gameId: number, fromServer: Snapshot, active: boolea
     return () => {
       stopped = true;
     };
-  }, [active, gameId, startSeq]);
+  }, [active, gameId, startRevision, startSeq]);
 
   return live;
 }

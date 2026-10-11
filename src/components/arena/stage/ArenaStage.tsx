@@ -217,7 +217,7 @@ export function ArenaStage({
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
-  const live = useLiveGame(gameId, snapshot, pending || pollWhile);
+  const live = useLiveGame(gameId, snapshot, pending || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
   const { view, legal, taps, log, beats } = live;
 
   // Everything rendered reads the live snapshot. `waitingFor` already returns
@@ -387,7 +387,7 @@ export function ArenaStage({
       gainTimer.current = setTimeout(() => setGain(null), ms);
     }
     startTransition(async () => {
-      const r = await server.act(gameId, action);
+      const r = await server.act(gameId, action, live.game.revision, crypto.randomUUID());
       if (r.error) {
         setError(r.error);
         feel("illegal");

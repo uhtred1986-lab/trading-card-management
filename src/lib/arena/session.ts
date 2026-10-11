@@ -13,7 +13,7 @@ import { eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import type { Action, PlayerId } from "./types";
-import { applyToGame, loadArchivedGame, loadGame, type LoadedGame } from "./games";
+import { applyToGame, loadArchivedGame, loadGame, type LoadedGame, type MutationIdentity } from "./games";
 import { advance, aiPlayerOf } from "./ai/run";
 import { longPollStepMs } from "./poll-schedule";
 import { archivedSnapshotFor, buildSnapshot, type Snapshot } from "./snapshot";
@@ -40,7 +40,7 @@ export async function artForGame(_db: Db, game: LoadedGame): Promise<Record<stri
  * as it always has.
  */
 export async function snapshotOfGame(db: Db, game: LoadedGame, viewer: PlayerId | null = null): Promise<Snapshot> {
-  return buildSnapshot({ ...game, ai: aiPlayerOf(game), viewer, images: await artForGame(db, game) });
+  return buildSnapshot({ ...game, revision: game.version, ai: aiPlayerOf(game), viewer, images: await artForGame(db, game) });
 }
 
 /**
@@ -54,7 +54,7 @@ export async function snapshotOfGame(db: Db, game: LoadedGame, viewer: PlayerId 
  */
 export async function snapshotOf(db: Db, gameId: number, viewer: PlayerId | null = null): Promise<Snapshot | null> {
   const archived = await loadArchivedGame(db, gameId);
-  if (archived) return archivedSnapshotFor(archived.store, viewer);
+  if (archived) return archivedSnapshotFor(archived.store, viewer, archived.version);
   const game = await loadGame(db, gameId);
   return game ? snapshotOfGame(db, game, viewer) : null;
 }
@@ -64,11 +64,23 @@ export async function snapshotOf(db: Db, gameId: number, viewer: PlayerId | null
  * Claude. The opponent's turn is `advanceSession`, on its own request, so a
  * client can start animating your own move immediately.
  */
-export async function applyAction(db: Db, gameId: number, action: Action, viewer: PlayerId | null = null, loaded?: LoadedGame): Promise<Snapshot> {
+export async function applyAction(
+  db: Db,
+  gameId: number,
+  action: Action,
+  viewer: PlayerId | null = null,
+  loaded?: LoadedGame,
+  mutation?: { expectedRevision: number; identity: MutationIdentity },
+): Promise<Snapshot> {
   // `clearBeats`: your move starts a new story (`clearBeatsForTurn`), emptied
   // in the same write as the move. `loaded` is the game the caller has just
   // read to check the move against; the write is guarded by its version.
-  const game = await applyToGame(db, gameId, action, undefined, { game: loaded, clearBeats: true });
+  const game = await applyToGame(db, gameId, action, undefined, {
+    game: loaded,
+    clearBeats: true,
+    expectedRevision: mutation?.expectedRevision,
+    request: mutation?.identity,
+  });
   return snapshotOfGame(db, game, viewer);
 }
 
@@ -117,5 +129,18 @@ export async function waitForBeats(db: Db, gameId: number, sinceBeat: number, ti
     const elapsed = Date.now() - started;
     if (elapsed >= timeoutMs) return false;
     await new Promise((r) => setTimeout(r, Math.min(longPollStepMs(elapsed), timeoutMs - elapsed)));
+  }
+}
+
+/** Long-poll authoritative state/status mutations, including writes with no beat. */
+export async function waitForRevision(db: Db, gameId: number, sinceRevision: number, timeoutMs = 25_000): Promise<boolean> {
+  const started = Date.now();
+  for (;;) {
+    const [row] = await db.select({ revision: arenaGames.version }).from(arenaGames).where(eq(arenaGames.id, gameId)).limit(1);
+    if (!row) return false;
+    if (row.revision > sinceRevision) return true;
+    const elapsed = Date.now() - started;
+    if (elapsed >= timeoutMs) return false;
+    await new Promise((resolve) => setTimeout(resolve, Math.min(longPollStepMs(elapsed), timeoutMs - elapsed)));
   }
 }
