@@ -905,4 +905,5 @@ work, and they are parked here so they are not lost.
 - `docs/arena-history-lessons.md` gains a dated history entry with the numbers
   and the lessons.
 - Open the PR once everything above is green; the coordinator merges it once it is
-  reviewed and CI is green (owner's standing permission, 30 Sep 2026 — `docs/agent-brief.md`).
+  reviewed and required local checks pass (owner's standing permission, 30 Sep 2026;
+  duplicate GitHub workflows removed 11 Oct 2026 — `docs/agent-brief.md`).

@@ -6,12 +6,12 @@
 
 <!--
 One reference per line. `Closes #N` (or `Fixes #N` / `Resolves #N`) is a
-claim the acceptance-criteria check (ac-check) grades against that issue's
-own Acceptance section — GitHub auto-closes the issue the moment this PR
+claim the orchestrator reviews against that issue's Acceptance section —
+GitHub auto-closes the issue the moment this PR
 merges, whether or not the work is really there, so only claim it when the
 diff actually delivers it. Use `Refs #N` for an issue this PR touches but
-does not finish; ac-check lists those as "referenced, not closing" and never
-grades them or raises the auto-close risk warning.
+does not finish. For each claimed closure, attach evidence for every acceptance
+bullet and clearly list unverified or owner-run checks.
 -->
 
 Closes #
@@ -26,4 +26,6 @@ Closes #
 - [ ] `npm run contract:emit` reviewed (only if the `Snapshot` shape changed)
 - [ ] `npm run arena:readings` / `npm run arena:tally` diff reviewed (compiler changes only)
 
-<!-- Paste the ac-check verdict table here once it has run on this PR. -->
+<!-- All checks above are local. Add the orchestrator's acceptance review and
+     any Kotlin contract checks when Snapshot/fixtures change. GitHub does not
+     run duplicate test or AI-review workflows (owner, 11 Oct 2026). -->

@@ -6,7 +6,7 @@ stage: tooling
 status: closed
 closed_at: 2026-09-12
 ---
-**Source:** `.github/workflows/ac-check.yml`, `scripts/ci/check-acceptance-criteria.mjs`, `.github/ISSUE_TEMPLATE/arena_backlog_item.yml`; review of 12 Sep 2026; PR #182 (the case that motivated the check).
+**Source:** `docs/agent-brief.md`, `.github/ISSUE_TEMPLATE/arena_backlog_item.yml`; historical review of 12 Sep 2026 and PR #182. The original workflow/helper were retired by #583 on the owner's instruction of 11 Oct 2026; the completed acceptance below records what shipped originally, not current automation.
 
 **Problem.** Two small gaps in the GitHub-side tooling that an agent working the backlog hits every time.
 1. **No PR template.** There is no `.github/pull_request_template.md`, so agent-authored PRs (Copilot's #201–#207, this repo's Claude sessions) decide their own shape; the ac-check only fires on `Closes #N` / `Fixes #N` / `Resolves #N` (`extractClosingRefs`, `check-acceptance-criteria.mjs` line 37), and a PR that names its issue as "for #131" is never checked and never auto-closes anything.

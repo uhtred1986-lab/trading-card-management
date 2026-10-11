@@ -319,7 +319,9 @@ give an emulator the nested virtualisation it wants anyway.
    `install`. Needs Developer options → Wireless debugging on the phone.
 
 Note the phone never wants the git repository. "Connecting local git" for testing means one of the
-three above — a URL or an APK — and CI is GitHub Actions, not the phone.
+three above — a URL or an APK. The orchestrator runs validation locally, including
+the Kotlin contract checks when the snapshot changes; GitHub does not duplicate
+these tests (owner, 11 Oct 2026, #583).
 
 ### Where it lives
 

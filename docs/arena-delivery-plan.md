@@ -172,7 +172,9 @@ inventory must coordinate glossary/verification edits. No three-worker wave is m
 
 Ready-for-agent is a prerequisite signal, not permission to ignore these writer conflicts. Model labels are
 repo recommendations/ceilings; choose the cheapest capable worker under docs/agent-brief.md.
-Review each PR against acceptance and CI, then follow the repository production-deploy ordering policy.
+Review each PR against acceptance and required local validation, then follow production-deploy ordering.
+The owner removed duplicate GitHub test/BugBot/acceptance workflows on 11 Oct 2026 (#583).
+The orchestrator owns test evidence, exact-commit review, contract/backlog checks and merge decisions.
 
 ## Historical milestone register
 

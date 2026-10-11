@@ -51,8 +51,9 @@ environment is enough, with `gh api` as the fallback when neither is set (same o
 - `--check` reports drift and exits non-zero: a CLOSED issue whose file lacks `status: closed`
   (a file marked closed while its issue is open is the closing PR in flight, not drift), and a `**Source:**` citation whose path no longer exists in the tree. Only the `Source`
   line is checked — the `Build` section names paths the issue's own work will create, so a path
-  not existing there is the point, not drift. Runs read-only in CI
-  (`.github/workflows/checks.yml`, job `backlog`) with no arguments beyond `--check` needed.
+  not existing there is the point, not drift. Run it locally, read-only, with no arguments beyond
+  `--check` when GitHub API authentication is available. The automated GitHub job was removed
+  on the owner's instruction of 11 Oct 2026; the orchestrator owns backlog validation.
 
 `--close`/`--all-closed` (closing issues and posting the acceptance comment) are unchanged from
 before this file grew the three flags above.

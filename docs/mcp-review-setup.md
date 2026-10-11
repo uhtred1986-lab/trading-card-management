@@ -183,17 +183,13 @@ If the environment only allows HTTPS egress, use `DB_DRIVER=neon-http` for the d
 3. Keep the default GitHub MCP server enabled.
 4. Save, then use `quick-gate` for the default PR-open review pass.
 
-### CI usage
+### Local review evidence
 
-There is no separate CI-only MCP config in this repo.
-
-Instead, code review should consume:
-
-- GitHub check runs from `.github/workflows/checks.yml`
-- workflow job logs through GitHub MCP
-- the same repo-local profile prompts and commands listed above
-
-That keeps the setup maintainable and avoids duplicating review logic in another YAML layer.
+GitHub test and AI-review workflows were removed on the owner's instruction of
+11 Oct 2026 (#583). Code review consumes the local command results and repo-local
+profile prompts listed above. The orchestrator checks the exact proposed commit
+and each issue's acceptance evidence before merging. Production deployment remains
+with Vercel; wait for its status before merging another PR.
 
 ## Required secrets and env vars
 

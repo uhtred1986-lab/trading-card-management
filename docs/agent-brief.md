@@ -33,7 +33,7 @@ section is for the coordinator that hands issues out.
 
 Neon is one database for production, preview and dev, with a spend limit. Stay off it:
 
-- `npm test` runs on PGlite and `npm run build` needs no connection, the same as CI.
+- `npm test` runs on PGlite and `npm run build` needs no connection.
 - Don't run `db:*`, `sync:*`, `arena:diff`, `arena:playthrough`, `arena:reprobe` or
   `arena:specified`. When an acceptance bullet can only be proved against the database, say
   which one in the PR; the owner runs it.
@@ -77,7 +77,7 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
 
 ## Running things (the habits that cost most when missed)
 
-- **Run `npm test`, `npm run build` and CI waits in the foreground.** A backgrounded run
+- **Run `npm test` and `npm run build` in the foreground.** A backgrounded run
   finishing does not reliably wake you, and agents have stalled for good that way.
 - **Don't pipe long output through `| tail`**: it buffers to the end and looks like a hang.
 - **Only a dev server runs in the background.** Stop it, and every `tsx`/`node`/Chromium
@@ -89,7 +89,10 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
 - **Test at the right size.** After each commit run `npm run typecheck && npm run lint` plus only
   the check for what you changed (`npx tsx scripts/verify-rules.ts`, `npx tsx
   scripts/verify-arena.ts`). Before each push run the full set: `npm run typecheck && npm run
-  lint && npm test && npm run build`. CI is the backstop, not the first check.
+  lint && npm test && npm run build`. The orchestrator reviews the exact proposed commit and its
+  local evidence; GitHub does not duplicate these tests or run automatic AI reviews (owner, 11 Oct 2026).
+  Snapshot changes also require contract emission review and local Kotlin decoding tests, when
+  available; report a missing toolchain rather than silently omitting the check.
 
 ## Screens
 
@@ -105,12 +108,13 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
 
 ## Commits and the PR
 
-- **Small commits, pushed in batches.** Every push runs CI, so push at the end of a working
-  unit and before you stop, not after every commit. Only what you pushed survives the session.
+- **Small commits, pushed in batches.** Push reviewed local work at the end of a working unit and
+  before you stop. Only what you pushed survives the session.
 - **One PR per issue**, as a draft, following `.github/pull_request_template.md`. The title
   names the issue number.
-- `Closes #N` only when the diff delivers the issue's Acceptance; `ac-check` grades it, and
-  GitHub closes the issue on merge whether or not the work is there. Use `Refs #N` otherwise.
+- `Closes #N` only when the diff delivers the issue's Acceptance; the orchestrator grades that
+  claim against the actual diff and evidence. GitHub closes the issue on merge whether or not
+  the work is there. Use `Refs #N` for incomplete acceptance.
 - **A PR that closes an arena issue sets `status: closed` in its `docs/arena-backlog/<id>.md`** in
   the same PR. The drift check accepts a closed file while the issue is still open (#389).
 - The body gives each acceptance bullet with its evidence, then every judgement call and
@@ -130,15 +134,18 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
   agent's summary. Look for guessed links, ids or paths, scope creep into a sibling issue, and a
   `Closes` that the diff doesn't earn. Fix small things yourself on the branch.
 - **The coordinator merges without asking.** Standing permission from the owner (30 Sep 2026):
-  every PR that is reviewed against its issue and green is merged, with no need to wait for
+  every PR that is reviewed against its issue and passes its required local checks is merged, with no need to wait for
   the owner's go-ahead. An open owner decision on a *different* question never holds up a
   merge; a PR whose own acceptance depends on an unanswered ruling waits for the ruling.
-- **Merge one PR at a time**, once CI is green. Each merge to `main` is a production deploy that
+- **Merge one PR at a time**, after local validation and orchestrator review of the exact head commit.
+  GitHub Actions testing, BugBot and acceptance-criteria workflows are removed (owner, 11 Oct 2026).
+  Each merge to `main` is a production deploy that
   runs the migrations. Wait for that deploy's `Vercel` status before the next merge. Then:
   - tick the issue's acceptance boxes;
   - delete the branch;
   - nothing for the backlog file: the PR that closes an issue sets `status: closed` in its own
-    `docs/arena-backlog/<id>.md` (#389), so the merge leaves the drift check green.
+    `docs/arena-backlog/<id>.md` (#389). Run the retained backlog drift check locally when authenticated
+    API access is available; otherwise compare changed issue metadata with the connector and verify cited paths.
 - **Review fixes go back to the agent that wrote the PR, or to a fresh agent on its branch.**
   Worker sessions don't wake on PR comments posted from the same account.
 - **Stop and ask the owner** (merging is not on this list) before:
