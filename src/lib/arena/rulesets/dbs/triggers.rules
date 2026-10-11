@@ -125,6 +125,15 @@ DEFINE TRIGGER opponentAttacks
   BIND "subject"
   text: "when your opponent attacks"
 
+-- SD15-01 — when the opponent attacks the specific red Unison named by the
+-- card. The target declaration is a separate role from the attacking card;
+-- its current attributes are carried on that target moment, while the Auto
+-- remains on the controller's board and BINDs self.
+DEFINE TRIGGER opponentAttacksRedUnison2
+  ON attackDeclared(role: target, target: unison, initial: true, targetRed: true, targetSpecifiedCost: 2, watcher: controller)
+  BIND "self"
+  text: "when your opponent attacks your red Unison Card with a specified cost of 2"
+
 -- §8-1-3 — when your Leader is attacked
 DEFINE TRIGGER yourLeaderAttacked
   ON attackDeclared(target: leader, watcher: controller)
@@ -428,6 +437,22 @@ DEFINE TRIGGER restedTheirsBySkill
   ON modeSwitched(by: skill, byOpponent: true, in: [battle, energy], mode: rest, watcher: opponent)
   BIND "subject"
   text: "when your skill rests an opponent's card"
+
+-- BT7-003 — an opponent's skill switches your energy. The text does not name
+-- whose energy, so the matching SD8-09 form below covers their own energy
+-- too. Charge Phase's ordinary Active switch carries no cause fields.
+DEFINE TRIGGER opponentEnergyActiveBySkill
+  ON modeSwitched(byOpponent: true, notAwaken: true, in: energy, mode: active, watcher: controller)
+  WHERE isTurnPlayer(who: opponent)
+  BIND "subject"
+  text: "when your opponent switches your energy to Active Mode using a non-[Awaken] skill during their turn"
+
+-- SD8-09 — “their energy” narrows the switch to the opponent's energy.
+DEFINE TRIGGER opponentOwnEnergyActiveBySkill
+  ON modeSwitched(byOpponent: false, notAwaken: true, in: energy, mode: active, watcher: opponent)
+  WHERE isTurnPlayer(who: opponent)
+  BIND "subject"
+  text: "when your opponent switches their energy to Active Mode using a non-[Awaken] skill during their turn"
 
 -- §1-10-2, §23-5-2-4 — when this card is switched to Hidden Mode by one of
 -- your skills. The card is face down by the time it answers, and the pattern

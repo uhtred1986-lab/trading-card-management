@@ -210,7 +210,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // `opponentAttacks`/`koed` carry the same field for the same reason,
       // added in this stage since neither had been fired before it).
       fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker" } });
-      fire(ctx, game, state, { event: "attackDeclared", card: b.guard, controller: defender, args: { role: "target", target: guardArea } });
+      fire(ctx, game, state, { event: "attackDeclared", card: b.guard, controller: defender, args: attackTargetMomentArgs(ctx, game, state, b.guard, guardArea, true) });
     },
   },
 
@@ -319,6 +319,27 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
     },
   },
 };
+
+/** The initial target's current attributes, for target-specific attack triggers (SD15-01). */
+function attackTargetMomentArgs(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  target: string,
+  area: string,
+  initial: boolean,
+): Record<string, string | number | boolean> {
+  const attrs = attrsNow(ctx, game, state, target);
+  const colors = Array.isArray(attrs.colors) ? attrs.colors : [];
+  const specified = Array.isArray(attrs.specifiedCost) ? attrs.specifiedCost : [];
+  return {
+    role: "target",
+    target: area,
+    initial,
+    targetRed: attrs.type === "UNISON" && colors.includes("Red"),
+    targetSpecifiedCost: specified.length,
+  };
+}
 
 /**
  * 8-1-2-1: these cards are now the attack card and the guard card, which is
@@ -729,7 +750,7 @@ export function applyBlock(ctx: EngineContext, game: GameDefinition, state: VmSt
   // The new guard is attacked too (8-1-2-1), the same `attacked`/`yourLeaderAttacked` moment the original target answered to.
   const defender = other(state.turnPlayer);
   const guardArea = state.sides[defender].zones.leader?.includes(action.card) ? "leader" : state.sides[defender].zones.unison?.includes(action.card) ? "unison" : "battle";
-  fire(ctx, game, state, { event: "attackDeclared", card: action.card, controller: defender, args: { role: "target", target: guardArea } });
+  fire(ctx, game, state, { event: "attackDeclared", card: action.card, controller: defender, args: attackTargetMomentArgs(ctx, game, state, action.card, guardArea, false) });
 }
 
 // ── the combo offer (5-7, 8-2, 8-3) ─────────────────────────────────────────
