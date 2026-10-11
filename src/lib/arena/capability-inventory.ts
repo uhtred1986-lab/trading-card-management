@@ -56,14 +56,12 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-zero-power-rule-processing",
     label: "A Battle Card at zero or less power is processed",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "21-6; `contract/probe-rules-parity.json` rule-processing cause",
     ownerIssue: 548,
-    delivery: { state: "pending", reference: "PR #587" },
-    skipWhere: "compiler: TOUGH at 0 power (21-6)",
-    proof: "scripts/verify/compiler.ts — TOUGH scenario; intentionally retained unchanged while PR #587 is pending",
-    detail: "The current base leaves a Battle Card in play at zero or less power. Pending delivery is not current-base runtime evidence.",
+    proof: "scripts/verify/compiler.ts — active TOUGH assertion; scripts/verify/rule-processing.ts — simultaneous processing, replacement choices and reload",
+    detail: "The combined implementation processes zero-power Battle Cards before Autos, retaining simultaneous causes and replacement continuation across reload.",
   },
   {
     id: "arena-life-cost-damage-statistics",
