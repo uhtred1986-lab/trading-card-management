@@ -12,6 +12,7 @@ import { COST_ITEMS, FILTER_FIELDS, SELECTOR_FIELDS } from "../../src/lib/arena/
 import { languageReference } from "../../src/lib/arena/lang/reference";
 import { SELECTOR_FLAGS } from "../../src/lib/arena/lang/parse";
 import { negateAs } from "../../src/lib/arena/vm/script";
+import type { VmState } from "../../src/lib/arena/vm/state";
 import { expandMacros, opsIn, rulesetFor } from "../../src/lib/arena/rulesets";
 import { whenMoments } from "../../src/lib/arena/rulesets/words";
 import {
@@ -20,6 +21,7 @@ import {
   COND_SCHEMA,
   CTX,
   DEFS,
+  ENGINE,
   EFFECT_LANGUAGE,
   IMPL,
   OP_CLASS,
@@ -363,18 +365,25 @@ import type { CardFilter, SchemaOp } from "./harness";
 
 // ── the engine reads rows and nothing else ───────────────────────────────────
 {
-  // The same card, the same play, two contexts: with rules it draws, without
-  // any it is played as blank — and the log says so rather than staying quiet.
+  // The same card, the same play, two contexts: a readable rule draws; an
+  // unread Auto with no stored program interrupts instead of silently playing blank.
   const bare = { defs: DEFS };
   let s = stagedG({ hand: ["DRAWER"], energy: ["V1"] });
   const hand = zoneOf(s, "p1", "hand").length;
   const r = IMPL.apply(bare, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") });
-  assert.equal(zoneOf(r.state, "p1", "hand").length, hand - 1, "nothing was drawn: the card has no rule");
-  // Each engine names the gap in its own words: the legacy one per skill line
-  // ("no rule stored"), the rules engine at the moment it found nothing to run.
-  assert.ok(r.events.some((e) => e.type === "note" && /no rule stored — played as blank|no rule this engine can read says what happens/.test(e.text)), "and the log names the gap");
+  assert.equal(zoneOf(r.state, "p1", "hand").length, hand - 1, "the card itself was played");
+  if (ENGINE === "rules") {
+    const vm = r.state as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "the absent program interrupts the game");
+    assert.ok(r.events.some((e) => e.type === "note" && e.text === vm.outcome?.reason), "the public log explains the interruption generically");
+    assert.ok(!JSON.stringify(r.events).includes("DRAWER"), "public interruption events do not name the source card");
+  } else {
+    assert.ok(r.events.some((e) => e.type === "note" && /no rule stored — played as blank/.test(e.text)), "the legacy log records its existing blank-skill behavior");
+  }
   s = stagedG({ hand: ["DRAWER"], energy: ["V1"] });
-  assert.equal(zoneOf(IMPL.apply(CTX, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") }).state, "p1", "hand").length, hand, "with its rule it draws");
+  const resolved = IMPL.apply(CTX, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") }).state;
+  assert.equal(zoneOf(resolved, "p1", "hand").length, hand, "with its rule it draws");
+  if (ENGINE === "rules") assert.equal((resolved as VmState).outcome, undefined, "a supported Auto resolution continues without an interruption");
   // A [Permanent] is read from the same rows — the static layer compiles nothing.
   const t = stagedG({ battle: ["AURA", "V1"] });
   assert.equal(powerIn(bare, t, findG(t, "p1", "battle", "V1")), 10000, "no rules, no aura");
