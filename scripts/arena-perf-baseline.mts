@@ -5,22 +5,54 @@
  * EngineAPI test helpers used by the arena verification suite.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
 import { arenaG, CTX, ENGINE, IMPL } from "./verify/harness.ts";
 import { buildSnapshot } from "../src/lib/arena/snapshot.ts";
 import { IllegalAction } from "../src/lib/arena/vm/common.ts";
 import type { Action, LegalAction } from "../src/lib/arena/types.ts";
+import { applyToGame, loadGame, startGame } from "../src/lib/arena/games.ts";
+import { waitForRevision } from "../src/lib/arena/session.ts";
 
 const WARMUP = 25;
 const SAMPLES = 100;
-const REFERENCE = "74701713";
+const REFERENCE_BASELINE = "74701713";
+
+function runtimeStamp() {
+  const root = path.resolve("src/lib/arena");
+  const files: string[] = [];
+  const visit = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) visit(full);
+      else if (/\.tsx?$/.test(entry.name)) files.push(full);
+    }
+  };
+  visit(root);
+  files.push(path.resolve("src/db/schema.ts"));
+  files.sort();
+  const hash = createHash("sha256");
+  for (const file of files) {
+    hash.update(path.relative(process.cwd(), file));
+    hash.update("\0");
+    hash.update(fs.readFileSync(file));
+    hash.update("\0");
+  }
+  const sourceStatus = execFileSync("git", ["status", "--porcelain", "--untracked-files=all", "--", "src/lib/arena", "src/db/schema.ts"], { encoding: "utf8" });
+  return {
+    measuredHead: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+    runtimeSourcesDirty: sourceStatus.trim().length > 0,
+    runtimeSourceFingerprint: hash.digest("hex"),
+  };
+}
 
 function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)];
@@ -118,11 +150,39 @@ async function migrate(client: PGlite) {
   }
 }
 
+async function seedGameFixture(db: Db) {
+  await db.insert(schema.cardSets).values({ code: "P0PERF", name: "Synthetic Benchmark Set", line: "masters", sortKey: 999 });
+  const card = (id: string, name: string, cardType: string, extra: Partial<typeof schema.cards.$inferInsert> = {}) => ({
+    id,
+    setCode: "P0PERF",
+    name,
+    cardType,
+    rarity: "Common[C]",
+    rarityCode: "C",
+    searchText: `${id} ${name}`.toLowerCase(),
+    colors: ["Red"],
+    ...extra,
+  });
+  await db.insert(schema.cards).values([
+    card("P0PERF-001", "Synthetic Leader", "LEADER", { power: 10000 }),
+    card("P0PERF-002", "Synthetic Battle", "BATTLE", { power: 10000, energyCost: "1", comboPower: 5000 }),
+    card("P0PERF-003", "Synthetic Heavy", "BATTLE", { power: 15000, energyCost: "2", comboPower: 5000 }),
+  ]);
+  const [deck] = await db.insert(schema.decks).values({ name: "Synthetic Benchmark Deck", game: "dbs" }).returning({ id: schema.decks.id });
+  await db.insert(schema.deckCards).values([
+    { deckId: deck.id, cardId: "P0PERF-001", zone: "leader", quantity: 1 },
+    { deckId: deck.id, cardId: "P0PERF-002", zone: "main", quantity: 25 },
+    { deckId: deck.id, cardId: "P0PERF-003", zone: "main", quantity: 25 },
+  ]);
+  const id = await startGame(db, deck.id, deck.id, "hotseat", false, { p1User: null, p2User: null }, "rules");
+  return { id, deckId: deck.id };
+}
+
 async function persistenceMetrics(data: ReturnType<typeof fixture>) {
   const client = new PGlite();
   await migrate(client);
-  let queryCount = 0;
-  const db = drizzle(client, { schema, logger: { logQuery() { queryCount++; } } }) as unknown as Db;
+  const queryMeter = { count: 0 };
+  const db = drizzle(client, { schema, logger: { logQuery() { queryMeter.count++; } } }) as unknown as Db;
   const [row] = await db.insert(schema.arenaGames).values({
     p1Name: "synthetic",
     p2Name: "synthetic",
@@ -136,37 +196,120 @@ async function persistenceMetrics(data: ReturnType<typeof fixture>) {
     log: Array.from({ length: 500 }, (_, i) => `turn ${Math.floor(i / 20) + 1} event ${i + 1}`),
   };
   const payloadBytes = Buffer.byteLength(JSON.stringify(payload));
-  const queryCounts: number[] = [];
-  const samples: number[] = [];
+  const storageQueryCounts: number[] = [];
+  const storageSamples: number[] = [];
   for (let i = 0; i < WARMUP + SAMPLES; i++) {
-    queryCount = 0;
+    queryMeter.count = 0;
     const start = performance.now();
     const [ack] = await db.update(schema.arenaGames).set(payload).where(eq(schema.arenaGames.id, row.id)).returning({ id: schema.arenaGames.id });
     const elapsed = performance.now() - start;
     assert.equal(ack.id, row.id, "persisted acknowledgement returns the saved game row");
     if (i >= WARMUP) {
-      samples.push(elapsed);
-      queryCounts.push(queryCount);
+      storageSamples.push(elapsed);
+      storageQueryCounts.push(queryMeter.count);
     }
   }
-  // An idle 50ms wait performs the immediate read and the deadline read.
-  const { waitForRevision } = await import("../src/lib/arena/session.ts");
-  queryCount = 0;
-  await waitForRevision(db, row.id, 0, 50);
-  const idlePollQueries = queryCount;
-  assert.equal(idlePollQueries, 2, "an idle 50ms revision wait reads immediately and once at its deadline");
+  const shortPollQueryCounts: number[] = [];
+  for (let i = 0; i < 3; i++) {
+    queryMeter.count = 0;
+    await waitForRevision(db, row.id, 0, 50);
+    shortPollQueryCounts.push(queryMeter.count);
+  }
+  const shortPollAverage = shortPollQueryCounts.reduce((sum, n) => sum + n, 0) / shortPollQueryCounts.length;
+  assert.ok(shortPollAverage >= 1 && shortPollAverage <= 4, "short-window idle poll stays bounded under scheduler variance");
   const reloaded = await db.query.arenaGames.findFirst({ where: eq(schema.arenaGames.id, row.id) });
   assert.deepEqual(reloaded?.state, data.state, "reload reads the persisted engine state");
+
+  const appGame = await seedGameFixture(db);
+  await db.update(schema.arenaGames).set({ actions: payload.actions, log: payload.log }).where(eq(schema.arenaGames.id, appGame.id));
+  const loaded = (await loadGame(db, appGame.id))!;
+  assert.ok(loaded, "valid synthetic deck creates a saved rules-engine game");
+  const action = loaded.legal[0]!.action;
+  const appSamples: number[] = [];
+  const appQueryCounts: number[] = [];
+  let appAcknowledgement = loaded;
+  for (let i = 0; i < WARMUP + SAMPLES; i++) {
+    // Restore the same valid base row outside the timer, retaining synthetic
+    // history solely to exercise the write payload; it is not replayed.
+    await db.update(schema.arenaGames).set({
+      state: loaded.state,
+      actions: loaded.actions,
+      log: loaded.log,
+      beats: loaded.beats,
+      version: loaded.version,
+      status: "playing",
+      turn: loaded.state.turn,
+    }).where(eq(schema.arenaGames.id, appGame.id));
+    queryMeter.count = 0;
+    const start = performance.now();
+    appAcknowledgement = await applyToGame(db, appGame.id, action, undefined, {
+      game: loaded,
+      expectedRevision: loaded.version,
+    });
+    const elapsed = performance.now() - start;
+    assert.equal(appAcknowledgement.version, loaded.version + 1, "actual gameplay action is acknowledged at the next CAS revision");
+    if (i >= WARMUP) {
+      appSamples.push(elapsed);
+      appQueryCounts.push(queryMeter.count);
+    }
+  }
+  const reloadedAppGame = await loadGame(db, appGame.id);
+  assert.equal(reloadedAppGame?.version, appAcknowledgement.version, "reloading reads the actual applyToGame revision");
+  assert.deepEqual(reloadedAppGame?.state, appAcknowledgement.state, "reloading reads the actual applyToGame state");
+  assert.equal(reloadedAppGame?.actions.length, 251, "the action appends to, rather than replaces, synthetic history");
+  await db.delete(schema.arenaGames).where(eq(schema.arenaGames.id, appGame.id));
+  await db.delete(schema.decks).where(eq(schema.decks.id, appGame.deckId));
+  await db.delete(schema.cards).where(inArray(schema.cards.id, ["P0PERF-001", "P0PERF-002", "P0PERF-003"]));
+  await db.delete(schema.cardSets).where(eq(schema.cardSets.code, "P0PERF"));
+
+  queryMeter.count = 0;
+  const longPollStart = performance.now();
+  const longPollResult = await waitForRevision(db, row.id, 1, 15_000);
+  const longPollElapsedMs = Math.round(performance.now() - longPollStart);
+  const longPollQueries = queryMeter.count;
+  assert.equal(longPollResult, false, "the unchanged row remains idle until the long-poll deadline");
+  assert.ok(longPollElapsedMs >= 14_500 && longPollElapsedMs <= 17_000, "long-poll timing stays close to its configured 15-second window");
+  assert.ok(longPollQueries >= 1 && longPollQueries <= 24, "long-poll query count remains bounded under scheduler variance");
   await client.close();
   return {
-    fixture: "long-history-250-actions-500-log-lines",
-    phase: "persistedAcknowledgement",
-    warmup: WARMUP,
-    samples: SAMPLES,
-    ...summarize(samples),
-    queryCountPerAck: Math.max(...queryCounts),
-    payloadBytes,
-    idlePollQueries,
+    measurements: [
+      {
+        fixture: "synthetic-250-actions-500-log-lines",
+        phase: "storageWriteAcknowledgement",
+        warmup: WARMUP,
+        samples: SAMPLES,
+        ...summarize(storageSamples),
+        maxQueriesPerAck: Math.max(...storageQueryCounts),
+        payloadBytes,
+      },
+      {
+        fixture: "valid-game-with-synthetic-250-action-500-line-history",
+        phase: "applyToGamePersistedAcknowledgement",
+        warmup: WARMUP,
+        samples: SAMPLES,
+        ...summarize(appSamples),
+        maxQueriesPerAck: Math.max(...appQueryCounts),
+        payloadBytes: Buffer.byteLength(JSON.stringify({ state: loaded.state, actions: loaded.actions, log: loaded.log })),
+        reloadVerified: true,
+      },
+      {
+        fixture: "unchanged-row-short-window",
+        phase: "waitForRevisionIdlePoll",
+        timeoutMs: 50,
+        repeats: shortPollQueryCounts.length,
+        averageQueries: Math.round(shortPollAverage * 100) / 100,
+        minQueries: Math.min(...shortPollQueryCounts),
+        maxQueries: Math.max(...shortPollQueryCounts),
+      },
+      {
+        fixture: "unchanged-row-standard-window",
+        phase: "waitForRevisionIdlePoll",
+        timeoutMs: 15_000,
+        elapsedMs: longPollElapsedMs,
+        queries: longPollQueries,
+        changed: longPollResult,
+      },
+    ],
   };
 }
 
@@ -189,7 +332,7 @@ async function main() {
     mockAi.push(performance.now() - start);
   }
   output.push({ fixture: "mock-only", phase: "simulatedAiLatency", warmup: 0, samples: mockAi.length, configuredDelayMs: 20, ...summarize(mockAi) });
-  console.log(JSON.stringify({ baselineCommit: REFERENCE, engine: ENGINE, cpuLocalOnly: true, metrics: output }, null, 2));
+  console.log(JSON.stringify({ referenceBaseline: REFERENCE_BASELINE, ...runtimeStamp(), engine: ENGINE, cpuLocalOnly: true, metrics: output }, null, 2));
 }
 
 main().catch((error) => {
