@@ -218,12 +218,13 @@ async function persistenceMetrics(data: ReturnType<typeof fixture>) {
   const shortPollAverage = shortPollQueryCounts.reduce((sum, n) => sum + n, 0) / shortPollQueryCounts.length;
   assert.ok(shortPollAverage >= 1 && shortPollAverage <= 4, "short-window idle poll stays bounded under scheduler variance");
   const reloaded = await db.query.arenaGames.findFirst({ where: eq(schema.arenaGames.id, row.id) });
-  assert.deepEqual(reloaded?.state, data.state, "reload reads the persisted engine state");
+  assert.ok(reloaded, "storage-only calibration row reloads");
+  assert.deepEqual(reloaded.state, data.state, "reload reads the persisted engine state");
 
   const appGame = await seedGameFixture(db);
   await db.update(schema.arenaGames).set({ actions: payload.actions, log: payload.log }).where(eq(schema.arenaGames.id, appGame.id));
   const loaded = (await loadGame(db, appGame.id))!;
-  assert.ok(loaded, "valid synthetic deck creates a saved rules-engine game");
+  assert.ok(loaded, "synthetic practice deck creates a saved rules-engine game");
   const action = loaded.legal[0]!.action;
   const appSamples: number[] = [];
   const appQueryCounts: number[] = [];
@@ -264,7 +265,7 @@ async function persistenceMetrics(data: ReturnType<typeof fixture>) {
 
   queryMeter.count = 0;
   const longPollStart = performance.now();
-  const longPollResult = await waitForRevision(db, row.id, 1, 15_000);
+  const longPollResult = await waitForRevision(db, row.id, reloaded.version, 15_000);
   const longPollElapsedMs = Math.round(performance.now() - longPollStart);
   const longPollQueries = queryMeter.count;
   assert.equal(longPollResult, false, "the unchanged row remains idle until the long-poll deadline");
@@ -289,7 +290,11 @@ async function persistenceMetrics(data: ReturnType<typeof fixture>) {
         samples: SAMPLES,
         ...summarize(appSamples),
         maxQueriesPerAck: Math.max(...appQueryCounts),
-        payloadBytes: Buffer.byteLength(JSON.stringify({ state: loaded.state, actions: loaded.actions, log: loaded.log })),
+        acknowledgedStateHistoryBytes: Buffer.byteLength(JSON.stringify({
+          state: appAcknowledgement.state,
+          actions: appAcknowledgement.actions,
+          log: appAcknowledgement.log,
+        })),
         reloadVerified: true,
       },
       {
