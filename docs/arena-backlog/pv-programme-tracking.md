@@ -29,6 +29,21 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - #545 delivered in PR #586: authoritative revision, durable action identity and stale-request recovery; Android Gradle validation remains blocked by repository connectivity.
 - Owner-requested repository maintenance #583 delivered in PR #584: duplicate GitHub test, BugBot and acceptance workflows removed. Local verification and production deployment remain.
 
+### Reviewed work awaiting merge
+
+- #548 / PR #587: zero-power rule processing, replacement choices and reload continuation.
+- #559 / PR #589: accessible card sheets with keyboard navigation and explicit close controls.
+- #567 / PR #590: independent atomic AI usage ledger, duplicate-call protection and concurrent accounting.
+- #546 / PR #591: recoverable polling, request deadlines, Offline/Reconnecting status and Retry.
+- #565 / PR #592: reproducible engine and persisted-acknowledgement performance baseline.
+
+These PRs have local verification and orchestrator review; they are not delivered yet. Main commit
+`74701713` (PR #586) currently has no reported Vercel status. The required deployment ordering in
+`docs/agent-brief.md` holds the next merge while independent implementation continues.
+The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
+with the implementation PRs that merge before it. Active isolated work covers #544 interrupted
+outcomes, #571 exact card triggers and #555 Aegis eligibility.
+
 ## Reconciliation decisions
 
 - Extend completed #348 pager and completed #352/#366 design/home programmes; do not reopen finished issues merely for new scope.
