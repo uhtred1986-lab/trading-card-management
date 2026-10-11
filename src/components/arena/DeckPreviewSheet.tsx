@@ -14,12 +14,14 @@ import { groupPreview, type CardRuleState, type DeckPreviewCard } from "@/lib/ar
  */
 const STATE: Record<CardRuleState, { glyph: string; label: string; text: string }> = {
   open: { glyph: "○", label: "Open, no rule yet", text: "text-loss" },
+  incomplete: { glyph: "◌", label: "Incomplete, at least one printed skill has no current rule", text: "text-loss" },
   draft: { glyph: "◐", label: "Draft, not yet checked", text: "text-dbs-blue" },
   corrected: { glyph: "◉", label: "Corrected by hand", text: "text-ki-300" },
-  confirmed: { glyph: "●", label: "Confirmed", text: "text-gain" },
+  confirmed: { glyph: "●", label: "Confirmed review status; runtime support is shown separately", text: "text-gain" },
+  native: { glyph: "◆", label: "Native keyword, no compiler rule row", text: "text-space-300" },
   plain: { glyph: "–", label: "No skill text, no rule needed", text: "text-space-500" },
 };
-const WORD: Record<CardRuleState, string> = { open: "open", draft: "draft", corrected: "corrected", confirmed: "confirmed", plain: "no skill" };
+const WORD: Record<CardRuleState, string> = { open: "open", incomplete: "incomplete", draft: "draft", corrected: "corrected", confirmed: "reviewed", native: "native", plain: "no skill" };
 
 /**
  * "See the cards" (#368): a button and the dialog it opens, a bottom sheet on a
@@ -56,6 +58,8 @@ export function DeckPreviewSheet({ deckId, deckName, className = "" }: { deckId:
   const cards = loaded?.deckId === deckId ? loaded.cards : null;
   const groups = cards ? groupPreview(cards) : [];
   const openCount = cards ? new Set(cards.filter((c) => c.state === "open").map((c) => c.cardId)).size : 0;
+  const incompleteCount = cards ? new Set(cards.filter((c) => c.state === "incomplete").map((c) => c.cardId)).size : 0;
+  const unsupportedCount = cards?.reduce((n, c) => n + (c.unsupportedSkills ?? 0), 0) ?? 0;
 
   return (
     <>
@@ -81,7 +85,7 @@ export function DeckPreviewSheet({ deckId, deckName, className = "" }: { deckId:
                   {deckName}
                 </h2>
                 <p className="text-xs text-space-400" aria-live="polite">
-                  {pending || (!cards && !failed) ? "Loading the cards…" : failed ? "Could not load the cards." : openCount > 0 ? `${openCount} open card${openCount === 1 ? "" : "s"} first in each group.` : "Every card has a rule."}
+                  {pending || (!cards && !failed) ? "Loading the cards…" : failed ? "Could not load the cards." : openCount || incompleteCount || unsupportedCount ? `${openCount} open · ${incompleteCount} incomplete · ${unsupportedCount} known unsupported skill${unsupportedCount === 1 ? "" : "s"}.` : "Every printed effect has a current rule record."}
                 </p>
               </div>
               <button type="button" autoFocus onClick={() => dialog.current?.close()} aria-label="Close" className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg">
@@ -118,6 +122,12 @@ export function DeckPreviewSheet({ deckId, deckName, className = "" }: { deckId:
 
 function Row({ card: c }: { card: DeckPreviewCard }) {
   const s = STATE[c.state];
+  const detail = [
+    c.missingSkills ? `${c.missingSkills} missing skill${c.missingSkills === 1 ? "" : "s"}` : "",
+    c.unsupportedSkills ? `${c.unsupportedSkills} runtime unsupported` : "",
+    c.unknownSkills ? `${c.unknownSkills} skill${c.unknownSkills === 1 ? "" : "s"} runtime support not yet verified` : "",
+  ].filter(Boolean).join("; ");
+  const label = detail ? `${s.label}; ${detail}` : s.label;
   return (
     <li className="flex items-center gap-3 py-2">
       <span className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums text-space-50">{c.quantity}×</span>
@@ -133,13 +143,18 @@ function Row({ card: c }: { card: DeckPreviewCard }) {
           {c.energyCost != null && <span>cost {c.energyCost}</span>}
         </p>
       </div>
-      <span role="img" aria-label={s.label} className={`flex w-16 shrink-0 flex-col items-center text-center leading-tight ${s.text}`}>
+      <span role="img" aria-label={label} className={`flex w-20 shrink-0 flex-col items-center text-center leading-tight ${(c.unsupportedSkills ?? 0) ? "text-loss" : (c.unknownSkills ?? 0) ? "text-ki-300" : s.text}`}>
         <span aria-hidden className="text-lg">
           {s.glyph}
         </span>
         <span aria-hidden className="text-[10px] uppercase tracking-wider">
           {WORD[c.state]}
         </span>
+        {((c.unsupportedSkills ?? 0) > 0 || (c.unknownSkills ?? 0) > 0 || (c.missingSkills ?? 0) > 0) && (
+          <span aria-hidden className="text-[9px] uppercase tracking-wide">
+            {(c.unsupportedSkills ?? 0) > 0 ? "unsupported" : (c.unknownSkills ?? 0) > 0 ? "unknown" : "missing"}
+          </span>
+        )}
       </span>
     </li>
   );

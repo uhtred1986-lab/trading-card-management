@@ -4,11 +4,11 @@
  * the client component and `verify-rules.ts` can both import it.
  */
 
-/** A card's worst rule state (`readiness.ts`), or `plain` when it has no rule row. */
-export type CardRuleState = "open" | "draft" | "corrected" | "confirmed" | "plain";
+/** A card's printed-skill coverage and review state (`readiness.ts`). */
+export type CardRuleState = "open" | "incomplete" | "draft" | "corrected" | "confirmed" | "native" | "plain";
 
 /** Worst first, the order `readiness()` ranks them in (plain last). */
-export const STATE_ORDER: CardRuleState[] = ["open", "draft", "corrected", "confirmed", "plain"];
+export const STATE_ORDER: CardRuleState[] = ["open", "incomplete", "draft", "corrected", "confirmed", "native", "plain"];
 
 export interface DeckPreviewCard {
   cardId: string;
@@ -21,6 +21,12 @@ export interface DeckPreviewCard {
   energyCost: string | null;
   imageUrl: string | null;
   state: CardRuleState;
+  /** Printed effectful skills with no current matching rule record. */
+  missingSkills?: number;
+  /** Known runtime gaps among current rule records, independent of review status. */
+  unsupportedSkills?: number;
+  /** Contextual runtime support that cannot be decided from a saved record alone. */
+  unknownSkills?: number;
 }
 
 export type PreviewGroupKey = "leader" | "battle" | "extra" | "z" | "side";
