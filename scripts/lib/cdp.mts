@@ -148,6 +148,43 @@ export class Page {
     await this.call("Network.setCookie", { name, value, url });
   }
 
+  /** Emulate a real browser network transition for connection recovery reviews. */
+  async setOffline(offline: boolean) {
+    await this.call("Network.emulateNetworkConditions", { offline, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  }
+
+  async interceptFetch(urlPatterns: string | string[]) {
+    await this.call("Fetch.enable", { patterns: (Array.isArray(urlPatterns) ? urlPatterns : [urlPatterns]).map((urlPattern) => ({ urlPattern, requestStage: "Request" })) });
+  }
+
+  onFetchPaused(listener: (request: { requestId: string; request: { url: string } }) => void) {
+    this.b.on((method, params, sessionId) => {
+      if (sessionId === this.sid && method === "Fetch.requestPaused") listener(params);
+    });
+  }
+
+  async fulfillFetch(requestId: string, body: string, status = 200) {
+    await this.call("Fetch.fulfillRequest", {
+      requestId,
+      responseCode: status,
+      responseHeaders: [{ name: "content-type", value: "application/json; charset=utf-8" }],
+      body: Buffer.from(body).toString("base64"),
+    });
+  }
+
+  async fulfillFetchBytes(requestId: string, bytes: Buffer, mimeType: string, status = 200) {
+    await this.call("Fetch.fulfillRequest", {
+      requestId,
+      responseCode: status,
+      responseHeaders: [{ name: "content-type", value: mimeType }],
+      body: bytes.toString("base64"),
+    });
+  }
+
+  async continueFetch(requestId: string) {
+    await this.call("Fetch.continueRequest", { requestId });
+  }
+
   async goto(url: string, timeoutMs = 60000) {
     const loaded = new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => reject(new Error(`Timed out loading ${url}`)), timeoutMs);
