@@ -20,7 +20,7 @@ touches: src/lib/arena/vm/zones.ts, src/lib/arena/vm/events.ts, src/lib/arena/vm
 
 **Acceptance.**
 - [x] Face-up transition fires the intended Auto once; already face-up or unrelated movement does not; opponent views never reveal face-down life.
-- [x] Positive, negative, reload and interaction cases have explicit state/event assertions: red/blue source-color matching, controller-only watchers, event-subject binding, no-op already face-up, unrelated Life-to-hand movement, reload at the choice prompt and masked face-down Life in both viewers' snapshots.
+- [x] Positive, negative, reload and interaction cases have explicit state/event assertions: red/blue source-color matching, controller-only watchers, event-subject binding, no-op already face-up, unrelated Life-to-hand movement, a Battle-area face-up operation with a Life-area source, reload at the choice prompt and masked face-down Life in both viewers' snapshots.
 - [x] `DATABASE_URL='' npm run typecheck`, `npm run lint` (0 errors; 5 pre-existing prototype warnings), `npm test`, `npm run build`, both legacy/rules `verify-arena` engines and the dedicated #556 cases pass. The frozen probe corpus/digests are unchanged; the old named face-up rules gap is removed. Glossary documents the 3-9-2-1 moment.
 - [x] One bounded PR is prepared with evidence per acceptance bullet; this canonical backlog entry records completion. Live database, paid AI and production checks were not used.
 
