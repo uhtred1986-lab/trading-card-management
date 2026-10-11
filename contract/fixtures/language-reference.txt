@@ -635,7 +635,7 @@
     {
       "name": "modifyAttr",
       "class": "primitive",
-      "signature": "{\"op\":\"modifyAttr\",\"subject\"?:\"card\"|\"player\"|\"battle\",\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"attr\":\"power\"|\"comboPower\"|\"colors\"|…,\"amount\"?:AMOUNT,\"values\"?:[\"…\"],\"mode\"?:\"active\"|\"rest\",\"sign\"?:\"add\"|\"remove\",\"keyword\"?:{\"name\":\"Blocker\"},\"flag\"?:true|false,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"modifyAttr\",\"subject\"?:\"card\"|\"player\"|\"battle\",\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"attr\":\"power\"|\"comboPower\"|\"colors\"|…,\"amount\"?:AMOUNT,\"values\"?:[\"…\"],\"mode\"?:\"active\"|\"rest\",\"sign\"?:\"add\"|\"remove\",\"keyword\"?:{\"name\":\"Blocker\"},\"flag\"?:true|false,\"allAreas\"?:true|false,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "subject",
@@ -727,6 +727,12 @@
         },
         {
           "name": "flag",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "allAreas",
           "required": false,
           "nullable": false,
           "type": "boolean"
@@ -1548,7 +1554,7 @@
     {
       "name": "gains",
       "class": "macro over `modifyAttr`",
-      "signature": "{\"op\":\"gains\",\"traits\"?:[\"…\"],\"characters\"?:[\"…\"],\"colors\"?:[\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"names\"?:[\"…\"],\"target\"?:TARGET}",
+      "signature": "{\"op\":\"gains\",\"traits\"?:[\"…\"],\"characters\"?:[\"…\"],\"colors\"?:[\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"names\"?:[\"…\"],\"target\"?:TARGET,\"allAreas\"?:true|false}",
       "fields": [
         {
           "name": "traits",
@@ -1593,6 +1599,12 @@
           "nullable": false,
           "defaultText": "{\"sel\":{\"special\":\"self\"}}",
           "type": "ref"
+        },
+        {
+          "name": "allAreas",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
       "sentence": "this card also counts as",

@@ -64,7 +64,7 @@ function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
  * execute. Keep this check bounded to gaps the runtime already names. The
  * interpreter remains authoritative for contextual questions during a game.
  */
-export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger">): RuntimeSupport {
+export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed">): RuntimeSupport {
   const unsupported = [...(row.unread ?? [])];
   const unknown: string[] = [];
   const kind = row.kind.toLowerCase();
@@ -92,6 +92,14 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
       const gap = permanentOpGap(op);
       if (gap) unsupported.push(gap);
     }
+    // Before #553, an explicit 20-1 "in all areas" source qualifier was
+    // dropped from compiled identity operations. Those rows still load, but
+    // their static gains are now correctly play-scoped; don't advertise a
+    // confirmed legacy row as executable until its owner rebuilds it.
+    if (/\bin (?:all|any) areas?\b/i.test(row.printed ?? "")
+      && (row.ops as Op[]).some((op) => missingAllAreasIdentityScope(op))) {
+      unsupported.push("compiled all-area identity row is missing its source-validity marker; rebuild this rule record (#553)");
+    }
   }
 
   // `play` can be implemented as an operation while still refusing a target
@@ -100,6 +108,16 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   if (hasOp(row.ops as Op[], "play")) unknown.push("play target support depends on the card and board at resolution");
 
   return { unsupported: [...new Set(unsupported)], unknown: [...new Set(unknown)] };
+}
+
+const IDENTITY_LIST_ATTRS = new Set(["traits", "characters", "colors", "alsoNames"]);
+
+function missingAllAreasIdentityScope(op: Op): boolean {
+  if (op.op === "if") return [...op.then, ...(op.else ?? [])].some(missingAllAreasIdentityScope);
+  if (op.op !== "gains" && op.op !== "modifyAttr") return false;
+  const selfTarget = !op.target || ("sel" in op.target && op.target.sel.special === "self");
+  if (!selfTarget || op.allAreas === true) return false;
+  return op.op === "gains" || IDENTITY_LIST_ATTRS.has(op.attr);
 }
 
 function permanentOpGap(op: Op): string | null {

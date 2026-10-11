@@ -393,11 +393,6 @@ if (ENGINE === "rules") {
   // rows it covered stop differing and this fails until `npm run contract:emit`
   // records the new, smaller list. `--explain` prints both engines' reading of
   // every differing rule.
-  // The ops a rule's program carries, through its `if`s — what a cause about
-  // one kind of [Permanent] reads, so it names the rule rather than guessing
-  // from the log.
-  const opsIn = (ops: ProbeRule["ops"]): ProbeRule["ops"] => ops.flatMap((o) => (o.op === "if" ? [o, ...opsIn(o.then), ...opsIn(o.else ?? [])] : [o]));
-  const hasOp = (rule: ProbeRule, test: (o: ProbeRule["ops"][number]) => boolean) => opsIn(rule.ops).some(test);
   const CAUSES: { id: string; says: string; holds: (f: string, old: ProbeRun, rules: ProbeRun, rule: ProbeRule) => boolean }[] = [
     {
       id: "rule-processing",
@@ -412,12 +407,6 @@ if (ENGINE === "rules") {
           return !!m && !old.applied.some((a) => a.endsWith(`${m[1]} is KO'd.`)) && !rules.result.includes(line);
         }) ||
         (old.log.includes(`${rule.def.name} goes to the Drop.`) && !rules.log.includes(`${rule.def.name} goes to the Drop.`) && !old.log.some((l) => l.startsWith(`${rule.def.name} is KO'd`))),
-    },
-    {
-      id: "keyword-negation-static",
-      says: "A [Permanent] that negates a keyword (`negateKeyword`) is not collected on the rules engine (`DEFERRED_STATICS.negateKeyword`, #153), so the card still reads the keyword in force where legacy reads none.",
-      holds: (_f, old, rules, rule) =>
-        hasOp(rule, (o) => o.op === "negateKeyword") && rules.result.some((l) => /^keywords in force: /.test(l) && !old.result.includes(l)),
     },
     {
       id: "evolve-moved-twice",
