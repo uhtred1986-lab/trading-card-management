@@ -161,7 +161,8 @@ export function waitingFor(input: Pick<SnapshotInput, "ai" | "state" | "status" 
  * can ask: they are computed for the viewer when the prompt is theirs, and
  * never for Claude, who cannot read them and whose turns would pay for them.
  */
-export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal" | "viewer" | "engine">): RejectedAction[] {
+export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal" | "viewer" | "engine"> & { status?: string }): RejectedAction[] {
+  if (input.status !== undefined && input.status !== "playing") return [];
   const prompt = input.state.prompt;
   if (!("player" in prompt) || !prompt.player) return [];
   if (prompt.player !== viewerFor(input) || prompt.player === input.ai) return [];
@@ -175,7 +176,8 @@ export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | 
  * server refuses a move from the wrong seat anyway (#458). Everyone else keeps
  * the whole list, as before.
  */
-function legalFor(input: Pick<SnapshotInput, "state" | "legal" | "viewer">): LegalAction[] {
+function legalFor(input: Pick<SnapshotInput, "state" | "status" | "legal" | "viewer">): LegalAction[] {
+  if (input.status !== "playing") return [];
   if (!input.viewer) return input.legal;
   const prompt = input.state.prompt;
   const asked = "player" in prompt ? prompt.player : null;

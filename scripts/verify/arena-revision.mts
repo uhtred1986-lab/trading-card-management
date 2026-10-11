@@ -86,6 +86,19 @@ export async function verifyArenaRevision(db: Db, deckId: number): Promise<void>
   const priorBeats = { seq: 37, list: [], art: {} };
   await db.update(schema.arenaGames).set({ beats: priorBeats }).where(eq(schema.arenaGames.id, abandonId));
   const beforeSnapshot = await snapshotOfGame(db, { ...beforeAbandon, beats: priorBeats });
+  await assert.rejects(
+    abandonGame(db, abandonId, beforeAbandon.version + 1, {
+      actor: "bob",
+      requestId: "00000000-0000-4000-8000-000000000006",
+      fingerprint: mutationFingerprint({ basedOn: beforeAbandon.version + 1, type: "abandon" }),
+    }),
+    StaleGame,
+    "giving up from an obsolete revision is refused instead of applying against a newer board",
+  );
+  const afterStaleAbandon = (await loadGame(db, abandonId))!;
+  assert.equal(afterStaleAbandon.status, "playing", "a stale give-up request leaves the game playing");
+  assert.equal(afterStaleAbandon.version, beforeAbandon.version, "a stale give-up request advances no revision");
+  assert.equal(afterStaleAbandon.actionReceipts.length, 0, "a stale give-up request leaves no success receipt");
   const abandonIdentity = {
     actor: "bob",
     requestId: "00000000-0000-4000-8000-000000000004",
@@ -97,6 +110,11 @@ export async function verifyArenaRevision(db: Db, deckId: number): Promise<void>
   assert.equal(abandoned.version, beforeAbandon.version + 1, "abandonment advances revision even without a beat");
   assert.equal(firstReader.game.status, "abandoned", "the first connected client sees the terminal state");
   assert.equal(secondReader.game.status, "abandoned", "the other client sees the same terminal state");
+  assert.deepEqual(firstReader.legal, [], "the first reader sees no playable actions after abandonment");
+  assert.deepEqual(firstReader.taps, { byCard: {}, bare: [], attackTargets: {} }, "the first reader sees no actionable targets after abandonment");
+  assert.equal("rejected" in firstReader, false, "a terminal board carries no rejected-action prompts");
+  assert.deepEqual(secondReader.legal, [], "the other reader sees no playable actions after abandonment");
+  assert.deepEqual(secondReader.taps, { byCard: {}, bare: [], attackTargets: {} }, "the other reader sees no actionable targets after abandonment");
   assert.deepEqual(firstReader.beats, beforeSnapshot.beats, "status-only writes preserve, rather than replay, the old beat queue");
   assert.equal(await waitForRevision(db, abandonId, beforeAbandon.version, 0), true, "revision polling wakes for a no-beat abandonment");
   assert.equal((await abandonGame(db, abandonId, beforeAbandon.version, abandonIdentity)).duplicateRequest, true, "a retry of abandon is acknowledged after the game is terminal");

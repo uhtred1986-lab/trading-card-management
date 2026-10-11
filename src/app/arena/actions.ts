@@ -641,14 +641,14 @@ export async function requestReview(gameId: number): Promise<{ error: string | n
   return { error: null };
 }
 
-export async function abandon(gameId: number, basedOn: number, requestId: string) {
+export async function abandon(gameId: number, basedOn: number, requestId: string): Promise<{ error: string | null }> {
   await requireSignedIn();
   if (!Number.isInteger(basedOn) || basedOn < 0 || !isRequestId(requestId)) {
-    revalidatePath(`/arena/${gameId}`);
-    redirect(`/arena/${gameId}`);
+    return { error: "refresh the board before giving up" };
   }
   // Either seat may give up, and it ends the game for both.
-  if (await refuse(gameId, false)) return;
+  const refused = await refuse(gameId, false);
+  if (refused) return { error: refused };
   try {
     await abandonGame(db, gameId, basedOn, {
       actor: await currentUser(),
@@ -656,8 +656,12 @@ export async function abandon(gameId: number, basedOn: number, requestId: string
       fingerprint: mutationFingerprint({ basedOn, type: "abandon" }),
     });
   } catch (err) {
-    if (!(err instanceof StaleGame) && !(err instanceof GameAlreadyFinished) && !(err instanceof RequestIdentityConflict)) throw err;
+    if (err instanceof StaleGame) return { error: "the board moved on — refresh it before giving up" };
+    if (err instanceof GameAlreadyFinished) return { error: err.message };
+    if (err instanceof RequestIdentityConflict) return { error: err.message };
+    throw err;
   }
+  revalidatePath(`/arena/${gameId}`);
   revalidatePath("/arena");
   redirect("/arena");
 }
