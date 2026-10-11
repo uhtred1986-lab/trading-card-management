@@ -47,14 +47,21 @@ and #562 stakes → #563 phone → #564 desktop. Use exact dependencies in the d
 Test connection and latency evidence remain. Do not duplicate either route or ask the same ruling again.
 
 Stage 3 #170 was a stale tracker with #135/#137 unchecked despite both closed; it is now closed after
-declaration checks passed. ops.rules documents native mill as its binding exception.
-Runtime support and named skipped/deferred cases remain #575.
+declaration checks passed. ops.rules documents native mill as its binding exception. These are
+language/declaration results, not runtime proof.
 
-This reconciliation ran verify-rules successfully and verify-arena 28/28 in the legacy harness,
-including language/rulesets/words/primer/VM. Earlier npm test passed; earlier rules-only review was
-26/28 with two comparisons not run and 18 named skips. These do not prove complete rules coverage.
-Old support assertions about KO/tokens/skip/Counter: Play can be stale; verify source and #575.
-No implementation ticket is marked fixed by planning work.
+The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
+runtime evidence. It records 16 named rules-engine gaps with stable IDs and live owners, two narrow
+positive scenarios (including the native mill exception), deferred statics, and the pending #548
+delivery separately from the unsupported base status. It also identifies the two suites whose
+legacy-oracle comparisons remain outside #459's fixed-expectation migration. The ALTC Counter
+alternative-price scenario now runs and asserts the chosen payment, resulting zones and the
+unaffordable case; its former skip was obsolete.
+
+#170's closure and green declaration checks do not prove complete rules coverage. The inventory
+keeps behavior-level runtime assertions separate from hook contracts and declaration checks. Fuzz-40
+needs database-backed card fixtures and remains owner-run. No implementation ticket is marked fixed
+by planning work.
 
 ## Working and maintenance
 
