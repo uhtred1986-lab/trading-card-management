@@ -429,7 +429,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Taken out of the candidates of every opponent selector, and named as the reason when you tap the card anyway. “Ignoring [Barrier]” lifts it for that one choice, and a card in a hand was never in scope to begin with.",
     engineRules:
-      "Excludes the same candidates through its own `chooseable` hook, the same `forbid(what: beChosen)`/20-4 machinery folded into the card's own rules (`prohibitions()`) rather than a special case (#154), and named as the reason when you tap the card anyway: a `chooseCards` prompt's rejected list reads 20-14, then [Barrier], then the prompt's own target description, the legacy engine's order (#152).",
+      "Excludes the same candidates through its own `chooseable` hook, the same `forbid(what: beChosen)`/20-4 machinery folded into the card's own rules (`prohibitions()`) rather than a special case (#154), and named as the reason when you tap the card anyway: a `chooseCards` prompt's rejected list reads 20-14, then [Barrier], then the prompt's own target description, the legacy engine's order (#152). Rule 21-6 is confirmative processing, not a skill choosing the card, so [Barrier] does not prevent a Battle Card with 0 or less power from going to the Drop Area. When a power-reduction effect brings it to 0 or less, the placement retains that effect as its cause (21-6-2-1).",
     support: "engine",
   },
   Deflect: {
@@ -452,7 +452,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Honoured both by battle and by an opponent's script on the engine playing every game today. A card at 0 power or less still goes to the Drop Area — that is 21-6, not a KO.",
     engineRules:
-      "Honours both halves. The battle half is read directly in the battle-KO step rather than through the hook (#154); the skill half is the shared script interpreter's own check, which skips an opponent's KO of an [Indestructible] card before the KO is made — real on the rules engine since a skill's KO is (#146) — and the `koByEffect` hook's own forbid (\"can't be KO'd by the opponent's skills\") answers the same interpreter's 20-14 check alongside it.",
+      "Honours both halves. The battle half is read directly in the battle-KO step rather than through the hook (#154); the skill half skips an opponent's skill KO before it is made, and the `koByEffect` hook's forbid answers the same 20-14 check. At a checkpoint, 21-6 places a Battle Card with 0 or less power in its owner's Drop Area even when [Indestructible] is active. This rule placement is not a KO, and [Indestructible] does not prevent it (21-6-2). If a power-reduction effect caused the card to reach 0 or less, placement retains that effect as its cause (21-6-2-1).",
     support: "engine",
   },
 
