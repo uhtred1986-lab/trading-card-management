@@ -26,6 +26,7 @@
  */
 import { keywordOf } from "./text/cards";
 import type { KeywordSkill, SkillKind } from "./types";
+import type { RuntimeStatus } from "./capability-inventory";
 
 /** How much of the keyword the engine carries out on its own. */
 export type Support =
@@ -78,6 +79,8 @@ export interface KeywordDoc {
    */
   engineRules: string;
   support: Support;
+  /** Narrow runtime evidence links; broad `support` remains descriptive, not a completeness claim. */
+  runtimeEvidence?: { status: RuntimeStatus; capabilityIds: readonly string[] };
 }
 
 export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
@@ -255,6 +258,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engineRules:
       "Its own afterSkill hook draws the same way (#155), but does not yet negate itself for the rest of the turn — a hook body's frame carries no skillIndex for `negate(what: own)` to read — so it draws once per other [Heroic] card played in the turn rather than once.",
     support: "engine",
+    runtimeEvidence: { status: "unsupported", capabilityIds: ["arena-heroic-once-per-turn"] },
   },
   Villainous: {
     tag: "[Villainous]",
@@ -395,6 +399,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engineRules:
       "Built as its keyword's own `DO` (`offer: \"activate:battle\"` in `keywords.rules`, #154): offered at the combo prompt the non-turn player is asked — the Defense Step — from a card in play while the hand can cover the colours (`covers`), for the line's printed orbs; up to two cards of the colours are picked one at a time, dropped as the cost if they cover them, and then up to two rested energy stand. The same offer, refusals and events as the legacy engine. One difference in the question, not the outcome: the legacy prompt narrows the second pick to the colour still missing and will not take none, where this one offers any card of the colours and a cover picked wrongly spends the orbs for nothing, with the legacy engine's own note.",
     support: "engine",
+    runtimeEvidence: { status: "unsupported", capabilityIds: ["arena-aegis-incremental-choice"] },
   },
   "Victory Strike": {
     tag: "[Victory Strike]",

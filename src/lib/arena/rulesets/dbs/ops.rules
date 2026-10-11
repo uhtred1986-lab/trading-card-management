@@ -1,14 +1,15 @@
 -- The macros: every op the cards use that is not a primitive, written over
 -- the ones that are.
 --
--- `docs/arena-ruleset-spec.md` §2 is the decision — nineteen primitives, and
--- one `DEFINE OP` here for each of the thirty-one rows `OP_CLASS` marks
--- *macro*. A macro is not a deletion: `power(…)` keeps its `OP_SCHEMA` row,
+-- `docs/arena-ruleset-spec.md` §2 is the decision — the primitive and macro
+-- rows are classified by `OP_CLASS`. Each declared macro has a `DEFINE OP`;
+-- `mill` is the one native exception. A macro is not a deletion:
+-- `power(…)` keeps its `OP_SCHEMA` row,
 -- keeps printing as itself and keeps round-tripping by that name; this file
 -- says only what it *means*, and `rulesets/expand.ts` is what lowers a program
 -- written in these ops to a program written in the primitives.
 --
--- **Thirty of the thirty-one are declared; `mill` stays a native op, and the
+-- **Every macro row but `mill` is declared; `mill` stays a native op, and the
 -- table below is why.** Writing a row that silently dropped an argument would
 -- be worse than none: it would validate, it would expand, the sweep in
 -- `scripts/verify/language.ts` would pass, and the rule it claimed to explain
@@ -74,7 +75,7 @@
 --             (a battle on its master's side) and pends `youCombo` and
 --             `opponentCombos`, which a plain move neither checks nor pends.
 --
--- ── the thirty-one macros ─────────────────────────────────────────────────
+-- ── the macro rows ────────────────────────────────────────────────────────
 --
 --   op                   lowers to                waits on
 --   draw                 move                     declared (#137)

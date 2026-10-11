@@ -18,10 +18,12 @@ touches: src/lib/arena/glossary.ts, scripts/verify-rules.ts, docs/arena-CURRENT.
 **Files to verify first:** `src/lib/arena/glossary.ts`, `scripts/verify-rules.ts`, `docs/arena-CURRENT.md`. Update the contract/types/fixtures/glossary where the behavior requires it; verify actual symbols before editing.
 
 **Acceptance.**
-- [ ] Every named skip and unsupported branch has a stable ID and owner issue; a completed historical stage cannot imply an unimplemented mechanic works; matrix generation is DB-free and matches current tests.
-- [ ] Positive, negative, stale/reload and interaction cases appropriate to this change have explicit state/cost/event assertions.
-- [ ] Typecheck, lint, relevant scenario verification, npm test and build pass; VM/compiler work includes glossary updates, reading diff and fuzz 40 where applicable.
+- [x] Every active `rulesGap` and `legacyOnly` skip has a stable ID and owner; a TypeScript AST audit records every `NotYet` source site plus named VM note/no-op exits, and verifies source drift without a database. It separates current runtime gaps and live owners from validated guards, referee boundaries, and historical issue references. The matrix keeps #170 declarations separate from runtime proof.
+- [x] ALTC's positive multi-choice payment, prompt/player, cost/zone changes, attack resolution and unaffordable alternative are asserted on the rules engine; the obsolete skip is removed. Mill's runtime back-reference fixture and native-macro exception are recorded.
+- [x] Typecheck, lint, rules and full `npm test`, and build pass. Glossary runtime evidence links the Heroic/Aegis gaps. Fuzz-40 requires DB-backed deck fixtures, so remains owner-run; no VM/compiler implementation changed.
 - [ ] One bounded PR, clear evidence per acceptance bullet, and canonical backlog status updated on completion. Live database/paid/production checks are listed as owner-run rather than claimed.
+
+**Evidence:** Generated matrix and source drift verifier are in `docs/arena-capability-inventory.md` and `scripts/verify/capabilities.mts`. Current-base evidence was run with `DATABASE_URL=''`; the #548 row remains unsupported while PR #587 is pending. `--rules-only` still reports the two #459 oracle suites separately.
 
 **Order and hot files.** Follow prerequisite merge order and `docs/arena-delivery-plan.md`. `src/lib/arena/glossary.ts`, `scripts/verify-rules.ts`, `docs/arena-CURRENT.md` must not have concurrent writers. Other ready issues can be assigned independently only after checking shared types/fixtures and migrations.
 
