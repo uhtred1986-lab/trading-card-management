@@ -71,8 +71,8 @@ assert.throws(
 );
 for (const row of VM_UNSUPPORTED_SOURCE_SITES.filter((site) => site.kind === "silent-exit")) {
   const source = readFileSync(resolve(root, row.file), "utf8");
-  assert.ok(row.sourceNeedle && source.includes(row.sourceNeedle), `silent-exit source site drifted: ${row.id}`);
-  assert.equal(source.indexOf(row.sourceNeedle), source.lastIndexOf(row.sourceNeedle), `silent-exit source needle must be unique: ${row.id}`);
+  assert.ok(row.sourceNeedle && source.includes(row.sourceNeedle), `resolution-exit source site drifted: ${row.id}`);
+  assert.equal(source.indexOf(row.sourceNeedle), source.lastIndexOf(row.sourceNeedle), `resolution-exit source needle must be unique: ${row.id}`);
 }
 const ids = CAPABILITY_EVIDENCE.map((row) => row.id);
 assert.equal(new Set(ids).size, ids.length, "capability IDs must be unique");

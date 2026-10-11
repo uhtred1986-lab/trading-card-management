@@ -33,14 +33,13 @@ export interface CapabilityEvidence {
 export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-skill-unread-referee",
-    label: "Unread skill handed to a referee",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    label: "An unread due skill explicitly interrupts the game",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "Rule text ingestion and resolution boundary (`src/lib/arena/vm/flow.ts`)",
     ownerIssue: 544,
-    skipWhere: "compiler: an unread skill put to the referee",
-    proof: "scripts/verify/compiler.ts — unread skill scenario is named and not asserted on rules engine",
-    detail: "An unread skill resolves to a note; the rules engine has no referee path for that skill.",
+    proof: "scripts/verify/compiler.ts \u2014 unread effect with referee context; scripts/verify/outcomes.ts \u2014 false condition, typed outcome, archive and privacy",
+    detail: "A due unread effect produces a typed interrupted outcome with no referee fallback or paid review. It is not resolved or labeled a draw; false conditions remain no-ops.",
   },
   {
     id: "arena-auto-own-cost",
@@ -270,7 +269,7 @@ export interface VmUnsupportedSourceSite {
   id: string;
   file: string;
   ordinal: number;
-  kind: "not-yet" | "silent-exit";
+  kind: "not-yet" | "silent-exit" | "interruption";
   classification: "current-runtime-unsupported" | "validated-guard" | "declaration-extension" | "referee-boundary" | "menu-gate";
   citation: string;
   detail: string;
@@ -295,8 +294,8 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
   { id: "arena-vm-notyet-cost-unbound-life", file: "src/lib/arena/vm/costs.ts", ordinal: 7, kind: "not-yet", classification: "validated-guard", citation: "21-3; price declaration contract", detail: "A record-sourced life amount requires caller binding; no supported caller may be inferred from this defensive branch alone. Treat this as untested caller reachability, not a proven legal mechanic gap.", historicalIssues: [149] },
   { id: "arena-vm-notyet-cost-unknown-consumes", file: "src/lib/arena/vm/costs.ts", ordinal: 8, kind: "not-yet", classification: "validated-guard", citation: "CostConsumes discriminated union / ruleset validation", detail: "Exhaustive-switch fallback for a malformed or future CostConsumes value; not a mechanic gap." },
   { id: "arena-vm-notyet-alt-pay-variant", file: "src/lib/arena/vm/costs.ts", ordinal: 9, kind: "not-yet", classification: "validated-guard", citation: "Alternative payment declaration contract; `vm/battle.ts` handles `program` separately", detail: "Fallback for an alternative-pay variant not handled by the legacy path; current reachable Counter `program` payments are handled separately.", historicalIssues: [150] },
-  { id: "arena-vm-note-unread-auto", file: "src/lib/arena/vm/flow.ts", ordinal: 1, kind: "silent-exit", classification: "referee-boundary", citation: "Rule text ingestion / referee outcome contract", detail: "An Auto with no readable program logs a note and resolves no effect; #544 concerns representing this interruption outcome, not implementing the mechanic.", ownerIssue: 544, sourceNeedle: "no rule this engine can read says what happens" },
-  { id: "arena-vm-note-auto-action-price", file: "src/lib/arena/vm/flow.ts", ordinal: 2, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "9-6-4; 4-3-3; 20-5", detail: "An Auto with its own action or X price is noted and does not resolve.", ownerIssue: 549, sourceNeedle: "charging an action price or an X price" },
+  { id: "arena-vm-note-unread-auto", file: "src/lib/arena/vm/flow.ts", ordinal: 1, kind: "interruption", classification: "validated-guard", citation: "Rule text ingestion / interruption outcome contract", detail: "A due unread Auto interrupts explicitly; this guard does not implement its unread mechanic.", historicalIssues: [544], sourceNeedle: "No readable rule program was produced." },
+  { id: "arena-vm-note-auto-action-price", file: "src/lib/arena/vm/flow.ts", ordinal: 2, kind: "interruption", classification: "current-runtime-unsupported", citation: "9-6-4; 4-3-3; 20-5", detail: "An Auto with an unsupported action or X price interrupts before its effect; implementing payment remains #549.", ownerIssue: 549, sourceNeedle: "Resolving this automatic skill requires an unsupported action or X price." },
   { id: "arena-vm-static-own-prohibition-unread", file: "src/lib/arena/vm/effects.ts", ordinal: 1, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "9-1-5; `DEFERRED_STATICS`", detail: "An unread Permanent is omitted from own-prohibition evaluation; this is the deferred static-reading boundary.", ownerIssue: 553, sourceNeedle: "if (!program || program.unsupported.length) continue;" },
   { id: "arena-vm-static-unread", file: "src/lib/arena/vm/effects.ts", ordinal: 2, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "20-1; `DEFERRED_STATICS`", detail: "An unread Permanent is omitted from static evaluation.", ownerIssue: 553, sourceNeedle: "program.unsupported.length || (only && !only(program.ops))" },
   { id: "arena-vm-static-view-unread", file: "src/lib/arena/vm/program.ts", ordinal: 1, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "20-1; `DEFERRED_STATICS`", detail: "The view helper returns no static effects for an unread Permanent.", ownerIssue: 553, sourceNeedle: "if (!program || program.unsupported.length) return [];" },
