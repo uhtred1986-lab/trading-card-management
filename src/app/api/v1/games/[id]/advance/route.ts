@@ -13,7 +13,7 @@ export const maxDuration = 300;
  * Let the server take every decision that is not yours — Claude's moves, and
  * any card text that has gone to the referee.
  *
- * Long. A client should fire this and watch `GET .../games/{id}?sinceBeat=…`
+ * Long. A client should fire this and watch `GET .../games/{id}?sinceRevision=…`
  * on another connection rather than sit on the response, because `advance`
  * writes each move to the row as it makes it.
  */

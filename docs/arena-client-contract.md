@@ -60,9 +60,11 @@ clients on the same commit, and no endpoint can quietly grow a rule.
 ```ts
 export interface Snapshot {
   /** Bumped only on a breaking change; see §7. */
-  contract: 1;
+  contract: 2;
   game: {
     id: number;
+    /** Monotonic authoritative row revision, independent of the beat animation queue. */
+    revision: number;
     mode: "hotseat" | "sparring" | "tournament" | "versus";
     /**
      * Which engine is playing this game and which card game the decks belong
@@ -516,10 +518,10 @@ Only the Android app uses these; the web board calls §2 directly.
 | `GET` | `/api/v1/decks/{id}` | — | deck detail: zones, counts, per-card flags — **read-only** |
 | `GET` | `/api/v1/games` | `?limit=20` | game list, as `/arena` shows it |
 | `POST` | `/api/v1/games` | `{ p1DeckId, p2DeckId, mode, debug, engine? }` | `{ id, engine, engineNote? }` — `mode` excludes `versus`, §3.3 |
-| `GET` | `/api/v1/games/{id}` | `?sinceBeat=N&wait=25` | `Snapshot` — §6 |
-| `POST` | `/api/v1/games/{id}/actions` | `{ index, basedOn? }` | `Snapshot` — your move only |
+| `GET` | `/api/v1/games/{id}` | `?sinceRevision=R&sinceBeat=N&wait=25` | `Snapshot` — §6 |
+| `POST` | `/api/v1/games/{id}/actions` | `{ index, basedOn, requestId }` | `Snapshot` — your move only |
 | `POST` | `/api/v1/games/{id}/advance` | — | `Snapshot` once Claude has finished deciding |
-| `POST` | `/api/v1/games/{id}/abandon` | — | `Snapshot` |
+| `POST` | `/api/v1/games/{id}/abandon` | `{ basedOn, requestId }` | `Snapshot` |
 | `GET` | `/api/v1/app/version` | — | `{ versionCode, versionName, sha256, notes }` |
 | `GET` | `/api/v1/app/apk` | — | the signed APK, behind the same auth |
 
@@ -533,11 +535,16 @@ value appears on every later `Snapshot` as `game.engine` (§6).
 
 **A client picks a move by index into `legal`, never by describing one.** This is §1's rule made
 structural rather than merely checked: there is no way to write down a move the engine did not
-offer, so a forged request cannot be expressed at all, and the API validates a two-field object
+offer, so a forged request cannot be expressed at all, and the API validates the three-field `{ index, basedOn, requestId }` object
 instead of restating the whole `Action` union in Zod — the very duplication this document exists to
-prevent. `basedOn` is the `beats.seq` the client drew its board from; when it no longer matches, the
-game has moved on and the same index now means a different move, so the tap is refused (`stale`)
-rather than guessed at.
+prevent. `basedOn` is the `game.revision` the client drew its board from; when it no longer matches,
+the game has moved on and the same index may mean a different move, so the tap is refused (`stale`)
+rather than guessed at. `requestId` is a UUID generated once per mutation and reused on a retry. The
+server scopes it to the authenticated login and game, and stores a compact SHA-256 receipt in the
+same version-guarded write as the move or abandonment. A repeated id with the same payload returns
+the current snapshot without applying the mutation or advancing Claude again; reusing it for a
+different payload returns `idempotency_conflict`. Receipts stay with the game for its lifetime.
+Older clients that omit freshness or identity fields receive `contract_mismatch` and must update.
 
 The deck endpoints are now live (13 Sep 2026) — read-only, shaped by `src/lib/decks/legality.ts`
 exactly as the web deck page renders it, and pinned by their own golden fixtures (§5.1) so a shape
@@ -633,8 +640,11 @@ dot for all of it and then jumps. The contract fixes that for both clients with 
   produced. It does not wait for Claude.
 - `POST .../advance` runs Claude's decisions. `advance()` already writes each `applyToGame` to the
   database as it goes, so the work becomes visible while it is still happening.
-- `GET .../games/{id}?sinceBeat=N&wait=25` **long-polls**: it returns the moment `beats.seq > N`, or
-  after `wait` seconds with `{ beats: null }`. The client re-issues.
+- `GET .../games/{id}?sinceRevision=R&sinceBeat=N&wait=25` **long-polls**: it returns when the
+  authoritative game revision advances, including a status-only change such as abandonment. It
+  includes beats only when `beats.seq > N`; a status-only response carries `{ beats: null }`. The
+  client re-issues with both cursors. The legacy `sinceBeat`-only poll remains accepted for older
+  read-only clients.
 
 So a client fires `advance` on one connection and long-polls on another, and Claude's charge, plays,
 attack and combo arrive as they are decided rather than as one lump. Long-poll rather than SSE
@@ -652,8 +662,13 @@ the client's mark.
 
 ## 7. Versioning and drift
 
-Every payload carries `contract: 1`. It is bumped **only** when a field is removed or its meaning
-changes; adding an optional field is not a bump.
+Every payload carries the contract version. It is bumped **only** when a field is removed or its
+meaning changes; adding an optional field is not a bump.
+
+- **11 Oct 2026 — contract 2.** `game.revision` is the authoritative freshness cursor, separate from
+  `beats.seq`, and `basedOn` now means that revision. Mutating requests require `requestId`; the same
+  requirement applies to web server actions. Existing clients that omit freshness or identity get
+  `contract_mismatch` rather than having freshness guessed from animation progress.
 
 - **6 Sep 2026 — additive, no bump.** `docs/arena-workflow-spec.md` Phase 1 added `rejected`,
   `taps.whyByCard`, `SideView.choices`, `prompt.min/max/step/cost` and `owner` on the `skill` beat
@@ -690,7 +705,7 @@ section proposed defining the payload in Zod and emitting JSON Schema; building 
 the wrong trade. `BoardView`, `LegalAction` and `Tappable` are large existing TypeScript types —
 `LegalAction` is a union over the whole `Action` union — and restating them in Zod would create a
 second definition to keep in step, which is exactly the failure this document exists to prevent.
-Zod is used for the one thing that genuinely arrives from a network client: the two-field body of
+Zod is used for the one thing that genuinely arrives from a network client: the action body of
 `POST .../actions`.
 
 So instead:

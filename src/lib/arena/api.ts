@@ -5,7 +5,7 @@
  * That is the contract's first rule made structural rather than checked: there
  * is no way to express a move the engine did not offer, so a forged request
  * cannot even be written down, let alone refused. It also means this module
- * validates a two-field object instead of restating the whole `Action` union
+ * validates a small request object instead of restating the whole `Action` union
  * in Zod, which would be the very duplication the contract exists to prevent.
  */
 import { NextResponse } from "next/server";
@@ -16,7 +16,7 @@ import { ENGINE_IDS } from "./engines";
 import { isVersus, seatOf, type Seats } from "./games";
 import { CONTRACT_VERSION } from "./snapshot";
 
-export type ErrorCode = "bad_request" | "not_found" | "illegal_action" | "game_over" | "not_your_turn" | "stale" | "ai_error" | "contract_mismatch";
+export type ErrorCode = "bad_request" | "not_found" | "illegal_action" | "game_over" | "not_your_turn" | "stale" | "idempotency_conflict" | "ai_error" | "contract_mismatch";
 
 const STATUS: Record<ErrorCode, number> = {
   bad_request: 400,
@@ -25,6 +25,7 @@ const STATUS: Record<ErrorCode, number> = {
   game_over: 409,
   not_your_turn: 409,
   stale: 409,
+  idempotency_conflict: 409,
   ai_error: 502,
   contract_mismatch: 426,
 };
@@ -37,16 +38,19 @@ export function ok<T>(body: T) {
   return NextResponse.json(body);
 }
 
-/** Pick a move by its index in the `legal` array of the snapshot you hold. */
-export const chooseSchema = z.object({
-  index: z.number().int().min(0),
+const mutationSchema = z.object({
   /**
-   * The `beats.seq` the client was looking at. When it no longer matches, the
-   * game has moved on and the index means something else — so the move is
-   * refused rather than guessed at.
+   * The authoritative snapshot revision the client was looking at. It is
+   * independent of `beats.seq`, which only tracks animation progress.
    */
-  basedOn: z.number().int().min(0).optional(),
+  basedOn: z.number().int().min(0),
+  /** Stable UUID reused when retrying this exact mutation. */
+  requestId: z.string().uuid(),
 });
+
+/** Pick a move by its index in the `legal` array of the snapshot you hold. */
+export const chooseSchema = mutationSchema.extend({ index: z.number().int().min(0) });
+export const abandonSchema = mutationSchema;
 
 export const newGameSchema = z.object({
   p1DeckId: z.number().int(),
@@ -74,11 +78,14 @@ export async function seatFor(game: Seats & { mode: string }): Promise<PlayerId 
 }
 
 /** Query parameters of the long-polling board read. */
-export function pollParams(url: URL): { sinceBeat: number; waitMs: number } {
+export function pollParams(url: URL): { sinceBeat: number; sinceRevision: number | null; waitMs: number } {
   const sinceBeat = Number(url.searchParams.get("sinceBeat") ?? 0);
+  const rawRevision = url.searchParams.get("sinceRevision");
+  const parsedRevision = rawRevision == null ? null : Number(rawRevision);
   const wait = Number(url.searchParams.get("wait") ?? 0);
   return {
     sinceBeat: Number.isFinite(sinceBeat) && sinceBeat > 0 ? Math.floor(sinceBeat) : 0,
+    sinceRevision: parsedRevision != null && Number.isFinite(parsedRevision) && parsedRevision >= 0 ? Math.floor(parsedRevision) : null,
     // Capped: a long-poll holds a function for its whole duration.
     waitMs: Number.isFinite(wait) ? Math.min(Math.max(wait, 0), 30) * 1000 : 0,
   };
