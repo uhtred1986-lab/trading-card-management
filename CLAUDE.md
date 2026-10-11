@@ -45,8 +45,10 @@ Auth, which makes preview URLs awkward to open on a phone — a Cloudflare tunne
 
 **Neon is one database with a spend limit, so development keeps off it** (owner's instruction,
 14 Sep 2026). Three things follow. `vercel.json` (`git.deploymentEnabled`) deploys **`main` only** —
-no branch gets a preview any more; the `web` CI job runs `npm run build` (dummy `DATABASE_URL`)
-as the build check. It builds through `scripts/vercel-build.mjs`, which runs the migrations on
+no branch gets a preview any more. The orchestrator validates each proposed PR locally and reviews
+its acceptance evidence before merging; GitHub test, BugBot and acceptance-review workflows were
+removed on the owner's instruction of 11 Oct 2026. Production builds use
+`scripts/vercel-build.mjs`, which runs the migrations on
 *production* deploys only, and `scripts/vercel-ignore-build.mjs` skips a production deploy whose
 changed files are all under `docs/`, `.github/`, `.claude/` or root-level `*.md` (any git error
 builds), and still skips agent-branch previews as a fallback.

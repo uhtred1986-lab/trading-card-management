@@ -228,16 +228,16 @@ depend on staying current. `--check` is read-only and needs nothing but `GITHUB_
 CLOSED issue whose file lacks `status: closed` (a file marked closed while its issue is still open is
 the closing PR in flight, #389, and passes), and any path cited in a file's
 `**Source:**` line that no longer exists in the tree (the `Build` section names paths the issue's
-own work will create, so those are not checked). It runs in CI (since #374 as the last step of the `web` job) in
-`.github/workflows/checks.yml`, on every push and pull request, with the workflow's own read-only
-`GITHUB_TOKEN` — no secret to configure.
+own work will create, so those are not checked). Run it locally with authenticated GitHub API access.
+The GitHub test/BugBot/acceptance-review workflows were removed on the owner's instruction of
+11 Oct 2026; the orchestrator verifies the changed issue records and cited paths before merging.
 
 ### Backlog tooling — Arena M15 (no tracking issue)
 
 | File | Title | Kind |
 |---|---|---|
 | tooling-01 | Arena backlog: make the issue sync work without PowerShell — body updates, tracking refresh and an issue number in the front matter (#208) | tooling |
-| tooling-02 | Arena backlog: PR template with a Closes line, and an ac-check that reads the issue's acceptance section only (#209) | CI |
+| tooling-02 | Arena backlog: original PR template and automated acceptance check (#209); automation retired by #583 on 11 Oct 2026, local acceptance review retained | historical |
 
 ## 7. Running a wave
 
