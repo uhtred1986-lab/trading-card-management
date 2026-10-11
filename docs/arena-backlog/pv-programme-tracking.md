@@ -42,7 +42,8 @@ These PRs have local verification and orchestrator review; they are not delivere
 `docs/agent-brief.md` holds the next merge while independent implementation continues.
 The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
 with the implementation PRs that merge before it. Active isolated work covers #544 interrupted
-outcomes, #571 exact card triggers and #555 Aegis eligibility.
+outcomes, #571 exact card triggers and #555 Aegis eligibility. The locally reproduced additional
+Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
 
 ## Reconciliation decisions
 
