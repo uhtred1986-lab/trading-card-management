@@ -1,75 +1,70 @@
 # Arena current state (short)
 
-Last updated: 20 Sep 2026
+Last updated: 11 Oct 2026
 
-This file is the short, always-current arena state-of-the-world summary.
-Keep it under 200 lines. Update it whenever arena scope, priorities, or the
-"what to read first" order changes.
+Keep this file under 200 lines; update it when priorities or entry documentation changes.
 
-## Where the programme stands right now
+## Start here
 
-- The arena is playable for **Dragon Ball Super (`dbs`) decks only**.
-- The production flow is still: catalog sync drafts/updates `card_rules`,
-  the engine plays from those rows, and unresolved wording is escalated via
-  the referee workflow.
-- Two engines exist (`legacy`, `rules`), and **both are playable**. Stages 5
-  to 9 of the plan merged between 14 and 20 Sep 2026, so `src/lib/arena/vm/`
-  now plays a whole game: the turn off `DEFINE PHASE`/`STEP`, the declared
-  actions with their prices (charge, the play family, `activate`, 13-3's
-  Unison growth), the battle as a nested sub-flow with its nine steps,
-  damage, life and the WIN checkpoint, and Stage 7's keyword hook contract
-  with eight bodies written against it. `engineFor(id)` is the one switch.
-- **`DEFAULT_ENGINE` is `rules`** since 20 Sep 2026 (#166 build steps 2 and 3,
-  executed on the owner's decision ahead of the parity runs). A new game with
-  no engine chosen is a rules-engine game; Settings → Arena engine is the way
-  back to `legacy` and every saved game keeps the engine it was made on. A
-  **1 v 1 is made on the rules engine too** since #458, which read the
-  hidden-hand masking off the rules engine's own state (`vm/view.ts`'s
-  `vmRevealedTo`); a mode an engine is not built for would resolve rather than
-  refuse (`games.ts`'s `engineForMode`, with the reason shown on `/arena` and
-  in `POST /api/v1/games`'s `engineNote`). `Snapshot.game.engine` did not
-  change shape and the contract fixtures are unchanged; the badge inverted, so
-  a **legacy** game is what is marked now. The owner's parity runs (#164, #165:
-  `arena:diff`, `arena:reprobe`) and confirmation remain open on #166.
-- What the rules engine cannot do yet throws `NotYet` naming the issue that
-  builds it, and since #149 that **ends the game** rather than playing on —
-  a skill's own KO and tokens (#146), the skip list (#145), an action price
-  on an [Auto] or a keyword's own move (an [Activate] line's is charged since
-  #458), the counter:play window (#150), the
-  Z-Energy a spent combo card becomes (#151), and most keyword activations
-  (#157) are the ones a real game meets.
-- `npm test` runs `verify-arena.ts`'s nineteen suites **once per engine**
-  since #165, so the rules-engine run and its named skips are checked on
-  every ordinary test run. `npx tsx scripts/arena-fuzz.mts 200 --engine
-  rules` is clean.
-- The immediate day-to-day work remains improving wording coverage and
-  avoiding wrongly-read clauses (prefer unread over wrong reads).
-- `docs/arena-ruleset-spec.md` is the interpreter contract for the `rules`
-  engine: what is configuration and what is code, how a primitive or a game
-  is added, and the oracle protocol that gates each stage.
+The authoritative work queue is [arena-delivery-plan.md](arena-delivery-plan.md), tracked by
+[GitHub #581](https://github.com/uhtred1986-lab/trading-card-management/issues/581).
+It lists every active milestone, issue priority, dependency and hot-file constraint.
+[arena-playability-review.md](arena-playability-review.md) records evidence and the grounded design.
+Older handovers explain architecture/history; their dated queues do not override this plan.
 
-## Current priority order (session start)
+## What exists
 
-1. Read `docs/arena-next-session-prompt.md` for the detailed hand-off and
-   priority queue.
-2. Read `docs/arena-tooling.md` for validation discipline and script meaning.
-3. Use `docs/arena-INDEX.md` to choose whether a spec is current authority or
-   historical background before deep reading.
+- Arena plays Dragon Ball Super Masters (`dbs`), not Fusion World.
+- Default engine is `rules`; `legacy` remains until #118's coverage/replay/correctness gates pass.
+  Rules-engine 1v1 and privacy masking already exist.
+- Language, loader, phases/actions/battles and keyword hook contracts are implemented.
+  A completed stage does not establish support for every runtime mechanic.
+- Drag/charge, targeting, playback, inspection and phone pager #348 already exist.
+  New fullscreen review extends the pager; completed #352/#366 programmes remain closed.
+- Dev-only grounded preview uses real artwork and both skins. Its simulated ability timing
+  is design data; the live board must consume engine-derived availability.
 
-## Which docs are authoritative vs superseded
+## Current milestones and priorities
 
-- **Authoritative list:** `docs/arena-INDEX.md` is the single maintained map of
-  each `docs/arena-*.md` file's status (`Current`, `Current (planned)`,
-  historical/review background).
-- **Detailed current hand-off:** `docs/arena-next-session-prompt.md` remains the
-  canonical long-form "what next" document.
-- **Superseded/historical docs:** treat any file marked historical in
-  `docs/arena-INDEX.md` as background context, not the current source of truth.
+- **P0 Match integrity and recovery:** tracker #576; #543, #544, #545, #546, #547.
+- **P0/P1 Rule engine correctness:** tracker #577; #548, #549, #550, #551, #552, #553, #554, #555, #556, #557, #540, #541, #542.
+- **P1 Playable board and fullscreen cards:** tracker #578; #558, #559, #560, #561, #562, #563, #564.
+- **P1/P2 Measured speed and gameplan:** tracker #579; #565, #566, #567, #568, #569, #570.
+- **P1 Outstanding card readings:** tracker #539; #571, #572, #573, #574.
+- **P2/P3 Independent coverage and retirement:** tracker #168; #575, #459, #118.
+- **P2/P3 Android after web contract:** tracker #580; #105, #106.
+- **P2 AI efficiency and live verification:** tracker #511; #381, #518.
 
-## Maintenance convention
+Start P0 #543 readiness, #545 revision and #544 explicit interruption, then #548 zero-power/#549 Auto costs.
+Independent #559 accessible review can start on disjoint files. #558 contracts → #560/#561 review/abilities
+and #562 stakes → #563 phone → #564 desktop. Use exact dependencies in the delivery plan.
+#575 inventory and #459 fixed expectations must precede legacy retirement; #105/#106 wait on web contracts.
 
-- Keep this file short and high-signal; link out instead of duplicating long
-  specs.
-- When updating statuses, update `docs/arena-INDEX.md` in the same change.
-- When priorities move, update this file and
-  `docs/arena-next-session-prompt.md` together.
+## Reconciliation and evidence
+
+#539 is parent of #571–#574. #540–#542 remain distinct; #542 waits for shared cost binding #550.
+#381's cheaper-model ruling is already given. #518's route #531 is implemented; owner-run production
+Test connection and latency evidence remain. Do not duplicate either route or ask the same ruling again.
+
+Stage 3 #170 was a stale tracker with #135/#137 unchecked despite both closed; it is now closed after
+declaration checks passed. ops.rules documents native mill as its binding exception.
+Runtime support and named skipped/deferred cases remain #575.
+
+This reconciliation ran verify-rules successfully and verify-arena 28/28 in the legacy harness,
+including language/rulesets/words/primer/VM. Earlier npm test passed; earlier rules-only review was
+26/28 with two comparisons not run and 18 named skips. These do not prove complete rules coverage.
+Old support assertions about KO/tokens/skip/Counter: Play can be stale; verify source and #575.
+No implementation ticket is marked fixed by planning work.
+
+## Working and maintenance
+
+Read CLAUDE.md, docs/agent-brief.md, issue comments, tracker, arena-work skill and cited docs.
+One issue/branch/draft PR; no nested agents. Up to three disjoint worktrees can be coordinated,
+but flow/costs/snapshot/actions/page/sheets/glossary/fixtures/schema have one writer at a time.
+
+Use local fixtures and PGlite. This environment's DATABASE_URL belongs to another app.
+The plan authorizes no live data writes, paid calls, new dependency or production configuration.
+Additive migration proposals are local; owner-only/live acceptance stays explicitly unverified.
+
+Completing PRs set canonical backlog status closed and attach acceptance evidence; maintain the
+current queue/tracker. Do not bulk-sync older files over newer issue bodies/comments.

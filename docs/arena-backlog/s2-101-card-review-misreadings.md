@@ -1,10 +1,12 @@
 ---
 title: Arena: card review 4 Oct 2026 — single-card misreadings and missing triggers
 milestone: Arena M1 — Rules correctness and parser coverage
-labels: backlog, ready-for-agent, enhancement, area:arena-compiler, phase:rules-stage2, model:opus-5
+labels: enhancement, backlog, area:arena-compiler, phase:rules-stage2, model:opus-5, epic
 issue: 539
 stage: 2
 touches: src/lib/arena/text/triggers.ts, src/lib/arena/compile/targets.ts, src/lib/arena/glossary.ts
+priority: P1
+tracking: true
 ---
 **Source:** owner's card review of 4 Oct 2026. Each card's ruling is on its `card_rules` row (`explanation`, prefix `Wrong (phone review)`); `npm run arena:rule -- --list` prints them. The pattern families are tracked separately: attack-target triggers (s2-98), "A or B" targets (s2-99), exact-count "if you do" (s2-100).
 
@@ -34,3 +36,16 @@ touches: src/lib/arena/text/triggers.ts, src/lib/arena/compile/targets.ts, src/l
 - Gate: `typecheck`, `lint`, `test`, `build`, `arena:fuzz 40`.
 - A `scripts/verify/readings.ts` assertion per bullet above that the PR fixes.
 - `arena:readings` diff signed off; the PR lists any bullet left for later.
+
+## Delivery reconciliation — 11 Oct 2026
+
+**Priority:** P1. **Depends on:** #571, #572, #573, #574
+
+This broad issue is now a parent: #571 trigger scope; #572 combo-from-hand battle-end provenance; #573 grouped counts/shared conditions/mixed targets; #574 exact durations/Desire hand activation/shuffle. Preserve all original card rulings and acceptance. Every original bullet is assigned once; close parent only when every bullet has signed-off reading proof or an explicitly linked remaining issue.
+
+Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full review: `docs/arena-playability-review.md`.
+
+- [ ] #571 Fix missing and over-broad card Auto trigger readings
+- [ ] #572 Bind end-of-battle Auto to this card comboed from hand
+- [ ] #573 Fix grouped counts shared conditions and mixed target readings
+- [ ] #574 Fix phase durations and Desire hand activation readings

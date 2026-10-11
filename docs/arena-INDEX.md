@@ -8,6 +8,8 @@ to read first.
 
 | doc | status | what it is for |
 |---|---|---|
+| `docs/arena-delivery-plan.md` | **Current — work queue** | Complete reconciled milestones/issues, priorities, dependencies and hot-file order; GitHub #581. |
+| `docs/arena-playability-review.md` | **Current — follow-up source** | Grounded artwork/phone decisions, rules/speed findings and scenario acceptance for pv-* issues. |
 | `docs/arena-CURRENT.md` | **Current — start here** | Short state-of-the-world snapshot and maintenance convention for what is current right now. |
 | `docs/arena-next-session-prompt.md` | **Current — start here** | The cheapest current hand-off for a new arena session: where the programme stands and what to work on next. |
 | `docs/arena-tooling.md` | **Current — start here** | What the arena scripts and test suites prove, and how to validate changes without rereading large specs. |

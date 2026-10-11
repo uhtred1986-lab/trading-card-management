@@ -1,8 +1,10 @@
 ---
 title: Arena: implement Android battle playback and animation parity
 milestone: Arena M4 — Android client enablement
-labels: backlog, blocked, enhancement, area:arena-android, phase:android-client, model:sonnet-5
+labels: enhancement, backlog, area:arena-android, phase:android-client, model:sonnet-5, blocked
 stage: ui
+issue: 106
+priority: P3
 ---
 **Source:** `docs/arena-android-spec.md` §5 (the board), §6 (the storyboard in Compose), §11 steps 4–7; `docs/arena-client-contract.md` §6 (watching Claude think) and §3.2 (`Beats`); `src/components/arena/stage/useBeatPlayer.ts` and `motion.ts` as the reference semantics.
 
@@ -21,3 +23,11 @@ stage: ui
 **Acceptance.**
 - `npm run android:test` green with the wording/narration fixture check added.
 - Scenario proof: the same saved Sparring game replayed on the web board and on the phone shows the same sequence of beats with the same sentences; a screen recording of Claude's turn attached.
+
+## Delivery reconciliation — 11 Oct 2026
+
+**Priority:** P3. **Depends on:** #105
+
+Wait for #105 and its settled web contract. This is playback parity, not a second shell. Remove contradictory ready-for-agent while blocked.
+
+Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full review: `docs/arena-playability-review.md`.
