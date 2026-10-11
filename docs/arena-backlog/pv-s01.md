@@ -5,6 +5,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-contract, phase:hud-wo
 stage: ui
 issue: 565
 priority: P1
+status: closed
 touches: src/lib/arena/snapshot.ts, src/lib/arena/games.ts, src/components/arena/stage/useLiveGame.ts
 ---
 **Source:** `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.
@@ -18,10 +19,10 @@ touches: src/lib/arena/snapshot.ts, src/lib/arena/games.ts, src/components/arena
 **Files to verify first:** `src/lib/arena/snapshot.ts`, `src/lib/arena/games.ts`, `src/components/arena/stage/useLiveGame.ts`. Update the contract/types/fixtures/glossary where the behavior requires it; verify actual symbols before editing.
 
 **Acceptance.**
-- [ ] Small and crowded aura fixtures yield reproducible phase-separated measurements; idle query count and long-match payload are recorded; no secrets/hidden hands appear in logs. Hosted p95/representative phone remain clearly owner-run where unavailable.
-- [ ] Positive, negative, stale/reload and interaction cases appropriate to this change have explicit state/cost/event assertions.
-- [ ] Typecheck, lint, relevant scenario verification, npm test and build pass; VM/compiler work includes glossary updates, reading diff and fuzz 40 where applicable.
-- [ ] One bounded PR, clear evidence per acceptance bullet, and canonical backlog status updated on completion. Live database/paid/production checks are listed as owner-run rather than claimed.
+- [x] Small and crowded aura fixtures yield reproducible, phase-separated p50/p95 measurements; long-history serialization and PGlite acknowledgement payload/query counts are recorded. The runner asserts opposing-hand masking and writes aggregate metrics only. Hosted p95 and a representative physical phone remain owner-run.
+- [x] Positive legal action, negative illegal action with unchanged input state, persisted acknowledgement/reload, and hidden-hand masking are asserted by the benchmark; stale gameplay mutation remains covered by `scripts/verify/arena-revision.mts`. This task changes no gameplay interaction or costs.
+- [x] Typecheck, lint, benchmark scenario, `npm test`, and build pass. No VM/compiler behavior changed; glossary and fuzz checks do not apply.
+- [x] One bounded PR contains the scripts, methodology, measured evidence, and canonical status. Live database, paid provider, hosted p95, and physical-phone checks are explicitly owner-run and were not claimed.
 
 **Order and hot files.** Follow prerequisite merge order and `docs/arena-delivery-plan.md`. `src/lib/arena/snapshot.ts`, `src/lib/arena/games.ts`, `src/components/arena/stage/useLiveGame.ts` must not have concurrent writers. Other ready issues can be assigned independently only after checking shared types/fixtures and migrations.
 
