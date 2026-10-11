@@ -729,7 +729,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
         sourceCard: next.card,
         skillIndex: next.skillIndex,
         trigger: next.trigger,
-        issue: "#149",
+        issue: "#549",
         detail: "Resolving this automatic keyword requires an unsupported action or X price.",
       });
       return true;
@@ -773,7 +773,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       sourceCard: next.card,
       skillIndex: next.skillIndex,
       trigger: next.trigger,
-      issue: "#149",
+      issue: "#549",
       detail: "Resolving this automatic skill requires an unsupported action or X price.",
     });
     return true;

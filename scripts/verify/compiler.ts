@@ -221,8 +221,17 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
 
 // …and put to the referee when one is, whose ruling is a program in this same language.
 {
-  if (!rulesGap("compiler: an unread skill put to the referee", "the rules engine has no referee: a skill the compiler could not read resolves to a note (vm/flow.ts checkpoint)", "no issue filed yet")) {
-    const refCtx = { ...CTX, referee: true };
+  const refCtx = { ...CTX, referee: true };
+  if (ENGINE === "rules") {
+    let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
+    const before = zoneOf(s, "p1", "hand").length;
+    s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "an unread effect interrupts even when the context has a legacy referee");
+    assert.equal(vm.winner, null, "a rules interruption is not a draw or win");
+    assert.equal(vm.prompt.kind, "gameOver", "the rules engine does not pause for or request a referee ruling");
+    assert.equal(zoneOf(s, "p1", "hand").length, before - 1, "only the play happened; no unsupported effect was paid or applied");
+  } else {
     let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
     s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
     assert.equal(s.prompt.kind, "referee");

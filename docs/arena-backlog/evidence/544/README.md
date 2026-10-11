@@ -1,19 +1,24 @@
 # Arena #544 evidence
 
-The browser captures use the existing development-only `/arena/preview` route and `scripts/arena-shots.mts`; no application route was added. Temporary snapshots were derived from the `over` contract fixture, then removed. The end-screen states were: the old null-winner/prefix outcome interpreted as `DRAW`, and the typed `interrupted` outcome displayed as `GAME INTERRUPTED`. These are UI-state comparisons, not a run of the old application build.
+The browser captures use the existing development-only `/arena/preview` route; no application route was added. The before state is a current-app UI-state comparison with a null-winner `draw` outcome, while the after state uses the typed `interrupted` outcome and displays `GAME INTERRUPTED`. These are not captures from the old application build.
 
-The visible card faces use the existing local `/arena-design/BT1-033.webp` and `/arena-design/BT1-050.webp` assets from the primary checkout's `public/arena-design` folder. They were copied temporarily into this worktree's `public/arena-design` only during capture, then removed. A separate CDP check confirmed the expected heading and five loaded images (`complete && naturalWidth > 0`) for both states, both skins, at 390×844 and 1440×900. The same check confirmed the interrupted title has no victory rays. Screenshots show the actual Arena board and GameEnd composition.
+The visible card faces use the existing card artwork committed in `assets/BT1-033.webp` and `assets/BT1-050.webp`. The capture harness stages them under `public/arena-design` temporarily and restores any files that were already there. For both states, both skins and both viewports, the harness checks the expected heading, loaded artwork (`complete && naturalWidth > 0`) and absence of victory rays on interruption before writing the screenshots. Screenshots show the actual Arena board and GameEnd composition.
 
-To reproduce in a checkout with those local assets, temporarily copy the two image files into `public/arena-design`, create `outcome-before.json` and `outcome-after.json` beside `contract/fixtures/over.json` from that `over` snapshot, and set both snapshots' `view.you.leader.imageUrl` and `view.them.leader.imageUrl` to the corresponding `/arena-design/...` paths. Set both `view.over` and top-level `over` to `winner: null`; use kind `draw` with reason `this engine cannot finish this game` for the before state and kind `interrupted` with reason `This game was interrupted before a result was reached.` for the after state. Set the one `beats.list` entry to the same winner, reason and kind. Then run:
+To reproduce from a fresh checkout, start the development server:
 
 ```sh
 DATABASE_URL='' npm run dev
-DATABASE_URL='' npx tsx scripts/arena-shots.mts --fixtures outcome-before,outcome-after --skins anime,night --tag 544 --settle 400
 ```
 
-Remove the two temporary fixture files and copied assets after capture.
+In a second terminal, run the harness:
 
-| View | Skin | Old null-winner interpretation | Typed interruption |
+```sh
+DATABASE_URL='' npx tsx scripts/arena-outcome-shots.mts
+```
+
+The harness derives two temporary snapshots from `contract/fixtures/over.json`, stages the committed art under temporary public URLs, uses the existing CDP browser driver, and cleans up in `finally`. It writes refreshed captures directly into this evidence folder. It needs the same local Chrome/Chromium setup as `scripts/arena-shots.mts` and does not install dependencies.
+
+| View | Skin | Null-winner draw UI state | Typed interruption |
 | --- | --- | --- | --- |
 | 390×844 | anime | [phone-outcome-before-anime-544.jpg](phone-outcome-before-anime-544.jpg) | [phone-outcome-after-anime-544.jpg](phone-outcome-after-anime-544.jpg) |
 | 390×844 | night | [phone-outcome-before-night-544.jpg](phone-outcome-before-night-544.jpg) | [phone-outcome-after-night-544.jpg](phone-outcome-after-night-544.jpg) |
