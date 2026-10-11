@@ -1,5 +1,11 @@
 # Continuing the arena rules programme
 
+**Current queue — 11 Oct 2026:** read `docs/arena-delivery-plan.md` and tracking issue
+[#581](https://github.com/uhtred1986-lab/trading-card-management/issues/581) for priorities,
+dependencies and hot-file order. `docs/arena-playability-review.md` records the grounded
+phone/card-review design and named correctness findings. The older stage narrative below is
+architectural history; its dated open/blocked lists do not override the reconciled queue.
+
 Written 9 Sep 2026, after Stage 1, fourteen increments of Stage 2 and three
 rounds of parallel work merged; §1a's module map refreshed 20 Sep 2026, after
 Stages 5 to 9 landed. It assumes no knowledge of the sessions that came before

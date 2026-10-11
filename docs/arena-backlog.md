@@ -1,5 +1,12 @@
 # Arena backlog — tracking the rebuilt compiler against the design
 
+**Current delivery queue (11 Oct 2026):** `docs/arena-delivery-plan.md`, tracked by
+[#581](https://github.com/uhtred1986-lab/trading-card-management/issues/581), supersedes the
+dated stage-state table below for choosing work. It reconciles the live backlog into eight existing
+milestones with P0–P3 priorities, prerequisite gates and file ownership.
+`docs/arena-playability-review.md` is the source for `pv-*` follow-ups. Historical stages remain
+below to explain the programme; declaration/hook completion is not proof of runtime completeness.
+
 Rewritten 9 Sep 2026. This document says **what the finished design is**, in stages, and how every
 piece of remaining work is filed so progress against it can be read off GitHub. The issue bodies
 themselves live in `docs/arena-backlog/*.md` (one file per issue, front matter + body, see
@@ -75,6 +82,7 @@ for compiler work (`move()` replacement prompting, #107 — built 10 and 13 Sep 
 | Arena M15 — Backlog tooling and CI | review of 12 Sep 2026: the issue sync, the PR template and the ac-check |
 | Arena M16 — Board redesign: play feel and card review | `docs/arena-board-redesign-spec.md` (owner's decisions of 30 Sep 2026) and the frames in `docs/arena-redesign/` |
 | Arena M17 — Arena home: Play and Rules Workbench | `docs/arena-home-spec.md` (owner's decisions of 30 Sep 2026) and the Arena home / Rules workbench rows of the "DBS Arena Redesign" canvas |
+| AI providers — one contract, API or subscription, any vendor | `docs/architecture/ai-providers.md`; #511/#518 and approved model-economy follow-up #381; current queue includes these without duplicating provider implementation |
 
 ## 3. Labels
 

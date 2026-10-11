@@ -1,10 +1,11 @@
 ---
 title: Arena: BT31-001 — pay a red Veku/Gogeta [Union] cost from the Battle Area or the Drop
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
-labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-compiler, phase:capability-gap, model:opus-5
+labels: enhancement, backlog, area:arena-compiler, phase:capability-gap, area:arena-vm, model:opus-5, ready-for-agent
 issue: 541
 stage: ui
 touches: src/lib/arena/vm/script-schema.ts, src/lib/arena/glossary.ts
+priority: P1
 ---
 **Source:** owner's ruling of 4 Oct 2026 on BT31-001 #0 (Son Goku & Vegeta leader, Gogeta Situation Reversal deck), stored on the row.
 
@@ -17,3 +18,11 @@ touches: src/lib/arena/vm/script-schema.ts, src/lib/arena/glossary.ts
 **Acceptance.**
 - Gate: `typecheck`, `lint`, `test`, `build`, `arena:fuzz 40`.
 - `scripts/verify/keywords.ts`: with BT31-001 as leader, a red <Gogeta> [Union] played from hand can take one specified card from the Drop, and that card ends in the Warp. Without the leader, the Drop isn't offered.
+
+## Delivery reconciliation — 11 Oct 2026
+
+**Priority:** P1. **Depends on:** None for its bounded scope.
+
+Keep this card-specific Union payment from Battle Area/Drop issue; no duplicate generic Union implementation ticket. Coordinate payment hot files with #549/#550; preserve the owner's exact BT31-001 ruling.
+
+Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full review: `docs/arena-playability-review.md`.
