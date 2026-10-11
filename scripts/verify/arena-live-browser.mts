@@ -14,13 +14,12 @@ const captureBaseline = process.env.ARENA_CAPTURE_BASELINE === "1";
 const repo = process.cwd();
 const fixturePath = join(repo, "contract", "fixtures", "arena-live-proof.json");
 const evidenceDir = join(repo, "docs", "arena-backlog", "evidence", "546");
-const artRoot = process.env.ARENA_ART_DIR ?? "/workspace/trading-card-management/public/arena-design";
 const art = {
-  "BT1-055": { url: "http://arena-art.local/BT1-055.webp", path: join(artRoot, "BT1-055.webp"), mime: "image/webp" },
-  "BT11-053": { url: "http://arena-art.local/BT11-053.jpg", path: "/workspace/worktrees/arena-559/docs/arena-backlog/evidence/559/card-art-bt11-053.jpg", mime: "image/jpeg" },
+  "BT1-055": { url: "http://arena-art.local/BT1-055.webp", path: join(evidenceDir, "assets", "whis-coercion-bt1-055.webp"), mime: "image/webp" },
+  "BT11-053": { url: "http://arena-art.local/BT11-053.jpg", path: join(evidenceDir, "assets", "senzu-bean-bt11-053.jpg"), mime: "image/jpeg" },
 } as const;
 for (const asset of Object.values(art)) {
-  if (!existsSync(asset.path)) throw new Error(`Missing review-only card art at ${asset.path}; set ARENA_ART_DIR if needed.`);
+  if (!existsSync(asset.path)) throw new Error(`Missing review-only card art at ${asset.path}; restore the committed evidence assets.`);
 }
 
 const fixture = JSON.parse(readFileSync(join(repo, "contract", "fixtures", "versus.json"), "utf8")) as Snapshot;
@@ -35,12 +34,15 @@ writeFileSync(fixturePath, `${JSON.stringify(fixture, null, 2)}\n`, { flag: "wx"
 
 const terminal = JSON.parse(JSON.stringify(fixture)) as Snapshot;
 terminal.game.revision = fixture.game.revision + 1;
-terminal.game.status = "finished";
+const realTerminalShape = JSON.parse(readFileSync(join(repo, "contract", "fixtures", "over.json"), "utf8")) as Snapshot;
+terminal.game.status = realTerminalShape.game.status;
 terminal.waiting = null;
 terminal.legal = [];
 delete terminal.rejected;
 terminal.taps = { byCard: {}, bare: [], attackTargets: {} };
-terminal.over = { winner: fixture.game.you, reason: "The match is over" };
+terminal.view.phase = realTerminalShape.view.phase;
+terminal.view.prompt = realTerminalShape.view.prompt;
+terminal.over = { winner: fixture.game.you, reason: "The match is over." };
 terminal.view.over = terminal.over;
 
 mkdirSync(evidenceDir, { recursive: true });
