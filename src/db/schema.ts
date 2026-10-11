@@ -812,6 +812,31 @@ export const arenaDecisions = pgTable(
   (t) => [index("arena_decisions_game_idx").on(t.gameId, t.seq)],
 );
 
+/** One durable accounting receipt per Arena provider call, including calls whose move later lost the game-revision CAS. */
+export const arenaAiUsage = pgTable(
+  "arena_ai_usage",
+  {
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => arenaGames.id, { onDelete: "cascade" }),
+    /** Created before the provider call and reused only if its accounting write is retried. */
+    callId: text("call_id").notNull(),
+    /** The board revision from which this paid decision was requested. */
+    revision: integer("revision").notNull(),
+    model: text("model").notNull(),
+    provider: text("provider").notNull(),
+    billed: boolean("billed").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    cacheReadTokens: integer("cache_read_tokens").notNull(),
+    cacheCreationTokens: integer("cache_creation_tokens").notNull(),
+    /** Notional or provider-reported cost, matching `ai_runs.cost_micros` / Arena spend. */
+    costMicros: integer("cost_micros").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("arena_ai_usage_call_idx").on(t.gameId, t.callId), index("arena_ai_usage_revision_idx").on(t.gameId, t.revision)],
+);
+
 export const cardRules = pgTable(
   "card_rules",
   {
