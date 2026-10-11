@@ -26,9 +26,10 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import { printedDescription, printedNames } from "../text/cards";
-import type { Cond, Op } from "./script";
-import type { Skill } from "../types";
+import type { Cond, Op, Selector } from "./script";
+import type { Color, Skill } from "../types";
 import { bindKeywordCond, bindKeywordParams, type GameDefinition, type KeywordDef } from "../rulesets";
+import { RulesetBroken } from "./errors";
 
 /** The declaration of the keyword a line *is* — a line printed as nothing but its keyword tag (22-1-1), never a printed [Activate] that also carries one. */
 function declarationOf(game: GameDefinition, sk: Skill): KeywordDef | undefined {
@@ -65,7 +66,100 @@ export function keywordMomentOf(game: GameDefinition, sk: Skill, trigger?: strin
  * `scripts/verify/rulesets.ts` holds equal.
  */
 export function keywordProgram(game: GameDefinition, def: KeywordDef, sk: Skill): Op[] {
-  return bindKeywordParams(def.do ?? [], def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game);
+  const ops = bindKeywordParams(def.do ?? [], def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game);
+  return def.name === "Aegis" ? continueAegisPayment(game, ops) : ops;
+}
+
+/**
+ * 22-30-3: Aegis's declared body names the colours, asks for cards, and says
+ * what happens after their cost is paid. Turn only its broad set choice into
+ * a continuation over that declaration: one first card, then (when needed)
+ * only the still-missing colour. The interpreter persists each choice in the
+ * ScriptFrame, so this generated program survives a save/reload without a
+ * separate Aegis state shape.
+ */
+function continueAegisPayment(game: GameDefinition, ops: Op[]): Op[] {
+  const first = ops[0];
+  const payment = ops[1];
+  if (first?.op !== "choose" || payment?.op !== "if" || payment.cond.kind !== "covers") {
+    throw new RulesetBroken(game.id, `Aegis no longer declares its payment as a choose followed by a covers check`);
+  }
+  const colors = [...new Set(payment.cond.colors)];
+  const declaredColors = first.sel.filter?.colors;
+  if (!colors.length || !declaredColors || !colors.every((c) => declaredColors.includes(c)) || declaredColors.some((c) => !colors.includes(c))) {
+    throw new RulesetBroken(game.id, `Aegis must choose cards for every colour declared by its covers check`);
+  }
+  const paymentMove = payment.then[0];
+  if (paymentMove?.op !== "moveTo" || !("var" in paymentMove.target) || paymentMove.target.var !== first.as) {
+    throw new RulesetBroken(game.id, `Aegis must move its declared choice as the card payment`);
+  }
+  const selectedCovers = (variable: string, color: Color): Cond => ({ kind: "covers", sel: { fromVar: variable }, colors: [color] });
+  // Every card in the skill cost is required once activation is accepted.
+  // Keep the VM's normal behavior of silently taking a sole forced candidate;
+  // a choice among multiple eligible cards remains a mandatory one-card pick.
+  const selectOne = (sel: Selector): Selector => ({ ...sel, count: 1, upTo: false });
+  const selectColor = (color: Color): Selector => {
+    if (!first.sel.filter) throw new RulesetBroken(game.id, `Aegis payment selector must carry its declared colour filter`);
+    return {
+      ...selectOne(first.sel),
+      filter: { ...first.sel.filter, colors: [color] },
+    };
+  };
+  const chooseFor = (color: Color, as: string): Op => ({
+    ...first,
+    sel: selectColor(color),
+    as,
+    reason: `[Aegis]: choose a card to cover ${color}`,
+  });
+  const afterPayment = [...payment.then.slice(1), ...ops.slice(2)];
+  const collectCards = (variables: string[]): Op[] => [
+    ...variables.map((variable) => ({ ...paymentMove, target: { var: variable } })),
+    ...afterPayment,
+  ];
+  const completeColors = (index: number, variables: string[]): Op[] => {
+    if (index === colors.length) return collectCards(variables);
+    const color = colors[index];
+    const variable = `${first.as}:color:${index}`;
+    const choose = chooseFor(color, variable);
+    const afterChoice: Op = {
+      op: "if",
+      cond: { kind: "chose", var: variable },
+      then: completeColors(index + 1, [...variables, variable]),
+    };
+    if (!variables.length) return [choose, afterChoice];
+    return [{
+      op: "if",
+      cond: { kind: "any", conds: variables.map((picked) => selectedCovers(picked, color)) },
+      then: completeColors(index + 1, variables),
+      else: [choose, afterChoice],
+    }];
+  };
+  // Keep the declaration's initial choice broad: the player may start with
+  // any one of the printed colours, including a multicolour card. Continue
+  // only for colours that selection did not cover. The declaration still
+  // establishes the source pool, named colours, payment move and effect.
+  const firstAs = `${first.as}:first`;
+  const firstChoice: Op = {
+    ...first,
+    sel: {
+      ...selectOne(first.sel),
+      filter: { ...first.sel.filter!, colors },
+    },
+    as: firstAs,
+  };
+  const continueAfterFirst: Op = {
+    op: "if",
+    cond: { kind: "chose", var: firstAs },
+    then: [
+      {
+        op: "if",
+        cond: { kind: "covers", sel: { fromVar: firstAs }, colors },
+        then: collectCards([firstAs]),
+        else: completeColors(0, [firstAs]),
+      },
+    ],
+  };
+  return [firstChoice, continueAfterFirst];
 }
 
 /** The keyword's `AFTER` — what a move runs once the line's printed effect has — bound the way its `DO` is (#155). */
