@@ -42,9 +42,11 @@ These PRs have local verification and orchestrator review; they are not delivere
 `74701713` (PR #586) currently has no reported Vercel status. The required deployment ordering in
 `docs/agent-brief.md` holds the next merge while independent implementation continues.
 The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
-with the implementation PRs that merge before it. Active isolated work covers #544 interrupted
-outcomes, #553 static identity/keyword layers and #555 Aegis eligibility. The locally reproduced additional
+with the implementation PRs that merge before it. Review drafts cover #544 interrupted
+outcomes (PR #598), #553 static identity/keyword layers (PR #599), #555 Aegis eligibility (PR #596)
+and #556 face-up Life (PR #600). Isolated implementation has started on #554 Heroic. The locally reproduced additional
 Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
+P1 #597 separately owns original-color keyword payment eligibility after #553/#555.
 
 ## Reconciliation decisions
 

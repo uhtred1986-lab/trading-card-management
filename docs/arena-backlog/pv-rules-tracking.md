@@ -27,6 +27,7 @@ tracking: true
 - [ ] #556 **P1** — Emit face-up life trigger events
 - [ ] #557 **P2** — Report genuine damage statistics for rules-engine games
 - [ ] #595 **P1** — Pay Aegis additional skill costs after the colored-card cost (depends on #555; locally reproduced against 22-30-3)
+- [ ] #597 **P1** — Use original colors for keyword payment eligibility (depends on #553/#555; preserve effective-color selectors)
 - [ ] #540 — existing issue; preserve original acceptance and latest rulings
 - [ ] #541 — existing issue; preserve original acceptance and latest rulings
 - [ ] #542 — existing issue; preserve original acceptance and latest rulings
