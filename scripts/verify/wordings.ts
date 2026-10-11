@@ -484,11 +484,9 @@ import type { EngineState, Trigger } from "./harness";
   assert.equal(s.cards[target].faceUp, true);
   assert.equal(zoneOf(s, "p1", "life").length, life, "3-9-2-1: it is still life");
   assert.ok(zoneOf(s, "p1", "life").includes(target), "and still in the life area");
-  if (!rulesGap("wordings: LIFEWATCH's [Auto] when it is flipped face up in life (3-9-2-1)", "nothing fires the faceUpTurned moment on the rules engine: `setFaceUp` emits none, and a program's pend of flippedFaceUp has no MOMENT_OF entry (vm/host.ts)", "no issue filed yet")) {
-    // One card played, one drawn by the life card's own [Auto]. BLUEWATCH asks
-    // for a *blue* card's skill and FLIPPER is red, so it did not fire.
-    assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "22: the flipped card's own [Auto] drew");
-  }
+  // One card played, one drawn by the life card's own [Auto]. BLUEWATCH asks
+  // for a *blue* card's skill and FLIPPER is red, so it did not fire.
+  assert.equal(zoneOf(s, "p1", "hand").length, hand - 1 + 1, "22: the flipped card's own [Auto] drew");
   assertConsistentG(s);
 
   // Taking it as damage is the ordinary rule: a face-up life card is drawn

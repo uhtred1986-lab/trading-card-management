@@ -153,7 +153,19 @@ function valueMatches(want: PatternValue, got: PatternValue | undefined): boolea
 /** The cards this declaration puts the question to, before `WHERE` narrows them. */
 function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment: Moment): string[] {
   const watcher = trigger.on.args.watcher;
-  if (watcher !== undefined) return inPlay(game, state, watching(state, trigger, moment, watcher));
+  if (watcher !== undefined) {
+    const sides = watching(state, trigger, moment, watcher);
+    const askedCards = inPlay(game, state, sides);
+    // 3-9-2-1: the card turned face up is still in its Life Area, and its own
+    // Auto can answer as well as the controller's in-play watchers. The
+    // declaration's watcher chooses the audience; this event subject is the
+    // one card that answers from outside that audience's in-play zones.
+    if (trigger.name === "flippedFaceUp" && moment.event === "faceUpTurned" && moment.args.in === "life" && moment.card) {
+      const at = findCard(state, moment.card);
+      if (at?.zone === "life" && sides.includes(masterOf(game, state, moment.card))) askedCards.push(moment.card);
+    }
+    return askedCards;
+  }
   // A moment with no card is about the board rather than about a card (a phase
   // beginning), so everything in play hears it; `WHERE` is what makes it one
   // side's, which is 7-1's own framing of "your Charge Phase".
