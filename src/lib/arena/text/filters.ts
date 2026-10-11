@@ -215,6 +215,16 @@ export interface CardFilter {
 }
 
 /**
+ * A shared qualification for alternatives: “a <Cell> or <Cell Jr.> card—both
+ * white and with an energy cost of 3 or more—”. The clause after the dash
+ * applies to each alternative, so make it ordinary conjunctive filter text
+ * before asking the card-description parser to read it.
+ */
+export function expandSharedCardDescription(text: string): string {
+  return text.replace(/(?:-|—|–)\s*both\s+(.+?)(?:-|—|–)\s*/g, " $1 ").trim();
+}
+
+/**
  * Every field of a `CardFilter` and the kind of value it holds: the language's
  * predicate form (`lang/ast.ts` re-exports it) and the list `filterProblem`
  * (`vm/script-schema.ts`) checks a stored filter's keys and values against.

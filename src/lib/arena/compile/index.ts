@@ -33,13 +33,37 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 export function compileSkill(skill: Skill): Script {
   const sc = narrowHiddenChoices(compileSkillText(skill));
+  // The printed effect after an [Awaken] or [Awaken: Surge] colon remains
+  // part of that keyword skill. Preserve that cause on mode-switch events so
+  // triggers requiring a non-[Awaken] skill cannot mistake it for an ordinary
+  // effect (22-2, #571).
+  const caused = skill.keyword?.name === "Awaken" ? markSwitchesByAwaken(sc) : sc;
   // A [Permanent] never resolves, so "for the turn" — the duration every
   // clause gets when it names none — was a lie on every op it emitted. The
   // static layer ignores `until`, so nothing played wrongly; but the stored
   // program, the inspector and the referee's worked examples all said it.
   // The skill holds while its card is where it is valid (9-5-1), and `game`
   // is the nearest thing the language has to that.
-  return skill.kind === "permanent" ? { ...sc, ops: holdForGame(sc.ops) } : sc;
+  return skill.kind === "permanent" ? { ...caused, ops: holdForGame(caused.ops) } : caused;
+}
+
+/** Apply a keyword cause through nested conditionals/choices, retaining any more specific cause already read on a switch. */
+function markSwitchesByAwaken(script: Script): Script {
+  const mark = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(mark);
+    if (!value || typeof value !== "object") return value;
+    const object = value as Record<string, unknown>;
+    if (object.op === "switchMode" && !object.by) return { ...object, by: "Awaken" };
+    let changed = false;
+    const next: Record<string, unknown> = {};
+    for (const [key, part] of Object.entries(object)) {
+      const mapped = mark(part);
+      next[key] = mapped;
+      changed ||= mapped !== part;
+    }
+    return changed ? next : value;
+  };
+  return { ...script, ops: mark(script.ops) as Op[] };
 }
 
 /**
