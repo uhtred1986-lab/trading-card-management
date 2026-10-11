@@ -51,7 +51,7 @@ import type { EngineContext, GameEvent } from "../types";
 import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Op, type ScriptFrame } from "./script";
 import { redirectOf } from "./common";
 import { type AltCost, type Replacement } from "../types";
-import type { Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
+import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
 import { other as otherPlayer } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { CardFilter } from "../text/filters";
@@ -159,7 +159,7 @@ export interface VmStatic {
   kind: ContinuousEffect["kind"] | "replaceLeave" | "skip";
   /** The card it is about. */
   target: string;
-  value: number | KeywordSkill | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement | StandingSkip | Permission;
+  value: number | KeywordSkill | KeywordSkill["name"] | CardIdentityGain | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement | StandingSkip | Permission;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
@@ -200,13 +200,10 @@ export interface PayerGrant {
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "permit", "if"] as const;
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "gains", "negateKeyword", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "permit", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
-export const DEFERRED_STATICS: Record<string, string> = {
-  negateKeyword: "#153 — keywords are Stage 7's",
-  gains: "#153",
-};
+export const DEFERRED_STATICS: Record<string, string> = {};
 
 /**
  * Which effect `kind` feeds which **layer** of which attribute (20-21).
@@ -526,9 +523,9 @@ function collect(
   // A `negate` (#276), a `costModifier` (#277) or a `modifyAttr` widening
   // (spec §2.5-1/§2.5-3, #275) is walked as the spelling it stands for, the
   // same as `collectStatics` on the legacy engine — so a `negateKeyword`
-  // written as the primitive is deferred by the same name `DEFERRED_STATICS`
-  // gives it, a `modifyAttr(attr: keywords, …)` reads as the `grant` case
-  // below, and nothing else.
+  // written as the primitive reaches the static negation layer below,
+  // `modifyAttr(attr: keywords, …)` reads as the `grant` case below, and
+  // list-attribute `modifyAttr` shares the `gains` layer.
   for (const op of ops.map((o) => replaceAs(costModifierAs(negateAs(modifyAttrAs(o)))))) {
     if (op.op === "if") {
       // A [Permanent] under a condition holds only while the condition does
@@ -578,7 +575,12 @@ function collect(
     // from the hand. The legacy `collectStatics`' `if (!inPlayNow) continue`
     // before these three, which this walk had not carried over: an aura in
     // hand raised every Battle Card (#459, `verify/compiler.ts`'s AURA case).
-    if ((op.op === "power" || op.op === "comboPower" || op.op === "modifyAttr" || op.op === "grant") && !inPlayNow) continue;
+    if (
+      !inPlayNow &&
+      (op.op === "power" || op.op === "comboPower" || op.op === "grant" || op.op === "negateKeyword" ||
+        (op.op === "modifyAttr" && (op.attr === "power" || op.attr === "comboPower" || op.attr === "keywords" || ((op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames") && !op.allAreas))) ||
+        (op.op === "gains" && !op.allAreas))
+    ) continue;
     if (op.op === "power" || op.op === "comboPower") {
       // "+3000 power for each marker on this card": the same two counted amounts
       // the cost reduction below takes — a [Permanent] binds no variable, so
@@ -591,13 +593,34 @@ function collect(
     if (op.op === "modifyAttr") {
       // §2.3 of the ruleset spec: the primitive `power`/`comboPower` are
       // spellings of, so it makes the same standing change.
-      if (op.attr !== "power" && op.attr !== "comboPower") continue;
-      if (typeof op.amount !== "number") continue;
-      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: op.attr, target: id, value: op.amount });
+      if (op.attr === "power" || op.attr === "comboPower") {
+        if (typeof op.amount !== "number") continue;
+        for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: op.attr, target: id, value: op.amount });
+        continue;
+      }
+      if (op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames") {
+        const values = op.values ?? [];
+        const value: CardIdentityGain = {
+          traits: op.attr === "traits" ? values : [],
+          characters: op.attr === "characters" ? values : [],
+          colors: op.attr === "colors" ? values as Color[] : [],
+          names: op.attr === "alsoNames" ? values : [],
+        };
+        for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "gains", target: id, value });
+      }
       continue;
     }
     if (op.op === "grant") {
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "keyword", target: id, value: op.keyword });
+      continue;
+    }
+    if (op.op === "gains") {
+      const value: CardIdentityGain = { traits: op.traits ?? [], characters: op.characters ?? [], colors: op.colors ?? [], names: op.names ?? [] };
+      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "gains", target: id, value });
+      continue;
+    }
+    if (op.op === "negateKeyword") {
+      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "negateKeyword", target: id, value: op.keyword });
       continue;
     }
     // 20-21: the price a card is bought at, standing rather than resolved —
@@ -740,9 +763,9 @@ type EffectValue = VmStatic["value"];
 /**
  * Numbers added to a number — every change 9-9-1 makes to `power` and
  * `comboPower` — or keyword names unioned into a list, once each, which is
- * every change it makes to `keywords` (spec §2.5-1/§2.5-3, #275): a grant is
- * not subtracted by this fold at all, because negating one is read where a
- * skill is negated (9-1-5), not through this layer. One function rather than
+ * every change it makes to `keywords` (spec §2.5-1/§2.5-3, #275). Keyword
+ * negations are applied after the layers are combined, because a named skill
+ * negation beats both a printed keyword and a grant (9-1-5). One function rather than
  * a branch per attribute, because both are "every change of this kind,
  * folded into the value so far" — a layer picks which by what its own
  * changes actually carry, never by the attribute's name.
@@ -860,6 +883,13 @@ export function valueOf(game: GameDefinition, attrs: Attrs, name: string, static
       timed.filter((e) => e.kind === kind).map((e) => e.value as EffectValue),
       attrs,
     );
+  }
+  if (name === "keywords" && Array.isArray(value)) {
+    const negated = new Set([
+      ...statics.filter((e) => e.kind === "negateKeyword").map((e) => e.value as KeywordSkill["name"]),
+      ...timed.filter((e) => e.kind === "negateKeyword").map((e) => e.value as KeywordSkill["name"]),
+    ]);
+    value = (value as readonly string[]).filter((keyword) => !negated.has(keyword as KeywordSkill["name"]));
   }
   return value;
 }

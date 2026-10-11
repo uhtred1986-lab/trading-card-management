@@ -1042,12 +1042,10 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   // 9-1-5: one named keyword goes, the card keeps the rest of itself.
   const s = stagedG({ battle: ["SELFMUTE"] });
   const mute = findG(s, "p1", "battle", "SELFMUTE");
-  if (!rulesGap("compiler: SELFMUTE negates its own [Blocker] (9-1-5)", "a [Permanent] `negateKeyword` is not read by the rules engine's static layer (`DEFERRED_STATICS.negateKeyword`)", "#153"))
-    assert.ok(!hasIn(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
+  assert.ok(!hasIn(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
 }
 
 {
-  if (!rulesGap("compiler: BECOMES gains ≪Saiyan≫ in all areas (20-1)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153")) {
     // 20-1: a card that gains a trait is that trait to every skill that names
     // one — this is about what the card *is*, not what it does.
     let s = stagedG({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
@@ -1060,7 +1058,6 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
     // Only one card on their side is a Saiyan, so the choice is forced and taken.
     assert.ok(zoneOf(s, "p2", "drop").includes(becomes), "the ≪Saiyan≫ skill found it");
     assert.ok(zoneOf(s, "p2", "battle").includes(findG(s, "p2", "battle", "BIG")), "and left the card that is not one");
-  }
 }
 
 {
@@ -1070,22 +1067,21 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   // skill naming the card they become passed them over.
   const compiled = compileSkill(parseSkills("[Permanent] This card is also treated as {Planet M-2} in all areas.")[0]);
   assert.deepEqual(compiled.unsupported, [], "the wording reads");
-  assert.deepEqual(compiled.ops, [{ op: "gains", target: { sel: { special: "self" } }, traits: [], characters: [], colors: [], names: ["planet m-2"] }], "the clause is read lowercased, as every trait and character from this rule is; every name comparison is case-insensitive");
+  assert.deepEqual(compiled.ops, [{ op: "gains", target: { sel: { special: "self" } }, traits: [], characters: [], colors: [], names: ["planet m-2"], allAreas: true }], "the clause is read lowercased, as every trait and character from this rule is; every name comparison is case-insensitive, and its all-area source validity is preserved");
 
   // …and the card answers to both names, in any area, to anything that asks
   // what a card *is*.
   const s = stagedG({ battle: ["RENAMED"], hand: ["RENAMED"] });
   const asked = parseFilter("{Planet M-2}");
-  const gained = !rulesGap("compiler: RENAMED also treated as {Planet M-2} (20-1)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153");
   for (const area of ["battle", "hand"] as const) {
     const id = findG(s, "p1", area, "RENAMED");
-    if (gained) assert.ok(matchesG(s, id, asked), `the copy in your ${area} is found by its gained name`);
+    assert.ok(matchesG(s, id, asked), `the copy in your ${area} is found by its gained name`);
     assert.ok(matchesG(s, id, parseFilter("{RENAMED}")), "…and still by its own");
   }
   // A card without the skill is not: the gain is this card's, not the name's.
   assert.ok(!matchesG(s, leaderOf(s, "p1"), asked));
   // "Other than {Planet M-2}" reads the same list, so the exclusion catches it too.
-  if (gained) assert.ok(!matchesG(s, findG(s, "p1", "battle", "RENAMED"), parseFilter("card other than {Planet M-2}")));
+  assert.ok(!matchesG(s, findG(s, "p1", "battle", "RENAMED"), parseFilter("card other than {Planet M-2}")));
 }
 
 {
@@ -1115,11 +1111,10 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   // where it is (20-1), and here the areas that matter are the ones off the
   // table — the colour of a card in your energy is what pays for costs.
   const s = stagedG({ battle: ["RECOLOR"], hand: ["RECOLORED"], energy: ["RECOLORED"], oppHand: ["RECOLORED"] });
-  if (!rulesGap("compiler: RECOLOR's colours in all of your areas (BT2-001)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153"))
-    for (const area of ["hand", "energy"] as const) {
-      const id = findG(s, "p1", area, "RECOLORED");
-      assert.deepEqual(cardNowG(s, id).colors, ["Yellow", "Red", "Blue", "Green"], `the copy in your ${area} gained the three colours`);
-    }
+  for (const area of ["hand", "energy"] as const) {
+    const id = findG(s, "p1", area, "RECOLORED");
+    assert.deepEqual(cardNowG(s, id).colors, ["Yellow", "Red", "Blue", "Green"], `the copy in your ${area} gained the three colours`);
+  }
   // "Your" areas, so their copy of the same card is untouched.
   assert.deepEqual(cardNowG(s, findG(s, "p2", "hand", "RECOLORED")).colors, ["Yellow"]);
   // The card printing the skill is not itself a <RECOLORED>.

@@ -147,9 +147,15 @@ export async function verifyReadiness(db: Db): Promise<void> {
     { unsupported: [], unknown: [] },
     "a Counter row with no Auto WHEN is not falsely rejected",
   );
-  assert.ok(
-    runtimeSupportOfRow({ kind: "permanent", unread: [], ops: [{ op: "gains", traits: ["Saiyan"] }], cost: null, trigger: [] } as never).unsupported.some((reason) => reason.includes("deferred to #153")),
-    "known deferred Permanent statics cannot appear runtime-supported",
+  assert.deepEqual(
+    runtimeSupportOfRow({ kind: "permanent", unread: [], ops: [{ op: "gains", traits: ["Saiyan"] }], cost: null, trigger: [] } as never),
+    { unsupported: [], unknown: [] },
+    "a Permanent identity gain implemented by the rules VM is runtime-supported",
+  );
+  assert.deepEqual(
+    runtimeSupportOfRow({ kind: "permanent", unread: [], ops: [{ op: "negateKeyword", keyword: "Blocker" }], cost: null, trigger: [] } as never),
+    { unsupported: [], unknown: [] },
+    "a Permanent keyword negation implemented by the rules VM is runtime-supported",
   );
   await db.update(schema.decks).set({ owner: "alice" }).where(eq(schema.decks.id, locked));
   assert.equal((await deckCardStates(db, locked, "bob")).length, 0, "another login's deck is hidden");
