@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import {
   CTX,
   DEFS,
+  ENGINE,
   IMPL,
   actsG,
   addEffectG,
@@ -43,6 +44,7 @@ import {
   zoneOf,
 } from "./harness";
 import { validateProgram, type Op, type Script } from "../../src/lib/arena/vm/script";
+import type { VmState } from "../../src/lib/arena/vm/state";
 import { validateRule } from "../../src/lib/arena/lang/validate";
 import { deepEqual, parseRule, printRule, type Rule } from "../../src/lib/arena/lang";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
@@ -200,13 +202,21 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   assertConsistentG(s);
 }
 
-// A skill the compiler cannot read is skipped when no referee is available…
+// An unread automatic skill ends the rules-engine game as an interruption.
+// The legacy lane retains its existing note-and-continue behavior.
 {
   let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
   const before = JSON.stringify(sideG(s, "p2"));
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") });
-  assert.equal(s.prompt.kind, "main", "the game carries on");
-  assert.equal(JSON.stringify(sideG(s, "p2")), before, "and nothing happened to the opponent");
+  if (ENGINE === "rules") {
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "an unread automatic effect is not treated as a successful no-op");
+    assert.equal(vm.winner, null, "an interruption is not a win or a draw");
+    assert.ok(!vm.outcome?.reason.includes("MYSTERY"), "the public reason does not name the source card");
+  } else {
+    assert.equal(s.prompt.kind, "main", "the legacy game carries on");
+    assert.equal(JSON.stringify(sideG(s, "p2")), before, "the legacy engine records no opponent effect");
+  }
 }
 
 // …and put to the referee when one is, whose ruling is a program in this same language.
@@ -265,7 +275,18 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
 
 // 9-6-4: an [Auto] skill's cost may be declined, and then it does not resolve.
 {
-  if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
+  if (ENGINE === "rules") {
+    let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
+    const handBefore = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "AUTOCOST") });
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "a due Auto with an unimplemented own cost interrupts before drawing");
+    assert.equal(vm.outcome?.privateContext?.issue, "#549", "the private diagnostic points to the live Auto-cost implementation issue");
+    assert.ok(!vm.outcome?.reason.includes("AUTOCOST"), "the public outcome does not identify the source card");
+    assert.equal(zoneOf(s, "p1", "hand").length, handBefore - 1, "the card was played, but the Auto effect did not draw");
+    assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play cost was paid before interruption");
+  } else {
+    if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
     let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
     const c = findG(s, "p1", "hand", "AUTOCOST");
     const before = zoneOf(s, "p1", "hand").length;
@@ -284,6 +305,7 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
     assert.equal(zoneOf(t, "p1", "hand").length, handBefore - 1 + 2, "paid, so two cards were drawn");
     assert.equal(zoneOf(t, "p1", "energy").filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
     assertConsistentG(t);
+    }
   }
 }
 

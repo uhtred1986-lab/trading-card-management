@@ -120,9 +120,15 @@ export interface Snapshot {
   waiting: "you" | "opponent" | "referee" | null;
   /** What Claude has cost this game. */
   spend: { calls: number; input: number; output: number; cached: number; micros: number };
-  over: { winner: "p1" | "p2" | null; reason: string } | null;
+  over: { kind: "win" | "draw" | "concession" | "abandoned" | "interrupted"; winner: "p1" | "p2" | null; reason: string; concededBy?: "p1" | "p2" } | null;
 }
 ```
+
+`over.kind` distinguishes a genuine draw from an engine interruption. An interruption's public
+`reason` is deliberately generic; mechanic, card-instance and interpreter details remain in the
+server-side saved state. Older archived snapshots whose reason starts with
+`this engine cannot finish this game` are normalized to `interrupted` when projected. Abandonment
+is derived from row status and takes precedence over any stale winner in the saved state.
 
 `view`, `legal` and `taps` already exist and are already exactly this shape. The snapshot is mostly
 an envelope around code that is written, which is why this is a small piece of work rather than a

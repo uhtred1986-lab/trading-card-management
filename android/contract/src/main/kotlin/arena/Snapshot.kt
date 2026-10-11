@@ -375,8 +375,11 @@ data class Spend(
 
 @Serializable
 data class Outcome(
+    /** Added by #544; absent on older stored snapshots and board-view outcomes. */
+    val kind: String? = null,
     val winner: String? = null,
     val reason: String,
+    val concededBy: String? = null,
 )
 
 // ── the beat stream ────────────────────────────────────────────────────────
@@ -530,5 +533,5 @@ sealed class Beat {
 
     @Serializable
     @SerialName("over")
-    data class Over(override val n: Int, val winner: String? = null, val reason: String) : Beat()
+    data class Over(override val n: Int, val winner: String? = null, val reason: String, val kind: String? = null) : Beat()
 }

@@ -307,7 +307,7 @@ export function ArenaStage({
   const takeoverOn = !!shape && staging === "takeover" && !asksForBoard;
   const bandOn = !!shape && !takeoverOn;
 
-  useWakeLock(playable && !view.over);
+  useWakeLock(playable && !live.over);
 
   // The narration follows the beat on screen (workflow spec §7, Phase 3): one
   // sentence per beat, from the same stream the motion plays, so the words and
@@ -1166,6 +1166,7 @@ export function ArenaStage({
           <div className="sticky bottom-0 z-30 lg:static lg:[grid-area:bar]">
             <PromptPanel
               view={view}
+              overOutcome={live.over}
               playable={playable}
               yourTurn={yourTurn}
               waitingOnServer={waitingOnServer}
@@ -1311,9 +1312,9 @@ export function ArenaStage({
 
         {/* The end of the game, on the board (redesign frame 10): once the last
             beat has played, never over it. */}
-        {view.over && !playback.playing && !turnCall && !endDismissed && (
+        {live.over && !playback.playing && !turnCall && !endDismissed && (
           <GameEnd
-            over={view.over}
+            over={live.over}
             you={view.you.player}
             them={view.them.name}
             turn={view.turn}

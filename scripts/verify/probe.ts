@@ -440,7 +440,7 @@ if (ENGINE === "rules") {
     },
     {
       id: "auto-price",
-      says: "An [Auto]'s own price ('{r}:' before the trigger) is not charged on the rules engine: legacy rests the energy a second time, the rules engine does not.",
+      says: "An [Auto]'s own printed Energy cost ('{r}:' before the trigger) is not implemented on the rules engine (#549). Legacy charges it and resolves the effect; the rules engine interrupts before the effect rather than treating the skill as free.",
       holds: (_f, old, rules) => old.applied.filter((l) => /Rest Mode/.test(l)).length > rules.applied.filter((l) => /Rest Mode/.test(l)).length,
     },
     {
@@ -450,7 +450,7 @@ if (ENGINE === "rules") {
     },
     {
       id: "legacy-habits",
-      says: "Wording only: legacy narrates the End Phase twice around an [Auto] at the end of the turn, and notes 'Claude ruled on this' for a clause no compiler read; the rules engine does neither. A rules-engine game logs the 'negated for the rest of the game' effect legacy keeps silent.",
+      says: "Legacy narrates the End Phase twice around an [Auto] at turn end and notes 'Claude ruled on this' when no compiler read the clause; the rules engine instead interrupts before an unread automatic effect can silently resolve. A rules-engine game also logs a 'negated for the rest of the game' effect legacy keeps silent.",
       holds: (_f, old, rules) => new Set(old.applied).size < old.applied.length || /Claude ruled/.test(old.applied.join("|")) || /negated for the rest of the game/.test(rules.applied.join("|")),
     },
   ];
