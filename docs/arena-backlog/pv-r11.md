@@ -11,7 +11,7 @@ touches: src/lib/arena/vm/activate.ts, src/lib/arena/vm/actions.ts, src/lib/aren
 
 **Priority:** P1. **Plan key:** R11. **Milestone:** Arena M5 — Engine capability gaps and advanced mechanics. **Depends on:** #555; serialize VM action/cost/keyword writers. This is distinct from #549 automatic-skill costs.
 
-**Problem.** Activating an Aegis with a printed {r} cost currently rests energy before the hand-color payment prompt, while no hand-to-Drop cost event has occurred. The local fixture changes from 1 Rest/2 Active energy to 2 Rest/1 Active at that prompt. Rule 22-30-3 says to place the matching original-color cards from hand in Drop as the skill cost, then: “if there is an additional skill cost, determine that cost and pay it.” The choice-eligibility fix in #555 does not correct this order.
+**Problem.** Activating an Aegis with a printed {r} cost currently rests energy before the hand-color payment prompt, while no hand-to-Drop cost event has occurred. The local fixture changes from 2 Rest/1 Active energy to 3 Rest/0 Active at that prompt. Rule 22-30-3 says to place the matching original-color cards from hand in Drop as the skill cost, then: “if there is an additional skill cost, determine that cost and pay it.” The choice-eligibility fix in #555 does not correct this order.
 
 **Build.** Determine and pay additional Aegis skill costs after its required colored-card payment. Persist the full continuation across reload and refuse stale/invalid payment without charging again. Reuse the shared cost planner and declared keyword body; preserve other activation ordering and the frozen legacy oracle. Specify rule-grounded behavior if the additional cost becomes unaffordable at that point.
 
