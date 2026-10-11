@@ -32,7 +32,7 @@ A status applies only to the named behavior and proof below. **Supported** means
 
 ## VM unsupported and guarded source sites
 
-The verifier parses TypeScript and checks exact coverage of every `new NotYet(...)` expression. The second group records known deliberate note/no-op exits by a unique source fragment. “Unsupported” means the code can refuse or omit the named behavior; “Untested / guard” means an extension or invalid-input guard with no claim that a current legal mechanic is missing. Historical issue numbers explain source lineage only. `RulesetBroken` denotes a broken ruleset invariant and is intentionally excluded from mechanic-unsupported sites.
+The verifier parses every VM TypeScript file, checks exact coverage of every `new NotYet(...)` expression, and matches each callsite to a stable ID by its enclosing function, case, and guard chain. A same-count replacement under another guard fails the check. The second group records known deliberate note/no-op exits by a unique source fragment. “Unsupported” means the code can refuse or omit the named behavior; “Untested / guard” means an extension or invalid-input guard with no claim that a current legal mechanic is missing. Historical issue numbers explain source lineage only. `RulesetBroken` denotes a broken ruleset invariant and is intentionally excluded from mechanic-unsupported sites.
 
 | Stable ID | Classification | Source | Rule/source citation | Live owner / history | Exact behavior or guard |
 |---|---|---|---|---|---|

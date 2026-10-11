@@ -320,6 +320,24 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
   { id: "arena-vm-skill-view-referee", file: "src/lib/arena/vm/view.ts", ordinal: 1, kind: "silent-exit", classification: "referee-boundary", citation: "Rule text ingestion / referee outcome contract", detail: "An unread skill is surfaced as requiring a referee; this display flag does not itself implement its mechanic.", ownerIssue: 544, sourceNeedle: "if (sc.unsupported.length) referee = true;" },
 ] as const;
 
+/** Semantic AST identities: function, switch case, and enclosing guard chain. */
+export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-concede-program": "apply|-|action.type === \"concede\" > def.do.length",
+  "arena-vm-notyet-apply-pass": "apply|\"pass\"|took === \"none\"",
+  "arena-vm-notyet-apply-activate": "apply|\"activate\"|took === \"none\"",
+  "arena-vm-notyet-apply-other-action": "apply|default|took === \"none\"",
+  "arena-vm-notyet-play-unmapped-zone": "resolvePlay|-|!to",
+  "arena-vm-notyet-price-if": "chargeOf|-|def.if !== undefined",
+  "arena-vm-notyet-price-do-op": "chargeOf|-|does && !PAYING_OPS.includes(does.op)",
+  "arena-vm-notyet-cost-unbound-cards": "priceFor|\"cards\"|!charge.from > !bound?.payers",
+  "arena-vm-notyet-cost-unbound-pooled-amount": "priceFor|\"cards\"|bind === undefined && charge.amount === null",
+  "arena-vm-notyet-cost-unbound-marker-pool": "priceFor|\"markers\"|charge.from > bind === undefined",
+  "arena-vm-notyet-cost-unbound-markers": "priceFor|\"markers\"|bound?.markers === undefined",
+  "arena-vm-notyet-cost-unbound-life": "priceFor|\"life\"|bound?.life === undefined",
+  "arena-vm-notyet-cost-unknown-consumes": "priceFor|default|-",
+  "arena-vm-notyet-alt-pay-variant": "payAltCost|-|-",
+};
+
 export function capabilityForSkip(where: string): CapabilityEvidence {
   const row = NAMED_RUNTIME_GAPS.find((item) => item.skipWhere === where);
   if (!row) throw new Error(`rulesGap has no capability inventory row: ${where}`);
