@@ -10,17 +10,27 @@ import { and, asc, eq, ilike, inArray, isNotNull, ne, or, sql, type SQL } from "
 import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { completeFilters, describeScript, type CardScripts, type Op } from "./vm/script";
+import { costModifierAs, modifyAttrAs, negateAs, replaceAs } from "./vm/script-schema";
+import { DEFERRED_STATICS, STATIC_OPS } from "./vm/effects";
 import { validateRule } from "./lang/validate";
 import { type CardDef } from "./types";
 import type { Cond, PayWith, SkillPrice, XCost } from "./vm/script";
 import type { Trigger } from "./types";
 import { clauseShape, mechanismOf, PHRASING_ONLY } from "./gaps";
 import type { EngineId } from "./engines";
+import { parseSkills, skillLines } from "./text/cards";
 
 export type RuleRow = typeof cardRules.$inferSelect;
 export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
 export type RuleSource = "compiler" | "claude" | "user";
 export type Side = "front" | "back";
+
+export interface RuntimeSupport {
+  /** Known reasons a record cannot be fully carried out by the rules engine. */
+  unsupported: string[];
+  /** Runtime depends on a play target or board context that readiness cannot know. */
+  unknown: string[];
+}
 export interface CompilerDiff {
   ops: Op[];
   unread: string[];
@@ -49,6 +59,70 @@ function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
   return { condition: cost?.condition ?? null, ops: cost?.program ?? null, ...(cost?.x ? { x: cost.x } : {}), ...(cost?.payWith?.length ? { payWith: cost.payWith } : {}) };
 }
 
+/**
+ * The rule record's review status does not answer what the rules engine can
+ * execute. Keep this check bounded to gaps the runtime already names. The
+ * interpreter remains authoritative for contextual questions during a game.
+ */
+export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger">): RuntimeSupport {
+  const unsupported = [...(row.unread ?? [])];
+  const unknown: string[] = [];
+  const kind = row.kind.toLowerCase();
+  const cost = row.cost as { program?: Op[] | null; x?: unknown } | null;
+
+  // Auto resolution still cannot ask or bind an action/X price. Activate and
+  // Counter lines have their own payment paths and are intentionally not
+  // inferred from this Auto-only limitation.
+  if (kind === "auto" && (cost?.program?.length || cost?.x)) {
+    unsupported.push("the rules engine cannot resolve an Auto action or X price yet (#149)");
+  }
+  if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0)) {
+    unsupported.push("the Auto rule has no readable WHEN trigger");
+  }
+  const triggers = Array.isArray(row.trigger) ? row.trigger : [];
+  if (triggers.includes("flippedFaceUp")) {
+    unsupported.push("the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)");
+  }
+  if (kind === "counter:counter") {
+    unsupported.push("the rules engine does not open a Counter: Counter response window yet (vm/battle.ts)");
+  }
+
+  if (kind === "permanent") {
+    for (const op of row.ops as Op[]) {
+      const gap = permanentOpGap(op);
+      if (gap) unsupported.push(gap);
+    }
+  }
+
+  // `play` can be implemented as an operation while still refusing a target
+  // whose card type has no destination. The deck snapshot cannot always know
+  // which card a selector will name, so don't call such a record verified.
+  if (hasOp(row.ops as Op[], "play")) unknown.push("play target support depends on the card and board at resolution");
+
+  return { unsupported: [...new Set(unsupported)], unknown: [...new Set(unknown)] };
+}
+
+function permanentOpGap(op: Op): string | null {
+  if (op.op === "if") {
+    for (const child of [...op.then, ...(op.else ?? [])]) {
+      const gap = permanentOpGap(child);
+      if (gap) return gap;
+    }
+    return null;
+  }
+  const normalized = replaceAs(costModifierAs(negateAs(modifyAttrAs(op))));
+  const deferred = DEFERRED_STATICS[normalized.op];
+  if (deferred) return `Permanent ${normalized.op} is deferred to ${deferred}`;
+  if (!(STATIC_OPS as readonly string[]).includes(normalized.op)) {
+    return `Permanent ${normalized.op} is not collected as a runtime static`;
+  }
+  return null;
+}
+
+function hasOp(ops: Op[], name: string): boolean {
+  return ops.some((op) => op.op === name || (op.op === "if" && (hasOp(op.then, name) || hasOp(op.else ?? [], name))));
+}
+
 /** The key `ctx.scripts` is read by: the catalog id for a front, `<id>#back` for a leader's awakened side. */
 function scriptsKey(cardId: string, side: Side): string {
   return side === "back" ? `${cardId}#back` : cardId;
@@ -72,10 +146,32 @@ export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<R
 /** `rulesFor`'s reading of rows already fetched — for a caller that fetches them beside the cards rather than after (`games.ts`'s `loadGame`). */
 export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): Record<string, CardScripts> {
   const out: Record<string, CardScripts> = {};
+  const expected = new Map<string, { cardId: string; side: Side; skillIndex: number; printed: string; effect: string }>();
+  for (const [cardId, def] of Object.entries(defs)) {
+    for (const side of ["front", "back"] as const) {
+      const text = side === "front" ? def.skill : def.back?.skill;
+      const lines = skillLines(text);
+      for (const skill of parseSkills(text)) {
+        if (!skill.effect.trim()) continue; // native keyword lines need no compiler row
+        expected.set(`${cardId}#${side}#${skill.index}`, {
+          cardId, side, skillIndex: skill.index,
+          printed: lines[Math.floor(skill.index / 10)] ?? skill.raw,
+          effect: skill.effect,
+        });
+      }
+    }
+  }
+  const seen = new Set<string>();
   for (const row of rows) {
     const d = defs[row.cardId];
     if (!d) continue;
     const side: Side = row.side === "back" ? "back" : "front";
+    const expectedKey = `${row.cardId}#${side}#${row.skillIndex}`;
+    const printed = expected.get(expectedKey);
+    // Catalog text can change between a draft and a later match load. An old
+    // row with a reused index is not the rule for the newly printed skill.
+    if (!printed || printed.printed !== row.printed) continue;
+    seen.add(expectedKey);
     const key = scriptsKey(row.cardId, side);
     const base = out[key] ?? { bySkill: {}, complete: true, unsupported: [] };
     // An open row has no program: the skill is played as blank, and the
@@ -85,9 +181,21 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // workbench can edit it, and a trigger the engine did not read would make
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
-    base.bySkill[row.skillIndex] = row.status === "open" ? { ops: [], unsupported: row.unread, price, trigger } : { ops: programOf(row), unsupported: [], price, trigger };
-    base.unsupported = Object.values(base.bySkill).flatMap((s) => s.unsupported);
+    const support = runtimeSupportOfRow(row);
+    const blocksExecution = row.status === "open" || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    base.bySkill[row.skillIndex] = row.status === "open"
+      ? { ops: [], unsupported: row.unread, price, trigger }
+      : { ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger };
+    base.unsupported.push(...support.unsupported);
     base.complete = base.unsupported.length === 0;
+    out[key] = base;
+  }
+  for (const [expectedKey, skill] of expected) {
+    if (seen.has(expectedKey)) continue;
+    const key = scriptsKey(skill.cardId, skill.side);
+    const base = out[key] ?? { bySkill: {}, complete: false, unsupported: [] };
+    base.complete = false;
+    base.unsupported.push(`no current rule record for printed skill ${skill.skillIndex}: ${skill.effect}`);
     out[key] = base;
   }
   return out;

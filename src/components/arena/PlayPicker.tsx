@@ -12,8 +12,13 @@ export interface PlayDeck {
   leaderName: string | null;
   leaderImage: string | null;
   mainCount: number;
-  /** Rule readiness (`readiness.ts`): open rows lock the deck. */
-  ready: { open: number; draft: number; corrected: number; confirmed: number; plain: number; openCards: { id: string; name: string }[] };
+  /** Rule readiness (`readiness.ts`): open rows lock; printed coverage and runtime support remain separate. */
+  ready: {
+    open: number; incomplete: number; draft: number; corrected: number; confirmed: number; native: number; plain: number;
+    unsupportedSkills: number; unknownSkills: number;
+    confirmedSupportedSkills: number; confirmedUnsupportedSkills: number; confirmedUnknownSkills: number;
+    openCards: { id: string; name: string }[];
+  };
 }
 
 const RING = "○";
@@ -231,13 +236,14 @@ function Readiness({ deck }: { deck: PlayDeck }) {
   const r = deck.ready;
   const cells = [
     { key: "open", label: "open", n: r.open, glyph: RING, bar: "bg-loss", text: "text-loss" },
+    { key: "incomplete", label: "incomplete", n: r.incomplete, glyph: "◌", bar: "bg-loss/60", text: "text-loss" },
     { key: "draft", label: "draft", n: r.draft, glyph: HALF, bar: "bg-dbs-blue", text: "text-dbs-blue" },
     { key: "corrected", label: "corrected", n: r.corrected, glyph: DOT, bar: "bg-ki-500", text: "text-ki-300" },
     { key: "confirmed", label: "confirmed", n: r.confirmed, glyph: DOT, bar: "bg-gain", text: "text-gain" },
   ];
   const total = cells.reduce((n, c) => n + c.n, 0);
   return (
-    <div className="space-y-1.5 rounded-lg bg-space-900/50 p-2 text-xs" aria-label="Rule readiness">
+    <div className="space-y-1.5 rounded-lg bg-space-900/50 p-2 text-xs" aria-label="Rule readiness and runtime support">
       <div className="flex h-2 overflow-hidden rounded-full bg-space-800" aria-hidden>
         {cells.map((c) => c.n > 0 && <span key={c.key} className={c.bar} style={{ width: `${(c.n / Math.max(1, total)) * 100}%` }} />)}
       </div>
@@ -247,8 +253,15 @@ function Readiness({ deck }: { deck: PlayDeck }) {
             <span aria-hidden>{c.glyph}</span> {c.n} {c.label}
           </span>
         ))}
-        {r.plain > 0 && <span className="text-space-500">{r.plain} without skills</span>}
+        {r.native > 0 && <span className="text-space-400">{r.native} native keyword only</span>}
+        {r.plain > 0 && <span className="text-space-500">{r.plain} no skill text</span>}
       </p>
+      <p className="text-space-300">
+        Confirmed skills: {r.confirmedSupportedSkills} supported · {r.confirmedUnsupportedSkills} unsupported · {r.confirmedUnknownSkills} support unknown.
+        {r.incomplete > 0 && <span className="text-loss"> {r.incomplete} card{r.incomplete === 1 ? " has" : "s have"} missing printed-skill records.</span>}
+      </p>
+      {r.unsupportedSkills > 0 && <p className="text-loss">{r.unsupportedSkills} current skill record{r.unsupportedSkills === 1 ? " has" : "s have"} a known runtime gap.</p>}
+      {r.unknownSkills > r.confirmedUnknownSkills && <p className="text-ki-300">{r.unknownSkills - r.confirmedUnknownSkills} additional skill{r.unknownSkills - r.confirmedUnknownSkills === 1 ? " has" : "s have"} runtime support not yet verified.</p>}
       {r.open > 0 ? (
         <div className="rounded-md border border-loss/60 bg-loss/10 p-2 text-loss">
           <p className="font-semibold">
@@ -277,7 +290,7 @@ function Readiness({ deck }: { deck: PlayDeck }) {
         </div>
       ) : (
         <p className="text-gain">
-          Every card has a rule
+          All open rules are cleared
           {r.draft > 0 && (
             <span className="text-space-400">
               {" "}
