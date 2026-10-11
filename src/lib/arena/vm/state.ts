@@ -47,7 +47,7 @@
 import type { VmPending } from "./triggers";
 import type { Game } from "../../catalog/games";
 import type { ScriptFrame } from "./script";
-import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, SkipWhat } from "../types";
+import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, ReplacementChoice, SkipWhat } from "../types";
 import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
 
@@ -338,6 +338,17 @@ export interface VmState {
   carried?: { card: string; n: number } | null;
   /** 20-13: the turn being skipped whole ("skip your turn"), by number — every phase of it is entered skipped. Absent the rest of the time. */
   skippedTurn?: number;
+  /** 21-6's stable simultaneous set, retained while a 9-10 replacement asks its owner. */
+  ruleProcessing?: {
+    nextEvent: number;
+    attempts: number;
+    limit: number;
+    subjects: Record<string, number>;
+    pass: { id: string; event: number; reason: "rule" | "effect"; actor?: PlayerId; replacements: ReplacementChoice[] }[];
+    index: number;
+    used: Record<string, string[]>;
+    awaiting?: { id: string; choices: ReplacementChoice[]; allowNone: boolean; actor?: PlayerId };
+  };
 }
 
 /**
