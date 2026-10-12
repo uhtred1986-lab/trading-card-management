@@ -106,6 +106,7 @@ The Data sources and Architecture sections moved out of this file unchanged (iss
 | Touching… | Read |
 |---|---|
 | Working one issue as an agent (habits, proof, PR) | `docs/agent-brief.md` |
+| Finding a symbol's definition/references, or inspecting network/offline/workers/storage in a browser (Windows-verified, no Playwright) | `docs/arena-agent-tools.md` |
 | Catalog import, deckplanet/Bandai/TCGplayer/CardTrader/FX sources, card images, leader faces, errata, prices, the optimiser | `docs/architecture/catalog-and-sync.md` |
 | Ownership, reservations, deck legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
 | Deck analysis, wizard, card scanning, cart explainer, "Build a deck with Claude" | `docs/architecture/ai.md` |

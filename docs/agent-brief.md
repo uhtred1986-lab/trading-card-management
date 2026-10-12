@@ -25,7 +25,7 @@ section is for the coordinator that hands issues out.
   (`claude/*`, `feat/*`, `arena-*`, `backlog/*`, `copilot/*`, `ops/*` —
   `scripts/vercel-ignore-build.mjs`). Any other name builds a preview deployment on every push.
 - **Dependencies come from the lockfile.** `npm ci`, never `npm install`; a new dependency is the
-  owner's call, made in the issue. A fresh worktree has no `node_modules` — run `npm ci` there.
+  owner's call, made in the issue. A fresh worktree has no `node_modules` — run `npm ci` there (on this Windows machine `npm ci` fails; see `docs/arena-agent-tools.md` §1).
 - **Never** `git reset --hard`, a bare `git stash`, a force-push, a merge of `main` into your
   branch, or merging your own PR. **Don't start sub-agents**: nested delegation has lost work.
 
@@ -97,8 +97,9 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
 ## Screens
 
 - **Don't break existing layouts and don't overload screens.** For every screen you touch, shoot
-  it before (`origin/main`) and after, at 1440 and 390 wide, with Playwright (Chromium is at
-  `/opt/pw-browsers` in a cloud session; never `playwright install`). Compare them yourself.
+  it before (`origin/main`) and after, at 1440 and 390 wide, with `npm run arena:shots` or `scripts/lib/cdp.mts` (Playwright is not a
+  dependency; Chrome is found by `findChrome()`, `/opt/pw-browsers` in a cloud session; never
+  `playwright install`). Compare them yourself. Tool paths verified on Windows: `docs/arena-agent-tools.md`.
 - **Board work (M16):** attach the board screenshots from contract fixtures (#343) beside the
   reference frame in `docs/arena-redesign/`, both skins, phone and desktop.
 - Pages that read the database can't be shot without one. Say so, and name the frames the owner
