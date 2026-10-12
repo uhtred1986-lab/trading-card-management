@@ -328,6 +328,24 @@ try {
     assert.ok(!spent(s, watcher, g.id));
   }
 
+  // Declining an available activation at the Main Phase boundary also never
+  // pays its cost or announces the Heroic Extra event.
+  {
+    let s = main(60213);
+    const watcher = stage(s, "p1", "H602_GRANT", "battle");
+    const energy = stage(s, "p1", "H602_ENERGY", "energy");
+    s.cards[energy].mode = "active";
+    const extra = stage(s, "p1", "H602_EXTRA", "hand");
+    const g = grant(s, watcher);
+    assert.ok(rules.legalActions(CTX, s).some((entry) => entry.action.type === "activate" && entry.action.card === extra), "the player can choose this paid activation");
+    const declined = apply(s, { type: "endMain", player: "p1" });
+    s = declined.state as VmState;
+    assert.equal(draws(declined.events), 0);
+    assert.ok(s.sides.p1.zones.hand.includes(extra));
+    assert.equal(s.cards[energy].mode, "active", "declining never pays the red energy");
+    assert.ok(!spent(s, watcher, g.id));
+  }
+
   // An invalid target answer is refused without mutating the paid activation;
   // a later valid answer resumes the same captured Heroic exactly once.
   {
