@@ -1444,6 +1444,65 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         assert.deepEqual(persistedReplacement?.vars?.__timedReplaceLeaveTarget, [savedTarget], "the effect did not keep its selected target when the game was serialized");
         stepScript(vmHost(CTX, DBS, afterReload, []), { ops: [run[1]], ip: 0, vars: { picked: [savedTarget] }, card: savedMaster, master: "p2" });
         assert.ok(afterReload.sides.p1.zones.hand.includes(savedTarget), "the reloaded timed replacement did not resolve its captured variable");
+
+        const boundLifetime = mainPhase();
+        const returnedInstance = staged(boundLifetime, "p1", "TARGET");
+        const boundSource = boundLifetime.sides.p2.zones.leader[0];
+        const lifetimeOps: Op[] = [
+          { op: "replaceLeave", to: "deck", by: "skill", until: "nextTurn", target: { sel: { fromVar: "picked" } } },
+          { op: "moveTo", target: { var: "picked" }, to: "hand", cause: "rule" },
+          { op: "moveTo", target: { var: "picked" }, to: "battle", owner: "opponent", cause: "rule" },
+          { op: "moveTo", target: { var: "picked" }, to: "hand", cause: "effect" },
+        ];
+        stepScript(vmHost(CTX, DBS, boundLifetime, []), {
+          ops: lifetimeOps.slice(0, 1),
+          ip: 0,
+          vars: { picked: [returnedInstance] },
+          card: boundSource,
+          master: "p2",
+        });
+        assert.ok(boundLifetime.effects.some((effect) => effect.kind === "replaceLeave" && effect.target === returnedInstance), "a fromVar replacement was not attached to the selected card instance");
+        stepScript(vmHost(CTX, DBS, boundLifetime, []), {
+          ops: lifetimeOps.slice(1, 2),
+          ip: 0,
+          vars: { picked: [returnedInstance] },
+          card: boundSource,
+          master: "p2",
+        });
+        assert.ok(boundLifetime.sides.p1.zones.hand.includes(returnedInstance), "the rules fixture did not move the selected card out of play");
+        assert.ok(!boundLifetime.effects.some((effect) => effect.kind === "replaceLeave"), "a bound offer survived after its chosen card left its Area");
+        stepScript(vmHost(CTX, DBS, boundLifetime, []), {
+          ops: lifetimeOps.slice(2, 3),
+          ip: 0,
+          vars: { picked: [returnedInstance] },
+          card: boundSource,
+          master: "p2",
+        });
+        assert.ok(boundLifetime.sides.p1.zones.battle.includes(returnedInstance), "the same fixture card did not return to the Battle Area");
+        assert.ok(!boundLifetime.effects.some((effect) => effect.kind === "replaceLeave"), "the old bound offer reattached when the same instance returned to the Battle Area");
+        assert.ok(!boundLifetime.effects.some((effect) => effect.kind === "replaceLeave" && effect.target === ""), "captured-target handling accidentally became a live global selector");
+        stepScript(vmHost(CTX, DBS, boundLifetime, []), {
+          ops: lifetimeOps.slice(3),
+          ip: 0,
+          vars: { picked: [returnedInstance] },
+          card: boundSource,
+          master: "p2",
+        });
+        assert.ok(boundLifetime.sides.p1.zones.hand.includes(returnedInstance), "the rules engine reapplied a stale offer after the selected instance left and re-entered play");
+        assert.ok(!boundLifetime.sides.p1.zones.deck.includes(returnedInstance), "the rules engine redirected a new-card instance through its old bound offer");
+
+        let legacyReturnedInstance = "";
+        const legacyLifetime = onLegacy(lifetimeOps, (legacy) => {
+          const [id] = legacy.players.p1.deck.splice(0, 1);
+          assert.ok(id, "the legacy 3-1-4 fixture has no selected card");
+          legacy.cards[id].cardId = "TARGET";
+          legacy.players.p1.battle.push(id);
+          legacyReturnedInstance = id;
+          return { master: "p2", vars: { picked: [id] } };
+        });
+        const legacyLifetimeZones = boardZones(legacyLifetime.board);
+        assert.ok(legacyLifetimeZones.hand.includes(legacyReturnedInstance), "the legacy engine reapplied a stale offer after the selected instance left and re-entered play");
+        assert.ok(!legacyLifetimeZones.deck.includes(legacyReturnedInstance), "the legacy engine redirected a new-card instance through its old bound offer");
       } finally {
         if (previousTarget) DEFS.TARGET = previousTarget;
         else delete DEFS.TARGET;
