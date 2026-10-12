@@ -410,7 +410,7 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
   // board says what it can actually do right now.
   const printedSkills = skillsOf(d, side);
   const copiedSkills = copiedSkillsOn(ctx, s, id).map((c) => c.skill);
-  const skills = [...printedSkills, ...copiedSkills];
+  const skills = hidden ? [] : [...printedSkills, ...copiedSkills];
   for (const sk of skills) {
     const sc = scripts.bySkill[sk.index];
     if (!sc) continue;
