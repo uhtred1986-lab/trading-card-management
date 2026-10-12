@@ -421,7 +421,7 @@ the same rows with a badge, from a plain presence check on the stored column —
 `decision` names the prompt actor and current engine window. Each visible card may include
 `abilities`, a line-by-line description keyed by the card instance id and `skillIndex`; copied
 skills retain the engine-assigned index and are marked `origin: "copied"`. The row describes the
-printed category, timing, zone, controller, limit use, queued Auto state, and existing Permanent
+printed category, timing, zone, controller, limit use, queued or currently resolving Auto state, and existing Permanent
 state. It does not make a second legality decision on the client.
 
 `availability` is current engine evidence for an offered or refused manual activation or counter. An

@@ -15,7 +15,7 @@ const engine = engineFor("rules");
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
-const ids = ["H558_MAIN", "H558_BATTLE", "H558_ATTACK", "H558_ENERGY", "H558_COST", "H558_COUNTER", "H558_COUNTER_PLAY", "H558_MULTI_COUNTER"];
+const ids = ["H558_MAIN", "H558_BATTLE", "H558_ATTACK", "H558_ENERGY", "H558_COST", "H558_COUNTER", "H558_COUNTER_PLAY", "H558_MULTI_COUNTER", "H558_AUTO"];
 const previous = new Map(ids.map((id) => [id, DEFS[id]]));
 
 DEFS.H558_MAIN = card("H558_MAIN", { energyCost: 0, power: 10000, skill: "[Activate: Main][Once per turn] Draw 1 card." });
@@ -26,6 +26,7 @@ DEFS.H558_COST = card("H558_COST", { energyCost: 0, power: 10000, skill: "[Activ
 DEFS.H558_COUNTER = card("H558_COUNTER", { energyCost: 0, skill: "[Counter: Attack] Negate the attack." });
 DEFS.H558_COUNTER_PLAY = card("H558_COUNTER_PLAY", { energyCost: 0, skill: "[Counter: Play] The Battle Card being played is placed in its owner's Drop Area instead of being played." });
 DEFS.H558_MULTI_COUNTER = card("H558_MULTI_COUNTER", { energyCost: 0, skill: "[Counter: Attack] Negate the attack.<br>[Counter: Attack] Negate the attack." });
+DEFS.H558_AUTO = card("H558_AUTO", { energyCost: 0, power: 10000, skill: "[Auto] When this card is played, draw 1 card." });
 
 function fresh(seed: number): VmState {
   return engine.createGame(CTX, {
@@ -342,6 +343,56 @@ try {
     const secondWire = JSON.stringify(secondViewer);
     assert.ok(!secondWire.includes(ownCard), "the other viewer's closed hand identity stays private");
     assert.ok(!secondWire.includes(lifeSecret), "face-down life identity stays private to both viewers");
+  }
+
+  // An Auto remains visibly pending after the checkpoint removes it from the
+  // queue and while its stored program waits for a decision. Only the visible
+  // card/line identity is projected; trigger bindings and frame data stay private.
+  {
+    const state = mainPhase(55833);
+    const autoId = stage(state, "p1", "H558_AUTO", "battle");
+    const skillIndex = parseSkills(DEFS.H558_AUTO.skill).find((skill) => skill.kind === "auto")!.index;
+    const snapshot = (current: VmState) => buildSnapshot({
+      id: 55833,
+      engine: "rules",
+      mode: "versus",
+      status: "playing",
+      p1Name: "You",
+      p2Name: "Other",
+      ctx: CTX,
+      state: current,
+      legal: engine.legalActions(CTX, current),
+      log: [],
+      beats: null,
+      spotlight: null,
+      spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+      ai: null,
+      viewer: "p1",
+      images: {},
+    });
+    state.pending.push({ card: autoId, skillIndex, master: "p1", trigger: "played" });
+    assert.equal(snapshot(state).view.you.battle.find((view) => view.id === autoId)?.abilities?.[0]?.pending, true,
+      "queued Auto is visibly pending");
+
+    state.pending = [];
+    state.programs = [{
+      ops: [], ip: 0, vars: {}, card: autoId, master: "p1", trigger: "played", skillIndex,
+      awaiting: "chooseCards", subject: "PRIVATE_SUBJECT_SENTINEL",
+      // A synthetic extension stands in for a checkpoint paused at the
+      // payment prompt; the contract must not depend on or serialize it.
+      paymentContinuation: { source: "PRIVATE_SOURCE_SENTINEL", selected: ["PRIVATE_CARD_SENTINEL"] },
+    } as unknown as VmState["programs"][number]];
+    const pausedWire = JSON.stringify(snapshot(state));
+    const paused = JSON.parse(pausedWire) as ReturnType<typeof snapshot>;
+    assert.equal(paused.view.you.battle.find((view) => view.id === autoId)?.abilities?.[0]?.pending, true,
+      "the Auto remains pending while its stored resolution is paused");
+    assert.ok(!pausedWire.includes("PRIVATE_SUBJECT_SENTINEL"));
+    assert.ok(!pausedWire.includes("PRIVATE_SOURCE_SENTINEL"));
+    assert.ok(!pausedWire.includes("PRIVATE_CARD_SENTINEL"));
+
+    state.programs = [];
+    assert.equal(snapshot(state).view.you.battle.find((view) => view.id === autoId)?.abilities?.[0]?.pending, false,
+      "cleared or resolved Auto no longer appears pending");
   }
 } finally {
   cleanup();

@@ -109,9 +109,9 @@
               "origin": "printed",
               "availability": "notEvaluated",
               "costPreview": {
-                "state": "notApplicable"
+                "state": "incomplete"
               },
-              "pending": false
+              "pending": true
             }
           ]
         }

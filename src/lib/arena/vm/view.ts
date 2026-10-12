@@ -364,7 +364,21 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     }
   }
   const ownSkillIndexes = new Set(def ? skillsOf(def, inst.flipped && def.back ? "back" : "front").map((skill) => skill.index) : []);
-  const pending = new Set(state.pending.filter((item) => item.kind !== "hook" && item.card === id && typeof item.skillIndex === "number").map((item) => item.skillIndex as number));
+  // The queue is only one part of a pending Auto's lifetime. Once the
+  // checkpoint pops an Auto, its triggered ScriptFrame stays in `programs`
+  // while its own effect (or a price prompt) is waiting for an answer. Keep
+  // the public badge through that pause using only the visible card/line
+  // identity; never project the frame, trigger, subject, or saved bindings.
+  const autoIndexes = new Set(showing?.skills.filter((skill) => skill.kind === "auto").map((skill) => skill.index) ?? []);
+  const pending = new Set<number>(state.pending
+    .filter((item): item is Exclude<typeof item, { kind: "hook" }> => item.kind !== "hook" && item.card === id && typeof item.skillIndex === "number" && autoIndexes.has(item.skillIndex))
+    .map((item) => item.skillIndex));
+  for (const frame of state.programs) {
+    if (frame.card === id && frame.skillIndex !== undefined && frame.trigger !== undefined && autoIndexes.has(frame.skillIndex)
+      && !frame.pendingHookSkill && !frame.pendingHookIdentityMissing && !frame.afterSkillSource) {
+      pending.add(frame.skillIndex);
+    }
+  }
   const abilityRows = showing ? abilityViews({
     card: id,
     skills: showing.skills,
