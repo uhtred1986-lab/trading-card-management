@@ -43,6 +43,8 @@ const defs = { ...DEFS,
   PERM549: card("PERM549", { energyCost: 0, skill: "[Permanent] This card gets +1000 power." }),
   FACEUP549: card("FACEUP549", { skill: "[Auto] Flip 1 card in your life face up: When you play this card, draw 1 card." }),
   FACEDOWN549: card("FACEDOWN549", { skill: "[Auto] Flip 1 card in your life face down: When you play this card, draw 1 card." }),
+  CONDSHUFFLE549: card("CONDSHUFFLE549", { skill: "[Auto] Choose 1 card in your hand and place it in your Drop Area, then if you do, shuffle your deck: When you play this card, draw 1 card." }),
+  CONDTHREE549: card("CONDTHREE549", { skill: "[Auto] Choose 3 cards in your hand and place them in your Drop Area, then if you do, shuffle your deck: When you play this card, draw 1 card." }),
   FACEWATCH549: card("FACEWATCH549", { skill: "[Auto] When this card in your life is flipped face up, draw 1 card." }),
   AEGISFACE549: card("AEGISFACE549", { skill: "[Aegis red/blue]" }),
 };
@@ -963,6 +965,139 @@ function mainWith(id: string) { const state = main(); return { state, source: st
     assert.equal(s.state.outcome?.kind, "interrupted"); assert.equal(s.state.outcome?.privateContext?.issue, "#549");
   }
   scripts.ACTION549.bySkill[0] = old;
+}
+// The compiler's mandatory hand-to-Drop action pays before its optional
+// "if you do" shuffle. Completion is still checked against the live move:
+// too few cards or a replacement to Warp cannot activate the Auto.
+{
+  const compiled = scripts.CONDSHUFFLE549.bySkill[0].price?.ops;
+  assert.deepEqual(compiled?.map((op) => op.op), ["choose", "moveTo", "if"]);
+  assert.equal(compiled?.[2].op, "if");
+  assert.equal(compiled?.[2].op === "if" ? compiled[2].then[0]?.op : null, "shuffle");
+  assert.ok(compiled);
+  readableAutomaticPrice(compiled, "Aegis", "#595");
+
+  const declined = mainWith("CONDSHUFFLE549");
+  const declinedBefore = JSON.stringify(declined.state.sides);
+  assert.equal(draws(pend(declined.state, declined.source)), 0);
+  assert.equal(declined.state.prompt.kind, "chooseMode");
+  const no = answer(reload(declined.state), declines(declined.state));
+  assert.equal(JSON.stringify(no.state.sides), declinedBefore);
+  assert.equal(draws(no.events), 0);
+  assert.equal(no.events.some((event) => event.type === "note" && /shuffles/.test(event.text)), false);
+
+  const payable = mainWith("CONDSHUFFLE549"); pend(payable.state, payable.source);
+  const selected = payable.state.sides.p1.zones.hand[0];
+  assert.ok(selected);
+  const opened = answer(reload(payable.state), 0);
+  assert.equal(opened.state.prompt.kind, "chooseCards");
+  const paid = choose(reload(opened.state), [selected]);
+  assert.ok(paid.state.sides.p1.zones.drop.includes(selected));
+  assert.equal(draws(paid.events), 1);
+  const moved = paid.events.findIndex((event) => event.type === "move" && event.card === selected);
+  const shuffled = paid.events.findIndex((event) => event.type === "note" && /shuffles/.test(event.text));
+  const activated = paid.events.findIndex((event) => event.type === "skill" && event.card === payable.source);
+  assert.ok(moved >= 0 && moved < shuffled && shuffled < activated, "full price, terminal shuffle, then activation");
+  assert.equal(paid.state.prompt.kind, "main");
+
+  const falseCond = { kind: "not" as const, cond: { kind: "all" as const, conds: [] } };
+  const old = scripts.CONDSHUFFLE549.bySkill[0];
+  try {
+    scripts.CONDSHUFFLE549.bySkill[0] = { ...old, price: { ...old.price, condition: old.price?.condition ?? null, ops: [compiled[0], compiled[1], { op: "if", cond: falseCond, then: [{ op: "shuffle" }] }] } };
+    const falseBranch = mainWith("CONDSHUFFLE549"); pend(falseBranch.state, falseBranch.source);
+    const falseSelected = falseBranch.state.sides.p1.zones.hand[0];
+    const falseOpened = answer(falseBranch.state, 0);
+    const falsePaid = choose(reload(falseOpened.state), [falseSelected]);
+    assert.ok(falsePaid.state.sides.p1.zones.drop.includes(falseSelected));
+    assert.equal(draws(falsePaid.events), 1);
+    assert.equal(falsePaid.events.some((event) => event.type === "note" && /shuffles/.test(event.text)), false);
+  } finally { scripts.CONDSHUFFLE549.bySkill[0] = old; }
+
+  try {
+    scripts.CONDSHUFFLE549.bySkill[0] = { ...old, price: { ...old.price, condition: old.price?.condition ?? null,
+      ops: [compiled[0], compiled[1], { op: "if", cond: { kind: "all", conds: [] }, then: [
+        { op: "if", cond: { kind: "all", conds: [] }, then: [{ op: "shuffle" }] },
+      ] }] } };
+    const nested = mainWith("CONDSHUFFLE549"); pend(nested.state, nested.source);
+    const opened = answer(nested.state, 0);
+    const paidNested = choose(reload(opened.state), [nested.state.sides.p1.zones.hand[0]]);
+    assert.equal(draws(paidNested.events), 1);
+    assert.ok(paidNested.events.some((event) => event.type === "note" && /shuffles/.test(event.text)));
+  } finally { scripts.CONDSHUFFLE549.bySkill[0] = old; }
+
+  const three = scripts.CONDTHREE549.bySkill[0].price?.ops;
+  assert.deepEqual(three?.map((op) => op.op), ["choose", "moveTo", "if"]);
+  const impossible = mainWith("CONDTHREE549");
+  while (impossible.state.sides.p1.zones.hand.length > 2) {
+    const id = impossible.state.sides.p1.zones.hand[0];
+    assert.ok(moveCard(impossible.state, dbs, id, "drop", { owner: "p1" }).ok);
+  }
+  const before = JSON.stringify(impossible.state.sides);
+  const failed = pend(impossible.state, impossible.source);
+  assert.equal(impossible.state.prompt.kind, "main");
+  assert.equal(JSON.stringify(impossible.state.sides), before);
+  assert.equal(draws(failed), 0);
+  assert.ok(failed.some((event) => event.type === "note" && /unaffordable/.test(event.text)));
+
+  const replaced = mainWith("CONDSHUFFLE549");
+  const target = replaced.state.sides.p1.zones.hand[0];
+  addEffect(replaced.state, [], { master: "p1", source: target, target, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
+  pend(replaced.state, replaced.source);
+  const replacementOpened = answer(replaced.state, 0);
+  const replacementChosen = choose(reload(replacementOpened.state), [target]);
+  assert.equal(replacementChosen.state.prompt.kind, "replaceMove");
+  const diverted = answer(replacementChosen.state, 0);
+  assert.ok(diverted.state.sides.p1.zones.warp.includes(target));
+  assert.equal(draws(diverted.events), 0);
+  assert.equal(diverted.events.some((event) => event.type === "skill" && event.card === replaced.source), false);
+  assert.equal(diverted.events.some((event) => event.type === "note" && /shuffles/.test(event.text)), false);
+
+  const unpaidConditional: Op[] = [{ op: "if", cond: falseCond, then: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "drop" }] }];
+  const optionalPrefix: Op[] = [{ op: "choose", sel: { side: "you", area: "hand", count: 1, upTo: true }, as: "chosen" }, { op: "moveTo", target: { var: "chosen" }, to: "drop" }, { op: "if", cond: falseCond, then: [{ op: "shuffle" }] }];
+  for (const ops of [unpaidConditional, optionalPrefix, [compiled[0], compiled[1], { op: "if", cond: falseCond, then: [{ op: "shuffle" }] }, { op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "later" }] as Op[]]) {
+    assert.throws(() => readableAutomaticPrice(ops), (err: unknown) => err instanceof NotYet && err.issue === "#549");
+  }
+  const beforeUnsafe = scripts.ACTION549.bySkill[0];
+  try {
+    for (const ops of [unpaidConditional, optionalPrefix]) {
+      script("ACTION549", [{ op: "draw", n: 1 }], ops);
+      const a = mainWith("ACTION549");
+      const untouched = JSON.stringify(a.state.sides);
+      const events = pend(a.state, a.source);
+      assert.equal(a.state.outcome?.kind, "interrupted");
+      assert.equal(a.state.outcome?.privateContext?.issue, "#549");
+      assert.equal(JSON.stringify(a.state.sides), untouched);
+      assert.equal(draws(events), 0);
+    }
+  } finally { scripts.ACTION549.bySkill[0] = beforeUnsafe; }
+
+  // Existing terminal shuffles after a compulsory variable mode/concealment
+  // or a wholly paying modal branch retain their verified path.
+  const battlePick: Op = { op: "choose", sel: { side: "you", area: "battle", count: 1 }, as: "picked" };
+  for (const transition of [{ op: "switchMode", target: { var: "picked" }, mode: "rest" }, { op: "hidden", target: { var: "picked" }, hidden: true }] as Op[]) {
+    const oldAction = scripts.ACTION549.bySkill[0];
+    try {
+      script("ACTION549", [{ op: "draw", n: 1 }], [battlePick, transition, { op: "shuffle" }]);
+      const a = mainWith("ACTION549"); pend(a.state, a.source);
+      const offered = answer(a.state, 0);
+      const settled = offered.state.prompt.kind === "chooseCards" ? choose(reload(offered.state), [a.source]) : offered;
+      assert.equal(draws(settled.events), 1);
+      assert.ok(settled.events.some((event) => event.type === "note" && /shuffles/.test(event.text)));
+    } finally { scripts.ACTION549.bySkill[0] = oldAction; }
+  }
+  const modes: Op[] = [{ op: "chooseMode", modes: [
+    { label: "Rest source", ops: [{ op: "switchMode", target: { sel: { special: "self" } }, mode: "rest" }] },
+    { label: "Drop source", ops: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "drop" }] },
+  ] }, { op: "shuffle" }];
+  const oldAction = scripts.ACTION549.bySkill[0];
+  try {
+    script("ACTION549", [{ op: "draw", n: 1 }], modes);
+    const a = mainWith("ACTION549"); pend(a.state, a.source);
+    const opened = answer(a.state, 0);
+    const paidModal = answer(reload(opened.state), 0);
+    assert.equal(draws(paidModal.events), 1);
+    assert.ok(paidModal.events.some((event) => event.type === "note" && /shuffles/.test(event.text)));
+  } finally { scripts.ACTION549.bySkill[0] = oldAction; }
 }
 // A compiled own-Life face turn pays only when the chosen card actually
 // changes from face down to face up. The public turn event precedes the
