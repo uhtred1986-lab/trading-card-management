@@ -51,7 +51,7 @@ declaration checks passed. ops.rules documents native mill as its binding except
 language/declaration results, not runtime proof.
 
 The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
-runtime evidence. It records 7 named rules-engine gaps with stable IDs and live owners, twelve narrow
+runtime evidence. It records 6 named rules-engine gaps with stable IDs and live owners, thirteen narrow
 positive scenarios (including native mill, zero-power processing, Aegis, static layers and face-up Life). It also identifies the one suite whose
 legacy-oracle comparisons remain outside #459's fixed-expectation migration. The ALTC Counter
 alternative-price scenario now runs and asserts the chosen payment, resulting zones and the

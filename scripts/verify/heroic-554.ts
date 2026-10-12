@@ -234,8 +234,16 @@ try {
     const repeated = resolve(saved);
     assert.equal(JSON.stringify(first), JSON.stringify(repeated), "the same reloaded prompt produces the same terminal outcome and events");
     s = first.state;
-    assert.ok(s.overReason?.includes("negate a granted keyword hook that has no individual skill identity"), "the unsupported identity is surfaced as the engine's terminal NotYet outcome");
-    assert.ok(s.overReason?.includes("#602"), "the granted-skill identity limitation is owned by the dedicated #602 follow-up");
+    const terminal = s as VmState & { outcome?: { kind: string; privateContext?: { issue?: string; detail?: string } } };
+    const diagnostic = terminal.outcome?.privateContext?.detail ?? s.overReason;
+    assert.ok(diagnostic?.includes("negate a granted keyword hook that has no individual skill identity"), "the unsupported identity is retained in its terminal diagnostic");
+    if (terminal.outcome) {
+      assert.equal(terminal.outcome.kind, "interrupted", "the typed terminal state is an interruption");
+      assert.equal(terminal.outcome.privateContext?.issue, "#602", "the private diagnostic retains the live implementation owner");
+      assert.ok(!s.overReason?.includes("#602"), "the public reason does not reveal private interpreter diagnostics");
+    } else {
+      assert.ok(s.overReason?.includes("#602"), "the legacy terminal representation retains the #602 owner");
+    }
     assert.deepEqual(s.programs, [], "the terminal limitation discards sibling pending skills so they cannot deliver afterward");
     assert.ok(!first.events.some((event) => event.type === "draw"), `no Heroic draw occurs before the identity guard: ${first.events.filter((event) => event.type === "draw").map((event) => JSON.stringify(event))}`);
     assert.equal(handSize(s, "p1"), before - 1, "all Heroic bodies fail before drawing; only the activated Extra leaving hand changes hand size");

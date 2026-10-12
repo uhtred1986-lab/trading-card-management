@@ -169,14 +169,13 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   },
   {
     id: "arena-heroic-once-per-turn",
-    label: "Heroic triggers only once per turn on that card",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    label: "Printed Heroic resolves once through turn-duration negation",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "22-35-3",
     ownerIssue: 554,
-    skipWhere: "wordings: [Heroic] pays out once a turn (22-35-3)",
-    proof: "scripts/verify/wordings.ts — Heroic self-negation scenario",
-    detail: "The afterSkill hook does not negate its own skill for the turn, so it can trigger more than once.",
+    proof: "scripts/verify/heroic-554.ts \u2014 Battle play, paid Extra activation, source departure, negation, independent owners, turn reset and reload",
+    detail: "The declared hook retains its printed skill identity and applies ordinary per-turn negation. Identity-less granted Heroic interrupts before sibling draws under #602; copied identity is not established here.",
   },
   {
     id: "arena-face-up-life-trigger",
@@ -279,6 +278,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-granted-hook-identity", file: "src/lib/arena/vm/flow.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", citation: "22-35-3; individual granted skill identity", ownerIssue: 602, detail: "A qualifying granted Heroic without individual skill identity interrupts before any hook body draws; sibling programs are discarded." },
   { id: "arena-vm-notyet-concede-program", file: "src/lib/arena/vm/index.ts", ordinal: 1, kind: "not-yet", classification: "declaration-extension", citation: "0-1-3-4", detail: "A concede declaration with a DO body has no execution semantics; current declarations are guarded by this path.", historicalIssues: [142] },
   { id: "arena-vm-notyet-apply-pass", file: "src/lib/arena/vm/index.ts", ordinal: 2, kind: "not-yet", classification: "validated-guard", citation: "Action declaration contract", detail: "Fallback if applying a declared pass action unexpectedly yields none; current action declarations are expected to validate this." },
   { id: "arena-vm-notyet-apply-activate", file: "src/lib/arena/vm/index.ts", ordinal: 3, kind: "not-yet", classification: "validated-guard", citation: "Action declaration contract", detail: "Fallback if applying a declared activate action unexpectedly yields none; current action declarations are expected to validate this.", historicalIssues: [147] },
@@ -303,6 +303,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-granted-hook-identity": "stepProgram|-|frame.pendingHookIdentityMissing",
   "arena-vm-notyet-concede-program": "apply|-|action.type === \"concede\" > def.do.length",
   "arena-vm-notyet-apply-pass": "apply|\"pass\"|took === \"none\"",
   "arena-vm-notyet-apply-activate": "apply|\"activate\"|took === \"none\"",

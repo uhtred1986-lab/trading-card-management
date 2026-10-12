@@ -258,7 +258,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engineRules:
       "Manual 22-35-2/3: playing another Battle Card with [Heroic] or activating a [Heroic] Extra Card skill pends this Auto. Its own hook draws one, then `negateOwnSkill(until: turn)` records standard 9-1-5 negation against its printed skill index. The paid Extra trigger is captured before its effect resolves; its own effect stays ahead of the pending Auto, and a later skill negation cancels the Auto at its checkpoint. The dedicated suite verifies printed Heroic identity; copied identity is not established here. A granted keyword with no individual skill index reaches an explicit engine limitation before its body runs; #602 owns that follow-up.",
     support: "engine",
-    runtimeEvidence: { status: "unsupported", capabilityIds: ["arena-heroic-once-per-turn"] },
+    runtimeEvidence: { status: "supported", capabilityIds: ["arena-heroic-once-per-turn"] },
   },
   Villainous: {
     tag: "[Villainous]",
