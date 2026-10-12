@@ -119,6 +119,7 @@ export async function verifyGameFlow(db: Db): Promise<void> {
   assert.deepEqual(s1, s2, "a written game and a re-read one draw the same board");
 
   await (await import("./verify/arena-revision.mts")).verifyArenaRevision(db, deck.id);
+  await (await import("./verify/arena-ai-usage.ts")).verifyArenaUsageGameplayWrites(db, id);
 
   await db.delete(schema.arenaGames).where(eq(schema.arenaGames.id, id));
   await db.delete(schema.decks).where(eq(schema.decks.id, deck.id));

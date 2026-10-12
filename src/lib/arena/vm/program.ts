@@ -44,7 +44,7 @@
 import type { EngineContext } from "../types";
 import { backCharactersOf, baseType, coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
-import type { Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
+import type { CardIdentityGain, Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { other } from "../types";
 import { parseFilter, powerRelOk, type CardFilter } from "../text/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
@@ -397,9 +397,9 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // through this attribute) must find [Blocker] and friends in, and a Hidden
   // Mode card grants none at all (23-5-2), which `base.skill` being absent
   // there already gives for free.
-  if (game.attributes.keywords) base.keywords = printedKeywordNames(typeof base.skill === "string" ? base.skill : null);
+  if (game.attributes.keywords) base.keywords = skillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null);
   // 1-5-9, 9-1-4: a filter's bare "skill-less" — the legacy `skillLessNow`.
-  if (game.attributes.skillLess) base.skillLess = skillLessNow(ctx, state, id, standing);
+  if (game.attributes.skillLess) base.skillLess = skillLessNow(ctx, game, state, id, standing);
   // The value every layer is applied *to*, so an attribute the base left out —
   // a hidden card's power — stays out rather than falling back to the catalog
   // row the spread above would have carried.
@@ -409,8 +409,32 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // whole reason this no longer filters by the attribute's name (#148).
   const mine = standing.filter((e) => e.target === id);
   const timed = state.effects.filter((e) => e.target === id);
+  // 20-1: list identity changes add to the effective card in every area, but
+  // do not rewrite what is printed. Generic selectors keep reading effective
+  // attributes; rules that explicitly ask for original colours must use the
+  // printed definition separately.
+  const identity = [
+    ...mine.filter((e) => e.kind === "gains").map((e) => e.value),
+    ...timed.filter((e) => e.kind === "gains").map((e) => e.value),
+  ] as CardIdentityGain[];
+  for (const [attr, field] of [["traits", "traits"], ["characters", "characters"], ["colors", "colors"], ["alsoNames", "names"]] as const) {
+    const current = out[attr];
+    if (!Array.isArray(current)) continue;
+    const values = [...current];
+    for (const gain of identity) {
+      for (const value of gain[field]) if (!values.some((existing) => existing.toLowerCase() === value.toLowerCase())) values.push(value);
+    }
+    out[attr] = values;
+  }
   for (const name of plan.layered) {
-    const value = valueOf(game, base, name, mine, timed);
+    const refusedNegation = name === "keywords" && keywordNegationRefused(ctx, game, state, id, standing);
+    const layerStatics = name === "keywords" && skillsNegated(state, id)
+      ? mine.filter((e) => e.kind !== "keyword")
+      : refusedNegation
+        ? mine.filter((e) => e.kind !== "negateKeyword")
+        : mine;
+    const layerTimed = name === "keywords" && skillsNegated(state, id) ? timed.filter((e) => e.kind !== "keyword") : timed;
+    const value = valueOf(game, base, name, layerStatics, layerTimed);
     if (value !== undefined) out[name] = value;
   }
   // #154: a keyword's `attrBonus` hook is a further layer, read after the
@@ -435,11 +459,15 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
  * `attrsNow` has already read). A Hidden Mode card has no text to read at
  * all (23-5-2). The legacy engine's `skillLessNow`, over this engine's state.
  */
-function skillLessNow(ctx: EngineContext, state: VmState, id: string, standing: readonly VmStatic[]): boolean {
+function skillLessNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, standing: readonly VmStatic[]): boolean {
   const card = state.cards[id];
   if (!card || card.hidden) return true;
-  if (!skillsNegated(state, id) && skillsShowing(ctx, state, id).skills.some((sk) => !skillNegated(state, id, sk.index, sk.kind))) return false;
-  const granted = (e: { kind: string; target?: string; value?: unknown }) => e.kind === "keyword" && e.target === id && !keywordNegatedFor(state, id, (e.value as KeywordSkill)?.name);
+  // 9-1-5 silences every kind of skill, including keywords granted by an
+  // effect or a standing [Permanent]. Keep the selector aligned with the
+  // keyword readers below, which apply the same all-skills negation.
+  if (skillsNegated(state, id)) return true;
+  if (skillsShowing(ctx, state, id).skills.some((sk) => !skillNegated(state, id, sk.index, sk.kind))) return false;
+  const granted = (e: { kind: string; target?: string; value?: unknown }) => e.kind === "keyword" && e.target === id && !keywordNegatedFor(ctx, game, state, id, (e.value as KeywordSkill)?.name, standing);
   return !state.effects.some(granted) && !standing.some(granted);
 }
 
@@ -450,6 +478,7 @@ function skillLessNow(ctx: EngineContext, state: VmState, id: string, standing: 
  * changed once `loadRuleset` has built it.
  */
 const ATTR_PLAN = new WeakMap<GameDefinition, { face: string[]; layered: string[] }>();
+const CHECKING_STATIC_NEGATION = new WeakMap<VmState, Set<string>>();
 function attrPlanOf(game: GameDefinition): { face: string[]; layered: string[] } {
   let plan = ATTR_PLAN.get(game);
   if (!plan) {
@@ -577,11 +606,12 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
   const card = state.cards[id];
   // 23-5-2-1: a skill a Hidden Mode card gains is ignored, so a granted
   // [Blocker] or [Barrier] is no more in force than a printed one.
-  if (!card || card.hidden) return false;
-  if (keywordNegatedFor(state, id, name)) return false;
+  if (!card || card.hidden || skillsNegated(state, id)) return false;
+  const standing = statics(ctx, game, state);
+  if (keywordNegatedFor(ctx, game, state, id, name, standing)) return false;
   for (const k of printedKeywords(ctx, state, id)) if (k.name === name) return true;
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
-  for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
+  for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
   return false;
 }
 
@@ -590,8 +620,8 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
  * in Hidden Mode or has its skills negated, and not the lines negated one at a
  * time or by kind (9-1-5) — the legacy `keywordsInForce`'s printed half, which
  * is why "negate its skills for the turn" takes [Blocker] off a card here too
- * (#439). A grant, by an effect or a [Permanent], is not printed and is not
- * negated by this: the legacy engine reads it the same way.
+ * (#439). Grants are collected separately, then named keyword negation is
+ * applied to printed and granted skills alike.
  */
 function printedKeywords(ctx: EngineContext, state: VmState, id: string): KeywordSkill[] {
   if (state.cards[id].hidden || skillsNegated(state, id)) return [];
@@ -610,11 +640,12 @@ function printedKeywords(ctx: EngineContext, state: VmState, id: string): Keywor
 export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordSkill[] {
   const card = state.cards[id];
   // 23-5-2-1, as in `hasKeyword`.
-  if (!card || card.hidden) return [];
+  if (!card || card.hidden || skillsNegated(state, id)) return [];
+  const standing = statics(ctx, game, state);
   const out: KeywordSkill[] = printedKeywords(ctx, state, id);
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  for (const e of statics(ctx, game, state)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  return out.filter((k) => !keywordNegatedFor(state, id, k.name));
+  for (const e of standing) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
+  return out.filter((k) => !keywordNegatedFor(ctx, game, state, id, k.name, standing));
 }
 
 /**
@@ -623,8 +654,24 @@ export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state:
  * `hasKeyword` and `keywordsInForce`, so it beats a grant of the same keyword,
  * the way the legacy `keywordsInForce` applies it.
  */
-function keywordNegatedFor(state: VmState, id: string, name: KeywordSkill["name"]): boolean {
-  return state.effects.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name);
+function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"] | undefined, standing: readonly VmStatic[] = []): boolean {
+  if (!name) return false;
+  if (state.effects.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name)) return true;
+  return !keywordNegationRefused(ctx, game, state, id, standing) && standing.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name);
+}
+
+/** A standing negation is still subject to 20-14's `beNegated` prohibition. */
+function keywordNegationRefused(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, standing: readonly VmStatic[]): boolean {
+  if (!standing.some((e) => e.kind === "negateKeyword" && e.target === id)) return false;
+  let active = CHECKING_STATIC_NEGATION.get(state);
+  if (!active) CHECKING_STATIC_NEGATION.set(state, active = new Set());
+  if (active.has(id)) return false;
+  active.add(id);
+  try {
+    return forbids(ctx, game, state, "beNegated", { card: id });
+  } finally {
+    active.delete(id);
+  }
 }
 
 // ── the hook contract's own reading (#153, `vm/hook-contract.ts`) ──────────

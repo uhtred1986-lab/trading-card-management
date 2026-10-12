@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { LegalAction, RejectedAction } from "@/lib/arena/types";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
@@ -146,23 +146,96 @@ export function Sheet({
   tall?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center arena-scrim p-0 sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        className={`flex w-full max-w-md flex-col rounded-t-2xl border border-space-700 bg-space-900 p-4 pb-8 sm:max-w-lg sm:rounded-2xl sm:pb-4 ${tall ? "h-[92dvh] sm:h-auto sm:max-h-[85dvh]" : "max-h-[75dvh]"}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <div className="min-w-0">
+    <SheetDialog label={title} onClose={onClose}>
+      <div className={`flex w-full max-w-md flex-col rounded-t-2xl border border-space-700 bg-space-900 p-4 pb-8 sm:max-w-lg sm:rounded-2xl sm:pb-4 ${tall ? "h-[92dvh] sm:h-auto sm:max-h-[85dvh]" : "max-h-[75dvh]"}`}>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             {eyebrow && <div className="mb-1">{eyebrow}</div>}
-            <h3 className="text-sm font-semibold text-space-50 sm:text-base">{title}</h3>
+            <h2 className="text-sm font-semibold text-space-50 sm:text-base">{title}</h2>
           </div>
-          <button type="button" onClick={onClose} className="tap shrink-0 text-xs text-space-300 hover:text-space-50 sm:text-sm">
+          <button type="button" data-sheet-initial-focus onClick={onClose} className="tap flex h-[44px] min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg px-2 text-xs text-space-300 hover:text-space-50 sm:text-sm">
             {closeLabel}
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </SheetDialog>
+  );
+}
+
+/** A single native modal surface shared by choice, search and card-review sheets. */
+export function SheetDialog({
+  label,
+  onClose,
+  children,
+}: {
+  label: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const suppressClose = useRef(false);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const restoreFocus = useCallback(() => {
+    const target = returnFocus.current;
+    if (target?.isConnected) target.focus({ preventScroll: true });
+  }, []);
+  useLayoutEffect(() => {
+    const el = dialog.current;
+    suppressClose.current = false;
+    if (el && !el.open) {
+      returnFocus.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+      el.showModal();
+      el.querySelector<HTMLElement>("[data-sheet-initial-focus]")?.focus({ preventScroll: true });
+    }
+    return () => {
+      if (el?.open) {
+        suppressClose.current = true;
+        el.close();
+        restoreFocus();
+      }
+    };
+  }, [restoreFocus]);
+  return (
+    <dialog
+      ref={dialog}
+      aria-label={label}
+      aria-modal="true"
+      tabIndex={-1}
+      onClose={() => {
+        // `close` is queued. StrictMode can reopen the same node before a
+        // cleanup's event arrives; that stale event must not close the new view.
+        if (!dialog.current?.open && !suppressClose.current) {
+          restoreFocus();
+          onClose();
+        }
+      }}
+      onClick={(event) => {
+        if (event.target === dialog.current) onClose();
+      }}
+      onKeyDown={(event) => {
+        const el = dialog.current;
+        const target = event.target;
+        if (event.defaultPrevented || event.key !== "Tab" || !el || (target instanceof HTMLElement && target.closest("dialog") !== el)) return;
+        const items = [...el.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+          .filter((item) => item.getClientRects().length > 0 && item.getAttribute("aria-hidden") !== "true");
+        const first = items[0];
+        const last = items.at(-1);
+        if (!first || !last) {
+          event.preventDefault();
+          el.focus();
+        } else if (event.shiftKey && (document.activeElement === first || !el.contains(document.activeElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !el.contains(document.activeElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
+      className="fixed inset-0 m-0 flex h-dvh max-h-none w-full max-w-none items-end justify-center overflow-hidden border-0 bg-transparent p-0 text-space-100 backdrop:bg-[color:var(--scrim)] sm:items-center sm:p-4"
+    >
+      {children}
+    </dialog>
   );
 }
 
@@ -222,7 +295,7 @@ export function ActionRows({
             key={m.index}
             type="button"
             onClick={() => onPick(m)}
-            className={`tap flex w-full items-center gap-3 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 ${docked ? "" : "sm:px-4 sm:py-3 sm:text-base"}`}
+            className={`tap flex min-h-11 w-full items-center gap-3 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 ${docked ? "" : "sm:px-4 sm:py-3 sm:text-base"}`}
           >
             <span className="min-w-0 flex-1">{m.targets ? `Attack with ${card.name}…` : (m.label ?? m.legal.label)}</span>
             {price && <span className="shrink-0 rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:text-xs">{price}</span>}
@@ -345,14 +418,14 @@ function Thumb({ card, yours, current, index, total, onJump }: { card: CardView;
   }, [current]);
   const face = `h-[46px] w-[34px] rounded-[4px] border transition-transform ${current ? "-translate-y-1 border-ki-400 ring-2 ring-ki-400" : "border-space-600"}`;
   return (
-    <button
+      <button
       ref={ref}
       type="button"
       onClick={onJump}
       data-arena-thumb={card.id}
       aria-current={current ? "true" : undefined}
       aria-label={`${card.name}, ${index + 1} of ${total}`}
-      className="flex h-[56px] w-11 shrink-0 flex-col items-center justify-end gap-0.5 pb-0.5"
+      className="flex h-[56px] min-h-[44px] w-[44px] min-w-[44px] shrink-0 flex-col items-center justify-end gap-0.5 pb-0.5"
     >
       {card.imageUrl && !card.hidden ? (
         // eslint-disable-next-line @next/next/no-img-element -- a strip swatch; the board has already loaded this URL.
@@ -420,9 +493,15 @@ export function CardSheet({
   // Keys, for a tablet with a keyboard: the pager has the same three moves.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      else if (pager && e.key === "ArrowRight") go(at + 1);
-      else if (pager && e.key === "ArrowLeft") go(at - 1);
+      if (e.defaultPrevented || (e.key !== "ArrowRight" && e.key !== "ArrowLeft")) return;
+      const panel = document.querySelector<HTMLElement>(`[data-arena-review="${CSS.escape(card.id)}"]`);
+      const dialog = panel?.closest("dialog");
+      const target = e.target;
+      if (!dialog?.matches(":modal") || !dialog.contains(document.activeElement)) return;
+      if (target instanceof HTMLElement && target.closest("dialog") !== dialog) return;
+      if (target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']")) return;
+      e.preventDefault();
+      go(at + (e.key === "ArrowRight" ? 1 : -1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -469,16 +548,10 @@ export function CardSheet({
   const position = pager ? `${sequence!.label} ${at + 1} / ${items.length}` : null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center arena-scrim p-0 sm:items-center sm:p-4"
-      onClick={onClose}
-    >
+    <SheetDialog label={`${card.name}${position ? `, ${position}` : ""}`} onClose={onClose}>
       <div
-        role="dialog"
-        aria-label={`${card.name}${position ? `, ${position}` : ""}`}
         data-arena-review={card.id}
-        className="flex max-h-[88dvh] w-full max-w-md touch-none select-none flex-col overscroll-contain rounded-t-2xl border border-space-700 bg-space-900 pb-6 pt-2 sm:max-w-lg sm:rounded-2xl sm:pb-4"
-        onClick={(e) => e.stopPropagation()}
+        className="relative flex max-h-[88dvh] min-h-0 w-full max-w-md touch-none select-none flex-col overscroll-contain rounded-t-2xl border border-space-700 bg-space-900 pb-6 pt-2 sm:max-w-lg sm:rounded-2xl sm:pb-4"
         // The button a swipe ends on must not also be pressed.
         onClickCapture={(e) => {
           if (Date.now() - swipedAt.current < 200) {
@@ -491,7 +564,10 @@ export function CardSheet({
         onPointerUp={end}
         onPointerCancel={end}
       >
-        <span className="mx-auto mb-2 h-1 w-10 shrink-0 rounded-full bg-space-600" aria-hidden />
+        <div className="mb-1 flex h-[48px] shrink-0 items-center justify-between px-4">
+          <span className="h-1 w-10 rounded-full bg-space-600" aria-hidden />
+          <button type="button" data-sheet-initial-focus onClick={onClose} aria-label="Close card review" className="tap flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg leading-none text-space-100">×</button>
+        </div>
 
         {pager && (
           <div className="mb-1 flex shrink-0 items-center gap-2 px-4">
@@ -511,7 +587,7 @@ export function CardSheet({
 
         <div ref={body} className={`min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 ${scrolls ? "touch-pan-y" : "touch-none"}`}>
           <div className="flex gap-3">
-            <div className="relative w-32 shrink-0 self-start">
+            <div className="relative w-[128px] shrink-0 self-start">
               {card.imageUrl && !card.hidden ? (
                 // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
                 <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect w-full rounded-lg object-cover" />
@@ -525,7 +601,7 @@ export function CardSheet({
                     onClick={() => go(at - 1)}
                     disabled={at <= 0}
                     aria-label="Previous card"
-                    className="absolute -left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300"
+                    className="absolute left-1 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300"
                   >
                     ‹
                   </button>
@@ -534,7 +610,7 @@ export function CardSheet({
                     onClick={() => go(at + 1)}
                     disabled={at >= items.length - 1}
                     aria-label="Next card"
-                    className="absolute -right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300"
+                    className="absolute right-1 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300"
                   >
                     ›
                   </button>
@@ -555,13 +631,13 @@ export function CardSheet({
         <button
           type="button"
           onClick={onClose}
-          className="tap mx-4 mt-3 flex w-[calc(100%-2rem)] shrink-0 items-center justify-between rounded-xl border-2 border-space-500 px-4 py-2 text-left text-sm font-bold text-space-50 hover:border-ki-400"
+          className="tap mx-4 mt-3 flex min-h-11 w-[calc(100%-2rem)] shrink-0 items-center justify-between rounded-xl border-2 border-space-500 px-4 py-2 text-left text-sm font-bold text-space-50 hover:border-ki-400"
         >
           <span>Close</span>
           <span className="text-xs font-normal text-space-200">or swipe down</span>
         </button>
       </div>
-    </div>
+    </SheetDialog>
   );
 }
 
