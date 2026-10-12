@@ -16,7 +16,7 @@ import type { Action, PlayerId } from "./types";
 import { applyToGame, loadArchivedGame, loadGame, type LoadedGame, type MutationIdentity } from "./games";
 import { advance, aiPlayerOf } from "./ai/run";
 import { longPollStepMs } from "./poll-schedule";
-import { archivedSnapshotFor, buildSnapshot, type Snapshot } from "./snapshot";
+import { archivedSnapshotFor, buildSnapshot, withSnapshotReading, type Snapshot } from "./snapshot";
 import type { CardArt } from "./view";
 
 /**
@@ -40,7 +40,10 @@ export async function artForGame(_db: Db, game: LoadedGame): Promise<Record<stri
  * as it always has.
  */
 export async function snapshotOfGame(db: Db, game: LoadedGame, viewer: PlayerId | null = null): Promise<Snapshot> {
-  return buildSnapshot({ ...game, revision: game.version, ai: aiPlayerOf(game), viewer, images: await artForGame(db, game) });
+  const images = await artForGame(db, game);
+  // The spread reads `game.legal`'s lazy getter. Keep that read, the rejected
+  // menu, ability availability and board view in one immutable read session.
+  return withSnapshotReading(game, () => buildSnapshot({ ...game, revision: game.version, ai: aiPlayerOf(game), viewer, images }));
 }
 
 /**
