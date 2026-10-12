@@ -337,6 +337,13 @@
       "when": 1791763583364,
       "tag": "0047_spooky_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791767262810,
+      "tag": "0048_arena_advance_leases",
+      "breakpoints": true
     }
   ]
 }

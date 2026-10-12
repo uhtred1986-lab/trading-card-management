@@ -799,6 +799,8 @@ export const arenaDecisions = pgTable(
     gameId: integer("game_id")
       .notNull()
       .references(() => arenaGames.id, { onDelete: "cascade" }),
+    /** Makes decision projection idempotent when an advance resumes a checkpoint. */
+    arenaCallId: text("arena_call_id"),
     seq: integer("seq").notNull(),
     turn: integer("turn").notNull(),
     phase: text("phase").notNull(),
@@ -826,7 +828,7 @@ export const arenaDecisions = pgTable(
     latencyMs: integer("latency_ms"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("arena_decisions_game_idx").on(t.gameId, t.seq)],
+  (t) => [index("arena_decisions_game_idx").on(t.gameId, t.seq), uniqueIndex("arena_decisions_arena_call_idx").on(t.gameId, t.arenaCallId)],
 );
 
 /** One durable accounting receipt per Arena provider call, including calls whose move later lost the game-revision CAS. */
@@ -852,6 +854,32 @@ export const arenaAiUsage = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("arena_ai_usage_call_idx").on(t.gameId, t.callId), index("arena_ai_usage_revision_idx").on(t.gameId, t.revision)],
+);
+
+/** Durable lease and private checkpoint for one server advance at a game revision. */
+export const arenaAdvanceCalls = pgTable(
+  "arena_advance_calls",
+  {
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => arenaGames.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    /** Stable provider/accounting identity for this exact board revision. */
+    callId: text("call_id").notNull(),
+    /** claimed | attempting | checkpoint | applied | attention */
+    phase: text("phase").notNull(),
+    owner: text("owner"),
+    leaseUntil: timestamp("lease_until", { withTimezone: true }),
+    /** Private server-side choice checkpoint; never part of a Snapshot. */
+    checkpoint: jsonb("checkpoint"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.gameId, t.revision], name: "arena_advance_calls_pk" }),
+    uniqueIndex("arena_advance_calls_call_idx").on(t.gameId, t.callId),
+    index("arena_advance_calls_lease_idx").on(t.phase, t.leaseUntil),
+  ],
 );
 
 export const cardRules = pgTable(
@@ -929,6 +957,8 @@ export const aiRuns = pgTable(
     id: serial("id").primaryKey(),
     /** A `RunKind` (src/lib/ai/client.ts). */
     kind: text("kind").notNull(),
+    /** Stable Arena provider-call identity used to recover a recorded result after a worker restart. */
+    arenaCallId: text("arena_call_id"),
     deckId: integer("deck_id").references(() => decks.id, { onDelete: "set null" }),
     model: text("model").notNull(),
     input: jsonb("input"),
@@ -947,7 +977,7 @@ export const aiRuns = pgTable(
     costMicros: integer("cost_micros"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("ai_runs_deck_idx").on(t.deckId)],
+  (t) => [index("ai_runs_deck_idx").on(t.deckId), uniqueIndex("ai_runs_arena_call_idx").on(t.arenaCallId)],
 );
 
 /**

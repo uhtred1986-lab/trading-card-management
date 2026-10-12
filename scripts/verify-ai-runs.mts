@@ -37,6 +37,15 @@ export async function verifyAiRuns(db: Db): Promise<void> {
   assert.equal(row.provider, "anthropic-api", "recordRun stores provider from AiResult");
   assert.equal(row.billed, true, "recordRun stores billed from AiResult");
 
+  const arenaResult = await recordRun(
+    db,
+    "arena_move",
+    { prompt: "main", arena: { gameId: 566, callId: "stable-arena-run-id", revision: 7 } },
+    { text: "{}", parsed, stop: "end", usage: { input: 2, output: 1, cacheRead: 0, cacheWrite: 0 }, provider: "fake", model: "fake-model", billed: true, latencyMs: 1 },
+  );
+  const [arenaRow] = await db.select().from(schema.aiRuns).where(eq(schema.aiRuns.id, arenaResult.id));
+  assert.equal(arenaRow.arenaCallId, "stable-arena-run-id", "a durable Arena result can be found by its stable call identity after a worker restart");
+
   // Test: legacy SDK response (old contract) defaults to anthropic-api / true
   const legacy = await recordRun(
     db,
@@ -130,5 +139,6 @@ export async function verifyAiRuns(db: Db): Promise<void> {
   await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, withCost.id));
   await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, noCost.id));
   await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, aiResult.id));
+  await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, arenaResult.id));
   await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, legacy.id));
 }

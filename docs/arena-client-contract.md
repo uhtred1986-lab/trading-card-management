@@ -527,7 +527,7 @@ Only the Android app uses these; the web board calls §2 directly.
 | `GET` | `/api/v1/games/{id}` | `?sinceRevision=R&sinceBeat=N&wait=25` | `Snapshot` — §6 |
 | `GET` | `/api/v1/games/{id}/replay` | — | admin-only immutable replay export; never part of `Snapshot` |
 | `POST` | `/api/v1/games/{id}/actions` | `{ index, basedOn, requestId }` | `Snapshot` — your move only |
-| `POST` | `/api/v1/games/{id}/advance` | — | `Snapshot` once Claude has finished deciding |
+| `POST` | `/api/v1/games/{id}/advance` | — | current `Snapshot` after this advance finishes, or while another request owns the revision lease; AI errors include `aiError` |
 | `POST` | `/api/v1/games/{id}/abandon` | `{ basedOn, requestId }` | `Snapshot` |
 | `GET` | `/api/v1/app/version` | — | `{ versionCode, versionName, sha256, notes }` |
 | `GET` | `/api/v1/app/apk` | — | the signed APK, behind the same auth |
@@ -672,9 +672,17 @@ Cost note: a long-poll holds a Vercel function for up to `wait` seconds. For one
 irrelevant; if it ever is not, the knob is `wait`.
 
 **The web board uses this too**, through `stage/useLiveGame.ts` — the one place either client
-reaches `/api/v1` rather than the functions behind it. `act()` still runs the whole opponent turn
-before it returns, but `advance` commits each of Claude's moves as it makes them, so polling the row
-shows them arriving instead of a pulsing dot for a minute and then everything at once. Verified: a
+reaches `/api/v1` rather than the functions behind it. `act()` returns after the human action is
+persisted; the browser starts `advance` as a separate background request and polls the row, so the
+move is acknowledged before Claude finishes thinking and each of Claude's moves can be animated as
+soon as it arrives. Web and HTTP advances share one per-game-revision lease and durable decision
+checkpoint, so concurrent requests cannot start duplicate provider calls for that revision.
+
+If a worker stops after it marks a provider request attempted but before its result reaches
+`ai_runs`, the request outcome is ambiguous. The lease then remains attention-required and future
+advances fail closed instead of resending a potentially billable request. If the response was
+recorded, a later request reuses that result, usage receipt and gameplay CAS. This is crash recovery
+for recorded outcomes, not a guarantee that every provider call is exactly once. Verified: a
 20-second poll returned in 4.1 s when an action landed, carrying exactly the beats numbered above
 the client's mark.
 
