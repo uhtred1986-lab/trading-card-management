@@ -731,11 +731,28 @@ export const arenaGames = pgTable(
       .$type<{ actor: string | null; requestId: string; fingerprint: string; revision: number }[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    /** Content hash of the immutable catalogue, card programs and ruleset used to create this match. Null on historical matches. */
+    rulesBundleHash: text("rules_bundle_hash"),
+    /** The immutable deck inputs used for setup; deck rows may be edited or deleted later. */
+    replayDecks: jsonb("replay_decks").$type<{ p1: import("@/lib/arena/types").DeckInput; p2: import("@/lib/arena/types").DeckInput } | null>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("arena_games_status_idx").on(t.status)],
 );
+
+/** Immutable, content-addressed rules inputs. Rows are inserted once and never updated. */
+export const arenaRuleBundles = pgTable("arena_rule_bundles", {
+  hash: text("hash").primaryKey(),
+  format: integer("format").notNull(),
+  rulesetHash: text("ruleset_hash").notNull(),
+  catalogHash: text("catalog_hash").notNull(),
+  programsHash: text("programs_hash").notNull(),
+  /** The application commit that identifies the interpreter; null means the creator had no deploy revision. */
+  runtimeRevision: text("runtime_revision"),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * A 1 v 1 invitation, from "I want to play" until both people have chosen a

@@ -330,6 +330,13 @@
       "when": 1791755864683,
       "tag": "0046_swift_maverick",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791763583364,
+      "tag": "0047_spooky_thunderbolt",
+      "breakpoints": true
     }
   ]
 }
