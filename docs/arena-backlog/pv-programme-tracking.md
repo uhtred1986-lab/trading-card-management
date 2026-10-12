@@ -150,7 +150,7 @@ The combined runtime at main `2d1d8f8` passed typecheck, lint (five prior warnin
 local tests and production build: legacy Arena 51/51, rules-only 50/51 with the retained
 VM oracle exclusion. Inventory: 29 narrow scenarios, four named runtime gaps, 29 VM sites.
 The owner confirmed `4a107d2`, `3eebd7`, `5c1f122` and `3e3785a` Ready in Vercel.
-GitHub subsequently reported Vercel success for `2d1d8f8` (deployment DkJYsCkz6PmFqeF69VASAxpejVh9), clearing the next merge. PR #678 completed #569 at `9530e2b`; its production gate remains pending.
+GitHub subsequently reported Vercel success for `2d1d8f8` (deployment DkJYsCkz6PmFqeF69VASAxpejVh9), clearing the next merge. PR #678 completed #569 at `9530e2b`; the owner confirmed its production deployment Ready before this documentation merge.
 
 Seventeen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
 M2 #566; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
