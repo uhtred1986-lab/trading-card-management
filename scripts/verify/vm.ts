@@ -115,7 +115,6 @@ import {
 import { expandMacros, loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
 import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
-import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
 import type { CardDef, Color, PlayerId, Replacement, Requirement } from "../../src/lib/arena/types";
 import { legacyHost } from "../../src/lib/arena/engine/legacy-host";
@@ -131,6 +130,7 @@ import { CARD_VIEWS_459 } from "./vm-card-views-459";
 import { expectedTurnTrace } from "./vm-turn-459";
 import { verifyLegacyVmCompatibility } from "./vm-legacy-118";
 import { FILTER_CORPUS_459, FILTER_MATCHES_459, fixedFilterMatch459 } from "./vm-filters-459";
+import { FIXED_CARD_COSTS_459, FIXED_PRICES_459 } from "./vm-costs-459";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -2101,25 +2101,10 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 
 // ── 17. the price, off the declarations (#148) ──────────────────────────────
 //
-// Four claims, and the first is the one the rest rest on.
-//
-//  1. **The planner answers what `planPayment` answers.** Board for board and
-//     price for price: payable or not, the *same* `Requirement`s when not, the
-//     same cards rested, the same options offered and the same words for them.
-//     The legacy search is the oracle (`docs/arena-tooling.md`), and a planner
-//     driven by `costs.rules` that quietly rested a different card would be a
-//     divergence no coverage number catches.
-//  2. **Every declared kind is charged**, not only energy: markers off the card
-//     paying (13-4), life to the Drop (21-3), the card's own mode (1-10-1), the
-//     20-19 payers, and the price declared `consumes: unreadable`, which is
-//     *refused* rather than charged — the reason `text` is a declaration at all.
-//  3. **The price shown is the price charged.** One `Price` becomes the
-//     `ActionCost` the row wears and the payment that is taken, and the figure
-//     it carries is the legacy engine's own, card for card over the harness.
-//  4. **The question is the existing one.** 3-8-2's "which energy" is the
-//     `payCost` prompt, its options are legacy `Payment` values, and answering
-//     it charges exactly what was picked — no new `Prompt` kind, so nothing in
-//     `contract/fixtures/` moves.
+// The five staged pools and nine prices cover free payment, coloured and
+// either-orb requirements, energy markers, dual-colour energy, insufficient
+// energy and impossible colour combinations. Every former planner comparison
+// now checks a reviewed fixed payment/refusal and the complete option list.
 {
   const rulesEngine = engineFor("rules");
 
@@ -2133,14 +2118,14 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   // genuinely different way to pay it — which is what 3-8-2 asks about.
   DEFS["COST2"] = card("COST2", { energyCost: 2, colors: ["Colorless"] });
 
-  /** One staged board, described once and built on both engines so the two are the same game. */
+  /** One staged board with an explicit Energy Area, marker count and Leader. */
   interface Staged {
     energy: string[];
     markers: number;
     leader: string;
   }
 
-  /** The instance ids the energy takes. `p1#0` is the Leader on both engines (#139's dealing order). */
+  /** The instance ids the energy takes. `p1#0` is the Leader in the fixed seed (#139's dealing order). */
   const energyIds = (n: number): string[] => Array.from({ length: n }, (_, i) => `p1#${i + 1}`);
 
   function rulesBoard(b: Staged): VmState {
@@ -2157,20 +2142,6 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     return s;
   }
 
-  function legacyBoard(b: Staged): GameState {
-    const s = createGame(CTX, DECKS).state;
-    const ids = energyIds(b.energy.length);
-    ids.forEach((id, i) => {
-      s.cards[id].cardId = b.energy[i];
-      s.cards[id].mode = "active";
-    });
-    s.players.p1.deck = s.players.p1.deck.filter((id) => !ids.includes(id));
-    s.players.p1.energy = ids;
-    s.players.p1.energyMarkers = b.markers;
-    s.cards[s.players.p1.leader!].cardId = b.leader;
-    return s;
-  }
-
   const BOARDS: Staged[] = [
     { energy: ["E-RED", "E-RED", "E-BLUE"], markers: 0, leader: "L-RED" },
     { energy: ["E-RED", "E-BLUE", "E-GREEN"], markers: 1, leader: "L-RED" },
@@ -2179,7 +2150,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     { energy: ["E-RED", "E-RED", "E-RED", "E-BLUE", "E-GREEN"], markers: 1, leader: "L-RED" },
   ];
 
-  /** A price in the two engines' own terms: the legacy triple, and the `Price` the declarations are charged from. */
+  /** Nine printed prices: total energy, fixed coloured orbs and either-orbs. */
   const PRICES: { total: number; specified: Partial<Record<Color, number>>; either: Color[][] }[] = [
     { total: 0, specified: {}, either: [] },
     { total: 1, specified: {}, either: [] },
@@ -2195,46 +2166,26 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     { total: 2, specified: { Red: 3 }, either: [] },
   ];
 
-  for (const b of BOARDS) {
+  assert.equal(FIXED_PRICES_459.length, BOARDS.length, "the reviewed payment boards changed");
+  for (const [boardIndex, b] of BOARDS.entries()) {
     const vm = rulesBoard(b);
-    const legacy = legacyBoard(b);
     const where = `${b.energy.join("+") || "no energy"} and ${b.markers} marker(s) under ${b.leader}`;
-    for (const p of PRICES) {
+    assert.equal(FIXED_PRICES_459[boardIndex].length, PRICES.length, `the reviewed price columns changed on ${where}`);
+    for (const [priceIndex, p] of PRICES.entries()) {
       const price: Price = { ...freePrice(), energy: p.total, orbs: { ...p.specified }, either: p.either.map((o) => o.slice()) };
       const what = `${p.total} energy ${JSON.stringify(p.specified)}${p.either.length ? ` either ${JSON.stringify(p.either)}` : ""} on ${where}`;
-
-      const oracle = planPayment(CTX, legacy, "p1", p.total, p.specified, undefined, p.either);
+      const fixed = FIXED_PRICES_459[boardIndex][priceIndex];
       const plan = planCost(CTX, DBS, vm, "p1", price, null);
-      assert.equal(plan.ok, oracle !== null, `the two engines disagree about whether a price can be paid: ${what}`);
-
-      if (!oracle) {
-        // …and the refusal is the legacy `whyNotPay`'s, requirement for
-        // requirement, so `wording.ts` says one sentence and not two.
-        assert.deepEqual(plan.ok ? [] : plan.why, whyNotPay(CTX, legacy, "p1", p.total, p.specified, p.either), `the shortfall is not the one the legacy engine reports: ${what}`);
+      if ("refused" in fixed) {
+        assert.equal(plan.ok, false, `an unpayable fixed price was planned: ${what}`);
+        assert.deepEqual(plan.ok ? [] : plan.why, fixed.refused, `the fixed requirement list changed: ${what}`);
         continue;
       }
-      assert.ok(plan.ok);
-      assert.deepEqual({ rest: plan.payment.rest, markers: plan.payment.energyMarkers }, oracle, `a different payment was planned: ${what}`);
-      // 3-8-2: the genuinely different ways to pay, and the words for each.
-      if (!p.either.length) assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price), legacyOptions(CTX, legacy, "p1", p.total, p.specified), `the payment options differ: ${what}`);
-      else {
-        // The legacy `paymentOptions` takes no either-orb at all — its callers
-        // settle the colour first — so the options for an either price are
-        // those of each colour it could be paid with, together (22-13). Asked
-        // with the either-orb left out, as this compared until #459, it
-        // offered three red energy for a price that needs a blue or a green.
-        let assignments: Color[][] = [[]];
-        for (const orb of p.either) assignments = assignments.flatMap((soFar) => orb.map((c) => [...soFar, c]));
-        const key = (o: unknown) => JSON.stringify(o);
-        const union = new Map<string, unknown>();
-        for (const pick of assignments) {
-          const specified = { ...p.specified };
-          for (const c of pick) specified[c] = (specified[c] ?? 0) + 1;
-          if (planPayment(CTX, legacy, "p1", p.total, specified)) for (const o of legacyOptions(CTX, legacy, "p1", p.total, specified)) union.set(key(o), o);
-        }
-        assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price).map(key).sort(), [...union.keys()].sort(), `the payment options differ: ${what}`);
-      }
-      assert.equal(plan.describe, legacyDescribe(CTX, legacy, oracle), `the payment is described differently: ${what}`);
+      assert.equal(plan.ok, true, `a payable fixed price was refused: ${what}`);
+      if (!plan.ok) continue;
+      assert.deepEqual({ rest: plan.payment.rest, markers: plan.payment.energyMarkers }, { rest: fixed.paid.rest, markers: fixed.paid.markers }, `a different payment was planned: ${what}`);
+      assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price), fixed.paid.options, `the complete fixed payment options changed: ${what}`);
+      assert.equal(plan.describe, fixed.paid.describe, `the fixed payment description changed: ${what}`);
     }
   }
 
@@ -2257,12 +2208,12 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     vm.cards[subject].markers = 2;
 
     // 13-4: markers off the card whose skill is being used, and a card cannot
-    // be taken below none. The words of the refusal are the legacy engine's.
+    // be taken below none. The fixed refusal names the two markers available.
     const twoMarkers: Price = { ...freePrice(), markers: -2 };
     const paidMarkers = planCost(CTX, DBS, vm, "p1", twoMarkers, subject);
     assert.ok(paidMarkers.ok, "a marker price the card can pay was refused");
     const threeMarkers = planCost(CTX, DBS, vm, "p1", { ...freePrice(), markers: -3 }, subject);
-    assert.deepEqual(threeMarkers.ok ? [] : threeMarkers.why, [{ kind: "other", detail: "needs 3 markers (2 on it)" }], "a marker shortfall is not worded as the legacy engine words it");
+    assert.deepEqual(threeMarkers.ok ? [] : threeMarkers.why, [{ kind: "other", detail: "needs 3 markers (2 on it)" }], "a marker shortfall does not name the missing marker");
 
     // 21-3: life to the Drop, and a life the player does not have.
     const life = planCost(CTX, DBS, vm, "p1", { ...freePrice(), life: 1 }, subject);
@@ -2314,45 +2265,41 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         { type: "markers", card: subject, delta: -2, total: 0 },
         { type: "mode", card: subject, mode: "rest" },
       ],
-      "charging a price does not log what the legacy engine logs for the same payment",
+      "charging a price did not log the exact fixed mode and marker changes",
     );
   }
 
   // ── the price shown is the price charged ──────────────────────────────────
-  //
-  // Card for card over every harness card with a printed cost: the figure this
-  // engine reads, the figure the legacy engine charges, and the sentence a row
-  // wears are one. The row's words go through `priceOf`, which is the only
-  // place a price becomes a sentence on either engine.
+  // Every printed non-Leader/non-token harness card belongs to one reviewed
+  // total/specification class. Exact membership catches a new or repriced card.
   {
     const vm = rulesBoard(BOARDS[0]);
-    const legacy = legacyBoard(BOARDS[0]);
     const held = vm.sides.p1.zones.deck[0];
+    const classes = new Map(FIXED_CARD_COSTS_459.flatMap(({ total, orbs, cards }) => cards.map((cardId) => [cardId, { total, orbs }] as const)));
+    const pricedIds = Object.entries(DEFS).filter(([, def]) => def.type !== "LEADER" && def.type !== "TOKEN").map(([id]) => id);
+    assert.equal(FIXED_CARD_COSTS_459.reduce((n, group) => n + group.cards.length, 0), classes.size, "a fixed card-price class repeats a card");
+    assert.deepEqual([...classes.keys()].sort(), pricedIds.sort(), "the reviewed fixed card-price corpus changed");
     let checked = 0;
-    for (const [cardId, def] of Object.entries(DEFS)) {
-      if (def.type === "LEADER" || def.type === "TOKEN") continue;
+    for (const cardId of pricedIds) {
+      const def = DEFS[cardId];
+      const fixed = classes.get(cardId)!;
       vm.cards[held].cardId = cardId;
-      legacy.cards[held].cardId = cardId;
       const mine = cardPrice(CTX, DBS, vm, held);
-      const theirs = playCost(CTX, legacy, held);
-      assert.equal(mine.total, theirs.total, `${cardId}: the two engines read a different total cost`);
-      assert.deepEqual(mine.orbs, theirs.specified, `${cardId}: the two engines read a different coloured requirement`);
-      // The sentence, assembled from this engine's one `Price`. A play's total
-      // comes off the card and its orbs off the row, which is why `priceOf`
-      // takes both (issue #96).
+      assert.equal(mine.total, fixed.total, `${cardId}: the fixed printed total cost changed`);
+      assert.deepEqual(mine.orbs, fixed.orbs, `${cardId}: the fixed printed coloured requirement changed`);
       const view = { cost: def.energyCost === null ? undefined : String(def.energyCost), comboCost: def.comboCost ?? undefined, comboPower: def.comboPower ?? undefined } as never;
       const price: Price = { ...freePrice(), energy: mine.total, orbs: mine.orbs };
       const said = priceOf({ type: "play", player: "p1", card: held }, view, "Play", actionCostOf(price));
       assert.ok(said && said.length > 0, `${cardId}: a play has no price sentence`);
       checked++;
     }
-    assert.ok(checked > 50, `only ${checked} harness cards were priced on both engines`);
+    assert.equal(checked, 98, `the reviewed 98-card price corpus changed to ${checked}`);
   }
 
   // ── 3-8-2: the question, and answering it ─────────────────────────────────
   //
-  // The existing `payCost` prompt, whose options are legacy `Payment` values —
-  // so one client answers either engine and no fixture in `contract/` moves.
+  // The existing `payCost` prompt and Payment-shaped options, so a client can
+  // answer the declared charge with a chosen pair of Energy cards.
   {
     const PRICED = [
       "DEFINE ACTION play",
@@ -2408,13 +2355,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const ev: GameEvent[] = [];
     const asking = structuredClone(s);
     assert.equal(applyDeclared(CTX, priced, asking, ev, { type: "play", player: "p1", card: hand[0] }), "asked", "a price with two answers was taken without asking which");
-    assert.equal(asking.prompt.kind, "payCost", "the payment does not put the prompt the legacy engine puts");
+    assert.equal(asking.prompt.kind, "payCost", "the payment does not put up the fixed payCost prompt");
     assert.deepEqual(ev, [], "a move that stopped to ask which energy had already charged something");
     const prompt = asking.prompt as { options: { rest: string[]; markers: number }[]; describe: string };
-    assert.equal(prompt.describe, "play COST2", "the payment prompt is not described the way the legacy engine describes it");
+    assert.equal(prompt.describe, "play COST2", "the payment prompt does not name the play it is charging");
     assert.ok(prompt.options.length > 1, "a payment worth asking about has only one answer");
 
-    // One answer per option, worded as the legacy engine words them…
+    // One answer per option, each worded as the cards it rests.
     const answers = rulesEngine.legalActions(CTX, asking);
     assert.deepEqual(
       answers.map((a) => a.action),
