@@ -42,6 +42,8 @@ import { LEGACY_CALLS } from "./verify/legacy-guard";
 import { EngineMismatch } from "../src/lib/arena/engines";
 import { NotYet } from "../src/lib/arena/vm";
 import { ENGINE, RULES_GAPS } from "./verify/harness";
+// Capture vm.ts's printed input cards before earlier suites stage mutations.
+import "./verify/vm-base-corpus-459";
 
 /** Any suite still requiring a live legacy gameplay oracle belongs here. */
 const STILL_ON_THE_ORACLE: Record<string, string> = {};

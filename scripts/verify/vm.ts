@@ -128,6 +128,7 @@ import { SEED_7_OPENING, SEED_7_P1_REDRAW } from "./vm-opening-459";
 import { CARD_VIEWS_459 } from "./vm-card-views-459";
 import { expectedTurnTrace } from "./vm-turn-459";
 import { verifyLegacyPrimitiveOps, verifyLegacyVmCompatibility } from "./vm-legacy-118";
+import { VM_BASE_DEFS_459 } from "./vm-base-corpus-459";
 import { FILTER_CORPUS_459, FILTER_MATCHES_459, fixedFilterMatch459 } from "./vm-filters-459";
 import { FIXED_CARD_COSTS_459, FIXED_PRICES_459 } from "./vm-costs-459";
 import FIXED_SCRIPT_SEEN_459 from "./vm-scripts-459.json";
@@ -351,7 +352,14 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
  * Built here rather than added to `DEFS`, which other suites count.
  */
 const CORPUS: CardDef[] = [
-  ...Object.values(DEFS),
+  // Earlier verify-arena suites add their own cards to the shared DEFS object.
+  // This reviewed corpus names only the original harness rows; direct VM and
+  // full-suite runs must measure the same 98 printed cards.
+  ...FILTER_CORPUS_459.slice(0, -8).map((id) => {
+    const def = VM_BASE_DEFS_459[id];
+    assert.ok(def, `the reviewed filter corpus has no printed ${id} row`);
+    return def;
+  }),
   card("TRAITED", { traits: ["Saiyan", "God"], characters: ["Son Goku", "Son Goku : GT"] }),
   card("RENAMED", { alsoNames: ["Planet M-2"] }),
   card("TOK", { type: "TOKEN", skill: null }),
@@ -362,6 +370,7 @@ const CORPUS: CardDef[] = [
   card("COMBO10K", { comboPower: 10000 }),
   card("NOCOMBO", { comboPower: null }),
 ];
+assert.deepEqual(Object.keys(VM_BASE_DEFS_459), FILTER_CORPUS_459.slice(0, -8), "the original printed harness rows changed before the VM suite");
 assert.deepEqual(CORPUS.map((def, i) => i === 91 ? "RENAMED+alsoNames" : def.id), FILTER_CORPUS_459, "the reviewed 98-card filter corpus changed");
 for (const [field, set] of Object.entries(FILTER_MATCHES_459)) {
   const rows = "only" in set ? set.only : set.except;
@@ -2272,15 +2281,22 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const vm = rulesBoard(BOARDS[0]);
     const held = vm.sides.p1.zones.deck[0];
     const classes = new Map(FIXED_CARD_COSTS_459.flatMap(({ total, orbs, cards }) => cards.map((cardId) => [cardId, { total, orbs }] as const)));
-    const pricedIds = Object.entries(DEFS).filter(([, def]) => def.type !== "LEADER" && def.type !== "TOKEN").map(([id]) => id);
+    // The full suite's earlier files add unrelated rows to shared DEFS.
+    // Check this complete reviewed harness corpus in either import order.
+    const pricedIds = [...classes.keys()];
     assert.equal(FIXED_CARD_COSTS_459.reduce((n, group) => n + group.cards.length, 0), classes.size, "a fixed card-price class repeats a card");
-    assert.deepEqual([...classes.keys()].sort(), pricedIds.sort(), "the reviewed fixed card-price corpus changed");
+    assert.equal(pricedIds.length, 98, "the reviewed fixed card-price corpus changed");
+    for (const [cardId, def] of Object.entries(VM_BASE_DEFS_459)) {
+      if (def.type !== "LEADER" && def.type !== "TOKEN") assert.ok(classes.has(cardId), `${cardId}: an original priced harness card is absent from the fixed price corpus`);
+    }
     let checked = 0;
     for (const cardId of pricedIds) {
-      const def = DEFS[cardId];
+      const def = VM_BASE_DEFS_459[cardId] ?? DEFS[cardId];
+      assert.ok(def && def.type !== "LEADER" && def.type !== "TOKEN", `${cardId}: the reviewed priced card is absent or has changed type`);
       const fixed = classes.get(cardId)!;
       vm.cards[held].cardId = cardId;
-      const mine = cardPrice(CTX, DBS, vm, held);
+      const printedCtx = { ...CTX, defs: { ...CTX.defs, [cardId]: def } };
+      const mine = cardPrice(printedCtx, DBS, vm, held);
       assert.equal(mine.total, fixed.total, `${cardId}: the fixed printed total cost changed`);
       assert.deepEqual(mine.orbs, fixed.orbs, `${cardId}: the fixed printed coloured requirement changed`);
       const view = { cost: def.energyCost === null ? undefined : String(def.energyCost), comboCost: def.comboCost ?? undefined, comboPower: def.comboPower ?? undefined } as never;

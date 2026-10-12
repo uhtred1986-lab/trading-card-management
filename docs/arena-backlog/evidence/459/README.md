@@ -2,9 +2,10 @@
 
 The seven historical fixture suites, contract emission, two keyword cases and
 AI presentation suite were already on rules-engine fixtures at `0e0af6b`.
-The branch now includes `vm` in `scripts/verify-arena.ts --rules-only`; its
-guarded direct run reports zero legacy calls. The saved legacy-game check in
-`engine-default` belongs to #118. Full-suite acceptance is pending.
+The branch includes `vm` in `scripts/verify-arena.ts --rules-only`. The full
+rules-only run passed 56/56 suites, with zero legacy calls and no suite omitted;
+the normal arena run passed 56/56 too. The saved legacy-game check in
+`engine-default` belongs to #118.
 
 ## Assertions migrated in the first bounded unit
 
@@ -43,11 +44,20 @@ separate guarded module for explicit retirement. The legacy script-host
 self-equivalence and lifetime cases still live in `vm.ts`, but every call is
 behind `!RULES_ONLY` and is tracked as #118 compatibility. After rebase onto
 `origin/main` `2f04b7e`, the direct guarded VM run reports zero legacy calls
-and the shared suite registry no longer excludes `vm`. #459 still needs the
-full rules-only gate, the normal full gate and a local `npm test` run with the
-legacy run removed before closure.
+and the shared suite registry no longer excludes `vm`. The full branch proof
+below passed. Root review and integration remain.
 
 No contract or probe digest fixture was edited.
+
+The full runner executes other suites before `vm`, and those suites append or
+replace card rows in the shared `DEFS` object. `vm-base-corpus-459.ts` captures
+the original harness card inputs before the first suite; the fixed literals
+remain in the separate filter and cost files. The test checks that the capture
+has exactly the reviewed original card IDs, checks every original priced card
+is in the 98-card price corpus, and uses the captured printed row for both
+direct and full-suite VM runs. This resolved a full-suite failure in which an
+earlier suite had repriced `EXILE`; no expectation was changed to accept that
+mutation.
 
 ## Assertion inventory and #118 boundary
 
@@ -101,3 +111,25 @@ draws plus one on each of turns 2–72 make 83 draws; sixteen life placements
 plus those 83 draw moves make 99 pass-only moves. Charging adds 71 moves. The
 214 phase events are Charge on turns 1–72 plus Main and End on turns 1–71.
 `gameStart`, one energy marker and `gameOver` supply the other three events.
+
+## Branch validation — 12 Oct 2026
+
+- `DATABASE_URL='' npx tsx scripts/verify-arena.ts --rules-only`: 56/56 passed,
+  zero omitted, zero failed, `legacy engine calls: none`.
+- `DATABASE_URL='' npx tsx scripts/verify-arena.ts`: 56/56 passed, zero skipped
+  and zero failed. This executes the separately guarded #118 compatibility
+  assertions in the normal VM lane.
+- `DATABASE_URL='' npm test`, with only the default
+  `tsx scripts/verify-arena.ts && ` invocation temporarily removed from the
+  package test command: exit 0. The rules-only 56/56 gate, capability inventory
+  check, and all later commands completed. A Python `try/finally` restored
+  `package.json` byte for byte; its original and restored SHA-256 were both
+  `8d76ecb225567271107e3f781135bff6b83ccbfff22ee88a875baaa70b3c353b`.
+  The temporary package edit is not committed.
+- `npm run typecheck`, focused ESLint on changed scripts, and
+  `scripts/verify/capabilities.mts --check` passed.
+
+The build remains for root validation: `npm run build` hit Turbopack's refusal
+of this worktree's external `node_modules` symlink; a webpack build reached
+standalone file copying but failed with `ENOSPC` on the shared 32 GB overlay.
+Only this worktree's generated `.next` directory was removed afterward.
