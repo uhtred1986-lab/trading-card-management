@@ -54,7 +54,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn } from "../text/triggers";
+import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboEntryFromHand, comboEntrySelf } from "../text/triggers";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts } from "./script";
@@ -274,6 +274,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   }
   for (const match of matchTriggers(game, state, moment)) {
     if (only && !only(match)) continue;
+    // 5-7: a declared combo is not the entry moment if a replacement or a
+    // failed move left the card outside the Combo Area.
+    if (match.trigger === "comboUsed" && findCard(state, match.card)?.zone !== "combo") continue;
     const inst = state.cards[match.card];
     // 1-10-2 / 23-5: a card in Hidden Mode is no information at all, its own
     // skills included — and 9-1-5, a card whose skills are negated has none to
@@ -296,6 +299,19 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // A printed "in your hand ... used in a combo" requires this entry's
+      // captured source. The preceding moved(to: combo) moment replaces the
+      // record for this copy; an old/missing record cannot prove hand origin.
+      if (match.trigger === "comboUsed" && comboEntryFromHand(sk)) {
+        const origin = state.battle?.comboOrigins?.[match.card];
+        if (origin === undefined) throw new NotYet("infer the source of a hand-qualified combo entry", "#672");
+        if (origin !== "hand") continue;
+      }
+      // Older pinned rulesets have no entry declaration, so their `comboed`
+      // records keep their historical cleanup timing. Current DBS games use
+      // the entry declaration and must not pend the same ordinary Auto again
+      // when the card leaves Combo for Z-Energy, Drop or another area.
+      if (match.trigger === "comboed" && game.triggers.comboUsed && comboEntrySelf(sk)) continue;
       // The printed end-of-battle Auto answers only for this copy entering
       // this battle's Combo Area from hand and surviving until cleanup. It
       // cannot answer a generic battleEnd or a mid-battle Combo Area exit,
@@ -340,6 +356,10 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
  */
 function answersTo(scripts: CardScripts, sk: Skill, trigger: string): boolean {
   const recorded = scripts.bySkill[sk.index]?.trigger;
+  // Confirmed rows written before `comboUsed` carry `comboed`; honor their
+  // exact stored WHEN while interpreting ordinary wording at the new entry
+  // checkpoint. Explicit end-of-battle wording never passes this predicate.
+  if (trigger === "comboUsed" && recorded?.includes("comboed") && comboEntrySelf(sk)) return true;
   if (recorded) return (recorded as readonly string[]).includes(trigger);
   // A counter window is a moment no record's WHEN ever says (`whenMoments`), so
   // there is no printed wording to fall back on either.
