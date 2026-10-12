@@ -367,6 +367,9 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (value === undefined || value === null) delete base[name];
     else base[name] = value;
   }
+  // Explicit original-colour requirements read the shown face before identity
+  // effects are applied, just as originalPower does. Hidden Mode has no face.
+  if (game.attributes.originalColors && shownFace) base.originalColors = [...list(base.colors)];
   // 1-9, 2-10: a flipped Leader is the character its back side names, not the
   // front's — BT31-001's back is <Gogeta>, not <Son Goku> and <Vegeta>. The
   // catalog records characters off the front only, so the back's are read off
@@ -412,7 +415,7 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // 20-1: list identity changes add to the effective card in every area, but
   // do not rewrite what is printed. Generic selectors keep reading effective
   // attributes; rules that explicitly ask for original colours must use the
-  // printed definition separately.
+  // declared originalColors attribute separately.
   const identity = [
     ...mine.filter((e) => e.kind === "gains").map((e) => e.value),
     ...timed.filter((e) => e.kind === "gains").map((e) => e.value),
@@ -1417,7 +1420,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // through the shared readings `text/cards.ts` gives both engines.
     case "covers":
       return coversColors(
-        resolveSelector(ctx, game, state, frame, c.sel).map((id) => list(attrsNow(ctx, game, state, id).colors)),
+        resolveSelector(ctx, game, state, frame, c.sel).map((id) => list(attrsNow(ctx, game, state, id)[c.original ? "originalColors" : "colors"])),
         c.colors,
       );
     case "sumsTo": {

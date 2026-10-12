@@ -11,6 +11,8 @@ import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "../types";
 
 export interface CardFilter {
   colors: Color[];
+  /** Explicit original-colour payment selector; absent on ordinary effective filters. */
+  originalColors?: Color[];
   monoColor: boolean;
   /** "Multicolor <Pan> cards": two colours or more, which is not the opposite of mono-colour on a colourless card. */
   multiColor: boolean;
@@ -233,6 +235,7 @@ export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "
 
 export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   colors: "colors",
+  originalColors: "colors",
   notColors: "colors",
   monoColor: "boolean",
   multiColor: "boolean",

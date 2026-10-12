@@ -802,7 +802,7 @@ function completeness(actual: readonly string[], expected: readonly string[], wh
 // *showing* and so is not the catalog row's either (#166's pre-flip review)
 // — set aside by name rather than counted as unions the legacy engine's
 // `CardDef` does not have.
-const DERIVED_CARD_ATTRIBUTES = ["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "originalPower"];
+const DERIVED_CARD_ATTRIBUTES = ["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "originalPower", "originalColors"];
 
 if (dbs.ok) {
   const { vocabulary: vocab, definition: def } = dbs;

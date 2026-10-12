@@ -512,13 +512,13 @@ DEFINE KEYWORD Arrival
   TAKES (colors: colors)
   text: "During a battle, when the original colours of the Battle Cards in your Combo Area cover every colour named, pay the cost and play this card from hand."
   -- #155: a move, offered as an [Activate: Battle] at the combo prompt
-  -- (22-29-4) from the hand, once the cards in your Combo Area carry every
+  -- (22-29-4) from the hand, once the cards in your Combo Area carry every original
   -- colour it names between them (`covers`, 22-29-3). The price is the line's
   -- printed orbs; the effect is the play itself (22-29-5), through the
   -- [Counter: Play] window a declared play opens, as on the legacy engine.
   offer: "activate:battle"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
-  REFUSE condition(text: "{colors:and} Battle Cards in your Combo Area") UNLESS covers(sel: IN you.combo, colors: $colors)
+  REFUSE condition(text: "{colors:and} Battle Cards in your Combo Area") UNLESS covers(sel: IN you.combo, colors: $colors, original: true)
   label: "Arrival {colors}: play {card}"
   DO {
     play(target: [self], counterWindow: true)
@@ -531,7 +531,7 @@ DEFINE KEYWORD Aegis
   -- #154: a move, offered as an [Activate: Battle] at the combo prompt — so
   -- only in a battle, and the one the non-turn player is asked is the
   -- Defense Step's (22-30-4) — from a card in play, while the hand can cover
-  -- the colours (`covers`), for the line's printed orbs, as the legacy
+  -- the original colours (`covers`, `original: true`), for the line's printed orbs, as the legacy
   -- `activatable` case gates it. The VM's persisted #595 continuation first
   -- pays the colour cards to Drop, then determines and pays any additional
   -- cost from the resulting board (22-30-3). Only after the full payment do
@@ -540,11 +540,11 @@ DEFINE KEYWORD Aegis
   offer: "activate:battle"
   REFUSE timing(window: defense) UNLESS all([isTurnPlayer(who: opponent), asking(prompt: combo)])
   REFUSE zone(area: battle) UNLESS count([self] IN you.play) >= 1
-  REFUSE condition(text: "{colors:and} cards in your hand to drop") UNLESS covers(sel: IN you.hand, colors: $colors)
+  REFUSE condition(text: "{colors:and} cards in your hand to drop") UNLESS covers(sel: IN you.hand, colors: $colors, original: true)
   label: "Aegis {colors}: drop {colors:and} from hand, stand up to 2 energy"
   DO {
-    choose(sel: UP TO 2 (colors = $colors) IN you.hand, as: "cost", reason: "[Aegis]: drop cards covering the named colours from your hand")
-    if(cond: covers(sel: FROM $cost, colors: $colors), then: {
+    choose(sel: UP TO 2 (originalColors = $colors) IN you.hand, as: "cost", reason: "[Aegis]: drop cards covering the named colours from your hand")
+    if(cond: covers(sel: FROM $cost, colors: $colors, original: true), then: {
       moveTo(target: $cost, to: drop, cause: cost)
       choose(sel: UP TO 2 IN you.energy rest, as: "stood", reason: "[Aegis]: energy to switch to Active Mode")
       switchMode(target: $stood, mode: active)
@@ -586,7 +586,7 @@ DEFINE KEYWORD Revive
   -- #155: a moment (`at:`), pended as the card is KO'd, like the legacy
   -- `keywordTriggers` case. Asked only while the card is still in the Drop
   -- and the hand can cover both colours (`covers`); the owner picks up to two
-  -- cards of those colours (`colors = $colors`) or none (22-34-3). Cards that
+  -- cards of those colours (`originalColors = $colors`) or none (22-34-3). Cards that
   -- cover both go to the Drop as the cost, and the card is played back
   -- through the [Counter: Play] window (22-34-4). The legacy engine remembers
   -- the revival for the rest of the turn; here [Revive] is negated on the
@@ -594,10 +594,10 @@ DEFINE KEYWORD Revive
   -- nothing — where the legacy engine announces the skill and does nothing.
   at: [koed]
   DO {
-    if(cond: all([count([self] IN you.drop) >= 1, covers(sel: IN you.hand, colors: $colors)]), then: {
-      choose(sel: UP TO 2 (colors = $colors) IN you.hand, as: "cost", reason: "[Revive]: drop cards covering both colours to play this card back, or none")
+    if(cond: all([count([self] IN you.drop) >= 1, covers(sel: IN you.hand, colors: $colors, original: true)]), then: {
+      choose(sel: UP TO 2 (originalColors = $colors) IN you.hand, as: "cost", reason: "[Revive]: drop cards covering both colours to play this card back, or none")
       if(cond: count(FROM $cost) >= 1, then: {
-        if(cond: all([covers(sel: FROM $cost, colors: $colors), count([self] IN you.drop) >= 1]), then: {
+        if(cond: all([covers(sel: FROM $cost, colors: $colors, original: true), count([self] IN you.drop) >= 1]), then: {
           moveTo(target: $cost, to: drop, cause: cost)
           negateOwnSkill(until: turn)
           play(target: [self], counterWindow: true)
