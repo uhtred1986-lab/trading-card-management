@@ -67,5 +67,10 @@ attempted with the existing Docker image, network disabled and Gradle offline;
 its required Kotlin JVM 2.1.0 plugin is absent from the cache, so decoding is
 unverified. `arena:fuzz 40` needs live deck data and is owner-run; the resolver's
 damage and battle-intact queries are extracted unchanged, with no new rule
-mechanic or compiler reading to measure. Final local gate results are recorded
-by the coordinator against the integrated commit.
+mechanic or compiler reading to measure. Final local gates all passed on the integrated source tree: typecheck, lint
+(5 existing prototype warnings), contract emission, full npm test and build.
+Legacy arena: 42/42; rules-only: 41/42 with the legacy-parity VM suite
+intentionally not run; emitted contract: 42/42 on each engine. The browser
+harness also passed expanded-disclosure reachability. Results and retained
+logs are in `checks.json` and `logs/`; only canonical/evidence bookkeeping
+followed these checks. #626 owns the existing colour-grant payment limitation.

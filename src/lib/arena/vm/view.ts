@@ -175,10 +175,12 @@ export function promptView(state: VmState, game?: GameDefinition, viewer?: Playe
   if (pr.kind === "replaceMove") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("replaceMove", game) });
   const words = fixedPrompt(pr.kind, game) ?? { question: "…", hint: null };
   const passConsequence = pr.kind === "combo"
-    ? pr.side === "offense" ? "Pass ends your offense responses; the defender can respond next." : "Pass ends your defense responses and advances to damage. Pending skills and replacements still resolve."
+    ? state.battle && (state.battle.negated || !battleIntact(state) || !["declared", "offense", "defense"].includes(state.battle.step))
+      ? "Pass ends this response window; the battle continues to its end."
+      : pr.side === "offense" ? "Pass ends your offense responses; the defender can respond next." : "Pass ends your defense responses and advances to damage. Pending skills and replacements still resolve."
     : pr.kind === "counter" ? `No counter closes this Counter: ${pr.window === "attack" ? "Attack" : pr.window === "play" ? "Play" : pr.window} window; the pending ${pr.window === "attack" ? "attack" : pr.window === "play" ? "play" : "counter skill"} continues.`
       : pr.kind === "blocker" ? "Do not block keeps the current attack target; offense responses follow."
-        : pr.kind === "charge" ? "Skip charge adds no energy and advances to Main Phase."
+        : pr.kind === "charge" ? "Skip charge declines charging; Main Phase follows after pending skills."
           : pr.kind === "main" ? "End turn ends Main Phase; end-of-turn skills resolve before the next turn." : undefined;
   return { kind: pr.kind, player: "player" in pr ? pr.player : null, question: words.question, hint: words.hint, ...(passConsequence ? { passConsequence } : {}) };
 }

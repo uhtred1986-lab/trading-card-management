@@ -1,0 +1,22 @@
+
+> dbs-card-companion@0.1.0 lint
+> eslint
+
+
+/workspace/worktrees/arena-562/docs/arena-redesign/prototype/arena.js
+    1:7   warning  'Component' is defined but never used  @typescript-eslint/no-unused-vars
+  114:68  warning  'err' is defined but never used        @typescript-eslint/no-unused-vars
+  184:55  warning  'err' is defined but never used        @typescript-eslint/no-unused-vars
+
+/workspace/worktrees/arena-562/docs/arena-redesign/prototype/render/runtime.js
+  50:104  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/worktrees/arena-562/docs/arena-redesign/prototype/render/scenes.js
+  40:47  warning  'L' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/worktrees/arena-562/scripts/arena-battle-stakes-562.mts
+  115:8  error  'end' is never reassigned. Use 'const' instead  prefer-const
+
+✖ 6 problems (1 error, 5 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

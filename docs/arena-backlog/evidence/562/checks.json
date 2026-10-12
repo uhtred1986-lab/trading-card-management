@@ -1,0 +1,47 @@
+{
+  "integrated_base": "c72e297",
+  "database_url": "empty for every command",
+  "results": {
+    "typecheck": {
+      "exit": 0,
+      "log": "logs/typecheck.log"
+    },
+    "lint": {
+      "exit": 0,
+      "log": "logs/lint.log"
+    },
+    "contract": {
+      "exit": 0,
+      "log": "logs/contract.log"
+    },
+    "test": {
+      "exit": 0,
+      "log": "logs/test.log"
+    },
+    "build": {
+      "exit": 0,
+      "log": "logs/build.log"
+    },
+    "browser": {
+      "exit": 0,
+      "log": "logs/browser.log"
+    }
+  },
+  "arena_suites": {
+    "legacy": "42/42 passed",
+    "rules_only": "41/42 passed, vm intentionally not run",
+    "contract_emit": "42/42 passed on both engines"
+  },
+  "lint": "5 existing prototype warnings, 0 errors",
+  "kotlin": {
+    "exit": 1,
+    "status": "unverified",
+    "reason": "offline Kotlin JVM 2.1.0 plugin is not cached",
+    "log": "logs/kotlin.log"
+  },
+  "owner_run": [
+    "arena:fuzz 40 requires live deck database; no database access authorized"
+  ],
+  "mechanics": "damageRule and battleIntact extracted unchanged; VM cost resolution untouched",
+  "existing_limitation": "#626 tracks gained effective colours not affecting energy payment; UI shows actual planner payment colours and discloses effective difference in inspection"
+}

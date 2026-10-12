@@ -312,7 +312,7 @@
       "player": "p1",
       "question": "Charge one card as energy?",
       "hint": "Tap a card in hand, or skip.",
-      "passConsequence": "Skip charge adds no energy and advances to Main Phase."
+      "passConsequence": "Skip charge declines charging; Main Phase follows after pending skills."
     },
     "over": null
   },

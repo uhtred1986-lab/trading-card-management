@@ -1,0 +1,153 @@
+
+> dbs-card-companion@0.1.0 contract:emit
+> tsx scripts/verify-arena.ts --emit && tsx scripts/verify-arena.ts --engine rules --emit
+
+  ok  typed, legacy, private, and abandoned game outcomes
+  ok       outcomes
+  ok       text
+  ok       setup
+  ok       battles
+  ok       compiler
+  ok       keywords
+  hidden: the board half runs on the rules engine only
+  ok       hidden
+  ok       while-source
+verify/warp: sent from your deck to the Warp by your skill
+  ok       warp
+  ok       next-activation
+  ok       taxes
+  ok       readings
+  #571: five official Auto readings and fixed rules-engine trigger scenarios passed
+  ok       readings-571
+  ok       wordings
+  ok       faceup-life-556
+  ok       workflow
+verify-arena: wrote 0 contract fixtures (legacy)
+verify-arena: wrote 2 deck contract fixtures
+  ok       contract
+  ok       deck-api
+  ok       language
+verify/lang: the rules language round-trips
+  ok       lang
+  ok       describe
+verify/rulesets: ok
+  ok       rulesets
+  ok       static-layers-553
+  board-words: the board's words are read from words.rules and every table says what it said before
+  ok       board-words
+  primer: generatedPrimer names every declared zone; prompt questions come from prompts.rules
+  ok       primer
+  game-page: printedByFile accounts for every declaration once, matches printDefinitions, and hands out unique anchor ids
+  game-page: every keyword's meaning agrees between glossary.ts and keywords.rules
+  ok       game-page
+verify-arena: wrote 207 probe digests
+verify-arena: wrote probe-rules-parity.json (207 rules, 9 differ from legacy, all explained)
+  ok       probe
+  ai-vm: shortcuts run on the rules engine; fixed zone/text/decklist/question/system/menu fixtures pass; fake-provider request shapes remain pinned
+  ok       ai-vm
+verify/vm: ok
+  ok       vm
+  ok       rule-processing
+  ok       engine-default
+  ok       poll-schedule
+verify/narration: story 109 / full 419 lines for p1 over 419 beats, turn 16
+  ok       narration
+  observed  Heroic/21-6 interaction order ["move:p1#15:drop","move:p1#28:drop","move:p1#18:hand","draw:p1"]
+  ok       heroic-554 (22-35 once-per-turn, activation and reload)
+  ok       heroic-554
+  ok       z-energy-combo-551
+  ok       aegis-555
+auto-costs-549 crowded 20-card price: 23.8 ms
+auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
+  ok       auto-costs-549
+  ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
+  ok       ability-snapshot-558
+Aegis #595: color-first cost, live fee, reload, failure, and delayed activation verified
+  ok       aegis-cost-order-595
+Abilities now projection checks passed.
+  ok       abilities-now-561
+Battle stakes #562: resolver outcomes, replacement/pending uncertainty, privacy, effective energy colours/payment/source expiry and stale reload passed
+  ok       battle-stakes-562
+original-colors-597: declared language; Arrival/Aegis/Revive eligibility and payment; reload, identity interaction and both viewers' privacy pass
+  ok       original-colors-597
+
+verify-arena (legacy): 42/42 passed, 0 skipped, 0 failed
+  ok  typed, legacy, private, and abandoned game outcomes
+  ok       outcomes
+  ok       text
+  ok       setup
+verify/battles: every case ran on the rules engine — no keyword gap left (#156)
+  ok       battles
+  skipped case — arena-life-cost-damage-statistics [unsupported; 1-13-2; `engines.ts` damageTaken contract; owner #557]: Life paid as a cost is distinguished from damage — The rules engine has no damage count to read for the distinction asserted by this fixture.
+  skipped case — arena-counter-recursion [unsupported; 9-7-3; owner #552]: A Counter opens a Counter: Counter window — The rules engine opens no Counter: Counter window while a Counter itself resolves.
+  skipped case — arena-counter-decline-window [unsupported; 9-7; owner #552]: A player may decline a Counter window — The rules engine has no Counter: Counter window to decline in this case.
+  skipped case — arena-priced-choice-binds-x [unsupported; 20-5; action-price binding contract; owner #550]: X from a chosen action-price value reaches the effect — The price program's bindX does not reach the effect. This row is scoped to X binding, not all Counter or action-price support.
+  ok       compiler
+  ok       keywords
+  ok       hidden
+  ok       while-source
+verify/warp: sent from your deck to the Warp by your skill
+  ok       warp
+  ok       next-activation
+  ok       taxes
+  ok       readings
+  #571: five official Auto readings and fixed rules-engine trigger scenarios passed
+  ok       readings-571
+  ok       wordings
+  ok       faceup-life-556
+  ok       workflow
+verify-arena: wrote 15 contract fixtures (rules)
+verify-arena: wrote 2 deck contract fixtures
+  ok       contract
+  ok       deck-api
+  ok       language
+verify/lang: the rules language round-trips
+  ok       lang
+  ok       describe
+verify/rulesets: ok
+  ok       rulesets
+  ok       static-layers-553
+  board-words: the board's words are read from words.rules and every table says what it said before
+  ok       board-words
+  primer: generatedPrimer names every declared zone; prompt questions come from prompts.rules
+  ok       primer
+  game-page: printedByFile accounts for every declaration once, matches printDefinitions, and hands out unique anchor ids
+  game-page: every keyword's meaning agrees between glossary.ts and keywords.rules
+  ok       game-page
+verify/probe: 198/207 fixture digests are the legacy record on the rules engine; 9 differ, each with its recorded cause
+  ok       probe
+  ai-vm: shortcuts run on the rules engine; fixed zone/text/decklist/question/system/menu fixtures pass; fake-provider request shapes remain pinned
+  ok       ai-vm
+verify/vm: ok
+  ok       vm
+  ok       rule-processing
+  ok       engine-default
+  ok       poll-schedule
+verify/narration: story 46 / full 232 lines for p1 over 232 beats, turn 5
+  ok       narration
+  observed  Heroic/21-6 interaction order ["move:p1#15:drop","move:p1#28:drop","move:p1#18:hand","draw:p1"]
+  ok       heroic-554 (22-35 once-per-turn, activation and reload)
+  ok       heroic-554
+  ok       z-energy-combo-551
+  ok       aegis-555
+auto-costs-549 crowded 20-card price: 24.2 ms
+auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
+  ok       auto-costs-549
+  ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
+  ok       ability-snapshot-558
+Aegis #595: color-first cost, live fee, reload, failure, and delayed activation verified
+  ok       aegis-cost-order-595
+Abilities now projection checks passed.
+  ok       abilities-now-561
+Battle stakes #562: resolver outcomes, replacement/pending uncertainty, privacy, effective energy colours/payment/source expiry and stale reload passed
+  ok       battle-stakes-562
+original-colors-597: declared language; Arrival/Aegis/Revive eligibility and payment; reload, identity interaction and both viewers' privacy pass
+  ok       original-colors-597
+
+4 case(s) not asserted on the rules engine, each a named gap:
+  - arena-life-cost-damage-statistics [unsupported; 1-13-2; `engines.ts` damageTaken contract; owner #557]: Life paid as a cost is distinguished from damage — The rules engine has no damage count to read for the distinction asserted by this fixture.
+  - arena-counter-recursion [unsupported; 9-7-3; owner #552]: A Counter opens a Counter: Counter window — The rules engine opens no Counter: Counter window while a Counter itself resolves.
+  - arena-counter-decline-window [unsupported; 9-7; owner #552]: A player may decline a Counter window — The rules engine has no Counter: Counter window to decline in this case.
+  - arena-priced-choice-binds-x [unsupported; 20-5; action-price binding contract; owner #550]: X from a chosen action-price value reaches the effect — The price program's bindX does not reach the effect. This row is scoped to X binding, not all Counter or action-price support.
+
+verify-arena (rules): 42/42 passed, 0 skipped, 0 failed

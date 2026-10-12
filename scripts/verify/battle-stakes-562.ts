@@ -34,12 +34,14 @@ for(const kind of ['tie','double','critical','lethal','victory'] as const){
  const snapshot=snapshot562(state);assert.equal(snapshot.view.battle!.stakes!.hit,false);assert.equal(snapshot.view.battle!.stakes!.lifeDamage,0);
  const applied=apply562(state,snapshot.legal.find(l=>l.action.type==='pass')!.action);assert(!applied.events.some(e=>e.type==='damage'),'held attack does no damage');
 }
-for(const invalid of ['negated','removed','ended'] as const){
+for(const invalid of ['negated','removed','ended','hiddenOut'] as const){
  const {state}=battleFixture();
  if(invalid==='negated')state.battle!.negated=true;
  if(invalid==='ended')state.battle!.step='battleEnd';
+ if(invalid==='hiddenOut')state.battle!.hiddenOut=true;
  if(invalid==='removed'){const loaded=rulesetFor('dbs');assert(loaded.ok);moveCard(state,loaded.definition,state.battle!.attacker,'drop',{owner:'p2'});}
- assert.equal(snapshot562(state).view.battle!.stakes,undefined,`${invalid} battle has no fresh damage projection`);
+ const snapshot=snapshot562(state);assert.equal(snapshot.view.battle!.stakes,undefined,`${invalid} battle has no fresh damage projection`);
+ assert(!snapshot.view.prompt.passConsequence!.includes('advances to damage'),'invalid battle Pass does not predict fresh damage');
 }
 {
  const {state}=paymentFixture();const snapshot=snapshot562(state);assert(snapshot.view.prompt.payments!.length>1);
