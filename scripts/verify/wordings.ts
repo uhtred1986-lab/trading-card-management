@@ -32,7 +32,6 @@ import {
   powerIn,
   priceCondition,
   rejectedActionsG,
-  rulesGap,
   scheduleG,
   settledG,
   splitClauses,
@@ -870,7 +869,7 @@ import type { EngineState, Trigger } from "./harness";
   // is 5-2 and not this rule.
   let s = stagedG({ oppHand: ["ALTC", "BLACKCARD", "BLACKCARD"] });
   s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
-  if (!rulesGap("wordings: ALTC's [Counter] paid by discarding a black card (5-3, 4-3-3)", "a [Counter]'s alternative price that is an action (a choice, then a move) is not offered on the rules engine — #461 built the action price for [Activate] (PRICED) only", "#458")) {
+  {
     const counter = findG(s, "p2", "hand", "ALTC");
     const offered = actsG(s).filter((a) => a.type === "counter" && a.card === counter);
     assert.ok(

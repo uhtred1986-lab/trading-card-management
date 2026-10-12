@@ -26,6 +26,7 @@
  */
 import { keywordOf } from "./text/cards";
 import type { KeywordSkill, SkillKind } from "./types";
+import type { RuntimeStatus } from "./capability-inventory";
 
 /** How much of the keyword the engine carries out on its own. */
 export type Support =
@@ -78,6 +79,8 @@ export interface KeywordDoc {
    */
   engineRules: string;
   support: Support;
+  /** Narrow runtime evidence links; broad `support` remains descriptive, not a completeness claim. */
+  runtimeEvidence?: { status: RuntimeStatus; capabilityIds: readonly string[] };
 }
 
 export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
@@ -255,6 +258,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engineRules:
       "Manual 22-35-2/3: playing another Battle Card with [Heroic] or activating a [Heroic] Extra Card skill pends this Auto. Its own hook draws one, then `negateOwnSkill(until: turn)` records standard 9-1-5 negation against its printed skill index. The paid Extra trigger is captured before its effect resolves; its own effect stays ahead of the pending Auto, and a later skill negation cancels the Auto at its checkpoint. The dedicated suite verifies printed Heroic identity; copied identity is not established here. A granted keyword with no individual skill index reaches an explicit engine limitation before its body runs; #602 owns that follow-up.",
     support: "engine",
+    runtimeEvidence: { status: "supported", capabilityIds: ["arena-heroic-once-per-turn"] },
   },
   Villainous: {
     tag: "[Villainous]",
@@ -395,6 +399,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engineRules:
       "Built as its keyword's own `DO` (`offer: \"activate:battle\"` in `keywords.rules`, #154): offered at the Defense Step combo prompt from a card in play while the hand can cover the named colours (`covers`). The VM runs the declared cost as a continuation: it first offers one card matching any named colour, then recomputes choices for the distinct colours still missing. A selected card cannot be selected again. The selected cards move from hand to Drop exactly once, only after coverage is complete; up to two rested energy are then offered to stand. The continuation is the persisted ScriptFrame, so a saved prompt resumes after reload. Its colour eligibility uses the VM's existing colour view; original-color keyword eligibility remains a tracked limitation under #597. Printed orbs currently charge before this hand payment, while 22-30-3 says to pay the hand cards and then determine/pay any additional skill cost; that ordering remains a tracked limitation under #595.",
     support: "engine",
+    runtimeEvidence: { status: "supported", capabilityIds: ["arena-aegis-incremental-choice"] },
   },
   "Victory Strike": {
     tag: "[Victory Strike]",

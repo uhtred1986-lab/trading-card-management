@@ -47,14 +47,22 @@ and #562 stakes → #563 phone → #564 desktop. Use exact dependencies in the d
 Test connection and latency evidence remain. Do not duplicate either route or ask the same ruling again.
 
 Stage 3 #170 was a stale tracker with #135/#137 unchecked despite both closed; it is now closed after
-declaration checks passed. ops.rules documents native mill as its binding exception.
-Runtime support and named skipped/deferred cases remain #575.
+declaration checks passed. ops.rules documents native mill as its binding exception. These are
+language/declaration results, not runtime proof.
 
-This reconciliation ran verify-rules successfully and verify-arena 28/28 in the legacy harness,
-including language/rulesets/words/primer/VM. Earlier npm test passed; earlier rules-only review was
-26/28 with two comparisons not run and 18 named skips. These do not prove complete rules coverage.
-Old support assertions about KO/tokens/skip/Counter: Play can be stale; verify source and #575.
-No implementation ticket is marked fixed by planning work.
+The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
+runtime evidence. It records 21 narrow capability rows, five named rules-engine gaps with stable IDs
+and live owners, and 21 VM source sites, including the identity-less granted-Heroic guard owned by
+#602. It records merged #548 zero-power processing, #551 combo-to-Z-Energy, #553 static layers,
+#554 printed Heroic, #555 Aegis, #556 face-up Life events, and #601 fixed AI expectations from current
+runtime evidence. It keeps the native `mill` macro exception and #459 oracle migration gate separate
+from runtime support. The ALTC Counter alternative-price scenario actively asserts the chosen
+payment, resulting zones and unaffordable case.
+
+#170's closure and green declaration checks do not prove complete rules coverage. The inventory
+keeps behavior-level runtime assertions separate from hook contracts and declaration checks. Fuzz-40
+needs database-backed card fixtures and remains owner-run. No implementation ticket is marked fixed
+by planning work.
 
 ## Working and maintenance
 

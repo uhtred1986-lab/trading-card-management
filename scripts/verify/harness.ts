@@ -23,6 +23,7 @@
  * happens to be selected.
  */
 import assert from "node:assert/strict";
+import { capabilityForLegacySkip, capabilityForSkip } from "../../src/lib/arena/capability-inventory";
 import { defsFrom } from "../../src/lib/arena/vm/common";
 import { seedFrom } from "../../src/lib/arena/vm/rng";
 import { type Action, type CardDef, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "../../src/lib/arena/types";
@@ -797,9 +798,11 @@ function pendedG(ctx: EngineContext, s: EngineState, trigger: Trigger, card: str
  * stand only on the legacy pass.
  */
 const RULES_GAPS: string[] = [];
-function rulesGap(where: string, what: string, issue: string): boolean {
+function rulesGap(where: string, _what: string, _issue: string): boolean {
   if (ENGINE !== "rules") return false;
-  const line = `${where}: ${what} (${issue})`;
+  if (!_what.trim() || !_issue.trim()) throw new Error(`rulesGap ${where} needs its behavior note and owner note`);
+  const row = capabilityForSkip(where);
+  const line = `${row.id} [${row.status}; ${row.citation}; owner #${row.ownerIssue}]: ${row.label} — ${row.detail}`;
   console.log(`  skipped case — ${line}`);
   RULES_GAPS.push(line);
   return true;
@@ -813,7 +816,9 @@ function rulesGap(where: string, what: string, issue: string): boolean {
  */
 function legacyOnly(where: string, what: string, issue: string): boolean {
   if (!RULES_ONLY) return false;
-  const line = `${where}: ${what} (${issue})`;
+  if (!what.trim() || !issue.trim()) throw new Error(`legacyOnly ${where} needs its behavior note and owner note`);
+  const row = capabilityForLegacySkip(where);
+  const line = `${row.id} [${row.status}; ${row.citation}; owner #${row.ownerIssue}]: ${row.label} — ${row.detail}`;
   console.log(`  skipped case — ${line}`);
   RULES_GAPS.push(line);
   return true;
