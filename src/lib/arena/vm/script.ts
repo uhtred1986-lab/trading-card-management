@@ -2048,7 +2048,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           h.setFaceUp(id, up);
           // 3-9-2-1: a face-up card is open to both players, so naming it leaks nothing.
           h.note(`${h.nameOf(id)} is turned face ${up ? "up" : "down"}`);
-          if (!up) continue;
+          if (!up || h.areaOf(id) !== "life") continue;
           // "When **this card** in your life is flipped face up" is the card
           // itself; "when **a** card in your life is flipped face up" is watched
           // by everything that player has in play. One moment, two wordings.
