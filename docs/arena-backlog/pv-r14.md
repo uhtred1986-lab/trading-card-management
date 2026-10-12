@@ -19,9 +19,9 @@ The existing battleEnd work moves all remaining combo cards to Drop, collects th
 
 **Acceptance:**
 - [ ] Record rule-grounded ordering for Combo-to-Drop versus end-of-battle Autos, including source area/validity and effect conditions; do not silently reinterpret the manual.
-- [ ] Named fixed scenarios assert state and effect order at each checkpoint, including an Auto that pauses, JSON reload, two players, source departure/negation, and simultaneous cleanup. Each Auto resolves once.
-- [ ] Preserve the completed #551 Z-Energy offers, 8-5-4 power retention, public beats and viewer privacy, plus current zero-power and Heroic checkpoint behavior.
-- [ ] Full local tests, typecheck, lint/build and glossary/reading evidence pass with DATABASE_URL=''; frozen legacy corpus unchanged. Owner data/fuzz/ruling limitations are explicit.
+- [x] Named fixed scenarios assert state and effect order at each checkpoint, including an Auto that pauses, JSON reload, two players, source departure/negation, and simultaneous cleanup. Each Auto resolves once.
+- [x] Preserve the completed #551 Z-Energy offers, 8-5-4 power retention, public beats and viewer privacy, plus current zero-power and Heroic checkpoint behavior.
+- [x] Full local tests, typecheck, lint/build and glossary/reading evidence pass with DATABASE_URL=''; frozen legacy corpus unchanged. Owner data/fuzz/ruling limitations are explicit.
 
 One bounded PR; coordinate battle/flow with #551/#607. No paid AI, live database, new dependencies or unrelated mechanics.
 
