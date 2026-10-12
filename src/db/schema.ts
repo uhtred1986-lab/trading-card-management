@@ -716,14 +716,21 @@ export const arenaGames = pgTable(
      */
     snapshot: jsonb("snapshot"),
     /**
-     * Bumped by every `applyToGame`, which writes `WHERE version = <what it
-     * read>`. Two people on two devices can legitimately both be poised to
+     * The authoritative client revision, bumped by every gameplay state or
+     * status write (including abandonment), which writes `WHERE version =
+     * <what it read>`. Beat progress is separate animation state. Two people
+     * on two devices can legitimately both be poised to
      * act — a blocker or counter prompt belongs to the player whose turn it is
      * not — so the read-modify-write this row has always been now needs a
      * guard. A refused write means the board moved on, and the caller re-reads
      * it rather than clobbering what it missed.
      */
     version: integer("version").notNull().default(0),
+    /** Durable actor-scoped idempotency receipts for browser and HTTP mutations. */
+    actionReceipts: jsonb("action_receipts")
+      .$type<{ actor: string | null; requestId: string; fingerprint: string; revision: number }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -803,6 +810,31 @@ export const arenaDecisions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("arena_decisions_game_idx").on(t.gameId, t.seq)],
+);
+
+/** One durable accounting receipt per Arena provider call, including calls whose move later lost the game-revision CAS. */
+export const arenaAiUsage = pgTable(
+  "arena_ai_usage",
+  {
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => arenaGames.id, { onDelete: "cascade" }),
+    /** Created before the provider call and reused only if its accounting write is retried. */
+    callId: text("call_id").notNull(),
+    /** The board revision from which this paid decision was requested. */
+    revision: integer("revision").notNull(),
+    model: text("model").notNull(),
+    provider: text("provider").notNull(),
+    billed: boolean("billed").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    cacheReadTokens: integer("cache_read_tokens").notNull(),
+    cacheCreationTokens: integer("cache_creation_tokens").notNull(),
+    /** Notional or provider-reported cost, matching `ai_runs.cost_micros` / Arena spend. */
+    costMicros: integer("cost_micros").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("arena_ai_usage_call_idx").on(t.gameId, t.callId), index("arena_ai_usage_revision_idx").on(t.gameId, t.revision)],
 );
 
 export const cardRules = pgTable(

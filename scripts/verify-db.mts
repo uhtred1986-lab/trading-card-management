@@ -819,7 +819,7 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   // the storage's, to read them back as empty.
   const snapshotFor = (mode: ArenaMode, you: PlayerId): Snapshot => ({
     contract: CONTRACT_VERSION,
-    game: { id: 0, mode, engine: "legacy", game: "dbs", status: "playing", turn: 4, p1Name: names.p1, p2Name: names.p2, you },
+    game: { id: 0, revision: 0, mode, engine: "legacy", game: "dbs", status: "playing", turn: 4, p1Name: names.p1, p2Name: names.p2, you },
     view: boardFor(you),
     legal: [{ action: { type: "endMain", player: you }, label: "End turn" }],
     taps: { byCard: {}, bare: [0], attackTargets: {} },
@@ -891,6 +891,7 @@ await (await import("./verify-invite.mts")).verifyInvite(db);
 await (await import("./verify-review.mts")).verifyReview(db);
 await (await import("./verify-game-flow.mts")).verifyGameFlow(db);
 await (await import("./verify-rule-review-db.mts")).verifyRuleReviewDb(db);
+await (await import("./verify/arena-ai-usage.ts")).verifyArenaAiUsage(db);
 
 await client.close();
 console.log("verify-db: all checks passed");

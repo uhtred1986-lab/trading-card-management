@@ -20,7 +20,6 @@ import { archivedSnapshotFor } from "@/lib/arena/snapshot";
 import { LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { STAGING_COOKIE, stagingFrom } from "@/lib/arena/staging";
-import { SubmitButton } from "@/components/SubmitButton";
 import { abandon } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +63,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
     // ever read (issue #335's acceptance for the 1 v 1 case).
     const seat = seatOf(archived, await currentUser());
     if (isVersus(archived.mode) && !seat) notFound();
-    const snap = archivedSnapshotFor(archived.store, isVersus(archived.mode) ? seat : null);
+    const snap = archivedSnapshotFor(archived.store, isVersus(archived.mode) ? seat : null, archived.version);
     if (!snap) notFound();
 
     return (
@@ -116,7 +115,6 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   // what keeps each device in its own chair; every other mode passes null and
   // the viewer is derived exactly as it always was.
   const snap = await snapshotOfGame(db, game, isVersus(game.mode) ? seat : null);
-  const playing = snap.game.status === "playing";
   // The drawer's extras — seed, the opponent's hand, the decisions — only for an admin.
   const [decisions, flags] = admin ? await Promise.all([decisionsFor(db, id), flagsForGame(db, id)]) : [null, null];
   const adminDebug = admin && decisions && flags ? adminDebugOf({ engine: game.engine, ctx: game.ctx, state: game.state, viewer: snap.game.you, images: await artForGame(db, game), decisions, flags }) : null;
@@ -154,13 +152,6 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
             {isVersus(game.mode) ? "what the server decided" : "how Claude played"}
           </Link>
         )}
-        {playing && (
-          <form action={abandon.bind(null, id)}>
-            <SubmitButton pendingLabel="Giving up…" className="tap text-space-400 hover:text-loss">
-              give up
-            </SubmitButton>
-          </form>
-        )}
       </div>
     </div>
   );
@@ -190,7 +181,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
       {/* The whole snapshot, because the board keeps watching the game while
           the server is deciding and replaces it with what it reads. */}
       <div id="board" className="scroll-mt-2">
-        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} menu={menu} />
+        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} menu={menu} abandonAction={abandon} />
       </div>
     </div>
   );

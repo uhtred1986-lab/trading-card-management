@@ -58,7 +58,7 @@ class ContractTest {
         assertTrue(snapshotFixtures.isNotEmpty(), "expected fixtures in contract/fixtures")
         for (file in snapshotFixtures) {
             val snapshot = strict.decodeFromString<Snapshot>(file.readText())
-            assertEquals(1, snapshot.contract, "${file.name}: contract version")
+            assertEquals(2, snapshot.contract, "${file.name}: contract version")
         }
     }
 

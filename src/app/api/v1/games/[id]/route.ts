@@ -4,7 +4,7 @@ import { canOpenGame } from "@/lib/auth/ownership";
 import { arenaGames } from "@/db/schema";
 import { fail, ok, pollParams, seatFor } from "@/lib/arena/api";
 import { isVersus, loadArchivedGame, loadGame, seatOf } from "@/lib/arena/games";
-import { snapshotOfGame, waitForBeats } from "@/lib/arena/session";
+import { snapshotOfGame, waitForBeats, waitForRevision } from "@/lib/arena/session";
 import { archivedSnapshotFor } from "@/lib/arena/snapshot";
 import { currentUser, routeViewer } from "@/lib/auth";
 
@@ -15,10 +15,9 @@ export const maxDuration = 60;
 /**
  * The board.
  *
- * With `?sinceBeat=N&wait=S` this blocks until the animation queue has climbed
- * past `N`, or `S` seconds pass with nothing new — which is how a client sees
- * Claude's charge, plays and attack *as they are decided* rather than as one
- * jump at the end of a minute of thinking. Without them it answers at once.
+ * With `?sinceRevision=R&sinceBeat=N&wait=S` this blocks until the authoritative
+ * row changes, even if it produced no animation beat. `sinceBeat` still decides
+ * whether the returned snapshot carries a new animation queue.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await routeViewer();
@@ -28,7 +27,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // A player opens only their own games; a game they may not open does not exist for them.
   if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
 
-  const { sinceBeat, waitMs } = pollParams(new URL(req.url));
+  const { sinceBeat, sinceRevision, waitMs } = pollParams(new URL(req.url));
 
   // A long-poll decides seat and mode from the few columns that say so, and
   // loads the whole game once, after the wait (issue #377). Loading it first
@@ -50,13 +49,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const versus = isVersus(head.mode);
       const seat = versus ? seatOf(head, await currentUser()) : null;
       if (versus && !seat) return fail("not_found", `no game ${id}`);
-      const moved = await waitForBeats(db, id, sinceBeat, waitMs);
+      const moved = sinceRevision == null
+        ? await waitForBeats(db, id, sinceBeat, waitMs)
+        : await waitForRevision(db, id, sinceRevision, waitMs);
       const game = await loadGame(db, id);
       if (!game) return fail("not_found", `no game ${id}`);
       const snapshot = await snapshotOfGame(db, game, seat);
-      // Nothing new inside the window: answer with the board as it stands and
-      // no beats, so the client simply asks again.
-      return ok(moved ? snapshot : { ...snapshot, beats: null });
+      // A status-only revision must reach the client, but the old animation
+      // queue is not a new story. Beat progress stays on its own cursor.
+      const hasNewBeats = (snapshot.beats?.seq ?? 0) > sinceBeat;
+      return ok(moved ? (hasNewBeats ? snapshot : { ...snapshot, beats: null }) : { ...snapshot, beats: null });
     }
   }
 
@@ -67,7 +69,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (archived) {
     const seat = await seatFor(archived);
     if (isVersus(archived.mode) && !seat) return fail("not_found", `no game ${id}`);
-    const snapshot = archivedSnapshotFor(archived.store, seat);
+    const snapshot = archivedSnapshotFor(archived.store, seat, archived.version);
     return snapshot ? ok(snapshot) : fail("not_found", `no game ${id}`);
   }
 

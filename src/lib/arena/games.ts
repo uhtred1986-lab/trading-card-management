@@ -10,6 +10,7 @@
  * directly to play a saved game.
  */
 import { and, desc, eq, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import type { Db } from "@/db";
 import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
@@ -130,6 +131,10 @@ export interface LoadedGame {
   p2DeckId: number | null;
   /** What the row was on when this was read — the guard `applyToGame` writes against. */
   version: number;
+  /** Durable mutation acknowledgements, scoped by actor and request id. */
+  actionReceipts: ActionReceipt[];
+  /** Set only on a request replay; never persisted or projected to a client. */
+  duplicateRequest?: boolean;
   ctx: EngineContext;
   /** The shape `engine` wrote. `legacyState` narrows it for the code that still needs `GameState` field for field (`ai/run.ts`'s Claude side). */
   state: EngineState;
@@ -144,6 +149,54 @@ export interface LoadedGame {
   spotlight: Spotlight | null;
   /** What has happened since the human last acted, for a client to animate. */
   beats: Beats | null;
+}
+
+export interface ActionReceipt {
+  actor: string | null;
+  requestId: string;
+  fingerprint: string;
+  revision: number;
+}
+
+export interface MutationIdentity {
+  actor: string | null;
+  requestId: string;
+  fingerprint: string;
+}
+
+/** Canonical JSON so object key ordering cannot change an idempotency match. */
+export function mutationFingerprint(value: unknown): string {
+  const canonical = (item: unknown): unknown => {
+    if (Array.isArray(item)) return item.map(canonical);
+    if (item && typeof item === "object") {
+      return Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => [key, canonical(child)]));
+    }
+    return item;
+  };
+  return createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
+}
+
+function matchingReceipt(game: LoadedGame, identity: MutationIdentity): ActionReceipt | undefined {
+  return game.actionReceipts.find((receipt) => receipt.actor === identity.actor && receipt.requestId === identity.requestId);
+}
+
+function duplicateOrConflict(game: LoadedGame, identity: MutationIdentity): LoadedGame | null {
+  const receipt = matchingReceipt(game, identity);
+  if (!receipt) return null;
+  if (receipt.fingerprint !== identity.fingerprint) throw new RequestIdentityConflict();
+  return { ...game, duplicateRequest: true };
+}
+
+/** Check a durable request receipt before status, freshness or legal-index checks. */
+export function replayMutation(game: LoadedGame, identity: MutationIdentity): LoadedGame | null {
+  return duplicateOrConflict(game, identity);
+}
+
+export class RequestIdentityConflict extends Error {
+  constructor() {
+    super("this request id was already used for a different action");
+    this.name = "RequestIdentityConflict";
+  }
 }
 
 /** The catalog rows a state stands on: every card it mentions but a token, whose row is its id (19-1). */
@@ -330,6 +383,7 @@ export async function startGame(
  */
 export interface ArchivedGame {
   id: number;
+  version: number;
   mode: ArenaMode;
   engine: EngineId;
   game: Game;
@@ -367,6 +421,7 @@ export async function loadArchivedGame(db: Db, id: number): Promise<ArchivedGame
       p1DeckId: arenaGames.p1DeckId,
       p2DeckId: arenaGames.p2DeckId,
       snapshot: arenaGames.snapshot,
+      version: arenaGames.version,
     })
     .from(arenaGames)
     .where(eq(arenaGames.id, id))
@@ -374,6 +429,7 @@ export async function loadArchivedGame(db: Db, id: number): Promise<ArchivedGame
   if (!row || !row.snapshot) return null;
   return {
     id: row.id,
+    version: row.version,
     mode: row.mode as ArenaMode,
     engine: engineOr(row.engine),
     game: gameOr(row.game),
@@ -415,6 +471,7 @@ export async function loadGame(db: Db, id: number, reuse?: Pick<LoadedGame, "ctx
     p1DeckId: row.p1DeckId,
     p2DeckId: row.p2DeckId,
     version: row.version,
+    actionReceipts: (row.actionReceipts as ActionReceipt[]) ?? [],
     ctx,
     state,
     actions: (row.actions as Action[]) ?? [],
@@ -445,6 +502,13 @@ export class StaleGame extends Error {
   }
 }
 
+export class GameAlreadyFinished extends Error {
+  constructor() {
+    super("this game is over");
+    this.name = "GameAlreadyFinished";
+  }
+}
+
 /**
  * Apply one action and save. Throws whatever the engine throws for an illegal
  * move, and `StaleGame` when the row changed under it.
@@ -453,7 +517,12 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   const game = opts.game ?? (await loadGame(db, id));
   if (!game) throw new Error(`no game ${id}`);
   if (game.id !== id) throw new Error(`game ${game.id} handed in for game ${id}`);
-  if (game.status !== "playing") throw new Error("this game is over");
+  if (opts.request) {
+    const duplicate = duplicateOrConflict(game, opts.request);
+    if (duplicate) return duplicate;
+  }
+  if (opts.expectedRevision != null && game.version !== opts.expectedRevision) throw new StaleGame();
+  if (game.status !== "playing") throw new GameAlreadyFinished();
   const engine = engineFor(game.engine);
   const { state, events } = engine.apply(game.ctx, game.state, action);
   // What Claude said about *this* move goes in ahead of it, because it is the
@@ -485,6 +554,9 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   // `WHERE version = <what loadGame read>` is the whole concurrency story: two
   // devices racing means one of these updates matches no row, and that one is
   // told to look again instead of overwriting the move it never saw.
+  const nextReceipts = opts.request
+    ? [...game.actionReceipts, { ...opts.request, revision: game.version + 1 }]
+    : game.actionReceipts;
   const written = await db
     .update(arenaGames)
     .set({
@@ -498,11 +570,21 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
       winner: state.winner,
       reason: state.overReason,
       version: game.version + 1,
+      actionReceipts: nextReceipts,
       updatedAt: new Date(),
     })
     .where(and(eq(arenaGames.id, id), eq(arenaGames.version, game.version)))
     .returning({ id: arenaGames.id });
-  if (!written.length) throw new StaleGame();
+  if (!written.length) {
+    if (opts.request) {
+      const current = await loadGame(db, id);
+      if (current) {
+        const duplicate = duplicateOrConflict(current, opts.request);
+        if (duplicate) return duplicate;
+      }
+    }
+    throw new StaleGame();
+  }
   // #149: a game the rules engine could not finish (`vm/flow.ts`'s
   // `NOT_YET_REASON_PREFIX`) ends like any other — `overReason` on the board
   // — but it is also a fact no AI decided, so the debug page would otherwise
@@ -526,6 +608,7 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
       state,
       actions,
       version: game.version + 1,
+      actionReceipts: nextReceipts,
       log: lines,
       spotlight,
       beats,
@@ -543,6 +626,10 @@ export interface ApplyOptions {
    * (`StaleGame`) rather than played on the new one.
    */
   game?: LoadedGame;
+  /** Revision the client drew; independent of the animation beat counter. */
+  expectedRevision?: number;
+  /** Identity is persisted in the same CAS update as the action. */
+  request?: MutationIdentity;
   /** Empty the animation queue as part of this write — what `clearBeatsForTurn` does, for the move that starts a new story. */
   clearBeats?: boolean;
 }
@@ -671,8 +758,28 @@ export async function lastPlayedDecks(db: Db, deckIds: number[], user: string | 
   return { own, claude };
 }
 
-export async function abandonGame(db: Db, id: number): Promise<void> {
-  await db.update(arenaGames).set({ status: "abandoned", updatedAt: new Date() }).where(eq(arenaGames.id, id));
+export async function abandonGame(db: Db, id: number, expectedRevision: number, request: MutationIdentity): Promise<LoadedGame> {
+  const game = await loadGame(db, id);
+  if (!game) throw new Error(`no game ${id}`);
+  const duplicate = duplicateOrConflict(game, request);
+  if (duplicate) return duplicate;
+  if (game.version !== expectedRevision) throw new StaleGame();
+  if (game.status !== "playing") throw new GameAlreadyFinished();
+  const nextReceipts = [...game.actionReceipts, { ...request, revision: game.version + 1 }];
+  const written = await db
+    .update(arenaGames)
+    .set({ status: "abandoned", version: game.version + 1, actionReceipts: nextReceipts, updatedAt: new Date() })
+    .where(and(eq(arenaGames.id, id), eq(arenaGames.version, game.version)))
+    .returning({ id: arenaGames.id });
+  if (!written.length) {
+    const current = await loadGame(db, id);
+    if (current) {
+      const replay = duplicateOrConflict(current, request);
+      if (replay) return replay;
+    }
+    throw new StaleGame();
+  }
+  return { ...game, status: "abandoned", version: game.version + 1, actionReceipts: nextReceipts };
 }
 
 // ── the event log ──────────────────────────────────────────────────────────
