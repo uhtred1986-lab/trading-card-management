@@ -1,4 +1,5 @@
 /** #683: finite Heroic/Villainous activation and individual-negation proof. */
+import "./villainous-683-auto-audit";
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { RULES_ONLY } from "./rules-only";
