@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: Use original colors for keyword payment eligibility
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
-labels: backlog, blocked, enhancement, area:arena-vm, phase:capability-gap, model:opus-5
+labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:capability-gap, model:opus-5
 stage: ui
 issue: 597
 priority: P1

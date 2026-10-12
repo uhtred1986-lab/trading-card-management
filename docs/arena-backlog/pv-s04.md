@@ -1,7 +1,7 @@
 ---
 title: [P2] Arena: Skip unchanged snapshot loads with revision-aware polling
 milestone: Arena M2 — Gameplay UX/HUD completion
-labels: backlog, blocked, enhancement, area:arena-contract, phase:hud-workflow, model:sonnet-5, performance
+labels: backlog, ready-for-agent, enhancement, area:arena-contract, phase:hud-workflow, model:sonnet-5, performance
 stage: ui
 issue: 568
 priority: P2
