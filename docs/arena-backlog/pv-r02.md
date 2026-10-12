@@ -28,6 +28,11 @@ touches: src/lib/arena/vm/flow.ts, src/lib/arena/vm/costs.ts, src/lib/arena/vm/s
 **Out of scope.** Other plan tickets, production configuration, live database writes, new dependencies and paid AI calls. Preserve completed existing features and the legacy oracle. The design prototype is not authoritative rules code.
 
 
+**Delivery status.** Partial delivery; #549 remains open. The supported cost paths below
+have fixed local scenarios. Other action-price instructions and the bounded search limit
+remain reachable engine limitations owned by #549, so this increment does not claim the
+entire issue acceptance or unblock dependencies by closing it.
+
 **Rule-grounded behavior (#549).** Manual 9-6-4 permits paying or declining any necessary
 Auto skill cost, including printed energy and action costs. A condition that is already true
 cannot itself be declined (9-6-4-1-1); cost-free/condition-only Autos retain compulsory
