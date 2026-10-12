@@ -65,6 +65,7 @@
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
+import { battleIntact, damageRule } from "./battle-damage";
 import { IllegalAction } from "./common";
 import { type AbilityAvailability, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import { canCombo } from "../text/cards";
@@ -422,20 +423,6 @@ export function applyZEnergyFromCombo(ctx: EngineContext, game: GameDefinition, 
  */
 function joinsBattle(state: VmState, ...ids: string[]): void {
   for (const id of ids) if (state.cards[id]) state.cards[id].battledThisTurn = true;
-}
-
-/** 8-1-7: if the attacker or the guard has already left play — or, 23-5-4, been switched to Hidden Mode — the battle skips straight to its end step. */
-function battleIntact(state: VmState): boolean {
-  const b = state.battle;
-  if (!b || b.hiddenOut) return false;
-  return inPlayZone(state, b.attacker) !== null && inPlayZone(state, b.guard) !== null;
-}
-
-function inPlayZone(state: VmState, id: string): PlayerId | null {
-  for (const p of Object.keys(state.sides) as PlayerId[]) {
-    for (const zone of ["battle", "leader", "unison"]) if (state.sides[p].zones[zone]?.includes(id)) return p;
-  }
-  return null;
 }
 
 /**
@@ -1199,33 +1186,6 @@ function loseMarkers(ctx: EngineContext, game: GameDefinition, state: VmState, e
     log(ev, { type: "markers", card: guard, delta: -m.lost, total: inst.markers });
     fire(ctx, game, state, { event: "markerRemoved", card: guard, controller: defP, args: {} });
   }
-}
-
-/** How an attacker's battle damage lands: the `beforeDamage` hook bodies in force on it, folded together. */
-interface DamageRule {
-  atLeast?: number;
-  to?: "drop";
-  allMarkers?: boolean;
-  wins?: boolean;
-}
-
-/**
- * 8-4-6, 22-6/22-7/22-18: the attacker's `beforeDamage` bodies — [Critical],
- * [Strike X], [Victory Strike] — read declaratively the moment the damage
- * lands (`queryHookStatics`), the legacy `battleDamage`'s own inline
- * `has`/`keyword` reads. A keyword granted for the turn counts, as it does
- * there. Two [Strike]s keep the larger X.
- */
-function damageRule(ctx: EngineContext, game: GameDefinition, state: VmState, attacker: string): DamageRule {
-  const out: DamageRule = {};
-  for (const f of queryHookStatics(ctx, game, state, attacker, "beforeDamage")) {
-    if (f.op !== "battleDamage") continue;
-    if (f.atLeast !== undefined) out.atLeast = Math.max(out.atLeast ?? 0, f.atLeast);
-    if (f.to) out.to = f.to;
-    if (f.allMarkers) out.allMarkers = true;
-    if (f.wins) out.wins = true;
-  }
-  return out;
 }
 
 /**

@@ -3,10 +3,15 @@
 import type { Action, LegalAction, PlayerId } from "@/lib/arena/types";
 import type { BoardView } from "@/lib/arena/view";
 import type { PublicOutcome } from "@/lib/arena/outcome";
+import type { Snapshot } from "@/lib/arena/snapshot";
+import { energySummary, stakesSummary } from "./stakes-model";
+import { untilWords } from "@/lib/arena/effects";
 import { isGhostAction, shortLabel } from "../shared";
 
 export function PromptPanel({
   view,
+  decision,
+  handDecision = false,
   overOutcome,
   playable,
   yourTurn,
@@ -35,6 +40,8 @@ export function PromptPanel({
   onSkip,
 }: {
   view: BoardView;
+  decision?: Snapshot["decision"];
+  handDecision?: boolean;
   overOutcome: PublicOutcome | null;
   playable: boolean;
   yourTurn: boolean;
@@ -76,6 +83,20 @@ export function PromptPanel({
   const q = view.prompt.question;
   const ask = view.prompt.hint ? `${q}${/[.?!…]$/.test(q) ? " " : " — "}${view.prompt.hint}` : q;
   const bad = !!(refusalText || error) && !view.over && !playing;
+  const publicBlockers = [view.you, view.them].flatMap((side) => side.battle.filter((card) => card.keywords.includes("Blocker")).map((card) => `${side.name}: ${card.name} (${card.mode === "active" ? "ready" : "rested"})`));
+  const publicRules = [view.you, view.them].flatMap((side) => [
+    ...(side.rules ?? []).map((rule) => ({ name: side.name, rule })),
+    ...[side.leader, side.unison, ...side.battle].flatMap((card) => (card?.effects ?? []).filter((rule) => rule.kind === "forbid" || rule.kind === "negate" || rule.kind === "keyword").map((rule) => ({ name: card!.name, rule }))),
+  ]);
+  const battleDetails = view.battle ? <details data-battle-assumptions className={handDecision ? "min-w-0 flex-1" : undefined}>
+            <summary className="tap min-h-11 cursor-pointer py-2 underline underline-offset-2">Assumptions / public rules{publicBlockers.length + publicRules.length > 0 ? ` (${publicBlockers.length + publicRules.length})` : ""}</summary>
+            <div className="max-h-[20dvh] overflow-y-auto pr-1">
+            {view.battle.stakes && <p>{view.battle.stakes.assumption}</p>}
+            {view.prompt.passConsequence && <p>{view.prompt.passConsequence}</p>}
+            {publicBlockers.length > 0 && <p>Blocker cards: {publicBlockers.join(" · ")}. Readiness alone does not guarantee a legal block in this window.</p>}
+            {publicRules.map(({ name, rule }, i) => <p key={i}>{name}: {rule.label} · {untilWords(rule.until, { master: rule.by, viewer: view.you.player, them: view.them.name, sourceName: rule.sourceName })}</p>)}
+            </div>
+          </details> : null;
   const line: React.ReactNode = playing ? (
     `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
   ) : overOutcome ? (
@@ -99,11 +120,21 @@ export function PromptPanel({
     ask
   )));
   return (
-    <section className={`arena-bar flex min-h-[72px] items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite">
+    <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite">
+      {!playing && !view.over && !overOutcome && (
+        <div className="w-full space-y-1 text-xs leading-snug text-space-100" data-decision-summary>
+          <p className="font-semibold">{(decision?.actor ?? view.prompt.player) === view.you.player ? "You" : (decision?.actor ?? view.prompt.player) === view.them.player ? view.them.name : "Referee"} · {(decision?.window ?? view.prompt.kind).replace(/([a-z])([A-Z])/g, "$1 $2")}{view.battle ? ` · ${view.battle.step} step` : ` · ${view.phase}`}</p>
+          {view.battle && <p data-battle-stakes>Attack {view.battle.attackPower.toLocaleString("en")} · Defense {view.battle.guardPower.toLocaleString("en")} — {view.battle.stakes ? "If nothing else changes: " : ""}{stakesSummary(view.battle)}</p>}
+          {view.prompt.passConsequence && <p data-pass-consequence>{view.prompt.passConsequence.split(".")[0]}.</p>}
+          {!handDecision && battleDetails}
+        </div>
+      )}
       {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
-      <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"}`}>
-        <span className="line-clamp-3">{line}</span>
-      </p>
+      {handDecision && !playing && !bad && !isTargeting ? battleDetails : (
+        <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"}`}>
+          <span className="line-clamp-3">{line}</span>
+        </p>
+      )}
 
       {playing && pace === "step" && (
         <button type="button" onClick={onNext} className="arena-btn tap h-12 shrink-0 rounded-xl bg-ki-500 px-4 text-base text-space-950 hover:bg-ki-400">
@@ -137,11 +168,18 @@ export function PromptPanel({
             key={i}
             type="button"
             disabled={busy}
+            data-pass-action={isGhostAction(l.action) ? "" : undefined}
+            data-payment-option={l.action.type === "payCost" ? l.action.option : undefined}
             onClick={() => onSend(l.action)}
-            className={`arena-btn tap h-12 shrink-0 rounded-xl px-4 text-base disabled:opacity-50 sm:px-5 ${ghost ? "border border-space-600 bg-space-800 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}
+            className={`arena-btn tap min-h-12 max-w-full shrink-0 rounded-xl px-4 py-2 text-base disabled:opacity-50 sm:px-5 ${ghost ? "border border-space-600 bg-space-800 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}
           >
             <span className="sm:hidden">{shortLabel(l.label)}</span>
             <span className="hidden sm:inline">{l.label}</span>
+            {l.action.type === "payCost" && (() => {
+              const option = l.action.type === "payCost" ? l.action.option : -1;
+              const payment = view.prompt.payments?.find((p) => p.option === option);
+              return <span className="block text-xs font-normal" data-payment-preview>{payment ? `Remaining ready/total: ${energySummary(view.you, payment.energyRest)} · markers ${Math.max(0, view.you.energyMarkers - payment.markers)}` : "Remaining colours unavailable until payment is known."}</span>;
+            })()}
           </button>
         );
       })}

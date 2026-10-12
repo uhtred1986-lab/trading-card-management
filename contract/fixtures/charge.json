@@ -98,6 +98,17 @@
           "referee": false
         }
       ],
+      "energyColors": [
+        {
+          "card": "p1#38",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
       "hand": [
         {
           "id": "p1#15",
@@ -277,6 +288,7 @@
       "battle": [],
       "combo": [],
       "energy": [],
+      "energyColors": [],
       "hand": null,
       "handCount": 1,
       "life": 8,
@@ -299,7 +311,8 @@
       "kind": "charge",
       "player": "p1",
       "question": "Charge one card as energy?",
-      "hint": "Tap a card in hand, or skip."
+      "hint": "Tap a card in hand, or skip.",
+      "passConsequence": "Skip charge declines charging; Main Phase follows after pending skills."
     },
     "over": null
   },

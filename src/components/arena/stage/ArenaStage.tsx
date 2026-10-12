@@ -1116,6 +1116,7 @@ export function ArenaStage({
                   label={`${view.them.name}'s Battle Area`}
                   active={!acting}
                   lifted={lifted}
+                  compactLifted={!wide && bandOn && asksForHand}
                   hurt={hurting === view.them.player}
                   hit={hitOf(view.them.player)}
                 />
@@ -1145,6 +1146,7 @@ export function ArenaStage({
                   active={acting}
                   drop={battleDrop}
                   lifted={lifted}
+                  compactLifted={!wide && bandOn && asksForHand}
                   hurt={hurting === view.you.player}
                   hit={hitOf(view.you.player)}
                 />
@@ -1197,7 +1199,7 @@ export function ArenaStage({
             </div>
           )}
 
-          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} />
+          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
           </div>
 
           {/* The prompt bar: one line and its buttons, the last thing on the
@@ -1206,6 +1208,8 @@ export function ArenaStage({
           <div className="sticky bottom-0 z-30 lg:static lg:[grid-area:bar]">
             <PromptPanel
               view={view}
+              decision={live.decision}
+              handDecision={!wide && bandOn && asksForHand && view.prompt.kind === "combo"}
               overOutcome={live.over}
               playable={playable}
               yourTurn={yourTurn}

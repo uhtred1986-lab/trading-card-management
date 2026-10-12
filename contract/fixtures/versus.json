@@ -69,6 +69,7 @@
       ],
       "combo": [],
       "energy": [],
+      "energyColors": [],
       "hand": [
         {
           "id": "p2#44",
@@ -226,6 +227,7 @@
       ],
       "combo": [],
       "energy": [],
+      "energyColors": [],
       "hand": null,
       "handCount": 8,
       "life": 8,
@@ -248,7 +250,8 @@
       "kind": "main",
       "player": "p1",
       "question": "Your Main Phase.",
-      "hint": "Play cards, attack, or end the turn."
+      "hint": "Play cards, attack, or end the turn.",
+      "passConsequence": "End turn ends Main Phase; end-of-turn skills resolve before the next turn."
     },
     "over": null
   },

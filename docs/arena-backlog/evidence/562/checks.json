@@ -1,0 +1,111 @@
+{
+  "integrated_base": "c72e297",
+  "database_url": "empty for every command",
+  "results": {
+    "typecheck": {
+      "exit": 0,
+      "log": "logs/typecheck.log"
+    },
+    "lint": {
+      "exit": 0,
+      "log": "logs/lint.log"
+    },
+    "contract": {
+      "exit": 0,
+      "log": "logs/contract.log",
+      "fresh_emission": true,
+      "note": "Fresh emission passed on unchanged integrated contract/runtime source; no generated fixture changes."
+    },
+    "test": {
+      "exit": 0,
+      "log": "logs/test.log"
+    },
+    "build": {
+      "exit": 0,
+      "log": "logs/build.log"
+    },
+    "browser": {
+      "exit": 0,
+      "log": "logs/browser.log"
+    },
+    "focused": {
+      "exit": 0,
+      "log": "logs/focused.log"
+    },
+    "backlog": {
+      "exit": 0,
+      "log": "logs/backlog.log"
+    }
+  },
+  "arena_suites": {
+    "legacy": "42/42 passed",
+    "rules_only": "41/42 passed, vm intentionally not run",
+    "contract_emit": "42/42 passed on both engines"
+  },
+  "lint": "5 existing prototype warnings, 0 errors",
+  "kotlin": {
+    "exit": 1,
+    "status": "unverified",
+    "reason": "offline Kotlin JVM 2.1.0 plugin is not cached",
+    "log": "logs/kotlin.log"
+  },
+  "owner_run": [
+    "arena:fuzz 40 requires live deck database; no database access authorized"
+  ],
+  "mechanics": "damageRule and battleIntact extracted unchanged; VM cost resolution untouched",
+  "existing_limitation": "#626 tracks gained effective colours not affecting energy payment; UI shows actual planner payment colours and discloses effective difference in inspection",
+  "validated_source_head": "89cae2a1b99ea62518a18b8e152d60e5022430d0",
+  "fixture_validity": {
+    "leaders": "Double Strike/Critical/Victory Strike are Blue LEADER definitions with null energy/combo statistics",
+    "unison": "null combo cost and power",
+    "invariants": "Every fixture construction and snapshot validates Leader/Unison area types and statistics; invalid attacker/guard/Unison type cases reject",
+    "runtime_changed": false,
+    "senzu_whis_facts_changed": false
+  },
+  "runtime_source_head": "4524998",
+  "overlap_gates": [
+    {
+      "check": "focused",
+      "exit": 0
+    },
+    {
+      "check": "typecheck",
+      "exit": 0
+    },
+    {
+      "check": "lint",
+      "exit": 0
+    },
+    {
+      "check": "test",
+      "exit": 0
+    },
+    {
+      "check": "browser",
+      "exit": 0
+    },
+    {
+      "check": "contract",
+      "exit": 0
+    },
+    {
+      "check": "build",
+      "exit": 0
+    },
+    {
+      "check": "backlog",
+      "exit": 0
+    }
+  ],
+  "hand_overlap_proof": {
+    "empty_lifted_rows": "96px only during phone hand decisions; occupied rows and drop targets retain normal footprint",
+    "normal_phone": "both skins begin with a legal hand combo exposing a 44px unobscured tap area without scrolling",
+    "hit_test": "nine elementFromPoint samples within 44x44px area outside sticky dock",
+    "actual_combo": "normal and 200% touch sends exact legal action; independent EngineAPI apply verifies Combo Area movement, fewer hand cards, unchanged zero-cost energy, and same-view defense power refresh",
+    "short_and_200": "actual dispatched touch scrolling starts on visible board above dock, then exact hand/Pass touch actions",
+    "inspection": "hand real-art fullscreen and occupied Battle Card fullscreen through in-play review in both phone skins; occupied row >=127px",
+    "pass": "200% phone touch and real Tab/Enter each independently reach engine power comparison; fully visible/unobscured, assumptions collapsed and expanded",
+    "resources": "band rectangle stays between public resource rows",
+    "captures": "wait expected rendered decision plus two animation frames, recheck after capture; Loading frames rejected"
+  }
+}

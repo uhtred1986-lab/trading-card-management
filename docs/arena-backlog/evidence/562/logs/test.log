@@ -1,0 +1,182 @@
+
+> dbs-card-companion@0.1.0 test
+> tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify-arena.ts --rules-only && tsx scripts/verify/revision-polling-568.mts && tsx scripts/verify/arena-live-polling.mts && tsx scripts/verify/tryit.ts && tsx scripts/verify-cache.mts && tsx scripts/verify-db.mts && tsx scripts/verify/arena-admin.ts && tsx scripts/verify/auth.ts && tsx scripts/verify/guards.ts && tsx scripts/verify-access-db.mts && tsx scripts/verify/blocks.ts && tsx scripts/verify/rule-review.ts && tsx scripts/verify/backlog.ts && tsx scripts/verify/diff-report.ts && tsx scripts/verify/teach.ts && tsx scripts/verify/ai-contract.ts && tsx scripts/verify/ai-features.ts && tsx scripts/verify/ai-router.ts && tsx scripts/verify/ai-agent-sdk.ts && tsx scripts/verify/ai-agent-sdk-route.ts && tsx scripts/verify/ai-openrouter.ts && tsx scripts/verify/capabilities.mts --check
+
+verify-rules: all checks passed
+  ok  typed, legacy, private, and abandoned game outcomes
+  ok       outcomes
+  ok       text
+  ok       setup
+  ok       battles
+  ok       compiler
+  ok       keywords
+  hidden: the board half runs on the rules engine only
+  ok       hidden
+  ok       while-source
+verify/warp: sent from your deck to the Warp by your skill
+  ok       warp
+  ok       next-activation
+  ok       taxes
+  ok       readings
+  #571: five official Auto readings and fixed rules-engine trigger scenarios passed
+  ok       readings-571
+  ok       wordings
+  ok       faceup-life-556
+  ok       workflow
+  ok       contract
+  ok       deck-api
+  ok       language
+verify/lang: the rules language round-trips
+  ok       lang
+  ok       describe
+verify/rulesets: ok
+  ok       rulesets
+  ok       static-layers-553
+  board-words: the board's words are read from words.rules and every table says what it said before
+  ok       board-words
+  primer: generatedPrimer names every declared zone; prompt questions come from prompts.rules
+  ok       primer
+  game-page: printedByFile accounts for every declaration once, matches printDefinitions, and hands out unique anchor ids
+  game-page: every keyword's meaning agrees between glossary.ts and keywords.rules
+  ok       game-page
+verify/probe: 198/207 fixture digests are the same on the rules engine; 9 differ, each explained
+  ok       probe
+  ai-vm: shortcuts run on the rules engine; fixed zone/text/decklist/question/system/menu fixtures pass; fake-provider request shapes remain pinned
+  ok       ai-vm
+verify/vm: ok
+  ok       vm
+  ok       rule-processing
+  ok       engine-default
+  ok       poll-schedule
+verify/narration: story 109 / full 419 lines for p1 over 419 beats, turn 16
+  ok       narration
+  observed  Heroic/21-6 interaction order ["move:p1#15:drop","move:p1#28:drop","move:p1#18:hand","draw:p1"]
+  ok       heroic-554 (22-35 once-per-turn, activation and reload)
+  ok       heroic-554
+  ok       z-energy-combo-551
+  ok       aegis-555
+auto-costs-549 crowded 20-card price: 31.6 ms
+auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
+  ok       auto-costs-549
+  ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
+  ok       ability-snapshot-558
+Aegis #595: color-first cost, live fee, reload, failure, and delayed activation verified
+  ok       aegis-cost-order-595
+Abilities now projection checks passed.
+  ok       abilities-now-561
+Battle stakes #562: resolver outcomes, replacement/pending uncertainty, privacy, effective energy colours/payment/source expiry and stale reload passed
+  ok       battle-stakes-562
+original-colors-597: declared language; Arrival/Aegis/Revive eligibility and payment; reload, identity interaction and both viewers' privacy pass
+  ok       original-colors-597
+
+verify-arena (legacy): 42/42 passed, 0 skipped, 0 failed
+  ok  typed, legacy, private, and abandoned game outcomes
+  ok       outcomes
+  ok       text
+  ok       setup
+verify/battles: every case ran on the rules engine — no keyword gap left (#156)
+  ok       battles
+  skipped case — arena-life-cost-damage-statistics [unsupported; 1-13-2; `engines.ts` damageTaken contract; owner #557]: Life paid as a cost is distinguished from damage — The rules engine has no damage count to read for the distinction asserted by this fixture.
+  skipped case — arena-counter-recursion [unsupported; 9-7-3; owner #552]: A Counter opens a Counter: Counter window — The rules engine opens no Counter: Counter window while a Counter itself resolves.
+  skipped case — arena-counter-decline-window [unsupported; 9-7; owner #552]: A player may decline a Counter window — The rules engine has no Counter: Counter window to decline in this case.
+  skipped case — arena-priced-choice-binds-x [unsupported; 20-5; action-price binding contract; owner #550]: X from a chosen action-price value reaches the effect — The price program's bindX does not reach the effect. This row is scoped to X binding, not all Counter or action-price support.
+  ok       compiler
+  ok       keywords
+  ok       hidden
+  ok       while-source
+verify/warp: sent from your deck to the Warp by your skill
+  ok       warp
+  ok       next-activation
+  ok       taxes
+  ok       readings
+  #571: five official Auto readings and fixed rules-engine trigger scenarios passed
+  ok       readings-571
+  ok       wordings
+  ok       faceup-life-556
+  ok       workflow
+  ok       contract
+  ok       deck-api
+  ok       language
+verify/lang: the rules language round-trips
+  ok       lang
+  ok       describe
+verify/rulesets: ok
+  ok       rulesets
+  ok       static-layers-553
+  board-words: the board's words are read from words.rules and every table says what it said before
+  ok       board-words
+  primer: generatedPrimer names every declared zone; prompt questions come from prompts.rules
+  ok       primer
+  game-page: printedByFile accounts for every declaration once, matches printDefinitions, and hands out unique anchor ids
+  game-page: every keyword's meaning agrees between glossary.ts and keywords.rules
+  ok       game-page
+verify/probe: 198/207 fixture digests are the legacy record on the rules engine; 9 differ, each with its recorded cause
+  ok       probe
+  ai-vm: shortcuts run on the rules engine; fixed zone/text/decklist/question/system/menu fixtures pass; fake-provider request shapes remain pinned
+  ok       ai-vm
+  not run  vm — compares the rules engine with the legacy engine call for call (about 130 legacy calls in 4,900 lines); each comparison is still to become a checked-in expectation
+  ok       rule-processing
+  skipped case — arena-legacy-saved-game [untested; #118 save/replay decision (test-lane status; no gameplay rule citation); owner #118]: Saved legacy game opens unchanged on the rules-only lane — This legacy-only fixture is not asserted by `--rules-only`; it is an independent save/replay retirement gate, not a rules mechanic.
+  ok       engine-default
+  ok       poll-schedule
+verify/narration: story 46 / full 232 lines for p1 over 232 beats, turn 5
+  ok       narration
+  observed  Heroic/21-6 interaction order ["move:p1#15:drop","move:p1#28:drop","move:p1#18:hand","draw:p1"]
+  ok       heroic-554 (22-35 once-per-turn, activation and reload)
+  ok       heroic-554
+  ok       z-energy-combo-551
+  ok       aegis-555
+auto-costs-549 crowded 20-card price: 31.8 ms
+auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
+  ok       auto-costs-549
+  ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
+  ok       ability-snapshot-558
+Aegis #595: color-first cost, live fee, reload, failure, and delayed activation verified
+  ok       aegis-cost-order-595
+Abilities now projection checks passed.
+  ok       abilities-now-561
+Battle stakes #562: resolver outcomes, replacement/pending uncertainty, privacy, effective energy colours/payment/source expiry and stale reload passed
+  ok       battle-stakes-562
+original-colors-597: declared language; Arrival/Aegis/Revive eligibility and payment; reload, identity interaction and both viewers' privacy pass
+  ok       original-colors-597
+
+5 case(s) not asserted on the rules engine, each a named gap:
+  - arena-life-cost-damage-statistics [unsupported; 1-13-2; `engines.ts` damageTaken contract; owner #557]: Life paid as a cost is distinguished from damage — The rules engine has no damage count to read for the distinction asserted by this fixture.
+  - arena-counter-recursion [unsupported; 9-7-3; owner #552]: A Counter opens a Counter: Counter window — The rules engine opens no Counter: Counter window while a Counter itself resolves.
+  - arena-counter-decline-window [unsupported; 9-7; owner #552]: A player may decline a Counter window — The rules engine has no Counter: Counter window to decline in this case.
+  - arena-priced-choice-binds-x [unsupported; 20-5; action-price binding contract; owner #550]: X from a chosen action-price value reaches the effect — The price program's bindX does not reach the effect. This row is scoped to X binding, not all Counter or action-price support.
+  - arena-legacy-saved-game [untested; #118 save/replay decision (test-lane status; no gameplay rule citation); owner #118]: Saved legacy game opens unchanged on the rules-only lane — This legacy-only fixture is not asserted by `--rules-only`; it is an independent save/replay retirement gate, not a rules mechanic.
+
+legacy engine calls: none
+
+verify-arena (rules only): 41/42 passed, 1 not run, 0 failed
+PGlite idle poll after authorization: 4 SELECTs/2133 snapshot bytes → 3 SELECTs/0 body bytes (50 ms deterministic window); avoided projection p50 0.470 ms
+revision polling #568: unchanged/no-store, changed status, old/future cursor, missing row and 204 client recovery PASS
+arena live polling lifecycle: offline/foreground refresh, abort/deadline/cleanup, capped recovery/Retry PASS
+tryit: OK
+verify-cache: ok
+verify-db: deck summary, wizard and set review send their recorded request shapes (#513)
+verify-db: real Arena stale-CAS and abandonment writes preserve concurrent usage
+verify-db: saved-game round trip on the rules engine ok
+verify-db: concurrent Arena AI usage, stale decisions and idempotent receipts ok
+verify-db: Arena advance lease contention, recorded-result recovery and unknown-outcome fencing ok
+verify-db: all checks passed
+verify arena-admin: ok
+auth: ok
+guards: ok — 146 Server Functions, 39 pages, 19 routes
+verify-access-db: ok
+blocks: ok — 56 steps, 22 conditions, 10 price items; 108 rules round-tripped through blocks
+rule review: span logic, queue order and the Wrong verdict hold
+verify/backlog: all checks passed
+diff-report: grouping clusters by cause, sorts deterministically, and keeps deck-changed games apart
+verify/teach: ok
+  ai-contract: text, image, JSON (valid / retry / bad_output), refusal, errors, usage and billed on the fake and on the Anthropic adapter (recorded transport); request shapes; the cart explainer sends its recorded request
+  ai-features: scan image as Part with tier, fallback logic (unparseable/low-confidence→Opus, refusal/rate→no retry), deck tiers and cache hints
+  ai-router: provider and model precedence, capability and availability fallback, nothing configured = anthropic-api on today's models, pickers and forms, arena slot defaults, settings loader
+  ai-agent-sdk: contract (text, image, JSON valid / retry / bad_output, refusal, errors, usage, billed false) on a stubbed query(); SDK options; child env; timeout and abort; usage limits; ignored cache hints; availability; token expiry
+  ai-agent-sdk-route: secret guard (401 / 503 / 400, no query), result and AiError round trip, caller forwarding (URL, header, body shape, timeout, transport errors), availability on Vercel, Basic Auth exemption of exactly this path, binary traced into one route
+[ai] scan_identify: Fake provider cannot do it (Fake provider cannot read images.) — running on OpenRouter
+[ai] scan_identify: OpenRouter cannot do it (Meta: Plain text cannot read images.) — running on Fake provider
+[ai] cart_explain: OpenRouter is unavailable (OPENROUTER_API_KEY is not set.) — running on Anthropic API
+  ai-openrouter: the contract cases on a recorded OpenRouter transport (text, image, JSON with and without structured_outputs, refusal, errors, cached-token usage, billed); reasoning and cache hints only where a model lists them; the model list, prices per MTok and the 1 h cache; routing per task and globally, a text-only model on the scan; the arena's legal-move validation on an OpenRouter model; hardening (a provider without a tier table needs models in settings, an unreachable list does not block a save, cost at call time under the requested id, unpriced models unlisted, effort only where supported, the vendor-prefix guard)
+verify/capabilities: 25 narrow scenarios, 4 named runtime gaps, 27 VM source sites, deferred statics and macro exception agree

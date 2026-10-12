@@ -142,6 +142,17 @@
           "referee": false
         }
       ],
+      "energyColors": [
+        {
+          "card": "p1#35",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
       "hand": [],
       "handCount": 0,
       "life": 8,
@@ -1108,6 +1119,7 @@
       "battle": [],
       "combo": [],
       "energy": [],
+      "energyColors": [],
       "hand": null,
       "handCount": 0,
       "life": 8,
