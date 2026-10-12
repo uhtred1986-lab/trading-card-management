@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: pay Revive hand colors before additional Auto cost
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
-labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:capability-gap, model:opus-5
+labels: backlog, enhancement, area:arena-vm, phase:capability-gap, model:opus-5
 stage: ui
 issue: 624
 priority: P1

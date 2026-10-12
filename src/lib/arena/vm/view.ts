@@ -306,6 +306,8 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
   const energy = at(VIEW_ZONES.energy);
   const choices = hiddenChoices(state, p, viewer, mine);
   const rules = rulesOn(ctx, game, state, p);
+  const readable = vmRevealedTo(game, state, viewer);
+  const inspect = (zone: string) => at(zone).filter((id) => readable.has(id)).map((id) => cardView(ctx, game, state, id, images, availability, viewer));
   return {
     player: p,
     name: state.sides[p].name,
@@ -329,6 +331,7 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
     energyMarkers: Number(state.sides[p].attrs.energyMarkers ?? 0),
     activeEnergy: energy.filter((id) => state.cards[id].mode === "active").length,
     dropTop: one(VIEW_ZONES.drop),
+    inspectableZones: { drop: inspect(VIEW_ZONES.drop), warp: inspect(VIEW_ZONES.warp), zEnergy: inspect(VIEW_ZONES.zEnergy), zDeck: inspect(VIEW_ZONES.zDeck) },
     ...(choices.length ? { choices: choices.map((id) => cardView(ctx, game, state, id, images, availability, viewer)) } : {}),
     ...(rules.length ? { rules } : {}),
   };

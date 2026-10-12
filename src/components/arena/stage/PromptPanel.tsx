@@ -7,6 +7,7 @@ import type { Snapshot } from "@/lib/arena/snapshot";
 import { energySummary, stakesSummary } from "./stakes-model";
 import { untilWords } from "@/lib/arena/effects";
 import { isGhostAction, shortLabel } from "../shared";
+import phoneStyles from "./phone-board.module.css";
 
 export function PromptPanel({
   view,
@@ -120,17 +121,19 @@ export function PromptPanel({
     ask
   )));
   return (
-    <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite">
+    <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite" data-prompt-kind={view.prompt.kind}>
       {!playing && !view.over && !overOutcome && (
         <div className="w-full space-y-1 text-xs leading-snug text-space-100" data-decision-summary>
           <p className="font-semibold">{(decision?.actor ?? view.prompt.player) === view.you.player ? "You" : (decision?.actor ?? view.prompt.player) === view.them.player ? view.them.name : "Referee"} · {(decision?.window ?? view.prompt.kind).replace(/([a-z])([A-Z])/g, "$1 $2")}{view.battle ? ` · ${view.battle.step} step` : ` · ${view.phase}`}</p>
+          <div className={phoneStyles.decisionDetails}>
           {view.battle && <p data-battle-stakes>Attack {view.battle.attackPower.toLocaleString("en")} · Defense {view.battle.guardPower.toLocaleString("en")} — {view.battle.stakes ? "If nothing else changes: " : ""}{stakesSummary(view.battle)}</p>}
           {view.prompt.passConsequence && <p data-pass-consequence>{view.prompt.passConsequence.split(".")[0]}.</p>}
-          {!handDecision && battleDetails}
+          {battleDetails}
+          </div>
         </div>
       )}
       {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
-      {handDecision && !playing && !bad && !isTargeting ? battleDetails : (
+      {handDecision && !playing && !bad && !isTargeting ? null : (
         <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"}`}>
           <span className="line-clamp-3">{line}</span>
         </p>

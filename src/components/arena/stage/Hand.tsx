@@ -4,21 +4,12 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { ZoneAnchor } from "./anchors";
 import { StageCard } from "./StageCard";
+import styles from "./phone-board.module.css";
 
 /** A hand card at phone scale (`--arena` multiplies it from `sm` up): the redesign's 84 × 117. */
 export const HAND_W = 84;
 
-/**
- * Your hand: a fan across the full width of the board, with no panel, handle
- * or label (`docs/arena-redesign/` frame 01, the prototype's `.hand`).
- *
- * The cards overlap just enough to fit the width — up to eight pixels apart
- * when there is room, closer as the hand grows — and tilt and dip a little
- * from the middle, so it reads as a hand held up rather than a filmstrip.
- * The tilt is a CSS transform on a child of the animated element (see
- * `StageCard`), so the fan cannot confuse the flight of a card leaving the
- * hand for the board.
- */
+/** A horizontal hand: crowded cards keep a 44px exposed target and can scroll. */
 export function Hand({
   cards,
   cardProps,
@@ -26,6 +17,7 @@ export function Hand({
   dragFor,
   chargeable,
   decisionHint,
+  onZones,
 }: {
   cards: CardView[];
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
@@ -37,18 +29,19 @@ export function Hand({
   chargeable?: (id: string) => boolean;
   /** Current engine hand decision, placed beside its existing inspection control. */
   decisionHint?: string;
+  onZones?: () => void;
 }) {
-  // The fan is laid out from the width it has, so it is measured: the width of
-  // the hand, and the width of one card at the board's current scale.
+  // Measure the hand and card at the current board scale for overlap spacing.
   const fan = useRef<HTMLDivElement | null>(null);
-  const [room, setRoom] = useState<{ width: number; card: number } | null>(null);
+  const [room, setRoom] = useState<{ width: number; card: number; desktop: boolean } | null>(null);
+  const [expanded, setExpanded] = useState(false);
   useLayoutEffect(() => {
     const el = fan.current;
     if (!el) return;
     const measure = () => {
       const scale = parseFloat(getComputedStyle(el).getPropertyValue("--arena")) || 1;
       // Less the side padding (px-2.5): the fan lays out inside it.
-      setRoom({ width: el.clientWidth - 20, card: HAND_W * scale });
+      setRoom({ width: el.clientWidth - 20, card: HAND_W * scale, desktop: window.matchMedia("(min-width: 1024px)").matches });
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -60,19 +53,22 @@ export function Hand({
   const first = cards[0];
   const firstProps = first ? cardProps(first) : null;
   const card = room?.card ?? HAND_W;
-  const wide = (room?.width ?? 0) >= 640;
-  // The prototype's spacing: never more than 8 px apart, and as close as it takes to fit.
-  const step = n > 1 && room ? Math.min(card + 8, (room.width - card) / (n - 1)) : card + 8;
+  const wide = room?.desktop ?? false;
+  // Every exposed card has a full finger target; excess cards scroll instead
+  // of becoming ever narrower slivers. Expand separates all the artwork.
+  // Leave room for the card's rounded corners around a 44px touch square.
+  const step = expanded ? card + 8 : n > 1 && room ? Math.max(wide ? 44 : 52, Math.min(card + 8, (room.width - card) / (n - 1))) : card + 8;
   const middle = (n - 1) / 2;
   const charging = cards.some((c) => chargeable?.(c.id));
 
   return (
-    <section className="arena-field arena-hand relative" aria-label="Your hand">
+    <section className="arena-field arena-hand relative" aria-label="Your hand" data-hand-expanded={expanded}>
       <ZoneAnchor zone="p1:hand" />
-      {firstProps?.onInspect && (
-        <div className="flex items-center justify-end gap-2 px-3 pt-2">
+      {(firstProps?.onInspect || onZones) && (
+        <div data-hand-toolbar className="flex flex-wrap items-center justify-end gap-2 px-3">
+          <span className="mr-auto text-xs font-semibold text-space-100">Hand · {n}<span className="ml-2 hidden font-normal sm:inline">Swipe to browse</span></span>
           {decisionHint && <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-space-100">{decisionHint}</span>}
-          <button
+          {firstProps?.onInspect && <button
             type="button"
             onClick={firstProps.onInspect}
             aria-label={`Inspect your hand, starting with ${first?.hidden ? "face-down card" : first?.name ?? "first card"}`}
@@ -80,32 +76,34 @@ export function Hand({
           >
             <span aria-hidden="true">⌕</span>
             <span>Inspect hand</span>
-          </button>
+          </button>}
+          {n > 0 && <button type="button" className={`${styles.handControl} tap rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "Compact" : "Expand"}</button>}
+          {onZones && <button type="button" className={`${styles.handControl} tap rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
         </div>
       )}
+      <div ref={fan} className={styles.handViewport} tabIndex={0} aria-label="Scrollable hand cards">
       <div
-        ref={fan}
-        className={`flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
+        className={`${styles.handCards} flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
         // One card's height and its dip, so an empty hand keeps the board's shape.
-        style={{ minHeight: `calc(${Math.round((HAND_W * 88) / 63)}px * var(--arena, 1) + 28px)` }}
+        style={{ minHeight: n ? `calc(${Math.round((HAND_W * 88) / 63)}px * var(--arena, 1) + 28px)` : 0 }}
       >
         {cards.map((c, i) => {
           const off = i - middle;
           const handlers = dragFor?.(c.id) ?? null;
-          const tilt = off * (wide ? 2.4 : 3.4);
-          const dip = Math.abs(off) * (wide ? 4 : 3.2);
+          const tilt = wide && n <= 8 && !expanded ? off * 2.4 : 0;
+          const dip = wide && n <= 8 && !expanded ? Math.abs(off) * 4 : 0;
           const props = cardProps(c);
           const up = props.state === "selected";
           return (
             <div
               key={c.id}
               {...handlers}
-              className={`relative shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
+              className={`${styles.handCard} relative shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
               style={{
                 marginLeft: i === 0 ? 0 : step - card,
                 zIndex: up ? 60 : i + 1,
-                // The fan never scrolls, so a drag may take every touch.
-                touchAction: handlers ? "none" : undefined,
+                // Keep horizontal swipes for browsing while retaining vertical drags.
+                touchAction: handlers ? (wide ? "none" : "pan-x") : undefined,
                 ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null),
               }}
             >
@@ -113,6 +111,7 @@ export function Hand({
             </div>
           );
         })}
+      </div>
       </div>
     </section>
   );

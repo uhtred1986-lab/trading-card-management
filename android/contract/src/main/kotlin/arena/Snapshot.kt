@@ -242,6 +242,7 @@ data class SideView(
     val energyMarkers: Int,
     val activeEnergy: Int,
     val dropTop: CardView? = null,
+    val inspectableZones: InspectableZones? = null,
     /**
      * Cards the current prompt names that no zone draws — a search of the
      * deck. Only ever on the side of the player being asked.
@@ -250,6 +251,15 @@ data class SideView(
     /** Rules in force on this player rather than on a card ("can't attack with Battle Cards"). */
     val rules: List<EffectView>? = null,
     val energyColors: List<EnergyColors>? = null,
+)
+
+/** Viewer-readable zone faces; counts may include additional hidden cards. */
+@Serializable
+data class InspectableZones(
+    val drop: List<CardView> = emptyList(),
+    val warp: List<CardView> = emptyList(),
+    val zEnergy: List<CardView> = emptyList(),
+    val zDeck: List<CardView> = emptyList(),
 )
 
 @Serializable

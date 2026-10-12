@@ -21,7 +21,7 @@ tracking: true
 - [x] #560 **P1** — Extend the existing phone pager to tap-open fullscreen review
 - [x] #561 **P1** — Show Abilities now and collapse wrong-timing abilities
 - [x] #562 **P1** — Make battle stakes resources and pass consequences explicit
-- [ ] #563 **P1** — Fit the phone board and crowded hand around the current decision
+- [x] #563 **P1** — Fit the phone board and crowded hand around the current decision
 - [ ] #564 **P1** — Consolidate desktop board status and contextual decision panel
 
 
@@ -39,3 +39,5 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 - [ ] Contract/privacy, stale/reload cases and cross-feature interactions pass.
 - [ ] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
 - [ ] Milestone checklist and canonical backlog files match delivered state.
+
+**Phone handoff — 12 Oct 2026:** PR #631 is reviewed and locally validated at `c49db4a`; #563 is merged in PR #631. The compact phone board and scrollable/expanded hand preserve tap/swipe fullscreen review and engine-derived abilities. On-demand zone inspection uses additive, viewer-readable server projections with independent both-engine/both-viewer privacy proofs. Actual-artwork before/after evidence covers both skins, desktop, normal/short/small phones, landscape, real Charge/Play drags, 200% touch scrolling, and full consequences/assumptions. Safe insets and keyboard viewport are simulated; physical-device and Kotlin decoding are unverified. Tests/build/typecheck and 45/45 both-engine contract emission pass; five prototype lint warnings remain. PR #629's unchanged rerun and PR #630 deployed successfully. PR #631 deployed successfully at `36a8953` (Vercel `8U6Cmh2msBLuS29KAzb1hLGvgjrJ`). #564's prerequisites are now merged and its separate desktop implementation is active.
