@@ -94,6 +94,9 @@ export async function verifyArenaPricedSecretAuto(db: Db): Promise<void> {
       assert.equal(shown.beats?.art[source]?.cardId, "SECRET_PRICE549");
       assert.equal(shown.beats?.art[other], undefined);
       assert.equal(shown.spotlight, null);
+      const publicDeclared = shown.beats?.list.find((beat) => beat.t === "autoDeclared" && beat.card === source);
+      assert.ok(publicDeclared && publicDeclared.t === "autoDeclared");
+      assert.equal(Object.hasOwn(publicDeclared, "revealEpoch"), false, "saved-session declaration DTO omits the private epoch for either viewer");
       assert.ok(!JSON.stringify(shown).includes("revealEpoch"));
       assert.ok(!shown.log.join(" ").includes("SECRET_PRICE549"));
     }

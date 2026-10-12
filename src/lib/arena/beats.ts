@@ -69,7 +69,7 @@ export type Beat =
    */
   | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true; reveal?: true; revealEpoch?: number }
   /** Specified secret [Auto] before its optional price is paid; this is not an activated skill. */
-  | { t: "autoDeclared"; card: string; label: string; text: string; owner: PlayerId; revealEpoch: number }
+  | { t: "autoDeclared"; card: string; label: string; text: string; owner: PlayerId; revealEpoch?: number }
   /**
    * A rule coming into force (9-9): "+5000 power", "[Critical]", "can't
    * attack" on `card`, or on `player` when it is about a player rather than a

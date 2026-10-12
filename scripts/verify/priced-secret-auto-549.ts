@@ -12,7 +12,7 @@ import { run } from "../../src/lib/arena/vm/flow";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { battleLink, msFor } from "../../src/components/arena/stage/motion";
-import type { Beats } from "../../src/lib/arena/beats";
+import type { Beat, Beats } from "../../src/lib/arena/beats";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
 const rules = engineFor("rules");
@@ -119,6 +119,8 @@ function skillCount(events: GameEvent[], card: string): number { return events.f
     assert.ok(!JSON.stringify(shown).includes("revealEpoch"));
     const said = shown.beats?.list.find((beat) => beat.t === "autoDeclared" && beat.card === source);
     assert.ok(said && said.t === "autoDeclared");
+    const publicDeclared: Beat = said;
+    assert.equal(Object.hasOwn(publicDeclared, "revealEpoch"), false, "both viewers receive a valid declaration beat without the private epoch");
     assert.match(narrate(said, { viewer, them: "Opponent", art: shown.beats?.art ?? {}, ownerOf: () => "p1" }) ?? "", /declare.*Auto/i);
     assert.equal(battleLink(said, true), null, "a declaration does not count as a battle trigger");
     assert.ok(msFor(said) > 0);
