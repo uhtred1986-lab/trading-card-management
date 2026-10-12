@@ -55,7 +55,7 @@ import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, queryHookStatics } from "./hooks";
-import { attrsNow, forbiddenForCard, forbids, staticsNow } from "./program";
+import { attrsNow, forbiddenForCard, forbids, readingBoard, staticsNow } from "./program";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
 import { leaveRoute, replacementChoices, replacementIdentity } from "./replace";
@@ -842,44 +842,56 @@ function resolveZeroPower(ctx: EngineContext, game: GameDefinition, state: VmSta
   while (true) {
     let processing = state.ruleProcessing;
     if (!processing || processing.index >= processing.pass.length) {
-      const standing = staticsNow(ctx, game, state);
-      // 21-1-2-2-1: freeze every simultaneous subject and its cause before
-      // applying the first move in this checkpoint iteration.
-      const pass: NonNullable<VmState["ruleProcessing"]>["pass"] = [];
-      for (const player of Object.keys(state.sides) as PlayerId[]) {
-        for (const id of state.sides[player].zones[battle] ?? []) {
-          const card = state.cards[id];
-          if (!card || card.hidden) continue;
-          const power = attrsNow(ctx, game, state, id).power;
-          if (typeof power !== "number" || power > 0) continue;
-          const reductions = powerReductionSources(state, id, standing);
-          const netReduction = reductions.reduce((total, reduction) => total + reduction.value, 0);
-          const causedByEffect = reductions.length > 0 && power - netReduction > 0;
-          const targetMaster = masterOf(game, state, id);
-          const actor = causedByEffect
-            ? reductions.find((reduction) => reduction.master !== targetMaster)?.master ?? reductions[0]?.master
-            : undefined;
-          pass.push({ id, event: 0, reason: causedByEffect ? "effect" : "rule", ...(actor ? { actor } : {}), replacements: [] });
+      // This is one immutable view of the checkpoint board: statics, each
+      // subject's power/cause and its applicable replacement choices are all
+      // discovered before any event ids or moves mutate the saved state. The
+      // scope is deliberately over reads only; it is discarded before the
+      // first move and a new checkpoint iteration gets a fresh view.
+      const snapshot = readingBoard(ctx, game, state, () => {
+        const standing = staticsNow(ctx, game, state);
+        // 21-1-2-2-1: freeze every simultaneous subject and its cause before
+        // applying the first move in this checkpoint iteration.
+        const pass: NonNullable<VmState["ruleProcessing"]>["pass"] = [];
+        for (const player of Object.keys(state.sides) as PlayerId[]) {
+          for (const id of state.sides[player].zones[battle] ?? []) {
+            const card = state.cards[id];
+            if (!card || card.hidden) continue;
+            const power = attrsNow(ctx, game, state, id).power;
+            if (typeof power !== "number" || power > 0) continue;
+            const reductions = powerReductionSources(state, id, standing);
+            const netReduction = reductions.reduce((total, reduction) => total + reduction.value, 0);
+            const causedByEffect = reductions.length > 0 && power - netReduction > 0;
+            const targetMaster = masterOf(game, state, id);
+            const actor = causedByEffect
+              ? reductions.find((reduction) => reduction.master !== targetMaster)?.master ?? reductions[0]?.master
+              : undefined;
+            pass.push({ id, event: 0, reason: causedByEffect ? "effect" : "rule", ...(actor ? { actor } : {}), replacements: [] });
+          }
         }
-      }
+        if (!pass.length) return { pass, totalCards: 0, replacementCeiling: 0 };
+        // Preserve the frozen pre-move replacement set: a source that leaves
+        // first cannot withdraw a replacement from a later subject in this
+        // same simultaneous pass.
+        for (const item of pass) {
+          item.replacements = replacementChoices(ctx, game, state, item.id, item.reason, { actor: item.actor });
+        }
+        const totalCards = Object.keys(state.cards).length;
+        const replacementCeiling = Object.keys(state.cards).reduce((sum, id) => sum + skillsShowing(ctx, state, id).skills.length, 0);
+        return { pass, totalCards, replacementCeiling };
+      });
+      const { pass } = snapshot;
       if (!pass.length) {
         delete state.ruleProcessing;
         return;
       }
-      const totalCards = Object.keys(state.cards).length;
-      const replacementCeiling = Object.keys(state.cards).reduce((sum, id) => sum + skillsShowing(ctx, state, id).skills.length, 0);
-      processing ??= { nextEvent: 1, attempts: 0, limit: totalCards * (replacementCeiling + 1) + 1, subjects: {}, pass: [], index: 0, used: {} };
+      processing ??= { nextEvent: 1, attempts: 0, limit: snapshot.totalCards * (snapshot.replacementCeiling + 1) + 1, subjects: {}, pass: [], index: 0, used: {} };
       processing.pass = pass.map((item) => {
         let event = processing!.subjects[item.id];
         if (event === undefined) {
           event = processing!.nextEvent++;
           processing!.subjects[item.id] = event;
         }
-        // Replacements are read against the same pre-move board as the whole
-        // simultaneous pass. A source leaving earlier in the pass cannot
-        // withdraw a replacement that already applied to a later subject.
-        const replacements = replacementChoices(ctx, game, state, item.id, item.reason, { actor: item.actor });
-        return { ...item, event, replacements };
+        return { ...item, event };
       });
       processing.index = 0;
       state.ruleProcessing = processing;
