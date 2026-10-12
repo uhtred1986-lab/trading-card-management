@@ -1275,6 +1275,15 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   const theirHand = zoneOf(s, "p2", "hand").length;
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "BOUNCE") });
   if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [grudge] });
+  if (ENGINE === "rules") {
+    assert.equal(s.prompt.kind, "orderPending", "GRUDGE's hidden [Auto] awaits its master's declaration");
+    const pending = s as VmState;
+    const choices = pending.prompt.kind === "orderPending" ? pending.prompt.candidates : [];
+    assert.deepEqual(choices, [0]);
+    assert.deepEqual([pending.pending[0]?.card, pending.pending[0]?.master, pending.pending[0]?.skillIndex], [grudge, "p2", 0]);
+    assert.ok(actsG(s).some((action) => action.type === "orderPending" && action.player === "p2" && action.index === 0 && !action.decline));
+    s = playG(s, { type: "orderPending", player: "p2", index: 0 });
+  }
   // The card itself came back to hand, and the skill drew them one more.
   assert.equal(zoneOf(s, "p2", "hand").length, theirHand + 2, "3-1: it was removed, and it noticed");
   assertConsistentG(s);
@@ -2322,6 +2331,13 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   const cond = (bt2.ops[1] as { cond: { kind: string; atLeast?: number; sel?: { filter?: { characters: string[] } } } }).cond;
   assert.deepEqual([cond.kind, cond.atLeast, cond.sel?.filter?.characters.map((x) => x.toLowerCase())], ["count", 10, ["son goku", "vegeta"]], "BT2-001: both names, one total");
   assert.deepEqual(one("[Activate: Main] Switch this card to Rest Mode: Choose up to 2 [Dragon Ball] cards from your deck or life and add them to your hand. Then shuffle any areas you looked through.").ops.map((o) => o.op), ["choose", "moveTo", "shuffle"], "SD7-01: the deck is shuffled");
+  assert.deepEqual(one("[Activate: Main] Switch this card to Rest Mode: Choose up to 2 [Dragon Ball] cards from your deck or life and add them to your hand. Then shuffle any areas you looked through.").ops.at(-1),
+    { op: "shuffle", areas: ["deck", "life"], inspectedOnly: true }, "SD7-01: only the closed areas inspected by this skill are shuffled");
+  const desire = one("[Activate: Main] Choose one- ・Draw 1 card. ・Choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.");
+  assert.deepEqual(desire.unsupported, [], "SD7-01: Desire branch has a complete reading");
+  assert.equal(desire.ops[0]?.op, "chooseMode");
+  if (desire.ops[0]?.op === "chooseMode") assert.deepEqual(desire.ops[0].modes[1]?.ops,
+    [{ op: "invokeSkill", trait: "Desire", skillKind: "activate:main", from: "hand", maxCost: "currentEnergy" }], "SD7-01: the second mode invokes a line, not a play");
   const ball = one("[Auto] When this card KOs your opponent's Battle Card, place cards from the top of your deck under your {Majin Buu's Sealed Ball} until there are 5 cards under {Majin Buu's Sealed Ball}.");
   assert.deepEqual(ball.unsupported, [], "BT2-009: full printed placement is read");
   const guarded = ball.ops[0] as { cond: { kind: string; sel: { side: string; area: string; filter: { names: string[] } }; atLeast: number }; then: { op: string; sel?: { area: string }; as?: string; cond?: { sel: { underHost: { fromVar: string } }; atMost: number }; then?: { target: { sel: { area: string; take: number } }; under: { var: string } }[] }[] };

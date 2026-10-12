@@ -628,7 +628,7 @@ export interface ContinuousEffect {
    */
   uses?: number;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay";
   /**
    * The card whose skill made it, so a client can say "+5000 power from
    * Kaio-ken" and a refusal can name what forbids it. Absent on effects the
@@ -973,7 +973,7 @@ export type Action =
   | { type: "block"; player: PlayerId; card: string | null }
   /** `alt` pays the other cost the card prints instead of its energy cost (5-3). */
   | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[]; alt?: boolean }
-  | { type: "orderPending"; player: PlayerId; index: number }
+  | { type: "orderPending"; player: PlayerId; index: number; decline?: true }
   | { type: "optionalCost"; player: PlayerId; pay: boolean }
   | { type: "payCost"; player: PlayerId; option: number }
   | { type: "choose"; player: PlayerId; cards: string[] }
@@ -1013,7 +1013,7 @@ export type GameEvent =
    * client must never infer it from a power figure moving: the engine says a
    * skill belongs to the battle, and the board only draws it.
    */
-  | { type: "skill"; card: string; skill: number; master: PlayerId; text: string; inBattle: boolean }
+  | { type: "skill"; card: string; skill: number; master: PlayerId; text: string; inBattle: boolean; reveal?: true; revealEpoch?: number }
   | { type: "effect"; effect: ContinuousEffect }
   /** A continuous effect reaching the end of its duration (9-9): the other end of `effect`. */
   | { type: "effectEnded"; effect: ContinuousEffect }

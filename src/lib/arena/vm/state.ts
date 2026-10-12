@@ -311,6 +311,8 @@ export interface VmState {
     queue: VmPendingRecord[];
     candidates: number[];
     chosen?: number;
+    /** 9-6-3-1-1: the selected secret [Auto] was left undeclared. */
+    decline?: true;
   };
   /**
    * 9-1-4: every continuous effect in force, oldest first (9-9-2). The legacy
@@ -334,7 +336,12 @@ export interface VmState {
    * `flow.unshift({ op: "script.step", frame })` does. Empty is the common
    * case: a program that runs to the end never appears here at all.
    */
-  programs: ScriptFrame[];
+  /** A VM Auto may carry a private reveal epoch through its exact suspended frame. */
+  programs: (ScriptFrame & { autoRevealEpoch?: number })[];
+  /** 9-6-3-1-1: current declaration witnesses, bounded by source movement/concealment and the next unrelated action. */
+  publicAutoReveals?: { card: string; skillIndex: number; epoch: number; trigger: string; sourceZoneEpoch: number }[];
+  /** Monotone within one saved game so a repeated pending occurrence cannot inherit an older reveal. */
+  nextAutoRevealEpoch?: number;
   /** The cards a `chooseCards` answer brought back, until the program that asked reads them. Null the rest of the time. */
   lastChoice: string[] | null;
   /** The option index a `chooseMode` answer brought back, read the same way. */

@@ -41,6 +41,7 @@ import { DEFERRED_STATICS, STATIC_OPS } from "./effects";
 import { costModifierAs, describeScript, modifyAttrAs, negateAs, replaceAs, type Op } from "./script";
 import { masterOf, skillsShowing } from "./triggers";
 import { findCard, hostOf, inPlayZones, isTokenCard } from "./zones";
+import { secretAutoSource } from "./secret-auto";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
 import { fixedPrompt, promptHint } from "../prompt-words";
@@ -160,6 +161,13 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
  */
 export function promptView(state: VmState, game?: GameDefinition, viewer?: PlayerId): PromptView {
   const pr = state.prompt;
+  // 9-6-3-1-1: the opponent need not be told that a hidden [Auto] was
+  // considered. The master still sees the ordinary choice and legal answers.
+  if (pr.kind === "orderPending" && game
+    && pr.candidates.some((index) => state.pending[index] && secretAutoSource(game, state, state.pending[index]))) {
+    if (viewer && viewer !== pr.player) return { kind: "waiting", player: pr.player, question: "Waiting for the other player.", hint: null };
+    return { kind: "orderPending", player: pr.player, question: "Which pending skill do you declare?", hint: "You may leave a cost-free skill in a secret area undeclared." };
+  }
   if (pr.kind === "payCost") return {
     kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: promptHint("payCost", game), cost: pr.describe,
     ...(viewer === pr.player ? { payments: pr.options.map((payment, option) => ({ option, energyRest: payment.rest.filter((id) => state.sides[pr.player].zones.energy?.includes(id)), markers: payment.markers })) } : {}),

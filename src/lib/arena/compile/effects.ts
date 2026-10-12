@@ -290,9 +290,13 @@ function durationOf(clause: string): Duration {
   // Your *own* next Charge Phase is one step past "your next turn": the effect
   // has to be there when the Active Step runs (7-2-7).
   if (/during your next charge phase/.test(t)) return "afterNextCharge";
+  // This phase belongs to the *opponent of the skill's controller*, even if
+  // the locked card changes controller before it. It ends after that phase's
+  // Active Step or as soon as the phase is skipped (20-13-5).
+  if (/during your opponent's next charge phase/.test(t)) return "afterOpponentCharge";
   // Everything that has to survive the opponent's whole turn and end as yours
   // begins: the rest-lock wordings, which are the same duration said four ways.
-  if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next charge phase|during your opponent's next turn/.test(t))
+  if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next turn/.test(t))
     return "nextTurn";
   // "Your opponent can't attack until the end of **their** turn" (BT24-133):
   // the pronoun is the opponent the clause names, so it is the same duration.
@@ -2895,11 +2899,21 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
     afterThen = /^then[.,]?$/i.test(clause.trim());
     // "…from your deck or life and add them to your hand. Then shuffle any
-    // areas you looked through" (SD7-01, #539): after searching the deck it is
-    // shuffled (20-12-3). The sentence was skipped as a reminder, so a search
-    // left the deck in the order it was searched in.
+    // areas you looked through" (SD7-01, #539): search results are shown as
+    // one pool, and the running frame records which closed areas were actually
+    // inspected. Shuffle just those areas after the search (5-11-2).
     if (/^(?:then,? )?shuffle any (?:secret )?areas? you looked (?:through|at)\b/i.test(clause.trim())) {
-      if (c.choices.some((ch) => ch.sel.area === "deck" || ch.sel.areas?.includes("deck"))) push([{ op: "shuffle" }]);
+      const areas = [...new Set(c.choices.flatMap((ch) => ch.sel.areas ?? (ch.sel.area ? [ch.sel.area] : [])).filter((a): a is "deck" | "life" => a === "deck" || a === "life"))];
+      if (areas.length) push([{ op: "shuffle", areas, inspectedOnly: true }]);
+      continue;
+    }
+    // 12-2-4 (SD7-01): this is an activation of the chosen Extra's named
+    // skill, not a play. `splitClauses` separates the target and the verb at
+    // "and", so consume the exact pair before either half can be misread.
+    const invoked = /^choose 1 ≪([^≫]+)≫ card in your hand with an energy cost less than or equal to your current energy$/i.exec(clause.trim());
+    if (invoked && /^activate its \[activate: ?main\] skill[.]?$/i.test(clauses[i + 1]?.trim() ?? "")) {
+      push([{ op: "invokeSkill", trait: invoked[1], skillKind: "activate:main", from: "hand", maxCost: "currentEnergy" }]);
+      i++;
       continue;
     }
     // BT2-009 (#539): fill one named card's stack to a total, using the

@@ -62,6 +62,8 @@ import { VM_STATE_VERSION, type VmSide, type VmState } from "./state";
 import { PLAY_ZONE_NAMES } from "./play";
 import { emptyZones, moveCard, newCard, placeZones } from "./zones";
 import { vmBoardView } from "./view";
+import { vmRevealedTo } from "./view";
+import { canWithholdSecretAuto } from "./secret-auto";
 import { vmToBeats } from "./beats";
 import type { Game } from "../../catalog/games";
 
@@ -365,9 +367,31 @@ function report(problems: AttrProblem[], gaps: { unfilled: string[]; undeclared:
  * it found it.
  */
 function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmState; events: GameEvent[] } {
+  const result = applyInner(ctx, prev, action);
+  // The event order is authoritative: hiding or moving after the latest
+  // declaration ends that reveal, even if the source is unhidden later in
+  // the same action. An invalid answer never reaches this commit point.
+  const markers = result.state.publicAutoReveals;
+  if (markers?.length) result.state.publicAutoReveals = markers.filter((marker) => {
+    if (result.state.prompt.kind === "gameOver") return false;
+    let declaredAt = -1;
+    result.events.forEach((event, index) => {
+      if (event.type === "skill" && event.card === marker.card && event.revealEpoch === marker.epoch) declaredAt = index;
+    });
+    return !result.events.slice(declaredAt + 1).some((event) => (event.type === "move" || event.type === "hidden") && event.card === marker.card);
+  });
+  return result;
+}
+
+function applyInner(ctx: EngineContext, prev: VmState, action: Action): { state: VmState; events: GameEvent[] } {
   const game = definitionFor(prev.game, ctx);
   const state = structuredClone(prev);
   const events: GameEvent[] = [{ type: "action", action }];
+  // A completed declaration remains visible for its response snapshot. Only
+  // the exact suspended frame may carry it through a further answer/reload.
+  if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((marker) =>
+    action.type !== "concede" && (state.cards[marker.card]?.zoneEpoch ?? 0) === marker.sourceZoneEpoch
+      && state.programs.some((frame) => frame.autoRevealEpoch === marker.epoch));
 
   // 0-1-3-4: conceding is a player's act and no card may cause or replace it,
   // so it is answered before any prompt is looked at — including at a prompt
@@ -507,7 +531,10 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       requirePrompt(state, action, ["orderPending"]);
       const pr = state.prompt;
       if (pr.kind !== "orderPending" || !Number.isInteger(action.index) || !pr.candidates.includes(action.index) || !state.pendingOrder || state.pendingOrder.master !== action.player) throw new IllegalAction("no such pending skill");
+      if (action.decline !== undefined && action.decline !== true) throw new IllegalAction("no such pending skill choice");
+      if (action.decline && (!state.pending[action.index] || !canWithholdSecretAuto(ctx, game, state, state.pending[action.index]))) throw new IllegalAction("this pending skill cannot be left undeclared");
       state.pendingOrder.chosen = action.index;
+      if (action.decline) state.pendingOrder.decline = true;
       break;
     }
     // #150: `attack`, `block`, `counter` and `combo` are native rather than
@@ -758,13 +785,21 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     case "chooseMode":
     case "replaceMove":
       return pr.options.map((label, index) => ({ action: { type: "chooseMode" as const, player: pr.player, index }, label: label.length > 90 ? `${label.slice(0, 88)}\u2026` : label }));
-    case "orderPending":
-      return pr.candidates.map((index) => {
+    case "orderPending": {
+      const visible = vmRevealedTo(game, state, pr.player);
+      return pr.candidates.flatMap((index) => {
         const pending = state.pending[index];
-        const showing = pending ? skillsShowing(ctx, state, pending.card) : null;
+        const mayRead = !!pending && visible.has(pending.card);
+        const showing = pending && mayRead ? skillsShowing(ctx, state, pending.card) : null;
         const skill = showing?.skills.find((item) => item.index === pending?.skillIndex);
-        return { action: { type: "orderPending" as const, player: pr.player, index }, label: `Resolve ${pending ? shownName(ctx, state, pending.card) : `#${index}`}${skill ? `: ${(skill.effect || skill.raw).slice(0, 40)}` : " triggered effect"} (choice ${index + 1})` };
+        const source = mayRead && pending ? shownName(ctx, state, pending.card) : "a pending card";
+        const detail = skill ? `: ${(skill.effect || skill.raw).slice(0, 40)}` : " triggered effect";
+        const answer: LegalAction = { action: { type: "orderPending", player: pr.player, index }, label: `Resolve ${source}${detail} (choice ${index + 1})` };
+        return pending && canWithholdSecretAuto(ctx, game, state, pending)
+          ? [answer, { action: { type: "orderPending", player: pr.player, index, decline: true }, label: `Leave ${source}${skill ? `: ${(skill.effect || skill.raw).slice(0, 40)}` : ""} undeclared (choice ${index + 1})` }]
+          : [answer];
       });
+    }
     default:
       return [];
   }

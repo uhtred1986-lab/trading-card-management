@@ -11,7 +11,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"addLife","n":AMOUNT,"side"?:"you"|"opponent"}
   {"op":"lifeDownTo","n":N,"side"?:"you"|"opponent"}
     add cards from life to hand until that many life remain (21-3-2)
-  {"op":"shuffle","side"?:"you"|"opponent"}
+  {"op":"shuffle","side"?:"you"|"opponent","areas"?:["deck"|"life"],"inspectedOnly"?:true|false}
+  {"op":"invokeSkill","trait":"…","skillKind":"activate:main","from":"hand","maxCost":"currentEnergy"}
   {"op":"energyMarker","n":AMOUNT,"side"?:"you"|"opponent"}
   {"op":"choose","sel":SELECTOR,"as":"…","reason"?:"…","chooser"?:"you"|"opponent","bindX"?:true|false}
     binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)
@@ -154,7 +155,7 @@ COND is one of these (a field marked ? may be left out):
 TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
 AREA: "deck" | "hand" | "drop" | "leader" | "battle" | "combo" | "energy" | "life" | "warp" | "unison" | "zDeck" | "zEnergy" | "removed" | "under" | "play"
-DURATION: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay" — "nextTurn" lasts through the opponent's turn and ends as yours begins; "whileSourceInPlay" lasts until the card that made it leaves the Battle Area.
+DURATION: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay" — "nextTurn" lasts through the opponent's turn and ends as yours begins; "whileSourceInPlay" lasts until the card that made it leaves the Battle Area.
 FILTER: {"colors":[…],"characters":[…],"traits":[…],"names":[…],"costMin":N,"costMax":N,"powerMin":N,"powerMax":N}, any subset.
   The brackets a card prints say which list a word belongs in: <Son Goku> is a character, ≪Saiyan≫ a trait, and
   {Angel Halo} a card *name* — "names", never "characters". A card names itself in braces and its character

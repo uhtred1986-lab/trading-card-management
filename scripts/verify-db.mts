@@ -894,6 +894,7 @@ await (await import("./verify-rule-review-db.mts")).verifyRuleReviewDb(db);
 await (await import("./verify/arena-ai-usage.ts")).verifyArenaAiUsage(db);
 await (await import("./verify/arena-advance-leases.mts")).verifyArenaAdvanceLeases(db);
 await (await import("./verify/arena-gameplan-db.mts")).verifyArenaGameplan(db);
+await (await import("./verify/arena-secret-auto-db.mts")).verifyArenaSecretAuto(db);
 
 await client.close();
 console.log("verify-db: all checks passed");
