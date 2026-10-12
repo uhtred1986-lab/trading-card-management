@@ -70,6 +70,7 @@ export interface BattleView {
 export interface ReplacementLookup {
   actor?: MoveActor;
   inSubstitute?: boolean;
+  requestedTo?: Area;
 }
 
 /**

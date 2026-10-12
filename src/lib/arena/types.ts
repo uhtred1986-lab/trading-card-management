@@ -11,7 +11,7 @@
  */
 
 import type { CardFilter } from "./text/filters";
-import type { CardScripts, Cond, Op, ScriptFrame } from "./vm/script";
+import type { CardScripts, Cond, Op, ScriptFrame, Selector } from "./vm/script";
 
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];
@@ -187,6 +187,7 @@ export type MoveReason = "ko" | "effect" | "rule" | "cost" | "play" | "combo" | 
 export interface ReplacementChoice {
   source: string;
   to?: Area;
+  position?: "top" | "bottom";
   mode?: Mode;
   optional?: boolean;
   /** The program that happens instead, for a substitute rather than a redirect. */
@@ -210,6 +211,7 @@ export type MoveActor = PlayerId | undefined;
 /** A move route chosen before `move()` begins; null means keep the original route. */
 export interface ReplacementResult {
   to?: Area;
+  position?: "top" | "bottom";
   mode?: Mode;
   /** The program that happens instead of the move. */
   ops?: Op[];
@@ -571,14 +573,14 @@ export interface ContinuousEffect {
    * `value` — the one the master picked ("choose up to 1 keyword skill on … and
    * negate that skill for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "gains" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "negateKeyword" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
+  kind: "power" | "comboPower" | "keyword" | "gains" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "negateKeyword" | "replaceLeave" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | CardIdentityGain | { colors: (Color | "any")[]; sign: 1 | -1 };
+  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 };
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
@@ -1224,6 +1226,12 @@ export interface Replacement {
    * ("place all the cards under this card in the Drop Area instead").
    */
   to?: Area;
+  /** 9-10: the original requested destination this redirect answers to, when narrowed. */
+  requestedTo?: Area;
+  /** The position to use if the replacement redirects into a pile. */
+  position?: "top" | "bottom";
+  /** A timed skill replacement re-evaluates this selector at each departure. */
+  target?: Selector;
   /**
    * Which departures it replaces. Absent is any of them ("would leave the
    * Battle Area"); `"skill"` is only an effect putting the card out; `"ko"`

@@ -110,10 +110,22 @@ export function def(ctx: GameContext, s: GameState, id: string): CardDef {
  * suspendable sites go through `replacementChoicesFor` instead, which returns
  * every candidate and lets the affected player answer (#107).
  */
-function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"], actor?: MoveActor): Replacement | null {
-  for (const e of staticEffects(ctx, s)) {
-    if (e.kind !== "replaceLeave" || e.target !== id) continue;
-    const r = e.value as Replacement;
+function replacementCandidates(ctx: GameContext, s: GameState, id: string): { source: string; replacement: Replacement }[] {
+  const out = staticEffects(ctx, s)
+    .filter((e) => e.kind === "replaceLeave" && e.target === id)
+    .map((e) => ({ source: e.source, replacement: e.value as Replacement }));
+  for (const e of s.effects) {
+    if (e.kind !== "replaceLeave" || !e.value || typeof e.value !== "object") continue;
+    const replacement = e.value as Replacement;
+    const target = replacement.target ?? { special: "self" as const };
+    const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: e.source ?? id, master: e.master ?? s.turnPlayer };
+    if (resolveSelector(ctx, s, frame, target).includes(id)) out.push({ source: e.source ?? "", replacement });
+  }
+  return out;
+}
+
+function replacementFor(ctx: GameContext, s: GameState, id: string, reason: MoveOptions["reason"], actor?: MoveActor, requestedTo?: Area): Replacement | null {
+  for (const { replacement: r } of replacementCandidates(ctx, s, id)) {
     if (r.optional) continue;
     // A substitute program is already running: whatever it moves is moving
     // for real, or "place the cards under this card in the Drop instead"
@@ -124,7 +136,7 @@ function replacementFor(ctx: GameContext, s: GameState, id: string, reason: Move
     // unapplied here rather than half-run — the two suspendable sites reach
     // the same rule through `replacementChoicesFor`, which can.
     if (r.ops && asksAQuestion(r.ops)) continue;
-    if (!causeMatches(s, id, r, reason, actor)) continue;
+    if (!causeMatches(s, id, r, reason, actor, requestedTo)) continue;
     return r;
   }
   return null;
@@ -137,7 +149,7 @@ function replacementFor(ctx: GameContext, s: GameState, id: string, reason: Move
  * cards name; and `bySide` narrows either of those to the opponent's skill,
  * which only a caller that knows the actor can satisfy.
  */
-function causeMatches(s: GameState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor): boolean {
+function causeMatches(s: GameState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor, requestedTo?: Area): boolean {
   // #272: a "life" replacement answers to no Battle Area departure at all —
   // `lifeReplacementChoicesFor` is its own reader, asked only by `battleDamage`.
   // A "marker" replacement answers to no departure either — the Unison stays;
@@ -146,6 +158,7 @@ function causeMatches(s: GameState, id: string, r: Replacement, reason: MoveReas
   if (r.by === "skill" && reason !== "effect") return false;
   if (r.by === "ko" && reason !== "ko") return false;
   if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
+  if (r.requestedTo && r.requestedTo !== requestedTo) return false;
   if (r.bySide === "opponent" && (actor === undefined || actor === masterOf(s, id))) return false;
   return true;
 }
@@ -164,16 +177,14 @@ export function replacementChoicesFor(
   s: GameState,
   id: string,
   reason: MoveReason | undefined,
-  opts: { actor?: MoveActor; inSubstitute?: boolean } = {},
+  opts: { actor?: MoveActor; inSubstitute?: boolean; requestedTo?: Area } = {},
 ): ReplacementChoice[] {
-  const { actor, inSubstitute } = opts;
+  const { actor, inSubstitute, requestedTo } = opts;
   const out: ReplacementChoice[] = [];
-  for (const e of staticEffects(ctx, s)) {
-    if (e.kind !== "replaceLeave" || e.target !== id) continue;
-    const r = e.value as Replacement;
+  for (const { source, replacement: r } of replacementCandidates(ctx, s, id)) {
     if (r.ops && (applyingReplacement || inSubstitute)) continue;
-    if (!causeMatches(s, id, r, reason, actor)) continue;
-    out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
+    if (!causeMatches(s, id, r, reason, actor, requestedTo)) continue;
+    out.push({ source, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}) });
   }
   return out;
 }
@@ -1135,7 +1146,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       if (!inPlayNow) continue;
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
-      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, bySide: op.bySide, mode: op.mode, optional: op.optional } });
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional } });
       continue;
     }
     // The primitive the row above is a macro over (`docs/arena-ruleset-spec.md`
@@ -1153,7 +1164,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
       const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
-        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional, ...lifeFields }
+        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
         : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source, master, ...lifeFields };
       for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
@@ -1381,8 +1392,9 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   // happened (9-10-1-1). Read before the rules below, because a rule about
   // what a card *is* — a token, a Z-card — outranks an effect (0-2-5).
   let insteadMode: "active" | "rest" | undefined;
+  let insteadPosition: "top" | "bottom" | undefined;
   if ((wasInPlay || wasLife) && !goesToPlay && !goesToCombo) {
-    const instead: Replacement | ReplacementResult | null | undefined = "replaced" in opts ? opts.replaced : wasLife ? null : replacementFor(ctx, s, id, opts.reason);
+    const instead: Replacement | ReplacementResult | null | undefined = "replaced" in opts ? opts.replaced : wasLife ? null : replacementFor(ctx, s, id, opts.reason, undefined, to);
     // A substitute replaces the whole departure, not its destination: the card
     // stays where it is (9-10-1-1 — the move is treated as never having
     // happened) and the program runs in its place. Taken before the redirect
@@ -1400,10 +1412,12 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
       note(ev, `${face(ctx, s, id).name} goes to the ${instead.to} instead`);
       to = instead.to;
       insteadMode = instead.mode;
+      insteadPosition = instead.position;
     } else if (instead && "replaced" in opts) {
       // A route the affected player picked says how the card arrives as well
       // as where, even when where is where it was going anyway.
       insteadMode = instead.mode;
+      insteadPosition = instead.position;
     }
   }
 
@@ -1466,7 +1480,7 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   else if (to === "unison") ps.unison = id;
   else {
     const l = list(ps, to)!;
-    if (opts.position === "bottom") l.push(id);
+    if ((insteadPosition ?? opts.position) === "bottom") l.push(id);
     else if (to === "deck" || to === "drop" || to === "warp" || to === "life" || to === "removed") l.unshift(id);
     else l.push(id);
   }

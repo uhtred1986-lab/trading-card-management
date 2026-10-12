@@ -116,6 +116,10 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
     // for the standing form, with a duration on it.
     case "negateKeyword":
       return { kind: "negate", label: `[${e.value as string}] negated` };
+    case "replaceLeave": {
+      const r = e.value as { to?: string; position?: string };
+      return { kind: "other", label: `routes a hand return to the ${r.to ?? "replacement"}${r.position ? ` (${r.position})` : ""}` };
+    }
     case "forbid":
       return { kind: "forbid", label: e.forbid ? forbidLabel(e.forbid) : "forbidden" };
     case "permit":
