@@ -208,16 +208,14 @@ function koRevive(s: VmState, cardId = "REV597"): VmState {
   s = koRevive(s); s = act(s, { type: "choose", player: "p1", cards: [red[0]] }, { type: "choose", player: "p1", cards: [red[1]] });
   assert.ok(s.sides.p1.zones.drop.includes(rev)); assert.ok(red.every((id) => s.sides.p1.zones.hand.includes(id)), "failed original coverage charged a hand card"); assert.equal(s.prompt.kind, "main");
 }
-// Separate own-cost boundary, NOT paid-resolution evidence for 22-34-3:
-// the shared Auto path charges Revive's additional orb before its
-// colour DO. Declining the later colour payment leaves the card KO'd. This
-// issue changes colour eligibility only; fixing that order belongs to #624.
+// #624 corrects the old recorded ordering bug: the optional hand-colour
+// decision precedes additional Auto payment, so declining spends no orb.
 {
   let s = fixture(["R597", "B597"], ["REVFEE597", "SOURCE597"]); const rev = one(s, "battle", "REVFEE597"), hand = [...s.sides.p1.zones.hand];
-  s = koRevive(s, "REVFEE597"); assert.equal(s.prompt.kind, "chooseMode", "priced Revive has a separate Auto own-cost offer");
+  s = koRevive(s, "REVFEE597"); assert.equal(s.prompt.kind, "chooseCards", "priced Revive asks for hand colours first");
   assert.equal(s.sides.p1.zones.energy.filter((id) => s.cards[id].mode === "rest").length, 0);
-  s = act(reload(s), { type: "chooseMode", player: "p1", index: 0 });
-  assert.match(choice(s).reason, /Revive/); assert.equal(s.sides.p1.zones.energy.filter((id) => s.cards[id].mode === "rest").length, 1, "remaining order limitation: orb paid before hand-colour choice");
+  s = reload(s);
+  assert.match(choice(s).reason, /Revive/); assert.equal(s.sides.p1.zones.energy.filter((id) => s.cards[id].mode === "rest").length, 0, "additional orb waits for hand-colour payment");
   assert.deepEqual(s.sides.p1.zones.hand, hand); s = act(s, { type: "choose", player: "p1", cards: [] });
   assert.ok(s.sides.p1.zones.drop.includes(rev)); assert.deepEqual(s.sides.p1.zones.hand, hand); assert.equal(s.prompt.kind, "main");
 }

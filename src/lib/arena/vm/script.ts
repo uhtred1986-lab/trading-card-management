@@ -1193,6 +1193,10 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** #624: optional Revive hand payment before determining additional costs.
+   * Additive at state version 10: older suspended frames execute their stored
+   * program/payment history; never infer or replay a previously paid cost. */
+  reviveCost?: import("./revive-costs").ReviveCost;
   /** #595: hand-colour cost, then additional payment, then Aegis activation. */
   aegisCost?: import("./aegis-costs").AegisCost;
   /** #549: captured, reloadable Auto cost/effect continuation. */
