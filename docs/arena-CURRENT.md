@@ -45,14 +45,13 @@ The latest close-out wave merged #669 integrity bookkeeping, #670 hand-origin ba
 Autos (#572), #671 pending-Auto selection (partial #549), #673 grouped readings,
 #674 bounded gameplan preview (#570), and #675 current-DSL combo-entry timing (#672/#573).
 #573 and #574 are complete at their scoped acceptance. PR #679 completes P1 #574 exact durations/Desire. PR #678 completed P2 #569
-snapshot-derived reads. PR #681 delivered cost-free secret Auto declarations; this increment delivers priced-secret declarations before payment. PR #682 completed genuine damage statistics (#557), and PR #684 completed BT31-116 free Extra activation (#680). Current implementation work is #683 Villainous/Extra keyword hooks; #609 cleanup checkpoints have a rule-grounded plan awaiting those hot files.
+snapshot-derived reads. PR #681 delivered cost-free secret Auto declarations; this increment delivers priced-secret declarations before payment. PR #682 completed genuine damage statistics (#557), and PR #684 completed BT31-116 free Extra activation (#680). PR #688 delivered bounded #683 Villainous/Extra hooks with remaining cases explicit. PR #689 delivered a narrow Auto-price pruning improvement. #459 fixed expectations pass both arena lanes, the no-legacy full-test proof and root build; #609 cleanup is in final testing with replacement combinations still open.
 #549 and #595 remain partial; #550 waits on complete #549 acceptance. #609's later cleanup
 checkpoint issue remains open and distinct from the completed combo-entry correction.
 
-Remaining original implementation queue (15): M5 #549/#550/#552/#595/#609/#540/#541/#542;
-M2 #566; M1 original reading children complete, parent #539 remains open for stored catalog/fuzz verification; M13 #459/#118; M4 #105/#106; providers #381/#518.
-Owner ruling/catalog/fuzz/device/paid verification gates remain explicit. Legacy retirement
-requires #459 and its other prerequisites. Offline work is a separate programme and is not
+Remaining original implementation queue (14) after #459 acceptance: M5 #549/#550/#552/#595/#609/#540/#541/#542;
+M2 #566; M1 original reading children complete, parent #539 remains open for stored catalog/fuzz verification; M13 #118; M4 #105/#106; providers #381/#518.
+Owner ruling/catalog/fuzz/device/paid verification gates remain explicit. Legacy retirement requires the remaining #118 prerequisites; #459 fixed-expectation acceptance passes. Offline work is a separate programme and is not
 being implemented by this wave. The original dirty artwork prototype is preserved.
 
 ## Reconciliation and evidence
@@ -92,7 +91,7 @@ Additive migration proposals are local; owner-only/live acceptance stays explici
 Completing PRs set canonical backlog status closed and attach acceptance evidence; maintain the
 current queue/tracker. Do not bulk-sync older files over newer issue bodies/comments.
 
-New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks external activateSkill taxes visible to typed effect readers; compiler/schema and activation payment still need support. It covers taxes on normal and effect-invoked activations. This is additional to the fifteen original remaining issues; #574 retains this explicit shared payment limitation.
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks external activateSkill taxes visible to typed effect readers; compiler/schema and activation payment still need support. It covers taxes on normal and effect-invoked activations. This is additional to the fourteen original remaining issues; #574 retains this explicit shared payment limitation.
 
 Completed P1 reading follow-up [#680](https://github.com/uhtred1986-lab/trading-card-management/issues/680) (M1, PR #684) replaces BT31-116's incorrect free Extra play with a real nested Main/Battle activation. All four original reading children are complete at their stated scopes; parent #539 remains open for stored catalog redraft/signoff and fuzz proof.
 

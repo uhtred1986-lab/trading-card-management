@@ -5,6 +5,7 @@ labels: enhancement, area:arena-vm, phase:rules-stage10, model:opus-5, ready-for
 stage: 10
 issue: 459
 priority: P2
+status: closed
 ---
 **Blocks:** #118. This was found in step 1 (#456).
 
@@ -36,6 +37,25 @@ Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full revi
 
 ## Audit reconciliation — 12 Oct 2026
 
-The seven fixture suites named above have moved to the rules engine, and contract snapshots are emitted from rules. The two keyword cases named in the original problem (`continuations` and `koCard`/TAKER2) are also engine-neutral. The only remaining oracle exclusion in `verify-arena.ts` is `vm`; `ai-vm` now runs under `--rules-only` with fixed fixtures. The saved legacy-game check in `engine-default` remains #118 scope.
+The seven fixture suites named above have moved to the rules engine, and contract snapshots are emitted from rules. The two keyword cases named in the original problem (`continuations` and `koCard`/TAKER2) are also engine-neutral. At this audit point the only remaining oracle exclusion in `verify-arena.ts` was `vm`; `ai-vm` already ran under `--rules-only` with fixed fixtures. The saved legacy-game check in `engine-default` remains #118 scope.
 
 The bounded AI presentation migration is tracked separately as [#601](pv-v02.md) and is complete. Its acceptance covers only `ai-vm`; #459 remains open for the larger `vm.ts` comparison-to-fixed-expectation migration and the remaining gate work.
+
+## VM expectation branch — 12 Oct 2026
+
+The isolated `arena-459-fixed-expectations` branch has migrated the VM gameplay
+comparisons to reviewed fixed expectations. The 40-field/98-card filter corpus,
+45 payment scenarios, 98 printed card prices, 29 complete script results,
+full-turn event/action traces, view objects and focused action/event/refusal
+cases are checked in. [Evidence](evidence/459/README.md) maps each former
+comparison to its current assertion. Legacy adapter, saved-state, face-reading
+and legacy script-host compatibility remain executable under #118 guards.
+
+The branch removes `vm` from the shared `verify-arena.ts` rules-only exclusion
+after a source audit and a guarded direct VM run found zero legacy calls. Both
+full arena lanes pass 56/56. A local `npm test` with its default legacy arena
+invocation temporarily removed also passes, and `package.json` was restored
+byte for byte. The capability inventory now records the converted VM lane as
+supported test evidence. [Branch validation](evidence/459/README.md) records
+the exact commands and build-environment limits. Root independently repeated the no-legacy full test, typecheck and lint, and the default production build passes after PR #689 integration. Root review is complete; the separate #118 legacy-compatibility checks
+remain executable in the normal lane.
