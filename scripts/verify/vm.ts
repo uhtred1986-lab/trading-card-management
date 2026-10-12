@@ -5,10 +5,9 @@
  *
  *  1. **An engine is six calls.** `snapshot.ts` needs a board drawn and
  *     `games.ts` needs beats made from a state neither can read, so those two
- *     belong to the interface beside the four that were always there. Both
- *     engines implement all six, and the legacy engine's are the very
- *     functions the old imports named — asserted by identity below, because
- *     "an adapter and nothing else" is a claim a test can actually check.
+ *     belong to the interface beside the four that were always there. The
+ *     rules engine implements all six; the legacy adapter identities stay in
+ *     `vm-legacy-118.ts` until #118 resolves saved-game compatibility.
  *  2. **A rules game can be made, stored and read back.** `createGame` loads
  *     the DBS definition and returns a `VmState` that carries which engine
  *     wrote it and which game it was dealt from; it survives a round trip
@@ -41,19 +40,15 @@
 import assert from "node:assert/strict";
 import { toBeats } from "../../src/lib/arena/beats";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
-import { apply, createGame, legalActions, rejectedActions } from "../../src/lib/arena/engine";
+import { createGame } from "../../src/lib/arena/engine";
 import { type Action, type GameEvent, type GameState, type LegalAction } from "../../src/lib/arena/types";
 import {
-  AVAILABLE_ENGINES,
-  ENGINE_IDS,
   ENGINE_INFO,
-  EngineMismatch,
   engineFor,
-  legacyState,
   playableEngine,
   type Engine,
 } from "../../src/lib/arena/engines";
-import { boardView, type CardView } from "../../src/lib/arena/view";
+import { type CardView } from "../../src/lib/arena/view";
 import { priceOf, refusal } from "../../src/lib/arena/wording";
 import {
   FilterNeedsAttribute,
@@ -120,43 +115,36 @@ import {
 import { expandMacros, loadRuleset, rulesetFor, type ActionDef, type GameDefinition } from "../../src/lib/arena/rulesets";
 import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
-import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
 import type { CardDef, Color, PlayerId, Replacement, Requirement } from "../../src/lib/arena/types";
 import { legacyHost } from "../../src/lib/arena/engine/legacy-host";
 import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/vm/script";
-import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
-import { CTX, DEFS, assertMenuInvariants, card, cardNow, fifty, matches, parseSkills } from "./harness";
+import { CTX, DEFS, assertMenuInvariants, card, fifty } from "./harness";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
 import { backCharactersOf } from "../../src/lib/arena/text/cards";
 import { usableFrom } from "../../src/lib/arena/vm/activate";
+import { SEED_7_OPENING, SEED_7_P1_REDRAW } from "./vm-opening-459";
+import { CARD_VIEWS_459 } from "./vm-card-views-459";
+import { expectedTurnTrace } from "./vm-turn-459";
+import { verifyLegacyPrimitiveOps, verifyLegacyVmCompatibility } from "./vm-legacy-118";
+import { VM_BASE_DEFS_459 } from "./vm-base-corpus-459";
+import { FILTER_CORPUS_459, FILTER_MATCHES_459, fixedFilterMatch459 } from "./vm-filters-459";
+import { FIXED_CARD_COSTS_459, FIXED_PRICES_459 } from "./vm-costs-459";
+import FIXED_SCRIPT_SEEN_459 from "./vm-scripts-459.json";
+import { RULES_ONLY } from "./rules-only";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
 // ── 1. an engine is six calls ──────────────────────────────────────────────
 
-/** Every call the app makes through the switch. Typed off `Engine`, so widening the interface fails here until both engines implement it. */
+/** Every call the app makes through the switch. Typed off `Engine`, so widening the interface fails here until the rules engine implements it. */
 const CALLS: (keyof Engine & string)[] = ["createGame", "apply", "legalActions", "rejectedActions", "boardView", "toBeats"];
 
-for (const id of ENGINE_IDS) {
+for (const id of ["rules"] as const) {
   const engine = engineFor(id);
   assert.equal(engine.id, id, `engineFor(${id}) handed back the ${engine.id} engine`);
   for (const call of CALLS) assert.equal(typeof engine[call], "function", `the ${id} engine has no ${call}`);
-}
-
-// The legacy engine is an adapter: each call *is* the function the old imports
-// named, not a wrapper that could drift from it. This is what makes the
-// contract fixtures and `arena:diff` a proof that widening the interface moved
-// no behaviour.
-{
-  const legacy = engineFor("legacy");
-  assert.equal(legacy.createGame, createGame, "the legacy adapter's createGame is not the engine's own");
-  assert.equal(legacy.apply, apply, "the legacy adapter's apply is not the engine's own");
-  assert.equal(legacy.legalActions, legalActions, "the legacy adapter's legalActions is not the engine's own");
-  assert.equal(legacy.rejectedActions, rejectedActions, "the legacy adapter's rejectedActions is not the engine's own");
-  assert.equal(legacy.boardView, boardView, "the legacy adapter's boardView is not view.ts's own");
-  assert.equal(legacy.toBeats, toBeats, "the legacy adapter's toBeats is not beats.ts's own");
 }
 
 // ── 2. which engine may a new game be made on ──────────────────────────────
@@ -170,8 +158,6 @@ for (const id of ENGINE_IDS) {
 // `games.ts`'s `assertEngineForMode` and `matches.ts`'s `openMatch`, one
 // level above what `playableEngine` alone answers.
 assert.equal(ENGINE_INFO.rules.available, true, "the rules engine still says it cannot play, and #149 built it to");
-assert.deepEqual(AVAILABLE_ENGINES, ["legacy", "rules"], "the engines a new game may be made on have changed");
-assert.equal(playableEngine("legacy").id, "legacy", "the legacy engine is refused for a new game");
 assert.equal(playableEngine("rules").id, "rules", "the rules engine is refused for a new game despite #149");
 assert.doesNotThrow(() => engineFor("rules"), "engineFor refuses the rules engine, so no row on it could ever be read");
 
@@ -198,12 +184,6 @@ assert.equal(state.turn, 0, "a rules game has a turn number before the pre-game 
 // is a game that cannot be stored — the one property the skeleton must have.
 assert.deepEqual(JSON.parse(JSON.stringify(state)), state, "a rules game's state does not round-trip through JSON");
 
-// A legacy state carries no `engine` field, so the guard answers about one
-// shape rather than guessing about the other. Built from the legacy
-// `createGame` imported above rather than harness's `game()`, which this
-// suite must not depend on: `game()` runs on whichever engine `--engine`
-// named, and proving the switch cannot depend on which side of it is chosen.
-assert.equal(isVmState(createGame(CTX, DECKS).state), false, "a legacy state was read as the rules engine's");
 assert.equal(isVmState(null), false, "null was read as a rules state");
 assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 
@@ -236,14 +216,8 @@ for (const [what, action] of [
 
 // ── 5. a row is never replayed on the wrong interpreter ────────────────────
 
-// The app around the six calls is still legacy-shaped (`games.ts` reads
-// `state.turn`), so the seam is a check and not a cast: a rules state reaching
-// it is named, not read field by field as `undefined`.
-assert.throws(() => legacyState(state), EngineMismatch, "a rules state was read as the legacy engine's");
-const legacy = createGame(CTX, DECKS).state;
-assert.equal(legacyState(legacy), legacy, "a legacy state did not pass the seam untouched");
-
-
+// Adapter and saved legacy-state compatibility run in the #118 helper outside
+// the rules-only lane. Its invocation follows §21, which declares its card.
 
 // ── 6. a card is a bag of declared attributes ──────────────────────────────
 
@@ -378,7 +352,14 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
  * Built here rather than added to `DEFS`, which other suites count.
  */
 const CORPUS: CardDef[] = [
-  ...Object.values(DEFS),
+  // Earlier verify-arena suites add their own cards to the shared DEFS object.
+  // This reviewed corpus names only the original harness rows; direct VM and
+  // full-suite runs must measure the same 98 printed cards.
+  ...FILTER_CORPUS_459.slice(0, -8).map((id) => {
+    const def = VM_BASE_DEFS_459[id];
+    assert.ok(def, `the reviewed filter corpus has no printed ${id} row`);
+    return def;
+  }),
   card("TRAITED", { traits: ["Saiyan", "God"], characters: ["Son Goku", "Son Goku : GT"] }),
   card("RENAMED", { alsoNames: ["Planet M-2"] }),
   card("TOK", { type: "TOKEN", skill: null }),
@@ -389,6 +370,13 @@ const CORPUS: CardDef[] = [
   card("COMBO10K", { comboPower: 10000 }),
   card("NOCOMBO", { comboPower: null }),
 ];
+assert.deepEqual(Object.keys(VM_BASE_DEFS_459), FILTER_CORPUS_459.slice(0, -8), "the original printed harness rows changed before the VM suite");
+assert.deepEqual(CORPUS.map((def, i) => i === 91 ? "RENAMED+alsoNames" : def.id), FILTER_CORPUS_459, "the reviewed 98-card filter corpus changed");
+for (const [field, set] of Object.entries(FILTER_MATCHES_459)) {
+  const rows = "only" in set ? set.only : set.except;
+  assert.equal(new Set(rows).size, rows.length, `the fixed ${field} list repeats a corpus row`);
+  for (const row of rows) assert.ok(FILTER_CORPUS_459.includes(row), `the fixed ${field} list names an unreviewed row: ${row}`);
+}
 
 for (const field of FILTER_FIELD_NAMES) {
   const filter = FILTER_SAMPLES[field];
@@ -400,15 +388,12 @@ for (const field of FILTER_FIELD_NAMES) {
   for (const attr of attributesRead(filter)) assert.ok(attr in DBS.attributes, `a filter measuring ${field} reads ${attr}, which the DBS ruleset does not declare`);
 
   const predicate = predicateOf(filter, DBS);
-  for (const def of CORPUS) {
+  for (const [i, def] of CORPUS.entries()) {
     const over = onACatalogRow(def);
     assert.equal(
       predicate(over),
-      // The new explicit measure has no frozen-legacy counterpart. Its
-      // catalog-row expectation is printed colours; gameplay is #597's
-      // independent suite, including effective identity interactions.
-      field === "originalColors" ? def.colors.includes("Blue") : matches(def, { ...emptyFilter(), ...filter }),
-      `the rules engine and the legacy engine disagree about whether ${def.id} satisfies ${JSON.stringify(filter)}`,
+      fixedFilterMatch459(field, FILTER_CORPUS_459[i]),
+      `the rules engine disagrees with the reviewed fixed expectation for ${FILTER_CORPUS_459[i]} under ${field}`,
     );
   }
 }
@@ -424,8 +409,8 @@ for (const field of FILTER_FIELD_NAMES) {
  * Mode card shows nothing (1-9, 23-5-2) — neither of which a `CardDef` on its
  * own can be in, so here the face showing is the row and the seed is `power`.
  * Written out rather than left absent, because a measure reading an attribute
- * nothing filled answers `false` for every card, and a sweep comparing two
- * engines would then agree only where the legacy one also said no.
+ * nothing filled answers `false` for every card. The fixed expectation sweep
+ * checks both matching and nonmatching rows for that measure.
  */
 function onACatalogRow(def: CardDef): Attrs {
   const attrs = attrsOf(def, DBS).attrs;
@@ -498,30 +483,26 @@ for (const field of ["faceUp", "powerRel", "unreadable"] as const) {
   assert.deepEqual(inPlayZones(DBS), ["leader", "battle", "unison"], "the areas a card's own skills are valid in are not the three of 9-1-3-1");
 }
 
-// ── 9. the opening board is the legacy engine's ────────────────────────────
+// ── 9. the opening board follows the fixed seed-7 deal ─────────────────────
 
-// Seed 7 and the harness decks, the pairing the issue names. Both engines deal
-// the same procedure at the same moments now (#140 moved the rules engine's
-// life and mulligan into the flow, where 6-2-1 puts them), so the same three
-// answers are given to each and the boards are compared after them.
+// Seed 7 and the harness decks, the pairing the issue names. The fixed order
+// records the 6-2-1 procedure: choose first, offer mulligans, deal life.
 const SEED = 7;
 const SAME = { seed: SEED, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
 const fresh = engineFor("rules").createGame(CTX, SAME).state as VmState;
 assert.deepEqual(fresh.sides.p1.attrs, { energyMarkers: 0, charged: false, grewUnison: false, overRealms: 0 }, "a side does not start with the player attributes the game declares (1-14, 7-2-11, 13-3, 22-15)");
 
-let oracle = createGame(CTX, SAME).state;
-const chooser = (oracle.prompt as { player: PlayerId }).player;
-assert.equal(fresh.chooser, chooser, "the two engines chose a different player to decide who goes first (6-2-1-4)");
+const chooser = SEED_7_OPENING.chooser;
+assert.equal(fresh.chooser, chooser, "seed 7 chose the wrong player to decide who goes first (6-2-1-4)");
 assert.equal(fresh.firstPlayer, null, "the rules engine decided who goes first, which is a choice and needs a prompt (6-2-1-5)");
 
-/** The three answers the pre-game procedure asks for, given to either engine. */
+/** The three answers the pre-game procedure asks for. */
 const OPENING: Action[] = [
   { type: "chooseFirst", player: chooser, first: "p1" },
   { type: "mulligan", player: "p1", redraw: false },
   { type: "mulligan", player: "p2", redraw: false },
 ];
-for (const action of OPENING) oracle = apply(CTX, oracle, action).state;
 let dealt = fresh;
 for (const action of OPENING) dealt = engineFor("rules").apply(CTX, dealt, action).state as VmState;
 
@@ -535,11 +516,11 @@ assert.equal(dealt.turnPlayer, "p1", "the player who was chosen to go first is n
 
 for (const p of ["p1", "p2"] as PlayerId[]) {
   const side = dealt.sides[p];
-  const them = oracle.players[p];
-  assert.deepEqual(side.zones.hand, them.hand, `${p}'s opening hand is not the hand the legacy engine dealt from seed ${SEED}`);
-  assert.deepEqual(side.zones.life, them.life, `${p}'s life pile is not the pile the legacy engine dealt from seed ${SEED}`);
-  assert.deepEqual(side.zones.deck, them.deck, `${p}'s deck is not in the order the legacy engine shuffled it into from seed ${SEED}`);
-  assert.deepEqual(side.zones.leader, [them.leader], `${p}'s Leader Card is not the one the legacy engine placed (6-2-1-2)`);
+  const expected = SEED_7_OPENING[p];
+  assert.deepEqual(side.zones.hand, expected.hand, `${p}'s opening hand changed for seed ${SEED}`);
+  assert.deepEqual(side.zones.life, expected.life, `${p}'s life pile changed for seed ${SEED}`);
+  assert.deepEqual(side.zones.deck, expected.deck, `${p}'s shuffled deck changed for seed ${SEED}`);
+  assert.deepEqual(side.zones.leader, expected.leader, `${p}'s Leader Card was not placed (6-2-1-2)`);
   assert.equal(side.zones.hand.length, DBS.game?.hand, "the opening hand is not the size the game declares (6-2-1-9)");
   assert.equal(side.zones.life.length, DBS.game?.life, "the life is not the size the game declares (6-2-1-10)");
 }
@@ -645,10 +626,8 @@ for (const p of ["p1", "p2"] as PlayerId[]) {
 // ── 11. the turn, run as a program ─────────────────────────────────────────
 //
 // The claim #140 makes: a game on the rules engine plays turn to turn from the
-// `DEFINE PHASE` and `DEFINE STEP` declarations, and what it logs doing so is
-// what the engine that has been playing logs. Asserted here rather than left
-// to `arena:diff`, which needs a database and real saved games: the same
-// comparison, over the harness decks, in `npm test`.
+// `DEFINE PHASE` and `DEFINE STEP` declarations. The full action and event
+// streams are checked against the compact manual procedure in vm-turn-459.ts.
 
 /** Everything the turn asks for, answered with the move that takes none of what is offered. */
 function passOnly(engine: ReturnType<typeof engineFor>, start: unknown, first: PlayerId): { events: GameEvent[]; actions: Action[]; state: unknown } {
@@ -674,32 +653,27 @@ function passOnly(engine: ReturnType<typeof engineFor>, start: unknown, first: P
 
 {
   const rulesEngine = engineFor("rules");
-  const legacyEngine = engineFor("legacy");
   const born = rulesEngine.createGame(CTX, SAME);
-  const legacyBorn = legacyEngine.createGame(CTX, SAME);
 
   const played = passOnly(rulesEngine, born.state, "p1");
-  const oracled = passOnly(legacyEngine, legacyBorn.state, "p1");
   const end = played.state as VmState;
-  const legacyEnd = oracled.state as GameState;
+  const expected = expectedTurnTrace(false);
 
-  // The same questions in the same order, which is what makes one action log
-  // replayable on either engine — the property `arena:diff` is built on.
-  assert.deepEqual(played.actions, oracled.actions, "a pass-only game asks the two engines for different answers");
+  // The 145 expected questions are one choice, two mulligans, and 71 pairs of
+  // skip charge / end Main. Their order is the replay contract.
+  assert.deepEqual(played.actions, expected.actions, "a pass-only game changed its fixed action sequence");
 
   // The whole log, event for event, creation included. `reason` is the one
-  // field left out of the comparison: the rules engine says why a player lost
-  // in the words of the `DEFINE WIN` that ended it, and the legacy engine in
-  // its own — which is the difference the programme exists to make, and Stage
-  // 8 is where every word comes from the definition.
+  // field left out of the comparison: the wording of the deck-out reason is
+  // asserted separately below, while the event contract checks every field.
   const shown = (list: GameEvent[]) => JSON.parse(JSON.stringify(list.map((e) => (e.type === "gameOver" ? { ...e, reason: "…" } : e))));
-  assert.deepEqual(shown([...born.events, ...played.events]), shown([...legacyBorn.events, ...oracled.events]), "a pass-only game does not log the same thing on the two engines");
+  assert.deepEqual(shown([...born.events, ...played.events]), expected.events, "a pass-only game changed its full fixed event sequence");
 
-  // …and it really did play a game: to a deck-out, on the turn the legacy
-  // engine gets there, with the same winner.
+  // …and it really did play a game: to a deck-out on turn 72, when p2's
+  // 36-card post-setup deck has supplied its last draw.
   assert.equal(end.phase, "over", "a pass-only game on the rules engine never ended");
-  assert.equal(end.turn, legacyEnd.turn, "the two engines' pass-only games ran for a different number of turns");
-  assert.equal(end.winner, legacyEnd.winner, "the two engines' pass-only games ended with a different winner");
+  assert.equal(end.turn, 72, "a pass-only game did not end on p2's deck-out turn");
+  assert.equal(end.winner, "p1", "a pass-only game did not award the deck-out to p1");
   assert.ok(end.turn > 60, `a pass-only game ended on turn ${end.turn}, which is far too soon for a 50-card deck to run out`);
   assert.match(end.overReason ?? "", /Deck Area/, "a pass-only game did not end on a deck-out");
   assert.deepEqual(rulesEngine.legalActions(CTX, end), [], "a finished game still offers moves");
@@ -720,17 +694,14 @@ function passOnly(engine: ReturnType<typeof engineFor>, start: unknown, first: P
   assert.deepEqual(mid.flow[0].asking, ["p1", "p2"], "the mulligan is not put to both players beginning with the first");
   assert.equal((mid.prompt as { player: PlayerId }).player, "p1", "the first player is not the first to be asked about a mulligan");
 
-  // A mulligan really redraws, and redraws the hand the legacy engine redraws:
+  // A mulligan really redraws the checked-in seed-7 hand:
   // the hand goes back to a deck the life has not been taken off yet, which is
   // why the deal had to move into the flow at all (6-2-1-9-1 before 6-2-1-10).
   const redrawn = rulesEngine.apply(CTX, mid, { type: "mulligan", player: "p1", redraw: true }).state as VmState;
-  let legacyRedrawn = legacyEngine.createGame(CTX, SAME).state;
-  legacyRedrawn = legacyEngine.apply(CTX, legacyRedrawn, { type: "chooseFirst", player: mid.chooser, first: "p1" }).state;
-  legacyRedrawn = legacyEngine.apply(CTX, legacyRedrawn, { type: "mulligan", player: "p1", redraw: true }).state;
   assert.deepEqual(
     (redrawn as VmState).sides.p1.zones.hand,
-    (legacyRedrawn as GameState).players.p1.hand,
-    "a mulligan on the rules engine draws a different hand from the one the legacy engine draws",
+    SEED_7_P1_REDRAW,
+    "a mulligan on the rules engine changed the seed-7 redraw",
   );
 
   // Conceding is answered wherever the game has got to (0-1-3-4), and leaves
@@ -1086,8 +1057,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   // ── #276: `negate` is the primitive, and the spelling is a macro over it ──
   //
   // `negateSkills` written as itself and written as `negate(what: skills)` run
-  // through one interpreter case on either host, so the events, the effect in
-  // force and the beats a board draws are the same four ways over. `ops.rules`
+  // through one interpreter case, so the events, effect in force and beats
+  // are fixed for both spellings. `ops.rules`
   // declares `negateSkills` over `negate` for real (#273's holes make `$until`
   // writable), so `DBS` — the ruleset every other block in this file loads —
   // is what proves a lowered program is the same program, not a second copy
@@ -1112,45 +1083,31 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       assert.equal(attrsNow(CTX, DBS, s, theirs).power, 10000, "a negated [Permanent] went on standing on the rules engine");
       return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
     };
-    /** …and on the legacy engine, over its own host. */
-    const onLegacy = (ops: Op[]) => {
-      const l = createGame(CTX, SAME).state;
-      const [mine] = l.players.p1.deck.splice(0, 1);
-      const [theirs, aura] = l.players.p2.deck.splice(0, 2);
-      for (const [id, cardId] of [[mine, "V1"], [theirs, "V1"], [aura, "AURA"]] as const) {
-        l.cards[id].cardId = cardId;
-        l.cards[id].mode = "active";
-      }
-      l.players.p1.battle = [mine];
-      l.players.p2.battle = [theirs, aura];
-      const ev: GameEvent[] = [];
-      assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card: mine, master: "p1" }), "done");
-      assert.ok(legacySkillsNegated(l, aura), "the legacy engine did not record the negation");
-      return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
-    };
-
     const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
-    const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
     assert.deepEqual(r.primitive.events, r.spelled.events, "negateSkills as op and as negate do not log the same events on the rules engine");
-    assert.deepEqual(l.primitive.events, l.spelled.events, "negateSkills as op and as negate do not log the same events on the legacy engine");
     assert.deepEqual(r.primitive.beats, r.spelled.beats, "negateSkills as op and as negate do not make the same beats on the rules engine");
-    assert.deepEqual(l.primitive.beats, l.spelled.beats, "negateSkills as op and as negate do not make the same beats on the legacy engine");
-    // The beat is the same beat on both engines: an `effect` per card the
-    // selector found (both of the opponent's Battle Cards), the negation
-    // label, for the turn.
-    const shape = (beats: unknown[]) => (beats as { t: string; kind?: string; label?: string; until?: unknown }[]).map((b) => [b.t, b.kind, b.label, b.until]);
-    const negation = ["effect", "negate", "skills negated", "turn"];
-    assert.deepEqual(shape(r.primitive.beats), [negation, negation], "the rules engine's beat for a negation is not the one the board draws");
-    assert.deepEqual(shape(l.primitive.beats), shape(r.primitive.beats), "the two engines draw a negation differently");
+    const fixedNegation = {
+      events: [
+        { type: "effect", effect: { master: "p1", source: "p1#9", target: "p2#10", kind: "negateSkills", value: 0, until: "turn", id: 1, createdTurn: 1, ownerTurn: "p1" } },
+        { type: "effect", effect: { master: "p1", source: "p1#9", target: "p2#41", kind: "negateSkills", value: 0, until: "turn", id: 2, createdTurn: 1, ownerTurn: "p1" } },
+      ],
+      beats: [
+        { t: "effect", card: "p2#10", player: null, kind: "negate", label: "skills negated", until: "turn", source: "p1#9", owner: "p1", n: 1 },
+        { t: "effect", card: "p2#41", player: null, kind: "negate", label: "skills negated", until: "turn", source: "p1#9", owner: "p1", n: 2 },
+      ],
+    };
+    assert.deepEqual(r.spelled, fixedNegation, "the spelled negation changed its complete fixed events or beats");
+    assert.deepEqual(r.primitive, fixedNegation, "the primitive negation changed its complete fixed events or beats");
+    verifyLegacyPrimitiveOps("negate", spelled, primitive);
+
   }
 
   // ── #275: `modifyAttr` reaches a Leader's back side and a card's mode ────
   //
   // `flip` and `switchMode` written as themselves and written as
   // `modifyAttr(attr: flipped)`/`modifyAttr(attr: mode)` run through the
-  // same interpreter case on either host (`modifyAttrAs`, the precedent
-  // `negateAs` set above), so the events and the beats a board draws are
-  // the same both ways, on both engines. `ops.rules` declares both over the
+  // same interpreter case (`modifyAttrAs`, the precedent `negateAs` set
+  // above), so both spellings have the same fixed events and beats. `ops.rules` declares both over the
   // primitive for real, so `DBS` proves a lowered program is the same
   // program rather than a fixture built just for this block.
   {
@@ -1170,21 +1127,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         assert.ok(s.cards[leader].flipped, "the rules engine did not flip the Leader");
         return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
       };
-      const onLegacy = (ops: Op[]) => {
-        const l = createGame(CTX, SAME).state;
-        const leader = l.players.p1.leader;
-        const ev: GameEvent[] = [];
-        assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card: leader, master: "p1" }), "done");
-        assert.ok(l.cards[leader].flipped, "the legacy engine did not flip the Leader");
-        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
-      };
-
       const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
-      const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
       assert.deepEqual(r.primitive.events, r.spelled.events, "flip as op and as modifyAttr do not log the same events on the rules engine");
-      assert.deepEqual(l.primitive.events, l.spelled.events, "flip as op and as modifyAttr do not log the same events on the legacy engine");
       assert.deepEqual(r.primitive.beats, r.spelled.beats, "flip as op and as modifyAttr do not make the same beats on the rules engine");
-      assert.deepEqual(l.primitive.beats, l.spelled.beats, "flip as op and as modifyAttr do not make the same beats on the legacy engine");
+      const fixedFlip = { events: [{ type: "flip", card: "p1#0", flipped: true }], beats: [{ t: "flip", card: "p1#0", n: 1 }] };
+      assert.deepEqual(r.spelled, fixedFlip, "the spelled flip changed its complete fixed events or beats");
+      assert.deepEqual(r.primitive, fixedFlip, "the primitive flip changed its complete fixed events or beats");
+      verifyLegacyPrimitiveOps("flip", spelled, primitive);
     }
 
     /** `switchMode`: a Battle Card resting itself. */
@@ -1201,24 +1150,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         assert.equal(s.cards[card].mode, "rest", "the rules engine did not rest the card");
         return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
       };
-      const onLegacy = (ops: Op[]) => {
-        const l = createGame(CTX, SAME).state;
-        const [card] = l.players.p1.deck.splice(0, 1);
-        l.cards[card].cardId = "V1";
-        l.cards[card].mode = "active";
-        l.players.p1.battle = [card];
-        const ev: GameEvent[] = [];
-        assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card, master: "p1" }), "done");
-        assert.equal(l.cards[card].mode, "rest", "the legacy engine did not rest the card");
-        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
-      };
-
       const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
-      const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
       assert.deepEqual(r.primitive.events, r.spelled.events, "switchMode as op and as modifyAttr do not log the same events on the rules engine");
-      assert.deepEqual(l.primitive.events, l.spelled.events, "switchMode as op and as modifyAttr do not log the same events on the legacy engine");
       assert.deepEqual(r.primitive.beats, r.spelled.beats, "switchMode as op and as modifyAttr do not make the same beats on the rules engine");
-      assert.deepEqual(l.primitive.beats, l.spelled.beats, "switchMode as op and as modifyAttr do not make the same beats on the legacy engine");
+      const fixedMode = { events: [{ type: "mode", card: "p1#9", mode: "rest" }], beats: [{ t: "mode", card: "p1#9", mode: "rest", n: 1 }] };
+      assert.deepEqual(r.spelled, fixedMode, "the spelled mode change changed its complete fixed events or beats");
+      assert.deepEqual(r.primitive, fixedMode, "the primitive mode change changed its complete fixed events or beats");
+      verifyLegacyPrimitiveOps("mode", spelled, primitive);
     }
   }
 
@@ -1271,6 +1209,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       stepScript(legacyHost(ctx, l, ev), frame);
       return { events: plain(ev), beats: plain(toBeats(ctx, l, ev).list), board: plain(l.players), prompt: plain(l.prompt), did: plain(frame.did), vars: plain(frame.vars) };
     };
+    const checkedFixedScripts = new Set<string>();
     /** One spelling against its lowering on both engines; returns the spelled runs for a sanity check of what happened. */
     const same = (what: string, spelled: Op[], rules: (s: VmState) => Stage, legacy: (l: GameState) => Stage, ctxOf: (ops: Op[]) => typeof CTX = () => CTX, run: Op[] = spelled) => {
       const lowered = expandMacros(spelled, DBS);
@@ -1279,8 +1218,16 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       // the same program both times: only the record is lowered.
       const loweredRun = run === spelled ? lowered : run;
       const r = { spelled: onRules(run, rules, ctxOf(spelled)), lowered: onRules(loweredRun, rules, ctxOf(lowered)) };
-      const l = { spelled: onLegacy(run, legacy, ctxOf(spelled)), lowered: onLegacy(loweredRun, legacy, ctxOf(lowered)) };
+      const fixed = (FIXED_SCRIPT_SEEN_459 as unknown as Record<string, Seen>)[what];
+      assert.ok(fixed, `${what}: no reviewed fixed script expectation`);
+      checkedFixedScripts.add(what);
+      assert.deepEqual(r.spelled, fixed, `${what}: the spelled program changed its complete fixed events, beats, sides, prompt, did or vars`);
+      assert.deepEqual(r.lowered, fixed, `${what}: the lowered program changed its complete fixed events, beats, sides, prompt, did or vars`);
       assert.deepEqual(r.lowered, r.spelled, `${what}: the spelling and its lowering do not run the same on the rules engine`);
+      if (RULES_ONLY) return { r: r.spelled, l: undefined };
+      // #118 compatibility: the legacy host's two script spellings still
+      // execute identically while saved legacy games can use that host.
+      const l = { spelled: onLegacy(run, legacy, ctxOf(spelled)), lowered: onLegacy(loweredRun, legacy, ctxOf(lowered)) };
       assert.deepEqual(l.lowered, l.spelled, `${what}: the spelling and its lowering do not run the same on the legacy engine`);
       return { r: r.spelled, l: l.spelled };
     };
@@ -1321,7 +1268,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         (l) => ((l.battle = { ...fight(l.players.p2.leader, l.players.p1.leader), revenge: false, reactivate: false } as GameState["battle"]), {}),
       );
       assert.deepEqual(negated.r.did, { negateAttack: true, negateLeaderAttack: true }, "negateAttack did not negate a Leader's attack, so the parity is over an empty run");
-      assert.deepEqual(negated.l.did, negated.r.did);
+      if (!RULES_ONLY) assert.deepEqual(negated.l?.did, negated.r.did);
       same("negate the counter being answered", [{ op: "negateCounter" }], nothing, nothing);
     }
 
@@ -1382,26 +1329,29 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
           otherRules = staged(s, "p1", "OTHER");
           return { master: "p2", vars: { picked: [selectedRules] } };
         });
-        const boundLegacy = onLegacy(run, (l) => {
-          const [a, b] = l.players.p1.deck.splice(0, 2);
-          assert.ok(a && b, "legacy fixture could not stage two targets");
-          l.cards[a].cardId = "TARGET";
-          l.cards[b].cardId = "OTHER";
-          l.players.p1.battle.push(a, b);
-          selectedLegacy = a;
-          otherLegacy = b;
-          return { master: "p2", vars: { picked: [a] } };
-        });
         const boardZones = (board: unknown): Record<string, string[]> => {
           const b = board as { p1: { zones?: Record<string, string[]> } & Record<string, unknown> };
           return (b.p1.zones ?? b.p1) as Record<string, string[]>;
         };
         const rulesZones = boardZones(boundRules.board);
-        const legacyZones = boardZones(boundLegacy.board);
         assert.ok(rulesZones.hand.includes(selectedRules), "rules timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
         assert.ok(rulesZones.battle.includes(otherRules), "rules timed replacement broadened its bound target to a different Battle Card");
-        assert.ok(legacyZones.hand.includes(selectedLegacy), "legacy timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
-        assert.ok(legacyZones.battle.includes(otherLegacy), "legacy timed replacement broadened its bound target to a different Battle Card");
+
+        if (!RULES_ONLY) {
+          const boundLegacy = onLegacy(run, (l) => {
+            const [a, b] = l.players.p1.deck.splice(0, 2);
+            assert.ok(a && b, "legacy fixture could not stage two targets");
+            l.cards[a].cardId = "TARGET";
+            l.cards[b].cardId = "OTHER";
+            l.players.p1.battle.push(a, b);
+            selectedLegacy = a;
+            otherLegacy = b;
+            return { master: "p2", vars: { picked: [a] } };
+          });
+          const legacyZones = boardZones(boundLegacy.board);
+          assert.ok(legacyZones.hand.includes(selectedLegacy), "legacy timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
+          assert.ok(legacyZones.battle.includes(otherLegacy), "legacy timed replacement broadened its bound target to a different Battle Card");
+        }
 
         let selectorRulesTarget = "";
         let selectorOtherRules = "";
@@ -1416,20 +1366,23 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
           selectorOtherRules = staged(s, "p1", "OTHER");
           return { master: "p2", vars: { picked: [selectorRulesTarget] } };
         });
-        const selectorLegacy = onLegacy(selectorRun, (l) => {
-          const [a, b] = l.players.p1.deck.splice(0, 2);
-          assert.ok(a && b, "legacy fixture could not stage two selector targets");
-          l.cards[a].cardId = "TARGET";
-          l.cards[b].cardId = "OTHER";
-          l.players.p1.battle.push(a, b);
-          selectorLegacyTarget = a;
-          selectorOtherLegacy = b;
-          return { master: "p2", vars: { picked: [a] } };
-        });
         const selectorRulesZones = boardZones(selectorRules.board);
-        const selectorLegacyZones = boardZones(selectorLegacy.board);
         assert.ok(selectorRulesZones.hand.includes(selectorRulesTarget) && selectorRulesZones.battle.includes(selectorOtherRules), "rules timed selector lost its captured fromVar binding or broadened to another card");
-        assert.ok(selectorLegacyZones.hand.includes(selectorLegacyTarget) && selectorLegacyZones.battle.includes(selectorOtherLegacy), "legacy timed selector lost its captured fromVar binding or broadened to another card");
+
+        if (!RULES_ONLY) {
+          const selectorLegacy = onLegacy(selectorRun, (l) => {
+            const [a, b] = l.players.p1.deck.splice(0, 2);
+            assert.ok(a && b, "legacy fixture could not stage two selector targets");
+            l.cards[a].cardId = "TARGET";
+            l.cards[b].cardId = "OTHER";
+            l.players.p1.battle.push(a, b);
+            selectorLegacyTarget = a;
+            selectorOtherLegacy = b;
+            return { master: "p2", vars: { picked: [a] } };
+          });
+            const selectorLegacyZones = boardZones(selectorLegacy.board);
+          assert.ok(selectorLegacyZones.hand.includes(selectorLegacyTarget) && selectorLegacyZones.battle.includes(selectorOtherLegacy), "legacy timed selector lost its captured fromVar binding or broadened to another card");
+        }
 
         const beforeSave = mainPhase();
         const savedTarget = staged(beforeSave, "p1", "TARGET");
@@ -1489,18 +1442,20 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         assert.ok(boundLifetime.sides.p1.zones.hand.includes(returnedInstance), "the rules engine reapplied a stale offer after the selected instance left and re-entered play");
         assert.ok(!boundLifetime.sides.p1.zones.deck.includes(returnedInstance), "the rules engine redirected a new-card instance through its old bound offer");
 
-        let legacyReturnedInstance = "";
-        const legacyLifetime = onLegacy(lifetimeOps, (legacy) => {
-          const [id] = legacy.players.p1.deck.splice(0, 1);
-          assert.ok(id, "the legacy 3-1-4 fixture has no selected card");
-          legacy.cards[id].cardId = "TARGET";
-          legacy.players.p1.battle.push(id);
-          legacyReturnedInstance = id;
-          return { master: "p2", vars: { picked: [id] } };
-        });
-        const legacyLifetimeZones = boardZones(legacyLifetime.board);
-        assert.ok(legacyLifetimeZones.hand.includes(legacyReturnedInstance), "the legacy engine reapplied a stale offer after the selected instance left and re-entered play");
-        assert.ok(!legacyLifetimeZones.deck.includes(legacyReturnedInstance), "the legacy engine redirected a new-card instance through its old bound offer");
+        if (!RULES_ONLY) {
+          let legacyReturnedInstance = "";
+          const legacyLifetime = onLegacy(lifetimeOps, (legacy) => {
+            const [id] = legacy.players.p1.deck.splice(0, 1);
+            assert.ok(id, "the legacy 3-1-4 fixture has no selected card");
+            legacy.cards[id].cardId = "TARGET";
+            legacy.players.p1.battle.push(id);
+            legacyReturnedInstance = id;
+            return { master: "p2", vars: { picked: [id] } };
+          });
+          const legacyLifetimeZones = boardZones(legacyLifetime.board);
+          assert.ok(legacyLifetimeZones.hand.includes(legacyReturnedInstance), "the legacy engine reapplied a stale offer after the selected instance left and re-entered play");
+          assert.ok(!legacyLifetimeZones.deck.includes(legacyReturnedInstance), "the legacy engine redirected a new-card instance through its old bound offer");
+        }
       } finally {
         if (previousTarget) DEFS.TARGET = previousTarget;
         else delete DEFS.TARGET;
@@ -1524,7 +1479,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     {
       const down = same("life down to 2", [{ op: "lifeDownTo", n: 2 }], nothing, nothing);
       assert.equal(zonesOf(down.r.board, "p1").life.length, 2, "lifeDownTo left a life other than 2 on the rules engine, so the parity is over an empty run");
-      assert.equal(zonesOf(down.l.board, "p1").life.length, 2);
+      if (!RULES_ONLY) assert.equal(zonesOf(down.l!.board, "p1").life.length, 2);
       const both = same("both players, life down to 1", [{ op: "lifeDownTo", n: 1, side: "both" }], nothing, nothing);
       assert.equal(zonesOf(both.r.board, "p2").life.length, 1, "lifeDownTo (both) did not take each pile down on its own");
     }
@@ -1571,20 +1526,30 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         kept.l.push(l);
         return {};
       };
-      for (const rec of [
+      const resolvingOps = [
         { op: "resolvingPlay", instead: "deck", position: "bottom" },
         { op: "resolvingPlay", instead: "hand" },
         { op: "resolvingPlay", mode: "rest" },
         { op: "resolvingPlay", negated: true },
         { op: "resolvingPlay", mode: "rest", negated: true },
-      ] as Op[]) {
+      ] as Op[];
+      const fixedResolving = [
+        { card: "p1#9", player: "p1", replaced: true },
+        { card: "p1#9", player: "p1", replaced: true },
+        { card: "p1#9", player: "p1", rest: true },
+        { card: "p1#9", player: "p1", negated: true },
+        { card: "p1#9", player: "p1", rest: true, negated: true },
+      ];
+      for (const [index, rec] of resolvingOps.entries()) {
         kept.r = [];
         kept.l = [];
         same(`resolvingPlay ${JSON.stringify(rec)}`, [rec], onRulesPlay, onLegacyPlay);
         const [rs, rl] = kept.r as VmState[];
         const [ls, ll] = kept.l as GameState[];
+        assert.deepEqual(plain(rl.resolving), fixedResolving[index], `resolvingPlay ${JSON.stringify(rec)}: the lowered program changed its fixed resolving record`);
+        assert.deepEqual(plain(rs.resolving), fixedResolving[index], `resolvingPlay ${JSON.stringify(rec)}: the spelled program changed its fixed resolving record`);
         assert.deepEqual(plain(rl.resolving), plain(rs.resolving), `resolvingPlay ${JSON.stringify(rec)}: the play being resolved was left differently on the rules engine`);
-        assert.deepEqual(plain([ll.resolving, ll.continuations]), plain([ls.resolving, ls.continuations]), `resolvingPlay ${JSON.stringify(rec)}: the play being resolved was left differently on the legacy engine`);
+        if (!RULES_ONLY) assert.deepEqual(plain([ll.resolving, ll.continuations]), plain([ls.resolving, ls.continuations]), `resolvingPlay ${JSON.stringify(rec)}: the play being resolved was left differently on the legacy engine`);
         assert.notDeepEqual(plain(rs.resolving), { card: rs.resolving?.card, player: "p1" }, `resolvingPlay ${JSON.stringify(rec)} did nothing to the play on the rules engine, so the parity is over an empty run`);
       }
     }
@@ -1600,6 +1565,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       assert.ok((hand.r.vars as Record<string, string[]>).looked.length > 0, "look at a hand bound nothing on the rules engine");
       assert.deepEqual(hand.r.events, [], "a look logged something — 20-11 shows the cards to one player only");
     }
+    assert.deepEqual([...checkedFixedScripts].sort(), Object.keys(FIXED_SCRIPT_SEEN_459).sort(), "the reviewed fixed script corpus has missing or unused cases");
   }
 
   // ── 9-1-4 and 7-4-5: a continuous effect, and the turn it ends with ───────
@@ -1955,10 +1921,10 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 // Stage 5 rests on: what the interpreter used to do in a `case` of its own it
 // now does because `actions.rules` says so — the same menu, the same log, the
 // same board. Measured against the engine that has been playing, move for move,
-// the way §11 measures a game of nothing but passing.
+// the way §11 measures a game of nothing but passing, now against the fixed
+// turn trace in vm-turn-459.ts.
 {
   const rulesEngine = engineFor("rules");
-  const legacyEngine = engineFor("legacy");
 
   /** Everything the turn asks for, answered by charging the first card offered and declining the rest. */
   function chargeAndPass(engine: ReturnType<typeof engineFor>, start: unknown, first: PlayerId): { events: GameEvent[]; actions: Action[]; state: unknown } {
@@ -1983,15 +1949,12 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   }
 
   const born = rulesEngine.createGame(CTX, SAME);
-  const legacyBorn = legacyEngine.createGame(CTX, SAME);
   const played = chargeAndPass(rulesEngine, born.state, "p1");
-  const oracled = chargeAndPass(legacyEngine, legacyBorn.state, "p1");
   const end = played.state as VmState;
-  const legacyEnd = oracled.state as GameState;
+  const expected = expectedTurnTrace(true);
 
-  // The same questions answered by the same cards: a scripted game of charges
-  // and passes is one action log, replayable on either engine.
-  assert.deepEqual(played.actions, oracled.actions, "a game of charging and passing asks the two engines for different answers");
+  // Every charge names the next card in the fixed seed-7 hand/deck order.
+  assert.deepEqual(played.actions, expected.actions, "a game of charging and passing changed its full action sequence");
   assert.ok(
     played.actions.filter((a) => a.type === "charge" && a.card !== null).length > 50,
     `only ${played.actions.filter((a) => a.type === "charge" && a.card !== null).length} cards were charged in a whole game, and every turn offers one`,
@@ -1999,12 +1962,12 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   const shownEvents = (list: GameEvent[]) => JSON.parse(JSON.stringify(list.map((e) => (e.type === "gameOver" ? { ...e, reason: "…" } : e))));
   assert.deepEqual(
     shownEvents([...born.events, ...played.events]),
-    shownEvents([...legacyBorn.events, ...oracled.events]),
-    "a game of charging and passing does not log the same thing on the two engines",
+    expected.events,
+    "a game of charging and passing changed its full fixed event sequence",
   );
   assert.equal(end.phase, "over", "a game of charging and passing on the rules engine never ended");
-  assert.equal(end.turn, legacyEnd.turn, "the two engines' charging games ran for a different number of turns");
-  assert.deepEqual(end.sides.p1.zones.energy, legacyEnd.players.p1.energy, "the two engines' Energy Areas hold different cards, or hold them in a different order");
+  assert.equal(end.turn, 72, "a charging game did not end on p2's deck-out turn");
+  assert.deepEqual(end.sides.p1.zones.energy, expected.p1Energy, "the Energy Area changed its seed-7 charge order");
 
   /** A rules game at its first Charge Phase question, with `cardIds` at the front of p1's hand. */
   function atCharge(...cardIds: string[]): VmState {
@@ -2081,9 +2044,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 
   // 7-2-11's "one charge a turn", which is a **refusal** at the Main Phase
   // question and not a silence: the paragraph is declared in both phases and
-  // its first `REFUSE` line asks which question is on the table. Measured
-  // against the legacy engine card for card, because "the same requirement, in
-  // the same shape, for the same board" is the whole claim.
+  // its first `REFUSE` line asks which question is on the table. The fixed
+  // requirement for every hand card is `oncePerTurn: charge`.
   {
     const charged = atCharge();
     const s = rulesEngine.apply(CTX, charged, { type: "charge", player: "p1", card: null }).state as VmState;
@@ -2091,7 +2053,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.ok(actionsAt(DBS, s).some((a) => a.name === "charge"), "the charge is not offered at the question 7-2-11 refuses it at");
     assert.throws(() => rulesEngine.apply(CTX, s, { type: "charge", player: "p1", card: s.sides.p1.zones.hand[0] }), IllegalAction, "a card was charged in the Main Phase");
 
-    // Every card in hand, refused with the requirement the legacy engine gives
+    // Every card in hand, refused with the requirement 7-2-11 gives
     // — including a Leader, because `whyNotCharge` reads the question before it
     // reads the card and the declaration's lines are in that order.
     s.cards[s.sides.p1.zones.hand[0]].cardId = "L-BLUE";
@@ -2113,25 +2075,6 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       "the Skip charge ghost is refused at a question the charge does not answer, rather than left undrawn",
     );
     assertMenuInvariants(legal, rulesEngine.rejectedActions(CTX, s, legal), "the charge at the Main Phase question");
-
-    // The legacy engine, on the same board, gives the same answer for the same
-    // cards — requirement for requirement.
-    {
-      let l = createGame(CTX, SAME).state;
-      for (let i = 0; i < 20 && l.prompt.kind !== "charge"; i++) {
-        const pr = l.prompt as { kind: string; player: PlayerId };
-        const a: Action = pr.kind === "chooseFirst" ? { type: "chooseFirst", player: pr.player, first: "p1" } : { type: "mulligan", player: pr.player, redraw: false };
-        l = apply(CTX, l, a).state;
-      }
-      l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
-      assert.equal(l.prompt.kind, "main", "the legacy game is not at the Main Phase question");
-      const legacyCharges = rejectedActions(CTX, l, legalActions(CTX, l)).filter((r) => r.action.type === "charge");
-      assert.deepEqual(
-        legacyCharges.map((r) => r.why),
-        charges.map((r) => r.why),
-        "the two engines refuse the Main Phase charge with different requirements",
-      );
-    }
 
     // …and the Main Phase's own moves: ending the turn, and every card in hand
     // this player can afford to play (#146). The opening board has no energy,
@@ -2163,25 +2106,10 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 
 // ── 17. the price, off the declarations (#148) ──────────────────────────────
 //
-// Four claims, and the first is the one the rest rest on.
-//
-//  1. **The planner answers what `planPayment` answers.** Board for board and
-//     price for price: payable or not, the *same* `Requirement`s when not, the
-//     same cards rested, the same options offered and the same words for them.
-//     The legacy search is the oracle (`docs/arena-tooling.md`), and a planner
-//     driven by `costs.rules` that quietly rested a different card would be a
-//     divergence no coverage number catches.
-//  2. **Every declared kind is charged**, not only energy: markers off the card
-//     paying (13-4), life to the Drop (21-3), the card's own mode (1-10-1), the
-//     20-19 payers, and the price declared `consumes: unreadable`, which is
-//     *refused* rather than charged — the reason `text` is a declaration at all.
-//  3. **The price shown is the price charged.** One `Price` becomes the
-//     `ActionCost` the row wears and the payment that is taken, and the figure
-//     it carries is the legacy engine's own, card for card over the harness.
-//  4. **The question is the existing one.** 3-8-2's "which energy" is the
-//     `payCost` prompt, its options are legacy `Payment` values, and answering
-//     it charges exactly what was picked — no new `Prompt` kind, so nothing in
-//     `contract/fixtures/` moves.
+// The five staged pools and nine prices cover free payment, coloured and
+// either-orb requirements, energy markers, dual-colour energy, insufficient
+// energy and impossible colour combinations. Every former planner comparison
+// now checks a reviewed fixed payment/refusal and the complete option list.
 {
   const rulesEngine = engineFor("rules");
 
@@ -2195,14 +2123,14 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   // genuinely different way to pay it — which is what 3-8-2 asks about.
   DEFS["COST2"] = card("COST2", { energyCost: 2, colors: ["Colorless"] });
 
-  /** One staged board, described once and built on both engines so the two are the same game. */
+  /** One staged board with an explicit Energy Area, marker count and Leader. */
   interface Staged {
     energy: string[];
     markers: number;
     leader: string;
   }
 
-  /** The instance ids the energy takes. `p1#0` is the Leader on both engines (#139's dealing order). */
+  /** The instance ids the energy takes. `p1#0` is the Leader in the fixed seed (#139's dealing order). */
   const energyIds = (n: number): string[] => Array.from({ length: n }, (_, i) => `p1#${i + 1}`);
 
   function rulesBoard(b: Staged): VmState {
@@ -2219,20 +2147,6 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     return s;
   }
 
-  function legacyBoard(b: Staged): GameState {
-    const s = createGame(CTX, DECKS).state;
-    const ids = energyIds(b.energy.length);
-    ids.forEach((id, i) => {
-      s.cards[id].cardId = b.energy[i];
-      s.cards[id].mode = "active";
-    });
-    s.players.p1.deck = s.players.p1.deck.filter((id) => !ids.includes(id));
-    s.players.p1.energy = ids;
-    s.players.p1.energyMarkers = b.markers;
-    s.cards[s.players.p1.leader!].cardId = b.leader;
-    return s;
-  }
-
   const BOARDS: Staged[] = [
     { energy: ["E-RED", "E-RED", "E-BLUE"], markers: 0, leader: "L-RED" },
     { energy: ["E-RED", "E-BLUE", "E-GREEN"], markers: 1, leader: "L-RED" },
@@ -2241,7 +2155,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     { energy: ["E-RED", "E-RED", "E-RED", "E-BLUE", "E-GREEN"], markers: 1, leader: "L-RED" },
   ];
 
-  /** A price in the two engines' own terms: the legacy triple, and the `Price` the declarations are charged from. */
+  /** Nine printed prices: total energy, fixed coloured orbs and either-orbs. */
   const PRICES: { total: number; specified: Partial<Record<Color, number>>; either: Color[][] }[] = [
     { total: 0, specified: {}, either: [] },
     { total: 1, specified: {}, either: [] },
@@ -2257,46 +2171,26 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     { total: 2, specified: { Red: 3 }, either: [] },
   ];
 
-  for (const b of BOARDS) {
+  assert.equal(FIXED_PRICES_459.length, BOARDS.length, "the reviewed payment boards changed");
+  for (const [boardIndex, b] of BOARDS.entries()) {
     const vm = rulesBoard(b);
-    const legacy = legacyBoard(b);
     const where = `${b.energy.join("+") || "no energy"} and ${b.markers} marker(s) under ${b.leader}`;
-    for (const p of PRICES) {
+    assert.equal(FIXED_PRICES_459[boardIndex].length, PRICES.length, `the reviewed price columns changed on ${where}`);
+    for (const [priceIndex, p] of PRICES.entries()) {
       const price: Price = { ...freePrice(), energy: p.total, orbs: { ...p.specified }, either: p.either.map((o) => o.slice()) };
       const what = `${p.total} energy ${JSON.stringify(p.specified)}${p.either.length ? ` either ${JSON.stringify(p.either)}` : ""} on ${where}`;
-
-      const oracle = planPayment(CTX, legacy, "p1", p.total, p.specified, undefined, p.either);
+      const fixed = FIXED_PRICES_459[boardIndex][priceIndex];
       const plan = planCost(CTX, DBS, vm, "p1", price, null);
-      assert.equal(plan.ok, oracle !== null, `the two engines disagree about whether a price can be paid: ${what}`);
-
-      if (!oracle) {
-        // …and the refusal is the legacy `whyNotPay`'s, requirement for
-        // requirement, so `wording.ts` says one sentence and not two.
-        assert.deepEqual(plan.ok ? [] : plan.why, whyNotPay(CTX, legacy, "p1", p.total, p.specified, p.either), `the shortfall is not the one the legacy engine reports: ${what}`);
+      if ("refused" in fixed) {
+        assert.equal(plan.ok, false, `an unpayable fixed price was planned: ${what}`);
+        assert.deepEqual(plan.ok ? [] : plan.why, fixed.refused, `the fixed requirement list changed: ${what}`);
         continue;
       }
-      assert.ok(plan.ok);
-      assert.deepEqual({ rest: plan.payment.rest, markers: plan.payment.energyMarkers }, oracle, `a different payment was planned: ${what}`);
-      // 3-8-2: the genuinely different ways to pay, and the words for each.
-      if (!p.either.length) assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price), legacyOptions(CTX, legacy, "p1", p.total, p.specified), `the payment options differ: ${what}`);
-      else {
-        // The legacy `paymentOptions` takes no either-orb at all — its callers
-        // settle the colour first — so the options for an either price are
-        // those of each colour it could be paid with, together (22-13). Asked
-        // with the either-orb left out, as this compared until #459, it
-        // offered three red energy for a price that needs a blue or a green.
-        let assignments: Color[][] = [[]];
-        for (const orb of p.either) assignments = assignments.flatMap((soFar) => orb.map((c) => [...soFar, c]));
-        const key = (o: unknown) => JSON.stringify(o);
-        const union = new Map<string, unknown>();
-        for (const pick of assignments) {
-          const specified = { ...p.specified };
-          for (const c of pick) specified[c] = (specified[c] ?? 0) + 1;
-          if (planPayment(CTX, legacy, "p1", p.total, specified)) for (const o of legacyOptions(CTX, legacy, "p1", p.total, specified)) union.set(key(o), o);
-        }
-        assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price).map(key).sort(), [...union.keys()].sort(), `the payment options differ: ${what}`);
-      }
-      assert.equal(plan.describe, legacyDescribe(CTX, legacy, oracle), `the payment is described differently: ${what}`);
+      assert.equal(plan.ok, true, `a payable fixed price was refused: ${what}`);
+      if (!plan.ok) continue;
+      assert.deepEqual({ rest: plan.payment.rest, markers: plan.payment.energyMarkers }, { rest: fixed.paid.rest, markers: fixed.paid.markers }, `a different payment was planned: ${what}`);
+      assert.deepEqual(vmOptions(CTX, DBS, vm, "p1", price), fixed.paid.options, `the complete fixed payment options changed: ${what}`);
+      assert.equal(plan.describe, fixed.paid.describe, `the fixed payment description changed: ${what}`);
     }
   }
 
@@ -2319,12 +2213,12 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     vm.cards[subject].markers = 2;
 
     // 13-4: markers off the card whose skill is being used, and a card cannot
-    // be taken below none. The words of the refusal are the legacy engine's.
+    // be taken below none. The fixed refusal names the two markers available.
     const twoMarkers: Price = { ...freePrice(), markers: -2 };
     const paidMarkers = planCost(CTX, DBS, vm, "p1", twoMarkers, subject);
     assert.ok(paidMarkers.ok, "a marker price the card can pay was refused");
     const threeMarkers = planCost(CTX, DBS, vm, "p1", { ...freePrice(), markers: -3 }, subject);
-    assert.deepEqual(threeMarkers.ok ? [] : threeMarkers.why, [{ kind: "other", detail: "needs 3 markers (2 on it)" }], "a marker shortfall is not worded as the legacy engine words it");
+    assert.deepEqual(threeMarkers.ok ? [] : threeMarkers.why, [{ kind: "other", detail: "needs 3 markers (2 on it)" }], "a marker shortfall does not name the missing marker");
 
     // 21-3: life to the Drop, and a life the player does not have.
     const life = planCost(CTX, DBS, vm, "p1", { ...freePrice(), life: 1 }, subject);
@@ -2376,45 +2270,48 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         { type: "markers", card: subject, delta: -2, total: 0 },
         { type: "mode", card: subject, mode: "rest" },
       ],
-      "charging a price does not log what the legacy engine logs for the same payment",
+      "charging a price did not log the exact fixed mode and marker changes",
     );
   }
 
   // ── the price shown is the price charged ──────────────────────────────────
-  //
-  // Card for card over every harness card with a printed cost: the figure this
-  // engine reads, the figure the legacy engine charges, and the sentence a row
-  // wears are one. The row's words go through `priceOf`, which is the only
-  // place a price becomes a sentence on either engine.
+  // Every printed non-Leader/non-token harness card belongs to one reviewed
+  // total/specification class. Exact membership catches a new or repriced card.
   {
     const vm = rulesBoard(BOARDS[0]);
-    const legacy = legacyBoard(BOARDS[0]);
     const held = vm.sides.p1.zones.deck[0];
+    const classes = new Map(FIXED_CARD_COSTS_459.flatMap(({ total, orbs, cards }) => cards.map((cardId) => [cardId, { total, orbs }] as const)));
+    // The full suite's earlier files add unrelated rows to shared DEFS.
+    // Check this complete reviewed harness corpus in either import order.
+    const pricedIds = [...classes.keys()];
+    assert.equal(FIXED_CARD_COSTS_459.reduce((n, group) => n + group.cards.length, 0), classes.size, "a fixed card-price class repeats a card");
+    assert.equal(pricedIds.length, 98, "the reviewed fixed card-price corpus changed");
+    for (const [cardId, def] of Object.entries(VM_BASE_DEFS_459)) {
+      if (def.type !== "LEADER" && def.type !== "TOKEN") assert.ok(classes.has(cardId), `${cardId}: an original priced harness card is absent from the fixed price corpus`);
+    }
     let checked = 0;
-    for (const [cardId, def] of Object.entries(DEFS)) {
-      if (def.type === "LEADER" || def.type === "TOKEN") continue;
+    for (const cardId of pricedIds) {
+      const def = VM_BASE_DEFS_459[cardId] ?? DEFS[cardId];
+      assert.ok(def && def.type !== "LEADER" && def.type !== "TOKEN", `${cardId}: the reviewed priced card is absent or has changed type`);
+      const fixed = classes.get(cardId)!;
       vm.cards[held].cardId = cardId;
-      legacy.cards[held].cardId = cardId;
-      const mine = cardPrice(CTX, DBS, vm, held);
-      const theirs = playCost(CTX, legacy, held);
-      assert.equal(mine.total, theirs.total, `${cardId}: the two engines read a different total cost`);
-      assert.deepEqual(mine.orbs, theirs.specified, `${cardId}: the two engines read a different coloured requirement`);
-      // The sentence, assembled from this engine's one `Price`. A play's total
-      // comes off the card and its orbs off the row, which is why `priceOf`
-      // takes both (issue #96).
+      const printedCtx = { ...CTX, defs: { ...CTX.defs, [cardId]: def } };
+      const mine = cardPrice(printedCtx, DBS, vm, held);
+      assert.equal(mine.total, fixed.total, `${cardId}: the fixed printed total cost changed`);
+      assert.deepEqual(mine.orbs, fixed.orbs, `${cardId}: the fixed printed coloured requirement changed`);
       const view = { cost: def.energyCost === null ? undefined : String(def.energyCost), comboCost: def.comboCost ?? undefined, comboPower: def.comboPower ?? undefined } as never;
       const price: Price = { ...freePrice(), energy: mine.total, orbs: mine.orbs };
       const said = priceOf({ type: "play", player: "p1", card: held }, view, "Play", actionCostOf(price));
       assert.ok(said && said.length > 0, `${cardId}: a play has no price sentence`);
       checked++;
     }
-    assert.ok(checked > 50, `only ${checked} harness cards were priced on both engines`);
+    assert.equal(checked, 98, `the reviewed 98-card price corpus changed to ${checked}`);
   }
 
   // ── 3-8-2: the question, and answering it ─────────────────────────────────
   //
-  // The existing `payCost` prompt, whose options are legacy `Payment` values —
-  // so one client answers either engine and no fixture in `contract/` moves.
+  // The existing `payCost` prompt and Payment-shaped options, so a client can
+  // answer the declared charge with a chosen pair of Energy cards.
   {
     const PRICED = [
       "DEFINE ACTION play",
@@ -2470,13 +2367,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const ev: GameEvent[] = [];
     const asking = structuredClone(s);
     assert.equal(applyDeclared(CTX, priced, asking, ev, { type: "play", player: "p1", card: hand[0] }), "asked", "a price with two answers was taken without asking which");
-    assert.equal(asking.prompt.kind, "payCost", "the payment does not put the prompt the legacy engine puts");
+    assert.equal(asking.prompt.kind, "payCost", "the payment does not put up the fixed payCost prompt");
     assert.deepEqual(ev, [], "a move that stopped to ask which energy had already charged something");
     const prompt = asking.prompt as { options: { rest: string[]; markers: number }[]; describe: string };
-    assert.equal(prompt.describe, "play COST2", "the payment prompt is not described the way the legacy engine describes it");
+    assert.equal(prompt.describe, "play COST2", "the payment prompt does not name the play it is charging");
     assert.ok(prompt.options.length > 1, "a payment worth asking about has only one answer");
 
-    // One answer per option, worded as the legacy engine words them…
+    // One answer per option, each worded as the cards it rests.
     const answers = rulesEngine.legalActions(CTX, asking);
     assert.deepEqual(
       answers.map((a) => a.action),
@@ -2529,16 +2426,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 //
 // Four claims, and the first is the one the acceptance is written against.
 //
-//  1. **The same events.** A play, a Unison play and a Z-card play are logged
-//     event for event as the legacy engine logs them, from the same staged
-//     board: the energy rested, the card's move, the markers it arrives with,
+//  1. **Fixed complete events.** A play, a Unison play and a Z-card play log
+//     the energy rested, the card's move, the markers it arrives with,
 //     the Z-Energy spent — and the [Auto] that answers to the arrival, which is
 //     the point of firing `moved(asPlay: true)` rather than pending a trigger
 //     by name.
-//  2. **The same first refusal per card.** Every play the legacy engine refuses
-//     on a board, this one refuses with the very same `Requirement` — and
-//     `wording.ts` says the same sentence about it, because there is one
-//     table and one refusal shape.
+//  2. **Fixed first refusal per card.** Every hand card on the wrong-colour
+//     board has its expected `Requirement` and sentence asserted by instance.
 //  3. **The free timing is a declaration.** 7-3-4: a play leaves the Main
 //     Phase's question on the table (`again: true`) and ending the turn does
 //     not, so a player may play twice and the phase ends when they say so.
@@ -2568,7 +2462,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") },
   };
 
-  /** The pre-game answers, the same on either engine, up to p1's first Main Phase. */
+  /** The pre-game answers up to p1's first Main Phase. */
   const toMain = (prompt: { kind: string; player?: PlayerId }): Action | null => {
     const pr = prompt as { kind: string; player: PlayerId };
     if (pr.kind === "chooseFirst") return { type: "chooseFirst", player: pr.player, first: "p1" };
@@ -2578,64 +2472,47 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   };
 
   /**
-   * One staged Main Phase, built on **both** engines from the same seed and
-   * then given the same hand, energy and Z-Energy — the instance ids are a
-   * function of the decklist alone (#139), so "the same cards" is literal.
+   * One staged Main Phase with a fixed seed-11 opening hand, then named hand,
+   * energy and Z-Energy cards. The instance ids depend on the decklist (#139).
    */
-  function staged(hand: string[], energy: string[], zEnergy = 0): { r: VmState; l: GameState } {
+  function staged(hand: string[], energy: string[], zEnergy = 0): { r: VmState } {
     let r = rulesEngine.createGame(CTX, PLAY_DECKS).state as VmState;
-    let l = createGame(CTX, PLAY_DECKS).state;
     for (let i = 0; i < 30; i++) {
       const a = toMain(r.prompt);
       if (!a) break;
       r = rulesEngine.apply(CTX, r, a).state as VmState;
-      l = apply(CTX, l, a).state;
     }
     assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to play in");
-    assert.equal(l.prompt.kind, "main", "the legacy game did not reach a Main Phase to play in");
-    assert.deepEqual(r.sides.p1.zones.hand, l.players.p1.hand, "the two engines dealt different hands from the same seed");
+    assert.deepEqual(r.sides.p1.zones.hand, ["p1#37", "p1#9", "p1#11", "p1#49", "p1#28", "p1#1"], "the seed-11 play fixture dealt a different opening hand");
 
     hand.forEach((cardId, i) => {
       const id = r.sides.p1.zones.hand[i];
       r.cards[id].cardId = cardId;
-      l.cards[id].cardId = cardId;
     });
     const energyIds = r.sides.p1.zones.deck.slice(0, energy.length);
     energyIds.forEach((id, i) => {
       r.cards[id].cardId = energy[i];
       r.cards[id].mode = "active";
-      l.cards[id].cardId = energy[i];
-      l.cards[id].mode = "active";
     });
     const zIds = r.sides.p1.zones.deck.slice(energy.length, energy.length + zEnergy);
     const taken = new Set([...energyIds, ...zIds]);
     r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
-    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
     r.sides.p1.zones.energy = energyIds;
-    l.players.p1.energy = energyIds;
     r.sides.p1.zones.zEnergy = zIds;
-    l.players.p1.zEnergy = zIds;
-    return { r, l };
+    return { r };
   }
 
   /**
-   * The same move on both engines, with the events each logged.
-   *
-   * The logs are compared through JSON, as §16's `shownEvents` compares them:
-   * the legacy engine spreads an absent `reveal` as an explicit `undefined`
-   * key, and a strict comparison would call that a divergence when what
-   * reaches a client — and what `arena:diff` stores — has no such key at all.
+   * The move and public events after JSON serialization, as a client sees them.
    */
   const logged = (list: GameEvent[]): unknown => JSON.parse(JSON.stringify(list));
-  function both(board: { r: VmState; l: GameState }, action: Action): { r: { state: VmState; events: unknown }; l: { state: GameState; events: unknown } } {
+  function played(board: { r: VmState }, action: Action): { r: { state: VmState; events: unknown } } {
     const r = rulesEngine.apply(CTX, board.r, action);
-    const l = apply(CTX, board.l, action);
-    return { r: { state: r.state as VmState, events: logged(r.events) }, l: { state: l.state, events: logged(l.events) } };
+    return { r: { state: r.state as VmState, events: logged(r.events) } };
   }
 
-  // 8-3-2: a Battle Card paid for out of the Energy Area. The whole log, not a
-  // filtered one — an event either engine logged and the other did not is
-  // exactly the divergence the oracle exists to catch.
+  // 8-3-2: a Battle Card paid for out of the Energy Area. The complete public
+  // log states the one rest and the face-up arrival in their order.
   {
     const board = staged(["P-RED"], ["P-E-RED"]);
     const target = board.r.sides.p1.zones.hand[0];
@@ -2644,12 +2521,16 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.deepEqual(offered!.action, { type: "play", player: "p1", card: target }, "the play offered is not the shape a client sends");
     assert.deepEqual(offered!.cost, { energy: 1, orbs: { Red: 1 }, describe: "1 energy (1 red)" }, "the play's row does not wear the card's own price");
 
-    const done = both(board, { type: "play", player: "p1", card: target });
-    assert.deepEqual(done.r.events, done.l.events, "a play does not log the same thing on the two engines");
-    assert.deepEqual(done.r.state.sides.p1.zones.battle, done.l.state.players.p1.battle, "a play does not leave the card in the same place on the two engines");
+    const action: Action = { type: "play", player: "p1", card: target };
+    const done = played(board, action);
+    assert.deepEqual(done.r.events, [
+      { type: "action", action },
+      { type: "mode", card: "p1#43", mode: "rest" },
+      { type: "move", card: target, from: "hand", to: "battle", owner: "p1", reveal: true },
+    ], "a play did not log its energy rest and face-up arrival");
+    assert.deepEqual(done.r.state.sides.p1.zones.battle, [target], "a play did not leave its card in Battle");
     // 7-3-4: the free timing is granted again, which is what `again: true` says.
     assert.equal(done.r.state.prompt.kind, "main", "a play ended the Main Phase, and 7-3-4 grants the timing again");
-    assert.equal(done.l.state.prompt.kind, "main", "the legacy engine ended the Main Phase on a play");
     // …and ending the turn is the move that does not, so the phase can be left.
     const ended = rulesEngine.apply(CTX, done.r.state, { type: "endMain", player: "p1" }).state as VmState;
     assert.notEqual(ended.phase, "main", "ending the Main Phase did not leave it");
@@ -2660,13 +2541,21 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   {
     const board = staged(["P-ARRIVES"], ["P-E-RED"]);
     const target = board.r.sides.p1.zones.hand[0];
-    const done = both(board, { type: "play", player: "p1", card: target });
-    assert.deepEqual(done.r.events, done.l.events, "a played card's [Auto] does not log the same thing on the two engines");
+    const action: Action = { type: "play", player: "p1", card: target };
+    const done = played(board, action);
+    assert.deepEqual(done.r.events, [
+      { type: "action", action },
+      { type: "mode", card: "p1#43", mode: "rest" },
+      { type: "move", card: target, from: "hand", to: "battle", owner: "p1", reveal: true },
+      { type: "skill", card: target, skill: 0, master: "p1", text: "[Auto] When this card is played, draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#3", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#3" },
+    ], "a played card's [Auto] did not log its own skill and draw after arrival");
     assert.ok(
       (done.r.events as { type: string; card?: string }[]).some((e) => e.type === "skill" && e.card === target),
       "nothing answered to the card being played",
     );
-    assert.equal(done.r.state.sides.p1.zones.hand.length, done.l.state.players.p1.hand.length, "the [Auto]'s draw left the two hands a different size");
+    assert.equal(done.r.state.sides.p1.zones.hand.length, 6, "the [Auto]'s draw did not replace the played card in hand");
   }
 
   // 13-2: a Unison arrives carrying the energy paid for it as markers, and
@@ -2676,28 +2565,47 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const board = staged(["P-UNISON", "P-UNISON-1"], ["P-E-RED", "P-E-RED", "P-E-RED"]);
     const first = board.r.sides.p1.zones.hand[0];
     const second = board.r.sides.p1.zones.hand[1];
-    const one = both(board, { type: "playUnison", player: "p1", card: first, x: 2 });
-    assert.deepEqual(one.r.events, one.l.events, "a Unison play does not log the same thing on the two engines");
+    const firstAction: Action = { type: "playUnison", player: "p1", card: first, x: 2 };
+    const one = played(board, firstAction);
+    assert.deepEqual(one.r.events, [
+      { type: "action", action: firstAction },
+      { type: "mode", card: "p1#43", mode: "rest" },
+      { type: "mode", card: "p1#3", mode: "rest" },
+      { type: "move", card: first, from: "hand", to: "unison", owner: "p1", reveal: true },
+      { type: "markers", card: first, delta: 2, total: 2 },
+    ], "a Unison play did not rest two energy and arrive with two markers");
     assert.deepEqual(one.r.state.sides.p1.zones.unison, [first], "the Unison is not in the Unison Area");
     assert.equal(one.r.state.cards[first].markers, 2, "the Unison did not arrive with the energy paid for it as markers (13-2-3)");
-    assert.equal(one.r.state.cards[first].markers, one.l.state.cards[first].markers, "the two engines gave the Unison a different number of markers");
 
-    const two = both({ r: one.r.state, l: one.l.state }, { type: "playUnison", player: "p1", card: second, x: 1 });
-    assert.deepEqual(two.r.events, two.l.events, "replacing a Unison does not log the same thing on the two engines");
+    const secondAction: Action = { type: "playUnison", player: "p1", card: second, x: 1 };
+    const two = played({ r: one.r.state }, secondAction);
+    assert.deepEqual(two.r.events, [
+      { type: "action", action: secondAction },
+      { type: "mode", card: "p1#46", mode: "rest" },
+      { type: "move", card: first, from: "unison", to: "drop", owner: "p1" },
+      { type: "move", card: second, from: "hand", to: "unison", owner: "p1", reveal: true },
+      { type: "markers", card: second, delta: 1, total: 1 },
+    ], "replacing a Unison did not drop the first and place the second with one marker");
     assert.deepEqual(two.r.state.sides.p1.zones.unison, [second], "the second Unison did not take the area");
     assert.ok(two.r.state.sides.p1.zones.drop.includes(first), "the Unison already in play did not go to the Drop Area (3-11-5)");
   }
 
-  // 16-2: a Z-card pays two prices, and in the order the engine that has been
-  // playing charges them — the Z-Energy first, then the energy.
+  // 16-2: a Z-card pays two prices in order: Z-Energy first, then energy.
   {
     const board = staged([], ["P-E-RED"], 2);
     const zCard = board.r.sides.p1.zones.zDeck.find((id) => board.r.cards[id].cardId === "P-Z")!;
     const offered = rulesEngine.legalActions(CTX, board.r).find((a) => a.action.type === "playZ");
     assert.ok(offered, "a Z-card with the Z-Energy for it is not offered");
     assert.equal(offered!.cost?.describe, "1 energy (1 red) · 2 zEnergy", "a Z-card's row does not say what it costs in Z-Energy");
-    const done = both(board, { type: "playZ", player: "p1", card: zCard });
-    assert.deepEqual(done.r.events, done.l.events, "a Z-card play does not log the same thing on the two engines");
+    const action: Action = { type: "playZ", player: "p1", card: zCard };
+    const done = played(board, action);
+    assert.deepEqual(done.r.events, [
+      { type: "action", action },
+      { type: "move", card: "p1#46", from: "zEnergy", to: "drop", owner: "p1" },
+      { type: "move", card: "p1#3", from: "zEnergy", to: "drop", owner: "p1" },
+      { type: "mode", card: "p1#43", mode: "rest" },
+      { type: "move", card: zCard, from: "zDeck", to: "battle", owner: "p1", reveal: true },
+    ], "a Z-card play did not spend two Z-Energy before resting energy and arriving");
     assert.equal(done.r.state.sides.p1.zones.zEnergy.length, 0, "the Z-Energy was not spent");
 
     // 5-4-2: and it is refused when the Z-Energy is not there, in the words of
@@ -2715,52 +2623,44 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.deepEqual(refusedLeader!.why[0], { kind: "cardType", needs: "a Z-Battle Card or a Z-Extra Card", card: zLeader }, "a Z-Leader is refused for something other than being one");
   }
 
-  // The refusals, card for card against the legacy engine — the shape and the
-  // sentence. One blue energy on a red board: the cheap cards are short of the
-  // colour, the expensive one short of the total.
+  // The refusals, card for card, in their fixed shape and words. One blue
+  // energy on a red board: cheap cards lack red, the expensive one lacks total.
   {
     const board = staged(["P-RED", "P-BIG", "P-RED"], ["P-E-BLUE"]);
     const mine = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r));
-    const theirs = rejectedActions(CTX, board.l, legalActions(CTX, board.l));
     const firstOf = (list: { action: Action; why: Requirement[] }[]) =>
       new Map(list.filter((x) => x.action.type === "play").map((x) => [(x.action as { card: string }).card, x.why[0]]));
     const ours = firstOf(mine);
-    const legacyFirst = firstOf(theirs);
-    let compared = 0;
-    for (const [cardId, why] of legacyFirst) {
-      const got = ours.get(cardId);
-      assert.ok(got, `${cardId} is refused a play by the legacy engine and neither offered nor refused by this one`);
-      assert.deepEqual(got, why, `${cardId}: the two engines give a different first reason for refusing a play`);
-      // One wording table, so the sentence is the same sentence.
-      const about = { name: "P-RED", reaching: "play" as const };
-      assert.deepEqual(refusal(got!, about), refusal(why, about), `${cardId}: the same requirement reads differently on the two engines`);
-      compared++;
-    }
-    assert.ok(compared >= 3, `only ${compared} play refusals were compared against the legacy engine`);
+    const redShortfall = { kind: "energyColour", colour: "Red", need: 1, have: 0 };
+    const bigShortfall = { kind: "energy", need: 4, have: 1 };
+    assert.deepEqual(ours, new Map([
+      ["p1#37", redShortfall], ["p1#9", bigShortfall], ["p1#11", redShortfall],
+      ["p1#49", redShortfall], ["p1#28", redShortfall], ["p1#1", redShortfall],
+    ]), "the six seed-11 hand cards were not refused by their first price requirement");
+    const about = { name: "P-RED", reaching: "play" as const };
+    assert.deepEqual([...ours.values()].map((why) => refusal(why, about)), [
+      { fact: "P-RED needs 1 Red energy — 0 active.", remedy: "Charge a Red card." },
+      { fact: "P-RED costs 4 — 1 energy active, 3 short.", remedy: null },
+      ...Array.from({ length: 4 }, () => ({ fact: "P-RED needs 1 Red energy — 0 active.", remedy: "Charge a Red card." })),
+    ], "the six price refusals were worded differently");
     assertMenuInvariants(rulesEngine.legalActions(CTX, board.r), mine, "the play menu with the wrong colour of energy");
   }
 
   // 1-2-2-2: an X cost, declared `x: true` (issue #270) rather than refused
-  // `unread` — one candidate per legal value, agreeing with the legacy
-  // engine's own X menu instead of recording a divergence from it.
+  // `unread` — one candidate per legal value in the fixed X menu.
   {
     const board = staged(["P-X"], ["P-E-RED", "P-E-RED"]);
     const xCard = board.r.sides.p1.zones.hand[0];
     const rows = (legal: { action: Action }[]) => legal.filter((a) => a.action.type === "play" && (a.action as { card?: string }).card === xCard).map((a) => (a.action as { x?: number }).x);
     const rLegal = rulesEngine.legalActions(CTX, board.r);
-    const lLegal = legalActions(CTX, board.l);
     assert.deepEqual(rows(rLegal).sort(), [0, 1, 2], "an X-cost card with 2 energy and no coloured requirement did not offer X = 0, 1 and 2");
-    assert.deepEqual(rows(rLegal).sort(), rows(lLegal).sort(), "the two engines offer a different X menu for the same board");
     assertMenuInvariants(rLegal, rulesEngine.rejectedActions(CTX, board.r, rLegal), "the X-cost play menu");
 
-    // Taking the middle value pays exactly that much, on both engines.
+    // Taking the middle value pays exactly one energy.
     const play = { type: "play" as const, player: "p1" as const, card: xCard, x: 1 };
     const r2 = rulesEngine.apply(CTX, board.r, play);
-    const l2 = apply(CTX, board.l, play);
     const restedR = (r2.state as VmState).sides.p1.zones.energy.filter((id) => (r2.state as VmState).cards[id].mode === "rest").length;
-    const restedL = (l2.state as GameState).players.p1.energy.filter((id) => (l2.state as GameState).cards[id].mode === "rest").length;
     assert.equal(restedR, 1, "playing an X-cost card for X = 1 did not rest exactly 1 energy");
-    assert.equal(restedL, restedR, "the two engines rested a different amount of energy for the same X");
   }
 
   // The same shape on a Unison — the card arrives with X markers, 13-2-3's
@@ -2773,18 +2673,21 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const uCard = board.r.sides.p1.zones.hand[0];
     const rows = (legal: { action: Action }[]) => legal.filter((a) => a.action.type === "playUnison" && (a.action as { card?: string }).card === uCard).map((a) => (a.action as { x?: number }).x);
     const rLegal = rulesEngine.legalActions(CTX, board.r);
-    const lLegal = legalActions(CTX, board.l);
     // 13-2-2: a Unison's X starts at 1, never 0 — a Unison with no markers at
     // all is not on the board (3-11-3).
     assert.deepEqual(rows(rLegal).sort(), [1, 2, 3], "an X-cost Unison with 3 energy did not offer 1, 2 and 3 markers");
-    assert.deepEqual(rows(rLegal).sort(), rows(lLegal).sort(), "the two engines offer a different marker menu for the same X-cost Unison");
 
     const play = { type: "playUnison" as const, player: "p1" as const, card: uCard, x: 3 };
     const r2 = rulesEngine.apply(CTX, board.r, play);
-    const l2 = apply(CTX, board.l, play);
-    assert.deepEqual(r2.events, l2.events, "playing an X-cost Unison does not log the same events on both engines");
+    assert.deepEqual(logged(r2.events), [
+      { type: "action", action: play },
+      { type: "mode", card: "p1#43", mode: "rest" },
+      { type: "mode", card: "p1#3", mode: "rest" },
+      { type: "mode", card: "p1#46", mode: "rest" },
+      { type: "move", card: uCard, from: "hand", to: "unison", owner: "p1", reveal: true },
+      { type: "markers", card: uCard, delta: 3, total: 3 },
+    ], "playing an X-cost Unison did not rest three energy and arrive with three markers");
     assert.equal((r2.state as VmState).cards[uCard].markers, 3, "the Unison did not arrive with X markers");
-    assert.equal((l2.state as GameState).cards[uCard].markers, 3, "the legacy engine did not give the Unison X markers either");
   }
 }
 
@@ -2793,30 +2696,24 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 // The move whose candidate is a **line** rather than a card, and therefore the
 // one §3.2 of `docs/arena-workflow-spec.md` counts per line. Five claims:
 //
-//  1. **The same events.** A skill used on a staged board logs what the legacy
-//     engine logs, event for event: the energy rested, the `skill` beat with
+//  1. **Fixed complete events.** A skill used on a staged board logs the energy
+//     rested, the `skill` beat with
 //     the line as printed, and the effects the record's program makes — which
 //     is the point of running that program on the one shared interpreter
 //     (#142) rather than on a second reading of it.
-//  2. **One rejection per skill line, on both engines.** A card with three
+//  2. **One rejection per skill line.** A card with three
 //     [Activate: Main] lines is asked about three times and answered three
-//     times, and the two engines file them under the same three keys.
-//  3. **The same first refusal per line.** Negated, used up, the wrong window,
+//     times, under the three printed indices.
+//  3. **Fixed first refusal per line.** Negated, used up, the wrong window,
 //     a condition that does not hold, a price too dear, an effect the compiler
-//     could not read, the wrong area: whatever stopped the line first, both
-//     engines say the same `Requirement` about it and `wording.ts` says the
-//     same sentence.
+//     could not read, the wrong area: each line has its expected first
+//     `Requirement` and client sentence.
 //  4. **A price that is not read is refused, never played free.** The 8 Sep
 //     2026 precedent: a skill with no record has an unknown price, and one
 //     whose price is an X or an action price is `unread` rather than free.
 //  5. **`contract/fixtures/activate.json`'s own board.** The fixture the client
 //     contract is emitted from — PUMPCRIT's pump-and-grant in the Battle Area
-//     with one energy — plays to the same events and the same board on both.
-//
-// `arena:diff` cannot be the instrument for any of this yet: it replays a saved
-// row, and a legacy row handed to the rules engine is an `EngineMismatch` until
-// #164 replays them. So the oracle here is the two engines run side by side on
-// one staged board, which is what §16, §17 and §18 do.
+//     with one energy — produces the fixed events and two effects below.
 {
   const rulesEngine = engineFor("rules");
 
@@ -2852,60 +2749,42 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     return null;
   };
 
-  /**
-   * One Main Phase on **both** engines with the same cards in the same places.
-   *
-   * The instance ids are a function of the decklist alone (#139), so "the same
-   * board" is literal: the cards are renamed in place on either state and the
-   * two engines are then asked the same questions about the same ids.
-   */
-  function stagedFor(battle: string[], energy: string[], hand: string[] = []): { r: VmState; l: GameState } {
+  /** One Main Phase with the named cards placed on fixed seed-12 instances. */
+  function stagedFor(battle: string[], energy: string[], hand: string[] = []): { r: VmState } {
     let r = rulesEngine.createGame(CTX, ACT_DECKS).state as VmState;
-    let l = createGame(CTX, ACT_DECKS).state;
     for (let i = 0; i < 30; i++) {
       const a = toMainPhase(r.prompt);
       if (!a) break;
       r = rulesEngine.apply(CTX, r, a).state as VmState;
-      l = apply(CTX, l, a).state;
     }
     assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to use a skill in");
-    assert.equal(l.prompt.kind, "main", "the legacy game did not reach a Main Phase to use a skill in");
 
     hand.forEach((cardId, i) => {
       const id = r.sides.p1.zones.hand[i];
       r.cards[id].cardId = cardId;
-      l.cards[id].cardId = cardId;
     });
     const take = (n: number, from: number): string[] => r.sides.p1.zones.deck.slice(from, from + n);
     const battleIds = take(battle.length, 0);
     const energyIds = take(energy.length, battle.length);
     battleIds.forEach((id, i) => {
-      for (const st of [r.cards[id], l.cards[id]]) {
-        st.cardId = battle[i];
-        st.mode = "active";
-      }
+      r.cards[id].cardId = battle[i];
+      r.cards[id].mode = "active";
     });
     energyIds.forEach((id, i) => {
-      for (const st of [r.cards[id], l.cards[id]]) {
-        st.cardId = energy[i];
-        st.mode = "active";
-      }
+      r.cards[id].cardId = energy[i];
+      r.cards[id].mode = "active";
     });
     const taken = new Set([...battleIds, ...energyIds]);
     r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
-    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
     r.sides.p1.zones.battle = battleIds;
-    l.players.p1.battle = battleIds;
     r.sides.p1.zones.energy = energyIds;
-    l.players.p1.energy = energyIds;
-    return { r, l };
+    return { r };
   }
 
   const asJson = (list: GameEvent[]): unknown => JSON.parse(JSON.stringify(list));
-  function bothUse(board: { r: VmState; l: GameState }, action: Action): { r: { state: VmState; events: unknown }; l: { state: GameState; events: unknown } } {
+  function runActivation(board: { r: VmState }, action: Action): { r: { state: VmState; events: unknown } } {
     const r = rulesEngine.apply(CTX, board.r, action);
-    const l = apply(CTX, board.l, action);
-    return { r: { state: r.state as VmState, events: asJson(r.events) }, l: { state: l.state, events: asJson(l.events) } };
+    return { r: { state: r.state as VmState, events: asJson(r.events) } };
   }
 
   /** Every activation either engine names, keyed the way §3.2 keys one: the card and the line. */
@@ -2922,14 +2801,20 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.deepEqual(offered!.action, { type: "activate", player: "p1", card: user, skill: 0 }, "the activation offered is not the shape a client sends");
     assert.ok(offered!.label.includes("Draw 1 card"), `an activation's row does not say which line it is: ${offered!.label}`);
 
-    const done = bothUse(board, { type: "activate", player: "p1", card: user, skill: 0 });
-    assert.deepEqual(done.r.events, done.l.events, "using a skill does not log the same thing on the two engines");
-    assert.equal(done.r.state.sides.p1.zones.hand.length, done.l.state.players.p1.hand.length, "the skill's draw left the two hands a different size");
+    const action: Action = { type: "activate", player: "p1", card: user, skill: 0 };
+    const done = runActivation(board, action);
+    assert.deepEqual(done.r.events, [
+      { type: "action", action },
+      { type: "skill", card: user, skill: 0, master: "p1", text: "[Activate: Main] Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#9", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#9" },
+    ], "a free skill did not log its use then one draw");
+    assert.equal(done.r.state.sides.p1.zones.hand.length, 7, "the skill's draw did not add one card to the opening hand");
     assert.equal(done.r.state.prompt.kind, "main", "using a skill ended the Main Phase, and 7-3-4 grants the timing again");
   }
 
-  // 2. A price in orbs: charged out of the Energy Area exactly as the legacy
-  //    engine charges it, and the row wears the figure that was charged.
+  // 2. A price in orbs: charged out of the Energy Area; the row wears the
+  //    figure charged.
   {
     const board = stagedFor(["A-ORBS"], ["A-E-RED"]);
     const user = board.r.sides.p1.zones.battle[0];
@@ -2937,8 +2822,15 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const offered = rulesEngine.legalActions(CTX, board.r).find((a) => a.action.type === "activate" && (a.action as { card: string }).card === user);
     assert.ok(offered, "a skill whose orbs the board can pay is not offered");
     assert.deepEqual(offered!.cost, { energy: 1, orbs: { Red: 1 }, describe: "1 energy (1 red)" }, "an activation's row does not wear the line's own price");
-    const done = bothUse(board, { type: "activate", player: "p1", card: user, skill: 0 });
-    assert.deepEqual(done.r.events, done.l.events, "a priced activation does not log the same thing on the two engines");
+    const action: Action = { type: "activate", player: "p1", card: user, skill: 0 };
+    const done = runActivation(board, action);
+    assert.deepEqual(done.r.events, [
+      { type: "action", action },
+      { type: "mode", card: coin, mode: "rest" },
+      { type: "skill", card: user, skill: 0, master: "p1", text: "[Activate: Main] {r}: Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#5", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#5" },
+    ], "a priced activation did not rest one red energy before drawing");
     assert.equal(done.r.state.cards[coin].mode, "rest", "the energy the price was planned against was not rested");
   }
 
@@ -2987,36 +2879,32 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     assert.ok(plan.ok && plan.payment.rest[0] === payer, "the line's own payer was not reached for, with no energy to try first");
   }
 
-  // 3. Three lines, three answers — on both engines, for one board. The whole
+  // 3. Three lines, three answers on one board. The whole
   //    of §3.2's exception: the first line is playable, the second is short of
   //    a blue orb, the third belongs to another window.
   {
     const board = stagedFor(["A-THREE"], ["A-E-RED"]);
     const user = board.r.sides.p1.zones.battle[0];
     const mine = rulesEngine.legalActions(CTX, board.r);
-    const theirs = legalActions(CTX, board.l);
     const refusedMine = rulesEngine.rejectedActions(CTX, board.r, mine);
-    const refusedTheirs = rejectedActions(CTX, board.l, theirs);
     // The index is the line's own — its offset in the printed text, stable
     // across games (`Skill.index`) — so the three keys are compared as a set of
     // three rather than as 0, 1, 2.
     const seen = (legal: { action: Action }[], refused: { action: Action }[]) => [...byLine(legal).keys(), ...byLine(refused).keys()].filter((k) => k.startsWith(`${user}#`)).sort();
     assert.equal(seen(mine, refusedMine).length, 3, "a card with three [Activate] lines is not answered about three times on the rules engine");
     assert.equal(new Set(seen(mine, refusedMine)).size, 3, "two of a card's three skill lines were answered under one key");
-    assert.deepEqual(seen(mine, refusedMine), seen(theirs, refusedTheirs), "the two engines answer about a different set of skill lines");
+    assert.deepEqual(seen(mine, refusedMine), [`${user}#0`, `${user}#10`, `${user}#20`], "the three printed skill lines were not answered under their own indices");
     // The card's own lines only: the Leader's [Awaken] is a refused line of
     // another card on this board since #156, on both engines.
     assert.equal([...byLine(refusedMine).keys()].filter((k) => k.startsWith(`${user}#`)).length, 2, "a card with one playable line and two refused ones does not show two rejections");
     assertMenuInvariants(mine, refusedMine, "the activation menu of a card with three skill lines");
-    assertMenuInvariants(theirs, refusedTheirs, "the legacy activation menu of a card with three skill lines");
   }
 
-  // 4. The first refusal, line for line against the legacy engine — the shape
-  //    and the sentence. A board built to stop every gate this stage reads.
+  // 4. The first refusal, line for line: fixed shape and client sentence on a
+  //    board built to stop every gate this stage reads.
   {
     const board = stagedFor(["A-BATTLE", "A-BLUE-ORB", "A-UNREAD"], ["A-E-RED"], ["A-FREE"]);
     const mine = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r));
-    const theirs = rejectedActions(CTX, board.l, legalActions(CTX, board.l));
     const firstOf = (list: { action: Action; why: Requirement[] }[]) =>
       new Map(
         list
@@ -3024,29 +2912,21 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
           .map((x) => [`${(x.action as { card: string }).card}#${(x.action as { skill: number }).skill}`, x.why[0]] as const),
       );
     const ours = firstOf(mine);
-    const legacyFirst = firstOf(theirs);
-    let compared = 0;
-    for (const [key, why] of legacyFirst) {
-      const got = ours.get(key);
-      // The one difference this stage records rather than hides: a keyword's
-      // own activation not declared yet ([Z-Awaken] …; [Awaken], [Rejuvenate],
-      // [Over Realm], [Swap] and the others are since #155–#157) is a
-      // `DEFINE KEYWORD` body still to write — the legacy engine answers
-      // about such a line and this one does not name it at all.
-      if (!got) {
-        const [cardOf, indexOf] = key.split("#").slice(-2);
-        void cardOf;
-        const inst = board.r.cards[key.slice(0, key.lastIndexOf("#"))];
-        const line = parseSkills(CTX.defs[inst.cardId].skill ?? null).find((sk) => sk.index === Number(indexOf));
-        assert.ok(line?.keyword, `${key} is refused an activation by the legacy engine and neither offered nor refused by this one`);
-        continue;
-      }
-      assert.deepEqual(got, why, `${key}: the two engines give a different first reason for refusing an activation`);
-      const about = { name: "A-THREE", reaching: "activate" as const };
-      assert.deepEqual(refusal(got!, about), refusal(why, about), `${key}: the same requirement reads differently on the two engines`);
-      compared++;
-    }
-    assert.ok(compared >= 3, `only ${compared} activation refusals were compared against the legacy engine`);
+    assert.deepEqual(ours, new Map([
+      ["p1#45#0", { kind: "zone", card: "p1#45", area: "battle" }],
+      ["p1#0#0", { kind: "condition", text: "When your life is at 4 or less" }],
+      ["p1#6#0", { kind: "timing", window: "battle" }],
+      ["p1#9#0", { kind: "energyColour", colour: "Blue", need: 1, have: 0 }],
+      ["p1#5#0", { kind: "unread", card: "p1#5" }],
+    ]), "the five blocked activation lines changed their first requirements");
+    const about = { name: "A-THREE", reaching: "activate" as const };
+    assert.deepEqual([...ours.values()].map((why) => refusal(why, about)), [
+      { fact: "A-THREE has to be in your Battle Area for that.", remedy: null },
+      { fact: "A-THREE needs: When your life is at 4 or less.", remedy: "Not met yet." },
+      { fact: "A-THREE cannot use its skill now.", remedy: "Only during a battle." },
+      { fact: "A-THREE needs 1 Blue energy — 0 active.", remedy: "Charge a Blue card." },
+      { fact: "The engine cannot read A-THREE's text yet.", remedy: "Explain the card on the rules workbench and it plays from the next game." },
+    ], "the blocked activation lines changed their client sentences");
     assertMenuInvariants(rulesEngine.legalActions(CTX, board.r), mine, "the activation menu of a board that stops every gate");
   }
 
@@ -3055,13 +2935,17 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   {
     const board = stagedFor(["A-ONCE"], []);
     const user = board.r.sides.p1.zones.battle[0];
-    const done = bothUse(board, { type: "activate", player: "p1", card: user, skill: 0 });
-    assert.deepEqual(done.r.events, done.l.events, "a [Once per turn] skill does not log the same thing on the two engines");
+    const action: Action = { type: "activate", player: "p1", card: user, skill: 0 };
+    const done = runActivation(board, action);
+    assert.deepEqual(done.r.events, [
+      { type: "action", action },
+      { type: "skill", card: user, skill: 0, master: "p1", text: "[Activate: Main][Once per turn] Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#9", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#9" },
+    ], "a [Once per turn] skill did not log one use and draw");
     const usedUp = (x: { action: Action }) => x.action.type === "activate" && (x.action as { card: string }).card === user;
     const again = rulesEngine.rejectedActions(CTX, done.r.state, rulesEngine.legalActions(CTX, done.r.state)).find(usedUp);
-    const legacyAgain = rejectedActions(CTX, done.l.state, legalActions(CTX, done.l.state)).find(usedUp);
     assert.deepEqual(again?.why[0], { kind: "oncePerTurn", what: "skill" }, "a [Once per turn] skill used once is not refused as used up");
-    assert.deepEqual(again?.why[0], legacyAgain?.why[0], "the two engines refuse a used-up skill differently");
     // …and the turn ending gives it back, which is what `endTurn` empties.
     let next = rulesEngine.apply(CTX, done.r.state, { type: "endMain", player: "p1" }).state as VmState;
     for (let i = 0; i < 40 && next.turnPlayer !== "p1"; i++) {
@@ -3103,68 +2987,71 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     // area it is valid in, and that is the difference between the two.
     const battleCard = rulesEngine.rejectedActions(CTX, board.r, rulesEngine.legalActions(CTX, board.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === inHand);
     assert.deepEqual(battleCard?.why[0], { kind: "zone", card: inHand, area: "battle" }, "a Battle Card's skill in the hand is not refused with the area it is valid in");
-    const legacyBattleCard = rejectedActions(CTX, board.l, legalActions(CTX, board.l)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === inHand);
-    assert.deepEqual(battleCard?.why[0], legacyBattleCard?.why[0], "the two engines refuse a hand-bound Battle Card skill differently");
 
     // …and one whose effect *can* be read: offered at the card's own cost, and
-    // the card is in the Drop when it has resolved, on both engines.
+    // the card is in the Drop when it has resolved.
     const usable = stagedFor([], ["A-E-RED"], ["A-EXTRA"]);
     const extra = usable.r.sides.p1.zones.hand[0];
     const offered = rulesEngine.legalActions(CTX, usable.r).find((a) => a.action.type === "activate" && (a.action as { card: string }).card === extra);
     assert.ok(offered, "an Extra Card in hand whose skill the engine can resolve is not offered");
     assert.equal(offered!.cost?.energy, 1, "an Extra's activation is not charged the card's own energy cost as well as the skill's orbs (12-2-2)");
-    const used = bothUse(usable, { type: "activate", player: "p1", card: extra, skill: 0 });
-    assert.deepEqual(used.r.events, used.l.events, "using an Extra Card from hand does not log the same thing on the two engines");
+    const extraAction: Action = { type: "activate", player: "p1", card: extra, skill: 0 };
+    const used = runActivation(usable, extraAction);
+    assert.deepEqual(used.r.events, [
+      { type: "action", action: extraAction },
+      { type: "mode", card: "p1#6", mode: "rest" },
+      { type: "move", card: extra, from: "hand", to: "drop", owner: "p1", reveal: true },
+      { type: "skill", card: extra, skill: 0, master: "p1", text: "[Activate: Main] Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#9", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#9" },
+    ], "an Extra from hand did not pay, reach the Drop and resolve its draw");
     assert.ok(used.r.state.sides.p1.zones.drop.includes(extra), "the Extra did not go to the Drop Area as it was used (12-2-2)");
-    assert.equal(used.r.state.sides.p1.zones.drop.includes(extra), used.l.state.players.p1.drop.includes(extra), "the two engines left the used Extra in different places");
 
     // 12-2-2 with orbs as well: the card's energy cost and the skill's orbs are
-    // **one** price, colours included, on both engines. The legacy
+    // **one** price, colours included. The legacy
     // `activatable` used to add the two totals and then plan against the *play
     // cost's* colours alone, so on a board short of the skill's colour it
     // offered a skill it could not pay the orbs of — a divergence this block
     // recorded rather than copied. The owner ruled this engine right (13 Sep
     // 2026) and the legacy engine was fixed as the bug it was (#271), so what is
-    // asserted now is the agreement: the same offer where the colour is there,
-    // and the same first requirement where the total is there and the colour
-    // is not.
+    // asserted now is the offer where the colour is there and the first
+    // requirement where the total is there and the colour is not.
     const both2 = stagedFor([], ["A-E-RED", "A-E-RED"], ["A-EXTRA-ORB"]);
     const orbExtra = both2.r.sides.p1.zones.hand[0];
     const findOrb = (list: LegalAction[]) => list.find((a) => a.action.type === "activate" && (a.action as { card: string }).card === orbExtra);
     const orbOffer = findOrb(rulesEngine.legalActions(CTX, both2.r));
     assert.deepEqual(orbOffer?.cost, { energy: 2, orbs: { Red: 2 }, describe: "2 energy (2 red)" }, "an Extra's activation does not add its energy cost to the skill's orbs, colours and all");
-    const legacyOrbOffer = findOrb(legalActions(CTX, both2.l));
-    assert.ok(legacyOrbOffer, "the legacy engine does not offer an Extra with orbs on a board that can pay both halves");
-    assert.deepEqual(legacyOrbOffer!.cost, orbOffer!.cost, "the two engines price an Extra's orbs and energy cost differently");
     // The total but not the colour: two blue energy for a red card's {r}. Both
-    // engines refuse, and refuse for the colour — not "1 short", and not the
+    // board refuses for the colour — not "1 short", and not the
     // orbs alone (#271's `A-EXTRA-ORB`, "both halves").
     const blue = stagedFor([], ["A-E-BLUE", "A-E-BLUE"], ["A-EXTRA-ORB"]);
     const blueExtra = blue.r.sides.p1.zones.hand[0];
     assert.equal(findOrb(rulesEngine.legalActions(CTX, blue.r)), undefined, "the rules engine offered an Extra whose orb colour the board cannot pay");
-    assert.equal(findOrb(legalActions(CTX, blue.l)), undefined, "the legacy engine offered an Extra whose orb colour the board cannot pay (4-2, 12-2-2)");
     const blueWhy = rulesEngine.rejectedActions(CTX, blue.r, rulesEngine.legalActions(CTX, blue.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === blueExtra);
-    const legacyBlueWhy = rejectedActions(CTX, blue.l, legalActions(CTX, blue.l)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === blueExtra);
     assert.deepEqual(blueWhy?.why[0], { kind: "energyColour", colour: "Red", need: 2, have: 0 }, "an Extra short of its colour is not refused for the colour of the whole price");
-    assert.deepEqual(legacyBlueWhy?.why[0], blueWhy?.why[0], "the two engines refuse an Extra short of its orb colour with a different first requirement");
     // …and one red among the two: the colour is still short, by the one orb
     // the play cost's convention does not cover, and both say so alike.
     const mixed = stagedFor([], ["A-E-RED", "A-E-BLUE"], ["A-EXTRA-ORB"]);
     const mixedExtra = mixed.r.sides.p1.zones.hand[0];
     const mixedWhy = rulesEngine.rejectedActions(CTX, mixed.r, rulesEngine.legalActions(CTX, mixed.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === mixedExtra);
-    const legacyMixedWhy = rejectedActions(CTX, mixed.l, legalActions(CTX, mixed.l)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === mixedExtra);
     assert.deepEqual(mixedWhy?.why[0], { kind: "energyColour", colour: "Red", need: 2, have: 1 }, "an Extra one red short is not refused for that one red");
-    assert.deepEqual(legacyMixedWhy?.why[0], mixedWhy?.why[0], "the two engines refuse an Extra one orb short with a different first requirement");
     // No energy at all: the whole price is what is short, on both — not the
     // orbs alone, which is what the legacy twin used to say first.
     const bare = stagedFor([], [], ["A-EXTRA-ORB"]);
     const bareExtra = bare.r.sides.p1.zones.hand[0];
     const bareWhy = rulesEngine.rejectedActions(CTX, bare.r, rulesEngine.legalActions(CTX, bare.r)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === bareExtra);
-    const legacyBareWhy = rejectedActions(CTX, bare.l, legalActions(CTX, bare.l)).find((x) => x.action.type === "activate" && (x.action as { card: string }).card === bareExtra);
     assert.deepEqual(bareWhy?.why[0], { kind: "energy", need: 2, have: 0 }, "an Extra on an empty board is not refused for the whole of its price");
-    assert.deepEqual(legacyBareWhy?.why[0], bareWhy?.why[0], "the two engines count an Extra's whole price differently on an empty board");
-    const orbUsed = bothUse(both2, { type: "activate", player: "p1", card: orbExtra, skill: 0 });
-    assert.deepEqual(orbUsed.r.events, orbUsed.l.events, "using an Extra with orbs as well does not log the same thing on the two engines");
+    const orbAction: Action = { type: "activate", player: "p1", card: orbExtra, skill: 0 };
+    const orbUsed = runActivation(both2, orbAction);
+    assert.deepEqual(orbUsed.r.events, [
+      { type: "action", action: orbAction },
+      { type: "mode", card: "p1#6", mode: "rest" },
+      { type: "mode", card: "p1#9", mode: "rest" },
+      { type: "move", card: orbExtra, from: "hand", to: "drop", owner: "p1", reveal: true },
+      { type: "skill", card: orbExtra, skill: 0, master: "p1", text: "[Activate: Main] {r}: Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#5", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#5" },
+    ], "an Extra with orbs did not rest two energy, reach the Drop and draw");
     assert.deepEqual(
       (orbUsed.r.state.sides.p1.zones.energy ?? []).map((id) => orbUsed.r.state.cards[id].mode),
       ["rest", "rest"],
@@ -3174,19 +3061,28 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   }
 
   // 8. `contract/fixtures/activate.json`'s own board: the pump-and-grant the
-  //    client contract is emitted from, played on both engines.
+  //    client contract is emitted from, checked against fixed public events.
   {
     const board = stagedFor(["PUMPCRIT"], ["A-E-RED"]);
     const pump = board.r.sides.p1.zones.battle[0];
-    const done = bothUse(board, { type: "activate", player: "p1", card: pump, skill: 0 });
-    assert.deepEqual(done.r.events, done.l.events, "the contract fixture's activation does not log the same thing on the two engines");
+    const action: Action = { type: "activate", player: "p1", card: pump, skill: 0 };
+    const done = runActivation(board, action);
+    assert.deepEqual(done.r.events, [
+      { type: "action", action },
+      { type: "skill", card: pump, skill: 0, master: "p1", text: "[Activate: Main] This card gets +5000 power and [Critical] for the turn.", inBattle: false },
+      { type: "effect", effect: { master: "p1", source: pump, target: pump, kind: "power", value: 5000, until: "turn", id: 1, createdTurn: 1, ownerTurn: "p1" } },
+      { type: "effect", effect: { master: "p1", source: pump, target: pump, kind: "keyword", value: { name: "Critical" }, until: "turn", id: 2, createdTurn: 1, ownerTurn: "p1" } },
+    ], "the contract fixture activation did not log the printed pump and [Critical] grant");
     // …and the rules the skill put in force are the same rules, read off the
     // state rather than off the board: `vm/view.ts` still draws a card's
     // *printed* attributes, so what a client would see of them is #149's parity
     // work and not this issue's. The contract itself is untouched either way —
     // no `Snapshot` field moved, so `npm run contract:emit` writes no change.
     const inForce = (list: { kind: string; value: unknown; until: string; target: string; source?: string }[]) => list.map((e) => [e.kind, JSON.stringify(e.value), e.until, e.target, e.source ?? null]);
-    assert.deepEqual(inForce(done.r.state.effects), inForce(done.l.state.effects), "the two engines put different rules in force from one skill");
+    assert.deepEqual(inForce(done.r.state.effects), [
+      ["power", "5000", "turn", pump, pump],
+      ["keyword", '{"name":"Critical"}', "turn", pump, pump],
+    ], "the contract fixture left a different power or keyword effect in force");
     assert.equal(done.r.state.effects.length, 2, "the pump and the keyword it grants are not both in force on the rules engine");
   }
 }
@@ -3212,10 +3108,9 @@ console.log("verify/vm: ok");
 //     (9 Sep 2026): "reduce the specified cost by {r}" relaxes which colours
 //     are demanded and moves the total *nothing*. That is why `specified` is a
 //     layer of `specifiedCost` and of no numeric attribute.
-//  4. **Both engines charge the same price and ask the same question.** The row
-//     the menu wears, the `Requirement` a shortfall answers with, the payment
-//     prompt and the cards actually rested — compared against the legacy
-//     `playCost`/`planPayment` on the same staged board.
+//  4. **The charged price and refusal agree with the printed rule.** The row
+//     wears the reduced price, a shortfall names the missing energy or colour,
+//     and taking the play rests exactly one staged blue energy.
 //
 // What is deliberately *not* here: 22-19's [Warrior of Universe 7], which
 // clears a ≪Universe 7≫ card's specified cost outright. It is a **keyword**
@@ -3239,10 +3134,9 @@ console.log("verify/vm: ok");
     p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") },
   };
 
-  /** One staged Main Phase on both engines: a card in hand, a [Permanent] in the Battle Area, and some energy. */
-  function withReducer(inHand: string, inPlay: string, energy: string[]): { r: VmState; l: GameState; card: string; source: string } {
+  /** One staged Main Phase: a card in hand, a [Permanent] in the Battle Area, and some energy. */
+  function withReducer(inHand: string, inPlay: string, energy: string[]): { r: VmState; card: string; source: string } {
     let r = rulesEngine.createGame(CTX, CUT_DECKS).state as VmState;
-    let l = createGame(CTX, CUT_DECKS).state;
     for (let i = 0; i < 30; i++) {
       const pr = r.prompt as { kind: string; player: PlayerId };
       const a: Action | null =
@@ -3255,77 +3149,45 @@ console.log("verify/vm: ok");
               : null;
       if (!a) break;
       r = rulesEngine.apply(CTX, r, a).state as VmState;
-      l = apply(CTX, l, a).state;
     }
     assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to price a play in");
-    assert.equal(l.prompt.kind, "main", "the legacy game did not reach a Main Phase to price a play in");
     // The whole hand is one known card, so the only price under test is the one
     // the assertions name — an opening hand of five different costs would make
     // "the menu" a different claim on every seed.
     for (const id of r.sides.p1.zones.hand) {
       r.cards[id].cardId = inHand;
-      l.cards[id].cardId = inHand;
     }
     const target = r.sides.p1.zones.hand[0];
     const source = r.sides.p1.zones.deck[0];
     const energyIds = r.sides.p1.zones.deck.slice(1, 1 + energy.length);
-    for (const st of [r.cards[source], l.cards[source]]) {
-      st.cardId = inPlay;
-      st.mode = "active";
-    }
+    r.cards[source].cardId = inPlay;
+    r.cards[source].mode = "active";
     energyIds.forEach((id, i) => {
-      for (const st of [r.cards[id], l.cards[id]]) {
-        st.cardId = energy[i];
-        st.mode = "active";
-      }
+      r.cards[id].cardId = energy[i];
+      r.cards[id].mode = "active";
     });
     const taken = new Set([source, ...energyIds]);
     r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
-    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
     r.sides.p1.zones.battle = [source];
-    l.players.p1.battle = [source];
     r.sides.p1.zones.energy = energyIds;
-    l.players.p1.energy = energyIds;
-    return { r, l, card: target, source };
+    return { r, card: target, source };
   }
 
-  /**
-   * What the two engines say a play of this card costs, and what each refuses it
-   * with.
-   *
-   * The legacy menu carries no `cost` on a play — only an activation wears one
-   * — so the figure it is compared against is `playCost` itself, which is the
-   * function every legacy site that charges a play goes through. That is the
-   * comparison that matters: a row whose figure came from a second reading is
-   * the drift `vm/costs.ts` exists to prevent, and here the two readings are on
-   * two different engines.
-   */
-  function priced(board: { r: VmState; l: GameState; card: string }): {
+  /** The rules engine's play row and first refusal for the staged card. */
+  function priced(board: { r: VmState; card: string }): {
     cost: { energy: number; orbs?: Partial<Record<string, number>>; describe: string } | undefined;
-    legacyCost: { total: number; specified: Partial<Record<string, number>> };
     why: Requirement | undefined;
-    legacyWhy: Requirement | undefined;
     offered: boolean;
-    legacyOffered: boolean;
   } {
-    const rLegal = rulesEngine.legalActions(CTX, board.r);
-    const lLegal = legalActions(CTX, board.l);
+    const legal = rulesEngine.legalActions(CTX, board.r);
     const isThis = (x: { action: Action }) => x.action.type === "play" && (x.action as { card: string }).card === board.card;
-    const mine = rLegal.find(isThis);
-    const myWhy = rulesEngine.rejectedActions(CTX, board.r, rLegal).find(isThis);
-    const theirWhy = rejectedActions(CTX, board.l, lLegal).find(isThis);
+    const row = legal.find(isThis);
     return {
-      cost: mine?.cost as { energy: number; orbs?: Partial<Record<string, number>>; describe: string } | undefined,
-      legacyCost: playCost(CTX, board.l, board.card),
-      why: myWhy?.why[0],
-      legacyWhy: theirWhy?.why[0],
-      offered: !!mine,
-      legacyOffered: lLegal.some(isThis),
+      cost: row?.cost as { energy: number; orbs?: Partial<Record<string, number>>; describe: string } | undefined,
+      why: rulesEngine.rejectedActions(CTX, board.r, legal).find(isThis)?.why[0],
+      offered: !!row,
     };
   }
-
-  /** The rules engine's row, said in the legacy engine's own terms, so the two are one comparison. */
-  const asLegacy = (cost: { energy: number; orbs?: Partial<Record<string, number>> } | undefined) => ({ total: cost?.energy ?? 0, specified: cost?.orbs ?? {} });
 
   // The baseline, so the rest is a *change* and not a coincidence: a red card
   // costing 2 with one red orb, one blue energy, and nothing in force.
@@ -3333,9 +3195,8 @@ console.log("verify/vm: ok");
     const board = withReducer("R-TWO", "R-BYSTANDER", ["R-E-BLUE"]);
     const both = priced(board);
     assert.equal(both.offered, false, "a card nobody can pay for is on the menu");
-    assert.deepEqual(both.legacyCost, { total: 2, specified: { Red: 1 } }, "the fixture is not the printed price this block is measuring a change against");
-    assert.deepEqual(both.why, { kind: "energy", need: 2, have: 1 }, "the unreduced price is not the shortfall the legacy engine reports");
-    assert.deepEqual(both.why, both.legacyWhy, "the two engines refuse an unreduced price differently");
+    assert.deepEqual(attrsNow(CTX, DBS, board.r, board.card).specifiedCost, ["Red"], "the printed red cost did not demand its one red orb");
+    assert.deepEqual(both.why, { kind: "energy", need: 2, have: 1 }, "the unreduced price does not report its one-energy shortfall");
     assert.equal(
       attrsNow(CTX, DBS, board.r, board.card).costOf,
       2,
@@ -3352,16 +3213,18 @@ console.log("verify/vm: ok");
     assert.deepEqual(attrsNow(CTX, DBS, board.r, board.card).specifiedCost, [], "a flat reduction did not take the coloured requirement down with the total (20-21-2)");
     const both = priced(board);
     assert.deepEqual(both.cost, { energy: 1, describe: "1 energy" }, "the row does not wear the reduced price");
-    assert.deepEqual(asLegacy(both.cost), both.legacyCost, "the two engines put a different price on the same reduced play");
     assert.equal(both.why, undefined, "a play the reducer made affordable is still refused");
-    assert.equal(both.legacyWhy, undefined, "the legacy engine refuses a play the reducer made affordable");
 
-    // …and the charge is the reduced one: one card rested, and the same card on
-    // both engines, which is the promise `arena:diff` exists to keep.
+    // The printed reducer removes one red orb and one total energy: play
+    // therefore rests the sole staged blue energy, p1#6, and moves p1#43.
     const r = rulesEngine.apply(CTX, board.r, { type: "play", player: "p1", card: board.card });
-    const l = apply(CTX, board.l, { type: "play", player: "p1", card: board.card });
-    assert.deepEqual(JSON.parse(JSON.stringify(r.events)), JSON.parse(JSON.stringify(l.events)), "a play at a reduced price does not log the same thing on the two engines");
-    assert.deepEqual((r.state as VmState).sides.p1.zones.energy, (l.state as GameState).players.p1.energy, "the two engines rested different energy for the same reduced price");
+    assert.deepEqual(JSON.parse(JSON.stringify(r.events)), [
+      { type: "action", action: { type: "play", player: "p1", card: "p1#43" } },
+      { type: "mode", card: "p1#6", mode: "rest" },
+      { type: "move", card: "p1#43", from: "hand", to: "battle", owner: "p1", reveal: true },
+    ], "a reduced play did not emit the full fixed action, rest and move sequence");
+    assert.deepEqual((r.state as VmState).sides.p1.zones.energy, ["p1#6"], "the reduced play changed the staged energy order");
+    assert.equal((r.state as VmState).cards["p1#6"].mode, "rest", "the only required energy did not rest");
   }
 
   // 20-21-2's floor: a reduction bigger than the price is 0 and never less, and
@@ -3371,10 +3234,9 @@ console.log("verify/vm: ok");
     assert.equal(attrsNow(CTX, DBS, board.r, board.card).costOf, 0, "a reduction bigger than the printed cost did not floor at zero (20-21-2)");
     const both = priced(board);
     assert.equal(both.cost, undefined, "a play reduced to nothing wears a price");
-    assert.deepEqual(both.legacyCost, { total: 0, specified: {} }, "the legacy engine does not read the same floor at zero");
+    assert.deepEqual(attrsNow(CTX, DBS, board.r, board.card).specifiedCost, [], "the free play still demands a coloured orb");
     assert.equal(both.offered, true, "a play reduced to nothing is not offered");
     assert.equal(both.why, undefined, "a play reduced to nothing is refused");
-    assert.equal(both.legacyWhy, undefined, "the legacy engine refuses a play reduced to nothing");
   }
 
   // Claim 3, and the owner's BT19-039 ruling written as a test: the coloured
@@ -3385,16 +3247,13 @@ console.log("verify/vm: ok");
     const plain = withReducer("R-TWO", "R-BYSTANDER", ["R-E-BLUE", "R-E-BLUE"]);
     const colourWhy = priced(plain);
     assert.deepEqual(colourWhy.why, { kind: "energyColour", colour: "Red", need: 1, have: 0 }, "a card short of a colour is not refused for it");
-    assert.deepEqual(colourWhy.why, colourWhy.legacyWhy, "the two engines refuse a colour differently");
 
     const relaxed = withReducer("R-TWO", "R-CUT-COLOUR", ["R-E-BLUE", "R-E-BLUE"]);
     assert.equal(attrsNow(CTX, DBS, relaxed.r, relaxed.card).costOf, 2, "relaxing the specified cost moved the total, and the owner's BT19-039 ruling says it moves nothing");
     assert.deepEqual(attrsNow(CTX, DBS, relaxed.r, relaxed.card).specifiedCost, [], "relaxing the specified cost did not take the orb it named");
     const both = priced(relaxed);
     assert.deepEqual(both.cost, { energy: 2, describe: "2 energy" }, "the row does not wear the relaxed requirement at the printed total");
-    assert.deepEqual(asLegacy(both.cost), both.legacyCost, "the two engines put a different price on the same relaxed play");
     assert.equal(both.why, undefined, "a play the relaxed colour made payable is still refused");
-    assert.equal(both.legacyWhy, undefined, "the legacy engine refuses a play the relaxed colour made payable");
   }
 
   // A reducer whose filter does not match asks nothing of the price: the
@@ -3414,26 +3273,23 @@ console.log("verify/vm: ok");
 // refused `forbid` by name and the host answered "nothing forbids it" to every
 // question. Both are now the board's answer, and this is what that claims:
 //
-//  1. **The same first refusal.** A [Permanent] saying "you can't play Battle
+//  1. **The fixed first refusal.** A [Permanent] saying "you can't play Battle
 //     Cards", a card's own "this card can't be played from any area except by
 //     skills" (9-1-3-3, which holds wherever the card sits), a ban on the
-//     charge and a turn-long ban on using skills: each refuses the move on both
-//     engines with the same `Requirement`, naming the same card and the same
-//     duration, so `wording.ts` says the same sentence about it.
+//     charge and a turn-long ban on using skills: each refuses the move on the
+//     rules engine with a `Requirement`, naming the card and the
+//     duration, so `wording.ts` says the right sentence about it.
 //  2. **One predicate, two lists.** The move is off the menu *because* it is
 //     refused — the very reading `legalActions` and `rejectedActions` are two
 //     views of — and the host's `forbids` is that same reading, so a program
 //     that asks 0-2-5's question gets the board's answer rather than `false`.
 //  3. **Both origins.** A prohibition standing from a [Permanent] and one put
 //     in force for the turn by a skill are the same rule to every reader, which
-//     is why the timed half is staged as the `ContinuousEffect` both engines
-//     keep rather than as a second mechanism.
+//     is why the timed half is staged as the `ContinuousEffect` the rules engine
+//     keeps rather than as a second mechanism.
 //
-// One ordering is deliberately *not* matched and is asserted as it stands: for
-// a plain Battle Card the legacy `whyNotPlayFromHand` puts the price before the
-// prohibition, and for a Unison or an X cost it puts the prohibition first.
-// This engine reads a `REFUSE` before the price throughout. The two only differ
-// on a board that is both short of energy and forbidden; see `actions.rules`.
+// The legacy price-before-prohibition refusal ordering is a #118 compatibility
+// fact, kept in the guarded helper outside this rules-only gameplay suite.
 {
   const rulesEngine = engineFor("rules");
 
@@ -3450,10 +3306,9 @@ console.log("verify/vm: ok");
     p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") },
   };
 
-  /** A Main Phase on both engines: one card in hand, one in the Battle Area, and enough energy that only a rule can stop the move. */
-  function banned(inHand: string, inPlay: string, energy = 2): { r: VmState; l: GameState; card: string; source: string } {
+  /** A Main Phase with one card in hand, one in battle, and enough energy that only a rule can stop the move. */
+  function banned(inHand: string, inPlay: string, energy = 2): { r: VmState; card: string; source: string } {
     let r = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
-    let l = createGame(CTX, BAN_DECKS).state;
     for (let i = 0; i < 30; i++) {
       const pr = r.prompt as { kind: string; player: PlayerId };
       const a: Action | null =
@@ -3466,42 +3321,32 @@ console.log("verify/vm: ok");
               : null;
       if (!a) break;
       r = rulesEngine.apply(CTX, r, a).state as VmState;
-      l = apply(CTX, l, a).state;
     }
     assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to forbid a move in");
     for (const id of r.sides.p1.zones.hand) {
       r.cards[id].cardId = inHand;
-      l.cards[id].cardId = inHand;
     }
     const target = r.sides.p1.zones.hand[0];
     const source = r.sides.p1.zones.deck[0];
     const energyIds = r.sides.p1.zones.deck.slice(1, 1 + energy);
     for (const id of [source, ...energyIds]) {
-      for (const st of [r.cards[id], l.cards[id]]) {
-        st.cardId = id === source ? inPlay : "F-E-RED";
-        st.mode = "active";
-      }
+      r.cards[id].cardId = id === source ? inPlay : "F-E-RED";
+      r.cards[id].mode = "active";
     }
     const taken = new Set([source, ...energyIds]);
     r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
-    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
     r.sides.p1.zones.battle = [source];
-    l.players.p1.battle = [source];
     r.sides.p1.zones.energy = energyIds;
-    l.players.p1.energy = energyIds;
-    return { r, l, card: target, source };
+    return { r, card: target, source };
   }
 
-  /** The first requirement each engine gives for a move about this card, or undefined when it is offered. */
-  function firstRefusal(board: { r: VmState; l: GameState }, type: Action["type"], card: string): { mine: Requirement | undefined; theirs: Requirement | undefined; offered: boolean; legacyOffered: boolean } {
-    const rLegal = rulesEngine.legalActions(CTX, board.r);
-    const lLegal = legalActions(CTX, board.l);
+  /** The first requirement for this staged move, or undefined when it is offered. */
+  function firstRefusal(board: { r: VmState }, type: Action["type"], card: string): { mine: Requirement | undefined; offered: boolean } {
+    const legal = rulesEngine.legalActions(CTX, board.r);
     const isThis = (x: { action: Action }) => x.action.type === type && (x.action as { card?: string | null }).card === card;
     return {
-      mine: rulesEngine.rejectedActions(CTX, board.r, rLegal).find(isThis)?.why[0],
-      theirs: rejectedActions(CTX, board.l, lLegal).find(isThis)?.why[0],
-      offered: rLegal.some(isThis),
-      legacyOffered: lLegal.some(isThis),
+      mine: rulesEngine.rejectedActions(CTX, board.r, legal).find(isThis)?.why[0],
+      offered: legal.some(isThis),
     };
   }
 
@@ -3511,19 +3356,16 @@ console.log("verify/vm: ok");
     const board = banned("V1", "F-QUIET");
     const play = firstRefusal(board, "play", board.card);
     assert.equal(play.offered, true, "the control board cannot play the card at all, so nothing below measures a prohibition");
-    assert.equal(play.legacyOffered, true, "the legacy control board cannot play the card either");
   }
 
   // 20-14 about the player: "you can't play Battle Cards", standing from a
-  // [Permanent] in the Battle Area. Off the menu on both engines, and refused
-  // with the same requirement naming the same card.
+  // [Permanent] in the Battle Area. Off the menu, and refused with the fixed
+  // requirement naming that source.
   {
     const board = banned("V1", "F-NO-PLAY");
     const play = firstRefusal(board, "play", board.card);
     assert.equal(play.offered, false, "a play a [Permanent] forbids is on the menu");
-    assert.equal(play.legacyOffered, false, "the legacy engine offers a play its own [Permanent] forbids");
     assert.deepEqual(play.mine, { kind: "forbidden", by: "F-NO-PLAY", until: "permanent" }, "a forbidden play is not refused with the rule that forbids it");
-    assert.deepEqual(play.mine, play.theirs, "the two engines refuse a forbidden play differently");
     assert.ok(refusal(play.mine!, { name: "V1", reaching: "play" }).fact.length > 0, "a prohibition's refusal has no words");
     assert.throws(() => rulesEngine.apply(CTX, board.r, { type: "play", player: "p1", card: board.card }), IllegalAction, "a forbidden play was taken anyway");
   }
@@ -3536,7 +3378,6 @@ console.log("verify/vm: ok");
     const play = firstRefusal(board, "play", board.card);
     assert.equal(play.offered, false, "a card whose own rule forbids playing it is on the menu");
     assert.deepEqual(play.mine, { kind: "forbidden", by: "F-UNPLAYABLE", until: "permanent" }, "a card's own prohibition is not read from the hand (9-1-3-3)");
-    assert.deepEqual(play.mine, play.theirs, "the two engines read a card's own prohibition differently");
   }
 
   // The charge, at its own question: 7-2-11's move refused by 20-14 rather than
@@ -3557,30 +3398,21 @@ console.log("verify/vm: ok");
       return next;
     };
     const r = toCharge(board.r);
-    const l = structuredClone(board.l);
-    l.phase = "charge";
-    l.prompt = { kind: "charge", player: "p1" };
     const rLegal = rulesEngine.legalActions(CTX, r);
-    const lLegal = legalActions(CTX, l);
     const carded = (list: { action: Action }[]) => list.filter((x) => x.action.type === "charge" && (x.action as { card: string | null }).card !== null);
     assert.deepEqual(carded(rLegal), [], "a charge a [Permanent] forbids is on the menu");
-    assert.deepEqual(carded(lLegal), [], "the legacy engine offers a charge its own [Permanent] forbids");
     const mine = rulesEngine.rejectedActions(CTX, r, rLegal).find((x) => x.action.type === "charge")?.why[0];
-    const theirs = rejectedActions(CTX, l, lLegal).find((x) => x.action.type === "charge")?.why[0];
     assert.deepEqual(mine, { kind: "forbidden", by: "F-NO-CHARGE", until: "permanent" }, "a forbidden charge is not refused with the rule that forbids it");
-    assert.deepEqual(mine, theirs, "the two engines refuse a forbidden charge differently");
     // …and the skip stays. 7-2-11 is a *may*, and taking nothing places no card,
-    // so nothing about 20-14 touches it: the legacy engine offers it under the
-    // same ban, which is why `mentionsCandidate` reads a prohibition as a
+    // so the ban does not apply. `mentionsCandidate` reads a prohibition as a
     // question about the candidate rather than about the board.
     const skip = (list: { action: Action }[]) => list.some((x) => x.action.type === "charge" && (x.action as { card: string | null }).card === null);
     assert.equal(skip(rLegal), true, "the skip went with the cards when the charge was forbidden");
-    assert.equal(skip(lLegal), true, "the legacy engine stopped offering the skip under a placeEnergy ban");
   }
 
-  // Claim 3: the same rule put in force for the turn by a skill instead of
-  // standing from a [Permanent]. Staged as the `ContinuousEffect` **both**
-  // engines keep, which is the point — one shape, one reading, two engines.
+  // Claim 3: the rule put in force for the turn by a skill instead of
+  // standing from a [Permanent]. Staged as the `ContinuousEffect` the rules
+  // engine keeps, using the same predicate as the permanent case.
   {
     const board = banned("V1", "F-SKILL", 2);
     const ban = {
@@ -3596,23 +3428,18 @@ console.log("verify/vm: ok");
       master: "p1" as const,
     };
     board.r.effects.push(ban);
-    board.l.effects.push(ban);
     const skillCard = board.source;
     const mine = firstRefusal(board, "activate", skillCard);
     assert.equal(mine.offered, false, "a skill a turn-long rule forbids is on the menu");
-    assert.equal(mine.legacyOffered, false, "the legacy engine offers a skill its own effect forbids");
     assert.deepEqual(mine.mine, { kind: "forbidden", by: "F-SKILL", until: "turn" }, "a forbidden activation is not refused with the rule that forbids it");
-    assert.deepEqual(mine.mine, mine.theirs, "the two engines refuse a forbidden activation differently");
   }
 
-  // The ordering this engine does not match, asserted so it cannot drift
-  // unnoticed: short of energy **and** forbidden, the legacy engine answers
-  // about the price and this one about the ban.
+  // The rules engine checks the prohibition before energy even when both
+  // conditions fail. The different legacy refusal order is checked under #118.
   {
     const board = banned("V1", "F-NO-PLAY", 0);
     const play = firstRefusal(board, "play", board.card);
     assert.deepEqual(play.mine, { kind: "forbidden", by: "F-NO-PLAY", until: "permanent" }, "a forbidden play short of energy does not answer about the ban");
-    assert.deepEqual(play.theirs, { kind: "energy", need: 1, have: 0 }, "the legacy engine stopped answering about the price first, and this divergence is recorded on the assumption that it does");
   }
 
   // Claim 2, from the other side: the host's own 0-2-5 question reads the
@@ -3629,9 +3456,8 @@ console.log("verify/vm: ok");
   // this move reads. P-UNISON is the card the play-family tests above
   // already declared.
   {
-    function growBoard(): { r: VmState; l: GameState; unison: string; copy: string } {
+    function growBoard(): { r: VmState; unison: string; copy: string } {
       let r = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
-      let l = createGame(CTX, BAN_DECKS).state;
       for (let i = 0; i < 30; i++) {
         const pr = r.prompt as { kind: string; player: PlayerId };
         const a: Action | null =
@@ -3644,20 +3470,16 @@ console.log("verify/vm: ok");
                 : null;
         if (!a) break;
         r = rulesEngine.apply(CTX, r, a).state as VmState;
-        l = apply(CTX, l, a).state;
       }
       assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to grow a Unison in");
       const unison = r.sides.p1.zones.deck[0];
       const copy = r.sides.p1.zones.hand[0];
       for (const id of [unison, copy]) {
         r.cards[id].cardId = "P-UNISON";
-        l.cards[id].cardId = "P-UNISON";
       }
       r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => id !== unison);
-      l.players.p1.deck = l.players.p1.deck.filter((id) => id !== unison);
       r.sides.p1.zones.unison = [unison];
-      l.players.p1.unison = unison;
-      return { r, l, unison, copy };
+      return { r, unison, copy };
     }
 
     // No Unison in play at all: refused board-level, before any card is asked
@@ -3665,9 +3487,7 @@ console.log("verify/vm: ok");
     // beside it) now follows too.
     {
       const bare = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
-      const bareLegacy = createGame(CTX, BAN_DECKS).state;
       let r = bare;
-      let l = bareLegacy;
       for (let i = 0; i < 30; i++) {
         const pr = r.prompt as { kind: string; player: PlayerId };
         const a: Action | null =
@@ -3680,36 +3500,21 @@ console.log("verify/vm: ok");
                 : null;
         if (!a) break;
         r = rulesEngine.apply(CTX, r, a).state as VmState;
-        l = apply(CTX, l, a).state;
       }
       const rLegal = rulesEngine.legalActions(CTX, r);
-      const lLegal = legalActions(CTX, l);
       assert.equal(rLegal.some((x) => x.action.type === "growUnison"), false, "growUnison is offered with no Unison in play");
-      assert.equal(lLegal.some((x) => x.action.type === "growUnison"), false, "the legacy engine offers growUnison with no Unison in play");
       const mine = rulesEngine.rejectedActions(CTX, r, rLegal).find((x) => x.action.type === "growUnison")?.why[0];
       assert.deepEqual(mine, { kind: "target", reason: "no Unison Card in play to grow" }, "growUnison with no Unison in play is not refused by name");
     }
 
-    // Staged: legal on both engines, over the same board.
+    // Staged: legal on the rules board.
     const board = growBoard();
     const grow = { type: "growUnison" as const, player: "p1" as const, card: board.copy };
     const rLegal = rulesEngine.legalActions(CTX, board.r);
-    const lLegal = legalActions(CTX, board.l);
     assert.ok(
       rLegal.some((x) => x.action.type === "growUnison" && (x.action as { card: string }).card === board.copy),
       "growing the staged Unison from its own copy in hand is not offered",
     );
-    assert.ok(
-      lLegal.some((x) => x.action.type === "growUnison" && (x.action as { card: string }).card === board.copy),
-      "the legacy engine does not offer growing the staged Unison",
-    );
-
-    // Taking it completes on the legacy engine — a marker, the copy under the
-    // Unison, the once-a-turn fact set (`ps.grewUnisonThisTurn`, read by
-    // `setPlayerAttr`'s legacy case).
-    const l2 = apply(CTX, board.l, grow);
-    assert.equal((l2.state as GameState).cards[board.unison].markers, 1, "the Unison did not gain a marker on the legacy engine");
-    assert.deepEqual((l2.state as GameState).cards[board.unison].under, [board.copy], "the copy did not go under the Unison on the legacy engine");
 
     // The rules engine's own move-under primitive is real now (#152's
     // `vm/host.ts` `placeUnder`, wired to `moveCard`'s own `under` option
@@ -3750,6 +3555,8 @@ console.log("verify/vm: ok");
     }
   }
 }
+
+verifyLegacyVmCompatibility(state);
 
 // ── hook group D: playing, charging, alternative payment (#157) ─────────────
 //
@@ -3857,31 +3664,23 @@ console.log("verify/vm: ok");
 // #273, and its `n`-taking siblings (`draw`, `discard`, `damage`, `addLife`)
 // stay out — a selector's count is a bare `number`, and theirs is an `amount`
 // (X included), which `ops.rules`'s `count` entry names. `ko(target: …)`
-// lowers to `moveTo(target: …, to: drop, cause: ko)` exactly, and that
-// primitive — the one both interpreters actually run a `moveTo` through,
-// `stepScript` shared between them (#142) — logs the same "move" event on
-// each when given the same board and the same program, `cause` included.
+// lowers to `moveTo(target: …, to: drop, cause: ko)` exactly; the public move
+// event then records the card leaving Battle for Drop, with its owner.
 {
   const rulesEngine = engineFor("rules");
   const macro: Op[] = [{ op: "ko", target: { var: "t" } }];
   const lowered = expandMacros(macro, DBS);
   assert.deepEqual(lowered, [{ op: "moveTo", target: { var: "t" }, to: "drop", cause: "ko" }], "ko does not lower to moveTo with the cause the declaration names");
 
-  // A card in its own battle, staged the same way on both engines (as
-  // `withReducer`/§20-21 does) — enough of a board for a plain move to run.
-  function koBoard(): { r: VmState; l: GameState; card: string } {
+  // A card in its own Battle Area is enough for the lowered move to run.
+  function koBoard(): { r: VmState; card: string } {
     const r = rulesEngine.createGame(CTX, SAME).state as VmState;
-    const l = createGame(CTX, SAME).state;
     const source = r.sides.p1.zones.deck[0];
-    for (const st of [r.cards[source], l.cards[source]]) {
-      st.cardId = "V1";
-      st.mode = "active";
-    }
+    r.cards[source].cardId = "V1";
+    r.cards[source].mode = "active";
     r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => id !== source);
-    l.players.p1.deck = l.players.p1.deck.filter((id) => id !== source);
     r.sides.p1.zones.battle = [source];
-    l.players.p1.battle = [source];
-    return { r, l, card: source };
+    return { r, card: source };
   }
   function frameFor(ops: Op[], master: PlayerId, id: string): ScriptFrame {
     return { ops, ip: 0, vars: { t: [id] }, card: id, master };
@@ -3892,13 +3691,9 @@ console.log("verify/vm: ok");
   stepScript(vmHost(CTX, DBS, rBoard.r, rEvents), frameFor(lowered, "p1", rBoard.card));
   assert.ok(rEvents.some((e) => e.type === "move" && (e as { card: string }).card === rBoard.card && (e as { to: string }).to === "drop"), "moveTo(cause: ko) did not move the card to the Drop Area on the rules engine");
 
-  const lBoard = koBoard();
-  const lEvents: GameEvent[] = [];
-  stepScript(legacyHost(CTX, lBoard.l, lEvents), frameFor(lowered, "p1", lBoard.card));
-  assert.ok(lEvents.some((e) => e.type === "move" && (e as { card: string }).card === lBoard.card && (e as { to: string }).to === "drop"), "moveTo(cause: ko) did not move the card to the Drop Area on the legacy engine");
-
-  const logged = (list: GameEvent[]): unknown => JSON.parse(JSON.stringify(list.filter((e) => e.type === "move")));
-  assert.deepEqual(logged(rEvents), logged(lEvents), "moveTo(cause: ko), the shape ko's declaration lowers to, does not log the same move event on both engines");
+  assert.deepEqual(rEvents.filter((e) => e.type === "move"), [
+    { type: "move", card: rBoard.card, from: "battle", to: "drop", owner: "p1" },
+  ], "moveTo(cause: ko) did not log the declared battle-to-drop move");
 }
 
 // ── 23. the battle sub-flow, off `battle.rules` (#150) ───────────────────────
@@ -3907,60 +3702,12 @@ console.log("verify/vm: ok");
 // header says why an attack and the two windows with frozen candidates
 // cannot be plain `DEFINE ACTION`s), so there is no declaration for this
 // suite to read legality off the way §16-19 read one. What is asserted
-// instead is the outcome §16-19 are themselves held to: the same board fact
-// for fact against `arena()`'s own legacy fixtures — battle.ts's synthetic
+// instead is the outcome §16-19 are themselves held to: battle.ts's synthetic
 // `E-NEGATE` (a [Counter: Attack] that negates), `V1` (a combo-capable
 // Battle Card with the default 0 combo cost) and `V-BLUE`/`BIG` (a guard) —
-// compiled by the real compiler (`CTX.scripts`) exactly as `battles.ts`'s own
-// legacy suite uses them.
+// compiled by the real compiler (`CTX.scripts`).
 {
   const rulesEngine = engineFor("rules");
-
-  // The legacy half is built on the same always-legacy `apply`/`createGame`
-  // §1-22 use (imported at the top of this file, never the harness's own
-  // `arena`/`play`/`find` — those read `ENGINE`, this file's own `--engine`
-  // flag, and building a legacy board through them while a run is asking for
-  // `rules` throws `EngineMismatch`, since `game()` deals on `ENGINE` and
-  // `arena()`/`play()` then read a `VmState`'s fields as a `GameState`'s.
-  // §23 is meant to run the same under either flag — the rules half already
-  // does, being explicit about `rulesEngine` throughout — so the legacy half
-  // has to be equally explicit rather than reach for the convenience `arena`
-  // is everywhere else in this codebase.
-  function legacyBoard(opts: { hand?: string[]; energy?: string[]; battle?: string[]; oppHand?: string[]; oppEnergy?: string[]; oppBattle?: string[] } = {}): GameState {
-    let l = createGame(CTX, DECKS).state;
-    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
-    l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
-    l = apply(CTX, l, { type: "endMain", player: "p1" }).state;
-    l = apply(CTX, l, { type: "charge", player: "p2", card: null }).state;
-    l = apply(CTX, l, { type: "endMain", player: "p2" }).state;
-    l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
-    assert.equal(l.prompt.kind, "main", "the legacy fixture did not reach p1's second Main Phase");
-    const give = (p: PlayerId, ids: string[], area: "hand" | "energy" | "battle") => {
-      for (const cardId of ids) {
-        const filler = p === "p1" ? "V1" : "V-BLUE";
-        const inst = l.players[p].deck.find((id) => l.cards[id].cardId === filler)!;
-        assert.ok(inst, `${p}'s deck has run out of fixture cards to relabel as ${cardId}`);
-        l.cards[inst].cardId = cardId;
-        l.players[p].deck = l.players[p].deck.filter((id) => id !== inst);
-        l.players[p][area] = [...l.players[p][area], inst];
-        if (area !== "hand") l.cards[inst].mode = "active";
-      }
-    };
-    give("p1", opts.hand ?? [], "hand");
-    give("p1", opts.energy ?? [], "energy");
-    give("p1", opts.battle ?? [], "battle");
-    give("p2", opts.oppHand ?? [], "hand");
-    give("p2", opts.oppEnergy ?? [], "energy");
-    give("p2", opts.oppBattle ?? [], "battle");
-    return l;
-  }
-  const legacyFind = (l: GameState, p: PlayerId, area: "hand" | "battle" | "energy", cardId: string): string => {
-    const id = l.players[p][area].find((x) => l.cards[x].cardId === cardId);
-    assert.ok(id, `${p}'s ${area} has no ${cardId}`);
-    return id!;
-  };
 
   /** One card moved from the deck into a named area, cardId swapped — the rules-engine `arena()`, kept local since only this suite needs it. */
   function stage(r: VmState, p: PlayerId, cardId: string, area: "hand" | "energy" | "battle"): string {
@@ -3990,8 +3737,7 @@ console.log("verify/vm: ok");
   }
 
   // 8-1-4, 9-7, 22-10-3-2/8-1-6-1: [Counter: Attack] "Negate the attack" ends
-  // the battle before the Offense Step — the legacy fixture `battles.ts`
-  // asserts board for board, repeated here against the same fact.
+  // the battle before the Offense Step. The result is asserted directly.
   {
     let r = atMain();
     const neg = stage(r, "p2", "E-NEGATE", "hand");
@@ -4007,14 +3753,6 @@ console.log("verify/vm: ok");
     assert.ok(r.sides.p2.zones.drop.includes(neg), "22-10-7: the counter card goes to the Drop");
     assert.equal(r.cards[attacker].mode, "rest", "the attacker stays rested despite the negation (8-1-6-1 is not 'as though it never happened')");
     assert.equal(r.sides.p2.zones.life.length, 8, "a negated attack deals no damage");
-
-    // The same fact, on the engine the oracle checks against.
-    let l = legacyBoard({ oppHand: ["E-NEGATE"], oppEnergy: ["V1"] });
-    l = apply(CTX, l, { type: "attack", player: "p1", attacker: l.players.p1.leader, target: l.players.p2.leader }).state;
-    l = apply(CTX, l, { type: "counter", player: "p2", card: legacyFind(l, "p2", "hand", "E-NEGATE") }).state;
-    assert.equal(l.battle, null);
-    assert.equal(l.prompt.kind, "main");
-    assert.equal(l.players.p2.life.length, r.sides.p2.zones.life.length, "the two engines do not agree on how much life a negated attack costs");
   }
 
   // 5-7, 8-2-4, 8-4-4/5, 8-5-8: a combo card joins from hand for its combo
@@ -4055,20 +3793,6 @@ console.log("verify/vm: ok");
     assert.ok(r.sides.p2.zones.drop.includes(guard), "8-4-6-2: a tie is the attacker's (10000 vs 10000, or better with the combo) and the guard is KO'd");
     assert.ok(r.sides.p1.zones.drop.includes(combo), "8-5-8: the spent combo card goes to the Drop at the end of the battle");
     assert.ok(!r.sides.p1.zones.battle.includes(attacker), "the attacking Leader never left the Leader Area");
-
-    // The same shape, asserted on the legacy engine `battles.ts` already
-    // covers — repeated here as the oracle fact this suite is held to.
-    let l = legacyBoard({ hand: ["V1"], oppBattle: ["V-BLUE"] });
-    const lGuard = l.players.p2.battle[0];
-    l.cards[lGuard].mode = "rest";
-    l = apply(CTX, l, { type: "attack", player: "p1", attacker: l.players.p1.leader, target: lGuard }).state;
-    const lCombo = legacyFind(l, "p1", "hand", "V1");
-    l = apply(CTX, l, { type: "combo", player: "p1", card: lCombo }).state;
-    l = apply(CTX, l, { type: "pass", player: "p1" }).state;
-    l = apply(CTX, l, { type: "pass", player: "p2" }).state;
-    assert.equal(l.battle, null);
-    assert.ok(l.players.p2.drop.includes(lGuard), "the two engines do not agree that a tied Battle Card is KO'd");
-    assert.ok(l.players.p1.drop.includes(lCombo), "the two engines do not agree that a spent combo card goes to the Drop");
   }
 }
 
@@ -4162,8 +3886,7 @@ console.log("verify/vm: ok");
 
   // Test A: battle damage to 0 life ends the game, "over" beat included,
   // inside the very sequence of `apply()` calls that dealt it — the fact
-  // `battles.ts`'s own "Loss: no life" case asserts on the legacy engine
-  // (line ~432), repeated here as the oracle this suite is held to.
+  // `battles.ts` also exercises this rule with its own fixture.
   {
     let r = atMain();
     const attacker = stage(r, "p1", "V1", "battle");
@@ -4207,24 +3930,6 @@ console.log("verify/vm: ok");
     assert.equal(r.winner, "p1", "a card's own skill program dealing the last point of damage did not end the game inside the same `run()` pass — the WIN checkpoint that only fires beside a step's native work, not beside a program, is exactly the gap `vm/flow.ts` was missing");
     assert.equal(r.prompt.kind, "gameOver");
     assert.ok(rEvents.some((e) => e.type === "gameOver"), "no gameOver beat for a program-driven ending");
-
-    // The same `damage` op, the same shared `stepScript`, through the legacy
-    // engine's own `ScriptHost` instead — the oracle fact this suite is held
-    // to is only that the primitive itself moves the same card the same way
-    // on both hosts; the legacy engine's own win-checkpoint timing is not
-    // this issue's to prove or to change, so its life pile is staged the same
-    // way (past setup, life dealt) purely so the move has a card to find.
-    let l = createGame(CTX, DECKS).state;
-    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
-    l = apply(CTX, l, { type: "charge", player: "p1", card: null }).state;
-    assert.ok(l.players.p2.life.length > 0, "the legacy fixture reached its own Main Phase with no life dealt yet");
-    l.players.p2.life = l.players.p2.life.slice(0, 1);
-    const lEvents: GameEvent[] = [];
-    const lFrame: ScriptFrame = { ops: [{ op: "damage", n: 1, side: "opponent" }], ip: 0, vars: {}, card: l.players.p1.leader, master: "p1" };
-    stepScript(legacyHost(CTX, l, lEvents), lFrame);
-    assert.equal(l.players.p2.life.length, 0, "the same op did not move the life card on the legacy engine either");
   }
 
   // Test C: `addLife` and `lifeDownTo`, the op's other two `n`-taking
@@ -4377,10 +4082,10 @@ console.log("verify/vm: ok");
 
 // ── 26. what the pre-flip review of #166 found ──────────────────────────────
 //
-// Three readings the rules engine got wrong and the legacy engine gets right,
-// each fixed in `vm/` and each proved here against that engine rather than
-// against a number written down: the Active Step's own list of areas (7-2-7),
-// the face a measure is read off (1-9, 23-5-2) and "original power" (20-3-1).
+// Three readings the rules engine once got wrong, each proved against the
+// fixed values the manual and the printed fixture name: the Active Step's
+// areas (7-2-7), the face a measure reads (1-9, 23-5-2) and original power
+// (20-3-1).
 // They are one section because they are one review, and because all three are
 // the same failure — a value read one layer or one face away from the rule.
 {
@@ -4418,19 +4123,6 @@ console.log("verify/vm: ok");
     });
     assert.equal(s.cards[rested].mode, "active", "7-2-7: rested energy did not switch back to Active Mode in its master's Charge Phase");
 
-    // The same board on the engine that has been playing, so the fix is held
-    // to that engine rather than to this assertion's own wording.
-    let l = createGame(CTX, SAME).state;
-    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
-    l = apply(CTX, l, { type: "charge", player: "p1", card: l.players.p1.hand[0] }).state;
-    const legacyRested = l.players.p1.energy[0];
-    l.cards[legacyRested].mode = "rest";
-    l = apply(CTX, l, { type: "endMain", player: "p1" }).state;
-    l = apply(CTX, l, { type: "charge", player: "p2", card: null }).state;
-    l = apply(CTX, l, { type: "endMain", player: "p2" }).state;
-    assert.equal(l.cards[legacyRested].mode, s.cards[rested].mode, "the two engines disagree about whether the Active Step stands rested energy back up (7-2-7)");
   }
 
   // 1-9: a Leader that has flipped shows its awakened face, and that face's
@@ -4449,8 +4141,7 @@ console.log("verify/vm: ok");
 
     // 23-5-2: a card in Hidden Mode has no front-side information at all, so
     // there is no power to read — absent rather than the printed number, which
-    // is what keeps a "10000 power or less" filter off it. The legacy `face()`
-    // blanks the same three fields for the same reason.
+    // is what keeps a "10000 power or less" filter off it.
     s.cards[leader].flipped = false;
     s.cards[leader].hidden = true;
     assert.equal(attrsNow(CTX, DBS, s, leader).power, undefined, "23-5-2: a Hidden Mode card was read at its printed power");
@@ -4489,34 +4180,9 @@ console.log("verify/vm: ok");
     assert.equal(hidden.colors, undefined, "23-5-2: a Hidden Mode card was read at its printed colours");
     assert.equal(hidden.traits, undefined, "23-5-2: a Hidden Mode card was read at its printed traits");
 
-    // The same board on the legacy engine, held to the same claims —
-    // `cardNow`, which every `matches` call reads a card through, was still
-    // returning the raw catalog row's `name`/`skill` regardless of the face
-    // showing until this issue.
-    let l = createGame(CTX, SAME).state;
-    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
-    const legacyLeader = l.players.p1.leader;
-    const legacyFront = cardNow(CTX, l, legacyLeader);
-    assert.equal(legacyFront.name, "L-RED", "the legacy engine is not read at its front side's name (1-9)");
-    assert.deepEqual(legacyFront.colors, ["Red"], "the legacy engine's unflipped colours moved for no reason");
+    // The legacy cardNow/matches checks of these faces stay in the #118 helper.
 
-    l.cards[legacyLeader].flipped = true;
-    const legacyBack = cardNow(CTX, l, legacyLeader);
-    assert.equal(legacyBack.name, "L-RED awakened", "1-9: the legacy engine (matches/cardNow) is not read at a flipped Leader's back side's name (issue #327)");
-    assert.equal(legacyBack.skill, null, "1-9: the legacy engine is not read at a flipped Leader's back side's skill");
-    assert.deepEqual(legacyBack.colors, ["Red"], "10-1-3: the legacy engine's colours have no back-side value of their own either");
-    assert.ok(matches(legacyBack, { ...emptyFilter(), names: ["L-RED awakened"] }), "matches does not find a flipped Leader by its awakened name");
-    assert.ok(!matches(legacyBack, { ...emptyFilter(), names: ["L-RED"] }), "matches still finds a flipped Leader by its front name, which 10-1-3 says is no longer relevant");
 
-    l.cards[legacyLeader].flipped = false;
-    l.cards[legacyLeader].hidden = true;
-    const legacyHidden = cardNow(CTX, l, legacyLeader);
-    assert.equal(legacyHidden.name, "Hidden card", "23-5-2: the legacy engine's Hidden Mode reading lost its own placeholder name");
-    assert.equal(legacyHidden.skill, null, "23-5-2: the legacy engine was read at a Hidden Mode card's printed skill");
-    assert.deepEqual(legacyHidden.colors, [], "23-5-2: the legacy engine was read at a Hidden Mode card's printed colours");
-    assert.deepEqual(legacyHidden.traits, [], "23-5-2: the legacy engine was read at a Hidden Mode card's printed traits");
   }
 
   // 20-3-1: "an original power of N" is the printed face value, *before* any
@@ -4681,19 +4347,14 @@ console.log("verify/vm: ok");
 
 // ── 28. a KO by skill, and a token, on the rules engine (#146) ──────────────
 //
-// `vm/host.ts`'s `ko` and `createToken` threw `NotYet("#146")` until this
-// section; both are the legacy engine's own acts now, and the legacy engine is
-// the oracle. The same board is staged on each (§22's `koBoard` pattern: one
-// seed, the same instances relabelled the same way, so every instance id lines
-// up), the same program is run through the shared `stepScript` on each host,
-// and two things are compared:
+// `vm/host.ts`'s `ko` and `createToken` once threw `NotYet("#146")`. The
+// fixed seed-7 board stages exact instances for the shared interpreter, then
+// checks two separate results against 9-6 and 19-1:
 //
-// - **the log, event for event** — `ko` then `move` for a KO, `token` for a
+// - **the full log, event for event** — `ko` then `move` for a KO, `token` for a
 //   token, and a token leaving play logged as a move to `removed` (19-1-7);
-// - **what was pended, as a set** of card + trigger: the *order* `state.pending`
-//   is appended in is not a contract on either engine (9-6-6's resolution
-//   order is `nextPending`'s, which reads the queue as a set), so a sorted
-//   list is the honest comparison.
+// - **what was pended, as a set** of card + trigger: 9-6-6's resolution order
+//   is decided by `nextPending`, so the queue's storage order is not the rule.
 {
   DEFS["K146-SRC"] = card("K146-SRC", { power: 15000, skill: "[Auto] When this card KOs an opponent's Battle Card, draw 1 card." });
   DEFS["K146-VICTIM"] = card("K146-VICTIM", { skill: "[Auto] When this card is KO'd, draw 1 card." });
@@ -4704,32 +4365,24 @@ console.log("verify/vm: ok");
   const rulesEngine = engineFor("rules");
   const TCTX = withTokens(CTX);
 
-  /** Both engines' boards, p1's and p2's Battle Areas filled with these catalog ids off the top of each deck. */
-  function board(p1: string[], p2: string[]): { r: VmState; l: GameState; ids: { p1: string[]; p2: string[] } } {
+  /** Battle Areas filled with these catalog ids off the top of each deck. */
+  function board(p1: string[], p2: string[]): { r: VmState; ids: { p1: string[]; p2: string[] } } {
     const r = rulesEngine.createGame(CTX, SAME).state as VmState;
-    const l = createGame(CTX, SAME).state;
     const ids = { p1: [] as string[], p2: [] as string[] };
     for (const [p, want] of [["p1", p1], ["p2", p2]] as const) {
       for (const cardId of want) {
         const id = r.sides[p].zones.deck.find((x) => !ids[p].includes(x))!;
-        assert.ok(l.players[p].deck.includes(id), `the two engines dealt ${p}'s deck differently, so instance ${id} does not line up`);
-        for (const st of [r.cards[id], l.cards[id]]) {
-          st.cardId = cardId;
-          st.mode = "active";
-        }
+        r.cards[id].cardId = cardId;
+        r.cards[id].mode = "active";
         r.sides[p].zones.deck = r.sides[p].zones.deck.filter((x) => x !== id);
-        l.players[p].deck = l.players[p].deck.filter((x) => x !== id);
         r.sides[p].zones.battle.push(id);
-        l.players[p].battle.push(id);
         ids[p].push(id);
       }
     }
-    return { r, l, ids };
+    return { r, ids };
   }
   const frame = (ops: Op[], master: PlayerId, source: string, t: string[] = []): ScriptFrame => ({ ops, ip: 0, vars: { t }, card: source, master });
-  const json = (x: unknown): unknown => JSON.parse(JSON.stringify(x));
   const pendedR = (r: VmState) => r.pending.map((p) => `${r.cards[p.card].cardId}:${p.trigger}`).sort();
-  const pendedL = (l: GameState) => l.pending.map((p) => `${l.cards[p.card].cardId}:${p.trigger}`).sort();
 
   // A KO by an opponent's skill: the KO'd card's own `koed`, its side's
   // `yourCardKoed`, the other side's `opponentCardKoed`, the source's `kos`,
@@ -4740,36 +4393,38 @@ console.log("verify/vm: ok");
     const [victim] = b.ids.p2;
     const ops: Op[] = [{ op: "ko", target: { var: "t" } }];
     const rEv: GameEvent[] = [];
-    const lEv: GameEvent[] = [];
     stepScript(vmHost(TCTX, DBS, b.r, rEv), frame(ops, "p1", src, [victim]));
-    stepScript(legacyHost(CTX, b.l, lEv), frame(ops, "p1", src, [victim]));
     assert.deepEqual(rEv.map((e) => e.type), ["ko", "move"], "a KO by skill on the rules engine is not the legacy engine's two events, `ko` then `move`");
-    assert.deepEqual(json(rEv), json(lEv), "a KO by skill does not log the same events on both engines");
+    assert.deepEqual(rEv, [
+      { type: "ko", card: victim, by: src },
+      { type: "move", card: victim, from: "battle", to: "drop", owner: "p2" },
+    ], "a KO by skill did not log the KO and battle-to-drop move");
     assert.ok(b.r.sides.p2.zones.drop.includes(victim), "the KO'd card is not in its owner's Drop on the rules engine");
-    assert.deepEqual(pendedR(b.r), pendedL(b.l), "a KO by skill does not pend the same [Auto]s on both engines");
+    assert.deepEqual(pendedR(b.r), ["K146-GLOAT:opponentCardKoed", "K146-MOURN:yourCardKoed", "K146-SRC:kos", "K146-VICTIM:koed"], "a KO by skill pended the wrong [Auto] set");
     for (const want of ["K146-VICTIM:koed", "K146-MOURN:yourCardKoed", "K146-GLOAT:opponentCardKoed", "K146-SRC:kos"]) {
       assert.ok(pendedR(b.r).includes(want), `a KO by skill did not pend ${want} on the rules engine`);
     }
   }
 
   // A KO of one's own card: `kos` is "an opponent's Battle Card", so the
-  // source answers to nothing — on both engines.
+  // source answers to nothing.
   {
     const b = board(["K146-SRC", "K146-VICTIM"], []);
     const [src, own] = b.ids.p1;
     const ops: Op[] = [{ op: "ko", target: { var: "t" } }];
     const rEv: GameEvent[] = [];
-    const lEv: GameEvent[] = [];
     stepScript(vmHost(TCTX, DBS, b.r, rEv), frame(ops, "p1", src, [own]));
-    stepScript(legacyHost(CTX, b.l, lEv), frame(ops, "p1", src, [own]));
-    assert.deepEqual(json(rEv), json(lEv), "a KO of one's own card does not log the same events on both engines");
-    assert.deepEqual(pendedR(b.r), pendedL(b.l), "a KO of one's own card does not pend the same [Auto]s on both engines");
+    assert.deepEqual(rEv, [
+      { type: "ko", card: own, by: src },
+      { type: "move", card: own, from: "battle", to: "drop", owner: "p1" },
+    ], "a KO of one's own card did not log its KO and move");
+    assert.deepEqual(pendedR(b.r), ["K146-VICTIM:koed"], "a KO of one's own card pended the wrong [Auto] set");
     assert.ok(!pendedR(b.r).includes("K146-SRC:kos"), "`kos` answered a KO of the source's own side's card");
   }
 
   // 22-12: [Indestructible] is not KO'd by an opponent's skill — the shared
-  // interpreter's own skip, ahead of the host's `ko`, so neither engine logs
-  // anything and the card stays where it is.
+  // interpreter's own skip, ahead of the host's `ko`, so the log stays empty
+  // and the card stays where it is.
   {
     DEFS["K146-TOUGH"] = card("K146-TOUGH", { skill: "[Indestructible]" });
     const b = board(["K146-SRC"], ["K146-TOUGH"]);
@@ -4777,14 +4432,13 @@ console.log("verify/vm: ok");
     const [tough] = b.ids.p2;
     const ops: Op[] = [{ op: "ko", target: { var: "t" } }];
     const rEv: GameEvent[] = [];
-    const lEv: GameEvent[] = [];
     stepScript(vmHost(TCTX, DBS, b.r, rEv), frame(ops, "p1", src, [tough]));
-    stepScript(legacyHost(CTX, b.l, lEv), frame(ops, "p1", src, [tough]));
-    assert.deepEqual(json(rEv), json(lEv), "an [Indestructible] card targeted by an opponent's KO does not log the same events on both engines");
+    assert.deepEqual(rEv, [], "an [Indestructible] card's refused KO logged an event");
+    assert.deepEqual(pendedR(b.r), [], "an [Indestructible] card's refused KO pended an [Auto]");
     assert.ok(b.r.sides.p2.zones.battle.includes(tough), "an [Indestructible] card was KO'd by an opponent's skill on the rules engine");
   }
 
-  // A token: made in the Battle Area with the legacy engine's id and `token`
+  // A token: made in the Battle Area with seed 7's fixed id and `token`
   // event, read through `withTokens` as a Battle Card of the printed power,
   // and removed from the game — not put in the Drop — when a skill KOs it.
   {
@@ -4793,51 +4447,48 @@ console.log("verify/vm: ok");
     const [oppSrc] = b.ids.p2;
     const make: Op[] = [{ op: "token", name: "Saibaman", power: 5000, comboCost: null, comboPower: null, colors: ["Green"], n: 1 }];
     const rEv: GameEvent[] = [];
-    const lEv: GameEvent[] = [];
     stepScript(vmHost(TCTX, DBS, b.r, rEv), frame(make, "p1", watch));
-    stepScript(legacyHost(CTX, b.l, lEv), frame(make, "p1", watch));
-    assert.deepEqual(json(rEv), json(lEv), "making a token does not log the same events on both engines");
+    assert.deepEqual(rEv, [{ type: "token", card: "p1#token102", owner: "p1" }], "making a token did not log the fixed id and owner");
     const token = (rEv[0] as { card: string }).card;
     assert.ok(b.r.sides.p1.zones.battle.includes(token), "the token is not in its maker's Battle Area on the rules engine");
     assert.equal(b.r.cards[token].mode, "active", "a token arrives in Active Mode (19-1-2)");
     assert.equal(attrsNow(TCTX, DBS, b.r, token).power, 5000, "the token's power is not read off its encoded row");
-    assert.deepEqual(pendedR(b.r), pendedL(b.l), "making a token does not pend the same [Auto]s on both engines");
+    assert.deepEqual(pendedR(b.r), [], "making a token pended an unrelated onPlay [Auto]");
     const view = rulesEngine.boardView(CTX, b.r, "p1", {});
     assert.equal(view.you.battle.find((c) => c.id === token)?.isToken, true, "the rules engine's board does not draw the token as one");
 
     b.r.pending = [];
-    b.l.pending = [];
     const koOps: Op[] = [{ op: "ko", target: { var: "t" } }];
     const rKo: GameEvent[] = [];
-    const lKo: GameEvent[] = [];
     stepScript(vmHost(TCTX, DBS, b.r, rKo), frame(koOps, "p2", oppSrc, [token]));
-    stepScript(legacyHost(CTX, b.l, lKo), frame(koOps, "p2", oppSrc, [token]));
-    assert.deepEqual(json(rKo), json(lKo), "a KO'd token does not log the same events on both engines");
+    assert.deepEqual(rKo, [
+      { type: "ko", card: token, by: oppSrc },
+      { type: "move", card: token, from: "battle", to: "removed", owner: "p1" },
+    ], "a KO'd token did not log its KO and battle-to-Removed move");
     assert.ok(b.r.sides.p1.zones.removed.includes(token) && !b.r.sides.p1.zones.drop.includes(token), "a token leaving play is removed from the game, not put in the Drop (19-1-7)");
-    assert.deepEqual(pendedR(b.r), pendedL(b.l), "a KO'd token does not pend the same [Auto]s on both engines");
+    assert.deepEqual(pendedR(b.r), ["K146-SRC:kos"], "a KO'd token pended the wrong [Auto] set");
   }
 }
 
 // ── 29. [Burst X], a skill line's own reduction, the board's payers (#148) ───
 //
-// Four readings `vm/costs.ts` did not make, each held to the legacy engine on
-// one staged board (§19's `stagedFor` pattern: one seed, both engines brought
-// to the same Main Phase, the same instances relabelled the same way):
+// Four readings `vm/costs.ts` once missed, checked on seed-7 boards staged at
+// p1's Main Phase against 22-27, 4-3-3, 20-19 and 5-3:
 //
 // - **[Burst X]** (22-27) is `DEFINE COST burst` — X cards off the top of the
 //   deck, bound from the line's own tag — so a [Burst] line is offered,
 //   charged and resolved event for event, and with too few cards in the deck
-//   both engines refuse it with the same first `Requirement`.
+//   it is refused with the deck-shortfall `Requirement`.
 // - **A skill line's own orbs** (4-3-3) are read through the one reduction
 //   layer they have, `skillOrbs`: a [Permanent]'s standing change and a timed
 //   one in force, each scoped to a kind of line, the legacy `orbTotals`
 //   change for change — so a line the reduction makes affordable is offered
-//   and charged on both, at the same price.
+//   and charged at the reduced price.
 // - **20-19's whole-board payer** (BT3-039, `kind: "payer"`) is added to the
 //   pool of every energy price, a play's included.
 // - **5-3's alternative price** (`kind: "altCost"`) is a second offer of the
-//   same card — "Play X (for no energy)", or by adding life to the hand — on
-//   both engines, with the same events when it is taken.
+//   same card — "Play X (for no energy)", or by adding life to the hand — with
+//   exact events when it is taken.
 //
 // 22-19's [Warrior of Universe 7] is the fifth and is not here: it is a
 // keyword's own hook body (hook group A, #154), not a price.
@@ -4864,165 +4515,175 @@ console.log("verify/vm: ok");
     return null;
   };
 
-  /** Both engines at p1's Main Phase, with these catalog ids in p1's Battle Area, Energy Area and hand. */
-  function staged(battle: string[], energy: string[], hand: string[] = []): { r: VmState; l: GameState } {
+  /** p1's Main Phase, with named cards in Battle, Energy and hand. */
+  function staged(battle: string[], energy: string[], hand: string[] = []): { r: VmState } {
     let r = rulesEngine.createGame(CTX, SAME).state as VmState;
-    let l = createGame(CTX, SAME).state;
     for (let i = 0; i < 30; i++) {
       const a = toMain(r.prompt);
       if (!a) break;
       r = rulesEngine.apply(CTX, r, a).state as VmState;
-      l = apply(CTX, l, a).state;
     }
     assert.equal(r.prompt.kind, "main", "§29: the rules game did not reach a Main Phase");
-    assert.equal(l.prompt.kind, "main", "§29: the legacy game did not reach a Main Phase");
     hand.forEach((cardId, i) => {
       const id = r.sides.p1.zones.hand[i];
       r.cards[id].cardId = cardId;
-      l.cards[id].cardId = cardId;
     });
     const deck = r.sides.p1.zones.deck;
     const battleIds = deck.slice(0, battle.length);
     const energyIds = deck.slice(battle.length, battle.length + energy.length);
     const relabel = (ids: string[], names: string[]) =>
       ids.forEach((id, i) => {
-        for (const st of [r.cards[id], l.cards[id]]) {
-          st.cardId = names[i];
-          st.mode = "active";
-        }
+        r.cards[id].cardId = names[i];
+        r.cards[id].mode = "active";
       });
     relabel(battleIds, battle);
     relabel(energyIds, energy);
     const taken = new Set([...battleIds, ...energyIds]);
     r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
-    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
     r.sides.p1.zones.battle = battleIds;
-    l.players.p1.battle = battleIds;
     r.sides.p1.zones.energy = energyIds;
-    l.players.p1.energy = energyIds;
-    return { r, l };
+    return { r };
   }
   const json = (x: unknown): unknown => JSON.parse(JSON.stringify(x));
-  // The moves, not the words: a play's row is "Play V1" on the rules engine and
-  // "Play V1 (1)" on the legacy one throughout, which is `labelFor`'s and not
-  // this section's. The alternative price's own words are asserted on their own.
+  // Most cases assert the moves; alternative price words are checked below.
   const menu = (list: LegalAction[]) => json(list.map((a) => a.action));
-  const both = (b: { r: VmState; l: GameState }, action: Action) => {
+  const runAction = (b: { r: VmState }, action: Action) => {
     const r = rulesEngine.apply(CTX, b.r, action);
-    const l = apply(CTX, b.l, action);
-    return { r: r.state as VmState, l: l.state, rEv: json(r.events), lEv: json(l.events) };
+    return { r: r.state as VmState, rEv: json(r.events) };
   };
   const firstWhy = (list: { action: Action; why: Requirement[] }[], card: string, skill?: number): Requirement | undefined =>
     list.find((x) => (x.action as { card?: string }).card === card && (skill === undefined || (x.action as { skill?: number }).skill === skill))?.why[0];
 
-  // [Burst 2]: two cards off the top of the deck, then the skill — the same
-  // events on both, in the legacy engine's order (marker, burst, orbs).
+  // [Burst 2]: two cards off the top of the deck, then the skill, in order.
   {
     const b = staged(["C148-BURST"], []);
     const user = b.r.sides.p1.zones.battle[0];
     const top = b.r.sides.p1.zones.deck.slice(0, 2);
     const offer = (list: LegalAction[]) => list.find((a) => a.action.type === "activate" && (a.action as { card: string }).card === user);
-    assert.ok(offer(legalActions(CTX, b.l)), "§29: the legacy engine does not offer the [Burst] line, so this case proves nothing");
     assert.ok(offer(rulesEngine.legalActions(CTX, b.r)), "a [Burst 2] line with a deck to burn is not offered on the rules engine");
-    const done = both(b, { type: "activate", player: "p1", card: user, skill: 0 });
-    assert.deepEqual(done.rEv, done.lEv, "a [Burst] activation does not log the same events on both engines");
+    const action: Action = { type: "activate", player: "p1", card: user, skill: 0 };
+    const done = runAction(b, action);
+    assert.deepEqual(done.rEv, [
+      { type: "action", action },
+      { type: "move", card: top[0], from: "deck", to: "drop", owner: "p1", reveal: true },
+      { type: "move", card: top[1], from: "deck", to: "drop", owner: "p1", reveal: true },
+      { type: "skill", card: user, skill: 0, master: "p1", text: "[Burst 2][Activate: Main] Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#18", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#18" },
+    ], "[Burst 2] did not log its two revealed mills before the skill and draw");
     assert.deepEqual(done.r.sides.p1.zones.drop.slice(-2).sort(), [...top].sort(), "[Burst 2] did not take the top two cards of the deck");
-    // As a set: the legacy engine files a card arriving in the Drop at the front
-    // of its list and `moveCard` at the back — an order of storage, not of
-    // play, and the same for every move to the Drop on either engine; the
-    // events above already compare the order the cards went in.
-    assert.deepEqual([...done.r.sides.p1.zones.drop].sort(), [...done.l.players.p1.drop].sort(), "the two engines' Drop Areas differ after a [Burst]");
+    assert.deepEqual([...done.r.sides.p1.zones.drop].sort(), [...top].sort(), "[Burst 2] left an unexpected card in the Drop");
   }
 
-  // [Burst 1] with an orb: the burn is charged before the energy, as the
-  // legacy `activate` pays them.
+  // [Burst 1] with an orb: the burn is charged before the energy.
   {
     const b = staged(["C148-BURST-ORB"], ["V1"]);
     const user = b.r.sides.p1.zones.battle[0];
-    const done = both(b, { type: "activate", player: "p1", card: user, skill: 0 });
-    assert.deepEqual(done.rEv, done.lEv, "a [Burst] line with orbs does not log the same events on both engines");
+    const action: Action = { type: "activate", player: "p1", card: user, skill: 0 };
+    const done = runAction(b, action);
+    assert.deepEqual(done.rEv, [
+      { type: "action", action },
+      { type: "move", card: "p1#35", from: "deck", to: "drop", owner: "p1", reveal: true },
+      { type: "mode", card: "p1#15", mode: "rest" },
+      { type: "skill", card: user, skill: 0, master: "p1", text: "[Burst 1][Activate: Main] {r}: Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#18", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#18" },
+    ], "[Burst 1] did not log burn, energy payment, then draw in order");
   }
 
-  // 22-27-3: one card in the deck is not enough for [Burst 2] — refused on
-  // both, with the same first requirement in the same words.
+  // 22-27-3: one card in the deck is not enough for [Burst 2].
   {
     const b = staged(["C148-BURST"], []);
     const user = b.r.sides.p1.zones.battle[0];
     b.r.sides.p1.zones.deck.splice(1);
-    b.l.players.p1.deck.splice(1);
     const rWhy = firstWhy(rulesEngine.rejectedActions(CTX, b.r, rulesEngine.legalActions(CTX, b.r)), user, 0);
-    const lWhy = firstWhy(rejectedActions(CTX, b.l), user, 0);
-    assert.ok(lWhy, "§29: the legacy engine does not refuse [Burst 2] over a one-card deck, so this case proves nothing");
-    assert.deepEqual(rWhy, lWhy, "the two engines refuse a [Burst] the deck cannot pay with a different first requirement");
+    assert.deepEqual(rWhy, { kind: "other", detail: "[Burst 2] needs that many cards in the deck" }, "a [Burst] the deck cannot pay was not refused with its first requirement");
   }
 
   // A [Permanent] taking {1} off the card's own line: {r}{1} becomes one orb,
-  // and a board of one blue energy pays it on both engines — the legacy
-  // `reduceAnyOrb` takes the coloured orb first, so the red one goes.
+  // and a board of one blue energy pays it. The generic orb reduction removes
+  // the red orb first, leaving one orb the blue card can satisfy.
   {
     const b = staged(["C148-CHEAP"], ["C148-BLUE"]);
     const user = b.r.sides.p1.zones.battle[0];
     const offer = (list: LegalAction[]) => list.find((a) => a.action.type === "activate" && (a.action as { card: string }).card === user);
-    const legacyOffer = offer(legalActions(CTX, b.l));
-    assert.ok(legacyOffer, "§29: the legacy engine does not offer the reduced line, so this case proves nothing");
-    assert.deepEqual(offer(rulesEngine.legalActions(CTX, b.r))?.action, legacyOffer.action, "a skill line a [Permanent] makes affordable is not offered on the rules engine");
-    const done = both(b, legacyOffer.action);
-    assert.deepEqual(done.rEv, done.lEv, "a reduced skill line does not log the same events on both engines");
+    const action: Action = { type: "activate", player: "p1", card: user, skill: 10 };
+    assert.deepEqual(offer(rulesEngine.legalActions(CTX, b.r))?.action, action, "a skill line a [Permanent] makes affordable was not offered");
+    const done = runAction(b, action);
+    assert.deepEqual(done.rEv, [
+      { type: "action", action },
+      { type: "mode", card: "p1#15", mode: "rest" },
+      { type: "skill", card: user, skill: 10, master: "p1", text: "[Activate: Main] {r}{1}: Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#35", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#35" },
+    ], "a reduced skill line did not rest one energy and draw one card");
   }
 
   // A timed reduction scoped to one colour and one kind of line, in force on
   // both engines the same way a resolved skill puts it there: {r}{r} less {r}
-  // is {r}, which one red energy pays — and the refusal on a board with none
-  // is the same "needs {r}" on both.
+  // is {r}, which one red energy pays — and a board without red energy is
+  // refused with `energyColour` as its first requirement.
   {
     const b = staged(["C148-PRICEY"], ["V1"]);
     const user = b.r.sides.p1.zones.battle[0];
     const effect = { id: 900, master: "p1" as PlayerId, source: user, target: user, kind: "skillCost" as const, value: 1, until: "turn" as const, createdTurn: b.r.turn, ownerTurn: "p1" as PlayerId, skillKind: "activate" as const, colors: ["Red" as const] };
     b.r.effects.push({ ...effect });
-    b.l.effects.push({ ...effect, createdTurn: b.l.turn });
     const offer = (list: LegalAction[]) => list.find((a) => a.action.type === "activate" && (a.action as { card: string }).card === user);
-    assert.ok(offer(legalActions(CTX, b.l)), "§29: the legacy engine does not offer the line its reduction made affordable, so this case proves nothing");
+    assert.deepEqual(offer(rulesEngine.legalActions(CTX, b.r))?.action, { type: "activate", player: "p1", card: user, skill: 0 }, "the timed reduction did not make the line available");
     assert.deepEqual(json(offer(rulesEngine.legalActions(CTX, b.r))?.cost?.energy), 1, "a timed skill-cost reduction did not reach the line's price on the rules engine");
-    const done = both(b, { type: "activate", player: "p1", card: user, skill: 0 });
-    assert.deepEqual(done.rEv, done.lEv, "a line reduced by a timed effect does not log the same events on both engines");
+    const action: Action = { type: "activate", player: "p1", card: user, skill: 0 };
+    const done = runAction(b, action);
+    assert.deepEqual(done.rEv, [
+      { type: "action", action },
+      { type: "mode", card: "p1#15", mode: "rest" },
+      { type: "skill", card: user, skill: 0, master: "p1", text: "[Activate: Main] {r}{r}: Draw 1 card.", inBattle: false },
+      { type: "move", card: "p1#35", from: "deck", to: "hand", owner: "p1" },
+      { type: "draw", player: "p1", card: "p1#35" },
+    ], "a line reduced by a timed effect did not rest one energy and draw one card");
 
     const poor = staged(["C148-PRICEY"], ["C148-BLUE"]);
     const pUser = poor.r.sides.p1.zones.battle[0];
     poor.r.effects.push({ ...effect, source: pUser, target: pUser });
-    poor.l.effects.push({ ...effect, source: pUser, target: pUser, createdTurn: poor.l.turn });
-    assert.deepEqual(firstWhy(rulesEngine.rejectedActions(CTX, poor.r, rulesEngine.legalActions(CTX, poor.r)), pUser, 0), firstWhy(rejectedActions(CTX, poor.l), pUser, 0), "the two engines refuse a reduced line the colours cannot pay with a different first requirement");
+    assert.deepEqual(firstWhy(rulesEngine.rejectedActions(CTX, poor.r, rulesEngine.legalActions(CTX, poor.r)), pUser, 0), { kind: "energyColour", colour: "Red", need: 1, have: 0 }, "a reduced line still needs a red orb");
   }
 
   // 20-19 on a play: no energy at all, and a [Permanent] payer in the Battle
-  // Area pays a cost-1 card — offered and charged the same way on both.
+  // Area pays a cost-1 card, and then rests.
   {
     const b = staged(["C148-PAYER"], [], ["V1"]);
     const payer = b.r.sides.p1.zones.battle[0];
     const hand = b.r.sides.p1.zones.hand[0];
     const plays = (list: LegalAction[]) => list.filter((a) => a.action.type === "play");
-    assert.ok(plays(legalActions(CTX, b.l)).length, "§29: the legacy engine does not let the payer pay for a play, so this case proves nothing");
-    assert.deepEqual(menu(plays(rulesEngine.legalActions(CTX, b.r))), menu(plays(legalActions(CTX, b.l))), "the plays a whole-board payer makes affordable are not the same on both engines");
-    const done = both(b, { type: "play", player: "p1", card: hand });
-    assert.deepEqual(done.rEv, done.lEv, "a play paid with a whole-board payer does not log the same events on both engines");
+    assert.deepEqual(menu(plays(rulesEngine.legalActions(CTX, b.r))), b.r.sides.p1.zones.hand.map((card) => ({ type: "play", player: "p1", card })), "a whole-board payer did not make each hand card playable");
+    const action: Action = { type: "play", player: "p1", card: hand };
+    const done = runAction(b, action);
+    assert.deepEqual(done.rEv, [
+      { type: "action", action },
+      { type: "mode", card: payer, mode: "rest" },
+      { type: "move", card: hand, from: "hand", to: "battle", owner: "p1", reveal: true },
+    ], "a whole-board payer did not rest and pay for the play");
     assert.equal(done.r.cards[payer].mode, "rest", "the payer was not rested");
   }
 
-  // 5-3: "without paying its energy cost" — a second row for the same card,
-  // with the legacy engine's words, and nothing charged when it is taken.
+  // 5-3: "without paying its energy cost" — a distinct offer for the card,
+  // with its fixed words, and nothing charged when it is taken.
   {
     const b = staged([], [], ["C148-FREE"]);
     const hand = b.r.sides.p1.zones.hand[0];
     const plays = (list: LegalAction[]) => list.filter((a) => a.action.type === "play" && (a.action as { card: string }).card === hand);
-    assert.deepEqual(menu(plays(rulesEngine.legalActions(CTX, b.r))), menu(plays(legalActions(CTX, b.l))), "the alternative price is not offered the same way on both engines");
+    assert.deepEqual(menu(plays(rulesEngine.legalActions(CTX, b.r))), [{ type: "play", player: "p1", card: hand, alt: true }], "the no-energy alternative is not the one offer for this card");
     const rows = plays(rulesEngine.legalActions(CTX, b.r));
     assert.deepEqual(json(rows.map((a) => ({ action: a.action, label: a.label }))), [{ action: { type: "play", player: "p1", card: hand, alt: true }, label: "Play C148-FREE (for no energy)" }], "the free play is not the one row offered, in the legacy engine's words");
-    assert.deepEqual(plays(legalActions(CTX, b.l)).map((a) => a.label), ["Play C148-FREE (for no energy)"], "§29: the legacy engine's row for the free play has changed its words");
     assert.ok(
       !rulesEngine.rejectedActions(CTX, b.r, rulesEngine.legalActions(CTX, b.r)).some((x) => x.action.type === "play" && (x.action as { card: string }).card === hand),
       "a card offered at its alternative price is also refused for the printed one — §3.2 files one answer per card",
     );
-    const done = both(b, { type: "play", player: "p1", card: hand, alt: true });
-    assert.deepEqual(done.rEv, done.lEv, "a play at no energy does not log the same events on both engines");
+    const action: Action = { type: "play", player: "p1", card: hand, alt: true };
+    const done = runAction(b, action);
+    assert.deepEqual(done.rEv, [
+      { type: "action", action },
+      { type: "move", card: hand, from: "hand", to: "battle", owner: "p1", reveal: true },
+    ], "a play at no energy logged a payment or missed its move");
     assert.ok(done.r.sides.p1.zones.battle.includes(hand), "the card was not played");
   }
 
@@ -5032,10 +4693,15 @@ console.log("verify/vm: ok");
     const b = staged([], [], ["C148-LIFE"]);
     const hand = b.r.sides.p1.zones.hand[0];
     const plays = (list: LegalAction[]) => list.filter((a) => a.action.type === "play" && (a.action as { card: string }).card === hand);
-    assert.deepEqual(menu(plays(rulesEngine.legalActions(CTX, b.r))), menu(plays(legalActions(CTX, b.l))), "the life price is not offered the same way on both engines");
-    const done = both(b, { type: "play", player: "p1", card: hand, alt: true });
-    assert.deepEqual(done.rEv, done.lEv, "a play paid with life does not log the same events on both engines");
-    assert.equal(done.r.sides.p1.zones.life.length, done.l.players.p1.life.length, "the two engines took a different amount of life");
+    assert.deepEqual(menu(plays(rulesEngine.legalActions(CTX, b.r))), [{ type: "play", player: "p1", card: hand, alt: true }], "the life alternative is not the one offer for this card");
+    const action: Action = { type: "play", player: "p1", card: hand, alt: true };
+    const done = runAction(b, action);
+    assert.deepEqual(done.rEv, [
+      { type: "action", action },
+      { type: "move", card: "p1#1", from: "life", to: "hand", owner: "p1" },
+      { type: "move", card: hand, from: "hand", to: "battle", owner: "p1", reveal: true },
+    ], "a play paid with life did not take the top life before playing the card");
+    assert.equal(done.r.sides.p1.zones.life.length, 7, "the alternative price did not take exactly one life card");
   }
 }
 
@@ -5233,13 +4899,11 @@ console.log("verify/vm: ok");
   }
 }
 
-// ── 31. the board's card view, on both engines (#465) ────────────────────────
+// ── 31. the board's card view against fixed public fields (#465) ────────────
 //
 // `vm/view.ts` drew the printed card: the printed power, no keywords, no
-// reading, no aura. The same position is staged on each engine (one seed, the
-// same instances relabelled the same way, §28's `board` pattern) and every
-// card the board draws is asked of each engine's `boardView`; the two views
-// must agree **field by field**. The position holds
+// reading, no aura. The staged position is checked against the fixed public
+// field contract, card by card, including fields that must be absent. It holds
 //
 // - a **buffed card**: V1 under p1's AURA ([Permanent] +5000, so a standing
 //   change) and with a timed +5000 of its own on top, so the power is the sum,
@@ -5250,27 +4914,17 @@ console.log("verify/vm: ok");
 // - both **leaders**, one of them flipped to its awakened face, and the top
 //   card of p1's Drop (a card out of play shows its printed figures).
 //
-// One difference is legitimate and is kept out of the comparison rather than
-// hidden in it: a card in Hidden Mode (23-5-2) has its `reading` withheld on
-// this engine, while the legacy builder computes the reading before it checks
-// whether the card may be seen. That case is asserted on its own below.
+// Hidden Mode (23-5-2) is asserted on its own below: the reading is withheld.
 {
   const rulesEngine = engineFor("rules");
   const r0 = rulesEngine.createGame(CTX, SAME).state as VmState;
-  const l0 = createGame(CTX, SAME).state;
   const r = r0;
-  const l = l0;
   const place = (p: PlayerId, cardId: string, to: "battle" | "drop", skip: string[]): string => {
     const id = r.sides[p].zones.deck.find((x) => !skip.includes(x))!;
-    assert.ok(l.players[p].deck.includes(id), `the two engines dealt ${p}'s deck differently, so instance ${id} does not line up`);
-    for (const st of [r.cards[id], l.cards[id]]) {
-      st.cardId = cardId;
-      st.mode = "active";
-    }
+    r.cards[id].cardId = cardId;
+    r.cards[id].mode = "active";
     r.sides[p].zones.deck = r.sides[p].zones.deck.filter((x) => x !== id);
-    l.players[p].deck = l.players[p].deck.filter((x) => x !== id);
     r.sides[p].zones[to].push(id);
-    l.players[p][to].push(id);
     return id;
   };
   const used: string[] = [];
@@ -5284,36 +4938,29 @@ console.log("verify/vm: ok");
   used.push(dropped);
   const theirs = place("p2", "V-BLUE", "battle", []);
 
-  // A timed +5000 on the buffed card, put in force by the same program on each engine.
+  // A timed +5000 on the buffed card, beside AURA's standing +5000.
   const pump: Op[] = [{ op: "power", target: { var: "t" }, amount: 5000, until: "turn" }];
   const pumpFrame = (): ScriptFrame => ({ ops: pump, ip: 0, vars: { t: [buffed] }, card: aura, master: "p1" });
   stepScript(vmHost(withTokens(CTX), DBS, r, []), pumpFrame());
-  stepScript(legacyHost(CTX, l, []), pumpFrame());
-  // p1's Leader flipped to its awakened face (1-9), on both.
+  // p1's Leader flipped to its awakened face (1-9).
   const leader = r.sides.p1.zones.leader[0];
   r.cards[leader].flipped = true;
-  l.cards[leader].flipped = true;
 
   const rView = rulesEngine.boardView(CTX, r, "p1", {});
-  const lView = boardView(CTX, l, "p1", {});
   const json = (x: unknown): unknown => JSON.parse(JSON.stringify(x));
-  const same = (what: string, a: CardView | null | undefined, b: CardView | null | undefined): void => {
-    assert.ok(a && b, `${what}: a card view is missing (rules ${!!a}, legacy ${!!b})`);
-    const ja = json(a) as Record<string, unknown>;
-    const jb = json(b) as Record<string, unknown>;
-    for (const field of new Set([...Object.keys(ja), ...Object.keys(jb)])) {
-      assert.deepEqual(ja[field], jb[field], `${what}: the engines draw \`${field}\` differently — rules ${JSON.stringify(ja[field])}, legacy ${JSON.stringify(jb[field])}`);
-    }
+  const same = (what: string, actual: CardView | null | undefined, expected: unknown): void => {
+    assert.ok(actual, `${what}: a card view is missing`);
+    assert.deepEqual(json(actual), expected, `${what}: the public card fields changed`);
   };
   const mine = (v: typeof rView, id: string): CardView | undefined => v.you.battle.find((c) => c.id === id);
 
-  same("the buffed card", mine(rView, buffed), mine(lView, buffed));
-  same("the aura", mine(rView, aura), mine(lView, aura));
-  same("the keyword card", mine(rView, blocker), mine(lView, blocker));
-  same("p1's flipped leader", rView.you.leader, lView.you.leader);
-  same("p2's leader", rView.them.leader, lView.them.leader);
-  same("p2's battle card", rView.them.battle.find((c) => c.id === theirs), lView.them.battle.find((c) => c.id === theirs));
-  same("the top card of p1's Drop", rView.you.dropTop, lView.you.dropTop);
+  same("the buffed card", mine(rView, buffed), CARD_VIEWS_459.buffed);
+  same("the aura", mine(rView, aura), CARD_VIEWS_459.aura);
+  same("the keyword card", mine(rView, blocker), CARD_VIEWS_459.blocker);
+  same("p1's flipped leader", rView.you.leader, CARD_VIEWS_459.flippedLeader);
+  same("p2's leader", rView.them.leader, CARD_VIEWS_459.theirLeader);
+  same("p2's battle card", rView.them.battle.find((c) => c.id === theirs), CARD_VIEWS_459.theirBattle);
+  same("the top card of p1's Drop", rView.you.dropTop, CARD_VIEWS_459.dropTop);
 
   // …and the figures are the ones the issue says were missing, not two
   // matching blanks.

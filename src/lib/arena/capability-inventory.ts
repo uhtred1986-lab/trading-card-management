@@ -345,13 +345,12 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-vm-fixed-expectations",
     label: "VM oracle suite converted to fixed expectations",
-    status: "untested",
-    evidence: "suite-migration",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "#459 fixed expected-state migration (test-lane status; no gameplay rule citation)",
     ownerIssue: 459,
-    suite: "vm",
-    proof: "scripts/verify/vm.ts — comparisons still run against legacy rather than checked-in expectations",
-    detail: "About 130 legacy calls across 4,900 lines remain call-for-call comparisons. This is an independent test-migration gate, not a runtime mechanic gap.",
+    proof: "scripts/verify/vm.ts; scripts/verify/vm-*-459.ts; docs/arena-backlog/evidence/459/README.md — reviewed fixed gameplay expectations; full rules-only suite 56/56 and zero legacy calls",
+    detail: "The VM rules-only lane checks fixed openings, complete turn/action/event traces, filter and price corpora, script outcomes, views and focused gameplay facts. Legacy adapter and host compatibility remains explicitly guarded in the normal lane for #118; this row is a test-migration result, not gameplay-rule support.",
   },
   {
     id: "arena-ai-vm-fixed-expectations",
