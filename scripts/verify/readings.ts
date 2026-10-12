@@ -1275,6 +1275,15 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   const theirHand = zoneOf(s, "p2", "hand").length;
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "BOUNCE") });
   if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [grudge] });
+  if (ENGINE === "rules") {
+    assert.equal(s.prompt.kind, "orderPending", "GRUDGE's hidden [Auto] awaits its master's declaration");
+    const pending = s as VmState;
+    const choices = pending.prompt.kind === "orderPending" ? pending.prompt.candidates : [];
+    assert.deepEqual(choices, [0]);
+    assert.deepEqual([pending.pending[0]?.card, pending.pending[0]?.master, pending.pending[0]?.skillIndex], [grudge, "p2", 0]);
+    assert.ok(actsG(s).some((action) => action.type === "orderPending" && action.player === "p2" && action.index === 0 && !action.decline));
+    s = playG(s, { type: "orderPending", player: "p2", index: 0 });
+  }
   // The card itself came back to hand, and the skill drew them one more.
   assert.equal(zoneOf(s, "p2", "hand").length, theirHand + 2, "3-1: it was removed, and it noticed");
   assertConsistentG(s);
