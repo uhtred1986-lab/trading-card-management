@@ -10,10 +10,10 @@
  * finished game can be read back move by move and the opponent tuned. Clauses
  * the compiler could not read are added to the backlog as they come up.
  */
-import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
+import { isDeepStrictEqual } from "node:util";
 import type { Db } from "@/db";
-import { arenaAiUsage, arenaGames } from "@/db/schema";
+import { aiRuns, arenaAdvanceCalls, arenaAiUsage, arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import { spendMicros } from "@/lib/ai/models";
 import { skillsOf } from "../text/cards";
@@ -25,7 +25,8 @@ import { nameOf } from "../engine-state";
 import { recordDecision } from "./debug";
 import { shownName, stateText } from "./view";
 import { tableOf } from "./table";
-import { chooseMove, ruleOnCard, type AiCallAttribution, type Tier } from "./opponent";
+import { chooseMove, recordedMove, recordedRuling, ruleOnCard, type AiCallAttribution, type Tier } from "./opponent";
+import { claimAdvance, failAdvance, finishAdvance, markProviderAttempt, saveAdvanceCheckpoint, type AdvanceCheckpoint } from "./advance-lease";
 
 /** Re-exported from models.ts for backward compatibility (#515). */
 export { PRICES, costMicros, spendMicros } from "@/lib/ai/models";
@@ -167,31 +168,60 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
     reuse = game;
     const ai = aiPlayerOf(game);
     const prompt = game.state.prompt;
+    if (prompt.kind !== "referee") {
+      if (!ai) break;
+      if (!("player" in prompt) || prompt.player !== ai) break;
+    }
+    const claim = await claimAdvance(db, gameId, game.version, async (callId) => {
+      const [run] = await db.select({ id: aiRuns.id }).from(aiRuns).where(eq(aiRuns.arenaCallId, callId)).limit(1);
+      return !!run;
+    });
+    if (claim.kind === "busy") return { steps, said, error: null };
+    if (claim.kind === "attention") return { steps, said, error: "The opponent's last response has an unknown outcome. It was not retried to avoid a duplicate provider charge; this match needs attention." };
+    if (claim.kind === "applied") return { steps, said, error: null };
 
     try {
       if (prompt.kind === "referee") {
         reuse = undefined;
-        const attribution = { gameId, callId: randomUUID(), revision: game.version };
-        const done = await runReferee(db, game, attribution);
+        const attribution = { gameId, callId: claim.callId, revision: game.version };
+        const done = await runReferee(db, game, attribution, claim, async () => {
+          await markProviderAttempt(db, claim);
+        });
+        await finishAdvance(db, claim);
         if (done) said.push(done);
         continue;
       }
-      if (!ai || !("player" in prompt) || prompt.player !== ai) break;
-
+      const aiActor = ai as PlayerId;
       // Claude's own move, on whichever engine dealt the game: `chooseMove`
       // and `stateText` both read the table through `tableOf` (#457).
       const state = game.state;
       const started = Date.now();
-      const attribution = { gameId, callId: randomUUID(), revision: game.version };
-      const choice = await chooseMove(db, game.ctx, state, game.legal, ai, game.mode as Tier, attribution);
-      const micros = await addSpend(db, attribution, choice.spend);
+      const attribution = { gameId, callId: claim.callId, revision: game.version };
+      const savedChoice = claim.checkpoint;
+      const recovered = savedChoice?.kind === "move"
+        ? (() => {
+          const index = game.legal.findIndex((entry) => isDeepStrictEqual(entry.action, savedChoice.action));
+          if (index < 0) throw new Error("The saved Arena action is no longer legal at this revision; refusing to apply a different menu choice.");
+          return { ...savedChoice, index };
+        })()
+        : null;
+      const choice = recovered
+        ?? (await recordedMove(db, claim.callId, game.legal))
+        ?? await chooseMove(db, game.ctx, state, game.legal, aiActor, game.mode as Tier, attribution, async () => {
+          await markProviderAttempt(db, claim);
+        });
       const chosen = game.legal[choice.index];
+      if (!chosen) throw new Error("The recorded Arena choice is no longer in the legal move menu.");
+      const checkpoint: AdvanceCheckpoint = { kind: "move", index: choice.index, action: chosen.action, say: choice.say, how: choice.how, spend: choice.spend };
+      await saveAdvanceCheckpoint(db, claim, checkpoint);
+      const micros = await addSpend(db, attribution, choice.spend);
       await recordDecision(db, {
         gameId,
+        arenaCallId: claim.callId,
         turn: state.turn,
         phase: state.phase,
         promptKind: prompt.kind,
-        player: ai,
+        player: aiActor,
         kind: "move",
         decidedBy: choice.spend ? (choice.how.startsWith("Claude answered") ? "fallback" : "claude") : "rule",
         how: choice.how,
@@ -200,30 +230,56 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
         chosenIndex: choice.index,
         chosenLabel: chosen.label,
         say: choice.say,
-        promptText: game.debug && choice.spend ? stateText(game.ctx, state, ai) : null,
+        promptText: game.debug && choice.spend ? stateText(game.ctx, state, aiActor) : null,
         spend: choice.spend ? { ...choice.spend, micros } : null,
         latencyMs: choice.spend ? Date.now() - started : null,
       });
       // Written with the move it explains, not collected for the end of the
       // batch — see `applyToGame`.
-      const line = choice.say ? `${nameOf(state, ai)}: “${choice.say}”` : null;
+      const line = choice.say ? `${nameOf(state, aiActor)}: “${choice.say}”` : null;
       // Applied to the board it was decided on, not to a fresh read of the
       // row: Claude's call takes seconds, and a move chosen off one menu must
       // not be played on whatever board is there by the time it answers.
       await applyToGame(db, gameId, chosen.action as Action, { say: line, aside: game.debug ? searchAside(game, chosen) : null }, { game });
+      await finishAdvance(db, claim);
       if (line) said.push(line);
     } catch (err) {
       // Someone else moved the game on while Claude was deciding — another
       // request advancing the same game. That one carries on from the board
       // it wrote; this one has nothing left that is its to decide.
-      if (err instanceof StaleGame) return { steps, said, error: null };
-      return { steps, said, error: describeAiError(err) };
+      if (err instanceof StaleGame) {
+        await finishAdvance(db, claim);
+        return { steps, said, error: null };
+      }
+      // A provider attempt without a persisted result is ambiguous. Releasing
+      // it for another provider request could duplicate a charge.
+      const call = await db.select({ phase: arenaAdvanceCalls.phase })
+        .from(arenaAdvanceCalls)
+        .where(and(eq(arenaAdvanceCalls.gameId, claim.gameId), eq(arenaAdvanceCalls.revision, claim.revision)))
+        .limit(1);
+      const [savedResult] = call[0]?.phase === "attempting" || call[0]?.phase === "attention" || call[0]?.phase === "checkpoint"
+        ? await db.select({ id: aiRuns.id }).from(aiRuns).where(eq(aiRuns.arenaCallId, claim.callId)).limit(1)
+        : [];
+      const providerAttempted = call[0]?.phase === "attempting" || call[0]?.phase === "attention" || !!savedResult;
+      const unknownOutcome = providerAttempted && !savedResult;
+      // Keep every attempted request fenced, even when its ai_runs result was
+      // saved. A later request can recover that result from the stable call id;
+      // resetting this to `claimed` would make chooseMove/ruleOnCard issue a
+      // second provider call after a post-persistence failure.
+      await failAdvance(db, claim, providerAttempted);
+      return {
+        steps,
+        said,
+        error: unknownOutcome
+          ? "The opponent's response may have completed, but its result was not saved. It was not retried to avoid a duplicate provider charge; this match needs attention."
+          : describeAiError(err),
+      };
     }
   }
   return { steps, said, error: null };
 }
 
-async function runReferee(db: Db, game: LoadedGame, attribution: AiCallAttribution): Promise<string | null> {
+async function runReferee(db: Db, game: LoadedGame, attribution: AiCallAttribution, claim: Extract<Awaited<ReturnType<typeof claimAdvance>>, { kind: "claimed" }>, beforeProviderCall: () => Promise<void>): Promise<string | null> {
   const gameId = attribution.gameId;
   const prompt = game.state.prompt;
   if (prompt.kind !== "referee") return null;
@@ -236,11 +292,15 @@ async function runReferee(db: Db, game: LoadedGame, attribution: AiCallAttributi
   const req = prompt.request;
   const started = Date.now();
   const situation = stateText(game.ctx, state, req.master);
-  const ruling = await ruleOnCard(db, { cardId: req.cardId, cardName: req.cardName, text: req.text, unsupported: req.unsupported }, situation, attribution);
+  const ruling = claim.checkpoint?.kind === "referee"
+    ? claim.checkpoint
+    : (await recordedRuling(db, attribution.callId)) ?? await ruleOnCard(db, { cardId: req.cardId, cardName: req.cardName, text: req.text, unsupported: req.unsupported }, situation, attribution, beforeProviderCall);
+  await saveAdvanceCheckpoint(db, claim, { kind: "referee", ...ruling });
   const micros = await addSpend(db, attribution, ruling.spend);
 
   await recordDecision(db, {
     gameId,
+    arenaCallId: attribution.callId,
     turn: state.turn,
     phase: state.phase,
     promptKind: "referee",
@@ -274,6 +334,6 @@ async function runReferee(db: Db, game: LoadedGame, attribution: AiCallAttributi
   await markRuleSeen(db, req.cardId, side, req.skillIndex);
 
   const line = `referee on ${req.cardName}: ${ruling.why}`;
-  await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops }, { say: line });
+  await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops }, { say: line }, { game });
   return line;
 }

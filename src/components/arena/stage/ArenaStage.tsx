@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { abandon, act, advanceGame, flagThisTurn, rematch } from "@/app/arena/actions";
 import { useRouter } from "next/navigation";
 
@@ -148,6 +148,8 @@ export function ArenaStage({
   abandonAction?: typeof abandon;
 }) {
   const [pending, startTransition] = useTransition();
+  const [advancing, setAdvancing] = useState(false);
+  const [advanceFailed, setAdvanceFailed] = useState(false);
   const [abandonPending, startAbandon] = useTransition();
   const [abandonError, setAbandonError] = useState<string | null>(null);
   const router = useRouter();
@@ -223,7 +225,7 @@ export function ArenaStage({
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
-  const live = useLiveGame(gameId, snapshot, pending || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
+  const live = useLiveGame(gameId, snapshot, pending || advancing || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
   const { view, legal, taps, log, beats } = live;
 
   const giveUp = () => {
@@ -255,6 +257,26 @@ export function ArenaStage({
   // status it was archived at, kept for the record — but `legal` is already
   // empty and `waiting` already null, so nothing here is actually pending.
   const playable = live.game.status === "playing" && !live.game.archived;
+
+  const launchAdvance = useCallback(() => {
+    if (asked.current) return;
+    asked.current = true;
+    setAdvanceFailed(false);
+    setError(null);
+    setAdvancing(true);
+    void server.advance(gameId)
+      .then((result) => {
+        if (result.error) {
+          setError(result.error);
+          setAdvanceFailed(true);
+        }
+      })
+      .catch(() => {
+        setError("The opponent could not be reached. Retry to resume the saved turn.");
+        setAdvanceFailed(true);
+      })
+      .finally(() => setAdvancing(false));
+  }, [gameId, server]);
 
   // Reduced motion is not a second code path: it simply never queues anything,
   // which is the same state the board reaches the instant you press Skip.
@@ -346,12 +368,8 @@ export function ArenaStage({
   // the opponent's reply inside `act` itself.
   useEffect(() => {
     if (!serverDecides || asked.current) return;
-    asked.current = true;
-    startTransition(async () => {
-      const r = await server.advance(gameId);
-      if (r.error) setError(r.error);
-    });
-  }, [serverDecides, gameId, server]);
+    launchAdvance();
+  }, [serverDecides, launchAdvance]);
 
   /**
    * Reading a card stops the fight (`docs/arena-battle-staging-spec.md`
@@ -399,6 +417,7 @@ export function ArenaStage({
     setSelected(null);
     setHover(null);
     setError(null);
+    setAdvanceFailed(false);
     setRefusal(null);
     setHeld(null);
     feel("tap");
@@ -413,6 +432,12 @@ export function ArenaStage({
       if (r.error) {
         setError(r.error);
         feel("illegal");
+      } else {
+        // `act` has committed the human action. Start the separate AI request
+        // without holding the action transition open, so the board acknowledges
+        // the move before the opponent finishes thinking.
+        asked.current = false;
+        launchAdvance();
       }
     });
   };
@@ -421,7 +446,7 @@ export function ArenaStage({
   const isTargeting = selected != null && !!targetsOf(selected);
   // While the story of the last turn is still being told, the board is a
   // picture rather than a control surface.
-  const busy = pending || playback.playing;
+  const busy = pending || advancing || playback.playing;
 
   /** A card as the board currently draws it, wherever it sits. */
   const cardOf = (id: string): CardView | null => {
@@ -1173,6 +1198,10 @@ export function ArenaStage({
               playing={playback.playing}
               refusalText={refusal?.text ?? null}
               error={error}
+              onRetry={playable && advanceFailed ? () => {
+                asked.current = false;
+                launchAdvance();
+              } : undefined}
               pace={pace}
               playingMine={!!(beat && actorOf(beat) === view.you.player)}
               playingIndex={playback.index}

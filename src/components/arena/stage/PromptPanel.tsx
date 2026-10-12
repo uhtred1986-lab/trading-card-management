@@ -13,6 +13,7 @@ export function PromptPanel({
   playing,
   refusalText,
   error,
+  onRetry,
   pace,
   playingMine,
   playingIndex,
@@ -39,6 +40,7 @@ export function PromptPanel({
   playing: boolean;
   refusalText: string | null;
   error: string | null;
+  onRetry?: () => void;
   pace: "slow" | "normal" | "step";
   playingMine: boolean;
   playingIndex: number;
@@ -75,9 +77,11 @@ export function PromptPanel({
     `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
   ) : view.over ? (
     `${view.over.winner ? `${view.over.winner === yourPlayer ? view.you.name : view.them.name} wins` : "A draw"}${view.over.reason ? ` — ${view.over.reason}` : ""}`
+  ) : error ? (
+    error
   ) : waitingOnServer ? (
     `${view.them.name} is thinking…`
-  ) : (error ?? refusalText ?? (isTargeting ? (
+  ) : (refusalText ?? (isTargeting ? (
     "Choose what to attack — tap a glowing card, or Cancel."
   ) : chargeLine ? (
     <>
@@ -109,6 +113,11 @@ export function PromptPanel({
       {!playing && isTargeting && (
         <button type="button" onClick={onCancelTargeting} className="arena-btn tap h-12 shrink-0 rounded-xl border border-space-600 bg-space-800 px-4 text-base text-space-100">
           Cancel
+        </button>
+      )}
+      {!playing && onRetry && (
+        <button type="button" data-arena-advance-retry disabled={busy} onClick={onRetry} className="arena-btn tap h-12 shrink-0 rounded-xl border border-space-600 bg-space-800 px-4 text-base text-space-50 hover:border-ki-500/60 disabled:opacity-50">
+          Retry
         </button>
       )}
       {searching && !searchOpen && (
