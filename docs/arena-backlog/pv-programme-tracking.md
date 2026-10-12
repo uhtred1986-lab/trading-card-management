@@ -150,13 +150,14 @@ The combined runtime at main `2d1d8f8` passed typecheck, lint (five prior warnin
 local tests and production build: legacy Arena 51/51, rules-only 50/51 with the retained
 VM oracle exclusion. Inventory: 29 narrow scenarios, four named runtime gaps, 29 VM sites.
 The owner confirmed `4a107d2`, `3eebd7`, `5c1f122` and `3e3785a` Ready in Vercel.
-Production status of the latest `2d1d8f8` has not yet been verified; deployment gates remain sequential.
+GitHub subsequently reported Vercel success for `2d1d8f8` (deployment DkJYsCkz6PmFqeF69VASAxpejVh9), clearing the next merge. PR #678 completed #569 at `9530e2b`; its production gate remains pending.
 
-Eighteen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
-M2 #566/#569; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
-Current disjoint assignments are #549's bounded secret-Auto declaration continuation,
-#574's exact duration/Desire/shuffle work, and #569's measured synchronous snapshot read
-session. Shared flow, types and generated metadata have explicit single-writer windows.
+Seventeen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
+M2 #566; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
+Current disjoint assignments are #549's bounded secret-Auto declaration continuation
+and #574's exact duration/Desire/shuffle work. PR #678 completes #569 with synchronous
+read sharing: standing-rule reads 4→1, identical state/legal/rejection/both-viewer hashes,
+lower larger-fixture median p50 and mixed crowded-aura p95. No hosted latency claim. Shared flow, types and generated metadata have explicit single-writer windows.
 #381's cheaper tiers are already implemented; its outstanding proof is the owner-run
 20-photo paid/catalog comparison. #518 retains its separate production connection proof.
 
@@ -166,3 +167,5 @@ Actual milestone objects 15/16 are not claimed closed: api.github.com is blocked
 environment despite a token being present, and the connector has no milestone mutation.
 Move the umbrella out of M17 before clean closure when API access is restored. Offline
 trackers and implementation are separate; no offline work is assigned here.
+
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the seventeen original remaining issues; #574 retains this explicit shared payment limitation.

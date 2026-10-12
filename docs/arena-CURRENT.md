@@ -45,12 +45,12 @@ The latest close-out wave merged #669 integrity bookkeeping, #670 hand-origin ba
 Autos (#572), #671 pending-Auto selection (partial #549), #673 grouped readings,
 #674 bounded gameplan preview (#570), and #675 current-DSL combo-entry timing (#672/#573).
 #573 is complete and #574 is unblocked. Current implementation work is P0 #549 secret-Auto
-declaration, P1 #574 exact durations/Desire and P2 #569 synchronous snapshot-derived reads.
+declaration and P1 #574 exact durations/Desire. PR #678 completed P2 #569 snapshot-derived reads.
 #549 and #595 remain partial; #550 waits on complete #549 acceptance. #609's later cleanup
 checkpoint issue remains open and distinct from the completed combo-entry correction.
 
-Remaining original implementation queue (18): M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
-M2 #566/#569; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
+Remaining original implementation queue (17): M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
+M2 #566; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
 Owner ruling/catalog/fuzz/device/paid verification gates remain explicit. Legacy retirement
 requires #459 and its other prerequisites. Offline work is a separate programme and is not
 being implemented by this wave. The original dirty artwork prototype is preserved.
@@ -91,3 +91,5 @@ Additive migration proposals are local; owner-only/live acceptance stays explici
 
 Completing PRs set canonical backlog status closed and attach acceptance evidence; maintain the
 current queue/tracker. Do not bulk-sync older files over newer issue bodies/comments.
+
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the seventeen original remaining issues; #574 retains this explicit shared payment limitation.

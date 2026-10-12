@@ -22,10 +22,10 @@ pending API access. M16 has zero open issues; M17 has the open cross-milestone u
 P0 #549 remains partial after #671's priority-owner Auto selection; #609's later cleanup
 checkpoint remains distinct from #675's completed current-DSL combo-entry fix.
 
-Eighteen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
-M2 #566/#569; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
-In flight: P0 #549 secret-Auto declaration, P1 #574 durations/Desire, P2 #569 snapshot-derived
-read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
+Seventeen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
+M2 #566; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
+In flight: P0 #549 secret-Auto declaration and P1 #574 durations/Desire. PR #678 completed
+#569 snapshot-derived read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
 Owner-run/ruling/catalog/fuzz/device/paid evidence is not inferred from local tests.
 Offline work remains a separate programme. The full issue catalogue below includes historical
 completed work as well as these remaining issues; current delivery state overrides old handovers.
@@ -111,7 +111,7 @@ Issue bodies contain scoped build instructions, named acceptance scenarios and v
 | [#566](https://github.com/uhtred1986-lab/trading-card-management/issues/566) S02 | P1 | Acknowledge human actions before resumable AI advance | Partial; broader unknown-provider-outcome acceptance remains | [pv-s02.md](arena-backlog/pv-s02.md) |
 | [#567](https://github.com/uhtred1986-lab/trading-card-management/issues/567) S03 | P1 | Record concurrent AI usage atomically | Completed; see canonical acceptance | [pv-s03.md](arena-backlog/pv-s03.md) |
 | [#568](https://github.com/uhtred1986-lab/trading-card-management/issues/568) S04 | P2 | Skip unchanged snapshot loads with revision-aware polling | Completed; see canonical acceptance | [pv-s04.md](arena-backlog/pv-s04.md) |
-| [#569](https://github.com/uhtred1986-lab/trading-card-management/issues/569) S05 | P2 | Share immutable derived evaluation by match revision | Candidate synchronous snapshot read session under review; measurements remain branch evidence | [pv-s05.md](arena-backlog/pv-s05.md) |
+| [#569](https://github.com/uhtred1986-lab/trading-card-management/issues/569) S05 | P2 | Share immutable derived evaluation by match revision | Closed by PR #678; standing-rule reads 4→1, mixed tail-latency evidence | [pv-s05.md](arena-backlog/pv-s05.md) |
 | [#607](https://github.com/uhtred1986-lab/trading-card-management/issues/607) S07 | P1 | Profile and reduce corrected zero-power checkpoint evaluation | Completed; see canonical acceptance | [pv-s07.md](arena-backlog/pv-s07.md) |
 | [#570](https://github.com/uhtred1986-lab/trading-card-management/issues/570) S06 | P2 | Preview a gameplan without committing moves | Closed by PR #674; bounded fixed-price Main/self-rest preview | [pv-s06.md](arena-backlog/pv-s06.md) |
 
@@ -229,3 +229,5 @@ not run and 18 named skips; these are not full rules coverage. #575 audits that 
 No implementation issue has been marked fixed by this planning work. No production database, paid AI call,
 deployment setting, or code PR merge was performed. Existing grounded prototype changes are preserved.
 Live-only verification is explicitly assigned to the owner; agents use local fixtures/PGlite.
+
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the seventeen original remaining issues; #574 retains this explicit shared payment limitation.
