@@ -37,6 +37,9 @@ const defs = { ...DEFS,
   BUDGET549: card("BUDGET549", { energyCost: 0, skill: "[Auto] Choose 1 of your Battle Cards and switch it to Rest Mode, choose 3 cards in your hand and place them in your Drop Area, then switch this card to Rest Mode: When you play this card, draw 1 card." }),
   DROPWARP549: card("DROPWARP549", { energyCost: 0, skill: "[Auto] Choose 3 cards in your hand and place them in your Drop Area, then choose 3 {Price Target} cards in your Drop Area and send them to their owner's Warp: When you play this card, draw 1 card." }),
   TARGET549: card("TARGET549", { name: "Price Target", skill: null }),
+  TARGET_CASE549: card("TARGET_CASE549", { name: "price target", skill: null }),
+  TARGET_ALIAS549: card("TARGET_ALIAS549", { name: "Another Name", alsoNames: ["Price Target"], skill: null }),
+  TARGET_BACK549: card("TARGET_BACK549", { name: "Front Name", back: { name: "Price Target", power: 10000, skill: null }, skill: null }),
   PERM549: card("PERM549", { energyCost: 0, skill: "[Permanent] This card gets +1000 power." }),
 };
 const scripts = rulesFromCompiler(defs);
@@ -723,7 +726,9 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.ok(savedPicks.every((id) => aliased.sides.p1.zones.drop.includes(id)));
   assert.equal(canFinishAutomaticPrice(ctx, dbs, a.state, aliasFrame), false, "the saved source alias remains an ordinary unpayable continuation");
   const wideAlias: ScriptFrame = { ...aliasFrame, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 4 }, as: "paid" }, suffix[1], suffix[2]] };
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, wideAlias), (err: unknown) => err instanceof NotYet && err.issue === "#549", "larger saved-alias search remains typed unknown, proving the shortcut did not classify it");
+  const aliasStart = performance.now(); const aliasHeap = process.memoryUsage().heapUsed;
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, wideAlias), (err: unknown) => err instanceof NotYet && err.issue === "#549", "larger saved-alias search remains typed unknown");
+  console.log(`auto-costs-549 saved alias 20-card unknown (2,001 visits): ${(performance.now() - aliasStart).toFixed(1)} ms, heap delta ${((process.memoryUsage().heapUsed - aliasHeap) / 1048576).toFixed(1)} MiB`);
   const before = JSON.stringify(a.state.sides);
   assert.equal(canFinishAutomaticPrice(ctx, dbs, a.state, frame), false, "the already-rested source cannot pay this exact suffix");
   const ev = pend(a.state, a.source);
@@ -738,18 +743,18 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.equal(canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: moveSource }), true, "moving the source to another area can reset its mode");
 
   const otherChooser: Op[] = [{ op: "choose", sel: { side: "you", area: "hand", count: 3 }, as: "paid", chooser: "opponent" }, suffix[1], suffix[2]];
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: otherChooser }), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a different chooser is outside the proven suffix");
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: otherChooser }), (err: unknown) => err instanceof NotYet && err.issue === "#549", "another chooser remains typed unknown");
   const fromPool: Op[] = [{ op: "choose", sel: { side: "you", area: "hand", count: 3, fromVar: "pool" }, as: "paid" }, suffix[1], suffix[2]];
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: fromPool, vars: { pool: a.state.sides.p1.zones.hand.slice() } }), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a choice through a saved pool is outside the proven suffix");
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: fromPool, vars: { pool: a.state.sides.p1.zones.hand.slice() } }), (err: unknown) => err instanceof NotYet && err.issue === "#549", "saved-pool choice remains typed unknown");
 
   const inHand = reload(a.state);
   assert.ok(moveCard(inHand, dbs, a.source, "hand", { owner: "p1" }).ok);
   inHand.cards[a.source].mode = "rest";
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, inHand, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a source in the hand is not proved unpayable by this lookahead");
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, inHand, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "source in hand remains typed unknown");
   const replaced = reload(a.state);
   const target = replaced.sides.p1.zones.hand[0];
   addEffect(replaced, [], { master: "p1", source: a.source, target, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, replaced, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a possible cost-move replacement bypasses the lookahead");
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, replaced, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "cost-move replacement bypasses the shortcut");
   // This synthetic [Permanent] is dormant at 20 hand cards, then becomes a
   // replacement after the first hand departure. Inspecting only current
   // statics would incorrectly prune the entire price before it can activate.
@@ -763,15 +768,15 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.ok(moveCard(conditional, dbs, extra, "hand", { owner: "p1" }).ok);
   assert.equal(conditional.sides.p1.zones.hand.length, 20);
   assert.equal(staticsNow(ctx, dbs, conditional).some((effect) => effect.kind === "replaceLeave"), false);
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, conditional, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a dormant conditional replacement must bypass the lookahead");
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, conditional, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "dormant conditional replacement bypasses the shortcut");
   assert.ok(moveCard(conditional, dbs, conditional.sides.p1.zones.hand[0], "drop", { owner: "p1" }).ok);
   assert.equal(staticsNow(ctx, dbs, conditional).some((effect) => effect.kind === "replaceLeave"), true);
   scripts.PERM549.bySkill[0] = oldPermanent;
   scripts.ACTION549.bySkill[0] = old;
 }
-// A different valid compiler-derived price still exceeds the bounded search:
-// only the last three hand cards can satisfy its later Drop -> Warp choice.
-// This remains typed unknown, never a false claim of unaffordability.
+// A different valid compiler-derived price needs the last three hand cards
+// to satisfy its later Drop -> Warp choice. The planner proves a path without
+// mutating the original state or relying on choice order.
 {
   const state = main();
   const source = stage(state, "DROPWARP549");
@@ -783,8 +788,145 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.ok(price && price.map((op) => op.op).join(",") === "choose,moveTo,choose,moveTo", "the nested price is compiled from supported grammar");
   const frame: ScriptFrame = { ops: price, ip: 0, vars: {}, card: source, master: "p1", skillIndex: 0, trigger: "played" };
   const before = JSON.stringify(state);
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, state, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549");
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, state, frame), true);
   assert.equal(JSON.stringify(state), before);
+}
+// The same compiler-derived price is offered and paid in the actual Auto
+// flow with a 30-card hand. A selected card is saved through JSON reload;
+// later choices can use only the two remaining named cards. With only two
+// names in that hand, the entire price is proved unaffordable before payment.
+{
+  const setup = (named: number) => {
+    const state = main(); const source = stage(state, "DROPWARP549");
+    while (state.sides.p1.zones.hand.length < 30) {
+      const id = state.sides.p1.zones.deck[0];
+      assert.ok(moveCard(state, dbs, id, "hand", { owner: "p1" }).ok);
+    }
+    const targets = named ? state.sides.p1.zones.hand.slice(-named) : [];
+    for (const id of targets) state.cards[id].cardId = "TARGET549";
+    return { state, source, targets };
+  };
+  const payable = setup(3);
+  const start = performance.now();
+  const before = JSON.stringify(payable.state);
+  const offerEvents = pend(payable.state, payable.source);
+  assert.equal(payable.state.prompt.kind, "chooseMode");
+  assert.equal(JSON.stringify(payable.state.sides), JSON.stringify(JSON.parse(before).sides));
+  assert.equal(draws(offerEvents), 0);
+  let step = answer(payable.state, 0);
+  assert.equal(step.state.prompt.kind, "chooseCards");
+  for (let i = 0; i < 3; i++) {
+    assert.equal(step.state.prompt.kind, "chooseCards");
+    assert.deepEqual(step.state.prompt.choice.candidates, payable.targets.slice(i), "only choices that can complete the later named Drop price stay on the menu");
+    step = choose(reload(step.state), [payable.targets[i]]);
+  }
+  assert.equal(step.state.prompt.kind, "main");
+  assert.ok(payable.targets.every((id) => step.state.sides.p1.zones.warp.includes(id)));
+  assert.ok(payable.targets.every((id) => !step.state.sides.p1.zones.hand.includes(id)));
+  assert.equal(step.events.filter((event) => event.type === "skill" && event.card === payable.source).length, 1);
+  assert.equal(draws(step.events), 1);
+  assert.ok(step.events.findIndex((event) => event.type === "move" && event.card === payable.targets[0]) < step.events.findIndex((event) => event.type === "skill" && event.card === payable.source));
+  console.log(`auto-costs-549 named transfer 30-card payable: ${(performance.now() - start).toFixed(1)} ms`);
+
+  const short = setup(2);
+  const shortBefore = JSON.stringify(short.state.sides);
+  const shortStart = performance.now();
+  const noPay = pend(short.state, short.source);
+  assert.equal(short.state.prompt.kind, "main");
+  assert.equal(JSON.stringify(short.state.sides), shortBefore);
+  assert.equal(noPay.some((event) => event.type === "skill"), false);
+  assert.ok(noPay.some((event) => event.type === "note" && /unaffordable/.test(event.text)));
+  console.log(`auto-costs-549 named transfer 30-card impossible: ${(performance.now() - shortStart).toFixed(1)} ms`);
+  const shown = setup(0);
+  const visible = shown.state.sides.p1.zones.hand.slice(-3);
+  shown.state.cards[visible[0]].cardId = "TARGET_CASE549";
+  shown.state.cards[visible[1]].cardId = "TARGET_ALIAS549";
+  shown.state.cards[visible[2]].cardId = "TARGET549";
+  const shownPrice = scripts.DROPWARP549.bySkill[0]?.price?.ops;
+  assert.ok(shownPrice);
+  const shownFrame: ScriptFrame = { ops: shownPrice, ip: 0, vars: {}, card: shown.source, master: "p1", skillIndex: 0, trigger: "played" };
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, shown.state, shownFrame), true, "the authoritative selector accepts a case-folded name and an additional name");
+  const shownOffer = pend(shown.state, shown.source);
+  assert.equal(shown.state.prompt.kind, "chooseMode"); assert.equal(draws(shownOffer), 0);
+  const shownPaid = answer(shown.state, 0);
+  assert.equal(shownPaid.state.prompt.kind, "chooseCards");
+  assert.deepEqual(shownPaid.state.prompt.choice.candidates, visible);
+  const back = setup(0);
+  const backVisible = back.state.sides.p1.zones.hand.slice(-3);
+  back.state.cards[backVisible[0]].cardId = "TARGET_CASE549";
+  back.state.cards[backVisible[1]].cardId = "TARGET_ALIAS549";
+  back.state.cards[backVisible[2]].cardId = "TARGET_BACK549";
+  back.state.cards[backVisible[2]].flipped = true;
+  const backFrame: ScriptFrame = { ...shownFrame, card: back.source };
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, back.state, backFrame), false, "moving the shown back face from hand resets it, so the later Drop choice has only two matching names");
+  const price = scripts.DROPWARP549.bySkill[0]?.price?.ops;
+  assert.ok(price && price[0].op === "choose");
+  const otherChooser: Op[] = [{ ...price[0], chooser: "opponent" }, ...price.slice(1)];
+  const outsideProof: ScriptFrame = { ops: otherChooser, ip: 0, vars: {}, card: short.source, master: "p1", skillIndex: 0, trigger: "played" };
+  const unknownStart = performance.now(); const unknownHeap = process.memoryUsage().heapUsed;
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, short.state, outsideProof), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a 30-card price outside the direct-transfer proof retains the explicit complexity boundary");
+  console.log(`auto-costs-549 other chooser 30-card unknown (2,001 visits): ${(performance.now() - unknownStart).toFixed(1)} ms, heap delta ${((process.memoryUsage().heapUsed - unknownHeap) / 1048576).toFixed(1)} MiB`);
+}
+// A supported price may place its selected card under a named host. The host
+// and the actual under-pile membership are part of payment, including after
+// a saved card choice. Missing hosts do not turn into a free skill.
+{
+  const old = scripts.ACTION549.bySkill[0];
+  const under: Op[] = [
+    { op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "paid" },
+    { op: "moveTo", target: { var: "paid" }, to: "under", under: { sel: { special: "self" } } },
+  ];
+  script("ACTION549", [{ op: "draw", n: 1 }], under);
+  const a = mainWith("ACTION549"); const target = a.state.sides.p1.zones.hand[0];
+  pend(a.state, a.source);
+  assert.equal(a.state.prompt.kind, "chooseMode");
+  const paid = answer(a.state, 0);
+  assert.equal(paid.state.prompt.kind, "chooseCards");
+  const resolved = choose(reload(paid.state), [target]);
+  assert.equal(resolved.state.prompt.kind, "main");
+  assert.ok(resolved.state.cards[a.source].under.includes(target));
+  assert.equal(draws(resolved.events), 1);
+  assert.ok(resolved.events.some((event) => event.type === "stack"));
+  assert.ok(resolved.events.findIndex((event) => event.type === "stack") < resolved.events.findIndex((event) => event.type === "skill"));
+  script("ACTION549", [{ op: "draw", n: 1 }], [{ ...under[0] }, { op: "moveTo", target: { var: "paid" }, to: "under", under: { sel: { special: "subject" } } }]);
+  const missing = mainWith("ACTION549"); const before = JSON.stringify(missing.state.sides);
+  const events = pend(missing.state, missing.source);
+  assert.equal(JSON.stringify(missing.state.sides), before);
+  assert.equal(draws(events), 0); assert.ok(events.some((event) => event.type === "note" && /unaffordable/.test(event.text)));
+  scripts.ACTION549.bySkill[0] = old;
+}
+// A conditional price charges the branch selected on the live board. Modal
+// prices save the inner option across reload and settle exactly one branch.
+{
+  const old = scripts.ACTION549.bySkill[0];
+  const rest: Op = { op: "switchMode", target: { sel: { special: "self" } }, mode: "rest" };
+  const drop: Op = { op: "moveTo", target: { sel: { special: "self" } }, to: "drop" };
+  const trueCond = { kind: "all" as const, conds: [] };
+  script("ACTION549", [{ op: "draw", n: 1 }], [{ op: "if", cond: trueCond, then: [rest], else: [drop] }]);
+  const yes = mainWith("ACTION549"); pend(yes.state, yes.source);
+  assert.equal(yes.state.prompt.kind, "chooseMode");
+  const yesPaid = answer(yes.state, 0);
+  assert.equal(yesPaid.state.cards[yes.source].mode, "rest"); assert.equal(draws(yesPaid.events), 1);
+  script("ACTION549", [{ op: "draw", n: 1 }], [{ op: "if", cond: { kind: "not", cond: trueCond }, then: [rest], else: [drop] }]);
+  const no = mainWith("ACTION549"); pend(no.state, no.source);
+  const noPaid = answer(no.state, 0);
+  assert.ok(noPaid.state.sides.p1.zones.drop.includes(no.source)); assert.equal(draws(noPaid.events), 1);
+  script("ACTION549", [{ op: "draw", n: 1 }], [{ op: "chooseMode", modes: [{ label: "Rest the source", ops: [rest] }, { label: "Place the source in Drop", ops: [drop] }] }]);
+  const modal = mainWith("ACTION549"); pend(modal.state, modal.source);
+  const offered = answer(modal.state, 0);
+  assert.equal(offered.state.prompt.kind, "chooseMode");
+  assert.deepEqual(offered.state.prompt.options, ["Rest the source", "Place the source in Drop"]);
+  const chosen = answer(reload(offered.state), 1);
+  assert.ok(chosen.state.sides.p1.zones.drop.includes(modal.source));
+  assert.equal(draws(chosen.events), 1);
+  assert.equal(chosen.events.filter((event) => event.type === "skill").length, 1);
+  script("ACTION549", [{ op: "draw", n: 1 }], [{ op: "chooseMode", modes: [{ label: "Free", ops: [] }, { label: "Rest", ops: [rest] }] }]);
+  const unsafe = mainWith("ACTION549");
+  const refused = pend(unsafe.state, unsafe.source);
+  assert.equal(unsafe.state.outcome?.kind, "interrupted");
+  assert.equal(unsafe.state.outcome?.privateContext?.issue, "#549");
+  assert.equal(draws(refused), 0);
+  scripts.ACTION549.bySkill[0] = old;
 }
 // #558 integration uses actual #549 cost frames, never a synthetic pending
 // extension. Public source identities stay pending during both decisions;
