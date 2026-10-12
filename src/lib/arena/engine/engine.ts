@@ -776,8 +776,12 @@ function resolvePlay(
 function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, master: PlayerId, keywordName?: "Heroic" | "Villainous", skillIndex = -1, grantEffectId?: number): "done" | "wait" {
   // A pended keyword is still an [Auto] activation. Apply the same 20-14
   // prohibition at resolution as ordinary Autos, including old -1 grants.
-  if (skillsNegated(s, card) || skillNegated(s, card, skillIndex) || forbids(ctx, s, "activateSkill", { player: master, card })) return "done";
-  if (grantEffectId !== undefined && s.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === card && e.value === grantEffectId)) return "done";
+  if (skillsNegated(s, card) || forbids(ctx, s, "activateSkill", { player: master, card })) return "done";
+  if (grantEffectId === undefined) {
+    if (skillNegated(s, card, skillIndex)) return "done";
+  } else if (s.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === card && e.value === grantEffectId)) {
+    return "done";
+  }
   const name = keywordName ?? (has(ctx, s, card, "Heroic") ? "Heroic" : has(ctx, s, card, "Villainous") ? "Villainous" : null);
   if (name === "Heroic") {
     draw(ctx, s, ev, master, 1);
@@ -804,9 +808,7 @@ function pendKeywordAfterSkill(ctx: EngineContext, s: GameState, source: string,
         e.kind === "keyword" && e.target === id && typeof e.value === "object" && "name" in e.value && e.value.name === name &&
         !s.effects.some((spent) => spent.kind === "negateGrantedSkill" && spent.target === id && spent.value === e.id),
       );
-      if (!skillNegated(s, id, -1)) {
-        for (const grant of grants) s.pending.push({ card: id, skillIndex: -1, grantEffectId: grant.id, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
-      }
+      for (const grant of grants) s.pending.push({ card: id, skillIndex: -1, grantEffectId: grant.id, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
       if (!lines.length && !grants.length) {
         // Standing grants have no provenance in the legacy engine yet. Keep
         // the old pseudo-identity until that separate source/entry audit.
