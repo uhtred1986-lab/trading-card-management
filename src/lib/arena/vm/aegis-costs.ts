@@ -3,7 +3,7 @@ import type { Area, EngineContext, GameEvent, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { activationMoment, boundFor, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
 import { automaticPriceHost } from "./auto-costs";
-import { chargeCost, planCost, priceFor, type Price, type VmPayment } from "./costs";
+import { chargeCost, chargesOf, planCost, priceFor, type Price, type VmPayment } from "./costs";
 import { fire, log } from "./events";
 import { IllegalAction } from "./common";
 import { aegisPrograms, keywordAfterProgram } from "./keyword-do";
@@ -106,14 +106,32 @@ export function stepAegisCost(ctx: EngineContext, game: GameDefinition, state: V
   if (!current.ok || !samePayment(current.payment, choice.payment)) throw new IllegalAction("that additional Aegis payment is no longer available");
   state.lastMode = null;
   delete frame.awaiting;
-  const spent = scopedPayersSpent(ctx, game, state, frame.master, cost.line);
   const host = automaticPriceHost(ctx, game, state, ev);
-  chargeCost(ctx, game, state, ev, frame.master, choice.payment, frame.card, cost.costs, (id, to, opts) => {
+  const checkReplacement = (id: string, to: string) => {
     const choices = inPlayZones(game).includes(host.areaOf(id) ?? "") && !inPlayZones(game).includes(to) && !game.zones[to]?.host ? host.replacementsFor(id, "cost", { requestedTo: to as Area }) : [];
     if (choices.length > 1 || choices.some((r) => r.optional)) throw new NotYet("choose a replacement of an additional Aegis pooled cost", "#595");
-    host.move(id, to as Area, frame.master, opts);
-  });
-  spent(choice.payment.rest);
+  };
+  // Known question boundaries stop before any additional resource is charged.
+  const charges = chargesOf(game);
+  for (const name of cost.costs) {
+    const charge = charges[name];
+    const to = (charge?.does as { to?: string } | null)?.to;
+    if (!to) continue;
+    const cards = charge.consumes === "life" ? choice.payment.life : choice.payment.pooled.find((p) => p.cost === name)?.cards ?? [];
+    for (const id of cards) checkReplacement(id, to);
+  }
+  const spent = scopedPayersSpent(ctx, game, state, frame.master, cost.line);
+  const rested = new Set<string>();
+  try {
+    chargeCost(ctx, game, state, ev, frame.master, choice.payment, frame.card, cost.costs, (id, to, opts) => {
+      checkReplacement(id, to);
+      host.move(id, to as Area, frame.master, opts);
+    }, (id) => { rested.add(id); });
+  } finally {
+    // 5-8-4 retains a performed resource payment even if a later movement
+    // fails. Consume only grants whose payer actually changed Active→Rest.
+    spent(choice.payment.rest.filter((id) => rested.has(id)));
+  }
   // Finish exactly once. The effect frame contains the color choice's bound
   // names but no payment cursor, so later effect prompts cannot charge again.
   const moment = activationMoment(ctx, game, state, frame.master, cost.line);

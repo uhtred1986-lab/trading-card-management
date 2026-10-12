@@ -7,6 +7,7 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { run } from "../../src/lib/arena/vm/flow";
+import { emptyFilter } from "../../src/lib/arena/text/filters";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
@@ -23,12 +24,15 @@ const defs = { ...DEFS,
   RED595: card("RED595", { colors: ["Red"], skill: null }),
   BLUE595: card("BLUE595", { colors: ["Blue"], skill: null }),
   AUTO595: card("AUTO595", { colors: ["Blue"], skill: "[Auto] When this card is placed in your Drop Area from your hand or deck, draw 1 card." }),
+  GRANT595: card("GRANT595", { skill: "[Permanent] Once per turn you can use a Battle Card as energy for Aegis." }),
+  PAYER595: card("PAYER595", { skill: null }),
 };
 const scripts = rulesFromCompiler(defs);
 // The supported conditional-static DSL makes losing two hand cards remove a
 // discount. This is a synthetic rule interaction, not a claimed printed card.
 scripts.LIVE595.bySkill[10] = { ...scripts.LIVE595.bySkill[10], unsupported: [], ops: [{ op: "if", cond: { kind: "count", sel: { side: "you", area: "hand" }, atLeast: 4 }, then: [{ op: "costModifier", target: { sel: { special: "self" } }, what: "skill", amount: 1 }] }] };
 scripts.AUTO595.bySkill[0] = { ...scripts.AUTO595.bySkill[0], unsupported: [], trigger: ["deckOrHandToDrop"], ops: [{ op: "draw", n: 1 }] };
+scripts.GRANT595.bySkill[0] = { ...scripts.GRANT595.bySkill[0], unsupported: [], ops: [{ op: "payWith", target: { sel: { side: "you", area: "battle", filter: { ...emptyFilter(), names: ["PAYER595"] } } }, forSkillsOf: { ...emptyFilter(), names: ["A595"] }, oncePerTurn: true, max: 1 }] };
 const ctx: EngineContext = { ...CTX, defs, scripts };
 const reload = (s: VmState): VmState => JSON.parse(JSON.stringify(s));
 function apply(s: VmState, action: Action) { return engine.apply(ctx, reload(s), action) as { state: VmState; events: GameEvent[] }; }
@@ -205,6 +209,37 @@ for (const by of ["skill", undefined] as const) {
   s.lastChoice = [a.cards[0]]; const ev: GameEvent[] = []; run(ctx, custom, s, ev);
   assert.equal(s.outcome?.kind, "interrupted"); assert.equal(s.outcome?.privateContext?.issue, "#595");
   assert.ok(s.sides.p1.zones.battle.includes(a.card)); assert.ok(s.sides.p1.zones.drop.includes(a.cards[0]));
+  assert.equal(s.cards[a.energy[0]].mode, "active", "known replacement question interrupts before the additional energy is charged");
   assert.equal(skills(ev, a.card).length, 0); assert.deepEqual(s.cards[a.card].usedThisTurn, []);
+}
+// A limited scoped payer's performed rest remains spent even if a LATER
+// mandatory pooled redirect defeats activation. Aegis's own limit stays free.
+for (const failsBeforeEnergy of [false, true]) {
+  const a = defense("A595", ["MULTI595", "MULTI595"], []);
+  const grant = stage(a.s, "GRANT595", "battle"); const payer = stage(a.s, "PAYER595", "battle");
+  const s = activate(a.s, a.card).state;
+  const custom = { ...game, costs: { ...game.costs, pool595: { ...game.costs.burst, name: "pool595", amount: "costOf", do: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "battle" as const } }, to: "drop" as const }] } } };
+  s.programs[0].aegisCost!.costs = failsBeforeEnergy ? ["pool595", "energy", "payWith"] : ["energy", "payWith", "pool595"];
+  addEffect(s, [], { target: a.card, kind: "replaceLeave", value: { to: "warp", target: { special: "self" } }, until: "turn", source: a.card, master: "p1" });
+  s.lastChoice = [a.cards[0]]; const ev: GameEvent[] = []; run(ctx, custom, s, ev);
+  assert.equal(s.cards[payer].mode, failsBeforeEnergy ? "active" : "rest"); assert.deepEqual(s.cards[grant].usedThisTurn, failsBeforeEnergy ? [] : [0]);
+  assert.ok(s.sides.p1.zones.warp.includes(a.card)); assert.deepEqual(s.cards[a.card].usedThisTurn, []); assert.equal(skills(ev, a.card).length, 0);
+  // Even if that payer stands again, its once-per-turn permission is used.
+  s.cards[payer].mode = "active"; const next = stage(s, "A595", "battle");
+  if (failsBeforeEnergy) assert.equal(skills(activate(s, next).events, next).length, 1, "an unperformed energy payment does not spend the grant");
+  else assert.throws(() => activate(s, next), IllegalAction);
+}
+// A substitute can itself rest the payer before the energy-cost stage. That
+// effect's mode event is retained, but it is not use of the payment grant.
+{
+  const a = defense("A595", ["MULTI595", "MULTI595"], []);
+  const grant = stage(a.s, "GRANT595", "battle"); const payer = stage(a.s, "PAYER595", "battle");
+  const s = activate(a.s, a.card).state;
+  const custom = { ...game, costs: { ...game.costs, pool595: { ...game.costs.burst, name: "pool595", amount: "costOf", do: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "battle" as const } }, to: "drop" as const }] } } };
+  s.programs[0].aegisCost!.costs = ["pool595", "energy", "payWith"];
+  addEffect(s, [], { target: a.card, kind: "replaceLeave", value: { target: { special: "self" }, ops: [{ op: "switchMode", target: { sel: { side: "you", area: "battle", filter: { ...emptyFilter(), names: ["PAYER595"] } } }, mode: "rest" }] }, until: "turn", source: a.card, master: "p1" });
+  s.lastChoice = [a.cards[0]]; const ev: GameEvent[] = []; run(ctx, custom, s, ev);
+  assert.equal(s.cards[payer].mode, "rest"); assert.deepEqual(s.cards[grant].usedThisTurn, []);
+  assert.ok(s.sides.p1.zones.battle.includes(a.card)); assert.deepEqual(s.cards[a.card].usedThisTurn, []); assert.equal(skills(ev, a.card).length, 0);
 }
 console.log("Aegis #595: color-first cost, live fee, reload, failure, and delayed activation verified");

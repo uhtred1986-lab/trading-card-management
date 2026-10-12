@@ -908,16 +908,22 @@ export function chargeCost(
   card: string | null,
   costs: string[],
   move?: (id: string, to: string, opts: MoveCause) => void,
+  onRest?: (id: string) => void,
 ): void {
   const charges = chargesOf(game);
   const payMove = move ?? ((id: string, to: string, opts: MoveCause) => moved(ctx, game, state, ev, id, to, opts));
+  const payMode = (id: string, mode: string) => {
+    const wasActive = state.cards[id]?.mode === "active";
+    setMode(state, ev, id, mode);
+    if (wasActive && mode === "rest" && state.cards[id]?.mode === "rest") onRest?.(id);
+  };
   for (const name of costs) {
     const charge = charges[name];
     if (!charge) throw new RulesetBroken(state.game, `there is no price called ${JSON.stringify(name)} to charge`);
     switch (charge.consumes) {
       case "energy": {
         const mode = modeOf(charge);
-        for (const id of payment.rest) setMode(state, ev, id, mode);
+        for (const id of payment.rest) payMode(id, mode);
         if (payment.energyMarkers) {
           state.sides[player].attrs.energyMarkers = Number(state.sides[player].attrs.energyMarkers ?? 0) - payment.energyMarkers;
           log(ev, { type: "energyMarker", player, delta: -payment.energyMarkers });
@@ -932,7 +938,7 @@ export function chargeCost(
         // payers, rested where they stand.
         if (!charge.from) {
           const mode = modeOf(charge);
-          for (const id of payment.rest) setMode(state, ev, id, mode);
+          for (const id of payment.rest) payMode(id, mode);
           break;
         }
         const to = (charge.does as { to?: string } | null)?.to;
@@ -973,7 +979,7 @@ export function chargeCost(
         break;
       }
       case "mode":
-        if (card !== null && payment.restsSelf) setMode(state, ev, card, modeOf(charge));
+        if (card !== null && payment.restsSelf) payMode(card, modeOf(charge));
         break;
       case "unreadable":
         // Nothing: the half of a printed price no engine charges itself is
