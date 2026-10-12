@@ -10,6 +10,7 @@ import { run } from "../../src/lib/arena/vm/flow";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { NotYet } from "../../src/lib/arena/vm/errors";
 import { automaticPriceHost, canFinishAutomaticPrice } from "../../src/lib/arena/vm/auto-costs";
+import { staticsNow } from "../../src/lib/arena/vm/program";
 import { stepScript, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
@@ -34,6 +35,9 @@ const defs = { ...DEFS,
   ENERGY549: card("ENERGY549", { colors: ["Red"], energyCost: 0, skill: null }),
   // Synthetic supported price grammar; no printed card is asserted.
   BUDGET549: card("BUDGET549", { energyCost: 0, skill: "[Auto] Choose 1 of your Battle Cards and switch it to Rest Mode, choose 3 cards in your hand and place them in your Drop Area, then switch this card to Rest Mode: When you play this card, draw 1 card." }),
+  DROPWARP549: card("DROPWARP549", { energyCost: 0, skill: "[Auto] Choose 3 cards in your hand and place them in your Drop Area, then choose 3 {Price Target} cards in your Drop Area and send them to their owner's Warp: When you play this card, draw 1 card." }),
+  TARGET549: card("TARGET549", { name: "Price Target", skill: null }),
+  PERM549: card("PERM549", { energyCost: 0, skill: "[Permanent] This card gets +1000 power." }),
 };
 const scripts = rulesFromCompiler(defs);
 function script(id: keyof typeof defs, ops: Op[], priceOps: Op[] | null = null): Script {
@@ -623,9 +627,9 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.ok(result.state.prompt.kind === "chooseCards" && result.state.prompt.choice.candidates.length === 20);
   console.log(`auto-costs-549 crowded 20-card price: ${(performance.now() - started).toFixed(1)} ms`);
 }
-// A payable later branch must not be called unaffordable because the earlier
-// branch exhausts the planner. Resting the source first makes every subsequent
-// three-card discard fail its final self-rest; resting another card can pay.
+// A compiler-derived, supported price has a payable later branch. Resting the
+// source first makes every three-card discard fail the final self-rest; that
+// branch is pruned before it spends the 2,000-state search budget.
 {
   const state = main();
   const source = stage(state, "BUDGET549");
@@ -649,18 +653,138 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   if (payable.prompt.kind === "chooseCards") assert.deepEqual(payable.prompt.choice.candidates, [source, other]);
   payable.lastChoice = [other];
   assert.equal(canFinishAutomaticPrice(ctx, dbs, payable, payableFrame), true, "the later first choice has a complete payable continuation");
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, state, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "search exhaustion must remain an unknown result, never false unaffordability");
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, state, frame), true, "the dead source-first branch cannot consume the budget before a payable choice");
   assert.equal(JSON.stringify(state), before, "preflight changes no real game state");
   const sides = JSON.stringify(state.sides);
   const cards = JSON.stringify(state.cards);
   const events = pend(state, source);
-  assert.equal(state.outcome?.kind, "interrupted");
-  assert.equal(state.outcome?.privateContext?.issue, "#549");
-  assert.equal(JSON.stringify(state.sides), sides, "no payment is taken on planner exhaustion");
+  assert.equal(state.prompt.kind, "chooseMode");
+  assert.equal(JSON.stringify(state.sides), sides, "planning takes no payment");
   assert.equal(JSON.stringify(state.cards), cards, "no mode or once-use is spent");
   assert.equal(draws(events), 0);
   assert.equal(events.some((event) => event.type === "skill"), false);
-  assert.equal(events.some((event) => event.type === "note" && /unaffordable/i.test(event.text)), false);
+  const declined = answer(state, declines(state));
+  assert.equal(declined.state.prompt.kind, "main");
+  assert.equal(JSON.stringify(declined.state.sides), sides);
+  assert.equal(declined.events.some((event) => event.type === "skill"), false);
+  const paid = answer(state, 0);
+  assert.equal(paid.state.prompt.kind, "chooseCards");
+  assert.ok(paid.state.prompt.kind === "chooseCards" && JSON.stringify(paid.state.prompt.choice.candidates) === JSON.stringify([other]), "the impossible source pick is absent from the payment menu");
+  let step = choose(reload(paid.state), [other]);
+  assert.equal(step.state.prompt.kind, "chooseCards");
+  assert.ok(step.state.prompt.kind === "chooseCards" && step.state.prompt.choice.candidates.length === 20);
+  const paidCards: string[] = [];
+  for (let pick = 0; pick < 3 && step.state.prompt.kind === "chooseCards"; pick++) {
+    const id = step.state.prompt.choice.candidates[0]; paidCards.push(id);
+    step = choose(reload(step.state), [id]);
+  }
+  assert.equal(paidCards.length, 3);
+  assert.equal(step.state.prompt.kind, "main");
+  assert.equal(step.state.cards[source].mode, "rest");
+  assert.equal(step.state.cards[other].mode, "rest");
+  assert.ok(paidCards.every((id) => step.state.sides.p1.zones.drop.includes(id)));
+  assert.ok(step.events.findIndex((event) => event.type === "move" && paidCards.includes(event.card)) < step.events.findIndex((event) => event.type === "skill" && event.card === source), "all selected cards move as cost before the skill fires");
+  assert.equal(step.events.filter((event) => event.type === "skill" && event.card === source).length, 1);
+  assert.equal(draws(step.events), 1);
+  assert.ok(!JSON.stringify(snapshot(state, "p2")).includes("autoCost"), "the other player receives no private price plan");
+}
+// The lookahead is deliberately limited to hand -> Drop followed by a pure
+// self-rest. An intervening mode reset or source move can make rest payable;
+// replacements and saved aliases require the ordinary search instead.
+{
+  const old = scripts.ACTION549.bySkill[0];
+  const suffix: Op[] = [
+    { op: "choose", sel: { side: "you", area: "hand", count: 3 }, as: "paid" },
+    { op: "moveTo", target: { var: "paid" }, to: "drop" },
+    { op: "switchMode", target: { sel: { special: "self" } }, mode: "rest" },
+  ];
+  script("ACTION549", [{ op: "draw", n: 1 }], suffix);
+  const a = mainWith("ACTION549"); a.state.cards[a.source].mode = "rest";
+  while (a.state.sides.p1.zones.hand.length < 20) {
+    const id = a.state.sides.p1.zones.deck[0]; assert.ok(moveCard(a.state, dbs, id, "hand", { owner: "p1" }).ok);
+  }
+  const frame: ScriptFrame = { ops: suffix, ip: 0, vars: {}, card: a.source, master: "p1", skillIndex: 0, trigger: "played" };
+  // A resumed choice can already contain the source even though the source
+  // has left the hand. The interpreter still includes that saved pick in the
+  // later move, so this shape must use normal search rather than the shortcut.
+  const aliasOps: Op[] = [{ op: "choose", sel: { side: "you", area: "hand", count: 3 }, as: "paid" }, suffix[1], suffix[2]];
+  const aliasFrame: ScriptFrame = { ...frame, ops: aliasOps, vars: { paid: [a.source] }, awaiting: "paid" };
+  const aliased = reload(a.state);
+  const resumed = structuredClone(aliasFrame);
+  const aliasHost = automaticPriceHost(ctx, dbs, aliased, []);
+  const savedPicks = aliased.sides.p1.zones.hand.slice(0, 2);
+  for (const id of savedPicks) {
+    assert.equal(stepScript(aliasHost, resumed), "wait");
+    assert.equal(aliased.prompt.kind, "chooseCards");
+    aliased.lastChoice = [id];
+  }
+  assert.throws(() => stepScript(aliasHost, resumed), IllegalAction);
+  assert.ok(aliased.sides.p1.zones.drop.includes(a.source), "ordinary payment moved the saved source alias before final self-rest failed");
+  assert.ok(savedPicks.every((id) => aliased.sides.p1.zones.drop.includes(id)));
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, a.state, aliasFrame), false, "the saved source alias remains an ordinary unpayable continuation");
+  const wideAlias: ScriptFrame = { ...aliasFrame, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 4 }, as: "paid" }, suffix[1], suffix[2]] };
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, wideAlias), (err: unknown) => err instanceof NotYet && err.issue === "#549", "larger saved-alias search remains typed unknown, proving the shortcut did not classify it");
+  const before = JSON.stringify(a.state.sides);
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, a.state, frame), false, "the already-rested source cannot pay this exact suffix");
+  const ev = pend(a.state, a.source);
+  assert.equal(a.state.prompt.kind, "main"); assert.ok(!a.state.outcome);
+  assert.equal(JSON.stringify(a.state.sides), before); assert.equal(a.state.cards[a.source].mode, "rest");
+  assert.ok(ev.some((event) => event.type === "note" && /unaffordable/.test(event.text)));
+  assert.equal(ev.some((event) => event.type === "skill"), false);
+
+  const reset: Op[] = [suffix[0], suffix[1], { op: "switchMode", target: { sel: { special: "self" } }, mode: "active" }, suffix[2]];
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: reset }), true, "an intervening source mode reset remains payable");
+  const moveSource: Op[] = [suffix[0], { op: "moveTo", target: { sel: { special: "self" } }, to: "energy" }, suffix[2]];
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: moveSource }), true, "moving the source to another area can reset its mode");
+
+  const otherChooser: Op[] = [{ op: "choose", sel: { side: "you", area: "hand", count: 3 }, as: "paid", chooser: "opponent" }, suffix[1], suffix[2]];
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: otherChooser }), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a different chooser is outside the proven suffix");
+  const fromPool: Op[] = [{ op: "choose", sel: { side: "you", area: "hand", count: 3, fromVar: "pool" }, as: "paid" }, suffix[1], suffix[2]];
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, a.state, { ...frame, ops: fromPool, vars: { pool: a.state.sides.p1.zones.hand.slice() } }), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a choice through a saved pool is outside the proven suffix");
+
+  const inHand = reload(a.state);
+  assert.ok(moveCard(inHand, dbs, a.source, "hand", { owner: "p1" }).ok);
+  inHand.cards[a.source].mode = "rest";
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, inHand, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a source in the hand is not proved unpayable by this lookahead");
+  const replaced = reload(a.state);
+  const target = replaced.sides.p1.zones.hand[0];
+  addEffect(replaced, [], { master: "p1", source: a.source, target, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, replaced, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a possible cost-move replacement bypasses the lookahead");
+  // This synthetic [Permanent] is dormant at 20 hand cards, then becomes a
+  // replacement after the first hand departure. Inspecting only current
+  // statics would incorrectly prune the entire price before it can activate.
+  const oldPermanent = scripts.PERM549.bySkill[0];
+  scripts.PERM549.bySkill[0] = { ...oldPermanent, unsupported: [], ops: [{ op: "if", cond: { kind: "count", sel: { side: "you", area: "hand" }, atMost: 19 }, then: [
+    { op: "replace", event: "leave", target: { sel: { side: "you", area: "hand" } }, optional: true, with: [{ op: "switchMode", target: { sel: { special: "self" } }, mode: "active" }] },
+  ] }] };
+  const conditional = reload(a.state);
+  stage(conditional, "PERM549");
+  const extra = conditional.sides.p1.zones.deck[0];
+  assert.ok(moveCard(conditional, dbs, extra, "hand", { owner: "p1" }).ok);
+  assert.equal(conditional.sides.p1.zones.hand.length, 20);
+  assert.equal(staticsNow(ctx, dbs, conditional).some((effect) => effect.kind === "replaceLeave"), false);
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, conditional, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "a dormant conditional replacement must bypass the lookahead");
+  assert.ok(moveCard(conditional, dbs, conditional.sides.p1.zones.hand[0], "drop", { owner: "p1" }).ok);
+  assert.equal(staticsNow(ctx, dbs, conditional).some((effect) => effect.kind === "replaceLeave"), true);
+  scripts.PERM549.bySkill[0] = oldPermanent;
+  scripts.ACTION549.bySkill[0] = old;
+}
+// A different valid compiler-derived price still exceeds the bounded search:
+// only the last three hand cards can satisfy its later Drop -> Warp choice.
+// This remains typed unknown, never a false claim of unaffordability.
+{
+  const state = main();
+  const source = stage(state, "DROPWARP549");
+  while (state.sides.p1.zones.hand.length < 20) {
+    const id = state.sides.p1.zones.deck[0]; assert.ok(moveCard(state, dbs, id, "hand", { owner: "p1" }).ok);
+  }
+  for (const id of state.sides.p1.zones.hand.slice(-3)) state.cards[id].cardId = "TARGET549";
+  const price = scripts.DROPWARP549.bySkill[0]?.price?.ops;
+  assert.ok(price && price.map((op) => op.op).join(",") === "choose,moveTo,choose,moveTo", "the nested price is compiled from supported grammar");
+  const frame: ScriptFrame = { ops: price, ip: 0, vars: {}, card: source, master: "p1", skillIndex: 0, trigger: "played" };
+  const before = JSON.stringify(state);
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, state, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549");
+  assert.equal(JSON.stringify(state), before);
 }
 // #558 integration uses actual #549 cost frames, never a synthetic pending
 // extension. Public source identities stay pending during both decisions;
