@@ -22,6 +22,8 @@ const defs = { ...DEFS,
   ACTION549: card("ACTION549", { energyCost: 0, skill: "[Auto] Choose 1 card in your hand and place it in its owner's Drop Area: When you play this card, draw 1 card." }),
   X549: card("X549", { energyCost: 0, skill: "[Auto] {X}: When you play this card, draw X cards." }),
   FREE549: card("FREE549", { energyCost: 0, skill: "[Auto] When you play this card, draw 1 card." }),
+  MULTI549: card("MULTI549", { energyCost: 0, skill: "[Auto] When you play this card, draw 1 card.\n[Auto] When you play this card, draw 2 cards." }),
+  DROP549: card("DROP549", { energyCost: 0, skill: "[Auto] When this card is placed in the Drop Area from the Battle Area, draw 1 card." }),
   MIX549: card("MIX549", { energyCost: 0, skill: "[Auto] {r}: When you play this card, draw 1 card." }),
   BURST549: card("BURST549", { energyCost: 0, skill: "[Auto][Burst 2]: When you play this card, draw 1 card." }),
   SPIRIT549: card("SPIRIT549", { energyCost: 0, skill: "[Auto][Spirit Boost 1]: When you play this card, draw 1 card." }),
@@ -38,6 +40,11 @@ script("B549", [{ op: "draw", n: 2 }]);
 script("ACTION549", [{ op: "draw", n: 1 }], [{ op: "choose", sel: { area: "hand", side: "you", count: 1 }, as: "paid" }, { op: "moveTo", target: { var: "paid" }, to: "drop" }]);
 script("X549", [{ op: "draw", n: { x: true } }]).price!.x = { min: 1, max: 3 };
 script("FREE549", [{ op: "draw", n: 1 }]);
+assert.ok(scripts.MULTI549.bySkill[0] && scripts.MULTI549.bySkill[10]);
+scripts.MULTI549.bySkill[0] = { ...scripts.MULTI549.bySkill[0], unsupported: [], trigger: ["played"], ops: [{ op: "draw", n: 1 }] };
+scripts.MULTI549.bySkill[10] = { ...scripts.MULTI549.bySkill[10], unsupported: [], trigger: ["played"], ops: [{ op: "draw", n: 2 }] };
+assert.ok(scripts.DROP549.bySkill[0]);
+scripts.DROP549.bySkill[0] = { ...scripts.DROP549.bySkill[0], unsupported: [], trigger: ["leftBattleToDrop"], ops: [{ op: "draw", n: 1 }] };
 script("MIX549", [{ op: "draw", n: 1 }], [{ op: "choose", sel: { area: "hand", side: "you", count: 1 }, as: "paid" }, { op: "moveTo", target: { var: "paid" }, to: "drop" }]);
 script("BURST549", [{ op: "draw", n: 1 }]);
 script("SPIRIT549", [{ op: "draw", n: 1 }]);
@@ -64,6 +71,7 @@ function pend(s: VmState, source: string, p: PlayerId = "p1", subject?: string):
   return ev;
 }
 function answer(s: VmState, index: number, p: PlayerId = "p1") { return rules.apply(ctx, reload(s), { type: "chooseMode", player: p, index }) as { state: VmState; events: GameEvent[] }; }
+function order(s: VmState, index: number, p: PlayerId = "p1") { return rules.apply(ctx, reload(s), { type: "orderPending", player: p, index }) as { state: VmState; events: GameEvent[] }; }
 function choose(s: VmState, cards: string[]) { return rules.apply(ctx, reload(s), { type: "choose", player: "p1", cards }) as { state: VmState; events: GameEvent[] }; }
 function declines(s: VmState): number { assert.equal(s.prompt.kind, "chooseMode"); return s.prompt.kind === "chooseMode" ? s.prompt.options.length - 1 : -1; }
 function draws(ev: GameEvent[]) { return ev.filter((e) => e.type === "draw").length; }
@@ -97,6 +105,25 @@ function snapshot(current: VmState, viewer: PlayerId = "p1") {
   assert.equal(paid.events.filter((e) => e.type === "skill" && e.card === source).length, 1);
   assert.equal(paid.state.prompt.kind, "main");
   assert.throws(() => answer(paid.state, 0), IllegalAction);
+}
+// Two compiled lines on one genuinely played card pend from the same moment.
+// Their effects wait for the master's order answer; the chosen line resolves
+// first and the remaining line follows from its captured source.
+{
+  const s = main(); const source = stage(s, "MULTI549", "hand");
+  const played = rules.apply(ctx, s, { type: "play", player: "p1", card: source });
+  const waiting = played.state as VmState;
+  assert.equal(waiting.prompt.kind, "orderPending");
+  assert.deepEqual(waiting.pending.map((item) => [item.card, item.skillIndex, item.master, item.trigger]), [
+    [source, 0, "p1", "played"], [source, 10, "p1", "played"],
+  ]);
+  assert.equal(draws(played.events), 0);
+  const labels = rules.legalActions(ctx, waiting).filter((move) => move.action.type === "orderPending").map((move) => move.label);
+  assert.equal(labels.length, 2); assert.notEqual(labels[0], labels[1]);
+  const chosen = order(waiting, 1);
+  assert.equal(draws(chosen.events), 3);
+  assert.deepEqual(chosen.events.filter((e) => e.type === "skill").map((e) => e.type === "skill" ? e.skill : -1), [10, 0]);
+  assert.equal(chosen.state.pending.length, 0); assert.equal(chosen.state.prompt.kind, "main");
 }
 // Real JSONB storage can reorder every object's keys; resource revalidation
 // compares values and still pays once on the reloaded continuation.
@@ -148,6 +175,105 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   const second = answer(first.state, 0, "p2"); assert.equal(draws(second.events), 2); assert.equal(second.state.cards[eb].mode, "rest");
   assert.equal(second.events.find((e) => e.type === "skill")?.card, b);
   assert.equal(second.state.pending.length, 0);
+}
+// 9-6-3: when the turn player has two Autos, they choose the source and skill
+// before either cost is offered. The chosen record retains its event subject
+// through JSON storage, then the remaining Auto is paid and resolved once.
+{
+  const s = main(); const a = stage(s, "A549"); const b = stage(s, "B549");
+  const ea = stage(s, "ENERGY549", "energy"); const eb = stage(s, "ENERGY549", "energy");
+  s.pending.push({ card: a, master: "p1", skillIndex: 0, trigger: "played", subject: b });
+  s.pending.push({ card: b, master: "p1", skillIndex: 0, trigger: "played", subject: a });
+  const events: GameEvent[] = []; run(ctx, dbs, s, events);
+  assert.equal(s.prompt.kind, "orderPending");
+  assert.deepEqual(s.prompt.kind === "orderPending" ? s.prompt.candidates : [], [0, 1]);
+  assert.equal(draws(events), 0); assert.equal(s.cards[ea].mode, "active");
+  const view = snapshot(s);
+  assert.deepEqual(view.legal.filter((move) => move.action.type === "orderPending").map((move) => move.action), [
+    { type: "orderPending", player: "p1", index: 0 }, { type: "orderPending", player: "p1", index: 1 },
+  ]);
+  assert.equal(snapshot(s, "p2").legal.length, 0);
+  const choice = order(s, 1);
+  assert.equal(choice.state.programs[0].card, b); assert.equal(choice.state.programs[0].master, "p1");
+  assert.equal(choice.state.programs[0].subject, a); assert.equal(choice.state.pending[0].card, a);
+  assert.equal(choice.state.prompt.kind, "chooseMode"); assert.equal(draws(choice.events), 0);
+  const first = answer(choice.state, 0);
+  assert.equal(draws(first.events), 2); assert.equal(first.events.find((e) => e.type === "skill")?.card, b);
+  assert.equal(first.state.programs[0].card, a); assert.equal(first.state.programs[0].subject, b);
+  const second = answer(first.state, 0);
+  assert.equal(draws(second.events), 1); assert.equal(second.events.find((e) => e.type === "skill")?.card, a);
+  assert.equal(second.state.cards[ea].mode, "rest"); assert.equal(second.state.cards[eb].mode, "rest");
+  assert.equal(second.state.pending.length, 0); assert.equal(second.state.prompt.kind, "main");
+}
+// The same player's choice takes precedence over an older opposing Auto. A
+// stale queue or turn player is rejected atomically, including changed event
+// bindings at the same numeric index.
+{
+  const s = main(); const opponent = stage(s, "B549", "battle", "p2"); const a = stage(s, "A549"); const b = stage(s, "B549");
+  stage(s, "ENERGY549", "energy"); stage(s, "ENERGY549", "energy"); stage(s, "ENERGY549", "energy", "p2");
+  s.pending.push({ card: opponent, master: "p2", skillIndex: 0, trigger: "played", subject: a });
+  s.pending.push({ card: a, master: "p1", skillIndex: 0, trigger: "played", subject: b });
+  s.pending.push({ card: b, master: "p1", skillIndex: 0, trigger: "played", subject: a });
+  run(ctx, dbs, s, []);
+  assert.deepEqual(s.prompt.kind === "orderPending" ? s.prompt.candidates : [], [1, 2]);
+  for (const [candidate, player] of [[0, "p1"], [1, "p2"], [-1, "p1"], [3, "p1"], [1.5, "p1"]] as const) {
+    const before = JSON.stringify(s);
+    assert.throws(() => order(s, candidate, player), IllegalAction);
+    assert.equal(JSON.stringify(s), before);
+  }
+  const changed = reload(s); changed.pending[2].subject = opponent;
+  const before = JSON.stringify(changed);
+  assert.throws(() => order(changed, 2), IllegalAction); assert.equal(JSON.stringify(changed), before);
+  const changedTurn = reload(s); changedTurn.turnPlayer = "p2";
+  assert.throws(() => order(changedTurn, 2), IllegalAction);
+  const chosen = order(s, 2); assert.equal(chosen.state.programs[0].card, b);
+  const paid = answer(chosen.state, 0); assert.equal(draws(paid.events), 2);
+  assert.equal(paid.state.programs[0].card, a);
+  const next = answer(paid.state, 0); assert.equal(draws(next.events), 1);
+  assert.equal(next.state.programs[0].card, opponent); assert.equal(next.state.programs[0].master, "p2");
+  assert.equal(answer(next.state, 0, "p2").events.find((e) => e.type === "skill")?.card, opponent);
+}
+// A hand source is named only in its master's legal choices. The opponent's
+// snapshot cannot recover its instance or printed text from the prompt.
+{
+  const s = main(); const publicSource = stage(s, "B549");
+  stage(s, "ENERGY549", "energy"); stage(s, "ENERGY549", "energy"); const hand = stage(s, "A549", "hand");
+  s.pending.push({ card: hand, master: "p1", skillIndex: 0, trigger: "played" });
+  s.pending.push({ card: publicSource, master: "p1", skillIndex: 0, trigger: "played" });
+  run(ctx, dbs, s, []);
+  assert.equal(s.prompt.kind, "orderPending");
+  assert.ok(snapshot(s).legal.some((move) => move.label.includes(defs.A549.name)));
+  const opponent = snapshot(s, "p2");
+  assert.equal(opponent.legal.length, 0);
+  assert.ok(!JSON.stringify(opponent).includes(hand));
+  assert.ok(!JSON.stringify(opponent).includes(defs.A549.skill!));
+}
+// A chosen skill can pend a fresh Auto while resolving. The checkpoint
+// recomputes the current master's choices; it does not reuse an old ordering
+// or skip the new event. Each later two-way choice persists across reload.
+{
+  const original = scripts.B549.bySkill[0];
+  script("B549", [{ op: "moveTo", target: { sel: { special: "subject" } }, to: "drop" }]);
+  const s = main(); const a = stage(s, "A549"); const b = stage(s, "B549"); const free = stage(s, "FREE549"); const drop = stage(s, "DROP549");
+  stage(s, "ENERGY549", "energy"); stage(s, "ENERGY549", "energy");
+  s.pending.push({ card: a, master: "p1", skillIndex: 0, trigger: "played" });
+  s.pending.push({ card: b, master: "p1", skillIndex: 0, trigger: "played", subject: drop });
+  s.pending.push({ card: free, master: "p1", skillIndex: 0, trigger: "played" });
+  run(ctx, dbs, s, []);
+  assert.deepEqual(s.prompt.kind === "orderPending" ? s.prompt.candidates : [], [0, 1, 2]);
+  const selected = order(s, 1); assert.equal(selected.state.programs[0].subject, drop);
+  const paid = answer(selected.state, 0);
+  assert.ok(paid.state.sides.p1.zones.drop.includes(drop)); assert.equal(draws(paid.events), 0);
+  assert.deepEqual(paid.state.prompt.kind === "orderPending" ? paid.state.prompt.candidates : [], [0, 1, 2]);
+  assert.deepEqual(paid.state.pending.map((item) => item.card), [a, free, drop]);
+  const fresh = order(paid.state, 2);
+  assert.equal(draws(fresh.events), 1); assert.equal(fresh.events.find((e) => e.type === "skill")?.card, drop);
+  assert.deepEqual(fresh.state.prompt.kind === "orderPending" ? fresh.state.prompt.candidates : [], [0, 1]);
+  const freeChosen = order(fresh.state, 1);
+  assert.equal(draws(freeChosen.events), 1); assert.equal(freeChosen.events.find((e) => e.type === "skill")?.card, free);
+  assert.equal(freeChosen.state.programs[0].card, a);
+  assert.equal(draws(answer(freeChosen.state, 0).events), 1);
+  scripts.B549.bySkill[0] = original;
 }
 // Combined orb/action payment is charged once across a suspended cost prompt.
 {
@@ -348,7 +474,9 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   const target = stage(a.state, "V1", "battle", "p2");
   addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
   a.state.pending.push({ card: a.source, master: "p1", skillIndex: 0, trigger: "played", subject: target }); pend(a.state, b);
-  const offered = answer(a.state, 0); assert.equal(offered.state.prompt.kind, "replaceMove");
+  assert.equal(a.state.prompt.kind, "orderPending");
+  const chosen = order(a.state, 0);
+  const offered = answer(chosen.state, 0); assert.equal(offered.state.prompt.kind, "replaceMove");
   const failed = answer(offered.state, 0, "p2");
   assert.equal(failed.state.prompt.kind, "chooseMode"); assert.equal(failed.state.programs[0].card, b);
   assert.ok(failed.state.sides.p2.zones.warp.includes(target)); assert.equal(draws(failed.events), 0);
@@ -483,7 +611,8 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   const a = mainWith("MIX549"); const next = stage(a.state, "B549"); stage(a.state, "ENERGY549", "energy"); stage(a.state, "ENERGY549", "energy");
   const target = stage(a.state, "V1", "battle", "p2"); addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
   a.state.pending.push({ card: a.source, master: "p1", skillIndex: 0, trigger: "played", subject: target }); pend(a.state, next);
-  const opened = answer(a.state, 0); const failed = answer(opened.state, 0, "p2"); const view = snapshot(failed.state);
+  const chosen = order(a.state, 0);
+  const opened = answer(chosen.state, 0); const failed = answer(opened.state, 0, "p2"); const view = snapshot(failed.state);
   assert.equal(view.view.you.battle.find((c) => c.id === a.source)?.abilities?.[0]?.pending, false);
   assert.equal(view.view.you.battle.find((c) => c.id === next)?.abilities?.[0]?.pending, true);
   scripts.MIX549.bySkill[0] = old;

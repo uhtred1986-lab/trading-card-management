@@ -52,6 +52,7 @@ import { applyBattleActivation, applyBlock, applyCombo, applyCounter, applyZEner
 import { forbiddenBy, hasKeyword, immunityRefusing, readingBoard, spendProhibitionUse } from "./program";
 import { whoseSkills } from "./script";
 import { chargesOf, describePayment } from "./costs";
+import { skillsShowing } from "./triggers";
 import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
@@ -500,6 +501,13 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       resumeDamage(state);
       break;
     }
+    case "orderPending": {
+      requirePrompt(state, action, ["orderPending"]);
+      const pr = state.prompt;
+      if (pr.kind !== "orderPending" || !Number.isInteger(action.index) || !pr.candidates.includes(action.index) || !state.pendingOrder || state.pendingOrder.master !== action.player) throw new IllegalAction("no such pending skill");
+      state.pendingOrder.chosen = action.index;
+      break;
+    }
     // #150: `attack`, `block`, `counter` and `combo` are native rather than
     // `DEFINE ACTION`s — `vm/battle.ts`'s own header says why (an attack is a
     // player and two cards where every declared move is a player and at most
@@ -748,6 +756,13 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     case "chooseMode":
     case "replaceMove":
       return pr.options.map((label, index) => ({ action: { type: "chooseMode" as const, player: pr.player, index }, label: label.length > 90 ? `${label.slice(0, 88)}\u2026` : label }));
+    case "orderPending":
+      return pr.candidates.map((index) => {
+        const pending = state.pending[index];
+        const showing = pending ? skillsShowing(ctx, state, pending.card) : null;
+        const skill = showing?.skills.find((item) => item.index === pending?.skillIndex);
+        return { action: { type: "orderPending" as const, player: pr.player, index }, label: `Resolve ${pending ? shownName(ctx, state, pending.card) : `#${index}`}${skill ? `: ${(skill.effect || skill.raw).slice(0, 40)}` : " triggered effect"} (choice ${index + 1})` };
+      });
     default:
       return [];
   }
