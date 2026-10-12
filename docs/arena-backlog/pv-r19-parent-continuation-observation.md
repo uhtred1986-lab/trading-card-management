@@ -11,3 +11,5 @@ Focused command, with dependencies from the existing lockfile:
 ```bash
 NODE_PATH=/workspace/trading-card-management/node_modules /workspace/trading-card-management/node_modules/.bin/tsx scripts/verify/villainous-683-parent-continuation.ts
 ```
+
+**Correction after the observation.** The narrow legacy fix removes the child checkpoint only for waived nested `invokeSkill`; its sole caller is the invoking parent interpreter. The parent's existing checkpoint remains. The proof now asserts the shared manual-grounded order (child effect, parent continuation, pending keyword choice), saved child target/mode/keyword prompts and a non-invoking control. The earlier paragraphs document the pre-fix evidence, not the current result. It is registered in the Villainous suite with the rules-only legacy guard.

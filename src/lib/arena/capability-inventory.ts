@@ -242,7 +242,7 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     citation: "12-2-3; 22-35-2/3; 22-36-2/3",
     ownerIssue: 683,
     proof: "scripts/verify/villainous-683-auto-audit.ts and villainous-683-legacy-auto-audit.ts — legal Field arrival, free/paid/declined/unaffordable Auto, own in-play source, independent keyword spend and Battle source exclusion; scripts/verify/arena-extra-auto-db.mts and arena-extra-auto-rules-db.mts — isolated PGlite persisted payments/choices, request receipts, stale CAS and both viewers",
-    detail: "Successful Auto activation snapshots source qualification before effect changes and retains individual watcher identity. Failed or declined payment fires no hook. An in-play Extra can watch its own skill; another-card exclusion applies to Battle play. This bounded proof does not establish nested parent checkpoint ordering, catalog-wide coverage or live deployment behavior; #683 remains open for the parent ordering audit.",
+    detail: "Successful Auto activation snapshots source qualification before effect changes and retains individual watcher identity. Failed or declined payment fires no hook. An in-play Extra can watch its own skill; another-card exclusion applies to Battle play. villainous-683-parent-continuation.ts also proves child effect, parent continuation, then keyword choice across saved prompts on both engines. This bounded evidence does not establish catalog-wide coverage or live deployment behavior.",
   },
   {
     id: "arena-fill-under-named-host",
