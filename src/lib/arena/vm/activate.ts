@@ -631,7 +631,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
   return activationsOf(ctx, state, def, card, game).filter((line) => {
     const sk = line.skill;
     if (line.kind !== op.skillKind || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
-    if (!costIsOnlyOrbs(sk.cost) && !line.script.price) return false;
+    if (!costIsOnlyOrbs(sk.cost) && !line.script.price?.condition && !line.script.price?.ops?.length) return false;
     if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return false;
     if (usesLeft(sk, state.cards[card]?.usedThisTurn ?? []) === 0) return false;
     if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) return false;

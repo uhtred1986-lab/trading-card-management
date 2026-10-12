@@ -3407,7 +3407,7 @@ function invokedMainSkills(ctx: EngineContext, s: GameState, p: PlayerId, card: 
   return skillsOfInstance(ctx, s, card).filter((sk) => {
     if (sk.kind !== op.skillKind || sk.keyword || !scriptsOf(ctx, s, card).bySkill[sk.index] || !scriptFor(ctx, s, card, sk.index)) return false;
     const price = priceFor(ctx, s, card, sk);
-    if (price.x || (!costIsOnlyOrbs(sk.cost) && !price.known)) return false;
+    if (price.x || (!costIsOnlyOrbs(sk.cost) && !price.condition && !price.ops?.length)) return false;
     if (skillsNegated(s, card) || skillNegated(s, card, sk.index, sk.kind) || forbiddenBy(ctx, s, "activateSkill", { player: p, card }) || usesLeft(sk, s.cards[card]) === 0) return false;
     if (sk.bond != null && s.players[p].battle.length < sk.bond) return false;
     if (sk.sparking != null && s.players[p].drop.length < sk.sparking) return false;

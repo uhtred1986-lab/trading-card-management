@@ -125,6 +125,10 @@ unavailable("C574-OTHER", ["V1", "V1"]); // wrong special trait
 unavailable("C574-COND", ["V1", "V1"]); // waived cost does not waive the condition
 unavailable("C574-ONCE", ["V1", "V1"], (state, id) => state.cards[id].usedThisTurn.push(0));
 unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
+  state.effects.push({ id: 574, target: id, kind: "forbid", value: 0, forbid: { what: "activateSkill", player: "p1" },
+    until: "turn", source: id, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
+});
+unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
   zoneOf(state, "p1", "hand").splice(zoneOf(state, "p1", "hand").indexOf(id), 1);
   zoneOf(state, "p1", "drop").push(id);
 });
@@ -140,6 +144,10 @@ unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
   assert.equal(state.prompt.kind, "chooseCards");
   if (state.prompt.kind !== "chooseCards") throw Error("Desire hand choice missing");
   assert.deepEqual(state.prompt.choice.candidates, desires);
+  const observer = buildSnapshot({ id: 574, revision: 2, mode: "versus", engine: ENGINE, status: "playing",
+    p1Name: "Player 1", p2Name: "Player 2", ctx: CTX, state, legal: [], log: [], beats: IMPL.toBeats(CTX, state, [], 0), spotlight: null,
+    spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p2", images: {} });
+  assert.ok(!JSON.stringify(observer).includes("C574-DESIRE"), "opponent view masks hand Desire identities and choice candidates");
   const stale = JSON.parse(JSON.stringify(state)) as EngineState;
   zoneOf(stale, "p1", "hand").splice(zoneOf(stale, "p1", "hand").indexOf(desires[0]), 1);
   zoneOf(stale, "p1", "drop").push(desires[0]);
