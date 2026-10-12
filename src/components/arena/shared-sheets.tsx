@@ -5,7 +5,7 @@ import type { Action, LegalAction, RejectedAction, Requirement } from "@/lib/are
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
 import type { CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
-import { abilityCost, abilityPanelRows, abilityReasonType, matchesAbilityAction, offeredMoves, type AbilityLine } from "./ability-panel-model";
+import { abilityCost, abilityPanelRows, abilityReasonType, isStructuralRefusal, matchesAbilityAction, offeredMoves, type AbilityLine } from "./ability-panel-model";
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { useArenaAdmin } from "./admin-context";
 import { cardImage } from "@/lib/catalog/card-image";
@@ -329,7 +329,7 @@ function AbilityRows({
                   onClick={() => onPick(move)}
                   className={`tap flex min-h-11 w-full min-w-0 flex-col items-stretch gap-2 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 sm:flex-row sm:items-center sm:gap-3 ${size}`}
                 >
-                  <span className="min-w-0 max-w-full flex-1 break-words">{label} · {move.legal.label}</span>
+                  <span className="min-w-0 max-w-full flex-1 break-words">{label}</span>
                   <span className="max-w-full self-start whitespace-normal break-words rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:shrink-0 sm:self-auto">{abilityCost(line, move)}</span>
                 </button>
               );
@@ -393,6 +393,33 @@ export function ActionRows({
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
   const word = { side, inHand, them: narrator.them };
   const abilities = card.abilities ?? [];
+  const canCollapseStructuralRefusals = abilities.length > 0;
+  const otherActions = canCollapseStructuralRefusals ? rejected.filter(isStructuralRefusal) : [];
+  const refusals = rejected.filter((r) =>
+    !abilities.some((line) => matchesAbilityAction(line, r.action, card, abilities)) &&
+    !(canCollapseStructuralRefusals && isStructuralRefusal(r)),
+  );
+  const refusalRow = (r: RejectedAction) => {
+    const why = r.why[0];
+    const w = refusal(why, { name: card.name, reaching: r.action.type, ...word });
+    return (
+      <div key={`${r.action.type}:${"skill" in r.action ? r.action.skill : ""}`} className={`rounded-lg border border-space-700 bg-space-800/60 px-3 py-2 ${docked ? "" : "opacity-80 sm:px-4 sm:py-3"}`} aria-disabled>
+        <div className="flex items-center gap-3">
+          <span className={`min-w-0 flex-1 text-sm font-semibold ${docked ? "text-space-100" : "text-space-300 sm:text-base"}`}>{r.label}</span>
+          <span className={`shrink-0 rounded-full border border-loss/50 px-2 py-px font-mono text-[10px] sm:text-xs ${docked ? "text-space-100" : "text-loss"}`}>{pill(why)}</span>
+        </div>
+        <p className={`mt-1 text-[11px] leading-snug sm:text-xs ${docked ? "text-space-100" : "text-space-200"}`}>
+          {w.fact}
+          {w.remedy && <span className={docked ? "font-semibold" : "text-ki-300"}> {w.remedy}</span>}
+        </p>
+        {r.why.length > 1 && (
+          <p className={`mt-0.5 text-[10px] ${docked ? "text-space-200" : "text-space-400"}`}>
+            {r.why.slice(1).map((q) => refusal(q, { name: card.name, reaching: r.action.type, ...word }).fact).join(" ")}
+          </p>
+        )}
+      </div>
+    );
+  };
   return (
     <>
       <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} />
@@ -410,34 +437,13 @@ export function ActionRows({
           </button>
         );
       })}
-      {rejected.filter((r) => !abilities.some((line) => matchesAbilityAction(line, r.action, card, abilities))).map((r) => {
-        const why = r.why[0];
-        const w = refusal(why, { name: card.name, reaching: r.action.type, ...word });
-        return (
-          <div
-            key={`${r.action.type}:${"skill" in r.action ? r.action.skill : ""}`}
-            className={`rounded-lg border border-space-700 bg-space-800/60 px-3 py-2 ${docked ? "" : "opacity-80 sm:px-4 sm:py-3"}`}
-            aria-disabled
-          >
-            <div className="flex items-center gap-3">
-              <span className={`min-w-0 flex-1 text-sm font-semibold ${docked ? "text-space-100" : "text-space-300 sm:text-base"}`}>{r.label}</span>
-              <span className={`shrink-0 rounded-full border border-loss/50 px-2 py-px font-mono text-[10px] sm:text-xs ${docked ? "text-space-100" : "text-loss"}`}>{pill(why)}</span>
-            </div>
-            <p className={`mt-1 text-[11px] leading-snug sm:text-xs ${docked ? "text-space-100" : "text-space-200"}`}>
-              {w.fact}
-              {w.remedy && <span className={docked ? "font-semibold" : "text-ki-300"}> {w.remedy}</span>}
-            </p>
-            {r.why.length > 1 && (
-              <p className={`mt-0.5 text-[10px] ${docked ? "text-space-200" : "text-space-400"}`}>
-                {r.why
-                  .slice(1)
-                  .map((q) => refusal(q, { name: card.name, reaching: r.action.type, ...word }).fact)
-                  .join(" ")}
-              </p>
-            )}
-          </div>
-        );
-      })}
+      {refusals.map(refusalRow)}
+      {otherActions.length > 0 && (
+        <details className="rounded-lg border border-space-700 bg-space-800/30 px-3 py-2" data-other-actions>
+          <summary className="cursor-pointer text-xs font-semibold text-space-200">Other actions ({otherActions.length})</summary>
+          <div className="mt-2 space-y-2">{otherActions.map(refusalRow)}</div>
+        </details>
+      )}
     </>
   );
 }
@@ -453,11 +459,11 @@ export function StatTiles({ card, leader }: { card: CardView; leader?: { life: n
       ]
     : [
         ["cost", card.cost ?? "—"],
-        ["power", n(card.power)],
-        ["combo", card.comboPower != null && card.comboPower > 0 ? `+${n(card.comboPower)}` : "—"],
+        ...(card.power != null ? [["power", n(card.power)] as [string, string]] : []),
+        ...(card.comboCost != null ? [["combo", card.comboPower != null && card.comboPower > 0 ? `+${n(card.comboPower)}` : "—"] as [string, string]] : []),
       ];
   return (
-    <dl className="grid grid-cols-3 gap-1.5">
+    <dl className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }} data-stat-tiles={card.id}>
       {tiles.map(([k, v]) => (
         <div key={k} className="rounded-lg border border-space-700 bg-space-800/60 px-2 py-1">
           <dt className="text-[9px] font-semibold uppercase tracking-widest text-space-300">{k}</dt>

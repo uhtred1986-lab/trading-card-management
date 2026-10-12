@@ -13,6 +13,7 @@ import {
   abilityPanelRows,
   matchesAbilityAction,
   offeredMoves,
+  isStructuralRefusal,
   type AbilityLine,
   type AbilitySheetMove,
 } from "../../src/components/arena/ability-panel-model";
@@ -116,7 +117,24 @@ function move(action: LegalAction["action"], label = "engine offer", cost?: Lega
   assert.equal(abilityCost(priced, legal), "1 blue energy");
 }
 
-console.log("Abilities now projection checks passed.");
+// Structural type/zone/timing refusals move into collapsed Other actions
+// when line-level abilities are available. Resource and turn-limit blockers
+// remain directly visible and actionable.
+{
+  const reject = (why: Requirement[]): Parameters<typeof isStructuralRefusal>[0] => ({
+    action: { type: "combo", player: "p1", card: card.id },
+    label: "Combo Senzu Bean",
+    why,
+  });
+  assert.equal(isStructuralRefusal(reject([{ kind: "cardType", card: card.id, needs: "a Battle Card" }])), true);
+  assert.equal(isStructuralRefusal(reject([{ kind: "zone", card: card.id, area: "battle" }])), true);
+  assert.equal(isStructuralRefusal(reject([{ kind: "timing", window: "battle" }])), true);
+  assert.equal(isStructuralRefusal(reject([{ kind: "energyColour", colour: "Blue", need: 1, have: 0 }])), false);
+  assert.equal(isStructuralRefusal(reject([
+    { kind: "cardType", card: card.id, needs: "a Battle Card" },
+    { kind: "oncePerTurn", what: "this skill" },
+  ])), false, "a mixed structural/resource/limit refusal stays visible as an actionable blocker");
+}
 
 // Engine-backed timing evidence for the extra Main-vs-Battle distinction.
 // These are intentionally synthetic definitions: the real Senzu Bean print
@@ -206,3 +224,5 @@ console.log("Abilities now projection checks passed.");
     }
   }
 }
+
+console.log("Abilities now projection checks passed.");

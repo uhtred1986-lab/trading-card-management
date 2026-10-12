@@ -81,6 +81,7 @@ async function assertNoOverflow(page: BrowserPage, context: string) {
 
 async function runSenzu(browser: Browser, skin: string, viewport: Viewport, initial: Snapshot, fresh: Snapshot, card: string, freshState: VmState) {
   const sheet = viewport.name === "desk" ? `[data-abilities-now="${card}"]` : `[data-arena-review="${card}"]`;
+  const cardPanel = viewport.name === "desk" ? `[data-arena-inspector="${card}"]` : `[data-arena-review="${card}"]`;
   const page = await browser.page(viewport);
   await page.setCookie("arenaSkin", skin, base);
   if (viewport.mobile) {
@@ -95,9 +96,9 @@ async function runSenzu(browser: Browser, skin: string, viewport: Viewport, init
   page.onFetchPaused((request) => {
     if (request.request.url.startsWith("http://arena-561-art.local/")) {
       const asset = request.request.url === senzuArtUrl ? senzuArt : request.request.url === whisArtUrl ? whisArt : null;
-      if (!asset) return void page.fulfillFetch(request.requestId, "missing local artwork", 404);
+      if (!asset) return void page.fulfillFetch(request.requestId, "missing local artwork", 404).catch(() => undefined);
       const mime = asset.endsWith(".webp") ? "image/webp" : "image/jpeg";
-      return void page.fulfillFetchBytes(request.requestId, readFileSync(asset), mime);
+      return void page.fulfillFetchBytes(request.requestId, readFileSync(asset), mime).catch(() => undefined);
     }
     if (request.request.url.includes("/api/v1/games/561")) {
       if (sendFresh) void page.fulfillFetch(request.requestId, JSON.stringify(fresh)).catch(() => undefined);
@@ -110,7 +111,7 @@ async function runSenzu(browser: Browser, skin: string, viewport: Viewport, init
       }
       return;
     }
-    void page.continueFetch(request.requestId);
+    void page.continueFetch(request.requestId).catch(() => undefined);
   });
 
   await page.goto(`${base}/arena/preview?fixture=${senzuFixture}&skin=${skin}&pace=step&admin=0`);
@@ -142,19 +143,51 @@ async function runSenzu(browser: Browser, skin: string, viewport: Viewport, init
 
   if (viewport.name === "shortphone" || viewport.name === "narrowphone") await page.eval(`document.documentElement.style.fontSize='200%'`);
   await assertNoOverflow(page, `${skin}/${viewport.name}${viewport.name === "shortphone" || viewport.name === "narrowphone" ? "/200%" : ""}`);
-  const cta = await page.eval<{ text: string; top: number; bottom: number; available: boolean }>(`(() => {
-    const button = document.querySelector('[data-abilities-now] [data-ability-index="0"] button');
+  if (viewport.mobile) {
+    for (let i = 0; i < 20; i++) {
+      const position = await page.eval<{ buttonTop: number; buttonBottom: number; scrollTop: number; scrollBottom: number }>(`(() => {
+        const r=document.querySelector('${sheet} [data-ability-index="0"] button')?.getBoundingClientRect();
+        const viewport=document.querySelector('${sheet} .overflow-y-auto')?.getBoundingClientRect();
+        return { buttonTop:r?.top ?? -1, buttonBottom:r?.bottom ?? -1, scrollTop:viewport?.top ?? -1, scrollBottom:viewport?.bottom ?? -1 };
+      })()`);
+      if (position.buttonTop >= Math.max(0, position.scrollTop) && position.buttonBottom <= Math.min(viewport.height, position.scrollBottom)) break;
+      await page.swipe(`${sheet} .overflow-y-auto`, 0, position.buttonTop < position.scrollTop ? 60 : -100);
+    }
+    const reachability = await page.eval<{ button: [number, number]; scrollport: [number, number]; close: [number, number] }>(`(() => {
+      const button=document.querySelector('${sheet} [data-ability-index="0"] button')?.getBoundingClientRect();
+      const scrollport=document.querySelector('${sheet} .overflow-y-auto')?.getBoundingClientRect();
+      const close=document.querySelector('${sheet} button[aria-label="Close card review"]')?.getBoundingClientRect();
+      return { button: [button?.top ?? -1, button?.bottom ?? -1], scrollport: [scrollport?.top ?? -1, scrollport?.bottom ?? -1], close: [close?.top ?? -1, close?.bottom ?? -1] };
+    })()`);
+    check(reachability.button[0] >= Math.max(0, reachability.scrollport[0]) && reachability.button[1] <= Math.min(viewport.height, reachability.scrollport[1]), `${skin}/${viewport.name}: a real upward touch scroll should bring the full Activate offer inside the scrollport (${JSON.stringify(reachability)})`);
+    check(reachability.close[0] >= 0 && reachability.close[1] <= viewport.height, `${skin}/${viewport.name}: scrolling must leave the fixed review controls visible (${JSON.stringify(reachability)})`);
+    await assertNoOverflow(page, `${skin}/${viewport.name}${viewport.name === "shortphone" || viewport.name === "narrowphone" ? "/200% after touch scroll" : " after touch scroll"}`);
+  }
+  const cta = await page.eval<{ text: string; top: number; bottom: number; available: boolean; labels: string[] }>(`(() => {
+    const button = document.querySelector('${sheet} [data-ability-index="0"] button');
     const rect = button?.getBoundingClientRect();
-    const ability = document.querySelector('[data-abilities-now] [data-ability-index="0"]')?.textContent ?? '';
-    return { text: button?.textContent ?? '', top: rect?.top ?? -1, bottom: rect?.bottom ?? -1, available: ability.includes('Activate: Battle') };
+    const ability = document.querySelector('${sheet} [data-ability-index="0"]')?.textContent ?? '';
+    const labels = [...document.querySelectorAll('${cardPanel} [data-stat-tiles] dt')].map((el) => el.textContent?.trim().toLowerCase() ?? '');
+    return { text: button?.textContent ?? '', top: rect?.top ?? -1, bottom: rect?.bottom ?? -1, available: ability.includes('Activate: Battle'), labels };
   })()`);
-  check(cta.available && cta.text.includes("Activate") && cta.text.toLowerCase().includes("blue"), `${skin}/${viewport.name}: EngineAPI offer and printed blue cost are not visible (${JSON.stringify(cta)})`);
+  check(cta.available && cta.text.trim().startsWith("Activate") && cta.text.toLowerCase().includes("blue") && !cta.text.includes("Choose up to"), `${skin}/${viewport.name}: compact EngineAPI offer must show cost without repeating the effect text (${JSON.stringify(cta)})`);
+  check(JSON.stringify(cta.labels) === JSON.stringify(["cost"]), `${skin}/${viewport.name}: an Extra card should not reserve empty power/combo tiles (${JSON.stringify(cta)})`);
+  const visibleWrongCardChip = await page.eval<boolean>(`[...document.querySelectorAll('${cardPanel} p.flex.flex-wrap span')].some((el) => el.textContent?.trim() === 'wrong card')`);
+  check(!visibleWrongCardChip, `${skin}/${viewport.name}: structural Combo refusal should not surface as a card-state chip`);
+  const otherActionsCollapsed = await page.eval<boolean>(`(() => { const d=document.querySelector('${cardPanel} details[data-other-actions]'); return !!d && !d.open && d.querySelector('summary')?.textContent?.includes('Other actions ('); })()`);
+  check(otherActionsCollapsed, `${skin}/${viewport.name}: structural Combo refusal should remain under collapsed Other actions`);
+  if (viewport.name === "phone") {
+    await page.eval(`document.querySelector('${cardPanel} details[data-other-actions] summary')?.click()`);
+    const detailRetained = await page.eval<boolean>(`(() => { const d=document.querySelector('${cardPanel} details[data-other-actions]'); return !!d?.open && d.textContent?.includes('Combo Senzu Bean') && d.textContent?.includes('wrong card'); })()`);
+    check(detailRetained, "expanding Other actions should retain the Combo refusal and its reason");
+    await page.eval(`(() => { const d=document.querySelector('${cardPanel} details[data-other-actions]'); if(d) d.open=false; })()`);
+  }
   if (viewport.name === "phone" || viewport.name === "desk") {
     await page.eval(`document.querySelector('nextjs-portal')?.remove()`);
     writeFileSync(join(evidence, `${viewport.name}-${skin}-senzu-combo.jpg`), await page.screenshot(false));
   }
   if (viewport.name === "shortphone" || viewport.name === "narrowphone") {
-    check(cta.top >= 0 && cta.bottom <= viewport.height, `${skin}/${viewport.name}/200%: current Activate offer is not reachable without scrolling (${JSON.stringify(cta)})`);
+    check(cta.top >= 0 && cta.bottom <= viewport.height, `${skin}/${viewport.name}/200%: current Activate offer should remain reachable after vertical scrolling (${JSON.stringify(cta)})`);
     writeFileSync(join(evidence, `${viewport.name}-${skin}-senzu-combo-200text.jpg`), await page.screenshot(false));
   }
 
@@ -180,9 +213,18 @@ async function runSenzu(browser: Browser, skin: string, viewport: Viewport, init
     await page.waitFor('[data-arena-review] [data-abilities-now] [data-ability-index="0"] button');
   }
   if (viewport.name === "phone") {
-    const actionButton = '[data-abilities-now] [data-ability-index="0"] button';
+    const actionButton = `${sheet} [data-ability-index="0"] button`;
     await page.eval(`window.__arenaSent = []`);
-    await page.eval(`document.querySelector(${JSON.stringify(actionButton)})?.click()`);
+    const focusTrail: string[] = [];
+    let focused = false;
+    for (let i = 0; i < 24; i++) {
+      focused = await page.eval<boolean>(`document.activeElement === document.querySelector(${JSON.stringify(actionButton)})`);
+      if (focused) break;
+      focusTrail.push(await page.eval<string>(`document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.textContent?.trim().slice(0,40) ?? ''`));
+      await press(page, "Tab");
+    }
+    check(focused, `the current Activate button must be reachable by keyboard focus; trail=${JSON.stringify(focusTrail)}`);
+    await page.tap(actionButton);
     const end = Date.now() + 3000;
     while (Date.now() < end && !(await page.eval<boolean>(`(window.__arenaSent ?? []).length > 0`))) await sleep(100);
     await page.settle(100);
@@ -210,23 +252,30 @@ async function runWhis(browser: Browser, skin: string, viewport: Viewport, snaps
     await bridge.call("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
   }
   await page.interceptFetch(["http://arena-561-art.local/*", "*api/v1/games/561*"]);
+  let pollResolve: (() => void) | undefined;
+  const firstPoll = new Promise<void>((resolvePoll) => { pollResolve = resolvePoll; });
   page.onFetchPaused((request) => {
-    if (request.request.url === whisArtUrl) return void page.fulfillFetchBytes(request.requestId, readFileSync(whisArt), "image/webp");
-    if (request.request.url.includes("/api/v1/games/561")) return void page.fulfillFetch(request.requestId, JSON.stringify(snapshot));
-    void page.continueFetch(request.requestId);
+    if (request.request.url === whisArtUrl) return void page.fulfillFetchBytes(request.requestId, readFileSync(whisArt), "image/webp").catch(() => undefined);
+    if (request.request.url.includes("/api/v1/games/561")) {
+      pollResolve?.();
+      pollResolve = undefined;
+      return void page.fulfillFetch(request.requestId, JSON.stringify(snapshot)).catch(() => undefined);
+    }
+    void page.continueFetch(request.requestId).catch(() => undefined);
   });
   await page.goto(`${base}/arena/preview?fixture=${whisFixture}&skin=${skin}&pace=step&admin=0`);
   await page.waitFor(".arena");
+  await firstPoll;
   await openCard(page, viewport, card);
   await page.waitFor(`${sheet} [data-ability-index="0"] button`);
   const text = await page.eval<string>(`document.querySelector('[data-abilities-now] [data-ability-index="0"]')?.textContent ?? ''`);
-  check(text.includes("Counter") && text.includes("Blue"), `${skin}/${viewport.name}: actual Whis Counter and Blue payment are missing (${text})`);
+  check(text.includes("Counter") && text.includes("1 energy (1 blue)"), `${skin}/${viewport.name}: actual Whis Counter action and exact one-Blue cost are missing (${text})`);
   if (viewport.name === "phone" || viewport.name === "desk") {
     await page.eval(`document.querySelector('nextjs-portal')?.remove()`);
     writeFileSync(join(evidence, `${viewport.name}-${skin}-whis-counter.jpg`), await page.screenshot(false));
   }
   if (viewport.name === "phone") {
-    const actionButton = '[data-abilities-now] [data-ability-index="0"] button';
+    const actionButton = `${sheet} [data-ability-index="0"] button`;
     await page.eval(`window.__arenaSent = []`);
     await page.eval(`document.querySelector(${JSON.stringify(actionButton)})?.click()`);
     const end = Date.now() + 3000;
@@ -260,7 +309,10 @@ try {
   }
   console.log(`#561 EngineAPI-built phone/desktop evidence written to ${evidence}`);
 } finally {
-  await browser?.close();
-  for (const path of fixturePaths) rmSync(path, { force: true });
-  restoreFixtureDefs();
+  try {
+    await browser?.close();
+  } finally {
+    for (const path of fixturePaths) rmSync(path, { force: true });
+    restoreFixtureDefs();
+  }
 }

@@ -11,6 +11,7 @@ import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import type { CardView } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
+import { isStructuralRequirement } from "../ability-panel-model";
 import { ArenaCard, type CardState } from "../ArenaCard";
 import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
@@ -967,7 +968,8 @@ export function ArenaStage({
     if (["leader", "unison", "battle area", "energy area"].includes(at.zone)) chips.push({ label: card.mode === "rest" ? "Rested" : "Standing", tone: "plain" });
     if (playable && !busy && targetsOf(id)) chips.push({ label: "Can attack", tone: "good" });
     if (isTargeting && targetsOf(selected!)?.[id] != null) chips.push({ label: "Valid target", tone: "good" });
-    const why = rejectedFor(id).flatMap((r) => r.why);
+    const allWhy = rejectedFor(id).flatMap((r) => r.why);
+    const why = card.abilities?.length ? allWhy.filter((item) => !isStructuralRequirement(item)) : allWhy;
     const short = why.find((w) => w.kind === "energy");
     if (short) chips.push({ label: pill(short).replace("short", "energy short"), tone: "bad" });
     if (reason) {

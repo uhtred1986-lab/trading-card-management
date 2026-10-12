@@ -1,4 +1,4 @@
-import type { Action, LegalAction } from "@/lib/arena/types";
+import type { Action, LegalAction, RejectedAction, Requirement } from "@/lib/arena/types";
 import type { CardView } from "@/lib/arena/view";
 
 export interface AbilitySheetMove {
@@ -7,6 +7,17 @@ export interface AbilitySheetMove {
 }
 
 export type AbilityLine = NonNullable<CardView["abilities"]>[number];
+
+const STRUCTURAL_REFUSAL_KINDS = new Set<Requirement["kind"]>(["cardType", "zone", "timing"]);
+
+export function isStructuralRequirement(why: Requirement): boolean {
+  return STRUCTURAL_REFUSAL_KINDS.has(why.kind);
+}
+
+/** A structural reason belongs in the collapsed Other actions list when per-line data exists. */
+export function isStructuralRefusal(rejected: RejectedAction): boolean {
+  return rejected.why.length > 0 && rejected.why.every(isStructuralRequirement);
+}
 
 export interface AbilityPanelRows {
   manual: AbilityLine[];
