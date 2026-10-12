@@ -628,7 +628,7 @@ export interface ContinuousEffect {
    */
   uses?: number;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay";
   /**
    * The card whose skill made it, so a client can say "+5000 power from
    * Kaio-ken" and a refusal can name what forbids it. Absent on effects the

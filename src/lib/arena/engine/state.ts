@@ -1626,6 +1626,11 @@ export function endAfterChargeEffects(ctx: GameContext, s: GameState, ev: GameEv
   dropEffects(ctx, s, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
+/** 20-13-5: the opponent's named Charge expires by its phase, not the target card's controller. */
+export function endAfterOpponentChargeEffects(ctx: GameContext, s: GameState, ev: GameEvent[]): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === "afterOpponentCharge" && e.master !== s.turnPlayer && e.createdTurn < s.turn));
+}
+
 /**
  * The two durations written from the controller's point of view rather than
  * the turn's, expired as a turn opens (9-9):

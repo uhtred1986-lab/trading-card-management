@@ -290,9 +290,13 @@ function durationOf(clause: string): Duration {
   // Your *own* next Charge Phase is one step past "your next turn": the effect
   // has to be there when the Active Step runs (7-2-7).
   if (/during your next charge phase/.test(t)) return "afterNextCharge";
+  // This phase belongs to the *opponent of the skill's controller*, even if
+  // the locked card changes controller before it. It ends after that phase's
+  // Active Step or as soon as the phase is skipped (20-13-5).
+  if (/during your opponent's next charge phase/.test(t)) return "afterOpponentCharge";
   // Everything that has to survive the opponent's whole turn and end as yours
   // begins: the rest-lock wordings, which are the same duration said four ways.
-  if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next charge phase|during your opponent's next turn/.test(t))
+  if (/until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next turn|during your opponent's next turn/.test(t))
     return "nextTurn";
   // "Your opponent can't attack until the end of **their** turn" (BT24-133):
   // the pronoun is the opponent the clause names, so it is the same duration.

@@ -34,7 +34,7 @@ export type Side = "you" | "opponent" | "both";
  * (9-9-2: it lasts for the period the effect names). A [Permanent]'s own
  * "While this card is …" is a condition (`IF`), not this.
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";

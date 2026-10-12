@@ -268,6 +268,8 @@ export function untilWords(until: EffectUntil, o: { master: PlayerId | null; vie
     case "afterNextCharge":
     case "game":
       return w.text;
+    case "afterOpponentCharge":
+      return (mine ? w.text : (w.you ?? w.text)).replace("{them}", o.them);
     case "nextTurn":
     case "opponentTurn": {
       // `nextTurn` ends as the master's next turn begins, `opponentTurn` as the

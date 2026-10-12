@@ -22,7 +22,7 @@ import { koCard, pendPlacedOnArrival, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "../vm/rng";
 import { describeScript } from "../vm/script-schema";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
-import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, copiedSkillsOn, locate, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
+import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, copiedSkillsOn, locate, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
 import { IllegalAction } from "../vm/common";
 import type { AbilityAvailability, ActionCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
 import type {
@@ -251,6 +251,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // and 20-13-4 (no checkpoints) between them leave nothing of the Active
       // Step, the Draw Step or the Charge Step to run.
       endTurnRelativeEffects(ctx, s, ev);
+      if (skipCharge) endAfterOpponentChargeEffects(ctx, s, ev);
       if (skipTurn) {
         // Main and End never begin either, so no moment answers to either one.
         ev.push({ type: "phase", phase: "main", player: s.turnPlayer, turn: s.turn, skipped: true });
@@ -285,6 +286,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       // this player's cards had one, which is what makes "next" the right one
       // whichever turn the effect was created on.
       endAfterChargeEffects(ctx, s, ev, mine);
+      endAfterOpponentChargeEffects(ctx, s, ev);
       return "done";
     }
     case "turn.draw": {

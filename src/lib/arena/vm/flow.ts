@@ -48,7 +48,7 @@ import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { masterOf, nextPending, skillsShowing, type VmPendingRecord } from "./triggers";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
@@ -291,6 +291,7 @@ const STEP_WORK: Record<string, Work> = {
       // player's cards only, which is what makes "next" the right one
       // whichever turn the effect was made on (the legacy `turn.activeAll`).
       endAfterChargeEffects(state, ev, covered);
+      endAfterOpponentChargeEffects(state, ev);
     },
   },
   chargeDraw: {
@@ -604,6 +605,9 @@ export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (skipped) {
     const shown = shownPhase(game, state, name);
     if (shown) log(ev, { ...shown, skipped: true });
+    // 20-13-5: a duration ending in this Charge Phase ends immediately when
+    // that phase is skipped, even though its Active Step will never run.
+    if (name === game.game?.phases?.[0]) endAfterOpponentChargeEffects(state, ev);
     return;
   }
   emit(ctx, game, state, ev, { event: "phaseStart", controller: state.turnPlayer, args: { phase: name } }, shownPhase(game, state, name));
