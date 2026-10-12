@@ -423,7 +423,7 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
   }) : [];
   return {
     id,
-    cardId: inst.cardId,
+    cardId: hidden ? "" : inst.cardId,
     name: hidden ? "Face-down card" : (str(now.name) ?? inst.cardId),
     power,
     colors: hidden ? [] : strings(printed.colors),
