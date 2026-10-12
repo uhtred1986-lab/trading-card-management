@@ -82,7 +82,7 @@ import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
 import { canPayPriceProgram } from "./activate";
 import { fireHook } from "./hooks";
-import { leaveRoute, lifeReplacementChoices, markerReplacementChoices } from "./replace";
+import { leaveRoute, lifeReplacementChoices, markerReplacementChoices, replacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
@@ -340,6 +340,11 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
             (match) => match.trigger === "comboToDrop", undefined, occurrence);
             if (!pended.length) continue;
             end.preDropTriggeredSubjects.push(id);
+            // No subject-information rule picks one new area before an
+            // optional/competing replacement has been answered. Keep this
+            // boundary explicit instead of projecting an assumed Drop card.
+            if (replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop" }).length)
+              throw new NotYet("project a pre-announced Combo-to-Drop Auto through its replacement choices", "#609");
             // §9-6-9-1-3 asks for information in the new, open Drop Area.
             // Project only that information on a copy. Live area membership,
             // selectors, and payments remain on the actual Combo Area board.
@@ -367,19 +372,78 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
           end.specialCursor = 0;
         }
         if (end.stage === "departures") {
+          // A substitute has finished its saved interpreter frame. Its own
+          // Combo-to-Drop move was recorded at the actual movement moment,
+          // not guessed from the subject's final area after the program.
+          if (end.substituteDeparture) {
+            const done = end.substituteDeparture;
+            if (done.actualDrop) end.specialSubjects!.push({ card: done.card, to: "drop", controller: done.actualDrop.controller,
+              ...(done.origin ? { origin: done.origin } : {}), ...(done.hidden ? { hidden: true } : {}) });
+            delete end.substituteDeparture;
+          }
           while ((end.departureCursor ?? 0) < (end.departureSubjects?.length ?? 0)) {
             const id = end.departureSubjects![end.departureCursor ?? 0];
-            end.departureCursor = (end.departureCursor ?? 0) + 1;
             const holder = (Object.keys(state.sides) as PlayerId[]).find((p) => state.sides[p].zones.combo?.includes(id));
             if (holder) {
+              const eventKey = `8-5-8:${state.turn}:${id}:${state.cards[id].zoneEpoch ?? 0}`;
+              let replaced: ReplacementResult | null;
+              let substituteVars: Record<string, string[]> = {};
+              const awaiting = end.awaitingDeparture;
+              if (awaiting) {
+                if (awaiting.card !== id || state.lastMode === null) throw new RulesetBroken(state.game, "8-5-8 replacement answer lost its subject");
+                const index = state.lastMode;
+                state.lastMode = null;
+                delete end.awaitingDeparture;
+                const choice = awaiting.choices[index];
+                if (!choice && !(awaiting.allowNone && index === awaiting.choices.length)) throw new RulesetBroken(state.game, "8-5-8 replacement answer is not an offered route");
+                replaced = choice ? routeOf(choice) : null;
+                substituteVars = (choice as typeof choice & { vars?: Record<string, string[]> } | undefined)?.vars ?? {};
+              } else {
+                const choices = replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop" });
+                const allowNone = choices.length > 0 && choices.every((choice) => choice.optional);
+                if (choices.length > 1 || allowNone) {
+                  end.awaitingDeparture = { card: id, choices, allowNone };
+                  const prompt = replacementPrompt(nameOf(ctx, state, id), "drop", choices, allowNone);
+                  state.prompt = { kind: "replaceMove", player: masterOf(game, state, id), card: id, reason: prompt.reason, options: prompt.options };
+                  return "wait";
+                }
+                replaced = choices[0] ? routeOf(choices[0]) : null;
+                substituteVars = (choices[0] as typeof choices[number] & { vars?: Record<string, string[]> } | undefined)?.vars ?? {};
+              }
+              const triggered = end.preDropTriggeredSubjects?.includes(id);
+              if (triggered) {
+                if (replaced?.ops?.length || (replaced?.to && replaced.to !== "drop") || replaced?.mode || replaced?.position)
+                  throw new NotYet("resolve a changed 8-5-8 destination after its Combo-to-Drop Auto already answered", "#609");
+                const projected = structuredClone(state);
+                const route = leaveRoute(ctx, game, projected, [], id, "combo", "drop", { replaced, event: eventKey });
+                if (route.stays || route.to !== "drop") throw new NotYet("resolve a changed 8-5-8 destination after its Combo-to-Drop Auto already answered", "#609");
+              }
+              end.departureCursor = (end.departureCursor ?? 0) + 1;
               const origin = b.comboOrigins?.[id];
               const hidden = state.cards[id]?.hidden;
-              moved(ctx, game, state, ev, id, "drop", { owner: state.cards[id].owner, cleanupDeparture: true });
+              // Every substitute uses the same saved script interpreter, so
+              // captured variables and questions have one continuation path.
+              const deferred = !!replaced?.ops?.length;
+              const chosen = replaced && deferred ? { ...replaced, deferred: true } : replaced;
+              moved(ctx, game, state, ev, id, "drop", { owner: state.cards[id].owner, cleanupDeparture: true,
+                replaced: chosen, replacementEvent: eventKey });
               const after = findCard(state, id);
               if (after?.zone !== "drop" && end.preDropTriggeredSubjects?.includes(id))
                 throw new NotYet("resolve a changed 8-5-8 destination after its Combo-to-Drop Auto already answered", "#609");
               if (after?.zone === "drop") end.specialSubjects!.push({ card: id, to: after.zone, controller: after.owner,
                 ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) });
+              if (deferred && replaced?.ops?.length) {
+                end.substituteDeparture = { card: id, epoch: state.cards[id].zoneEpoch ?? 0,
+                  ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) };
+                state.programs.unshift({ ops: replaced.ops, ip: 0, vars: structuredClone(substituteVars), card: replaced.source ?? id,
+                  master: replaced.master ?? masterOf(game, state, id), subject: id, replacing: id,
+                  ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}) });
+                if (top) top.reask = true;
+                return;
+              }
+            } else {
+              if (end.awaitingDeparture) throw new RulesetBroken(state.game, "8-5-8 replacement subject left Combo while its answer was pending");
+              end.departureCursor = (end.departureCursor ?? 0) + 1;
             }
           }
           end.stage = "battleEndCheckpoint";
@@ -1339,12 +1403,12 @@ function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 }
 
 /**
- * The answer to a life card's question is in (`vm/index.ts`'s `chooseMode`):
- * if the Damage Step is the one waiting on it, it is asked to run again, the
- * way `applyCombo` re-asks the combo step. True when it was.
+ * A native replacement answer is in (`vm/index.ts`'s `chooseMode`): re-enter
+ * the Damage Step or the saved 8-5-8 Combo departure that offered it, rather
+ * than advancing past that step with an unread `lastMode`.
  */
 export function resumeDamage(state: VmState): boolean {
-  if (!state.battle?.damage?.awaiting && !state.battle?.markerLoss?.awaiting) return false;
+  if (!state.battle?.damage?.awaiting && !state.battle?.markerLoss?.awaiting && !state.battle?.endCombo?.awaitingDeparture) return false;
   const top = state.flow[state.flow.length - 1];
   if (top) delete top.asking;
   return true;
