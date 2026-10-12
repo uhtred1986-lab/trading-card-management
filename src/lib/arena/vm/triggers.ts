@@ -79,6 +79,8 @@ import { keywordMomentOf } from "./keyword-do";
  * which is the whole point, since a second game declares its own.
  */
 export interface VmPending {
+  /** Older serialized Auto entries omit the kind field. */
+  kind?: "auto";
   /** The card whose skill answers. */
   card: string;
   /** Which of that face's skills, by its printed index. */
@@ -90,6 +92,20 @@ export interface VmPending {
   /** The card the moment happened to, when that is another card (`BIND "subject"`). */
   subject?: string;
 }
+
+/** A captured declarative effect hook awaiting the same 9-6-6 checkpoint as an [Auto]. */
+export interface VmPendingHook {
+  kind: "hook";
+  card: string;
+  skillIndex: number | undefined;
+  master: PlayerId;
+  trigger: "afterSkill";
+  subject?: string;
+  /** Compiled operations and event bindings are captured when the event happens; never re-read card text. */
+  frame: import("./script").ScriptFrame;
+}
+
+export type VmPendingRecord = VmPending | VmPendingHook;
 
 /** A card asked whether it answers to a moment, and the name it would answer to. */
 export interface TriggerMatch {
@@ -345,8 +361,8 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
  * same game may not disagree about — a skill resolving a step later is a
  * different board.
  */
-export function nextPending(state: VmState): VmPending | null {
-  const pick = (p: PlayerId): VmPending | null => {
+export function nextPending(state: VmState): VmPendingRecord | null {
+  const pick = (p: PlayerId): VmPendingRecord | null => {
     const i = state.pending.findIndex((x) => x.master === p);
     return i >= 0 ? state.pending.splice(i, 1)[0] : null;
   };

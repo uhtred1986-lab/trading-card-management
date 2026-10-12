@@ -67,7 +67,7 @@ import type { GameDefinition, HookPoint } from "../rulesets";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { condHolds, hookBodiesFor, hookFrame } from "./program";
 import { inPlayZones } from "./zones";
-import type { Op, ScriptFrame } from "./script";
+import type { Cond, Op, ScriptFrame } from "./script";
 import type { VmState } from "./state";
 import { masterOf } from "./triggers";
 
@@ -105,7 +105,7 @@ export function fireAfterSkill(
     if (other === source) continue;
     for (const body of hookBodiesFor(ctx, game, state, other, "afterSkill")) {
       const vars = { source: [source], activatedExtra: cause === "heroicExtraSkillActivated" ? [source] : [] };
-      const frame = hookFrame(game, state, other, body.ops, vars, body.skillIndex);
+      const frame = hookFrame(game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars), vars, body.skillIndex);
       frames.push(frame);
       // Use the hook's own conditions and the source-event variables above;
       // an unrelated event's false branch must not raise this limitation.
@@ -114,13 +114,76 @@ export function fireAfterSkill(
       }
     }
   }
-  // An event can pend several keyword bodies. If one required self-negation
-  // has no individual skill identity, put the caught limitation before every
-  // body for this event, so no sibling copy draws before the failure.
-  state.programs.unshift(...frames.reverse());
+  // These are automatic effects, so retain their captured programs in the
+  // checkpoint queue. Confirmative processing (including 21-6) must run
+  // before any pending skill begins. Preserve collection order within this
+  // event; existing pending skills remain ahead of these newly captured ones.
   if (missingIdentityCard) {
-    state.programs.unshift({ ops: [], ip: 0, vars: {}, card: missingIdentityCard, master: owner, pendingHookIdentityMissing: true });
+    state.pending.push({
+      kind: "hook",
+      card: missingIdentityCard,
+      skillIndex: undefined,
+      master: owner,
+      trigger: "afterSkill",
+      frame: { ops: [], ip: 0, vars: {}, card: missingIdentityCard, master: owner, pendingHookSkill: true, pendingHookIdentityMissing: true },
+    });
   }
+  for (const frame of frames) state.pending.push({
+    kind: "hook",
+    card: frame.card,
+    skillIndex: frame.skillIndex,
+    master: owner,
+    trigger: "afterSkill",
+    ...(frame.subject ? { subject: frame.subject } : {}),
+    frame,
+  });
+}
+
+/**
+ * A HOOK condition made only from cards bound to this event describes whether
+ * the hook answered when the event happened. Freeze that branch while the
+ * source/activated card still has its event-time identity; keep mixed board or
+ * effect conditions live for resolution. This is generic to event-bound hook
+ * variables and does not name Heroic/Villainous or inspect printed text.
+ */
+function captureEventPredicates(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  subject: string,
+  ops: Op[],
+  vars: Record<string, string[]>,
+): Op[] {
+  const frame = hookFrame(game, state, subject, [], vars);
+  const eventVars = new Set(Object.keys(vars));
+  const boundOnly = (cond: Cond): boolean => {
+    switch (cond.kind) {
+      case "any":
+      case "all":
+        return cond.conds.length > 0 && cond.conds.every(boundOnly);
+      case "not":
+        return boundOnly(cond.cond);
+      case "count":
+      case "markers":
+      case "inBattle":
+      case "battled":
+      case "playedUsing":
+      case "placedThisTurn":
+      case "power":
+        return !!cond.sel.fromVar && eventVars.has(cond.sel.fromVar);
+      case "every":
+        return !!cond.sel.fromVar && eventVars.has(cond.sel.fromVar)
+          && !!cond.matching.fromVar && eventVars.has(cond.matching.fromVar);
+      default:
+        return false;
+    }
+  };
+  const capture = (program: Op[]): Op[] => program.flatMap((op) => {
+    if (op.op !== "if") return [op];
+    if (boundOnly(op.cond)) return capture(condHolds(ctx, game, state, frame, op.cond) ? op.then : (op.else ?? []));
+    return [{ ...op, then: capture(op.then), ...(op.else ? { else: capture(op.else) } : {}) }];
+  });
+  return capture(ops);
 }
 
 function hasActiveNegateOwnSkill(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ops: Op[]): boolean {
