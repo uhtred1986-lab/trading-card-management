@@ -22,9 +22,9 @@ pending API access. M16 has zero open issues; M17 has the open cross-milestone u
 P0 #549 remains partial after #671's priority-owner Auto selection; #609's later cleanup
 checkpoint remains distinct from #675's completed current-DSL combo-entry fix.
 
-Sixteen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
+Fifteen original implementation issues remain: M5 #549/#550/#552/#595/#609/#540/#541/#542;
 M2 #566; M1 original children complete with #539 parent/#680 follow-up open; M13 #459/#118; M4 #105/#106; providers #381/#518.
-In flight: P0 #549 secret-Auto declaration and P2 #557 genuine damage statistics. P1 #574 is complete in PR #679; P1 #680 follows up BT31-116's free Extra activation. PR #678 completed
+In flight: P0 #549 secret-Auto declaration (bounded priced-secret continuation); P2 #557 damage statistics are complete. P1 #574 is complete in PR #679; P1 #680 follows up BT31-116's free Extra activation. PR #678 completed
 #569 snapshot-derived read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
 Owner-run/ruling/catalog/fuzz/device/paid evidence is not inferred from local tests.
 Offline work remains a separate programme. The full issue catalogue below includes historical
@@ -77,7 +77,7 @@ Issue bodies contain scoped build instructions, named acceptance scenarios and v
 | [#555](https://github.com/uhtred1986-lab/trading-card-management/issues/555) R08 | P1 | Keep Aegis payment choices eligible after each selection | Completed; see canonical acceptance | [pv-r08.md](arena-backlog/pv-r08.md) |
 | [#556](https://github.com/uhtred1986-lab/trading-card-management/issues/556) R09 | P1 | Emit face-up life trigger events | Completed; see canonical acceptance | [pv-r09.md](arena-backlog/pv-r09.md) |
 | [#672](https://github.com/uhtred1986-lab/trading-card-management/issues/672) R17 | P0 | Resolve ordinary self-combo Autos at entry before combat | Closed by PR #675; current DSL, legacy/pinned history retained | [pv-r17.md](arena-backlog/pv-r17.md) |
-| [#557](https://github.com/uhtred1986-lab/trading-card-management/issues/557) R10 | P2 | Report genuine damage statistics for rules-engine games | [#544](https://github.com/uhtred1986-lab/trading-card-management/issues/544) | [pv-r10.md](arena-backlog/pv-r10.md) |
+| [#557](https://github.com/uhtred1986-lab/trading-card-management/issues/557) R10 | P2 | Report genuine damage statistics for rules-engine games | Complete; actual event totals and old/interrupted unavailable | [pv-r10.md](arena-backlog/pv-r10.md) |
 | [#626](https://github.com/uhtred1986-lab/trading-card-management/issues/626) R16 | P1 | Apply effective colours to energy payment planning | Merged [#629](https://github.com/uhtred1986-lab/trading-card-management/pull/629); unchanged rerun deployed | [pv-r16.md](arena-backlog/pv-r16.md) |
 | [#624](https://github.com/uhtred1986-lab/trading-card-management/issues/624) R15 | P1 | Pay Revive original-colored cards before additional Auto price | Merged [#630](https://github.com/uhtred1986-lab/trading-card-management/pull/630); deployed | [pv-r15.md](arena-backlog/pv-r15.md) |
 | [#602](https://github.com/uhtred1986-lab/trading-card-management/issues/602) R13 | P1 | Preserve granted Heroic individual skill identity | Merged [#638](https://github.com/uhtred1986-lab/trading-card-management/pull/638); deployed | [pv-r13.md](arena-backlog/pv-r13.md) |
@@ -230,6 +230,6 @@ No implementation issue has been marked fixed by this planning work. No producti
 deployment setting, or code PR merge was performed. Existing grounded prototype changes are preserved.
 Live-only verification is explicitly assigned to the owner; agents use local fixtures/PGlite.
 
-New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the sixteen original remaining issues; #574 retains this explicit shared payment limitation.
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the fifteen original remaining issues; #574 retains this explicit shared payment limitation.
 
-P1 #680 (M1, #539 parent): replace the verified BT31-116 free-play misreading with a real hand Main/Battle activation. This is the second additional review follow-up alongside #677, distinct from the sixteen original remaining implementation issues.
+P1 #680 (M1, #539 parent): replace the verified BT31-116 free-play misreading with a real hand Main/Battle activation. This is the second additional review follow-up alongside #677, distinct from the fifteen original remaining implementation issues.

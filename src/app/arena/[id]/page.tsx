@@ -166,7 +166,9 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
           outcome={snap.over}
           winnerName={snap.over.winner ? sideName(game.state, snap.over.winner) : null}
           turns={game.state.turn}
-          damage={{ you: damageTaken(game.state, snap.game.you), them: damageTaken(game.state, snap.game.you === "p1" ? "p2" : "p1") }}
+          damage={snap.over.kind === "interrupted" || snap.over.kind === "abandoned"
+            ? { you: null, them: null }
+            : { you: damageTaken(game.state, snap.game.you), them: damageTaken(game.state, snap.game.you === "p1" ? "p2" : "p1") }}
           spend={game.spend}
           review={review}
           aiEnabled={hasAnthropic()}

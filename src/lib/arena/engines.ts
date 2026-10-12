@@ -249,15 +249,11 @@ export function sideName(state: EngineState, p: PlayerId): string {
 /**
  * How much damage this side has taken (21-3), for the game-over screen.
  *
- * The legacy engine keeps a running count on the player (`damageTaken`,
- * incremented as life cards are taken); the rules engine's own `damage`
- * events carry the figure but nothing accumulates it onto a player attribute
- * — `vm/host.ts`'s `addDamageTaken` is a no-op, by its own comment, because
- * "a player attribute is the only place this engine keeps a number about a
- * player [and] nothing declares one". `0` is the honest placeholder rather
- * than a derived guess: summing the events would need the whole log, which a
- * board reading one saved `state` does not carry.
+ * Both engines accumulate their `damage` event amounts. A rules-engine save
+ * from before that counter existed has no lifetime figure to show: its
+ * absent counter is unavailable, never a fabricated zero or a partial total.
  */
-export function damageTaken(state: EngineState, p: PlayerId): number {
-  return isVmState(state) ? 0 : state.players[p].damageTaken;
+export function damageTaken(state: EngineState, p: PlayerId): number | null {
+  const count = isVmState(state) ? state.damageTotals?.[p] : state.players[p].damageTaken;
+  return typeof count === "number" && Number.isSafeInteger(count) && count >= 0 ? count : null;
 }

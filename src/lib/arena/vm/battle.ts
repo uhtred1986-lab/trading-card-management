@@ -1244,6 +1244,9 @@ function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   delete b.damage;
   const taken = d.taken;
   if (!taken.length) return;
+  // Record exactly the amount of the event below, once the possibly paused
+  // life-replacement loop has finished. Old saves remain unknown.
+  if (state.damageTotals) state.damageTotals[defender] += taken.length;
   log(ev, { type: "damage", player: defender, amount: taken.length, critical: d.critical, cards: taken });
   const attacker = b.attacker;
   fire(ctx, game, state, { event: "damage", card: attacker, controller: masterOf(game, state, attacker), args: { role: "source" } });
