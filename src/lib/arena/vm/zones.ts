@@ -83,6 +83,8 @@ function heldInPlay(game: GameDefinition, zone: string): boolean {
 export interface VmCard {
   /** Unique in this game (`p1#17`), the same convention the legacy engine uses. */
   id: string;
+  /** Increases on a new area entry, so a standing grant from this copy is not reused after it leaves and returns. */
+  zoneEpoch?: number;
   /** The catalog id (`BT18-020`), which is what `ctx.defs` is keyed by. */
   cardId: string;
   /** Whose card it is. A card in an opponent's area still belongs to its owner (3-1-6). */
@@ -311,7 +313,10 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     // stays in its Leader Area under 22-46-6, so its awakened face, position
     // and own attached pile must survive for 15-1-5 to restore it later.
     const leaderUnderZLeader = from?.zone === "leader" && at.zone === "leader" && onTop.zCard === true;
-    if (!leaderUnderZLeader) reset(card, null);
+    if (!leaderUnderZLeader) {
+      card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
+      reset(card, null);
+    }
     // A card that already has a pile of its own — an evolved Battle Card, a
     // Z-Stack — takes it along when it lands in an area of the same name
     // (23-2-6, `follows` below) and leaves each one in its own owner's Drop
@@ -392,7 +397,10 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
       if (out.ok) released.push({ ...out.move, from: from.zone, fromOwner: from.owner });
     }
   }
-  if (!opts.carry) reset(card, zone);
+  if (!opts.carry) {
+    if (from?.zone !== to || from.owner !== toOwner) card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
+    reset(card, zone);
+  }
   else if (zone.modes && !zone.modes.includes(card.mode ?? "")) card.mode = arrivalMode(zone);
   if (opts.mode !== undefined) card.mode = opts.mode;
   // 20-9-2: a carrying move (gaining control) keeps the card's markers as it

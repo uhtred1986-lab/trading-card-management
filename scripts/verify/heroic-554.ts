@@ -181,7 +181,7 @@ try {
   }
 
   // A non-Heroic Extra skill activation is not a 22-35-2 event, even if a
-  // card with an identity-less granted Heroic is listening.
+  // card with a timed granted Heroic is listening.
   {
     let s = mainPhase(5543);
     const granted = stage(s, "p1", "H554_TARGET", "battle");
@@ -193,7 +193,7 @@ try {
     assert.equal(handSize(s, "p1"), before, "the non-Heroic Extra's own draw offsets it leaving hand");
     assert.ok(s.sides.p1.zones.drop.includes(extra), "the activated Extra moved to Drop Area");
     assert.equal(result.events.filter((event) => event.type === "draw" && event.player === "p1").length, 1, "only the non-Heroic Extra's own effect draws");
-    assert.ok(!s.overReason, "an unrelated Extra skill does not surface the granted Heroic limitation");
+    assert.ok(!s.overReason, "an unrelated Extra skill does not activate the granted Heroic");
     assert.ok(!s.effects.some((effect) => effect.kind === "negateKeyword" && effect.target === granted), "the nonqualifying event neither negates the grant nor ends the game");
   }
 
@@ -243,17 +243,16 @@ try {
     assert.equal(s.cards[energy].mode, "rest", "the activated Extra's cost remains paid when its Heroic trigger is canceled");
   }
 
-  // A granted Heroic has no individual printed/copy skill index for
-  // negateOwnSkill. After JSON reload its pending body must terminate
-  // deterministically before drawing, rather than silently repeat or blanket
-  // negate every Heroic keyword on the card.
+  // A timed grant has its own effect identity. These cases retain the old
+  // unmatched-event and ordinary cancellation checks alongside the positive
+  // instance checks in granted-heroic-602.ts.
   {
     const s = mainPhase(5560);
     const granted = stage(s, "p1", "H554_GRANTED", "battle");
     addEffect(s, [], { master: "p1", source: granted, target: granted, kind: "keyword", value: { name: "Heroic" }, until: "turn" });
     const unrelated = stage(s, "p1", "H554_TARGET", "hand");
     const unmatched = playCard(s, unrelated);
-    assert.ok(!unmatched.state.overReason, "an unrelated non-Heroic play does not surface the granted Heroic limitation");
+    assert.ok(!unmatched.state.overReason, "an unrelated non-Heroic play does not activate the granted Heroic");
     assert.ok(!unmatched.events.some((event) => event.type === "draw"), "an unrelated event does not draw from Heroic");
   }
   {
@@ -269,7 +268,7 @@ try {
     const result = apply(JSON.parse(JSON.stringify(activated)) as VmState, { type: "choose", player: "p1", cards: [granted] });
     s = result.state;
     assert.ok(s.effects.some((effect) => effect.kind === "negateSkills" && effect.target === granted), "the Extra negates the grant card's whole skill set");
-    assert.ok(!s.overReason, "whole-skill negation cancels the identity-less hook before its #602 guard");
+    assert.ok(!s.overReason, "whole-skill negation cancels the identified grant hook");
     assert.ok(!result.events.some((event) => event.type === "draw" && event.player === "p1"), "neither the printed nor granted Heroic body draws after whole-skill negation");
     assert.ok(s.sides.p1.zones.battle.includes(target), "the unused second target remains untouched");
   }
@@ -302,9 +301,8 @@ try {
     s = activate(s, extra).state;
     assert.equal(s.prompt.kind, "chooseCards", "the successful Heroic Extra activation pends its trigger behind its target prompt");
     const pendingHooks = s.pending.filter((pending) => pending.kind === "hook");
-    const guardIndex = pendingHooks.findIndex((pending) => pending.frame.pendingHookIdentityMissing);
-    const firstHookIndex = pendingHooks.findIndex((pending) => pending.frame.pendingHookSkill && !pending.frame.pendingHookIdentityMissing);
-    assert.ok(guardIndex >= 0 && firstHookIndex > guardIndex, "the unsupported grant guard is ahead of every queued afterSkill body, while the Extra effect remains the active program");
+    assert.ok(pendingHooks.some((pending) => pending.frame.grantEffectId !== undefined), "the grant's persisted identity is captured with its hook");
+    assert.ok(!pendingHooks.some((pending) => pending.frame.pendingHookIdentityMissing), "identified grants need no interruption guard");
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const candidate = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
     assert.deepEqual(new Set(candidate), new Set([granted, sibling, other]), "the prompt remains resumable with the mixed printed/granted source and an independent printed sibling");
@@ -314,19 +312,10 @@ try {
     const repeated = resolve(saved);
     assert.equal(JSON.stringify(first), JSON.stringify(repeated), "the same reloaded prompt produces the same terminal outcome and events");
     s = first.state;
-    const terminal = s as VmState & { outcome?: { kind: string; privateContext?: { issue?: string; detail?: string } } };
-    const diagnostic = terminal.outcome?.privateContext?.detail ?? s.overReason;
-    assert.ok(diagnostic?.includes("negate a granted keyword hook that has no individual skill identity"), "the unsupported identity is retained in its terminal diagnostic");
-    if (terminal.outcome) {
-      assert.equal(terminal.outcome.kind, "interrupted", "the typed terminal state is an interruption");
-      assert.equal(terminal.outcome.privateContext?.issue, "#602", "the private diagnostic retains the live implementation owner");
-      assert.ok(!s.overReason?.includes("#602"), "the public reason does not reveal private interpreter diagnostics");
-    } else {
-      assert.ok(s.overReason?.includes("#602"), "the legacy terminal representation retains the #602 owner");
-    }
-    assert.deepEqual(s.programs, [], "the terminal limitation discards sibling pending skills so they cannot deliver afterward");
-    assert.ok(!first.events.some((event) => event.type === "draw"), `no Heroic draw occurs before the identity guard: ${first.events.filter((event) => event.type === "draw").map((event) => JSON.stringify(event))}`);
-    assert.equal(handSize(s, "p1"), before - 1, "all Heroic bodies fail before drawing; only the activated Extra leaving hand changes hand size");
+    assert.ok(!s.overReason, "resolving the reloaded grant and printed sibling does not interrupt");
+    assert.equal(first.events.filter((event) => event.type === "draw" && event.player === "p1").length, 3, "the grant, its printed Heroic, and an independent printed sibling each resolve");
+    assert.equal(handSize(s, "p1"), before + 2, "the Extra leaves hand before three Heroic draws");
+    assert.ok(s.effects.some((effect) => effect.kind === "negateGrantedSkill" && effect.target === granted), "the grant is individually negated");
     assert.ok(!s.effects.some((effect) => effect.kind === "negateKeyword" && effect.target === granted), "the engine does not blanket-negate the granted Heroic keyword");
     assert.equal(s.cards[energy].mode, "rest", "the already-paid activation cost remains applied");
   }
@@ -345,24 +334,19 @@ try {
     const before = handSize(s, "p1");
     s = activate(s, extra).state;
     assert.equal(s.prompt.kind, "chooseCards", "the paid Extra waits for its target while all three Heroic listeners are captured");
-    const guards = s.pending.filter((pending) => pending.kind === "hook" && pending.frame.pendingHookIdentityMissing);
-    const bodies = s.pending.filter((pending) => pending.kind === "hook" && pending.frame.pendingHookSkill && !pending.frame.pendingHookIdentityMissing);
-    assert.deepEqual(guards.map((pending) => pending.card), [firstGrant, lastGrant], "both identity-less grants have distinct ordered guards");
-    assert.ok(guards.length > 0 && bodies.length > 0 && s.pending.indexOf(guards.at(-1)!) < s.pending.indexOf(bodies[0]!), "all identity guards precede every sibling Heroic body");
+    const bodies = s.pending.filter((pending): pending is Extract<(typeof s.pending)[number], { kind: "hook" }> => pending.kind === "hook");
+    assert.ok(!bodies.some((pending) => pending.frame.pendingHookIdentityMissing), "multiple grants carry identities instead of guards");
+    assert.deepEqual(bodies.filter((pending) => pending.frame.grantEffectId !== undefined).map((pending) => pending.card), [firstGrant, lastGrant], "each grant keeps its own ordered identity");
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const candidate = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
     assert.ok(candidate.includes(lastGrant) && candidate.includes(firstGrant), "either grant remains a legal negation target after reload");
     const result = apply(s, { type: "choose", player: "p1", cards: [lastGrant] });
     s = result.state;
     assert.ok(s.effects.some((effect) => effect.kind === "negateSkills" && effect.target === lastGrant), "the requested negation genuinely applies to the last grant");
-    assert.ok(!result.events.some((event) => event.type === "draw" && event.player === "p1"), "the still-live first grant guard interrupts before either grant or printed sibling can draw");
-    const terminal = s as VmState & { outcome?: { kind: string; privateContext?: { issue?: string; detail?: string } } };
-    const diagnostic = terminal.outcome?.privateContext?.detail ?? s.overReason;
-    assert.ok(diagnostic?.includes("negate a granted keyword hook that has no individual skill identity"), "the earlier live grant retains its #602 limitation after the last grant is negated");
-    if (terminal.outcome) assert.equal(terminal.outcome.privateContext?.issue, "#602", "the private limitation remains attributed to #602");
-    else assert.ok(s.overReason?.includes("#602"), "the legacy terminal limitation remains attributed to #602");
-    assert.deepEqual(s.pending, [], "the interrupt discards the canceled last-grant guard and all sibling bodies");
-    assert.equal(handSize(s, "p1"), before - 1, "only the activated Extra leaving hand changes hand size; no Heroic payout occurs");
+    assert.equal(result.events.filter((event) => event.type === "draw" && event.player === "p1").length, 3, "the live first grant and two printed Heroic skills resolve after the last grant is canceled");
+    assert.equal(handSize(s, "p1"), before + 2, "the paid Extra leaves hand before three surviving draws");
+    assert.ok(!s.overReason, "one canceled grant does not interrupt the siblings");
+    assert.ok(s.effects.some((effect) => effect.kind === "negateGrantedSkill" && effect.target === firstGrant), "the surviving grant alone receives its per-turn negation");
     assert.equal(s.cards[energy].mode, "rest", "the successful Extra activation cost remains paid despite the limitation");
     assert.ok(s.sides.p1.zones.battle.includes(firstGrant) && s.sides.p1.zones.battle.includes(printedSibling), "the guard does not invent a blanket negation or move the unaffected listeners");
     assert.ok(!s.effects.some((effect) => effect.kind === "negateKeyword" && effect.target === firstGrant), "the engine never suppresses the earlier grant keyword to evade its guard");

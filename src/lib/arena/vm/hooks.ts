@@ -86,7 +86,7 @@ export { hookBodiesFor, queryHookStatics, type HookBody, type QueryFact } from "
  */
 export function fireHook(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint, vars: Record<string, string[]> = {}): void {
   if (HOOK_CONTRACT[point].answer !== "effect") throw new Error(`vm/hooks.ts: "${point}" is a query hook — use queryHookStatics, not fireHook`);
-  for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(game, state, subject, body.ops, vars, body.skillIndex));
+  for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(game, state, subject, body.ops, vars, body.skillIndex, body.grantEffectId, body.standingGrantId));
 }
 
 /** The activating player's other in-play cards hear one of 22-35-2's two events. */
@@ -105,11 +105,11 @@ export function fireAfterSkill(
     if (other === source) continue;
     for (const body of hookBodiesFor(ctx, game, state, other, "afterSkill")) {
       const vars = { source: [source], activatedExtra: cause === "heroicExtraSkillActivated" ? [source] : [] };
-      const frame = hookFrame(game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars), vars, body.skillIndex);
+      const frame = hookFrame(game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars), vars, body.skillIndex, body.grantEffectId, body.standingGrantId);
       frames.push(frame);
       // Use the hook's own conditions and the source-event variables above;
       // an unrelated event's false branch must not raise this limitation.
-      if (body.skillIndex === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, body.ops)) {
+      if (body.skillIndex === undefined && body.grantEffectId === undefined && body.standingGrantId === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, body.ops)) {
         missingIdentityCards.add(other);
       }
     }
@@ -118,9 +118,10 @@ export function fireAfterSkill(
   // checkpoint queue. Confirmative processing (including 21-6) must run
   // before any pending skill begins. Preserve collection order within this
   // event; existing pending skills remain ahead of these newly captured ones.
-  // Validate every qualifying identity-less listener before any sibling
-  // afterSkill body. If a later card's skill is negated, an earlier one must
-  // still reach its own unsupported-identity guard rather than run unguarded.
+  // Any custom hook without a provable individual identity still needs its
+  // limitation before sibling bodies. Timed and [Permanent] grants carry
+  // identities. A later card's negation cannot let an earlier unidentified
+  // hook run unguarded.
   for (const missingIdentityCard of missingIdentityCards) {
     state.pending.push({
       kind: "hook",
@@ -189,7 +190,7 @@ function captureEventPredicates(
   return capture(ops);
 }
 
-function hasActiveNegateOwnSkill(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ops: Op[]): boolean {
+export function hasActiveNegateOwnSkill(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ops: Op[]): boolean {
   return ops.some((op) => {
     if (op.op === "negateOwnSkill") return true;
     if (op.op !== "if") return false;
