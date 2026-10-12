@@ -1189,6 +1189,24 @@ export interface RejectedAction {
   why: Requirement[];
 }
 
+/** Stable identity of one skill line on one card instance. */
+export interface AbilityIdentity {
+  card: string;
+  /** The same index carried by an activate Action; copied skills use their engine-assigned copied index. */
+  skill: number;
+}
+
+/** Read-only engine result for one manual skill line at the current decision. */
+export interface AbilityAvailability extends AbilityIdentity {
+  state: "offered" | "refused" | "notEvaluated";
+  /** Why no cost or legality reading was made for this visible line. */
+  notEvaluatedReason?: "notDecisionActor" | "unsupported" | "unidentifiedAction";
+  /** Present only when the engine has current, authoritative refusal evidence. */
+  why?: Requirement[];
+  /** Exact current engine offers, including distinct alternative/X choices. */
+  offers?: LegalAction[];
+}
+
 /** Output of `apply`. */
 export interface Applied {
   state: GameState;

@@ -61,6 +61,8 @@ export interface Snapshot {
     archived?: true;
   };
   view: BoardView;
+  /** The actor and exact engine prompt/phase that currently owns the decision. */
+  decision?: { actor: PlayerId | null; window: string; phase: string; battleStep: string | null };
   legal: LegalAction[];
   taps: Tappable;
   /**
@@ -190,7 +192,9 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
   const rejected = rejectedFor(input);
   const legal = legalFor(input);
   const outcome = resolveOutcome(input.state as EngineState & { outcome?: import("./outcome").StoredOutcome | null }, input.status);
-  const boardView = engineFor(input.engine ?? FALLBACK_ENGINE).boardView(input.ctx, input.state, viewer, input.images);
+  const engine = engineFor(input.engine ?? FALLBACK_ENGINE);
+  const abilityAvailability = engine.abilityAvailability(input.ctx, input.state, viewer, legal, rejected);
+  const boardView = engine.boardView(input.ctx, input.state, viewer, input.images, abilityAvailability);
   if (outcome) boardView.over = { winner: outcome.winner, reason: outcome.reason };
   return {
     contract: CONTRACT_VERSION,
@@ -209,6 +213,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
       ...(input.p2User !== undefined ? { p2User: input.p2User } : {}),
     },
     view: boardView,
+    decision: { actor: boardView.prompt.player, window: boardView.prompt.kind, phase: boardView.phase, battleStep: boardView.battle?.step ?? null },
     legal,
     taps: tappable(legal, rejected),
     ...(rejected.length ? { rejected } : {}),
@@ -281,6 +286,7 @@ export function archivedSnapshotFor(store: StoredSnapshot, seat: PlayerId | null
     contract: CONTRACT_VERSION,
     game: { ...picked.game, revision: revision ?? picked.game.revision ?? 0, archived: true },
     view,
+    decision: { actor: null, window: "archived", phase: picked.view.phase, battleStep: null },
     over,
     beats: publicBeats(picked.beats, over),
     log: publicLog(picked.log, over),

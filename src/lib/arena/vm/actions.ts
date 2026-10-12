@@ -36,7 +36,7 @@
  * nothing read at request time.
  */
 import { IllegalAction } from "./common";
-import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
+import { type AbilityAvailability, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import type { VmAltCost } from "./effects";
 import { other, type Action, type PlayerId, type Prompt, type Requirement } from "../types";
 import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
@@ -486,6 +486,86 @@ export function declaredRejectedActions(ctx: EngineContext, game: GameDefinition
     out.push(...rejectionsOf(ctx, game, state, def, player, offered));
   }
   return out;
+}
+
+/**
+ * Read the current action menu and its declared refusals as per-line ability
+ * data. Rows are emitted only for skill lines the action declarations actually
+ * evaluated at this prompt; callers represent absent evidence as
+ * `notEvaluated` instead of inferring a reason from the client's clock.
+ */
+export function abilityAvailability(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  player: PlayerId,
+  legal: LegalAction[],
+  rejected: RejectedAction[],
+): AbilityAvailability[] {
+  const prompt = state.prompt;
+  if (!("player" in prompt)) return [];
+  const def = game.actions.activate;
+  if (!def?.skills?.length || !def.for) return [];
+  const actor = prompt.player;
+  const isBattleWindow = state.phase === "battle" && prompt.kind === "combo";
+  const isDeclaredWindow = actionsAt(game, state).includes(def) || isBattleWindow;
+  const rows: AbilityAvailability[] = [];
+
+  // A viewer may inspect the other player's face-up cards, but must not learn
+  // whether that player's hidden hand/life or energy makes a skill affordable.
+  // The current engine prompt is the evidence for this distinction.
+  if (actor !== player) {
+    for (const card of select(ctx, game, state, def.for, player)) {
+      for (const line of activationsOf(ctx, state, def, card, game)) {
+        rows.push({ card, skill: line.skillIndex, state: "notEvaluated", notEvaluatedReason: "notDecisionActor" });
+      }
+    }
+    return rows;
+  }
+
+  const offers = legal.filter((item) => item.action.type === "activate" && item.action.player === player);
+  const refusals = rejected.filter((item) => item.action.type === "activate" && item.action.player === player);
+  for (const offer of offers) {
+    const action = offer.action;
+    if (action.type !== "activate") continue;
+    const prior = rows.find((row) => row.card === action.card && row.skill === action.skill);
+    if (prior) {
+      prior.offers = [...(prior.offers ?? []), offer];
+    } else {
+      rows.push({ card: action.card, skill: action.skill, state: "offered", offers: [offer] });
+    }
+  }
+  for (const refusal of refusals) {
+    const action = refusal.action;
+    if (action.type !== "activate") continue;
+    if (rows.some((row) => row.card === action.card && row.skill === action.skill)) continue;
+    rows.push({ card: action.card, skill: action.skill, state: "refused", why: refusal.why });
+  }
+
+  // `actionsAt` is the same WHEN/prompts gate that controls the real menu. For
+  // an owner's own visible skill outside that gate, ask the declaration's
+  // candidate machinery against the unchanged state. That supplies its real
+  // zone, limit, condition and payment refusals; only the outer declaration
+  // gate contributes the timing reason. No phase, prompt, or turn is cloned.
+  for (const candidate of candidatesOf(ctx, game, state, def, player)) {
+    if (candidate.card === null || candidate.skill === undefined) continue;
+    const current = rows.find((row) => row.card === candidate.card && row.skill === candidate.skill);
+    if (current?.state === "offered" || current?.state === "refused") continue;
+    const why = [...candidate.why];
+    if (!isDeclaredWindow) {
+      const expected = def.when[0] ?? "main";
+      const timing: Requirement = { kind: "timing", window: expected };
+      if (!why.some((item) => item.kind === "timing")) why.unshift(timing);
+    }
+    if (!why.length) {
+      // Candidate machinery says it can be used, but there must also be a
+      // concrete offer from the actual prompt before we call it offered.
+      rows.push({ card: candidate.card, skill: candidate.skill, state: "notEvaluated", notEvaluatedReason: "unsupported" });
+    } else {
+      rows.push({ card: candidate.card, skill: candidate.skill, state: "refused", why });
+    }
+  }
+  return rows;
 }
 
 /**

@@ -26,7 +26,7 @@ tracking: true
 
 ## Order and hot files
 
-#565 → #566 → #567 → #568 → #569 → #570
+#565/#567/#607 are delivered; #566 is partial. #568 prerequisites (#545/#565) are merged, but its snapshot writes must follow #558 ownership. #569 follows #568 and #570 follows the ability/layout contracts.
 
 Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
 
@@ -39,4 +39,4 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 
 ## Measured checkpoint follow-up
 
-- [x] #607 **P1** — Profile and reduce repeated evaluation in corrected zero-power checkpoints (bounded child of #569; independent of polling #568). Isolated same-fixture apply improved from 656.847/887.796 ms to 83.144/95.482 ms p50/p95; state, event, legal/rejected-action and masked-view hashes match. Reports are [baseline](evidence/607/checkpoint-cache-baseline.json) and [optimized](evidence/607/checkpoint-cache-optimized.json); clean-stack PR #612 is reviewed-ready and awaiting merge, so this is not delivered. Preserve rule processing and verify invalidation/interaction outcomes.
+- [x] #607 **P1** — Profile and reduce repeated evaluation in corrected zero-power checkpoints (bounded child of #569; independent of polling #568). Isolated same-fixture apply improved from 656.847/887.796 ms to 83.144/95.482 ms p50/p95; state, event, legal/rejected-action and masked-view hashes match. Reports are [baseline](evidence/607/checkpoint-cache-baseline.json) and [optimized](evidence/607/checkpoint-cache-optimized.json); PR #612 is merged and production-deployed; the separate clean-stack paired run measured 628.709/791.338 ms to 72.133/80.835 ms. Both are local fixture measurements, not hosted/device timing. Preserve rule processing and verify invalidation/interaction outcomes.

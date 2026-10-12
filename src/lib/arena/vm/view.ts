@@ -27,12 +27,13 @@
  *
  * Pure and client-safe: no database, no network.
  */
-import type { EngineContext } from "../types";
+import type { AbilityAvailability, EngineContext } from "../types";
 import type { CardDef, PlayerId, Prohibition } from "../types";
 import type { StaticEffect } from "../engine/state";
-import type { BattleView, BoardView, CardArt, CardView, PermanentView, PromptView, SideView } from "../view";
+import { abilityViews, type BattleView, type BoardView, type CardArt, type CardView, type PermanentView, type PromptView, type SideView } from "../view";
 import { describeEffect, describeStatic, type EffectView } from "../effects";
 import { attrsOf, type Attrs } from "./cards";
+import { skillsOf } from "../text/cards";
 import { attrsNow, keywordsInForce, permanentStaticsOf, staticsNow } from "./program";
 import { DEFERRED_STATICS, STATIC_OPS } from "./effects";
 import { costModifierAs, describeScript, modifyAttrAs, negateAs, replaceAs, type Op } from "./script";
@@ -68,15 +69,15 @@ const VIEW_ZONES = {
 } as const;
 
 
-export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
+export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmState, viewer: PlayerId, images: Record<string, CardArt>, availability: AbilityAvailability[] = []): BoardView {
   const them: PlayerId = viewer === "p1" ? "p2" : "p1";
   return {
-    you: sideView(ctx, game, state, viewer, viewer, true, images),
-    them: sideView(ctx, game, state, them, viewer, false, images),
+    you: sideView(ctx, game, state, viewer, viewer, true, images, availability),
+    them: sideView(ctx, game, state, them, viewer, false, images, availability),
     turn: state.turn,
     phase: state.phase,
     turnPlayer: state.turnPlayer,
-    battle: battleView(ctx, game, state, images),
+    battle: battleView(ctx, game, state, images, availability, viewer),
     prompt: promptView(state, game),
     over: state.overReason !== null ? { winner: state.winner, reason: state.overReason } : null,
   };
@@ -94,7 +95,7 @@ export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmS
  * to be decided by the number it is actually being fought over, and the
  * `contributions` map is that same arithmetic kept rather than thrown away.
  */
-function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, images: Record<string, CardArt>): BattleView | null {
+function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, images: Record<string, CardArt>, availability: AbilityAvailability[], viewer: PlayerId): BattleView | null {
   const b = state.battle;
   if (!b) return null;
   const defender: PlayerId = state.turnPlayer === "p1" ? "p2" : "p1";
@@ -130,7 +131,7 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     step: b.step,
     attackPower,
     guardPower,
-    ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, game, state, c.card, images), by: c.by, after: c.after })) } : {}),
+    ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, game, state, c.card, images, availability, viewer), by: c.by, after: c.after })) } : {}),
     contributions,
   };
 }
@@ -269,12 +270,12 @@ function rulesOn(ctx: EngineContext, game: GameDefinition, state: VmState, p: Pl
   return out;
 }
 
-function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: PlayerId, viewer: PlayerId, mine: boolean, images: Record<string, CardArt>): SideView {
+function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: PlayerId, viewer: PlayerId, mine: boolean, images: Record<string, CardArt>, availability: AbilityAvailability[]): SideView {
   const zones = state.sides[p].zones;
   const at = (zone: string): string[] => zones[zone] ?? [];
-  const cards = (zone: string): CardView[] => at(zone).map((id) => cardView(ctx, game, state, id, images));
-  const one = (zone: string): CardView | null => (at(zone)[0] ? cardView(ctx, game, state, at(zone)[0], images) : null);
-  const faceUp = (zone: string): CardView[] => at(zone).filter((id) => state.cards[id].faceUp).map((id) => cardView(ctx, game, state, id, images));
+  const cards = (zone: string): CardView[] => at(zone).map((id) => cardView(ctx, game, state, id, images, availability, viewer));
+  const one = (zone: string): CardView | null => (at(zone)[0] ? cardView(ctx, game, state, at(zone)[0], images, availability, viewer) : null);
+  const faceUp = (zone: string): CardView[] => at(zone).filter((id) => state.cards[id].faceUp).map((id) => cardView(ctx, game, state, id, images, availability, viewer));
   const energy = at(VIEW_ZONES.energy);
   const choices = hiddenChoices(state, p, viewer, mine);
   const rules = rulesOn(ctx, game, state, p);
@@ -300,7 +301,7 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
     energyMarkers: Number(state.sides[p].attrs.energyMarkers ?? 0),
     activeEnergy: energy.filter((id) => state.cards[id].mode === "active").length,
     dropTop: one(VIEW_ZONES.drop),
-    ...(choices.length ? { choices: choices.map((id) => cardView(ctx, game, state, id, images)) } : {}),
+    ...(choices.length ? { choices: choices.map((id) => cardView(ctx, game, state, id, images, availability, viewer)) } : {}),
     ...(rules.length ? { rules } : {}),
   };
 }
@@ -313,7 +314,7 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
  * the game's own words, and a board that reached round it would be a second
  * one.
  */
-function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, images: Record<string, CardArt>): CardView {
+function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, images: Record<string, CardArt>, availability: AbilityAvailability[], viewer: PlayerId): CardView {
   const inst = state.cards[id];
   const def: CardDef | undefined = ctx.defs[inst.cardId];
   const printed: Attrs = def ? attrsOf(def, game).attrs : {};
@@ -339,8 +340,8 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
   let reading = "";
   let referee = false;
   const permanents: PermanentView[] = [];
-  if (def && !hidden) {
-    const showing = skillsShowing(ctx, state, id);
+  const showing = def && !hidden ? skillsShowing(ctx, state, id) : null;
+  if (showing) {
     for (const sk of showing.skills) {
       const sc = showing.scripts.bySkill[sk.index];
       if (!sc) continue;
@@ -362,6 +363,36 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
       else if (sc.ops.length) reading += (reading ? " · " : "") + describeScript(sc.ops);
     }
   }
+  const ownSkillIndexes = new Set(def ? skillsOf(def, inst.flipped && def.back ? "back" : "front").map((skill) => skill.index) : []);
+  // The queue is only one part of a pending Auto's lifetime. Once the
+  // checkpoint pops an Auto, its triggered ScriptFrame stays in `programs`
+  // while its own effect (or a price prompt) is waiting for an answer. Keep
+  // the public badge through that pause using only the visible card/line
+  // identity; never project the frame, trigger, subject, or saved bindings.
+  const autoIndexes = new Set(showing?.skills.filter((skill) => skill.kind === "auto").map((skill) => skill.index) ?? []);
+  const pending = new Set<number>(state.pending
+    .filter((item): item is Exclude<typeof item, { kind: "hook" }> => item.kind !== "hook" && item.card === id && typeof item.skillIndex === "number" && autoIndexes.has(item.skillIndex))
+    .map((item) => item.skillIndex));
+  for (const frame of state.programs) {
+    if (frame.card === id && frame.skillIndex !== undefined && frame.trigger !== undefined && autoIndexes.has(frame.skillIndex)
+      && !frame.pendingHookSkill && !frame.pendingHookIdentityMissing && !frame.afterSkillSource) {
+      pending.add(frame.skillIndex);
+    }
+  }
+  const abilityRows = showing ? abilityViews({
+    card: id,
+    skills: showing.skills,
+    copied: new Set(showing.skills.filter((skill) => !ownSkillIndexes.has(skill.index)).map((skill) => skill.index)),
+    zone: at?.zone ?? "unknown",
+    owner: inst.owner,
+    controller: masterOf(game, state, id),
+    viewer,
+    used: inst.usedThisTurn ?? [],
+    pending,
+    availability,
+    decisionActor: "player" in state.prompt ? state.prompt.player : null,
+    permanents,
+  }) : [];
   return {
     id,
     cardId: inst.cardId,
@@ -395,6 +426,7 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     ...(inPlay && power != null && faceValue != null && power !== faceValue ? { basePower: faceValue } : {}),
     ...(effects.length ? { effects } : {}),
     ...(permanents.length ? { permanents } : {}),
+    ...(abilityRows.length ? { abilities: abilityRows } : {}),
   };
 }
 

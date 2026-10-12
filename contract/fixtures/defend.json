@@ -39,7 +39,32 @@
         ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
         "reading": "draw 1",
-        "referee": false
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "keyword",
+            "category": "manual",
+            "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+            "tags": [
+              "Awaken"
+            ],
+            "zone": "leader",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "refused",
+            "why": [
+              {
+                "kind": "condition",
+                "text": "When your life is at 4 or less"
+              }
+            ],
+            "costPreview": {
+              "state": "incomplete"
+            }
+          }
+        ]
       },
       "unison": null,
       "battle": [
@@ -277,7 +302,26 @@
           ],
           "text": "[Unique]",
           "reading": "",
-          "referee": false
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "keyword",
+              "text": "[Unique]",
+              "tags": [
+                "Unique"
+              ],
+              "zone": "hand",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              }
+            }
+          ]
         },
         {
           "id": "p1#18",
@@ -302,7 +346,26 @@
           ],
           "text": "[Blocker]",
           "reading": "",
-          "referee": false
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "keyword",
+              "text": "[Blocker]",
+              "tags": [
+                "Blocker"
+              ],
+              "zone": "hand",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              }
+            }
+          ]
         }
       ],
       "handCount": 10,
@@ -407,6 +470,12 @@
       "hint": "Each adds its combo power and costs its combo cost."
     },
     "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "combo",
+    "phase": "battle",
+    "battleStep": "defense"
   },
   "legal": [
     {
