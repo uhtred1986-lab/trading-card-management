@@ -48,7 +48,7 @@ import { PLAYERS, type PlayerId, type Requirement } from "../types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, readingBoard, spendProhibitionUse } from "./program";
 import { whoseSkills } from "./script";
 import { chargesOf, describePayment } from "./costs";
@@ -154,7 +154,9 @@ export {
 const ARENA_GAME: Game = "dbs";
 
 /** The loaded definition, or a `RulesetBroken` naming the first thing wrong with it. */
-function definitionFor(game: Game): GameDefinition {
+function definitionFor(game: Game, ctx?: EngineContext): GameDefinition {
+  const pinned = (ctx as (EngineContext & { rulesetDefinition?: GameDefinition }) | undefined)?.rulesetDefinition;
+  if (pinned?.id === game) return pinned;
   const loaded = rulesetFor(game);
   if (!loaded.ok) {
     const first = loaded.errors[0];
@@ -190,7 +192,7 @@ function definitionFor(game: Game): GameDefinition {
  * out of 6,500 must not be what stops a game.
  */
 function createGame(ctx: EngineContext, options: GameOptions): { state: VmState; events: GameEvent[] } {
-  const game = definitionFor(ARENA_GAME);
+  const game = definitionFor(ARENA_GAME, ctx);
   const rules = game.game;
   if (!rules) throw new RulesetBroken(ARENA_GAME, "it declares no DEFINE GAME, so there are no setup numbers to deal");
   if ((rules.players ?? 2) !== 2) throw new RulesetBroken(ARENA_GAME, `it declares ${rules.players} players, and a game is played by the two the app seats`);
@@ -361,7 +363,7 @@ function report(problems: AttrProblem[], gaps: { unfilled: string[]; undeclared:
  * it found it.
  */
 function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmState; events: GameEvent[] } {
-  const game = definitionFor(prev.game);
+  const game = definitionFor(prev.game, ctx);
   const state = structuredClone(prev);
   const events: GameEvent[] = [{ type: "action", action }];
 
@@ -530,6 +532,10 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       spendUses(ctx, game, state, action);
       break;
     }
+    case "zEnergyFromCombo": {
+      if (applyZEnergyFromCombo(ctx, game, state, events, action) === "wait") return { state, events };
+      break;
+    }
     // #150: an [Activate: Battle] at the combo prompt is the declared
     // `activate` read against the battle's own window (`vm/battle.ts`); at
     // every other prompt it is the declaration as written, below.
@@ -618,16 +624,15 @@ function spendUses(ctx: EngineContext, game: GameDefinition, state: VmState, act
  * left of it is 13-3's Unison growth, whose once-a-turn gate the language has
  * no word for — a player attribute a condition can read and an op that sets one
  * — and the two answers that are not moves a menu enumerates. An activation
- * is declared (#147) and gone from this list too. `attack`, `block`, `combo`
- * and `counter` are #150's own paragraph — native rather than declared, and
+ * is declared (#147) and gone from this list too. `attack`, `block`, `combo`,
+ * `counter` and the battle-end `zEnergyFromCombo` choice are native mechanics,
+ * rather than declared actions, and
  * handled in the `switch` above before this table is ever consulted for
- * them — so they are gone from here as well; the Z-Energy a spent combo card
- * can become at the end of the battle is still #151's (`zEnergyFromCombo`).
+ * them — so they are gone from here as well.
  */
 const DECLARED_BY: Partial<Record<Action["type"], string>> = {
   growUnison: "#146",
   offering: "#157",
-  zEnergyFromCombo: "#151",
 };
 
 /** 6-2-1-9-1: the hand goes to the bottom of the deck, the deck is shuffled, and six new cards are drawn — once. */
@@ -650,7 +655,7 @@ function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, even
  * legacy engine does with it.
  */
 function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
-  const game = definitionFor(state.game);
+  const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => [...declaredLegalActions(ctx, game, state), ...promptAnswers(ctx, state)]);
 }
 
@@ -675,7 +680,7 @@ function shownName(ctx: EngineContext, state: VmState, id: string): string {
 }
 
 function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
-  const game = definitionFor(state.game);
+  const game = definitionFor(state.game, ctx);
   const pr = state.prompt;
   switch (pr.kind) {
     // 8-1: the fifth thing 7-3-4's free timing grants, beside the declared
@@ -703,6 +708,11 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     // natively above since the combo prompt is not among its declared ones.
     case "combo":
       return [...comboLegalActions(ctx, game, state), { action: { type: "pass", player: pr.player }, label: "Pass" }];
+    case "zEnergyFromCombo":
+      return [
+        ...pr.candidates.map((card) => ({ action: { type: "zEnergyFromCombo" as const, player: pr.player, card }, label: `Place ${shownName(ctx, state, card)} in Z-Energy` })),
+        { action: { type: "zEnergyFromCombo" as const, player: pr.player, card: null }, label: "Decline" },
+      ];
     case "chooseFirst":
       return PLAYERS.map((first) => ({ action: { type: "chooseFirst", player: pr.player, first }, label: first === pr.player ? "Go first" : "Go second" }));
     case "mulligan":
@@ -716,7 +726,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     case "payCost":
       return pr.options.map((option, i) => ({
         action: { type: "payCost", player: pr.player, option: i },
-        label: `Rest ${describePayment(ctx, definitionFor(state.game), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, markersOff: [], life: [], pooled: [], restsSelf: false })}`,
+        label: `Rest ${describePayment(ctx, definitionFor(state.game, ctx), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, markersOff: [], life: [], pooled: [], restsSelf: false })}`,
       }));
     // 5-2: one card per answer, so the menu is one move per candidate — the
     // legacy engine's labels word for word, because a client that read
@@ -761,7 +771,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
  * could reach for and miss.
  */
 function rejectedActions(ctx: EngineContext, state: VmState, legal: LegalAction[]): RejectedAction[] {
-  const game = definitionFor(state.game);
+  const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => rejectedActionsOf(ctx, game, state, legal));
 }
 
@@ -840,7 +850,7 @@ function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: 
 
 /** The board, drawn from the declarations for one side of the table. */
 function boardView(ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
-  const game = definitionFor(state.game);
+  const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => vmBoardView(ctx, game, state, viewer, images));
 }
 

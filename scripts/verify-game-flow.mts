@@ -32,7 +32,7 @@ export async function verifyGameFlow(db: Db): Promise<void> {
   });
   await db.insert(schema.cards).values([
     card("BT18-960", "Flow Leader", "LEADER", { power: 10000, backName: "Flow Leader Awakened", backPower: 15000, backImageUrl: "https://img.example/BT18-960-back.png" }),
-    card("BT18-961", "Flow Fighter", "BATTLE", { power: 10000, energyCost: "1", comboPower: 5000 }),
+    card("BT18-961", "Flow Fighter", "BATTLE", { power: 10000, energyCost: "1", comboPower: 5000, skill: "[Permanent] This card gets +3000 power." }),
     card("BT18-962", "Flow Brawler", "BATTLE", { power: 15000, energyCost: "2", comboPower: 5000 }),
   ]);
   const [deck] = await db.insert(schema.decks).values({ name: "Flow Deck", game: "dbs" }).returning({ id: schema.decks.id });
@@ -41,6 +41,20 @@ export async function verifyGameFlow(db: Db): Promise<void> {
     { deckId: deck.id, cardId: "BT18-961", zone: "main", quantity: 25 },
     { deckId: deck.id, cardId: "BT18-962", zone: "main", quantity: 25 },
   ]);
+  await db.insert(schema.cardRules).values({
+    cardId: "BT18-961",
+    side: "front",
+    skillIndex: 0,
+    printed: "[Permanent] This card gets +3000 power.",
+    kind: "permanent",
+    trigger: [],
+    cost: null,
+    cond: null,
+    ops: [{ op: "power", target: { sel: { special: "self" } }, amount: 3000, until: "game" }],
+    status: "confirmed",
+    source: "user",
+    unread: [],
+  });
 
   const id = await startGame(db, deck.id, deck.id, "hotseat", false, { p1User: null, p2User: null }, "rules");
   const engine = engineFor("rules");
@@ -117,11 +131,14 @@ export async function verifyGameFlow(db: Db): Promise<void> {
   const s1 = await snapshotOfGame(db, (await loadGame(db, id))!);
   const s2 = await snapshotOfGame(db, vsAfter);
   assert.deepEqual(s1, s2, "a written game and a re-read one draw the same board");
+  assert.equal(JSON.stringify(s1).includes("rulesBundle"), false, "ordinary player snapshots never carry replay bundles");
 
   await (await import("./verify/arena-revision.mts")).verifyArenaRevision(db, deck.id);
   await (await import("./verify/arena-ai-usage.ts")).verifyArenaUsageGameplayWrites(db, id);
+  await (await import("./verify/arena-replay.ts")).verifyArenaReplay(db, id, deck.id);
 
   await db.delete(schema.arenaGames).where(eq(schema.arenaGames.id, id));
+  await db.delete(schema.cardRules).where(eq(schema.cardRules.cardId, "BT18-961"));
   await db.delete(schema.decks).where(eq(schema.decks.id, deck.id));
   console.log("verify-db: saved-game round trip on the rules engine ok");
 }

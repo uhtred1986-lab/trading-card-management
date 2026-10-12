@@ -525,6 +525,7 @@ Only the Android app uses these; the web board calls §2 directly.
 | `GET` | `/api/v1/games` | `?limit=20` | game list, as `/arena` shows it |
 | `POST` | `/api/v1/games` | `{ p1DeckId, p2DeckId, mode, debug, engine? }` | `{ id, engine, engineNote? }` — `mode` excludes `versus`, §3.3 |
 | `GET` | `/api/v1/games/{id}` | `?sinceRevision=R&sinceBeat=N&wait=25` | `Snapshot` — §6 |
+| `GET` | `/api/v1/games/{id}/replay` | — | admin-only immutable replay export; never part of `Snapshot` |
 | `POST` | `/api/v1/games/{id}/actions` | `{ index, basedOn, requestId }` | `Snapshot` — your move only |
 | `POST` | `/api/v1/games/{id}/advance` | — | `Snapshot` once Claude has finished deciding |
 | `POST` | `/api/v1/games/{id}/abandon` | `{ basedOn, requestId }` | `Snapshot` |
@@ -551,6 +552,17 @@ same version-guarded write as the move or abandonment. A repeated id with the sa
 the current snapshot without applying the mutation or advancing Claude again; reusing it for a
 different payload returns `idempotency_conflict`. Receipts stay with the game for its lifetime.
 Older clients that omit freshness or identity fields receive `contract_mismatch` and must update.
+
+**Replay exports are a separate admin-only surface.** A newly created match stores its original deck
+inputs and an immutable content-addressed bundle of the ruleset source, normalized card catalogue,
+compiled card programs and art references. The export contains that bundle, seed and action list;
+the ordinary `Snapshot` contains none of them. Run an exact export offline with
+`DATABASE_URL='' npm run arena:replay -- <export.json> --runtime-revision <matching-source-sha>`
+with the interpreter revision recorded in the bundle. An export may be marked `exact: false` only
+because it is being viewed from a newer deployment; its pinned inputs still replay when the operator
+checks out the recorded revision. Historical matches without a bundle remain playable through their
+compatibility path, but the admin export labels them non-exact and never substitutes today's deck or
+rules. A missing or hash-invalid pin fails closed instead of loading current mutable inputs.
 
 The deck endpoints are now live (13 Sep 2026) — read-only, shaped by `src/lib/decks/legality.ts`
 exactly as the web deck page renders it, and pinned by their own golden fixtures (§5.1) so a shape

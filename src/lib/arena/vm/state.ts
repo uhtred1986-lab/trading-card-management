@@ -57,10 +57,11 @@ import type { StoredOutcome } from "../outcome";
 /**
  * The battle in progress (8-1), or its absence.
  *
- * The legacy engine's own `Battle` shape, pared to what #150's flow actually
- * reads and writes: no `revenge`/`reactivate` (22-9/22-8, keyword bodies
- * Stage 7 has not built) and no Z-Energy bookkeeping (`zEnergyFromCombo` is
- * #151's). What is here is what `ScriptHost.battle()` hands a running program
+ * The legacy engine's own `Battle` shape, pared to what the rules flow reads
+ * and writes: no `revenge`/`reactivate` (22-9/22-8, keyword bodies Stage 7 has
+ * not built). #551 adds the serializable end-of-battle Z-Energy choice cursor
+ * and held combo contribution needed through 8-5-4. What is here is what
+ * `ScriptHost.battle()` hands a running program
  * (`redirectAttack`, `negateAttack`, §22-13's [Union-Absorb] guard swap) and
  * what the board's `BattleView` reads back (`vm/view.ts`).
  */
@@ -105,6 +106,17 @@ export interface VmBattle {
    * battle does not get its place in it back. Absent on every other battle.
    */
   hiddenOut?: true;
+  /**
+   * 8-5-2..5: the per-player combo-to-Z choice and the checkpoint immediately
+   * after it. `retainedComboPower` keeps a chosen card's 8-5-4 contribution
+   * through that checkpoint; it is discarded when the Battle Cards leave
+   * Combo Areas at 8-5-5..8. Optional so saved states from before #551 load.
+   */
+  endCombo?: {
+    chooserIndex: number;
+    stage: "choices" | "checkpoint" | "cleanup";
+    retainedComboPower: Partial<Record<PlayerId, Record<string, number>>>;
+  };
 }
 
 /** What `vm/battle.ts`'s `damageLife` needs to pick up where it stopped: the legacy `battleDamage`'s `resume`, plus [Victory Strike]'s ending (the attacker's rule, read once when the damage began). */
