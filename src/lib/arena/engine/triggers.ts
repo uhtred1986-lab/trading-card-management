@@ -4,7 +4,8 @@
  * (which imports the interpreter).
  */
 import { areaOf, cardsInPlay, forbids, masterOf, move, scriptsOfInstance, skillNegated, skillsNegated, skillsOfInstance } from "./state";
-import { autoTriggerMatches, keywordTriggers } from "../text/triggers";
+import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, keywordTriggers } from "../text/triggers";
+import { NotYet } from "../vm/errors";
 import type { GameContext, MoveOptions } from "../types";
 // `masterOf` lives in `state.ts` — it is a question about where a card *is*,
 // and the ownership audit in `glossary.ts` made every one of its callers a
@@ -71,12 +72,22 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     const isKeyword = sk.kind === "keyword" && keywordTriggers(sk, trigger);
     if (!isAuto && !isKeyword) continue;
     if (isAuto && !skillAnswersTo(ctx, s, card, sk, trigger)) continue;
+    // `comboed` is pended only by 8-5's battle cleanup, after moving this
+    // card to Drop. Its earlier entry source still belongs to this battle.
+    if (isAuto && comboBattleEndOpponentTurn(sk) && s.turnPlayer === master) continue;
+    if (isAuto && comboBattleEndFromHand(sk)) {
+      if (trigger !== "comboed" || s.battle?.step !== "battleEnd") continue;
+      const origin = s.battle.comboOrigins?.[card];
+      if (origin === undefined) throw new NotYet("infer the origin of a combo card in an older saved battle", "#572");
+      if (origin !== "hand") continue;
+    }
     // 22-11-5 / 22-44-5: once-per-turn and [Limit X] skills stop pending once used up.
     const used = inst.usedThisTurn.filter((i) => i === sk.index).length;
     if (sk.oncePerTurn && used >= 1) continue;
     if (sk.limit != null && used >= sk.limit) continue;
     s.pending.push({ card, skillIndex: sk.index, master, trigger, subject });
   }
+  if (trigger === "comboed") delete s.battle?.comboOrigins?.[card];
 }
 
 /**

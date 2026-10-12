@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { TURN_END_AFTER_PLACED } from "../text/triggers";
+import { TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, KeywordSkill, Skill } from "../types";
 import { splitClauses, stripNotes } from "./clauses";
@@ -337,10 +337,10 @@ function compileSkillText(skill: Skill): Script {
     if (TURN_END_AFTER_PLACED.test(trigger.trim().toLowerCase())) triggerCond = { kind: "placedThisTurn", sel: { special: "self" } };
     // "At the end of a battle in which you combo with this card from your hand
     // **during your opponent's turn**" (BT6-010, #539): the moment is
-    // `comboed`; whose turn it is, a condition on it. Known approximation:
-    // "from your hand" is not checked — nothing remembers where a combo card
-    // came from, and almost every combo is from the hand.
-    if (/^at the end of (?:the|a|this) battle(?: after| in which) you combo/i.test(trigger.trim()) && /\bduring your opponent'?s turn\b/i.test(trigger))
+    // `comboed`; whose turn it is, a condition on it. The two trigger
+    // interpreters now bind "from your hand" to this battle's combo-entry
+    // source before queueing the Auto, rather than widening this condition.
+    if (comboBattleEndOpponentTurn(skill))
       triggerCond = { kind: "not", cond: { kind: "isTurnPlayer" } };
     // "When this card is sent from your deck to your Warp by your <Heles>
     // card's skill" (BT30-106, 3-10): the moment is any skill of yours

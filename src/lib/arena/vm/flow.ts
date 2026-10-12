@@ -435,7 +435,19 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     else if (top.asking === undefined) {
       top.asking = askers(state, step);
       const pended = state.pending.length;
-      const worked = STEP_WORK[name]?.run(ctx, game, state, ev);
+      let worked: "wait" | void;
+      try {
+        worked = STEP_WORK[name]?.run(ctx, game, state, ev);
+      } catch (err) {
+        if (!(err instanceof NotYet)) throw err;
+        // Native steps may discover unsupported saved-state information while
+        // firing their moments, before any pending program reaches the usual
+        // script-level NotYet catch. Preserve the typed terminal outcome.
+        interruptGame(ctx, game, state, ev, { issue: err.issue, detail: err.message });
+        // Let the new over-phase frame put up its terminal prompt before the
+        // runner returns to the caller.
+        continue;
+      }
       checkWins(ctx, game, state, ev);
       // The work may have ended the game or passed the turn, either of which
       // replaces the flow this frame was on.
