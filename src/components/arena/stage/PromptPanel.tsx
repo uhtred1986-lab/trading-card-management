@@ -11,6 +11,7 @@ import { isGhostAction, shortLabel } from "../shared";
 export function PromptPanel({
   view,
   decision,
+  handDecision = false,
   overOutcome,
   playable,
   yourTurn,
@@ -40,6 +41,7 @@ export function PromptPanel({
 }: {
   view: BoardView;
   decision?: Snapshot["decision"];
+  handDecision?: boolean;
   overOutcome: PublicOutcome | null;
   playable: boolean;
   yourTurn: boolean;
@@ -86,6 +88,15 @@ export function PromptPanel({
     ...(side.rules ?? []).map((rule) => ({ name: side.name, rule })),
     ...[side.leader, side.unison, ...side.battle].flatMap((card) => (card?.effects ?? []).filter((rule) => rule.kind === "forbid" || rule.kind === "negate" || rule.kind === "keyword").map((rule) => ({ name: card!.name, rule }))),
   ]);
+  const battleDetails = view.battle ? <details data-battle-assumptions className={handDecision ? "min-w-0 flex-1" : undefined}>
+            <summary className="tap min-h-11 cursor-pointer py-2 underline underline-offset-2">Assumptions / public rules{publicBlockers.length + publicRules.length > 0 ? ` (${publicBlockers.length + publicRules.length})` : ""}</summary>
+            <div className="max-h-[20dvh] overflow-y-auto pr-1">
+            {view.battle.stakes && <p>{view.battle.stakes.assumption}</p>}
+            {view.prompt.passConsequence && <p>{view.prompt.passConsequence}</p>}
+            {publicBlockers.length > 0 && <p>Blocker cards: {publicBlockers.join(" · ")}. Readiness alone does not guarantee a legal block in this window.</p>}
+            {publicRules.map(({ name, rule }, i) => <p key={i}>{name}: {rule.label} · {untilWords(rule.until, { master: rule.by, viewer: view.you.player, them: view.them.name, sourceName: rule.sourceName })}</p>)}
+            </div>
+          </details> : null;
   const line: React.ReactNode = playing ? (
     `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
   ) : overOutcome ? (
@@ -115,21 +126,15 @@ export function PromptPanel({
           <p className="font-semibold">{(decision?.actor ?? view.prompt.player) === view.you.player ? "You" : (decision?.actor ?? view.prompt.player) === view.them.player ? view.them.name : "Referee"} · {(decision?.window ?? view.prompt.kind).replace(/([a-z])([A-Z])/g, "$1 $2")}{view.battle ? ` · ${view.battle.step} step` : ` · ${view.phase}`}</p>
           {view.battle && <p data-battle-stakes>Attack {view.battle.attackPower.toLocaleString("en")} · Defense {view.battle.guardPower.toLocaleString("en")} — {view.battle.stakes ? "If nothing else changes: " : ""}{stakesSummary(view.battle)}</p>}
           {view.prompt.passConsequence && <p data-pass-consequence>{view.prompt.passConsequence.split(".")[0]}.</p>}
-          {view.battle && <details>
-            <summary className="tap min-h-11 cursor-pointer py-2 underline underline-offset-2">Assumptions / public rules{publicBlockers.length + publicRules.length > 0 ? ` (${publicBlockers.length + publicRules.length})` : ""}</summary>
-            <div className="max-h-[20dvh] overflow-y-auto pr-1">
-            {view.battle.stakes && <p>{view.battle.stakes.assumption}</p>}
-            {view.prompt.passConsequence && <p>{view.prompt.passConsequence}</p>}
-            {publicBlockers.length > 0 && <p>Blocker cards: {publicBlockers.join(" · ")}. Readiness alone does not guarantee a legal block in this window.</p>}
-            {publicRules.map(({ name, rule }, i) => <p key={i}>{name}: {rule.label} · {untilWords(rule.until, { master: rule.by, viewer: view.you.player, them: view.them.name, sourceName: rule.sourceName })}</p>)}
-            </div>
-          </details>}
+          {!handDecision && battleDetails}
         </div>
       )}
       {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
-      <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"}`}>
-        <span className="line-clamp-3">{line}</span>
-      </p>
+      {handDecision && !playing && !bad && !isTargeting ? battleDetails : (
+        <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"}`}>
+          <span className="line-clamp-3">{line}</span>
+        </p>
+      )}
 
       {playing && pace === "step" && (
         <button type="button" onClick={onNext} className="arena-btn tap h-12 shrink-0 rounded-xl bg-ki-500 px-4 text-base text-space-950 hover:bg-ki-400">

@@ -49,9 +49,9 @@ export function battleFixture(kind:'tie'|'double'|'critical'|'lethal'|'victory'=
 export function fixtureContext(){return {...CTX,defs:DEFS,scripts:rulesFromCompiler(DEFS)};}
 export const engine562=engineFor('rules');
 export function apply562(state:VmState,action:Action){return engine562.apply(fixtureContext(),state,action);}
-export function snapshot562(state:VmState,revision=1,viewer:PlayerId='p1') {
+export function snapshot562(state:VmState,revision=1,viewer:PlayerId='p1',id=562) {
  assertFixtureAreas(state);
- const ctx=fixtureContext();return buildSnapshot({id:562,revision,engine:'rules',mode:'versus',status:'playing',p1Name:'You',p2Name:'Opponent',ctx,state,legal:engine562.legalActions(ctx,state),log:[],beats:null,spotlight:null,spend:{calls:0,input:0,output:0,cached:0,micros:0},ai:null,viewer,images:{'BT11-053':{front:'http://arena-561-art.local/BT11-053.jpg',back:null},'BT1-055':{front:'http://arena-561-art.local/BT1-055.webp',back:null}}});
+ const ctx=fixtureContext();return buildSnapshot({id,revision,engine:'rules',mode:'versus',status:'playing',p1Name:'You',p2Name:'Opponent',ctx,state,legal:engine562.legalActions(ctx,state),log:[],beats:null,spotlight:null,spend:{calls:0,input:0,output:0,cached:0,micros:0},ai:null,viewer,images:{'BT11-053':{front:'http://arena-561-art.local/BT11-053.jpg',back:null},'BT1-055':{front:'http://arena-561-art.local/BT1-055.webp',back:null}}});
 }
 export function paymentFixture(){
  const {state}=battleFixture();const loaded=rulesetFor('dbs');if(!loaded.ok)throw Error('DBS unavailable');
@@ -61,4 +61,13 @@ export function paymentFixture(){
  const result=apply562(state,{type:'combo',player:'p1',card:combo});
  if(result.state.prompt.kind!=='payCost')throw Error(`Expected real payCost, got ${result.state.prompt.kind}`);
  return {state:result.state as VmState,combo};
+}
+
+/** An occupied row must retain its ordinary card footprint during hand decisions. */
+export function occupiedFixture() {
+ const {state}=battleFixture();const loaded=rulesetFor('dbs');if(!loaded.ok)throw Error('DBS unavailable');
+ const cardId=state.sides.p1.zones.hand.find(id=>state.cards[id].cardId==='V1')!;
+ assert(cardId,'fixture has a public Battle Card to stage');
+ const moved=moveCard(state,loaded.definition,cardId,'battle',{owner:'p1'});assert(moved.ok);
+ assertFixtureAreas(state);return {state,card:cardId};
 }
