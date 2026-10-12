@@ -53,6 +53,16 @@ function stage(s: VmState, p: PlayerId, id: string, area: "hand" | "battle" | "e
 function apply(s: VmState, action: Action): { state: VmState; events: ReturnType<typeof rules.apply> extends { events: infer E } ? E : never } {
   return rules.apply(CTX, s, action) as never;
 }
+function selectPending(result: ReturnType<typeof apply>, label: string, matches: (pending: VmState["pending"][number]) => boolean): ReturnType<typeof apply> {
+  const s = result.state;
+  assert.equal(s.prompt.kind, "orderPending", `${label} awaits an explicit 9-6-3 selection`);
+  const candidates = s.prompt.kind === "orderPending" ? s.prompt.candidates.filter((index) => matches(s.pending[index])) : [];
+  assert.equal(candidates.length, 1, `${label} has one bound pending record`);
+  const action = rules.legalActions(CTX, s).find((entry) => entry.action.type === "orderPending" && entry.action.index === candidates[0])?.action;
+  assert.ok(action, `${label} is a legal selection`);
+  const selected = apply(JSON.parse(JSON.stringify(s)) as VmState, action);
+  return { state: selected.state, events: [...result.events, ...selected.events] };
+}
 
 function playCard(s: VmState, cardId: string): { state: VmState; events: ReturnType<typeof rules.apply> extends { events: infer E } ? E : never } {
   const legal = rules.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === cardId);
@@ -281,7 +291,15 @@ try {
     addEffect(s, [], { master: "p1", source: granted, target: granted, kind: "keyword", value: { name: "Heroic" }, until: "turn" });
     addEffect(s, [], { master: "p1", source: extra, target: granted, kind: "forbid", value: 0, forbid: { what: "activateSkill" }, until: "turn" });
     const before = handSize(s, "p1");
-    const result = activate(s, extra);
+    const activation = activate(s, extra);
+    assert.equal(activation.state.prompt.kind, "orderPending", "the printed and granted Heroic hooks await their master's order");
+    const grantIndex = activation.state.prompt.kind === "orderPending" ? activation.state.prompt.candidates.find((index) => {
+      const pending = activation.state.pending[index];
+      return pending.kind === "hook" && pending.frame.grantEffectId !== undefined;
+    }) : undefined;
+    assert.notEqual(grantIndex, undefined, "the identified grant is one of the pending choices");
+    const ordered = apply(JSON.parse(JSON.stringify(activation.state)) as VmState, { type: "orderPending", player: "p1", index: grantIndex! });
+    const result = { state: ordered.state, events: [...activation.events, ...ordered.events] };
     s = result.state;
     assert.ok(!s.overReason, "a live cannot-activate prohibition cancels the hook before its identity guard");
     assert.equal(result.events.filter((event) => event.type === "draw" && event.player === "p1").length, 1, "only the activating Extra's own draw resolves; the prohibited Heroic hook does not");
@@ -307,7 +325,11 @@ try {
     const candidate = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
     assert.deepEqual(new Set(candidate), new Set([granted, sibling, other]), "the prompt remains resumable with the mixed printed/granted source and an independent printed sibling");
     const saved = JSON.stringify(s);
-    const resolve = (source: string) => apply(JSON.parse(source) as VmState, { type: "choose", player: "p1", cards: [granted] });
+    const resolve = (source: string) => {
+      const targeted = apply(JSON.parse(source) as VmState, { type: "choose", player: "p1", cards: [granted] });
+      const grant = selectPending(targeted, "granted Heroic", (pending) => pending.card === granted && pending.kind === "hook" && pending.frame.grantEffectId !== undefined);
+      return selectPending(grant, "printed Heroic", (pending) => pending.card === granted && pending.kind === "hook" && pending.frame.grantEffectId === undefined);
+    };
     const first = resolve(saved);
     const repeated = resolve(saved);
     assert.equal(JSON.stringify(first), JSON.stringify(repeated), "the same reloaded prompt produces the same terminal outcome and events");
@@ -340,7 +362,11 @@ try {
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const candidate = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
     assert.ok(candidate.includes(lastGrant) && candidate.includes(firstGrant), "either grant remains a legal negation target after reload");
-    const result = apply(s, { type: "choose", player: "p1", cards: [lastGrant] });
+    const targeted = apply(s, { type: "choose", player: "p1", cards: [lastGrant] });
+    const firstGrantChoice = selectPending(targeted, "first grant", (pending) => pending.card === firstGrant && pending.kind === "hook" && pending.frame.grantEffectId !== undefined);
+    const firstPrintedChoice = selectPending(firstGrantChoice, "first printed Heroic", (pending) => pending.card === firstGrant && pending.kind === "hook" && pending.frame.grantEffectId === undefined);
+    const canceledGrantChoice = selectPending(firstPrintedChoice, "negated grant", (pending) => pending.card === lastGrant && pending.kind === "hook" && pending.frame.grantEffectId !== undefined);
+    const result = selectPending(canceledGrantChoice, "negated printed Heroic", (pending) => pending.card === lastGrant && pending.kind === "hook" && pending.frame.grantEffectId === undefined);
     s = result.state;
     assert.ok(s.effects.some((effect) => effect.kind === "negateSkills" && effect.target === lastGrant), "the requested negation genuinely applies to the last grant");
     assert.equal(result.events.filter((event) => event.type === "draw" && event.player === "p1").length, 3, "the live first grant and two printed Heroic skills resolve after the last grant is canceled");
@@ -386,7 +412,7 @@ try {
     assert.ok(!s.effects.some((effect) => effect.kind === "negateSkill" && effect.target === p1Watcher), "the turn-duration Heroic negation expires at the turn change");
     const nextPlay = stage(s, "p1", "H554_OTHER", "hand");
     const p1Before = handSize(s, "p1");
-    const next = playCard(s, nextPlay);
+    const next = selectPending(playCard(s, nextPlay), "reset Heroic watcher", (pending) => pending.card === p1Watcher);
     assert.equal(handSize(next.state, "p1"), p1Before + 1, "the two unused Heroic sources resolve once each on p1's next turn");
     assert.equal(next.events.filter((event) => event.type === "draw" && event.player === "p1").length, 2, "the reset creates two real draws, one from each pending Heroic source");
     assert.ok(next.state.effects.some((effect) => effect.kind === "negateSkill" && effect.target === p1Watcher && effect.value === 0), "p1's original Heroic is negated again for the new turn");

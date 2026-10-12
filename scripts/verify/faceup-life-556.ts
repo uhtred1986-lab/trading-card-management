@@ -91,7 +91,16 @@ try {
   function chooseLife(s: EngineState, target: string) {
     assert.equal(s.prompt.kind, "chooseCards", "the source Auto asks which Life card to flip");
     const action: Action = { type: "choose", player: "p1", cards: [target] };
-    return apply(s, action);
+    let result = apply(s, action);
+    if (ENGINE === "rules" && result.state.prompt.kind === "orderPending") {
+      const choices = result.state.prompt.candidates.filter((i) => result.state.pending[i]?.card === target);
+      assert.equal(choices.length, 1, "the Life card's own Auto is a unique offered choice");
+      const order: Action = { type: "orderPending", player: "p1", index: choices[0] };
+      assert.ok(IMPL.legalActions(CTX, result.state).some((candidate) => candidate.action.type === order.type && candidate.action.index === choices[0]));
+      const selected = apply(result.state, order);
+      result = { state: selected.state, events: [...result.events, ...selected.events] };
+    }
+    return result;
   }
 
   // Red source: the Life card's own Auto and its controller's matching watcher

@@ -153,6 +153,14 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   const absorbWithWatcher = actsG(s).find((a) => a.type === "activate" && a.card === zoneOf(s, "p1", "battle")[0] && !a.alt);
   assert.ok(absorbWithWatcher, "the [Union-Absorb] activation is still offered with a [Union] watcher in play");
   s = playG(s, absorbWithWatcher);
+  if (ENGINE === "rules") {
+    assert.equal(s.prompt.kind, "orderPending", "the two [Union] timing Autos await their master's order");
+    const source = zoneOf(s, "p1", "battle")[0];
+    const index = s.prompt.kind === "orderPending" ? s.prompt.candidates.find((candidate) => s.pending[candidate]?.card === source) : undefined;
+    assert.notEqual(index, undefined, "the activating [Union-Absorb] has its own pending choice");
+    assert.ok(actsG(s).some((action) => action.type === "orderPending" && action.index === index));
+    s = playG(s, { type: "orderPending", player: "p1", index: index! });
+  }
   assert.equal(zoneOf(s, "p1", "hand").length, handBeforeUnionWatch + 3, "[Union-Absorb] activation also fires [Union] timing [Auto]s");
   assertConsistentG(s);
   delete DEFS.EVOTRIG;
@@ -733,6 +741,15 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   s = playG(s, { type: "playUnison", player: "p1", card: findG(s, "p1", "hand", "UWATCH"), x: 3 });
   const hand = zoneOf(s, "p1", "hand").length;
   s = playG(s, { type: "activate", player: "p1", card: zoneOf(s, "p1", "battle")[0], skill: 0 });
+  if (ENGINE === "rules") {
+    assert.equal(s.prompt.kind, "orderPending", "both Spirit Boost payment watchers await their master's choice");
+    const unison = unisonOf(s, "p1")!;
+    const index = s.prompt.candidates.find((i) => s.pending[i]?.card === unison);
+    assert.notEqual(index, undefined, "Unison payment watcher is one offered Auto");
+    const choice = { type: "orderPending" as const, player: "p1" as const, index: index! };
+    assert.ok(actsG(s).some((a) => a.type === choice.type && a.index === choice.index));
+    s = playG(s, choice);
+  }
   // The skill itself draws one, the Unison's own [Auto] one, the watcher one.
   assert.equal(zoneOf(s, "p1", "hand").length, hand + 3, "22-43-3: both ends of the payment fire");
   assertConsistentG(s);
