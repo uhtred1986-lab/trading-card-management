@@ -928,6 +928,37 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.equal(draws(refused), 0);
   scripts.ACTION549.bySkill[0] = old;
 }
+// Revealing a present public target is itself an observable price; an empty
+// reveal cannot pay it. A shuffle is an adjunct only after another payment
+// and with no later price step depending on the new deck order.
+{
+  const old = scripts.ACTION549.bySkill[0];
+  const reveal: Op = { op: "reveal", sel: { side: "you", area: "hand" }, as: "shown" };
+  script("ACTION549", [{ op: "draw", n: 1 }], [reveal]);
+  const present = mainWith("ACTION549"); pend(present.state, present.source);
+  assert.equal(present.state.prompt.kind, "chooseMode");
+  const shown = answer(present.state, 0);
+  assert.equal(draws(shown.events), 1);
+  assert.ok(shown.events.findIndex((event) => event.type === "note" && /revealed/.test(event.text)) < shown.events.findIndex((event) => event.type === "skill"));
+  const absent = mainWith("ACTION549");
+  for (const id of [...absent.state.sides.p1.zones.hand]) assert.ok(moveCard(absent.state, dbs, id, "drop", { owner: "p1" }).ok);
+  const noReveal = pend(absent.state, absent.source);
+  assert.equal(absent.state.prompt.kind, "main"); assert.equal(draws(noReveal), 0);
+  assert.ok(noReveal.some((event) => event.type === "note" && /unaffordable/.test(event.text)));
+  const drop: Op = { op: "moveTo", target: { sel: { special: "self" } }, to: "drop" };
+  script("ACTION549", [{ op: "draw", n: 1 }], [drop, { op: "shuffle" }]);
+  const shuffled = mainWith("ACTION549"); pend(shuffled.state, shuffled.source);
+  assert.equal(shuffled.state.prompt.kind, "chooseMode");
+  const paid = answer(shuffled.state, 0);
+  assert.ok(paid.state.sides.p1.zones.drop.includes(shuffled.source)); assert.equal(draws(paid.events), 1);
+  assert.ok(paid.events.findIndex((event) => event.type === "note" && /shuffles/.test(event.text)) < paid.events.findIndex((event) => event.type === "skill"));
+  for (const invalid of [[{ op: "shuffle" }], [{ op: "shuffle" }, drop]] as Op[][]) {
+    script("ACTION549", [{ op: "draw", n: 1 }], invalid);
+    const s = mainWith("ACTION549"); pend(s.state, s.source);
+    assert.equal(s.state.outcome?.kind, "interrupted"); assert.equal(s.state.outcome?.privateContext?.issue, "#549");
+  }
+  scripts.ACTION549.bySkill[0] = old;
+}
 // #558 integration uses actual #549 cost frames, never a synthetic pending
 // extension. Public source identities stay pending during both decisions;
 // decline, failure and resolution clear that badge without exposing the cursor.

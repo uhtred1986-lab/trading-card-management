@@ -51,6 +51,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         const all = [...new Set([...found, ...picked])];
         if (!sel.upTo && op.atMost === undefined && selectedCount(sel, all, host.nameOf) < (sel.count ?? 1)) unpaid();
       }
+      if (op?.op === "reveal" && op.sel === sel && selectedCount(sel, found, host.nameOf) < (sel.count ?? 1)) unpaid();
       return found;
     },
     resolveRef: (f, ref) => {
@@ -270,27 +271,34 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
  * unsupported price unaffordable or letting its effect run for free. */
 export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"): void {
   const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
-    || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker"
+    || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal"
     || (op.op === "if" && !!op.else?.length && pays(op.then) && pays(op.else))
     || (op.op === "chooseMode" && op.modes.length > 0 && op.modes.every((mode) => pays(mode.ops))));
-  for (const op of ops) {
-    if (op.op === "note" && op.text.startsWith("\u0000probe-path:")) continue;
-    if (op.op === "if") {
-      if (!op.else?.length || !pays(op.then) || !pays(op.else)) throw new NotYet(`pay ${label} conditional action price with an empty branch`, owner);
-      readableAutomaticPrice(op.then, label, owner);
-      readableAutomaticPrice(op.else, label, owner);
-      continue;
+  const check = (steps: Op[], nested: boolean): void => {
+    for (const [index, op] of steps.entries()) {
+      if (op.op === "note" && op.text.startsWith("\u0000probe-path:")) continue;
+      if (op.op === "if") {
+        if (!op.else?.length || !pays(op.then) || !pays(op.else)) throw new NotYet(`pay ${label} conditional action price with an empty branch`, owner);
+        check(op.then, true);
+        check(op.else, true);
+        continue;
+      }
+      if (op.op === "chooseMode") {
+        if (!op.modes.length || op.modes.some((mode) => !pays(mode.ops))) throw new NotYet(`pay ${label} modal action price with an empty option`, owner);
+        for (const mode of op.modes) check(mode.ops, true);
+        continue;
+      }
+      if (op.op === "reveal" && !op.sel.upTo && op.audience !== "you") continue;
+      // Shuffling is permitted only after another payable step and at the
+      // very end: no later price selector can depend on its random order.
+      if (op.op === "shuffle" && !nested && index === steps.length - 1 && !op.inspectedOnly && pays(steps.slice(0, index))) continue;
+      if (!["choose", "discard", "mill", "switchMode", "hidden", "moveTo", "removeMarker"].includes(op.op)
+        || (op.op === "moveTo" && op.to === "play")) {
+        throw new NotYet(`pay ${label} action price containing ${op.op}`, owner);
+      }
     }
-    if (op.op === "chooseMode") {
-      if (!op.modes.length || op.modes.some((mode) => !pays(mode.ops))) throw new NotYet(`pay ${label} modal action price with an empty option`, owner);
-      for (const mode of op.modes) readableAutomaticPrice(mode.ops, label, owner);
-      continue;
-    }
-    if (!["choose", "discard", "mill", "switchMode", "hidden", "moveTo", "removeMarker"].includes(op.op)
-      || (op.op === "moveTo" && op.to === "play")) {
-      throw new NotYet(`pay ${label} action price containing ${op.op}`, owner);
-    }
-  }
+  };
+  check(ops, false);
 }
 
 /** Capture payment alternatives before asking; the Auto's master and source
