@@ -108,11 +108,28 @@ export function sideOf(master: PlayerId, side: Side | undefined): PlayerId[] {
 // ── what a card is, right now ───────────────────────────────────────────────
 
 /** The keywords of the game that hang a body on `altPayment`, lower-cased — worked out once per definition. */
-const ALT_PAYMENT = new WeakMap<GameDefinition, string[]>();
-function altPaymentKeywords(game: GameDefinition): string[] {
+export function hasPossibleReplacement(ops: Op[]): boolean {
+  return ops.some((op) => op.op === "replace" || op.op === "replaceLeave"
+    || (op.op === "if" && (hasPossibleReplacement(op.then) || hasPossibleReplacement(op.else ?? []))));
+}
+
+const ALT_PAYMENT = new WeakMap<GameDefinition, { names: string[]; possibleReplacement: boolean }>();
+function altPaymentConfig(game: GameDefinition): { names: string[]; possibleReplacement: boolean } {
   let known = ALT_PAYMENT.get(game);
-  if (known === undefined) ALT_PAYMENT.set(game, (known = Object.values(game.keywords).filter((k) => k.hooks?.some((h) => h.at === "altPayment")).map((k) => k.name.toLowerCase())));
+  if (known === undefined) {
+    const hooks = Object.values(game.keywords).map((keyword) => ({ name: keyword.name.toLowerCase(), bodies: keyword.hooks?.filter((hook) => hook.at === "altPayment") ?? [] }));
+    known = { names: hooks.filter((keyword) => keyword.bodies.length).map((keyword) => keyword.name), possibleReplacement: hooks.some((keyword) => keyword.bodies.some((hook) => hasPossibleReplacement(hook.ops))) };
+    ALT_PAYMENT.set(game, known);
+  }
   return known;
+}
+function altPaymentKeywords(game: GameDefinition): string[] {
+  return altPaymentConfig(game).names;
+}
+
+/** A dormant keyword standing body may begin replacing moves after the first cost departure. */
+export function possibleAltPaymentReplacement(game: GameDefinition): boolean {
+  return altPaymentConfig(game).possibleReplacement;
 }
 
 /**
