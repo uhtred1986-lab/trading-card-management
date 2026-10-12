@@ -469,8 +469,9 @@ export type Op =
   /** "Add cards from your life to your hand until you have N life" (21-3-2 wording, without damage). */
   | { op: "lifeDownTo"; n: number; side?: Side }
   | { op: "shuffle"; side?: Side; areas?: ("deck" | "life")[]; inspectedOnly?: true }
-  /** 12-2-4: choose a qualifying hand card's named skill and invoke that line, with its original costs waived. */
+  /** 12-2-4: choose a qualifying hand Extra's named skill and invoke it without its original costs. */
   | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
+  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main/battle"; from: "hand" }
   | { op: "energyMarker"; n: Amount; side?: Side }
   /**
    * `chooser` is who answers, when that is not the player whose skill this is:
@@ -1597,22 +1598,32 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       case "invokeSkill": {
         const eligible = (id: string) => h.invokableSkills(master, id, op);
-        const candidates = h.zone(master, "hand").filter((id) => eligible(id).length > 0);
+        const optional = "sel" in op && op.sel.upTo === true;
+        const pool = "sel" in op ? h.resolveSelector(frame, op.sel) : h.zone(master, "hand");
+        const candidates = pool.filter((id) => eligible(id).length > 0);
         let card = frame.invokingCard;
         if (frame.awaiting === "invokeCard") {
           const answer = h.lastChoice();
           h.clearLastChoice();
+          if (optional && answer?.length === 0) {
+            frame.invokingCard = undefined;
+            frame.awaiting = undefined;
+            break;
+          }
           card = answer?.length === 1 ? answer[0] : undefined;
           if (!card || !candidates.includes(card)) throw new IllegalAction("that hand card cannot have its skill activated now");
           frame.invokingCard = card;
           frame.awaiting = undefined;
         }
         if (!card) {
-          if (!candidates.length) throw new IllegalAction("there is no qualifying skill to activate from hand");
-          if (candidates.length > 1) {
+          if (!candidates.length) {
+            if (optional) break;
+            throw new IllegalAction("there is no qualifying skill to activate from hand");
+          }
+          if (optional || candidates.length > 1) {
             frame.awaiting = "invokeCard";
             h.resume(frame);
-            h.ask({ kind: "chooseCards", player: master, choice: { reason: `${h.nameOf(frame.card)}: choose a ${op.trait} card whose ${op.skillKind} skill to activate`, candidates, min: 1, max: 1, continuation: "invokeCard" } });
+            h.ask({ kind: "chooseCards", player: master, choice: { reason: `${h.nameOf(frame.card)}: choose ${"trait" in op ? `a ${op.trait} card` : "a qualifying Extra"} whose ${op.skillKind} skill to activate`, candidates, min: optional ? 0 : 1, max: 1, continuation: "invokeCard" } });
             return "wait";
           }
           card = candidates[0];
@@ -2722,7 +2733,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // Earlier operations may make an Extra eligible. Only a mode whose
           // entire effect is this invocation can be excluded in advance.
           const only = mode.ops.length === 1 ? mode.ops[0] : null;
-          return only?.op !== "invokeSkill" || h.zone(master, "hand").some((id) => h.invokableSkills(master, id, only).length > 0);
+          return only?.op !== "invokeSkill" || ("sel" in only && only.sel.upTo) || h.zone(master, "hand").some((id) => h.invokableSkills(master, id, only).length > 0);
         });
         if (!available.length) throw new IllegalAction("no mode of this skill can be used now");
         // 20-2: the option is chosen as the skill resolves, and only then does

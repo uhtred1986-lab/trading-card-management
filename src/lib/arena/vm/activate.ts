@@ -621,11 +621,17 @@ const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim()
 
 /** SD7-01: choose an Extra's real Main line, retaining every non-price activation gate. */
 export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): ActivationLine[] {
-  if (op.from !== "hand" || op.maxCost !== "currentEnergy" || findCard(state, card)?.zone !== "hand" || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
-  const attrs = attrsNow(ctx, game, state, card);
-  const traits = attrs.traits;
-  const energyCost = attrs.costOf;
-  if (!Array.isArray(traits) || !traits.some((trait) => String(trait).toLowerCase() === op.trait.toLowerCase()) || typeof attrs.energyCost !== "number" || typeof energyCost !== "number" || energyCost > zone(state, player, "energy").length) return [];
+  if (op.from !== "hand" || findCard(state, card)?.zone !== "hand" || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
+  if ("sel" in op) {
+    const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: player };
+    if (!resolveSelector(ctx, game, state, frame, op.sel).includes(card)) return [];
+  } else {
+    if (op.maxCost !== "currentEnergy") return [];
+    const attrs = attrsNow(ctx, game, state, card);
+    const traits = attrs.traits;
+    const energyCost = attrs.costOf;
+    if (!Array.isArray(traits) || !traits.some((trait) => String(trait).toLowerCase() === op.trait.toLowerCase()) || typeof attrs.energyCost !== "number" || typeof energyCost !== "number" || energyCost > zone(state, player, "energy").length) return [];
+  }
   const def = game.actions.activate;
   if (!def) return [];
   return activationsOf(ctx, state, def, card, game).filter((line) => {
