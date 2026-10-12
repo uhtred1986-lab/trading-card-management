@@ -37,8 +37,9 @@ Older handovers explain architecture/history; their dated queues do not override
 
 The integrity prerequisites and #558–#563 are merged. Effective-colour payment #626 and Revive
 ordering #624 are merged in PRs #629/#630 and deployed successfully. Phone PR #631 is merged
-and deployed successfully. Granted Heroic identity #602 and desktop consolidation
-#564 are the next active P1 work, with separate engine/UI writers. #549 and #595 remain partial,
+and deployed successfully. Granted Heroic identity #602 is merged in PR #638
+and deployed successfully. Desktop consolidation #564 is merged in PR #666 and deployed. The UI milestone implementation
+is complete; the tracker close-out records its combined evidence. #549 and #595 remain partial,
 and #550 remains blocked on #549's acceptance. Use the canonical issue records and milestone
 checklists for delivered state and exact dependencies.
 #575 inventory and #459 fixed expectations must precede legacy retirement; #105/#106 wait on web contracts.
@@ -54,9 +55,9 @@ declaration checks passed. ops.rules documents native mill as its binding except
 language/declaration results, not runtime proof.
 
 The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
-runtime evidence. Main records 25 narrow capability rows, four named rules-engine gaps with stable IDs
-and live owners, and 27 VM source sites, including the identity-less granted-Heroic guard owned by
-#602. It records merged #548 zero-power processing, #551 combo-to-Z-Energy, #553 static layers,
+runtime evidence. Main records 26 narrow capability rows, four named rules-engine gaps with stable IDs
+and live owners, and 27 VM source sites. Granted Heroic now carries individual timed/Permanent
+identities; an older hook without identity still fails closed before drawing rather than being migrated. It records merged #548 zero-power processing, #551 combo-to-Z-Energy, #553 static layers,
 #554 printed Heroic, #555 Aegis, #556 face-up Life events, and #601 fixed AI expectations from current
 runtime evidence. It keeps the native `mill` macro exception and #459 oracle migration gate separate
 from runtime support. The ALTC Counter alternative-price scenario actively asserts the chosen

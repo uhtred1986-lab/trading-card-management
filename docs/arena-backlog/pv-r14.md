@@ -24,3 +24,5 @@ The existing battleEnd work moves all remaining combo cards to Drop, collects th
 - [ ] Full local tests, typecheck, lint/build and glossary/reading evidence pass with DATABASE_URL=''; frozen legacy corpus unchanged. Owner data/fuzz/ruling limitations are explicit.
 
 One bounded PR; coordinate battle/flow with #551/#607. No paid AI, live database, new dependencies or unrelated mechanics.
+
+**Delivery reconciliation — 12 Oct 2026:** The audit is documentation-only and `vm/battle.ts` still explicitly retains the checkpoint grouping limitation. GitHub #609 was reopened to match its unfinished runtime, persisted pause/reload and scenario acceptance; no new card wording or complete cleanup implementation is claimed.

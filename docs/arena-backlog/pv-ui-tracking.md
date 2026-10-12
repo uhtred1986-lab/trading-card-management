@@ -4,6 +4,7 @@ milestone: Arena M16 — Board redesign: play feel and card review
 labels: backlog, epic, area:arena-ui
 stage: ui
 issue: 578
+status: closed
 priority: P1
 touches:
 tracking: true
@@ -22,7 +23,7 @@ tracking: true
 - [x] #561 **P1** — Show Abilities now and collapse wrong-timing abilities
 - [x] #562 **P1** — Make battle stakes resources and pass consequences explicit
 - [x] #563 **P1** — Fit the phone board and crowded hand around the current decision
-- [ ] #564 **P1** — Consolidate desktop board status and contextual decision panel
+- [x] #564 **P1** — Consolidate desktop board status and contextual decision panel
 
 
 ## Order and hot files
@@ -35,9 +36,11 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 
 ## Acceptance
 
-- [ ] All child acceptance has reviewed evidence, rather than a closed label alone.
-- [ ] Contract/privacy, stale/reload cases and cross-feature interactions pass.
-- [ ] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
-- [ ] Milestone checklist and canonical backlog files match delivered state.
+- [x] All child acceptance has reviewed evidence, rather than a closed label alone.
+- [x] Contract/privacy, stale/reload cases and cross-feature interactions pass.
+- [x] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
+- [x] Milestone checklist and canonical backlog files match delivered state.
 
 **Phone handoff — 12 Oct 2026:** PR #631 is reviewed and locally validated at `c49db4a`; #563 is merged in PR #631. The compact phone board and scrollable/expanded hand preserve tap/swipe fullscreen review and engine-derived abilities. On-demand zone inspection uses additive, viewer-readable server projections with independent both-engine/both-viewer privacy proofs. Actual-artwork before/after evidence covers both skins, desktop, normal/short/small phones, landscape, real Charge/Play drags, 200% touch scrolling, and full consequences/assumptions. Safe insets and keyboard viewport are simulated; physical-device and Kotlin decoding are unverified. Tests/build/typecheck and 45/45 both-engine contract emission pass; five prototype lint warnings remain. PR #629's unchanged rerun and PR #630 deployed successfully. PR #631 deployed successfully at `36a8953` (Vercel `8U6Cmh2msBLuS29KAzb1hLGvgjrJ`). #564's prerequisites are now merged and its separate desktop implementation is active.
+
+**Milestone close-out — 12 Oct 2026:** PR #666 completes desktop #564 and deployed at `0105aa9` (Vercel `GSLv1Boofhuu5ZArXs2bdhMPsyZH`). One match strip replaces the permanent status column, and the single decision panel stays above pinned inspection. The both-skin actual-artwork matrix proves main/Counter/target, timely Senzu ability access, keyboard, 200% text, short/small/landscape phones and exact engine actions/costs/events; source `1e9298e` passes combined tests, typecheck, lint/build and contract/generated checks after Heroic integration. The seven implementation children #558–#564 now have reviewed local evidence and merged delivery. Four named rule gaps, the VM oracle, physical-device/hosted evidence and Kotlin decoding remain separate unclaimed boundaries; closing this UI tracker does not claim exhaustive rules or native support.
