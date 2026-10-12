@@ -24,8 +24,8 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   const unicodeReordered = { A: 2, a: 1, "😀": 4, "ä": 3 };
   const utf16SortedJson = '{"A":2,"a":1,"ä":3,"😀":4}';
   const utf16SortedHash = createHash("sha256").update(utf16SortedJson).digest("hex");
-  assert.equal(replayHash(unicodeFirst), utf16SortedHash, "bundle hashes use portable UTF-16 key order rather than host locale collation");
-  assert.equal(replayHash(unicodeReordered), utf16SortedHash, "Unicode-key hashes do not depend on insertion order");
+  assert.equal(await replayHash(unicodeFirst), utf16SortedHash, "bundle hashes use portable UTF-16 key order rather than host locale collation");
+  assert.equal(await replayHash(unicodeReordered), utf16SortedHash, "Unicode-key hashes do not depend on insertion order");
   const route = fs.readFileSync(new URL("../../src/app/api/v1/games/[id]/replay/route.ts", import.meta.url), "utf8");
   const service = fs.readFileSync(new URL("../../src/lib/arena/replay-export.ts", import.meta.url), "utf8");
   const adminAuth = route.indexOf("routeViewer({ sl: true })");
@@ -84,11 +84,11 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   assert.equal(wrongReuse.ctx.defs["BT18-961"].name, "Corrected Flow Fighter");
   const tampered = structuredClone(bundle!);
   tampered.payload.defs["BT18-961"].name = "Tampered definition";
-  assert.equal(validateReplayBundle(tampered), false, "editing one pinned input invalidates its content hash");
+  assert.equal(await validateReplayBundle(tampered), false, "editing one pinned input invalidates its content hash");
 
   // The runtime marker is explicit in the exported proof; no fake deployment SHA is written to the game.
   const proofRuntime = "a547000000000000000000000000000000000001";
-  const proofBundle = makeReplayBundle({
+  const proofBundle = await makeReplayBundle({
     defs: bundle!.payload.defs,
     scripts: bundle!.payload.scripts,
     art: bundle!.payload.art,
@@ -160,8 +160,8 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
     .replace(/(DEFINE ZONE hand[\s\S]*?visibility:) owner/, "$1 all")
     .replace(/(DEFINE ZONE battle[\s\S]*?inPlay:) true/, "$1 false");
   assert.notEqual(correctedFiles["zones.rules"], bundle!.payload.rulesetFiles["zones.rules"], "the test's ruleset correction is concrete");
-  const nextDefinitionBundle = makeReplayBundle({ defs: original.ctx.defs, scripts: original.ctx.scripts ?? {}, art: original.art, rulesetFiles: correctedFiles, runtime: proofRuntime });
-  const correctedCtx = pinnedContext(nextDefinitionBundle);
+  const nextDefinitionBundle = await makeReplayBundle({ defs: original.ctx.defs, scripts: original.ctx.scripts ?? {}, art: original.art, rulesetFiles: correctedFiles, runtime: proofRuntime });
+  const correctedCtx = await pinnedContext(nextDefinitionBundle);
   const originalHand = board.sides.p2.zones.hand[0];
   assert.ok(originalHand, "fixture has a real opponent-hand card for visibility assertions");
   const opponentDef = original.ctx.defs[board.cards[originalHand].cardId];
@@ -179,7 +179,7 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   for (const privateField of ["rulesBundleHash", "rulesBundle", "replayDecks", "seed", "actions", "rulesetFiles", "programsHash"]) {
     assert.equal(publicShape.includes(privateField), false, `public snapshot does not expose ${privateField}`);
   }
-  const replay = replayOffline({
+  const replay = await replayOffline({
     bundle: { ...proofBundle, decks: storedGame.replayDecks! },
     engine: "rules",
     seed: storedGame.seed,
@@ -201,10 +201,10 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
-  assert.throws(() => replayOffline({ bundle: { ...proofBundle, decks: storedGame.replayDecks! }, engine: "rules", seed: storedGame.seed, actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[], interpreterRevision: "b547000000000000000000000000000000000001" }), /does not match/, "foreign interpreter provenance is refused");
-  const unknownRuntimeBundle = makeReplayBundle({ defs: bundle!.payload.defs, scripts: bundle!.payload.scripts, art: bundle!.payload.art, rulesetFiles: bundle!.payload.rulesetFiles, runtime: null });
-  assert.throws(() => replayOffline({ bundle: { ...unknownRuntimeBundle, decks: storedGame.replayDecks! }, engine: "rules", seed: storedGame.seed, actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[], interpreterRevision: null }), /missing or does not match/, "unknown interpreter provenance cannot claim exact replay");
-  assert.equal(validateReplayBundle({ ...proofBundle, format: 2 as 1 }), false, "unknown bundle formats are rejected");
+  await assert.rejects(replayOffline({ bundle: { ...proofBundle, decks: storedGame.replayDecks! }, engine: "rules", seed: storedGame.seed, actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[], interpreterRevision: "b547000000000000000000000000000000000001" }), /does not match/, "foreign interpreter provenance is refused");
+  const unknownRuntimeBundle = await makeReplayBundle({ defs: bundle!.payload.defs, scripts: bundle!.payload.scripts, art: bundle!.payload.art, rulesetFiles: bundle!.payload.rulesetFiles, runtime: null });
+  await assert.rejects(replayOffline({ bundle: { ...unknownRuntimeBundle, decks: storedGame.replayDecks! }, engine: "rules", seed: storedGame.seed, actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[], interpreterRevision: null }), /missing or does not match/, "unknown interpreter provenance cannot claim exact replay");
+  assert.equal(await validateReplayBundle({ ...proofBundle, format: 2 as 1 }), false, "unknown bundle formats are rejected");
 
   await db.update(arenaGames).set({ rulesBundleHash: null, replayDecks: null }).where(eq(arenaGames.id, correctedId));
   const [historical] = await db.select().from(arenaGames).where(eq(arenaGames.id, correctedId)).limit(1);

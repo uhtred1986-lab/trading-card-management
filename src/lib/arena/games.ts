@@ -225,7 +225,7 @@ async function contextFor(db: Db, state: EngineState, mode: string, gameId: numb
   const reused = reuse?.ctx as PinnedContext | undefined;
   if (reuse && reused?.arenaGameId === gameId && (reused.rulesBundleHash ?? null) === (bundle?.hash ?? null) && ids.every((id) => id in reuse.ctx.defs)) return { ctx: reuse.ctx, art: reuse.art };
   if (bundle) {
-    const ctx = pinnedContext(bundle);
+    const ctx = await pinnedContext(bundle);
     ctx.referee = hasAnthropic() && mode !== "hotseat";
     ctx.arenaGameId = gameId;
     return { ctx, art: bundle.payload.art };
@@ -363,9 +363,9 @@ export async function startGame(
   const art: Record<string, CardArt> = {};
   for (const r of rows) art[r.id] = { front: r.imageUrl, back: r.backImageUrl };
   const scripts = await rulesFor(db, defs);
-  const bundle = makeReplayBundle({ defs, scripts, art });
+  const bundle = await makeReplayBundle({ defs, scripts, art });
   await persistReplayBundle(db, bundle);
-  const ctx = pinnedContext(bundle);
+  const ctx = await pinnedContext(bundle);
   ctx.referee = hasAnthropic() && mode !== "hotseat";
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
   const { state, events } = engine.createGame(ctx, { seed, p1: a.input, p2: b.input });
