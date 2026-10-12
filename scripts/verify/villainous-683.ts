@@ -2,6 +2,7 @@
 import "./villainous-683-auto-audit";
 import "./villainous-683-parent-continuation";
 import { verifyLegacyExtraAuto } from "./villainous-683-legacy-auto-audit";
+import { verifyLegacyTimedGrants } from "./villainous-683-legacy-timed";
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { RULES_ONLY } from "./rules-only";
@@ -10,11 +11,12 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { hasKeyword, hookBodiesFor } from "../../src/lib/arena/vm/program";
-import { addEffect as legacyAddEffect, move } from "../../src/lib/arena/engine/state";
+import { addEffect as legacyAddEffect, has as legacyHas, move } from "../../src/lib/arena/engine/state";
 import type { Action, PlayerId, GameState } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
 if (!RULES_ONLY) verifyLegacyExtraAuto();
+if (!RULES_ONLY) verifyLegacyTimedGrants();
 
 const ids = ["V683_WATCH", "V683_SOURCE", "V683_EXTRA", "V683_DESIRE", "V683_WISH", "V683_UNPAID", "V683_PRICE", "V683_COUNTER", "V683_OTHER", "V683_DUAL", "V683_PLAIN", "V683_STANDING", "V683_COPY_SOURCE", "V683_MUTATE", "V683_REMOVE"];
 const old = new Map(ids.map((id) => [id, DEFS[id]]));
@@ -258,15 +260,26 @@ for (const [name, engine] of engines) {
 if (!RULES_ONLY) {
   let s = main(legacy, 68399) as GameState;
   const watcher = stageLegacy(s, "V683_OTHER", "battle");
-  legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Villainous" }, until: "turn" });
+  const first = legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Villainous" }, until: "turn" });
   const source = stageLegacy(s, "V683_SOURCE", "hand");
   const action = legacy.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === source)?.action;
   assert.ok(action);
   const activated = legacy.apply(CTX, s, action);
   assert.ok(!activated.events.some((event) => event.type === "draw" && event.player === "p1"), "a Villainous grant cannot accidentally resolve the bearer's printed Heroic");
   s = chooseDiscard(legacy, activated.state).state as GameState;
-  assert.ok(s.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher && effect.value === -1), "old legacy grant limitation keeps its pseudo-index");
-  console.log("  legacy grant fallback: keeps event keyword, retains old shared -1 limitation");
+  assert.ok(s.effects.some((effect) => effect.kind === "negateGrantedSkill" && effect.target === watcher && effect.value === first.id), "only the timed Villainous grant's persistent ID is spent");
+  assert.ok(legacyHas(CTX, s, watcher, "Heroic"), "the printed Heroic identity is independent");
+  assert.ok(!legacyHas(CTX, s, watcher, "Villainous"), "the spent timed grant supplies no keyword");
+  const second = legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Villainous" }, until: "turn" });
+  assert.notEqual(second.id, first.id);
+  assert.ok(legacyHas(CTX, s, watcher, "Villainous"), "same-turn regrant supplies a fresh keyword identity");
+  const again = stageLegacy(s, "V683_SOURCE", "hand");
+  const playAgain = legacy.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === again)?.action;
+  assert.ok(playAgain);
+  s = chooseDiscard(legacy, legacy.apply(CTX, s, playAgain).state).state as GameState;
+  assert.equal(s.effects.filter((effect) => effect.kind === "negateGrantedSkill" && effect.target === watcher && effect.value === second.id).length, 1, "new timed grant pays and spends exactly once");
+  assert.ok(legacyHas(CTX, s, watcher, "Heroic"));
+  console.log("  legacy timed grant: event keyword and distinct regrant ID leave printed Heroic intact");
 }
 
 if (!RULES_ONLY) {

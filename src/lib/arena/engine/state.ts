@@ -478,7 +478,11 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
       }
     }
   }
-  for (const e of s.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
+  for (const e of s.effects) {
+    if (e.kind !== "keyword" || e.target !== id) continue;
+    if (s.effects.some((spent) => spent.kind === "negateGrantedSkill" && spent.target === id && spent.value === e.id)) continue;
+    out.push(e.value as KeywordSkill);
+  }
   // 9-1-5: a skill may name one keyword to negate rather than silencing the
   // card. Applied last, so it beats a grant of the same keyword — and the
   // prohibition that saves it (20-14) is only worth asking about when there is

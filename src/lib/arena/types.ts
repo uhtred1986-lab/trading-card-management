@@ -694,6 +694,8 @@ export interface PendingAuto {
   subject?: string;
   /** #683: the individual Heroic/Villainous keyword heard at activation time. */
   afterSkillKeyword?: "Heroic" | "Villainous";
+  /** #683: persistent identity of a timed keyword grant captured at the event. */
+  grantEffectId?: number;
 }
 
 export type Trigger =
