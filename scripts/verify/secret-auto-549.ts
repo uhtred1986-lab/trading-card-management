@@ -225,6 +225,38 @@ const skillEvents = (events: GameEvent[], card: string): Extract<GameEvent, { ty
   scripts.H549.bySkill[0] = original;
 }
 
+// The same host shuffle can target Life (#574). An actual declaration action
+// from a face-down Life source must lose its temporary witness even when its
+// one-card Life pile cannot change order. The pending record is an internal
+// source control: no present card naturally fires this on-play trigger there.
+{
+  const original = scripts.H549.bySkill[0];
+  scripts.H549.bySkill[0] = { ...original, ops: [{ op: "shuffle", side: "you", areas: ["life"] }] };
+  const state = main();
+  const source = stage(state, "H549");
+  assert.ok(moveCard(state, dbs, source, "life", { owner: "p1" }).ok);
+  for (const id of [...state.sides.p1.zones.life]) if (id !== source) assert.ok(moveCard(state, dbs, id, "removed", { owner: "p1" }).ok);
+  assert.deepEqual(state.sides.p1.zones.life, [source]);
+  state.pending.push({ card: source, master: "p1", skillIndex: 0, trigger: "played" });
+  run(ctx, dbs, state, []);
+  assert.equal(state.prompt.kind, "orderPending");
+  const declared = order(state, 0, "p1");
+  assert.equal(skillEvents(declared.events, source)[0]?.reveal, true);
+  assert.deepEqual(declared.state.sides.p1.zones.life, [source], "a one-card Life shuffle keeps its physical order");
+  assert.deepEqual(declared.state.publicAutoReveals ?? [], [], "the host revokes its declaration witness during the Life shuffle");
+  const beats = vmToBeats(ctx, declared.state, declared.events);
+  for (const viewer of ["p1", "p2"] as const) {
+    const projected = snapshot(reload(declared.state), viewer, beats);
+    assert.equal(projected.beats?.art[source], undefined);
+    const oldSkill = projected.beats?.list.find((beat) => beat.t === "skill" && beat.card === source);
+    assert.equal(oldSkill?.t === "skill" ? oldSkill.text : undefined, "");
+    assert.equal(projected.spotlight, null);
+    assert.deepEqual(projected.log, []);
+    assert.ok(!JSON.stringify(projected).includes("H549"), "neither saved viewer snapshot identifies a shuffled Life source");
+  }
+  scripts.H549.bySkill[0] = original;
+}
+
 // Both Autos really pend on the following turn's Charge Phase. Resolving A
 // moves B from the public Battle Area to a private hand before B is selected;
 // the still-pending B then gets the 9-6-3-1-1 declaration choice.
