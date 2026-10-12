@@ -341,6 +341,13 @@ DEFINE TRIGGER comboed
   BIND "self"
   text: "when this card is used in a combo"
 
+-- §§5-7-5-3/5-7-6-3 — this card's own Auto at Combo Area entry. `comboed`
+-- remains the stored legacy alias and the distinct 8-5-10-1 cleanup moment.
+DEFINE TRIGGER comboUsed
+  ON comboUsed(to: combo)
+  BIND "self"
+  text: "when you combo with this card"
+
 -- §5-7 — when you combo
 DEFINE TRIGGER youCombo
   ON comboUsed(watcher: controller)

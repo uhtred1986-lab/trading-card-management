@@ -314,11 +314,9 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // Existing cleanup batches the Drop moves before its checkpoint, so the
       // 8-5-6/7 and 8-5-9 timing distinction remains a known limitation here;
       // this work changes only the earlier 8-5-2/3 -> 8-5-4 ordering.
-      // `moved()` already fires the generic `moved(from: combo)` moment
-      // `comboed` reads (5-7's own "when this card is used in a combo" is
-      // answered by the departure, not by a second `comboUsed` here — that
-      // moment is "when you combo", fired once already, in `applyCombo`, at
-      // the moment the card joined).
+      // `moved()` fires the generic `moved(from: combo)` moment for explicit
+      // end-of-battle wording. Ordinary self-combo wording already answered
+      // `comboUsed` at entry and must not answer this departure again.
       for (const p of Object.keys(state.sides) as PlayerId[]) {
         for (const id of (state.sides[p].zones.combo ?? []).slice()) {
           moved(ctx, game, state, ev, id, "drop", { owner: p });
@@ -1032,7 +1030,11 @@ export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmSt
   }
   chargeCost(ctx, game, state, ev, action.player, plan.payment, action.card, ["energy"]);
   moved(ctx, game, state, ev, action.card, "combo", { owner: action.player, reveal: true });
-  fire(ctx, game, state, { event: "comboUsed", card: action.card, controller: action.player, args: {} });
+  // 5-7-5-2/3 and 5-7-6-2/3: only an actual Combo Area arrival creates the
+  // self and watcher moments before the next combo offer or combat comparison.
+  if (state.sides[action.player].zones.combo?.includes(action.card)) {
+    fire(ctx, game, state, { event: "comboUsed", card: action.card, controller: action.player, args: { to: "combo" } });
+  }
   // The step is asked again — a player may combo more than one card — once
   // the checkpoint has run: "when you combo" (5-7) has just pended, and the
   // legacy flow resolves it before the next combo offer (#439). `reask` is

@@ -722,6 +722,8 @@ export type Trigger =
   | "opponentTurnStart"
   | "battleEnd"
   | "comboed"
+  /** This card's own Auto at genuine Combo Area entry (5-7-5-3/5-7-6-3). */
+  | "comboUsed"
   /**
    * Something the *other* player did, watched by every card you have in play:
    * "when your opponent plays a Battle Card", "when your opponent attacks with
@@ -741,8 +743,9 @@ export type Trigger =
   | "opponentCombos"
   /**
    * "When you use a card in a combo", "when you combo" (5-7): your own side of
-   * the same moment, watched by your cards in play. `comboed` is the combo
-   * card's own skill and fires when it leaves the Combo Area (8-5-8).
+   * the same moment, watched by your cards in play. `comboUsed` is the combo
+   * card's own ordinary entry Auto; `comboed` remains the stored legacy name
+   * and the distinct explicit end-of-battle departure moment.
    */
   | "youCombo"
   /**
