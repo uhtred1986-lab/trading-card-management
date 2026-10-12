@@ -35,7 +35,7 @@ Older handovers explain architecture/history; their dated queues do not override
 - **P2/P3 Android after web contract:** tracker #580; #105, #106.
 - **P2 AI efficiency and live verification:** tracker #511; #381, #518.
 
-The integrity prerequisites and #558–#563 are merged. Effective-colour payment #626 and Revive
+The integrity and UI trackers have completed their scoped acceptance; their GitHub milestone objects still await external closure. All #543–#547 and #558–#564 children are merged. Effective-colour payment #626 and Revive
 ordering #624 are merged in PRs #629/#630 and deployed successfully. Phone PR #631 is merged
 and deployed successfully. Granted Heroic identity #602 is merged in PR #638
 and deployed successfully. Desktop consolidation #564 is merged in PR #666 and deployed. The UI milestone implementation

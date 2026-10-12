@@ -5,6 +5,7 @@ labels: backlog, epic, area:arena-contract
 stage: ui
 issue: 576
 priority: P0
+status: closed
 touches:
 tracking: true
 ---
@@ -31,7 +32,11 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 
 ## Acceptance
 
-- [ ] All child acceptance has reviewed evidence, rather than a closed label alone.
-- [ ] Contract/privacy, stale/reload cases and cross-feature interactions pass.
-- [ ] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
-- [ ] Milestone checklist and canonical backlog files match delivered state.
+- [x] All child acceptance has reviewed evidence, rather than a closed label alone. Readiness, typed interruption, revisions, reconnection and immutable replay have explicit source and verification evidence in the five closed canonical child records.
+- [x] Contract/privacy, stale/reload cases and cross-feature interactions pass. Combined checks cover per-viewer interruption/replay privacy, revision reconciliation and retries, polling recovery, pinned match inputs and archived corrections.
+- [x] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run. Child evidence directories contain applicable screenshots and gate results; Android Gradle decoding remains explicitly unverified in pv-t03.md.
+- [x] Milestone checklist and canonical backlog files match delivered state. All five canonical children are closed and the programme/delivery records identify completed implementation. Closing this tracker does not claim that the external GitHub milestone object has been closed.
+
+## Combined acceptance close-out — 12 Oct 2026
+
+Reviewed against main `2e95855`: `scripts/verify-readiness.mts`, `scripts/verify/outcomes.ts`, `scripts/verify/arena-revision.mts`, `scripts/verify/arena-live-polling.mts` and `scripts/verify/arena-replay.ts`, with the corresponding implementation and committed child evidence. This completes the scoped integrity/recovery increment; it does not establish exhaustive card or rule support. Real-deck/catalog, paid-provider, physical-device and Android Gradle checks remain unclaimed where documented. GitHub milestone-state mutation is unavailable through the connector and direct API is blocked; external milestone closure remains pending. Offline work is separate.
