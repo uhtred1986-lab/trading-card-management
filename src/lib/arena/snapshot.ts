@@ -12,12 +12,15 @@
  * `session.ts` is the half that reaches the database.
  */
 import type { EngineContext, LegalAction, PlayerId, RejectedAction } from "./types";
-import { engineFor, FALLBACK_ENGINE, type EngineId, type EngineState } from "./engines";
+import { engineFor, FALLBACK_ENGINE, isVmState, type EngineId, type EngineState } from "./engines";
 import { tappable, viewerOf, type BoardView, type CardArt, type Tappable } from "./view";
 import { maskBeats, type Beats } from "./beats";
 import type { ArenaMode, Spotlight } from "./games";
 import { DEFAULT_GAME, type Game } from "@/lib/catalog/games";
 import { NOT_YET_REASON_PREFIX, resolveOutcome, type PublicOutcome } from "./outcome";
+import { rulesetFor, type GameDefinition } from "./rulesets";
+import { withTokens } from "./vm/cards";
+import { readingBoard } from "./vm/program";
 
 /** Bumped only when a field is removed or its meaning changes. */
 export const CONTRACT_VERSION = 2;
@@ -187,7 +190,27 @@ function legalFor(input: Pick<SnapshotInput, "state" | "status" | "legal" | "vie
   return asked && asked !== input.viewer ? [] : input.legal;
 }
 
+/**
+ * Share only viewer-independent standing rules while one immutable board is
+ * being read. The scope ends with this synchronous callback: a later request,
+ * revision, reload or different rules context always reads its own state.
+ * The rules engine wraps contexts with `withTokens` at every entry point, so
+ * this must use the same wrapper and the exact pinned definition when present.
+ */
+export function withSnapshotReading<T>(input: Pick<SnapshotInput, "engine" | "ctx" | "state">, read: () => T): T {
+  if ((input.engine ?? FALLBACK_ENGINE) !== "rules" || !isVmState(input.state)) return read();
+  const pinned = (input.ctx as EngineContext & { rulesetDefinition?: GameDefinition }).rulesetDefinition;
+  const loaded = pinned?.id === input.state.game ? null : rulesetFor(input.state.game);
+  const definition = pinned?.id === input.state.game ? pinned : loaded?.ok ? loaded.definition : null;
+  if (!definition) return read(); // Let the engine report a missing/broken ruleset as before.
+  return readingBoard(withTokens(input.ctx), definition, input.state, read);
+}
+
 export function buildSnapshot(input: SnapshotInput): Snapshot {
+  return withSnapshotReading(input, () => buildSnapshotInRead(input));
+}
+
+function buildSnapshotInRead(input: SnapshotInput): Snapshot {
   const viewer = viewerFor(input);
   const rejected = rejectedFor(input);
   const legal = legalFor(input);
