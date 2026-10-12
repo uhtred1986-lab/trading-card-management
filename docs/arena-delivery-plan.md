@@ -22,9 +22,9 @@ pending API access. M16 has zero open issues; M17 has the open cross-milestone u
 P0 #549 remains partial after #671's priority-owner Auto selection; #609's later cleanup
 checkpoint remains distinct from #675's completed current-DSL combo-entry fix.
 
-Seventeen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
-M2 #566; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
-In flight: P0 #549 secret-Auto declaration and P1 #574 durations/Desire. PR #678 completed
+Sixteen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
+M2 #566; M1 original children complete with #539 parent/#680 follow-up open; M13 #459/#118; M4 #105/#106; providers #381/#518.
+In flight: P0 #549 secret-Auto declaration and P2 #557 genuine damage statistics. P1 #574 is complete in PR #679; P1 #680 follows up BT31-116's free Extra activation. PR #678 completed
 #569 snapshot-derived read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
 Owner-run/ruling/catalog/fuzz/device/paid evidence is not inferred from local tests.
 Offline work remains a separate programme. The full issue catalogue below includes historical
@@ -124,7 +124,7 @@ Issue bodies contain scoped build instructions, named acceptance scenarios and v
 | [#571](https://github.com/uhtred1986-lab/trading-card-management/issues/571) C01 | P1 | Fix missing and over-broad card Auto trigger readings | Completed; see canonical acceptance | [pv-c01.md](arena-backlog/pv-c01.md) |
 | [#572](https://github.com/uhtred1986-lab/trading-card-management/issues/572) C02 | P1 | Bind end-of-battle Auto to this card comboed from hand | Closed by PR #670; hand-origin battle-end binding | [pv-c02.md](arena-backlog/pv-c02.md) |
 | [#573](https://github.com/uhtred1986-lab/trading-card-management/issues/573) C03 | P1 | Fix grouped counts shared conditions and mixed target readings | Closed by PRs #673/#675; current-DSL grouped readings and entry timing | [pv-c03.md](arena-backlog/pv-c03.md) |
-| [#574](https://github.com/uhtred1986-lab/trading-card-management/issues/574) C04 | P1 | Fix phase durations and Desire hand activation readings | Unblocked after #573; implementation in flight | [pv-c04.md](arena-backlog/pv-c04.md) |
+| [#574](https://github.com/uhtred1986-lab/trading-card-management/issues/574) C04 | P1 | Fix phase durations and Desire hand activation readings | Closed by PR #679; exact Charge timing, inspected shuffle and Desire invocation | [pv-c04.md](arena-backlog/pv-c04.md) |
 | [#539](https://github.com/uhtred1986-lab/trading-card-management/issues/539) existing | P1 | Arena: card review 4 Oct 2026 — single-card misreadings and missing triggers | Tracking only | [s2-101-card-review-misreadings.md](arena-backlog/s2-101-card-review-misreadings.md) |
 
 ### Independent coverage and retirement — P2/P3
@@ -230,4 +230,6 @@ No implementation issue has been marked fixed by this planning work. No producti
 deployment setting, or code PR merge was performed. Existing grounded prototype changes are preserved.
 Live-only verification is explicitly assigned to the owner; agents use local fixtures/PGlite.
 
-New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the seventeen original remaining issues; #574 retains this explicit shared payment limitation.
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the sixteen original remaining issues; #574 retains this explicit shared payment limitation.
+
+P1 #680 (M1, #539 parent): replace the verified BT31-116 free-play misreading with a real hand Main/Battle activation. This is the second additional review follow-up alongside #677, distinct from the sixteen original remaining implementation issues.

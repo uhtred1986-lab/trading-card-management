@@ -169,3 +169,9 @@ Move the umbrella out of M17 before clean closure when API access is restored. O
 trackers and implementation are separate; no offline work is assigned here.
 
 New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the seventeen original remaining issues; #574 retains this explicit shared payment limitation.
+
+### Charge/Desire completion and final secret-Auto validation
+
+PR #679 completes #574 on main `3464a78`: exact source-opponent Charge application/expiry, skipped phase, current-cost Desire invocation with original-price waiver, and actual inspected Deck/Life shuffle. Its full local gates passed (52/52 legacy, 51/52 rules-only with the prior oracle exclusion); production deployment is pending verification. Inventory: 33 narrow entries, four named runtime gaps, 29 guarded sites. The original remaining implementation queue is now sixteen issues; #677 and new #680 are additional P1 review follow-ups.
+
+The bounded #549 secret declaration continuation passes integrated typecheck/lint/tests/build and contract emission (no fixture/digest changes): 53/53 legacy, 52/53 rules-only, registered PGlite CAS/privacy/log proofs and #569 read reuse. Actual one-card Life shuffle revokes a declared source even with an unchanged permutation. Gradle/kotlinc are unavailable. #549 remains partial for priced secret declarations, other unsupported price families and the 2,000-state bound. #557 damage accounting is in flight; #680 owns BT31-116's incorrect free-play effect. Parent #539 remains open; child completion does not claim catalog/fuzz sign-off.

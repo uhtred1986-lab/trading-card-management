@@ -38,7 +38,6 @@
  */
 import { type Action, type EngineContext, type GameEvent, type Skill } from "../types";
 import { AREAS, PHASES } from "./script";
-import { costIsOnlyOrbs } from "../compile";
 import { nextRandom, shuffle } from "./rng";
 import { PLAYERS, other, type Area, type MoveReason, type Phase, type PlayerId, type Prompt, type ReplacementResult } from "../types";
 import type { Cond, Script, Selector, Side } from "./script";
@@ -47,6 +46,7 @@ import type { GameDefinition, StepDef, WinDef } from "../rulesets";
 import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { masterOf, nextPending, skillsShowing, type VmPendingRecord } from "./triggers";
+import { automaticHasPrice, canWithholdSecretAuto, secretAutoSource } from "./secret-auto";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
@@ -680,7 +680,7 @@ function sameCaptured(a: unknown, b: unknown): boolean {
   return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key) && sameCaptured(left[key], right[key]));
 }
 
-function chosenPending(state: VmState): VmPendingRecord | null | "wait" {
+function chosenPending(ctx: EngineContext, game: GameDefinition, state: VmState): VmPendingRecord | null | "wait" | "declined" {
   const offered = state.pendingOrder;
   if (offered?.chosen !== undefined && (state.turnPlayer !== offered.turnPlayer || !sameCaptured(state.pending, offered.queue)
     || !offered.candidates.includes(offered.chosen) || state.pending[offered.chosen]?.master !== offered.master)) {
@@ -701,11 +701,16 @@ function chosenPending(state: VmState): VmPendingRecord | null | "wait" {
       state.prompt = { kind: "orderPending", player: offered.master, candidates: offered.candidates };
       return "wait";
     }
+    const chosen = state.pending[offered.chosen];
+    if (offered.decline && !canWithholdSecretAuto(ctx, game, state, chosen)) throw new IllegalAction("this pending skill cannot be left undeclared");
     delete state.pendingOrder;
-    return state.pending.splice(offered.chosen, 1)[0];
+    state.pending.splice(offered.chosen, 1);
+    return offered.decline ? "declined" : chosen;
   }
   const candidates = state.pending.flatMap((item, index) => item.master === master ? [index] : []);
-  if (candidates.length > 1) {
+  // A cost-free [Auto] still in a secret area may be left undeclared even
+  // when it is the only pending skill (9-6-3-1-1).
+  if (candidates.length > 1 || (candidates.length === 1 && canWithholdSecretAuto(ctx, game, state, state.pending[candidates[0]]))) {
     state.pendingOrder = { master, turnPlayer: state.turnPlayer, queue: structuredClone(state.pending), candidates };
     state.prompt = { kind: "orderPending", player: master, candidates };
     return "wait";
@@ -738,8 +743,9 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A 9-10 substitute is part of confirmative rule processing: finish it,
   // including any answer it asks for, before resolving pending Autos.
   if (state.programs.length) return true;
-  const next = chosenPending(state);
+  const next = chosenPending(ctx, game, state);
   if (next === "wait") return "wait";
+  if (next === "declined") return true;
   if (!next) return false;
   if (next.kind === "hook") {
     // Captured keyword effects use the same owner-choice checkpoint queue as
@@ -834,12 +840,19 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 
 /** 9-6-4: a satisfied condition alone is not an optional cost. */
 function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, skill: Skill | undefined, program: Script): void {
-  const unknownPrice = skill?.kind === "auto" && !costIsOnlyOrbs(skill.cost) && !program.price?.condition && !program.price?.ops?.length && !program.price?.x && !program.price?.payWith?.length;
-  const priced = skill && (unknownPrice || Object.values(skill.energyCost).some((n) => n > 0) || skill.energyEither.length > 0
-    || skill.markerCost != null || skill.burst != null || skill.spiritBoost != null || program.price?.ops?.length || program.price?.x);
+  const priced = automaticHasPrice(skill, program);
   if (!priced || !skill) {
-    log(ev, { type: "skill", card: frame.card, skill: frame.skillIndex ?? 0, master: frame.master, text: skill?.raw ?? "", inBattle: skill?.kind === "keyword" && !!state.battle });
-    state.programs.unshift(frame);
+    const reveal = skill?.kind === "auto" && secretAutoSource(game, state, { card: frame.card, master: frame.master, skillIndex: frame.skillIndex ?? 0, trigger: frame.trigger ?? "" });
+    let autoRevealEpoch: number | undefined;
+    if (reveal) {
+      autoRevealEpoch = (state.nextAutoRevealEpoch ?? 0) + 1;
+      state.nextAutoRevealEpoch = autoRevealEpoch;
+      state.publicAutoReveals = [ ...(state.publicAutoReveals ?? []).filter((item) => item.card !== frame.card),
+        { card: frame.card, skillIndex: frame.skillIndex ?? 0, epoch: autoRevealEpoch, trigger: frame.trigger ?? "", sourceZoneEpoch: state.cards[frame.card]?.zoneEpoch ?? 0 } ];
+    }
+    log(ev, { type: "skill", card: frame.card, skill: frame.skillIndex ?? 0, master: frame.master, text: skill?.raw ?? "", inBattle: skill?.kind === "keyword" && !!state.battle,
+      ...(autoRevealEpoch === undefined ? {} : { reveal: true as const, revealEpoch: autoRevealEpoch }) });
+    state.programs.unshift(autoRevealEpoch === undefined ? frame : { ...frame, autoRevealEpoch });
     return;
   }
   try {
@@ -1165,6 +1178,12 @@ export function requirePrompt(state: VmState, action: Action, kinds: Prompt["kin
 
 /** One player's deck, randomised with the game's seeded RNG (6-2-1-7). The only place the deck's order is decided, so a replay from the same seed shuffles the same way. */
 export function shuffleDeck(state: VmState, p: PlayerId): void {
+  // A shuffled secret zone destroys the usable identity of a card revealed
+  // there, even when the seeded permutation happens to be unchanged.
+  if (state.publicAutoReveals?.length) {
+    const shuffledIds = new Set(state.sides[p].zones[SETUP_ZONES.deck]);
+    state.publicAutoReveals = state.publicAutoReveals.filter((item) => !shuffledIds.has(item.card));
+  }
   const shuffled = shuffle(state.sides[p].zones[SETUP_ZONES.deck], state.rngState);
   state.sides[p].zones[SETUP_ZONES.deck] = shuffled.items;
   state.rngState = shuffled.state;
@@ -1251,6 +1270,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (route.stays) return;
   const result = moveCard(state, game, id, route.to, { ...opts, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
+  if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== id && !(result.move.released ?? []).some((released) => released.card === item.card));
   // Where it really went: a rule about what the card *is* may send it
   // somewhere else than asked (19-1-7, a token leaving play is removed).
   const to = result.move.to;
