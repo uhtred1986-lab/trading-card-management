@@ -3,6 +3,7 @@ title: [P1] Arena: Emit face-up life trigger events
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
 labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:capability-gap, model:opus-5
 stage: ui
+status: closed
 issue: 556
 priority: P1
 touches: src/lib/arena/vm/zones.ts, src/lib/arena/vm/events.ts, src/lib/arena/vm/triggers.ts
@@ -18,10 +19,12 @@ touches: src/lib/arena/vm/zones.ts, src/lib/arena/vm/events.ts, src/lib/arena/vm
 **Files to verify first:** `src/lib/arena/vm/zones.ts`, `src/lib/arena/vm/events.ts`, `src/lib/arena/vm/triggers.ts`. Update the contract/types/fixtures/glossary where the behavior requires it; verify actual symbols before editing.
 
 **Acceptance.**
-- [ ] Face-up transition fires the intended Auto once; already face-up or unrelated movement does not; opponent views never reveal face-down life.
-- [ ] Positive, negative, stale/reload and interaction cases appropriate to this change have explicit state/cost/event assertions.
-- [ ] Typecheck, lint, relevant scenario verification, npm test and build pass; VM/compiler work includes glossary updates, reading diff and fuzz 40 where applicable.
-- [ ] One bounded PR, clear evidence per acceptance bullet, and canonical backlog status updated on completion. Live database/paid/production checks are listed as owner-run rather than claimed.
+- [x] Face-up transition fires the intended Auto once; already face-up or unrelated movement does not; opponent views never reveal face-down life.
+- [x] Positive, negative, reload and interaction cases have explicit state/event assertions: red/blue source-color matching, controller-only watchers, event-subject binding, no-op already face-up, unrelated Life-to-hand movement, a Battle-area face-up operation with a Life-area source, reload at the choice prompt and masked face-down Life in both viewers' snapshots.
+- [x] `DATABASE_URL='' npm run typecheck`, `npm run lint` (0 errors; 5 pre-existing prototype warnings), `npm test`, `npm run build`, both legacy/rules `verify-arena` engines and the dedicated #556 cases pass. The frozen probe corpus/digests are unchanged; the old named face-up rules gap is removed. Glossary documents the 3-9-2-1 moment.
+- [x] One bounded PR is prepared with evidence per acceptance bullet; this canonical backlog entry records completion. Live database, paid AI and production checks were not used.
+
+**Owner-run check:** `arena:fuzz40` uses real saved-deck rows and requires the owner's database. It was not run because `DATABASE_URL` must remain empty in this environment; no fuzz pass is claimed.
 
 **Order and hot files.** Follow prerequisite merge order and `docs/arena-delivery-plan.md`. `src/lib/arena/vm/zones.ts`, `src/lib/arena/vm/events.ts`, `src/lib/arena/vm/triggers.ts` must not have concurrent writers. Other ready issues can be assigned independently only after checking shared types/fixtures and migrations.
 

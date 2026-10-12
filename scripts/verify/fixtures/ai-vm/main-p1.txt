@@ -1,0 +1,25 @@
+Turn 3, your turn, phase main.
+
+YOU (You)
+  life 8, deck 32, hand 7, drop 0
+  energy: Red 2 active
+  leader: L-RED (L-RED), 10,000 power, active
+  battle area: CRIT (CRIT), 15,000 power, active, cost 3, combo +5,000 for 1, [Critical]
+    text: [Critical]
+  your hand:
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 1
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 1
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 1
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 1
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 1
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 1
+    · V1 (V1), 10,000 power, cost 1, combo +5,000 for 1
+  face-up in life: V1 (V1), 10,000 power, cost 1, combo +5,000 for 1
+
+OPPONENT (Claude)
+  life 8, deck 31, hand 8, drop 1
+  energy: Blue 1 active, 1 energy marker(s)
+  leader: L-BLUE (L-BLUE), 10,000 power, active
+  battle area: BLOCKER (BLOCKER), 10,000 power, active, cost 2, combo +10,000 for 1, [Blocker]
+    text: [Blocker]
+  top of drop: V-BLUE (V-BLUE), 10,000 power, cost 1, combo +5,000 for 1
