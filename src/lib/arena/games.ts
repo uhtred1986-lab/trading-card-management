@@ -559,11 +559,15 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   // #463: read against the board *after* the move, so a card Claude has just
   // played is public by now and may be talked about; one still in its hand,
   // life or deck may not, and the line is dropped (`ai/table-talk.ts`).
-  const say = tableTalk(game.ctx, state, action.player, told?.say);
+  // 9-6-3-1-1: leaving a secret [Auto] undeclared need not be announced to
+  // the opponent. Even an AI-supplied aside or table-talk line is omitted;
+  // the private action record remains available for replay/admin review.
+  const withheldSecretAuto = action.type === "orderPending" && action.decline === true;
+  const say = withheldSecretAuto ? null : tableTalk(game.ctx, state, action.player, told?.say);
   // An `aside` is the server disclosing something 3-1-3 would normally keep —
   // what Claude saw in a search. Log only, never a beat: it is a note to the
   // owner, not something the opponent said, and only a `debug` game has any.
-  const spoken = [...(say ? [say] : []), ...(told?.aside ? [told.aside] : [])];
+  const spoken = [...(say ? [say] : []), ...(!withheldSecretAuto && told?.aside ? [told.aside] : [])];
   const lines = [...game.log, ...spoken, ...describeEvents(game.ctx, state, events)].slice(-400);
   // Null when this action fired no skill, so the banner does not show again.
   const spotlight = spotlightFrom(game.ctx, state, events, lines.length);

@@ -67,7 +67,7 @@ export type Beat =
    * game came back to a Main Phase prompt — the skill found nothing to act on.
    * `maskBeats` blanks `label` and `text` when the viewer may not see `card`.
    */
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true }
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true; reveal?: true; revealEpoch?: number }
   /**
    * A rule coming into force (9-9): "+5000 power", "[Critical]", "can't
    * attack" on `card`, or on `player` when it is about a player rather than a
@@ -383,14 +383,31 @@ export function maskBeats(state: EngineState, beats: Beats | null, viewer: Playe
   if (!beats) return null;
   const pinned = (ctx as (EngineContext & { rulesetDefinition?: import("./rulesets/types").GameDefinition }) | undefined)?.rulesetDefinition;
   const seen = revealedTo(state, viewer, pinned);
+  // A declared secret [Auto] shows only that source while its private VM
+  // witness remains live. The beat's exact epoch must match; an older beat
+  // cannot authorize a later re-entry or another pending occurrence.
+  const witnesses = (state as EngineState & { publicAutoReveals?: { card: string; epoch: number; sourceZoneEpoch: number }[] }).publicAutoReveals ?? [];
+  const declared = new Set(witnesses.filter((w) => !state.cards[w.card]?.hidden
+    && ((state.cards[w.card] as { zoneEpoch?: number } | undefined)?.zoneEpoch ?? 0) === w.sourceZoneEpoch
+    && beats.list.some((b) => b.t === "skill" && b.card === w.card && b.reveal && b.revealEpoch === w.epoch)).map((w) => w.card));
   const art: Beats["art"] = {};
-  for (const [id, a] of Object.entries(beats.art)) if (seen.has(id)) art[id] = a;
+  for (const [id, a] of Object.entries(beats.art)) if (seen.has(id) || declared.has(id)) art[id] = a;
   // #463: a `skill` beat carries the printed text and tag of the card that
   // fired it, which names the card as surely as its face does. Blanked on the
   // same rule; the beat stays, so the moment still plays.
-  const hiddenSkill = (b: NumberedBeat) => b.t === "skill" && !seen.has(b.card) && (b.text !== "" || b.label !== "Skill");
+  const hiddenSkill = (b: NumberedBeat) => b.t === "skill" && !seen.has(b.card)
+    && !(declared.has(b.card) && b.reveal && witnesses.some((w) => w.card === b.card && w.epoch === b.revealEpoch))
+    && (b.text !== "" || b.label !== "Skill");
   const masksSkill = beats.list.some(hiddenSkill);
-  if (!masksSkill && Object.keys(art).length === Object.keys(beats.art).length) return beats;
-  const list = masksSkill ? beats.list.map((b) => (hiddenSkill(b) ? { ...b, label: "Skill", text: "" } : b)) : beats.list;
+  const hasPrivateEpoch = beats.list.some((b) => b.t === "skill" && b.revealEpoch !== undefined);
+  if (!masksSkill && !hasPrivateEpoch && Object.keys(art).length === Object.keys(beats.art).length) return beats;
+  const list = beats.list.map((b) => {
+    if (b.t !== "skill") return b;
+    // This authorization key belongs only to the server's saved match; never
+    // put it in either viewer's returned beat history.
+    const publicBeat = { ...b };
+    delete publicBeat.revealEpoch;
+    return hiddenSkill(b) ? { ...publicBeat, label: "Skill", text: "" } : publicBeat;
+  });
   return { ...beats, list, art };
 }

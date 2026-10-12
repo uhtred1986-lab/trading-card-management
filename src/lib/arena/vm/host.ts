@@ -183,6 +183,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     placeUnder: (id, host) => {
       const result = moveCard(state, game, id, "drop", { under: host });
       if (!result.ok) return false;
+      clearAutoReveal(state, id);
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
       // 23-2: going into the pile is a moment for the card itself — "when
       // this card is placed under a <Vegito> card" (BT29-140).
@@ -211,9 +212,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       return true;
     },
     setFaceUp: (id, faceUp) => {
+      clearAutoReveal(state, id);
       card(id).faceUp = faceUp;
     },
     setHidden: (id, hidden, by) => {
+      clearAutoReveal(state, id);
       card(id).hidden = hidden;
       log(ev, { type: "hidden", card: id, hidden });
       // 21-16-2 / 9-9-2: the card keeps its Active or Rest Mode, but no
@@ -546,6 +549,8 @@ function moveTo(
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     return;
   }
+  clearAutoReveal(state, id);
+  for (const released of placed.move.released ?? []) clearAutoReveal(state, released.card);
   // Where it really went, which a rule about what the card *is* may change
   // (19-1-7: a token leaving play is removed, `moveCard`'s own redirect) — and
   // the owner whose copy of the zone it landed in (3-1-6-1's clamp).
@@ -608,6 +613,9 @@ function ownerOfZone(state: VmState, id: string): PlayerId | null {
 /** One player's deck, randomised with the game's seeded RNG (5-11). */
 function shuffle(state: VmState, p: PlayerId): void {
   const deck = state.sides[p].zones[SETUP_ZONES.deck];
+  // A shuffle conceals every card it contains, even for a one-card deck or
+  // an unchanged seeded permutation (9-6-3-1-1).
+  for (const id of deck) clearAutoReveal(state, id);
   let rng = state.rngState;
   for (let i = deck.length - 1; i > 0; i--) {
     const t = (rng + 0x6d2b79f5) | 0;
@@ -618,6 +626,10 @@ function shuffle(state: VmState, p: PlayerId): void {
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   state.rngState = rng;
+}
+
+function clearAutoReveal(state: VmState, card: string): void {
+  if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== card);
 }
 
 /**
