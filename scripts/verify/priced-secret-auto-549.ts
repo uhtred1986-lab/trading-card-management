@@ -121,7 +121,9 @@ function skillCount(events: GameEvent[], card: string): number { return events.f
     assert.ok(said && said.t === "autoDeclared");
     const publicDeclared: Beat = said;
     assert.equal(Object.hasOwn(publicDeclared, "revealEpoch"), false, "both viewers receive a valid declaration beat without the private epoch");
-    assert.match(narrate(said, { viewer, them: "Opponent", art: shown.beats?.art ?? {}, ownerOf: () => "p1" }) ?? "", /declare.*Auto/i);
+    const declarationLine = narrate(said, { viewer, them: "Opponent", art: shown.beats?.art ?? {}, ownerOf: () => "p1" }) ?? "";
+    assert.match(declarationLine, /declare(?:s)? Auto on PRICE549/i);
+    assert.ok(!declarationLine.includes("《") && !declarationLine.includes("》"));
     assert.equal(battleLink(said, true), null, "a declaration does not count as a battle trigger");
     assert.ok(msFor(said) > 0);
   }
