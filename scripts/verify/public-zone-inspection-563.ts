@@ -4,9 +4,11 @@ import { engineFor, isVmState, type EngineState } from "../../src/lib/arena/engi
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import type { PlayerId } from "../../src/lib/arena/types";
 import { CTX, DEFS, card, stageMoveG } from "./harness";
+import { RULES_ONLY } from "./rules-only";
 
 const main = Array.from({ length: 50 }, () => "V1");
-for (const engineId of ["legacy", "rules"] as const) {
+const engines = RULES_ONLY ? ["rules"] as const : ["legacy", "rules"] as const;
+for (const engineId of engines) {
   const engine = engineFor(engineId);
   let state = engine.createGame(CTX, { seed: 563, p1: { name: "You", leader: "L-RED", main }, p2: { name: "Opponent", leader: "L-BLUE", main } }).state;
   assert.equal(state.prompt.kind, "chooseFirst");
@@ -70,4 +72,4 @@ for (const engineId of ["legacy", "rules"] as const) {
     assert.equal(fresh.game.revision, 2);
   }
 }
-console.log("public-zone-inspection-563: both engines/viewers, owner Z-Deck, hidden faces, serialization, revision and state purity passed");
+console.log(`public-zone-inspection-563: ${engines.join("/")} and both viewers, owner Z-Deck, hidden faces, serialization, revision and state purity passed`);
