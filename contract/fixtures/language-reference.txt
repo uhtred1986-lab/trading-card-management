@@ -3759,6 +3759,10 @@
       "words": "when your opponent attacks"
     },
     {
+      "name": "opponentAttacksRedUnison2",
+      "words": "when your opponent attacks your red Unison Card with a specified cost of 2"
+    },
+    {
       "name": "yourLeaderAttacked",
       "words": "when your Leader is attacked"
     },
@@ -3925,6 +3929,14 @@
     {
       "name": "restedTheirsBySkill",
       "words": "when your skill rests an opponent's card"
+    },
+    {
+      "name": "opponentEnergyActiveBySkill",
+      "words": "when your opponent switches your energy to Active Mode using a non-[Awaken] skill during their turn"
+    },
+    {
+      "name": "opponentOwnEnergyActiveBySkill",
+      "words": "when your opponent switches their energy to Active Mode using a non-[Awaken] skill during their turn"
     },
     {
       "name": "hiddenBySkill",

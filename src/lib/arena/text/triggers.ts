@@ -8,7 +8,7 @@
  * `engine/triggers.ts` (#118); nothing here reads a game.
  */
 import { effectHead, maskNames, trailingTrigger } from "./cards";
-import { parseFilter, readsOr } from "./filters";
+import { expandSharedCardDescription, parseFilter, readsOr } from "./filters";
 import type { Skill, Trigger } from "../types";
 
 /** Keyword [Auto] skills and the events that make them pending (22). */
@@ -323,9 +323,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       if (/when (?:you play this card|this card is played)/.test(t)) return false;
       if (/\bis played (?:by|using|from)\b|\bwhen you play [^,]*\b(?:using|from your)\b/.test(t)) return false;
       const spoken = /when you play ((?:an?|1|up to \d+|\d+) [^,]{0,80}?)(?:,|$)/.exec(t);
-      const passive = /when (a|an|your) ([^,]{0,80}?) is played\b/.exec(t);
+      const passive = /when (a|an|your) ([^,]{0,120}?)(?:[-—–]\s*)?is played\b/.exec(t);
       if (!spoken && !passive) return false;
-      const said = spoken ? spoken[1] : `${passive![1]} ${passive![2]}`;
+      const said = expandSharedCardDescription(spoken ? spoken[1] : `${passive![1]} ${passive![2]}`);
       if (/^your opponent/.test(said)) return false;
       // This fires for *every* card that player plays, and the effect then acts
       // on it — so a description the compiler cannot turn into a filter must
@@ -338,7 +338,14 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return !/ or /.test(said) || readsOr(said);
     }
     case "opponentAttacks":
-      return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t);
+      return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t)
+        && !/when your opponent attacks your .+? with a specified cost of \d+\b/.test(head.toLowerCase());
+    case "opponentEnergyActiveBySkill":
+      return /when your opponent switches energy to active mode using a non-\[awaken\] skill during their turn\b/.test(head.toLowerCase());
+    case "opponentOwnEnergyActiveBySkill":
+      return /when your opponent switches (?:their )?energy to active mode using a non-\[awaken\] skill during their turn\b/.test(head.toLowerCase());
+    case "opponentAttacksRedUnison2":
+      return /when your opponent attacks your red unison card with a specified cost of 2\b/.test(head.toLowerCase());
     case "opponentCombos":
       return /when your opponent combos\b|when your opponent uses a card in a combo\b/.test(t);
     // Your own side of it. "When you combo with this card" is the card's own

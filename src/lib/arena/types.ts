@@ -728,6 +728,12 @@ export type Trigger =
   /** Your own side of it: "when your blue ≪God≫ card is played", "when you play a red ≪Android≫ card". */
   | "youPlayed"
   | "opponentAttacks"
+  /** BT7-003: an opponent's skill made your energy Active on their turn. */
+  | "opponentEnergyActiveBySkill"
+  /** SD8-09: the opponent's skill made their own energy Active on their turn. */
+  | "opponentOwnEnergyActiveBySkill"
+  /** SD15-01: the opponent declared an attack at your red Unison with specified cost 2. */
+  | "opponentAttacksRedUnison2"
   | "opponentCombos"
   /**
    * "When you use a card in a combo", "when you combo" (5-7): your own side of
