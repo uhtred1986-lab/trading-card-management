@@ -29,9 +29,9 @@ touches: src/lib/arena/vm/flow.ts, src/lib/arena/vm/costs.ts, src/lib/arena/vm/s
 
 
 **Delivery status.** Partial delivery; #549 remains open. The supported cost paths and
-cost-free secret-area declaration below have fixed local scenarios. Priced secret-area
-declaration, other action-price instructions and the bounded search limit remain reachable
-engine limitations owned by #549, so this increment does not claim the entire issue acceptance.
+cost-free and priced secret-area declaration below have fixed local scenarios. Other
+action-price instructions and the bounded search limit remain reachable engine
+limitations owned by #549, so this increment does not claim the entire issue acceptance.
 
 **Rule-grounded behavior (#549).** Manual 9-6-4 permits paying or declining any necessary
 Auto skill cost, including printed energy and action costs. A condition that is already true
@@ -68,19 +68,35 @@ later actions and a new occurrence revoke an older declaration's viewer authorit
 wrong actor and stale revision reject atomically, supplied table talk on a private
 decline is omitted from both viewers' session log, and ordinary later talk still logs.
 
+`scripts/verify/priced-secret-auto-549.ts` asserts that a priced secret-area Auto
+may be left undeclared silently or declared before payment, with a declaration event
+that does not count as a fired skill. Supported orb and action prices pay once; declined
+or unpayable prices never activate or draw. Exact source, skill, trigger and private
+reveal epoch survive price prompts and JSON reload; wrong-actor/stale answers reject
+without mutation, and a later action or duplicate occurrence cannot reuse an older
+declaration. `scripts/verify/arena-priced-secret-auto-db.mts` checks persisted
+wrong-actor/stale CAS, both viewers' scoped declaration art and text, no private key
+in public snapshots, silent decline, and no saved log disclosure after concealment.
+The browser proof in `docs/arena-backlog/evidence/549-priced-secret` uses a synthetic
+priced Auto and a portable artwork stand-in; it checks the distinct declaration and
+activation labels and later masking at 390px and 1440px in both skins through a
+mocked API poll of real engine snapshots. No printed priced-secret card is claimed.
+
 `scripts/verify/compiler.ts` independently asserts AUTOCOST pays exactly one additional
 energy and draws two, while decline pays nothing further. No compiler reading is changed.
 
 **Remaining boundaries.** A player now chooses among their own simultaneous pending skills
 at a checkpoint (9-6-3), with the turn player's pending skills taking priority. A
-cost-free secret-area Auto may be left undeclared without telling the opponent; its
-selection menu is visible only to the deciding player. Priced secret-area declaration
-and keyword-hook applicability are not delivered by this increment. Supported action
+secret-area Auto, whether cost-free or priced, may be left undeclared without telling
+the opponent; its selection menu is visible only to the deciding player. Captured
+keyword hooks remain outside this optional [Auto] declaration path. Supported action
 prices use choose/discard/mill/switchMode/hidden/moveTo/removeMarker; unimplemented instructions
 and a full-price choice search exceeding 2,000 visited states produce an explicit typed
 interruption instead of free resolution or a false affordability claim. This Auto-specific
-continuation does not deliver #550's broader Activate/cross-skill binding work. No UI
-changes, dependencies or production/database writes.
+continuation does not deliver #550's broader Activate/cross-skill binding work. The
+priced secret browser and persisted proofs use synthetic records; they do not establish
+that a particular printed card has this price/source combination. No dependencies or
+production/database writes.
 
 **Owner-run verification.** Catalog reading snapshots require the deckplanet endpoint in this
 environment; the baseline attempt failed DNS lookup (`EAI_AGAIN api.deckplanet.net`).

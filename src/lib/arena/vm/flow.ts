@@ -708,7 +708,7 @@ function chosenPending(ctx: EngineContext, game: GameDefinition, state: VmState)
     return offered.decline ? "declined" : chosen;
   }
   const candidates = state.pending.flatMap((item, index) => item.master === master ? [index] : []);
-  // A cost-free [Auto] still in a secret area may be left undeclared even
+  // An [Auto] still in a secret area may be left undeclared even
   // when it is the only pending skill (9-6-3-1-1).
   if (candidates.length > 1 || (candidates.length === 1 && canWithholdSecretAuto(ctx, game, state, state.pending[candidates[0]]))) {
     state.pendingOrder = { master, turnPlayer: state.turnPlayer, queue: structuredClone(state.pending), candidates };
@@ -758,7 +758,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const showing = skillsShowing(ctx, state, next.card);
   const skill = showing.skills.find((sk) => sk.index === next.skillIndex);
   const program = showing.scripts.bySkill[next.skillIndex];
-  const frame: ScriptFrame = {
+  const frame: ScriptFrame & { autoRevealEpoch?: number } = {
     ops: program?.ops ?? [],
     ip: 0,
     vars: {},
@@ -768,18 +768,32 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     subject: next.subject,
     skillIndex: next.skillIndex,
   };
+  // 9-6-3-1 precedes the price decision in 9-6-4. A priced secret Auto is
+  // shown when specified, but this declaration must never look like a fired
+  // skill to event consumers or probes. The eventual skill event is separate.
+  const declaredSecret = skill?.kind === "auto" && automaticHasPrice(skill, program)
+    && secretAutoSource(game, state, next);
+  if (declaredSecret) {
+    const epoch = (state.nextAutoRevealEpoch ?? 0) + 1;
+    state.nextAutoRevealEpoch = epoch;
+    frame.autoRevealEpoch = epoch;
+    state.publicAutoReveals = [...(state.publicAutoReveals ?? []).filter((item) => item.card !== next.card),
+      { card: next.card, skillIndex: next.skillIndex, epoch, trigger: next.trigger, sourceZoneEpoch: state.cards[next.card]?.zoneEpoch ?? 0, priced: true }];
+    log(ev, { type: "autoDeclared", card: next.card, skill: next.skillIndex, master: next.master, text: skill.raw, revealEpoch: epoch });
+  }
+  const noteName = declaredSecret ? "This Auto skill" : `${named}'s skill`;
 
   // 9-1-5: a card whose skills are negated has none, and one skill switched
   // off is off for the moment it answered to as well as for every other. The
   // one reading of that rule lives in `./effects.ts` and every reader uses it.
   if (skillNegated(state, next.card, next.skillIndex, skill?.kind)) {
-    log(ev, { type: "note", text: `${named}'s skill is negated, so it does not resolve` });
+    log(ev, { type: "note", text: `${noteName} is negated, so it does not resolve` });
     return true;
   }
   // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
   // activate skills" (BT29-041) has its pending [Auto] cancelled.
   if (skill?.kind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card })) {
-    log(ev, { type: "note", text: `${named} can't activate skills, so its skill does not resolve` });
+    log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate, so it does not resolve" : `${named} can't activate skills, so its skill does not resolve` });
     return true;
   }
   // Stage 7: a keyword's own line that answered through its declaration's
@@ -820,7 +834,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // deciding whether an unread effect or unsupported price interrupts. A
   // false condition means the Auto simply does not resolve.
   if (program?.price?.condition && !vmHost(ctx, game, state, ev).condHolds(frame, program.price.condition)) {
-    log(ev, { type: "note", text: `${named} answers to ${next.trigger}, and its condition does not hold` });
+    log(ev, { type: "note", text: declaredSecret ? "This Auto skill's condition does not hold" : `${named} answers to ${next.trigger}, and its condition does not hold` });
     return true;
   }
   if (!program || program.unsupported.length) {
@@ -839,7 +853,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 }
 
 /** 9-6-4: a satisfied condition alone is not an optional cost. */
-function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, skill: Skill | undefined, program: Script): void {
+function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }, skill: Skill | undefined, program: Script): void {
   const priced = automaticHasPrice(skill, program);
   if (!priced || !skill) {
     const reveal = skill?.kind === "auto" && secretAutoSource(game, state, { card: frame.card, master: frame.master, skillIndex: frame.skillIndex ?? 0, trigger: frame.trigger ?? "" });

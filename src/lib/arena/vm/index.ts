@@ -376,7 +376,8 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
     if (result.state.prompt.kind === "gameOver") return false;
     let declaredAt = -1;
     result.events.forEach((event, index) => {
-      if (event.type === "skill" && event.card === marker.card && event.revealEpoch === marker.epoch) declaredAt = index;
+      if ((event.type === "autoDeclared" || (event.type === "skill" && !marker.priced))
+        && event.card === marker.card && event.revealEpoch === marker.epoch) declaredAt = index;
     });
     return !result.events.slice(declaredAt + 1).some((event) => (event.type === "move" || event.type === "hidden") && event.card === marker.card);
   });
@@ -391,7 +392,8 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action): { state:
   // the exact suspended frame may carry it through a further answer/reload.
   if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((marker) =>
     action.type !== "concede" && (state.cards[marker.card]?.zoneEpoch ?? 0) === marker.sourceZoneEpoch
-      && state.programs.some((frame) => frame.autoRevealEpoch === marker.epoch));
+      && state.programs.some((frame) => frame.autoRevealEpoch === marker.epoch && frame.card === marker.card
+        && frame.skillIndex === marker.skillIndex && frame.trigger === marker.trigger));
 
   // 0-1-3-4: conceding is a player's act and no card may cause or replace it,
   // so it is answered before any prompt is looked at — including at a prompt

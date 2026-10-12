@@ -741,18 +741,18 @@ export function ArenaStage({
   const damageNow = beat?.t === "damage" ? beat : null;
   const hitOf = (p: PlayerId) => (damageNow && damageNow.player === p ? { n: damageNow.n, amount: damageNow.amount, critical: damageNow.critical } : null);
 
-  // The skill banner is bound to the `skill` beat on screen, so each ability
+  // The skill banner is bound to the beat on screen, so each ability
   // in a turn gets its moment in the story's order — the row's `spotlight`
   // only ever names the last one.
   const beatSpotlight =
-    beat?.t === "skill"
+    beat?.t === "skill" || beat?.t === "autoDeclared"
       ? {
           seq: beat.n,
           cardId: beats?.art[beat.card]?.cardId ?? "",
           name: beats?.art[beat.card]?.name ?? "",
-          label: beat.label,
+          label: beat.t === "autoDeclared" ? `Declared · ${beat.label}` : beat.reveal ? `Activated · ${beat.label}` : beat.label,
           text: beat.text,
-          unread: beat.unread,
+          unread: beat.t === "skill" && beat.unread,
           imageUrl: beats?.art[beat.card]?.imageUrl ?? null,
         }
       : null;
@@ -1089,7 +1089,12 @@ export function ArenaStage({
         <StepBanner step={step} hold={!!turnCall || playback.turnAhead} />
         {/* A skill fired inside a staged battle is said on the card that fired
             it, so the banner would be the same sentence twice over the fight. */}
-        <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />
+        {/* A secret declaration is scoped to the current masked beat. Unmount
+            its spotlight when that beat or its art disappears, so a queued
+            animation cannot retain the card after concealment. */}
+        {beat && (beat.t === "autoDeclared" || (beat.t === "skill" && beat.reveal))
+          ? beats?.art[beat.card] && <SkillSpotlight key={`secret-${beat.n}`} spotlight={beatSpotlight} />
+          : <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />}
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
         {/* From lg it is `display: contents`: its children are placed in the grid's areas. */}
