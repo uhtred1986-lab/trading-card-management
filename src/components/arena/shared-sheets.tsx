@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { LegalAction, RejectedAction } from "@/lib/arena/types";
+import type { Action, LegalAction, RejectedAction, Requirement } from "@/lib/arena/types";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
 import type { CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
+import { abilityCost, abilityPanelRows, abilityReasonType, matchesAbilityAction, offeredMoves, type AbilityLine } from "./ability-panel-model";
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { useArenaAdmin } from "./admin-context";
 import { cardImage } from "@/lib/catalog/card-image";
@@ -96,7 +97,7 @@ export function CardDetail({
           </ul>
         </div>
       )}
-      {card.permanents && card.permanents.length > 0 && (
+      {card.permanents && card.permanents.length > 0 && !card.abilities?.length && (
         <div className="space-y-1">
           {card.permanents.map((pm) => {
             const st = PERMANENT_STATE[pm.state];
@@ -123,7 +124,12 @@ export function CardDetail({
           ))}
         </p>
       )}
-      {card.text && <p className="whitespace-pre-wrap text-xs leading-relaxed text-space-200 sm:text-sm">{plainText(card.text)}</p>}
+      {card.text && (card.abilities?.length ? (
+        <details className="rounded-lg border border-space-700 px-2 py-1.5">
+          <summary className="cursor-pointer text-[11px] font-semibold text-space-300">Full printed card text</summary>
+          <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-space-200 sm:text-sm">{plainText(card.text)}</p>
+        </details>
+      ) : <p className="whitespace-pre-wrap text-xs leading-relaxed text-space-200 sm:text-sm">{plainText(card.text)}</p>)}
     </div>
   );
 }
@@ -259,6 +265,103 @@ export interface SheetMove {
   label?: string;
 }
 
+function AbilityRows({
+  card,
+  side,
+  moves,
+  onPick,
+  narrator,
+  docked,
+}: {
+  card: CardView;
+  side: SideView | null;
+  moves: SheetMove[];
+  onPick: (move: SheetMove) => void;
+  narrator: Narrator;
+  docked: boolean;
+}) {
+  const admin = useArenaAdmin();
+  const abilities = card.abilities;
+  if (!abilities?.length) return null;
+  const sections = abilityPanelRows(abilities);
+  const { manual, passive: passives, pending, other } = sections;
+  const inHand = side?.hand?.some((item) => item.id === card.id) ?? false;
+  const size = docked ? "" : "sm:px-4 sm:py-3";
+  const body = (line: AbilityLine) => plainText(line.text);
+  const reasonText = (why: Requirement[], type: Action["type"]) => why.map((item) => {
+    const words = refusal(item, { name: card.name, reaching: type, side, inHand, them: narrator.them });
+    return words.remedy ? `${words.fact} ${words.remedy}` : words.fact;
+  });
+  const readOnly = (rows: AbilityLine[], label: string, status: "passive" | "pending") => rows.length > 0 && (
+    <section className="space-y-1" aria-label={label}>
+      <h4 className="text-[10px] font-semibold uppercase tracking-widest text-space-300">{label}</h4>
+      {rows.map((line) => (
+        <div key={`${line.skillIndex}:${line.category}`} className={`rounded-lg border border-space-700 bg-space-800/50 px-3 py-2 ${size}`}>
+          {(status === "pending" || (line.permanentState && (admin || line.permanentState === "on" || line.permanentState === "off"))) && (
+            <p className="text-[10px] font-semibold text-space-300">{status === "pending" ? "Pending" : `Passive · ${PERMANENT_STATE[line.permanentState!].word}`}</p>
+          )}
+          <p className="mt-1 text-xs leading-snug text-space-200">{body(line)}</p>
+        </div>
+      ))}
+    </section>
+  );
+
+  return (
+    <section className="space-y-2" aria-label="Abilities now" data-abilities-now={card.id}>
+      <h3 className="text-xs font-bold uppercase tracking-widest text-space-100">Abilities now</h3>
+      {manual.length === 0 && <p className="text-xs text-space-300">No manual ability is available in this decision.</p>}
+      {manual.map((line) => {
+        const choices = offeredMoves(line, card, abilities, moves);
+        const messages = line.why ? reasonText(line.why, abilityReasonType(line)) : [];
+        return (
+          <div key={`${line.skillIndex}:${line.category}`} className={`space-y-2 rounded-lg border border-space-700 bg-space-800/40 px-3 py-2 ${size}`} data-ability-index={line.skillIndex}>
+            <div className="flex items-start justify-between gap-2">
+              <span className="min-w-0 text-xs font-semibold leading-snug text-space-100">{body(line)}</span>
+              <span className="shrink-0 rounded-full border border-space-600 px-2 py-px text-[10px] text-space-200">{line.category === "counter" ? "Counter" : line.timing ? `Activate: ${line.timing}` : "Activate"}</span>
+            </div>
+            {messages.length > 0 && <p className="text-xs leading-snug text-loss" role="status">{messages.join(" ")}</p>}
+            {choices.map((move) => {
+              const label = move.legal.action.type === "counter" ? "Counter" : "Activate";
+              return (
+                <button
+                  key={`${move.index}:${move.legal.label}`}
+                  type="button"
+                  onClick={() => onPick(move)}
+                  className={`tap flex min-h-11 w-full min-w-0 flex-col items-stretch gap-2 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 sm:flex-row sm:items-center sm:gap-3 ${size}`}
+                >
+                  <span className="min-w-0 max-w-full flex-1 break-words">{label} · {move.legal.label}</span>
+                  <span className="max-w-full self-start whitespace-normal break-words rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:shrink-0 sm:self-auto">{abilityCost(line, move)}</span>
+                </button>
+              );
+            })}
+            {line.availability === "offered" && choices.length === 0 && <p className="text-xs text-space-300" role="status">The legal action is temporarily unavailable while the board updates.</p>}
+          </div>
+        );
+      })}
+      {readOnly(passives, "Passive effects", "passive")}
+      {readOnly(pending, "Automatic · resolving", "pending")}
+      {!!other.length && (
+        <details className="rounded-lg border border-space-700 bg-space-800/30 px-3 py-2">
+          <summary className="cursor-pointer text-xs font-semibold text-space-200">Other abilities ({other.length})</summary>
+          <div className="mt-2 space-y-2">
+            {other.map((line) => {
+              const messages = line.why ? reasonText(line.why, abilityReasonType(line)) : [];
+              return (
+                <div key={`${line.skillIndex}:${line.category}`} className="rounded-md border border-space-700 px-2 py-2" data-ability-index={line.skillIndex}>
+                  <p className="text-xs font-semibold text-space-100">{line.category === "automatic" ? "Automatic · no manual activation" : line.category === "counter" ? "Counter" : line.timing ? `Activate: ${line.timing}` : "Ability"}</p>
+                  <p className="mt-1 text-xs leading-snug text-space-200">{body(line)}</p>
+                  {messages.map((message, index) => <p className="mt-1 text-xs leading-snug text-space-300" key={index}>{message}</p>)}
+                  {line.notEvaluatedReason && <p className="mt-1 text-xs text-space-300">{line.notEvaluatedReason === "notDecisionActor" ? "The other player has this decision." : line.notEvaluatedReason === "unidentifiedAction" ? "The current action does not identify this ability line." : "The engine cannot evaluate this ability in the current decision."}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      )}
+    </section>
+  );
+}
+
 /**
  * The moves a card has right now, each with its price, then the ones it does
  * not have, each with the sentence the rules gave. One list for the action
@@ -289,9 +392,11 @@ export function ActionRows({
 }) {
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
   const word = { side, inHand, them: narrator.them };
+  const abilities = card.abilities ?? [];
   return (
     <>
-      {moves.map((m) => {
+      <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} />
+      {moves.filter((move) => !abilities.some((line) => offeredMoves(line, card, abilities, [move]).length > 0)).map((m) => {
         const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
         return (
           <button
@@ -305,7 +410,7 @@ export function ActionRows({
           </button>
         );
       })}
-      {rejected.map((r) => {
+      {rejected.filter((r) => !abilities.some((line) => matchesAbilityAction(line, r.action, card, abilities))).map((r) => {
         const why = r.why[0];
         const w = refusal(why, { name: card.name, reaching: r.action.type, ...word });
         return (
@@ -486,6 +591,7 @@ export function CardSheet({
   onJump?: (card: CardView) => void;
 }) {
   const [fullArt, setFullArt] = useState(false);
+  const currentManualCount = card.abilities ? abilityPanelRows(card.abilities).manual.length : 0;
   const items = sequence?.items ?? [];
   const at = items.findIndex((i) => i.card.id === card.id);
   const pager = at >= 0 && !!onJump;
@@ -525,7 +631,18 @@ export function CardSheet({
   const [scrolls, setScrolls] = useState(false);
   useLayoutEffect(() => {
     const el = body.current;
-    if (el) setScrolls(el.scrollHeight > el.clientHeight + 1);
+    if (!el) return;
+    const measure = () => setScrolls(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const resize = new ResizeObserver(measure);
+    resize.observe(el);
+    for (const child of el.children) resize.observe(child);
+    const mutation = new MutationObserver(measure);
+    mutation.observe(el, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["open", "class", "style"] });
+    return () => {
+      resize.disconnect();
+      mutation.disconnect();
+    };
   }, [card.id, moves.length, rejected.length, chips.length, items.length]);
   const begin = (e: React.PointerEvent) => {
     drag.current = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, top: (body.current?.scrollTop ?? 0) <= 0 };
@@ -575,11 +692,11 @@ export function CardSheet({
             <button
               type="button"
               onClick={() => setFullArt((value) => !value)}
-              aria-label={fullArt ? "Show card details" : "Expand card to full screen"}
+              aria-label={fullArt ? (currentManualCount ? `Show current abilities and details (${currentManualCount})` : "Show card details") : "Expand card to full screen"}
               aria-pressed={fullArt}
               className="tap flex h-[44px] min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-space-600 bg-space-900 px-2 text-xs font-semibold text-space-100 hover:border-ki-400"
             >
-              {fullArt ? "Details" : "Expand"}
+              {fullArt ? (currentManualCount ? `Abilities now (${currentManualCount})` : "Details") : "Expand"}
             </button>
             <button type="button" data-sheet-initial-focus onClick={onClose} aria-label="Close card review" className="tap flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg leading-none text-space-100">×</button>
           </div>

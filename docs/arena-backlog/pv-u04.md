@@ -18,7 +18,7 @@ touches: src/components/arena/shared-display.tsx, src/components/arena/shared-sh
 **Files to verify first:** `src/components/arena/shared-display.tsx`, `src/components/arena/shared-sheets.tsx`, `src/app/arena/[id]/page.tsx`. Update the contract/types/fixtures/glossary where the behavior requires it; verify actual symbols before editing.
 
 **Acceptance.**
-- [ ] Whis Counter appears during its response window; Senzu Main ability is hidden in Counter and its Battle option appears when legal; insufficient energy explains why; phase change refreshes an open viewer.
+- [ ] Whis BT1-055's printed Counter appears during its response window. Senzu Bean BT11-053's printed Battle ability is hidden in Counter and appears in the combo window; its one-energy total cost is shown as Blue, and an open viewer refreshes after the phase changes. A separate synthetic Main-skill case verifies the same timing treatment without attributing a nonexistent Main skill to Senzu.
 - [ ] Positive, negative, stale/reload and interaction cases appropriate to this change have explicit state/cost/event assertions.
 - [ ] Typecheck, lint, relevant scenario verification, npm test and build pass; VM/compiler work includes glossary updates, reading diff and fuzz 40 where applicable.
 - [ ] Before/after actual-artwork fixtures at 1440 and 390 in both skins, plus short phones, keyboard, 200% text and reduced motion; no obscured primary decision.
