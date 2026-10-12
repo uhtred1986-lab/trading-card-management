@@ -1,4 +1,4 @@
-# Arena delivery plan — 11 October 2026
+# Arena delivery plan — updated 12 October 2026
 
 Authoritative next-work queue, reconciled with all 13 originally open repository issues and their comments.
 The current queue uses eight existing GitHub milestones; historical completed stages stay separate.
@@ -14,7 +14,23 @@ blocked replaces ready-for-agent until merge dependencies pass. Epics are tracki
 These are delivery increments within existing milestone objects, not eight duplicate milestones.
 No dates are promised. Finish prerequisite acceptance before opening a dependent implementation PR.
 
-## Active milestones
+## Current remaining queue — 12 October close-out
+
+Integrity tracker #576 and UI tracker #578 are closed; actual milestone object closure is
+pending API access. M16 has zero open issues; M17 has the open cross-milestone umbrella
+#581, which stays open and needs reassignment. #572, #573, #570 and new #672 are complete.
+P0 #549 remains partial after #671's priority-owner Auto selection; #609's later cleanup
+checkpoint remains distinct from #675's completed current-DSL combo-entry fix.
+
+Seventeen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
+M2 #566; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
+In flight: P0 #549 secret-Auto declaration and P1 #574 durations/Desire. PR #678 completed
+#569 snapshot-derived read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
+Owner-run/ruling/catalog/fuzz/device/paid evidence is not inferred from local tests.
+Offline work remains a separate programme. The full issue catalogue below includes historical
+completed work as well as these remaining issues; current delivery state overrides old handovers.
+
+## Existing milestone programme
 
 | Existing milestone | Current delivery | Priority | Tracker | Implementation issues |
 |---|---|---|---|---|
@@ -60,6 +76,7 @@ Issue bodies contain scoped build instructions, named acceptance scenarios and v
 | [#554](https://github.com/uhtred1986-lab/trading-card-management/issues/554) R07 | P1 | Enforce Heroic once-per-turn use | Completed; see canonical acceptance | [pv-r07.md](arena-backlog/pv-r07.md) |
 | [#555](https://github.com/uhtred1986-lab/trading-card-management/issues/555) R08 | P1 | Keep Aegis payment choices eligible after each selection | Completed; see canonical acceptance | [pv-r08.md](arena-backlog/pv-r08.md) |
 | [#556](https://github.com/uhtred1986-lab/trading-card-management/issues/556) R09 | P1 | Emit face-up life trigger events | Completed; see canonical acceptance | [pv-r09.md](arena-backlog/pv-r09.md) |
+| [#672](https://github.com/uhtred1986-lab/trading-card-management/issues/672) R17 | P0 | Resolve ordinary self-combo Autos at entry before combat | Closed by PR #675; current DSL, legacy/pinned history retained | [pv-r17.md](arena-backlog/pv-r17.md) |
 | [#557](https://github.com/uhtred1986-lab/trading-card-management/issues/557) R10 | P2 | Report genuine damage statistics for rules-engine games | [#544](https://github.com/uhtred1986-lab/trading-card-management/issues/544) | [pv-r10.md](arena-backlog/pv-r10.md) |
 | [#626](https://github.com/uhtred1986-lab/trading-card-management/issues/626) R16 | P1 | Apply effective colours to energy payment planning | Merged [#629](https://github.com/uhtred1986-lab/trading-card-management/pull/629); unchanged rerun deployed | [pv-r16.md](arena-backlog/pv-r16.md) |
 | [#624](https://github.com/uhtred1986-lab/trading-card-management/issues/624) R15 | P1 | Pay Revive original-colored cards before additional Auto price | Merged [#630](https://github.com/uhtred1986-lab/trading-card-management/pull/630); deployed | [pv-r15.md](arena-backlog/pv-r15.md) |
@@ -94,9 +111,9 @@ Issue bodies contain scoped build instructions, named acceptance scenarios and v
 | [#566](https://github.com/uhtred1986-lab/trading-card-management/issues/566) S02 | P1 | Acknowledge human actions before resumable AI advance | Partial; broader unknown-provider-outcome acceptance remains | [pv-s02.md](arena-backlog/pv-s02.md) |
 | [#567](https://github.com/uhtred1986-lab/trading-card-management/issues/567) S03 | P1 | Record concurrent AI usage atomically | Completed; see canonical acceptance | [pv-s03.md](arena-backlog/pv-s03.md) |
 | [#568](https://github.com/uhtred1986-lab/trading-card-management/issues/568) S04 | P2 | Skip unchanged snapshot loads with revision-aware polling | Completed; see canonical acceptance | [pv-s04.md](arena-backlog/pv-s04.md) |
-| [#569](https://github.com/uhtred1986-lab/trading-card-management/issues/569) S05 | P2 | Share immutable derived evaluation by match revision | Audit complete; no new cache or measured improvement delivered | [pv-s05.md](arena-backlog/pv-s05.md) |
+| [#569](https://github.com/uhtred1986-lab/trading-card-management/issues/569) S05 | P2 | Share immutable derived evaluation by match revision | Closed by PR #678; standing-rule reads 4→1, mixed tail-latency evidence | [pv-s05.md](arena-backlog/pv-s05.md) |
 | [#607](https://github.com/uhtred1986-lab/trading-card-management/issues/607) S07 | P1 | Profile and reduce corrected zero-power checkpoint evaluation | Completed; see canonical acceptance | [pv-s07.md](arena-backlog/pv-s07.md) |
-| [#570](https://github.com/uhtred1986-lab/trading-card-management/issues/570) S06 | P2 | Preview a gameplan without committing moves | [#558](https://github.com/uhtred1986-lab/trading-card-management/issues/558), [#564](https://github.com/uhtred1986-lab/trading-card-management/issues/564), [#547](https://github.com/uhtred1986-lab/trading-card-management/issues/547) | [pv-s06.md](arena-backlog/pv-s06.md) |
+| [#570](https://github.com/uhtred1986-lab/trading-card-management/issues/570) S06 | P2 | Preview a gameplan without committing moves | Closed by PR #674; bounded fixed-price Main/self-rest preview | [pv-s06.md](arena-backlog/pv-s06.md) |
 
 ### Outstanding card readings — P1
 
@@ -105,9 +122,9 @@ Issue bodies contain scoped build instructions, named acceptance scenarios and v
 | Issue / plan key | Priority | Work | Prerequisites / state | Canonical file |
 |---|---|---|---|---|
 | [#571](https://github.com/uhtred1986-lab/trading-card-management/issues/571) C01 | P1 | Fix missing and over-broad card Auto trigger readings | Completed; see canonical acceptance | [pv-c01.md](arena-backlog/pv-c01.md) |
-| [#572](https://github.com/uhtred1986-lab/trading-card-management/issues/572) C02 | P1 | Bind end-of-battle Auto to this card comboed from hand | [#571](https://github.com/uhtred1986-lab/trading-card-management/issues/571) | [pv-c02.md](arena-backlog/pv-c02.md) |
-| [#573](https://github.com/uhtred1986-lab/trading-card-management/issues/573) C03 | P1 | Fix grouped counts shared conditions and mixed target readings | [#572](https://github.com/uhtred1986-lab/trading-card-management/issues/572) | [pv-c03.md](arena-backlog/pv-c03.md) |
-| [#574](https://github.com/uhtred1986-lab/trading-card-management/issues/574) C04 | P1 | Fix phase durations and Desire hand activation readings | [#573](https://github.com/uhtred1986-lab/trading-card-management/issues/573) | [pv-c04.md](arena-backlog/pv-c04.md) |
+| [#572](https://github.com/uhtred1986-lab/trading-card-management/issues/572) C02 | P1 | Bind end-of-battle Auto to this card comboed from hand | Closed by PR #670; hand-origin battle-end binding | [pv-c02.md](arena-backlog/pv-c02.md) |
+| [#573](https://github.com/uhtred1986-lab/trading-card-management/issues/573) C03 | P1 | Fix grouped counts shared conditions and mixed target readings | Closed by PRs #673/#675; current-DSL grouped readings and entry timing | [pv-c03.md](arena-backlog/pv-c03.md) |
+| [#574](https://github.com/uhtred1986-lab/trading-card-management/issues/574) C04 | P1 | Fix phase durations and Desire hand activation readings | Unblocked after #573; implementation in flight | [pv-c04.md](arena-backlog/pv-c04.md) |
 | [#539](https://github.com/uhtred1986-lab/trading-card-management/issues/539) existing | P1 | Arena: card review 4 Oct 2026 — single-card misreadings and missing triggers | Tracking only | [s2-101-card-review-misreadings.md](arena-backlog/s2-101-card-review-misreadings.md) |
 
 ### Independent coverage and retirement — P2/P3
@@ -212,3 +229,5 @@ not run and 18 named skips; these are not full rules coverage. #575 audits that 
 No implementation issue has been marked fixed by this planning work. No production database, paid AI call,
 deployment setting, or code PR merge was performed. Existing grounded prototype changes are preserved.
 Live-only verification is explicitly assigned to the owner; agents use local fixtures/PGlite.
+
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the seventeen original remaining issues; #574 retains this explicit shared payment limitation.

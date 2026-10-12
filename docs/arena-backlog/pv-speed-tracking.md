@@ -20,8 +20,8 @@ tracking: true
 - [ ] #566 **P1** — Acknowledge human actions before resumable AI advance
 - [x] #567 **P1** — Record concurrent AI usage atomically
 - [x] #568 **P2** — Skip unchanged snapshot loads with revision-aware polling
-- [ ] #569 **P2** — Share immutable derived evaluation by match revision
-- [ ] #570 **P2** — Preview a gameplan without committing moves
+- [x] #569 **P2** — Share immutable derived evaluation by match revision
+- [x] #570 **P2** — Preview a gameplan without committing moves
 
 
 ## Order and hot files
@@ -40,3 +40,5 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 ## Measured checkpoint follow-up
 
 - [x] #607 **P1** — Profile and reduce repeated evaluation in corrected zero-power checkpoints (bounded child of #569; independent of polling #568). Isolated same-fixture apply improved from 656.847/887.796 ms to 83.144/95.482 ms p50/p95; state, event, legal/rejected-action and masked-view hashes match. Reports are [baseline](evidence/607/checkpoint-cache-baseline.json) and [optimized](evidence/607/checkpoint-cache-optimized.json); PR #612 is merged and production-deployed; the separate clean-stack paired run measured 628.709/791.338 ms to 72.133/80.835 ms. Both are local fixture measurements, not hosted/device timing. Preserve rule processing and verify invalidation/interaction outcomes.
+
+**Latest reviewed delivery:** PR #674 completes #570's bounded fixed-price Main/self-rest gameplan preview with real-artwork phone/desktop evidence and immutable state/retry checks. PR #678 completes #569's synchronous snapshot read session: standing-rule reads 4→1 and identical state/legal/rejection/both-viewer hashes. Larger-fixture median p50 improves; crowded-aura p95 remains mixed. #566 remains partial for the explicitly unknown provider-outcome boundary. Hosted/device timings are unclaimed.
