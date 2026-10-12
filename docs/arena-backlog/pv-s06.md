@@ -1,7 +1,7 @@
 ---
 title: [P2] Arena: Preview a gameplan without committing moves
 milestone: Arena M2 — Gameplay UX/HUD completion
-labels: backlog, blocked, enhancement, area:arena-ui, phase:hud-workflow, model:sonnet-5, performance
+labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:hud-workflow, model:sonnet-5, performance
 stage: ui
 issue: 570
 priority: P2
