@@ -5,6 +5,7 @@ import { engineFor } from "../../src/lib/arena/engines";
 import { addEffect, has, move, staticEffects } from "../../src/lib/arena/engine/state";
 import type { GameState, PlayerId } from "../../src/lib/arena/types";
 
+export function verifyLegacyStandingGrants() {
 const engine = engineFor("legacy");
 const IDS = ["V683S_WATCH", "V683S_DUAL", "V683S_MIX", "V683S_COND", "V683S_AURA", "V683S_EXTRA", "V683S_REMOVE", "V683S_COPY", "V683S_LEADER"];
 const old = new Map(IDS.map((id) => [id, DEFS[id]]));
@@ -295,3 +296,7 @@ for (const id of IDS) {
   if (prior) DEFS[id] = prior;
   else delete DEFS[id];
 }
+
+}
+
+if (process.argv[1]?.endsWith("villainous-683-legacy-standing.ts")) verifyLegacyStandingGrants();

@@ -245,6 +245,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "Successful Auto activation snapshots source qualification before effect changes and retains individual watcher identity. Failed or declined payment fires no hook. An in-play Extra can watch its own skill; another-card exclusion applies to Battle play. villainous-683-parent-continuation.ts also proves child effect, parent continuation, then keyword choice across saved prompts on both engines. This bounded evidence does not establish catalog-wide coverage or live deployment behavior.",
   },
   {
+    id: "arena-legacy-keyword-grant-identity",
+    label: "Legacy timed and standing Villainous grants retain independent spend identities",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "22-36-2/3; 9-1-5; 9-6-11; 3-1-4",
+    ownerIssue: 683,
+    proof: "scripts/verify/villainous-683-legacy-timed.ts and villainous-683-legacy-standing.ts — multiple grants, printed coexistence, saved pending choices, regrant, source/bearer reentry, condition toggle, copied Permanent refresh, legal Awaken/token flows and both viewer board projections",
+    detail: "Timed grants use persistent effect IDs; standing grants use source entry/face, skill/op path and recipient entry. Each resolving grant spends only itself. An older saved pending -1 record is preserved without invented provenance; this is bounded new-event evidence, not exhaustive legacy-save migration, catalog or live-database proof.",
+  },
+  {
     id: "arena-fill-under-named-host",
     label: "A named host is filled from the top of its owner's deck to the printed stack total",
     status: "supported",
