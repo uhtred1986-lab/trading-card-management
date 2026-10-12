@@ -166,6 +166,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "Each prompt offers only cards covering missing distinct colors; payment occurs once after complete coverage. Additional resource-cost ordering is independently tested in arena-aegis-additional-cost-order; original-color eligibility is independently tested in arena-keyword-original-colors and additional action prices remain #595.",
   },
   {
+    id: "arena-revive-additional-cost-order",
+    label: "Priced Revive still pays its additional resource fee before hand colors",
+    status: "unsupported",
+    evidence: "runtime-gap",
+    citation: "22-34-3",
+    ownerIssue: 624,
+    proof: "scripts/verify/original-colors-597.ts — priced Revive pays the Red fee before the hand prompt; declining leaves it KO'd",
+    detail: "The active boundary assertion documents current incorrect order without claiming a paid resurrection. Color-first continuation and late-fee behavior remain #624; this is not a skipped test.",
+  },
+  {
     id: "arena-keyword-original-colors",
     label: "Arrival, Aegis and unpriced Revive use original payment colors",
     status: "supported",
@@ -173,7 +183,7 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     citation: "22-29-3; 22-30-3; 22-34-3",
     ownerIssue: 597,
     proof: "scripts/verify/original-colors-597.ts — actual keyword eligibility, payment candidates, mono/multicolor, reload, source removal, expiry and private views",
-    detail: "Only declared original-color filters and coverage read the shown printed face before identity layers. Ordinary filters retain effective colors. Revive additional-price ordering remains outside this narrow proof; no exhaustive keyword-cost support is claimed.",
+    detail: "Only declared original-color filters and coverage read the shown printed face before identity layers. Ordinary filters retain effective colors. Revive additional-price ordering remains #624, outside this narrow proof; no exhaustive keyword-cost support is claimed.",
   },
   {
     id: "arena-aegis-additional-cost-order",
