@@ -48,8 +48,8 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     evidence: "runtime-scenario",
     citation: "9-6-4; 5-8-2-2; 20-5",
     ownerIssue: 549,
-    proof: "scripts/verify/compiler.ts — AUTOCOST paid/declined; scripts/verify/auto-costs-549.ts — full action/resource costs, X, reload, stale and atomic rejection",
-    detail: "Supported orb/action/X prices complete before the effect; condition-only Autos remain compulsory. The instruction whitelist and bounded search interrupt explicitly; general binding remains #550 and broader price coverage remains #549.",
+    proof: "scripts/verify/compiler.ts — AUTOCOST paid/declined; scripts/verify/auto-costs-549.ts — full action/resource costs, X, actual play-triggered pending selection, turn-player priority, reload, stale and atomic rejection",
+    detail: "Supported orb/action/X prices complete before the effect; public-area condition-only Autos remain compulsory. Players choose among their own pending skills with turn-player priority, captured queue binding and private source labels. The secret-area declaration exception remains unimplemented. The instruction whitelist and bounded search interrupt explicitly; general binding remains #550 and broader price coverage remains #549.",
   },
   {
     id: "arena-zero-power-rule-processing",
@@ -226,6 +226,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "Timed grants use persistent effect IDs; standing grants distinguish source entry/face, skill/op path and bearer entry. Only the resolving instance is negated through the turn. Grant identities remain private; unsupported legacy hook frames with no identity interrupt before drawing rather than silently escaping self-negation. Local synthetic programs prove these bounded interactions, not exhaustive catalog or legacy-save migration coverage.",
   },
   {
+    id: "arena-combo-from-hand-battle-end",
+    label: "A combo-end Auto binds this card’s hand origin and turn restriction",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "8-5 Combo Area cleanup; owner card review #539",
+    ownerIssue: 572,
+    proof: "scripts/verify/hand-combo-572.ts — legal hand/Battle-area combos, unrelated copy, opponent turn, reload, missing provenance, Z-Energy departure and later battle; scripts/verify/readings.ts — BT6-010 and BT2-010 source/turn readings",
+    detail: "Each actual Combo Area entry records its source for that battle. Only the bound copy’s cleanup departure can pend the hand-qualified Auto; older saved battles with no origin interrupt visibly before resolving the Auto, rather than inventing its origin or silently suppressing it. This narrow provenance fix preserves the separate #609 cleanup checkpoint ordering limitation and does not establish exhaustive catalog coverage.",
+  },
+  {
     id: "arena-face-up-life-trigger",
     label: "A face-up Life card event fires its Auto",
     status: "supported",
@@ -326,6 +336,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-combo-origin-save", file: "src/lib/arena/vm/triggers.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "8-5; persisted combo-origin contract", historicalIssues: [572], detail: "An older saved battle missing origin for a due hand-qualified combo-end Auto interrupts before resolution. Current battles capture actual origins; no legacy save provenance is invented." },
   {"id": "arena-vm-notyet-aegis-action-price", "file": "src/lib/arena/vm/aegis-costs.ts", "ordinal": 1, "kind": "not-yet", "classification": "current-runtime-unsupported", "citation": "22-30-3; additional Aegis action-price boundary", "ownerIssue": 595, "detail": "Aegis with a compiled additional action price interrupts before color/resource payment; it is not resolved for free."},
   {"id": "arena-vm-notyet-aegis-pool-replacement", "file": "src/lib/arena/vm/aegis-costs.ts", "ordinal": 2, "kind": "not-yet", "classification": "declaration-extension", "citation": "22-30-3; 9-10; native pool declaration contract", "ownerIssue": 595, "detail": "A declared in-play additional payment pool needing optional or competing replacements interrupts before additional resource charges. Proof uses a synthetic battle pool; current DBS Burst/Z-Energy pools do not establish a printed-card gap."},
   { id: "arena-vm-notyet-auto-search-budget", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", ownerIssue: 549, detail: "Bounded search beyond 2,000 visited states interrupts explicitly; no free effect or false unaffordability claim." },
@@ -357,6 +368,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-combo-origin-save": "pendAutos|-|comboBattleEndFromHand(sk) > origin === undefined",
   "arena-vm-notyet-aegis-action-price": "stepAegisCost|-|cost.line.script?.price?.ops?.length",
   "arena-vm-notyet-aegis-pool-replacement": "stepAegisCost|-|choices.length > 1 || choices.some((r) => r.optional)",
   "arena-vm-notyet-auto-search-budget": "canFinishAutomaticPrice|-|--budget < 0",

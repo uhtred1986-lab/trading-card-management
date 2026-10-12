@@ -81,6 +81,8 @@ export interface VmBattle {
    * engines' `BattleView.counters` come off the same record.
    */
   counters: { card: string; by: PlayerId; after: number }[];
+  /** Each combo card's actual entry area in this battle, retained through save/reload and 8-5 cleanup. */
+  comboOrigins?: Record<string, "hand" | "other">;
   /**
    * 8-4-6-1's life cards, part way through (#272): set only while the Damage
    * Step is waiting on 9-10-3's question over one life card's own `life`
@@ -298,10 +300,18 @@ export interface VmState {
   flow: VmFrame[];
   /**
    * The [Auto] skills and captured event hooks whose moment has happened and
-   * whose program has not run, ordered by event/master for 9-6-6's checkpoint.
-   * `nextPending` selects the turn player's first, then the other player's.
+   * whose program has not run, ordered by event until the checkpoint asks the
+   * priority master to select one (9-6-3). The turn player has priority.
    */
   pending: VmPendingRecord[];
+  /** 9-6-3: frozen choices and full queue provenance while a master selects a pending Auto. */
+  pendingOrder?: {
+    master: PlayerId;
+    turnPlayer: PlayerId;
+    queue: VmPendingRecord[];
+    candidates: number[];
+    chosen?: number;
+  };
   /**
    * 9-1-4: every continuous effect in force, oldest first (9-9-2). The legacy
    * engine's own `ContinuousEffect`, because `src/lib/arena/effects.ts` turns

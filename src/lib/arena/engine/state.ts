@@ -1485,6 +1485,12 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
     else l.push(id);
   }
   ev.push({ type: "move", card: id, from: from?.area ?? "removed", to, owner: toOwner, reveal: opts.reveal });
+  // Every route into the Combo Area, including a skill-made combo, records
+  // its actual entry area for this battle's end-of-battle Autos. A reentry
+  // overwrites an earlier visit by the same card instance.
+  if (s.battle && to === "combo" && from?.area !== "combo") {
+    (s.battle.comboOrigins ??= {})[id] = from?.area === "hand" ? "hand" : "other";
+  }
   return to;
 }
 

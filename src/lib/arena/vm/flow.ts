@@ -46,7 +46,7 @@ import type { PatternValue } from "../lang";
 import type { GameDefinition, StepDef, WinDef } from "../rulesets";
 import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
-import { masterOf, nextPending, skillsShowing } from "./triggers";
+import { masterOf, nextPending, skillsShowing, type VmPendingRecord } from "./triggers";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
@@ -435,7 +435,19 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     else if (top.asking === undefined) {
       top.asking = askers(state, step);
       const pended = state.pending.length;
-      const worked = STEP_WORK[name]?.run(ctx, game, state, ev);
+      let worked: "wait" | void;
+      try {
+        worked = STEP_WORK[name]?.run(ctx, game, state, ev);
+      } catch (err) {
+        if (!(err instanceof NotYet)) throw err;
+        // Native steps may discover unsupported saved-state information while
+        // firing their moments, before any pending program reaches the usual
+        // script-level NotYet catch. Preserve the typed terminal outcome.
+        interruptGame(ctx, game, state, ev, { issue: err.issue, detail: err.message });
+        // Let the new over-phase frame put up its terminal prompt before the
+        // runner returns to the caller.
+        continue;
+      }
       checkWins(ctx, game, state, ev);
       // The work may have ended the game or passed the turn, either of which
       // replaces the flow this frame was on.
@@ -653,8 +665,53 @@ export function repeatAllowed(step: StepDef, frame: VmFrame): boolean {
   return step.limit !== undefined && frame.repeats < step.limit;
 }
 
+/** Compare the complete captured queue across JSON reload, independent of key order. */
+function sameCaptured(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, i) => sameCaptured(item, b[i]));
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key) && sameCaptured(left[key], right[key]));
+}
+
+function chosenPending(state: VmState): VmPendingRecord | null | "wait" {
+  const offered = state.pendingOrder;
+  if (offered?.chosen !== undefined && (state.turnPlayer !== offered.turnPlayer || !sameCaptured(state.pending, offered.queue)
+    || !offered.candidates.includes(offered.chosen) || state.pending[offered.chosen]?.master !== offered.master)) {
+    throw new IllegalAction("the pending skill choice is stale");
+  }
+  const master = state.pending.some((item) => item.master === state.turnPlayer) ? state.turnPlayer : other(state.turnPlayer);
+  // A missing hook identity is an interpreter guard, not a pending [Auto]
+  // the player may select. Fail closed for the priority master before any of
+  // that master's ordinary Autos can pay or resolve, including older saved
+  // order prompts that offered the guard as a candidate.
+  const guard = state.pending.findIndex((item) => item.master === master && item.kind === "hook" && item.frame.pendingHookIdentityMissing);
+  if (guard >= 0) {
+    delete state.pendingOrder;
+    return state.pending.splice(guard, 1)[0];
+  }
+  if (offered) {
+    if (offered.chosen === undefined) {
+      state.prompt = { kind: "orderPending", player: offered.master, candidates: offered.candidates };
+      return "wait";
+    }
+    delete state.pendingOrder;
+    return state.pending.splice(offered.chosen, 1)[0];
+  }
+  const candidates = state.pending.flatMap((item, index) => item.master === master ? [index] : []);
+  if (candidates.length > 1) {
+    state.pendingOrder = { master, turnPlayer: state.turnPlayer, queue: structuredClone(state.pending), candidates };
+    state.prompt = { kind: "orderPending", player: master, candidates };
+    return "wait";
+  }
+  return nextPending(state);
+}
+
 /**
- * 4-2-2: the checkpoint. One pended [Auto] resolved, the turn player's first.
+ * 4-2-2: the checkpoint. The turn player chooses one of their pending Autos
+ * first (9-6-3); only after they have none does the other player choose.
  *
  * Returns true when it took one off the queue, and the runner then looks again
  * — so a skill that pends another is behind it rather than lost, which is the
@@ -677,10 +734,11 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A 9-10 substitute is part of confirmative rule processing: finish it,
   // including any answer it asks for, before resolving pending Autos.
   if (state.programs.length) return true;
-  const next = nextPending(state);
+  const next = chosenPending(state);
+  if (next === "wait") return "wait";
   if (!next) return false;
   if (next.kind === "hook") {
-    // Captured keyword effects use the same owner/FIFO checkpoint queue as
+    // Captured keyword effects use the same owner-choice checkpoint queue as
     // ordinary Autos. Put the already-compiled frame on the runner only after
     // the confirmative rule check above has completed.
     state.programs.unshift(next.frame);
@@ -1280,6 +1338,7 @@ export function endGame(ctx: EngineContext, game: GameDefinition, state: VmState
   // 0-1-3: nothing answers to a game that has ended, so the queue goes with it
   // rather than being drained into an over phase by the checkpoint.
   state.pending = [];
+  delete state.pendingOrder;
   enterPhase(ctx, game, state, ev, over);
   log(ev, { type: "gameOver", winner, reason });
 }

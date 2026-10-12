@@ -51,13 +51,20 @@ invalid index and stale resource rejection; two source/master queues; combined o
 payment across reload; cost targets and action-/energy-chosen X; source departure with
 subject binding; Burst and Spirit Boost; sequential double-spend/mode/cardinality refusal;
 mandatory choose-three with too few cards or distinct names; safe candidate pruning;
-explicit unsupported/missing price interruption; a 20-card action-price projection.
+explicit unsupported/missing price interruption; a 20-card action-price projection. The
+9-6-3 selection increment adds two compiled Autos from one real play moment, choosing the
+second first, three-candidate and repeat choices after a resolving skill pends another Auto,
+exact source/master/subject bindings across JSON reload, turn-player priority, stale queue
+and turn rejection, and opponent snapshot privacy for a hand source. No cost is charged
+before the order decision.
+
 `scripts/verify/compiler.ts` independently asserts AUTOCOST pays exactly one additional
 energy and draws two, while decline pays nothing further. No compiler reading is changed.
 
-**Remaining boundaries.** Existing turn-player-first FIFO order is preserved; choosing among
-simultaneous pending skills (9-6-3) remains a separate existing limitation, as does the
-secret-area declaration/decline exception for cost-free Autos (9-6-3-1-1). Supported action
+**Remaining boundaries.** A player now chooses among their own simultaneous pending skills
+at a checkpoint (9-6-3), with the turn player's pending skills taking priority. The
+secret-area declaration/decline exception for cost-free Autos (9-6-3-1-1) remains open;
+the hand-source selection menu is visible only to the deciding player. Supported action
 prices use choose/discard/mill/switchMode/hidden/moveTo/removeMarker; unimplemented instructions
 and a full-price choice search exceeding 2,000 visited states produce an explicit typed
 interruption instead of free resolution or a false affordability claim. This Auto-specific
