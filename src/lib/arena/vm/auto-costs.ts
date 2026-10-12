@@ -1,7 +1,7 @@
 /** Auto payment planning and its stored checkpoint continuation (#549). */
 import type { EngineContext, GameEvent, Skill } from "../types";
 import type { GameDefinition } from "../rulesets";
-import { selectedCount, stepScript, type Op, type Script, type ScriptFrame } from "./script";
+import { selectedCount, stepScript, type Op, type Ref, type Script, type ScriptFrame } from "./script";
 import type { ScriptHost } from "./script-host";
 import { vmHost } from "./host";
 import { boundFor, scopedPayersSpent } from "./activate";
@@ -291,21 +291,48 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
     || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal" || op.op === "faceUp"
     || (op.op === "if" && !!op.else?.length && pays(op.then) && pays(op.else))
     || (op.op === "chooseMode" && op.modes.length > 0 && op.modes.every((mode) => pays(mode.ops))));
-  const check = (steps: Op[], nested: boolean): void => {
+  /** A completed interpreter step of one of these shapes necessarily changed
+   * a resource. An optional empty choice cannot establish this fact merely
+   * because a `moveTo` instruction follows it. */
+  const surelyPaid = (op: Op, prior: Op | undefined): boolean => {
+    const mandatoryPick = (target: Ref): boolean => prior?.op === "choose" && "var" in target && target.minus === undefined
+      && target.var === prior.as && Number.isInteger(prior.sel.count ?? 1) && (prior.sel.count ?? 1) > 0
+      && !prior.sel.upTo && prior.atMost === undefined;
+    if (op.op === "moveTo" && op.to !== "play") {
+      if ("sel" in op.target) return true; // The strict host refuses no target or a failed departure.
+      return mandatoryPick(op.target); // Every selected card must reach its named destination.
+    }
+    if (op.op === "discard" || op.op === "mill") return typeof op.n === "number" && Number.isInteger(op.n) && op.n > 0;
+    if (op.op === "removeMarker") return typeof op.n === "number" && Number.isInteger(op.n) && op.n > 0 && "sel" in op.target;
+    if (op.op === "switchMode" || op.op === "hidden") return "sel" in op.target || mandatoryPick(op.target);
+    if (op.op === "reveal") return !op.sel.upTo && (op.sel.count ?? 1) > 0 && op.audience !== "you";
+    if (op.op === "faceUp") return true; // The verified Life pair and strict face transition were checked below.
+    return false;
+  };
+  /** `paid` means every path to this point completed an action, not just
+   * that an opcode named an action. `terminal` follows all ancestor tails. */
+  const check = (steps: Op[], paid = false, terminal = true, nested = false): boolean => {
     for (const [index, op] of steps.entries()) {
       if (op.op === "note" && op.text.startsWith("\u0000probe-path:")) continue;
       if (op.op === "if") {
-        if (!op.else?.length || !pays(op.then) || !pays(op.else)) throw new NotYet(`pay ${label} conditional action price with an empty branch`, owner);
-        check(op.then, true);
-        check(op.else, true);
+        if (!paid && (!op.else?.length || !pays(op.then) || !pays(op.else)))
+          throw new NotYet(`pay ${label} conditional action price with an empty branch`, owner);
+        const branchTerminal = terminal && index === steps.length - 1;
+        const thenPaid = check(op.then, paid, branchTerminal, true);
+        const elsePaid = check(op.else ?? [], paid, branchTerminal, true);
+        paid = thenPaid && elsePaid;
         continue;
       }
       if (op.op === "chooseMode") {
         if (!op.modes.length || op.modes.some((mode) => !pays(mode.ops))) throw new NotYet(`pay ${label} modal action price with an empty option`, owner);
-        for (const mode of op.modes) check(mode.ops, true);
+        const modeTerminal = terminal && index === steps.length - 1;
+        paid = op.modes.map((mode) => check(mode.ops, paid, modeTerminal, true)).every(Boolean);
         continue;
       }
-      if (op.op === "reveal" && !op.sel.upTo && op.audience !== "you") continue;
+      if (op.op === "reveal" && surelyPaid(op, steps[index - 1])) {
+        paid = true;
+        continue;
+      }
       // Only a compulsory own-Life pick immediately turned to the opposite
       // face has a complete payment proof. Other shapes stay typed unknown.
       if (op.op === "faceUp") {
@@ -317,18 +344,23 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
           || Object.entries(sel).some(([key, value]) => value !== undefined && !["side", "area", "count", "upTo"].includes(key))
           || (prior.chooser && prior.chooser !== "you") || prior.atMost !== undefined)
           throw new NotYet(`pay ${label} face-up action price outside the verified Life choice`, owner);
+        paid = true;
         continue;
       }
-      // Shuffling is permitted only after another payable step and at the
-      // very end: no later price selector can depend on its random order.
-      if (op.op === "shuffle" && !nested && index === steps.length - 1 && !op.inspectedOnly && pays(steps.slice(0, index))) continue;
+      // Preserve the original top-level adjunct admission for declared
+      // dynamic payments. Nested adjuncts newly admitted here need the
+      // stronger proof that every path has already performed a payment.
+      if (op.op === "shuffle" && terminal && index === steps.length - 1 && !op.inspectedOnly
+        && (paid || (!nested && pays(steps.slice(0, index))))) continue;
       if (!["choose", "discard", "mill", "switchMode", "hidden", "moveTo", "removeMarker"].includes(op.op)
         || (op.op === "moveTo" && op.to === "play")) {
         throw new NotYet(`pay ${label} action price containing ${op.op}`, owner);
       }
+      if (surelyPaid(op, steps[index - 1])) paid = true;
     }
+    return paid;
   };
-  check(ops, false);
+  check(ops);
 }
 
 /** Capture payment alternatives before asking; the Auto's master and source
