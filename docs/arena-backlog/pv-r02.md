@@ -98,6 +98,8 @@ priced secret browser and persisted proofs use synthetic records; they do not es
 that a particular printed card has this price/source combination. No dependencies or
 production/database writes.
 
+**Affordability-limit correction.** The planner's `NotYet` inherits `IllegalAction`; the former catch treated its exhausted search as an ordinary failed branch and could cancel a payable Auto as unaffordable. The catch now preserves that typed interruption. The registered `auto-costs-549.ts` case uses compiler-derived synthetic supported price grammar: rest one Battle Card, discard three of a 20-card hand, then rest the source. Choosing the source first consumes the search before a later payable choice; choosing the other card proves a complete payment exists. The test requires an explicit interruption, no false unaffordable note, no payment, no skill event and unchanged card/side state. This fixes the wrong classification, not the bounded solver; #549 remains open. No printed catalog card is asserted.
+
 **Owner-run verification.** Catalog reading snapshots require the deckplanet endpoint in this
 environment; the baseline attempt failed DNS lookup (`EAI_AGAIN api.deckplanet.net`).
 Fuzz 40 was attempted with `DATABASE_URL=''`, but the script requires actual deck inputs and
