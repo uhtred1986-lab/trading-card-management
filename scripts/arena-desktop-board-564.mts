@@ -71,7 +71,7 @@ const browser = await Browser.launch();
 try {
   for (const skin of ['anime', 'night']) for (const vp of viewports.filter(v => !before || ['desk', 'phone'].includes(v.name))) {
     const original = phoneFixture();
-    let snapshot = original.snapshot;
+    const snapshot = original.snapshot;
     writeFileSync(fixture, JSON.stringify(snapshot));
     const page = await browser.page(vp);
     try {
