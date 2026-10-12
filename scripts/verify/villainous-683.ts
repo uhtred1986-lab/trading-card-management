@@ -7,7 +7,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { hasKeyword, hookBodiesFor } from "../../src/lib/arena/vm/program";
-import { move } from "../../src/lib/arena/engine/state";
+import { addEffect as legacyAddEffect, move } from "../../src/lib/arena/engine/state";
 import type { Action, PlayerId, GameState } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
@@ -241,6 +241,20 @@ for (const [name, engine] of engines) {
   assert.deepEqual(spent.sort((a, b) => Number(a) - Number(b)), [0, 10], `${name} separately negates Heroic and Villainous at their printed offsets`);
   assert.equal(events.filter((event) => event.type === "draw" && event.player === "p1").length, 1, `${name} Heroic draws once`);
   console.log(`  ${name} dual keywords: independent pended identities`);
+}
+
+if (!RULES_ONLY) {
+  let s = main(legacy, 68399) as GameState;
+  const watcher = stageLegacy(s, "V683_OTHER", "battle");
+  legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Villainous" }, until: "turn" });
+  const source = stageLegacy(s, "V683_SOURCE", "hand");
+  const action = legacy.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === source)?.action;
+  assert.ok(action);
+  const activated = legacy.apply(CTX, s, action);
+  assert.ok(!activated.events.some((event) => event.type === "draw" && event.player === "p1"), "a Villainous grant cannot accidentally resolve the bearer's printed Heroic");
+  s = chooseDiscard(legacy, activated.state).state as GameState;
+  assert.ok(s.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher && effect.value === -1), "old legacy grant limitation keeps its pseudo-index");
+  console.log("  legacy grant fallback: keeps event keyword, retains old shared -1 limitation");
 }
 
 // The rules VM must preserve all three grant identities that #602 established

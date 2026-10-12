@@ -483,7 +483,7 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
   const inst = s.cards[p.card];
   // Older saved Heroic/Villainous grants used a shared -1 pseudo-index. New
   // printed and copied watchers carry their own indexed keyword identity.
-  if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master);
+  if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master, p.afterSkillKeyword);
   if (p.afterSkillKeyword) {
     if (skillsNegated(s, p.card)) return "done";
     const same = skillsOfInstance(ctx, s, p.card).find((sk) => sk.index === p.skillIndex && (sk.keyword?.name === p.afterSkillKeyword || sk.tags.includes(p.afterSkillKeyword!)));
@@ -789,7 +789,7 @@ function pendKeywordAfterSkill(ctx: EngineContext, s: GameState, source: string,
       if (!lines.length) {
         // An old grant has no printed/copy index in the legacy engine. Keep
         // its pre-existing pseudo-identity rather than inventing a new one.
-        if (!skillNegated(s, id, -1)) s.pending.push({ card: id, skillIndex: -1, master: owner, trigger: "played", subject: source });
+        if (!skillNegated(s, id, -1)) s.pending.push({ card: id, skillIndex: -1, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
         continue;
       }
       for (const sk of lines) s.pending.push({ card: id, skillIndex: sk.index, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
