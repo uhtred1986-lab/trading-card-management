@@ -50,7 +50,6 @@ import { ENGINE, RULES_GAPS } from "./verify/harness";
  */
 const STILL_ON_THE_ORACLE: Record<string, string> = {
   vm: "compares the rules engine with the legacy engine call for call (about 130 legacy calls in 4,900 lines); each comparison is still to become a checked-in expectation",
-  "ai-vm": "stages each position on both engines and holds the rules engine's stateText, decklistText and Claude request to the legacy engine's byte for byte (#460); `language`'s state-text.txt fixture is the checked-in half that runs here",
 };
 
 const SUITES = ["text", "setup", "battles", "compiler", "keywords", "hidden", "while-source", "warp", "next-activation", "taxes", "readings", "wordings", "workflow", "contract", "deck-api", "language", "lang", "describe", "rulesets", "board-words", "primer", "game-page", "probe", "ai-vm", "vm", "engine-default", "poll-schedule", "narration"];
