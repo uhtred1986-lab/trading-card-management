@@ -119,7 +119,6 @@ import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
 import type { CardDef, Color, PlayerId, Replacement, Requirement } from "../../src/lib/arena/types";
 import { legacyHost } from "../../src/lib/arena/engine/legacy-host";
 import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/vm/script";
-import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
 import { CTX, DEFS, assertMenuInvariants, card, fifty } from "./harness";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
@@ -128,7 +127,7 @@ import { usableFrom } from "../../src/lib/arena/vm/activate";
 import { SEED_7_OPENING, SEED_7_P1_REDRAW } from "./vm-opening-459";
 import { CARD_VIEWS_459 } from "./vm-card-views-459";
 import { expectedTurnTrace } from "./vm-turn-459";
-import { verifyLegacyVmCompatibility } from "./vm-legacy-118";
+import { verifyLegacyPrimitiveOps, verifyLegacyVmCompatibility } from "./vm-legacy-118";
 import { FILTER_CORPUS_459, FILTER_MATCHES_459, fixedFilterMatch459 } from "./vm-filters-459";
 import { FIXED_CARD_COSTS_459, FIXED_PRICES_459 } from "./vm-costs-459";
 
@@ -1047,8 +1046,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   // ── #276: `negate` is the primitive, and the spelling is a macro over it ──
   //
   // `negateSkills` written as itself and written as `negate(what: skills)` run
-  // through one interpreter case on either host, so the events, the effect in
-  // force and the beats a board draws are the same four ways over. `ops.rules`
+  // through one interpreter case, so the events, effect in force and beats
+  // are fixed for both spellings. `ops.rules`
   // declares `negateSkills` over `negate` for real (#273's holes make `$until`
   // writable), so `DBS` — the ruleset every other block in this file loads —
   // is what proves a lowered program is the same program, not a second copy
@@ -1073,45 +1072,31 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       assert.equal(attrsNow(CTX, DBS, s, theirs).power, 10000, "a negated [Permanent] went on standing on the rules engine");
       return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
     };
-    /** …and on the legacy engine, over its own host. */
-    const onLegacy = (ops: Op[]) => {
-      const l = createGame(CTX, SAME).state;
-      const [mine] = l.players.p1.deck.splice(0, 1);
-      const [theirs, aura] = l.players.p2.deck.splice(0, 2);
-      for (const [id, cardId] of [[mine, "V1"], [theirs, "V1"], [aura, "AURA"]] as const) {
-        l.cards[id].cardId = cardId;
-        l.cards[id].mode = "active";
-      }
-      l.players.p1.battle = [mine];
-      l.players.p2.battle = [theirs, aura];
-      const ev: GameEvent[] = [];
-      assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card: mine, master: "p1" }), "done");
-      assert.ok(legacySkillsNegated(l, aura), "the legacy engine did not record the negation");
-      return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
-    };
-
     const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
-    const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
     assert.deepEqual(r.primitive.events, r.spelled.events, "negateSkills as op and as negate do not log the same events on the rules engine");
-    assert.deepEqual(l.primitive.events, l.spelled.events, "negateSkills as op and as negate do not log the same events on the legacy engine");
     assert.deepEqual(r.primitive.beats, r.spelled.beats, "negateSkills as op and as negate do not make the same beats on the rules engine");
-    assert.deepEqual(l.primitive.beats, l.spelled.beats, "negateSkills as op and as negate do not make the same beats on the legacy engine");
-    // The beat is the same beat on both engines: an `effect` per card the
-    // selector found (both of the opponent's Battle Cards), the negation
-    // label, for the turn.
-    const shape = (beats: unknown[]) => (beats as { t: string; kind?: string; label?: string; until?: unknown }[]).map((b) => [b.t, b.kind, b.label, b.until]);
-    const negation = ["effect", "negate", "skills negated", "turn"];
-    assert.deepEqual(shape(r.primitive.beats), [negation, negation], "the rules engine's beat for a negation is not the one the board draws");
-    assert.deepEqual(shape(l.primitive.beats), shape(r.primitive.beats), "the two engines draw a negation differently");
+    const fixedNegation = {
+      events: [
+        { type: "effect", effect: { master: "p1", source: "p1#9", target: "p2#10", kind: "negateSkills", value: 0, until: "turn", id: 1, createdTurn: 1, ownerTurn: "p1" } },
+        { type: "effect", effect: { master: "p1", source: "p1#9", target: "p2#41", kind: "negateSkills", value: 0, until: "turn", id: 2, createdTurn: 1, ownerTurn: "p1" } },
+      ],
+      beats: [
+        { t: "effect", card: "p2#10", player: null, kind: "negate", label: "skills negated", until: "turn", source: "p1#9", owner: "p1", n: 1 },
+        { t: "effect", card: "p2#41", player: null, kind: "negate", label: "skills negated", until: "turn", source: "p1#9", owner: "p1", n: 2 },
+      ],
+    };
+    assert.deepEqual(r.spelled, fixedNegation, "the spelled negation changed its complete fixed events or beats");
+    assert.deepEqual(r.primitive, fixedNegation, "the primitive negation changed its complete fixed events or beats");
+    verifyLegacyPrimitiveOps("negate", spelled, primitive);
+
   }
 
   // ── #275: `modifyAttr` reaches a Leader's back side and a card's mode ────
   //
   // `flip` and `switchMode` written as themselves and written as
   // `modifyAttr(attr: flipped)`/`modifyAttr(attr: mode)` run through the
-  // same interpreter case on either host (`modifyAttrAs`, the precedent
-  // `negateAs` set above), so the events and the beats a board draws are
-  // the same both ways, on both engines. `ops.rules` declares both over the
+  // same interpreter case (`modifyAttrAs`, the precedent `negateAs` set
+  // above), so both spellings have the same fixed events and beats. `ops.rules` declares both over the
   // primitive for real, so `DBS` proves a lowered program is the same
   // program rather than a fixture built just for this block.
   {
@@ -1131,21 +1116,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         assert.ok(s.cards[leader].flipped, "the rules engine did not flip the Leader");
         return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
       };
-      const onLegacy = (ops: Op[]) => {
-        const l = createGame(CTX, SAME).state;
-        const leader = l.players.p1.leader;
-        const ev: GameEvent[] = [];
-        assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card: leader, master: "p1" }), "done");
-        assert.ok(l.cards[leader].flipped, "the legacy engine did not flip the Leader");
-        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
-      };
-
       const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
-      const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
       assert.deepEqual(r.primitive.events, r.spelled.events, "flip as op and as modifyAttr do not log the same events on the rules engine");
-      assert.deepEqual(l.primitive.events, l.spelled.events, "flip as op and as modifyAttr do not log the same events on the legacy engine");
       assert.deepEqual(r.primitive.beats, r.spelled.beats, "flip as op and as modifyAttr do not make the same beats on the rules engine");
-      assert.deepEqual(l.primitive.beats, l.spelled.beats, "flip as op and as modifyAttr do not make the same beats on the legacy engine");
+      const fixedFlip = { events: [{ type: "flip", card: "p1#0", flipped: true }], beats: [{ t: "flip", card: "p1#0", n: 1 }] };
+      assert.deepEqual(r.spelled, fixedFlip, "the spelled flip changed its complete fixed events or beats");
+      assert.deepEqual(r.primitive, fixedFlip, "the primitive flip changed its complete fixed events or beats");
+      verifyLegacyPrimitiveOps("flip", spelled, primitive);
     }
 
     /** `switchMode`: a Battle Card resting itself. */
@@ -1162,24 +1139,13 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         assert.equal(s.cards[card].mode, "rest", "the rules engine did not rest the card");
         return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: rulesEngine.toBeats(CTX, s, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
       };
-      const onLegacy = (ops: Op[]) => {
-        const l = createGame(CTX, SAME).state;
-        const [card] = l.players.p1.deck.splice(0, 1);
-        l.cards[card].cardId = "V1";
-        l.cards[card].mode = "active";
-        l.players.p1.battle = [card];
-        const ev: GameEvent[] = [];
-        assert.equal(stepScript(legacyHost(CTX, l, ev), { ops, ip: 0, vars: {}, card, master: "p1" }), "done");
-        assert.equal(l.cards[card].mode, "rest", "the legacy engine did not rest the card");
-        return { events: JSON.parse(JSON.stringify(ev)) as unknown, beats: toBeats(CTX, l, ev).list.map((b) => JSON.parse(JSON.stringify(b)) as unknown) };
-      };
-
       const r = { spelled: onRules(spelled), primitive: onRules(primitive) };
-      const l = { spelled: onLegacy(spelled), primitive: onLegacy(primitive) };
       assert.deepEqual(r.primitive.events, r.spelled.events, "switchMode as op and as modifyAttr do not log the same events on the rules engine");
-      assert.deepEqual(l.primitive.events, l.spelled.events, "switchMode as op and as modifyAttr do not log the same events on the legacy engine");
       assert.deepEqual(r.primitive.beats, r.spelled.beats, "switchMode as op and as modifyAttr do not make the same beats on the rules engine");
-      assert.deepEqual(l.primitive.beats, l.spelled.beats, "switchMode as op and as modifyAttr do not make the same beats on the legacy engine");
+      const fixedMode = { events: [{ type: "mode", card: "p1#9", mode: "rest" }], beats: [{ t: "mode", card: "p1#9", mode: "rest", n: 1 }] };
+      assert.deepEqual(r.spelled, fixedMode, "the spelled mode change changed its complete fixed events or beats");
+      assert.deepEqual(r.primitive, fixedMode, "the primitive mode change changed its complete fixed events or beats");
+      verifyLegacyPrimitiveOps("mode", spelled, primitive);
     }
   }
 

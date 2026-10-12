@@ -10,11 +10,56 @@ import { boardView } from "../../src/lib/arena/view";
 import { AVAILABLE_ENGINES, EngineMismatch, engineFor, isVmState, legacyState, playableEngine, type Engine } from "../../src/lib/arena/engines";
 import type { Action, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm";
+import { legacyHost } from "../../src/lib/arena/engine/legacy-host";
+import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
+import { stepScript, type Op } from "../../src/lib/arena/vm/script";
+import type { GameEvent } from "../../src/lib/arena/types";
 import { CTX, cardNow, fifty, matches } from "./harness";
 import { emptyFilter } from "../../src/lib/arena/text/filters";
 import { RULES_ONLY } from "./rules-only";
 
 const CALLS: (keyof Engine & string)[] = ["createGame", "apply", "legalActions", "rejectedActions", "boardView", "toBeats"];
+
+/** §14 legacy-host primitive/spelling compatibility, owned by #118. */
+export function verifyLegacyPrimitiveOps(kind: "negate" | "flip" | "mode", spelled: Op[], primitive: Op[]): void {
+  if (RULES_ONLY) return;
+  const decks = { seed: 7, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
+  const run = (ops: Op[]) => {
+    const board = createGame(CTX, decks).state;
+    let source: string;
+    let target: string;
+    if (kind === "negate") {
+      [source] = board.players.p1.deck.splice(0, 1);
+      const [theirs, aura] = board.players.p2.deck.splice(0, 2);
+      for (const [id, cardId] of [[source, "V1"], [theirs, "V1"], [aura, "AURA"]] as const) {
+        board.cards[id].cardId = cardId;
+        board.cards[id].mode = "active";
+      }
+      board.players.p1.battle = [source];
+      board.players.p2.battle = [theirs, aura];
+      target = aura;
+    } else if (kind === "flip") {
+      source = board.players.p1.leader;
+      target = source;
+    } else {
+      [source] = board.players.p1.deck.splice(0, 1);
+      board.cards[source].cardId = "V1";
+      board.cards[source].mode = "active";
+      board.players.p1.battle = [source];
+      target = source;
+    }
+    const events: GameEvent[] = [];
+    assert.equal(stepScript(legacyHost(CTX, board, events), { ops, ip: 0, vars: {}, card: source, master: "p1" }), "done");
+    if (kind === "negate") assert.ok(legacySkillsNegated(board, target), "the legacy engine did not record the negation");
+    if (kind === "flip") assert.ok(board.cards[target].flipped, "the legacy engine did not flip the Leader");
+    if (kind === "mode") assert.equal(board.cards[target].mode, "rest", "the legacy engine did not rest the card");
+    return { events: JSON.parse(JSON.stringify(events)) as unknown, beats: toBeats(CTX, board, events).list.map((beat) => JSON.parse(JSON.stringify(beat)) as unknown) };
+  };
+  const a = run(spelled);
+  const b = run(primitive);
+  assert.deepEqual(a.events, b.events, `${kind}: legacy spelled and primitive events differ`);
+  assert.deepEqual(a.beats, b.beats, `${kind}: legacy spelled and primitive beats differ`);
+}
 
 export function verifyLegacyVmCompatibility(rulesState: VmState): void {
   if (RULES_ONLY) return;
