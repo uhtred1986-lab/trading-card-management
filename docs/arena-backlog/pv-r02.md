@@ -28,10 +28,10 @@ touches: src/lib/arena/vm/flow.ts, src/lib/arena/vm/costs.ts, src/lib/arena/vm/s
 **Out of scope.** Other plan tickets, production configuration, live database writes, new dependencies and paid AI calls. Preserve completed existing features and the legacy oracle. The design prototype is not authoritative rules code.
 
 
-**Delivery status.** Partial delivery; #549 remains open. The supported cost paths below
-have fixed local scenarios. Other action-price instructions and the bounded search limit
-remain reachable engine limitations owned by #549, so this increment does not claim the
-entire issue acceptance or unblock dependencies by closing it.
+**Delivery status.** Partial delivery; #549 remains open. The supported cost paths and
+cost-free secret-area declaration below have fixed local scenarios. Priced secret-area
+declaration, other action-price instructions and the bounded search limit remain reachable
+engine limitations owned by #549, so this increment does not claim the entire issue acceptance.
 
 **Rule-grounded behavior (#549).** Manual 9-6-4 permits paying or declining any necessary
 Auto skill cost, including printed energy and action costs. A condition that is already true
@@ -58,18 +58,29 @@ exact source/master/subject bindings across JSON reload, turn-player priority, s
 and turn rejection, and opponent snapshot privacy for a hand source. No cost is charged
 before the order decision.
 
+`scripts/verify/secret-auto-549.ts` asserts the 9-6-3-1-1 choice for a cost-free
+Auto still in a secret area, including an actual start-turn interaction where one
+pending Auto returns the other's source from Battle to Hand. Declaration reveals only
+that source's art and skill during its activation and valid saved choice continuation;
+decline produces no skill, price, draw or public note. Movement, concealment, shuffle,
+later actions and a new occurrence revoke an older declaration's viewer authority.
+`scripts/verify/arena-secret-auto-db.mts` checks the saved action/revision path:
+wrong actor and stale revision reject atomically, supplied table talk on a private
+decline is omitted from both viewers' session log, and ordinary later talk still logs.
+
 `scripts/verify/compiler.ts` independently asserts AUTOCOST pays exactly one additional
 energy and draws two, while decline pays nothing further. No compiler reading is changed.
 
 **Remaining boundaries.** A player now chooses among their own simultaneous pending skills
-at a checkpoint (9-6-3), with the turn player's pending skills taking priority. The
-secret-area declaration/decline exception for cost-free Autos (9-6-3-1-1) remains open;
-the hand-source selection menu is visible only to the deciding player. Supported action
+at a checkpoint (9-6-3), with the turn player's pending skills taking priority. A
+cost-free secret-area Auto may be left undeclared without telling the opponent; its
+selection menu is visible only to the deciding player. Priced secret-area declaration
+and keyword-hook applicability are not delivered by this increment. Supported action
 prices use choose/discard/mill/switchMode/hidden/moveTo/removeMarker; unimplemented instructions
 and a full-price choice search exceeding 2,000 visited states produce an explicit typed
 interruption instead of free resolution or a false affordability claim. This Auto-specific
-continuation does not deliver #550's broader Activate/cross-skill binding work. No public
-prompt/action type changes, UI changes, dependencies or production/database writes.
+continuation does not deliver #550's broader Activate/cross-skill binding work. No UI
+changes, dependencies or production/database writes.
 
 **Owner-run verification.** Catalog reading snapshots require the deckplanet endpoint in this
 environment; the baseline attempt failed DNS lookup (`EAI_AGAIN api.deckplanet.net`).

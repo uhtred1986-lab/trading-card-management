@@ -142,6 +142,7 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
             unread: !!compiled?.unsupported.length,
             owner: e.master,
             inBattle: e.inBattle,
+            ...(e.reveal ? { reveal: true as const, revealEpoch: e.revealEpoch } : {}),
           });
         }
         break;
