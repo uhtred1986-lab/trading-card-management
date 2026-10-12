@@ -518,6 +518,12 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
   }
   delete s.continuations[`paid:${p.card}:${sk.index}`];
   ev.push({ type: "skill", card: p.card, skill: sk.index, master: p.master, text: sk.raw, inBattle: !!s.battle });
+  // An Extra [Auto] is a skill activation too (22-35-2 / 22-36-2). Capture
+  // eligible keyword identities before its effect can move or change the source;
+  // the checkpoint behind that effect resolves the pending payouts afterward.
+  if (sk.kind === "auto" && baseType(def(ctx, s, p.card)) === "EXTRA") {
+    pendKeywordAfterSkill(ctx, s, p.card, p.master, (["Heroic", "Villainous"] as const).filter((name) => has(ctx, s, p.card, name)));
+  }
   return resolveKeywordOrText(ctx, s, ev, p.card, sk, p.master, p.trigger, p.subject);
 }
 
@@ -752,7 +758,7 @@ function resolvePlay(
   // 22-35-2 / 22-36-2: each pends when its owner plays *another* card with the
   // **same** keyword. They used to cross-match, so a [Villainous] card played
   // set off every [Heroic] on the board.
-  pendKeywordAfterSkill(ctx, s, card, p, (["Heroic", "Villainous"] as const).filter((name) => has(ctx, s, card, name)));
+  pendKeywordAfterSkill(ctx, s, card, p, (["Heroic", "Villainous"] as const).filter((name) => has(ctx, s, card, name)), true);
   s.flow.unshift({ op: "checkpoint" });
   return "done";
 }
@@ -782,9 +788,9 @@ function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent
 }
 
 /** Freeze each printed/copied watcher identity at the successful event. */
-function pendKeywordAfterSkill(ctx: EngineContext, s: GameState, source: string, owner: PlayerId, names: readonly ("Heroic" | "Villainous")[]): void {
+function pendKeywordAfterSkill(ctx: EngineContext, s: GameState, source: string, owner: PlayerId, names: readonly ("Heroic" | "Villainous")[], battlePlay = false): void {
   for (const id of cardsInPlay(s, owner)) {
-    if (id === source) continue; // Battle-play "another"; source-Extra self-answer awaits a ruling.
+    if (battlePlay && id === source) continue; // "Another" qualifies Battle plays, not Extra skill activations.
     for (const name of names) {
       if (!has(ctx, s, id, name)) continue;
       const lines = skillsOfInstance(ctx, s, id).filter((sk) => !skillNegated(s, id, sk.index, sk.kind) && (sk.keyword?.name === name || sk.tags.includes(name)));
@@ -3705,7 +3711,9 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     { op: "counter", window: "skill", responder: other(p) },
     { op: "skill.resolve", card, skill: sk.index, player: p, ...(xPaid === undefined ? {} : { x: xPaid }) },
     { op: "extra.finish", card },
-    { op: "checkpoint" },
+    // 12-2-4-9 returns to the invoking skill after the nested Extra finishes.
+    // Its own queued checkpoint handles pending Autos once that parent ends.
+    ...(waived ? [] : [{ op: "checkpoint" as const }]),
   );
   if (afterSkillKeywords.length) s.flow.unshift({ op: "afterSkill.activate", card, player: p, keywords: afterSkillKeywords });
   // 4-3-3: an action price is paid on activation, before the counter window

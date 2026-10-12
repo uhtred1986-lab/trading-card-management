@@ -55,8 +55,8 @@ import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
-import { attrsNow, forbiddenForCard, forbids, readingBoard, staticsNow } from "./program";
-import { playerAttributes } from "./cards";
+import { attrsNow, forbiddenForCard, forbids, hasKeyword, readingBoard, staticsNow } from "./program";
+import { attrsOf, playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
 import { leaveRoute, replacementChoices, replacementIdentity } from "./replace";
 import { asksAQuestion } from "./script-schema";
@@ -855,6 +855,19 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 
 /** 9-6-4: a satisfied condition alone is not an optional cost. */
 function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }, skill: Skill | undefined, program: Script): void {
+  // §§12-2-2/3 and 22-35/36: an Extra's [Auto] is a successful Extra skill
+  // activation once its optional price has been paid. Carry source identity
+  // through that price, which may move the card or suspend across a save. The
+  // one-shot effect frame captures current watchers when it actually begins;
+  // a declined or failed price never reaches that frame.
+  const sourceDef = state.cards[frame.card] && ctx.defs[state.cards[frame.card].cardId];
+  if (skill?.kind === "auto" && sourceDef && String(attrsOf(sourceDef, game).attrs.type ?? "").replace(/^Z-/, "") === "EXTRA") {
+    const keywords = (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, frame.card, name));
+    if (keywords.length) {
+      frame.afterSkillSource = frame.card;
+      frame.afterSkillKeywords = keywords;
+    }
+  }
   const priced = automaticHasPrice(skill, program);
   if (!priced || !skill) {
     const reveal = skill?.kind === "auto" && secretAutoSource(game, state, { card: frame.card, master: frame.master, skillIndex: frame.skillIndex ?? 0, trigger: frame.trigger ?? "" });
