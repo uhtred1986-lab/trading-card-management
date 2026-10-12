@@ -4,6 +4,7 @@ milestone: Arena M5 — Engine capability gaps and advanced mechanics
 labels: backlog, enhancement, area:arena-vm, phase:capability-gap, model:opus-5
 stage: ui
 issue: 557
+status: closed
 priority: P2
 touches: src/lib/arena/engines.ts, src/lib/arena/vm/state.ts, src/lib/arena/vm/index.ts, src/lib/arena/vm/host.ts, src/lib/arena/vm/battle.ts, src/components/arena/GameOver.tsx, src/app/arena/[id]/page.tsx
 ---
@@ -21,7 +22,7 @@ touches: src/lib/arena/engines.ts, src/lib/arena/vm/state.ts, src/lib/arena/vm/i
 - [x] A Counter pays 1 life without a damage event or total; a later Double Strike takes 2 life in one damage event and records 2. A completed concession with no damage shows genuine zero. Old rules saves without a lifetime counter, and interrupted/abandoned outcomes, show unavailable. The actual game-over consumer is `GameOver`, with [screen evidence](evidence/557/README.md) for fresh zero and old unavailable in both skins at phone and desktop sizes.
 - [x] `scripts/verify/damage-statistics-557.mts` checks battle and script damage paths, a paused life replacement, exactly-once completed events, old-save continuation, reload, replay, stale-action refusal and the result component. `scripts/verify/arena-damage-statistics-db.mts` checks PGlite saved revisions, stale CAS, duplicate request idempotency, both seat views and old rows after later damage.
 - [x] `DATABASE_URL=''` typecheck, lint (0 errors; 5 existing prototype warnings), full npm test and build pass. `contract:emit` passes and leaves the frozen fixtures and probe digests unchanged. The old named life-cost rules gap is removed; the capability inventory is regenerated. No glossary rule text changes were required for this presentation counter.
-- [ ] One bounded PR, clear evidence per acceptance bullet, and canonical backlog status updated on completion. Live database/paid/production checks are listed as owner-run rather than claimed.
+- [x] One bounded delivery PR carries reviewed source, registered persistence/rule proofs and tracked screen evidence; the canonical backlog status is closed. Exact runtime/metadata head ab72977 passed full gates; later commits change documentation only, with backlog and diff checks. Live database/paid/production checks remain owner-run.
 
 **Owner-run check:** `arena:fuzz40` uses card-catalog and saved-deck database fixtures and was not run here. No live database, paid AI or production check is claimed. The screenshots use a synthetic contract board; the rules and PGlite scenarios establish engine and persistence behavior.
 
