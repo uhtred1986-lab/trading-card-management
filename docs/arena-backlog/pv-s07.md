@@ -5,6 +5,7 @@ labels: backlog, blocked, enhancement, area:arena-vm, performance, model:opus-5
 stage: ui
 issue: 607
 priority: P1
+status: closed
 touches: src/lib/arena/vm/flow.ts, src/lib/arena/vm/program.ts
 ---
 **Source:** `docs/arena-backlog/evidence/607/review-baseline.json`; `docs/arena-backlog/evidence/607/checkpoint-cache-baseline.json`; `docs/arena-backlog/evidence/607/checkpoint-cache-optimized.json`; `scripts/bench/arena-zero-power-607.mts`; `src/lib/arena/vm/flow.ts`; `src/lib/arena/vm/program.ts`; rule manual 21-6 and 21-1-2-2-1.
