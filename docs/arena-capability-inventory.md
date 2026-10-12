@@ -27,7 +27,7 @@ A status applies only to the named behavior and proof below. **Supported** means
 | `arena-counter-alternative-action-price` | Supported | A Counter action price offers, asks, and charges | 5-3, 4-3-3, 20-7 | — | scripts/verify/wordings.ts — ALTC offers a paid choice, moves the chosen card, and hides the alternative when unaffordable |
 | `arena-native-mill-macro-exception` | Supported | Mill remains a native operation | `docs/arena-ruleset-spec.md` §2; `ops.rules` bind exception | — | scripts/verify/battles.ts — BT2-001 milled-card color changes the effect on rules engine; scripts/verify/rulesets.ts — macro sweep requires `mill` to be the only undeclared op |
 | `arena-vm-fixed-expectations` | Untested | VM oracle suite converted to fixed expectations | #459 fixed expected-state migration (test-lane status; no gameplay rule citation) | [#459](https://github.com/uhtred1986-lab/trading-card-management/issues/459) | scripts/verify/vm.ts — comparisons still run against legacy rather than checked-in expectations |
-| `arena-ai-vm-fixed-expectations` | Untested | AI VM suite converted to fixed expectations | #459 fixed expected-state migration (test-lane status; no gameplay rule citation) | [#459](https://github.com/uhtred1986-lab/trading-card-management/issues/459) | scripts/verify/ai-vm.ts — stateText, decklistText and stubbed request still compare to legacy |
+| `arena-ai-vm-fixed-expectations` | Supported | AI presentation and requests have fixed rules-engine expectations | #459 fixed expected-state migration (test-lane status; no gameplay rule citation) | [#601](https://github.com/uhtred1986-lab/trading-card-management/issues/601) | scripts/verify/ai-vm.ts; scripts/verify/fixtures/ai-vm — 21 migrated parity checks, two extra Leader facts and negative fixture controls |
 | `arena-legacy-saved-game` | Untested | Saved legacy game opens unchanged on the rules-only lane | #118 save/replay decision (test-lane status; no gameplay rule citation) | [#118](https://github.com/uhtred1986-lab/trading-card-management/issues/118) | scripts/verify/engine-default.ts — deliberately runs a saved/played game through the legacy engine |
 
 ## VM unsupported and guarded source sites
@@ -76,7 +76,6 @@ These are derived from `DEFERRED_STATICS` and checked for exact key parity. The 
 | Stable ID | Suite | Runtime status | Owner | Remaining comparison |
 |---|---|---|---|---|
 | `arena-vm-fixed-expectations` | vm | Untested | [#459](https://github.com/uhtred1986-lab/trading-card-management/issues/459) | About 130 legacy calls across 4,900 lines remain call-for-call comparisons. This is an independent test-migration gate, not a runtime mechanic gap. |
-| `arena-ai-vm-fixed-expectations` | ai-vm | Untested | [#459](https://github.com/uhtred1986-lab/trading-card-management/issues/459) | The language state-text fixture is a checked-in half, but the suite's engine comparison remains. This is separate from #575 runtime behavior. |
 
 - #170 is historical stage/declaration closure, not proof that any row above is implemented. #459's fixed expected-state migration remains a separate gate. Neither this matrix nor a green declaration test changes those statuses.
 - The #118 saved-game legacy-only fixture has its own stable ID and owner in the matrix; it is not rules-mechanic evidence.
