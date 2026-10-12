@@ -237,13 +237,13 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   },
   {
     id: "arena-combo-entry-auto-timing",
-    label: "Ordinary card-specific combo Autos arrive after combat instead of at entry",
-    status: "unsupported",
+    label: "Ordinary card-specific combo Autos resolve at genuine entry before combat",
+    status: "supported",
     evidence: "runtime-scenario",
     citation: "5-7-5-2/3; 5-7-6; distinct 8-5-10-1 battle-end wording",
     ownerIssue: 672,
-    proof: "scripts/verify/grouped-readings-573.ts — active BT3-043 boundary: no entry skill event and attack power lacks the conditional 10000 bonus; cleanup draw retains its compiled condition",
-    detail: "Both engines currently bind ordinary self-combo Autos to Combo-to-Drop cleanup. This active current-behavior assertion records the missing gameplay timing; it is not a skipped test or a supported combat claim. #609 owns later cleanup checkpoints, while this issue owns entry timing.",
+    proof: "scripts/verify/combo-entry-672.ts — hand/Battle entry, BT3-043 power and conditional return/draw, both owners, payment/reload, old stored rows, pinned DSL, explicit late Autos and no duplicate Z-Energy/Drop trigger; scripts/verify/grouped-readings-573.ts — engine-specific combat expectations",
+    detail: "Current DBS rules-engine games pend the self Auto only after genuine Combo Area arrival and resolve it before another combo or combat. Older confirmed comboed rows bridge to this entry declaration without database rewrites. Legacy runtime and older pinned DSL bundles retain historical late timing; explicit end-of-battle Autos stay late. #609 remains the separate cleanup checkpoint issue. These local fixtures do not establish exhaustive catalog coverage.",
   },
   {
     id: "arena-combo-from-hand-battle-end",
@@ -356,7 +356,8 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
-  { id: "arena-vm-notyet-combo-origin-save", file: "src/lib/arena/vm/triggers.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "8-5; persisted combo-origin contract", historicalIssues: [572], detail: "An older saved battle missing origin for a due hand-qualified combo-end Auto interrupts before resolution. Current battles capture actual origins; no legacy save provenance is invented." },
+  { id: "arena-vm-notyet-combo-entry-origin", file: "src/lib/arena/vm/triggers.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "5-7-5-3/5-7-6-3; printed hand-qualified entry source", historicalIssues: [672], detail: "A hand-qualified entry Auto with missing captured origin interrupts before effect resolution. Genuine combo actions capture the actual source before this checkpoint; hand origin is never guessed." },
+  { id: "arena-vm-notyet-combo-origin-save", file: "src/lib/arena/vm/triggers.ts", ordinal: 2, kind: "not-yet", classification: "validated-guard", citation: "8-5; persisted combo-origin contract", historicalIssues: [572], detail: "An older saved battle missing origin for a due hand-qualified combo-end Auto interrupts before resolution. Current battles capture actual origins; no legacy save provenance is invented." },
   {"id": "arena-vm-notyet-aegis-action-price", "file": "src/lib/arena/vm/aegis-costs.ts", "ordinal": 1, "kind": "not-yet", "classification": "current-runtime-unsupported", "citation": "22-30-3; additional Aegis action-price boundary", "ownerIssue": 595, "detail": "Aegis with a compiled additional action price interrupts before color/resource payment; it is not resolved for free."},
   {"id": "arena-vm-notyet-aegis-pool-replacement", "file": "src/lib/arena/vm/aegis-costs.ts", "ordinal": 2, "kind": "not-yet", "classification": "declaration-extension", "citation": "22-30-3; 9-10; native pool declaration contract", "ownerIssue": 595, "detail": "A declared in-play additional payment pool needing optional or competing replacements interrupts before additional resource charges. Proof uses a synthetic battle pool; current DBS Burst/Z-Energy pools do not establish a printed-card gap."},
   { id: "arena-vm-notyet-auto-search-budget", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", ownerIssue: 549, detail: "Bounded search beyond 2,000 visited states interrupts explicitly; no free effect or false unaffordability claim." },
@@ -388,6 +389,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-combo-entry-origin": 'pendAutos|-|match.trigger === "comboUsed" && comboEntryFromHand(sk) > origin === undefined',
   "arena-vm-notyet-combo-origin-save": "pendAutos|-|comboBattleEndFromHand(sk) > origin === undefined",
   "arena-vm-notyet-aegis-action-price": "stepAegisCost|-|cost.line.script?.price?.ops?.length",
   "arena-vm-notyet-aegis-pool-replacement": "stepAegisCost|-|choices.length > 1 || choices.some((r) => r.optional)",
