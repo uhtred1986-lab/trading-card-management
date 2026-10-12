@@ -43,14 +43,13 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   },
   {
     id: "arena-auto-own-cost",
-    label: "An Auto pays its own printed cost",
-    status: "unsupported",
-    evidence: "runtime-gap",
-    citation: "9-6-4",
+    label: "A triggered Auto offers pay/decline and resolves its supported full cost",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "9-6-4; 5-8-2-2; 20-5",
     ownerIssue: 549,
-    skipWhere: "compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)",
-    proof: "scripts/verify/compiler.ts — AUTOCOST price scenario",
-    detail: "The rules engine does not charge an Auto's own price.",
+    proof: "scripts/verify/compiler.ts — AUTOCOST paid/declined; scripts/verify/auto-costs-549.ts — full action/resource costs, X, reload, stale and atomic rejection",
+    detail: "Supported orb/action/X prices complete before the effect; condition-only Autos remain compulsory. The instruction whitelist and bounded search interrupt explicitly; general binding remains #550 and broader price coverage remains #549.",
   },
   {
     id: "arena-zero-power-rule-processing",
@@ -277,6 +276,11 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-auto-search-budget", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", ownerIssue: 549, detail: "Bounded search beyond 2,000 visited states interrupts explicitly; no free effect or false unaffordability claim." },
+  { id: "arena-vm-notyet-auto-price-op", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 2, kind: "not-yet", classification: "current-runtime-unsupported", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", ownerIssue: 549, detail: "Only choose/discard/mill/switchMode/hidden/moveTo/removeMarker action prices are supported; play/under movement and other instructions interrupt before payment." },
+  { id: "arena-vm-notyet-auto-unread-cost", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 3, kind: "not-yet", classification: "referee-boundary", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", detail: "An unread printed price interrupts before effect or payment; this ingestion boundary does not implement the unread mechanic." },
+  { id: "arena-vm-notyet-auto-x-bounds", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 4, kind: "not-yet", classification: "validated-guard", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", detail: "Malformed negative/noninteger/inverted X bounds are refused; finite valid bounds are capped by available resources." },
+  { id: "arena-vm-notyet-auto-pooled-instruction", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 5, kind: "not-yet", classification: "declaration-extension", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", detail: "A pooled cost declaration outside the current moveTo shape cannot be verified as a complete Auto payment." },
   { id: "arena-vm-notyet-granted-hook-identity", file: "src/lib/arena/vm/flow.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", citation: "22-35-3; individual granted skill identity", ownerIssue: 602, detail: "A qualifying granted Heroic without individual skill identity interrupts before any hook body draws; sibling programs are discarded." },
   { id: "arena-vm-notyet-concede-program", file: "src/lib/arena/vm/index.ts", ordinal: 1, kind: "not-yet", classification: "declaration-extension", citation: "0-1-3-4", detail: "A concede declaration with a DO body has no execution semantics; current declarations are guarded by this path.", historicalIssues: [142] },
   { id: "arena-vm-notyet-apply-pass", file: "src/lib/arena/vm/index.ts", ordinal: 2, kind: "not-yet", classification: "validated-guard", citation: "Action declaration contract", detail: "Fallback if applying a declared pass action unexpectedly yields none; current action declarations are expected to validate this." },
@@ -293,7 +297,6 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
   { id: "arena-vm-notyet-cost-unknown-consumes", file: "src/lib/arena/vm/costs.ts", ordinal: 8, kind: "not-yet", classification: "validated-guard", citation: "CostConsumes discriminated union / ruleset validation", detail: "Exhaustive-switch fallback for a malformed or future CostConsumes value; not a mechanic gap." },
   { id: "arena-vm-notyet-alt-pay-variant", file: "src/lib/arena/vm/costs.ts", ordinal: 9, kind: "not-yet", classification: "validated-guard", citation: "Alternative payment declaration contract; `vm/battle.ts` handles `program` separately", detail: "Fallback for an alternative-pay variant not handled by the legacy path; current reachable Counter `program` payments are handled separately.", historicalIssues: [150] },
   { id: "arena-vm-note-unread-auto", file: "src/lib/arena/vm/flow.ts", ordinal: 1, kind: "interruption", classification: "validated-guard", citation: "Rule text ingestion / interruption outcome contract", detail: "A due unread Auto interrupts explicitly; this guard does not implement its unread mechanic.", historicalIssues: [544], sourceNeedle: "No readable rule program was produced." },
-  { id: "arena-vm-note-auto-action-price", file: "src/lib/arena/vm/flow.ts", ordinal: 2, kind: "interruption", classification: "current-runtime-unsupported", citation: "9-6-4; 4-3-3; 20-5", detail: "An Auto with an unsupported action or X price interrupts before its effect; implementing payment remains #549.", ownerIssue: 549, sourceNeedle: "Resolving this automatic skill requires an unsupported action or X price." },
   { id: "arena-vm-static-own-prohibition-unread", file: "src/lib/arena/vm/effects.ts", ordinal: 1, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "9-1-5; `DEFERRED_STATICS`", detail: "An unread Permanent is omitted from own-prohibition evaluation; this is the deferred static-reading boundary.", ownerIssue: 553, sourceNeedle: "if (!program || program.unsupported.length) continue;" },
   { id: "arena-vm-static-unread", file: "src/lib/arena/vm/effects.ts", ordinal: 2, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "20-1; `DEFERRED_STATICS`", detail: "An unread Permanent is omitted from static evaluation.", ownerIssue: 553, sourceNeedle: "program.unsupported.length || (only && !only(program.ops))" },
   { id: "arena-vm-static-view-unread", file: "src/lib/arena/vm/program.ts", ordinal: 1, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "20-1; `DEFERRED_STATICS`", detail: "The view helper returns no static effects for an unread Permanent.", ownerIssue: 553, sourceNeedle: "if (!program || program.unsupported.length) return [];" },
@@ -302,6 +305,11 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-auto-search-budget": "canFinishAutomaticPrice|-|--budget < 0",
+  "arena-vm-notyet-auto-price-op": "readableAutomaticPrice|-|![\"choose\", \"discard\", \"mill\", \"switchMode\", \"hidden\", \"moveTo\", \"removeMarker\"].includes(op.op)\n      || (op.op === \"moveTo\" && (op.to === \"under\" || op.to === \"play\"))",
+  "arena-vm-notyet-auto-unread-cost": "prepareAutomaticCost|-|bound.unreadable",
+  "arena-vm-notyet-auto-x-bounds": "prepareAutomaticCost|-|!Number.isInteger(min) || min < 0 || (declaredMax !== undefined && (!Number.isInteger(declaredMax) || declaredMax < min))",
+  "arena-vm-notyet-auto-pooled-instruction": "chargeAutomaticPayment|-|op?.op !== \"moveTo\"",
   "arena-vm-notyet-granted-hook-identity": "stepProgram|-|frame.pendingHookIdentityMissing",
   "arena-vm-notyet-concede-program": "apply|-|action.type === \"concede\" > def.do.length",
   "arena-vm-notyet-apply-pass": "apply|\"pass\"|took === \"none\"",

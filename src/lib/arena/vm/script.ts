@@ -1191,6 +1191,8 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** #549: captured, reloadable Auto cost/effect continuation. */
+  autoCost?: import("./auto-costs").AutomaticCost;
   ops: Op[];
   ip: number;
   vars: Record<string, string[]>;
