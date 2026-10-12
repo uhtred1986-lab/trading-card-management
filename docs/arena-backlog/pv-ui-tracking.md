@@ -16,7 +16,7 @@ tracking: true
 
 ## Issues
 
-- [ ] #558 **P1** — Expose authoritative ability availability and decision data
+- [x] #558 **P1** — Expose authoritative ability availability and decision data
 - [x] #559 **P1** — Make card sheets and action controls accessible
 - [x] #560 **P1** — Extend the existing phone pager to tap-open fullscreen review
 - [ ] #561 **P1** — Show Abilities now and collapse wrong-timing abilities
@@ -30,6 +30,8 @@ tracking: true
 #559 accessible shared sheet → #560 fullscreen review; after #544/#545, #558 ability contract → #561 timely abilities and #562 battle stakes → #563 phone board → #564 desktop. Review/contract tracks can start separately only with disjoint files.
 
 Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
+
+**Current delivery:** #558/#559/#560 are merged; #561 consumes the authoritative contract in the next UI change. Battle stakes and phone/desktop consolidation remain #562–#564.
 
 ## Acceptance
 
