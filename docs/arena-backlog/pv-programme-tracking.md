@@ -88,6 +88,8 @@ The owner authorized the next wave after the twenty-PR delivery batch. #549 owns
 - #614 refreshes stale prerequisite blocks and trackers; #613 records the #609 cleanup audit only. #609 remains open for separate checkpoints and real-card fixture evidence.
 - #615 delivers authoritative ability/decision projection (#558); #616 supplies actual cost-frame privacy and pending-state integration proof. #558 is complete at this scope.
 - #616 also delivers supported Auto pay/decline/reload and legal replacement-failure behavior. #549 remains open for unsupported price instructions, the bounded search, simultaneous-Auto selection and cost-free secret-area declarations; broader bindings remain #550.
-- Current disjoint workers cover #561 shared card-review UI, #568 unchanged polling responses and #595 Aegis cost order. Registry/progress reconciliation remains with the orchestrator.
+- #618 corrects mixed-window Counter availability and displays known native Counter payment costs without changing the legal action menu.
+- #619 delivers revision-negotiated unchanged polling responses (#568), preserving authorization and legacy-tab behavior. Local measurements are explicitly modeled post-auth; hosted timing remains unclaimed.
+- #620 delivers color-first Aegis payment and a live additional fee (#595). The issue stays open for action-price programs and optional/competing pooled replacements; original-color eligibility remains #597. The inventory now has 22 narrow scenarios, 4 named runtime gaps and 27 guarded VM sites.
 
 The implementation merge #616 deployed successfully at `a7572e9145beb995dafe73a3377e50569d5ddeba` (Vercel `HyFfFSP1tVAuRgGvyroX9JynjDro`). No deployment configuration fix is claimed.
