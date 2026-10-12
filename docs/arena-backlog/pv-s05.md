@@ -1,9 +1,10 @@
 ---
 title: [P2] Arena: Share immutable derived evaluation by match revision
 milestone: Arena M2 — Gameplay UX/HUD completion
-labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:hud-workflow, model:opus-5, performance
+labels: backlog, enhancement, area:arena-vm, phase:hud-workflow, model:opus-5, performance
 stage: ui
 issue: 569
+status: closed
 priority: P2
 touches: src/lib/arena/snapshot.ts, src/lib/arena/session.ts
 ---
@@ -20,10 +21,10 @@ touches: src/lib/arena/snapshot.ts, src/lib/arena/session.ts
 **Files verified:** `src/lib/arena/snapshot.ts`, `src/lib/arena/session.ts`, `src/lib/arena/games.ts` (`withLegal`), `src/lib/arena/vm/program.ts` (`readingBoard`). The existing contract and VM rules behavior do not change.
 
 **Acceptance.**
-- [x] Three current-main/candidate audit pairs show lower crowded-aura median p50/p95 with identical state, legal, rejection and both-viewer snapshot hashes. The actual lazy projection reads standing rules 4→1 times without sharing hidden hand ids or reusing a later revision's state. See `evidence/569/read-session-result.json`.
+- [x] Three quiet latest-main/candidate audit pairs show lower crowded-aura median p50 (43.386→41.395 ms) and checkpoint p50/p95 (59.053/69.995→52.974/61.229 ms), with identical state, legal, rejection and both-viewer hashes. Crowded-aura p95 remains mixed (47.445→49.419 ms); this is not a universal tail-latency improvement claim. The actual lazy projection reads standing rules 4→1 times without sharing hidden hand ids or reusing a later revision's state. See `evidence/569/read-session-result.json`.
 - [x] `scripts/verify/derived-read-569.mts` covers an accepted one-energy play and exact rest event/state, wrong-seat refusal, stale and cloned reload projections, both viewers together, and different pinned runtime definitions.
 - [x] `DATABASE_URL=''` typecheck, lint, focused #569 proof, rules-only Arena verification, `npm test` and build pass. Lint has five pre-existing prototype warnings and no errors. No VM/compiler semantics changed; glossary, reading diff and fuzz 40 do not apply.
-- [ ] One bounded PR, clear evidence per acceptance bullet, and canonical backlog status updated on completion. Live database/paid/production checks are listed as owner-run rather than claimed.
+- [x] One bounded PR, clear evidence per acceptance bullet, and canonical backlog status updated on completion. Local exact-head checks and evidence are recorded in the delivery PR. Hosted/device timings and production checks remain owner-run rather than claimed.
 
 **Order and hot files.** Follow prerequisite merge order and `docs/arena-delivery-plan.md`. `src/lib/arena/snapshot.ts` and `src/lib/arena/session.ts` must not have concurrent writers. Other ready issues can be assigned independently only after checking shared types/fixtures and migrations.
 
