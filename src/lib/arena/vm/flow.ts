@@ -516,7 +516,7 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // #609: a saved 8-5-8 replacement substitute is part of this native
     // departure, not a checkpoint of its own. Re-enter battleEnd to record
     // its actual destination before the 8-5-9 group is announced.
-    if (top.reask && top.phase === "battle" && state.battle?.endCombo?.stage === "departures" && state.battle.endCombo.substituteDeparture) {
+    if (top.reask && top.phase === "battle" && name === "battleEnd" && state.battle?.endCombo?.stage === "departures" && state.battle.endCombo.substituteDeparture) {
       delete top.reask;
       delete top.asking;
       continue;

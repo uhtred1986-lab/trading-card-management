@@ -433,7 +433,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
               if (after?.zone === "drop") end.specialSubjects!.push({ card: id, to: after.zone, controller: after.owner,
                 ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) });
               if (deferred && replaced?.ops?.length) {
-                end.substituteDeparture = { card: id, epoch: state.cards[id].zoneEpoch ?? 0,
+                end.substituteDeparture = { card: id,
                   ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) };
                 state.programs.unshift({ ops: replaced.ops, ip: 0, vars: structuredClone(substituteVars), card: replaced.source ?? id,
                   master: replaced.master ?? masterOf(game, state, id), subject: id, replacing: id,
