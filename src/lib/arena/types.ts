@@ -724,6 +724,8 @@ export type Trigger =
   | "opponentTurnStart"
   | "battleEnd"
   | "comboed"
+  /** 8-5-6: another card in your Combo Area will go to your Drop. */
+  | "comboToDrop"
   /** This card's own Auto at genuine Combo Area entry (5-7-5-3/5-7-6-3). */
   | "comboUsed"
   /**

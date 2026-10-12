@@ -54,7 +54,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboEntryFromHand, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboBattleEndSelf, comboEntryFromHand, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts } from "./script";
@@ -71,6 +71,7 @@ import { findCard, inPlayZones } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
 import { keywordMomentOf } from "./keyword-do";
 import { attrsNow } from "./program";
+import type { Attrs } from "./cards";
 import { predicateOf } from "./filters";
 
 /**
@@ -95,6 +96,10 @@ export interface VmPending {
   trigger: string;
   /** The card the moment happened to, when that is another card (`BIND "subject"`). */
   subject?: string;
+  /** §9-6-9-1-3 information of a pre-announced movement subject in its new area. */
+  subjectInfo?: Attrs;
+  /** Internal identity of the 8-5-6 subject occurrence, across pause/reload. */
+  cleanupOccurrence?: string;
 }
 
 /** A captured declarative effect hook awaiting the same 9-6-6 checkpoint as an [Auto]. */
@@ -266,7 +271,7 @@ export function masterOf(game: GameDefinition, state: VmState, id: string): Play
  * `pendByName`, where a program says "this card, this trigger" and nothing
  * else on the board is being asked.
  */
-export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment, only?: (match: TriggerMatch) => boolean): VmPending[] {
+export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment, only?: (match: TriggerMatch) => boolean, subjectInfo?: Attrs, cleanupOccurrence?: string, comboOrigin?: "hand" | "other"): VmPending[] {
   const pended: VmPending[] = [];
   // The entry moment carries the actual source area. Save it on the battle,
   // since several actions and even a JSON reload may separate entry from
@@ -276,6 +281,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   }
   for (const match of matchTriggers(game, state, moment)) {
     if (only && !only(match)) continue;
+    if (match.trigger === "comboToDrop" && moment.args.cleanupDeparture === true) continue;
+    if (match.trigger === "comboToDrop" && moment.args.fromHolder !== moment.controller) continue;
     // 5-7: a declared combo is not the entry moment if a replacement or a
     // failed move left the card outside the Combo Area.
     if (match.trigger === "comboUsed" && findCard(state, match.card)?.zone !== "combo") continue;
@@ -301,6 +308,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      if (match.trigger === "comboed" && moment.args.cleanupDeparture === true && comboBattleEndSelf(sk)) continue;
+      if (moment.args.cleanupSpecial === true && !comboBattleEndSelf(sk)) continue;
       // The named Cell/CELL Jr. is qualified at the *play* moment, before an
       // Auto price or another pending Auto can alter it. A current cost read
       // here is the event-time cost; it is never guessed from a later frame.
@@ -331,8 +340,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // even if an older/manual record names the broader trigger.
       if (comboBattleEndOpponentTurn(sk) && state.turnPlayer === master) continue;
       if (comboBattleEndFromHand(sk)) {
-        if (match.trigger !== "comboed" || state.battle?.step !== "battleEnd" || state.battle.endCombo?.stage !== "cleanup") continue;
-        const origin = state.battle.comboOrigins?.[match.card];
+        if (match.trigger !== "comboed" || state.battle?.step !== "battleEnd" || !["cleanup", "departures", "battleEndCheckpoint"].includes(state.battle.endCombo?.stage ?? "")) continue;
+        const origin = comboOrigin ?? state.battle.comboOrigins?.[match.card];
         // A game saved before provenance existed cannot prove the source of
         // this copy. Stop with a typed interruption instead of inventing a
         // hand combo or silently losing a possibly due skill (#544, #572).
@@ -344,14 +353,22 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // skill whose record says both answers that arrival once, as `played`.
       if (match.trigger === "placed" && pended.some((p) => p.card === match.card && p.skillIndex === sk.index && p.trigger === "played")) continue;
       const subject = match.subject !== undefined ? { subject: match.subject } : {};
-      const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject };
+      // Ordinary movement emits after the real move; the cleanup's 8-5-6
+      // notice passes its projected new-area information explicitly. Either
+      // way the subject's event information is frozen before another Auto can
+      // move it again at the checkpoint.
+      const movementInfo = subjectInfo ?? (match.trigger === "comboToDrop" && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
+      const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
+        ...(movementInfo && match.subject ? { subjectInfo: movementInfo } : {}),
+        ...(cleanupOccurrence && match.trigger === "comboToDrop" ? { cleanupOccurrence } : {}) };
       state.pending.push(pending);
       pended.push(pending);
     }
   }
   // Keep provenance through matching the cleanup move to Drop, then forget
   // it. A card that left and reentered from elsewhere must not inherit hand.
-  if (state.battle && moment.event === "moved" && moment.card && moment.args.from === "combo" && moment.args.to !== "combo") {
+  if (state.battle && moment.event === "moved" && moment.card && moment.args.from === "combo" && moment.args.to !== "combo"
+      && !cleanupOccurrence && moment.args.cleanupSpecial !== true) {
     delete state.battle.comboOrigins?.[moment.card];
   }
   return pended;

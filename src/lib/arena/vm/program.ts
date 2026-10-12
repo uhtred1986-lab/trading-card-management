@@ -543,12 +543,13 @@ function faceOf(ctx: EngineContext, state: VmState, id: string): FaceValues | un
 }
 
 /** One number off one card, for the `attr` and `sumOf` amounts — a cost read through its reduction layer (20-21-2), as the legacy `measure` reads it. */
-function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: AmountAttr): number {
-  const now = attrsNow(ctx, game, state, id);
+function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: AmountAttr, information?: Attrs): number {
+  const now = information ?? attrsNow(ctx, game, state, id);
   switch (name) {
     case "power":
       return num(now.power);
     case "originalPower":
+      if (information) return num(information.originalPower);
       // 20-3-1: the printed face value, before any layer — the same number
       // `attrsNow` seeds the `originalPower` attribute from, read through the
       // one helper so the amount and the filter cannot answer differently.
@@ -1185,16 +1186,17 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     const sk = lineOf(ctx, state, frame);
     if (!sk) return [];
     const printed = predicateOf(parseFilter(printedDescription(sk)), game);
-    matchesPrinted = (id) => printed(attrsNow(ctx, game, state, id));
+    matchesPrinted = (id) => printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
   }
   return out.filter((id) => {
     if (matchesPrinted && !matchesPrinted(id)) return false;
     const card = state.cards[id];
     if (!card) return false;
-    if (sel.mode && card.mode !== sel.mode) return false;
+    const movementInfo = sel.special === "subject" && id === frame.subject ? frame.subjectInfo : undefined;
+    if (sel.mode && (movementInfo?.mode ?? card.mode) !== sel.mode) return false;
     // 23-5-2: a Hidden Mode selector asks *for* the very cards the rule below
     // would exclude from a filtered choice, so it is answered ahead of it.
-    if (sel.hidden != null && card.hidden !== sel.hidden) return false;
+    if (sel.hidden != null && (movementInfo?.hidden ?? card.hidden) !== sel.hidden) return false;
     // "…that's not in a battle" (8-1-2, #537).
     if (sel.notInBattle && state.battle && (state.battle.attacker === id || state.battle.guard === id)) return false;
     if (sel.notSelf && frame.card) {
@@ -1213,13 +1215,13 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // 23-5-2 again: a Hidden Mode card has none of its front-side information
     // — so it answers no measure, except one that only says what type a card
     // is *not*: having no card type at all, it is a "non-Extra card" (BT28-150).
-    if (matchesFilter && (card.hidden ? !onlyRulesOutTypes(sel.filter!) : !matchesFilter(attrsNow(ctx, game, state, id)))) return false;
+    if (matchesFilter && ((movementInfo ? false : card.hidden) ? !onlyRulesOutTypes(sel.filter!) : !matchesFilter(movementInfo ?? attrsNow(ctx, game, state, id)))) return false;
     // 3-9-2-1: whether a life card has been turned face up is a fact about this
     // copy rather than about the card, so no attribute can carry it.
-    if (sel.filter?.faceUp && !card.faceUp) return false;
+    if (sel.filter?.faceUp && !(movementInfo?.faceUp ?? card.faceUp)) return false;
     if (sel.filter?.powerRel) {
       const against = sel.filter.powerRel.of === "chosen" ? (sel.filter.powerRel.var ? (frame.vars[sel.filter.powerRel.var]?.[0] ?? null) : null) : frame.card;
-      if (!against || !powerRelOk(sel.filter, measureOf(ctx, game, state, id, "power"), measureOf(ctx, game, state, against, "power"))) return false;
+      if (!against || !powerRelOk(sel.filter, measureOf(ctx, game, state, id, "power", movementInfo), measureOf(ctx, game, state, against, "power"))) return false;
     }
     // 22-16: [Barrier]'s own `chooseable` hook fact (#154's `forbid(what:
     // beChosen)`), checked on its own rather than through `forbids()`'s wider
@@ -1288,13 +1290,13 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
     return frame.x * (a.times ?? 1);
   }
   if ("life" in a) return perStep(lifeCount(game, state, frame.master, a.life), a.per) * (a.times ?? 1);
-  if ("sumOf" in a) return resolveSelector(ctx, game, state, frame, a.sumOf).reduce((t, id) => t + measureOf(ctx, game, state, id, a.attr), 0) * (a.times ?? 1);
+  if ("sumOf" in a) return resolveSelector(ctx, game, state, frame, a.sumOf).reduce((t, id) => t + measureOf(ctx, game, state, id, a.attr, a.sumOf.special === "subject" && id === frame.subject ? frame.subjectInfo : undefined), 0) * (a.times ?? 1);
   if ("attr" in a) {
     // A ref that found none is nothing rather than an error, and one that found
     // several is read off the first: no printed wording says "each of their
     // energy costs" — that is `sumOf`.
     const ids = resolveRef(ctx, game, state, frame, a.attr);
-    return ids.length ? measureOf(ctx, game, state, ids[0], a.name) * (a.times ?? 1) : 0;
+    return ids.length ? measureOf(ctx, game, state, ids[0], a.name, "sel" in a.attr && a.attr.sel.special === "subject" && ids[0] === frame.subject ? frame.subjectInfo : undefined) * (a.times ?? 1) : 0;
   }
   if ("markers" in a) return perStep(markersOn(ctx, game, state, frame, a.markers), a.per) * (a.times ?? 1);
   return perStep(countSelected(ctx, game, state, frame, a.count), a.per) * (a.times ?? 1);
@@ -1381,7 +1383,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     case "not":
       return !condHolds(ctx, game, state, frame, c.cond);
     case "power":
-      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => between(measureOf(ctx, game, state, id, "power"), c.atLeast, c.atMost));
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => between(measureOf(ctx, game, state, id, "power", c.sel.special === "subject" && id === frame.subject ? frame.subjectInfo : undefined), c.atLeast, c.atMost));
     case "lifeVsOpponent": {
       const mine = state.sides[frame.master].zones.life?.length ?? 0;
       const theirs = state.sides[other(frame.master)].zones.life?.length ?? 0;
