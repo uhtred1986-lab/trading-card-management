@@ -43,14 +43,8 @@ import { EngineMismatch } from "../src/lib/arena/engines";
 import { NotYet } from "../src/lib/arena/vm";
 import { ENGINE, RULES_GAPS } from "./verify/harness";
 
-/**
- * The suites that still take their expectations from the legacy engine as it
- * runs, so `--rules-only` cannot run them: each needs its comparisons turned
- * into checked-in expectations first (what #459 leaves for its follow-up).
- */
-const STILL_ON_THE_ORACLE: Record<string, string> = {
-  vm: "compares the rules engine with the legacy engine call for call (about 130 legacy calls in 4,900 lines); each comparison is still to become a checked-in expectation",
-};
+/** Any suite still requiring a live legacy gameplay oracle belongs here. */
+const STILL_ON_THE_ORACLE: Record<string, string> = {};
 
 const SUITES = ["outcomes", "text", "setup", "battles", "compiler", "keywords", "hidden", "while-source", "warp", "next-activation", "taxes", "readings", "readings-571", "hand-combo-572", "combo-entry-672", "grouped-readings-573", "duration-shuffle-574", "free-extra-680", "wordings", "faceup-life-556", "workflow", "contract", "deck-api", "language", "lang", "describe", "rulesets", "static-layers-553", "board-words", "primer", "game-page", "gameplan-570", "probe", "ai-vm", "vm", "rule-processing", "engine-default", "poll-schedule", "narration", "heroic-554", "z-energy-combo-551", "aegis-555", "auto-costs-549", "secret-auto-549", "priced-secret-auto-549", "ability-snapshot-558", "aegis-cost-order-595", "abilities-now-561", "battle-stakes-562", "original-colors-597", "effective-payment-colours-626", "hidden-mode-projection-626", "public-zone-inspection-563", "revive-cost-order-624", "granted-heroic-602", "villainous-683"];
 

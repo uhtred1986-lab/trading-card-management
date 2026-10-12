@@ -50,8 +50,8 @@ cases are checked in. [Evidence](evidence/459/README.md) maps each former
 comparison to its current assertion. Legacy adapter, saved-state, face-reading
 and legacy script-host compatibility remain executable under #118 guards.
 
-This is branch progress, not issue closure. The shared `verify-arena.ts` registry
-still excludes `vm` from `--rules-only`; its owner must remove that exclusion
-after reviewing the zero-call source audit and running the full gate. The
-branch also still needs a local `npm test` proof with the legacy run removed,
-normal full-gate validation, and root review before a PR or merge.
+This is branch progress, not issue closure. The branch now removes `vm` from
+the shared `verify-arena.ts` rules-only exclusion after a source audit and a
+guarded direct VM run found zero legacy calls. The full suite and local
+`npm test` proof with the legacy run removed are still pending the shared
+heavy-test slot, followed by root review before a PR or merge.

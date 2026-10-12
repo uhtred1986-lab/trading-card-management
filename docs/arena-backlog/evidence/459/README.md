@@ -41,10 +41,11 @@ legacy runtime result.
 The #118 adapter, saved-state and legacy face-reading checks remain in a
 separate guarded module for explicit retirement. The legacy script-host
 self-equivalence and lifetime cases still live in `vm.ts`, but every call is
-behind `!RULES_ONLY` and is tracked as #118 compatibility. A direct VM
-rules-only run completes; #459 still needs the shared suite-registry handoff,
-zero-call proof for the full rules-only gate, the normal full gate and a local
-`npm test` run with the legacy run removed before closure.
+behind `!RULES_ONLY` and is tracked as #118 compatibility. After rebase onto
+`origin/main` `2f04b7e`, the direct guarded VM run reports zero legacy calls
+and the shared suite registry no longer excludes `vm`. #459 still needs the
+full rules-only gate, the normal full gate and a local `npm test` run with the
+legacy run removed before closure.
 
 No contract or probe digest fixture was edited.
 
