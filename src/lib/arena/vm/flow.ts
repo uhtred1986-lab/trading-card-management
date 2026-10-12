@@ -63,7 +63,7 @@ import { asksAQuestion } from "./script-schema";
 import { expireSkips, takeSkip } from "./skips";
 import type { VmFrame, VmState } from "./state";
 import { interruptedOutcome, type StoredOutcome } from "../outcome";
-import { automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
+import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { IllegalAction } from "./common";
 
 export { NOT_YET_REASON_PREFIX } from "../outcome";
@@ -972,7 +972,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
       // Recheck the submitted choice on an isolated board before any mutation.
       // Invalid or dead-ending answers leave the persisted payment cursor intact.
-      if (!canFinishAutomaticPrice(ctx, game, state, frame)) throw new IllegalAction("that choice cannot pay the entire Auto skill cost");
+      if (!(frame.awaiting === "replaceMove" && state.lastMode !== null) && !canFinishAutomaticPrice(ctx, game, state, frame)) throw new IllegalAction("that choice cannot pay the entire Auto skill cost");
       const result = stepScript(automaticPriceHost(ctx, game, state, ev), frame);
       if (result === "done") finishAutomaticCost(ctx, game, state, ev, frame);
       else if (state.prompt.kind === "chooseCards") {
@@ -1006,6 +1006,10 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     }
     return stepScript(vmHost(ctx, game, state, ev), frame);
   } catch (err) {
+    if (err instanceof AutoPaymentFailed) {
+      log(ev, { type: "note", text: "Auto skill canceled: a replacement caused payment to fail" });
+      return "done";
+    }
     if (!(err instanceof NotYet)) throw err;
     // Interruption is terminal for this engine path; discard queued sibling
     // programs before persisting the typed outcome so they cannot resume.

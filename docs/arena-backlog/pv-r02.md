@@ -35,11 +35,15 @@ entire issue acceptance or unblock dependencies by closing it.
 
 **Rule-grounded behavior (#549).** Manual 9-6-4 permits paying or declining any necessary
 Auto skill cost, including printed energy and action costs. A condition that is already true
-cannot itself be declined (9-6-4-1-1); cost-free/condition-only Autos retain compulsory
+cannot itself be declined (9-6-4-1-1); public-area cost-free/condition-only Autos retain compulsory
 resolution. Unaffordable prices cancel activation under 9-6-3-2 and 5-8-2. The cost must
 complete before the effect (5-8-2-2), and chosen X applies through resolution (20-5).
 The private stored continuation retains source, skill index, master, trigger, subject,
 cost targets, X and the paid cursor across generic option/card prompts and JSON reload.
+A legal optional replacement remains its affected owner’s choice (9-10-2). Declining it can
+complete payment; applying a different destination preserves the attempted payment and
+replacement, cancels the Auto without resolving its effect, and resumes the pending queue
+(5-8-2-2-1-1, 5-8-4). Effect-only replacement causes do not match cost moves.
 
 **Local proof.** `scripts/verify/auto-costs-549.ts` uses fixed expectations rather than the
 legacy oracle: a real play-triggered Auto; pay/decline/unaffordable outcomes; invalid actor,
@@ -52,7 +56,8 @@ explicit unsupported/missing price interruption; a 20-card action-price projecti
 energy and draws two, while decline pays nothing further. No compiler reading is changed.
 
 **Remaining boundaries.** Existing turn-player-first FIFO order is preserved; choosing among
-simultaneous pending skills (9-6-3) remains a separate existing limitation. Supported action
+simultaneous pending skills (9-6-3) remains a separate existing limitation, as does the
+secret-area declaration/decline exception for cost-free Autos (9-6-3-1-1). Supported action
 prices use choose/discard/mill/switchMode/hidden/moveTo/removeMarker; unimplemented instructions
 and a full-price choice search exceeding 2,000 visited states produce an explicit typed
 interruption instead of free resolution or a false affordability claim. This Auto-specific

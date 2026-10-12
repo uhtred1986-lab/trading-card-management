@@ -11,6 +11,10 @@ import { activeEnergy, cardColors, chargeCost, payersFor, planCost, priceFor, sp
 import { log } from "./events";
 import type { VmState } from "./state";
 
+/** 5-8-4: a legal replacement failed an attempted payment. Retain the
+ * already performed payment/replacement, then cancel activation. */
+export class AutoPaymentFailed extends Error {}
+
 /** 9-6-4: all costs are optional to pay; a condition alone is compulsory. */
 export interface AutomaticCost {
   skill: Skill;
@@ -30,6 +34,9 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       if (host.forbids(what, opts)) unpaid();
       return false;
     },
+    // Paying is a cost, so a replacement limited to an effect or its actor
+    // does not answer this departure (5-8-2-2 / causeMatches).
+    replacementsFor: (id, _reason, opts) => host.replacementsFor(id, "cost", { ...opts, actor: undefined }),
     resolveSelector: (f, sel) => {
       let found = host.resolveSelector(f, sel);
       const op = f.ops[f.ip];
@@ -62,7 +69,11 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     move: (id, to, owner, opts) => {
       if (host.areaOf(id) === to) unpaid();
       const actual = host.move(id, to, owner, { ...opts, reason: "cost" });
-      if (actual !== to || host.areaOf(id) !== to) unpaid();
+      if (actual !== to || host.areaOf(id) !== to) {
+        const replaced = opts?.replaced;
+        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}) });
+        throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
+      }
       return actual;
     },
     setMode: (id, mode, by) => {
@@ -94,15 +105,17 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
       if (result === "done") return true;
       if (s.programs[0] !== f) return false;
       const prompt = s.prompt;
-      const answers = prompt.kind === "chooseCards" ? [ ...(prompt.choice.min === 0 ? [[]] : []), ...prompt.choice.candidates.map((id) => [id]) ] : [];
-      for (const answer of answers) {
+      const choices = prompt.kind === "chooseCards" ? [ ...(prompt.choice.min === 0 ? [[]] : []), ...prompt.choice.candidates.map((id) => [id]) ] : [];
+      const modes = prompt.kind === "replaceMove" ? prompt.options.map((_, index) => index) : [];
+      for (const answer of [...choices.map((cards) => ({ cards })), ...modes.map((index) => ({ index }))]) {
         const next = structuredClone(s);
-        next.lastChoice = answer;
+        if ("cards" in answer) next.lastChoice = answer.cards;
+        else next.lastMode = answer.index;
         if (visit(next, structuredClone(f))) return true;
       }
       return false;
     } catch (err) {
-      if (err instanceof IllegalAction) return false;
+      if (err instanceof IllegalAction || err instanceof AutoPaymentFailed) return false;
       throw err;
     }
   };
@@ -113,6 +126,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
  * unsupported price unaffordable or letting its effect run for free. */
 function readableAutomaticPrice(ops: Op[]): void {
   for (const op of ops) {
+    if (op.op === "note" && op.text.startsWith("\u0000probe-path:")) continue;
     if (!["choose", "discard", "mill", "switchMode", "hidden", "moveTo", "removeMarker"].includes(op.op)
       || (op.op === "moveTo" && (op.to === "under" || op.to === "play"))) {
       throw new NotYet(`pay an Auto action price containing ${op.op}`, "#549");

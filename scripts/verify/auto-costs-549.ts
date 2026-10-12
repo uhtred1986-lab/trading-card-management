@@ -4,6 +4,7 @@ import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { engineFor } from "../../src/lib/arena/engines";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
+import { addEffect } from "../../src/lib/arena/vm/effects";
 import { run } from "../../src/lib/arena/vm/flow";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -23,6 +24,7 @@ const defs = { ...DEFS,
   MIX549: card("MIX549", { energyCost: 0, skill: "[Auto] {r}: When you play this card, draw 1 card." }),
   BURST549: card("BURST549", { energyCost: 0, skill: "[Auto][Burst 2]: When you play this card, draw 1 card." }),
   SPIRIT549: card("SPIRIT549", { energyCost: 0, skill: "[Auto][Spirit Boost 1]: When you play this card, draw 1 card." }),
+  WEAK549: card("WEAK549", { energyCost: 0, power: 0, skill: null }),
   ENERGY549: card("ENERGY549", { colors: ["Red"], energyCost: 0, skill: null }),
 };
 const scripts = rulesFromCompiler(defs);
@@ -293,10 +295,98 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.equal(result.state.cards[a.source].mode, "rest"); assert.equal(result.state.cards[other].mode, "rest"); assert.equal(draws(result.events), 1);
   scripts.ACTION549.bySkill[0] = old;
 }
+// A 9-10 optional, unqualified replacement can be declined to complete a
+// cost movement. A mandatory different destination makes the entire cost
+// unpayable before any energy is charged. Effect-only replacements do not
+// apply to costs (5-8-2-2, causeMatches).
+{
+  const old = scripts.MIX549.bySkill[0];
+  script("MIX549", [{ op: "draw", n: 1 }], [
+    { op: "choose", sel: { area: "battle", side: "opponent", count: 1 }, as: "paid" },
+    { op: "moveTo", target: { var: "paid" }, to: "drop" },
+  ]);
+  for (const mode of ["optional", "mandatory", "effect-only"] as const) {
+    const a = mainWith("MIX549"); const energy = stage(a.state, "ENERGY549", "energy"); const target = stage(a.state, "V1", "battle", "p2");
+    addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: "warp", ...(mode === "optional" ? { optional: true } : {}), ...(mode === "effect-only" ? { by: "skill" } : {}) }, until: "turn" });
+    const ev = pend(a.state, a.source);
+    if (mode === "mandatory") {
+      assert.equal(a.state.prompt.kind, "main"); assert.equal(a.state.cards[energy].mode, "active"); assert.ok(a.state.sides.p2.zones.battle.includes(target));
+      assert.equal(draws(ev), 0); continue;
+    }
+    assert.equal(a.state.prompt.kind, "chooseMode");
+    let result = answer(a.state, 0);
+    if (mode === "optional") {
+      assert.equal(result.state.prompt.kind, "replaceMove"); assert.equal(result.state.cards[energy].mode, "rest");
+      assert.ok(result.state.sides.p2.zones.battle.includes(target)); assert.equal(draws(result.events), 0);
+      assert.ok(result.state.prompt.kind === "replaceMove" && result.state.prompt.options.length === 2, "the affected opponent keeps both legal replacement choices");
+      const failed = answer(result.state, 0, "p2");
+      assert.ok(failed.state.sides.p2.zones.warp.includes(target));
+      assert.equal(failed.state.cards[energy].mode, "rest", "5-8-4 retains the earlier orb payment");
+      assert.equal(draws(failed.events), 0); assert.equal(failed.events.some((e) => e.type === "skill" && e.card === a.source), false);
+      assert.ok(failed.events.some((e) => e.type === "note" && /payment to fail/.test(e.text)));
+      assert.equal(failed.state.prompt.kind, "main");
+      const decline = result.state.prompt.kind === "replaceMove" ? result.state.prompt.options.length - 1 : -1;
+      result = answer(result.state, decline, "p2");
+    }
+    assert.ok(result.state.sides.p2.zones.drop.includes(target)); assert.equal(result.state.sides.p2.zones.warp.includes(target), false);
+    assert.equal(result.state.cards[energy].mode, "rest"); assert.equal(draws(result.events), 1);
+    assert.equal(result.events.filter((e) => e.type === "move" && e.card === target).length, 1);
+  }
+  scripts.MIX549.bySkill[0] = old;
+}
+// Failure caused by the opponent's valid replacement resumes the checkpoint
+// queue, rather than rolling back their choice or activating the failed Auto.
+{
+  const old = scripts.MIX549.bySkill[0];
+  script("MIX549", [{ op: "draw", n: 1 }], [{ op: "moveTo", target: { sel: { special: "subject" } }, to: "drop" }]);
+  const a = mainWith("MIX549"); const b = stage(a.state, "B549"); stage(a.state, "ENERGY549", "energy"); stage(a.state, "ENERGY549", "energy");
+  const target = stage(a.state, "V1", "battle", "p2");
+  addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
+  a.state.pending.push({ card: a.source, master: "p1", skillIndex: 0, trigger: "played", subject: target }); pend(a.state, b);
+  const offered = answer(a.state, 0); assert.equal(offered.state.prompt.kind, "replaceMove");
+  const failed = answer(offered.state, 0, "p2");
+  assert.equal(failed.state.prompt.kind, "chooseMode"); assert.equal(failed.state.programs[0].card, b);
+  assert.ok(failed.state.sides.p2.zones.warp.includes(target)); assert.equal(draws(failed.events), 0);
+  assert.equal(failed.state.cards[a.source].usedThisTurn.length, 0);
+  assert.equal(failed.events.some((e) => e.type === "skill" && e.card === a.source), false);
+  const completed = answer(failed.state, 0); assert.equal(draws(completed.events), 2);
+  assert.equal(completed.state.sides.p1.zones.energy.filter((id) => completed.state.cards[id].mode === "rest").length, 2);
+  scripts.MIX549.bySkill[0] = old;
+}
+// Real paid-Auto / 21-6 interaction: moving the support as a cost ends its
+// while-source power. Resolve the paid effect completely, then the checkpoint
+// removes the other zero-power Battle Card (never interleave it in the price).
+{
+  const old = scripts.ACTION549.bySkill[0];
+  script("ACTION549", [{ op: "draw", n: 1 }], [
+    { op: "choose", sel: { area: "battle", side: "opponent", count: 1 }, as: "paid" },
+    { op: "moveTo", target: { var: "paid" }, to: "drop" },
+  ]);
+  const a = mainWith("ACTION549"); const support = stage(a.state, "V1", "battle", "p2"); const weak = stage(a.state, "WEAK549", "battle", "p2");
+  addEffect(a.state, [], { target: weak, kind: "power", value: 5000, until: "whileSourceInPlay", source: support, master: "p2" });
+  pend(a.state, a.source); const opened = answer(a.state, 0); assert.equal(opened.state.prompt.kind, "chooseCards");
+  const completed = choose(opened.state, [support]);
+  assert.ok(completed.state.sides.p2.zones.drop.includes(support)); assert.ok(completed.state.sides.p2.zones.drop.includes(weak));
+  assert.equal(draws(completed.events), 1);
+  const costMove = completed.events.findIndex((e) => e.type === "move" && e.card === support && e.to === "drop");
+  const draw = completed.events.findIndex((e) => e.type === "draw");
+  const checkpoint = completed.events.findIndex((e) => e.type === "move" && e.card === weak && e.to === "drop");
+  assert.ok(costMove >= 0 && costMove < draw && draw < checkpoint);
+  scripts.ACTION549.bySkill[0] = old;
+}
 // Unsupported instructions remain typed interruptions, not unaffordable no-ops.
 {
   const old = scripts.ACTION549.bySkill[0];
   script("ACTION549", [{ op: "draw", n: 1 }], [{ op: "draw", n: 1 }]);
+  const a = mainWith("ACTION549"); pend(a.state, a.source);
+  assert.equal(a.state.outcome?.kind, "interrupted"); assert.equal(a.state.outcome?.privateContext?.issue, "#549");
+  scripts.ACTION549.bySkill[0] = old;
+}
+// Trace annotations are no-op instrumentation, while an arbitrary note-only
+// price still interrupts rather than inventing a free payment.
+{
+  const old = scripts.ACTION549.bySkill[0];
+  script("ACTION549", [{ op: "draw", n: 1 }], [{ op: "note", text: "pretend this cost was paid" }]);
   const a = mainWith("ACTION549"); pend(a.state, a.source);
   assert.equal(a.state.outcome?.kind, "interrupted"); assert.equal(a.state.outcome?.privateContext?.issue, "#549");
   scripts.ACTION549.bySkill[0] = old;
