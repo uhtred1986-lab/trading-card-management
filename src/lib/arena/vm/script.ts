@@ -2392,12 +2392,6 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
       }
 
-      case "negateKeyword":
-      case "gains":
-        // Continuous by nature: read by the attribute and skill layers, not
-        // applied as an instruction at resolution time.
-        break;
-
       case "replaceLeave":
         // A timed replacement stays attached to its source but keeps the
         // selector live so it also covers matching cards that enter later.
