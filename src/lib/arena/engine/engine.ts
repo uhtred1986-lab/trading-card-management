@@ -429,7 +429,7 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       return battleCleanup(ctx, s, ev);
 
     case "script.step":
-      return stepScript(legacyHost(ctx, s, ev), step.frame);
+      return stepScript(scriptHost(ctx, s, ev), step.frame);
     case "flipLeader": {
       // 22-2-4 / 22-25-4: [Awaken] and [Wish] flip the leader after their effects resolve.
       const inst = s.cards[step.card];
@@ -925,7 +925,7 @@ function runSkill(
     delete s.continuations[savedXKey(key)];
     const boundX = x ?? paidX;
     const frame: ScriptFrame = { ops: script.ops, ip: 0, vars: { ...paid, ...vars }, card, master, trigger, subject, skillIndex: sk.index, ...(boundX === undefined ? {} : { x: boundX }) };
-    return stepScript(legacyHost(ctx, s, ev), frame);
+    return stepScript(scriptHost(ctx, s, ev), frame);
   }
   const d = def(ctx, s, card);
   if (ctx.referee) {
@@ -3399,7 +3399,35 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
   spendSkillCostUses(s, ev, card, sk);
 }
 
-function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number, onto?: string): void {
+/** SD7-01's nested Main activation: the printed costs are waived, but its use gates remain. */
+function invokedMainSkills(ctx: EngineContext, s: GameState, p: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): Skill[] {
+  if (op.from !== "hand" || op.maxCost !== "currentEnergy" || !s.players[p].hand.includes(card) || s.cards[card]?.owner !== p || baseType(def(ctx, s, card)) !== "EXTRA") return [];
+  const current = cardNow(ctx, s, card);
+  if (!current.traits.some((trait) => trait.toLowerCase() === op.trait.toLowerCase()) || typeof current.energyCost !== "number" || playCost(ctx, s, card).total > s.players[p].energy.length) return [];
+  return skillsOfInstance(ctx, s, card).filter((sk) => {
+    if (sk.kind !== op.skillKind || sk.keyword || !scriptsOf(ctx, s, card).bySkill[sk.index] || !scriptFor(ctx, s, card, sk.index)) return false;
+    const price = priceFor(ctx, s, card, sk);
+    if (price.x || (!costIsOnlyOrbs(sk.cost) && !price.known)) return false;
+    if (skillsNegated(s, card) || skillNegated(s, card, sk.index, sk.kind) || forbiddenBy(ctx, s, "activateSkill", { player: p, card }) || usesLeft(sk, s.cards[card]) === 0) return false;
+    if (sk.bond != null && s.players[p].battle.length < sk.bond) return false;
+    if (sk.sparking != null && s.players[p].drop.length < sk.sparking) return false;
+    return !price.condition || condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, price.condition);
+  });
+}
+
+function scriptHost(ctx: EngineContext, s: GameState, ev: GameEvent[]) {
+  return legacyHost(ctx, s, ev, {
+    invokableSkills: (p, card, op) => invokedMainSkills(ctx, s, p, card, op).map((sk) => ({ index: sk.index, label: sk.raw })),
+    invokeSkill: (p, card, index, op) => {
+      const sk = invokedMainSkills(ctx, s, p, card, op).find((line) => line.index === index);
+      if (!sk) throw new IllegalAction("the selected skill is no longer eligible");
+      spendProhibitionUse(ctx, s, "activateSkill", { player: p, card });
+      activateLine(ctx, s, ev, p, card, sk, undefined, false, undefined, undefined, true);
+    },
+  });
+}
+
+function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId, card: string, sk: Skill, explicitPay?: string[], alt = false, x?: number, onto?: string, waived = false): void {
   const d = def(ctx, s, card);
   const inst = s.cards[card];
   const k = sk.keyword;
@@ -3418,8 +3446,8 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     pay(s, ev, p, pm);
   };
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
-  if (sk.markerCost != null) payMarkerCost(s, ev, card, sk.markerCost);
-  payKeywordCosts(ctx, s, ev, p, sk);
+  if (!waived && sk.markerCost != null) payMarkerCost(s, ev, card, sk.markerCost);
+  if (!waived) payKeywordCosts(ctx, s, ev, p, sk);
   // One `skill` event per activation. The branches that queue a
   // `skill.resolve` step get theirs from that step, where the skill actually
   // resolves; the keywords that resolve right here announce themselves now.
@@ -3611,7 +3639,9 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
   // Text skill with a native effect.
   if (baseType(d) === "EXTRA" && areaOf(s, card) === "hand") {
     // 12-2-2: pay the energy cost, card to the Drop, then the skill resolves with counter timing around it.
-    if (alt) {
+    if (waived) {
+      // The Extra still enters the Drop as part of activation (12-2-2).
+    } else if (alt) {
       const a = altCostFor(ctx, s, card, p, "play");
       if (!a || !payAltCost(ctx, s, ev, p, a)) throw new IllegalAction("can't pay that price");
       payOrbs();
@@ -3631,7 +3661,7 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     // your cards in play, with the Extra as the subject. [Field] comes this
     // way too, on its way to the Battle Area (22-3).
     for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "extraActivated", id, card);
-  } else payOrbs();
+  } else if (!waived) payOrbs();
   s.resolving = { card, skill: sk.index, player: p };
   s.flow.unshift(
     { op: "counter", window: "skill", responder: other(p) },
@@ -3641,7 +3671,7 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
   );
   // 4-3-3: an action price is paid on activation, before the counter window
   // opens — so it goes on the front of the flow, after everything else.
-  const actionCost = priceFor(ctx, s, card, sk).ops;
+  const actionCost = waived ? null : priceFor(ctx, s, card, sk).ops;
   if (actionCost) s.flow.unshift({ op: "script.step", frame: { ops: actionCost, ip: 0, vars: {}, card, master: p, skillIndex: sk.index, saveVarsAs: costVarsKey(card, sk.index) } });
 }
 
