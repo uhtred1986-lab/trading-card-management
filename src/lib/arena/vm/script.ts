@@ -1198,6 +1198,12 @@ export interface ScriptFrame {
   subject?: string;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
+  /** One-shot announcement at the paid activation boundary for an Extra with [Heroic]. */
+  afterSkillSource?: string;
+  /** A keyword hook represents a pending skill and is canceled if negated before resolution. */
+  pendingHookSkill?: true;
+  /** An afterSkill event has an unidentifiable self-negating hook; fail before any event hook body runs. */
+  pendingHookIdentityMissing?: true;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
   /**

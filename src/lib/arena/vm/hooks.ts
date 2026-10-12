@@ -62,11 +62,14 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext } from "../types";
+import type { EngineContext, PlayerId } from "../types";
 import type { GameDefinition, HookPoint } from "../rulesets";
 import { HOOK_CONTRACT } from "./hook-contract";
-import { hookBodiesFor, hookFrame } from "./program";
+import { condHolds, hookBodiesFor, hookFrame } from "./program";
+import { inPlayZones } from "./zones";
+import type { Cond, Op, ScriptFrame } from "./script";
 import type { VmState } from "./state";
+import { masterOf } from "./triggers";
 
 export { HOOK_CONTRACT, type HookAnswer, type HookSpec } from "./hook-contract";
 export { hookBodiesFor, queryHookStatics, type HookBody, type QueryFact } from "./program";
@@ -83,5 +86,115 @@ export { hookBodiesFor, queryHookStatics, type HookBody, type QueryFact } from "
  */
 export function fireHook(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint, vars: Record<string, string[]> = {}): void {
   if (HOOK_CONTRACT[point].answer !== "effect") throw new Error(`vm/hooks.ts: "${point}" is a query hook — use queryHookStatics, not fireHook`);
-  for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(game, state, subject, body.ops, vars));
+  for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(game, state, subject, body.ops, vars, body.skillIndex));
+}
+
+/** The activating player's other in-play cards hear one of 22-35-2's two events. */
+export function fireAfterSkill(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  source: string,
+  cause: "battleCardPlayed" | "heroicExtraSkillActivated",
+  owner: PlayerId | undefined = masterOf(game, state, source),
+): void {
+  if (!owner) return;
+  const frames: ScriptFrame[] = [];
+  const missingIdentityCards = new Set<string>();
+  for (const other of inPlayZones(game).flatMap((area) => state.sides[owner].zones[area] ?? [])) {
+    if (other === source) continue;
+    for (const body of hookBodiesFor(ctx, game, state, other, "afterSkill")) {
+      const vars = { source: [source], activatedExtra: cause === "heroicExtraSkillActivated" ? [source] : [] };
+      const frame = hookFrame(game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars), vars, body.skillIndex);
+      frames.push(frame);
+      // Use the hook's own conditions and the source-event variables above;
+      // an unrelated event's false branch must not raise this limitation.
+      if (body.skillIndex === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, body.ops)) {
+        missingIdentityCards.add(other);
+      }
+    }
+  }
+  // These are automatic effects, so retain their captured programs in the
+  // checkpoint queue. Confirmative processing (including 21-6) must run
+  // before any pending skill begins. Preserve collection order within this
+  // event; existing pending skills remain ahead of these newly captured ones.
+  // Validate every qualifying identity-less listener before any sibling
+  // afterSkill body. If a later card's skill is negated, an earlier one must
+  // still reach its own unsupported-identity guard rather than run unguarded.
+  for (const missingIdentityCard of missingIdentityCards) {
+    state.pending.push({
+      kind: "hook",
+      card: missingIdentityCard,
+      skillIndex: undefined,
+      master: owner,
+      trigger: "afterSkill",
+      frame: { ops: [], ip: 0, vars: {}, card: missingIdentityCard, master: owner, pendingHookSkill: true, pendingHookIdentityMissing: true },
+    });
+  }
+  for (const frame of frames) state.pending.push({
+    kind: "hook",
+    card: frame.card,
+    skillIndex: frame.skillIndex,
+    master: owner,
+    trigger: "afterSkill",
+    ...(frame.subject ? { subject: frame.subject } : {}),
+    frame,
+  });
+}
+
+/**
+ * A HOOK condition made only from cards bound to this event describes whether
+ * the hook answered when the event happened. Freeze that branch while the
+ * source/activated card still has its event-time identity; keep mixed board or
+ * effect conditions live for resolution. This is generic to event-bound hook
+ * variables and does not name Heroic/Villainous or inspect printed text.
+ */
+function captureEventPredicates(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  subject: string,
+  ops: Op[],
+  vars: Record<string, string[]>,
+): Op[] {
+  const frame = hookFrame(game, state, subject, [], vars);
+  const eventVars = new Set(Object.keys(vars));
+  const boundOnly = (cond: Cond): boolean => {
+    switch (cond.kind) {
+      case "any":
+      case "all":
+        return cond.conds.length > 0 && cond.conds.every(boundOnly);
+      case "not":
+        return boundOnly(cond.cond);
+      case "count":
+      case "markers":
+      case "inBattle":
+      case "battled":
+      case "playedUsing":
+      case "placedThisTurn":
+      case "power":
+        return !!cond.sel.fromVar && eventVars.has(cond.sel.fromVar);
+      case "every":
+        return !!cond.sel.fromVar && eventVars.has(cond.sel.fromVar)
+          && !!cond.matching.fromVar && eventVars.has(cond.matching.fromVar);
+      default:
+        return false;
+    }
+  };
+  const capture = (program: Op[]): Op[] => program.flatMap((op) => {
+    if (op.op !== "if") return [op];
+    if (boundOnly(op.cond)) return capture(condHolds(ctx, game, state, frame, op.cond) ? op.then : (op.else ?? []));
+    return [{ ...op, then: capture(op.then), ...(op.else ? { else: capture(op.else) } : {}) }];
+  });
+  return capture(ops);
+}
+
+function hasActiveNegateOwnSkill(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ops: Op[]): boolean {
+  return ops.some((op) => {
+    if (op.op === "negateOwnSkill") return true;
+    if (op.op !== "if") return false;
+    return condHolds(ctx, game, state, frame, op.cond)
+      ? hasActiveNegateOwnSkill(ctx, game, state, frame, op.then)
+      : hasActiveNegateOwnSkill(ctx, game, state, frame, op.else ?? []);
+  });
 }
