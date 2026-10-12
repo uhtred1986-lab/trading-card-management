@@ -38,7 +38,7 @@ function snapshotFixtures(): string[] {
  * It exists so a review can see the real board in a session that keeps off
  * Neon; production answers 404.
  */
-export default async function ArenaPreviewPage({ searchParams }: { searchParams: Promise<{ fixture?: string; skin?: string; staging?: string; pace?: string; turn?: string; fx?: string; admin?: string; referee?: string; replay?: string; gameplan?: string }> }) {
+export default async function ArenaPreviewPage({ searchParams }: { searchParams: Promise<{ fixture?: string; skin?: string; staging?: string; pace?: string; turn?: string; fx?: string; admin?: string; referee?: string; replay?: string; gameplan?: string; reject?: string }> }) {
   await requireSlPage();
   if (process.env.NODE_ENV === "production") notFound();
   const q = await searchParams;
@@ -46,7 +46,7 @@ export default async function ArenaPreviewPage({ searchParams }: { searchParams:
     const proofPath = join(DIR, "u08-gameplan-proof.json");
     if (!existsSync(proofPath)) notFound();
     const proof = JSON.parse(readFileSync(proofPath, "utf8")) as { snapshot: Snapshot; actions: Action[]; first: GameplanPreview; second: GameplanPreview };
-    return <PreviewStage snapshot={proof.snapshot} skin={skinFrom(q.skin)} staging={stagingFrom(q.staging)} pace={null} announceTurn={false} fx={null} admin={false} referee={false} planProof={proof} />;
+    return <PreviewStage snapshot={proof.snapshot} skin={skinFrom(q.skin)} staging={stagingFrom(q.staging)} pace={null} announceTurn={false} fx={null} admin={false} referee={false} planProof={proof} rejectPlanOnce={q.reject === "1"} />;
   }
   const names = snapshotFixtures();
   const name = q.fixture ?? "play";

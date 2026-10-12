@@ -1,7 +1,7 @@
 ---
 title: [P2] Arena: Preview a gameplan without committing moves
 milestone: Arena M2 — Gameplay UX/HUD completion
-labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:hud-workflow, model:sonnet-5, performance
+labels: backlog, enhancement, area:arena-ui, phase:hud-workflow, model:sonnet-5, performance
 stage: ui
 issue: 570
 status: closed
@@ -18,7 +18,7 @@ touches: src/lib/arena/gameplan-preview.ts, src/lib/arena/gameplan-types.ts, src
 
 **Files to verify first:** `src/lib/arena/snapshot.ts`, `src/components/arena/stage/PromptPanel.tsx`. Update the contract/types/fixtures/glossary where the behavior requires it; verify actual symbols before editing.
 
-**Delivered scope:** The original `touches` list was outdated: a server action and board caller are necessary to validate the acting seat and revision without committing a move. The implementation adds separate server-only simulation and client-safe move types; `snapshot.ts`, the VM, compiler, glossary and generated fixtures stay unchanged. This bounded planner projects fixed-price printed Main activations with safe public/own effects. Plays stop before a possible hidden Counter window; uncertain rules, current effects and native marker/keyword costs stop with a generic message. It does not promise a universal sequence or a win.
+**Delivered scope:** The original `touches` list was outdated: a server action and board caller are necessary to validate the acting seat and revision without committing a move. The implementation adds separate server-only simulation and client-safe move types; `snapshot.ts`, the VM, compiler, glossary and generated fixtures stay unchanged. This bounded planner projects fixed-price printed Main activations whose only effects rest their own source. Plays stop before a possible hidden Counter window; uncertain rules, current effects and native marker/keyword costs stop with a generic message. It does not promise a universal sequence or a win.
 
 **Acceptance.**
 - [x] A two-action plan shows 2→1→0 ready Red energy from authoritative cloned engine runs. Counter windows, draw, copied/unknown rules, marker payment and Hidden Mode identities stop before unsafe projection. Clearing the plan and server preview leave the stored revision, RNG, action history and usage unchanged.

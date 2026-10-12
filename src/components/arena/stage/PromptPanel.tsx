@@ -49,6 +49,7 @@ export function PromptPanel({
   planPending,
   onPlanFirst,
   onPlanSecond,
+  onPlanRetry,
   onPlanClear,
   onNext,
   onSkip,
@@ -91,6 +92,7 @@ export function PromptPanel({
   planPending: boolean;
   onPlanFirst: (move: PlanMove) => void;
   onPlanSecond: (move: PlanMove) => void;
+  onPlanRetry: () => void;
   onPlanClear: () => void;
   onNext: () => void;
   onSkip: () => void;
@@ -198,6 +200,7 @@ export function PromptPanel({
             </select>
             {planPending && <p role="status" className="mt-2">Checking the plan…</p>}
             {planError && <p role="alert" className="mt-2 text-loss">{planError}</p>}
+            {planError && !planPending && <button type="button" data-plan-retry onClick={onPlanRetry} className="tap mt-2 min-h-11 rounded-lg border border-space-500 px-3 py-2">Retry preview</button>}
             {plan?.steps.map((step, index) => <div key={index} className="mt-3 rounded-lg border border-space-600 bg-space-800/70 p-2" data-plan-step={index}>
               <p className="font-semibold">{index === 0 ? "Before" : `After ${index}`} · {step.label}</p>
               <p className="mt-1">Ready energy {step.budget.ready}/{step.budget.total} · markers {step.budget.markers}</p>

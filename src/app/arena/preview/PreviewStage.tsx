@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { GameOver } from "@/components/arena/GameOver";
 import type { Beat, NumberedBeat } from "@/lib/arena/beats";
@@ -155,6 +155,7 @@ export function PreviewStage({
   referee,
   replay = false,
   planProof,
+  rejectPlanOnce = false,
 }: {
   snapshot: Snapshot;
   skin: ArenaSkin;
@@ -166,7 +167,9 @@ export function PreviewStage({
   referee: boolean;
   replay?: boolean;
   planProof?: { actions: Action[]; first: GameplanPreview; second: GameplanPreview };
+  rejectPlanOnce?: boolean;
 }) {
+  const planRejected = useRef(false);
   // `?replay=1` (preview only): the fixture's own beats, played from the start. It is the
   // `reveal`/`ko` path without a filter — mount the board with an empty queue, then deliver
   // the beats the way a later snapshot would — so a recording catches the first beat.
@@ -231,6 +234,10 @@ export function PreviewStage({
       <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={planProof ? {
         ...STUB,
         preview: async (_gameId: number, actions: Action[]) => {
+          if (rejectPlanOnce && !planRejected.current) {
+            planRejected.current = true;
+            throw new Error("mock preview transport failed");
+          }
           const first = JSON.stringify(actions[0]) === JSON.stringify(planProof.actions[0]);
           const second = actions.length === 1 || JSON.stringify(actions[1]) === JSON.stringify(planProof.actions[1]);
           return first && second ? { error: null, preview: actions.length === 1 ? planProof.first : planProof.second } : { error: "choose the fixture's priced moves", preview: null };

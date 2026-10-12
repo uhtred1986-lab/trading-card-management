@@ -236,6 +236,7 @@ export function ArenaStage({
   const [planOpen, setPlanOpen] = useState(false);
   const [planRevision, setPlanRevision] = useState(live.game.revision);
   const [planFirst, setPlanFirst] = useState<Action | null>(null);
+  const [planAttempt, setPlanAttempt] = useState<Action[]>([]);
   const [plan, setPlan] = useState<GameplanPreview | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [planPending, startPlan] = useTransition();
@@ -249,14 +250,21 @@ export function ArenaStage({
     const revision = live.game.revision;
     setPlanRevision(revision);
     const request = ++planRequest.current;
+    setPlanAttempt(actions);
     setPlan(null);
     setPlanError(null);
     startPlan(async () => {
-      const result = await server.preview!(gameId, actions, revision);
-      if (request !== planRequest.current || liveRevision.current !== revision) return;
-      setPlanError(result.error);
-      setPlan(result.preview);
-      if (result.error) router.refresh();
+      try {
+        const result = await server.preview!(gameId, actions, revision);
+        if (request !== planRequest.current || liveRevision.current !== revision) return;
+        setPlanError(result.error);
+        setPlan(result.preview);
+        if (result.error) router.refresh();
+      } catch {
+        if (request !== planRequest.current || liveRevision.current !== revision) return;
+        setPlan(null);
+        setPlanError("Could not check the plan. Try again.");
+      }
     });
   };
   const selectPlanFirst = (move: PlanMove) => {
@@ -1297,7 +1305,8 @@ export function ArenaStage({
               planPending={planCurrent && planPending}
               onPlanFirst={selectPlanFirst}
               onPlanSecond={(move) => planCurrent && planFirst && requestPlan([planFirst, move.action])}
-              onPlanClear={() => { planRequest.current++; setPlan(null); setPlanFirst(null); setPlanError(null); setPlanOpen(false); }}
+              onPlanRetry={() => { if (planCurrent && planAttempt.length) requestPlan(planAttempt); }}
+              onPlanClear={() => { planRequest.current++; setPlan(null); setPlanFirst(null); setPlanAttempt([]); setPlanError(null); setPlanOpen(false); }}
               onNext={playback.next}
               onSkip={playback.skip}
             />

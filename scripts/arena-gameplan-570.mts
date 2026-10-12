@@ -89,6 +89,36 @@ try {
       assert.equal(await page.eval<string>("document.querySelector('[data-gameplan] button').textContent.trim()"), "Preview game plan", "keyboard clear closes the planner");
     } finally { await page.close(); }
   }
+  if (!before) {
+    const page = await browser.page(viewports[0]);
+    try {
+      await page.interceptFetch(["http://arena-561-art.local/*", "*api/v1/games/570*"]);
+      page.onFetchPaused((request) => {
+        if (request.request.url.includes("/api/v1/games/570")) {
+          void page.fulfillFetch(request.requestId, JSON.stringify(snapshot)).catch(() => undefined);
+          return;
+        }
+        const whis = request.request.url.includes("BT1-055");
+        void page.fulfillFetchBytes(request.requestId, readFileSync(join(assets, whis ? "whis-coercion-bt1-055.webp" : "senzu-bean-bt11-053.jpg")), whis ? "image/webp" : "image/jpeg").catch(() => undefined);
+      });
+      await page.goto(`${base}/arena/preview?gameplan=1&reject=1&skin=night&admin=0`);
+      await page.waitFor("[data-decision-summary]");
+      await page.settle(550);
+      await page.eval("document.querySelector('nextjs-portal')?.remove()");
+      await page.tap("[data-gameplan] button");
+      await page.waitFor("#gameplan-first");
+      const firstIndex = planMoves(snapshot.legal, "p1").findIndex((move) => sameValue(move.action, actions[0]));
+      assert(firstIndex >= 0);
+      await page.eval(`(() => { const select=document.querySelector('#gameplan-first'); select.value='${firstIndex}'; select.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+      await page.waitFor("[data-plan-retry]");
+      assert.match(await page.eval<string>("document.querySelector('[data-gameplan] [role=alert]').textContent"), /Could not check the plan/);
+      assert.equal(await page.eval<number>("document.querySelectorAll('[data-plan-step]').length"), 0, "failed request leaves no stale projection");
+      await page.tap("[data-plan-retry]");
+      await page.waitFor('[data-plan-step="1"]');
+      assert.equal(await page.eval<number>("document.querySelectorAll('[data-gameplan] [role=alert]').length"), 0, "retry clears the transport error");
+      assert.deepEqual(await page.eval<number[]>("[...document.querySelectorAll('[data-plan-step]')].map(el => Number(el.querySelector('p:nth-of-type(2)').textContent.match(/Ready energy (\\d+)/)[1]))"), [2, 1]);
+    } finally { await page.close(); }
+  }
 } finally {
   await browser.close();
   rmSync(boardPath, { force: true });
