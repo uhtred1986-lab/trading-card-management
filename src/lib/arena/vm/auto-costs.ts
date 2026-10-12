@@ -115,6 +115,9 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
       }
       return false;
     } catch (err) {
+      // NotYet is an IllegalAction too, but an incomplete search cannot
+      // establish that the entire price is unaffordable.
+      if (err instanceof NotYet) throw err;
       if (err instanceof IllegalAction || err instanceof AutoPaymentFailed) return false;
       throw err;
     }
