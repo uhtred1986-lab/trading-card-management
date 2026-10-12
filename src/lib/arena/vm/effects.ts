@@ -672,7 +672,7 @@ function collect(
     if (op.op === "replaceLeave") {
       if (!inPlayNow) continue;
       const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
-      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, optional: op.optional };
+      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo === "hand" ? "hand" : undefined, optional: op.optional };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }
@@ -686,7 +686,7 @@ function collect(
       const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
       const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
-        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, optional: op.optional, ...lifeFields }
+        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
         : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
       continue;

@@ -487,6 +487,26 @@ import {
   const may = one("[Permanent] If this card would leave the Battle Area, you may send it to your Warp instead.");
   assert.deepEqual(may.unsupported, []);
   assert.equal((may.ops[0] as { optional?: boolean }).optional, true, '"you may" stays on the replacement');
+
+  // BT29-040: scoped to a hand return caused by the target's opponent's skill,
+  // and lasting through that opponent's turn.
+  const timed = one("[Activate: Main/Battle][Limit 1] If your Leader is blue: Until the end of your opponent's turn, if your opponent's Battle Card would be returned to its owner's hand by a skill on your card, place it at the bottom of its owner's deck instead.");
+  assert.deepEqual(timed.unsupported, []);
+  const guard = timed.ops[0] as { op: string; cond: { kind: string }; then: { op: string; to: string; by: string; bySide: string; requestedTo: string; position: string; until: string; target: { sel: { side: string; area: string; filter: unknown; count: number } } }[] };
+  assert.equal(guard.op, "if");
+  assert.equal(guard.cond.kind, "leaderMatches");
+  const replacement = guard.then[0];
+  assert.equal(replacement.op, "replaceLeave");
+  assert.equal(replacement.to, "deck");
+  assert.equal(replacement.target.sel.side, "opponent");
+  assert.equal(replacement.target.sel.area, "battle");
+  assert.equal((replacement.target.sel.filter as { type?: string }).type, "BATTLE");
+  assert.equal(replacement.target.sel.count, 99);
+  assert.equal(replacement.by, "skill");
+  assert.equal(replacement.bySide, "opponent");
+  assert.equal(replacement.requestedTo, "hand");
+  assert.equal(replacement.position, "bottom");
+  assert.equal(replacement.until, "nextTurn");
 }
 
 {
@@ -528,6 +548,103 @@ import {
   koCardG(s, big);
   assert.ok(zoneOf(s, "p1", "drop").includes(big), "9-10 only replaces what the skill names");
   assertConsistentG(s);
+}
+
+{
+  // BT29-040 and BT29-031: an opponent Battle Card returned to hand by one
+  // of your skills goes to the bottom of its owner's deck instead, but the
+  // opponent's own self-bounce is untouched. The duration ends with that
+  // opponent's turn. These fixtures exercise the actual Activate/attack
+  // scripts on both engines, without a catalog or database lookup.
+  const temporaryDefs = ["BT29040", "BT29031", "SELFRETURN", "DROPPER", "WATCHBOUNCE", "OPPATTACKER", "RETURN_TARGET", "DROP_TARGET", "DURATION_TARGET", "EXPIRED_TARGET"];
+  try {
+  DEFS.BT29040 = {
+    ...DEFS.V1,
+    id: "BT29040",
+    name: "BT29-040",
+    skill: "[Activate: Main/Battle][Limit 1] If your Leader is blue: Until the end of your opponent's turn, if your opponent's Battle Card would be returned to its owner's hand by a skill on your card, place it at the bottom of its owner's deck instead.",
+  };
+  DEFS.BT29031 = {
+    ...DEFS.V1,
+    id: "BT29031",
+    name: "BT29-031",
+    skill: "[Auto] When this card attacks, choose 1 of your opponent's Battle Cards and return it to its owner's hand.",
+  };
+  DEFS.SELFRETURN = {
+    ...DEFS.V1,
+    id: "SELFRETURN",
+    name: "SELFRETURN",
+    skill: "[Activate: Main] Return this card to its owner's hand.",
+  };
+  DEFS.DROPPER = {
+    ...DEFS.V1,
+    id: "DROPPER",
+    name: "DROPPER",
+    skill: "[Activate: Main] Choose 1 of your opponent's Battle Cards and place it in its owner's Drop Area.",
+  };
+  DEFS.WATCHBOUNCE = {
+    ...DEFS.V1,
+    id: "WATCHBOUNCE",
+    name: "WATCHBOUNCE",
+    skill: "[Auto] When your opponent attacks with a Battle Card, choose 1 of your opponent's Battle Cards and return it to its owner's hand.",
+  };
+  DEFS.OPPATTACKER = { ...DEFS.V1, id: "OPPATTACKER", name: "OPPATTACKER" };
+  DEFS.RETURN_TARGET = { ...DEFS.V1, id: "RETURN_TARGET", name: "RETURN_TARGET" };
+  DEFS.DROP_TARGET = { ...DEFS.V1, id: "DROP_TARGET", name: "DROP_TARGET" };
+  DEFS.DURATION_TARGET = { ...DEFS.V1, id: "DURATION_TARGET", name: "DURATION_TARGET" };
+  DEFS.EXPIRED_TARGET = { ...DEFS.V1, id: "EXPIRED_TARGET", name: "EXPIRED_TARGET" };
+
+  let s = stagedG({ battle: ["BT29040", "BT29031", "DROPPER", "WATCHBOUNCE"], oppBattle: ["RETURN_TARGET", "DROP_TARGET", "SELFRETURN", "OPPATTACKER", "DURATION_TARGET", "EXPIRED_TARGET"] });
+  const leader = leaderOf(s, "p1");
+  assert.ok(leader);
+  s.cards[leader!].cardId = "L-BLUE"; // make the printed Leader condition true for the fixture
+  const replacement = findG(s, "p1", "battle", "BT29040");
+  const attacker = findG(s, "p1", "battle", "BT29031");
+  const returned = findG(s, "p2", "battle", "RETURN_TARGET");
+  s = playG(s, { type: "activate", player: "p1", card: replacement, skill: 0 });
+  assert.ok(s.effects.some((e) => e.kind === "replaceLeave" && e.until === "nextTurn"), "BT29-040 installs a timed replacement");
+  s = playG(s, { type: "attack", player: "p1", attacker, target: leaderOf(s, "p2") });
+  assert.equal(s.prompt.kind, "chooseCards", "BT29-031's attack Auto chooses its Battle Card");
+  s = playG(s, { type: "choose", player: "p1", cards: [returned] });
+  assert.equal(zoneOf(s, "p2", "deck").at(-1), returned, "the opponent's card goes to the bottom of its owner's deck");
+  assert.ok(!zoneOf(s, "p2", "hand").includes(returned));
+  while (s.prompt.kind === "combo") s = playG(s, { type: "pass", player: s.prompt.player });
+
+  // A skill move to Drop is outside BT29-040's named original destination.
+  const dropped = findG(s, "p2", "battle", "DROP_TARGET");
+  const dropper = findG(s, "p1", "battle", "DROPPER");
+  s = playG(s, { type: "activate", player: "p1", card: dropper, skill: 0 });
+  assert.equal(s.prompt.kind, "chooseCards");
+  s = playG(s, { type: "choose", player: "p1", cards: [dropped] });
+  assert.ok(zoneOf(s, "p2", "drop").includes(dropped), "a skill move to Drop does not match a hand-return replacement");
+
+  // The target's own skill is not an opponent's skill. It remains on the
+  // board through p2's turn so the controller-side distinction is exercised.
+  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  const p2Attacker = findG(s, "p2", "battle", "OPPATTACKER");
+  const duringOpponentTurn = findG(s, "p2", "battle", "DURATION_TARGET");
+  s = playG(s, { type: "attack", player: "p2", attacker: p2Attacker, target: leaderOf(s, "p1") });
+  assert.equal(s.prompt.kind, "chooseCards", "the opponent's attack fires the other player's Auto");
+  s = playG(s, { type: "choose", player: "p1", cards: [duringOpponentTurn] });
+  assert.equal(zoneOf(s, "p2", "deck").at(-1), duringOpponentTurn, "the redirect remains active through the opponent's turn");
+  while (s.prompt.kind === "combo") s = playG(s, { type: "pass", player: s.prompt.player });
+  assert.ok(s.effects.some((e) => e.kind === "replaceLeave"), "it has not expired before the opponent's turn ends");
+  const selfReturn = findG(s, "p2", "battle", "SELFRETURN");
+  s = playG(s, { type: "activate", player: "p2", card: selfReturn, skill: 0 });
+  assert.ok(zoneOf(s, "p2", "hand").includes(selfReturn), "the opponent's own self-bounce still goes to hand");
+  assert.ok(!zoneOf(s, "p2", "deck").includes(selfReturn));
+
+  s = playG(s, { type: "endMain", player: "p2" }, { type: "charge", player: "p1", card: null });
+  assert.ok(!s.effects.some((e) => e.kind === "replaceLeave"), "the replacement expires at the end of the opponent's turn");
+  const expired = findG(s, "p2", "battle", "EXPIRED_TARGET");
+  s = playG(s, { type: "attack", player: "p1", attacker, target: leaderOf(s, "p2") });
+  assert.equal(s.prompt.kind, "chooseCards");
+  s = playG(s, { type: "choose", player: "p1", cards: [expired] });
+  assert.ok(zoneOf(s, "p2", "hand").includes(expired), "after expiry, the same attack return goes to hand");
+  assertConsistentG(s);
+  } finally {
+    for (const id of temporaryDefs) delete DEFS[id];
+  }
 }
 
 {

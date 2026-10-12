@@ -391,6 +391,20 @@ function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; b
 }
 
 /**
+ * BT29-040's 9-10 wording names both the target side and the original
+ * destination: "if your opponent's Battle Card would be returned to its
+ * owner's hand by a skill on your card". A general leave replacement would
+ * also catch a move to Drop/Warp, so keep the requested hand destination on
+ * the replacement and the opponent-side selector on its subject.
+ */
+function parseWouldReturnToHand(clause: string): { subject: string; requestedTo: "hand"; by: "skill"; bySide: "opponent"; subjectSide: "opponent" } | null {
+  const t = clean(clause);
+  const m = /^(?:if|when)?\s*(.*?) would be returned to (?:its owner'?s|their owner'?s) hand by (?:a|one of your) skills? on (?:your|one of your) cards?$/.exec(t);
+  if (!m || !/\byour opponent'?s\b/i.test(m[1])) return null;
+  return { subject: m[1].trim(), requestedTo: "hand", by: "skill", bySide: "opponent", subjectSide: "opponent" };
+}
+
+/**
  * #272: the same 9-10 opener as `parseWouldLeave`, for a life card's own move
  * rather than a Battle Area departure — "if you would add a card from your
  * life to your hand or place it in your Drop Area" (BT10-031, SD18-01).
@@ -3061,9 +3075,12 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // 9-10: "If this card would leave the Battle Area" is not a condition —
     // nothing has happened yet. It says the *next* clause replaces the
     // departure, so it is remembered rather than compiled.
-    const would = parseWouldLeave(clause);
+    const durationTail = /[,\s]+(until the end of (?:your opponent's|your|the)(?: next)? turn)[,.]?$/i.exec(clause.trim());
+    const replacementClause = durationTail ? clause.trim().slice(0, durationTail.index).trim().replace(/,$/, "") : clause;
+    const timedReturn = durationTail ? parseWouldReturnToHand(replacementClause) : null;
+    const would = timedReturn ?? parseWouldLeave(clause);
     if (would) {
-      c.replacing = would;
+      c.replacing = { ...would, ...(durationTail ? { until: durationOf(durationTail[1]) } : {}) };
       // "…it goes to the Warp instead" — "it" is the card the phrase named.
       c.lastTarget = { sel: { special: "self" } };
       continue;
@@ -3318,7 +3335,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       c.replacingOffered = false;
       if (held.length) got = [...held, ...got];
       const only = got.length === 1 ? got[0] : null;
-      const { by, bySide, subject, event: replaceEvent, to: lifeTo } = c.replacing;
+      const { by, bySide, subject, subjectSide, requestedTo, until, event: replaceEvent, to: lifeTo } = c.replacing;
       c.replacing = null;
       // A redirect says where **the card itself** goes. The card is what the
       // opener bound, so the move's target must still be it: "place all the
@@ -3336,10 +3353,10 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
           refuse(clause);
           continue;
         }
-        const target: Ref = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : only.target;
+        const target: Ref = subject ? { sel: { side: subjectSide ?? "you", area: "battle", filter, count: 99 } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
-        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(offered ? { optional: true } : {}) }]);
+        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}), ...(requestedTo ? { requestedTo } : {}), ...(until ? { until } : {}), ...(offered ? { optional: true } : {}) }]);
         continue;
       }
       // The departure is replaced by something other than a destination for
