@@ -53,7 +53,7 @@ import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
-import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
 import { attrsNow, forbiddenForCard, forbids, readingBoard, staticsNow } from "./program";
 import { playerAttributes } from "./cards";
@@ -766,6 +766,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     master: next.master,
     trigger: next.trigger as Trigger,
     subject: next.subject,
+    ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     skillIndex: next.skillIndex,
   };
   // 9-6-3-1 precedes the price decision in 9-6-4. A priced secret Auto is
@@ -1259,6 +1260,8 @@ export interface MoveCause {
   usedReplacements?: Set<string>;
   /** Stable identity of this confirmative 21-6 subject event, including across a replacement prompt/reload. */
   replacementEvent?: string;
+  /** 8-5-8: its generic Combo-to-Drop Auto was pended at 8-5-6. */
+  cleanupDeparture?: true;
 }
 
 /**
@@ -1271,6 +1274,7 @@ export interface MoveCause {
  */
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
   const from = fromZone(state, id);
+  const fromHolder = findCard(state, id)?.owner;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
   // 9-10: a replacement stands in front of a card leaving play, and a
@@ -1312,7 +1316,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
-  emit(ctx, game, state, ev, movement(result.move.card, from, to, result.move.owner, opts, wasHidden), shown);
+  emit(ctx, game, state, ev, movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder), shown);
   // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in
   // play* in (9-1-3-1) — [Field] cares about the Battle Area, never a hand or
   // deck a card passes through on the way to being dealt. `hookBodiesFor`
@@ -1341,7 +1345,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
 }
 
 /** The `moved` moment, in the words `triggers.rules` asks about it in. */
-function movement(id: string, from: string | null, to: string, owner: PlayerId, opts: MoveCause, wasHidden = false): Moment {
+function movement(id: string, from: string | null, to: string, owner: PlayerId, opts: MoveCause, wasHidden = false, fromHolder?: PlayerId): Moment {
   const cause: Record<string, PatternValue> = opts.by !== undefined ? { by: opts.by, byOpponent: opts.byOpponent ?? false } : {};
   const where: Record<string, PatternValue> = from !== null ? { from } : {};
   return {
@@ -1354,7 +1358,7 @@ function movement(id: string, from: string | null, to: string, owner: PlayerId, 
     // `hidden` only when it is true: "when this Hidden Mode card in a Battle
     // Area is placed into its owner's Drop" (BT28-117) asks for it, and 9-6-9-3
     // keeps every other self-moment of the card from answering (`matchTriggers`).
-    args: { ...where, to, asPlay: opts.asPlay ?? false, ...cause, ...(opts.using !== undefined ? { using: opts.using } : {}), ...(wasHidden ? { hidden: true } : {}) },
+    args: { ...where, to, asPlay: opts.asPlay ?? false, ...cause, ...(opts.using !== undefined ? { using: opts.using } : {}), ...(wasHidden ? { hidden: true } : {}), ...(opts.cleanupDeparture ? { cleanupDeparture: true } : {}), ...(fromHolder ? { fromHolder } : {}) },
   };
 }
 

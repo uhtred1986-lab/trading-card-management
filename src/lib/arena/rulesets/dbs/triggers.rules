@@ -335,7 +335,16 @@ DEFINE TRIGGER opponentTurnEnd
 
 -- ── combos (5-7, 8-5-8) ────────────────────────────────────────────────────
 
--- §8-5-8 — when this card is used in a combo
+-- §8-5-6 — a Battle Area watcher of a same-player Combo-to-Drop departure.
+-- Native cleanup announces this before 8-5-7 and suppresses only its repeat
+-- at the physical 8-5-8 move. Other movement triggers still hear that move.
+DEFINE TRIGGER comboToDrop
+  ON moved(from: combo, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when a card in your Combo Area is placed in your Drop Area"
+
+-- §8-5-8 departure — ordinary self-combo wording already answered at entry;
+-- the special "at battle end after combo" Auto is announced at 8-5-9.
 DEFINE TRIGGER comboed
   ON moved(from: combo)
   BIND "self"

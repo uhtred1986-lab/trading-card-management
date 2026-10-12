@@ -1,6 +1,6 @@
 # #609 cleanup-order audit
 
-Status: **audit only; no runtime behavior changed**. The repository manual determines the order and resolves the subject-information question for a Combo-to-Drop movement trigger. The missing generic card fixture is an evidence gap, not a rule ambiguity.
+Status: **historical pre-implementation audit**. The repository manual determines the order and resolves the subject-information question for a Combo-to-Drop movement trigger. The missing generic card fixture is an evidence gap, not a rule ambiguity. The implementation and focused proof are documented in [implementation-proof.md](./implementation-proof.md).
 
 ## Rule sequence
 
@@ -77,4 +77,4 @@ Use internal, serialized battle-cleanup progress after #551's existing choices/8
 
 Required later evidence includes (a) one pending occurrence for each qualifying Combo-to-Drop trigger fulfillment (including each occurrence if the departures are treated as simultaneous under §9-6-2-1-1); (b) no occurrence for a card chosen for Z-Energy; (c) a source negated in its original area does not pend; (d) a pending Auto that activates still resolves after source departure/negation when §9-6-11 requires it; (e) Drop-area information is used for the moved card when the Auto requests it; (f) source/player order and checkpoint interactions with zero-power and Heroic work; (g) a pausing prompt and JSON reload at both checkpoints; and (h) each Auto resolves once. The dedicated `COMBOBACK` assertion should continue proving the distinct 8-5-10-1 path.
 
-This audit does not mark #609 complete and does not authorize runtime changes. No new test or production behavior was added.
+This document records the baseline and the intended boundary at the time of audit. The implementation proof records the subsequent runtime changes and remaining limits.

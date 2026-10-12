@@ -1211,6 +1211,8 @@ export interface ScriptFrame {
   master: PlayerId;
   trigger?: Trigger;
   subject?: string;
+  /** §9-6-9-1-3 movement information, captured separately from live zones. */
+  subjectInfo?: import("./cards").Attrs;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
   /** Persisted ID of the timed effect granting this individual keyword skill. */

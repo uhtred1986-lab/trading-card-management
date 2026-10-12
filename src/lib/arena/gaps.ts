@@ -93,6 +93,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   opponentTurnStart: "at the start of your opponent's turn",
   battleEnd: "at the end of the battle",
   comboed: "when this card is used in a combo",
+  comboToDrop: "when a card in your Combo Area is placed in your Drop Area",
   comboUsed: "when you combo with this card",
   opponentPlayed: "when your opponent plays a card",
   youPlayed: "when you play a card",

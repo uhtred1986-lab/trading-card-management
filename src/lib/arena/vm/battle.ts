@@ -60,8 +60,9 @@
  * `energy`-priced planner every other move is (`vm/costs.ts`), reading `comboCostOf` — the
  * declared, reduction-aware attribute — rather than a number this module
  * invents. At battle cleanup this module offers the turn player and then the
- * other player one optional 8-5-2/3 choice, runs the 8-5-4 checkpoint, and
- * sends every remaining combo card to its owner's Drop.
+ * other player one optional 8-5-2/3 choice, runs the 8-5-4 checkpoint,
+ * announces generic Combo-to-Drop Autos for 8-5-7, then moves remaining
+ * cards at 8-5-8 before the separate 8-5-9/10 battle-end group.
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
@@ -76,16 +77,16 @@ import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../compile";
 import { actionCostOf, altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import type { VmAltCost } from "./effects";
-import { RulesetBroken } from "./errors";
+import { NotYet, RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
 import { canPayPriceProgram } from "./activate";
 import { fireHook } from "./hooks";
-import { lifeReplacementChoices, markerReplacementChoices } from "./replace";
+import { leaveRoute, lifeReplacementChoices, markerReplacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
-import { masterOf, skillsShowing } from "./triggers";
+import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
-import { isTokenCard } from "./zones";
+import { findCard, isTokenCard, moveCard } from "./zones";
 import type { VmBattle, VmState } from "./state";
 
 // ── the phase, from the Main Phase's own "attack" choice ────────────────────
@@ -287,7 +288,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
 
   battleEnd: {
     section: "8-5",
-    waits: "the ordered 8-5-2/3 Z-Energy choices, the 8-5-4 checkpoint, then combo cleanup",
+    waits: "8-5-2/3 Z-Energy choices, then the distinct 8-5-4, 8-5-7 and 8-5-10 checkpoints",
     run: (ctx, game, state, ev) => {
       const b = state.battle;
       if (!b) return;
@@ -305,24 +306,101 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
         if (top) top.reask = true;
         return;
       }
-      if (game.id === "dbs" && b.endCombo?.stage === "checkpoint") {
-        // Reaching this step again means the checkpoint after both choices
-        // has drained. 8-5-5 now ends every remaining combo contribution.
-        b.endCombo.stage = "cleanup";
-        b.endCombo.retainedComboPower = {};
-      }
-      // Existing cleanup batches the Drop moves before its checkpoint, so the
-      // 8-5-6/7 and 8-5-9 timing distinction remains a known limitation here;
-      // this work changes only the earlier 8-5-2/3 -> 8-5-4 ordering.
-      // `moved()` fires the generic `moved(from: combo)` moment for explicit
-      // end-of-battle wording. Ordinary self-combo wording already answered
-      // `comboUsed` at entry and must not answer this departure again.
-      for (const p of Object.keys(state.sides) as PlayerId[]) {
-        for (const id of (state.sides[p].zones.combo ?? []).slice()) {
-          moved(ctx, game, state, ev, id, "drop", { owner: p });
+      const end = b.endCombo;
+      if (game.id === "dbs" && end) {
+        const top = state.flow[state.flow.length - 1];
+        if (end.stage === "cleanup") {
+          // An older saved cleanup reached its prompt only after the old
+          // grouped moves and battleEnd pends. The runner drains that stored
+          // queue without calling this native work again. If an invalid old
+          // frame calls us, stop instead of repeating those occurrences.
+          throw new NotYet("reconstruct an incomplete old battle cleanup", "#609");
         }
+        if (end.stage === "battleEndCheckpoint") {
+          // A saved 8-5-10 pause resumes through the runner's stored
+          // checkpoint frame, not through native work a second time.
+          throw new NotYet("reconstruct an incomplete battle-end checkpoint", "#609");
+        }
+        if (end.stage === "checkpoint") {
+          // 8-5-4 has fully drained. 8-5-5 expires retained combo power.
+          end.retainedComboPower = {};
+          end.stage = "preDropCheckpoint";
+          end.preDropSubjects = [state.turnPlayer, other(state.turnPlayer)]
+            .flatMap((p) => (state.sides[p].zones.combo ?? []).filter((id) => state.cards[id]?.owner === p && !isTokenCard(state.cards[id].cardId)));
+          end.captureCursor = 0;
+          end.preDropTriggeredSubjects = [];
+          // 8-5-6 is an advance notice of the ordinary Combo-to-own-Drop
+          // movement. The source and the subject are different card roles.
+          for (const id of end.preDropSubjects) {
+            end.captureCursor++;
+            const holder = state.cards[id].owner;
+            const occurrence = `combo-drop:${state.turn}:${id}:${state.cards[id].zoneEpoch ?? 0}`;
+            const pended = pendAutos(ctx, game, state, { event: "moved", card: id, controller: holder,
+              args: { from: "combo", to: "drop", asPlay: false, fromHolder: holder } },
+            (match) => match.trigger === "comboToDrop", undefined, occurrence);
+            if (!pended.length) continue;
+            end.preDropTriggeredSubjects.push(id);
+            // §9-6-9-1-3 asks for information in the new, open Drop Area.
+            // Project only that information on a copy. Live area membership,
+            // selectors, and payments remain on the actual Combo Area board.
+            const projected = structuredClone(state);
+            const route = leaveRoute(ctx, game, projected, [], id, "combo", "drop", {});
+            if (route.stays || route.to !== "drop") throw new NotYet("resolve a replacement of a pre-announced Combo-to-Drop Auto", "#609");
+            const placed = moveCard(projected, game, id, "drop", { owner: holder,
+              ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) });
+            if (!placed.ok || placed.move.to !== "drop") throw new NotYet("project a pre-announced Combo-to-Drop movement subject", "#609");
+            const subjectInfo = attrsNow(ctx, game, projected, id);
+            for (const pending of pended) pending.subjectInfo = subjectInfo;
+          }
+          if (top) top.reask = true;
+          return; // 8-5-7: the runner's normal checkpoint.
+        }
+        if (end.stage === "preDropCheckpoint") {
+          // An 8-5-7 Auto may have moved a Combo card. Only cards remaining
+          // now are moved at 8-5-8; its already-pended generic occurrence is
+          // neither revoked nor repeated.
+          end.stage = "departures";
+          end.departureSubjects = [state.turnPlayer, other(state.turnPlayer)]
+            .flatMap((p) => (state.sides[p].zones.combo ?? []).slice());
+          end.departureCursor = 0;
+          end.specialSubjects = [];
+          end.specialCursor = 0;
+        }
+        if (end.stage === "departures") {
+          while ((end.departureCursor ?? 0) < (end.departureSubjects?.length ?? 0)) {
+            const id = end.departureSubjects![end.departureCursor ?? 0];
+            end.departureCursor = (end.departureCursor ?? 0) + 1;
+            const holder = (Object.keys(state.sides) as PlayerId[]).find((p) => state.sides[p].zones.combo?.includes(id));
+            if (holder) {
+              const origin = b.comboOrigins?.[id];
+              const hidden = state.cards[id]?.hidden;
+              moved(ctx, game, state, ev, id, "drop", { owner: state.cards[id].owner, cleanupDeparture: true });
+              const after = findCard(state, id);
+              if (after?.zone !== "drop" && end.preDropTriggeredSubjects?.includes(id))
+                throw new NotYet("resolve a changed 8-5-8 destination after its Combo-to-Drop Auto already answered", "#609");
+              if (after?.zone === "drop") end.specialSubjects!.push({ card: id, to: after.zone, controller: after.owner,
+                ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) });
+            }
+          }
+          end.stage = "battleEndCheckpoint";
+        }
+      } else {
+        for (const p of Object.keys(state.sides) as PlayerId[])
+          for (const id of (state.sides[p].zones.combo ?? []).slice()) moved(ctx, game, state, ev, id, "drop", { owner: p });
       }
       fire(ctx, game, state, { event: "stepStart", controller: state.turnPlayer, args: { step: "battleEnd" } });
+      // 8-5-9 also announces the 8-5-10-1 special Combo-card Autos. Their
+      // actual 8-5-8 departure already happened; its saved entry provenance
+      // is used here rather than re-reading a discarded battle record.
+      if (game.id === "dbs" && end) {
+        while ((end.specialCursor ?? 0) < (end.specialSubjects?.length ?? 0)) {
+          const subject = end.specialSubjects![end.specialCursor ?? 0];
+          end.specialCursor = (end.specialCursor ?? 0) + 1;
+          pendAutos(ctx, game, state, { event: "moved", card: subject.card, controller: subject.controller,
+            args: { from: "combo", to: subject.to, cleanupSpecial: true, ...(subject.hidden ? { hidden: true } : {}) } },
+          (match) => match.trigger === "comboed", undefined, undefined, subject.origin);
+        }
+      }
       // #156: [Revenge]'s own hook (22-9) — the guard's `[attacker]` is read
       // off `state.battle`, which is why this step does not clear it itself
       // (`vm/flow.ts`'s own phase-pop does, once this step's queued program
@@ -334,6 +412,9 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // before the stand.
       if (b.attacker !== b.guard) fireHook(ctx, game, state, b.attacker, "battleEnd");
       fireHook(ctx, game, state, b.guard, "battleEnd");
+      if (end && game.id === "dbs") {
+        end.stage = "battleEndCheckpoint";
+      }
     },
   },
 };

@@ -72,13 +72,16 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
  * them can happen at a time (7-1), so it fires once per turn either way. The
  * same precedent as "when you play or combo with this card" below.
  */
-/** The combo card's own end-of-battle moment is its 8-5-8 Combo Area departure. */
+/** The combo card's own end-of-battle wording enters pending at 8-5-9. */
 const COMBO_BATTLE_END = /^at the end of (?:the|a|this) battle(?: after| in which) you (?:combo|combod|comboed|used?) (?:with )?this card/;
 const COMBO_BATTLE_END_FROM_HAND = new RegExp(`${COMBO_BATTLE_END.source} from your hand\\b`);
+export function comboBattleEndSelf(sk: Skill): boolean {
+  return COMBO_BATTLE_END.test(effectHead(maskNames(sk.effect).text));
+}
 /**
  * BT6-010 / BT2-010 require this very copy to have entered this battle's
  * Combo Area from hand. Both interpreters check the captured source when
- * `comboed` is pended, before the card's battle record is discarded.
+ * `comboed` is pended at 8-5-9 from the captured 8-5-8 departure.
  */
 export function comboBattleEndFromHand(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
@@ -345,6 +348,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // "…after you combo with this card" is the combo card's own end of the
       // battle, `comboed` below (#539).
       return /^at the end of (?:the|a|this) battle\b/.test(head) && !COMBO_BATTLE_END.test(head);
+    case "comboToDrop":
+      return /^when (?:a|1) card in your combo area is (?:placed|put) (?:in|into) your drop(?: area)?\b/.test(head);
     case "comboUsed":
       return comboEntrySelf(sk);
     case "comboed":

@@ -19,10 +19,12 @@ The existing battleEnd work moves all remaining combo cards to Drop, collects th
 
 **Acceptance:**
 - [ ] Record rule-grounded ordering for Combo-to-Drop versus end-of-battle Autos, including source area/validity and effect conditions; do not silently reinterpret the manual.
-- [ ] Named fixed scenarios assert state and effect order at each checkpoint, including an Auto that pauses, JSON reload, two players, source departure/negation, and simultaneous cleanup. Each Auto resolves once.
-- [ ] Preserve the completed #551 Z-Energy offers, 8-5-4 power retention, public beats and viewer privacy, plus current zero-power and Heroic checkpoint behavior.
-- [ ] Full local tests, typecheck, lint/build and glossary/reading evidence pass with DATABASE_URL=''; frozen legacy corpus unchanged. Owner data/fuzz/ruling limitations are explicit.
+- [x] Named fixed scenarios assert state and effect order at each checkpoint, including an Auto that pauses, JSON reload, two players, source departure/negation, and simultaneous cleanup. Each Auto resolves once.
+- [x] Preserve the completed #551 Z-Energy offers, 8-5-4 power retention, public beats and viewer privacy, plus current zero-power and Heroic checkpoint behavior.
+- [x] Full local tests, typecheck, lint/build and glossary/reading evidence pass with DATABASE_URL=''; frozen legacy corpus unchanged. Owner data/fuzz/ruling limitations are explicit.
 
 One bounded PR; coordinate battle/flow with #551/#607. No paid AI, live database, new dependencies or unrelated mechanics.
 
-**Delivery reconciliation — 12 Oct 2026:** The audit is documentation-only and `vm/battle.ts` still explicitly retains the checkpoint grouping limitation. GitHub #609 was reopened to match its unfinished runtime, persisted pause/reload and scenario acceptance; no new card wording or complete cleanup implementation is claimed.
+**Bounded delivery — 12 Oct 2026:** The rules VM separates the 8-5-7 and 8-5-10 checkpoints with persisted cleanup stages/cursors. Generic same-player Combo-to-own-Drop Autos enter pending before physical departures; battle-end and qualifying special Combo-card Autos enter pending afterwards. [Implementation evidence](evidence/609/implementation-proof.md) records the rule basis, named scenarios and old-main saved-pause proof. Root registered the proof, added an explicit Auto-before-departure event-order assertion, updated the language-reference fixture and inventoried every new guarded or unsupported source site. Full local tests, typecheck, lint and the default production build pass with DATABASE_URL=''. No frozen gameplay Snapshot or probe-digest fixture changed.
+
+**Remaining #609 scope:** This is a partial delivery. A replacement that keeps or redirects a pre-announced subject, or changes its destination during 8-5-7, still interrupts explicitly under #609; no new-area information is invented. The repository has no real generic 8-5-6 card fixture, so this proof uses synthetic wording. The existing non-Battle Extra cleanup fixture is preserved without claiming a new interpretation of 8-5-8. Actual catalog/deck fuzz and any owner ruling remain unverified. #609 stays open for these boundaries; the legacy engine is unchanged.

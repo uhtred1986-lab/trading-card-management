@@ -109,15 +109,24 @@ export interface VmBattle {
    */
   hiddenOut?: true;
   /**
-   * 8-5-2..5: the per-player combo-to-Z choice and the checkpoint immediately
-   * after it. `retainedComboPower` keeps a chosen card's 8-5-4 contribution
-   * through that checkpoint; it is discarded when the Battle Cards leave
-   * Combo Areas at 8-5-5..8. Optional so saved states from before #551 load.
+   * 8-5: the ordered choices, checkpoints, and cleanup. Cursors advance
+   * before an occurrence is pended or a card is moved, so a suspended game
+   * never repeats either. `cleanup` is the former, already-performed native
+   * work in a saved game; it must not be replayed.
    */
   endCombo?: {
     chooserIndex: number;
-    stage: "choices" | "checkpoint" | "cleanup";
+    stage: "choices" | "checkpoint" | "cleanup" | "preDropCheckpoint" | "departures" | "battleEndCheckpoint";
     retainedComboPower: Partial<Record<PlayerId, Record<string, number>>>;
+    preDropSubjects?: string[];
+    captureCursor?: number;
+    /** Subjects with an actual generic 8-5-6 pending occurrence. */
+    preDropTriggeredSubjects?: string[];
+    departureSubjects?: string[];
+    departureCursor?: number;
+    /** 8-5-10-1: actual Combo departures whose special battle-end Auto is announced at 8-5-9. */
+    specialSubjects?: { card: string; to: string; controller: PlayerId; origin?: "hand" | "other"; hidden?: true }[];
+    specialCursor?: number;
   };
 }
 
