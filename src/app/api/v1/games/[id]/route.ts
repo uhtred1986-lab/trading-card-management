@@ -28,6 +28,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
 
   const { sinceBeat, sinceRevision, waitMs } = pollParams(new URL(req.url));
+  // Older clients already poll with revision cursors but expect every answer
+  // to contain JSON. Keep the bodyless response opt-in for new clients only.
+  const prefersMinimal = req.headers.get("Prefer") === "return=minimal";
 
   // A long-poll decides seat and mode from the few columns that say so, and
   // loads the whole game once, after the wait (issue #377). Loading it first
@@ -57,7 +60,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       // catalog art and a viewer-specific Snapshot when the row is unchanged.
       // The next client long-poll rechecks immediately from the same cursors.
       if (revisionWait?.kind === "missing") return fail("not_found", `no game ${id}`);
-      if (revisionWait?.kind === "unchanged") {
+      if (revisionWait?.kind === "unchanged" && prefersMinimal) {
         return new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
       }
       const game = await loadGame(db, id);

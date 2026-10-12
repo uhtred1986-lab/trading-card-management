@@ -123,6 +123,7 @@ export function startLiveGamePolling(options: PollOptions): { retry(): void; sto
         (async () => {
           const response = await fetcher(`/api/v1/games/${options.gameId}?sinceRevision=${revision}&sinceBeat=${beat}&wait=15`, {
             cache: "no-store",
+            headers: { Prefer: "return=minimal" },
             signal: controller.signal,
           });
           if (response.status === 204) return null;

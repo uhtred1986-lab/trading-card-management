@@ -97,6 +97,20 @@ assert.ok(unchangedReads < baselineReads, "unchanged response skips the full gam
 assert.equal(unchangedBodyBytes, 0);
 console.log(`PGlite idle poll after authorization: ${baselineReads} SELECTs/${baselineBytes} snapshot bytes → ${unchangedReads} SELECTs/0 body bytes (50 ms deterministic window); avoided projection p50 ${projectionP50Ms.toFixed(3)} ms`);
 
+// A prior web client already sends both cursors but expects JSON. The server
+// must preserve that response unless the caller opts in to minimal responses.
+const responseForUnchangedRevision = async (prefer: string | null) => {
+  if (fastWait.kind === "unchanged" && prefer === "return=minimal") return { status: 204, body: null };
+  const game = await loadGame(db, gameId);
+  assert.ok(game);
+  return { status: 200, body: await snapshotOfGame(db, game) };
+};
+const oldClientResponse = await responseForUnchangedRevision(null);
+assert.equal(oldClientResponse.status, 200, "older sinceRevision clients still receive a JSON snapshot");
+assert.equal(Buffer.byteLength(JSON.stringify(oldClientResponse.body)), baselineBytes);
+const optedInResponse = await responseForUnchangedRevision("return=minimal");
+assert.deepEqual(optedInResponse, { status: 204, body: null }, "new clients opt in to bodyless unchanged responses");
+
 // Optional one-window measurement uses the current 15-second client wait. It
 // counts the actual authenticated-SL route's head+revision reads once, then
 // separately measures the exact loadGame reads the old unchanged branch did.
@@ -154,10 +168,12 @@ const auth = route.indexOf("const auth = await routeViewer();");
 const gameAccess = route.indexOf("canOpenGame(auth.viewer, id)");
 const seatGate = route.indexOf("if (versus && !seat)");
 const wait = route.indexOf("await waitForRevisionResult(db, id, sinceRevision, waitMs)");
+const preference = route.indexOf('req.headers.get("Prefer") === "return=minimal"');
+const preferenceGuard = route.indexOf('revisionWait?.kind === "unchanged" && prefersMinimal');
 const unchanged = route.indexOf('status: 204, headers: { "Cache-Control": "private, no-store" }');
 const fullLoad = route.indexOf("const game = await loadGame(db, id);");
-assert.ok(auth >= 0 && auth < gameAccess && gameAccess < seatGate && seatGate < wait && wait < unchanged && unchanged < fullLoad,
-  "the no-body response follows auth/ownership/seat checks and precedes expensive game projection");
+assert.ok(preference >= 0 && auth >= 0 && auth < gameAccess && gameAccess < seatGate && seatGate < wait && wait < preferenceGuard && preferenceGuard < unchanged && unchanged < fullLoad,
+  "the opted-in no-body response follows auth/ownership/seat checks and precedes expensive game projection");
 
 // A 204 retains both poll cursors and the last board. The next full response
 // still supplies a terminal status, so no-beat completion reaches the client.
@@ -165,6 +181,7 @@ assert.ok(auth >= 0 && auth < gameAccess && gameAccess < seatGate && seatGate < 
   const timers = new Map<number, () => void>();
   let nextTimer = 0;
   const urls: string[] = [];
+  const requestOptions: RequestInit[] = [];
   const updates: Snapshot[] = [];
   const states: string[] = [];
   let calls = 0;
@@ -178,8 +195,9 @@ assert.ok(auth >= 0 && auth < gameAccess && gameAccess < seatGate && seatGate < 
     },
     setTimer: ((fn: () => void) => { const id = ++nextTimer; timers.set(id, fn); return id as unknown as ReturnType<typeof setTimeout>; }) as typeof setTimeout,
     clearTimer: ((id: ReturnType<typeof setTimeout>) => { timers.delete(id as unknown as number); }) as typeof clearTimeout,
-    fetcher: async (url) => {
+    fetcher: async (url, init) => {
       urls.push(String(url));
+      requestOptions.push(init ?? {});
       calls++;
       return calls === 1 ? new Response(null, { status: 204 }) : new Response(JSON.stringify(snapshot(7, "abandoned")), { status: 200 });
     },
@@ -196,6 +214,7 @@ assert.ok(auth >= 0 && auth < gameAccess && gameAccess < seatGate && seatGate < 
   await tick();
   assert.equal(calls, 2);
   assert.ok(urls[0]?.includes("sinceRevision=6") && urls[0]?.includes("sinceBeat=11"));
+  assert.deepEqual(requestOptions[0]?.headers, { Prefer: "return=minimal" }, "new polling client opts in to no-content responses");
   assert.ok(urls[1]?.includes("sinceRevision=6") && urls[1]?.includes("sinceBeat=11"), "204 retains revision and beat cursors");
   assert.equal(updates[0]?.game.status, "abandoned", "later status-only terminal revision is delivered");
   assert.equal(states.at(-1), "connected");

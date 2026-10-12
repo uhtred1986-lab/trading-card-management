@@ -717,12 +717,14 @@ dot for all of it and then jumps. The contract fixes that for both clients with 
   authorized snapshot when the authoritative game revision differs from `R`, including a
   status-only change such as abandonment. It includes beats only when `beats.seq > N`; a
   status-only response carries `{ beats: null }`. If the wait ends with the row still at exactly
-  `R`, the route returns `204 No Content` with `Cache-Control: private, no-store` before loading
-  the saved game or building a personalized snapshot; the client keeps both cursors and re-issues
-  the poll. Authentication and the versus-seat check happen before this response. A cursor behind
-  or ahead of the row gets the current full snapshot so a reconnect can reconcile its complete
-  authorized state. The legacy `sinceBeat`-only poll remains accepted for older read-only clients
-  and retains its snapshot response behavior.
+  `R`, a client that sends `Prefer: return=minimal` receives `204 No Content` with
+  `Cache-Control: private, no-store` before the route loads the saved game or builds a personalized
+  snapshot; the client keeps both cursors and re-issues the poll. Clients that omit this opt-in,
+  including older tabs that already send `sinceRevision`, continue to receive a full JSON snapshot.
+  Authentication and the versus-seat check happen before the optional bodyless response. A cursor
+  behind or ahead of the row gets the current full snapshot so a reconnect can reconcile its
+  complete authorized state. The legacy `sinceBeat`-only poll remains accepted for older read-only
+  clients and retains its snapshot response behavior.
 
 So a client fires `advance` on one connection and long-polls on another, and Claude's charge, plays,
 attack and combo arrive as they are decided rather than as one lump. Long-poll rather than SSE
