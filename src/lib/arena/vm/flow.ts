@@ -54,7 +54,7 @@ import { NotYet } from "./errors";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
-import { fireHook, queryHookStatics } from "./hooks";
+import { fireAfterSkill, fireHook, queryHookStatics } from "./hooks";
 import { attrsNow, forbiddenForCard, forbids, staticsNow } from "./program";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
@@ -974,9 +974,26 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.pendingHookIdentityMissing) {
+      throw new NotYet("negate a granted keyword hook that has no individual skill identity", "#602");
+    }
+    if (frame.pendingHookSkill && frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) {
+      log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
+      return "done";
+    }
+    // The frame reaches the front only after its action price has finished.
+    // Pend the trigger now, before the effect can remove or change its source;
+    // this frame remains ahead of the hooks until it resolves or suspends.
+    if (frame.afterSkillSource) {
+      const source = frame.afterSkillSource;
+      delete frame.afterSkillSource;
+      fireAfterSkill(ctx, game, state, source, "heroicExtraSkillActivated", frame.master);
+    }
     return stepScript(vmHost(ctx, game, state, ev), frame);
   } catch (err) {
     if (!(err instanceof NotYet)) throw err;
+    // A terminal interruption discards every queued sibling program.
+    state.programs = [];
     const issue = err.issue;
     interruptGame(ctx, game, state, ev, {
       sourceCard: frame.card,
@@ -1192,11 +1209,8 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // to `asPlay` (9-6-9-4) and to the owner's own other in-play cards, since
   // "you play" never means an opponent's play or a card arriving by a
   // non-play move (a KO'd card returning, a search finding one).
-  if (opts.asPlay) {
-    const owner = result.move.owner;
-    for (const other of inPlayZones(game).flatMap((zone) => state.sides[owner].zones[zone] ?? [])) {
-      if (other !== id) fireHook(ctx, game, state, other, "afterSkill", { source: [id] });
-    }
+  if (opts.asPlay && to === "battle") {
+    fireAfterSkill(ctx, game, state, id, "battleCardPlayed", masterOf(game, state, id));
   }
 }
 
