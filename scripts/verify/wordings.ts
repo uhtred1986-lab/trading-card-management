@@ -32,7 +32,6 @@ import {
   powerIn,
   priceCondition,
   rejectedActionsG,
-  rulesGap,
   scheduleG,
   settledG,
   splitClauses,
