@@ -64,6 +64,7 @@ import { expireSkips, takeSkip } from "./skips";
 import type { VmFrame, VmState } from "./state";
 import { interruptedOutcome, type StoredOutcome } from "../outcome";
 import { stepAegisCost } from "./aegis-costs";
+import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { IllegalAction } from "./common";
 
@@ -723,7 +724,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // If your Leader Card is blue: …") is asked before the keyword does
     // anything, as the legacy keyword case asks it — silently, after the
     // announcement, where it does.
-    if (program?.price?.condition && !vmHost(ctx, game, state, ev).condHolds(frame, program.price.condition)) {
+    if (keyword.name !== "Revive" && program?.price?.condition && !vmHost(ctx, game, state, ev).condHolds(frame, program.price.condition)) {
       log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill.raw, inBattle: !!state.battle });
       return true;
     }
@@ -740,6 +741,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // The line's printed effect rides on the frame, for the body's
     // `printedEffect` to announce and run where it says (#154).
     const printed = program && !program.unsupported.length && program.ops.length ? { ops: program.ops, text: skill.raw, inBattle: !!state.battle } : undefined;
+    if (keyword.name === "Revive") {
+      queueReviveCost(game, state, { ...frame, ...(printed ? { printed } : {}) }, keyword, skill, program);
+      return true;
+    }
     queueAutomatic(ctx, game, state, ev, { ...frame, ops: keywordProgram(game, keyword, skill), ...(printed ? { printed } : {}) }, skill, program);
     return true;
   }
@@ -953,6 +958,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.reviveCost) return stepReviveCost(ctx, game, state, ev, frame);
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.autoCost) {
       const cost = frame.autoCost;

@@ -592,6 +592,9 @@ DEFINE KEYWORD Revive
   -- the revival for the rest of the turn; here [Revive] is negated on the
   -- card for the turn, as 22-34-4 says, so a second KO that turn pends
   -- nothing — where the legacy engine announces the skill and does nothing.
+  -- #624 derives a stored hand-cost continuation from this body. Complete
+  -- colour payment precedes live additional Auto price planning; neither
+  -- announcement nor the negation/play effect occurs before full payment.
   at: [koed]
   DO {
     if(cond: all([count([self] IN you.drop) >= 1, covers(sel: IN you.hand, colors: $colors, original: true)]), then: {
