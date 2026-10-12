@@ -16,6 +16,14 @@ import type { PlayerId } from "../types";
 import { loadGame } from "../games";
 import { sideName } from "../engines";
 import { decklistText } from "./view";
+import { resolveOutcome } from "../outcome";
+
+export class InterruptedGameReviewError extends Error {
+  constructor() {
+    super("AI review is unavailable because the game was interrupted before a result was reached.");
+    this.name = "InterruptedGameReviewError";
+  }
+}
 
 export const GameReviewSchema = z.object({
   verdict: z.string().describe("2–3 sentences: how the game was won or lost"),
@@ -29,13 +37,15 @@ export type GameReview = z.infer<typeof GameReviewSchema>;
 export async function reviewGame(db: Db, gameId: number): Promise<GameReview | null> {
   const game = await loadGame(db, gameId);
   if (!game || game.status === "playing") return null;
+  const resolved = resolveOutcome(game.state, game.status);
+  if (resolved?.kind === "interrupted") throw new InterruptedGameReviewError();
   if (!hasAnthropic()) return null;
 
   // Engine-neutral (#457): the fields read here are the ones both state
   // shapes share by name, the seat names come through `sideName`, and
   // `decklistText` reads only each card's owner and catalog id.
   const s = game.state;
-  const outcome = s.winner ? `${sideName(s, s.winner)} won — ${s.overReason}` : `A draw — ${s.overReason}`;
+  const outcome = resolved?.kind === "draw" ? `A draw — ${resolved.reason}` : resolved?.winner ? `${sideName(s, resolved.winner)} won — ${resolved.reason}` : `Game abandoned — ${resolved?.reason ?? s.overReason}`;
   // Always p1: against Claude the human is the first player, and in hot-seat
   // and 1 v 1 both sides are people, so the review is written from p1's chair.
   const human: PlayerId = "p1";

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ENGINE_INFO, engineOr } from "@/lib/arena/engines";
 import { modeLabel, seatOf } from "@/lib/arena/games";
 import { RematchButton } from "./RematchButton";
+import { resolveOutcome } from "@/lib/arena/outcome";
 
 /** The row shape `listGames` / `listPlayingGames` return. */
 export interface GameRowData {
@@ -12,6 +13,8 @@ export interface GameRowData {
   p2User: string | null;
   status: string;
   winner: string | null;
+  reason?: string | null;
+  outcomeKind?: string | null;
   turn: number;
   mode: string;
   engine: string;
@@ -37,9 +40,12 @@ function opponentLabel(g: GameRowData, me: string | null): string {
 }
 
 function resultLabel(g: GameRowData): string {
-  if (g.status === "playing") return "in progress";
-  if (g.status === "abandoned") return "abandoned";
-  return g.winner ? `${g.winner === "p1" ? g.p1Name : g.p2Name} won` : "draw";
+  const result = resolveOutcome({ winner: g.winner === "p1" || g.winner === "p2" ? g.winner : null, overReason: g.reason, outcome: g.outcomeKind ? { kind: g.outcomeKind as "win" | "draw" | "concession" | "abandoned" | "interrupted", winner: g.winner === "p1" || g.winner === "p2" ? g.winner : null, reason: g.reason ?? "" } : null }, g.status);
+  if (!result) return "in progress";
+  if (result.kind === "interrupted") return "interrupted";
+  if (result.kind === "abandoned") return "abandoned";
+  if (result.kind === "draw") return "draw";
+  return result.winner ? `${result.winner === "p1" ? g.p1Name : g.p2Name} won` : "draw";
 }
 
 /** The strip at the top of the home screen: the viewer's newest game in progress. One tap opens it. */

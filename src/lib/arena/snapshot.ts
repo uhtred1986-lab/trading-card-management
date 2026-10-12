@@ -17,6 +17,7 @@ import { tappable, viewerOf, type BoardView, type CardArt, type Tappable } from 
 import { maskBeats, type Beats } from "./beats";
 import type { ArenaMode, Spotlight } from "./games";
 import { DEFAULT_GAME, type Game } from "@/lib/catalog/games";
+import { NOT_YET_REASON_PREFIX, resolveOutcome, type PublicOutcome } from "./outcome";
 
 /** Bumped only when a field is removed or its meaning changes. */
 export const CONTRACT_VERSION = 2;
@@ -75,7 +76,7 @@ export interface Snapshot {
   /** Who the game is waiting on. Null once it is over or abandoned. */
   waiting: "you" | "opponent" | "referee" | null;
   spend: { calls: number; input: number; output: number; cached: number; micros: number };
-  over: { winner: PlayerId | null; reason: string } | null;
+  over: PublicOutcome | null;
 }
 
 /** Reconcile server responses without allowing an older render or poll to roll a board back. */
@@ -188,6 +189,9 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
   const viewer = viewerFor(input);
   const rejected = rejectedFor(input);
   const legal = legalFor(input);
+  const outcome = resolveOutcome(input.state as EngineState & { outcome?: import("./outcome").StoredOutcome | null }, input.status);
+  const boardView = engineFor(input.engine ?? FALLBACK_ENGINE).boardView(input.ctx, input.state, viewer, input.images);
+  if (outcome) boardView.over = { winner: outcome.winner, reason: outcome.reason };
   return {
     contract: CONTRACT_VERSION,
     game: {
@@ -204,18 +208,18 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
       ...(input.p1User !== undefined ? { p1User: input.p1User } : {}),
       ...(input.p2User !== undefined ? { p2User: input.p2User } : {}),
     },
-    view: engineFor(input.engine ?? FALLBACK_ENGINE).boardView(input.ctx, input.state, viewer, input.images),
+    view: boardView,
     legal,
     taps: tappable(legal, rejected),
     ...(rejected.length ? { rejected } : {}),
     // Masked before the art goes on: a beat naming a card this viewer may not
     // see must not carry its name or its face. See `maskBeats`.
-    beats: withArt(maskBeats(input.state, input.beats, viewer), input.images),
+    beats: withArt(publicBeats(maskBeats(input.state, input.beats, viewer, input.ctx), outcome), input.images),
     spotlight: input.spotlight ? { ...input.spotlight, imageUrl: input.images[input.spotlight.cardId]?.front ?? null } : null,
-    log: input.log,
+    log: publicLog(input.log, outcome),
     waiting: waitingFor(input),
     spend: input.spend,
-    over: input.state.phase === "over" ? { winner: input.state.winner, reason: input.state.overReason ?? "" } : null,
+    over: outcome,
   };
 }
 
@@ -257,13 +261,53 @@ export function archivedSnapshotFor(store: StoredSnapshot, seat: PlayerId | null
   if (!picked) return null;
   const rest: Snapshot = { ...picked };
   delete rest.rejected;
+  const storedKind = picked.over && isOutcomeKind((picked.over as PublicOutcome).kind) ? (picked.over as PublicOutcome).kind : null;
+  const storedOutcome: PublicOutcome | null = picked.over && storedKind
+    ? {
+        kind: storedKind,
+        winner: picked.over.winner,
+        reason: picked.over.reason,
+        ...((picked.over as PublicOutcome).concededBy ? { concededBy: (picked.over as PublicOutcome).concededBy } : {}),
+      }
+    : null;
+  const over = picked.over
+    ? resolveOutcome({ winner: picked.over.winner, overReason: picked.over.reason, outcome: storedOutcome }, picked.game.status) ?? picked.over
+    : picked.game.status === "abandoned"
+      ? resolveOutcome({ winner: picked.view.over?.winner, overReason: picked.view.over?.reason }, "abandoned")
+      : picked.over;
+  const view = { ...picked.view, over: over ? { winner: over.winner, reason: over.reason } : null };
   return {
     ...rest,
     contract: CONTRACT_VERSION,
     game: { ...picked.game, revision: revision ?? picked.game.revision ?? 0, archived: true },
+    view,
+    over,
+    beats: publicBeats(picked.beats, over),
+    log: publicLog(picked.log, over),
     legal: [],
     taps: ARCHIVED_TAPS,
     waiting: null,
+  };
+}
+
+function publicLog(lines: string[], outcome: PublicOutcome | null): string[] {
+  if (outcome?.kind !== "interrupted") return lines;
+  return lines.map((line) => line.includes(NOT_YET_REASON_PREFIX)
+    || line.includes("and no rule this engine can read says what happens")
+    || line.includes("charging an action price or an X price is #149's")
+    ? outcome.reason
+    : line);
+}
+
+function isOutcomeKind(value: unknown): value is PublicOutcome["kind"] {
+  return value === "win" || value === "draw" || value === "concession" || value === "abandoned" || value === "interrupted";
+}
+
+function publicBeats(beats: Beats | null, outcome: PublicOutcome | null): Beats | null {
+  if (!beats || outcome?.kind !== "interrupted") return beats;
+  return {
+    ...beats,
+    list: beats.list.map((beat) => beat.t === "over" ? { ...beat, winner: null, reason: outcome.reason } : beat),
   };
 }
 

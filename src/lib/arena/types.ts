@@ -551,6 +551,15 @@ export interface CopiedSkills {
   name?: string;
 }
 
+/** Identity a card also counts as under 20-1, for a static or timed effect. */
+export interface CardIdentityGain {
+  traits: string[];
+  characters: string[];
+  colors: Color[];
+  /** Names the card is additionally treated as; never replaces its printed name. */
+  names: string[];
+}
+
 /** A continuous effect (9-9) with a duration. */
 export interface ContinuousEffect {
   id: number;
@@ -564,14 +573,14 @@ export interface ContinuousEffect {
    * `value` — the one the master picked ("choose up to 1 keyword skill on … and
    * negate that skill for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "negateKeyword" | "replaceLeave" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
+  kind: "power" | "comboPower" | "keyword" | "gains" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "negateKeyword" | "replaceLeave" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 };
+  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 };
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */

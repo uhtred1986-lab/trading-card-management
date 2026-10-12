@@ -587,6 +587,8 @@ export type Op =
       sign?: "add" | "remove";
       keyword?: KeywordSkill;
       flag?: boolean;
+      /** The compiler preserves 20-1's explicit source-validity exception. */
+      allAreas?: boolean;
       until?: Duration;
     }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
@@ -788,7 +790,7 @@ export type Op =
    * read by every rule that looks at what a card *is*, not by the ones that
    * look at what it does.
    */
-  | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref }
+  | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref; allAreas?: boolean }
   /**
    * 9-10: where this card goes instead, when it would leave the Battle Area.
    * `by: "skill"` narrows it to departures a skill caused, and
@@ -1198,6 +1200,12 @@ export interface ScriptFrame {
   subject?: string;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
+  /** One-shot announcement at the paid activation boundary for an Extra with [Heroic]. */
+  afterSkillSource?: string;
+  /** A keyword hook represents a pending skill and is canceled if negated before resolution. */
+  pendingHookSkill?: true;
+  /** An afterSkill event has an unidentifiable self-negating hook; fail before any event hook body runs. */
+  pendingHookIdentityMissing?: true;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
   /**
@@ -2099,18 +2107,26 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
       }
 
-      // The primitive the two cases below are spellings of
-      // (`docs/arena-ruleset-spec.md` §2.3). It makes the same continuous
-      // effects, so a rule written either way plays identically; the list
-      // attributes are what a card *counts as*, which is read wherever the
-      // card is and never applied here — the same reason `gains` falls
-      // through to the "continuous by nature" case further down.
+      // The primitive the cases below are spellings of
+      // (`docs/arena-ruleset-spec.md` §2.3). Numeric attributes and list
+      // identity changes both become duration-bearing effects here; a static
+      // list change is instead collected by `permanents`.
       case "modifyAttr": {
-        if (op.attr !== "power" && op.attr !== "comboPower") break;
         if (!op.until) break;
-        const n = h.amount(frame, op.amount ?? 0);
-        for (const id of h.resolveRef(frame, op.target ?? { sel: { special: "self" } }))
-          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.attr, value: n, until: op.until });
+        const targets = h.resolveRef(frame, op.target ?? { sel: { special: "self" } });
+        if (op.attr === "power" || op.attr === "comboPower") {
+          const n = h.amount(frame, op.amount ?? 0);
+          for (const id of targets) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.attr, value: n, until: op.until });
+        } else if (op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames") {
+          const values = op.values ?? [];
+          const value = {
+            traits: op.attr === "traits" ? values : [],
+            characters: op.attr === "characters" ? values : [],
+            colors: op.attr === "colors" ? values as Color[] : [],
+            names: op.attr === "alsoNames" ? values : [],
+          };
+          for (const id of targets) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "gains", value, until: op.until });
+        }
         break;
       }
 
@@ -2423,7 +2439,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 source: frame.card,
                 target: id,
                 kind: "replaceLeave",
-                value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target: bound, vars: capturedVars },
+                value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target: bound, vars: capturedVars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
                 until: op.until,
               });
             }
@@ -2433,7 +2449,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               source: frame.card,
               target: "",
               kind: "replaceLeave",
-              value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars },
+              value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
               until: op.until,
             });
           }

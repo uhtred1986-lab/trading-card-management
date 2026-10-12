@@ -1523,7 +1523,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // failed the whole match and the Leader's only [Permanent] went unread.
   if (
     (m =
-      /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:\{[^}]+\}|<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?:\s*colou?rs?)?(?: in (?:all|any) areas?)?$/.exec(
+      /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:\{[^}]+\}|<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?:\s*colou?rs?)?(?: in (all|any) areas?)?$/.exec(
         t,
       ))
   ) {
@@ -1537,7 +1537,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (!filter.traits.length && !filter.characters.length && !colors.length && !filter.names.length) return null;
     if (filter.notTraits.length || filter.notCharacters.length || filter.notNames.length) return null;
     const ref = refFor(m[1] || "this card", c);
-    return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors, ...(filter.names.length ? { names: filter.names } : {}) }] : null;
+    return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors, ...(filter.names.length ? { names: filter.names } : {}), ...(m[3] ? { allAreas: true } : {}) }] : null;
   }
 
   // Taking on another card's printed skills (20-18). Two wordings, and the
