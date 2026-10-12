@@ -2719,8 +2719,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // A nested invocation can only be chosen when at least one hand card
         // has a legal line. The other printed modes retain their own choices.
         const available = op.modes.map((mode, index) => ({ mode, index })).filter(({ mode }) => {
-          const invocation = mode.ops.find((item) => item.op === "invokeSkill");
-          return !invocation || h.zone(master, "hand").some((id) => h.invokableSkills(master, id, invocation).length > 0);
+          // Earlier operations may make an Extra eligible. Only a mode whose
+          // entire effect is this invocation can be excluded in advance.
+          const only = mode.ops.length === 1 ? mode.ops[0] : null;
+          return only?.op !== "invokeSkill" || h.zone(master, "hand").some((id) => h.invokableSkills(master, id, only).length > 0);
         });
         if (!available.length) throw new IllegalAction("no mode of this skill can be used now");
         // 20-2: the option is chosen as the skill resolves, and only then does
