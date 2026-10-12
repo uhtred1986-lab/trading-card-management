@@ -54,6 +54,8 @@ export function Hand({
   }, []);
 
   const n = cards.length;
+  const first = cards[0];
+  const firstProps = first ? cardProps(first) : null;
   const card = room?.card ?? HAND_W;
   const wide = (room?.width ?? 0) >= 640;
   // The prototype's spacing: never more than 8 px apart, and as close as it takes to fit.
@@ -64,6 +66,19 @@ export function Hand({
   return (
     <section className="arena-field arena-hand relative" aria-label="Your hand">
       <ZoneAnchor zone="p1:hand" />
+      {firstProps?.onInspect && (
+        <div className="flex justify-end px-3 pt-2">
+          <button
+            type="button"
+            onClick={firstProps.onInspect}
+            aria-label={`Inspect your hand, starting with ${first?.hidden ? "face-down card" : first?.name ?? "first card"}`}
+            className="tap inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-100 hover:border-ki-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400"
+          >
+            <span aria-hidden="true">⌕</span>
+            <span>Inspect hand</span>
+          </button>
+        </div>
+      )}
       <div
         ref={fan}
         className={`flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
