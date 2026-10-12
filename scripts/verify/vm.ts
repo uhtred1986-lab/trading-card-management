@@ -130,6 +130,8 @@ import { expectedTurnTrace } from "./vm-turn-459";
 import { verifyLegacyPrimitiveOps, verifyLegacyVmCompatibility } from "./vm-legacy-118";
 import { FILTER_CORPUS_459, FILTER_MATCHES_459, fixedFilterMatch459 } from "./vm-filters-459";
 import { FIXED_CARD_COSTS_459, FIXED_PRICES_459 } from "./vm-costs-459";
+import FIXED_SCRIPT_SEEN_459 from "./vm-scripts-459.json";
+import { RULES_ONLY } from "./rules-only";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -1198,6 +1200,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       stepScript(legacyHost(ctx, l, ev), frame);
       return { events: plain(ev), beats: plain(toBeats(ctx, l, ev).list), board: plain(l.players), prompt: plain(l.prompt), did: plain(frame.did), vars: plain(frame.vars) };
     };
+    const checkedFixedScripts = new Set<string>();
     /** One spelling against its lowering on both engines; returns the spelled runs for a sanity check of what happened. */
     const same = (what: string, spelled: Op[], rules: (s: VmState) => Stage, legacy: (l: GameState) => Stage, ctxOf: (ops: Op[]) => typeof CTX = () => CTX, run: Op[] = spelled) => {
       const lowered = expandMacros(spelled, DBS);
@@ -1206,8 +1209,16 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       // the same program both times: only the record is lowered.
       const loweredRun = run === spelled ? lowered : run;
       const r = { spelled: onRules(run, rules, ctxOf(spelled)), lowered: onRules(loweredRun, rules, ctxOf(lowered)) };
-      const l = { spelled: onLegacy(run, legacy, ctxOf(spelled)), lowered: onLegacy(loweredRun, legacy, ctxOf(lowered)) };
+      const fixed = (FIXED_SCRIPT_SEEN_459 as unknown as Record<string, Seen>)[what];
+      assert.ok(fixed, `${what}: no reviewed fixed script expectation`);
+      checkedFixedScripts.add(what);
+      assert.deepEqual(r.spelled, fixed, `${what}: the spelled program changed its complete fixed events, beats, sides, prompt, did or vars`);
+      assert.deepEqual(r.lowered, fixed, `${what}: the lowered program changed its complete fixed events, beats, sides, prompt, did or vars`);
       assert.deepEqual(r.lowered, r.spelled, `${what}: the spelling and its lowering do not run the same on the rules engine`);
+      if (RULES_ONLY) return { r: r.spelled, l: undefined };
+      // #118 compatibility: the legacy host's two script spellings still
+      // execute identically while saved legacy games can use that host.
+      const l = { spelled: onLegacy(run, legacy, ctxOf(spelled)), lowered: onLegacy(loweredRun, legacy, ctxOf(lowered)) };
       assert.deepEqual(l.lowered, l.spelled, `${what}: the spelling and its lowering do not run the same on the legacy engine`);
       return { r: r.spelled, l: l.spelled };
     };
@@ -1248,7 +1259,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         (l) => ((l.battle = { ...fight(l.players.p2.leader, l.players.p1.leader), revenge: false, reactivate: false } as GameState["battle"]), {}),
       );
       assert.deepEqual(negated.r.did, { negateAttack: true, negateLeaderAttack: true }, "negateAttack did not negate a Leader's attack, so the parity is over an empty run");
-      assert.deepEqual(negated.l.did, negated.r.did);
+      if (!RULES_ONLY) assert.deepEqual(negated.l?.did, negated.r.did);
       same("negate the counter being answered", [{ op: "negateCounter" }], nothing, nothing);
     }
 
@@ -1309,26 +1320,29 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
           otherRules = staged(s, "p1", "OTHER");
           return { master: "p2", vars: { picked: [selectedRules] } };
         });
-        const boundLegacy = onLegacy(run, (l) => {
-          const [a, b] = l.players.p1.deck.splice(0, 2);
-          assert.ok(a && b, "legacy fixture could not stage two targets");
-          l.cards[a].cardId = "TARGET";
-          l.cards[b].cardId = "OTHER";
-          l.players.p1.battle.push(a, b);
-          selectedLegacy = a;
-          otherLegacy = b;
-          return { master: "p2", vars: { picked: [a] } };
-        });
         const boardZones = (board: unknown): Record<string, string[]> => {
           const b = board as { p1: { zones?: Record<string, string[]> } & Record<string, unknown> };
           return (b.p1.zones ?? b.p1) as Record<string, string[]>;
         };
         const rulesZones = boardZones(boundRules.board);
-        const legacyZones = boardZones(boundLegacy.board);
         assert.ok(rulesZones.hand.includes(selectedRules), "rules timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
         assert.ok(rulesZones.battle.includes(otherRules), "rules timed replacement broadened its bound target to a different Battle Card");
-        assert.ok(legacyZones.hand.includes(selectedLegacy), "legacy timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
-        assert.ok(legacyZones.battle.includes(otherLegacy), "legacy timed replacement broadened its bound target to a different Battle Card");
+
+        if (!RULES_ONLY) {
+          const boundLegacy = onLegacy(run, (l) => {
+            const [a, b] = l.players.p1.deck.splice(0, 2);
+            assert.ok(a && b, "legacy fixture could not stage two targets");
+            l.cards[a].cardId = "TARGET";
+            l.cards[b].cardId = "OTHER";
+            l.players.p1.battle.push(a, b);
+            selectedLegacy = a;
+            otherLegacy = b;
+            return { master: "p2", vars: { picked: [a] } };
+          });
+          const legacyZones = boardZones(boundLegacy.board);
+          assert.ok(legacyZones.hand.includes(selectedLegacy), "legacy timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
+          assert.ok(legacyZones.battle.includes(otherLegacy), "legacy timed replacement broadened its bound target to a different Battle Card");
+        }
 
         let selectorRulesTarget = "";
         let selectorOtherRules = "";
@@ -1343,20 +1357,23 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
           selectorOtherRules = staged(s, "p1", "OTHER");
           return { master: "p2", vars: { picked: [selectorRulesTarget] } };
         });
-        const selectorLegacy = onLegacy(selectorRun, (l) => {
-          const [a, b] = l.players.p1.deck.splice(0, 2);
-          assert.ok(a && b, "legacy fixture could not stage two selector targets");
-          l.cards[a].cardId = "TARGET";
-          l.cards[b].cardId = "OTHER";
-          l.players.p1.battle.push(a, b);
-          selectorLegacyTarget = a;
-          selectorOtherLegacy = b;
-          return { master: "p2", vars: { picked: [a] } };
-        });
         const selectorRulesZones = boardZones(selectorRules.board);
-        const selectorLegacyZones = boardZones(selectorLegacy.board);
         assert.ok(selectorRulesZones.hand.includes(selectorRulesTarget) && selectorRulesZones.battle.includes(selectorOtherRules), "rules timed selector lost its captured fromVar binding or broadened to another card");
-        assert.ok(selectorLegacyZones.hand.includes(selectorLegacyTarget) && selectorLegacyZones.battle.includes(selectorOtherLegacy), "legacy timed selector lost its captured fromVar binding or broadened to another card");
+
+        if (!RULES_ONLY) {
+          const selectorLegacy = onLegacy(selectorRun, (l) => {
+            const [a, b] = l.players.p1.deck.splice(0, 2);
+            assert.ok(a && b, "legacy fixture could not stage two selector targets");
+            l.cards[a].cardId = "TARGET";
+            l.cards[b].cardId = "OTHER";
+            l.players.p1.battle.push(a, b);
+            selectorLegacyTarget = a;
+            selectorOtherLegacy = b;
+            return { master: "p2", vars: { picked: [a] } };
+          });
+            const selectorLegacyZones = boardZones(selectorLegacy.board);
+          assert.ok(selectorLegacyZones.hand.includes(selectorLegacyTarget) && selectorLegacyZones.battle.includes(selectorOtherLegacy), "legacy timed selector lost its captured fromVar binding or broadened to another card");
+        }
 
         const beforeSave = mainPhase();
         const savedTarget = staged(beforeSave, "p1", "TARGET");
@@ -1416,18 +1433,20 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         assert.ok(boundLifetime.sides.p1.zones.hand.includes(returnedInstance), "the rules engine reapplied a stale offer after the selected instance left and re-entered play");
         assert.ok(!boundLifetime.sides.p1.zones.deck.includes(returnedInstance), "the rules engine redirected a new-card instance through its old bound offer");
 
-        let legacyReturnedInstance = "";
-        const legacyLifetime = onLegacy(lifetimeOps, (legacy) => {
-          const [id] = legacy.players.p1.deck.splice(0, 1);
-          assert.ok(id, "the legacy 3-1-4 fixture has no selected card");
-          legacy.cards[id].cardId = "TARGET";
-          legacy.players.p1.battle.push(id);
-          legacyReturnedInstance = id;
-          return { master: "p2", vars: { picked: [id] } };
-        });
-        const legacyLifetimeZones = boardZones(legacyLifetime.board);
-        assert.ok(legacyLifetimeZones.hand.includes(legacyReturnedInstance), "the legacy engine reapplied a stale offer after the selected instance left and re-entered play");
-        assert.ok(!legacyLifetimeZones.deck.includes(legacyReturnedInstance), "the legacy engine redirected a new-card instance through its old bound offer");
+        if (!RULES_ONLY) {
+          let legacyReturnedInstance = "";
+          const legacyLifetime = onLegacy(lifetimeOps, (legacy) => {
+            const [id] = legacy.players.p1.deck.splice(0, 1);
+            assert.ok(id, "the legacy 3-1-4 fixture has no selected card");
+            legacy.cards[id].cardId = "TARGET";
+            legacy.players.p1.battle.push(id);
+            legacyReturnedInstance = id;
+            return { master: "p2", vars: { picked: [id] } };
+          });
+          const legacyLifetimeZones = boardZones(legacyLifetime.board);
+          assert.ok(legacyLifetimeZones.hand.includes(legacyReturnedInstance), "the legacy engine reapplied a stale offer after the selected instance left and re-entered play");
+          assert.ok(!legacyLifetimeZones.deck.includes(legacyReturnedInstance), "the legacy engine redirected a new-card instance through its old bound offer");
+        }
       } finally {
         if (previousTarget) DEFS.TARGET = previousTarget;
         else delete DEFS.TARGET;
@@ -1451,7 +1470,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     {
       const down = same("life down to 2", [{ op: "lifeDownTo", n: 2 }], nothing, nothing);
       assert.equal(zonesOf(down.r.board, "p1").life.length, 2, "lifeDownTo left a life other than 2 on the rules engine, so the parity is over an empty run");
-      assert.equal(zonesOf(down.l.board, "p1").life.length, 2);
+      if (!RULES_ONLY) assert.equal(zonesOf(down.l!.board, "p1").life.length, 2);
       const both = same("both players, life down to 1", [{ op: "lifeDownTo", n: 1, side: "both" }], nothing, nothing);
       assert.equal(zonesOf(both.r.board, "p2").life.length, 1, "lifeDownTo (both) did not take each pile down on its own");
     }
@@ -1498,20 +1517,30 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         kept.l.push(l);
         return {};
       };
-      for (const rec of [
+      const resolvingOps = [
         { op: "resolvingPlay", instead: "deck", position: "bottom" },
         { op: "resolvingPlay", instead: "hand" },
         { op: "resolvingPlay", mode: "rest" },
         { op: "resolvingPlay", negated: true },
         { op: "resolvingPlay", mode: "rest", negated: true },
-      ] as Op[]) {
+      ] as Op[];
+      const fixedResolving = [
+        { card: "p1#9", player: "p1", replaced: true },
+        { card: "p1#9", player: "p1", replaced: true },
+        { card: "p1#9", player: "p1", rest: true },
+        { card: "p1#9", player: "p1", negated: true },
+        { card: "p1#9", player: "p1", rest: true, negated: true },
+      ];
+      for (const [index, rec] of resolvingOps.entries()) {
         kept.r = [];
         kept.l = [];
         same(`resolvingPlay ${JSON.stringify(rec)}`, [rec], onRulesPlay, onLegacyPlay);
         const [rs, rl] = kept.r as VmState[];
         const [ls, ll] = kept.l as GameState[];
+        assert.deepEqual(plain(rl.resolving), fixedResolving[index], `resolvingPlay ${JSON.stringify(rec)}: the lowered program changed its fixed resolving record`);
+        assert.deepEqual(plain(rs.resolving), fixedResolving[index], `resolvingPlay ${JSON.stringify(rec)}: the spelled program changed its fixed resolving record`);
         assert.deepEqual(plain(rl.resolving), plain(rs.resolving), `resolvingPlay ${JSON.stringify(rec)}: the play being resolved was left differently on the rules engine`);
-        assert.deepEqual(plain([ll.resolving, ll.continuations]), plain([ls.resolving, ls.continuations]), `resolvingPlay ${JSON.stringify(rec)}: the play being resolved was left differently on the legacy engine`);
+        if (!RULES_ONLY) assert.deepEqual(plain([ll.resolving, ll.continuations]), plain([ls.resolving, ls.continuations]), `resolvingPlay ${JSON.stringify(rec)}: the play being resolved was left differently on the legacy engine`);
         assert.notDeepEqual(plain(rs.resolving), { card: rs.resolving?.card, player: "p1" }, `resolvingPlay ${JSON.stringify(rec)} did nothing to the play on the rules engine, so the parity is over an empty run`);
       }
     }
@@ -1527,6 +1556,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       assert.ok((hand.r.vars as Record<string, string[]>).looked.length > 0, "look at a hand bound nothing on the rules engine");
       assert.deepEqual(hand.r.events, [], "a look logged something — 20-11 shows the cards to one player only");
     }
+    assert.deepEqual([...checkedFixedScripts].sort(), Object.keys(FIXED_SCRIPT_SEEN_459).sort(), "the reviewed fixed script corpus has missing or unused cases");
   }
 
   // ── 9-1-4 and 7-4-5: a continuous effect, and the turn it ends with ───────

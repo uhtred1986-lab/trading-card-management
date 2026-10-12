@@ -39,3 +39,19 @@ Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full revi
 The seven fixture suites named above have moved to the rules engine, and contract snapshots are emitted from rules. The two keyword cases named in the original problem (`continuations` and `koCard`/TAKER2) are also engine-neutral. The only remaining oracle exclusion in `verify-arena.ts` is `vm`; `ai-vm` now runs under `--rules-only` with fixed fixtures. The saved legacy-game check in `engine-default` remains #118 scope.
 
 The bounded AI presentation migration is tracked separately as [#601](pv-v02.md) and is complete. Its acceptance covers only `ai-vm`; #459 remains open for the larger `vm.ts` comparison-to-fixed-expectation migration and the remaining gate work.
+
+## VM expectation branch — 12 Oct 2026
+
+The isolated `arena-459-fixed-expectations` branch has migrated the VM gameplay
+comparisons to reviewed fixed expectations. The 40-field/98-card filter corpus,
+45 payment scenarios, 98 printed card prices, 29 complete script results,
+full-turn event/action traces, view objects and focused action/event/refusal
+cases are checked in. [Evidence](evidence/459/README.md) maps each former
+comparison to its current assertion. Legacy adapter, saved-state, face-reading
+and legacy script-host compatibility remain executable under #118 guards.
+
+This is branch progress, not issue closure. The shared `verify-arena.ts` registry
+still excludes `vm` from `--rules-only`; its owner must remove that exclusion
+after reviewing the zero-call source audit and running the full gate. The
+branch also still needs a local `npm test` proof with the legacy run removed,
+normal full-gate validation, and root review before a PR or merge.
