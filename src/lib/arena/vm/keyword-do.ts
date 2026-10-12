@@ -81,6 +81,65 @@ export function aegisPrograms(game: GameDefinition, def: KeywordDef, sk: Skill):
   return { payment: before, effect: [...payment.then.slice(1), ...ops.slice(2)] };
 }
 
+/** 22-34-3: retain Revive's optional set choice and coverage checks, but
+ * stop its declared body after the hand payment, before activation (#624). */
+function sameShape(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+  if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b)
+    && a.length === b.length && a.every((v, i) => sameShape(v, b[i]));
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  // JSONB can reorder object keys and drops undefined fields. Arrays retain
+  // their order because the order of declared colours still matters here.
+  const keys = (value: Record<string, unknown>) => Object.keys(value).filter((key) => value[key] !== undefined);
+  const aKeys = keys(left), bKeys = keys(right);
+  return aKeys.length === bKeys.length && aKeys.every((key) => key in right && sameShape(left[key], right[key]));
+}
+
+export function revivePrograms(game: GameDefinition, def: KeywordDef, sk: Skill): { payment: Op[]; effect: Op[]; variable: string } {
+  if (def.name !== "Revive") throw new RulesetBroken(game.id, "Revive payment stages requested for another keyword");
+  const ops = bindKeywordParams(def.do ?? [], def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game);
+  const gate = ops[0];
+  const choice = gate?.op === "if" ? gate.then[0] : undefined;
+  const selected = gate?.op === "if" ? gate.then[1] : undefined;
+  const coverage = selected?.op === "if" ? selected.then[0] : undefined;
+  const move = coverage?.op === "if" ? coverage.then[0] : undefined;
+  const opening = gate?.op === "if" && gate.cond.kind === "all" ? gate.cond.conds : [];
+  const covered = coverage?.op === "if" && coverage.cond.kind === "all" ? coverage.cond.conds : [];
+  const originalColors = choice?.op === "choose" ? choice.sel.filter?.originalColors : undefined;
+  const selfInDrop = { special: "self", side: "you", area: "drop" };
+  // Splitting a conditional body changes where its remaining instructions
+  // execute. Accept only the declaration whose boundary we have verified;
+  // a new sibling or branch needs an explicit review before it can be moved
+  // across the additional-price checkpoint.
+  if (ops.length !== 1 || gate?.op !== "if" || gate.then.length !== 2 || gate.else?.length
+    || opening.length !== 2 || opening[0].kind !== "count" || !sameShape(opening[0].sel, selfInDrop)
+    || opening[0].atLeast !== 1 || opening[1].kind !== "covers"
+    || !sameShape(opening[1].sel, { side: "you", area: "hand" }) || opening[1].original !== true
+    || choice?.op !== "choose" || choice.sel.upTo !== true || choice.sel.count !== 2
+    || choice.sel.side !== "you" || choice.sel.area !== "hand" || !Array.isArray(originalColors)
+    || !originalColors.length || !sameShape(opening[1].colors, originalColors)
+    || selected?.op !== "if" || selected.then.length !== 1 || selected.else?.length
+    || selected.cond.kind !== "count" || !sameShape(selected.cond.sel, { fromVar: choice.as }) || selected.cond.atLeast !== 1
+    || coverage?.op !== "if" || coverage.then.length !== 3 || coverage.else?.length !== 1
+    || covered.length !== 2 || covered[0].kind !== "covers" || !sameShape(covered[0].sel, { fromVar: choice.as })
+    || covered[0].original !== true || !sameShape(covered[0].colors, originalColors)
+    || covered[1].kind !== "count" || !sameShape(covered[1].sel, selfInDrop) || covered[1].atLeast !== 1
+    || coverage.else[0]?.op !== "note" || coverage.then[1]?.op !== "negateOwnSkill"
+    || coverage.then[1].until !== "turn" || coverage.then[2]?.op !== "play"
+    || coverage.then[2].counterWindow !== true || !sameShape(coverage.then[2].target, { sel: { special: "self" } })
+    || move?.op !== "moveTo"
+    || move.to !== "drop" || move.cause !== "cost" || !("var" in move.target) || move.target.var !== choice.as) {
+    throw new RulesetBroken(game.id, "Revive no longer declares its optional hand choice, coverage check and cost movement");
+  }
+  return {
+    payment: [{ ...gate, then: [choice, { ...selected, then: [{ ...coverage, then: [move] }] }] }],
+    effect: coverage.then.slice(1),
+    variable: choice.as,
+  };
+}
+
 /**
  * 22-30-3: Aegis's declared body names the colours, asks for cards, and says
  * what happens after their cost is paid. Turn only its broad set choice into
