@@ -10,16 +10,13 @@ say nothing about token or context cost: **no token saving is claimed.**
 
 | Fact | Observed |
 |---|---|
-| A fresh worktree has no `node_modules` | Confirmed. `npm ci` fails on this machine (lockfile optional-dependency drift, per the coordinator's brief; not re-run here). Copy the main checkout's instead: `robocopy "<main checkout>\node_modules" "<worktree>\node_modules" /E /MT:32 /NFL /NDL /NJH /NJS /NP` from PowerShell. **Robocopy exit code 1 means "files copied" and is success.** Never `npm install`. |
+| A fresh worktree has no `node_modules` | Confirmed. `npm ci` fails on this machine with npm 11.19 (`EUSAGE`: "Missing: @tailwindcss/oxide-*, @esbuild/* from lock file", observed 13 Oct 2026). Copy the main checkout's instead: `robocopy "<main checkout>\node_modules" "<worktree>\node_modules" /E /MT:32 /NFL /NDL /NJH /NJS /NP` from PowerShell. **Robocopy exit code 1 means "files copied" and is success.** Never `npm install`. |
 | No `.env.local` in a worktree | Not needed for anything below; `DATABASE_URL=''` is enough and `next dev` started with it. |
-| Line endings | Set `git config core.autocrlf false` in the worktree and strip `\r` from `src`/`scripts` `.ts`/`.tsx`/`.mts` files. The coordinator reports `scripts/verify/guards.ts` and `capabilities --check` otherwise fail on CRLF; this was not reproduced here (the checkout was already LF with `autocrlf false`). |
+| Line endings | Set `git config core.autocrlf false` in the worktree and strip `\r` from `src`/`scripts` `.ts`/`.tsx`/`.mts` files. Observed 13 Oct 2026: with the machine's global `core.autocrlf=true`, a fresh checkout gets CRLF and `scripts/verify/guards.ts` ("a route handler must open with routeViewer()") and `capabilities.mts --check` (NotYet signature mismatch on `\r\n`) fail; both pass after the switch. A few committed docs carry CRLF themselves — after stripping, `git checkout --` any file `git status` then lists. |
 | `ripgrep` | Not on the Git Bash `PATH` (`which rg` finds nothing). Use `git grep` in a shell, or the agent's own Grep tool. |
-| `scripts/verify/ai-agent-sdk.ts` | Reported (coordinator) to fail on Windows because of a POSIX `/tmp` path; unrelated to docs work; not re-run. |
+| `scripts/verify/ai-agent-sdk.ts` | Fails on Windows (observed 13 Oct 2026: expects `/tmp/claude-config`, gets `\tmp\claude-config`) and stops the `npm test` chain there; run the remaining chain entries individually with `npx tsx`. |
 | Playwright | **Not a dependency**: `package.json` has no `playwright`/`puppeteer` and `node_modules/playwright*` does not exist. Do not write "use Playwright"; use `scripts/lib/cdp.mts` (section 3). |
 | Chrome | Found by `findChrome()` in `scripts/lib/cdp.mts` (`CHROME_PATH`, then `/opt/pw-browsers/chromium`, Linux/macOS paths, then the two Windows Chrome/Edge paths). Chrome and Edge are both installed here; nothing was installed. |
-
-Compact git/shell note: this harness refuses compound `git`/`xargs sed` one-liners inside a worktree;
-run `git` commands as separate plain commands.
 
 ## 2. TypeScript definition, references and diagnostics
 
