@@ -482,6 +482,7 @@ export function CardSheet({
   leader?: { life: number; energy: string } | null;
   onJump?: (card: CardView) => void;
 }) {
+  const [fullArt, setFullArt] = useState(false);
   const items = sequence?.items ?? [];
   const at = items.findIndex((i) => i.card.id === card.id);
   const pager = at >= 0 && !!onJump;
@@ -551,7 +552,7 @@ export function CardSheet({
     <SheetDialog label={`${card.name}${position ? `, ${position}` : ""}`} onClose={onClose}>
       <div
         data-arena-review={card.id}
-        className="relative flex max-h-[88dvh] min-h-0 w-full max-w-md touch-none select-none flex-col overscroll-contain rounded-t-2xl border border-space-700 bg-space-900 pb-6 pt-2 sm:max-w-lg sm:rounded-2xl sm:pb-4"
+        className={`relative flex min-h-0 w-full touch-none select-none flex-col overscroll-contain border border-space-700 bg-space-900 pt-2 ${fullArt ? "h-[100dvh] max-h-[100dvh] max-w-none rounded-none pb-2" : "max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
         // The button a swipe ends on must not also be pressed.
         onClickCapture={(e) => {
           if (Date.now() - swipedAt.current < 200) {
@@ -564,12 +565,24 @@ export function CardSheet({
         onPointerUp={end}
         onPointerCancel={end}
       >
-        <div className="mb-1 flex h-[48px] shrink-0 items-center justify-between px-4">
-          <span className="h-1 w-10 rounded-full bg-space-600" aria-hidden />
-          <button type="button" data-sheet-initial-focus onClick={onClose} aria-label="Close card review" className="tap flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg leading-none text-space-100">×</button>
+        <div className="mb-1 flex min-h-[48px] shrink-0 items-center justify-between gap-2 px-4">
+          {!fullArt && <span className="h-1 w-10 rounded-full bg-space-600" aria-hidden />}
+          {fullArt && position && <p className="min-w-0 flex-1 whitespace-nowrap text-center text-xs font-semibold text-space-100" aria-live="polite">{at + 1} / {items.length}</p>}
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFullArt((value) => !value)}
+              aria-label={fullArt ? "Show card details" : "View full card"}
+              aria-pressed={fullArt}
+              className="tap flex h-[44px] min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-space-600 bg-space-900 px-2 text-xs font-semibold text-space-100 hover:border-ki-400"
+            >
+              {fullArt ? "Info" : "View"}
+            </button>
+            <button type="button" data-sheet-initial-focus onClick={onClose} aria-label="Close card review" className="tap flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg leading-none text-space-100">×</button>
+          </div>
         </div>
 
-        {pager && (
+        {pager && !fullArt && (
           <div className="mb-1 flex shrink-0 items-center gap-2 px-4">
             <p className="w-[4.5rem] shrink-0 text-[10px] font-semibold uppercase leading-tight tracking-[0.18em] text-space-300" aria-live="polite">
               {sequence!.label}
@@ -585,7 +598,24 @@ export function CardSheet({
           </div>
         )}
 
-        <div ref={body} className={`min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 ${scrolls ? "touch-pan-y" : "touch-none"}`}>
+        {fullArt ? (
+          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-space-950/70 px-2" aria-label="Full card artwork">
+            {card.imageUrl && !card.hidden ? (
+              // eslint-disable-next-line @next/next/no-img-element -- the full-art modal view reuses the catalog's existing image URL.
+              <img src={cardImage(card.imageUrl, "medium")} alt={card.name} className="h-full w-full select-none object-contain" draggable={false} />
+            ) : (
+              <div className="grid h-full w-full place-items-center rounded-xl border border-space-600 bg-space-800 p-6 text-center text-space-100">
+                <span>{card.hidden ? "Face-down card" : card.name}</span>
+              </div>
+            )}
+            {pager && (
+              <>
+                <button type="button" onClick={() => go(at - 1)} disabled={at <= 0} aria-label="Previous card" className="absolute left-2 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900/95 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300">‹</button>
+                <button type="button" onClick={() => go(at + 1)} disabled={at >= items.length - 1} aria-label="Next card" className="absolute right-2 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900/95 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300">›</button>
+              </>
+            )}
+          </div>
+        ) : <div ref={body} className={`min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 ${scrolls ? "touch-pan-y" : "touch-none"}`}>
           <div className="flex gap-3">
             <div className="relative w-[128px] shrink-0 self-start">
               {card.imageUrl && !card.hidden ? (
@@ -626,16 +656,16 @@ export function CardSheet({
           </div>
           <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} docked />
           <CardDetail card={card} narrator={narrator} battle={battle} figures={false} />
-        </div>
+        </div>}
 
-        <button
+        {!fullArt && <button
           type="button"
           onClick={onClose}
           className="tap mx-4 mt-3 flex min-h-11 w-[calc(100%-2rem)] shrink-0 items-center justify-between rounded-xl border-2 border-space-500 px-4 py-2 text-left text-sm font-bold text-space-50 hover:border-ki-400"
         >
           <span>Close</span>
           <span className="text-xs font-normal text-space-200">or swipe down</span>
-        </button>
+        </button>}
       </div>
     </SheetDialog>
   );
