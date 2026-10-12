@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import type { Db } from "../../src/db/index.ts";
 import { arenaGames } from "../../src/db/schema.ts";
-import { applyToGame, loadGame, StaleGame } from "../../src/lib/arena/games.ts";
+import { applyToGame, describeEvents, loadGame, StaleGame } from "../../src/lib/arena/games.ts";
 import { snapshotOfGame } from "../../src/lib/arena/session.ts";
 import { engineFor } from "../../src/lib/arena/engines.ts";
 import { rulesetFor } from "../../src/lib/arena/rulesets/index.ts";
@@ -36,6 +36,9 @@ export async function verifyArenaSecretAuto(db: Db): Promise<void> {
   state.pending.push({ card: secret, master: "p1", skillIndex: 0, trigger: "played" });
   run(ctx, loadedRules.definition, state, []);
   assert.equal(state.prompt.kind, "orderPending");
+  const publicSource = state.sides.p1.zones.leader[0];
+  assert.ok(publicSource);
+  assert.match(describeEvents(ctx, state, [{ type: "skill", card: publicSource, skill: 0, master: "p1", text: "normal public Auto", inBattle: false }])[0], /normal public Auto/, "ordinary public skill lines remain logged");
 
   const [created] = await db.insert(arenaGames).values({
     p1Name: "Alice", p2Name: "Bob", p1User: "alice", p2User: "bob",
@@ -89,19 +92,28 @@ export async function verifyArenaSecretAuto(db: Db): Promise<void> {
     pending.ctx = ctx;
     const activated = await applyToGame(db, declaring.id, { type: "orderPending", player: "p1", index: 0 }, undefined, { game: pending, expectedRevision: 3 });
     assert.equal(activated.version, 4);
+    assert.ok(!activated.log.join(" ").includes("SECRET549") && !activated.log.join(" ").includes("When you play this card"), "a transient declaration leaves no permanent identifying log line");
     const reread = await loadGame(db, declaring.id);
     assert.ok(reread);
     reread.ctx = ctx;
     const shown = await snapshotOfGame(db, reread, "p2");
     assert.equal(shown.beats?.art[secret]?.cardId, "SECRET549");
     assert.equal(shown.beats?.art[other], undefined);
+    assert.equal(shown.spotlight, null, "VM declarations do not create a persistent spotlight");
+    assert.ok(!shown.log.join(" ").includes("SECRET549") && !shown.log.join(" ").includes("When you play this card"));
     assert.ok(!JSON.stringify(shown).includes("revealEpoch"));
     const later = await applyToGame(db, declaring.id, { type: "pass", player: "p1" }, undefined, { game: reread, expectedRevision: 4 });
     assert.equal(later.version, 5);
     const concealed = await loadGame(db, declaring.id);
     assert.ok(concealed);
     concealed.ctx = ctx;
-    assert.equal((await snapshotOfGame(db, concealed, "p2")).beats?.art[secret], undefined);
+    const masked = await snapshotOfGame(db, concealed, "p2");
+    assert.equal(masked.beats?.art[secret], undefined);
+    assert.equal(masked.spotlight, null);
+    assert.ok(!masked.log.join(" ").includes("SECRET549") && !masked.log.join(" ").includes("When you play this card"), "later saved log cannot restore the secret declaration");
+    const oldSkill = masked.beats?.list.find((beat) => beat.t === "skill" && beat.card === secret);
+    assert.equal(oldSkill?.t === "skill" ? oldSkill.text : undefined, "", "retained skill beat is masked after the declaration expires");
+    assert.ok(!JSON.stringify(masked).includes("SECRET549"), "the whole later viewer snapshot conceals the previously declared card");
   } finally {
     await db.delete(arenaGames).where(eq(arenaGames.id, declaring.id));
   }

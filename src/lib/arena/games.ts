@@ -885,7 +885,10 @@ export function describeEvents(ctx: EngineContext, state: EngineState, events: G
         out.push("the attack is negated — the battle ends, with no Offense or Defense Step");
         break;
       case "skill":
-        out.push(`${name(e.card)}: ${e.text.replace(/\s+/g, " ").slice(0, 90)}`);
+        // A declared secret [Auto] is visible through its scoped beat now,
+        // but a saved log line would identify the card after it is concealed
+        // again (9-6-3-1-1). Public skill announcements keep their log line.
+        if (!e.reveal) out.push(`${name(e.card)}: ${e.text.replace(/\s+/g, " ").slice(0, 90)}`);
         break;
       case "flip":
         out.push(`${name(e.card)} awakens`);
