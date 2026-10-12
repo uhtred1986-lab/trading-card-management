@@ -9,6 +9,7 @@ import { abilityActionLabel, abilityCost, abilityPanelRows, abilityReasonType, i
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { useArenaAdmin } from "./admin-context";
 import { cardImage } from "@/lib/catalog/card-image";
+import phoneStyles from "./stage/phone-board.module.css";
 
 /** What a card is putting into the open battle, and the figure it is part of. */
 export interface BattleShare {
@@ -678,7 +679,7 @@ export function CardSheet({
     <SheetDialog label={`${card.name}${position ? `, ${position}` : ""}`} onClose={onClose} fullScreen={fullArt}>
       <div
         data-arena-review={card.id}
-        className={`relative flex min-h-0 w-full touch-none select-none flex-col overscroll-contain border border-space-700 bg-space-900 pt-2 ${fullArt ? "h-[100dvh] max-h-[100dvh] max-w-none rounded-none pb-2" : "max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
+        className={`relative flex min-h-0 w-full touch-none select-none flex-col overscroll-contain border border-space-700 bg-space-900 ${fullArt ? `${phoneStyles.fullscreenReview} h-[100dvh] max-h-[100dvh] max-w-none rounded-none` : "pt-2 max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
         // The button a swipe ends on must not also be pressed.
         onClickCapture={(e) => {
           if (Date.now() - swipedAt.current < 200) {

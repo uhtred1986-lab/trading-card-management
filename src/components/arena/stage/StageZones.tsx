@@ -470,7 +470,7 @@ export function PlayerStrip({
       {(energyAsked || inspectEnergy || faceUp.length > 0 || (side.rules?.length ?? 0) > 0) && (
         <div className="mt-1 flex flex-wrap items-center gap-1 px-2">
           {inspectEnergy && <p className="w-full text-xs text-space-100">Ready/total by colour. A multicolour card counts in each colour but pays only one energy. Energy markers: {side.energyMarkers}.</p>}
-          {inspectEnergy && side.energyColors?.some((row) => JSON.stringify(row.colors) !== JSON.stringify(row.paymentColors)) && <p className="w-full text-xs text-space-100">{energySummary(side, [], "effective")}. Gained colours do not change energy payments in this arena yet; use the payment colours above.</p>}
+          {inspectEnergy && side.energyColors?.some((row) => JSON.stringify(row.colors) !== JSON.stringify(row.paymentColors)) && <p className="w-full text-xs text-space-100">{energySummary(side, [], "effective")}. Payment colours above reflect payment restrictions and exceptions.</p>}
           {(energyAsked || inspectEnergy) &&
             energy.map((c) => (
               <span key={c.id} className={arrived.has(c.id) ? "arena-chip inline-flex" : "contents"}>
