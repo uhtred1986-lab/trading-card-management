@@ -1,5 +1,11 @@
 # Arena backlog — tracking the rebuilt compiler against the design
 
+**Offline AI programme (12 Oct 2026):** `docs/arena-offline-plan.md` defines O1–O5,
+tracked by #633–#637 with 27 bounded implementation issues. #639, #640 and #649
+can start independently; later work follows the explicit child prerequisites.
+Milestone creation/assignment is pending API network access; the intended titles
+below are not a claim that GitHub milestone objects have been created.
+
 **Current delivery queue (11 Oct 2026):** `docs/arena-delivery-plan.md`, tracked by
 [#581](https://github.com/uhtred1986-lab/trading-card-management/issues/581), supersedes the
 dated stage-state table below for choosing work. It reconciles the live backlog into eight existing
@@ -83,6 +89,16 @@ for compiler work (`move()` replacement prompting, #107 — built 10 and 13 Sep 
 | Arena M16 — Board redesign: play feel and card review | `docs/arena-board-redesign-spec.md` (owner's decisions of 30 Sep 2026) and the frames in `docs/arena-redesign/` |
 | Arena M17 — Arena home: Play and Rules Workbench | `docs/arena-home-spec.md` (owner's decisions of 30 Sep 2026) and the Arena home / Rules workbench rows of the "DBS Arena Redesign" canvas |
 | AI providers — one contract, API or subscription, any vendor | `docs/architecture/ai-providers.md`; #511/#518 and approved model-economy follow-up #381; current queue includes these without duplicating provider implementation |
+
+Offline programme milestone definitions (pending provisioning):
+
+| Intended milestone | Source |
+|---|---|
+| Arena O1 — Developer efficiency and offline foundations | `docs/arena-offline-plan.md` §O1; #633 |
+| Arena O2 — Local heuristic opponent | `docs/arena-offline-plan.md` §O2; #634 |
+| Arena O3 — Offline match runtime | `docs/arena-offline-plan.md` §O3; #635 |
+| Arena O4 — Verified offline MVP release | `docs/arena-offline-plan.md` §O4; #636 |
+| Arena O5 — Expanded deck coverage and stronger play | `docs/arena-offline-plan.md` §O5; #637 |
 
 ## 3. Labels
 
