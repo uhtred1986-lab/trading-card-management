@@ -48,3 +48,46 @@ and other snapshot inputs affect them. Avoid a process-global cache: match/viewe
 outlive its bounded owner or be reused across tenants. The current measurements do not authorize or
 justify implementing that cache; first prove invalidation and hidden-information boundaries with
 state, cost, event, and view assertions.
+
+## Scoped read-session result
+
+`read-session-result.json` compares current-main `3e3785a` with the candidate source using the
+same S01/S07 audit runner three times per side, sequentially on the same local host. The candidate
+reuses the existing VM `readingBoard` scope for one synchronous snapshot construction. That scope
+starts before the lazy legal getter runs and ends when the projection returns. It holds only
+viewer-independent standing rules; legal, rejected, ability and serialized view results are still
+computed normally for their viewer. It does not keep a cache across requests or revisions.
+
+For one real `snapshotOfGame` lazy-getter path, the unchanged
+`scripts/arena-derived-read-count-569.mts` reports one legal getter call on each side and exact
+V8 `readStatics` calls of **4 before → 1 after**; the serialized snapshot SHA-256 is identical.
+The S01 crowded-aura three-run median p50/p95 changed from 48.319/56.339 ms to
+43.611/48.061 ms. The S07 crowded zero-power checkpoint changed from 60.012/75.844 ms to
+50.481/58.440 ms. The small fixture is noise-sized and makes no speed claim. Each of the six
+profile runs had identical state, legal, rejected and both-viewer snapshot hashes.
+
+`scripts/verify/derived-read-569.mts --engine rules` tests the actual lazy getter, both seats'
+hand masking even when they share one scope, an accepted one-energy play with its energy-rest
+event and state, a wrong-seat refusal, advanced revision, cloned reload, and two pinned runtime
+definitions whose attribute layers produce different power. The test confirms a new context and
+the token-wrapper identity cannot borrow the earlier scope. Timing is local Node CPU only; no
+hosted or device p95 was measured. No live database or paid provider was used.
+
+## Latest-main replication
+
+After #675 merged, the same scripts ran in three sequential pairs against clean main `2d1d8f8`
+and the integrated candidate `ecdab63`; run order alternated and the matching lockfile used the
+same local dependencies. Exact `readStatics` calls remain **4 → 1**, the lazy legal getter remains
+**1 → 1**, and the real `snapshotOfGame` SHA-256 is identical. Across all three pairs and the S01
+small, S01 crowded-aura and S07 checkpoint fixtures, state, outcome, legal, rejected and both
+viewer hashes match.
+
+The latest-main crowded-aura median p50/p95 is **43.386/47.445 → 41.395/49.419 ms**: p50 improves
+4.6%, while p95 regresses 4.2%. The S07 checkpoint median is **59.053/69.995 →
+52.974/61.229 ms**, improving 10.3% and 12.5%. The small fixture is noise-sized and makes no
+speed claim. This is mixed local latency evidence, not a consistent p95 improvement or a hosted
+performance claim. Inspector samples still put `permanents`, `attrsNow` and `skillsShowing` at the
+top; `immunityStatics` and per-line Permanent badges independently traverse standing rules, and
+memoizing guard-sensitive reads requires separate safety proof. The earlier three-pair result
+above remains evidence for that older base only. Full values, run orders and source fingerprints
+are in `read-session-result.json`.
