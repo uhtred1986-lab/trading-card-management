@@ -205,6 +205,8 @@ export type LeaveRoute = { stays: true; replacement?: string } | { stays: false;
  * caller's answer: battle damage is the one site that asks about it
  * (`lifeReplacementChoices`), and nothing is looked up for it here — the
  * legacy `move`'s `wasLife`.
+ * A caller that already asked about a hand departure may supply its selected
+ * route; the mover honours that answer without discovering new hand routes.
  * Then the keyword's own `wouldLeave` rule, which also answers a card leaving
  * a combo — the legacy `wasInPlay || wasCombo`.
  */
@@ -227,7 +229,11 @@ export function leaveRoute(
     ? replacementFor(ctx, game, state, id, opts.reason, opts.actor, opts.usedReplacements, opts.event, to)
     : null;
   const selectedIdentity = selected?.identity ?? (opts.replaced?.source ? replacementIdentity(opts.replaced.source, opts.replaced.skillIndex, opts.event, id) : undefined);
-  if (((from && inPlay.includes(from)) || fromLife) && !held(to)) {
+  // A suspendable price can already have asked the affected player about a
+  // hand card. The answer must reach the move, even though automatic
+  // replacement discovery remains scoped to in-play departures and life.
+  const answeredHandDeparture = from === "hand" && opts.replaced != null;
+  if ((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture) && !held(to)) {
     const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : selected?.route ?? null;
     if (instead?.ops?.length) {
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });
