@@ -154,7 +154,9 @@ export {
 const ARENA_GAME: Game = "dbs";
 
 /** The loaded definition, or a `RulesetBroken` naming the first thing wrong with it. */
-function definitionFor(game: Game): GameDefinition {
+function definitionFor(game: Game, ctx?: EngineContext): GameDefinition {
+  const pinned = (ctx as (EngineContext & { rulesetDefinition?: GameDefinition }) | undefined)?.rulesetDefinition;
+  if (pinned?.id === game) return pinned;
   const loaded = rulesetFor(game);
   if (!loaded.ok) {
     const first = loaded.errors[0];
@@ -190,7 +192,7 @@ function definitionFor(game: Game): GameDefinition {
  * out of 6,500 must not be what stops a game.
  */
 function createGame(ctx: EngineContext, options: GameOptions): { state: VmState; events: GameEvent[] } {
-  const game = definitionFor(ARENA_GAME);
+  const game = definitionFor(ARENA_GAME, ctx);
   const rules = game.game;
   if (!rules) throw new RulesetBroken(ARENA_GAME, "it declares no DEFINE GAME, so there are no setup numbers to deal");
   if ((rules.players ?? 2) !== 2) throw new RulesetBroken(ARENA_GAME, `it declares ${rules.players} players, and a game is played by the two the app seats`);
@@ -361,7 +363,7 @@ function report(problems: AttrProblem[], gaps: { unfilled: string[]; undeclared:
  * it found it.
  */
 function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmState; events: GameEvent[] } {
-  const game = definitionFor(prev.game);
+  const game = definitionFor(prev.game, ctx);
   const state = structuredClone(prev);
   const events: GameEvent[] = [{ type: "action", action }];
 
@@ -645,7 +647,7 @@ function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, even
  * legacy engine does with it.
  */
 function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
-  const game = definitionFor(state.game);
+  const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => [...declaredLegalActions(ctx, game, state), ...promptAnswers(ctx, state)]);
 }
 
@@ -670,7 +672,7 @@ function shownName(ctx: EngineContext, state: VmState, id: string): string {
 }
 
 function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
-  const game = definitionFor(state.game);
+  const game = definitionFor(state.game, ctx);
   const pr = state.prompt;
   switch (pr.kind) {
     // 8-1: the fifth thing 7-3-4's free timing grants, beside the declared
@@ -711,7 +713,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     case "payCost":
       return pr.options.map((option, i) => ({
         action: { type: "payCost", player: pr.player, option: i },
-        label: `Rest ${describePayment(ctx, definitionFor(state.game), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, markersOff: [], life: [], pooled: [], restsSelf: false })}`,
+        label: `Rest ${describePayment(ctx, definitionFor(state.game, ctx), state, { rest: option.rest, energyMarkers: option.markers, markers: 0, markersOff: [], life: [], pooled: [], restsSelf: false })}`,
       }));
     // 5-2: one card per answer, so the menu is one move per candidate — the
     // legacy engine's labels word for word, because a client that read
@@ -756,7 +758,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
  * could reach for and miss.
  */
 function rejectedActions(ctx: EngineContext, state: VmState, legal: LegalAction[]): RejectedAction[] {
-  const game = definitionFor(state.game);
+  const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => rejectedActionsOf(ctx, game, state, legal));
 }
 
@@ -835,7 +837,7 @@ function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: 
 
 /** The board, drawn from the declarations for one side of the table. */
 function boardView(ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
-  const game = definitionFor(state.game);
+  const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => vmBoardView(ctx, game, state, viewer, images));
 }
 
