@@ -51,6 +51,7 @@ typecheck, lint and build. Active isolated work covers #554 Heroic and #547 immu
 #601 is implementing the bounded AI-oracle migration under #459, whose larger VM migration remains open. The locally reproduced additional
 Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
 P1 #597 separately owns original-color keyword payment eligibility after #553/#555.
+P1 #602 owns individual identity for granted Heroic; #554 explicitly guards that case before payout.
 
 ## Reconciliation decisions
 
