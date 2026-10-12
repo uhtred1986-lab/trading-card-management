@@ -78,7 +78,7 @@ export type Beat =
   | { t: "effectEnded"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; source: string | null }
   /** Claude's table talk, added by `run.ts` rather than by the engine. */
   | { t: "say"; text: string }
-  | { t: "over"; winner: PlayerId | null; reason: string };
+  | { t: "over"; winner: PlayerId | null; reason: string; kind?: "win" | "draw" | "concession" | "abandoned" | "interrupted" };
 
 /**
  * Beats are numbered rather than counted, so a client can replay exactly what

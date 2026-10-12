@@ -157,8 +157,8 @@ const TWO = "Attacks · 2 blue cards in your drop area";
 
 {
   // An [Auto] with an action price: the legacy engine charges it and draws;
-  // the rules engine does not charge action prices on an [Auto] yet (#149)
-  // and says so. An engine bug, not the owner's — the row shows both.
+  // the rules engine interrupts before resolving it. The row shows both and
+  // the probe's board changes preserve interruption instead of calling it a draw.
   const priced = probeRuleOf(rule(`WHEN [auto] attacks\nCOST DO {\n  mill(n: 1)\n}\nTHEN\n  draw(n: 1)`), def("T-PRICE", "Priced Seer", "[Auto] When this card attacks, put the top card of your deck in your Drop Area: draw 1 card."), "front", 0);
   const tried = tryRule(priced);
   const attack = tried.rows.find((x) => x.key === "attack") as TryRow;
@@ -166,7 +166,8 @@ const TWO = "Attacks · 2 blue cards in your drop area";
   assert.equal(attack.legacy.headline, "draws 1");
   assert.equal(attack.rules.headline, "nothing");
   assert.equal(attack.gate?.clause, "COST", "on the engine games use, the price is what stopped it");
-  assert.ok(attack.gate?.reasons.some((w) => /#149/.test(w)), "with the engine's own sentence");
+  assert.ok(attack.rules.applied.some((line) => /Game interrupted/.test(line)), "the engine explains the interruption without public private-cost detail");
+  assert.ok(attack.rules.result.includes("the game is interrupted"), "probe narration does not call a null-winner interruption a draw");
 }
 
 // ── Met / not-met pairs, both engines, opposite outcomes ────────────────────
