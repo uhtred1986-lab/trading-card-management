@@ -89,7 +89,7 @@ export function fireHook(ctx: EngineContext, game: GameDefinition, state: VmStat
   for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(game, state, subject, body.ops, vars, body.skillIndex, body.grantEffectId, body.standingGrantId));
 }
 
-/** The activating player's other in-play cards hear one of 22-35-2's two events. */
+/** The activating player's eligible in-play cards hear one of 22-35-2's two events. */
 export function fireAfterSkill(
   ctx: EngineContext,
   game: GameDefinition,
@@ -103,7 +103,11 @@ export function fireAfterSkill(
   const frames: ScriptFrame[] = [];
   const missingIdentityCards = new Set<string>();
   for (const other of inPlayZones(game).flatMap((area) => state.sides[owner].zones[area] ?? [])) {
-    if (other === source) continue;
+    // "Another" limits the Battle-play half of 22-35/36. The Extra-skill
+    // half does not say "another": a source that is itself still in play
+    // (for example a [Field] Extra's [Auto]) can answer its own activation.
+    // A hand Extra is not enumerated here while its skill begins.
+    if (other === source && cause === "battleCardPlayed") continue;
     for (const body of hookBodiesFor(ctx, game, state, other, "afterSkill")) {
       const vars = { source: [source], activatedExtra: cause === "heroicExtraSkillActivated" ? [source] : [] };
       const frame = hookFrame(game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars, activatedKeywords), vars, body.skillIndex, body.grantEffectId, body.standingGrantId);
