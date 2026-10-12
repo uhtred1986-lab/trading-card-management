@@ -1,4 +1,4 @@
-import { parseFilter, readsOr, type CardFilter } from "../text/filters";
+import { expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "../text/filters";
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
@@ -770,7 +770,7 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     /^you combo with (?:an?|1) ((?!.*\busing\b).+)$/.exec(t)?.[1] ??
     // The word "card" stays in the phrase: taking it out of the capture let
     // the lazy group stop at "battle", and "battle" alone narrows nothing.
-    /^(?:your|your opponent's) (.+?) is played\b/.exec(t)?.[1] ??
+    /^(?:your|your opponent's) (.+?)(?:[-—–]\s*)?is played\b/.exec(t)?.[1] ??
     // "When a blue or yellow ≪Universe 6≫ card is played in your Battle Area"
     // (XD1-01, #539): the card played, said the passive way.
     /^(?:an?|1) (.+? card) is played in your battle area\b/.exec(t)?.[1] ??
@@ -804,11 +804,12 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   // So is "15000 power or more" (BT19-018).
   // An "or" the filter reads whole — "a blue or yellow ≪Universe 6≫ card"
   // (XD1-01, #539) — is not two kinds it would read one of.
-  if (/ or /.test(phrase.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) && !readsOr(names.unmask(phrase))) return undefined;
+  const description = expandSharedCardDescription(names.unmask(phrase));
+  if (/ or /.test(description.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) && !readsOr(description)) return undefined;
   // A trigger whose subject description cannot be read is left unfiltered
   // rather than failed: an over-fire is bad, a filter that stops a skill that
   // should happen is worse (ground rule 6).
-  return filterFor(names.unmask(phrase).toLowerCase(), null) ?? undefined;
+  return filterFor(description.toLowerCase(), null) ?? undefined;
 }
 
 

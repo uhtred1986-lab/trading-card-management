@@ -96,6 +96,8 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       const k = e.value as KeywordSkill;
       return { kind: "keyword", label: `[${keywordName(k)}]`, keyword: k.name };
     }
+    case "gains":
+      return { kind: "other", label: identityGainLabel(e.value as { traits: string[]; characters: string[]; colors: Color[]; names: string[] }) };
     // 20-18: skills taken from another card. A copied *keyword* arrives as a
     // "keyword" effect above and reads as the glyph it is; this is the rest —
     // the typed lines the target now has to enumerate.
@@ -114,6 +116,10 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
     // for the standing form, with a duration on it.
     case "negateKeyword":
       return { kind: "negate", label: `[${e.value as string}] negated` };
+    case "replaceLeave": {
+      const r = e.value as { to?: string; position?: string };
+      return { kind: "other", label: `routes a hand return to the ${r.to ?? "replacement"}${r.position ? ` (${r.position})` : ""}` };
+    }
     case "forbid":
       return { kind: "forbid", label: e.forbid ? forbidLabel(e.forbid) : "forbidden" };
     case "permit":
@@ -210,9 +216,7 @@ export function describeStatic(e: StaticEffect, master?: PlayerId | null, words:
       // "isn't affected by skills" with no side is a different claim.
       return { kind: "other", label: immuneLabel(e.value as Immunity, master ?? null) };
     case "gains": {
-      const g = e.value as { traits: string[]; characters: string[]; colors: string[] };
-      const bits = [...g.colors.map((c) => c.toLowerCase()), ...g.traits.map((t) => `≪${t}≫`), ...g.characters.map((c) => `<${c}>`)];
-      return { kind: "other", label: `counts as ${bits.join(" ") || "more"}` };
+      return { kind: "other", label: identityGainLabel(e.value as { traits: string[]; characters: string[]; colors: Color[]; names: string[] }) };
     }
     case "replaceLeave": {
       const r = e.value as { to?: string; ops?: Op[] };
@@ -236,6 +240,16 @@ export function describeStatic(e: StaticEffect, master?: PlayerId | null, words:
       return { kind: "other", label: `skips its ${step}` };
     }
   }
+}
+
+function identityGainLabel(g: { traits: string[]; characters: string[]; colors: Color[]; names: string[] }): string {
+  const bits = [
+    ...g.colors.map((c) => c.toLowerCase()),
+    ...g.traits.map((t) => `≪${t}≫`),
+    ...g.characters.map((c) => `<${c}>`),
+    ...g.names.map((n) => `{${n}}`),
+  ];
+  return `counts as ${bits.join(" ") || "more"}`;
 }
 
 /**

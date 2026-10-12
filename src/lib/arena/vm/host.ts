@@ -204,7 +204,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // is: "when this card is switched to Rest Mode by one of your skills",
       // "when your skill rests an opponent's Battle Card or energy" (#157).
       const controller = masterOf(game, state, id);
-      const cause: Record<string, string | boolean> = by ? { by: by.keyword ?? "skill", byOpponent: by.master !== controller } : {};
+      const cause: Record<string, string | boolean> = by
+        ? { by: by.keyword ?? "skill", byOpponent: by.master !== controller, notAwaken: by.keyword?.toLowerCase() !== "awaken" }
+        : {};
       emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller, args: { mode, in: at ?? "", ...cause } }, { type: "mode", card: id, mode });
       return true;
     },
@@ -539,7 +541,7 @@ function moveTo(
   // `verify/compiler.ts`'s STEALER case).
   const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
   const carry = !!opts.carry || (held(from) && held(to));
-  const placed = moveCard(state, game, id, to, { owner, position: opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
+  const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     return;
@@ -639,7 +641,14 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // card switched and saying what switched it (#157); the name the program
   // also says is that same happening, already answered.
   if (FIRED_BY_SET_MODE.has(trigger) || FIRED_BY_MOVE.has(trigger)) return;
-  const controller = state.cards[id] ? masterOf(game, state, id) : state.turnPlayer;
+  // For a watched face-up Life Auto, `id` is the card answering and `subject`
+  // is the Life card whose transition happened. Match the declaration against
+  // that event card while retaining `only`'s narrow answer-card filter. The
+  // Life card's own call has `id` in Life and keeps that same event card.
+  const eventCard = trigger === "flippedFaceUp" && subject && zoneOf(state, subject) === "life" && zoneOf(state, id) !== "life"
+    ? subject
+    : id;
+  const controller = state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer;
   const moment = MOMENT_OF[trigger];
   if (!moment) {
     log(ev, { type: "note", text: `${trigger} is a moment no declaration names, so nothing answers to it` });
@@ -657,7 +666,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // the legacy `pend(trigger, card, subject)` puts it, so "your <Heles>
   // card's skill" can be asked of it. It is not a pattern argument: written
   // over `by` it turned `by: skill` into a card id, which no declaration asks.
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: id, controller, args: moment.args }, (m) => m.card === id && m.trigger === trigger);
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args }, (m) => m.card === id && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 
@@ -686,6 +695,10 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // the Warp (BT30-106); the plain `moved` moment carries no cause, so the
   // name is what says a skill of yours did it.
   deckToWarpBySkill: { event: "moved", args: { from: "deck", to: "warp", asPlay: false, by: "skill", byOpponent: false } },
+  // §3-9-2-1: the program's `faceUp` op pends this declared moment only when
+  // the card actually changes from face down to face up. Its caller then
+  // filters by the source skill's colours and asks the controller's watchers.
+  flippedFaceUp: { event: "faceUpTurned", args: { in: "life" } },
   // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
   // first keyword to run one), and `triggers.rules` declares the moment.
   markerRemoved: { event: "markerRemoved", args: {} },

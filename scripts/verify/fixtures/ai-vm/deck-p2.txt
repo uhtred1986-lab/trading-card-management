@@ -1,0 +1,4 @@
+1× L-BLUE (L-BLUE) — leader, Blue, cost —, 10000 power
+2× BLOCKER (BLOCKER) — battle, Blue, cost 2, 10000 power, combo +10,000 for 1, [Blocker]
+   [Blocker]
+48× V-BLUE (V-BLUE) — battle, Blue, cost 1, 10000 power, combo +5,000 for 1

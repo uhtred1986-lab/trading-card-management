@@ -68,6 +68,8 @@ export function isTokenCard(cardId: string): boolean {
 
 /** 19-1-7: where a token leaving play goes — the declared zone of 20-10, "removed from the game". */
 const TOKEN_EXIT = "removed";
+/** 14-1-4: the source areas a Z-Card must leave to be removed. */
+const Z_CARD_DEPARTURE_AREAS = new Set(["leader", "battle", "unison"]);
 /** 23-2-5: where the cards under a card go when it leaves play — the Drop Area, as `moveCard`'s own 23-2-5 half above already names it. */
 const PILE_EXIT = "drop";
 
@@ -304,9 +306,12 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     if (!at) return { ok: false, refused: `${opts.under} is in no zone, so nothing can go under it` };
     if (game.zones[at.zone]?.host !== true) return { ok: false, refused: `the ${at.zone} does not hold cards under cards (23-2)` };
     lift(board, id, host);
-    // 23-2-2-2: the cards under a card are in the area of the card on top, and
-    // 3-1-4 applies on the way down — a card in a pile carries nothing with it.
-    reset(card, null);
+    // 23-2-2-2: the cards under a card are in the area of the card on top.
+    // 3-1-4 resets a card that changes area; a Leader going under a Z-Leader
+    // stays in its Leader Area under 22-46-6, so its awakened face, position
+    // and own attached pile must survive for 15-1-5 to restore it later.
+    const leaderUnderZLeader = from?.zone === "leader" && at.zone === "leader" && onTop.zCard === true;
+    if (!leaderUnderZLeader) reset(card, null);
     // A card that already has a pile of its own — an evolved Battle Card, a
     // Z-Stack — takes it along when it lands in an area of the same name
     // (23-2-6, `follows` below) and leaves each one in its own owner's Drop
@@ -325,13 +330,21 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   }
 
   // ── into a zone ─────────────────────────────────────────────────────────
-  // 19-1-7: a token (or 14-1-4: a Z-card) leaving play or a combo for anywhere else is removed from
-  // the game instead — the legacy `move`'s own first redirect, read off the
-  // same two declared flags 3-1-6-1's clamp below reads ("in play, or a pile a
-  // card may sit on"), so the rule names no area but the one it sends to.
-  // 14-1-4 is the same redirect for a Z-card ([Ultimate]'s 22-14-3 half, which
-  // the legacy `move` folds into the same line, is Stage 7's and not read here).
-  if ((isTokenCard(card.cardId) || card.zCard === true) && from && heldInPlay(game, from.zone) && !heldInPlay(game, to) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
+  // 19-1-7 names a token's two departure areas. A token can be selected in a
+  // Combo Area (19-1-6), but moving it to Z-Energy still removes it.
+  const tokenLeavesItsAreas = isTokenCard(card.cardId) && from &&
+    (from.zone === "battle" || from.zone === "combo") &&
+    to !== "battle" && to !== "combo";
+  // 14-1-4 removes a Z-Card when it leaves a Leader, Battle or Unison Area,
+  // regardless of its destination. The same zone name on the other player's
+  // side is a different area (3-1-1), so transfer between Battle Areas also
+  // leaves the source area. Combo is deliberately not listed: a Z-Card already
+  // in Combo can be moved to Z-Energy at 8-5-2. [Ultimate]'s separate 22-14-3
+  // rule is still handled by its own hook, not by this area redirect.
+  const destinationOwner = opts.owner ?? card.owner;
+  const zCardLeavesListedArea = card.zCard === true && from && Z_CARD_DEPARTURE_AREAS.has(from.zone) &&
+    (from.zone !== to || from.owner !== destinationOwner);
+  if ((tokenLeavesItsAreas || zCardLeavesListedArea) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
   const zone = game.zones[to];
   if (!zone) return { ok: false, refused: `the ${game.id} ruleset declares no zone called ${JSON.stringify(to)}` };
   if (zone.place === false) return { ok: false, refused: `the ${to} is not a place a card is put (${zone.text ?? "no card sits in it"})` };
@@ -352,6 +365,22 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   if (opts.mode !== undefined && !zone.modes?.includes(opts.mode)) return { ok: false, refused: `a card in the ${to} is never ${opts.mode}` };
 
   lift(board, id, host);
+  // 15-1-5: when the top Z-Leader leaves its Leader Area, that top card is
+  // removed and the underlying Leader stays in the same Area. A Z-Awakened
+  // stack is represented as [Leader, ...the Leader's carried under-cards] on
+  // the Z-Leader, so restore that pile to its original top card before the
+  // ordinary 23-2-5 release handling below.
+  if (card.zCard === true && from?.zone === "leader" && (to !== "leader" || from.owner !== toOwner) && card.under.length) {
+    const [leader, ...carried] = card.under.splice(0);
+    const underneath = board.cards[leader];
+    if (underneath) {
+      underneath.mode = card.mode;
+      underneath.under.push(...carried);
+      board.sides[from.owner].zones.leader.splice(from.index, 0, leader);
+    } else {
+      card.under.push(...carried);
+    }
+  }
   // 23-2-5: a card leaving play (or a combo) for an area of another name
   // leaves its pile behind, each card in its owner's Drop Area — a Z-card
   // among them removed from the game (14-1-4) — the legacy `move`'s own line,

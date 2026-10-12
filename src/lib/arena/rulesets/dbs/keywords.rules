@@ -332,14 +332,13 @@ DEFINE KEYWORD Invoker
 -- 22-35
 DEFINE KEYWORD Heroic
   TAKES ()
-  text: "When you play another card with [Heroic], draw 1 card; the skill is then negated on this card for the rest of the turn."
-  -- The "negated on this card for the rest of the turn" half is not built: a
-  -- hook body's frame carries no skillIndex for `negate(what: own)` to read
-  -- (`vm/program.ts`'s `hookFrame`), so this fires once per other [Heroic]
-  -- card played in the turn rather than once. Named, not guessed around.
+  text: "When you play another Battle Card with [Heroic], or activate a [Heroic] Extra Card skill, draw 1 card, then negate the effects of this skill for the rest of the turn."
+  -- Hook frames carry the printed keyword skill index, so this uses the same
+  -- timed 9-1-5 negation as any other skill that negates itself.
   HOOK afterSkill {
-    if(cond: count("card with [Heroic]" FROM $source) >= 1, then: {
+    if(cond: any([count("Battle Card with [Heroic]" FROM $source) >= 1, count("Extra Card with [Heroic]" FROM $activatedExtra) >= 1]), then: {
       draw(n: 1)
+      negateOwnSkill(until: turn)
     })
   }
 

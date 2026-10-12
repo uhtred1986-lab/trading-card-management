@@ -122,7 +122,7 @@ import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
 import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
-import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/types";
+import type { CardDef, Color, PlayerId, Replacement, Requirement } from "../../src/lib/arena/types";
 import { legacyHost } from "../../src/lib/arena/engine/legacy-host";
 import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
@@ -207,35 +207,12 @@ assert.equal(isVmState(createGame(CTX, DECKS).state), false, "a legacy state was
 assert.equal(isVmState(null), false, "null was read as a rules state");
 assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 
-// ── 4. what it cannot do yet says which issue builds it ───────────────────
+// ── 4. declared moves refuse invalid timing as IllegalAction ───────────────
 
-// All six calls are answered now (#140); what is still missing is the *moves*
-// with a price and a program, and each of those names the issue that builds
-// it rather than failing as an unrecognised action. `NotYet` is an
-// `IllegalAction`, so the API answers `illegal_action` and the client shows
-// the sentence — the refusal a caller really gets, not a shortcut past it.
+// Battle-end Z-Energy selection is a native rule move now (8-5-2/3), so it
+// is covered by the dedicated scenario and the battle suite. Keep checking
+// that ordinary declared moves refuse invalid timing as IllegalAction.
 const rules = engineFor("rules");
-// `attacking` moved out of this list in #150 — `vm/battle.ts` declares it
-// natively now, so it is exercised as a real move (§17b below) rather than as
-// a gap. What is left of the battle that is still named work is the Z-Energy
-// a spent combo card may become at the end of it (#151's own
-// `zEnergyFromCombo`, `vm/index.ts`'s `DECLARED_BY`).
-const notYet: { what: string; run: () => unknown }[] = [
-  { what: "sending a combo card to Z-Energy", run: () => rules.apply(CTX, state, { type: "zEnergyFromCombo", player: "p1", card: null }) },
-];
-for (const { what, run } of notYet) {
-  assert.throws(
-    run,
-    (err: unknown) => {
-      assert.ok(err instanceof NotYet, `${what} on the rules engine threw ${err instanceof Error ? err.name : typeof err}, not NotYet`);
-      assert.match(err.issue, /^#\d+$/, `${what} does not name the issue that builds it`);
-      assert.ok(err.message.includes(err.issue), `${what}'s NotYet does not say which issue builds it in its own message`);
-      assert.ok(err instanceof IllegalAction, "a NotYet is not an IllegalAction, so the API would answer it as a crash");
-      return true;
-    },
-    `${what} on the rules engine was accepted`,
-  );
-}
 
 // A move that *is* declared is refused with a sentence rather than named as
 // missing work: playing is #146's paragraph in `actions.rules` and using a
@@ -1360,6 +1337,155 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       const zones = (seen.r.board as Record<PlayerId, { zones: Record<string, string[]> }>).p1.zones;
       const at = Object.keys(zones).find((z) => zones[z].includes(replacer));
       assert.equal(at, ends, `replaceLeave (${what}) did not send the card to ${ends} on the rules engine, so the parity is over an empty run`);
+    }
+
+    // A timed selector can depend on a prior choice. Its activation bindings
+    // must be serialized with the effect and supplied again when the next
+    // departure is checked; an empty frame silently makes this target vanish.
+    {
+      const previousTarget = DEFS.TARGET;
+      const previousOther = DEFS.OTHER;
+      DEFS.TARGET = card("TARGET", { energyCost: 1, power: 5000 });
+      DEFS.OTHER = card("OTHER", { energyCost: 1, power: 5000 });
+      try {
+        let selectedRules = "";
+        let otherRules = "";
+        let selectedLegacy = "";
+        let otherLegacy = "";
+        const run: Op[] = [
+          { op: "replaceLeave", to: "hand", by: "skill", bySide: "opponent", until: "nextTurn", target: { var: "picked" } },
+          { op: "moveTo", target: { var: "picked" }, to: "drop", cause: "effect" },
+        ];
+        const boundRules = onRules(run, (s) => {
+          selectedRules = staged(s, "p1", "TARGET");
+          otherRules = staged(s, "p1", "OTHER");
+          return { master: "p2", vars: { picked: [selectedRules] } };
+        });
+        const boundLegacy = onLegacy(run, (l) => {
+          const [a, b] = l.players.p1.deck.splice(0, 2);
+          assert.ok(a && b, "legacy fixture could not stage two targets");
+          l.cards[a].cardId = "TARGET";
+          l.cards[b].cardId = "OTHER";
+          l.players.p1.battle.push(a, b);
+          selectedLegacy = a;
+          otherLegacy = b;
+          return { master: "p2", vars: { picked: [a] } };
+        });
+        const boardZones = (board: unknown): Record<string, string[]> => {
+          const b = board as { p1: { zones?: Record<string, string[]> } & Record<string, unknown> };
+          return (b.p1.zones ?? b.p1) as Record<string, string[]>;
+        };
+        const rulesZones = boardZones(boundRules.board);
+        const legacyZones = boardZones(boundLegacy.board);
+        assert.ok(rulesZones.hand.includes(selectedRules), "rules timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
+        assert.ok(rulesZones.battle.includes(otherRules), "rules timed replacement broadened its bound target to a different Battle Card");
+        assert.ok(legacyZones.hand.includes(selectedLegacy), "legacy timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
+        assert.ok(legacyZones.battle.includes(otherLegacy), "legacy timed replacement broadened its bound target to a different Battle Card");
+
+        let selectorRulesTarget = "";
+        let selectorOtherRules = "";
+        let selectorLegacyTarget = "";
+        let selectorOtherLegacy = "";
+        const selectorRun: Op[] = [
+          { op: "replaceLeave", to: "hand", by: "skill", bySide: "opponent", until: "nextTurn", target: { sel: { fromVar: "picked" } } },
+          { op: "moveTo", target: { var: "picked" }, to: "drop", cause: "effect" },
+        ];
+        const selectorRules = onRules(selectorRun, (s) => {
+          selectorRulesTarget = staged(s, "p1", "TARGET");
+          selectorOtherRules = staged(s, "p1", "OTHER");
+          return { master: "p2", vars: { picked: [selectorRulesTarget] } };
+        });
+        const selectorLegacy = onLegacy(selectorRun, (l) => {
+          const [a, b] = l.players.p1.deck.splice(0, 2);
+          assert.ok(a && b, "legacy fixture could not stage two selector targets");
+          l.cards[a].cardId = "TARGET";
+          l.cards[b].cardId = "OTHER";
+          l.players.p1.battle.push(a, b);
+          selectorLegacyTarget = a;
+          selectorOtherLegacy = b;
+          return { master: "p2", vars: { picked: [a] } };
+        });
+        const selectorRulesZones = boardZones(selectorRules.board);
+        const selectorLegacyZones = boardZones(selectorLegacy.board);
+        assert.ok(selectorRulesZones.hand.includes(selectorRulesTarget) && selectorRulesZones.battle.includes(selectorOtherRules), "rules timed selector lost its captured fromVar binding or broadened to another card");
+        assert.ok(selectorLegacyZones.hand.includes(selectorLegacyTarget) && selectorLegacyZones.battle.includes(selectorOtherLegacy), "legacy timed selector lost its captured fromVar binding or broadened to another card");
+
+        const beforeSave = mainPhase();
+        const savedTarget = staged(beforeSave, "p1", "TARGET");
+        const savedMaster = beforeSave.sides.p2.zones.leader[0];
+        const installFrame: ScriptFrame = { ops: [run[0]], ip: 0, vars: { picked: [savedTarget] }, card: savedMaster, master: "p2" };
+        stepScript(vmHost(CTX, DBS, beforeSave, []), installFrame);
+        installFrame.vars.picked = [];
+        const afterReload = JSON.parse(JSON.stringify(beforeSave)) as VmState;
+        const persistedReplacement = afterReload.effects.find((effect) => effect.kind === "replaceLeave")?.value as Replacement | undefined;
+        assert.deepEqual(persistedReplacement?.vars?.__timedReplaceLeaveTarget, [savedTarget], "the effect did not keep its selected target when the game was serialized");
+        stepScript(vmHost(CTX, DBS, afterReload, []), { ops: [run[1]], ip: 0, vars: { picked: [savedTarget] }, card: savedMaster, master: "p2" });
+        assert.ok(afterReload.sides.p1.zones.hand.includes(savedTarget), "the reloaded timed replacement did not resolve its captured variable");
+
+        const boundLifetime = mainPhase();
+        const returnedInstance = staged(boundLifetime, "p1", "TARGET");
+        const boundSource = boundLifetime.sides.p2.zones.leader[0];
+        const lifetimeOps: Op[] = [
+          { op: "replaceLeave", to: "deck", by: "skill", until: "nextTurn", target: { sel: { fromVar: "picked" } } },
+          { op: "moveTo", target: { var: "picked" }, to: "hand", cause: "rule" },
+          { op: "moveTo", target: { var: "picked" }, to: "battle", owner: "opponent", cause: "rule" },
+          { op: "moveTo", target: { var: "picked" }, to: "hand", cause: "effect" },
+        ];
+        stepScript(vmHost(CTX, DBS, boundLifetime, []), {
+          ops: lifetimeOps.slice(0, 1),
+          ip: 0,
+          vars: { picked: [returnedInstance] },
+          card: boundSource,
+          master: "p2",
+        });
+        assert.ok(boundLifetime.effects.some((effect) => effect.kind === "replaceLeave" && effect.target === returnedInstance), "a fromVar replacement was not attached to the selected card instance");
+        stepScript(vmHost(CTX, DBS, boundLifetime, []), {
+          ops: lifetimeOps.slice(1, 2),
+          ip: 0,
+          vars: { picked: [returnedInstance] },
+          card: boundSource,
+          master: "p2",
+        });
+        assert.ok(boundLifetime.sides.p1.zones.hand.includes(returnedInstance), "the rules fixture did not move the selected card out of play");
+        assert.ok(!boundLifetime.effects.some((effect) => effect.kind === "replaceLeave"), "a bound offer survived after its chosen card left its Area");
+        stepScript(vmHost(CTX, DBS, boundLifetime, []), {
+          ops: lifetimeOps.slice(2, 3),
+          ip: 0,
+          vars: { picked: [returnedInstance] },
+          card: boundSource,
+          master: "p2",
+        });
+        assert.ok(boundLifetime.sides.p1.zones.battle.includes(returnedInstance), "the same fixture card did not return to the Battle Area");
+        assert.ok(!boundLifetime.effects.some((effect) => effect.kind === "replaceLeave"), "the old bound offer reattached when the same instance returned to the Battle Area");
+        assert.ok(!boundLifetime.effects.some((effect) => effect.kind === "replaceLeave" && effect.target === ""), "captured-target handling accidentally became a live global selector");
+        stepScript(vmHost(CTX, DBS, boundLifetime, []), {
+          ops: lifetimeOps.slice(3),
+          ip: 0,
+          vars: { picked: [returnedInstance] },
+          card: boundSource,
+          master: "p2",
+        });
+        assert.ok(boundLifetime.sides.p1.zones.hand.includes(returnedInstance), "the rules engine reapplied a stale offer after the selected instance left and re-entered play");
+        assert.ok(!boundLifetime.sides.p1.zones.deck.includes(returnedInstance), "the rules engine redirected a new-card instance through its old bound offer");
+
+        let legacyReturnedInstance = "";
+        const legacyLifetime = onLegacy(lifetimeOps, (legacy) => {
+          const [id] = legacy.players.p1.deck.splice(0, 1);
+          assert.ok(id, "the legacy 3-1-4 fixture has no selected card");
+          legacy.cards[id].cardId = "TARGET";
+          legacy.players.p1.battle.push(id);
+          legacyReturnedInstance = id;
+          return { master: "p2", vars: { picked: [id] } };
+        });
+        const legacyLifetimeZones = boardZones(legacyLifetime.board);
+        assert.ok(legacyLifetimeZones.hand.includes(legacyReturnedInstance), "the legacy engine reapplied a stale offer after the selected instance left and re-entered play");
+        assert.ok(!legacyLifetimeZones.deck.includes(legacyReturnedInstance), "the legacy engine redirected a new-card instance through its old bound offer");
+      } finally {
+        if (previousTarget) DEFS.TARGET = previousTarget;
+        else delete DEFS.TARGET;
+        if (previousOther) DEFS.OTHER = previousOther;
+        else delete DEFS.OTHER;
+      }
     }
 
     // ── #137, chunk 2: the four rows a guard, an audience and subtraction unblocked ──
@@ -3901,6 +4027,8 @@ console.log("verify/vm: ok");
     assert.equal(r.prompt.kind, "combo", "the defense side's combo offer did not open");
     assert.equal((r.prompt as { side: string }).side, "defense");
     r = rulesEngine.apply(CTX, r, { type: "pass", player: "p2" }).state as VmState; // defense: nothing to combo with
+    assert.equal(r.prompt.kind, "zEnergyFromCombo", "8-5-2: the turn player may choose one spent Battle Card");
+    r = rulesEngine.apply(CTX, r, { type: "zEnergyFromCombo", player: "p1", card: null }).state as VmState;
     assert.equal(r.battle, null, "the battle did not close at the end of the Battle End Step");
     assert.equal(r.prompt.kind, "main");
     assert.ok(r.sides.p2.zones.drop.includes(guard), "8-4-6-2: a tie is the attacker's (10000 vs 10000, or better with the combo) and the guard is KO'd");

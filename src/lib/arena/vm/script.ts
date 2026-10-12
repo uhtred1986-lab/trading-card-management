@@ -587,6 +587,8 @@ export type Op =
       sign?: "add" | "remove";
       keyword?: KeywordSkill;
       flag?: boolean;
+      /** The compiler preserves 20-1's explicit source-validity exception. */
+      allAreas?: boolean;
       until?: Duration;
     }
   | { op: "power"; target: Ref; amount: Amount; until: Duration }
@@ -788,13 +790,13 @@ export type Op =
    * read by every rule that looks at what a card *is*, not by the ones that
    * look at what it does.
    */
-  | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref }
+  | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref; allAreas?: boolean }
   /**
    * 9-10: where this card goes instead, when it would leave the Battle Area.
    * `by: "skill"` narrows it to departures a skill caused, and
    * `bySide: "opponent"` to the ones the opponent's skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; mode?: "active" | "rest"; optional?: boolean; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: "hand"; until?: Duration; optional?: boolean; target?: Ref }
   /**
    * 9-10: an event that is about to happen happens differently, or not at all.
    * The primitive `replaceLeave` and `resolvingPlay` are macros over
@@ -1198,6 +1200,12 @@ export interface ScriptFrame {
   subject?: string;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
+  /** One-shot announcement at the paid activation boundary for an Extra with [Heroic]. */
+  afterSkillSource?: string;
+  /** A keyword hook represents a pending skill and is canceled if negated before resolution. */
+  pendingHookSkill?: true;
+  /** An afterSkill event has an unidentifiable self-negating hook; fail before any event hook body runs. */
+  pendingHookIdentityMissing?: true;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
   /**
@@ -1303,7 +1311,7 @@ export function replacementPrompt(card: string, to: Area, choices: ReplacementCh
     // and its program happens in the departure's place — so the option is the
     // program in words rather than an area.
     options: [
-      ...choices.map((c) => (c.to ? `To ${area(c.to)}${c.mode === "rest" ? " in Rest Mode" : ""}` : `Instead: ${describeScript(c.ops ?? [])}`)),
+      ...choices.map((c) => (c.to ? `To ${c.position === "bottom" ? "the bottom of " : c.position === "top" ? "the top of " : ""}${area(c.to)}${c.mode === "rest" ? " in Rest Mode" : ""}` : `Instead: ${describeScript(c.ops ?? [])}`)),
       ...(allowNone ? [`Keep going to ${area(to)}`] : []),
     ],
   };
@@ -1339,7 +1347,7 @@ function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: nu
 
 /** One applicable replacement as `move()` takes it: a destination, or a program to run in the departure's place. */
 export function routeOf(c: ReplacementChoice): ReplacementResult {
-  return { ...(c.to ? { to: c.to } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}) } : {}) };
+  return { ...(c.to ? { to: c.to } : {}), ...(c.position ? { position: c.position } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}) } : {}) };
 }
 
 /**
@@ -1766,7 +1774,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               h.clearLastMode();
               frame.awaiting = undefined;
             } else {
-              const choices = h.replacementsFor(id, "ko", { actor: master, inSubstitute: !!frame.replacing });
+              const choices = h.replacementsFor(id, "ko", { actor: master, inSubstitute: !!frame.replacing, requestedTo: "drop" });
               const allowNone = choices.length > 0 && choices.every((c) => c.optional);
               if (choices.length > 1 || allowNone) {
                 frame.awaiting = "replaceMove";
@@ -1849,7 +1857,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.clearLastMode();
             frame.awaiting = undefined;
           } else {
-            const choices = h.replacementsFor(id, op.cause ?? "effect", { actor: master, inSubstitute: !!frame.replacing });
+            const choices = h.replacementsFor(id, op.cause ?? "effect", { actor: master, inSubstitute: !!frame.replacing, requestedTo: dest });
             const allowNone = choices.length > 0 && choices.every((c) => c.optional);
             if (choices.length > 1 || allowNone) {
               frame.awaiting = "replaceMove";
@@ -2040,7 +2048,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           h.setFaceUp(id, up);
           // 3-9-2-1: a face-up card is open to both players, so naming it leaks nothing.
           h.note(`${h.nameOf(id)} is turned face ${up ? "up" : "down"}`);
-          if (!up) continue;
+          if (!up || h.areaOf(id) !== "life") continue;
           // "When **this card** in your life is flipped face up" is the card
           // itself; "when **a** card in your life is flipped face up" is watched
           // by everything that player has in play. One moment, two wordings.
@@ -2099,18 +2107,26 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
       }
 
-      // The primitive the two cases below are spellings of
-      // (`docs/arena-ruleset-spec.md` §2.3). It makes the same continuous
-      // effects, so a rule written either way plays identically; the list
-      // attributes are what a card *counts as*, which is read wherever the
-      // card is and never applied here — the same reason `gains` falls
-      // through to the "continuous by nature" case further down.
+      // The primitive the cases below are spellings of
+      // (`docs/arena-ruleset-spec.md` §2.3). Numeric attributes and list
+      // identity changes both become duration-bearing effects here; a static
+      // list change is instead collected by `permanents`.
       case "modifyAttr": {
-        if (op.attr !== "power" && op.attr !== "comboPower") break;
         if (!op.until) break;
-        const n = h.amount(frame, op.amount ?? 0);
-        for (const id of h.resolveRef(frame, op.target ?? { sel: { special: "self" } }))
-          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.attr, value: n, until: op.until });
+        const targets = h.resolveRef(frame, op.target ?? { sel: { special: "self" } });
+        if (op.attr === "power" || op.attr === "comboPower") {
+          const n = h.amount(frame, op.amount ?? 0);
+          for (const id of targets) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.attr, value: n, until: op.until });
+        } else if (op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames") {
+          const values = op.values ?? [];
+          const value = {
+            traits: op.attr === "traits" ? values : [],
+            characters: op.attr === "characters" ? values : [],
+            colors: op.attr === "colors" ? values as Color[] : [],
+            names: op.attr === "alsoNames" ? values : [],
+          };
+          for (const id of targets) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "gains", value, until: op.until });
+        }
         break;
       }
 
@@ -2376,18 +2392,69 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
       }
 
-      case "negateKeyword":
-      case "gains":
       case "replaceLeave":
-        // Continuous by nature: read by `playCost` and by the counter window,
-        // not applied here.
+        // A timed replacement stays attached to its source but keeps the
+        // selector live so it also covers matching cards that enter later.
+        // Any variables the selector reads belong to the activation, not a
+        // fresh empty frame at departure time. A Ref variable is represented
+        // as a bound-selector variable so both selector and Ref forms keep
+        // their chosen card instances across the effect's duration.
+        if (op.until) {
+          const boundTarget = "__timedReplaceLeaveTarget";
+          const vars = Object.fromEntries(Object.entries(frame.vars).map(([name, ids]) => [name, [...ids]]));
+          const hasBoundSelector = (value: unknown): boolean => {
+            if (!value || typeof value !== "object") return false;
+            if (Array.isArray(value)) return value.some(hasBoundSelector);
+            return Object.entries(value).some(([key, child]) => key === "fromVar" || hasBoundSelector(child));
+          };
+          const captured = !!op.target && ("var" in op.target || hasBoundSelector(op.target));
+          const target = op.target && "sel" in op.target
+            ? op.target.sel
+            : op.target && "var" in op.target
+              ? (vars[boundTarget] = [...h.resolveRef(frame, op.target)], { fromVar: boundTarget })
+              : !op.target
+                ? { special: "self" as const }
+                : null;
+          if (!target) break;
+          const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to as Area;
+          if (captured) {
+            // 3-1-4: a selected card that leaves an Area is a new card. Store
+            // one effect on each captured instance so the normal zone-change
+            // cleanup removes that binding before the old ID returns to play.
+            // The selector-only form without a captured `fromVar` remains
+            // deliberately live and still sees later-arriving Battle Cards.
+            const ids = h.resolveRef(frame, op.target!);
+            for (const id of ids) {
+              const capturedVars = Object.fromEntries(Object.entries(vars).map(([name, values]) => [name, [...values]]));
+              capturedVars[boundTarget] = [id];
+              const bound = { fromVar: boundTarget } as Selector;
+              h.addEffect({
+                master: frame.master,
+                source: frame.card,
+                target: id,
+                kind: "replaceLeave",
+                value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target: bound, vars: capturedVars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
+                until: op.until,
+              });
+            }
+          } else {
+            h.addEffect({
+              master: frame.master,
+              source: frame.card,
+              target: "",
+              kind: "replaceLeave",
+              value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
+              until: op.until,
+            });
+          }
+        }
         break;
 
-      // 9-10. A replacement of a departure is a standing offer that `move()`
-      // reads when the moment comes, so like `replaceLeave` above it is
-      // collected by `collectStatics` and does nothing here. A replacement of
-      // the play being resolved has a moment of its own — now — and is the one
-      // implementation `resolvingPlay` below is the macro over.
+      // 9-10. A [Permanent]'s departure offer has no duration and is read by
+      // collectStatics. A timed skill offer was stored by the replaceLeave
+      // case above. A replacement of the play being resolved has a moment of
+      // its own — now — and is the one implementation resolvingPlay below is
+      // the macro over.
       case "replace":
         if (op.event === "play") h.replaceResolvingPlay(op.with);
         break;

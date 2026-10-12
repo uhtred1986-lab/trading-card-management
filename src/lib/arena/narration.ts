@@ -206,6 +206,9 @@ function sentence(b: Beat, n: Narrator, words: BoardWords, full: boolean): strin
     case "say":
       return `${n.them}: “${b.text}”`;
     case "over":
+      if (b.kind === "interrupted" || b.kind === "abandoned" || b.reason.startsWith("this engine cannot finish this game")) {
+        return `${b.kind === "abandoned" ? "Game abandoned" : "Game interrupted"} — ${b.reason}.`;
+      }
       if (!b.winner) return `A draw — ${b.reason}.`;
       return `${you(b.winner) ? "You win" : `${n.them} wins`} — ${b.reason}.`;
   }

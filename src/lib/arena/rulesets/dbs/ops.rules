@@ -1,14 +1,15 @@
 -- The macros: every op the cards use that is not a primitive, written over
 -- the ones that are.
 --
--- `docs/arena-ruleset-spec.md` §2 is the decision — nineteen primitives, and
--- one `DEFINE OP` here for each of the thirty-one rows `OP_CLASS` marks
--- *macro*. A macro is not a deletion: `power(…)` keeps its `OP_SCHEMA` row,
+-- `docs/arena-ruleset-spec.md` §2 is the decision — the primitive and macro
+-- rows are classified by `OP_CLASS`. Each declared macro has a `DEFINE OP`;
+-- `mill` is the one native exception. A macro is not a deletion:
+-- `power(…)` keeps its `OP_SCHEMA` row,
 -- keeps printing as itself and keeps round-tripping by that name; this file
 -- says only what it *means*, and `rulesets/expand.ts` is what lowers a program
 -- written in these ops to a program written in the primitives.
 --
--- **Thirty of the thirty-one are declared; `mill` stays a native op, and the
+-- **Every macro row but `mill` is declared; `mill` stays a native op, and the
 -- table below is why.** Writing a row that silently dropped an argument would
 -- be worse than none: it would validate, it would expand, the sweep in
 -- `scripts/verify/language.ts` would pass, and the rule it claimed to explain
@@ -74,7 +75,7 @@
 --             (a battle on its master's side) and pends `youCombo` and
 --             `opponentCombos`, which a plain move neither checks nor pends.
 --
--- ── the thirty-one macros ─────────────────────────────────────────────────
+-- ── the macro rows ────────────────────────────────────────────────────────
 --
 --   op                   lowers to                waits on
 --   draw                 move                     declared (#137)
@@ -440,12 +441,12 @@ DEFINE OP grant
 -- §20-1 — "this card also counts as ≪Saiyan≫", "…is also treated as
 -- red", "…is also treated as {Planet Namek}"
 DEFINE OP gains
-  TAKES (target: ref, traits: strings, characters: strings, colors: strings, names: strings)
+  TAKES (target: ref, traits: strings, characters: strings, colors: strings, names: strings, allAreas: boolean)
   DO {
-    modifyAttr(target: $target, attr: traits, values: $traits)
-    modifyAttr(target: $target, attr: characters, values: $characters)
-    modifyAttr(target: $target, attr: colors, values: $colors)
-    modifyAttr(target: $target, attr: alsoNames, values: $names)
+    modifyAttr(target: $target, attr: traits, values: $traits, allAreas: $allAreas)
+    modifyAttr(target: $target, attr: characters, values: $characters, allAreas: $allAreas)
+    modifyAttr(target: $target, attr: colors, values: $colors, allAreas: $allAreas)
+    modifyAttr(target: $target, attr: alsoNames, values: $names, allAreas: $allAreas)
   }
   text: "the card also counts as the named traits, characters, colours and names, wherever it is"
   doc: "what `gains` means: `modifyAttr`'s general row, one call per list attribute — a call that leaves one out leaves that call's own \"values\" out too, which the static reader (`collectStatics`/`permanents`) already treats as none of that list (docs/arena-ruleset-spec.md §2.3)"

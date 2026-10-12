@@ -291,6 +291,7 @@ const MODIFY_ATTR_FIELDS: OpField[] = [
   { name: "sign", type: { enum: ["add", "remove"] }, default: "add" },
   { name: "keyword", type: "keyword" },
   { name: "flag", type: "boolean" },
+  { name: "allAreas", type: "boolean" },
   { name: "until", type: "duration" },
 ];
 const SELF: OpField = { name: "target", type: "ref", default: { sel: { special: "self" } } };
@@ -614,6 +615,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "colors", type: { list: { enum: COLORS } } },
       { name: "names", type: { list: "string" } },
       SELF,
+      { name: "allAreas", type: "boolean" },
     ],
     // A literal brace cannot appear in a template — `renderTemplate` reads it
     // as a field — so a gained card name is written out in words instead.
@@ -621,14 +623,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1); "names" is a whole card name it is also treated as ("also treated as {Planet M-2}"), never a replacement for its own',
   },
   replaceLeave: {
-    fields: [{ name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "bySide", type: { enum: ["opponent"] } }, { name: "mode", type: MODE }, { name: "optional", type: "boolean" }, SELF],
+    fields: [{ name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "bySide", type: { enum: ["opponent"] } }, { name: "mode", type: MODE }, { name: "position", type: { enum: ["top", "bottom"] } }, { name: "requestedTo", type: { enum: ["hand"] } }, { name: "until", type: "duration" }, { name: "optional", type: "boolean" }, SELF],
     sentence: (raw) => {
       const op = raw as OpOf<"replaceLeave">;
       const whose = op.bySide === "opponent" ? "an opponent's skill" : "a skill";
       const cause = op.by === "ko" ? "be KO'd" : op.by === "skill" ? `be removed from the Battle Area by ${whose}` : op.by === "skillOrKo" ? `be removed from the Battle Area by ${whose} or KO'd` : "leave the Battle Area";
-      return `if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}, it ${op.optional ? "may go" : "goes"} to the ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""} instead`;
+      const request = op.requestedTo ? ` to the ${op.requestedTo}` : "";
+      const duration = op.until ? DURATION_IN_WORDS[op.until] : "";
+      const position = op.position === "bottom" ? " to the bottom of" : op.position === "top" ? " to the top of" : " to the";
+      return `if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}${request}, it ${op.optional ? "may go" : "goes"}${position} ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""}${duration} instead`;
     },
-    doc: '[Permanent] only (9-10): "if this card would be KO\'d, send it to the Warp instead". "by" is which departure it replaces: omitted = any, "skill" = removed by an effect, "ko" = the KO, "skillOrKo" = either. "bySide" narrows that to the opponent\'s skill. "optional" is 9-10-3\'s "you may". Omit "target" for this card',
+    doc: '9-10: "to" is the replacement destination; "by" narrows the cause, "bySide" narrows whose skill, and "requestedTo" narrows the original requested destination. "position" specifies top or bottom of a pile. Omit "until" for a [Permanent] (9-5-1); a timed effect records this redirect for the stated duration. Omit "target" for this card',
   },
   replace: {
     fields: [

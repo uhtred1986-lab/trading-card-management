@@ -17,10 +17,10 @@ tracking: true
 ## Issues
 
 - [x] #543 **P0** — Verify deck readiness per printed skill and runtime capability
-- [ ] #544 **P0** — Stop unsupported resolution with a typed interrupted outcome
+- [x] #544 **P0** — Stop unsupported resolution with a typed interrupted outcome
 - [x] #545 **P0** — Use monotonic game revision and action identity across clients
-- [ ] #546 **P1** — Make reconnection visible and cancel abandoned polling
-- [ ] #547 **P1** — Pin immutable match rules and export reproducible replay bundles
+- [x] #546 **P1** — Make reconnection visible and cancel abandoned polling
+- [x] #547 **P1** — Pin immutable match rules and export reproducible replay bundles
 
 
 ## Order and hot files

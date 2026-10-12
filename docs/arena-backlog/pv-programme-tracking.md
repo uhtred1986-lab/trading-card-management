@@ -27,7 +27,7 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 
 Previously delivered: #543 in PR #585, #545 in PR #586, and owner-requested duplicate GitHub-check removal #583 in PR #584. Android Gradle and owner real-deck/paid-provider checks remain unclaimed.
 
-The merge campaign resumed after the owner confirmed the prior production deployment finished. Sixteen reviewed PRs merged to main, in sequence:
+The merge campaign resumed after the owner confirmed the prior production deployment finished. Eighteen implementation PRs merged to main, in sequence:
 
 | PR | Issue | Delivered change |
 | --- | --- | --- |
@@ -47,17 +47,16 @@ The merge campaign resumed after the owner confirmed the prior production deploy
 | #600 | #556 | Face-up Life moments, subject binding and watchers |
 | #603 | #601 | Fixed AI request/action-menu expectations; broader VM oracle retirement remains #459/#118 |
 | #611 | #566 (partial) | Durable human acknowledgement and saved-result AI recovery; unknown provider outcome is attention-required, never automatically resent |
+| #606 | #540 (partial) | Timed hand-return replacement with bound-target lifetime; owner real-deck/catalog proof remains unclaimed |
+| #594 | #571 | Five official trigger/filter readings, preserving face-up Life coverage |
 
-Production deployments through #603 reported Vercel success before each subsequent merge. Main `65367783708e261eb5742320afdc503db177a048` (#611) reports a failed Vercel deployment: https://vercel.com/gullet-cove/trading-card-management/bgBPdmTokcfWcAY99FyysyDW6P3N. Its final-main local production build and focused face-up Life check pass. This workspace cannot read Vercel logs because its enforced network policy excludes the Vercel API; the first deployment error has been requested from the owner. Do not guess the failure or run the unrelated configured database. Further main merges are held until this deployment failure is resolved.
+Production deployments are checked one at a time before continuing. An initial #611 deployment failed; the owner reran the unchanged commit `6536778`, and Vercel reported success under deployment `APDCAPzRwZNfzngFGy6oTZLzxJGA`. No speculative code/environment fix was made. Its local full tests, typecheck, lint and build passed, and a read-only audit confirmed the 49-entry migration chain. The final runtime at `973c8e7` passes full tests, typecheck, lint (five existing warnings) and production build. The capability inventory is delivered in PR #593 on main `721ceb2`; its full tests, checker, typecheck, lint/build and generated-source checks pass. The lone rules-only VM oracle exclusion remains explicit.
 
-### Remaining reviewed work
+### Final inventory and progress delivery
 
-- PR #594 / #571: five official trigger/filter readings; a branch merge briefly lost #556 behavior, caught before merge and restored with focused #556/#571 and full rules checks. Current reviewed candidate: `50113da`.
-- PR #606 / #540: timed hand-return replacement, variable-bound lifetime and opponent-turn duration; current reviewed candidate: `0b63263`. The attack-return fixture is synthetic; owner real-deck fuzz remains unrun.
-- PR #588 / #581: this delivery progress and milestone reconciliation; ready after final documentation validation.
-- PR #593 / #575 remains draft while capability/test metadata is reconciled with the actual merged runtime. Its narrow evidence must not be promoted as exhaustive rules coverage.
+PR #593 / #575 is merged and reconciles narrow capability/test metadata against actual merged runtime: 21 scenarios, 5 named runtime gaps and 21 guarded VM source sites. It does not claim exhaustive rules coverage. PR #588 records this programme, delivery state and completed child milestone checklists; it completes the current wave of eighteen implementation PRs plus inventory and progress documentation. Deployment gates are checked sequentially.
 
-The nineteen-source review combination passed full tests, typecheck, lint and build; actual final main is being checked separately. The lone rules-only VM oracle exclusion remains explicit. Local lint warnings, hosted/device timing limits and owner real-deck checks stay recorded. No claim of universal exactly-once provider calls is made.
+The remaining #459 VM oracle, real-deck fuzz, hosted/device timing, Android Gradle and live paid-provider checks remain unclaimed. #566 stays open for broader unknown-provider-outcome acceptance; #540 stays open for its owner verification. #602, #595, #597 and #609 are separate rule follow-ups. The user's original artwork draft is preserved.
 
 ### Follow-ups and scope boundaries
 

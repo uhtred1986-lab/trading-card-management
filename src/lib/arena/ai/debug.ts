@@ -13,6 +13,7 @@ import { arenaDecisions } from "@/db/schema";
 
 export interface DecisionRecord {
   gameId: number;
+  arenaCallId?: string;
   turn: number;
   phase: string;
   promptKind: string;
@@ -39,6 +40,7 @@ export async function recordDecision(db: Db, rec: DecisionRecord): Promise<void>
     .where(eq(arenaDecisions.gameId, rec.gameId));
   await db.insert(arenaDecisions).values({
     gameId: rec.gameId,
+    arenaCallId: rec.arenaCallId ?? null,
     seq: next,
     turn: rec.turn,
     phase: rec.phase,
@@ -58,7 +60,7 @@ export async function recordDecision(db: Db, rec: DecisionRecord): Promise<void>
     cachedTokens: rec.spend?.cached ?? 0,
     costMicros: rec.spend?.micros ?? 0,
     latencyMs: rec.latencyMs ?? null,
-  });
+  }).onConflictDoNothing();
 }
 
 // ── the backlog of text the compiler cannot read ───────────────────────────

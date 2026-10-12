@@ -23,6 +23,7 @@
  * happens to be selected.
  */
 import assert from "node:assert/strict";
+import { capabilityForLegacySkip, capabilityForSkip } from "../../src/lib/arena/capability-inventory";
 import { defsFrom } from "../../src/lib/arena/vm/common";
 import { seedFrom } from "../../src/lib/arena/vm/rng";
 import { type Action, type CardDef, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "../../src/lib/arena/types";
@@ -42,6 +43,7 @@ import { findCard as vmFindCard, isTokenCard as vmIsTokenCard } from "../../src/
 import { fire as vmFire, type Moment as VmMoment } from "../../src/lib/arena/vm/events";
 import { hasKeyword as vmHasKeyword } from "../../src/lib/arena/vm/program";
 import { lifeReplacementChoices as vmLifeReplacementChoices } from "../../src/lib/arena/vm/replace";
+import { moved as vmMoved } from "../../src/lib/arena/vm/flow";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../../src/lib/arena/snapshot";
@@ -749,6 +751,15 @@ function moveG(s: EngineState, id: string, area: ZoneArea | "unison", side: Play
   assert.ok(r.ok, `the fixture could not move ${id} to ${side}'s ${area}: ${r.ok ? "" : r.refused}`);
 }
 
+/** A rule-procedure move with no acting skill, used to check replacement cause scope. */
+export function moveByRuleG(s: EngineState, id: string, area: ZoneArea, side: PlayerId, ctx: EngineContext = CTX): void {
+  if (isVmState(s)) {
+    vmMoved(ctx, DBS_DEFINITION, s, [], id, area, { owner: side, reason: "rule" });
+    return;
+  }
+  move(ctx, s, [], id, area, side, { reason: "rule" });
+}
+
 /** 20-15: write a delayed effect down, on either engine — both take the same spec. */
 function scheduleG(s: EngineState, ev: GameEvent[], spec: Parameters<typeof vmSchedule>[2]): void {
   if (isVmState(s)) vmSchedule(s, ev, spec);
@@ -787,9 +798,11 @@ function pendedG(ctx: EngineContext, s: EngineState, trigger: Trigger, card: str
  * stand only on the legacy pass.
  */
 const RULES_GAPS: string[] = [];
-function rulesGap(where: string, what: string, issue: string): boolean {
+function rulesGap(where: string, _what: string, _issue: string): boolean {
   if (ENGINE !== "rules") return false;
-  const line = `${where}: ${what} (${issue})`;
+  if (!_what.trim() || !_issue.trim()) throw new Error(`rulesGap ${where} needs its behavior note and owner note`);
+  const row = capabilityForSkip(where);
+  const line = `${row.id} [${row.status}; ${row.citation}; owner #${row.ownerIssue}]: ${row.label} — ${row.detail}`;
   console.log(`  skipped case — ${line}`);
   RULES_GAPS.push(line);
   return true;
@@ -803,7 +816,9 @@ function rulesGap(where: string, what: string, issue: string): boolean {
  */
 function legacyOnly(where: string, what: string, issue: string): boolean {
   if (!RULES_ONLY) return false;
-  const line = `${where}: ${what} (${issue})`;
+  if (!what.trim() || !issue.trim()) throw new Error(`legacyOnly ${where} needs its behavior note and owner note`);
+  const row = capabilityForLegacySkip(where);
+  const line = `${row.id} [${row.status}; ${row.citation}; owner #${row.ownerIssue}]: ${row.label} — ${row.detail}`;
   console.log(`  skipped case — ${line}`);
   RULES_GAPS.push(line);
   return true;

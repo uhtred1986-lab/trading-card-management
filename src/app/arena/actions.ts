@@ -13,13 +13,13 @@ import { type Action, type GameState } from "@/lib/arena/types";
 import { printRule, readRule } from "@/lib/arena/lang";
 import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
-import { abandonGame, applyToGame, engineForMode, GameAlreadyFinished, isVersus, loadGame, mutationFingerprint, replayMutation, RequestIdentityConflict, seatOf, StaleGame, startGame, type ArenaMode, type LoadedGame } from "@/lib/arena/games";
+import { abandonGame, applyToGame, engineForMode, GameAlreadyFinished, isVersus, loadGame, mutationFingerprint, replayMutation, RequestIdentityConflict, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentOwner, currentUser, isArenaAdmin, requireSignedIn, requireSl } from "@/lib/auth";
 import { assertOwnDeck, canOpenGame } from "@/lib/auth/ownership";
 import { flagTurn as storeFlagTurn, reopenFlag, reviewFlag, type FlagLine } from "@/lib/arena/review-store";
 import { advance } from "@/lib/arena/ai/run";
-import { reviewGame } from "@/lib/arena/ai/review";
+import { InterruptedGameReviewError, reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
 import { blankRule, confirmMatching, confirmRule, reopenRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { defsForCards } from "@/lib/arena/load";
@@ -560,7 +560,6 @@ export async function act(gameId: number, action: Action, basedOn: number, reque
     if (err instanceof RequestIdentityConflict) return { error: err.message };
     throw err;
   }
-  let applied: LoadedGame;
   try {
     const refused = await refuse(gameId, true);
     if (refused) return { error: refused };
@@ -569,7 +568,7 @@ export async function act(gameId: number, action: Action, basedOn: number, reque
     // in reply. Not in a 1 v 1, where the queue is also the other device's
     // only copy. See `src/lib/arena/beats.ts` and `clearBeatsForTurn`; it is
     // done in the same write as the move.
-    applied = await applyToGame(db, gameId, action, undefined, {
+    await applyToGame(db, gameId, action, undefined, {
       clearBeats: true,
       game: current,
       expectedRevision: basedOn,
@@ -582,10 +581,10 @@ export async function act(gameId: number, action: Action, basedOn: number, reque
     if (err instanceof RequestIdentityConflict) return { error: err.message };
     throw err;
   }
-  // Claude's reply starts from the board this request has just written.
-  const ran = applied.duplicateRequest ? { error: null } : await advance(db, gameId, undefined, applied);
+  // Acknowledge the persisted human move before AI work begins. ArenaStage
+  // starts the separate advance request as soon as this action returns.
   revalidatePath(`/arena/${gameId}`);
-  return { error: ran.error };
+  return { error: null };
 }
 
 /**
@@ -635,6 +634,7 @@ export async function requestReview(gameId: number): Promise<{ error: string | n
   try {
     await reviewGame(db, gameId);
   } catch (err) {
+    if (err instanceof InterruptedGameReviewError) return { error: err.message };
     return { error: describeAiError(err) };
   }
   revalidatePath(`/arena/${gameId}`);
