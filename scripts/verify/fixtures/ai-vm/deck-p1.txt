@@ -1,0 +1,4 @@
+1× CRIT (CRIT) — battle, Red, cost 3, 15000 power, combo +5,000 for 1, [Critical]
+   [Critical]
+1× L-RED (L-RED) — leader, Red, cost —, 10000 power
+49× V1 (V1) — battle, Red, cost 1, 10000 power, combo +5,000 for 1

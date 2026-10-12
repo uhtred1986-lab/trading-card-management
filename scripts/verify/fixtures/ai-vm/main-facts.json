@@ -1,0 +1,777 @@
+{
+  "turn": 3,
+  "prompt": {
+    "kind": "main",
+    "player": "p1"
+  },
+  "zones": {
+    "p1": {
+      "leader": [
+        {
+          "id": "p1#0",
+          "card": "L-RED",
+          "mode": "active",
+          "faceUp": false
+        }
+      ],
+      "deck": [
+        {
+          "id": "p1#38",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#13",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#12",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#45",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#2",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#49",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#36",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#42",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#28",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#5",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#6",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#27",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#37",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#32",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#10",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#46",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#41",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#14",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#8",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#20",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#30",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#7",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#44",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#31",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#24",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#11",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#21",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#19",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#25",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#34",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#48",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#4",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        }
+      ],
+      "hand": [
+        {
+          "id": "p1#9",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#23",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#17",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#50",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#29",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#26",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#43",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        }
+      ],
+      "life": [
+        {
+          "id": "p1#1",
+          "card": "V1",
+          "mode": null,
+          "faceUp": true
+        },
+        {
+          "id": "p1#3",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#39",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#22",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#47",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#33",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#40",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p1#16",
+          "card": "V1",
+          "mode": null,
+          "faceUp": false
+        }
+      ],
+      "battle": [
+        {
+          "id": "p1#15",
+          "card": "CRIT",
+          "mode": "active",
+          "faceUp": false
+        }
+      ],
+      "energy": [
+        {
+          "id": "p1#35",
+          "card": "V1",
+          "mode": "active",
+          "faceUp": false
+        },
+        {
+          "id": "p1#18",
+          "card": "V1",
+          "mode": "active",
+          "faceUp": false
+        }
+      ],
+      "drop": []
+    },
+    "p2": {
+      "leader": [
+        {
+          "id": "p2#0",
+          "card": "L-BLUE",
+          "mode": "active",
+          "faceUp": false
+        }
+      ],
+      "deck": [
+        {
+          "id": "p2#46",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#47",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#12",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#1",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#20",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#14",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#26",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#27",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#50",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#25",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#29",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#40",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#38",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#49",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#4",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#33",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#24",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#31",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#21",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#36",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#43",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#2",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#45",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#28",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#9",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#15",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#42",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#48",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#7",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#18",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#17",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        }
+      ],
+      "hand": [
+        {
+          "id": "p2#10",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#41",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#19",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#22",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#5",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#6",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#13",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#37",
+          "card": "BLOCKER",
+          "mode": null,
+          "faceUp": false
+        }
+      ],
+      "life": [
+        {
+          "id": "p2#32",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#16",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#39",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#35",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#34",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#3",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#23",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        },
+        {
+          "id": "p2#8",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        }
+      ],
+      "battle": [
+        {
+          "id": "p2#44",
+          "card": "BLOCKER",
+          "mode": "active",
+          "faceUp": false
+        }
+      ],
+      "energy": [
+        {
+          "id": "p2#30",
+          "card": "V-BLUE",
+          "mode": "active",
+          "faceUp": false
+        }
+      ],
+      "drop": [
+        {
+          "id": "p2#11",
+          "card": "V-BLUE",
+          "mode": null,
+          "faceUp": false
+        }
+      ]
+    }
+  },
+  "mainLegalMoves": [
+    {
+      "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#9"
+      },
+      "label": "Play V1"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#23"
+      },
+      "label": "Play V1"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#17"
+      },
+      "label": "Play V1"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#50"
+      },
+      "label": "Play V1"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#29"
+      },
+      "label": "Play V1"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#26"
+      },
+      "label": "Play V1"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#43"
+      },
+      "label": "Play V1"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with L-RED (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#15",
+        "target": "p2#0"
+      },
+      "label": "Attack L-BLUE with CRIT (15000 vs 10000)"
+    }
+  ],
+  "blockerPrompt": {
+    "kind": "blocker",
+    "player": "p2",
+    "candidates": [
+      "p2#44"
+    ]
+  },
+  "blockerLegalMoves": [
+    {
+      "action": {
+        "type": "block",
+        "player": "p2",
+        "card": "p2#44"
+      },
+      "label": "Block with BLOCKER"
+    },
+    {
+      "action": {
+        "type": "block",
+        "player": "p2",
+        "card": null
+      },
+      "label": "Don't block"
+    }
+  ],
+  "comboTurn": 3,
+  "comboPrompt": {
+    "kind": "combo",
+    "player": "p1",
+    "side": "offense"
+  },
+  "comboLegalMoves": [
+    "combo V1",
+    "combo V1",
+    "combo V1",
+    "combo V1",
+    "combo V1",
+    "combo V1",
+    "combo V1",
+    "combo CRIT",
+    "pass"
+  ]
+}
