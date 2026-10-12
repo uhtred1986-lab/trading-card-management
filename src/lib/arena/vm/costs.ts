@@ -84,7 +84,7 @@ import { attrsOf } from "./cards";
 import type { PayerGrant, VmAltCost } from "./effects";
 import { attrsNow, staticsNow } from "./program";
 import { NotYet, RulesetBroken } from "./errors";
-import { SETUP_ZONES, moved } from "./flow";
+import { SETUP_ZONES, moved, type MoveCause } from "./flow";
 import { fire, log } from "./events";
 import type { VmState } from "./state";
 
@@ -907,8 +907,10 @@ export function chargeCost(
   payment: VmPayment,
   card: string | null,
   costs: string[],
+  move?: (id: string, to: string, opts: MoveCause) => void,
 ): void {
   const charges = chargesOf(game);
+  const payMove = move ?? ((id: string, to: string, opts: MoveCause) => moved(ctx, game, state, ev, id, to, opts));
   for (const name of costs) {
     const charge = charges[name];
     if (!charge) throw new RulesetBroken(state.game, `there is no price called ${JSON.stringify(name)} to charge`);
@@ -940,7 +942,7 @@ export function chargeCost(
         // out of an open pool (5-4's Z-Energy) was never hidden. Read off the
         // zone's declared visibility, never off the price's name.
         const reveal = game.zones[charge.from.area]?.visibility === "all" ? {} : { reveal: true };
-        for (const id of payment.pooled.find((x) => x.cost === name)?.cards ?? []) moved(ctx, game, state, ev, id, to, { owner: player, asPlay: false, ...reveal });
+        for (const id of payment.pooled.find((x) => x.cost === name)?.cards ?? []) payMove(id, to, { owner: player, asPlay: false, ...reveal });
         break;
       }
       case "markers": {
@@ -967,7 +969,7 @@ export function chargeCost(
       case "life": {
         const to = (charge.does as { to?: string } | null)?.to;
         if (!to) throw new RulesetBroken(state.game, `the price ${name} takes cards from life and says nowhere to put them`);
-        for (const id of payment.life) moved(ctx, game, state, ev, id, to, { owner: player, asPlay: false });
+        for (const id of payment.life) payMove(id, to, { owner: player, asPlay: false });
         break;
       }
       case "mode":

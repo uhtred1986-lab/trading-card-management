@@ -70,6 +70,17 @@ export function keywordProgram(game: GameDefinition, def: KeywordDef, sk: Skill)
   return def.name === "Aegis" ? continueAegisPayment(game, ops) : ops;
 }
 
+/** 22-30-3: the declared hand-card payment and 22-30-5 effect are separate
+ * stages so an additional skill cost can be determined between them (#595). */
+export function aegisPrograms(game: GameDefinition, def: KeywordDef, sk: Skill): { payment: Op[]; effect: Op[] } {
+  if (def.name !== "Aegis") throw new RulesetBroken(game.id, "Aegis payment stages requested for another keyword");
+  const ops = bindKeywordParams(def.do ?? [], def.takes, (sk.keyword ?? {}) as Record<string, unknown>, game);
+  const payment = ops[1];
+  const before = continueAegisPayment(game, ops, []);
+  if (payment?.op !== "if") throw new RulesetBroken(game.id, "Aegis no longer declares its payment/effect boundary");
+  return { payment: before, effect: [...payment.then.slice(1), ...ops.slice(2)] };
+}
+
 /**
  * 22-30-3: Aegis's declared body names the colours, asks for cards, and says
  * what happens after their cost is paid. Turn only its broad set choice into
@@ -78,7 +89,7 @@ export function keywordProgram(game: GameDefinition, def: KeywordDef, sk: Skill)
  * ScriptFrame, so this generated program survives a save/reload without a
  * separate Aegis state shape.
  */
-function continueAegisPayment(game: GameDefinition, ops: Op[]): Op[] {
+function continueAegisPayment(game: GameDefinition, ops: Op[], after?: Op[]): Op[] {
   const first = ops[0];
   const payment = ops[1];
   if (first?.op !== "choose" || payment?.op !== "if" || payment.cond.kind !== "covers") {
@@ -111,7 +122,7 @@ function continueAegisPayment(game: GameDefinition, ops: Op[]): Op[] {
     as,
     reason: `[Aegis]: choose a card to cover ${color}`,
   });
-  const afterPayment = [...payment.then.slice(1), ...ops.slice(2)];
+  const afterPayment = after ?? [...payment.then.slice(1), ...ops.slice(2)];
   const collectCards = (variables: string[]): Op[] => [
     ...variables.map((variable) => ({ ...paymentMove, target: { var: variable } })),
     ...afterPayment,

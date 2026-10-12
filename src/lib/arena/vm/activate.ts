@@ -642,7 +642,7 @@ const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim()
  * counter window around it is not opened: the legacy engine opens it with no
  * candidates at all, so there is nothing to answer it with.
  */
-export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string): void {
+export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Pick<ScriptFrame, "ops" | "vars">): void {
   const { card, skill: sk } = line;
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
@@ -676,11 +676,11 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // this one", 22-13-6) and nothing at all on a bare [Evolve] or [Overlord].
   // `AFTER` (#155) is the keyword's last word, after that printed effect:
   // [Wish]'s flip of the Leader (22-25-4).
-  const program = line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []);
+  const program = resolved?.ops ?? (line.keyword ? [...keywordProgram(game, line.keyword, sk), ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, sk)] : (line.script?.ops ?? []));
   // 20-5: the X the price was paid at is what the effect reads as `X`.
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
-  const effect: ScriptFrame = { ops: program, ip: 0, vars: onto === undefined ? {} : { base: [onto] }, card, master: player, skillIndex: sk.index, ...(heroicExtra ? { afterSkillSource: card } : {}), ...(x === undefined ? {} : { x }) };
+  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, ...(heroicExtra ? { afterSkillSource: card } : {}), ...(x === undefined ? {} : { x }) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -805,10 +805,11 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * a replay compares, so the order is the oracle's. [Field] is the exception
  * the legacy engine makes too: its `Field` case pays the Extra's energy cost
  * first and announces the skill as it resolves (`resolvesLater`), so it is
- * announced after the price.
+ * announced after the price. Aegis also announces after payment: 22-30-3
+ * places its hand-color payment before determining the additional price.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !!line.keyword && line.keyword.name !== "Field" && !line.script?.ops.length;
+  return !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length;
 }
 
 /** The `skill` event for a line being used (9-6). */

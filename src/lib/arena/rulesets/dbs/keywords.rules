@@ -532,10 +532,10 @@ DEFINE KEYWORD Aegis
   -- only in a battle, and the one the non-turn player is asked is the
   -- Defense Step's (22-30-4) — from a card in play, while the hand can cover
   -- the colours (`covers`), for the line's printed orbs, as the legacy
-  -- `activatable` case gates it. Paying first, then up to two cards of the
-  -- colours one at a time (the legacy prompt's `max` is the colours named,
-  -- and every [Aegis] names two); cards that cover them go to the Drop as the
-  -- cost (22-30-3), then up to two rested energy stand (22-30-5) and the
+  -- `activatable` case gates it. The VM's persisted #595 continuation first
+  -- pays the colour cards to Drop, then determines and pays any additional
+  -- cost from the resulting board (22-30-3). Only after the full payment do
+  -- up to two rested energy stand (22-30-5) and the
   -- combo prompt is put again. Picked wrongly, the orbs are spent and nothing
   -- happens, as there.
   offer: "activate:battle"
