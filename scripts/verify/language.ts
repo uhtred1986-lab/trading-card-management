@@ -81,6 +81,10 @@ import type { CardFilter, SchemaOp } from "./harness";
   for (const [name, spec] of Object.entries(OP_SCHEMA)) {
     const op: Record<string, unknown> = { op: name };
     for (const f of spec.fields) if (f.required) op[f.name] = sample(f.type);
+    // invokeSkill is a closed union: the schema's individually required
+    // fields alone are not one complete variant. Keep the existing Desire
+    // shape as the minimal sample; lang.ts checks both complete variants.
+    if (name === "invokeSkill") Object.assign(op, { trait: "Desire", skillKind: "activate:main", maxCost: "currentEnergy" });
     assert.equal(validate([op]), true, `a minimal ${name} validates`);
     // `note` says nothing by design; `costModifier` has no required field at
     // all (which of its two shapes a call means is read off whether `pay` is

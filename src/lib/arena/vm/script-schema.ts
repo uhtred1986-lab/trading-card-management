@@ -368,6 +368,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"invokeSkill">;
       return "trait" in op ? `activate the chosen ${op.trait} card's ${op.skillKind} skill` : `activate up to 1 ${op.skillKind} skill of ${describeSelector(op.sel)} for free`;
     },
+    doc: "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.",
   },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {

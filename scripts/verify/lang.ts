@@ -1284,6 +1284,27 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   assert.ok(byHand.ok && validateRule(byHand.value, "auto") === null, "an IF on the cause is a rule the validator accepts");
 }
 
+// 12-2-4: SD7's trait/current-energy Main invocation and BT31-116's optional
+// hand selector/Main-Battle invocation are separate validated language forms.
+{
+  const desire: Op = { op: "invokeSkill", trait: "Desire", skillKind: "activate:main", from: "hand", maxCost: "currentEnergy" };
+  const selected: Op = { op: "invokeSkill", sel: { side: "you", area: "hand", count: 1, upTo: true }, skillKind: "activate:main/battle", from: "hand" };
+  for (const [name, op] of [["SD7 Desire", desire], ["BT31 hand Extra", selected]] as const) {
+    assert.equal(validateProgram([op]), true, `${name} is a complete invokeSkill form`);
+    tripOps([op], `${name} invokeSkill language round trip`);
+  }
+  for (const wrong of [
+    { ...selected, trait: "Desire" },
+    { ...selected, maxCost: "currentEnergy" },
+    { ...selected, skillKind: "activate:main" },
+    { ...selected, sel: { side: "you", area: "hand", count: 2, upTo: true } },
+    { ...desire, sel: { side: "you", area: "hand", count: 1, upTo: true } },
+  ]) {
+    assert.equal(validateProgram([wrong]), false, "mixed or widened invocation forms are refused");
+    assert.match(programProblem([wrong]) ?? "", /use either Desire's trait\/current-energy Main line or an optional one-card hand selector/);
+  }
+}
+
 // ── BT31-132: a key the engine does not know is refused by name (3 Oct 2026) ─
 //
 // The stored rule said `"from": "looked"` where a selector says `fromVar`, so

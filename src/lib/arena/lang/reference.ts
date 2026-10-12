@@ -102,6 +102,10 @@ export function sampleFor(t: FieldType): unknown {
 export function minimalInstance(key: string, keyField: "op" | "kind", spec: { fields: OpField[] }): Record<string, unknown> {
   const out: Record<string, unknown> = { [keyField]: key };
   for (const f of spec.fields) if (f.required) out[f.name] = sampleFor(f.type);
+  // This operation has two complete forms; required fields shared by both
+  // are not a complete operation on their own. The older Desire form is the
+  // worked example, while the schema row describes the selector form too.
+  if (keyField === "op" && key === "invokeSkill") Object.assign(out, { trait: "Desire", skillKind: "activate:main", maxCost: "currentEnergy" });
   return out;
 }
 
