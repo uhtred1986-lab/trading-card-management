@@ -1,0 +1,1 @@
+ALTER TABLE "arena_games" ADD COLUMN "action_receipts" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -13,7 +13,7 @@ import { type Action, type GameState } from "@/lib/arena/types";
 import { printRule, readRule } from "@/lib/arena/lang";
 import { defaultEngine } from "@/lib/arena/engine-setting";
 import { engineOr } from "@/lib/arena/engines";
-import { abandonGame, applyToGame, engineForMode, isVersus, loadGame, seatOf, StaleGame, startGame, type ArenaMode, type LoadedGame } from "@/lib/arena/games";
+import { abandonGame, applyToGame, engineForMode, GameAlreadyFinished, isVersus, loadGame, mutationFingerprint, replayMutation, RequestIdentityConflict, seatOf, StaleGame, startGame, type ArenaMode, type LoadedGame } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentOwner, currentUser, isArenaAdmin, requireSignedIn, requireSl } from "@/lib/auth";
 import { assertOwnDeck, canOpenGame } from "@/lib/auth/ownership";
@@ -542,8 +542,24 @@ export async function matchGameId(matchId: number): Promise<{ gameId: number | n
  * than an index into a menu, and without this your brother could play your
  * cards by asking for them.
  */
-export async function act(gameId: number, action: Action): Promise<{ error: string | null }> {
+export async function act(gameId: number, action: Action, basedOn: number, requestId: string): Promise<{ error: string | null }> {
   await requireSignedIn();
+  if (!Number.isInteger(basedOn) || basedOn < 0 || !isRequestId(requestId)) return { error: "refresh the board before acting" };
+  const actor = await currentUser();
+  const allowed = await refuse(gameId, false);
+  if (allowed) return { error: allowed };
+  const current = await loadGame(db, gameId);
+  if (!current) return { error: "no such game" };
+  const identity = { actor, requestId, fingerprint: mutationFingerprint({ basedOn, action }) };
+  try {
+    if (replayMutation(current, identity)) {
+      revalidatePath(`/arena/${gameId}`);
+      return { error: null };
+    }
+  } catch (err) {
+    if (err instanceof RequestIdentityConflict) return { error: err.message };
+    throw err;
+  }
   let applied: LoadedGame;
   try {
     const refused = await refuse(gameId, true);
@@ -553,14 +569,21 @@ export async function act(gameId: number, action: Action): Promise<{ error: stri
     // in reply. Not in a 1 v 1, where the queue is also the other device's
     // only copy. See `src/lib/arena/beats.ts` and `clearBeatsForTurn`; it is
     // done in the same write as the move.
-    applied = await applyToGame(db, gameId, action, undefined, { clearBeats: true });
+    applied = await applyToGame(db, gameId, action, undefined, {
+      clearBeats: true,
+      game: current,
+      expectedRevision: basedOn,
+      request: identity,
+    });
   } catch (err) {
     if (err instanceof IllegalAction) return { error: err.message };
     if (err instanceof StaleGame) return { error: err.message };
+    if (err instanceof GameAlreadyFinished) return { error: err.message };
+    if (err instanceof RequestIdentityConflict) return { error: err.message };
     throw err;
   }
   // Claude's reply starts from the board this request has just written.
-  const ran = await advance(db, gameId, undefined, applied);
+  const ran = applied.duplicateRequest ? { error: null } : await advance(db, gameId, undefined, applied);
   revalidatePath(`/arena/${gameId}`);
   return { error: ran.error };
 }
@@ -618,13 +641,33 @@ export async function requestReview(gameId: number): Promise<{ error: string | n
   return { error: null };
 }
 
-export async function abandon(gameId: number) {
+export async function abandon(gameId: number, basedOn: number, requestId: string): Promise<{ error: string | null }> {
   await requireSignedIn();
+  if (!Number.isInteger(basedOn) || basedOn < 0 || !isRequestId(requestId)) {
+    return { error: "refresh the board before giving up" };
+  }
   // Either seat may give up, and it ends the game for both.
-  if (await refuse(gameId, false)) return;
-  await abandonGame(db, gameId);
+  const refused = await refuse(gameId, false);
+  if (refused) return { error: refused };
+  try {
+    await abandonGame(db, gameId, basedOn, {
+      actor: await currentUser(),
+      requestId,
+      fingerprint: mutationFingerprint({ basedOn, type: "abandon" }),
+    });
+  } catch (err) {
+    if (err instanceof StaleGame) return { error: "the board moved on — refresh it before giving up" };
+    if (err instanceof GameAlreadyFinished) return { error: err.message };
+    if (err instanceof RequestIdentityConflict) return { error: err.message };
+    throw err;
+  }
+  revalidatePath(`/arena/${gameId}`);
   revalidatePath("/arena");
   redirect("/arena");
+}
+
+function isRequestId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 

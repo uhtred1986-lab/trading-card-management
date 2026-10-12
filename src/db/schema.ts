@@ -716,14 +716,21 @@ export const arenaGames = pgTable(
      */
     snapshot: jsonb("snapshot"),
     /**
-     * Bumped by every `applyToGame`, which writes `WHERE version = <what it
-     * read>`. Two people on two devices can legitimately both be poised to
+     * The authoritative client revision, bumped by every gameplay state or
+     * status write (including abandonment), which writes `WHERE version =
+     * <what it read>`. Beat progress is separate animation state. Two people
+     * on two devices can legitimately both be poised to
      * act — a blocker or counter prompt belongs to the player whose turn it is
      * not — so the read-modify-write this row has always been now needs a
      * guard. A refused write means the board moved on, and the caller re-reads
      * it rather than clobbering what it missed.
      */
     version: integer("version").notNull().default(0),
+    /** Durable actor-scoped idempotency receipts for browser and HTTP mutations. */
+    actionReceipts: jsonb("action_receipts")
+      .$type<{ actor: string | null; requestId: string; fingerprint: string; revision: number }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

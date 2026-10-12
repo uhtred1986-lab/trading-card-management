@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { canOpenGame } from "@/lib/auth/ownership";
 import { chooseSchema, fail, ok, readJson, seatFor } from "@/lib/arena/api";
 import { IllegalAction } from "@/lib/arena/vm/common";
-import { isVersus, loadGame, StaleGame } from "@/lib/arena/games";
+import { GameAlreadyFinished, isVersus, loadGame, mutationFingerprint, replayMutation, RequestIdentityConflict, StaleGame } from "@/lib/arena/games";
 import { applyAction, snapshotOfGame } from "@/lib/arena/session";
 import { routeViewer } from "@/lib/auth";
 
@@ -24,14 +24,36 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // A player opens only their own games; a game they may not open does not exist for them.
   if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
 
-  const parsed = chooseSchema.safeParse(await readJson(req));
-  if (!parsed.success) return fail("bad_request", "expected { index, basedOn? }");
-  const { index, basedOn } = parsed.data;
+  const body = await readJson(req);
+  const parsed = chooseSchema.safeParse(body);
+  if (!parsed.success) {
+    if (body && typeof body === "object" && "index" in body && (!("basedOn" in body) || !("requestId" in body))) {
+      return fail("contract_mismatch", "update the client to send the snapshot revision and a requestId");
+    }
+    return fail("bad_request", "expected { index, basedOn, requestId }");
+  }
+  const { index, basedOn, requestId } = parsed.data;
 
   const game = await loadGame(db, id);
   if (!game) return fail("not_found", `no game ${id}`);
   const seat = await seatFor(game);
   if (isVersus(game.mode) && !seat) return fail("not_found", `no game ${id}`);
+
+  const identity = {
+    actor: auth.viewer.login,
+    requestId,
+    // Index is interpreted against this immutable revision. A retry therefore
+    // keeps the same intent even after legal actions have changed.
+    fingerprint: mutationFingerprint({ index, basedOn }),
+  };
+  try {
+    const replay = replayMutation(game, identity);
+    if (replay) return ok(await snapshotOfGame(db, replay, seat));
+  } catch (err) {
+    if (err instanceof RequestIdentityConflict) return fail("idempotency_conflict", err.message);
+    throw err;
+  }
+
   if (game.status !== "playing") return fail("game_over", "this game is over");
 
   // The engine judges the move; only this judges the mover. `legal` holds both
@@ -43,7 +65,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // The game moved on since the client drew that board, so `index` now points
   // at a different move. Refuse rather than guess: the client re-reads and the
   // player taps again, which is the only honest answer to a stale tap.
-  if (basedOn != null && (game.beats?.seq ?? 0) !== basedOn) {
+  if (game.version !== basedOn) {
     return fail("stale", "the board has moved on — read it again");
   }
 
@@ -51,9 +73,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!chosen) return fail("illegal_action", `there is no move ${index}; the board offers ${game.legal.length}`);
 
   try {
-    return ok(await applyAction(db, id, chosen.action, seat, game));
+    return ok(await applyAction(db, id, chosen.action, seat, game, { expectedRevision: basedOn, identity }));
   } catch (err) {
     if (err instanceof IllegalAction) return fail("illegal_action", err.message);
+    if (err instanceof GameAlreadyFinished) return fail("game_over", err.message);
+    if (err instanceof RequestIdentityConflict) return fail("idempotency_conflict", err.message);
     // The row changed between the read above and the write. Same answer as a
     // failed `basedOn`, reached the only other way it can be.
     if (err instanceof StaleGame) return fail("stale", err.message);
@@ -74,5 +98,5 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const seat = await seatFor(game);
   if (isVersus(game.mode) && !seat) return fail("not_found", `no game ${id}`);
   const snapshot = await snapshotOfGame(db, game, seat);
-  return ok({ legal: snapshot.legal, basedOn: snapshot.beats?.seq ?? 0 });
+  return ok({ legal: snapshot.legal, basedOn: snapshot.game.revision });
 }

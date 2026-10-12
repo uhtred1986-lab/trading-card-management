@@ -1,7 +1,8 @@
 {
-  "contract": 1,
+  "contract": 2,
   "game": {
     "id": 1,
+    "revision": 0,
     "mode": "hotseat",
     "engine": "rules",
     "game": "dbs",

@@ -2,7 +2,8 @@
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { act, advanceGame, flagThisTurn, rematch } from "@/app/arena/actions";
+import { abandon, act, advanceGame, flagThisTurn, rematch } from "@/app/arena/actions";
+import { useRouter } from "next/navigation";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/types";
 import type { NumberedBeat } from "@/lib/arena/beats";
@@ -114,6 +115,7 @@ export function ArenaStage({
   admin = false,
   adminDebug = null,
   menu = null,
+  abandonAction,
 }: {
   gameId: number;
   snapshot: Snapshot;
@@ -138,13 +140,17 @@ export function ArenaStage({
   /** What only the server can say — seed, the opponent's hand, the decisions. Present only for an admin. */
   adminDebug?: AdminDebug | null;
   /**
-   * The game page's own links (back to the Arena, give up, and for an admin
-   * the debug view), drawn in the menu sheet's Game section. The page used to
-   * put them in a row above the board; the board has the screen now.
+   * The game page's static links (back to the Arena and, for an admin, the
+   * debug view), drawn in the menu sheet's Game section.
    */
   menu?: React.ReactNode;
+  /** The game page's server action, called with the current polled revision. */
+  abandonAction?: typeof abandon;
 }) {
   const [pending, startTransition] = useTransition();
+  const [abandonPending, startAbandon] = useTransition();
+  const [abandonError, setAbandonError] = useState<string | null>(null);
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   /** The card whose action sheet is open — from a tap, a long press or a right-click. */
@@ -217,8 +223,24 @@ export function ArenaStage({
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
-  const live = useLiveGame(gameId, snapshot, pending || pollWhile);
+  const live = useLiveGame(gameId, snapshot, pending || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
   const { view, legal, taps, log, beats } = live;
+
+  const giveUp = () => {
+    if (!abandonAction) return;
+    setAbandonError(null);
+    const basedOn = live.game.revision;
+    const requestId = crypto.randomUUID();
+    startAbandon(async () => {
+      const result = await abandonAction(gameId, basedOn, requestId);
+      if (result.error) {
+        setAbandonError(result.error);
+        // A stale rejection means a concurrent write won. Refresh the server
+        // render while keeping the rejection visible in this client shell.
+        router.refresh();
+      }
+    });
+  };
 
   // Everything rendered reads the live snapshot. `waitingFor` already returns
   // "you" whenever the prompt belongs to the viewer, so the server was never
@@ -387,7 +409,7 @@ export function ArenaStage({
       gainTimer.current = setTimeout(() => setGain(null), ms);
     }
     startTransition(async () => {
-      const r = await server.act(gameId, action);
+      const r = await server.act(gameId, action, live.game.revision, crypto.randomUUID());
       if (r.error) {
         setError(r.error);
         feel("illegal");
@@ -1222,9 +1244,25 @@ export function ArenaStage({
 
         {moreOpen && (
           <Sheet title="Board controls" onClose={() => setMoreOpen(false)}>
-            {/* The game page's own links — back, give up, the debug view — live
-                here now that the board has the screen (the page passes them). */}
-            {menu && <MenuSection title="Game">{menu}</MenuSection>}
+            {/* The game page's links live here; give-up reads this live snapshot. */}
+            {(menu || abandonAction) && (
+              <MenuSection title="Game">
+                {menu}
+                {abandonAction && live.game.status === "playing" && (
+                  <div className="mt-2 space-y-1">
+                    <button
+                      type="button"
+                      onClick={giveUp}
+                      disabled={abandonPending}
+                      className="tap text-space-400 hover:text-loss disabled:opacity-50"
+                    >
+                      {abandonPending ? "Giving up…" : "give up"}
+                    </button>
+                    {abandonError && <p role="alert" className="text-xs text-loss">{abandonError}</p>}
+                  </div>
+                )}
+              </MenuSection>
+            )}
             {/* From lg the log is the right column's second tab. */}
             <div className="lg:hidden">
               <MenuSection title="Log">
