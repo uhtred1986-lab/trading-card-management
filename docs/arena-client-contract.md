@@ -883,6 +883,14 @@ CardView colours retain their printed meaning. Clients use payment rows
 for default counts and remaining-payment previews; older snapshots explicitly label
 printed-colour counts as incomplete. Multicolour cards count in each colour
 but remain one resource. Hidden Mode payment colours stay empty (23-5-2). Effective colours may be
-shown separately in inspection if they differ. Existing engine limitation:
-colour gains affect attributes but its payment query still reads base colours;
-this UI discloses that difference and does not invent additional payable orbs.
+shown separately in inspection if they differ. The rules engine's payment query
+uses current applicable effective colours (#626), including source-bound and timed
+grants. Hidden Mode retains colourless-only payment; explicit alternative payer
+colours stay the colours their rule names. The client displays the authoritative
+payment rows and never reconstructs legality from card artwork or printed colours.
+
+Both engines withhold a Hidden Mode card's catalogue identity with an empty
+`CardView.cardId` string and omit its front-side text, reading, ability and Permanent
+information. The instance id, position, count and mode remain usable for public
+resource selection. Revealed cards retain their normal catalogue identity. This is
+a projection correction; it does not reveal additional areas or change cost timing.
