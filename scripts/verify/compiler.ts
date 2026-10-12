@@ -286,13 +286,19 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
     const handBefore = zoneOf(s, "p1", "hand").length;
     s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "AUTOCOST") });
     const vm = s as VmState;
-    assert.equal(vm.outcome?.kind, "interrupted", "a due Auto with an unimplemented own cost interrupts before drawing");
-    assert.equal(vm.outcome?.privateContext?.issue, "#549", "the private diagnostic points to the live Auto-cost implementation issue");
-    assert.ok(!vm.outcome?.reason.includes("AUTOCOST"), "the public outcome does not identify the source card");
-    assert.equal(zoneOf(s, "p1", "hand").length, handBefore - 1, "the card was played, but the Auto effect did not draw");
-    assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play cost was paid before interruption");
+    assert.equal(vm.prompt.kind, "chooseMode", "a priced Auto asks whether to pay");
+    assert.equal(zoneOf(s, "p1", "hand").length, handBefore - 1, "the played Auto has not drawn before payment");
+    assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play cost was paid before the decision");
+    const paid = playG(s, { type: "chooseMode", player: "p1", index: 0 });
+    assert.equal(zoneOf(paid, "p1", "hand").length, handBefore + 1, "paid Auto draws two cards");
+    assert.equal(zoneOf(paid, "p1", "energy").filter((id) => paid.cards[id].mode === "rest").length, 2, "Auto rests exactly one additional energy");
+    assert.equal(s.prompt.kind, "chooseMode");
+    if (s.prompt.kind === "chooseMode") {
+      const declined = playG(s, { type: "chooseMode", player: "p1", index: s.prompt.options.length - 1 });
+      assert.equal(zoneOf(declined, "p1", "hand").length, handBefore - 1);
+      assert.equal(zoneOf(declined, "p1", "energy").filter((id) => declined.cards[id].mode === "rest").length, 1);
+    }
   } else {
-    if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
     let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
     const c = findG(s, "p1", "hand", "AUTOCOST");
     const before = zoneOf(s, "p1", "hand").length;
@@ -311,7 +317,6 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
     assert.equal(zoneOf(t, "p1", "hand").length, handBefore - 1 + 2, "paid, so two cards were drawn");
     assert.equal(zoneOf(t, "p1", "energy").filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
     assertConsistentG(t);
-    }
   }
 }
 

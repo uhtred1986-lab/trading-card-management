@@ -156,18 +156,22 @@ const TWO = "Attacks · 2 blue cards in your drop area";
 // ── Engines disagreeing is shown as both ────────────────────────────────────
 
 {
-  // An [Auto] with an action price: the legacy engine charges it and draws;
-  // the rules engine interrupts before resolving it. The row shows both and
-  // the probe's board changes preserve interruption instead of calling it a draw.
+  // A supported Auto action price now pays and resolves on both engines.
+  // Trace notes preserve the cost path without becoming extra costs.
   const priced = probeRuleOf(rule(`WHEN [auto] attacks\nCOST DO {\n  mill(n: 1)\n}\nTHEN\n  draw(n: 1)`), def("T-PRICE", "Priced Seer", "[Auto] When this card attacks, put the top card of your deck in your Drop Area: draw 1 card."), "front", 0);
   const tried = tryRule(priced);
   const attack = tried.rows.find((x) => x.key === "attack") as TryRow;
-  assert.ok(attack.disagree, `the engines disagree: rules ${attack.rules.outcome}, legacy ${attack.legacy.outcome}`);
+  assert.equal(attack.disagree, false, "the supported mill price agrees with the legacy result");
   assert.equal(attack.legacy.headline, "draws 1");
-  assert.equal(attack.rules.headline, "nothing");
-  assert.equal(attack.gate?.clause, "COST", "on the engine games use, the price is what stopped it");
-  assert.ok(attack.rules.applied.some((line) => /Game interrupted/.test(line)), "the engine explains the interruption without public private-cost detail");
-  assert.ok(attack.rules.result.includes("the game is interrupted"), "probe narration does not call a null-winner interruption a draw");
+  assert.equal(attack.rules.headline, "draws 1");
+  assert.equal(attack.rules.outcome, "fired");
+  assert.equal(attack.gate, null, "a paid supported Auto has no failed cost gate");
+  const cost = attack.rules.applied.findIndex((line) => /goes to the Drop/.test(line));
+  const draw = attack.rules.applied.findIndex((line) => /You draw/.test(line));
+  assert.ok(cost >= 0 && draw > cost, "mill payment precedes the draw effect");
+  assert.equal(attack.rules.applied.filter((line) => /goes to the Drop/.test(line)).length, 1, "the action cost pays once");
+  assert.equal(attack.rules.applied.filter((line) => /You draw/.test(line)).length, 1, "the Auto effect draws once");
+  assert.ok(!attack.rules.result.includes("the game is interrupted"));
 }
 
 // ── Met / not-met pairs, both engines, opposite outcomes ────────────────────

@@ -93,7 +93,7 @@ assert.notEqual((falseResult.state as VmState).outcome?.kind, "interrupted", "a 
 assert.notEqual((falseResult.state as VmState).phase, "over");
 
 // Revive is a real at-trigger keyword (`onLeave`) with a supported bare move.
-// Adding its own printed orb cost must stop it before returning the card from
+// An unaffordable printed orb cost cancels it before returning the card from
 // the Drop; the legacy keyword suite separately proves the bare form resolves.
 const pricedCreated = RULES.createGame(testCtx, {
   seed: 546,
@@ -109,10 +109,10 @@ pricedState.pending.push({ card: pricedSource, skillIndex: 0, master: "p1", trig
 const pricedChooser = (pricedState.prompt as { player: "p1" | "p2" }).player;
 const pricedResult = RULES.apply(testCtx, pricedState, { type: "chooseFirst", player: pricedChooser, first: "p1" });
 const pricedEnded = pricedResult.state as VmState;
-assert.equal(pricedEnded.outcome?.kind, "interrupted", "a due keyword with an unsupported printed cost interrupts");
-assert.equal(pricedEnded.outcome?.privateContext?.issue, "#549", "the cost implementation remains separately owned");
-assert.ok(pricedEnded.sides.p1.zones.drop.includes(pricedSource), "Revive does not execute its move when the additional cost is unpayable");
-assert.notEqual(pricedEnded.prompt.kind, "chooseCards", "the engine never opens Revive's choose-cards prompt after interruption");
+assert.equal(pricedEnded.outcome, undefined, "an unaffordable known keyword cost cancels instead of interrupting");
+assert.ok(pricedResult.events.some((event) => event.type === "note" && event.text.includes("unaffordable")), "failed affordability has its own outcome");
+assert.ok(pricedEnded.sides.p1.zones.drop.includes(pricedSource), "Revive does not execute its move when its additional cost is unpayable");
+assert.notEqual(pricedEnded.prompt.kind, "chooseCards", "Revive's effect prompt never opens after canceled payment");
 
 const archiveBase = JSON.parse(readFileSync("contract/fixtures/versus.json", "utf8")) as Snapshot;
 const archive = (over: Snapshot["over"], status = "over") => {
