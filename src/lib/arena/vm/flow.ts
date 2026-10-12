@@ -1099,7 +1099,9 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.afterSkillSource) {
       const source = frame.afterSkillSource;
       delete frame.afterSkillSource;
-      fireAfterSkill(ctx, game, state, source, "heroicExtraSkillActivated", frame.master);
+      const keywords = frame.afterSkillKeywords;
+      delete frame.afterSkillKeywords;
+      fireAfterSkill(ctx, game, state, source, "heroicExtraSkillActivated", frame.master, keywords);
     }
     return stepScript(vmHost(ctx, game, state, ev), frame);
   } catch (err) {

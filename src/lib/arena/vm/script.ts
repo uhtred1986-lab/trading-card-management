@@ -1217,8 +1217,10 @@ export interface ScriptFrame {
   grantEffectId?: number;
   /** Stable provenance of a standing [Permanent] grant at this source's area entry. */
   standingGrantId?: string;
-  /** One-shot announcement at the paid activation boundary for an Extra with [Heroic]. */
+  /** One-shot hook at the successful Extra skill activation boundary. */
   afterSkillSource?: string;
+  /** Source keywords frozen before its move to Drop, retained through a separate action price and save/reload. */
+  afterSkillKeywords?: ("Heroic" | "Villainous")[];
   /** A keyword hook represents a pending skill and is canceled if negated before resolution. */
   pendingHookSkill?: true;
   /** An afterSkill event has an unidentifiable self-negating hook; fail before any event hook body runs. */

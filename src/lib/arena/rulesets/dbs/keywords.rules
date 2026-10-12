@@ -345,12 +345,13 @@ DEFINE KEYWORD Heroic
 -- 22-36
 DEFINE KEYWORD Villainous
   TAKES ()
-  text: "When you play another card with [Villainous], your opponent chooses a card in their hand and drops it; the skill is then negated for the rest of the turn."
-  -- Same gap as [Heroic]'s own HOOK: fires every time, not once a turn.
+  text: "When you play another Battle Card with [Villainous], or activate a [Villainous] Extra Card skill, your opponent chooses a card in their hand and drops it; the skill is then negated for the rest of the turn."
+  -- Match the individual printed or granted identity carried by afterSkill.
   HOOK afterSkill {
-    if(cond: count("card with [Villainous]" FROM $source) >= 1, then: {
+    if(cond: any([count("Battle Card with [Villainous]" FROM $source) >= 1, count("Extra Card with [Villainous]" FROM $activatedExtra) >= 1]), then: {
       choose(sel: 1 IN opponent.hand, chooser: opponent, as: "t")
       moveTo(target: $t, to: drop)
+      negateOwnSkill(until: turn)
     })
   }
 

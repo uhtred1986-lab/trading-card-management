@@ -42,7 +42,7 @@
  *   is still a candidate and is refused `unread`, because a player reaching
  *   for it is owed an answer; it is simply not one this engine can give yet.
  *
- *   *A [Counter]* is not an activation at all: its windows (an attack's,
+ *   *A [Counter]* is a skill activation handled outside this declaration: its windows (an attack's,
  *   a play's) are `vm/battle.ts`'s native `counter` move (#150), and no
  *   declaration offers those kinds. *An [Activate: Battle]* is this paragraph
  *   read against the combo prompt — `vm/battle.ts` hands `activate` the
@@ -676,7 +676,9 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   // Capture the rule's trigger at the successful activation boundary, before
   // an Extra leaves the hand or its effect can alter keywords in force.
-  const heroicExtra = isExtra(ctx, game, state, card) && hasKeyword(ctx, game, state, card, "Heroic");
+  const afterSkillKeywords: ("Heroic" | "Villainous")[] = isExtra(ctx, game, state, card)
+    ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
+    : [];
   if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
   if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
@@ -708,7 +710,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // 20-5: the X the price was paid at is what the effect reads as `X`.
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
-  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, ...(heroicExtra ? { afterSkillSource: card } : {}), ...(x === undefined ? {} : { x }) };
+  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -719,7 +721,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
     return;
   }
-  if (program.length || heroicExtra) state.programs.unshift(effect);
+  if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);
 }
 
 /** Where a line's action price leaves what it chose for the effect — the legacy key, word for word. */
