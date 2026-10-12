@@ -4,6 +4,7 @@ import { compileCostProgram, compileSkill } from "../../src/lib/arena/compile";
 import { move as legacyMove, playCost as legacyPlayCost } from "../../src/lib/arena/engine/state";
 import { pendTriggers } from "../../src/lib/arena/engine/triggers";
 import { parseSkills } from "../../src/lib/arena/text/cards";
+import { whiteCellPlayedSubjectFilter } from "../../src/lib/arena/text/triggers";
 import { engineFor } from "../../src/lib/arena/engines";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
@@ -14,6 +15,7 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, GameEvent, GameState, PlayerId } from "../../src/lib/arena/types";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
+import { RULES_ONLY } from "./rules-only";
 
 const AUTO = "[Auto] Switch 1 of your energy to Hidden Mode: When your <Cell> or <Cell Jr.> card—both white and with an energy cost of 3 or more—is played, activate an [Activate: Main/Battle] skill of up to 1 mono-white Extra with an energy cost of 2 in your hand.";
 const EXTRA = "[Activate: Main/Battle] {r}{1}: Draw 1 card.";
@@ -62,6 +64,16 @@ assert.deepEqual(compiled.unsupported, []);
 assert.deepEqual(compiled.ops.map((op) => op.op), ["invokeSkill"], "the trigger guard runs at the play moment, not after the Auto price");
 assert.equal(compiled.ops[0]?.op === "invokeSkill" && compiled.ops[0].skillKind, "activate:main/battle");
 assert.deepEqual(compileCostProgram(parseSkills(AUTO)[0]!)?.ops.map((op) => op.op), ["choose", "hidden"]);
+for (const extended of [
+  AUTO.replace("is played, activate", "is played and your life is at 4 or less, activate"),
+  AUTO.replace("is played, activate", "is played, and your life is at 4 or less, activate"),
+  AUTO.replace("is played, activate", "is played, your Leader Card is blue, activate"),
+]) {
+  const skill = parseSkills(extended)[0]!;
+  assert.equal(whiteCellPlayedSubjectFilter(skill), null, "an extended trigger is not this exact printed family");
+  const read = compileSkill(skill);
+  assert.equal(read.ops[0]?.op, "if", "the compiler retains an extended trigger's own condition");
+}
 
 function main(leader: "C680-LEADER" | "C680-WISH" | "L-RED" = "C680-LEADER"): VmState {
   let state = rules.createGame(ctx, { seed: 680, p1: { name: "You", leader, main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
@@ -95,6 +107,7 @@ function prepared(extraIds: (keyof typeof defs)[] = ["C680-EXTRA"], playedId: ke
   return { state, cell, energy, extras };
 }
 
+if (!RULES_ONLY) {
 for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
   const { state, cell, energy, extras: [extra] } = prepared(["C680-EXTRA"], wrong);
   const played = take(state, { type: "play", player: "p1", card: cell });
@@ -411,6 +424,7 @@ for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
   assert.equal(draws(chosen.events), 2, "legacy: waived hand Extra still causes the ordinary activation watcher");
   assert.equal(chosen.events.filter((event) => event.type === "skill" && event.card === watcher).length, 1);
   assert.equal(energy.filter((id) => state.cards[id].hidden).length, 0, "#549 legacy gap remains an active unsupported payment boundary");
+}
 }
 
 console.log("free-extra-680: VM paid/declined activation, eligibility, stale/reload/privacy and legacy invocation boundary passed");

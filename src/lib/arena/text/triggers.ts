@@ -22,8 +22,12 @@ const WHITE_CELL_PLAYED = parseFilter(expandSharedCardDescription("white <Cell> 
 export function whiteCellPlayedSubjectFilter(sk: Skill): CardFilter | null {
   if (sk.kind !== "auto") return null;
   const head = effectHead(maskNames(sk.effect).text);
-  return /^when your <cell> or <cell jr\.> card—both white and with an energy cost of 3 or more—is played\b/.test(head)
-    ? WHITE_CELL_PLAYED : null;
+  const exact = /^when your <cell> or <cell jr\.> card—both white and with an energy cost of 3 or more—is played(?=,|\.|$)/.exec(head);
+  // The comma in the known line introduces its activation effect. If it
+  // introduces another condition, this is no longer the known trigger; its
+  // separate condition must stay on the compiled program.
+  if (!exact || (head[exact[0].length] === "," && !/^,\s*activate\b/.test(head.slice(exact[0].length)))) return null;
+  return WHITE_CELL_PLAYED;
 }
 
 /** Keyword [Auto] skills and the events that make them pending (22). */
