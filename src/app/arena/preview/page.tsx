@@ -2,6 +2,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { notFound } from "next/navigation";
 import type { Snapshot } from "@/lib/arena/snapshot";
+import type { Action } from "@/lib/arena/types";
+import type { GameplanPreview } from "@/lib/arena/gameplan-types";
+import { existsSync } from "node:fs";
 import { skinFrom } from "@/lib/arena/skin";
 import { stagingFrom } from "@/lib/arena/staging";
 import type { Pace } from "@/lib/arena/pace";
@@ -35,10 +38,16 @@ function snapshotFixtures(): string[] {
  * It exists so a review can see the real board in a session that keeps off
  * Neon; production answers 404.
  */
-export default async function ArenaPreviewPage({ searchParams }: { searchParams: Promise<{ fixture?: string; skin?: string; staging?: string; pace?: string; turn?: string; fx?: string; admin?: string; referee?: string; replay?: string }> }) {
+export default async function ArenaPreviewPage({ searchParams }: { searchParams: Promise<{ fixture?: string; skin?: string; staging?: string; pace?: string; turn?: string; fx?: string; admin?: string; referee?: string; replay?: string; gameplan?: string }> }) {
   await requireSlPage();
   if (process.env.NODE_ENV === "production") notFound();
   const q = await searchParams;
+  if (q.gameplan === "1") {
+    const proofPath = join(DIR, "u08-gameplan-proof.json");
+    if (!existsSync(proofPath)) notFound();
+    const proof = JSON.parse(readFileSync(proofPath, "utf8")) as { snapshot: Snapshot; actions: Action[]; first: GameplanPreview; second: GameplanPreview };
+    return <PreviewStage snapshot={proof.snapshot} skin={skinFrom(q.skin)} staging={stagingFrom(q.staging)} pace={null} announceTurn={false} fx={null} admin={false} referee={false} planProof={proof} />;
+  }
   const names = snapshotFixtures();
   const name = q.fixture ?? "play";
   if (!names.includes(name)) {

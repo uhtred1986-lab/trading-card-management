@@ -7,6 +7,8 @@ import { GameOver } from "@/components/arena/GameOver";
 import type { Beat, NumberedBeat } from "@/lib/arena/beats";
 import { setPacePref, type Pace } from "@/lib/arena/pace";
 import type { Snapshot } from "@/lib/arena/snapshot";
+import type { Action } from "@/lib/arena/types";
+import type { GameplanPreview } from "@/lib/arena/gameplan-types";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import type { ArenaStaging } from "@/lib/arena/staging";
 import type { AdminDebug } from "@/lib/arena/admin-debug";
@@ -152,6 +154,7 @@ export function PreviewStage({
   admin,
   referee,
   replay = false,
+  planProof,
 }: {
   snapshot: Snapshot;
   skin: ArenaSkin;
@@ -162,6 +165,7 @@ export function PreviewStage({
   admin: boolean;
   referee: boolean;
   replay?: boolean;
+  planProof?: { actions: Action[]; first: GameplanPreview; second: GameplanPreview };
 }) {
   // `?replay=1` (preview only): the fixture's own beats, played from the start. It is the
   // `reveal`/`ko` path without a filter — mount the board with an empty queue, then deliver
@@ -224,7 +228,14 @@ export function PreviewStage({
   }, [fx, snapshot]);
   return (
     <>
-      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={STUB} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} menu={PREVIEW_MENU} />
+      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={planProof ? {
+        ...STUB,
+        preview: async (_gameId: number, actions: Action[]) => {
+          const first = JSON.stringify(actions[0]) === JSON.stringify(planProof.actions[0]);
+          const second = actions.length === 1 || JSON.stringify(actions[1]) === JSON.stringify(planProof.actions[1]);
+          return first && second ? { error: null, preview: actions.length === 1 ? planProof.first : planProof.second } : { error: "choose the fixture's priced moves", preview: null };
+        },
+      } : STUB} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} menu={PREVIEW_MENU} />
       {fx === "over" && (
         <div className="mx-auto mt-3 max-w-xl px-2">
           <GameOver

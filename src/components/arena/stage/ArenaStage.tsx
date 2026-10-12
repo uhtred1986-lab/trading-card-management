@@ -2,13 +2,14 @@
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { abandon, act, advanceGame, flagThisTurn, rematch } from "@/app/arena/actions";
+import { abandon, act, advanceGame, flagThisTurn, previewGameplanAction, rematch } from "@/app/arena/actions";
 import { useRouter } from "next/navigation";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/types";
 import type { NumberedBeat } from "@/lib/arena/beats";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
+import { planMoves, type GameplanPreview, type PlanMove } from "@/lib/arena/gameplan-types";
 import type { CardView } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
 import { isStructuralRequirement } from "../ability-panel-model";
@@ -86,7 +87,7 @@ import { SpeedButton } from "./SpeedButton";
  * cards out of their rows so each card is drawn once — a card's `layoutId` is
  * what flies it there and back, so it may exist in exactly one place.
  */
-const REAL_SERVER = { act, advance: advanceGame, flag: flagThisTurn, rematch };
+const REAL_SERVER = { act, advance: advanceGame, flag: flagThisTurn, rematch, preview: previewGameplanAction };
 
 /**
  * Whether the board is wide enough for the docked inspector (Tailwind `lg`).
@@ -129,7 +130,7 @@ export function ArenaStage({
    * the fixture preview (`/arena/preview`, dev-only) injects stubs, so a tap
    * there goes nowhere instead of to a database that is not there.
    */
-  server?: { act: typeof act; advance: typeof advanceGame; flag: typeof flagThisTurn; rematch: typeof rematch };
+  server?: { act: typeof act; advance: typeof advanceGame; flag: typeof flagThisTurn; rematch: typeof rematch; preview?: typeof previewGameplanAction };
   /** Fixture preview only: open with the turn banner up, so a shot can catch a turn boundary (#344). */
   announceTurn?: boolean;
   /**
@@ -232,6 +233,36 @@ export function ArenaStage({
   const live = liveGame.snapshot;
   const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
   const { view, legal, taps, log, beats } = live;
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planRevision, setPlanRevision] = useState(live.game.revision);
+  const [planFirst, setPlanFirst] = useState<Action | null>(null);
+  const [plan, setPlan] = useState<GameplanPreview | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planPending, startPlan] = useTransition();
+  const planRequest = useRef(0);
+  const liveRevision = useRef(live.game.revision);
+  useEffect(() => { liveRevision.current = live.game.revision; }, [live.game.revision]);
+  const planCurrent = planRevision === live.game.revision;
+  const planChoices = planMoves(legal, view.you.player);
+  const requestPlan = (actions: Action[]) => {
+    if (!server.preview) return;
+    const revision = live.game.revision;
+    setPlanRevision(revision);
+    const request = ++planRequest.current;
+    setPlan(null);
+    setPlanError(null);
+    startPlan(async () => {
+      const result = await server.preview!(gameId, actions, revision);
+      if (request !== planRequest.current || liveRevision.current !== revision) return;
+      setPlanError(result.error);
+      setPlan(result.preview);
+      if (result.error) router.refresh();
+    });
+  };
+  const selectPlanFirst = (move: PlanMove) => {
+    setPlanFirst(move.action);
+    requestPlan([move.action]);
+  };
 
   const giveUp = () => {
     if (!abandonAction) return;
@@ -1256,6 +1287,17 @@ export function ArenaStage({
               inlineBare={inlineBare}
               primaryBare={primaryBare}
               onSend={send}
+              planEnabled={!!server.preview && playable && yourTurn && view.prompt.kind === "main" && !busy && !waitingOnServer}
+              planOpen={planCurrent && planOpen}
+              onPlanToggle={() => { setPlanRevision(live.game.revision); setPlanOpen((open) => planCurrent ? !open : true); }}
+              planChoices={planChoices}
+              planFirst={planCurrent ? planFirst : null}
+              plan={planCurrent ? plan : null}
+              planError={planCurrent ? planError : null}
+              planPending={planCurrent && planPending}
+              onPlanFirst={selectPlanFirst}
+              onPlanSecond={(move) => planCurrent && planFirst && requestPlan([planFirst, move.action])}
+              onPlanClear={() => { planRequest.current++; setPlan(null); setPlanFirst(null); setPlanError(null); setPlanOpen(false); }}
               onNext={playback.next}
               onSkip={playback.skip}
             />
