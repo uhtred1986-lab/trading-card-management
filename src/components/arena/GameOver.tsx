@@ -34,7 +34,7 @@ export function GameOver({
   outcome: PublicOutcome;
   winnerName: string | null;
   turns: number;
-  damage: { you: number; them: number };
+  damage: { you: number | null; them: number | null };
   spend: { calls: number; input: number; output: number; cached: number; micros: number };
   review: GameReview | null;
   aiEnabled: boolean;
@@ -56,6 +56,7 @@ export function GameOver({
   const cachedShare = spend.input + spend.cached > 0 ? Math.round((spend.cached / (spend.input + spend.cached)) * 100) : 0;
   const draw = outcome.kind === "draw";
   const resultTitle = outcome.kind === "interrupted" ? "Game interrupted" : outcome.kind === "abandoned" ? "Game abandoned" : draw ? "A draw" : `${winnerName} wins`;
+  const damageUnavailable = outcome.kind === "interrupted" || outcome.kind === "abandoned" || damage.you === null || damage.them === null;
 
   return (
     <section className="relative isolate space-y-3 overflow-hidden rounded-xl border border-space-700/70 bg-space-900/60 p-4">
@@ -114,7 +115,7 @@ export function GameOver({
 
       <dl className="grid grid-cols-3 gap-2 text-center">
         <Stat label="turns" value={String(turns)} />
-        <Stat label="damage dealt" value={`${damage.them} / ${damage.you}`} />
+        <Stat label="damage dealt" value={damageUnavailable ? "Unavailable" : `${damage.them} / ${damage.you}`} compact={damageUnavailable} />
         <Stat label="Claude calls" value={String(spend.calls)} />
       </dl>
 
@@ -168,10 +169,10 @@ export function GameOver({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {
   return (
     <div className="rounded-lg border border-space-700 bg-space-900 p-2">
-      <dd className="font-mono text-lg font-bold text-space-50">{value}</dd>
+      <dd className={`font-mono font-bold text-space-50 ${compact ? "text-xs sm:text-sm" : "text-lg"}`}>{value}</dd>
       <dt className="text-[9px] uppercase tracking-widest text-space-500">{label}</dt>
     </div>
   );

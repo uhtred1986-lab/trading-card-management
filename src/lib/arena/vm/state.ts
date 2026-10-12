@@ -357,6 +357,13 @@ export interface VmState {
   winner: PlayerId | null;
   /** Why it ended, in words, or null while it has not. */
   overReason: string | null;
+  /**
+   * Cumulative damage events by defending player, for the end screen (21-3).
+   * This is presentation bookkeeping, not a declared player attribute or a
+   * copy of the event log. Absent on older saves, whose lifetime total is
+   * unknown; applying more actions must not turn that partial total into zero.
+   */
+  damageTotals?: Record<PlayerId, number>;
   /** Typed result. Optional so pre-#544 and archived states remain readable. */
   outcome?: StoredOutcome | null;
   /** 8-1: the battle in progress, or null between battles — #150's field, absent on a state saved before it existed. */

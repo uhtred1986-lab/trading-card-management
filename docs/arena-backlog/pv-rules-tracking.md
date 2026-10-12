@@ -27,7 +27,7 @@ tracking: true
 - [x] #554 **P1** — Enforce Heroic once-per-turn use
 - [x] #555 **P1** — Keep Aegis payment choices eligible after each selection
 - [x] #556 **P1** — Emit face-up life trigger events
-- [ ] #557 **P2** — Report genuine damage statistics for rules-engine games
+- [x] #557 **P2** — Report genuine damage statistics for rules-engine games
 - [ ] #595 **P1** — Pay Aegis additional skill costs after the colored-card cost (depends on #555; locally reproduced against 22-30-3)
 - [x] #597 **P1** — Use original colors for keyword payment eligibility (depends on #553/#555; preserve effective-color selectors)
 - [x] #626 **P1** — Apply effective colours to payment planning, preserving Hidden Mode (PR #629; production rerun succeeded)
@@ -50,3 +50,5 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 - [ ] Contract/privacy, stale/reload cases and cross-feature interactions pass.
 - [ ] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
 - [ ] Milestone checklist and canonical backlog files match delivered state.
+
+#557 damage statistics are complete: event-adjacent totals, genuine zero, old/interrupted unavailable, registered PGlite CAS/idempotency and both-skin phone/desktop rendering evidence. The named life-cost runtime gap is removed; broader catalog fuzz remains owner-run.

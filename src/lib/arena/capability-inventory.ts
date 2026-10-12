@@ -64,13 +64,12 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-life-cost-damage-statistics",
     label: "Life paid as a cost is distinguished from damage",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "1-13-2; `engines.ts` damageTaken contract",
     ownerIssue: 557,
-    skipWhere: "compiler: E-LIFE's life cost",
-    proof: "scripts/verify/compiler.ts — E-LIFE life-cost scenario",
-    detail: "The rules engine has no damage count to read for the distinction asserted by this fixture.",
+    proof: "scripts/verify/compiler.ts — E-LIFE life-cost scenario; scripts/verify/damage-statistics-557.mts — cost 1 versus event damage 2, skill damage, reload, old save and end screen; scripts/verify/arena-damage-statistics-db.mts — saved revision, stale CAS, duplicate request and both seat views",
+    detail: "The rules engine accumulates completed damage events on new games. Life paid as a cost leaves the total unchanged; old states without a lifetime counter remain unavailable even after later damage.",
   },
   {
     id: "arena-static-negate-keyword",
