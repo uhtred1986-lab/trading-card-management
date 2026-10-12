@@ -2,10 +2,12 @@
 
 import type { Action, LegalAction, PlayerId } from "@/lib/arena/types";
 import type { BoardView } from "@/lib/arena/view";
+import type { PublicOutcome } from "@/lib/arena/outcome";
 import { isGhostAction, shortLabel } from "../shared";
 
 export function PromptPanel({
   view,
+  overOutcome,
   playable,
   yourTurn,
   waitingOnServer,
@@ -32,6 +34,7 @@ export function PromptPanel({
   onSkip,
 }: {
   view: BoardView;
+  overOutcome: PublicOutcome | null;
   playable: boolean;
   yourTurn: boolean;
   waitingOnServer: boolean;
@@ -73,8 +76,8 @@ export function PromptPanel({
   const bad = !!(refusalText || error) && !view.over && !playing;
   const line: React.ReactNode = playing ? (
     `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
-  ) : view.over ? (
-    `${view.over.winner ? `${view.over.winner === yourPlayer ? view.you.name : view.them.name} wins` : "A draw"}${view.over.reason ? ` — ${view.over.reason}` : ""}`
+  ) : overOutcome ? (
+    `${overOutcome.kind === "interrupted" ? "Game interrupted" : overOutcome.kind === "abandoned" ? "Game abandoned" : overOutcome.kind === "draw" ? "A draw" : `${overOutcome.winner === yourPlayer ? view.you.name : view.them.name} wins`}${overOutcome.reason ? ` — ${overOutcome.reason}` : ""}`
   ) : waitingOnServer ? (
     `${view.them.name} is thinking…`
   ) : (error ?? refusalText ?? (isTargeting ? (

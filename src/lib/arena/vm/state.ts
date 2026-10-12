@@ -52,6 +52,7 @@ import type { ScriptFrame } from "./script";
 import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, ReplacementChoice, SkipWhat } from "../types";
 import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
+import type { StoredOutcome } from "../outcome";
 
 /**
  * The battle in progress (8-1), or its absence.
@@ -339,6 +340,8 @@ export interface VmState {
   winner: PlayerId | null;
   /** Why it ended, in words, or null while it has not. */
   overReason: string | null;
+  /** Typed result. Optional so pre-#544 and archived states remain readable. */
+  outcome?: StoredOutcome | null;
   /** 8-1: the battle in progress, or null between battles — #150's field, absent on a state saved before it existed. */
   battle?: VmBattle | null;
   /** 9-6: the play a [Counter: Play] window is open over, or null — #150's second field, absent on a state saved before it existed. */

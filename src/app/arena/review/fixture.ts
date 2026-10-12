@@ -12,7 +12,7 @@ import type { Snapshot } from "@/lib/arena/snapshot";
  * hand in the shape `replayForReview` returns. Nothing here reads a database.
  */
 const at = new Date("2026-09-30T10:00:00Z");
-const game = (id: number, p2: string, mode: string, turn: number, status: string, winner: string | null, flags: number): FlaggedGame => ({ id, p1Name: "Player", p2Name: p2, mode, status, winner, turn, p1User: null, p2User: null, flags, open: flags, latest: at });
+const game = (id: number, p2: string, mode: string, turn: number, status: string, winner: string | null, flags: number): FlaggedGame => ({ id, p1Name: "Player", p2Name: p2, mode, status, winner, reason: null, outcomeKind: winner ? "win" : "draw", turn, p1User: null, p2User: null, flags, open: flags, latest: at });
 
 const GAMES: FlaggedGame[] = [game(930, "Claude", "sparring", 7, "over", "p2", 2), game(929, "Claude", "sparring", 5, "over", "p1", 1), game(928, "Claude", "tournament", 9, "over", "p2", 1)];
 

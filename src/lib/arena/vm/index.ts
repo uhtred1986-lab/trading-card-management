@@ -384,7 +384,12 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
     if (!def) throw new RulesetBroken(state.game, "nothing declares conceding, and a player may give up a game at any point in it (0-1-3-4)");
     if (!def.when.includes(state.phase)) throw new IllegalAction(`${def.label ?? def.name} is not a move of the ${state.phase} phase`);
     if (def.do.length) throw new NotYet(`run what ${def.name} does — a game ending is not something a program can say yet`, "#142");
-    endGame(ctx, game, state, events, other(action.player), `${state.sides[action.player].name} conceded`);
+    endGame(ctx, game, state, events, other(action.player), `${state.sides[action.player].name} conceded`, {
+      kind: "concession",
+      winner: other(action.player),
+      concededBy: action.player,
+      reason: "A player conceded.",
+    });
     // Straight to the runner: a game that has ended still has to walk into its
     // over phase, whose one step asks the question nobody answers. Returning
     // here left a finished game showing the prompt it was in the middle of.
