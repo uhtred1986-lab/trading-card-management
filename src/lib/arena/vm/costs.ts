@@ -84,7 +84,7 @@ import { attrsOf } from "./cards";
 import type { PayerGrant, VmAltCost } from "./effects";
 import { attrsNow, staticsNow } from "./program";
 import { NotYet, RulesetBroken } from "./errors";
-import { SETUP_ZONES, moved } from "./flow";
+import { SETUP_ZONES, moved, type MoveCause } from "./flow";
 import { fire, log } from "./events";
 import type { VmState } from "./state";
 
@@ -907,15 +907,23 @@ export function chargeCost(
   payment: VmPayment,
   card: string | null,
   costs: string[],
+  move?: (id: string, to: string, opts: MoveCause) => void,
+  onRest?: (id: string) => void,
 ): void {
   const charges = chargesOf(game);
+  const payMove = move ?? ((id: string, to: string, opts: MoveCause) => moved(ctx, game, state, ev, id, to, opts));
+  const payMode = (id: string, mode: string) => {
+    const wasActive = state.cards[id]?.mode === "active";
+    setMode(state, ev, id, mode);
+    if (wasActive && mode === "rest" && state.cards[id]?.mode === "rest") onRest?.(id);
+  };
   for (const name of costs) {
     const charge = charges[name];
     if (!charge) throw new RulesetBroken(state.game, `there is no price called ${JSON.stringify(name)} to charge`);
     switch (charge.consumes) {
       case "energy": {
         const mode = modeOf(charge);
-        for (const id of payment.rest) setMode(state, ev, id, mode);
+        for (const id of payment.rest) payMode(id, mode);
         if (payment.energyMarkers) {
           state.sides[player].attrs.energyMarkers = Number(state.sides[player].attrs.energyMarkers ?? 0) - payment.energyMarkers;
           log(ev, { type: "energyMarker", player, delta: -payment.energyMarkers });
@@ -930,7 +938,7 @@ export function chargeCost(
         // payers, rested where they stand.
         if (!charge.from) {
           const mode = modeOf(charge);
-          for (const id of payment.rest) setMode(state, ev, id, mode);
+          for (const id of payment.rest) payMode(id, mode);
           break;
         }
         const to = (charge.does as { to?: string } | null)?.to;
@@ -940,7 +948,7 @@ export function chargeCost(
         // out of an open pool (5-4's Z-Energy) was never hidden. Read off the
         // zone's declared visibility, never off the price's name.
         const reveal = game.zones[charge.from.area]?.visibility === "all" ? {} : { reveal: true };
-        for (const id of payment.pooled.find((x) => x.cost === name)?.cards ?? []) moved(ctx, game, state, ev, id, to, { owner: player, asPlay: false, ...reveal });
+        for (const id of payment.pooled.find((x) => x.cost === name)?.cards ?? []) payMove(id, to, { owner: player, asPlay: false, ...reveal });
         break;
       }
       case "markers": {
@@ -967,11 +975,11 @@ export function chargeCost(
       case "life": {
         const to = (charge.does as { to?: string } | null)?.to;
         if (!to) throw new RulesetBroken(state.game, `the price ${name} takes cards from life and says nowhere to put them`);
-        for (const id of payment.life) moved(ctx, game, state, ev, id, to, { owner: player, asPlay: false });
+        for (const id of payment.life) payMove(id, to, { owner: player, asPlay: false });
         break;
       }
       case "mode":
-        if (card !== null && payment.restsSelf) setMode(state, ev, card, modeOf(charge));
+        if (card !== null && payment.restsSelf) payMode(card, modeOf(charge));
         break;
       case "unreadable":
         // Nothing: the half of a printed price no engine charges itself is

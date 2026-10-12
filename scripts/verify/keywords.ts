@@ -1096,12 +1096,13 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     "22-30-4: the Defense Step of the opponent's turn",
   );
   s = playG(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
-  assert.equal(s.cards[e3].mode, "rest", "the {r} was paid");
+  assert.equal(s.cards[e3].mode, ENGINE === "rules" ? "active" : "rest", ENGINE === "rules" ? "22-30-3: the additional {r} waits for the hand cost" : "the {r} was paid");
   const v1 = findG(s, "p1", "hand", "V1");
   const vb = findG(s, "p1", "hand", "V-BLUE");
   if (ENGINE === "rules") {
     s = playG(s, { type: "choose", player: "p1", cards: [v1] });
     assert.ok(zoneOf(s, "p1", "drop").includes(v1) && zoneOf(s, "p1", "drop").includes(vb), "the sole forced Blue completes the required cost");
+    assert.equal(s.cards[e3].mode, "rest", "22-30-3: the additional {r} is paid after both hand cards");
   } else {
     assert.equal(s.prompt.kind, "chooseCards");
     s = playG(s, { type: "choose", player: "p1", cards: [v1] });

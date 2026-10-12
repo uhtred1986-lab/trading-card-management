@@ -60,7 +60,7 @@ if (ENGINE === "rules") {
     const activation = apply(s, { type: "activate", player: "p1", card: findG(s, "p1", "battle", "AEG555"), skill: 0 });
     s = activation.state;
     const energyAfter = zoneOf(s, "p1", "energy").map((id) => s.cards[id].mode);
-    assert.equal(energyAfter.filter((mode) => mode === "rest").length, energyBefore.filter((mode) => mode === "rest").length + 1, "the printed {r} is charged before the hand-payment prompt");
+    assert.deepEqual(energyAfter, energyBefore, "22-30-3: the printed {r} waits until after the hand-color cost");
     assert.equal(activation.events.filter((event) => event.type === "move" && event.from === "hand" && event.to === "drop").length, 0, "no colour card is dropped before full coverage is selected");
     const [red1, red2] = zoneOf(s, "p1", "hand").filter((id) => s.cards[id].cardId === "V1");
     const [blue1, blue2] = zoneOf(s, "p1", "hand").filter((id) => s.cards[id].cardId === "V-BLUE");
