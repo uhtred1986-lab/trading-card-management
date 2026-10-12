@@ -96,7 +96,7 @@ const base = arenaG({
   oppBattle: ["V-BLUE", "V-BLUE", "V-BLUE", "V-BLUE", "V-BLUE", "V-BLUE"],
 }) as VmState;
 for (const id of zoneOf(base, "p2", "battle")) {
-  addEffectG(base, [], { target: id, kind: "power", value: -15000, until: "turn", ownerTurn: "p1", master: "p1", createdTurn: base.turn });
+  addEffectG(base, [], { target: id, kind: "power", value: -15000, until: "turn", ownerTurn: "p1", master: "p1", createdTurn: base.turn } as Parameters<typeof addEffectG>[2]);
 }
 
 const beforeLegal = IMPL.legalActions(CTX, base);
@@ -145,7 +145,7 @@ const ordered = [...elapsed].sort((a, b) => a - b);
 const quantile = (p: number) => Number(ordered[Math.ceil(p * ordered.length) - 1].toFixed(3));
 const source = runtimeFingerprint();
 const eventSequence = measured.events.map((event) => event.type === "move"
-  ? [event.type, event.card, event.from, event.to, event.owner, event.reason ?? null]
+  ? [event.type, event.card, event.from, event.to, event.owner, (event as typeof event & { reason?: string }).reason ?? null]
   : [event.type, "player" in event ? event.player : null, "phase" in event ? event.phase : null, "turn" in event ? event.turn : null]);
 
 console.log(JSON.stringify({
