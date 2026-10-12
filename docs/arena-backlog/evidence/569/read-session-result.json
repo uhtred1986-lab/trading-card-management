@@ -159,5 +159,90 @@
   "limits": [
     "Local Node CPU only; no hosted or device p95 measurement",
     "Read session lifetime is a synchronous immutable projection, not a process or revision cache"
-  ]
+  ],
+  "latestMainPair": {
+    "baselineHead": "2d1d8f86bc3db270e40df6e2f3b3b36858d34db5",
+    "integratedHead": "ecdab6360d8b7468d821541cd81b4f42c093c903",
+    "baselineRuntimeSha256": "606ff945b9f723652ce5a47df535338246c8ca17ba199cb5fec8bbca06a4b235",
+    "integratedRuntimeSha256": "ee5ab951934c395c56fb90265d2a171d880644f9df5b878c70d358960db5e9c6",
+    "samplesPerSide": 30,
+    "exactCounter": {
+      "legalReads": [
+        1,
+        1
+      ],
+      "readStaticsCalls": [
+        4,
+        1
+      ],
+      "snapshotHashEqual": true,
+      "snapshotHash": "7f598f45cf30eeb8cb2e7f6eee2ba4a97effd6895bc8db20b38c3bdbefc21e4a"
+    },
+    "fixtures": [
+      {
+        "name": "s01-small",
+        "matchingHashes": {
+          "state": true,
+          "outcome": true,
+          "legal": true,
+          "rejected": true,
+          "p1": true,
+          "p2": true
+        },
+        "legalThenTwoViewerSnapshotsMs": {
+          "baseline": {
+            "p50": 3.31,
+            "p95": 4.04
+          },
+          "integrated": {
+            "p50": 3.408,
+            "p95": 4.778
+          }
+        }
+      },
+      {
+        "name": "s01-crowded-aura-12",
+        "matchingHashes": {
+          "state": true,
+          "outcome": true,
+          "legal": true,
+          "rejected": true,
+          "p1": true,
+          "p2": true
+        },
+        "legalThenTwoViewerSnapshotsMs": {
+          "baseline": {
+            "p50": 41.779,
+            "p95": 44.703
+          },
+          "integrated": {
+            "p50": 41.395,
+            "p95": 49.419
+          }
+        }
+      },
+      {
+        "name": "s07-crowded-aura-zero-power-checkpoint",
+        "matchingHashes": {
+          "state": true,
+          "outcome": true,
+          "legal": true,
+          "rejected": true,
+          "p1": true,
+          "p2": true
+        },
+        "legalThenTwoViewerSnapshotsMs": {
+          "baseline": {
+            "p50": 48.669,
+            "p95": 69.995
+          },
+          "integrated": {
+            "p50": 52.616,
+            "p95": 61.518
+          }
+        }
+      }
+    ],
+    "interpretation": "Single local pair has mixed latency changes; it confirms identical outputs and fewer static evaluations, not a consistent current-main wall-time improvement."
+  }
 }

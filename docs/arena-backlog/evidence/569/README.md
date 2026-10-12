@@ -72,3 +72,19 @@ event and state, a wrong-seat refusal, advanced revision, cloned reload, and two
 definitions whose attribute layers produce different power. The test confirms a new context and
 the token-wrapper identity cannot borrow the earlier scope. Timing is local Node CPU only; no
 hosted or device p95 was measured. No live database or paid provider was used.
+
+## Latest-main replication
+
+After #675 merged, the same scripts ran sequentially against clean main `2d1d8f8` and the
+integrated candidate `ecdab63`; the matching lockfile used the same local dependencies. Exact
+`readStatics` calls remain **4 → 1**, the lazy legal getter remains **1 → 1**, and the real
+`snapshotOfGame` SHA-256 is identical. Across the S01 small, S01 crowded-aura and S07 checkpoint
+fixtures, state, outcome, legal, rejected and both viewer hashes all match.
+
+This one 30-sample timing pair is mixed: crowded-aura p50/p95 is
+41.779/44.703 → 41.395/49.419 ms, while the S07 checkpoint is
+48.669/69.995 → 52.616/61.518 ms. The small fixture is 3.310/4.040 →
+3.408/4.778 ms. These differences are local timing noise; this single latest-main pair confirms
+reduced repeated evaluation and output parity, but does not establish a consistent wall-time gain.
+The earlier three-pair result above remains evidence for that older base only. Full values and
+source fingerprints are in `read-session-result.json`.
