@@ -563,7 +563,7 @@ import { validateProgram } from "../../src/lib/arena/vm/script";
   // opponent's turn. These fixtures exercise the actual Activate/attack
   // scripts on both engines, without a catalog or database lookup. The attack
   // returner below is explicitly synthetic; it is not BT29-031 card text.
-  const temporaryDefs = ["BT29040", "ATTACK_RETURN_FIXTURE", "SELFRETURN", "DROPPER", "OWNBOUNCE", "BATTLE_RETURN", "WATCHBOUNCE", "OPPATTACKER", "RETURN_TARGET", "DROP_TARGET", "DURATION_TARGET", "EXPIRED_TARGET", "ENTERED_TARGET", "OWN_TARGET", "RULE_TARGET"];
+  const temporaryDefs = ["BT29040", "ATTACK_RETURN_FIXTURE", "SELFRETURN", "DROPPER", "OWNBOUNCE", "EXTRA_BOUNCE", "BATTLE_RETURN", "WATCHBOUNCE", "OPPATTACKER", "RETURN_TARGET", "DROP_TARGET", "DURATION_TARGET", "EXPIRED_TARGET", "ENTERED_TARGET", "OWN_TARGET", "RULE_TARGET", "FIELD_EXTRA"];
   try {
   DEFS.BT29040 = {
     ...DEFS.V1,
@@ -594,6 +594,8 @@ import { validateProgram } from "../../src/lib/arena/vm/script";
     skill: "[Activate: Main] Choose 1 of your opponent's Battle Cards and place it in its owner's Drop Area.",
   };
   DEFS.OWNBOUNCE = { ...DEFS.V1, id: "OWNBOUNCE", name: "OWNBOUNCE", skill: "[Activate: Main] Choose 1 of your other Battle Cards and return it to its owner's hand." };
+  DEFS.EXTRA_BOUNCE = { ...DEFS.V1, id: "EXTRA_BOUNCE", name: "EXTRA_BOUNCE", skill: "[Activate: Main] Choose 1 Extra Card in your opponent's Battle Area and return it to its owner's hand." };
+  DEFS.FIELD_EXTRA = { ...DEFS.V1, id: "FIELD_EXTRA", name: "FIELD_EXTRA", type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Field]" };
   DEFS.BATTLE_RETURN = { ...DEFS.V1, id: "BATTLE_RETURN", name: "BATTLE_RETURN", skill: "[Activate: Battle] Choose 1 of your opponent's Battle Cards and return it to its owner's hand." };
   DEFS.WATCHBOUNCE = {
     ...DEFS.V1,
@@ -610,7 +612,7 @@ import { validateProgram } from "../../src/lib/arena/vm/script";
   DEFS.OWN_TARGET = { ...DEFS.V1, id: "OWN_TARGET", name: "OWN_TARGET" };
   DEFS.RULE_TARGET = { ...DEFS.V1, id: "RULE_TARGET", name: "RULE_TARGET" };
 
-  let s = stagedG({ battle: ["BT29040", "ATTACK_RETURN_FIXTURE", "DROPPER", "OWNBOUNCE", "WATCHBOUNCE", "OWN_TARGET"], oppBattle: ["RETURN_TARGET", "DROP_TARGET", "SELFRETURN", "OPPATTACKER", "DURATION_TARGET", "EXPIRED_TARGET", "RULE_TARGET"], oppHand: ["ENTERED_TARGET"] });
+  let s = stagedG({ battle: ["BT29040", "ATTACK_RETURN_FIXTURE", "DROPPER", "OWNBOUNCE", "EXTRA_BOUNCE", "WATCHBOUNCE", "OWN_TARGET"], oppBattle: ["RETURN_TARGET", "DROP_TARGET", "SELFRETURN", "OPPATTACKER", "DURATION_TARGET", "EXPIRED_TARGET", "RULE_TARGET", "FIELD_EXTRA"], oppHand: ["ENTERED_TARGET"] });
   const leader = leaderOf(s, "p1");
   assert.ok(leader);
   s.cards[leader!].cardId = "L-BLUE"; // make the printed Leader condition true for the fixture
@@ -636,15 +638,23 @@ import { validateProgram } from "../../src/lib/arena/vm/script";
   s = playG(s, { type: "choose", player: "p1", cards: [dropped] });
   assert.ok(zoneOf(s, "p2", "drop").includes(dropped), "a skill move to Drop does not match a hand-return replacement");
 
-  // A same-controller skill returning its own Battle Card and an opponent's
-  // non-Battle card both miss the installed offer's selector/cause scope.
+  // A same-controller skill returning its own Battle Card and a Battle Card
+  // that has already left the Battle Area both miss the installed offer.
   const ownTarget = findG(s, "p1", "battle", "OWN_TARGET");
   s = playG(s, { type: "activate", player: "p1", card: findG(s, "p1", "battle", "OWNBOUNCE"), skill: 0 });
   s = playG(s, { type: "choose", player: "p1", cards: [ownTarget] });
   assert.ok(zoneOf(s, "p1", "hand").includes(ownTarget), "a skill returning its controller's own Battle Card is outside the opponent-target replacement");
   const dropTarget = findG(s, "p2", "drop", "DROP_TARGET");
   moveByRuleG(s, dropTarget, "hand", "p2");
-  assert.ok(zoneOf(s, "p2", "hand").includes(dropTarget), "a non-Battle card moved from Drop to hand is outside the Battle Area selector");
+  assert.ok(zoneOf(s, "p2", "hand").includes(dropTarget), "a Battle Card moving from the Drop Area to hand does not match a Battle Area departure");
+  const fieldExtra = findG(s, "p2", "battle", "FIELD_EXTRA");
+  const extraBounce = findG(s, "p1", "battle", "EXTRA_BOUNCE");
+  assert.ok(canActivateG(s, extraBounce), "the Battle-area Extra target makes the return skill available");
+  s = playG(s, { type: "activate", player: "p1", card: extraBounce, skill: 0 });
+  // It is the sole matching card, so the engine resolves the forced choice
+  // without opening a separate prompt.
+  assert.ok(zoneOf(s, "p2", "hand").includes(fieldExtra), "an Extra [Field] returned to hand by an opponent's skill is not mistaken for a Battle Card and sent to the deck");
+  assert.ok(!zoneOf(s, "p2", "deck").includes(fieldExtra));
   const ruleTarget = findG(s, "p2", "battle", "RULE_TARGET");
   moveByRuleG(s, ruleTarget, "hand", "p2");
   assert.ok(zoneOf(s, "p2", "hand").includes(ruleTarget), "a rules-procedure move with no skill cause is not replaced");
