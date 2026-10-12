@@ -12,7 +12,9 @@
     },
     "contract": {
       "exit": 0,
-      "log": "logs/contract.log"
+      "log": "logs/contract.log",
+      "retained_prior_emission": true,
+      "note": "No contract/runtime change in fixture correction; fresh npm test reran contract comparisons on both engines."
     },
     "test": {
       "exit": 0,
@@ -25,6 +27,14 @@
     "browser": {
       "exit": 0,
       "log": "logs/browser.log"
+    },
+    "focused": {
+      "exit": 0,
+      "log": "logs/focused.log"
+    },
+    "backlog": {
+      "exit": 0,
+      "log": "logs/backlog.log"
     }
   },
   "arena_suites": {
@@ -43,5 +53,43 @@
     "arena:fuzz 40 requires live deck database; no database access authorized"
   ],
   "mechanics": "damageRule and battleIntact extracted unchanged; VM cost resolution untouched",
-  "existing_limitation": "#626 tracks gained effective colours not affecting energy payment; UI shows actual planner payment colours and discloses effective difference in inspection"
+  "existing_limitation": "#626 tracks gained effective colours not affecting energy payment; UI shows actual planner payment colours and discloses effective difference in inspection",
+  "validated_source_head": "b90b4b77c7583e58eac4e6a30c0588a0b965cd4a",
+  "fixture_validity": {
+    "leaders": "Double Strike/Critical/Victory Strike are Blue LEADER definitions with null energy/combo statistics",
+    "unison": "null combo cost and power",
+    "invariants": "Every fixture construction and snapshot validates Leader/Unison area types and statistics; invalid attacker/guard/Unison type cases reject",
+    "runtime_changed": false,
+    "senzu_whis_facts_changed": false
+  },
+  "fixture_fix_gates": [
+    {
+      "check": "focused",
+      "exit": 0
+    },
+    {
+      "check": "typecheck",
+      "exit": 0
+    },
+    {
+      "check": "lint",
+      "exit": 0
+    },
+    {
+      "check": "test",
+      "exit": 0
+    },
+    {
+      "check": "build",
+      "exit": 0
+    },
+    {
+      "check": "backlog",
+      "exit": 0
+    },
+    {
+      "check": "browser",
+      "exit": 0
+    }
+  ]
 }

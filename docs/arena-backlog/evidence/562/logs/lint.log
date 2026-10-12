@@ -14,9 +14,5 @@
 /workspace/worktrees/arena-562/docs/arena-redesign/prototype/render/scenes.js
   40:47  warning  'L' is defined but never used  @typescript-eslint/no-unused-vars
 
-/workspace/worktrees/arena-562/scripts/arena-battle-stakes-562.mts
-  115:8  error  'end' is never reassigned. Use 'const' instead  prefer-const
-
-✖ 6 problems (1 error, 5 warnings)
-  1 error and 0 warnings potentially fixable with the `--fix` option.
+✖ 5 problems (0 errors, 5 warnings)
 

@@ -3,14 +3,14 @@
 > next build
 
 ▲ Next.js 16.3.0 (Turbopack)
-✓ Running next.config.ts took 22ms
+✓ Running next.config.ts took 25ms
 - Experiments (use with caution):
   · serverActions
 
   Creating an optimized production build ...
-✓ Compiled successfully in 17.9s
+✓ Compiled successfully in 1006ms
   Running TypeScript ...
-  Finished TypeScript in 19.1s ...
+  Finished TypeScript in 3.7s ...
   Collecting page data using 4 workers ...
 [AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
 [AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
@@ -24,7 +24,7 @@
   Generating static pages using 4 workers (2/9) 
   Generating static pages using 4 workers (4/9) 
   Generating static pages using 4 workers (6/9) 
-✓ Generating static pages using 4 workers (9/9) in 138ms
+✓ Generating static pages using 4 workers (9/9) in 143ms
   Finalizing page optimization ...
 
 Route (app)

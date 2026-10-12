@@ -4,7 +4,11 @@ The browser harness renders the real ArenaStage from EngineAPI-built snapshots.
 The fixtures stage public cards through the repository harness; turns, counter
 and combo windows, legal actions, prices, snapshots and continuation events
 come from the rules engine. Test attackers/leaders are visibly synthetic text
-faces. Senzu Bean and Whis's Coercion keep their catalog facts and use the
+faces. Double Strike, Critical and Victory Strike attackers are Blue Leader
+definitions with null energy/combo costs and null combo power; the synthetic
+Unison also has null combo statistics. Fixture construction and every snapshot
+validate the types and statistics of Leader/Unison areas, and negative cases
+reject mismatched attacker, guard and Unison definitions. Senzu Bean and Whis's Coercion keep their catalog facts and use the
 checked-in real artwork from #546; artwork is served from local intercepted
 URLs, with no database or remote-art download.
 
