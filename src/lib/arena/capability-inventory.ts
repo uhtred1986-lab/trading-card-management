@@ -163,7 +163,17 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     citation: "22-30-3",
     ownerIssue: 555,
     proof: "scripts/verify/aegis-555.ts \u2014 incremental mandatory coverage, three colors, invalid answers and reload",
-    detail: "Each prompt offers only cards covering missing distinct colors; payment occurs once after complete coverage. Original-color eligibility and additional-cost ordering remain #597 and #595.",
+    detail: "Each prompt offers only cards covering missing distinct colors; payment occurs once after complete coverage. Additional resource-cost ordering is independently tested in arena-aegis-additional-cost-order; original-color eligibility remains #597 and additional action prices remain #595.",
+  },
+  {
+    id: "arena-aegis-additional-cost-order",
+    label: "Aegis pays its hand colors before its supported additional resource cost",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "22-30-3; 5-8-4",
+    ownerIssue: 595,
+    proof: "scripts/verify/aegis-cost-order-595.ts — live hand-dependent fee, native Burst, reload, failed payment and actual scoped payer consumption; scripts/verify/aegis-555.ts — priced event order",
+    detail: "Hand cost moves precede live fee calculation/payment and activation. Later failure retains performed payments without an effect or activation use. Additional action prices remain explicitly unsupported under #595; original-color eligibility remains #597.",
   },
   {
     id: "arena-heroic-once-per-turn",
@@ -276,6 +286,8 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  {"id": "arena-vm-notyet-aegis-action-price", "file": "src/lib/arena/vm/aegis-costs.ts", "ordinal": 1, "kind": "not-yet", "classification": "current-runtime-unsupported", "citation": "22-30-3; additional Aegis action-price boundary", "ownerIssue": 595, "detail": "Aegis with a compiled additional action price interrupts before color/resource payment; it is not resolved for free."},
+  {"id": "arena-vm-notyet-aegis-pool-replacement", "file": "src/lib/arena/vm/aegis-costs.ts", "ordinal": 2, "kind": "not-yet", "classification": "declaration-extension", "citation": "22-30-3; 9-10; native pool declaration contract", "ownerIssue": 595, "detail": "A declared in-play additional payment pool needing optional or competing replacements interrupts before additional resource charges. Proof uses a synthetic battle pool; current DBS Burst/Z-Energy pools do not establish a printed-card gap."},
   { id: "arena-vm-notyet-auto-search-budget", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", ownerIssue: 549, detail: "Bounded search beyond 2,000 visited states interrupts explicitly; no free effect or false unaffordability claim." },
   { id: "arena-vm-notyet-auto-price-op", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 2, kind: "not-yet", classification: "current-runtime-unsupported", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", ownerIssue: 549, detail: "Only choose/discard/mill/switchMode/hidden/moveTo/removeMarker action prices are supported; play/under movement and other instructions interrupt before payment." },
   { id: "arena-vm-notyet-auto-unread-cost", file: "src/lib/arena/vm/auto-costs.ts", ordinal: 3, kind: "not-yet", classification: "referee-boundary", citation: "9-6-4; 5-8-2-2; Auto price declaration contract", detail: "An unread printed price interrupts before effect or payment; this ingestion boundary does not implement the unread mechanic." },
@@ -305,6 +317,8 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-aegis-action-price": "stepAegisCost|-|cost.line.script?.price?.ops?.length",
+  "arena-vm-notyet-aegis-pool-replacement": "stepAegisCost|-|choices.length > 1 || choices.some((r) => r.optional)",
   "arena-vm-notyet-auto-search-budget": "canFinishAutomaticPrice|-|--budget < 0",
   "arena-vm-notyet-auto-price-op": "readableAutomaticPrice|-|![\"choose\", \"discard\", \"mill\", \"switchMode\", \"hidden\", \"moveTo\", \"removeMarker\"].includes(op.op)\n      || (op.op === \"moveTo\" && (op.to === \"under\" || op.to === \"play\"))",
   "arena-vm-notyet-auto-unread-cost": "prepareAutomaticCost|-|bound.unreadable",
