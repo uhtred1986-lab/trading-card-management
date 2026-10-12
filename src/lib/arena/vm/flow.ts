@@ -55,7 +55,7 @@ import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
-import { attrsNow, forbiddenForCard, forbids, hasKeyword, readingBoard, staticsNow } from "./program";
+import { attrsNow, forbiddenForCard, forbids, hasKeyword, readingBoard, staticsNow, taxesOn } from "./program";
 import { attrsOf, playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
 import { leaveRoute, replacementChoices, replacementIdentity } from "./replace";
@@ -806,6 +806,12 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate, so it does not resolve" : `${named} can't activate skills, so its skill does not resolve` });
     return true;
   }
+  // #677 boundary: a 20-14 price on activating skills covers an [Auto] too
+  // (9-6), and where it is paid among #549's optional Auto costs is not
+  // settled — so a due tax stops the game here rather than going unpaid.
+  if (skill?.kind === "auto" && taxesOn(ctx, game, state, "activateSkill", { player: next.master, card: next.card }).length) {
+    throw new NotYet("charge a 20-14 activation tax on an [Auto] skill", "#677");
+  }
   // Stage 7: a keyword's own line that answered through its declaration's
   // `at:` ([Offering] at `played`) runs the keyword's `DO`, not the card's
   // record — the keyword's rules are the effect (22-1), and the record of a
@@ -1112,6 +1118,9 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.pendingHookSkill && forbids(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card })) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card} can't activate skills, so its skill does not resolve` });
       return "done";
+    }
+    if (frame.pendingHookSkill && taxesOn(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card }).length) {
+      throw new NotYet("charge a 20-14 activation tax on an [Auto] skill", "#677");
     }
     if (frame.pendingHookIdentityMissing || (frame.pendingHookSkill && frame.skillIndex === undefined && frame.grantEffectId === undefined && frame.standingGrantId === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, frame.ops))) {
       throw new NotYet("negate a granted keyword hook that has no individual skill identity", "#602");

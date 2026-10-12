@@ -42,10 +42,10 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationAlt, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
+import { activationAlt, activationTaxes, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueActivationTaxes, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
-import { RulesetBroken } from "./errors";
+import { NotYet, RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { answered } from "./flow";
 import { predicateOf } from "./filters";
@@ -687,7 +687,10 @@ function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def:
   // 20-14-1: an offered move that carries a price says so on its button, in
   // the words the attack's and the legacy play's use (`taxLabel`).
   const player = askedPlayer(state);
-  return offered && c.card !== null && player ? words + taxLabel(declaredTaxes(ctx, game, state, def, player, c.card).map((t) => t.ops)) : words;
+  // #677: an activation's taxes are not a `REFUSE` line of its declaration
+  // (`activationRefusals` reads them), so they are read here by name.
+  const taxes = (player: PlayerId, card: string) => (def.skills ? activationTaxes(ctx, game, state, player, card) : declaredTaxes(ctx, game, state, def, player, card));
+  return offered && c.card !== null && player ? words + taxLabel(taxes(player, c.card).map((t) => t.ops)) : words;
 }
 
 function labelWords(ctx: EngineContext, game: GameDefinition, state: VmState, def: ActionDef, c: Candidate, offered: boolean): string {
@@ -817,6 +820,12 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // even though only one of them runs on the spot.
   const line = def.skills && card !== null && typeof skill === "number" ? lineOf(ctx, game, state, def, card, skill) : undefined;
   if (def.skills && !line) throw new IllegalAction(`${card} has no skill line ${skill}`);
+  // #677, 20-14-1: the activation's taxes, read on the board it is declared
+  // on and before `spendUses` spends a counted rule's use. A keyword's own
+  // move has no single boundary they are known to belong at yet, so one under
+  // a tax stops here — before anything is paid — rather than going untaxed.
+  const taxes = line ? activationTaxes(ctx, game, state, player, line.card) : [];
+  if (line?.keyword && taxes.length) throw new NotYet(`charge a 20-14 activation tax on a keyword's own [${line.keyword.name}] move`, "#677");
   // A keyword move that is the keyword's alone is announced as it is paid for
   // and ahead of the payment, the legacy order (`announcesBeforePrice`) — but
   // never before a `payCost` question below, which pays and announces nothing.
@@ -885,6 +894,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
     const keywordMoments = keywordActivationMoments(state, player, line);
     resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto);
+    queueActivationTaxes(state, player, line.card, taxes);
     fire(ctx, game, state, moment);
     for (const m of keywordMoments) fire(ctx, game, state, m);
   } else {

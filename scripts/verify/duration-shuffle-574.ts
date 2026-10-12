@@ -171,9 +171,10 @@ unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
   assert.ok(zoneOf(state, "p1", "drop").includes(id));
   assertConsistentG(state);
 }
-// Active gap boundary for #677: the existing, recognised 20-14 price is
-// visible to both tax readers, but neither normal nor nested Activate: Main
-// currently charges it. This asserts the missing payment, not legal behavior.
+// #677: the recognised 20-14 price is visible to both tax readers, and both
+// normal and nested Activate: Main now charge it — once, on top of the Extra
+// itself going to the Drop, and with the nested line's printed cost still
+// waived. `verify/activate-tax-677.ts` has the full scenario set.
 {
   const price = compileCostProgram(parseSkills("[Activate: Main] Place 1 card from your hand in your Drop Area: Draw 1 card.")[0]!);
   assert.deepEqual(price?.unsupported, []);
@@ -197,13 +198,25 @@ unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
       state = take(state, { type: "activate", player: "p1", card: leader, skill: parseSkills(WISH)[0]!.index }).state;
       const result = take(state, { type: "chooseMode", player: "p1", index: 1 });
       state = result.state;
-      assert.equal(result.events.filter((event) => event.type === "move" && event.from === "hand" && event.to === "drop").length, 1,
-        "#677 gap: only the Extra moves to Drop; the external activation price is omitted");
+      if (state.prompt.kind === "chooseCards") {
+        const paid = take(state, { type: "choose", player: "p1", cards: [state.prompt.choice.candidates[0]] });
+        state = paid.state;
+        result.events.push(...paid.events);
+      }
+      assert.equal(result.events.filter((event) => event.type === "move" && event.from === "hand" && event.to === "drop").length, 2,
+        "#677: the Extra moves to Drop and the external activation price is paid once");
+      assert.equal(zoneOf(state, "p1", "energy").filter((item) => state.cards[item].mode === "rest").length, 0, "the waiver still covers the printed cost");
     } else {
       const result = take(state, { type: "activate", player: "p1", card: id, skill: parseSkills(DEFS["C574-ONCE"].skill!)[0]!.index });
       state = result.state;
-      assert.equal(result.events.filter((event) => event.type === "move" && event.from === "hand" && event.to === "drop").length, 1,
-        "#677 gap: normal activation also omits the external price");
+      // The price's own discard asks which hand card when there is a choice.
+      if (state.prompt.kind === "chooseCards") {
+        const paid = take(state, { type: "choose", player: "p1", cards: [state.prompt.choice.candidates[0]] });
+        state = paid.state;
+        result.events.push(...paid.events);
+      }
+      assert.equal(result.events.filter((event) => event.type === "move" && event.from === "hand" && event.to === "drop").length, 2,
+        "#677: a normal activation pays the external price once as well");
     }
     assert.ok(zoneOf(state, "p1", "drop").includes(id));
     assertConsistentG(state);

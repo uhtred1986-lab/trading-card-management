@@ -2417,7 +2417,11 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // to be one: "can't play it unless they send 3 cards from their Drop to
   // their owner's Warp" (BT31-093) is paid by every play it taxes.
   const oneAct = /^(?:play\b|switch energy to active mode\b)/.test(rest0);
-  const tax = unlessTail && !unlessPlayBySkill ? taxProgram(unlessTail[1].trim(), c, oneAct ? (/^play\b/.test(rest0) ? "play" : "switch") : "attack") : null;
+  // #677: a skill activation is taxed like an attack — "each time" is part of
+  // the wording — but its price is paid while an Extra is still in the hand it
+  // is used from, so a hand price is said the way a play's is.
+  const taxOn = oneAct ? (/^play\b/.test(rest0) ? "play" : "switch") : /^activate skills\b/.test(rest0) ? "activate" : "attack";
+  const tax = unlessTail && !unlessPlayBySkill ? taxProgram(unlessTail[1].trim(), c, taxOn) : null;
   const unless = !unlessTail || unlessPlayBySkill || tax ? null : parseConditionClause(`if ${unlessTail[1].trim()}`, true);
   if (unlessTail && !unlessPlayBySkill && !unless && !tax) return null;
   const rest = unlessTail && !unlessPlayBySkill ? rest0.slice(0, unlessTail.index).trim() : rest0;
@@ -2457,6 +2461,19 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       // type words do not cover would be read wider than it is printed.
       if (sw[1] && named.replace(/\b(?:leader|battle|extra|unison) cards?\b|\bor\b|\ban?\b|,/g, "").trim()) return null;
       return [{ op: "forbid", what: "switchEnergyToActive", side: "both", turnPlayer: true, until, ...(byTypes.length ? { byTypes: [...byTypes] } : {}), unlessPay: tax.ops }];
+    }
+    // #677, 20-14-1: "Your opponent can't activate skills unless they send 1
+    // card from their hand to their Drop Area each time" — a price on every
+    // skill activation that player makes, paid by them. No printed card is
+    // known to say this (a synthetic wording proves the path); only the bare
+    // player form is read, so a narrower description ("skills of Extra
+    // Cards", "[Auto] skills") stays unread rather than taxing more than it
+    // names. Both engines charge it on a declared or invoked [Activate];
+    // an [Auto] or [Counter] activation under it stops with `NotYet`.
+    if (taxOn === "activate") {
+      const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
+      if (!side || side !== tax.payer || !/^activate skills(?:\s+(?:until|for|during)\b.*)?$/.test(rest)) return null;
+      return [{ op: "forbid", what: "activateSkill", side, until, unlessPay: tax.ops }];
     }
     if (!/^attack\b/.test(rest) || /^attack (?:this card|it)\b/.test(rest)) return null;
     const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
@@ -2621,12 +2638,13 @@ const TAX_OPS = new Set<Op["op"]>(["discard", "mill", "choose", "moveTo", "switc
  * they run: a tax the engine cannot promise is either a ban the card does not
  * state or an attack that half-pays.
  */
-function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" = "attack"): { payer: Side; ops: Op[] } | null {
+function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" | "activate" = "attack"): { payer: Side; ops: Op[] } | null {
   // An attack's price says "each time"; a play's and a switch's need not
-  // (one act each), but then the sentence's own duration may follow it.
+  // (one act each), but then the sentence's own duration may follow it. An
+  // activation's says it too (#677), as the only wording it is read in.
   const m =
     /^(your opponent|they|you)\s+(.+?)\s+each time(?:\s+(?:until|for|during)\b.*)?$/.exec(said) ??
-    (on === "attack" ? null : /^(your opponent|they|you)\s+(.+?)(?:\s+(?:until the end of .+|for the (?:duration of the )?(?:turn|game)|during .+))?$/.exec(said));
+    (on === "attack" || on === "activate" ? null :/^(your opponent|they|you)\s+(.+?)(?:\s+(?:until the end of .+|for the (?:duration of the )?(?:turn|game)|during .+))?$/.exec(said));
   if (!m) return null;
   const payer: Side = m[1] === "you" ? "you" : "opponent";
   let clause = m[2];
@@ -2644,8 +2662,9 @@ function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" = "at
   // from (5-5-2-1): "send 1 card from your hand" is never the card itself.
   // A `discard` cannot say so, so it is said as the choice and the move it
   // stands for — and the choice below rules the card out.
+  const inHand = on === "play" || on === "activate";
   const ops =
-    on === "play"
+    inHand
       ? read.flatMap((o, i): Op[] =>
           o.op === "discard" && typeof o.n === "number"
             ? [
@@ -2655,7 +2674,7 @@ function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" = "at
             : [o],
         )
       : read;
-  if (on === "play" && ops.some((o) => o.op === "discard")) return null;
+  if (inHand && ops.some((o) => o.op === "discard")) return null;
   // A choice nothing is then done to is half a price: "unless they choose 3
   // cards from their hand **and** place them in their Drop Area" (BT6-023) is
   // cut at its "and" before it gets here, and the half left is not the price.

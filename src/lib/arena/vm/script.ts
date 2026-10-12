@@ -1798,6 +1798,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
         const answer = h.lastChoice();
         if (answer && frame.awaiting === op.as) {
+          // #677: an exact choice answered with a card that is no longer a
+          // candidate — a stale saved answer, the card having left since the
+          // question was put — is refused rather than read as picking
+          // nothing, which for a price would be the price going unpaid.
+          if (!upTo && answer.some((id) => !cands.includes(id) && !sofar.includes(id))) throw new IllegalAction("that card can no longer be chosen");
           const picked = [...sofar];
           for (const id of answer) {
             if (!cands.includes(id) || picked.includes(id)) continue;

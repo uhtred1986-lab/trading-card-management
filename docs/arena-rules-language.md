@@ -1404,6 +1404,20 @@ forbid(what: switchEnergyToActive, until: game, side: both, unlessPay: {
 A play a *skill* makes is not taxed yet (the `play` op, both engines): only the declared plays
 (`play`, `playUnison`, `playZ`) pay.
 
+A skill activation takes one since #677, from a synthetic wording (no printed card is claimed) —
+"your opponent can't activate skills unless they send 1 card from their hand to their Warp each
+time":
+
+```
+forbid(what: activateSkill, until: game, side: opponent, unlessPay: {
+  choose(sel: 1 IN you.hand otherThanSelf, as: "tax0", reason: "send 1 card from your hand to your warp")
+  moveTo(target: $tax0, to: warp, reveal: true)
+})
+```
+
+A declared or invoked text [Activate] line pays it at the activation boundary, before its effect;
+a keyword's own move, an [Auto] and a [Counter] under it stop with a #677 `NotYet`.
+
 ### 20-15. If Declared
 
 20-15-1: from when an action is declared until it is taken (or something is known to have that

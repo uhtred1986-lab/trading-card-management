@@ -214,7 +214,7 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
 };
 const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
 /** The actions a `forbid` may put a price on (`unlessPay`, 20-14-1): the ones both engines charge one where the action is taken. */
-export const TAXABLE: ReadonlySet<ForbiddenAction> = new Set(["attack", "play", "switchEnergyToActive"]);
+export const TAXABLE: ReadonlySet<ForbiddenAction> = new Set(["attack", "play", "switchEnergyToActive", "activateSkill"]);
 
 const SIDE: OpField = { name: "side", type: "side", default: "you" };
 const TARGET: OpField = { name: "target", type: "ref", required: true };
@@ -1684,11 +1684,13 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     // alone: either without the other is a moment nothing reads.
     if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return `${step}: "event": "marker" and "by": "attack" are only ever written together`;
     // 20-14-1: a tax is charged where the action is taken, and only the
-    // attack, a declared play and a skill's switch of energy to Active Mode
-    // charge one — a price on any other action would be a rule that silently
-    // stopped forbidding anything.
+    // attack, a declared play, a skill's switch of energy to Active Mode and
+    // a skill activation (#677: a declared or invoked [Activate] is charged;
+    // an [Auto] or [Counter] under one stops with `NotYet`) charge one — a
+    // price on any other action would be a rule that silently stopped
+    // forbidding anything.
     if (o.op === "forbid" && o.unlessPay !== undefined && (!TAXABLE.has(o.what as ForbiddenAction) || !(o.unlessPay as unknown[]).length || o.unless !== undefined))
-      return `${step}: only an attack, a declared play or a switch of energy to Active Mode is taxed with "unlessPay", and never beside "unless"`;
+      return `${step}: only an attack, a declared play, a switch of energy to Active Mode or a skill activation is taxed with "unlessPay", and never beside "unless"`;
     if (o.op === "choose" && o.bindX === true) bound = true;
     const stray2 = strayBound(o, step);
     if (stray2) return stray2;
@@ -2619,6 +2621,25 @@ export function describeScript(ops: Op[], o: RenderOptions = {}): string {
  */
 export function taxLabel(taxes: Op[][]): string {
   return taxes.length ? ` — first pay: ${taxes.map((ops) => describeScript(ops)).join("; ")}` : "";
+}
+
+/**
+ * #677: how many cards of the payer's own hand several taxes on one action
+ * take between them — every exact `discard` and every exact `choose` from the
+ * hand. Each tax's own `canPay…Program` asks about that tax alone, so two
+ * "send 1 card from your hand" taxes on a one-card hand would each say yes;
+ * the sum is the check that the set can be paid whole, so an activation is
+ * never offered with a price that runs out half way. Both engines ask it.
+ */
+export function taxHandNeed(taxes: Op[][]): number {
+  let need = 0;
+  for (const ops of taxes) {
+    for (const o of ops) {
+      if (o.op === "discard" && typeof o.n === "number" && (o.side ?? "you") === "you") need += o.n;
+      if (o.op === "choose" && !o.sel.upTo && o.sel.area === "hand" && (o.sel.side ?? "you") === "you") need += typeof o.sel.count === "number" ? o.sel.count : 1;
+    }
+  }
+  return need;
 }
 
 /**

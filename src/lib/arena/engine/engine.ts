@@ -20,7 +20,8 @@ import { legacyHost } from "./legacy-host";
 import { markerReplacementPrompt, markerSubstituteFrame, replacementPrompt, routeOf, savedXKey, stepScript, taxLabel, validateProgram, type CardScripts, type Cond, type Op, type PayWith, type ScriptFrame, type XCost } from "../vm/script";
 import { koCard, pendPlacedOnArrival, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "../vm/rng";
-import { describeScript } from "../vm/script-schema";
+import { describeScript, taxHandNeed } from "../vm/script-schema";
+import { NotYet } from "../vm/errors";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
 import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, resolveSelector, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, copiedSkillsOn, locate, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
 import { IllegalAction } from "../vm/common";
@@ -504,6 +505,9 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
     note(ev, `${inst.cardId} can't activate skills, so its skill does not resolve`);
     return "done";
   }
+  // #677 boundary: the same price on an [Auto] (9-6) is not charged yet, and
+  // the rules engine's `flow.ts` makes the same stop.
+  if (sk.kind === "auto" && taxesOn(ctx, s, "activateSkill", { player: p.master, card: p.card }).length) throw new NotYet("charge a 20-14 activation tax on an [Auto] skill", "#677");
   // 9-6-11: the skill resolves even if the card moved, unless it became impossible.
   if (sk.oncePerTurn || sk.limit != null) {
     const used = inst.usedThisTurn.filter((i) => i === sk.index).length;
@@ -780,6 +784,7 @@ function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent
   // A pended keyword is still an [Auto] activation. Apply the same 20-14
   // prohibition at resolution as ordinary Autos, including old -1 grants.
   if (skillsNegated(s, card) || forbids(ctx, s, "activateSkill", { player: master, card })) return "done";
+  if (taxesOn(ctx, s, "activateSkill", { player: master, card }).length) throw new NotYet("charge a 20-14 activation tax on an [Auto] skill", "#677");
   if (grantEffectId !== undefined) {
     if (s.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === card && e.value === grantEffectId)) return "done";
   } else if (standingGrantId !== undefined) {
@@ -1211,11 +1216,13 @@ function xValuesFor(ctx: EngineContext, s: GameState, p: PlayerId, card: string,
 function pushActivations(out: LegalAction[], ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, label: string, alt: boolean): void {
   const xs = alt ? null : xValuesFor(ctx, s, p, card, sk);
   const cost = activationCost(ctx, s, card, sk, alt);
+  // #677, 20-14-1: an activation that carries a price says so on its button.
+  const taxed = taxLabel(taxesOn(ctx, s, "activateSkill", { player: p, card }).map((t) => t.ops));
   if (!xs) {
-    out.push({ action: { type: "activate", player: p, card, skill: sk.index, ...(alt ? { alt: true } : {}) }, label, cost });
+    out.push({ action: { type: "activate", player: p, card, skill: sk.index, ...(alt ? { alt: true } : {}) }, label: label + taxed, cost });
     return;
   }
-  for (const x of xs) out.push({ action: { type: "activate", player: p, card, skill: sk.index, x }, label: `${label} with X = ${x}`, cost: activationCost(ctx, s, card, sk, alt, x) });
+  for (const x of xs) out.push({ action: { type: "activate", player: p, card, skill: sk.index, x }, label: `${label} with X = ${x}${taxed}`, cost: activationCost(ctx, s, card, sk, alt, x) });
 }
 
 /** "2 Green energy and 1 marker" — what an optional cost asks for. */
@@ -2497,6 +2504,28 @@ function playTaxes(ctx: EngineContext, s: GameState, p: PlayerId, card: string):
   return taxesOn(ctx, s, "play", { player: p, card, bySkill: false });
 }
 
+/**
+ * #677, 20-14-1: every price in force on this player activating a skill of
+ * this card — read as the activation is declared, before a counted rule's use
+ * is spent. The rules engine's `activationTaxes` (`vm/activate.ts`).
+ */
+function activationTaxes(ctx: EngineContext, s: GameState, p: PlayerId, card: string): ReturnType<typeof taxesOn> {
+  return taxesOn(ctx, s, "activateSkill", { player: p, card });
+}
+
+/** The first activation tax that cannot be paid — on its own, or by the hand cards the set takes between them — or null. The rules engine's `unpaidActivationTax`. */
+function unpaidActivationTax(ctx: EngineContext, s: GameState, p: PlayerId, card: string, taxes: ReturnType<typeof taxesOn>): ReturnType<typeof taxesOn>[number] | null {
+  const single = taxes.find((t) => !canPayCostProgram(ctx, s, p, card, t.ops));
+  if (single) return single;
+  if (taxes.length > 1 && taxHandNeed(taxes.map((t) => t.ops)) > s.players[p].hand.filter((id) => id !== card).length) return taxes[taxes.length - 1];
+  return null;
+}
+
+/** The activation's taxes as frames in front of everything it queued — its counter window, its effect and an invoking parent: paid at the successful activation boundary. */
+function queueActivationTaxes(s: GameState, p: PlayerId, card: string, taxes: ReturnType<typeof taxesOn>): void {
+  s.flow.unshift(...taxes.map((t): FlowStep => ({ op: "script.step", frame: { ops: t.ops, ip: 0, vars: {}, card, master: p } })));
+}
+
 /** The price frames a declared play runs before its [Counter: Play] window: one `script.step` per tax, the played card as "this card", the player playing it as "you". */
 function playTaxSteps(ctx: EngineContext, s: GameState, p: PlayerId, card: string): FlowStep[] {
   return playTaxes(ctx, s, p, card).map((t): FlowStep => ({ op: "script.step", frame: { ops: t.ops, ip: 0, vars: {}, card, master: p } }));
@@ -2553,6 +2582,8 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
   if (skillNegated(s, card, sk.index, sk.kind)) return null;
   // 20-14: a skill nothing forbids, on a card nothing forbids it on.
   if (forbids(ctx, s, "activateSkill", { player: p, card })) return null;
+  // 20-14-1 (#677): a price on activating that cannot be paid is a ban.
+  if (unpaidActivationTax(ctx, s, p, card, activationTaxes(ctx, s, p, card))) return null;
   // 22-44-3 / 22-44-5: [Limit X] and [Once per turn] are the same count with
   // a different ceiling. Per instance rather than per card number, the same
   // approximation `resolveAuto` makes.
@@ -2810,6 +2841,8 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
   if (skillsNegated(s, card) || skillNegated(s, card, sk.index, sk.kind)) why.push({ kind: "other", detail: "the skill is negated" });
   const f = forbiddenBy(ctx, s, "activateSkill", { player: p, card });
   if (f) why.push({ kind: "forbidden", by: f.by, until: f.until, ...(f.unless ? { unless: f.unless } : {}) });
+  const unpaid = f ? null : unpaidActivationTax(ctx, s, p, card, activationTaxes(ctx, s, p, card));
+  if (unpaid) why.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
   if (usesLeft(sk, inst) === 0) why.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   if (sk.bond != null && s.players[p].battle.length < sk.bond) why.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more Battle Cards in play` });
   if (sk.sparking != null && s.players[p].drop.length < sk.sparking) why.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
@@ -3185,8 +3218,14 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
       if (!sk) throw new IllegalAction("no such skill");
       const label = activatable(ctx, s, p, action.card, sk, timing, !!action.alt, action.onto);
       if (!label) throw new IllegalAction("that skill can't be activated now");
+      // #677, 20-14-1: read before the counted use is spent; a keyword's own
+      // move under one stops before anything is paid (the rules engine's
+      // `applyDeclared` makes the same stop).
+      const taxes = activationTaxes(ctx, s, p, action.card);
+      if (sk.keyword && taxes.length) throw new NotYet(`charge a 20-14 activation tax on a keyword's own [${sk.keyword.name}] move`, "#677");
       spendProhibitionUse(ctx, s, "activateSkill", { player: p, card: action.card });
       activate(ctx, s, ev, p, action.card, sk, action.pay, !!action.alt, action.x, action.onto);
+      queueActivationTaxes(s, p, action.card, taxes);
       s.flow.push(timing === "main" ? { op: "turn.promptMain" } : { op: "battle.promptCombo", side: pr.kind === "combo" ? pr.side : "offense" });
       break;
     }
@@ -3268,6 +3307,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         const d = def(ctx, s, action.card);
         const sk = skillsOf(d).find((k) => k.index === (action.skill ?? -1)) ?? skillsOf(d).find((k) => k.kind.startsWith("counter:"));
         if (!sk) throw new IllegalAction("no counter skill");
+        // #677 boundary: a 20-14 activation tax on a [Counter] (9-7) is not
+        // charged yet — stopped before anything is paid, as on the rules engine.
+        if (taxesOn(ctx, s, "activateSkill", { player: p, card: action.card }).length) throw new NotYet("charge a 20-14 activation tax on a [Counter] skill", "#677");
         spendProhibitionUse(ctx, s, "activateCounter", { player: p, card: action.card });
         let altProgram: Op[] | undefined;
         // 22-10-4: a [Counter] costs its energy cost and its skill cost —
@@ -3466,6 +3508,8 @@ function invokedMainSkills(ctx: EngineContext, s: GameState, p: PlayerId, card: 
     const price = priceFor(ctx, s, card, sk);
     if (price.x || (!costIsOnlyOrbs(sk.cost) && !price.condition && !price.ops?.length)) return false;
     if (skillsNegated(s, card) || skillNegated(s, card, sk.index, sk.kind) || forbiddenBy(ctx, s, "activateSkill", { player: p, card }) || usesLeft(sk, s.cards[card]) === 0) return false;
+    // #677: the waiver is of the printed price only; an unpayable tax is a ban.
+    if (unpaidActivationTax(ctx, s, p, card, activationTaxes(ctx, s, p, card))) return false;
     if (sk.bond != null && s.players[p].battle.length < sk.bond) return false;
     if (sk.sparking != null && s.players[p].drop.length < sk.sparking) return false;
     return !price.condition || condHolds(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, price.condition);
@@ -3478,8 +3522,10 @@ function scriptHost(ctx: EngineContext, s: GameState, ev: GameEvent[]) {
     invokeSkill: (p, card, index, op) => {
       const sk = invokedMainSkills(ctx, s, p, card, op).find((line) => line.index === index);
       if (!sk) throw new IllegalAction("the selected skill is no longer eligible");
+      const taxes = activationTaxes(ctx, s, p, card);
       spendProhibitionUse(ctx, s, "activateSkill", { player: p, card });
       activateLine(ctx, s, ev, p, card, sk, undefined, false, undefined, undefined, true);
+      queueActivationTaxes(s, p, card, taxes);
     },
   });
 }
