@@ -128,6 +128,24 @@ unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
   state.effects.push({ id: 574, target: id, kind: "forbid", value: 0, forbid: { what: "activateSkill", player: "p1" },
     until: "turn", source: id, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
 });
+
+// A counted restriction grants exactly one activation before it starts
+// forbidding this named Extra. Nested activation spends the same use as a
+// declared activation, although the invoking Leader remains unrestricted.
+{
+  let state = arenaG({ hand: ["C574-DESIRE"], energy: ["V1", "V1"] });
+  const leader = leaderOf(state, "p1");
+  state.cards[leader].cardId = "C574-WISH";
+  const id = zoneOf(state, "p1", "hand").find((item) => state.cards[item].cardId === "C574-DESIRE")!;
+  state.effects.push({ id: 5741, target: "", kind: "forbid", value: 0,
+    forbid: { what: "activateSkill", player: "p1", name: "C574-DESIRE", uses: 1 },
+    until: "turn", source: leader, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
+  state = take(state, { type: "activate", player: "p1", card: leader, skill: parseSkills(WISH)[0]!.index }).state;
+  state = take(state, { type: "chooseMode", player: "p1", index: 1 }).state;
+  assert.equal(state.effects.find((effect) => effect.id === 5741)?.forbid?.uses, 0);
+  assert.ok(zoneOf(state, "p1", "drop").includes(id));
+  assertConsistentG(state);
+}
 unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
   zoneOf(state, "p1", "hand").splice(zoneOf(state, "p1", "hand").indexOf(id), 1);
   zoneOf(state, "p1", "drop").push(id);

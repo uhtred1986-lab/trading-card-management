@@ -71,7 +71,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, taxesOn, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
 import { activationMoment, canPayPriceProgram, invokedMainLines, resolveActivation } from "./activate";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
@@ -128,6 +128,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const line = invokedMainLines(ctx, game, state, player, id, op).find((candidate) => candidate.skillIndex === skillIndex);
       if (!line) throw new IllegalAction("the selected skill is no longer eligible");
       const moment = activationMoment(ctx, game, state, player, line);
+      spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
       resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
       fire(ctx, game, state, moment);
     },
