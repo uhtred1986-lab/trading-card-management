@@ -198,12 +198,24 @@ function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state:
   }
 }
 
+/** JSONB reload may reorder object keys; compare payment values, not encoding. */
+function sameAutomaticPayment(a: VmPayment, b: VmPayment): boolean {
+  const ids = (x: string[], y: string[]) => x.length === y.length && x.every((id, i) => id === y[i]);
+  return a.energyMarkers === b.energyMarkers && a.markers === b.markers && a.restsSelf === b.restsSelf
+    && ids(a.rest, b.rest) && ids(a.life, b.life)
+    && a.pooled.length === b.pooled.length && a.pooled.every((p, i) => p.cost === b.pooled[i].cost && ids(p.cards, b.pooled[i].cards))
+    && a.markersOff.length === b.markersOff.length && a.markersOff.every((p, i) => {
+      const q = b.markersOff[i];
+      return p.cost === q.cost && p.side === q.side && p.area === q.area && p.n === q.n && p.by === q.by;
+    });
+}
+
 /** Set the paid cursor before running any action price; reload cannot charge
  * the same energy/marker/Burst/Spirit Boost payment a second time. */
 export function beginAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, choice: AutomaticCost["choices"][number]): void {
   const cost = frame.autoCost!;
   const rechecked = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest);
-  if (!rechecked.ok || JSON.stringify(rechecked.payment) !== JSON.stringify(choice.payment)) throw new IllegalAction("this Auto payment is no longer payable");
+  if (!rechecked.ok || !sameAutomaticPayment(rechecked.payment, choice.payment)) throw new IllegalAction("this Auto payment is no longer payable");
   const clone = structuredClone(state);
   chargeAutomaticPayment(ctx, game, clone, [], frame, choice.payment, cost.costs);
   if (!canFinishAutomaticPrice(ctx, game, clone, { ...frame, ...(choice.x !== undefined ? { x: choice.x } : {}) })) throw new IllegalAction("this Auto's complete payment is no longer payable");

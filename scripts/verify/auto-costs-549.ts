@@ -91,6 +91,14 @@ function draws(ev: GameEvent[]) { return ev.filter((e) => e.type === "draw").len
   assert.equal(paid.state.prompt.kind, "main");
   assert.throws(() => answer(paid.state, 0), IllegalAction);
 }
+// Real JSONB storage can reorder every object's keys; resource revalidation
+// compares values and still pays once on the reloaded continuation.
+{
+  const a = mainWith("A549"); const energy = stage(a.state, "ENERGY549", "energy"); pend(a.state, a.source);
+  const reorder = (value: unknown): unknown => Array.isArray(value) ? value.map(reorder) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([x], [y]) => y.localeCompare(x)).map(([key, nested]) => [key, reorder(nested)])) : value;
+  const result = answer(reorder(a.state) as VmState, 0);
+  assert.equal(result.state.cards[energy].mode, "rest"); assert.equal(draws(result.events), 1);
+}
 // Unaffordable costs are canceled, with a distinct diagnostic and no skill event.
 {
   const s = main(); const source = stage(s, "A549"); const hand = s.sides.p1.zones.hand.length;
