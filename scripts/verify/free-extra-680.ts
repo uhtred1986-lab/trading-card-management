@@ -107,7 +107,6 @@ function prepared(extraIds: (keyof typeof defs)[] = ["C680-EXTRA"], playedId: ke
   return { state, cell, energy, extras };
 }
 
-if (!RULES_ONLY) {
 for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
   const { state, cell, energy, extras: [extra] } = prepared(["C680-EXTRA"], wrong);
   const played = take(state, { type: "play", player: "p1", card: cell });
@@ -369,6 +368,7 @@ function legacyReady(): { legacy: ReturnType<typeof engineFor>; state: GameState
   };
   return { legacy, state, stageLegacy };
 }
+if (!RULES_ONLY) {
 for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
   const { legacy, state, stageLegacy } = legacyReady();
   Array.from({ length: 4 }, () => stageLegacy(wrong === "C680-REDCELL" ? "C680-REDENERGY" : "C680-ENERGY", "energy"));
@@ -427,4 +427,4 @@ for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
 }
 }
 
-console.log("free-extra-680: VM paid/declined activation, eligibility, stale/reload/privacy and legacy invocation boundary passed");
+console.log(`free-extra-680: VM paid/declined activation, eligibility, stale/reload/privacy${RULES_ONLY ? "" : " and legacy invocation boundary"} passed`);

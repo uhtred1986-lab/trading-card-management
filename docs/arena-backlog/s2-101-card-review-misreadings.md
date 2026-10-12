@@ -13,7 +13,7 @@ tracking: true
 **[Auto] skills with no trigger recorded** (`trigger: []`, so they may never fire):
 - BT7-003 #10 and SD8-09 #10: "when your opponent switches energy to Active using a non-[Awaken] skill during their turn".
 - XD1-01 #10: "when a blue or yellow ≪Universe 6≫ card is played in your Battle Area".
-- BT31-116 #0: "when your white <Cell>/<Cell Jr.> card costing 3 or more is played". The effect is right; the owner ruled that activating the Extra from hand is free.
+- BT31-116 #0: "when your white <Cell>/<Cell Jr.> card costing 3 or more is played". The owner ruled that activating the Extra from hand is free; the later #680 runtime audit found that the effect's `play` operation was wrong despite the original review calling it right.
 - SD15-01 #10: has `opponentAttacks`, but should only answer an attack on your red Unison Card with a specified cost of 2.
 
 **End of a battle after a combo from hand:** BT6-010 #0 and BT2-010 #0 read as any `battleEnd`. They should be "at the end of a battle in which you comboed with this card from your hand" (BT6-010: during your opponent's turn).
@@ -37,11 +37,11 @@ tracking: true
 - A `scripts/verify/readings.ts` assertion per bullet above that the PR fixes.
 - `arena:readings` diff signed off; the PR lists any bullet left for later.
 
-## Delivery reconciliation — 11 Oct 2026
+## Delivery reconciliation — 12 Oct 2026
 
-**Priority:** P1. **Depends on:** #571, #572, #573, #574, and the remaining BT31-116 effect #680.
+**Priority:** P1. **Delivered scoped children:** #571, #572, #573, #574 and #680.
 
-This broad issue is now a parent: #571 trigger scope; #572 combo-from-hand battle-end provenance; #573 grouped counts/shared conditions/mixed targets; #574 exact durations/Desire hand activation/shuffle; #680 the previously retained BT31-116 free Extra effect. The four scoped children are merged, but `play` still sends BT31-116's chosen Extra to the Battle Area instead of activating its [Activate: Main/Battle] line from hand. Preserve all original card rulings and acceptance. Keep this parent open until #680 has a nested-operation assertion and real payment/activation proof. Dedicated registered suites hold several original bullet assertions outside `scripts/verify/readings.ts`; do not describe that literal central-file gate as complete. Catalog-wide `arena:readings` sign-off and DB-backed fuzz 40 remain owner-run after the Deckplanet DNS `EAI_AGAIN` and the absence of a curated fuzz mode.
+This broad issue remains a parent: #571 covers trigger scope; #572 combo-from-hand battle-end provenance; #573 grouped counts/shared conditions/mixed targets; #574 exact durations/Desire hand activation/shuffle; #680 corrects BT31-116's nested free Extra activation and qualifies its Cell play trigger before the Auto price. The current locally compiled record has a nested-operation assertion, real paid VM activation and PGlite saved-session CAS/idempotency proof. The legacy engine still omits BT31-116's own Hidden Mode action price (#549), and older stored `card_rules` rows retain their former late guard and `play` operation until reviewed and re-drafted. Preserve all original card rulings and parent acceptance. Dedicated registered suites hold several original bullet assertions outside `scripts/verify/readings.ts`, so the literal central-file gate is not claimed complete. Keep #539 open for the stored catalog reading diff and DB-backed fuzz 40; Deckplanet DNS previously returned `EAI_AGAIN`, and there is no curated fuzz mode under this no-live-DB delivery.
 
 Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full review: `docs/arena-playability-review.md`.
 
@@ -49,4 +49,4 @@ Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full revi
 - [x] #572 Bind end-of-battle Auto to this card comboed from hand
 - [x] #573 Fix grouped counts shared conditions and mixed target readings
 - [x] #574 Fix phase durations and Desire hand activation readings
-- [ ] #680 Invoke BT31-116's free hand Extra [Activate: Main/Battle] skill instead of playing the Extra
+- [x] #680 Invoke BT31-116's free hand Extra [Activate: Main/Battle] skill instead of playing the Extra (new locally compiled record; stored catalog signoff remains above)
