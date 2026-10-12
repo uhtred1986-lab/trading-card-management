@@ -16,16 +16,16 @@ tracking: true
 
 ## Issues
 
-- [ ] #543 **P0** — Verify deck readiness per printed skill and runtime capability
-- [ ] #544 **P0** — Stop unsupported resolution with a typed interrupted outcome
-- [ ] #545 **P0** — Use monotonic game revision and action identity across clients
-- [ ] #546 **P1** — Make reconnection visible and cancel abandoned polling
-- [ ] #547 **P1** — Pin immutable match rules and export reproducible replay bundles
+- [x] #543 **P0** — Verify deck readiness per printed skill and runtime capability
+- [x] #544 **P0** — Stop unsupported resolution with a typed interrupted outcome
+- [x] #545 **P0** — Use monotonic game revision and action identity across clients
+- [x] #546 **P1** — Make reconnection visible and cancel abandoned polling
+- [x] #547 **P1** — Pin immutable match rules and export reproducible replay bundles
 
 
 ## Order and hot files
 
-#543 → #544 → #545 → #546 → #547
+#543 and #545 are merged. #544 remains the next P0 trust item; #546 can proceed after #545. Serialize shared files according to the child touch sets and merge gates.
 
 Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
 

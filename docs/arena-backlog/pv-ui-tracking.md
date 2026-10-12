@@ -17,8 +17,8 @@ tracking: true
 ## Issues
 
 - [ ] #558 **P1** — Expose authoritative ability availability and decision data
-- [ ] #559 **P1** — Make card sheets and action controls accessible
-- [ ] #560 **P1** — Extend the existing phone pager to tap-open fullscreen review
+- [x] #559 **P1** — Make card sheets and action controls accessible
+- [x] #560 **P1** — Extend the existing phone pager to tap-open fullscreen review
 - [ ] #561 **P1** — Show Abilities now and collapse wrong-timing abilities
 - [ ] #562 **P1** — Make battle stakes resources and pass consequences explicit
 - [ ] #563 **P1** — Fit the phone board and crowded hand around the current decision

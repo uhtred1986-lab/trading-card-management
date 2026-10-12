@@ -16,16 +16,20 @@ tracking: true
 
 ## Issues
 
-- [ ] #548 **P0** — Apply zero-power Battle Card rule processing at checkpoints
+- [x] #548 **P0** — Apply zero-power Battle Card rule processing at checkpoints
 - [ ] #549 **P0** — Resolve Auto skill costs with pay and decline decisions
 - [ ] #550 **P1** — Carry chosen cost values and targets into skill effects
-- [ ] #551 **P1** — Offer eligible spent combo cards as Z-Energy
+- [x] #551 **P1** — Offer eligible spent combo cards as Z-Energy
+- [ ] #609 **P1** — Reconcile remaining Combo-to-Drop versus end-of-battle Auto checkpoint grouping; #551 implements the preceding choices/8-5-4 and explicitly leaves this prior grouping for follow-up.
 - [ ] #552 **P1** — Implement Counter Counter response chains
-- [ ] #553 **P1** — Resolve static identity keyword and negation layers
-- [ ] #554 **P1** — Enforce Heroic once-per-turn use
-- [ ] #555 **P1** — Keep Aegis payment choices eligible after each selection
-- [ ] #556 **P1** — Emit face-up life trigger events
+- [x] #553 **P1** — Resolve static identity keyword and negation layers
+- [x] #554 **P1** — Enforce Heroic once-per-turn use
+- [x] #555 **P1** — Keep Aegis payment choices eligible after each selection
+- [x] #556 **P1** — Emit face-up life trigger events
 - [ ] #557 **P2** — Report genuine damage statistics for rules-engine games
+- [ ] #595 **P1** — Pay Aegis additional skill costs after the colored-card cost (depends on #555; locally reproduced against 22-30-3)
+- [ ] #597 **P1** — Use original colors for keyword payment eligibility (depends on #553/#555; preserve effective-color selectors)
+- [ ] #602 **P1** — Preserve granted Heroic individual skill identity (depends on #554; printed/copied behavior remains #554)
 - [ ] #540 — existing issue; preserve original acceptance and latest rulings
 - [ ] #541 — existing issue; preserve original acceptance and latest rulings
 - [ ] #542 — existing issue; preserve original acceptance and latest rulings

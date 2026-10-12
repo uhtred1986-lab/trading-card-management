@@ -23,6 +23,45 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - [ ] #580 **P2/P3** — Android after web contract (Arena M4 — Android client enablement); exit: #105 and #106 consume the settled auth/snapshot/ability contract with polling and playback parity.
 - [ ] #511 **P2** — AI efficiency and live verification (AI providers — one contract, API or subscription, any vendor); exit: #381 implements the recorded cost ruling; #518 completes owner-run verification of already-built route; #511 records the result.
 
+## Delivery progress — 12 Oct 2026
+
+Previously delivered: #543 in PR #585, #545 in PR #586, and owner-requested duplicate GitHub-check removal #583 in PR #584. Android Gradle and owner real-deck/paid-provider checks remain unclaimed.
+
+The merge campaign resumed after the owner confirmed the prior production deployment finished. Eighteen implementation PRs merged to main, in sequence:
+
+| PR | Issue | Delivered change |
+| --- | --- | --- |
+| #587 | #548 | Zero-power checkpoint processing and frozen replacement continuation |
+| #590 | #567 | Atomic independent AI usage accounting |
+| #589 | #559 | Accessible card/action sheets |
+| #604 | #554 | Printed Heroic identity and checkpoint ordering; granted identity remains #602 |
+| #599 | #553 | Static/timed identity and named keyword layers |
+| #610 | #560 | Explicit fullscreen card inspection, swipe paging and selection-safe review |
+| #605 | #547 | Immutable match inputs and private replay export |
+| #591 | #546 | Recoverable polling, deadlines and reconnect feedback |
+| #608 | #551 | Ordered combo-to-Z-Energy choices and 8-5-4 checkpoint; later ordering remains #609 |
+| #592 | #565 | Reproducible local performance baseline |
+| #612 | #607 | Bounded checkpoint read cache; clean-stack p50/p95 628.709/791.338 ms to 72.133/80.835 ms with identical recorded state/event/action/view hashes |
+| #598 | #544 | Typed interrupted outcomes, privacy and archive/review guards |
+| #596 | #555 | Incremental mandatory Aegis choices; cost order/original colors remain #595/#597 |
+| #600 | #556 | Face-up Life moments, subject binding and watchers |
+| #603 | #601 | Fixed AI request/action-menu expectations; broader VM oracle retirement remains #459/#118 |
+| #611 | #566 (partial) | Durable human acknowledgement and saved-result AI recovery; unknown provider outcome is attention-required, never automatically resent |
+| #606 | #540 (partial) | Timed hand-return replacement with bound-target lifetime; owner real-deck/catalog proof remains unclaimed |
+| #594 | #571 | Five official trigger/filter readings, preserving face-up Life coverage |
+
+Production deployments are checked one at a time before continuing. An initial #611 deployment failed; the owner reran the unchanged commit `6536778`, and Vercel reported success under deployment `APDCAPzRwZNfzngFGy6oTZLzxJGA`. No speculative code/environment fix was made. Its local full tests, typecheck, lint and build passed, and a read-only audit confirmed the 49-entry migration chain. The final runtime at `973c8e7` passes full tests, typecheck, lint (five existing warnings) and production build. The capability inventory is delivered in PR #593 on main `721ceb2`; its full tests, checker, typecheck, lint/build and generated-source checks pass. The lone rules-only VM oracle exclusion remains explicit.
+
+### Final inventory and progress delivery
+
+PR #593 / #575 is merged and reconciles narrow capability/test metadata against actual merged runtime: 21 scenarios, 5 named runtime gaps and 21 guarded VM source sites. It does not claim exhaustive rules coverage. PR #588 records this programme, delivery state and completed child milestone checklists; it completes the current wave of eighteen implementation PRs plus inventory and progress documentation. Deployment gates are checked sequentially.
+
+The remaining #459 VM oracle, real-deck fuzz, hosted/device timing, Android Gradle and live paid-provider checks remain unclaimed. #566 stays open for broader unknown-provider-outcome acceptance; #540 stays open for its owner verification. #602, #595, #597 and #609 are separate rule follow-ups. The user's original artwork draft is preserved.
+
+### Follow-ups and scope boundaries
+
+P1 #595 owns Aegis cost ordering; #597 original-color payment eligibility; #602 granted Heroic identity; #609 later Combo-to-Drop/end-of-battle Auto grouping. #607 is the bounded measured child of broader cache-sharing #569, independent of polling #568. #541 waits for the recorded Union scope ruling. Remaining board gameplan and ability-contract work follows the original dependencies.
+
 ## Reconciliation decisions
 
 - Extend completed #348 pager and completed #352/#366 design/home programmes; do not reopen finished issues merely for new scope.

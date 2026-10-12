@@ -16,9 +16,9 @@ tracking: true
 
 ## Issues
 
-- [ ] #565 **P1** — Measure arena acknowledgement polling AI and rendering costs
+- [x] #565 **P1** — Measure arena acknowledgement polling AI and rendering costs
 - [ ] #566 **P1** — Acknowledge human actions before resumable AI advance
-- [ ] #567 **P1** — Record concurrent AI usage atomically
+- [x] #567 **P1** — Record concurrent AI usage atomically
 - [ ] #568 **P2** — Skip unchanged snapshot loads with revision-aware polling
 - [ ] #569 **P2** — Share immutable derived evaluation by match revision
 - [ ] #570 **P2** — Preview a gameplan without committing moves
@@ -36,3 +36,7 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 - [ ] Contract/privacy, stale/reload cases and cross-feature interactions pass.
 - [ ] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
 - [ ] Milestone checklist and canonical backlog files match delivered state.
+
+## Measured checkpoint follow-up
+
+- [x] #607 **P1** — Profile and reduce repeated evaluation in corrected zero-power checkpoints (bounded child of #569; independent of polling #568). Isolated same-fixture apply improved from 656.847/887.796 ms to 83.144/95.482 ms p50/p95; state, event, legal/rejected-action and masked-view hashes match. Reports are [baseline](evidence/607/checkpoint-cache-baseline.json) and [optimized](evidence/607/checkpoint-cache-optimized.json); clean-stack PR #612 is reviewed-ready and awaiting merge, so this is not delivered. Preserve rule processing and verify invalidation/interaction outcomes.

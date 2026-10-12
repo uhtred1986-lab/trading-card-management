@@ -36,3 +36,7 @@ Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full revi
 - [ ] #544 Explicit unsupported outcome
 - [ ] #548 Zero-power processing
 - [ ] #549 Auto cost resolution
+
+## Fixed expectation slices
+
+- [ ] #601 **P2** — Replace AI presentation/request oracle with fixed expectations (bounded child of #459; does not close #459 or authorize #118 deletion).
