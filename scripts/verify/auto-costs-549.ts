@@ -1068,6 +1068,7 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   ];
   for (const ops of existing) {
     assert.doesNotThrow(() => readableAutomaticPrice(ops));
+    assert.doesNotThrow(() => readableAutomaticPrice([...ops, { op: "shuffle" }]), "original top-level terminal adjunct remains admitted");
     assert.throws(() => readableAutomaticPrice([...ops, { op: "if", cond: falseCond, then: [{ op: "shuffle" }] }]),
       (err: unknown) => err instanceof NotYet && err.issue === "#549");
   }

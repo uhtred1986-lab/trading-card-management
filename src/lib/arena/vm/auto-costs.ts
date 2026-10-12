@@ -311,22 +311,22 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
   };
   /** `paid` means every path to this point completed an action, not just
    * that an opcode named an action. `terminal` follows all ancestor tails. */
-  const check = (steps: Op[], paid = false, terminal = true): boolean => {
+  const check = (steps: Op[], paid = false, terminal = true, nested = false): boolean => {
     for (const [index, op] of steps.entries()) {
       if (op.op === "note" && op.text.startsWith("\u0000probe-path:")) continue;
       if (op.op === "if") {
         if (!paid && (!op.else?.length || !pays(op.then) || !pays(op.else)))
           throw new NotYet(`pay ${label} conditional action price with an empty branch`, owner);
         const branchTerminal = terminal && index === steps.length - 1;
-        const thenPaid = check(op.then, paid, branchTerminal);
-        const elsePaid = check(op.else ?? [], paid, branchTerminal);
+        const thenPaid = check(op.then, paid, branchTerminal, true);
+        const elsePaid = check(op.else ?? [], paid, branchTerminal, true);
         paid = thenPaid && elsePaid;
         continue;
       }
       if (op.op === "chooseMode") {
         if (!op.modes.length || op.modes.some((mode) => !pays(mode.ops))) throw new NotYet(`pay ${label} modal action price with an empty option`, owner);
         const modeTerminal = terminal && index === steps.length - 1;
-        paid = op.modes.map((mode) => check(mode.ops, paid, modeTerminal)).every(Boolean);
+        paid = op.modes.map((mode) => check(mode.ops, paid, modeTerminal, true)).every(Boolean);
         continue;
       }
       if (op.op === "reveal" && surelyPaid(op, steps[index - 1])) {
@@ -347,9 +347,11 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
         paid = true;
         continue;
       }
-      // Shuffling is permitted only after another payable step and at the
-      // very end: no later price selector can depend on its random order.
-      if (op.op === "shuffle" && terminal && index === steps.length - 1 && !op.inspectedOnly && paid) continue;
+      // Preserve the original top-level adjunct admission for declared
+      // dynamic payments. Nested adjuncts newly admitted here need the
+      // stronger proof that every path has already performed a payment.
+      if (op.op === "shuffle" && terminal && index === steps.length - 1 && !op.inspectedOnly
+        && (paid || (!nested && pays(steps.slice(0, index))))) continue;
       if (!["choose", "discard", "mill", "switchMode", "hidden", "moveTo", "removeMarker"].includes(op.op)
         || (op.op === "moveTo" && op.to === "play")) {
         throw new NotYet(`pay ${label} action price containing ${op.op}`, owner);
