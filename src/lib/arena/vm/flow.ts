@@ -678,20 +678,28 @@ function sameCaptured(a: unknown, b: unknown): boolean {
 
 function chosenPending(state: VmState): VmPendingRecord | null | "wait" {
   const offered = state.pendingOrder;
+  if (offered?.chosen !== undefined && (state.turnPlayer !== offered.turnPlayer || !sameCaptured(state.pending, offered.queue)
+    || !offered.candidates.includes(offered.chosen) || state.pending[offered.chosen]?.master !== offered.master)) {
+    throw new IllegalAction("the pending skill choice is stale");
+  }
+  const master = state.pending.some((item) => item.master === state.turnPlayer) ? state.turnPlayer : other(state.turnPlayer);
+  // A missing hook identity is an interpreter guard, not a pending [Auto]
+  // the player may select. Fail closed for the priority master before any of
+  // that master's ordinary Autos can pay or resolve, including older saved
+  // order prompts that offered the guard as a candidate.
+  const guard = state.pending.findIndex((item) => item.master === master && item.kind === "hook" && item.frame.pendingHookIdentityMissing);
+  if (guard >= 0) {
+    delete state.pendingOrder;
+    return state.pending.splice(guard, 1)[0];
+  }
   if (offered) {
     if (offered.chosen === undefined) {
       state.prompt = { kind: "orderPending", player: offered.master, candidates: offered.candidates };
       return "wait";
     }
-    const index = offered.chosen;
-    if (state.turnPlayer !== offered.turnPlayer || !sameCaptured(state.pending, offered.queue)
-      || !offered.candidates.includes(index) || state.pending[index]?.master !== offered.master) {
-      throw new IllegalAction("the pending skill choice is stale");
-    }
     delete state.pendingOrder;
-    return state.pending.splice(index, 1)[0];
+    return state.pending.splice(offered.chosen, 1)[0];
   }
-  const master = state.pending.some((item) => item.master === state.turnPlayer) ? state.turnPlayer : other(state.turnPlayer);
   const candidates = state.pending.flatMap((item, index) => item.master === master ? [index] : []);
   if (candidates.length > 1) {
     state.pendingOrder = { master, turnPlayer: state.turnPlayer, queue: structuredClone(state.pending), candidates };

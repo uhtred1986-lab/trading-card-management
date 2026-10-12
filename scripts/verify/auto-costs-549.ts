@@ -79,6 +79,20 @@ function draws(ev: GameEvent[]) { return ev.filter((e) => e.type === "draw").len
 function snapshot(current: VmState, viewer: PlayerId = "p1") {
   return buildSnapshot({ id: 549, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: current, legal: rules.legalActions(ctx, current), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }
+function missingHookIdentity(card: string, master: PlayerId): VmState["pending"][number] {
+  return { kind: "hook", card, master, skillIndex: undefined, trigger: "afterSkill", frame: { ops: [], ip: 0, vars: {}, card, master, pendingHookSkill: true, pendingHookIdentityMissing: true } };
+}
+function assertPrivateInterruption(s: VmState) {
+  assert.equal(s.outcome?.kind, "interrupted");
+  assert.equal(s.outcome.privateContext?.issue, "#602");
+  assert.equal(s.winner, null);
+  assert.equal(s.prompt.kind, "gameOver");
+  assert.equal(s.pendingOrder, undefined);
+  for (const viewer of ["p1", "p2"] as const) {
+    const publicView = JSON.stringify(snapshot(s, viewer));
+    assert.ok(!publicView.includes("privateContext") && !publicView.includes(s.outcome.privateContext?.detail ?? "impossible private detail"), `${viewer} receives only the public interruption`);
+  }
+}
 
 // A real play moment opens a cost decision without paying or drawing. Decline
 // and paid resolution are different actions, and invalid answers are atomic.
@@ -232,6 +246,55 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   const next = answer(paid.state, 0); assert.equal(draws(next.events), 1);
   assert.equal(next.state.programs[0].card, opponent); assert.equal(next.state.programs[0].master, "p2");
   assert.equal(answer(next.state, 0, "p2").events.find((e) => e.type === "skill")?.card, opponent);
+}
+// An identity-less captured hook inserts an internal #602 guard, not another
+// 9-6-3 choice. It interrupts before any Auto of the priority master can draw
+// or charge a price, even when an older serialized prompt offered that guard.
+{
+  const s = main(); const priced = stage(s, "A549"); const free = stage(s, "FREE549");
+  const guardSource = stage(s, "FREE549"); const opponent = stage(s, "B549", "battle", "p2");
+  const energy = stage(s, "ENERGY549", "energy"); stage(s, "ENERGY549", "energy", "p2");
+  s.pending.push({ card: priced, master: "p1", skillIndex: 0, trigger: "played" });
+  s.pending.push({ card: opponent, master: "p2", skillIndex: 0, trigger: "played" });
+  s.pending.push({ card: free, master: "p1", skillIndex: 0, trigger: "played" });
+  s.pending.push(missingHookIdentity(guardSource, "p1"));
+  const oldOffer = reload(s);
+  oldOffer.pendingOrder = { master: "p1", turnPlayer: "p1", queue: reload(s).pending, candidates: [0, 2, 3] };
+  oldOffer.prompt = { kind: "orderPending", player: "p1", candidates: [0, 2, 3] };
+  const staleTurn = reload(oldOffer); staleTurn.turnPlayer = "p2";
+  const turnBefore = JSON.stringify(staleTurn);
+  assert.throws(() => order(staleTurn, 0), IllegalAction);
+  assert.equal(JSON.stringify(staleTurn), turnBefore, "a stale turn is rejected before the sentinel preflight");
+  const staleQueue = reload(oldOffer); staleQueue.pending[0].subject = guardSource;
+  const queueBefore = JSON.stringify(staleQueue);
+  assert.throws(() => order(staleQueue, 0), IllegalAction);
+  assert.equal(JSON.stringify(staleQueue), queueBefore, "changed provenance is rejected before the sentinel preflight");
+  const attempted = order(oldOffer, 0);
+  assertPrivateInterruption(attempted.state);
+  assert.equal(draws(attempted.events), 0);
+  assert.equal(attempted.events.filter((event) => event.type === "skill").length, 0);
+  assert.equal(attempted.state.cards[energy].mode, "active", "no Auto price is charged before the guard interrupts");
+  const events: GameEvent[] = [];
+  run(ctx, dbs, s, events);
+  assertPrivateInterruption(s);
+  assert.equal(draws(events), 0);
+  assert.equal(events.filter((event) => event.type === "skill").length, 0);
+  assert.equal(s.cards[energy].mode, "active");
+}
+// The turn player's real Auto still has priority over an opposing master's
+// guard. When that master becomes next, its guard preempts its own pending Auto.
+{
+  const s = main(); const turnAuto = stage(s, "FREE549"); const otherAuto = stage(s, "B549", "battle", "p2");
+  const guardSource = stage(s, "FREE549", "battle", "p2"); const otherEnergy = stage(s, "ENERGY549", "energy", "p2");
+  s.pending.push({ card: otherAuto, master: "p2", skillIndex: 0, trigger: "played" });
+  s.pending.push({ card: turnAuto, master: "p1", skillIndex: 0, trigger: "played" });
+  s.pending.push(missingHookIdentity(guardSource, "p2"));
+  const events: GameEvent[] = [];
+  run(ctx, dbs, s, events);
+  assertPrivateInterruption(s);
+  assert.equal(draws(events), 1, "the turn player's Auto resolves before the other master's guard");
+  assert.equal(events.filter((event) => event.type === "skill" && event.card === otherAuto).length, 0);
+  assert.equal(s.cards[otherEnergy].mode, "active");
 }
 // A hand source is named only in its master's legal choices. The opponent's
 // snapshot cannot recover its instance or printed text from the prompt.
