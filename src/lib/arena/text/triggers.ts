@@ -71,6 +71,13 @@ export function comboBattleEndOpponentTurn(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
   return COMBO_BATTLE_END.test(head) && /\bduring your opponent'?s turn\b/.test(head);
 }
+/** Ordinary self-combo wording belongs to the 5-7 entry checkpoint. */
+export function comboEntrySelf(sk: Skill): boolean {
+  const head = effectHead(maskNames(sk.effect).text);
+  if (COMBO_BATTLE_END.test(head)) return false;
+  const text = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
+  return /when you use this card in a combo|when this card(?: in your hand)? is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
+}
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
 /**
  * "At the end of **a turn in which this card was placed in a Battle Area**"
@@ -125,8 +132,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "played":
       // 12-2: activating an Extra *is* playing it, and the sets print both.
       // "When you play or combo with this card" and "when this card in your
-      // hand is played or used in a combo" are this trigger and `comboed`
-      // both — each fires at its own moment, and only one of them happens.
+      // hand is played or used in a combo" are this trigger and the self
+      // combo entry trigger (`comboUsed`; `comboed` is its stored alias).
+      // Each fires at its own moment, and only one of them happens.
       // "…using [Over Realm]" is `playedUsingOverRealm`'s and is not this.
       return /when (?:you play this card|this card is played)|when you activate this card|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
         t.replace(PLAYED_USING_OVER_REALM, ""),
@@ -135,9 +143,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return new RegExp(PLAYED_USING_OVER_REALM.source).test(t);
     case "attacks":
       // "When this card attacks and KOs an opponent's Battle Card" is the KO, not the attack.
-      // "When you attack or combo with this card" is this trigger and `comboed`
-      // both, like "play or combo" above: each fires at its own moment and only
-      // one of them happens.
+      // "When you attack or combo with this card" is this trigger and the
+      // self combo entry trigger (`comboUsed`; `comboed` is its stored alias).
+      // As with "play or combo", each fires at its own moment.
       return /when this card attacks(?! and kos?\b)|when you attack or combo with this card/.test(t);
     case "attacked":
       return /when this card is attacked/.test(t);
@@ -313,11 +321,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // "…after you combo with this card" is the combo card's own end of the
       // battle, `comboed` below (#539).
       return /^at the end of (?:the|a|this) battle\b/.test(head) && !COMBO_BATTLE_END.test(head);
+    case "comboUsed":
+      return comboEntrySelf(sk);
     case "comboed":
-      if (COMBO_BATTLE_END.test(head)) return true;
-      return /when you use this card in a combo|when this card(?: in your hand)? is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(
-        t,
-      );
+      // Keep the old record name for the frozen legacy oracle and confirmed
+      // rows. The VM redirects ordinary wording to `comboUsed` at entry.
+      return COMBO_BATTLE_END.test(head) || comboEntrySelf(sk);
     // The card the opponent played is the subject, whichever way round the
     // sentence names it. "Plays this card" is never how a card says it.
     case "opponentPlayed":
@@ -359,7 +368,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "opponentCombos":
       return /when your opponent combos\b|when your opponent uses a card in a combo\b/.test(t);
     // Your own side of it. "When you combo with this card" is the card's own
-    // skill and belongs to `comboed`, so the possessive has to be excluded
+    // skill and belongs to `comboUsed`, so the possessive has to be excluded
     // here or every combo card would fire twice.
     case "youCombo":
       return /when you (?:use a card in a combo|combo)\b/.test(t) && !/when you combo with this card/.test(t);

@@ -3890,6 +3890,10 @@
       "words": "when this card is used in a combo"
     },
     {
+      "name": "comboUsed",
+      "words": "when you combo with this card"
+    },
+    {
       "name": "youCombo",
       "words": "when you combo"
     },

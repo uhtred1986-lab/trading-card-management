@@ -961,19 +961,36 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     fire(CTX, DBS, s, { event: "ko", card: inHand, controller: "p1", args: {} });
     assert.deepEqual(s.pending, [], "a card in hand answered to a moment whose declaration names no place (9-1-3-1)");
 
-    // A moment whose pattern *does* name a place has already said where the
-    // card is, so it answers from there — which is the legacy engine's list of
-    // eleven `elsewhere` triggers, derived instead of copied. `comboed` is
-    // declared `ON moved(from: combo)`, and the card is in the Drop by the time
-    // it is asked.
+    // A moment whose pattern *does* name a place asks the card there even if
+    // it is outside play. Current DBS answers ordinary self-combo wording at
+    // entry; `comboed` at departure is reserved for explicit end wording.
     const comboer = handed(s, "p1", "COMBOER");
     assert.ok(moveCard(s, DBS, comboer, "combo", { owner: "p1" }).ok);
     s.pending = [];
+    fire(CTX, DBS, s, { event: "comboUsed", card: comboer, controller: "p1", args: { to: "combo" } });
+    assert.deepEqual(s.pending.map((p) => ({ card: p.card, trigger: p.trigger })),
+      [{ card: comboer, trigger: "comboUsed" }], "a card in Combo Area did not answer its named entry moment (9-1-3-1)");
+    s.pending = [];
     moved(CTX, DBS, s, [], comboer, "drop", { owner: "p1" });
+    assert.deepEqual(s.pending, [], "the entry Auto answered again at cleanup");
+
+    // An archived game pinned to the older DSL has no entry declaration.
+    // Its recorded `comboed` still answers the place named by that DSL, from
+    // Drop after the Combo Area departure; it must not be silently suppressed.
+    const old = mainPhase();
+    const oldCombo = handed(old, "p1", "COMBOER");
+    const oldTriggers = { ...DBS.triggers };
+    delete oldTriggers.comboUsed;
+    const pinned = { ...DBS, triggers: oldTriggers };
+    assert.ok(moveCard(old, pinned, oldCombo, "combo", { owner: "p1" }).ok);
+    old.pending = [];
+    fire(CTX, pinned, old, { event: "comboUsed", card: oldCombo, controller: "p1", args: { to: "combo" } });
+    assert.deepEqual(old.pending, [], "an old pinned DSL invented a new entry trigger");
+    moved(CTX, pinned, old, [], oldCombo, "drop", { owner: "p1" });
     assert.deepEqual(
-      s.pending.map((p) => ({ card: p.card, trigger: p.trigger })),
-      [{ card: comboer, trigger: "comboed" }],
-      "a card whose moment names the place it came from did not answer from outside play (9-1-3-1)",
+      (old.pending as VmState["pending"]).map((p) => ({ card: p.card, trigger: p.trigger })),
+      [{ card: oldCombo, trigger: "comboed" }],
+      "a pinned card whose moment names its source did not answer from outside play (9-1-3-1)",
     );
   }
 
