@@ -535,9 +535,8 @@ DEFINE KEYWORD Aegis
   -- `activatable` case gates it. The VM's persisted #595 continuation first
   -- pays the colour cards to Drop, then determines and pays any additional
   -- cost from the resulting board (22-30-3). Only after the full payment do
-  -- up to two rested energy stand (22-30-5) and the
-  -- combo prompt is put again. Picked wrongly, the orbs are spent and nothing
-  -- happens, as there.
+  -- up to two rested energy stand (22-30-5) and the combo prompt is put again.
+  -- Invalid or stale choices are rejected before their payment is applied.
   offer: "activate:battle"
   REFUSE timing(window: defense) UNLESS all([isTurnPlayer(who: opponent), asking(prompt: combo)])
   REFUSE zone(area: battle) UNLESS count([self] IN you.play) >= 1
