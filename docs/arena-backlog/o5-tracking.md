@@ -1,0 +1,39 @@
+---
+title: [Tracking] Arena O5 — Expanded deck coverage and stronger play
+issue: 637
+milestone: Arena O5 — Expanded deck coverage and stronger play
+labels: backlog, epic, area:arena-contract, phase:arena-home, model:opus-5
+stage: offline-o5
+tracking: true
+---
+**Source:** `docs/arena-offline-plan.md` §O5; user-provided `create-offline-milestones.py`; `docs/agent-brief.md`.
+
+**Intended milestone:** Arena O5 — Expanded deck coverage and stronger play. Creation/assignment remains pending because the environment blocks api.github.com before authentication; the available GH_TOKEN is already used by the CLI.
+
+## Outcome
+
+After the offline MVP, admit more Masters decks through capability and cross-deck scenario verification; fix shared mechanics through existing backlog owners. Add optional bounded search/difficulty using sampled unknown information, strict device budgets and a heuristic fallback. Exit per increment: added decks pass compatibility gates and policy improvements demonstrate measured strength without privacy, rules or performance regressions. Full-catalog support is a continuing coverage goal. Consider a small arena MCP wrapper around proven inspect/scenario/replay commands only if measured agent workflows justify it.
+
+## Agent-sized implementation issues
+
+- [ ] #662 — O5-01: Add a repeatable deck admission gate and qualify the next pair
+- [ ] #663 — O5-02: Prototype bounded search using sampled unknown information
+- [ ] #664 — O5-03: Evaluate search strength and expose evidence-backed difficulty levels
+- [ ] #665 — O5-04: Measure whether an arena MCP wrapper would improve agent workflows
+
+## Order and hot files
+
+- **O5-01 / #662:** after #661; primary ownership: `scripts/verify/arena-deck-admission.mts`.
+- **O5-02 / #663:** after #661; primary ownership: `src/lib/arena/policy/search.ts`.
+- **O5-03 / #664:** after #663, #651; primary ownership: `docs/arena-policy-strength.md`.
+- **O5-04 / #665:** after #661, #639, #642; primary ownership: `docs/arena-agent-tools-evaluation.md`.
+
+Dependencies are acceptance/merge gates, not just recommended reading. Remove `blocked` and apply `ready-for-agent` only after predecessors are delivered and current hot-file conflicts checked. Shared replay/snapshot/engine entry points, policy contract, board stage, service worker and scenario harness require one writer at a time. O4's deck audit starts early; it does not wait for O3. #648 waits for the active #564 board work. Existing correctness owners in #581/#577/#539 retain their scope; completed #547 replay work is extended, not reopened.
+
+## Acceptance
+
+- [ ] Every child acceptance has reviewed evidence and canonical backlog status matches delivered state.
+- [ ] The phase outcome above is demonstrated, with unperformed physical-device/live-data/paid checks explicitly open.
+- [ ] Required predecessor phases and pack-specific correctness blockers are resolved before release. O5 is post-MVP; its MCP item is an evidence-based go/no-go evaluation, not an implementation prerequisite.
+
+A tracker is not an implementation assignment; pick one child issue and follow `docs/agent-brief.md`.
