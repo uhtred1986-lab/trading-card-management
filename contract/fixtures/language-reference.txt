@@ -150,7 +150,7 @@
     {
       "name": "shuffle",
       "class": "primitive",
-      "signature": "{\"op\":\"shuffle\",\"side\"?:\"you\"|\"opponent\"}",
+      "signature": "{\"op\":\"shuffle\",\"side\"?:\"you\"|\"opponent\",\"areas\"?:[\"deck\"|\"life\"],\"inspectedOnly\"?:true|false}",
       "fields": [
         {
           "name": "side",
@@ -158,9 +158,67 @@
           "nullable": false,
           "defaultText": "\"you\"",
           "type": "side"
+        },
+        {
+          "name": "areas",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "deck",
+            "life"
+          ]
+        },
+        {
+          "name": "inspectedOnly",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
       "sentence": "shuffle"
+    },
+    {
+      "name": "invokeSkill",
+      "class": "primitive",
+      "signature": "{\"op\":\"invokeSkill\",\"trait\":\"…\",\"skillKind\":\"activate:main\",\"from\":\"hand\",\"maxCost\":\"currentEnergy\"}",
+      "fields": [
+        {
+          "name": "trait",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "skillKind",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "activate:main"
+          ]
+        },
+        {
+          "name": "from",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "hand"
+          ]
+        },
+        {
+          "name": "maxCost",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "currentEnergy"
+          ]
+        }
+      ],
+      "sentence": "activate the chosen x card's activate:main skill"
     },
     {
       "name": "energyMarker",
@@ -4024,7 +4082,7 @@
       "is": "cards bound by an earlier step"
     },
     {
-      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · game · whileSourceInPlay",
+      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · afterOpponentCharge · game · whileSourceInPlay",
       "is": "a side, a zone, a duration"
     },
     {
