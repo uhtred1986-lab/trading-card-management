@@ -93,3 +93,9 @@ The owner authorized the next wave after the twenty-PR delivery batch. #549 owns
 - #620 delivers color-first Aegis payment and a live additional fee (#595). The issue stays open for action-price programs and optional/competing pooled replacements; original-color eligibility remains #597. The inventory now has 22 narrow scenarios, 4 named runtime gaps and 27 guarded VM sites.
 
 The implementation merge #616 deployed successfully at `a7572e9145beb995dafe73a3377e50569d5ddeba` (Vercel `HyFfFSP1tVAuRgGvyroX9JynjDro`). No deployment configuration fix is claimed.
+
+### Completed current wave and next priority
+
+PR #621 completes #561: current abilities, exact known costs and Activate/Counter controls in shared review; wrong timing stays collapsed. It includes real Senzu/Whis artwork evidence in both skins, phone/desktop, same-view revision refresh, fullscreen paging, keyboard focus and 200% touch scrolling. HTTP transport is mocked; captured legal actions are applied by EngineAPI. The integrated runtime passes typecheck, lint (five existing warnings), full tests and production build; arena suites are 40/40 legacy and 39/40 rules-only with one named VM oracle excluded. #620 deployed successfully at `75a26fb` (Vercel `BkSXgPPvbn2Nvx3qv47jiL8ZbbqS`).
+
+Next bounded parallel candidates are P1 #597 (original-color eligibility, serialized engine costs), P1 #562 (battle stakes/resources/pass consequences, UI owner), and P2 #569 (revision cache audit, initially read-only to avoid shared contract writes). P1 #550 still depends on the explicitly partial #549 cost work: assess that prerequisite before assigning binding implementation. #549/#595/#609 remain open with their documented limits; this wave does not claim exhaustive rules or live-deck coverage.
