@@ -223,7 +223,9 @@ export function ArenaStage({
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
-  const live = useLiveGame(gameId, snapshot, pending || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
+  const liveGame = useLiveGame(gameId, snapshot, pending || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
+  const live = liveGame.snapshot;
+  const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
   const { view, legal, taps, log, beats } = live;
 
   const giveUp = () => {
@@ -1013,9 +1015,20 @@ export function ArenaStage({
           {/* The top bar, one row (`docs/arena-redesign/` frame 01): whose turn
               it is, then speed, review, the admin shield and the menu. It sticks
               to the top of a phone's screen so the turn is never scrolled away. */}
-          <div className="arena-topbar sticky top-0 z-30 flex h-[52px] min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:h-[60px] lg:gap-4 lg:pl-3 lg:pr-2 lg:[grid-area:top]">
+          <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-[60px]" : "h-[52px] sm:h-[52px] lg:h-[60px]"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:gap-4 lg:pl-3 lg:pr-2 lg:[grid-area:top]`}>
             <span className="arena-title arena-num hidden text-[19px] leading-none lg:inline">Arena</span>
             <TurnPill view={view} />
+            {showConnectionIssue && (
+              <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
+                <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-950/45 px-2 py-0.5 text-[11px] leading-none text-amber-100 sm:gap-2 sm:px-2.5 sm:py-1 sm:text-xs" role="status" aria-live="polite" data-arena-connection={liveGame.connection}>
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" aria-hidden="true" />
+                  <span className="shrink-0">{liveGame.connection === "offline" ? "Offline" : "Reconnecting…"}</span>
+                  <button type="button" onClick={liveGame.retry} className="min-h-11 min-w-[44px] shrink-0 rounded px-1 py-1 font-semibold text-white underline decoration-white/60 underline-offset-2 hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200" aria-label="Retry arena connection">
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="ml-auto flex shrink-0 items-center gap-0.5">
               <SpeedButton />
               <button
