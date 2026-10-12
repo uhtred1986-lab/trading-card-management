@@ -668,7 +668,7 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     tag: "[Auto]",
     section: "1-5-6",
     meaning: "Happens on its own when the printed moment occurs — when the card is played, attacks, is KO'd, and so on.",
-    engine: "The trigger puts the skill in pending and it resolves at the next checkpoint. An optional cost is put to you as a question before it resolves.",
+    engine: "The trigger puts the skill in pending for a checkpoint. The rules engine asks whether to pay a necessary cost (9-6-4), including printed energy, markers, Burst, Spirit Boost, supported action prices and energy X. Payment completes once before the effect; decline and unaffordable payment cancel activation. A satisfied condition alone or a cost-free Auto is compulsory. Source, master, event subject, chosen price targets and X survive payment prompts and reload. Unsupported price instructions interrupt explicitly; pending skills retain the existing turn-player-first FIFO order, rather than offering the manual’s choice among simultaneous skills.",
   },
   "activate:main": {
     tag: "[Activate: Main]",

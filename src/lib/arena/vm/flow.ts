@@ -36,9 +36,9 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { IllegalAction } from "./common";
 import { type Action, type EngineContext, type GameEvent, type Skill } from "../types";
 import { AREAS, PHASES } from "./script";
+import { costIsOnlyOrbs } from "../compile";
 import { nextRandom, shuffle } from "./rng";
 import { PLAYERS, other, type Area, type MoveReason, type Phase, type PlayerId, type Prompt, type ReplacementResult } from "../types";
 import type { Cond, Script, Selector, Side } from "./script";
@@ -63,6 +63,8 @@ import { asksAQuestion } from "./script-schema";
 import { expireSkips, takeSkip } from "./skips";
 import type { VmFrame, VmState } from "./state";
 import { interruptedOutcome, type StoredOutcome } from "../outcome";
+import { automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
+import { IllegalAction } from "./common";
 
 export { NOT_YET_REASON_PREFIX } from "../outcome";
 
@@ -665,9 +667,8 @@ export function repeatAllowed(step: StepDef, frame: VmFrame): boolean {
  *
  * Negated skills (9-1-5), false price conditions (9-4), and optional
  * refusals resolve to nothing. When an automatic skill is due but this engine
- * cannot interpret its effect or charge its own printed cost, action price
- * or X price, the game is interrupted with a typed outcome; it is never a
- * draw.
+ * cannot interpret its effect or a price instruction, the game is interrupted
+ * with a typed outcome; it is never a draw.
  */
 function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): boolean | "wait" {
   if (resolveZeroPower(ctx, game, state, ev) === "wait") return "wait";
@@ -735,26 +736,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       });
       return true;
     }
-    const unsupportedCost = unsupportedAutomaticCost(skill, program, next.card, next.skillIndex, next.trigger);
-    if (unsupportedCost) {
-      interruptGame(ctx, game, state, ev, unsupportedCost);
-      return true;
-    }
-    if (program.price?.ops?.length || program.price?.x) {
-      interruptGame(ctx, game, state, ev, {
-        sourceCard: next.card,
-        skillIndex: next.skillIndex,
-        trigger: next.trigger,
-        issue: "#549",
-        detail: "Resolving this automatic keyword requires an unsupported action or X price.",
-      });
-      return true;
-    }
-    log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill.raw, inBattle: !!state.battle });
     // The line's printed effect rides on the frame, for the body's
     // `printedEffect` to announce and run where it says (#154).
     const printed = program && !program.unsupported.length && program.ops.length ? { ops: program.ops, text: skill.raw, inBattle: !!state.battle } : undefined;
-    state.programs.unshift({ ...frame, ops: keywordProgram(game, keyword, skill), ...(printed ? { printed } : {}) });
+    queueAutomatic(ctx, game, state, ev, { ...frame, ops: keywordProgram(game, keyword, skill), ...(printed ? { printed } : {}) }, skill, program);
     return true;
   }
   // 9-4: a condition the record hoisted out of the price is asked before
@@ -775,57 +760,31 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     });
     return true;
   }
-  const unsupportedCost = unsupportedAutomaticCost(skill, program, next.card, next.skillIndex, next.trigger);
-  if (unsupportedCost) {
-    interruptGame(ctx, game, state, ev, unsupportedCost);
-    return true;
-  }
-  // 4-3-3 and 20-5: action prices and X prices are not supported on an
-  // automatic skill. Printed skill costs (orbs, markers, Burst and Spirit
-  // Boost) have their own check above; player-activated skills keep their
-  // existing supported payment path.
-  if (program.price?.ops?.length || program.price?.x) {
-    interruptGame(ctx, game, state, ev, {
-      sourceCard: next.card,
-      skillIndex: next.skillIndex,
-      trigger: next.trigger,
-      issue: "#549",
-      detail: "Resolving this automatic skill requires an unsupported action or X price.",
-    });
-    return true;
-  }
-
-  // `raw` and not `effect`: the beat shows the skill **as printed**, tag and
-  // all, which is what the legacy engine logs (`sk.raw`) and therefore what
-  // the two logs are compared on. The effect alone reads as a card that never
-  // said it was an [Auto].
-  log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill?.raw ?? "", inBattle: false });
-  state.programs.unshift(frame);
+  queueAutomatic(ctx, game, state, ev, frame, skill, program);
   return true;
 }
 
-/** Automatic skill costs are not implemented by #549. Stop before applying
- * the effect, but only after its optional condition has proved true. */
-function unsupportedAutomaticCost(skill: Skill | undefined, program: Script, card: string, skillIndex: number, trigger: string): NonNullable<StoredOutcome["privateContext"]> | null {
-  // This helper only runs for a due trigger at checkpoint: that includes
-  // keyword declarations with `at:` as well as ordinary [Auto] skills.
-  // Activated keywords (Aegis, etc.) do not pass through this path.
-  if (skill?.kind !== "auto" && skill?.kind !== "keyword") return null;
-  const hasPrintedCost = Object.values(skill.energyCost).some((n) => n > 0)
-    || skill.energyEither.length > 0
-    || skill.markerCost != null
-    || skill.burst != null
-    || skill.spiritBoost != null;
-  if (hasPrintedCost || program.price?.payWith?.length) {
-    return {
-      sourceCard: card,
-      skillIndex,
-      trigger,
-      issue: "#549",
-      detail: "This automatic skill has a cost this engine cannot charge.",
-    };
+/** 9-6-4: a satisfied condition alone is not an optional cost. */
+function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, skill: Skill | undefined, program: Script): void {
+  const unknownPrice = skill?.kind === "auto" && !costIsOnlyOrbs(skill.cost) && !program.price?.condition && !program.price?.ops?.length && !program.price?.x && !program.price?.payWith?.length;
+  const priced = skill && (unknownPrice || Object.values(skill.energyCost).some((n) => n > 0) || skill.energyEither.length > 0
+    || skill.markerCost != null || skill.burst != null || skill.spiritBoost != null || program.price?.ops?.length || program.price?.x);
+  if (!priced || !skill) {
+    log(ev, { type: "skill", card: frame.card, skill: frame.skillIndex ?? 0, master: frame.master, text: skill?.raw ?? "", inBattle: skill?.kind === "keyword" && !!state.battle });
+    state.programs.unshift(frame);
+    return;
   }
-  return null;
+  try {
+    const autoCost = prepareAutomaticCost(ctx, game, state, frame, skill, program);
+    if (!autoCost.choices.length) {
+      log(ev, { type: "note", text: "Auto skill canceled: its full cost is unaffordable" });
+      return;
+    }
+    state.programs.unshift({ ...frame, ops: program.price?.ops ?? [], autoCost });
+  } catch (err) {
+    if (!(err instanceof NotYet)) throw err;
+    interruptGame(ctx, game, state, ev, { sourceCard: frame.card, skillIndex: frame.skillIndex, trigger: frame.trigger, issue: err.issue, detail: err.message });
+  }
 }
 
 /**
@@ -993,6 +952,39 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.autoCost) {
+      const cost = frame.autoCost;
+      if (cost.stage === "offer") {
+        if (frame.awaiting !== "autoCost" || state.lastMode === null) {
+          frame.awaiting = "autoCost";
+          state.programs.unshift(frame);
+          state.prompt = { kind: "chooseMode", player: frame.master, reason: "Pay this Auto skill's cost?", options: [...cost.choices.map((choice) => `Pay: ${choice.label}`), "Don't pay"] };
+          return "wait";
+        }
+        const choice = cost.choices[state.lastMode];
+        state.lastMode = null;
+        delete frame.awaiting;
+        if (!choice) {
+          log(ev, { type: "note", text: "Auto skill declined: its cost was not paid" });
+          return "done";
+        }
+        beginAutomaticCost(ctx, game, state, ev, frame, choice);
+      }
+      // Recheck the submitted choice on an isolated board before any mutation.
+      // Invalid or dead-ending answers leave the persisted payment cursor intact.
+      if (!canFinishAutomaticPrice(ctx, game, state, frame)) throw new IllegalAction("that choice cannot pay the entire Auto skill cost");
+      const result = stepScript(automaticPriceHost(ctx, game, state, ev), frame);
+      if (result === "done") finishAutomaticCost(ctx, game, state, ev, frame);
+      else if (state.prompt.kind === "chooseCards") {
+        const prompt = state.prompt;
+        prompt.choice.candidates = prompt.choice.candidates.filter((id) => {
+          const clone = structuredClone(state);
+          clone.lastChoice = [id];
+          return canFinishAutomaticPrice(ctx, game, clone, frame);
+        });
+      }
+      return result;
+    }
     if (frame.pendingHookSkill && (skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")))) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
       return "done";
