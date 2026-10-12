@@ -94,6 +94,7 @@
       ],
       "combo": [],
       "energy": [],
+      "energyColors": [],
       "hand": [
         {
           "id": "p1#9",
@@ -435,6 +436,7 @@
       ],
       "combo": [],
       "energy": [],
+      "energyColors": [],
       "hand": null,
       "handCount": 1,
       "life": 8,
@@ -458,6 +460,19 @@
       "step": "defense",
       "attackPower": 25000,
       "guardPower": 10000,
+      "stakes": {
+        "hit": true,
+        "tied": false,
+        "target": "leader",
+        "lifeDamage": 1,
+        "strikeDamage": 1,
+        "markerLoss": 0,
+        "critical": false,
+        "victoryStrike": false,
+        "potentialLethal": false,
+        "koPrevented": false,
+        "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+      },
       "contributions": {
         "p2#44": 25000,
         "p1#0": 10000
@@ -467,7 +482,8 @@
       "kind": "combo",
       "player": "p1",
       "question": "Combo? Tap a glowing card.",
-      "hint": "Each adds its combo power and costs its combo cost."
+      "hint": "Each adds its combo power and costs its combo cost.",
+      "passConsequence": "Pass ends your defense responses and advances to damage. Pending skills and replacements still resolve."
     },
     "over": null
   },

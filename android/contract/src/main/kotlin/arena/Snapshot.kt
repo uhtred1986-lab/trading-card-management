@@ -249,7 +249,11 @@ data class SideView(
     val choices: List<CardView>? = null,
     /** Rules in force on this player rather than on a card ("can't attack with Battle Cards"). */
     val rules: List<EffectView>? = null,
+    val energyColors: List<EnergyColors>? = null,
 )
+
+@Serializable
+data class EnergyColors(val card: String, val colors: List<String>, val paymentColors: List<String> = emptyList())
 
 @Serializable
 data class CardView(
@@ -356,6 +360,7 @@ data class BattleView(
     val step: String,
     val attackPower: Int,
     val guardPower: Int,
+    val stakes: BattleStakes? = null,
     /**
      * The counter cards played into THIS battle, in play order. They are in
      * the Drop by now and indistinguishable there, which is why the engine
@@ -369,6 +374,22 @@ data class BattleView(
      * so it is a breakdown of a figure already counted, not a term beside it.
      */
     val contributions: Map<String, Int> = emptyMap(),
+)
+
+/** Conditional public projection; responses and replacements can change it. */
+@Serializable
+data class BattleStakes(
+    val hit: Boolean,
+    val tied: Boolean,
+    val target: String,
+    val lifeDamage: Int,
+    val strikeDamage: Int,
+    val markerLoss: Int,
+    val critical: Boolean,
+    val victoryStrike: Boolean,
+    val potentialLethal: Boolean,
+    val koPrevented: Boolean,
+    val assumption: String,
 )
 
 @Serializable
@@ -397,7 +418,12 @@ data class PromptView(
     val step: StepView? = null,
     /** What is being paid for, from a `payCost` or `optionalCost` prompt. */
     val cost: String? = null,
+    val passConsequence: String? = null,
+    val payments: List<PaymentPreview>? = null,
 )
+
+@Serializable
+data class PaymentPreview(val option: Int, val energyRest: List<String>, val markers: Int)
 
 @Serializable
 data class StepView(

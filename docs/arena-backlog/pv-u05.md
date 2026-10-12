@@ -1,11 +1,12 @@
 ---
 title: [P1] Arena: Make battle stakes resources and pass consequences explicit
 milestone: Arena M16 — Board redesign: play feel and card review
-labels: backlog, blocked, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
+labels: backlog, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
+status: closed
 issue: 562
 priority: P1
-touches: src/components/arena/stage/DuelBand.tsx, src/components/arena/stage/PromptPanel.tsx, src/components/arena/stage/StageZones.tsx
+touches: src/components/arena/stage/DuelBand.tsx, src/components/arena/stage/PromptPanel.tsx, src/components/arena/stage/StageZones.tsx, src/components/arena/stage/ArenaStage.tsx, src/components/arena/stage/Hand.tsx, src/lib/arena/view.ts, src/lib/arena/vm/view.ts, src/lib/arena/vm/battle.ts, src/lib/arena/vm/battle-damage.ts, android/contract/src/main/kotlin/arena/Snapshot.kt
 ---
 **Source:** `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.
 
@@ -18,11 +19,11 @@ touches: src/components/arena/stage/DuelBand.tsx, src/components/arena/stage/Pro
 **Files to verify first:** `src/components/arena/stage/DuelBand.tsx`, `src/components/arena/stage/PromptPanel.tsx`, `src/components/arena/stage/StageZones.tsx`. Update the contract/types/fixtures/glossary where the behavior requires it; verify actual symbols before editing.
 
 **Acceptance.**
-- [ ] A tied attack, Double Strike, Critical and lethal example each explains Pass before submission; payment preview updates remaining coloured energy; no hidden hand/life information enters the summary.
-- [ ] Positive, negative, stale/reload and interaction cases appropriate to this change have explicit state/cost/event assertions.
-- [ ] Typecheck, lint, relevant scenario verification, npm test and build pass; VM/compiler work includes glossary updates, reading diff and fuzz 40 where applicable.
-- [ ] Before/after actual-artwork fixtures at 1440 and 390 in both skins, plus short phones, keyboard, 200% text and reduced motion; no obscured primary decision.
-- [ ] One bounded PR, clear evidence per acceptance bullet, and canonical backlog status updated on completion. Live database/paid/production checks are listed as owner-run rather than claimed.
+- [x] Tied, Double Strike, Critical and potential lethal examples explain the immediate Pass consequence before submission, conditionally. EngineAPI browser fixtures verify their DOM summaries in both skins; exact payment choices preview remaining payment colours. No hidden hand/life identities enter the stakes or public energy rows. Existing colour-grant/payment divergence is disclosed in inspection and tracked separately by #626.
+- [x] `scripts/verify/battle-stakes-562.ts` asserts actual resolver outcomes, held/negated/removed/completed battles, effective Strike grants, optional replacements, pending Autos, Unison markers, Indestructible, exact payment rest/movement, public rows for both viewers, source/turn expiry, old-view fallback, serialization and stale revisions. The browser captures a real Counter-to-Defense update and rejects an older poll.
+- [x] Typecheck, lint, focused scenarios, npm test and build pass on integrated main c1abbe1d plus this feature. Contract emission passes and its additive fixture changes are reviewed. Existing damage/intact queries are extracted unchanged; no new compiler/mechanic reading requires glossary or reading-diff changes. DB-backed fuzz 40 is owner-run. Kotlin offline decoding was attempted but its required plugin is absent from the cache; this remains explicitly unverified.
+- [x] Before/after EngineAPI fixtures with actual Senzu/Whis artwork cover 1440, 390 and 390×650 in both skins. Browser assertions cover real Tab/Enter, phone touch interaction, 200% text, reduced motion, zero horizontal overflow, and Pass fully visible/unobscured with assumptions collapsed and expanded. Both phone skins prove a 44px unobscured legal hand tap at normal size, actual combo engine actions and power refresh at normal/200% text, touch scrolling on short phones, and hand/occupied-row fullscreen inspection. Only empty lifted Battle rows compact; occupied rows retain their footprint. Evidence is in `docs/arena-backlog/evidence/562/README.md`.
+- [x] One bounded draft PR supplies evidence per acceptance item and closes this canonical file. No live database, paid-provider, configuration, migration or production checks are claimed. Owner-run/unavailable checks are listed in the evidence and PR.
 
 **Order and hot files.** Follow prerequisite merge order and `docs/arena-delivery-plan.md`. `src/components/arena/stage/DuelBand.tsx`, `src/components/arena/stage/PromptPanel.tsx`, `src/components/arena/stage/StageZones.tsx` must not have concurrent writers. Other ready issues can be assigned independently only after checking shared types/fixtures and migrations.
 

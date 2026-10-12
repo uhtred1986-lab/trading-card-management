@@ -34,7 +34,9 @@ import { abilityViews, type BattleView, type BoardView, type CardArt, type CardV
 import { describeEffect, describeStatic, type EffectView } from "../effects";
 import { attrsOf, type Attrs } from "./cards";
 import { skillsOf } from "../text/cards";
-import { attrsNow, keywordsInForce, permanentStaticsOf, staticsNow } from "./program";
+import { attrsNow, forbids, hasKeyword, keywordsInForce, permanentStaticsOf, staticsNow } from "./program";
+import { battleIntact, damageRule } from "./battle-damage";
+import { cardColors } from "./costs";
 import { DEFERRED_STATICS, STATIC_OPS } from "./effects";
 import { costModifierAs, describeScript, modifyAttrAs, negateAs, replaceAs, type Op } from "./script";
 import { masterOf, skillsShowing } from "./triggers";
@@ -78,7 +80,7 @@ export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmS
     phase: state.phase,
     turnPlayer: state.turnPlayer,
     battle: battleView(ctx, game, state, images, availability, viewer),
-    prompt: promptView(state, game),
+    prompt: promptView(state, game, viewer),
     over: state.overReason !== null ? { winner: state.winner, reason: state.overReason } : null,
   };
 }
@@ -112,6 +114,12 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     }, 0);
   const attackPower = power(b.attacker) + combo(state.turnPlayer);
   const guardPower = power(b.guard) + combo(defender);
+  const target = state.sides[defender].zones.leader?.includes(b.guard) ? "leader" : state.sides[defender].zones.unison?.includes(b.guard) ? "unison" : "battle";
+  const how = damageRule(ctx, game, state, b.attacker);
+  const hit = attackPower >= guardPower;
+  const life = state.sides[defender].zones.life?.length ?? 0;
+  const lifeDamage = target === "leader" && hit ? Math.min(life, Math.max(1, how.atLeast ?? 1)) : 0;
+  const markers = state.cards[b.guard]?.markers ?? 0;
   // A counter's own contribution is the power it put on the fight through a
   // continuous effect it is the source of — #150 wires the primitive
   // (`vmHost`'s `addEffect`) but no card's program targets the attacker or
@@ -131,6 +139,14 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     step: b.step,
     attackPower,
     guardPower,
+    ...(!b.negated && battleIntact(state) && ["declared", "offense", "defense"].includes(b.step) ? { stakes: {
+      hit, tied: attackPower === guardPower, target, lifeDamage, strikeDamage: Math.max(1, how.atLeast ?? 1),
+      markerLoss: target === "unison" && hit ? Math.min(markers, how.allMarkers ? markers : Math.max(1, how.atLeast ?? 1)) : 0,
+      critical: how.to === "drop", victoryStrike: !!how.wins,
+      potentialLethal: lifeDamage > 0 && (lifeDamage >= life || !!how.wins),
+      koPrevented: target === "battle" && (hasKeyword(ctx, game, state, b.guard, "Indestructible") || forbids(ctx, game, state, "beKOd", { card: b.guard })),
+      assumption: "At current totals, with no further responses. Pending skills and replacements can change this result.",
+    } } : {}),
     ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, game, state, c.card, images, availability, viewer), by: c.by, after: c.after })) } : {}),
     contributions,
   };
@@ -142,9 +158,12 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
  * (`vm/battle.ts`), the same interpolation `view.ts`'s own `questionFor`
  * does for the legacy engine.
  */
-export function promptView(state: VmState, game?: GameDefinition): PromptView {
+export function promptView(state: VmState, game?: GameDefinition, viewer?: PlayerId): PromptView {
   const pr = state.prompt;
-  if (pr.kind === "payCost") return { kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: promptHint("payCost", game), cost: pr.describe };
+  if (pr.kind === "payCost") return {
+    kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: promptHint("payCost", game), cost: pr.describe,
+    ...(viewer === pr.player ? { payments: pr.options.map((payment, option) => ({ option, energyRest: payment.rest.filter((id) => state.sides[pr.player].zones.energy?.includes(id)), markers: payment.markers })) } : {}),
+  };
   // The two questions a *program* puts (5-2, 20-2) carry their own words —
   // the legacy `questionFor`'s, field for field — and where the question sits
   // in the skill's chain (`stepFor` below).
@@ -155,7 +174,15 @@ export function promptView(state: VmState, game?: GameDefinition): PromptView {
   if (pr.kind === "chooseMode") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("chooseMode", game) });
   if (pr.kind === "replaceMove") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("replaceMove", game) });
   const words = fixedPrompt(pr.kind, game) ?? { question: "…", hint: null };
-  return { kind: pr.kind, player: "player" in pr ? pr.player : null, question: words.question, hint: words.hint };
+  const passConsequence = pr.kind === "combo"
+    ? state.battle && (state.battle.negated || !battleIntact(state) || !["declared", "offense", "defense"].includes(state.battle.step))
+      ? "Pass ends this response window; the battle continues to its end."
+      : pr.side === "offense" ? "Pass ends your offense responses; the defender can respond next." : "Pass ends your defense responses and advances to damage. Pending skills and replacements still resolve."
+    : pr.kind === "counter" ? `No counter closes this Counter: ${pr.window === "attack" ? "Attack" : pr.window === "play" ? "Play" : pr.window} window; the pending ${pr.window === "attack" ? "attack" : pr.window === "play" ? "play" : "counter skill"} continues.`
+      : pr.kind === "blocker" ? "Do not block keeps the current attack target; offense responses follow."
+        : pr.kind === "charge" ? "Skip charge declines charging; Main Phase follows after pending skills."
+          : pr.kind === "main" ? "End turn ends Main Phase; end-of-turn skills resolve before the next turn." : undefined;
+  return { kind: pr.kind, player: "player" in pr ? pr.player : null, question: words.question, hint: words.hint, ...(passConsequence ? { passConsequence } : {}) };
 }
 
 /**
@@ -287,6 +314,7 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
     battle: cards(VIEW_ZONES.battle),
     combo: cards(VIEW_ZONES.combo),
     energy: cards(VIEW_ZONES.energy),
+    energyColors: energy.map((id) => ({ card: id, colors: strings(attrsNow(ctx, game, state, id).colors), paymentColors: cardColors(ctx, game, state, id) })),
     // 3-3-3: only the size of an opponent's hand is public.
     hand: mine ? cards(VIEW_ZONES.hand) : null,
     handCount: at(VIEW_ZONES.hand).length,

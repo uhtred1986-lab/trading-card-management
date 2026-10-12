@@ -25,6 +25,7 @@ export function Hand({
   dragId = null,
   dragFor,
   chargeable,
+  decisionHint,
 }: {
   cards: CardView[];
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
@@ -34,6 +35,8 @@ export function Hand({
   dragFor?: (id: string) => React.HTMLAttributes<HTMLDivElement> | null;
   /** In the Charge phase: this card can be charged, so it wears the dashed outline (rd-04). */
   chargeable?: (id: string) => boolean;
+  /** Current engine hand decision, placed beside its existing inspection control. */
+  decisionHint?: string;
 }) {
   // The fan is laid out from the width it has, so it is measured: the width of
   // the hand, and the width of one card at the board's current scale.
@@ -67,7 +70,8 @@ export function Hand({
     <section className="arena-field arena-hand relative" aria-label="Your hand">
       <ZoneAnchor zone="p1:hand" />
       {firstProps?.onInspect && (
-        <div className="flex justify-end px-3 pt-2">
+        <div className="flex items-center justify-end gap-2 px-3 pt-2">
+          {decisionHint && <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-space-100">{decisionHint}</span>}
           <button
             type="button"
             onClick={firstProps.onInspect}

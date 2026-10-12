@@ -176,6 +176,8 @@ export interface SideView {
   battle: CardView[];
   combo: CardView[];
   energy: CardView[];
+  /** Effective public energy colours, distinct from CardView's printed colours. */
+  energyColors?: { card: string; colors: string[]; paymentColors: string[] }[];
   /** Null when the hand is the opponent's: only its size is public (3-3-3). */
   hand: CardView[] | null;
   handCount: number;
@@ -237,6 +239,20 @@ export interface BattleView {
   step: string;
   attackPower: number;
   guardPower: number;
+  /** Conditional public projection, not a resolved result. Older engines omit it. */
+  stakes?: {
+    hit: boolean;
+    tied: boolean;
+    target: "leader" | "unison" | "battle";
+    lifeDamage: number;
+    strikeDamage: number;
+    markerLoss: number;
+    critical: boolean;
+    victoryStrike: boolean;
+    potentialLethal: boolean;
+    koPrevented: boolean;
+    assumption: string;
+  };
   /**
    * The counter cards played into this battle, in play order. They are in the
    * Drop by now, which is exactly why the board cannot find them for itself.
@@ -274,6 +290,10 @@ export interface PromptView {
   step?: { index: number; count: number; label: string };
   /** What is being paid for, unflattened, from a `payCost` or `optionalCost` prompt. */
   cost?: string;
+  /** The current engine window's decline, not a prediction of later responses. */
+  passConsequence?: string;
+  /** Exact energy cards rested by each offered payment; only the actor sees these. */
+  payments?: { option: number; energyRest: string[]; markers: number }[];
 }
 
 /** Everything the current prompt will accept, indexed by the card it points at. */

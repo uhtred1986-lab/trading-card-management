@@ -166,6 +166,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "Each prompt offers only cards covering missing distinct colors; payment occurs once after complete coverage. Additional resource-cost ordering is independently tested in arena-aegis-additional-cost-order; original-color eligibility is independently tested in arena-keyword-original-colors and additional action prices remain #595.",
   },
   {
+    id: "arena-energy-payment-effective-colors",
+    label: "An effective energy colour grant is not yet used by the payment planner",
+    status: "unsupported",
+    evidence: "runtime-gap",
+    citation: "1-2-3; 2-2; 5-3; Hidden Mode exception 23-5-2",
+    ownerIssue: 626,
+    proof: "scripts/verify/battle-stakes-562.ts — public Blue grant on Red energy is effective, but the current planner refuses the Blue specified cost",
+    detail: "The UI distinguishes effective card colours from actual planner payment colours instead of claiming extra affordability. The active synthetic fixture documents this existing discrepancy; correcting applicable payment layers remains #626. This is not a skipped test or a claim about a verified catalog grant card.",
+  },
+  {
     id: "arena-revive-additional-cost-order",
     label: "Priced Revive still pays its additional resource fee before hand colors",
     status: "unsupported",

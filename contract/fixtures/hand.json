@@ -117,6 +117,26 @@
           "referee": false
         }
       ],
+      "energyColors": [
+        {
+          "card": "p1#12",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        },
+        {
+          "card": "p1#45",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
       "hand": [
         {
           "id": "p1#15",
@@ -361,6 +381,7 @@
       "battle": [],
       "combo": [],
       "energy": [],
+      "energyColors": [],
       "hand": null,
       "handCount": 0,
       "life": 8,
@@ -383,7 +404,8 @@
       "kind": "main",
       "player": "p1",
       "question": "Your Main Phase.",
-      "hint": "Play cards, attack, or end the turn."
+      "hint": "Play cards, attack, or end the turn.",
+      "passConsequence": "End turn ends Main Phase; end-of-turn skills resolve before the next turn."
     },
     "over": null
   },
