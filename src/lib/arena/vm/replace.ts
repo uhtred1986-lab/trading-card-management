@@ -68,7 +68,7 @@ function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     if (e.kind !== "replaceLeave" || !e.source || !e.master || !e.value || typeof e.value !== "object") continue;
     const r = e.value as Replacement;
     const target = r.target ?? { special: "self" as const };
-    const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: e.source, master: e.master };
+    const frame: ScriptFrame = { ops: [], ip: 0, vars: r.vars ?? {}, card: e.source, master: e.master };
     if (resolveSelector(ctx, game, state, frame, target).includes(id)) out.push({ source: e.source, r });
   }
   return out;
