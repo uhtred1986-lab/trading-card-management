@@ -15,6 +15,7 @@ import type { ProbeOutcome, ProbeRule, ProbeScenario } from "./probe-types";
 import { questionFor } from "./view";
 import type { RulePath } from "./lang/path";
 import { isMarker, markerPath } from "./probe-trace";
+import { resolveOutcome } from "./outcome";
 
 /**
  * The rules engine's definition, for the two readings below that the engine
@@ -194,7 +195,10 @@ export function boardChanges(ctx: EngineContext, steps: ProbeStep[], from: numbe
         const until = untilWords(e.effect.until, { master: e.effect.master, viewer: YOU, them: "the opponent" });
         out.push(`${e.effect.target ? named(step.state, e.effect.target) : "a rule"}: ${label} ${until}`.trim());
       } else if (e.type === "move" && e.from !== e.to && e.from !== "deck") out.push(`${named(step.state, e.card)} goes from ${AREA_WORDS[e.from] ?? e.from} to ${AREA_WORDS[e.to] ?? e.to}`);
-      else if (e.type === "gameOver") out.push(e.winner ? `the game ends: ${who(e.winner)} win` : "the game ends in a draw");
+      else if (e.type === "gameOver") {
+        const outcome = resolveOutcome(step.state as EngineState & { outcome?: import("./outcome").StoredOutcome | null });
+        out.push(outcome?.kind === "interrupted" ? "the game is interrupted" : e.winner ? `the game ends: ${who(e.winner)} win` : "the game ends in a draw");
+      }
     }
   }
   for (const p of [YOU, THEM] as PlayerId[]) {

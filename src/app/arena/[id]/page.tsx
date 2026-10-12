@@ -91,7 +91,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
 
         <p className="rounded-xl border border-dbs-yellow/40 bg-dbs-yellow/10 px-3 py-2 text-sm text-dbs-yellow">
           This game is archived — it shows the position exactly as it last stood, and cannot be continued.
-          {snap.over && (snap.over.winner ? ` ${snap.over.winner === "p1" ? archived.p1Name : archived.p2Name} won — ${snap.over.reason}` : ` A draw — ${snap.over.reason}`)}
+          {snap.over && ` ${snap.over.kind === "interrupted" ? "Game interrupted" : snap.over.kind === "abandoned" ? "Game abandoned" : snap.over.kind === "draw" ? "A draw" : `${snap.over.winner === "p1" ? archived.p1Name : archived.p2Name} won`} — ${snap.over.reason}`}
         </p>
 
         <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} />
@@ -160,12 +160,11 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
     // From lg the board is the whole viewport, edge to edge (#444).
     <div className="mx-auto w-full max-w-7xl space-y-3 lg:max-w-none">
 
-      {game.status === "over" && (
+      {snap.over && (
         <GameOver
           gameId={id}
-          winnerName={game.state.winner ? sideName(game.state, game.state.winner) : null}
-          draw={!game.state.winner}
-          reason={game.state.overReason ?? ""}
+          outcome={snap.over}
+          winnerName={snap.over.winner ? sideName(game.state, snap.over.winner) : null}
           turns={game.state.turn}
           damage={{ you: damageTaken(game.state, snap.game.you), them: damageTaken(game.state, snap.game.you === "p1" ? "p2" : "p1") }}
           spend={game.spend}

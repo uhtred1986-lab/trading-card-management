@@ -19,7 +19,7 @@ import { seedFrom } from "./vm/rng";
 import { type Action, type CardDef, type EngineContext, type GameEvent, type LegalAction, type PlayerId } from "./types";
 import { appendBeats, describeSkillEvent, type Beats, type NumberedBeat } from "./beats";
 import { ENGINE_INFO, engineFor, engineOr, FALLBACK_ENGINE, isVmState, playableEngine, sideName, type EngineId, type EngineState } from "./engines";
-import { NOT_YET_REASON_PREFIX } from "./vm";
+import { NOT_YET_REASON_PREFIX, resolveOutcome } from "./outcome";
 import { recordDecision } from "./ai/debug";
 import { tableTalk } from "./ai/table-talk";
 import { cardDefFrom, deckInputFor } from "./load";
@@ -617,7 +617,8 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   // — but it is also a fact no AI decided, so the debug page would otherwise
   // never say why a hot-seat game with no Claude in it stopped. One row,
   // shaped like every other decision, is what puts it there.
-  if (state.overReason?.startsWith(NOT_YET_REASON_PREFIX)) {
+  const typedOutcome = isVmState(state) ? state.outcome : null;
+  if (typedOutcome?.kind === "interrupted" || state.overReason?.startsWith(NOT_YET_REASON_PREFIX)) {
     await recordDecision(db, {
       gameId: id,
       turn: state.turn,
@@ -626,7 +627,9 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
       player: action.player,
       kind: "engineStuck",
       decidedBy: "rule",
-      how: state.overReason,
+      how: typedOutcome?.privateContext
+        ? `${typedOutcome.privateContext.issue ?? "#544"} — ${typedOutcome.privateContext.detail ?? "Unsupported rule"}`
+        : state.overReason ?? "Engine could not finish this game.",
     });
   }
   return withLegal(
@@ -753,6 +756,7 @@ const GAME_LIST_COLUMNS = {
   status: arenaGames.status,
   winner: arenaGames.winner,
   reason: arenaGames.reason,
+  outcomeKind: sql<string | null>`${arenaGames.state}->'outcome'->>'kind'`,
   turn: arenaGames.turn,
   mode: arenaGames.mode,
   engine: arenaGames.engine,
@@ -895,7 +899,10 @@ export function describeEvents(ctx: EngineContext, state: EngineState, events: G
         out.push(e.text);
         break;
       case "gameOver":
-        out.push(e.winner ? `${who(e.winner)} wins — ${e.reason}` : `A draw — ${e.reason}`);
+        {
+          const result = resolveOutcome(state, state.phase === "over" ? "over" : undefined);
+          out.push(result?.kind === "interrupted" ? result.reason : e.winner ? `${who(e.winner)} wins — ${e.reason}` : `A draw — ${e.reason}`);
+        }
         break;
       default:
         break;

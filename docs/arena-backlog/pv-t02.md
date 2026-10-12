@@ -2,7 +2,7 @@
 title: [P0] Arena: Stop unsupported resolution with a typed interrupted outcome
 milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, ready-for-agent, enhancement, area:arena-contract, phase:arena-home, model:opus-5
-stage: ui
+stage: closed
 issue: 544
 priority: P0
 touches: src/lib/arena/vm/flow.ts, src/lib/arena/engines.ts, src/components/arena/stage/GameEnd.tsx, src/components/arena/GameOver.tsx, src/app/arena/[id]/page.tsx
@@ -18,10 +18,10 @@ touches: src/lib/arena/vm/flow.ts, src/lib/arena/engines.ts, src/components/aren
 **Files to verify first:** `src/lib/arena/vm/flow.ts`, `src/lib/arena/engines.ts`, `src/components/arena/stage/GameEnd.tsx`, `src/components/arena/GameOver.tsx`, `src/app/arena/[id]/page.tsx`. Update the contract/types/fixtures/glossary where the behavior requires it; verify actual symbols before editing.
 
 **Acceptance.**
-- [ ] The same fixture distinguishes false condition, optional decline, paid resolution and unsupported resolution; only the last interrupts, and neither browser nor match history reports a draw.
-- [ ] Positive, negative, stale/reload and interaction cases appropriate to this change have explicit state/cost/event assertions.
-- [ ] Typecheck, lint, relevant scenario verification, npm test and build pass; VM/compiler work includes glossary updates, reading diff and fuzz 40 where applicable.
-- [ ] One bounded PR, clear evidence per acceptance bullet, and canonical backlog status updated on completion. Live database/paid/production checks are listed as owner-run rather than claimed.
+- [x] The same fixture distinguishes false condition, optional decline, paid resolution and unsupported resolution; only the last interrupts, and neither browser nor match history reports a draw.
+- [x] Positive, negative, stale/reload and interaction cases have explicit outcome, cost, event, archive, viewer-privacy and review-provider assertions. Browser before/after captures show the typed interruption at 390×844 and 1440×900 in both skins; see `docs/arena-backlog/evidence/544/README.md`.
+- [x] Typecheck, lint, relevant scenario verification, npm test and build pass. Outcome handling does not change glossary rules meanings; the reading and legacy-oracle diffs were reviewed, and all 207 legacy probe digests remain byte-identical. Only the expected AUTOCOST and unread MYSTERY rules parity rows changed. Live database, paid-provider and production checks remain owner-run and were not claimed.
+- [x] One bounded draft PR with acceptance evidence is prepared; canonical backlog status is closed. Live database/paid/production checks are listed as owner-run rather than claimed.
 
 **Order and hot files.** Follow prerequisite merge order and `docs/arena-delivery-plan.md`. `src/lib/arena/vm/flow.ts`, `src/lib/arena/engines.ts`, `src/components/arena/stage/GameEnd.tsx` must not have concurrent writers. Other ready issues can be assigned independently only after checking shared types/fixtures and migrations.
 

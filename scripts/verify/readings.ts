@@ -41,6 +41,7 @@ import {
   stagedG,
   zoneOf,
 } from "./harness";
+import type { VmState } from "../../src/lib/arena/vm/state";
 
 // ── searching a secret area (20-12), and the rest of what was looked at ────
 
@@ -1397,11 +1398,15 @@ import {
   const ally = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === "ALLY")!;
   const hand = zoneOf(s, "p1", "hand").length;
   s = playG(s, { type: "attack", player: "p1", attacker: leads, target: leaderOf(s, "p2") });
+  if (ENGINE === "rules") {
+    assert.equal((s as VmState).outcome?.kind, "interrupted", "the unsupported Auto action price interrupts instead of silently taking no payment");
+  } else {
   assert.equal(s.prompt.kind, "chooseCards", "22-32-3: which cards to rest as the cost");
   s = playG(s, { type: "choose", player: "p1", cards: [ally] });
   assert.equal(s.cards[ally].mode, "rest", "it was rested to pay");
   assert.equal(zoneOf(s, "p1", "hand").length, hand + 1, "and it noticed");
   assertConsistentG(s);
+  }
 }
 
 {

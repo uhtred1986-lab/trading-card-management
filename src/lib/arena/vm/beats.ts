@@ -163,7 +163,7 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         break;
       }
       case "gameOver":
-        push({ t: "over", winner: e.winner, reason: e.reason });
+        push({ t: "over", winner: e.winner, reason: e.reason, ...(state.outcome ? { kind: state.outcome.kind } : {}) });
         break;
       // The events with no picture. `gameStart`, `action` and `energyMarker`
       // are the board's own state and are read off the view rather than
