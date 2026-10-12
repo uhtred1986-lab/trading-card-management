@@ -43,6 +43,7 @@ import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./s
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { activationAlt, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
+import { queueAegisCost } from "./aegis-costs";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -819,6 +820,13 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // A keyword move that is the keyword's alone is announced as it is paid for
   // and ahead of the payment, the legacy order (`announcesBeforePrice`) — but
   // never before a `payCost` question below, which pays and announces nothing.
+  if (line?.keyword?.name === "Aegis") {
+    // 22-30-3: only the hand-colour payment is started now. Additional cost,
+    // successful activation and effect all follow its stored continuation.
+    queueAegisCost(game, state, player, line, def.cost ?? [], chosen.x);
+    if (def.again !== true) answered(state);
+    return "done";
+  }
   const early = line && announcesBeforePrice(line) ? line : null;
   if (chosen.alt) {
     // 5-3: the alternative is paid *instead of* the declared price — nothing,

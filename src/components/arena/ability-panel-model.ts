@@ -79,3 +79,18 @@ export function abilityCost(line: AbilityLine, move: AbilitySheetMove): string {
   // Missing cost evidence is not evidence that activation is free.
   return line.costPreview.state === "incomplete" ? "Cost details unavailable" : "No cost shown";
 }
+
+/** Keep the common one-button CTA compact while distinguishing real alternate/X offers. */
+export function abilityActionLabel(line: AbilityLine, move: AbilitySheetMove, choices: AbilitySheetMove[]): string {
+  const fallback = move.legal.action.type === "counter" ? "Counter" : "Activate";
+  if (choices.length <= 1) return fallback;
+  const label = move.legal.label.trim();
+  if (label && choices.filter((choice) => choice.legal.label.trim() === label).length === 1) return label;
+  const action = move.legal.action;
+  const detail = action.type === "activate"
+    ? [action.x != null ? `X = ${action.x}` : "", action.alt ? "alternate payment" : "", action.onto ? `onto ${action.onto}` : ""].filter(Boolean).join(", ")
+    : "";
+  const cost = abilityCost(line, move);
+  const suffix = detail || (cost !== "No cost shown" && cost !== "Cost details unavailable" ? cost : "choice");
+  return `${fallback} · ${suffix}`;
+}

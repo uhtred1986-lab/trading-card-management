@@ -63,6 +63,7 @@ import { asksAQuestion } from "./script-schema";
 import { expireSkips, takeSkip } from "./skips";
 import type { VmFrame, VmState } from "./state";
 import { interruptedOutcome, type StoredOutcome } from "../outcome";
+import { stepAegisCost } from "./aegis-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { IllegalAction } from "./common";
 
@@ -952,6 +953,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.autoCost) {
       const cost = frame.autoCost;
       if (cost.stage === "offer") {
@@ -1007,7 +1009,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     return stepScript(vmHost(ctx, game, state, ev), frame);
   } catch (err) {
     if (err instanceof AutoPaymentFailed) {
-      log(ev, { type: "note", text: "Auto skill canceled: a replacement caused payment to fail" });
+      log(ev, { type: "note", text: frame.aegisCost ? "Aegis activation failed: a replacement caused payment to fail" : "Auto skill canceled: a replacement caused payment to fail" });
       return "done";
     }
     if (!(err instanceof NotYet)) throw err;

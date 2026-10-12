@@ -132,7 +132,7 @@ async function runSenzu(browser: Browser, skin: string, viewport: Viewport, init
   await page.eval(`document.querySelector('[data-abilities-now] details summary')?.click()`);
   if (viewport.name === "phone" || viewport.name === "desk") {
     await page.eval(`document.querySelector('nextjs-portal')?.remove()`);
-    writeFileSync(join(evidence, `${viewport.name}-${skin}-senzu-main.jpg`), await page.screenshot(false));
+    writeFileSync(join(evidence, `${viewport.name}-${skin}-senzu-counter-attack.jpg`), await page.screenshot(false));
   }
 
   sendFresh = true;

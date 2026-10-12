@@ -9,6 +9,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { Action, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import {
+  abilityActionLabel,
   abilityCost,
   abilityPanelRows,
   matchesAbilityAction,
@@ -99,6 +100,16 @@ function move(action: LegalAction["action"], label = "engine offer", cost?: Lega
     ] },
   });
   assert.equal(abilityCost(twoPrices, move({ type: "counter", player: "p1", card: card.id }, "choose a payment")), "Choose payment");
+
+  const xLine = line({ skillIndex: 15, category: "manual", availability: "offered" });
+  const xOne = move({ type: "activate", player: "p1", card: card.id, skill: 15, x: 1 }, "Activate Senzu with X = 1", { energy: 1, describe: "1 energy" });
+  const xTwo = move({ type: "activate", player: "p1", card: card.id, skill: 15, x: 2 }, "Activate Senzu with X = 2", { energy: 2, describe: "2 energy" });
+  const alternate = move({ type: "activate", player: "p1", card: card.id, skill: 15, alt: true }, "Activate Senzu by resting a Red/Blue energy ([Invoker])", { energy: 1, describe: "1 Red/Blue energy" });
+  const variants = [xOne, xTwo, alternate];
+  assert.equal(abilityActionLabel(xLine, xOne, variants), xOne.legal.label, "multiple X offers retain their engine-provided distinction");
+  assert.equal(abilityActionLabel(xLine, xTwo, variants), xTwo.legal.label, "each X value stays identifiable without duplicating effect text");
+  assert.equal(abilityActionLabel(xLine, alternate, variants), alternate.legal.label, "alternate payment keeps its engine-provided explanation");
+  assert.equal(abilityActionLabel(xLine, xOne, [xOne]), "Activate", "a single unambiguous action stays compact");
 }
 
 // A missing price projection must not become “free” through the legacy

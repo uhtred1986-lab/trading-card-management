@@ -5,7 +5,7 @@ import type { Action, LegalAction, RejectedAction, Requirement } from "@/lib/are
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
 import type { CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
-import { abilityCost, abilityPanelRows, abilityReasonType, isStructuralRefusal, matchesAbilityAction, offeredMoves, type AbilityLine } from "./ability-panel-model";
+import { abilityActionLabel, abilityCost, abilityPanelRows, abilityReasonType, isStructuralRefusal, matchesAbilityAction, offeredMoves, type AbilityLine } from "./ability-panel-model";
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { useArenaAdmin } from "./admin-context";
 import { cardImage } from "@/lib/catalog/card-image";
@@ -321,7 +321,7 @@ function AbilityRows({
             </div>
             {messages.length > 0 && <p className="text-xs leading-snug text-loss" role="status">{messages.join(" ")}</p>}
             {choices.map((move) => {
-              const label = move.legal.action.type === "counter" ? "Counter" : "Activate";
+              const label = abilityActionLabel(line, move, choices);
               return (
                 <button
                   key={`${move.index}:${move.legal.label}`}
