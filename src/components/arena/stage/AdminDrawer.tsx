@@ -170,6 +170,14 @@ export function AdminDrawer({
 
       <div className="arena-admin-body">
         <p className="arena-admin-sub">Visible to admins only — players never see this. Flagged turns go to the review queue with the full beat log.</p>
+        <a
+          href={`/api/v1/games/${game.id}/replay`}
+          download={`arena-game-${game.id}-replay.json`}
+          data-arena-admin="replay-export"
+          className="arena-admin-btn tap mb-3 inline-flex min-h-11 items-center justify-center px-4"
+        >
+          Download replay bundle
+        </a>
 
         <dl className="arena-admin-grid">
           <Cell label="seed">{debug?.seed ?? "—"}</Cell>

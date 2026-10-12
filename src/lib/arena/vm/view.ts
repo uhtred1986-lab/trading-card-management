@@ -77,7 +77,7 @@ export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmS
     phase: state.phase,
     turnPlayer: state.turnPlayer,
     battle: battleView(ctx, game, state, images),
-    prompt: promptView(state),
+    prompt: promptView(state, game),
     over: state.overReason !== null ? { winner: state.winner, reason: state.overReason } : null,
   };
 }
@@ -141,9 +141,9 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
  * (`vm/battle.ts`), the same interpolation `view.ts`'s own `questionFor`
  * does for the legacy engine.
  */
-export function promptView(state: VmState): PromptView {
+export function promptView(state: VmState, game?: GameDefinition): PromptView {
   const pr = state.prompt;
-  if (pr.kind === "payCost") return { kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: promptHint("payCost"), cost: pr.describe };
+  if (pr.kind === "payCost") return { kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: promptHint("payCost", game), cost: pr.describe };
   // The two questions a *program* puts (5-2, 20-2) carry their own words —
   // the legacy `questionFor`'s, field for field — and where the question sits
   // in the skill's chain (`stepFor` below).
@@ -151,9 +151,9 @@ export function promptView(state: VmState): PromptView {
     const { min, max, reason } = pr.choice;
     return withStep(state, reason, { kind: pr.kind, player: pr.player, question: reason, hint: `Choose ${min === max ? min : `${min} to ${max}`}.`, min, max });
   }
-  if (pr.kind === "chooseMode") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("chooseMode") });
-  if (pr.kind === "replaceMove") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("replaceMove") });
-  const words = fixedPrompt(pr.kind) ?? { question: "…", hint: null };
+  if (pr.kind === "chooseMode") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("chooseMode", game) });
+  if (pr.kind === "replaceMove") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("replaceMove", game) });
+  const words = fixedPrompt(pr.kind, game) ?? { question: "…", hint: null };
   return { kind: pr.kind, player: "player" in pr ? pr.player : null, question: words.question, hint: words.hint };
 }
 
