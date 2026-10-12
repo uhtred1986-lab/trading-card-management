@@ -48,3 +48,27 @@ and other snapshot inputs affect them. Avoid a process-global cache: match/viewe
 outlive its bounded owner or be reused across tenants. The current measurements do not authorize or
 justify implementing that cache; first prove invalidation and hidden-information boundaries with
 state, cost, event, and view assertions.
+
+## Scoped read-session result
+
+`read-session-result.json` compares current-main `3e3785a` with the candidate source using the
+same S01/S07 audit runner three times per side, sequentially on the same local host. The candidate
+reuses the existing VM `readingBoard` scope for one synchronous snapshot construction. That scope
+starts before the lazy legal getter runs and ends when the projection returns. It holds only
+viewer-independent standing rules; legal, rejected, ability and serialized view results are still
+computed normally for their viewer. It does not keep a cache across requests or revisions.
+
+For one real `snapshotOfGame` lazy-getter path, the unchanged
+`scripts/arena-derived-read-count-569.mts` reports one legal getter call on each side and exact
+V8 `readStatics` calls of **4 before → 1 after**; the serialized snapshot SHA-256 is identical.
+The S01 crowded-aura three-run median p50/p95 changed from 48.319/56.339 ms to
+43.611/48.061 ms. The S07 crowded zero-power checkpoint changed from 60.012/75.844 ms to
+50.481/58.440 ms. The small fixture is noise-sized and makes no speed claim. Each of the six
+profile runs had identical state, legal, rejected and both-viewer snapshot hashes.
+
+`scripts/verify/derived-read-569.mts --engine rules` tests the actual lazy getter, both seats'
+hand masking even when they share one scope, an accepted one-energy play with its energy-rest
+event and state, a wrong-seat refusal, advanced revision, cloned reload, and two pinned runtime
+definitions whose attribute layers produce different power. The test confirms a new context and
+the token-wrapper identity cannot borrow the earlier scope. Timing is local Node CPU only; no
+hosted or device p95 was measured. No live database or paid provider was used.
