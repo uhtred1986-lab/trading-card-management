@@ -57,6 +57,10 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     resolveRef: (f, ref) => {
       const found = host.resolveRef(f, ref);
       const op = f.ops[f.ip];
+      // The ordinary effect interpreter skips Leader departures. A skipped
+      // instruction cannot count as a completed cost.
+      if (op?.op === "moveTo" && ref === op.target
+        && found.some((id) => !state.cards[id] || host.areaOf(id) === "leader")) unpaid();
       if (op?.op === "moveTo" && op.to === "under" && ref === op.target) {
         const under = op.under ? host.resolveRef(f, op.under) : [f.card];
         if (under.length !== 1 || !state.cards[under[0]]) unpaid();
@@ -132,29 +136,20 @@ function cannotRestSourceAfterHandPrice(ctx: EngineContext, game: GameDefinition
   if (extra.length || choose?.op !== "choose" || move?.op !== "moveTo" || rest?.op !== "switchMode") return false;
   if (rest.mode !== "rest" || Object.keys(rest).some((key) => !["op", "target", "mode"].includes(key))) return false;
   if (!("sel" in rest.target) || rest.target.sel.special !== "self" || Object.keys(rest.target.sel).length !== 1) return false;
-  if (Object.keys(choose).some((key) => !["op", "sel", "as", "reason"].includes(key))) return false;
-  const sel = choose.sel;
-  if (sel.side !== "you" || sel.area !== "hand" || !Number.isInteger(sel.count) || (sel.count ?? 0) < 1
-    // Compiler selectors carry undefined defaults for filters and alternate
-    // sources. Only a *set* extra field changes what "from hand" can mean.
-    || Object.entries(sel).some(([key, value]) => value !== undefined && !["side", "area", "count", "upTo"].includes(key))) return false;
-  if (move.to !== "drop" || Object.keys(move).some((key) => !["op", "target", "to", "reveal"].includes(key))
-    || !("var" in move.target) || move.target.var !== choose.as || Object.keys(move.target).length !== 1) return false;
+  if (move.to !== "drop" || !("var" in move.target) || move.target.var !== choose.as || Object.keys(move.target).length !== 1) return false;
   const source = state.cards[frame.card];
   const host = vmHost(ctx, game, state, []);
-  if (!source || source.mode !== "rest" || !["battle", "unison", "energy"].includes(host.areaOf(frame.card) ?? "")) return false;
-  // resolveSelector includes already-picked cards on a resumed choice. A saved
-  // alias to the source must not be mistaken for an ordinary hand candidate.
-  const hand = new Set(host.zone(frame.master, "hand"));
-  if (hand.has(frame.card) || (frame.vars[choose.as] ?? []).some((id) => !hand.has(id))
-    || state.lastChoice?.some((id) => !hand.has(id)) || frame.moveLoop || frame.replacing) return false;
-  // A cost-move replacement can run another program, including a mode reset.
-  // A [Permanent] whose condition is false now can become active after the
-  // first hand departure. Read every in-play source's actual record/copy
-  // program, including both conditional branches, before excluding that path.
-  // No remaining move puts a new Permanent source in play. A keyword
-  // wouldLeave hook only answers departures from held areas, not this hand.
-  return !mayReplacePriceMove(ctx, game, state);
+  if (!source || frame.moveLoop || frame.replacing || game.zones.drop?.modes?.includes("rest")) return false;
+  const origin = host.areaOf(frame.card);
+  // A pure Drop move cannot make a rested source eligible for a new Rest:
+  // it either stays rested in its area, or arrives in mode-less Drop. The
+  // same holds for a source already in an area where Rest cannot be paid.
+  if (source.mode === "rest" || !origin || !game.zones[origin]?.modes?.includes("rest"))
+    return !mayReplacePriceMove(ctx, game, state);
+  // A retained alias is necessarily moved even if the source has since left
+  // Hand; its old Active mode cannot survive as a payable Drop-area Rest.
+  return frame.awaiting === choose.as && !!frame.vars[choose.as]?.includes(frame.card)
+    && !mayReplacePriceMove(ctx, game, state);
 }
 
 /** A pure hand payment immediately feeds a later named Drop payment. Count
@@ -168,10 +163,10 @@ function directNamedTransfer(ctx: EngineContext, game: GameDefinition, state: Vm
   const [first, move, second, finish, ...extra] = frame.ops.slice(frame.ip);
   if (extra.length || first?.op !== "choose" || move?.op !== "moveTo" || second?.op !== "choose" || finish?.op !== "moveTo") return null;
   const simple = (value: object, allowed: string[]) => Object.entries(value).every(([key, field]) => field === undefined || allowed.includes(key));
-  if (!simple(first, ["op", "sel", "as", "reason"]) || !simple(first.sel, ["side", "area", "count", "upTo"])
+  if (!simple(first, ["op", "sel", "as", "reason", "chooser"]) || !simple(first.sel, ["side", "area", "count", "upTo"])
     || first.sel.side !== "you" || first.sel.area !== "hand" || first.sel.upTo || !Number.isInteger(first.sel.count) || (first.sel.count ?? 0) < 1
     || !simple(move, ["op", "target", "to", "reveal"]) || move.to !== "drop" || !("var" in move.target) || move.target.var !== first.as || !simple(move.target, ["var"])
-    || !simple(second, ["op", "sel", "as", "reason"]) || !simple(second.sel, ["side", "area", "filter", "count", "upTo"])
+    || !simple(second, ["op", "sel", "as", "reason", "chooser"]) || !simple(second.sel, ["side", "area", "filter", "count", "upTo"])
     || second.sel.side !== "you" || second.sel.area !== "drop" || second.sel.upTo || !Number.isInteger(second.sel.count) || (second.sel.count ?? 0) < 1
     || !simple(finish, ["op", "target", "to", "reveal"]) || finish.to !== "warp" || !("var" in finish.target) || finish.target.var !== second.as || !simple(finish.target, ["var"])) return null;
   const filter = second.sel.filter;
@@ -181,8 +176,13 @@ function directNamedTransfer(ctx: EngineContext, game: GameDefinition, state: Vm
   if (saved.some((id) => !hand.has(id)) || state.lastChoice?.some((id) => !hand.has(id)) || frame.moveLoop || frame.replacing || mayReplacePriceMove(ctx, game, state)) return null;
   // Even a Permanent with no replacement might make a selected card's
   // identity depend on the number of cards still in hand or Drop.
-  for (const side of Object.values(state.sides)) for (const zone of inPlayZones(game)) for (const id of side.zones[zone] ?? []) {
-    if (skillsShowing(ctx, state, id).skills.some((skill) => skill.kind === "permanent")) return null;
+  const permanentSources = new Set(Object.keys(state.cards).filter((id) => skillsShowing(ctx, state, id).skills.some((skill) => skill.kind === "permanent")));
+  if (permanentSources.size) {
+    // Dynamic names cannot justify a negative bound. This only orders full
+    // replay: favor already-matching cards, or preserve possible name sources.
+    const current = new Set(vmHost(ctx, game, state, []).resolveSelector(frame, { ...second.sel, area: "hand" }));
+    const matches = candidates.filter((id) => current.has(id));
+    return { enough: true, favored: new Set(matches.length ? matches : candidates.filter((id) => !permanentSources.has(id))) };
   }
   // Ask the same selector that the later interpreter step will ask. Printed
   // names alone miss case folding, a shown back face and additional names.
