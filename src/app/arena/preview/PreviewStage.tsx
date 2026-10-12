@@ -16,15 +16,31 @@ import type { AdminDebug } from "@/lib/arena/admin-debug";
  * is answered with no error and no change, so a screenshot shows the state the
  * fixture describes and the opened sheets, never a server round trip.
  */
+type PreviewDriver = { actions: unknown[]; advances: number; failFirstAdvance?: boolean; failedFirstAdvance?: boolean };
+function previewDriver(): PreviewDriver | undefined {
+  return (window as unknown as { __arenaPreviewDriver?: PreviewDriver }).__arenaPreviewDriver;
+}
+
 const STUB = {
   // What the board sent, kept where a scripted drive can read it: a drag that
   // plays a card sends one `play`, and a refused one sends nothing (rd-03).
   act: async (_gameId: number, action: unknown) => {
     const w = window as unknown as { __arenaSent?: unknown[] };
     (w.__arenaSent ??= []).push(action);
+    previewDriver()?.actions.push(action);
     return { error: null };
   },
-  advance: async () => ({ error: null }),
+  advance: async () => {
+    const driver = previewDriver();
+    if (driver) {
+      driver.advances++;
+      if (driver.failFirstAdvance && !driver.failedFirstAdvance) {
+        driver.failedFirstAdvance = true;
+        return { error: "The mocked opponent advance failed. Retry to resume the saved turn." };
+      }
+    }
+    return { error: null };
+  },
   // Flagging, answered without a database: the flag the drawer would get back.
   flag: async (gameId: number, note: string | null) => ({ error: null, created: true, flag: { id: 1, gameId, turn: 4, beatIndex: 0, note, flaggedBy: null, reviewerNote: null, resolved: false } }),
   // The end screen's Rematch: answered, never redirected — there is no game to start.

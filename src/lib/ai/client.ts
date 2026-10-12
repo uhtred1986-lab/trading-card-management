@@ -56,10 +56,14 @@ export async function recordRun<T>(
         cacheCreationTokens: response.usage.cache_creation_input_tokens ?? null,
       }
     : { inputTokens: response.usage.input, outputTokens: response.usage.output, cacheReadTokens: response.usage.cacheRead, cacheCreationTokens: response.usage.cacheWrite };
+  const arenaCallId = input && typeof input === "object" && "arena" in input && (input as { arena?: { callId?: unknown } }).arena && typeof (input as { arena?: { callId?: unknown } }).arena?.callId === "string"
+    ? (input as { arena: { callId: string } }).arena.callId
+    : null;
   const [row] = await db
     .insert(aiRuns)
     .values({
       kind,
+      ...(arenaCallId ? { arenaCallId } : {}),
       deckId: deckId ?? null,
       model: model ?? (legacy ? MODEL : response.model),
       provider: legacy ? "anthropic-api" : response.provider,
