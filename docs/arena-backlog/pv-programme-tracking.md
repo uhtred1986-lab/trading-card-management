@@ -37,14 +37,18 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - #546 / PR #591: recoverable polling, request deadlines, Offline/Reconnecting status and Retry.
 - #565 / PR #592: reproducible engine and persisted-acknowledgement performance baseline.
 - #571 / PR #594: exact card trigger/filter readings, including real Awaken exceptions.
+- #544 / PR #598: typed interrupted outcomes, public privacy, archive and review guards.
+- #553 / PR #599: static/timed identity layers and named keyword negation, with stale all-area rows blocked.
+- #555 / PR #596: incremental mandatory Aegis choices and persisted payment continuation.
+- #556 / PR #600: matching face-up Life Autos and watchers with exact event-subject binding.
 
 These PRs have local verification and orchestrator review; they are not delivered yet. Main commit
 `74701713` (PR #586) currently has no reported Vercel status. The required deployment ordering in
 `docs/agent-brief.md` holds the next merge while independent implementation continues.
 The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
-with the implementation PRs that merge before it. Review drafts cover #544 interrupted
-outcomes (PR #598), #553 static identity/keyword layers (PR #599), #555 Aegis eligibility (PR #596)
-and #556 face-up Life (PR #600). Isolated implementation has started on #554 Heroic. The locally reproduced additional
+with the implementation PRs that merge before it. The eleven-PR review combination passed local tests,
+typecheck, lint and build. Active isolated work covers #554 Heroic and #547 immutable rules/replay;
+#459 is undergoing a read-only migration audit. The locally reproduced additional
 Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
 P1 #597 separately owns original-color keyword payment eligibility after #553/#555.
 

@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: Pin immutable match rules and export reproducible replay bundles
 milestone: Arena M17 — Arena home: Play and Rules Workbench
-labels: backlog, blocked, enhancement, area:arena-contract, phase:arena-home, model:opus-5
+labels: backlog, ready-for-agent, enhancement, area:arena-contract, phase:arena-home, model:opus-5
 stage: ui
 issue: 547
 priority: P1
@@ -11,7 +11,7 @@ touches: src/lib/arena/games.ts, src/lib/arena/rules-store.ts, src/lib/arena/rul
 
 **Priority:** P1. **Delivery:** Match integrity and recovery. **Plan key:** T05.
 
-**Depends on:** #545 (T03)
+**Depends on:** #545 (T03), delivered in PR #586. Ready for isolated implementation; shared migration work is stacked after #567.
 
 **Build.** Persist ruleset, catalogue and card-program revision/hash at match creation; cache immutable bundles by revision and viewer-safe reads; export revision, seed and actions for offline reproduction. Define backward-compatible old-game handling. Additive migrations only; no automatic rewrite of existing matches.
 
