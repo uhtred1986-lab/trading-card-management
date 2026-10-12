@@ -62,11 +62,14 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import type { EngineContext } from "../types";
+import type { EngineContext, PlayerId } from "../types";
 import type { GameDefinition, HookPoint } from "../rulesets";
 import { HOOK_CONTRACT } from "./hook-contract";
-import { hookBodiesFor, hookFrame } from "./program";
+import { condHolds, hookBodiesFor, hookFrame } from "./program";
+import { inPlayZones } from "./zones";
+import type { Op, ScriptFrame } from "./script";
 import type { VmState } from "./state";
+import { masterOf } from "./triggers";
 
 export { HOOK_CONTRACT, type HookAnswer, type HookSpec } from "./hook-contract";
 export { hookBodiesFor, queryHookStatics, type HookBody, type QueryFact } from "./program";
@@ -83,5 +86,49 @@ export { hookBodiesFor, queryHookStatics, type HookBody, type QueryFact } from "
  */
 export function fireHook(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint, vars: Record<string, string[]> = {}): void {
   if (HOOK_CONTRACT[point].answer !== "effect") throw new Error(`vm/hooks.ts: "${point}" is a query hook — use queryHookStatics, not fireHook`);
-  for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(game, state, subject, body.ops, vars));
+  for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(game, state, subject, body.ops, vars, body.skillIndex));
+}
+
+/** The activating player's other in-play cards hear one of 22-35-2's two events. */
+export function fireAfterSkill(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  source: string,
+  cause: "battleCardPlayed" | "heroicExtraSkillActivated",
+  owner: PlayerId | undefined = masterOf(game, state, source),
+): void {
+  if (!owner) return;
+  const frames: ScriptFrame[] = [];
+  let missingIdentityCard: string | undefined;
+  for (const other of inPlayZones(game).flatMap((area) => state.sides[owner].zones[area] ?? [])) {
+    if (other === source) continue;
+    for (const body of hookBodiesFor(ctx, game, state, other, "afterSkill")) {
+      const vars = { source: [source], activatedExtra: cause === "heroicExtraSkillActivated" ? [source] : [] };
+      const frame = hookFrame(game, state, other, body.ops, vars, body.skillIndex);
+      frames.push(frame);
+      // Use the hook's own conditions and the source-event variables above;
+      // an unrelated event's false branch must not raise this limitation.
+      if (body.skillIndex === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, body.ops)) {
+        missingIdentityCard = other;
+      }
+    }
+  }
+  // An event can pend several keyword bodies. If one required self-negation
+  // has no individual skill identity, put the caught limitation before every
+  // body for this event, so no sibling copy draws before the failure.
+  state.programs.unshift(...frames.reverse());
+  if (missingIdentityCard) {
+    state.programs.unshift({ ops: [], ip: 0, vars: {}, card: missingIdentityCard, master: owner, pendingHookIdentityMissing: true });
+  }
+}
+
+function hasActiveNegateOwnSkill(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ops: Op[]): boolean {
+  return ops.some((op) => {
+    if (op.op === "negateOwnSkill") return true;
+    if (op.op !== "if") return false;
+    return condHolds(ctx, game, state, frame, op.cond)
+      ? hasActiveNegateOwnSkill(ctx, game, state, frame, op.then)
+      : hasActiveNegateOwnSkill(ctx, game, state, frame, op.else ?? []);
+  });
 }

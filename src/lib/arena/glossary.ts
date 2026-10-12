@@ -249,11 +249,11 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     section: "22-35",
     type: "[Auto]",
     group: "play",
-    meaning: "When you play another card with [Heroic], draw 1 card; the skill is then negated on this card for the rest of the turn.",
+    meaning: "When you play another Battle Card with [Heroic], or activate a [Heroic] Extra Card skill, draw 1 card, then negate the effects of this skill for the rest of the turn.",
     engine:
-      "Pends only on another card carrying the same keyword — [Heroic] and [Villainous] do not set each other off — and negates itself once it has resolved.",
+      "Pends after another Heroic Battle Card is played or a Heroic Extra Card skill is paid, then draws and negates this skill for the turn. Printed or copied Heroic skills have an individual identity and are supported; an identity-less granted Heroic keyword ends in an explicit engine limitation before drawing (#602).",
     engineRules:
-      "Its own afterSkill hook draws the same way (#155), but does not yet negate itself for the rest of the turn — a hook body's frame carries no skillIndex for `negate(what: own)` to read — so it draws once per other [Heroic] card played in the turn rather than once.",
+      "Manual 22-35-2/3: playing another Battle Card with [Heroic] or activating a [Heroic] Extra Card skill pends this Auto. Its own hook draws one, then `negateOwnSkill(until: turn)` records standard 9-1-5 negation against the printed/copied skill index. The paid Extra trigger is captured before its effect resolves; its own effect stays ahead of the pending Auto, and a later skill negation cancels the Auto at its checkpoint. The separate granted-keyword identity follow-up #602 owns support for a grant without a skill index; this engine limitation ends that game before the Heroic body runs.",
     support: "engine",
   },
   Villainous: {

@@ -644,6 +644,8 @@ function keywordNegatedFor(state: VmState, id: string, name: KeywordSkill["name"
 export interface HookBody {
   keyword: KeywordSkill;
   ops: Op[];
+  /** Printed keyword skill being resolved; needed by `negateOwnSkill` (9-1-5). */
+  skillIndex?: number;
 }
 
 /**
@@ -656,19 +658,35 @@ export interface HookBody {
  */
 export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint): HookBody[] {
   const out: HookBody[] = [];
+  // `keywordsInForce` starts with printed skills, then appends effect/static
+  // grants. Consume printed identities in that same order so a grant of a
+  // keyword already printed on the card cannot borrow its skillIndex.
+  const printed = new Map<string, number[]>();
+  if (!state.cards[subject]?.hidden && !skillsNegated(state, subject)) {
+    for (const skill of skillsShowing(ctx, state, subject).skills) {
+      if (skill.keyword && !skillNegated(state, subject, skill.index, skill.kind)) {
+        const indexes = printed.get(skill.keyword.name) ?? [];
+        indexes.push(skill.index);
+        printed.set(skill.keyword.name, indexes);
+      }
+    }
+  }
   for (const kw of keywordsInForce(ctx, game, state, subject)) {
     const def = game.keywords[kw.name];
     // #156: a body names its keyword's parameters the way a `DO` does —
     // [Strike]'s `$x` is 2 on a [Double Strike] — bound from the instance in
     // force, granted or printed.
-    for (const hook of def?.hooks ?? []) if (hook.at === point) out.push({ keyword: kw, ops: bindKeywordParams(hook.ops, def.takes, kw as unknown as Record<string, unknown>, game) });
+    for (const hook of def?.hooks ?? []) if (hook.at === point) {
+      const skillIndex = printed.get(kw.name)?.shift();
+      out.push({ keyword: kw, ops: bindKeywordParams(hook.ops, def.takes, kw as unknown as Record<string, unknown>, game), ...(skillIndex === undefined ? {} : { skillIndex }) });
+    }
   }
   return out;
 }
 
 /** A minimal frame for a hook body: the language's own shape, `self` bound the way every program already reads its own card, plus whatever this hook's `vars` name. Exported for `vm/hooks.ts`'s `fireHook`. */
-export function hookFrame(game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>): ScriptFrame {
-  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject) };
+export function hookFrame(game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number): ScriptFrame {
+  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { skillIndex }) };
 }
 
 export type QueryFact =
