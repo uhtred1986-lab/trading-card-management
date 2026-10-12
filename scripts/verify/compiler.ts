@@ -49,7 +49,7 @@ import { validateRule } from "../../src/lib/arena/lang/validate";
 import { deepEqual, parseRule, printRule, type Rule } from "../../src/lib/arena/lang";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { PlayerId } from "./harness";
-import { isVmState, legacyState } from "../../src/lib/arena/engines";
+import { damageTaken, isVmState } from "../../src/lib/arena/engines";
 
 // ── the effect compiler ────────────────────────────────────────────────────
 
@@ -1038,8 +1038,7 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
   // is the size it was. Losing life this way is a cost, not damage (1-13-2).
   assert.equal(zoneOf(s, "p2", "hand").length, handBefore, "the life card went to the hand");
   assert.ok(zoneOf(s, "p2", "drop").includes(counter));
-  if (!rulesGap("compiler: E-LIFE's life cost", "the rules engine keeps no damage count (`engines.ts`'s `damageTaken` reads 0), so 'paying a cost is not taking damage' has nothing to read", "no issue filed yet"))
-    assert.equal(legacyState(s).players.p2.damageTaken, 0, "paying a cost is not taking damage");
+  assert.equal(damageTaken(s, "p2"), 0, "paying a cost is not taking damage");
   assertConsistentG(s);
 }
 
