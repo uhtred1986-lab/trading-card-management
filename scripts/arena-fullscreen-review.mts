@@ -21,6 +21,8 @@ const base = arg("--base", "http://localhost:3000");
 const repo = resolve(arg("--repo", scriptRoot));
 const fixtureName = "u03-evidence";
 const fixturePath = join(repo, "contract", "fixtures", `${fixtureName}.json`);
+const chargeFixtureName = "u03-charge-evidence";
+const chargeFixturePath = join(repo, "contract", "fixtures", `${chargeFixtureName}.json`);
 const artPath = join(out, "card-art-bt11-053.jpg");
 const art = readFileSync(artPath).toString("base64");
 const viewports: Viewport[] = [
@@ -28,6 +30,12 @@ const viewports: Viewport[] = [
   { name: "shortphone", width: 390, height: 650, mobile: true },
   { name: "narrowphone", width: 320, height: 568, mobile: true },
 ];
+if (mode === "after") {
+  viewports.push(
+    { name: "tabletportrait", width: 768, height: 1024, mobile: true },
+    { name: "tabletlandscape", width: 1023, height: 768, mobile: true },
+  );
+}
 
 function check(ok: boolean, message: string): asserts ok {
   if (!ok) throw new Error(message);
@@ -64,6 +72,12 @@ function prepareFixture() {
   writeFileSync(fixturePath, JSON.stringify(fixture));
 }
 
+function prepareChargeFixture() {
+  const fixture = JSON.parse(readFileSync(join(repo, "contract", "fixtures", "charge.json"), "utf8"));
+  withArtwork(fixture);
+  writeFileSync(chargeFixturePath, JSON.stringify(fixture));
+}
+
 async function press(page: object, key: string) {
   const bridge = page as { call: (method: string, params?: object) => Promise<unknown> };
   const code = key === "Escape" ? 27 : key === "ArrowRight" ? 39 : key === "ArrowLeft" ? 37 : 13;
@@ -76,14 +90,14 @@ async function hideDevBadge(page: Awaited<ReturnType<Browser["page"]>>) {
   await page.eval(`(() => { const s=document.createElement('style'); s.textContent='nextjs-portal{display:none!important}'; document.head.append(s); })()`);
 }
 
-async function loadPage(browser: Browser, viewport: Viewport, skin: string) {
+async function loadPage(browser: Browser, viewport: Viewport, skin: string, fixture = fixtureName) {
   const page = await browser.page(viewport);
   await page.setCookie("arenaSkin", skin, base);
   const bridge = page as unknown as { call: (method: string, params?: object) => Promise<unknown> };
   if (viewport.name !== "phone" && viewport.name !== "desk") {
     await bridge.call("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
   }
-  await page.goto(`${base}/arena/preview?fixture=${fixtureName}&skin=${skin}&pace=step&admin=0`);
+  await page.goto(`${base}/arena/preview?fixture=${fixture}&skin=${skin}&pace=step&admin=0`);
   await page.waitFor(".arena");
   await hideDevBadge(page);
   if (viewport.name === "shortphone" || viewport.name === "narrowphone") await page.eval(`document.documentElement.style.fontSize='200%'`);
@@ -112,6 +126,7 @@ await requireServer(base);
 let closeBrowser: (() => Promise<void>) | undefined;
 try {
   prepareFixture();
+  if (mode === "after") prepareChargeFixture();
   const browser = await Browser.launch();
   closeBrowser = () => browser.close();
   for (const skin of ["anime", "night"]) {
@@ -138,6 +153,9 @@ try {
         if (viewport.name === "phone") await save(page, `phone-play-${skin}-u03-before.jpg`);
         else await save(page, `${viewport.name}-play-${skin}-u03-before-200text-reduced.jpg`);
       } else {
+        // Capture the board with its explicit inspect affordance before opening
+        // the sheet, so review cannot conceal the primary decision controls.
+        if (viewport.name === "phone") await save(page, `phone-board-${skin}-u03-after.jpg`);
         const opener = '[aria-label^="Inspect your hand"]';
         const initialIds = await page.eval<string[]>(`[...document.querySelectorAll('.arena-hand [data-arena-card]')].map((el)=>el.getAttribute('data-arena-card')||'')`);
         check(initialIds.length === 20 && new Set(initialIds).size === 20, `${skin}/${viewport.name}: the fixture must have 20 distinct hand instances`);
@@ -154,26 +172,32 @@ try {
         await assertArtwork(page, `${skin}/${viewport.name} details`);
         if (viewport.name !== "phone") {
           const control = await page.eval<{ visible: boolean; width: number; height: number; reduced: boolean; zoom: boolean }>(`(() => {
-            const button=document.querySelector('[aria-label="View full card"]');
+            const button=document.querySelector('[aria-label="Expand card to full screen"]');
             const r=button?.getBoundingClientRect();
             return { visible:!!r&&r.width>=44&&r.height>=44&&r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,
               width:r?.width||0,height:r?.height||0,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,
               zoom:parseFloat(getComputedStyle(document.documentElement).fontSize)>=30 };
           })()`);
-          check(control.visible && control.reduced && control.zoom, `${skin}/${viewport.name}: Inspect/expand control is not reachable at 200% text and reduced motion`);
+          const needsZoom = viewport.name === "shortphone" || viewport.name === "narrowphone";
+          check(control.visible && control.reduced && control.zoom === needsZoom, `${skin}/${viewport.name}: Inspect/expand control is not reachable at the expected text scale/reduced-motion setting`);
         }
         console.log(`expanding full art ${skin}/${viewport.name}`);
-        await page.tap('[aria-label="View full card"]');
+        await page.tap('[aria-label="Expand card to full screen"]');
         await page.waitFor('[aria-label="Show card details"]');
         await assertFullArt(page, `${skin}/${viewport.name} full art`);
         if (viewport.name === "phone") await save(page, `phone-play-${skin}-u03-after.jpg`);
         else await save(page, `${viewport.name}-play-${skin}-u03-after-200text-reduced.jpg`);
 
-        const controls = await page.eval<{ close: number[]; arrows: number[][] }>(`(() => {
+        const controls = await page.eval<{ close: number[]; arrows: number[][]; panel: number[]; padding: string }>(`(() => {
           const rect=(el)=>{const r=el?.getBoundingClientRect();return r?[r.left,r.top,r.width,r.height,r.right,r.bottom]:[]};
+          const panel=document.querySelector('[data-arena-review]');
+          const dialog=panel?.closest('dialog');
           return {close:rect(document.querySelector('[aria-label="Close card review"]')),
-            arrows:[rect(document.querySelector('[aria-label="Previous card"]')),rect(document.querySelector('[aria-label="Next card"]'))]};
+            arrows:[rect(document.querySelector('[aria-label="Previous card"]')),rect(document.querySelector('[aria-label="Next card"]'))],
+            panel:rect(panel),padding:dialog?getComputedStyle(dialog).padding:'missing'};
         })()`);
+        check(controls.panel[0] <= 0.5 && controls.panel[1] <= 0.5 && controls.panel[4] >= viewport.width - 0.5 && controls.panel[5] >= viewport.height - 0.5 && controls.padding === "0px",
+          `${skin}/${viewport.name}: fullscreen art panel does not fill the viewport without a dialog gutter`);
         check(controls.close[2] >= 44 && controls.close[3] >= 44 && controls.close[0] >= 0 && controls.close[4] <= viewport.width && controls.close[1] >= 0 && controls.close[5] <= viewport.height,
           `${skin}/${viewport.name}: full-art close target is clipped or smaller than 44px`);
         for (const arrow of controls.arrows) check(arrow[2] >= 44 && arrow[3] >= 44 && arrow[0] >= 0 && arrow[4] <= viewport.width && arrow[1] >= 0 && arrow[5] <= viewport.height,
@@ -198,16 +222,46 @@ try {
           const handAfter = await page.eval<string[]>(`[...document.querySelectorAll('.arena-hand [data-arena-card]')].map((el)=>el.getAttribute('data-arena-card')||'')`);
           check(restored && JSON.stringify(handAfter) === JSON.stringify(initialIds), "closing review failed to restore focus or changed the hand instances");
 
-          const boardCard = '[data-arena-card="p1#9"] button:not(:disabled)';
-          // Open the pre-existing board-card inspector through the same card
-          // context-menu handler; the hand inspect affordance above is tested
-          // as a real touch. This avoids making a cropped board gesture part
-          // of the fullscreen-view capture fixture.
-          await page.eval(`(() => { const el=document.querySelector(${JSON.stringify(boardCard)}); if (!el) throw new Error('board inspect card missing'); el.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2})); })()`);
-          await page.waitFor('[data-arena-review="p1#9"]');
-          await assertArtwork(page, `${skin}/board-card inspect`);
+          // The board's real tap-based eye control opens the full In play pager.
+          await page.tap('[aria-label="Review cards in play"]');
+          await page.waitFor('[data-arena-review]');
+          const inPlayReview = await page.eval<boolean>(`document.querySelector('[data-arena-review]')?.getAttribute('data-arena-review')==='p2#0' && document.querySelectorAll('[data-arena-thumb]').length>=2`);
+          check(inPlayReview, "Review cards in play did not open the board pager at the opponent leader");
+          await assertArtwork(page, `${skin}/tap-based board review`);
           await page.eval(`document.querySelector('[aria-label="Close card review"]')?.click()`);
           await sleep(100);
+
+          // In a legal target selection, inspect the board and close review.
+          // PreviewStage's real action stub records any action the board sends;
+          // selection must remain lit and the stub must stay empty.
+          const sentBeforeTargetInspect = await page.eval<number>(`(window.__arenaSent||[]).length`);
+          await page.tap('[data-arena-card="p1#9"] button:not(:disabled)');
+          const selectedBeforeInspect = await page.eval<boolean>(`document.querySelector('[data-arena-card="p1#9"] button')?.classList.contains('arena-ring-selected')`);
+          check(selectedBeforeInspect, "target fixture did not enter attacker selection mode");
+          await page.tap('[aria-label="Review cards in play"]');
+          await page.waitFor('[data-arena-review]');
+          await page.eval(`document.querySelector('[aria-label="Close card review"]')?.click()`);
+          await sleep(100);
+          const targetStillSelected = await page.eval<boolean>(`document.querySelector('[data-arena-card="p1#9"] button')?.classList.contains('arena-ring-selected')`);
+          const sentAfterTargetInspect = await page.eval<number>(`(window.__arenaSent||[]).length`);
+          check(targetStillSelected && sentBeforeTargetInspect === sentAfterTargetInspect, "board review sent an action or cleared target selection");
+
+          // The Charge prompt has a dedicated Inspect hand button too. Opening
+          // and closing it must not charge, answer the prompt or consume the
+          // chosen hand instance; the preview action stub detects submissions.
+          const chargePage = await loadPage(browser, viewport, skin, chargeFixtureName);
+          const promptBefore = await chargePage.eval<string>(`document.querySelector('[aria-label="Prompt"]')?.textContent||document.body.innerText`);
+          const chargeIds = await chargePage.eval<string[]>(`[...document.querySelectorAll('.arena-hand [data-arena-card]')].map((el)=>el.getAttribute('data-arena-card')||'')`);
+          await chargePage.tap('[aria-label^="Inspect your hand"]');
+          await chargePage.waitFor('[data-arena-review]');
+          await chargePage.eval(`document.querySelector('[aria-label="Close card review"]')?.click()`);
+          await sleep(100);
+          const promptAfter = await chargePage.eval<string>(`document.querySelector('[aria-label="Prompt"]')?.textContent||document.body.innerText`);
+          const chargeIdsAfter = await chargePage.eval<string[]>(`[...document.querySelectorAll('.arena-hand [data-arena-card]')].map((el)=>el.getAttribute('data-arena-card')||'')`);
+          const chargeActions = await chargePage.eval<number>(`(window.__arenaSent||[]).length`);
+          check(promptBefore.includes("Charge phase") && promptAfter.includes("Charge phase") && JSON.stringify(chargeIds) === JSON.stringify(chargeIdsAfter) && chargeActions === 0,
+            `Inspect hand changed the Charge prompt/cards or sent an action: before=${promptBefore.slice(-320)} after=${promptAfter.slice(-320)} ids=${chargeIds.length}/${chargeIdsAfter.length} sent=${chargeActions}`);
+          await chargePage.close();
         }
       }
       await page.close();
@@ -216,4 +270,5 @@ try {
 } finally {
   await closeBrowser?.();
   rmSync(fixturePath, { force: true });
+  rmSync(chargeFixturePath, { force: true });
 }

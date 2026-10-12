@@ -168,10 +168,13 @@ export function SheetDialog({
   label,
   onClose,
   children,
+  fullScreen = false,
 }: {
   label: string;
   onClose: () => void;
   children: React.ReactNode;
+  /** A full-viewport card image must not inherit the ordinary sheet's tablet gutter. */
+  fullScreen?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const suppressClose = useRef(false);
@@ -232,7 +235,7 @@ export function SheetDialog({
           first.focus();
         }
       }}
-      className="fixed inset-0 m-0 flex h-dvh max-h-none w-full max-w-none items-end justify-center overflow-hidden border-0 bg-transparent p-0 text-space-100 backdrop:bg-[color:var(--scrim)] sm:items-center sm:p-4"
+      className={`fixed inset-0 m-0 flex h-dvh max-h-none w-full max-w-none justify-center overflow-hidden border-0 bg-transparent text-space-100 backdrop:bg-[color:var(--scrim)] ${fullScreen ? "items-center p-0" : "items-end p-0 sm:items-center sm:p-4"}`}
     >
       {children}
     </dialog>
@@ -549,7 +552,7 @@ export function CardSheet({
   const position = pager ? `${sequence!.label} ${at + 1} / ${items.length}` : null;
 
   return (
-    <SheetDialog label={`${card.name}${position ? `, ${position}` : ""}`} onClose={onClose}>
+    <SheetDialog label={`${card.name}${position ? `, ${position}` : ""}`} onClose={onClose} fullScreen={fullArt}>
       <div
         data-arena-review={card.id}
         className={`relative flex min-h-0 w-full touch-none select-none flex-col overscroll-contain border border-space-700 bg-space-900 pt-2 ${fullArt ? "h-[100dvh] max-h-[100dvh] max-w-none rounded-none pb-2" : "max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
@@ -572,11 +575,11 @@ export function CardSheet({
             <button
               type="button"
               onClick={() => setFullArt((value) => !value)}
-              aria-label={fullArt ? "Show card details" : "View full card"}
+              aria-label={fullArt ? "Show card details" : "Expand card to full screen"}
               aria-pressed={fullArt}
               className="tap flex h-[44px] min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-space-600 bg-space-900 px-2 text-xs font-semibold text-space-100 hover:border-ki-400"
             >
-              {fullArt ? "Info" : "View"}
+              {fullArt ? "Details" : "Expand"}
             </button>
             <button type="button" data-sheet-initial-focus onClick={onClose} aria-label="Close card review" className="tap flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg leading-none text-space-100">×</button>
           </div>
