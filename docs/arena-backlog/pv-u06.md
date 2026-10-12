@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: Fit the phone board and crowded hand around the current decision
 milestone: Arena M16 — Board redesign: play feel and card review
-labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
+labels: backlog, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
 issue: 563
 status: closed
@@ -23,7 +23,7 @@ touches: src/components/arena/stage/ArenaStage.tsx, src/components/arena/stage/H
 **Acceptance.**
 - [x] The DB-free EngineAPI browser matrix covers 390×844, 390×667, 320×568 and 844×390 in both skins with 12–20-card hands. It checks real touch reachability, every crowded-card 44px hit square, sticky Pass, public Unison/Z-Deck/Z-Energy/Drop/Warp review and hidden opponent Z-Deck identities. Safe insets are emulated by substituting existing CSS `env()` values; no physical device is claimed. See `evidence/563/README.md`.
 - [x] Browser assertions send exact offered actions and inspect actual EngineAPI cost/state/events for combo, target, payment, counter, resource-blocked activation, charge/play drags, and Pass. They also check wrong-time ability hiding, same-view stale revision rejection and reload. The `public-zone-inspection-563` scenario covers both viewers and engine lanes, including privacy and state purity.
-- [x] At source head `af28180`, typecheck, lint, `npm test`, and build passed with `DATABASE_URL=''`; lint has five pre-existing prototype warnings and no errors. Arena verification is 45/45 legacy and 44/45 rules-only with one named legacy save/replay exclusion. Final contract emission/check passed 45/45 on both engines without tracked fixture changes. This UI/projection change does not modify the VM or compiler, so glossary, reading diff and fuzz 40 are not applicable.
+- [x] At source head `af28180`, typecheck, lint, `npm test`, and build passed with `DATABASE_URL=''`; lint has five pre-existing prototype warnings and no errors. Arena verification is 45/45 legacy and 44/45 rules-only; the rules-only lane excludes the VM legacy-parity suite, and separately names four runtime gaps plus the untested legacy save/replay fixture. Final contract emission/check passed 45/45 on both engines without tracked fixture changes. This UI/projection change does not modify the VM or compiler, so glossary, reading diff and fuzz 40 are not applicable.
 - [x] Before/after 1440×900 and 390×844 screenshots use checked Senzu Bean BT11-053 and Whis BT1-055 artwork in both skins; short/small/landscape frames, real Tab/Enter, 200% text, reduced motion, fullscreen, public zones, payment and safe-inset emulation are documented in `evidence/563/README.md`. The 200% landscape stakes, consequence and expanded assumptions are reachable by actual touch swipes while Pass remains visible.
 - [x] One bounded draft PR is prepared from this branch with evidence per acceptance bullet and this canonical status. Live database, paid, physical-device and production/deployment checks remain owner-run and are not claimed.
 
