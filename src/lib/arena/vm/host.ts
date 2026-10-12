@@ -249,10 +249,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // #157: a counted fact goes up rather than being set.
       state.sides[p].attrs[name] = typeof value === "object" ? Number(state.sides[p].attrs[name] ?? 0) + value.add : value;
     },
-    // 21-3: the count is for the end screen, and a player attribute is the
-    // only place this engine keeps a number about a player. Nothing declares
-    // one, so the figure is carried in the event and nowhere else.
-    addDamageTaken: () => {},
+    // 21-3: script.ts calls this only when it emits a damage event. A saved
+    // game from before the counter existed stays unknown, even after a hit.
+    addDamageTaken: (p, n) => {
+      if (state.damageTotals) state.damageTotals[p] += n;
+    },
     shuffleDecks: (players) => {
       for (const p of players) {
         log(ev, { type: "note", text: `${state.sides[p].name} shuffles their deck` });

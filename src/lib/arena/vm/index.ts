@@ -269,6 +269,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
     prompt: { kind: "gameOver" },
     winner: null,
     overReason: null,
+    damageTotals: { p1: 0, p2: 0 },
   };
 
   // 1. The cards. Every card in the game exists before anything is shuffled,
