@@ -42,16 +42,17 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - #555 / PR #596: incremental mandatory Aegis choices and persisted payment continuation.
 - #556 / PR #600: matching face-up Life Autos and watchers with exact event-subject binding.
 - #601 / PR #603: fixed AI presentation, request and exact action-menu expectations; the larger #459 VM oracle migration remains open.
+- #554 / PR #604: printed Heroic identity and turn reset with persisted pending/checkpoint ordering; stacked on #587. Granted identity remains #602.
 
 These PRs have local verification and orchestrator review; they are not delivered yet. Main commit
 `74701713` (PR #586) currently has no reported Vercel status. The required deployment ordering in
 `docs/agent-brief.md` holds the next merge while independent implementation continues.
 The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
 with the implementation PRs that merge before it. The thirteen-source review combination passed local tests, typecheck, lint and build.
-PR #604 / #554 remains a draft while review fixes Heroic pending/checkpoint ordering and guards every unidentified granted hook.
+The final Heroic checkpoint/guard fixes also pass the combined full test, typecheck, lint and build gates.
 PR #605 / #547 remains a draft while review verifies immutable replay provenance, access control and portable browser evidence; it is stacked on #590.
 PR #606 / #540 remains a draft while review strengthens scoped bounce replacement and persistence proofs; owner real-deck fuzz remains unrun.
-#551 has a completed read-only preflight and awaits shared flow ownership; #541 waits for the recorded Union scope ruling.
+#551 is implementing persisted combo-to-Z-Energy cleanup on a clean #604 stack; #541 waits for the recorded Union scope ruling.
 The locally reproduced additional
 Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
 P1 #597 separately owns original-color keyword payment eligibility after #553/#555.
