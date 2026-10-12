@@ -306,9 +306,12 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     if (!at) return { ok: false, refused: `${opts.under} is in no zone, so nothing can go under it` };
     if (game.zones[at.zone]?.host !== true) return { ok: false, refused: `the ${at.zone} does not hold cards under cards (23-2)` };
     lift(board, id, host);
-    // 23-2-2-2: the cards under a card are in the area of the card on top, and
-    // 3-1-4 applies on the way down — a card in a pile carries nothing with it.
-    reset(card, null);
+    // 23-2-2-2: the cards under a card are in the area of the card on top.
+    // 3-1-4 resets a card that changes area; a Leader going under a Z-Leader
+    // stays in its Leader Area under 22-46-6, so its awakened face, position
+    // and own attached pile must survive for 15-1-5 to restore it later.
+    const leaderUnderZLeader = from?.zone === "leader" && at.zone === "leader" && onTop.zCard === true;
+    if (!leaderUnderZLeader) reset(card, null);
     // A card that already has a pile of its own — an evolved Battle Card, a
     // Z-Stack — takes it along when it lands in an area of the same name
     // (23-2-6, `follows` below) and leaves each one in its own owner's Drop
@@ -371,6 +374,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     const [leader, ...carried] = card.under.splice(0);
     const underneath = board.cards[leader];
     if (underneath) {
+      underneath.mode = card.mode;
       underneath.under.push(...carried);
       board.sides[from.owner].zones.leader.splice(from.index, 0, leader);
     } else {

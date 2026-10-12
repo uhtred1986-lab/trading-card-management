@@ -1,6 +1,6 @@
 /** 8-5-2..8-5-8: each player may move one spent Battle Card to Z-Energy. */
 import assert from "node:assert/strict";
-import { CTX, DEFS, card, fifty } from "./harness";
+import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { engineFor } from "../../src/lib/arena/engines";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { run } from "../../src/lib/arena/vm/flow";
@@ -13,7 +13,7 @@ const rules = engineFor("rules");
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "DBS rules failed to load");
 const dbs = loaded.definition;
-const ids = ["Z551_BATTLE", "Z551_OTHER", "Z551_EXTRA", "Z551_ZBATTLE", "Z551_ZLEADER", "Z551_ZUNISON", "Z551_TOKEN"];
+const ids = ["Z551_BATTLE", "Z551_OTHER", "Z551_EXTRA", "Z551_ZBATTLE", "Z551_ZLEADER", "Z551_ZUNISON", "Z551_TOKEN", "Z551_BASE", "Z551_UNDER"];
 const old = new Map(ids.map((id) => [id, DEFS[id]]));
 DEFS.Z551_BATTLE = card("Z551_BATTLE", {
   comboPower: 5000,
@@ -22,21 +22,32 @@ DEFS.Z551_BATTLE = card("Z551_BATTLE", {
 DEFS.Z551_OTHER = card("Z551_OTHER", { comboPower: 10000 });
 DEFS.Z551_EXTRA = card("Z551_EXTRA", { type: "EXTRA", power: null, comboCost: null, comboPower: null });
 DEFS.Z551_ZBATTLE = card("Z551_ZBATTLE", { type: "Z-BATTLE", zEnergyCost: 1, comboPower: 5000 });
-DEFS.Z551_ZLEADER = card("Z551_ZLEADER", { type: "Z-LEADER", zEnergyCost: 1, power: null, comboCost: null, comboPower: null });
+DEFS.Z551_ZLEADER = card("Z551_ZLEADER", {
+  type: "Z-LEADER",
+  zEnergyCost: 1,
+  power: null,
+  comboCost: null,
+  comboPower: null,
+  skill: "[Z-Awaken] {1} : <Son Goku>",
+});
 DEFS.Z551_ZUNISON = card("Z551_ZUNISON", { type: "Z-UNISON", zEnergyCost: 1, power: null, comboCost: null, comboPower: null });
 DEFS.Z551_TOKEN = card("Z551_TOKEN", { type: "TOKEN", power: 10000, energyCost: null, comboCost: 0, comboPower: 5000 });
+DEFS.Z551_BASE = { ...DEFS["L-RED"], id: "Z551_BASE", name: "Z551 Base Leader", characters: ["Son Goku"] };
+DEFS.Z551_UNDER = card("Z551_UNDER", {});
+const stackCtx = { defs: DEFS, scripts: rulesFromCompiler(DEFS) };
 
-function mainPhase(seed = 551): VmState {
+function mainPhase(seed = 551, first: PlayerId = "p1"): VmState {
   let state = rules.createGame(CTX, {
     seed,
     p1: { name: "You", leader: "L-RED", main: fifty("V1") },
     p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") },
   }).state as VmState;
-  state = rules.apply(CTX, state, { type: "chooseFirst", player: state.chooser, first: "p1" }).state as VmState;
-  for (let i = 0; i < 24 && state.prompt.kind !== "main"; i++) {
+  state = rules.apply(CTX, state, { type: "chooseFirst", player: state.chooser, first }).state as VmState;
+  for (let i = 0; i < 40 && !(state.prompt.kind === "main" && state.prompt.player === "p1"); i++) {
     state = rules.apply(CTX, state, { type: "pass", player: (state.prompt as { player: PlayerId }).player }).state as VmState;
   }
   assert.equal(state.prompt.kind, "main", "fixture did not reach Main Phase");
+  assert.equal(state.prompt.player, "p1", "fixture did not reach p1's Main Phase");
   return state;
 }
 
@@ -262,21 +273,52 @@ try {
     assert.ok(transfer.ok);
     assert.equal(transfer.move.to, "removed", "16-1-4 removes a Z-Battle transferred out of its controller's Battle Area to the other player's Battle Area");
 
-    // Match the persisted shape produced by the existing 22-46 [Z-Awaken]
-    // stack path: top Z-Leader with the old Leader directly underneath it.
-    // 15-1-5 removes only that top Z-Leader when it leaves Leader.
-    state = mainPhase(559);
+    // Use the real 22-46 [Z-Awaken] action to create the stack. The old Leader
+    // has awakened and carries another card underneath. The real attack
+    // declaration after Z-Awaken rests the top card through the VM.
+    state = mainPhase(559, "p2");
     const baseLeader = state.sides.p1.zones.leader[0];
     assert.ok(baseLeader);
-    const stackedZLeader = stage(state, "p1", "Z551_ZLEADER", "hand");
-    state.sides.p1.zones.hand = state.sides.p1.zones.hand.filter((id) => id !== stackedZLeader);
-    state.sides.p1.zones.leader[0] = stackedZLeader;
-    state.cards[stackedZLeader].under = [baseLeader];
+    state.cards[baseLeader].cardId = "Z551_BASE";
+    for (const life of state.sides.p1.zones.life.slice(0, 4)) {
+      assert.ok(moveCard(state, dbs, life, "drop", { owner: "p1" }).ok);
+    }
+    state = rules.apply(stackCtx, state, { type: "activate", player: "p1", card: baseLeader, skill: 0 }).state as VmState;
+    assert.equal(state.cards[baseLeader].flipped, true, "the underlying Leader is awakened through its real skill");
+    const attached = stage(state, "p1", "Z551_UNDER", "hand");
+    assert.ok(moveCard(state, dbs, attached, "drop", { under: baseLeader }).ok, "a card can be carried under the Leader");
+    const orb = stage(state, "p1", "Z551_BATTLE", "hand");
+    assert.ok(moveCard(state, dbs, orb, "energy", { owner: "p1" }).ok);
+    const zOrb = stage(state, "p1", "Z551_OTHER", "hand");
+    assert.ok(moveCard(state, dbs, zOrb, "zEnergy", { owner: "p1" }).ok);
+    const stackedZLeader = stage(state, "p1", "Z551_ZLEADER", "zDeck");
+    assert.ok(rules.legalActions(stackCtx, state).some((entry) => entry.action.type === "activate" && entry.action.card === stackedZLeader), "22-46 offers the Z-Awaken activation");
+    state = rules.apply(stackCtx, state, { type: "activate", player: "p1", card: stackedZLeader, skill: 0 }).state as VmState;
+    while (state.prompt.kind === "payCost") {
+      state = rules.apply(stackCtx, state, { type: "payCost", player: state.prompt.player, option: 0 }).state as VmState;
+    }
+    assert.deepEqual(state.sides.p1.zones.leader, [stackedZLeader], "the Z-Leader takes the Leader Area through 22-46");
+    assert.deepEqual(state.cards[stackedZLeader].under, [baseLeader, attached], "the awakened Leader and its under-card are in the real stack");
+    assert.equal(state.cards[baseLeader].flipped, true, "the Leader retains its awakened face while under the Z-Leader");
+    assert.equal(state.cards[stackedZLeader].mode, "active", "Z-Awaken leaves the top Z-Leader active before it attacks");
+    assert.equal(state.turn, 2, "p1 is on the second turn, so the normal attack restriction does not apply");
+    const leaderAttack = rules.legalActions(stackCtx, state).find((entry) => entry.action.type === "attack" && entry.action.attacker === stackedZLeader && entry.action.target === state.sides.p2.zones.leader[0]);
+    assert.ok(leaderAttack, "the Z-Awakened Leader can legally attack");
+    state = rules.apply(stackCtx, state, leaderAttack.action).state as VmState;
+    while (state.prompt.kind !== "main" && state.prompt.kind !== "gameOver") {
+      const promptPlayer = (state.prompt as { player?: "p1" | "p2" }).player ?? "p1";
+      state = rules.apply(stackCtx, state, { type: "pass", player: promptPlayer }).state as VmState;
+    }
+    assert.equal(state.cards[stackedZLeader].mode, "rest", "the real attack rests the top Z-Leader through the VM");
+    state = JSON.parse(JSON.stringify(state)) as VmState;
     const stackedDeparture = moveCard(state, dbs, stackedZLeader, "unison", { owner: "p1" });
     assert.ok(stackedDeparture.ok);
     assert.equal(stackedDeparture.move.to, "removed");
     assert.deepEqual(state.sides.p1.zones.leader, [baseLeader], "15-1-5 leaves the underlying Leader in its original Leader Area");
     assert.deepEqual(state.cards[stackedZLeader].under, [], "the removed Z-Leader no longer carries the retained Leader");
+    assert.equal(state.cards[baseLeader].flipped, true, "the underlying Leader keeps its awakened face after 15-1-5");
+    assert.equal(state.cards[baseLeader].mode, "rest", "the underlying Leader inherits the governing top card's Rest Mode");
+    assert.deepEqual(state.cards[baseLeader].under, [attached], "the underlying Leader keeps its carried under-card");
   }
 
   // Non-Battle cards in Combo are ineligible and go to Drop; the Z-Energy
