@@ -1057,6 +1057,20 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   for (const ops of [unpaidConditional, optionalPrefix, [compiled[0], compiled[1], { op: "if", cond: falseCond, then: [{ op: "shuffle" }] }, { op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "later" }] as Op[]]) {
     assert.throws(() => readableAutomaticPrice(ops), (err: unknown) => err instanceof NotYet && err.issue === "#549");
   }
+  // Older action prices need no static positive-resource proof. They still
+  // replay through the strict host; the new conditional adjunct simply does
+  // not inherit a guaranteed paid prefix from these dynamic shapes.
+  const existing: Op[][] = [
+    [{ op: "choose", sel: { side: "you", area: "battle", count: 1 }, as: "marked" }, { op: "removeMarker", target: { var: "marked" }, n: 1 }],
+    [{ op: "mill", n: { count: { side: "you", area: "hand" } } }],
+    [{ op: "discard", n: { x: true } }],
+    [{ op: "discard", n: 0 }],
+  ];
+  for (const ops of existing) {
+    assert.doesNotThrow(() => readableAutomaticPrice(ops));
+    assert.throws(() => readableAutomaticPrice([...ops, { op: "if", cond: falseCond, then: [{ op: "shuffle" }] }]),
+      (err: unknown) => err instanceof NotYet && err.issue === "#549");
+  }
   const beforeUnsafe = scripts.ACTION549.bySkill[0];
   try {
     for (const ops of [unpaidConditional, optionalPrefix]) {

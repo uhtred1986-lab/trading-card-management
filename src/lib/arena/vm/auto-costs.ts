@@ -358,7 +358,7 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
     }
     return paid;
   };
-  if (ops.length && !check(ops)) throw new NotYet(`pay ${label} action price without a verified payment`, owner);
+  check(ops);
 }
 
 /** Capture payment alternatives before asking; the Auto's master and source
