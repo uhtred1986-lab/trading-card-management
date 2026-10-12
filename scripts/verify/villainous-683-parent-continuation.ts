@@ -1,6 +1,7 @@
 /** #683: nested Extra activation with an unfinished invoking parent. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
+import { RULES_ONLY } from "./rules-only";
 import { engineFor } from "../../src/lib/arena/engines";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -13,7 +14,10 @@ const defs = { ...DEFS,
   P683_CHAIN: card("P683_CHAIN", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null, skill: wish }),
   P683_DESIRE: card("P683_DESIRE", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, traits: ["Desire"],
     skill: "[Villainous]<br>[Activate: Main]: Draw 1 card." }),
+  P683_TARGET: card("P683_TARGET", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, traits: ["Desire"],
+    skill: "[Villainous]<br>[Activate: Main]: Choose 1 of your Battle Cards and place it in its owner's Drop Area. Draw 1 card." }),
   P683_WATCH: card("P683_WATCH", { energyCost: 0, skill: "[Villainous]" }),
+  P683_FODDER: card("P683_FODDER", { energyCost: 0, skill: null }),
 };
 const ctx = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
 const parent = ctx.scripts.P683_CHAIN.bySkill[0];
@@ -23,10 +27,12 @@ if (parent.ops[0]?.op === "chooseMode") {
   assert.deepEqual(parent.ops[0].modes[1]?.ops.map((op) => op.op), ["invokeSkill", "draw"],
     "the chosen branch resumes with two parent draws after the child invocation");
 }
+assert.deepEqual(ctx.scripts.P683_TARGET.bySkill[10]?.unsupported, [], "the child target choice is compiler-read");
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 
-for (const engineName of ["rules", "legacy"] as const) {
+const engines: readonly ("rules" | "legacy")[] = RULES_ONLY ? ["rules"] : ["rules", "legacy"];
+for (const engineName of engines) {
   const engine = engineFor(engineName);
   let state = engine.createGame(ctx, { seed: 68350 + Number(engineName === "legacy"),
     p1: { name: "First", leader: "P683_CHAIN", main: fifty("V1") },
@@ -54,6 +60,11 @@ for (const engineName of ["rules", "legacy"] as const) {
   const started = engine.apply(ctx, state, action);
   assert.equal(started.state.prompt.kind, "chooseMode");
   const savedOffer = JSON.stringify(started.state);
+  const otherBranch = engine.apply(ctx, JSON.parse(savedOffer), { type: "chooseMode", player: "p1", index: 0 });
+  assert.equal(otherBranch.events.filter((event) => event.type === "draw" && event.player === "p1").length, 1);
+  assert.ok(!otherBranch.events.some((event) => event.type === "skill" && event.card === desire),
+    "declining the invoking branch does not activate a nested Extra");
+  assert.ok(!otherBranch.state.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watch));
   const chooseMode = { type: "chooseMode" as const, player: "p1" as const, index: 1 };
   const invoked = engine.apply(ctx, JSON.parse(savedOffer), chooseMode);
   const repeated = engine.apply(ctx, JSON.parse(savedOffer), chooseMode);
@@ -62,8 +73,8 @@ for (const engineName of ["rules", "legacy"] as const) {
   assert.equal(invoked.state.prompt.kind, "chooseCards", `${engineName}: Villainous waits on the opponent`);
   assert.equal((invoked.state.prompt as { player: PlayerId }).player, "p2");
   const beforeChoice = invoked.events.filter((event) => event.type === "draw" && event.player === "p1").length;
-  assert.equal(beforeChoice, engineName === "rules" ? 3 : 1,
-    `${engineName}: observable order differs before the pending Villainous choice`);
+  assert.equal(beforeChoice, 3,
+    `${engineName}: the child's draw and the parent's two remaining draws finish before Villainous resolves`);
   assert.deepEqual(invoked.events.filter((event) => event.type === "skill" && event.card === desire)
     .map((event) => event.type === "skill" ? event.skill : -1), [10], "the nested Desire skill activates once");
   const drop = engineName === "rules" ? (invoked.state as VmState).sides.p1.zones.drop : (invoked.state as GameState).players.p1.drop;
@@ -72,8 +83,8 @@ for (const engineName of ["rules", "legacy"] as const) {
     assert.ok((invoked.state as VmState).programs.some((frame) => frame.card === watch && frame.pendingHookSkill && frame.skillIndex === 0),
       "the individually identified keyword frame survives the opponent choice");
   } else {
-    assert.ok((invoked.state as GameState).flow.some((step) => step.op === "script.step"),
-      "the parent continuation remains queued behind the legacy keyword choice");
+    assert.ok(!(invoked.state as GameState).flow.some((step) => step.op === "script.step" && step.frame.card === leader),
+      "the parent continuation has finished before the legacy keyword choice");
   }
   const candidate = (invoked.state.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
   assert.ok(candidate);
@@ -85,11 +96,65 @@ for (const engineName of ["rules", "legacy"] as const) {
   assert.deepEqual(repeatedChoice.state, chosen.state);
   assert.equal(chosen.state.prompt.kind, "main");
   const afterChoice = chosen.events.filter((event) => event.type === "draw" && event.player === "p1").length;
-  assert.equal(afterChoice, engineName === "rules" ? 0 : 2);
+  assert.equal(afterChoice, 0, "no parent effect resumes after the keyword choice");
   assert.equal(beforeChoice + afterChoice, 3, "child effect draws one and parent continuation draws two, exactly once");
   assert.ok((engineName === "rules" ? (chosen.state as VmState).sides.p2.zones.drop : (chosen.state as GameState).players.p2.drop).includes(candidate));
   assert.deepEqual(chosen.state.effects.filter((effect) => effect.kind === "negateSkill" && effect.target === watch).map((effect) => effect.value), [0]);
   assert.deepEqual((chosen.state as VmState | GameState).pending, []);
   if (engineName === "rules") assert.deepEqual((chosen.state as VmState).programs, []);
-  console.log(`#683 nested parent continuation observed on ${engineName}: child draw, ${engineName === "rules" ? "parent draws, keyword choice" : "keyword choice, parent draws"}`);
+  console.log(`#683 nested parent continuation on ${engineName}: child draw, parent draws, keyword choice`);
+}
+
+// The child's own target prompt is still inside its effect. Neither the
+// parent's trailing draw nor the pending keyword may jump across that choice.
+for (const engineName of engines) {
+  const engine = engineFor(engineName);
+  let state = engine.createGame(ctx, { seed: 68360 + Number(engineName === "legacy"),
+    p1: { name: "First", leader: "P683_CHAIN", main: fifty("V1") },
+    p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") },
+  }).state as VmState | GameState;
+  state = engine.apply(ctx, state, { type: "chooseFirst", player: (state.prompt as { player: PlayerId }).player, first: "p1" }).state as VmState | GameState;
+  for (let i = 0; i < 24 && state.prompt.kind !== "main"; i++) {
+    const action = engine.legalActions(ctx, state)[0]?.action;
+    assert.ok(action);
+    state = engine.apply(ctx, state, action).state as VmState | GameState;
+  }
+  assert.equal(state.prompt.kind, "main");
+  const hand = engineName === "rules" ? (state as VmState).sides.p1.zones.hand : (state as GameState).players.p1.hand;
+  const desire = hand[0];
+  const watch = hand[1];
+  const fodder = hand[2];
+  assert.ok(desire && watch && fodder);
+  state.cards[desire].cardId = "P683_TARGET";
+  state.cards[watch].cardId = "P683_WATCH";
+  state.cards[fodder].cardId = "P683_FODDER";
+  for (const battleCard of [watch, fodder]) {
+    if (engineName === "rules") assert.ok(moveCard(state as VmState, loaded.definition, battleCard, "battle", { owner: "p1" }).ok);
+    else move(ctx, state as GameState, [], battleCard, "battle", "p1", { reason: "effect" });
+  }
+  const leader = engineName === "rules" ? (state as VmState).sides.p1.zones.leader[0] : (state as GameState).players.p1.leader;
+  assert.ok(leader);
+  const parentAction = engine.legalActions(ctx, state).find((entry) => entry.action.type === "activate" && entry.action.card === leader)?.action;
+  assert.ok(parentAction);
+  const started = engine.apply(ctx, state, parentAction);
+  assert.equal(started.state.prompt.kind, "chooseMode");
+  const invoked = engine.apply(ctx, JSON.parse(JSON.stringify(started.state)), { type: "chooseMode", player: "p1", index: 1 });
+  assert.equal(invoked.state.prompt.kind, "chooseCards", "the child asks which Battle Card to place in Drop");
+  assert.equal((invoked.state.prompt as { player: PlayerId }).player, "p1");
+  assert.equal(invoked.events.filter((event) => event.type === "draw" && event.player === "p1").length, 0,
+    "neither child's draw nor parent's continuation overtakes the child target prompt");
+  const childChoice = { type: "choose" as const, player: "p1" as const, cards: [fodder] };
+  assert.ok(engine.legalActions(ctx, invoked.state).some((entry) => JSON.stringify(entry.action) === JSON.stringify(childChoice)));
+  const afterTarget = engine.apply(ctx, JSON.parse(JSON.stringify(invoked.state)), childChoice);
+  assert.equal(afterTarget.state.prompt.kind, "chooseCards", "Villainous follows child and parent effects");
+  assert.equal((afterTarget.state.prompt as { player: PlayerId }).player, "p2");
+  assert.equal(afterTarget.events.filter((event) => event.type === "draw" && event.player === "p1").length, 3);
+  assert.ok((engineName === "rules" ? (afterTarget.state as VmState).sides.p1.zones.drop : (afterTarget.state as GameState).players.p1.drop).includes(fodder));
+  const opponentCard = (afterTarget.state.prompt as { choice: { candidates: string[] } }).choice.candidates[0];
+  assert.ok(opponentCard);
+  const resolved = engine.apply(ctx, JSON.parse(JSON.stringify(afterTarget.state)), { type: "choose", player: "p2", cards: [opponentCard] });
+  assert.equal(resolved.state.prompt.kind, "main");
+  assert.ok((engineName === "rules" ? (resolved.state as VmState).sides.p2.zones.drop : (resolved.state as GameState).players.p2.drop).includes(opponentCard));
+  assert.deepEqual(resolved.state.effects.filter((effect) => effect.kind === "negateSkill" && effect.target === watch).map((effect) => effect.value), [0]);
+  console.log(`#683 nested child target on ${engineName}: target choice, child effect, parent continuation, keyword choice`);
 }

@@ -3711,7 +3711,9 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     { op: "counter", window: "skill", responder: other(p) },
     { op: "skill.resolve", card, skill: sk.index, player: p, ...(xPaid === undefined ? {} : { x: xPaid }) },
     { op: "extra.finish", card },
-    { op: "checkpoint" },
+    // 12-2-4-9 returns to the invoking skill after the nested Extra finishes.
+    // Its own queued checkpoint handles pending Autos once that parent ends.
+    ...(waived ? [] : [{ op: "checkpoint" as const }]),
   );
   if (afterSkillKeywords.length) s.flow.unshift({ op: "afterSkill.activate", card, player: p, keywords: afterSkillKeywords });
   // 4-3-3: an action price is paid on activation, before the counter window
