@@ -115,7 +115,9 @@ export function replacementChoices(
   for (const { source, master, skillIndex, r } of standing(ctx, game, state, id)) {
     if (r.ops && (applyingReplacement || opts.inSubstitute)) continue;
     if (!causeMatches(game, state, id, r, reason, opts.actor, opts.requestedTo)) continue;
-    out.push({ source, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
+    // A timed substitute may refer to variables captured when installed.
+    // Keep them on the frozen choice through a replacement prompt/reload.
+    out.push({ source, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.vars ? { vars: r.vars } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
   }
   return out;
 }
@@ -225,6 +227,10 @@ export function leaveRoute(
   let mode: string | undefined;
   let insteadPosition: "top" | "bottom" | undefined;
   const fromLife = from === LIFE_ZONE;
+  // #609: only the native 8-5-8 cleanup may hand a previously answered
+  // Combo departure to this mover. General automatic discovery stays scoped
+  // to in-play departures; the battle step owns this one prompt and cursor.
+  const answeredComboCleanup = from === "combo" && opts.event?.startsWith("8-5-8:") && opts.replaced !== undefined;
   const selected = ((from && inPlay.includes(from)) || fromLife) && !held(to) && opts.replaced === undefined && !fromLife
     ? replacementFor(ctx, game, state, id, opts.reason, opts.actor, opts.usedReplacements, opts.event, to)
     : null;
@@ -233,7 +239,7 @@ export function leaveRoute(
   // hand card. The answer must reach the move, even though automatic
   // replacement discovery remains scoped to in-play departures and life.
   const answeredHandDeparture = from === "hand" && opts.replaced != null;
-  if ((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture) && !held(to)) {
+  if ((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture || answeredComboCleanup) && !held(to)) {
     const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : selected?.route ?? null;
     if (instead?.ops?.length) {
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });

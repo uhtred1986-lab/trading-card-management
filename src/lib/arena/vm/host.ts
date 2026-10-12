@@ -586,7 +586,13 @@ function moveTo(
   // `cause` is the field the two interpreters share a name for (`MoveOptions.reason`
   // on the legacy side): "damage", "ko", "combo", "effect" and a plain draw are one
   // move told apart by it, and `triggers.rules` may match a `moved(cause: …)` (#274).
-  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner, args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(wasHidden ? { hidden: true } : {}) } }, null);
+  // The 8-5-8 substitute frame may itself move its replaced Combo subject.
+  // Capture only that exact move for 8-5-9, suppressing the special Auto at
+  // this earlier movement moment. Its other moves keep their ordinary timing.
+  const substitute = state.battle?.endCombo?.substituteDeparture;
+  const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
+  if (cleanupDeparture) substitute.actualDrop = { controller: owner };
+  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner, args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
   // this is the one script-level mover every DO program's own `moveTo` op
   // runs through (the charge action's own `DO { moveTo(..., to: energy) }`
