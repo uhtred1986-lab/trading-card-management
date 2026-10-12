@@ -453,7 +453,7 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
   });
   return {
     id,
-    cardId: inst.cardId,
+    cardId: hidden ? "" : inst.cardId,
     name: hidden ? "Face-down card" : f.name,
     power,
     colors: hidden ? [] : d.colors,
