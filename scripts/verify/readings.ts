@@ -6,6 +6,7 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
+import { comboBattleEndFromHand, comboBattleEndOpponentTurn } from "../../src/lib/arena/text/triggers";
 import {
   CTX,
   DEFS,
@@ -2302,6 +2303,10 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 {
   const sk = parseSkills("[Auto] At the end of a battle in which you combo with this card from your hand during your opponent's turn, if your Leader Card is red, play this card in Rest Mode.")[0];
   assert.ok(autoTriggerMatches(sk, "comboed") && !autoTriggerMatches(sk, "battleEnd"), "BT6-010 answers its own move to the Drop");
+  assert.ok(comboBattleEndFromHand(sk) && comboBattleEndOpponentTurn(sk), "BT6-010 binds this hand combo and opponent turn (#572)");
+  const bt2Combo = parseSkills("[Auto] At the end of the battle after you combo with this card from your hand, play this card in Rest Mode.")[0];
+  assert.ok(autoTriggerMatches(bt2Combo, "comboed") && !autoTriggerMatches(bt2Combo, "battleEnd"), "BT2-010 answers its own end-of-battle combo moment");
+  assert.ok(comboBattleEndFromHand(bt2Combo) && !comboBattleEndOpponentTurn(bt2Combo), "BT2-010 binds hand origin without the BT6 turn restriction (#572)");
   const s = compileSkill(sk);
   assert.deepEqual((s.ops[0] as { cond: unknown }).cond, { kind: "not", cond: { kind: "isTurnPlayer" } }, "…during the opponent's turn");
   const xd = parseSkills("[Auto] When a blue or yellow ≪Universe 6≫ card is played in your Battle Area, that card gets +5000 power for the duration of the turn, then choose up to 1 card in your life and add it to your hand.")[0];

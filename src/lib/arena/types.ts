@@ -377,6 +377,8 @@ export interface Battle {
      */
     after: number;
   }[];
+  /** Each combo card's actual entry area in this battle, retained through save/reload and 8-5 cleanup. */
+  comboOrigins?: Record<string, "hand" | "other">;
 }
 
 /**

@@ -53,14 +53,24 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
  * them can happen at a time (7-1), so it fires once per turn either way. The
  * same precedent as "when you play or combo with this card" below.
  */
-/**
- * "At the end of the battle after you combo with this card (from your hand)"
- * (BT6-010, BT2-010, TB1-055, BT3-091, #539): the end of the battle *for a combo
- * card* is the moment it goes from the Combo Area to the Drop (8-5-8), which
- * is `comboed`. Read as `battleEnd` it never fired — that moment asks the
- * cards in play, and by then this one is in the Drop.
- */
+/** The combo card's own end-of-battle moment is its 8-5-8 Combo Area departure. */
 const COMBO_BATTLE_END = /^at the end of (?:the|a|this) battle(?: after| in which) you (?:combo|combod|comboed|used?) (?:with )?this card/;
+const COMBO_BATTLE_END_FROM_HAND = new RegExp(`${COMBO_BATTLE_END.source} from your hand\\b`);
+/**
+ * BT6-010 / BT2-010 require this very copy to have entered this battle's
+ * Combo Area from hand. Both interpreters check the captured source when
+ * `comboed` is pended, before the card's battle record is discarded.
+ */
+export function comboBattleEndFromHand(sk: Skill): boolean {
+  const head = effectHead(maskNames(sk.effect).text);
+  return COMBO_BATTLE_END_FROM_HAND.test(head);
+}
+
+/** BT6-010 additionally limits that same battle to the other player's turn. */
+export function comboBattleEndOpponentTurn(sk: Skill): boolean {
+  const head = effectHead(maskNames(sk.effect).text);
+  return COMBO_BATTLE_END.test(head) && /\bduring your opponent'?s turn\b/.test(head);
+}
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
 /**
  * "At the end of **a turn in which this card was placed in a Battle Area**"
