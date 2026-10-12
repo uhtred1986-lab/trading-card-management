@@ -251,9 +251,9 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "When you play another Battle Card with [Heroic], or activate a [Heroic] Extra Card skill, draw 1 card, then negate the effects of this skill for the rest of the turn.",
     engine:
-      "Pends after another Heroic Battle Card is played or a Heroic Extra Card skill is paid, then draws and negates this skill for the turn. Printed or copied Heroic skills have an individual identity and are supported; an identity-less granted Heroic keyword ends in an explicit engine limitation before drawing (#602).",
+      "Pends only on another card carrying the same keyword — [Heroic] and [Villainous] do not set each other off — and negates itself once it has resolved.",
     engineRules:
-      "Manual 22-35-2/3: playing another Battle Card with [Heroic] or activating a [Heroic] Extra Card skill pends this Auto. Its own hook draws one, then `negateOwnSkill(until: turn)` records standard 9-1-5 negation against the printed/copied skill index. The paid Extra trigger is captured before its effect resolves; its own effect stays ahead of the pending Auto, and a later skill negation cancels the Auto at its checkpoint. The separate granted-keyword identity follow-up #602 owns support for a grant without a skill index; this engine limitation ends that game before the Heroic body runs.",
+      "Manual 22-35-2/3: playing another Battle Card with [Heroic] or activating a [Heroic] Extra Card skill pends this Auto. Its own hook draws one, then `negateOwnSkill(until: turn)` records standard 9-1-5 negation against its printed skill index. The paid Extra trigger is captured before its effect resolves; its own effect stays ahead of the pending Auto, and a later skill negation cancels the Auto at its checkpoint. The dedicated suite verifies printed Heroic identity; copied identity is not established here. A granted keyword with no individual skill index reaches an explicit engine limitation before its body runs; #602 owns that follow-up.",
     support: "engine",
   },
   Villainous: {

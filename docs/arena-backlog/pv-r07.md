@@ -10,7 +10,7 @@ touches: src/lib/arena/vm/hooks.ts, src/lib/arena/vm/program.ts, src/lib/arena/v
 ---
 **Source:** `docs/rules/rulemanual.txt` 22-35-1..3; `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.
 
-**Rule citation:** Rule Manual 22-35-2/3. The rules VM captures a Heroic Extra trigger only after successful payment, before its effect begins, and resolves it after that effect. Printed/copied Heroic skill identities support the turn-duration self-negation. An identity-less granted Heroic currently ends with an explicit terminal `NotYet` before its body or draw; follow-up #602 owns granted-skill identity support.
+**Rule citation:** Rule Manual 22-35-2/3. The rules VM captures a Heroic Extra trigger only after successful payment, before its effect begins, and resolves it after that effect. The dedicated suite verifies printed Heroic skill identity and turn-duration self-negation; copied identity is not established by this ticket. An identity-less granted Heroic currently ends with an explicit terminal `NotYet` before its body or draw; follow-up #602 owns granted-skill identity support.
 
 **Priority:** P1. **Delivery:** Rule engine correctness. **Plan key:** R07.
 

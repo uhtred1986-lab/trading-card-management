@@ -673,11 +673,12 @@ export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: V
   }
   for (const kw of keywordsInForce(ctx, game, state, subject)) {
     const def = game.keywords[kw.name];
+    const hooks = def?.hooks?.filter((hook) => hook.at === point) ?? [];
+    const skillIndex = hooks.length ? printed.get(kw.name)?.shift() : undefined;
     // #156: a body names its keyword's parameters the way a `DO` does —
     // [Strike]'s `$x` is 2 on a [Double Strike] — bound from the instance in
     // force, granted or printed.
-    for (const hook of def?.hooks ?? []) if (hook.at === point) {
-      const skillIndex = printed.get(kw.name)?.shift();
+    for (const hook of hooks) {
       out.push({ keyword: kw, ops: bindKeywordParams(hook.ops, def.takes, kw as unknown as Record<string, unknown>, game), ...(skillIndex === undefined ? {} : { skillIndex }) });
     }
   }

@@ -783,7 +783,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   if (!frame) return "done";
   try {
     if (frame.pendingHookIdentityMissing) {
-      throw new NotYet("negate a granted keyword hook that has no individual skill identity", "#554");
+      throw new NotYet("negate a granted keyword hook that has no individual skill identity", "#602");
     }
     if (frame.pendingHookSkill && frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
