@@ -56,6 +56,10 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     resolveRef: (f, ref) => {
       const found = host.resolveRef(f, ref);
       const op = f.ops[f.ip];
+      if (op?.op === "moveTo" && op.to === "under" && ref === op.target) {
+        const under = op.under ? host.resolveRef(f, op.under) : [f.card];
+        if (under.length !== 1 || !state.cards[under[0]]) unpaid();
+      }
       if ("var" in ref) {
         const chosen = f.ops.slice(0, f.ip).findLast((o) => o.op === "choose" && o.as === ref.var);
         if (chosen?.op === "choose" && !chosen.sel.upTo && chosen.atMost === undefined && selectedCount(chosen.sel, f.vars[ref.var] ?? [], host.nameOf) < (chosen.sel.count ?? 1)) unpaid();
@@ -79,6 +83,11 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       }
       return actual;
     },
+    placeUnder: (id, top) => {
+      if (id === top || !state.cards[id] || !state.cards[top] || state.cards[top].under.includes(id) || !host.placeUnder(id, top)
+        || !state.cards[top].under.includes(id)) unpaid();
+      return true;
+    },
     setMode: (id, mode, by) => {
       if (host.modeOf(id) === mode || !host.setMode(id, mode, by)) unpaid();
       return true;
@@ -100,6 +109,23 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
  * already-rested source up for the final mandatory self-rest. Keep this narrow:
  * an aliased choice, another destination, a replacement or a nested reference
  * can make the intervening movement affect the source. */
+function mayReplacePriceMove(ctx: EngineContext, game: GameDefinition, state: VmState): boolean {
+  if (state.effects.length) return true;
+  for (const side of Object.values(state.sides)) {
+    for (const zone of inPlayZones(game)) {
+      for (const id of side.zones[zone] ?? []) {
+        const showing = skillsShowing(ctx, state, id);
+        for (const skill of showing.skills) {
+          if (skill.kind !== "permanent") continue;
+          const program = showing.scripts.bySkill[skill.index];
+          if (program && hasPossibleReplacement(program.ops)) return true;
+        }
+      }
+    }
+  }
+  return possibleAltPaymentReplacement(game) || staticsNow(ctx, game, state).some((effect) => effect.kind === "replaceLeave");
+}
+
 function cannotRestSourceAfterHandPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): boolean {
   const [choose, move, rest, ...extra] = frame.ops.slice(frame.ip);
   if (extra.length || choose?.op !== "choose" || move?.op !== "moveTo" || rest?.op !== "switchMode") return false;
@@ -127,32 +153,89 @@ function cannotRestSourceAfterHandPrice(ctx: EngineContext, game: GameDefinition
   // program, including both conditional branches, before excluding that path.
   // No remaining move puts a new Permanent source in play. A keyword
   // wouldLeave hook only answers departures from held areas, not this hand.
-  if (state.effects.length) return false;
-  for (const side of Object.values(state.sides)) {
-    for (const zone of inPlayZones(game)) {
-      for (const id of side.zones[zone] ?? []) {
-        const showing = skillsShowing(ctx, state, id);
-        for (const skill of showing.skills) {
-          if (skill.kind !== "permanent") continue;
-          const program = showing.scripts.bySkill[skill.index];
-          if (program && hasPossibleReplacement(program.ops)) return false;
-        }
-      }
+  return !mayReplacePriceMove(ctx, game, state);
+}
+
+/** A pure hand payment immediately feeds a later named Drop payment. Count
+ * only cards which could actually enter that Drop: already saved picks and at
+ * most the slots left in the first choice. This is a necessary condition, not
+ * a replacement for replaying the price. A replacement, computed filter,
+ * different chooser, or saved card outside the hand falls back to the full
+ * interpreter search. Candidate order is only a heuristic; no branch is
+ * omitted on that account. */
+function directNamedTransfer(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, candidates: string[]): { enough: boolean; favored: Set<string> } | null {
+  const [first, move, second, finish, ...extra] = frame.ops.slice(frame.ip);
+  if (extra.length || first?.op !== "choose" || move?.op !== "moveTo" || second?.op !== "choose" || finish?.op !== "moveTo") return null;
+  const simple = (value: object, allowed: string[]) => Object.entries(value).every(([key, field]) => field === undefined || allowed.includes(key));
+  if (!simple(first, ["op", "sel", "as", "reason"]) || !simple(first.sel, ["side", "area", "count", "upTo"])
+    || first.sel.side !== "you" || first.sel.area !== "hand" || first.sel.upTo || !Number.isInteger(first.sel.count) || (first.sel.count ?? 0) < 1
+    || !simple(move, ["op", "target", "to", "reveal"]) || move.to !== "drop" || !("var" in move.target) || move.target.var !== first.as || !simple(move.target, ["var"])
+    || !simple(second, ["op", "sel", "as", "reason"]) || !simple(second.sel, ["side", "area", "filter", "count", "upTo"])
+    || second.sel.side !== "you" || second.sel.area !== "drop" || second.sel.upTo || !Number.isInteger(second.sel.count) || (second.sel.count ?? 0) < 1
+    || !simple(finish, ["op", "target", "to", "reveal"]) || finish.to !== "warp" || !("var" in finish.target) || finish.target.var !== second.as || !simple(finish.target, ["var"])) return null;
+  const filter = second.sel.filter;
+  if (!filter?.names?.length || Object.entries(filter).some(([key, value]) => key !== "names" && value !== undefined && value !== null && value !== false && !(Array.isArray(value) && value.length === 0))) return null;
+  const hand = new Set(state.sides[frame.master].zones.hand);
+  const saved = frame.awaiting === first.as ? frame.vars[first.as] ?? [] : [];
+  if (saved.some((id) => !hand.has(id)) || state.lastChoice?.some((id) => !hand.has(id)) || frame.moveLoop || frame.replacing || mayReplacePriceMove(ctx, game, state)) return null;
+  // Even a Permanent with no replacement might make a selected card's
+  // identity depend on the number of cards still in hand or Drop.
+  for (const side of Object.values(state.sides)) for (const zone of inPlayZones(game)) for (const id of side.zones[zone] ?? []) {
+    if (skillsShowing(ctx, state, id).skills.some((skill) => skill.kind === "permanent")) return null;
+  }
+  // Ask the same selector that the later interpreter step will ask. Printed
+  // names alone miss case folding, a shown back face and additional names.
+  const now = vmHost(ctx, game, state, []);
+  const fromDrop = now.resolveSelector(frame, second.sel).length;
+  const matchingHand = new Set(now.resolveSelector(frame, { ...second.sel, area: "hand" }));
+  const eligible = (id: string): boolean | null => {
+    const card = state.cards[id];
+    const def = card && ctx.defs[card.cardId];
+    // A plain, skill-less front face keeps its printed name through this
+    // hand departure. The selector still supplies its own case/alias rules.
+    // Faces, added names and own-skill choice restrictions use projection.
+    if (card && def && !card.flipped && !card.hidden && !def.back && !def.alsoNames?.length && !def.skill) return matchingHand.has(id);
+    const projected = structuredClone(state);
+    const host = vmHost(ctx, game, projected, []);
+    if (host.replacementsFor(id, "cost", { actor: undefined, requestedTo: "drop" }).length) return null;
+    try {
+      if (host.move(id, "drop", host.ownerOf(id), { reason: "cost" }) !== "drop" || host.areaOf(id) !== "drop") return null;
+    } catch (err) {
+      if (err instanceof IllegalAction) return null;
+      throw err;
+    }
+    return host.resolveSelector(frame, second.sel).includes(id);
+  };
+  const favored = new Set<string>();
+  let fromSaved = 0;
+  for (const id of new Set([...saved, ...candidates])) {
+    const matches = eligible(id);
+    if (matches === null) return null;
+    if (matches) {
+      if (saved.includes(id)) fromSaved++;
+      else favored.add(id);
     }
   }
-  // Keyword altPayment bodies are also evaluated as standing programs.
-  if (possibleAltPaymentReplacement(game)) return false;
-  return !staticsNow(ctx, game, state).some((staticEffect) => staticEffect.kind === "replaceLeave");
+  const remaining = Math.max(0, (first.sel.count ?? 0) - saved.length);
+  return { enough: fromDrop + fromSaved + Math.min(remaining, favored.size) >= (second.sel.count ?? 0), favored };
 }
 
 /** Preflight on an isolated board, including earlier instructions and all
  * source/event/X bindings. No cost, trigger or prompt escapes this simulation.
  * Choices are single-card interpreter answers, so every branch is replayable. */
 export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): boolean {
+  // Other price grammars can have order-dependent choices and replacements.
+  // Keep an explicit unknown when their search is too large; never equate an
+  // unfinished proof with an unaffordable price.
   let budget = 2000;
+  const failed = new Set<string>();
   const visit = (s: VmState, f: ScriptFrame): boolean => {
     if (--budget < 0) throw new NotYet("plan this Auto action price within the bounded choice search", "#549");
     if (cannotRestSourceAfterHandPrice(ctx, game, s, f)) return false;
+    // The same exact board, stored aliases and answer cursor has the same
+    // continuations. This caches only proven failures; chosen order is kept.
+    const key = JSON.stringify([s, f]);
+    if (failed.has(key)) return false;
     s.programs = [];
     try {
       const result = stepScript(automaticPriceHost(ctx, game, s, []), f);
@@ -160,13 +243,17 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
       if (s.programs[0] !== f) return false;
       const prompt = s.prompt;
       const choices = prompt.kind === "chooseCards" ? [ ...(prompt.choice.min === 0 ? [[]] : []), ...prompt.choice.candidates.map((id) => [id]) ] : [];
-      const modes = prompt.kind === "replaceMove" ? prompt.options.map((_, index) => index) : [];
-      for (const answer of [...choices.map((cards) => ({ cards })), ...modes.map((index) => ({ index }))]) {
+      const modes = prompt.kind === "replaceMove" || prompt.kind === "chooseMode" ? prompt.options.map((_, index) => index) : [];
+      const transfer = prompt.kind === "chooseCards" ? directNamedTransfer(ctx, game, s, f, prompt.choice.candidates) : null;
+      if (transfer && !transfer.enough) return false;
+      const ordered = transfer ? choices.sort((a, b) => Number(transfer.favored.has(b[0])) - Number(transfer.favored.has(a[0]))) : choices;
+      for (const answer of [...ordered.map((cards) => ({ cards })), ...modes.map((index) => ({ index }))]) {
         const next = structuredClone(s);
         if ("cards" in answer) next.lastChoice = answer.cards;
         else next.lastMode = answer.index;
         if (visit(next, structuredClone(f))) return true;
       }
+      failed.add(key);
       return false;
     } catch (err) {
       // NotYet is an IllegalAction too, but an incomplete search cannot
@@ -181,12 +268,27 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
 
 /** Refuse unimplemented instructions explicitly, rather than calling an
  * unsupported price unaffordable or letting its effect run for free. */
-function readableAutomaticPrice(ops: Op[]): void {
+export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"): void {
+  const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
+    || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker"
+    || (op.op === "if" && !!op.else?.length && pays(op.then) && pays(op.else))
+    || (op.op === "chooseMode" && op.modes.length > 0 && op.modes.every((mode) => pays(mode.ops))));
   for (const op of ops) {
     if (op.op === "note" && op.text.startsWith("\u0000probe-path:")) continue;
+    if (op.op === "if") {
+      if (!op.else?.length || !pays(op.then) || !pays(op.else)) throw new NotYet(`pay ${label} conditional action price with an empty branch`, owner);
+      readableAutomaticPrice(op.then, label, owner);
+      readableAutomaticPrice(op.else, label, owner);
+      continue;
+    }
+    if (op.op === "chooseMode") {
+      if (!op.modes.length || op.modes.some((mode) => !pays(mode.ops))) throw new NotYet(`pay ${label} modal action price with an empty option`, owner);
+      for (const mode of op.modes) readableAutomaticPrice(mode.ops, label, owner);
+      continue;
+    }
     if (!["choose", "discard", "mill", "switchMode", "hidden", "moveTo", "removeMarker"].includes(op.op)
-      || (op.op === "moveTo" && (op.to === "under" || op.to === "play"))) {
-      throw new NotYet(`pay an Auto action price containing ${op.op}`, "#549");
+      || (op.op === "moveTo" && op.to === "play")) {
+      throw new NotYet(`pay ${label} action price containing ${op.op}`, owner);
     }
   }
 }
