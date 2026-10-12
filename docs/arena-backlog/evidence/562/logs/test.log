@@ -55,7 +55,7 @@ verify/narration: story 109 / full 419 lines for p1 over 419 beats, turn 16
   ok       heroic-554
   ok       z-energy-combo-551
   ok       aegis-555
-auto-costs-549 crowded 20-card price: 25.8 ms
+auto-costs-549 crowded 20-card price: 31.6 ms
 auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
   ok       auto-costs-549
   ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
@@ -126,7 +126,7 @@ verify/narration: story 46 / full 232 lines for p1 over 232 beats, turn 5
   ok       heroic-554
   ok       z-energy-combo-551
   ok       aegis-555
-auto-costs-549 crowded 20-card price: 23.9 ms
+auto-costs-549 crowded 20-card price: 31.8 ms
 auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
   ok       auto-costs-549
   ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
@@ -150,7 +150,7 @@ original-colors-597: declared language; Arrival/Aegis/Revive eligibility and pay
 legacy engine calls: none
 
 verify-arena (rules only): 41/42 passed, 1 not run, 0 failed
-PGlite idle poll after authorization: 4 SELECTs/2133 snapshot bytes → 3 SELECTs/0 body bytes (50 ms deterministic window); avoided projection p50 0.377 ms
+PGlite idle poll after authorization: 4 SELECTs/2133 snapshot bytes → 3 SELECTs/0 body bytes (50 ms deterministic window); avoided projection p50 0.470 ms
 revision polling #568: unchanged/no-store, changed status, old/future cursor, missing row and 204 client recovery PASS
 arena live polling lifecycle: offline/foreground refresh, abort/deadline/cleanup, capped recovery/Retry PASS
 tryit: OK

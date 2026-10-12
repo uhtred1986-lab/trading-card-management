@@ -18,15 +18,21 @@ were ignored by that UI. `after-*` uses the same engine-built baseline fixture,
 with actor, totals, conditional tie result, Pass consequence and resources.
 The short phone is 390×650; phone is 390×844; desktop is 1440×900. The 200text
 captures set the root text size to 200% and emulate reduced motion. Dev tools
-portals are removed before the after captures.
+portals are removed before the after captures. Captures wait for the expected
+rendered decision and two paint frames, then recheck it after capture, so a
+fixture reload cannot be accepted as a Loading-only evidence frame.
 
 The normal phone was compared with `docs/arena-redesign/phone-07-clash-defend.jpg`
 and desktop with `desk-07-clash-defend.jpg`. The current band preference and
-public energy/resource line are retained rather than changing the board's
-staging or hand layout. The compact decision panel keeps a conditional result
-and immediate consequence visible; full pending-skill/replacement caveats and
-public blockers/restrictions with expiry are available in its disclosure.
-Remaining crowded-hand/phone layout work stays under #563.
+public energy/resource line remain visible. During phone hand decisions, only
+empty Battle rows whose Leaders have moved into the band shrink from 128px to
+96px. Occupied rows and drop targets retain their full card footprint. The
+Assumptions disclosure shares the Pass row, and the combo hint sits beside
+Inspect hand, leaving a readable, tappable card strip above the dock at normal
+390×844. The conditional result and immediate consequence stay visible; full
+pending-skill/replacement caveats and public blockers/restrictions with expiry
+remain in the disclosure. Overall crowded-hand/phone consolidation stays under
+#563.
 
 The harness asserts Double Strike, Critical and potential lethal summaries
 before submission in both skins on desktop and phone. Payment fixtures show
@@ -38,12 +44,26 @@ snapshot revisions; an older poll must not restore the old decision.
 The preview transport itself only records actions; it does not pretend to be
 a production game server.
 
+In both phone skins, a legal combo card must expose an unobscured 44×44px tap
+area outside the sticky dock, verified with nine elementFromPoint samples.
+Normal 390×844 starts with this area visible without scrolling. Actual touch
+opens hand inspection and expands its artwork fullscreen; after focus restores
+page scroll, actual finger scrolling recovers the hand. Normal-text and 200%
+taps each capture an offered combo, independently apply it to EngineAPI, and
+verify movement into Combo Area, fewer hand cards, unchanged energy for the
+zero-cost combo and the increased defense total in the same view. Short-phone
+and 200% access uses actual touch scrolling starting on visible board content
+above the dock. Separate occupied-row fixtures verify the full row footprint
+and touch access through In play inspection to fullscreen review. The
+`*-hand-access`, `*-hand-combo*`, `*-hand-inspection` and
+`*-occupied-inspection` images record these paths.
+
 At 200% text, Pass is reached with actual Tab traversal and activated with
 Enter. Its rectangle must fit inside the viewport and its centre must hit the
 control via elementFromPoint; horizontal page overflow is checked. A phone
 finger scroll is used when the control needs to be brought into view. Captured
 Pass must equal an offered action and independently produce the engine's power
-comparison. The harness also sends a real phone touch for Counter decline.
+comparison. The harness also touches Pass at 200% on both phone sizes and skins, then verifies Tab/Enter as an independent continuation of the same offered decision. Counter decline has its own real phone touch proof.
 
 Reproduce locally, without a database:
 
@@ -71,7 +91,7 @@ attempted with the existing Docker image, network disabled and Gradle offline;
 its required Kotlin JVM 2.1.0 plugin is absent from the cache, so decoding is
 unverified. `arena:fuzz 40` needs live deck data and is owner-run; the resolver's
 damage and battle-intact queries are extracted unchanged, with no new rule
-mechanic or compiler reading to measure. Final local gates all passed on the integrated source tree: typecheck, lint
+mechanic or compiler reading to measure. Final local gates all passed on frozen source `89cae2a` (runtime source `4524998`): typecheck, lint
 (5 existing prototype warnings), contract emission, full npm test and build.
 Legacy arena: 42/42; rules-only: 41/42 with the legacy-parity VM suite
 intentionally not run; emitted contract: 42/42 on each engine. The browser

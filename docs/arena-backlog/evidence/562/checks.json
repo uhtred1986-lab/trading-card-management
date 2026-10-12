@@ -13,8 +13,8 @@
     "contract": {
       "exit": 0,
       "log": "logs/contract.log",
-      "retained_prior_emission": true,
-      "note": "No contract/runtime change in fixture correction; fresh npm test reran contract comparisons on both engines."
+      "fresh_emission": true,
+      "note": "Fresh emission passed on unchanged integrated contract/runtime source; no generated fixture changes."
     },
     "test": {
       "exit": 0,
@@ -54,7 +54,7 @@
   ],
   "mechanics": "damageRule and battleIntact extracted unchanged; VM cost resolution untouched",
   "existing_limitation": "#626 tracks gained effective colours not affecting energy payment; UI shows actual planner payment colours and discloses effective difference in inspection",
-  "validated_source_head": "b90b4b77c7583e58eac4e6a30c0588a0b965cd4a",
+  "validated_source_head": "89cae2a1b99ea62518a18b8e152d60e5022430d0",
   "fixture_validity": {
     "leaders": "Double Strike/Critical/Victory Strike are Blue LEADER definitions with null energy/combo statistics",
     "unison": "null combo cost and power",
@@ -62,7 +62,8 @@
     "runtime_changed": false,
     "senzu_whis_facts_changed": false
   },
-  "fixture_fix_gates": [
+  "runtime_source_head": "4524998",
+  "overlap_gates": [
     {
       "check": "focused",
       "exit": 0
@@ -80,16 +81,31 @@
       "exit": 0
     },
     {
+      "check": "browser",
+      "exit": 0
+    },
+    {
+      "check": "contract",
+      "exit": 0
+    },
+    {
       "check": "build",
       "exit": 0
     },
     {
       "check": "backlog",
       "exit": 0
-    },
-    {
-      "check": "browser",
-      "exit": 0
     }
-  ]
+  ],
+  "hand_overlap_proof": {
+    "empty_lifted_rows": "96px only during phone hand decisions; occupied rows and drop targets retain normal footprint",
+    "normal_phone": "both skins begin with a legal hand combo exposing a 44px unobscured tap area without scrolling",
+    "hit_test": "nine elementFromPoint samples within 44x44px area outside sticky dock",
+    "actual_combo": "normal and 200% touch sends exact legal action; independent EngineAPI apply verifies Combo Area movement, fewer hand cards, unchanged zero-cost energy, and same-view defense power refresh",
+    "short_and_200": "actual dispatched touch scrolling starts on visible board above dock, then exact hand/Pass touch actions",
+    "inspection": "hand real-art fullscreen and occupied Battle Card fullscreen through in-play review in both phone skins; occupied row >=127px",
+    "pass": "200% phone touch and real Tab/Enter each independently reach engine power comparison; fully visible/unobscured, assumptions collapsed and expanded",
+    "resources": "band rectangle stays between public resource rows",
+    "captures": "wait expected rendered decision plus two animation frames, recheck after capture; Loading frames rejected"
+  }
 }

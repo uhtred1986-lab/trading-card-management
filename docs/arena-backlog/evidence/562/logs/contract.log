@@ -57,7 +57,7 @@ verify/narration: story 109 / full 419 lines for p1 over 419 beats, turn 16
   ok       heroic-554
   ok       z-energy-combo-551
   ok       aegis-555
-auto-costs-549 crowded 20-card price: 23.8 ms
+auto-costs-549 crowded 20-card price: 29.5 ms
 auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
   ok       auto-costs-549
   ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
@@ -130,7 +130,7 @@ verify/narration: story 46 / full 232 lines for p1 over 232 beats, turn 5
   ok       heroic-554
   ok       z-energy-combo-551
   ok       aegis-555
-auto-costs-549 crowded 20-card price: 24.2 ms
+auto-costs-549 crowded 20-card price: 23.3 ms
 auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
   ok       auto-costs-549
   ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
