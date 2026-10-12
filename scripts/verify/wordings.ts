@@ -102,11 +102,9 @@ import type { EngineState, Trigger } from "./harness";
   // …and then negates itself for the turn. Playing a third one makes only the
   // *second* pay out: one card in, one card played, so the hand is unchanged.
   // Without the negation the first would draw again and it would be one up.
-  if (!rulesGap("wordings: [Heroic] pays out once a turn (22-35-3)", "the [Heroic] afterSkill hook does not negate itself for the rest of the turn — keywords.rules' own note, and the glossary's", "no issue filed yet")) {
-    const after = zoneOf(s, "p1", "hand").length;
-    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "HERO") });
-    assert.equal(zoneOf(s, "p1", "hand").length, after, "22-35-3: each card pays out once a turn, not once per play");
-  }
+  const after = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "HERO") });
+  assert.equal(zoneOf(s, "p1", "hand").length, after, "22-35-3: each card pays out once a turn, not once per play");
   assertConsistentG(s);
 }
 
