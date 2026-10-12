@@ -1,7 +1,8 @@
 import { and, eq, inArray, isNull, lte, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type { Db } from "@/db";
-import { arenaAdvanceCalls } from "@/db/schema";
+import { aiRuns, arenaAdvanceCalls } from "@/db/schema";
 import type { Action } from "../types";
 import type { Op } from "../vm/script";
 
@@ -50,11 +51,23 @@ export async function claimAdvance(
     : false;
   if (row.phase === "attempting" && !recorded) {
     if (row.leaseUntil && row.leaseUntil > now) return { kind: "busy" };
-    await db.update(arenaAdvanceCalls).set({ phase: "attention", owner: null, leaseUntil: null, updatedAt: now })
-      .where(and(eq(arenaAdvanceCalls.gameId, gameId), eq(arenaAdvanceCalls.revision, revision), eq(arenaAdvanceCalls.phase, "attempting"), lte(arenaAdvanceCalls.leaseUntil, now)));
+    const marked = await db.update(arenaAdvanceCalls).set({ phase: "attention", owner: null, leaseUntil: null, updatedAt: now })
+      .where(and(eq(arenaAdvanceCalls.gameId, gameId), eq(arenaAdvanceCalls.revision, revision), eq(arenaAdvanceCalls.phase, "attempting"), lte(arenaAdvanceCalls.leaseUntil, now)))
+      .returning({ phase: arenaAdvanceCalls.phase });
+    const [current] = await db.select({ phase: arenaAdvanceCalls.phase }).from(arenaAdvanceCalls)
+      .where(and(eq(arenaAdvanceCalls.gameId, gameId), eq(arenaAdvanceCalls.revision, revision))).limit(1);
+    if (current?.phase === "applied") return { kind: "applied" };
+    if (current?.phase === "attention") return { kind: "attention" };
+    if (marked.length) return { kind: "busy" };
+    return { kind: "busy" };
+  }
+  if (row.phase === "attention" && !recorded) {
+    const [current] = await db.select({ phase: arenaAdvanceCalls.phase }).from(arenaAdvanceCalls)
+      .where(and(eq(arenaAdvanceCalls.gameId, gameId), eq(arenaAdvanceCalls.revision, revision))).limit(1);
+    if (current?.phase === "applied") return { kind: "applied" };
+    if (current?.phase !== "attention") return { kind: "busy" };
     return { kind: "attention" };
   }
-  if (row.phase === "attention" && !recorded) return { kind: "attention" };
   if (row.owner && row.leaseUntil && row.leaseUntil > now) return { kind: "busy" };
   const phase = row.checkpoint || recorded ? "checkpoint" : "claimed";
   const claimed = await db.update(arenaAdvanceCalls).set({ phase, owner, leaseUntil: expires, updatedAt: now })
@@ -115,20 +128,64 @@ export async function saveAdvanceCheckpoint(
     ))
     .returning({ callId: arenaAdvanceCalls.callId });
   // On a very slow call another request may have marked it attention after its
-  // lease elapsed. The now-durable result is still safe to checkpoint; it is
-  // the sole result attached to this stable call identity.
+  // lease elapsed. Revive only when the exact semantic decision is present in
+  // the durable result attached to this stable provider-call identity.
   if (!result.length) {
-    const lateResult = await db.update(arenaAdvanceCalls)
-      .set({ phase: "checkpoint", checkpoint, owner: claim.owner, leaseUntil: new Date(Date.now() + LEASE_MS), updatedAt: new Date() })
-      .where(and(
-        eq(arenaAdvanceCalls.gameId, claim.gameId),
-        eq(arenaAdvanceCalls.revision, claim.revision),
-        eq(arenaAdvanceCalls.callId, claim.callId),
-        eq(arenaAdvanceCalls.phase, "attention"),
-        isNull(arenaAdvanceCalls.owner),
-      ))
-      .returning({ callId: arenaAdvanceCalls.callId });
+    const proven = await hasRecordedCheckpointResult(db, claim, checkpoint);
+    const lateResult = proven
+      ? await db.update(arenaAdvanceCalls)
+        .set({ phase: "checkpoint", checkpoint, owner: claim.owner, leaseUntil: new Date(Date.now() + LEASE_MS), updatedAt: new Date() })
+        .where(and(
+          eq(arenaAdvanceCalls.gameId, claim.gameId),
+          eq(arenaAdvanceCalls.revision, claim.revision),
+          eq(arenaAdvanceCalls.callId, claim.callId),
+          eq(arenaAdvanceCalls.phase, "attention"),
+          isNull(arenaAdvanceCalls.owner),
+        ))
+        .returning({ callId: arenaAdvanceCalls.callId })
+      : [];
     if (!lateResult.length) throw new Error("The Arena advance lease was lost before its result could be checkpointed.");
+  }
+}
+
+/** Only a persisted provider result for this exact call may revive attention. */
+async function hasRecordedCheckpointResult(db: Db, claim: Extract<AdvanceClaim, { kind: "claimed" }>, checkpoint: AdvanceCheckpoint): Promise<boolean> {
+  const [run] = await db.select().from(aiRuns).where(eq(aiRuns.arenaCallId, claim.callId)).limit(1);
+  if (!run || !run.output || !run.input || typeof run.input !== "object") return false;
+  const input = run.input as { arena?: { gameId?: unknown; callId?: unknown; revision?: unknown; selectedAction?: unknown; selectedIndex?: unknown } };
+  const identity = input.arena;
+  if (identity?.gameId !== claim.gameId || identity.callId !== claim.callId || identity.revision !== claim.revision) return false;
+  if (checkpoint.kind === "move") {
+    if (run.kind !== "arena_move" || !isDeepStrictEqual(identity.selectedAction, checkpoint.action)) return false;
+    const output = run.output as { move?: unknown; say?: unknown };
+    const selectedIndex = identity.selectedIndex;
+    const say = typeof output.say === "string" ? output.say.trim() || null : null;
+    const spend = checkpoint.spend;
+    const how = selectedIndex === output.move
+      ? "chosen by Claude"
+      : `Claude answered ${String(output.move)}, which is not on the list — took the first move`;
+    return Number.isInteger(selectedIndex)
+      && Number.isInteger(output.move)
+      && selectedIndex === checkpoint.index
+      && say === checkpoint.say
+      && how === checkpoint.how
+      && !!spend
+      && spend.model === run.model
+      && spend.provider === run.provider
+      && spend.billed === run.billed
+      && spend.input === (run.inputTokens ?? 0)
+      && spend.output === (run.outputTokens ?? 0)
+      && spend.cached === (run.cacheReadTokens ?? 0)
+      && (spend.cacheWrite ?? 0) === (run.cacheCreationTokens ?? 0)
+      && (spend.costMicros ?? null) === (run.costMicros ?? null);
+  }
+  if (run.kind !== "arena_referee") return false;
+  const output = run.output as { program?: unknown; why?: unknown };
+  if (typeof output.program !== "string" || typeof output.why !== "string" || !checkpoint.valid) return false;
+  try {
+    return isDeepStrictEqual(JSON.parse(output.program), checkpoint.ops) && output.why === checkpoint.why;
+  } catch {
+    return false;
   }
 }
 

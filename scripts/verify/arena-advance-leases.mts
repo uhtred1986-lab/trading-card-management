@@ -129,6 +129,90 @@ export async function verifyArenaAdvanceLeases(db: Db): Promise<void> {
   assert.equal((await db.select().from(aiRuns).where(eq(aiRuns.arenaCallId, uncertain.callId))).length, 0, "no result was fabricated for an ambiguous request");
   assert.equal(providerCalls, 3, "the unknown attempt is never automatically retried");
 
+  // A late free-choice worker cannot revive its expired claim after a newer
+  // owner crossed the provider boundary and the revision became ambiguous.
+  const [freeRace] = await db.insert(arenaGames).values({ p1Name: "Free Race P1", p2Name: "Free Race AI", seed: 570, mode: "sparring", state: { prompt: { kind: "main", player: "p2" } } }).returning({ id: arenaGames.id });
+  const freeOwner = await claimAdvance(db, freeRace.id, 0, hasResult);
+  assert.equal(freeOwner.kind, "claimed");
+  if (freeOwner.kind !== "claimed") throw new Error("free-choice fixture did not get its first lease");
+  const providerOwner = await claimAdvance(db, freeRace.id, 0, hasResult, new Date(Date.now() + 120_000));
+  assert.equal(providerOwner.kind, "claimed", "an expired pre-provider claim can be taken by a new worker");
+  if (providerOwner.kind !== "claimed") throw new Error("expired free-choice lease was not reclaimed");
+  await markProviderAttempt(db, providerOwner);
+  assert.equal((await claimAdvance(db, freeRace.id, 0, hasResult, new Date(Date.now() + 240_000))).kind, "attention");
+  await assert.rejects(
+    saveAdvanceCheckpoint(db, freeOwner, { kind: "move", index: 0, action: { type: "pass", player: "p2" }, say: null, how: "free rule choice", spend: null }),
+    /lease was lost/,
+    "an old free-choice owner cannot overwrite a newer ambiguous provider attempt",
+  );
+  const [freeRaceRow] = await db.select().from(arenaAdvanceCalls).where(eq(arenaAdvanceCalls.gameId, freeRace.id));
+  assert.equal(freeRaceRow.phase, "attention", "the rejected late free choice leaves the provider attempt fenced");
+
+  // The original provider owner may recover a late response after expiry, but
+  // only when the exact choice and stable call identity were durably recorded.
+  const [lateResultGame] = await db.insert(arenaGames).values({ p1Name: "Late Result P1", p2Name: "Late Result AI", seed: 571, mode: "sparring", state: { prompt: { kind: "main", player: "p2" } } }).returning({ id: arenaGames.id });
+  const lateOwner = await claimAdvance(db, lateResultGame.id, 0, hasResult);
+  assert.equal(lateOwner.kind, "claimed");
+  if (lateOwner.kind !== "claimed") throw new Error("late-result fixture did not get a lease");
+  await markProviderAttempt(db, lateOwner);
+  assert.equal((await claimAdvance(db, lateResultGame.id, 0, async () => false, new Date(Date.now() + 120_000))).kind, "attention");
+  const lateSpend = { model: "fake-model", provider: "fake", billed: true, input: 7, output: 2, cached: 0, cacheWrite: 0, costMicros: 0 };
+  const lateAction = { type: "pass", player: "p2" };
+  await db.insert(aiRuns).values({
+    kind: "arena_move",
+    arenaCallId: lateOwner.callId,
+    model: lateSpend.model,
+    provider: lateSpend.provider,
+    billed: lateSpend.billed,
+    input: { arena: { gameId: lateResultGame.id, callId: lateOwner.callId, revision: 0, selectedIndex: 0, selectedAction: lateAction } },
+    output: { move: 0, say: "Late but recorded." },
+    inputTokens: lateSpend.input,
+    outputTokens: lateSpend.output,
+    cacheReadTokens: lateSpend.cached,
+    cacheCreationTokens: lateSpend.cacheWrite,
+    costMicros: lateSpend.costMicros,
+  });
+  await saveAdvanceCheckpoint(db, lateOwner, { kind: "move", index: 0, action: lateAction as never, say: "Late but recorded.", how: "chosen by Claude", spend: lateSpend });
+  const [lateResultRow] = await db.select().from(arenaAdvanceCalls).where(eq(arenaAdvanceCalls.gameId, lateResultGame.id));
+  assert.equal(lateResultRow.phase, "checkpoint", "the matching durable provider response can safely revive attention");
+  assert.deepEqual(lateResultRow.checkpoint && (lateResultRow.checkpoint as { action?: unknown }).action, lateAction);
+
+  // An attention transition is conditional. A stale attempt that read an
+  // expired row must not report attention after another worker applied it.
+  const [attemptTransitionRace] = await db.insert(arenaGames).values({ p1Name: "Transition Race P1", p2Name: "Transition Race AI", seed: 572, mode: "sparring", state: { prompt: { kind: "main", player: "p2" } } }).returning({ id: arenaGames.id });
+  const transitionOwner = await claimAdvance(db, attemptTransitionRace.id, 0, hasResult);
+  assert.equal(transitionOwner.kind, "claimed");
+  if (transitionOwner.kind !== "claimed") throw new Error("attempt-transition fixture did not get a lease");
+  await markProviderAttempt(db, transitionOwner);
+  let readTransition!: () => void;
+  let releaseTransition!: () => void;
+  const transitionRead = new Promise<void>((resolve) => { readTransition = resolve; });
+  const transitionRelease = new Promise<void>((resolve) => { releaseTransition = resolve; });
+  const staleAttentionClaim = claimAdvance(db, attemptTransitionRace.id, 0, async () => {
+    readTransition();
+    await transitionRelease;
+    return false;
+  }, new Date(Date.now() + 120_000));
+  await transitionRead;
+  await db.insert(aiRuns).values({
+    kind: "arena_move",
+    arenaCallId: transitionOwner.callId,
+    model: "fake-model",
+    provider: "fake",
+    billed: true,
+    input: { arena: { gameId: attemptTransitionRace.id, callId: transitionOwner.callId, revision: 0, selectedIndex: 0, selectedAction: { type: "pass", player: "p2" } } },
+    output: { move: 0, say: null },
+    inputTokens: 1,
+    outputTokens: 1,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+    costMicros: 0,
+  });
+  await saveAdvanceCheckpoint(db, transitionOwner, { kind: "move", index: 0, action: { type: "pass", player: "p2" }, say: null, how: "chosen by Claude", spend: { model: "fake-model", provider: "fake", billed: true, input: 1, output: 1, cached: 0, cacheWrite: 0, costMicros: 0 } });
+  await finishAdvance(db, transitionOwner);
+  releaseTransition();
+  assert.equal((await staleAttentionClaim).kind, "applied", "a stale attempt-to-attention writer reports the current terminal phase");
+
   // Fence a stale SELECT from reviving a revision after another recovery
   // claimant finishes it. Both requests observe the saved result, but only one
   // may own the row; the delayed claimant must return `applied` and make no
