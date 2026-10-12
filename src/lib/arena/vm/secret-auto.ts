@@ -1,4 +1,4 @@
-/** 9-6-3-1-1: only a cost-free [Auto] still in a secret area may be left undeclared. */
+/** 9-6-3-1-1: a pending [Auto] still in a secret area may be left undeclared. */
 import { costIsOnlyOrbs } from "../compile";
 import type { EngineContext, Skill } from "../types";
 import type { GameDefinition } from "../rulesets";
@@ -22,8 +22,7 @@ export function canWithholdSecretAuto(ctx: EngineContext, game: GameDefinition, 
   const showing = skillsShowing(ctx, state, pending.card);
   const skill = showing.skills.find((item) => item.index === pending.skillIndex);
   if (skill?.kind !== "auto") return false;
-  const program = showing.scripts.bySkill[pending.skillIndex];
-  return !automaticHasPrice(skill, program);
+  return true;
 }
 
 /** The one price test used both when offering silence and when resolving. */

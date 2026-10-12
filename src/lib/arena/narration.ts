@@ -174,6 +174,12 @@ function sentence(b: Beat, n: Narrator, words: BoardWords, full: boolean): strin
       // neither player reaches a combo window. Saying only "negated" left the
       // attacker looking for the Offense Step they never got.
       return "The attack is negated — the battle ends here, with no Offense or Defense Step.";
+    case "autoDeclared": {
+      if (!n.art[b.card]) return `${who(b.owner, "declare", "declares")} a skill.`;
+      const clause = b.text.replace(/\s+/g, " ").trim().replace(/\.$/, "");
+      const short = clause.length > 90 ? `${clause.slice(0, 88)}…` : clause;
+      return `${who(b.owner, "declare", "declares")} 《${b.label}》 on ${name(b.card)} — ${short}.`;
+    }
     case "skill": {
       // `maskBeats` blanks a skill whose card the viewer may not see (#463):
       // the moment is told, the card and its words are not.

@@ -339,7 +339,7 @@ export interface VmState {
   /** A VM Auto may carry a private reveal epoch through its exact suspended frame. */
   programs: (ScriptFrame & { autoRevealEpoch?: number })[];
   /** 9-6-3-1-1: current declaration witnesses, bounded by source movement/concealment and the next unrelated action. */
-  publicAutoReveals?: { card: string; skillIndex: number; epoch: number; trigger: string; sourceZoneEpoch: number }[];
+  publicAutoReveals?: { card: string; skillIndex: number; epoch: number; trigger: string; sourceZoneEpoch: number; priced?: true }[];
   /** Monotone within one saved game so a repeated pending occurrence cannot inherit an older reveal. */
   nextAutoRevealEpoch?: number;
   /** The cards a `chooseCards` answer brought back, until the program that asked reads them. Null the rest of the time. */

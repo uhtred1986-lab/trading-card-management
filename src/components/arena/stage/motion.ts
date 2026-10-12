@@ -159,6 +159,10 @@ function baseMs(beat: Beat): number {
       // but it is the same sentence to read and the spec's shorter 520 ms read
       // as rushed in play — so it gets the same time wherever it is drawn.
       return 900;
+    case "autoDeclared":
+      // The declaration is readable before the price decision; no skill has
+      // activated yet and it must not light the battle trigger chain.
+      return 900;
     case "say":
       return 900;
     case "effect":

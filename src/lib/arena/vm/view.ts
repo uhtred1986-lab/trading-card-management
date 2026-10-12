@@ -166,7 +166,7 @@ export function promptView(state: VmState, game?: GameDefinition, viewer?: Playe
   if (pr.kind === "orderPending" && game
     && pr.candidates.some((index) => state.pending[index] && secretAutoSource(game, state, state.pending[index]))) {
     if (viewer && viewer !== pr.player) return { kind: "waiting", player: pr.player, question: "Waiting for the other player.", hint: null };
-    return { kind: "orderPending", player: pr.player, question: "Which pending skill do you declare?", hint: "You may leave a cost-free skill in a secret area undeclared." };
+    return { kind: "orderPending", player: pr.player, question: "Which pending skill do you declare?", hint: "You may leave an Auto skill in a secret area undeclared." };
   }
   if (pr.kind === "payCost") return {
     kind: pr.kind, player: pr.player, question: `Which energy do you rest to ${pr.describe}?`, hint: promptHint("payCost", game), cost: pr.describe,

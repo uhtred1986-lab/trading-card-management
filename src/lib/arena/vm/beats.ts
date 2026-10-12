@@ -147,6 +147,12 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         }
         break;
       }
+      case "autoDeclared": {
+        if (!state.cards[e.card]) break;
+        remember(e.card);
+        push({ t: "autoDeclared", card: e.card, label: "Auto", text: e.text.replace(/\s+/g, " ").trim(), owner: e.master, revealEpoch: e.revealEpoch });
+        break;
+      }
       // A rule coming into force or ending (9-1-4), drawn exactly as
       // `beats.ts` draws it: the same `describeEffect` label, and a card the
       // beat names only while it can still bring a face (contract §4).

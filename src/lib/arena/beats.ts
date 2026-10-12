@@ -68,6 +68,8 @@ export type Beat =
    * `maskBeats` blanks `label` and `text` when the viewer may not see `card`.
    */
   | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true; reveal?: true; revealEpoch?: number }
+  /** Specified secret [Auto] before its optional price is paid; this is not an activated skill. */
+  | { t: "autoDeclared"; card: string; label: string; text: string; owner: PlayerId; revealEpoch: number }
   /**
    * A rule coming into force (9-9): "+5000 power", "[Critical]", "can't
    * attack" on `card`, or on `player` when it is about a player rather than a
@@ -284,6 +286,7 @@ export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[
       case "delayed": // written down for later; it gets its moment when it fires
       case "stack": // the stacked card's own `move` beat covers the arrival
       case "note": // engine commentary, for the log only
+      case "autoDeclared": // the legacy engine does not produce VM declaration events
         break;
 
       default: {
@@ -387,22 +390,24 @@ export function maskBeats(state: EngineState, beats: Beats | null, viewer: Playe
   // witness remains live. The beat's exact epoch must match; an older beat
   // cannot authorize a later re-entry or another pending occurrence.
   const witnesses = (state as EngineState & { publicAutoReveals?: { card: string; epoch: number; sourceZoneEpoch: number }[] }).publicAutoReveals ?? [];
+  const isRevealBeat = (b: NumberedBeat): b is NumberedBeat & ({ t: "autoDeclared" } | { t: "skill"; reveal: true }) =>
+    b.t === "autoDeclared" || (b.t === "skill" && !!b.reveal);
   const declared = new Set(witnesses.filter((w) => !state.cards[w.card]?.hidden
     && ((state.cards[w.card] as { zoneEpoch?: number } | undefined)?.zoneEpoch ?? 0) === w.sourceZoneEpoch
-    && beats.list.some((b) => b.t === "skill" && b.card === w.card && b.reveal && b.revealEpoch === w.epoch)).map((w) => w.card));
+    && beats.list.some((b) => isRevealBeat(b) && b.card === w.card && b.revealEpoch === w.epoch)).map((w) => w.card));
   const art: Beats["art"] = {};
   for (const [id, a] of Object.entries(beats.art)) if (seen.has(id) || declared.has(id)) art[id] = a;
   // #463: a `skill` beat carries the printed text and tag of the card that
   // fired it, which names the card as surely as its face does. Blanked on the
   // same rule; the beat stays, so the moment still plays.
-  const hiddenSkill = (b: NumberedBeat) => b.t === "skill" && !seen.has(b.card)
-    && !(declared.has(b.card) && b.reveal && witnesses.some((w) => w.card === b.card && w.epoch === b.revealEpoch))
+  const hiddenSkill = (b: NumberedBeat) => (b.t === "skill" || b.t === "autoDeclared") && !seen.has(b.card)
+    && !(declared.has(b.card) && isRevealBeat(b) && witnesses.some((w) => w.card === b.card && w.epoch === b.revealEpoch))
     && (b.text !== "" || b.label !== "Skill");
   const masksSkill = beats.list.some(hiddenSkill);
-  const hasPrivateEpoch = beats.list.some((b) => b.t === "skill" && b.revealEpoch !== undefined);
+  const hasPrivateEpoch = beats.list.some((b) => (b.t === "skill" || b.t === "autoDeclared") && b.revealEpoch !== undefined);
   if (!masksSkill && !hasPrivateEpoch && Object.keys(art).length === Object.keys(beats.art).length) return beats;
   const list = beats.list.map((b) => {
-    if (b.t !== "skill") return b;
+    if (b.t !== "skill" && b.t !== "autoDeclared") return b;
     // This authorization key belongs only to the server's saved match; never
     // put it in either viewer's returned beat history.
     const publicBeat = { ...b };
