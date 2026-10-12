@@ -2395,7 +2395,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const target = op.target && "sel" in op.target
             ? op.target.sel
             : op.target && "var" in op.target
-              ? (vars[boundTarget] = h.resolveRef(frame, op.target), { fromVar: boundTarget })
+              ? (vars[boundTarget] = [...h.resolveRef(frame, op.target)], { fromVar: boundTarget })
               : !op.target
                 ? { special: "self" as const }
                 : null;
