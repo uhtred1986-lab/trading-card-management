@@ -20,6 +20,7 @@ tracking: true
 - [ ] #549 **P0** — Resolve Auto skill costs with pay and decline decisions
 - [ ] #550 **P1** — Carry chosen cost values and targets into skill effects
 - [ ] #551 **P1** — Offer eligible spent combo cards as Z-Energy
+- [ ] #609 **P1** — Reconcile remaining Combo-to-Drop versus end-of-battle Auto checkpoint grouping; #551 implements the preceding choices/8-5-4 and explicitly leaves this prior grouping for follow-up.
 - [ ] #552 **P1** — Implement Counter Counter response chains
 - [ ] #553 **P1** — Resolve static identity keyword and negation layers
 - [ ] #554 **P1** — Enforce Heroic once-per-turn use
@@ -45,5 +46,3 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 - [ ] Contract/privacy, stale/reload cases and cross-feature interactions pass.
 - [ ] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
 - [ ] Milestone checklist and canonical backlog files match delivered state.
-
-- [ ] #609 **P1** — Reconcile remaining Combo-to-Drop versus end-of-battle Auto checkpoint grouping. #551 implements the preceding choices/8-5-4 and explicitly preserves this separate prior limitation.

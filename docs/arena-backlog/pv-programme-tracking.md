@@ -44,21 +44,26 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - #601 / PR #603: fixed AI presentation, request and exact action-menu expectations; the larger #459 VM oracle migration remains open.
 - #554 / PR #604: printed Heroic identity and turn reset with persisted pending/checkpoint ordering; stacked on #587. Granted identity remains #602.
 - #547 / PR #605: immutable match inputs, private replay export, portable hashes and offline CLI; stacked on #590.
+- #540 / PR #606: bound-target and duration/lifetime fixes reviewed at final commit `446`; owner real-deck fuzz remains unrun.
+- #551 / PR #608: persisted combo-to-Z-Energy cleanup reviewed at commit `5b4`; the prior Combo-to-Drop/end-of-battle Auto grouping remains the separate #609 follow-up.
+- #560 / PR #610: fullscreen card review with real phone artwork and selection-safe behavior; reviewed at commit `bb8`.
+- #566 / PR #611: human acknowledgement before resumable AI advance; durable recovery and lease fencing reviewed at `c0106a4`; intentionally partial and references #566 because an unrecorded provider outcome remains fail-closed.
 
-These PRs have local verification and orchestrator review; they are not delivered yet. Main commit
+The reviewed PRs listed above are ready for merge but not delivered until their dependency and merge gates clear. #607 remains pending clean-stack publication; it is not counted among the 18 reviewed-ready PRs. Main commit
 `74701713` (PR #586) currently has no reported Vercel status. The required deployment ordering in
 `docs/agent-brief.md` holds the next merge while independent implementation continues.
 The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
 with the implementation PRs that merge before it. The thirteen-source review combination passed local tests, typecheck, lint and build.
 The final Heroic checkpoint/guard fixes also pass the combined full test, typecheck, lint and build gates.
 The fifteen-source combination including immutable replay and the current bounce fix passes full tests, typecheck, lint and build.
-PR #606 / #540 remains a draft while review fixes variable-bound timed replacement targets; persistence, scope and opponent-turn duration proofs pass. Owner real-deck fuzz remains unrun.
-#551 is implementing persisted combo-to-Z-Energy cleanup on a clean #604 stack; #560 implements explicit fullscreen review on #589; #566 implements immediate human acknowledgement and durable AI advance on #605; #541 waits for the recorded Union scope ruling.
+The 18-source integration at `292e977` passed full tests, typecheck, lint and build (lint reports six existing warnings). The prior 16-source integration at `4c` passed tests and typecheck. Eighteen reviewed PRs are ready for merge, excluding draft #575 and pending #607; ready status does not mean delivered.
+PR #606 / #540 has reviewed variable-bound timed replacement targets and duration/lifetime fixes at final commit `446`; persistence, scope and opponent-turn duration proofs pass. Owner real-deck fuzz remains unrun.
+PR #608 / #551 implements persisted combo-to-Z-Energy cleanup, reviewed at `5b4`; it explicitly leaves the prior Combo-to-Drop/end-of-battle Auto grouping to #609. PR #610 / #560 provides fullscreen review with real phone artwork and selection-safe behavior, reviewed at `bb8`. PR #611 / #566 provides immediate human acknowledgement and durable AI advance, reviewed at `c0106a4`; it remains partial and does not claim universal exactly-once provider behavior. #541 waits for the recorded Union scope ruling.
 The locally reproduced additional
 Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
 P1 #597 separately owns original-color keyword payment eligibility after #553/#555.
-P1 #607 profiles the corrected crowded-aura action cost (782 ms median locally) and bounds checkpoint evaluation reuse; it is a child of #569 independent of polling #568.
-P1 #609 separately reconciles the prior Combo-to-Drop/end-of-battle Auto grouping; #551 does not claim that ordering is corrected.
+P1 #607 profiles corrected crowded-aura action cost and bounds checkpoint evaluation reuse; clean-stack publication remains pending, so it is not yet ready or delivered. It is a child of #569 independent of polling #568.
+P1 #609 separately reconciles the prior Combo-to-Drop/end-of-battle Auto grouping; #551 does not claim that ordering is corrected. It is listed in the M5 milestone and its canonical tracking file.
 P1 #602 owns individual identity for granted Heroic; #554 explicitly guards that case before payout.
 
 ## Reconciliation decisions
