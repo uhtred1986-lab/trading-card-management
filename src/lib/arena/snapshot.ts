@@ -210,7 +210,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     ...(rejected.length ? { rejected } : {}),
     // Masked before the art goes on: a beat naming a card this viewer may not
     // see must not carry its name or its face. See `maskBeats`.
-    beats: withArt(maskBeats(input.state, input.beats, viewer), input.images),
+    beats: withArt(maskBeats(input.state, input.beats, viewer, input.ctx), input.images),
     spotlight: input.spotlight ? { ...input.spotlight, imageUrl: input.images[input.spotlight.cardId]?.front ?? null } : null,
     log: input.log,
     waiting: waitingFor(input),
