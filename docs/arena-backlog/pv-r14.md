@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: Reconcile Combo-to-Drop and battle-end Auto checkpoint order
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
-labels: backlog, blocked, enhancement, area:arena-vm, model:opus-5
+labels: backlog, ready-for-agent, enhancement, area:arena-vm, model:opus-5
 stage: ui
 issue: 609
 priority: P1
