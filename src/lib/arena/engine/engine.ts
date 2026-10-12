@@ -22,7 +22,7 @@ import { koCard, pendPlacedOnArrival, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "../vm/rng";
 import { describeScript } from "../vm/script-schema";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
-import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, copiedSkillsOn, locate, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
+import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, resolveSelector, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, copiedSkillsOn, locate, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
 import { IllegalAction } from "../vm/common";
 import type { AbilityAvailability, ActionCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
 import type {
@@ -3401,9 +3401,14 @@ function activate(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PlayerId
 
 /** SD7-01's nested Main activation: the printed costs are waived, but its use gates remain. */
 function invokedMainSkills(ctx: EngineContext, s: GameState, p: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): Skill[] {
-  if (op.from !== "hand" || op.maxCost !== "currentEnergy" || !s.players[p].hand.includes(card) || s.cards[card]?.owner !== p || baseType(def(ctx, s, card)) !== "EXTRA") return [];
-  const current = cardNow(ctx, s, card);
-  if (!current.traits.some((trait) => trait.toLowerCase() === op.trait.toLowerCase()) || typeof current.energyCost !== "number" || playCost(ctx, s, card).total > s.players[p].energy.length) return [];
+  if (op.from !== "hand" || !s.players[p].hand.includes(card) || s.cards[card]?.owner !== p || baseType(def(ctx, s, card)) !== "EXTRA") return [];
+  if ("sel" in op) {
+    if (!resolveSelector(ctx, s, { ops: [], ip: 0, vars: {}, card, master: p }, op.sel).includes(card)) return [];
+  } else {
+    if (op.maxCost !== "currentEnergy") return [];
+    const current = cardNow(ctx, s, card);
+    if (!current.traits.some((trait) => trait.toLowerCase() === op.trait.toLowerCase()) || typeof current.energyCost !== "number" || playCost(ctx, s, card).total > s.players[p].energy.length) return [];
+  }
   return skillsOfInstance(ctx, s, card).filter((sk) => {
     if (sk.kind !== op.skillKind || sk.keyword || !scriptsOf(ctx, s, card).bySkill[sk.index] || !scriptFor(ctx, s, card, sk.index)) return false;
     const price = priceFor(ctx, s, card, sk);

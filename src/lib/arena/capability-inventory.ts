@@ -285,6 +285,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "The printed branch selects an eligible hand Extra by its current energy cost and invokes its actual Activate: Main line with its original energy and skill costs waived, then resumes the invoking effect. A live reduction can make a printed-cost-2 Extra eligible with one energy. Conditions, once limits and prohibitions still apply. External activateSkill taxes remain unsupported under #677; this row does not claim their payment.",
   },
   {
+    id: "arena-white-cell-free-extra-invocation",
+    label: "BT31-116 activates an eligible hand Extra's Main/Battle skill for free",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "9-6-2; 12-1-3; 12-2-4-1–9; BT31-116 owner card review #539",
+    ownerIssue: 680,
+    proof: "scripts/verify/free-extra-680.ts — exact event-time White Cell/Jr. qualification, paid/declined Hidden Mode Auto price, optional mono-white hand Extra choice, skill activation and Extra-activated watcher, normal zero-price and SD7 controls, current-cost/alt-payment boundaries, other-Auto movement/cost change, reload/stale/privacy, and legacy invocation/payment-gap assertions; scripts/verify/arena-free-extra-db.mts — PGlite revisions, wrong actor/stale CAS, duplicate pay/choice receipts, reload and both seat views",
+    detail: "On the current locally compiled record, the rules engine pends BT31-116 only when the played Cell/Cell Jr. is White and currently costs at least 3, before another Auto can change it. Paying the Auto's own Hidden Mode price offers up to one mono-white cost-2 hand Extra's valid Main/Battle line. Its original energy and skill costs are waived; it goes to Drop and its actual skill and ordinary Extra-activated watcher resolve. A saved session survives the price and choice with one payment and one activation across duplicate requests. The legacy engine shares the invocation but omits the Auto's Hidden Mode action price, an active #549 gap. Older stored rules retain their old trigger guard and play operation until reviewed and re-drafted; catalog reading diff and fuzz-40 are not claimed.",
+  },
+  {
     id: "arena-activation-external-tax",
     label: "A normal or invoked Activate skill charges applicable external taxes",
     status: "unsupported",

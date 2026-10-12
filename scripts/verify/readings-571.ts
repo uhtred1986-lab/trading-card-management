@@ -248,7 +248,14 @@ function causedEnergySwitch(args: { cardId: string; actor: PlayerId; turn?: Play
   for (const id of ["R571-CELL2", "R571-RED-CELL3", "R571-GOHAN3"]) assert.equal(matches(DEFS[id], filter), false, `${id} fails at least one printed qualification`);
   const compiled = compileSkill(skill);
   assert.deepEqual(compiled.unsupported, []);
-  assert.deepEqual(compiled.ops.map((op) => op.op), ["if"], "the free Extra activation remains under the played-card qualification");
+  assert.deepEqual(compiled.ops.map((op) => op.op), ["invokeSkill"], "the played-card qualification is captured when its trigger pends, before the Auto cost");
+  const nested = compiled.ops[0];
+  assert.equal(nested?.op, "invokeSkill", "BT31-116 invokes the chosen hand Extra's skill rather than playing the card");
+  if (nested?.op === "invokeSkill" && "sel" in nested) {
+    assert.equal(nested.skillKind, "activate:main/battle");
+    assert.deepEqual([nested.sel.side, nested.sel.area, nested.sel.count, nested.sel.upTo], ["you", "hand", 1, true]);
+    assert.deepEqual([nested.sel.filter?.type, nested.sel.filter?.monoColor, nested.sel.filter?.colors, nested.sel.filter?.costMin, nested.sel.filter?.costMax], ["EXTRA", true, ["White"], 2, 2]);
+  } else assert.fail("BT31-116 needs the selected-Extra invocation variant");
 }
 
 // XD1-01 remains the known `youPlayed` case: the trigger's subject filter is

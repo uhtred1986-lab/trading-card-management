@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn } from "../text/triggers";
+import { TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, KeywordSkill, Skill } from "../types";
 import { splitClauses, stripNotes } from "./clauses";
@@ -464,19 +464,26 @@ function compileSkillText(skill: Skill): Script {
   // compiler cannot read fails the skill rather than running it unconditionally.
   const priced = costText(skill.cost);
   const priceCond = ops.length && !engineChecks ? priceCondition(skill) : null;
+  // This one shared Cell/Jr. trigger is checked against the played card when
+  // the moment is pended. Rechecking its cost here, after another Auto may
+  // alter that card, would undo the captured trigger truth. Keep the price
+  // condition and any conditional effect; remove only this trigger's wrapper.
+  const capturedCellTrigger = whiteCellPlayedSubjectFilter(skill) && triggerCond?.kind === "count"
+    && triggerCond.sel.special === "subject";
+  const effectTriggerCond = capturedCellTrigger ? null : triggerCond;
   // The trigger's own condition goes inside it. "If your Leader is red: When
   // your **blue <Son Goku> card** is played, …" is both, and returning the
   // price's condition alone dropped what the trigger said about its subject —
   // so the skill fired for any card that was played, KO'd or activated
   // (BT29-029's blue Extra, and some forty skills before it). The same holds
   // for a condition riding on the trigger and for the host of "placed under".
-  if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: triggerCond ? [{ op: "if", cond: triggerCond, then: ops }] : ops }], unsupported };
+  if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: effectTriggerCond ? [{ op: "if", cond: effectTriggerCond, then: ops }] : ops }], unsupported };
   // A condition the compiler cannot read fails the skill. An *action* price is
   // not this: the engine charges that separately, so it leaves the program be.
   if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(priced)) {
     return { ops: [], unsupported: [skill.cost, ...unsupported] };
   }
-  if (ops.length && triggerCond) return { ops: [{ op: "if", cond: triggerCond, then: ops }], unsupported };
+  if (ops.length && effectTriggerCond) return { ops: [{ op: "if", cond: effectTriggerCond, then: ops }], unsupported };
   return { ops, unsupported };
 }
 
