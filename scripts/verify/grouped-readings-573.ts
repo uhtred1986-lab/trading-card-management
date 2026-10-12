@@ -136,9 +136,11 @@ for (const [blue, life, shouldDraw] of [[true, 4, true], [true, 5, false], [fals
   const joined = take(state, { type: "combo", player: "p1", card: source });
   state = joined.state;
   assert.ok(zoneOf(state, "p1", "combo").includes(source));
-  // Known timing gap: the card-specific "when you combo" Auto currently pends
-  // on Combo-to-Drop at battle cleanup, after combat has compared powers.
-  assert.equal(joined.events.filter((e) => e.type === "skill" && e.card === source).length, 0);
+  // Current DBS answers this ordinary self-combo Auto at the 5-7 entry
+  // checkpoint, before combat. The frozen legacy runtime still answers its
+  // stored `comboed` record at cleanup.
+  assert.equal(joined.events.filter((e) => e.type === "skill" && e.card === source).length, ENGINE === "rules" ? 1 : 0);
+  assert.equal(zoneOf(state, "p1", "hand").length, beforeHand - 1 + Number(ENGINE === "rules" && shouldDraw));
   const events = joined.events.slice();
   for (let i = 0; i < 5 && state.prompt.kind !== "main"; i++) {
     const prompt = state.prompt;
@@ -151,7 +153,7 @@ for (const [blue, life, shouldDraw] of [[true, 4, true], [true, 5, false], [fals
   }
   assert.equal(state.prompt.kind, "main");
   const compared = events.flatMap((e) => e.type === "powerCompare" ? [e.attackPower] : []);
-  assert.deepEqual(compared, [15000], "known timing gap: combat sees only printed 5000 Combo Power, not conditional +10000");
+  assert.deepEqual(compared, [ENGINE === "rules" && blue && life <= 4 ? 25000 : 15000], "current rules apply BT3-043's conditional bonus before comparison");
   assert.equal(zoneOf(state, "p1", "hand").length, beforeHand - 1 + Number(shouldDraw), "BT3-043 draw shares both outer conditions");
   assert.equal(events.filter((e) => e.type === "skill" && e.card === source).length, 1);
   assertConsistentG(state);

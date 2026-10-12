@@ -444,6 +444,7 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
     case "payCost": {
       const pr = prev.prompt;
       if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
+      if (action.player !== pr.player) throw new IllegalAction("that payment belongs to another player");
       const option = pr.options[action.option];
       if (!option) throw new IllegalAction("no such payment");
       const restored = structuredClone(prev);

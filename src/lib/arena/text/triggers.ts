@@ -78,6 +78,11 @@ export function comboEntrySelf(sk: Skill): boolean {
   const text = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
   return /when you use this card in a combo|when this card(?: in your hand)? is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
 }
+/** A self-combo entry Auto whose printed timing explicitly requires hand. */
+export function comboEntryFromHand(sk: Skill): boolean {
+  const head = effectHead(maskNames(sk.effect).text).toLowerCase();
+  return /when this card in your hand is (?:played or )?used in a combo\b/.test(head);
+}
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
 /**
  * "At the end of **a turn in which this card was placed in a Battle Area**"

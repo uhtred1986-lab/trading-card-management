@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { compileSkill } from "../../src/lib/arena/compile";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { parseSkills } from "../../src/lib/arena/text/cards";
-import { comboEntrySelf } from "../../src/lib/arena/text/triggers";
+import { comboEntryFromHand, comboEntrySelf } from "../../src/lib/arena/text/triggers";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { fire } from "../../src/lib/arena/vm/events";
 import { moved } from "../../src/lib/arena/vm/flow";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
+import { NotYet } from "../../src/lib/arena/vm/errors";
 import { isVmState } from "../../src/lib/arena/vm/state";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
@@ -18,6 +19,7 @@ import { CTX, DEFS, ENGINE, IMPL, arenaG, card, leaderOf, zoneOf } from "./harne
 const ORDINARY = "[Auto] When this card is used in a combo, draw 1 card.";
 const SHARED = "[Auto] When you combo with this card, if your Leader Card is blue and your life is at 4 or less, this card gains +10000 combo power for the duration of the turn. Then, choose up to 1 card in your opponent's Combo Area and return it to their owner's hand. Then, if there are no cards in your opponent's Combo Area, draw 1 card.";
 const LATE = "[Auto] At the end of the battle after you combo with this card from your hand, play this card in Rest Mode.";
+const HAND_ONLY = "[Auto] When this card in your hand is played or used in a combo, draw 1 card.";
 DEFS["C672-ORDINARY"] = card("C672-ORDINARY", { skill: ORDINARY });
 DEFS["C672-SHARED"] = card("C672-SHARED", { skill: SHARED });
 DEFS["C672-LATE"] = card("C672-LATE", { skill: LATE });
@@ -25,7 +27,8 @@ DEFS["C672-PRICE"] = card("C672-PRICE", { comboCost: 1, skill: ORDINARY });
 DEFS["C672-SUPER"] = card("C672-SUPER", { skill: `[Super Combo]\n${ORDINARY}` });
 DEFS["C672-PLAY-OR-COMBO"] = card("C672-PLAY-OR-COMBO", { energyCost: 0, skill: "[Auto] When you play or combo with this card, draw 1 card." });
 DEFS["C672-ATTACK-OR-COMBO"] = card("C672-ATTACK-OR-COMBO", { skill: "[Auto] When you attack or combo with this card, draw 1 card." });
-const fixtureIds = ["C672-ORDINARY", "C672-SHARED", "C672-LATE", "C672-PRICE", "C672-SUPER", "C672-PLAY-OR-COMBO", "C672-ATTACK-OR-COMBO"];
+DEFS["C672-HAND-ONLY"] = card("C672-HAND-ONLY", { skill: HAND_ONLY });
+const fixtureIds = ["C672-ORDINARY", "C672-SHARED", "C672-LATE", "C672-PRICE", "C672-SUPER", "C672-PLAY-OR-COMBO", "C672-ATTACK-OR-COMBO", "C672-HAND-ONLY"];
 
 try {
 
@@ -33,7 +36,7 @@ for (const [line, expected] of [
   [ORDINARY, true], [SHARED, true],
   ["[Auto] When you play or combo with this card, draw 1 card.", true],
   ["[Auto] When you attack or combo with this card, draw 1 card.", true],
-  ["[Auto] When this card in your hand is played or used in a combo, draw 1 card.", true],
+  [HAND_ONLY, true],
   [LATE, false],
 ] as const) {
   const skill = parseSkills(line)[0]!;
@@ -46,6 +49,8 @@ assert.deepEqual(skillRecords(DEFS["C672-LATE"])[0]?.trigger, ["comboed"], "expl
 assert.ok(skillRecords(DEFS["C672-SUPER"]).some((row) => row.trigger.includes("comboUsed")), "[Super Combo] does not hide its separate ordinary Auto");
 assert.ok(skillRecords(DEFS["C672-PLAY-OR-COMBO"])[0]?.trigger.includes("played"));
 assert.ok(skillRecords(DEFS["C672-ATTACK-OR-COMBO"])[0]?.trigger.includes("attacks"));
+assert.equal(comboEntryFromHand(parseSkills(HAND_ONLY)[0]!), true);
+assert.equal(comboEntryFromHand(parseSkills(ORDINARY)[0]!), false);
 
 function take(state: EngineState, action: Action): { state: EngineState; events: GameEvent[] } {
   assert.ok(IMPL.legalActions(CTX, state).some((row) => JSON.stringify(row.action) === JSON.stringify(action)),
@@ -107,6 +112,18 @@ for (const [cardId, area] of [
   const ended = finish(state);
   assert.equal(skills(ended.events, combo).length, 0, "no ordinary Auto on Combo-to-Drop");
   assert.equal(ended.events.filter((e) => e.type === "move" && e.card === combo && e.from === "combo" && e.to === "drop").length, 1);
+}
+
+// Hand-qualified ordinary wording is narrower than general combo entry. The
+// captured actual source (also used by #572's late Auto) survives the move.
+for (const area of ["hand", "battle"] as const) {
+  let state = arenaG();
+  const combo = stage(state, "p1", "C672-HAND-ONLY", area);
+  state = attack(state);
+  const joined = take(state, { type: "combo", player: "p1", card: combo });
+  assert.equal(skills(joined.events, combo).length, Number(area === "hand"));
+  const ended = finish(joined.state);
+  assert.equal(skills(ended.events, combo).length, 0);
 }
 
 // The compound line still answers its other printed timing as well.
@@ -175,12 +192,19 @@ for (const [cardId, area] of [
   assert.equal(ask.state.cards[energyA].mode, "active");
   assert.equal(ask.state.cards[energyB].mode, "active");
   state = JSON.parse(JSON.stringify(ask.state)) as EngineState;
+  const waiting = JSON.stringify(state);
+  assert.throws(() => IMPL.apply(CTX, state, { type: "payCost", player: "p2", option: 0 }), IllegalAction);
+  assert.throws(() => IMPL.apply(CTX, state, { type: "payCost", player: "p1", option: 99 }), IllegalAction);
+  assert.equal(JSON.stringify(state), waiting, "invalid payment answers leave the saved source and cost unchanged");
   const payment = IMPL.legalActions(CTX, state).find((row) => row.action.type === "payCost");
   assert.ok(payment);
   const paid = take(state, payment.action);
   assert.equal(skills(paid.events, combo).length, 1);
   assert.ok(zoneOf(paid.state, "p1", "combo").includes(combo));
   assert.equal(Number(paid.state.cards[energyA].mode === "rest") + Number(paid.state.cards[energyB].mode === "rest"), 1);
+  const after = JSON.stringify(paid.state);
+  assert.throws(() => IMPL.apply(CTX, paid.state, payment.action), IllegalAction, "the completed payment cannot be replayed as a new entry");
+  assert.equal(JSON.stringify(paid.state), after);
 }
 
 // BT3-043's conditional bonus is present in power comparison, with both
@@ -280,6 +304,23 @@ for (const [blue, life, draws] of [[true, 4, true], [true, 5, false], [false, 4,
     });
     assert.ok(!JSON.stringify(publicView).includes("C672-ORDINARY"));
   }
+}
+
+// A forged entry for a physically present, hand-qualified card has no source
+// record. It must stop with a typed boundary instead of guessing hand from
+// the current Combo Area or silently losing a potentially due Auto.
+{
+  let state = arenaG();
+  const combo = stage(state, "p1", "C672-HAND-ONLY", "hand");
+  state = attack(state);
+  assert.ok(isVmState(state));
+  const definition = rulesetFor("dbs");
+  assert.ok(definition.ok);
+  assert.ok(moveCard(state, definition.definition, combo, "combo", { owner: "p1" }).ok);
+  assert.equal(state.battle?.comboOrigins?.[combo], undefined);
+  assert.throws(() => fire(CTX, definition.definition, state, { event: "comboUsed", card: combo, controller: "p1", args: { to: "combo" } }),
+    (error: unknown) => error instanceof NotYet && error.issue === "#672");
+  assert.deepEqual(state.pending, []);
 }
 }
 } finally {

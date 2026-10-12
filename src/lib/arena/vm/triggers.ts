@@ -54,7 +54,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboEntrySelf } from "../text/triggers";
+import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboEntryFromHand, comboEntrySelf } from "../text/triggers";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts } from "./script";
@@ -299,6 +299,14 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // A printed "in your hand ... used in a combo" requires this entry's
+      // captured source. The preceding moved(to: combo) moment replaces the
+      // record for this copy; an old/missing record cannot prove hand origin.
+      if (match.trigger === "comboUsed" && comboEntryFromHand(sk)) {
+        const origin = state.battle?.comboOrigins?.[match.card];
+        if (origin === undefined) throw new NotYet("infer the source of a hand-qualified combo entry", "#672");
+        if (origin !== "hand") continue;
+      }
       // Older pinned rulesets have no entry declaration, so their `comboed`
       // records keep their historical cleanup timing. Current DBS games use
       // the entry declaration and must not pend the same ordinary Auto again
