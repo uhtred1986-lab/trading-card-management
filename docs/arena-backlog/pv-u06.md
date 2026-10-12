@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: Fit the phone board and crowded hand around the current decision
 milestone: Arena M16 — Board redesign: play feel and card review
-labels: backlog, blocked, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
+labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
 issue: 563
 priority: P1
@@ -11,7 +11,9 @@ touches: src/components/arena/stage/ArenaStage.tsx, src/components/arena/stage/H
 
 **Priority:** P1. **Delivery:** Playable board and fullscreen cards. **Plan key:** U06.
 
-**Depends on:** #560 (U03), #561 (U04), #562 (U05)
+**Depends on:** #560 (U03), #561 (U04), #562 (U05) — merged. Ready after checking shared stage/hand writers.
+
+**Current baseline:** #562 makes stakes, resources and Pass explicit and fixes its own phone hand overlap by compacting empty lifted rows. It proves visible legal combo taps at normal phone size and touch-scroll access on short/200% screens. This issue still owns 12–20-card hands, smaller phones, landscape/safe areas and the full phone board; preserve those merged controls and real-artwork evidence.
 
 **Build.** Implement compact real-artwork phone board, expandable horizontal hand and sticky decision dock from the grounded draft. Reduce empty slots and chrome; keep uncommon/public zones inspectable and cinematic staging optional. Preserve current prompt/target access and both skins.
 
