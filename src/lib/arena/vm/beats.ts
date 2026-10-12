@@ -45,8 +45,9 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
   let n = after;
   const push = (b: Beat) => list.push({ ...b, n: ++n } as NumberedBeat);
 
-  const loaded = rulesetFor(state.game);
-  const game = loaded.ok ? loaded.definition : null;
+  const pinned = (ctx as EngineContext & { rulesetDefinition?: import("../rulesets/types").GameDefinition }).rulesetDefinition;
+  const loaded = pinned ? null : rulesetFor(state.game);
+  const game = pinned ?? (loaded?.ok ? loaded.definition : null);
 
   /** Remember a card as it is *now*, before it leaves the board for good. */
   const remember = (id: string) => {
