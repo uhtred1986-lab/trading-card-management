@@ -5,10 +5,9 @@
  *
  *  1. **An engine is six calls.** `snapshot.ts` needs a board drawn and
  *     `games.ts` needs beats made from a state neither can read, so those two
- *     belong to the interface beside the four that were always there. Both
- *     engines implement all six, and the legacy engine's are the very
- *     functions the old imports named — asserted by identity below, because
- *     "an adapter and nothing else" is a claim a test can actually check.
+ *     belong to the interface beside the four that were always there. The
+ *     rules engine implements all six; the legacy adapter identities stay in
+ *     `vm-legacy-118.ts` until #118 resolves saved-game compatibility.
  *  2. **A rules game can be made, stored and read back.** `createGame` loads
  *     the DBS definition and returns a `VmState` that carries which engine
  *     wrote it and which game it was dealt from; it survives a round trip
@@ -41,19 +40,15 @@
 import assert from "node:assert/strict";
 import { toBeats } from "../../src/lib/arena/beats";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
-import { apply, createGame, legalActions, rejectedActions } from "../../src/lib/arena/engine";
+import { apply, createGame } from "../../src/lib/arena/engine";
 import { type Action, type GameEvent, type GameState, type LegalAction } from "../../src/lib/arena/types";
 import {
-  AVAILABLE_ENGINES,
-  ENGINE_IDS,
   ENGINE_INFO,
-  EngineMismatch,
   engineFor,
-  legacyState,
   playableEngine,
   type Engine,
 } from "../../src/lib/arena/engines";
-import { boardView, type CardView } from "../../src/lib/arena/view";
+import { type CardView } from "../../src/lib/arena/view";
 import { priceOf, refusal } from "../../src/lib/arena/wording";
 import {
   FilterNeedsAttribute,
@@ -134,32 +129,19 @@ import { usableFrom } from "../../src/lib/arena/vm/activate";
 import { SEED_7_OPENING, SEED_7_P1_REDRAW } from "./vm-opening-459";
 import { CARD_VIEWS_459 } from "./vm-card-views-459";
 import { expectedTurnTrace } from "./vm-turn-459";
+import { verifyLegacyVmCompatibility } from "./vm-legacy-118";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
 // ── 1. an engine is six calls ──────────────────────────────────────────────
 
-/** Every call the app makes through the switch. Typed off `Engine`, so widening the interface fails here until both engines implement it. */
+/** Every call the app makes through the switch. Typed off `Engine`, so widening the interface fails here until the rules engine implements it. */
 const CALLS: (keyof Engine & string)[] = ["createGame", "apply", "legalActions", "rejectedActions", "boardView", "toBeats"];
 
-for (const id of ENGINE_IDS) {
+for (const id of ["rules"] as const) {
   const engine = engineFor(id);
   assert.equal(engine.id, id, `engineFor(${id}) handed back the ${engine.id} engine`);
   for (const call of CALLS) assert.equal(typeof engine[call], "function", `the ${id} engine has no ${call}`);
-}
-
-// The legacy engine is an adapter: each call *is* the function the old imports
-// named, not a wrapper that could drift from it. This is what makes the
-// contract fixtures and `arena:diff` a proof that widening the interface moved
-// no behaviour.
-{
-  const legacy = engineFor("legacy");
-  assert.equal(legacy.createGame, createGame, "the legacy adapter's createGame is not the engine's own");
-  assert.equal(legacy.apply, apply, "the legacy adapter's apply is not the engine's own");
-  assert.equal(legacy.legalActions, legalActions, "the legacy adapter's legalActions is not the engine's own");
-  assert.equal(legacy.rejectedActions, rejectedActions, "the legacy adapter's rejectedActions is not the engine's own");
-  assert.equal(legacy.boardView, boardView, "the legacy adapter's boardView is not view.ts's own");
-  assert.equal(legacy.toBeats, toBeats, "the legacy adapter's toBeats is not beats.ts's own");
 }
 
 // ── 2. which engine may a new game be made on ──────────────────────────────
@@ -173,8 +155,6 @@ for (const id of ENGINE_IDS) {
 // `games.ts`'s `assertEngineForMode` and `matches.ts`'s `openMatch`, one
 // level above what `playableEngine` alone answers.
 assert.equal(ENGINE_INFO.rules.available, true, "the rules engine still says it cannot play, and #149 built it to");
-assert.deepEqual(AVAILABLE_ENGINES, ["legacy", "rules"], "the engines a new game may be made on have changed");
-assert.equal(playableEngine("legacy").id, "legacy", "the legacy engine is refused for a new game");
 assert.equal(playableEngine("rules").id, "rules", "the rules engine is refused for a new game despite #149");
 assert.doesNotThrow(() => engineFor("rules"), "engineFor refuses the rules engine, so no row on it could ever be read");
 
@@ -201,12 +181,6 @@ assert.equal(state.turn, 0, "a rules game has a turn number before the pre-game 
 // is a game that cannot be stored — the one property the skeleton must have.
 assert.deepEqual(JSON.parse(JSON.stringify(state)), state, "a rules game's state does not round-trip through JSON");
 
-// A legacy state carries no `engine` field, so the guard answers about one
-// shape rather than guessing about the other. Built from the legacy
-// `createGame` imported above rather than harness's `game()`, which this
-// suite must not depend on: `game()` runs on whichever engine `--engine`
-// named, and proving the switch cannot depend on which side of it is chosen.
-assert.equal(isVmState(createGame(CTX, DECKS).state), false, "a legacy state was read as the rules engine's");
 assert.equal(isVmState(null), false, "null was read as a rules state");
 assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 
@@ -239,14 +213,8 @@ for (const [what, action] of [
 
 // ── 5. a row is never replayed on the wrong interpreter ────────────────────
 
-// The app around the six calls is still legacy-shaped (`games.ts` reads
-// `state.turn`), so the seam is a check and not a cast: a rules state reaching
-// it is named, not read field by field as `undefined`.
-assert.throws(() => legacyState(state), EngineMismatch, "a rules state was read as the legacy engine's");
-const legacy = createGame(CTX, DECKS).state;
-assert.equal(legacyState(legacy), legacy, "a legacy state did not pass the seam untouched");
-
-
+// Adapter and saved legacy-state compatibility run in the #118 helper outside
+// the rules-only lane. Its invocation follows §21, which declares its card.
 
 // ── 6. a card is a bag of declared attributes ──────────────────────────────
 
@@ -3342,26 +3310,23 @@ console.log("verify/vm: ok");
 // refused `forbid` by name and the host answered "nothing forbids it" to every
 // question. Both are now the board's answer, and this is what that claims:
 //
-//  1. **The same first refusal.** A [Permanent] saying "you can't play Battle
+//  1. **The fixed first refusal.** A [Permanent] saying "you can't play Battle
 //     Cards", a card's own "this card can't be played from any area except by
 //     skills" (9-1-3-3, which holds wherever the card sits), a ban on the
-//     charge and a turn-long ban on using skills: each refuses the move on both
-//     engines with the same `Requirement`, naming the same card and the same
-//     duration, so `wording.ts` says the same sentence about it.
+//     charge and a turn-long ban on using skills: each refuses the move on the
+//     rules engine with a `Requirement`, naming the card and the
+//     duration, so `wording.ts` says the right sentence about it.
 //  2. **One predicate, two lists.** The move is off the menu *because* it is
 //     refused — the very reading `legalActions` and `rejectedActions` are two
 //     views of — and the host's `forbids` is that same reading, so a program
 //     that asks 0-2-5's question gets the board's answer rather than `false`.
 //  3. **Both origins.** A prohibition standing from a [Permanent] and one put
 //     in force for the turn by a skill are the same rule to every reader, which
-//     is why the timed half is staged as the `ContinuousEffect` both engines
-//     keep rather than as a second mechanism.
+//     is why the timed half is staged as the `ContinuousEffect` the rules engine
+//     keeps rather than as a second mechanism.
 //
-// One ordering is deliberately *not* matched and is asserted as it stands: for
-// a plain Battle Card the legacy `whyNotPlayFromHand` puts the price before the
-// prohibition, and for a Unison or an X cost it puts the prohibition first.
-// This engine reads a `REFUSE` before the price throughout. The two only differ
-// on a board that is both short of energy and forbidden; see `actions.rules`.
+// The legacy price-before-prohibition refusal ordering is a #118 compatibility
+// fact, kept in the guarded helper outside this rules-only gameplay suite.
 {
   const rulesEngine = engineFor("rules");
 
@@ -3378,10 +3343,9 @@ console.log("verify/vm: ok");
     p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") },
   };
 
-  /** A Main Phase on both engines: one card in hand, one in the Battle Area, and enough energy that only a rule can stop the move. */
-  function banned(inHand: string, inPlay: string, energy = 2): { r: VmState; l: GameState; card: string; source: string } {
+  /** A Main Phase with one card in hand, one in battle, and enough energy that only a rule can stop the move. */
+  function banned(inHand: string, inPlay: string, energy = 2): { r: VmState; card: string; source: string } {
     let r = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
-    let l = createGame(CTX, BAN_DECKS).state;
     for (let i = 0; i < 30; i++) {
       const pr = r.prompt as { kind: string; player: PlayerId };
       const a: Action | null =
@@ -3394,42 +3358,32 @@ console.log("verify/vm: ok");
               : null;
       if (!a) break;
       r = rulesEngine.apply(CTX, r, a).state as VmState;
-      l = apply(CTX, l, a).state;
     }
     assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to forbid a move in");
     for (const id of r.sides.p1.zones.hand) {
       r.cards[id].cardId = inHand;
-      l.cards[id].cardId = inHand;
     }
     const target = r.sides.p1.zones.hand[0];
     const source = r.sides.p1.zones.deck[0];
     const energyIds = r.sides.p1.zones.deck.slice(1, 1 + energy);
     for (const id of [source, ...energyIds]) {
-      for (const st of [r.cards[id], l.cards[id]]) {
-        st.cardId = id === source ? inPlay : "F-E-RED";
-        st.mode = "active";
-      }
+      r.cards[id].cardId = id === source ? inPlay : "F-E-RED";
+      r.cards[id].mode = "active";
     }
     const taken = new Set([source, ...energyIds]);
     r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => !taken.has(id));
-    l.players.p1.deck = l.players.p1.deck.filter((id) => !taken.has(id));
     r.sides.p1.zones.battle = [source];
-    l.players.p1.battle = [source];
     r.sides.p1.zones.energy = energyIds;
-    l.players.p1.energy = energyIds;
-    return { r, l, card: target, source };
+    return { r, card: target, source };
   }
 
-  /** The first requirement each engine gives for a move about this card, or undefined when it is offered. */
-  function firstRefusal(board: { r: VmState; l: GameState }, type: Action["type"], card: string): { mine: Requirement | undefined; theirs: Requirement | undefined; offered: boolean; legacyOffered: boolean } {
-    const rLegal = rulesEngine.legalActions(CTX, board.r);
-    const lLegal = legalActions(CTX, board.l);
+  /** The first requirement for this staged move, or undefined when it is offered. */
+  function firstRefusal(board: { r: VmState }, type: Action["type"], card: string): { mine: Requirement | undefined; offered: boolean } {
+    const legal = rulesEngine.legalActions(CTX, board.r);
     const isThis = (x: { action: Action }) => x.action.type === type && (x.action as { card?: string | null }).card === card;
     return {
-      mine: rulesEngine.rejectedActions(CTX, board.r, rLegal).find(isThis)?.why[0],
-      theirs: rejectedActions(CTX, board.l, lLegal).find(isThis)?.why[0],
-      offered: rLegal.some(isThis),
-      legacyOffered: lLegal.some(isThis),
+      mine: rulesEngine.rejectedActions(CTX, board.r, legal).find(isThis)?.why[0],
+      offered: legal.some(isThis),
     };
   }
 
@@ -3439,19 +3393,16 @@ console.log("verify/vm: ok");
     const board = banned("V1", "F-QUIET");
     const play = firstRefusal(board, "play", board.card);
     assert.equal(play.offered, true, "the control board cannot play the card at all, so nothing below measures a prohibition");
-    assert.equal(play.legacyOffered, true, "the legacy control board cannot play the card either");
   }
 
   // 20-14 about the player: "you can't play Battle Cards", standing from a
-  // [Permanent] in the Battle Area. Off the menu on both engines, and refused
-  // with the same requirement naming the same card.
+  // [Permanent] in the Battle Area. Off the menu, and refused with the fixed
+  // requirement naming that source.
   {
     const board = banned("V1", "F-NO-PLAY");
     const play = firstRefusal(board, "play", board.card);
     assert.equal(play.offered, false, "a play a [Permanent] forbids is on the menu");
-    assert.equal(play.legacyOffered, false, "the legacy engine offers a play its own [Permanent] forbids");
     assert.deepEqual(play.mine, { kind: "forbidden", by: "F-NO-PLAY", until: "permanent" }, "a forbidden play is not refused with the rule that forbids it");
-    assert.deepEqual(play.mine, play.theirs, "the two engines refuse a forbidden play differently");
     assert.ok(refusal(play.mine!, { name: "V1", reaching: "play" }).fact.length > 0, "a prohibition's refusal has no words");
     assert.throws(() => rulesEngine.apply(CTX, board.r, { type: "play", player: "p1", card: board.card }), IllegalAction, "a forbidden play was taken anyway");
   }
@@ -3464,7 +3415,6 @@ console.log("verify/vm: ok");
     const play = firstRefusal(board, "play", board.card);
     assert.equal(play.offered, false, "a card whose own rule forbids playing it is on the menu");
     assert.deepEqual(play.mine, { kind: "forbidden", by: "F-UNPLAYABLE", until: "permanent" }, "a card's own prohibition is not read from the hand (9-1-3-3)");
-    assert.deepEqual(play.mine, play.theirs, "the two engines read a card's own prohibition differently");
   }
 
   // The charge, at its own question: 7-2-11's move refused by 20-14 rather than
@@ -3485,30 +3435,21 @@ console.log("verify/vm: ok");
       return next;
     };
     const r = toCharge(board.r);
-    const l = structuredClone(board.l);
-    l.phase = "charge";
-    l.prompt = { kind: "charge", player: "p1" };
     const rLegal = rulesEngine.legalActions(CTX, r);
-    const lLegal = legalActions(CTX, l);
     const carded = (list: { action: Action }[]) => list.filter((x) => x.action.type === "charge" && (x.action as { card: string | null }).card !== null);
     assert.deepEqual(carded(rLegal), [], "a charge a [Permanent] forbids is on the menu");
-    assert.deepEqual(carded(lLegal), [], "the legacy engine offers a charge its own [Permanent] forbids");
     const mine = rulesEngine.rejectedActions(CTX, r, rLegal).find((x) => x.action.type === "charge")?.why[0];
-    const theirs = rejectedActions(CTX, l, lLegal).find((x) => x.action.type === "charge")?.why[0];
     assert.deepEqual(mine, { kind: "forbidden", by: "F-NO-CHARGE", until: "permanent" }, "a forbidden charge is not refused with the rule that forbids it");
-    assert.deepEqual(mine, theirs, "the two engines refuse a forbidden charge differently");
     // …and the skip stays. 7-2-11 is a *may*, and taking nothing places no card,
-    // so nothing about 20-14 touches it: the legacy engine offers it under the
-    // same ban, which is why `mentionsCandidate` reads a prohibition as a
+    // so the ban does not apply. `mentionsCandidate` reads a prohibition as a
     // question about the candidate rather than about the board.
     const skip = (list: { action: Action }[]) => list.some((x) => x.action.type === "charge" && (x.action as { card: string | null }).card === null);
     assert.equal(skip(rLegal), true, "the skip went with the cards when the charge was forbidden");
-    assert.equal(skip(lLegal), true, "the legacy engine stopped offering the skip under a placeEnergy ban");
   }
 
-  // Claim 3: the same rule put in force for the turn by a skill instead of
-  // standing from a [Permanent]. Staged as the `ContinuousEffect` **both**
-  // engines keep, which is the point — one shape, one reading, two engines.
+  // Claim 3: the rule put in force for the turn by a skill instead of
+  // standing from a [Permanent]. Staged as the `ContinuousEffect` the rules
+  // engine keeps, using the same predicate as the permanent case.
   {
     const board = banned("V1", "F-SKILL", 2);
     const ban = {
@@ -3524,23 +3465,18 @@ console.log("verify/vm: ok");
       master: "p1" as const,
     };
     board.r.effects.push(ban);
-    board.l.effects.push(ban);
     const skillCard = board.source;
     const mine = firstRefusal(board, "activate", skillCard);
     assert.equal(mine.offered, false, "a skill a turn-long rule forbids is on the menu");
-    assert.equal(mine.legacyOffered, false, "the legacy engine offers a skill its own effect forbids");
     assert.deepEqual(mine.mine, { kind: "forbidden", by: "F-SKILL", until: "turn" }, "a forbidden activation is not refused with the rule that forbids it");
-    assert.deepEqual(mine.mine, mine.theirs, "the two engines refuse a forbidden activation differently");
   }
 
-  // The ordering this engine does not match, asserted so it cannot drift
-  // unnoticed: short of energy **and** forbidden, the legacy engine answers
-  // about the price and this one about the ban.
+  // The rules engine checks the prohibition before energy even when both
+  // conditions fail. The different legacy refusal order is checked under #118.
   {
     const board = banned("V1", "F-NO-PLAY", 0);
     const play = firstRefusal(board, "play", board.card);
     assert.deepEqual(play.mine, { kind: "forbidden", by: "F-NO-PLAY", until: "permanent" }, "a forbidden play short of energy does not answer about the ban");
-    assert.deepEqual(play.theirs, { kind: "energy", need: 1, have: 0 }, "the legacy engine stopped answering about the price first, and this divergence is recorded on the assumption that it does");
   }
 
   // Claim 2, from the other side: the host's own 0-2-5 question reads the
@@ -3557,9 +3493,8 @@ console.log("verify/vm: ok");
   // this move reads. P-UNISON is the card the play-family tests above
   // already declared.
   {
-    function growBoard(): { r: VmState; l: GameState; unison: string; copy: string } {
+    function growBoard(): { r: VmState; unison: string; copy: string } {
       let r = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
-      let l = createGame(CTX, BAN_DECKS).state;
       for (let i = 0; i < 30; i++) {
         const pr = r.prompt as { kind: string; player: PlayerId };
         const a: Action | null =
@@ -3572,20 +3507,16 @@ console.log("verify/vm: ok");
                 : null;
         if (!a) break;
         r = rulesEngine.apply(CTX, r, a).state as VmState;
-        l = apply(CTX, l, a).state;
       }
       assert.equal(r.prompt.kind, "main", "the rules game did not reach a Main Phase to grow a Unison in");
       const unison = r.sides.p1.zones.deck[0];
       const copy = r.sides.p1.zones.hand[0];
       for (const id of [unison, copy]) {
         r.cards[id].cardId = "P-UNISON";
-        l.cards[id].cardId = "P-UNISON";
       }
       r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => id !== unison);
-      l.players.p1.deck = l.players.p1.deck.filter((id) => id !== unison);
       r.sides.p1.zones.unison = [unison];
-      l.players.p1.unison = unison;
-      return { r, l, unison, copy };
+      return { r, unison, copy };
     }
 
     // No Unison in play at all: refused board-level, before any card is asked
@@ -3593,9 +3524,7 @@ console.log("verify/vm: ok");
     // beside it) now follows too.
     {
       const bare = rulesEngine.createGame(CTX, BAN_DECKS).state as VmState;
-      const bareLegacy = createGame(CTX, BAN_DECKS).state;
       let r = bare;
-      let l = bareLegacy;
       for (let i = 0; i < 30; i++) {
         const pr = r.prompt as { kind: string; player: PlayerId };
         const a: Action | null =
@@ -3608,36 +3537,21 @@ console.log("verify/vm: ok");
                 : null;
         if (!a) break;
         r = rulesEngine.apply(CTX, r, a).state as VmState;
-        l = apply(CTX, l, a).state;
       }
       const rLegal = rulesEngine.legalActions(CTX, r);
-      const lLegal = legalActions(CTX, l);
       assert.equal(rLegal.some((x) => x.action.type === "growUnison"), false, "growUnison is offered with no Unison in play");
-      assert.equal(lLegal.some((x) => x.action.type === "growUnison"), false, "the legacy engine offers growUnison with no Unison in play");
       const mine = rulesEngine.rejectedActions(CTX, r, rLegal).find((x) => x.action.type === "growUnison")?.why[0];
       assert.deepEqual(mine, { kind: "target", reason: "no Unison Card in play to grow" }, "growUnison with no Unison in play is not refused by name");
     }
 
-    // Staged: legal on both engines, over the same board.
+    // Staged: legal on the rules board.
     const board = growBoard();
     const grow = { type: "growUnison" as const, player: "p1" as const, card: board.copy };
     const rLegal = rulesEngine.legalActions(CTX, board.r);
-    const lLegal = legalActions(CTX, board.l);
     assert.ok(
       rLegal.some((x) => x.action.type === "growUnison" && (x.action as { card: string }).card === board.copy),
       "growing the staged Unison from its own copy in hand is not offered",
     );
-    assert.ok(
-      lLegal.some((x) => x.action.type === "growUnison" && (x.action as { card: string }).card === board.copy),
-      "the legacy engine does not offer growing the staged Unison",
-    );
-
-    // Taking it completes on the legacy engine — a marker, the copy under the
-    // Unison, the once-a-turn fact set (`ps.grewUnisonThisTurn`, read by
-    // `setPlayerAttr`'s legacy case).
-    const l2 = apply(CTX, board.l, grow);
-    assert.equal((l2.state as GameState).cards[board.unison].markers, 1, "the Unison did not gain a marker on the legacy engine");
-    assert.deepEqual((l2.state as GameState).cards[board.unison].under, [board.copy], "the copy did not go under the Unison on the legacy engine");
 
     // The rules engine's own move-under primitive is real now (#152's
     // `vm/host.ts` `placeUnder`, wired to `moveCard`'s own `under` option
@@ -3678,6 +3592,8 @@ console.log("verify/vm: ok");
     }
   }
 }
+
+verifyLegacyVmCompatibility(state);
 
 // ── hook group D: playing, charging, alternative payment (#157) ─────────────
 //

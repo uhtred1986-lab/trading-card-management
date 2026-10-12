@@ -24,15 +24,16 @@ earned #459's zero-legacy-call acceptance or closure.
 | §28 | Full event arrays and pending trigger sets for opponent KO, own KO, Indestructible, token creation and token KO | Exact event arrays keep KO-before-move and `battle → removed` for a token. Fixed sorted trigger sets name every printed `koed`/`yourCardKoed`/`opponentCardKoed`/`kos` skill. The empty event and trigger sets on an Indestructible target are explicit. Token id `p1#token102` is fixed for this seed and staged board. |
 | §29 | Burst/reduced-skill/payer/alternative-price offers, first refusals, full event arrays and final life count | Exact event arrays retain move order, reveal flags, energy rests, printed skill text and card instances. Every formerly compared menu has a fixed expected action list. Refusals state `[Burst 2] needs that many cards in the deck` and the red-orb shortfall explicitly; the life price ends at seven cards. The printed fixture skills and manual §§22-27, 4-3-3, 20-19 and 5-3 justify each case. |
 | §20 | Legacy `playCost` total/specified for baseline, reduced, zero and relaxed plays; first refusals; complete reduced-play event list and ordered energy | Printed R-TWO costs two with one red orb. One flat reducer removes one total and its red orb; the sole staged blue Energy card `p1#6` pays, so fixed events are action, rest `p1#6`, and revealed hand-to-battle move `p1#43`. A reduction past zero floors at zero; the specified-only reducer removes the red orb while retaining total two. The baseline and colour-short boards keep their exact first refusal objects. Full fixed events, energy order and rested mode retain the former broad comparisons. The exact instance IDs follow seed 13's staged pile; rule basis is manual 20-21 and the printed synthetic reducer text. |
+| §21 | Legacy-side offers and first refusals for a control play, prohibited play, card's own ban, prohibited charge and skill; no-Unison and legal grow checks; grown marker and under-card; legacy price-before-ban divergence | Each shared gameplay result already has a direct rules assertion with the exact offer/refusal, including the two charge menu variants, and the grow result checks the exact marker/under-card and once-per-turn fact. The intentional legacy ordering is separately asserted against fixed `{kind:"energy",need:1,have:0}` in guarded `vm-legacy-118.ts`; the rules result stays fixed to `{kind:"forbidden",by:"F-NO-PLAY",until:"permanent"}`. Manual §§20-14, 7-2-11, 13-3 and printed prohibitions ground the rules results. |
+| §§1–3/5 adapter | Six legacy adapter function identities, legacy availability, legacy state shape and saved-state seam | The same assertions now live in `vm-legacy-118.ts`, guarded by `RULES_ONLY`. They remain executable in the normal VM lane for #118 and are explicitly excluded from #459's rules-only lane. Rules-engine interface, state, round-trip and invalid-state checks remain in `vm.ts`. |
 | §26 Active Step | Whether a rested Energy card becomes active at its master's next Active Step | Direct fixed `mode === "active"` assertion remains, grounded in 7-2-7's named Energy Area. The paired legacy fixture added no other field check. |
 
 §23 and §24 removed seven legacy outcome assertions. Each compared fact maps to
 a direct literal rules assertion above; those cases never compared event, legal
 action or view objects. §22 and §31 had broad object comparisons, retained as
 exact fixed objects. The remaining live oracle sections are §7, §14,
-§17 and §21's prohibition cases, and §26's legacy `cardNow`/`matches` face checks. §§1–2 and §5 assert adapter and saved legacy-state
-compatibility; #118 must retain or retire those explicitly during adapter
-deletion, rather than silently discarding them as gameplay assertions.
+§17 and §26's legacy `cardNow`/`matches` face checks. The #118 adapter and
+saved-state checks remain in a separate guarded module for explicit retirement.
 
 No contract or probe digest fixture was edited.
 
