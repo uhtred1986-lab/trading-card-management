@@ -48,6 +48,9 @@ Run the full `npm test` (adds `verify-db.mts`, which boots PGlite + migrations) 
 finalizing. Never run `npm run sync:catalog` or `sync:prices` just to inspect state — they hit
 real network endpoints (~30-50s).
 
+Symbol definitions/references/diagnostics and browser network/offline/worker/storage inspection,
+with commands verified on Windows: `docs/arena-agent-tools.md` (no Playwright, no MCP server needed).
+
 ## 4. If the change touches what the compiler understands
 
 Update `src/lib/arena/glossary.ts` in the same commit (required by CLAUDE.md's Conventions
