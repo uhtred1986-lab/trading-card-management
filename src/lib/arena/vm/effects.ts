@@ -672,7 +672,7 @@ function collect(
     if (op.op === "replaceLeave") {
       if (!inPlayNow) continue;
       const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
-      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo === "hand" ? "hand" : undefined, optional: op.optional };
+      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }

@@ -794,7 +794,7 @@ export type Op =
    * `by: "skill"` narrows it to departures a skill caused, and
    * `bySide: "opponent"` to the ones the opponent's skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: ScriptArea; until?: Duration; optional?: boolean; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: "hand"; until?: Duration; optional?: boolean; target?: Ref }
   /**
    * 9-10: an event that is about to happen happens differently, or not at all.
    * The primitive `replaceLeave` and `resolvingPlay` are macros over
@@ -2394,7 +2394,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             source: frame.card,
             target: "",
             kind: "replaceLeave",
-            value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo === "hand" ? "hand" : undefined, target },
+            value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target },
             until: op.until,
           });
         }

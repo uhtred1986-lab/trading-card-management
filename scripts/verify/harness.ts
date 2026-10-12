@@ -42,6 +42,7 @@ import { findCard as vmFindCard, isTokenCard as vmIsTokenCard } from "../../src/
 import { fire as vmFire, type Moment as VmMoment } from "../../src/lib/arena/vm/events";
 import { hasKeyword as vmHasKeyword } from "../../src/lib/arena/vm/program";
 import { lifeReplacementChoices as vmLifeReplacementChoices } from "../../src/lib/arena/vm/replace";
+import { moved as vmMoved } from "../../src/lib/arena/vm/flow";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../../src/lib/arena/snapshot";
@@ -747,6 +748,15 @@ function moveG(s: EngineState, id: string, area: ZoneArea | "unison", side: Play
   }
   const r = moveCard(s, DBS_DEFINITION, id, area, { owner: side, position: opts.position });
   assert.ok(r.ok, `the fixture could not move ${id} to ${side}'s ${area}: ${r.ok ? "" : r.refused}`);
+}
+
+/** A rule-procedure move with no acting skill, used to check replacement cause scope. */
+export function moveByRuleG(s: EngineState, id: string, area: ZoneArea, side: PlayerId, ctx: EngineContext = CTX): void {
+  if (isVmState(s)) {
+    vmMoved(ctx, DBS_DEFINITION, s, [], id, area, { owner: side, reason: "rule" });
+    return;
+  }
+  move(ctx, s, [], id, area, side, { reason: "rule" });
 }
 
 /** 20-15: write a delayed effect down, on either engine — both take the same spec. */

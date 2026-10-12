@@ -1146,7 +1146,7 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       if (!inPlayNow) continue;
       const dest = op.to === "play" ? "battle" : op.to === "under" ? "drop" : (op.to as Area);
       const targets = op.target ? staticTargets(ctx, s, frame, op.target) : [source];
-      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo === "hand" ? "hand" : undefined, optional: op.optional } });
+      for (const id of targets) out.push({ source, kind: "replaceLeave", target: id, value: { to: dest, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional } });
       continue;
     }
     // The primitive the row above is a macro over (`docs/arena-ruleset-spec.md`
