@@ -12,7 +12,7 @@
 import { skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
-import { sideOf } from "./common";
+import { IllegalAction, sideOf } from "./common";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
 
@@ -34,7 +34,7 @@ export type Side = "you" | "opponent" | "both";
  * (9-9-2: it lasts for the period the effect names). A [Permanent]'s own
  * "While this card is …" is a condition (`IF`), not this.
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "game" | "whileSourceInPlay";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";
@@ -468,7 +468,9 @@ export type Op =
   | { op: "addLife"; n: Amount; side?: Side }
   /** "Add cards from your life to your hand until you have N life" (21-3-2 wording, without damage). */
   | { op: "lifeDownTo"; n: number; side?: Side }
-  | { op: "shuffle"; side?: Side }
+  | { op: "shuffle"; side?: Side; areas?: ("deck" | "life")[]; inspectedOnly?: true }
+  /** 12-2-4: choose a qualifying hand card's named skill and invoke that line, with its original costs waived. */
+  | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
   | { op: "energyMarker"; n: Amount; side?: Side }
   /**
    * `chooser` is who answers, when that is not the player whose skill this is:
@@ -1222,6 +1224,14 @@ export interface ScriptFrame {
   pendingHookIdentityMissing?: true;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
+  /** Closed areas this running skill actually inspected, persisted across a choice/reload. */
+  lookedAreas?: Partial<Record<PlayerId, ("deck" | "life")[]>>;
+  /** Card selected for a nested skill activation while its line is being chosen. */
+  invokingCard?: string;
+  /** Offered skill indices stay bound to their prompt positions across reload. */
+  invokingLines?: number[];
+  /** A mode prompt's positions cannot be silently reinterpreted after a board change. */
+  offeredModes?: number[];
   /**
    * X, as this activation paid it (20-5). Put here by the activation that
    * charged an X price, or by a `choose` carrying `bindX`. Absent is *not*
@@ -1418,6 +1428,13 @@ function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "swi
   }
 }
 
+/** One search step's inspected closed areas survive an intervening choice. */
+function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "life")[]): void {
+  const looked = frame.lookedAreas ??= {};
+  const own = looked[player] ??= [];
+  for (const area of areas) if (!own.includes(area)) own.push(area);
+}
+
 /**
  * Run a program until it finishes or needs a decision. Returns "wait" with a
  * prompt set and the frame pushed back onto the flow; "done" when the program
@@ -1566,10 +1583,66 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
 
       case "shuffle":
-        // 5-11: the engine reshuffles at the next draw; record it so the log reads right.
-        for (const p of sideOf(master, op.side)) h.log({ type: "note", text: `${h.playerName(p)} shuffles their deck` });
-        h.shuffleDecks(sideOf(master, op.side));
+        // 5-11-2: each closed area actually searched is shuffled. A plain
+        // "shuffle your deck" still names only that area, as before.
+        for (const p of sideOf(master, op.side)) {
+          for (const area of op.areas ?? ["deck"]) {
+            if (op.inspectedOnly && !frame.lookedAreas?.[p]?.includes(area)) continue;
+            h.log({ type: "note", text: `${h.playerName(p)} shuffles their ${area}` });
+            if (area === "deck") h.shuffleDecks([p]);
+            else h.shuffleLives([p]);
+          }
+        }
         break;
+
+      case "invokeSkill": {
+        const eligible = (id: string) => h.invokableSkills(master, id, op);
+        const candidates = h.zone(master, "hand").filter((id) => eligible(id).length > 0);
+        let card = frame.invokingCard;
+        if (frame.awaiting === "invokeCard") {
+          const answer = h.lastChoice();
+          h.clearLastChoice();
+          card = answer?.length === 1 ? answer[0] : undefined;
+          if (!card || !candidates.includes(card)) throw new IllegalAction("that hand card cannot have its skill activated now");
+          frame.invokingCard = card;
+          frame.awaiting = undefined;
+        }
+        if (!card) {
+          if (!candidates.length) throw new IllegalAction("there is no qualifying skill to activate from hand");
+          if (candidates.length > 1) {
+            frame.awaiting = "invokeCard";
+            h.resume(frame);
+            h.ask({ kind: "chooseCards", player: master, choice: { reason: `${h.nameOf(frame.card)}: choose a ${op.trait} card whose ${op.skillKind} skill to activate`, candidates, min: 1, max: 1, continuation: "invokeCard" } });
+            return "wait";
+          }
+          card = candidates[0];
+          frame.invokingCard = card;
+        }
+        const skills = eligible(card);
+        if (!skills.length) throw new IllegalAction("the selected skill is no longer eligible");
+        let skill = skills[0];
+        if (frame.awaiting === "invokeLine") {
+          const index = h.lastMode();
+          h.clearLastMode();
+          const offered = index === null ? undefined : frame.invokingLines?.[index];
+          const selected = skills.find((line) => line.index === offered);
+          if (!selected) throw new IllegalAction("that skill line cannot be activated now");
+          skill = selected;
+          frame.awaiting = undefined;
+          frame.invokingLines = undefined;
+        } else if (skills.length > 1) {
+          frame.awaiting = "invokeLine";
+          frame.invokingLines = skills.map((line) => line.index);
+          h.resume(frame);
+          h.ask({ kind: "chooseMode", player: master, reason: `${h.nameOf(card)}: choose its ${op.skillKind} skill`, options: skills.map((line) => line.label) });
+          return "wait";
+        }
+        frame.invokingCard = undefined;
+        frame.ip++;
+        h.resume(frame);
+        h.invokeSkill(master, card, skill.index, op);
+        return "done";
+      }
 
       case "energyMarker":
         for (const p of sideOf(master, op.side)) {
@@ -1611,9 +1684,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // "Look at your opponent's hand": a whole area rather than an end of
         // the deck, so the count says nothing.
         if (op.area && op.area !== "deck") {
+          if (op.area === "life") rememberLook(frame, p, ["life"]);
           frame.vars[op.as] = h.resolveSelector(frame, { side: op.side, area: op.area });
           break;
         }
+        rememberLook(frame, p, ["deck"]);
         const n = h.amount(frame, op.n);
         const deck = h.zone(p, "deck");
         frame.vars[op.as] = op.from === "bottom" ? deck.slice(Math.max(0, deck.length - n)) : deck.slice(0, n);
@@ -1632,6 +1707,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "choose": {
+        // A search over several closed areas exposes their joint pool to the
+        // chooser. Record the areas on the frame only when this step is run,
+        // so an unchosen branch cannot cause a later conditional shuffle.
+        if (!op.sel.fromVar && !op.sel.special) {
+          const inspected = (op.sel.areas ?? (op.sel.area ? [op.sel.area] : [])).filter((area): area is "deck" | "life" => area === "deck" || area === "life");
+          for (const player of sideOf(master, op.sel.side)) if (inspected.length) rememberLook(frame, player, inspected);
+        }
         // "Any number … up to the number of your Hidden Mode cards" (BT29-139):
         // a bound read off the board, and the choice may stop short of it.
         const bounded = op.atMost !== undefined;
@@ -2634,13 +2716,25 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "chooseMode": {
+        // A nested invocation can only be chosen when at least one hand card
+        // has a legal line. The other printed modes retain their own choices.
+        const available = op.modes.map((mode, index) => ({ mode, index })).filter(({ mode }) => {
+          // Earlier operations may make an Extra eligible. Only a mode whose
+          // entire effect is this invocation can be excluded in advance.
+          const only = mode.ops.length === 1 ? mode.ops[0] : null;
+          return only?.op !== "invokeSkill" || h.zone(master, "hand").some((id) => h.invokableSkills(master, id, only).length > 0);
+        });
+        if (!available.length) throw new IllegalAction("no mode of this skill can be used now");
         // 20-2: the option is chosen as the skill resolves, and only then does
         // the rest of the program exist — so it is spliced in like an `if`.
         if (h.lastMode() != null && frame.awaiting === "mode") {
           const index = h.lastMode()!;
-          const picked = op.modes[index] ?? op.modes[0];
+          const original = frame.offeredModes?.[index] ?? (frame.offeredModes ? undefined : index);
+          const picked = available.find((candidate) => candidate.index === original)?.mode;
+          if (!picked) throw new IllegalAction("that mode is no longer available");
           h.clearLastMode();
           frame.awaiting = undefined;
+          frame.offeredModes = undefined;
           // "You may …" (20-16) is this op with a second, empty option — that
           // shape is what `may` lowers to (#273) — and the answer is bound
           // either way, so "if you do" / "if you don't" reads it downstream
@@ -2652,17 +2746,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // A single declared option is not a choice. Two are, even when one of
         // them is empty — "you may" is exactly that shape, and dropping the
         // empty one here would mean it was never actually offered (#273).
-        if (op.modes.length <= 1) {
-          frame.ops = [...frame.ops.slice(0, frame.ip), ...(op.modes[0]?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
+        if (available.length <= 1) {
+          frame.ops = [...frame.ops.slice(0, frame.ip), ...available[0].mode.ops, ...frame.ops.slice(frame.ip + 1)];
           continue;
         }
         frame.awaiting = "mode";
+        frame.offeredModes = available.map(({ index }) => index);
         h.resume(frame);
         h.ask({
           kind: "chooseMode",
           player: op.chooser ? sideOf(master, op.chooser)[0] : master,
           reason: op.reason ?? `${h.nameOf(frame.card)}: choose one`,
-          options: op.modes.map((mode) => mode.label),
+          options: available.map(({ mode }) => mode.label),
         });
         return "wait";
       }

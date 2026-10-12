@@ -91,7 +91,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Twenty-five primitives carry every row below — twenty operations and five conditions.
+Twenty-eight primitives carry every row below — twenty-one operations and seven conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -102,12 +102,13 @@ Twenty-five primitives carry every row below — twenty operations and five cond
 | `replace` | `replace` | An event that is about to happen happens differently, or not at all (9-10). The event is named (`leave`, `ko`, `play`) and what happens in its place is a program, not only a destination. |
 | `choose` | `choose` | A player picks cards from a selector; the cards are bound to a name the rest of the program reads. |
 | `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
-| `shuffle` | `shuffle` | A pile is randomised with the game's seeded RNG. |
+| `shuffle` | `shuffle` | A closed area is randomised with the game's seeded RNG; an inspected-only shuffle names only areas an earlier search actually looked through. |
 | `token` | `token` | A card that was in no deck comes into being. |
 | `control` | `control` | Who masters a card changes (20-9): it moves into that player's Battle Area and they become its master, keeping everything about it (20-9-2). |
 | `skip` | `skip` | A phase or a step of the turn is not performed (20-13): no moments inside it, no actions, no checkpoints. |
 | `copySkills` | `copySkills` | One card takes on another's printed skills, as they stood when the copy was made (20-18). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
+| `invokeSkill` | `invokeSkill` | A selected card's declared skill is activated through its own legality, declaration, nested resolution and return to the parent (12-2-4). |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
 | `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
 | `immune` | `immune` | A card no skill may touch (9-1-4). |
@@ -152,6 +153,7 @@ disagree or if a row is missing from either.
 | `ko` | macro over `move` | To the owner's Drop with the cause `ko`. [Indestructible], "can't be KO'd by skills" and the replacement offers belong to `move` — they apply to any departure — so the macro is a destination and a cause. |
 | `moveTo` | primitive | This **is** `move`. |
 | `play` | primitive | The play action, not a destination (5-5); see §2.2 for why this row is provisional. |
+| `invokeSkill` | primitive | SD7-01 selects a qualifying ≪Desire≫ Extra from hand and invokes its actual [Activate: Main] line (12-2-4): the Extra moves to Drop before the nested skill and the parent resumes afterward. No sequence of `moveTo` and the nested effect body performs the legality, once/prohibition checks, skill announcement and saved parent continuation. The printed original energy and skill prices are waived, but external activation taxes remain a separate open gap (#677). |
 | `switchMode` | macro over `modifyAttr` | Active or Rest is an attribute of the card; "switched to Rest Mode by one of your skills" (1-10) is a trigger on the change and its cause. |
 | `modifyAttr` | primitive | One attribute of one card, by a delta (`amount`) or by the values it also counts as (`values`), for a duration or — printed as a [Permanent] — for as long as the rule holds. The row the three below lower to, and the reason they are one mechanism rather than three. |
 | `power` | macro over `modifyAttr` | Attribute `power`, by a delta, for a duration. |

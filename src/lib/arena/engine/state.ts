@@ -1626,6 +1626,11 @@ export function endAfterChargeEffects(ctx: GameContext, s: GameState, ev: GameEv
   dropEffects(ctx, s, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
+/** 20-13-5: the opponent's named Charge expires by its phase, not the target card's controller. */
+export function endAfterOpponentChargeEffects(ctx: GameContext, s: GameState, ev: GameEvent[]): void {
+  dropEffects(ctx, s, ev, (e) => !(e.until === "afterOpponentCharge" && e.master !== s.turnPlayer && e.createdTurn < s.turn));
+}
+
 /**
  * The two durations written from the controller's point of view rather than
  * the turn's, expired as a turn opens (9-9):
@@ -1875,6 +1880,9 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
   if (
     s.effects.some((e) => {
       if (e.kind !== "forbid" || e.target !== card || e.forbid?.what !== what) return false;
+      // A source's "your opponent's next Charge Phase" cannot prevent the
+      // Active Step on that source player's own intervening turn.
+      if (what === "switchToActiveInCharge" && e.until === "afterOpponentCharge" && e.master === s.turnPlayer) return false;
       if ((e.forbid.uses ?? 0) > 0 || e.forbid.pay) return false;
       if (ctx && unlessHolds(ctx, s, e.forbid, { card }, e.source ?? null)) return false;
       return true;

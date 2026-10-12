@@ -62,17 +62,17 @@ import type { ScriptHost } from "./script-host";
 import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule } from "./effects";
-import { tokenCardId } from "./common";
+import { IllegalAction, tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow } from "./battle";
 import { RulesetBroken } from "./errors";
 import { savedXKey } from "./script";
-import { emit, log } from "./events";
+import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, taxesOn, zoneOf } from "./program";
-import { canPayPriceProgram } from "./activate";
+import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
+import { activationMoment, canPayPriceProgram, invokedMainLines, resolveActivation } from "./activate";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
@@ -123,6 +123,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         .filter(([zone]) => game.zones[zone]?.inPlay === true)
         .flatMap(([, ids]) => ids),
     zone: zoneList,
+    invokableSkills: (player, id, op) => invokedMainLines(ctx, game, state, player, id, op).map((line) => ({ index: line.skillIndex, label: line.skill.raw })),
+    invokeSkill: (player, id, skillIndex, op) => {
+      const line = invokedMainLines(ctx, game, state, player, id, op).find((candidate) => candidate.skillIndex === skillIndex);
+      if (!line) throw new IllegalAction("the selected skill is no longer eligible");
+      const moment = activationMoment(ctx, game, state, player, line);
+      spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
+      resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
+      fire(ctx, game, state, moment);
+    },
     playerName: (p) => state.sides[p].name,
     turn: () => state.turn,
     // 0-2-5: a prohibition beats an instruction, and 20-14's prohibitions are
@@ -261,6 +270,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         log(ev, { type: "note", text: `${state.sides[p].name} shuffles their deck` });
         shuffle(state, p);
       }
+    },
+    shuffleLives: (players) => {
+      for (const p of players) shuffle(state, p, SETUP_ZONES.life);
     },
     setEnteredTurn: () => {},
     negateAll: (id) => {
@@ -611,10 +623,10 @@ function ownerOfZone(state: VmState, id: string): PlayerId | null {
 }
 
 /** One player's deck, randomised with the game's seeded RNG (5-11). */
-function shuffle(state: VmState, p: PlayerId): void {
-  const deck = state.sides[p].zones[SETUP_ZONES.deck];
-  // A shuffle conceals every card it contains, even for a one-card deck or
-  // an unchanged seeded permutation (9-6-3-1-1).
+function shuffle(state: VmState, p: PlayerId, area: string = SETUP_ZONES.deck): void {
+  const deck = state.sides[p].zones[area];
+  // A shuffled closed area conceals every card it contains, including a
+  // one-card pile or an unchanged seeded permutation (9-6-3-1-1).
   for (const id of deck) clearAutoReveal(state, id);
   let rng = state.rngState;
   for (let i = deck.length - 1; i > 0; i--) {
