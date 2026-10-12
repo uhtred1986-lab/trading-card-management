@@ -1,7 +1,7 @@
 ---
 title: [P2] Arena: Share immutable derived evaluation by match revision
 milestone: Arena M2 — Gameplay UX/HUD completion
-labels: backlog, blocked, enhancement, area:arena-vm, phase:hud-workflow, model:opus-5, performance
+labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:hud-workflow, model:opus-5, performance
 stage: ui
 issue: 569
 priority: P2
@@ -27,4 +27,4 @@ touches: src/lib/arena/snapshot.ts, src/lib/arena/vm/effects.ts, src/lib/arena/v
 
 **Out of scope.** Other plan tickets, production configuration, live database writes, new dependencies and paid AI calls. Preserve completed existing features and the legacy oracle. The design prototype is not authoritative rules code.
 
-**Bounded measured child:** #607 (P1) isolates the corrected zero-power checkpoint cost and reuses board readings only during frozen-pass discovery. On the same local crowded-aura fixture, apply p50/p95 fell from 656.847/887.796 ms to 83.144/95.482 ms; state, event, legal/rejected-action and masked-view hashes match ([baseline](evidence/607/checkpoint-cache-baseline.json), [optimized](evidence/607/checkpoint-cache-optimized.json)). Clean-stack publication is pending; #607 is not delivered. It is independent of polling #568; this parent retains broader immutable-revision sharing across legality, rejection and views.
+**Bounded measured child:** #607 (P1) isolates the corrected zero-power checkpoint cost and reuses board readings only during frozen-pass discovery. On the same local crowded-aura fixture, apply p50/p95 fell from 656.847/887.796 ms to 83.144/95.482 ms; state, event, legal/rejected-action and masked-view hashes match ([baseline](evidence/607/checkpoint-cache-baseline.json), [optimized](evidence/607/checkpoint-cache-optimized.json)). The clean-stack pair is recorded in `pv-s07.md`; PR #612 merged and production-deployed. It is independent of polling #568; this parent retains broader immutable-revision sharing across legality, rejection and views.

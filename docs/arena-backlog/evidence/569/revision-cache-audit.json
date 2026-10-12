@@ -1,0 +1,744 @@
+{
+  "schema": 1,
+  "audit": "arena-revision-cache-audit-569",
+  "databaseFree": true,
+  "providerFree": true,
+  "engine": "rules",
+  "measuredHead": "08b65df00058367893add5e007ed19d4a48a36b3",
+  "runtimeSourceFingerprint": {
+    "sha256": "c0c408fe946d582391e3de24a0d74cb6572c92cbe34f804e29f9d556c05772ca",
+    "dirty": false,
+    "files": [
+      "scripts/verify/harness.ts",
+      "src/lib/arena/action-tone.ts",
+      "src/lib/arena/admin-debug.ts",
+      "src/lib/arena/ai/advance-lease.ts",
+      "src/lib/arena/ai/clarify.ts",
+      "src/lib/arena/ai/debug.ts",
+      "src/lib/arena/ai/opponent.ts",
+      "src/lib/arena/ai/primer.ts",
+      "src/lib/arena/ai/review.ts",
+      "src/lib/arena/ai/run.ts",
+      "src/lib/arena/ai/table-talk.ts",
+      "src/lib/arena/ai/table.ts",
+      "src/lib/arena/ai/teach.ts",
+      "src/lib/arena/ai/view.ts",
+      "src/lib/arena/api.ts",
+      "src/lib/arena/beats.ts",
+      "src/lib/arena/board-words.ts",
+      "src/lib/arena/capability-inventory.ts",
+      "src/lib/arena/compile.ts",
+      "src/lib/arena/compile/clauses.ts",
+      "src/lib/arena/compile/conditions.ts",
+      "src/lib/arena/compile/effects.ts",
+      "src/lib/arena/compile/index.ts",
+      "src/lib/arena/compile/prices.ts",
+      "src/lib/arena/compile/shared.ts",
+      "src/lib/arena/compile/targets.ts",
+      "src/lib/arena/deck-api.ts",
+      "src/lib/arena/deck-preview.ts",
+      "src/lib/arena/draft.ts",
+      "src/lib/arena/effects.ts",
+      "src/lib/arena/engine-setting.ts",
+      "src/lib/arena/engine-state.ts",
+      "src/lib/arena/engine/engine.ts",
+      "src/lib/arena/engine/index.ts",
+      "src/lib/arena/engine/legacy-host.ts",
+      "src/lib/arena/engine/rejections.ts",
+      "src/lib/arena/engine/state.ts",
+      "src/lib/arena/engine/triggers.ts",
+      "src/lib/arena/engines.ts",
+      "src/lib/arena/feel.ts",
+      "src/lib/arena/fired.ts",
+      "src/lib/arena/game-over.ts",
+      "src/lib/arena/games.ts",
+      "src/lib/arena/gaps.ts",
+      "src/lib/arena/glossary.ts",
+      "src/lib/arena/lang/ast.ts",
+      "src/lib/arena/lang/blocks.ts",
+      "src/lib/arena/lang/filter-words.ts",
+      "src/lib/arena/lang/index.ts",
+      "src/lib/arena/lang/parse.ts",
+      "src/lib/arena/lang/path.ts",
+      "src/lib/arena/lang/print.ts",
+      "src/lib/arena/lang/reference.ts",
+      "src/lib/arena/lang/tokens.ts",
+      "src/lib/arena/lang/validate.ts",
+      "src/lib/arena/lighting.ts",
+      "src/lib/arena/load.ts",
+      "src/lib/arena/matches.ts",
+      "src/lib/arena/narration.ts",
+      "src/lib/arena/offline-replay.ts",
+      "src/lib/arena/outcome.ts",
+      "src/lib/arena/pace.ts",
+      "src/lib/arena/poll-schedule.ts",
+      "src/lib/arena/probe-edges.ts",
+      "src/lib/arena/probe-report.ts",
+      "src/lib/arena/probe-trace.ts",
+      "src/lib/arena/probe-types.ts",
+      "src/lib/arena/probe.ts",
+      "src/lib/arena/prompt-words.ts",
+      "src/lib/arena/queue.ts",
+      "src/lib/arena/readiness.ts",
+      "src/lib/arena/replay-bundle.ts",
+      "src/lib/arena/replay-export.ts",
+      "src/lib/arena/review-load.ts",
+      "src/lib/arena/review-store.ts",
+      "src/lib/arena/review.ts",
+      "src/lib/arena/rule-review-store.ts",
+      "src/lib/arena/rule-review.ts",
+      "src/lib/arena/rules-store.ts",
+      "src/lib/arena/rulesets/dbs/actions.rules",
+      "src/lib/arena/rulesets/dbs/attributes.rules",
+      "src/lib/arena/rulesets/dbs/battle.rules",
+      "src/lib/arena/rulesets/dbs/costs.rules",
+      "src/lib/arena/rulesets/dbs/files.ts",
+      "src/lib/arena/rulesets/dbs/game.rules",
+      "src/lib/arena/rulesets/dbs/index.ts",
+      "src/lib/arena/rulesets/dbs/keywords.rules",
+      "src/lib/arena/rulesets/dbs/ops.rules",
+      "src/lib/arena/rulesets/dbs/prompts.rules",
+      "src/lib/arena/rulesets/dbs/triggers.rules",
+      "src/lib/arena/rulesets/dbs/words.rules",
+      "src/lib/arena/rulesets/dbs/zones.rules",
+      "src/lib/arena/rulesets/expand.ts",
+      "src/lib/arena/rulesets/holes.ts",
+      "src/lib/arena/rulesets/hooks.ts",
+      "src/lib/arena/rulesets/index.ts",
+      "src/lib/arena/rulesets/load.ts",
+      "src/lib/arena/rulesets/print-by-file.ts",
+      "src/lib/arena/rulesets/types.ts",
+      "src/lib/arena/rulesets/words.ts",
+      "src/lib/arena/session.ts",
+      "src/lib/arena/skin.ts",
+      "src/lib/arena/snapshot.ts",
+      "src/lib/arena/specified-cost.ts",
+      "src/lib/arena/staging.ts",
+      "src/lib/arena/story.ts",
+      "src/lib/arena/teach/common.ts",
+      "src/lib/arena/teach/like.ts",
+      "src/lib/arena/teach/words.ts",
+      "src/lib/arena/text/cards.ts",
+      "src/lib/arena/text/filters.ts",
+      "src/lib/arena/text/triggers.ts",
+      "src/lib/arena/tryit-judge.ts",
+      "src/lib/arena/tryit.ts",
+      "src/lib/arena/types.ts",
+      "src/lib/arena/view.ts",
+      "src/lib/arena/vm/actions.ts",
+      "src/lib/arena/vm/activate.ts",
+      "src/lib/arena/vm/aegis-costs.ts",
+      "src/lib/arena/vm/auto-costs.ts",
+      "src/lib/arena/vm/battle.ts",
+      "src/lib/arena/vm/beats.ts",
+      "src/lib/arena/vm/cards.ts",
+      "src/lib/arena/vm/common.ts",
+      "src/lib/arena/vm/costs.ts",
+      "src/lib/arena/vm/effects.ts",
+      "src/lib/arena/vm/errors.ts",
+      "src/lib/arena/vm/events.ts",
+      "src/lib/arena/vm/filters.ts",
+      "src/lib/arena/vm/flow.ts",
+      "src/lib/arena/vm/hook-contract.ts",
+      "src/lib/arena/vm/hooks.ts",
+      "src/lib/arena/vm/host.ts",
+      "src/lib/arena/vm/index.ts",
+      "src/lib/arena/vm/keyword-do.ts",
+      "src/lib/arena/vm/play.ts",
+      "src/lib/arena/vm/program.ts",
+      "src/lib/arena/vm/replace.ts",
+      "src/lib/arena/vm/rng.ts",
+      "src/lib/arena/vm/script-host.ts",
+      "src/lib/arena/vm/script-schema.ts",
+      "src/lib/arena/vm/script.ts",
+      "src/lib/arena/vm/skips.ts",
+      "src/lib/arena/vm/state.ts",
+      "src/lib/arena/vm/triggers.ts",
+      "src/lib/arena/vm/view.ts",
+      "src/lib/arena/vm/zones.ts",
+      "src/lib/arena/wake.ts",
+      "src/lib/arena/wording.ts"
+    ]
+  },
+  "cpuModelLocalOnly": "AMD EPYC 9V74 80-Core Processor",
+  "arch": "x64",
+  "samples": {
+    "warmup": 5,
+    "measured": 30,
+    "cpuProfileProjectionIterations": 24
+  },
+  "limits": [
+    "local Node CPU only",
+    "fixture timings do not establish hosted or device p95",
+    "diagnostic profile does not prove a safe cache design"
+  ],
+  "fixtures": [
+    {
+      "fixture": "s01-small",
+      "engine": "rules",
+      "revision": 1,
+      "stateHash": "8e4b04c3ed0869ee829b41d1d67adfc440613a586e121248947f4178297fc9c0",
+      "outcomeHash": "639b3763956cbd0d865b87d96b3a6d10e5a7d377b8c298f88c42c2583d3cb2dc",
+      "legalHash": "3aaafee2ea72e599681655569724895b189cbfd8220188cf872cb26ea511adbb",
+      "rejectedHash": "bdd7265b1be8105ef8fd2973250287ae609912aee2bdbb10f04470bec252cd41",
+      "viewerSnapshotHashes": {
+        "p1": "263cbdbcb6717286ffb797f7a94e04e41d663fdbd06a9b864220e022bf379935",
+        "p2": "7809a46b59688b113da14da148c6a5469d7552ba405d2d6014ffc0e8c214605b"
+      },
+      "viewerPrivacy": {
+        "p1OwnHandCardIds": 8,
+        "p2OwnHandCardIds": 7,
+        "hiddenOpposingLifeIds": {
+          "forP1": 8,
+          "forP2": 8
+        },
+        "handAndLifeMasksAssertedForBothViewers": true
+      },
+      "callCountsPerSampledPhase": {
+        "executionsPerPhase": 35,
+        "aggregate": {
+          "legalOnly": {
+            "legalActions": 35,
+            "rejectedActions": 0,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "rejectedOnly": {
+            "legalActions": 0,
+            "rejectedActions": 35,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "twoViewerSnapshotsSameRevision": {
+            "legalActions": 0,
+            "rejectedActions": 35,
+            "boardView": 70,
+            "abilityAvailability": 70
+          },
+          "legalThenTwoViewerSnapshotsSameRevision": {
+            "legalActions": 35,
+            "rejectedActions": 35,
+            "boardView": 70,
+            "abilityAvailability": 70
+          }
+        },
+        "perExecution": {
+          "legalOnly": {
+            "legalActions": 1,
+            "rejectedActions": 0,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "rejectedOnly": {
+            "legalActions": 0,
+            "rejectedActions": 1,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "twoViewerSnapshotsSameRevision": {
+            "legalActions": 0,
+            "rejectedActions": 1,
+            "boardView": 2,
+            "abilityAvailability": 2
+          },
+          "legalThenTwoViewerSnapshotsSameRevision": {
+            "legalActions": 1,
+            "rejectedActions": 1,
+            "boardView": 2,
+            "abilityAvailability": 2
+          }
+        }
+      },
+      "timings": {
+        "legalOnly": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 1.903,
+          "p95Ms": 18.541
+        },
+        "rejectedOnly": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 1.868,
+          "p95Ms": 3.609
+        },
+        "twoViewerSnapshotsSameRevision": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 2.013,
+          "p95Ms": 6.693
+        },
+        "legalThenTwoViewerSnapshotsSameRevision": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 2.616,
+          "p95Ms": 6.445
+        }
+      },
+      "cpuProfile": {
+        "iterations": 24,
+        "sampling": "Inspector CPU samples; nodeHitCount is a profiler node field, not an exact call counter",
+        "topFunctionsBySampledSelfTime": [
+          {
+            "function": "chargesOf",
+            "selfMs": 27.904,
+            "nodeHitCount": 5
+          },
+          {
+            "function": "vmHost",
+            "selfMs": 12.336,
+            "nodeHitCount": 2
+          },
+          {
+            "function": "(anonymous)",
+            "selfMs": 9.592,
+            "nodeHitCount": 9
+          },
+          {
+            "function": "payersFor",
+            "selfMs": 7.544,
+            "nodeHitCount": 3
+          },
+          {
+            "function": "set filename",
+            "selfMs": 5.427,
+            "nodeHitCount": 4
+          },
+          {
+            "function": "get",
+            "selfMs": 5.381,
+            "nodeHitCount": 5
+          },
+          {
+            "function": "attrsNow",
+            "selfMs": 5.357,
+            "nodeHitCount": 4
+          },
+          {
+            "function": "matchesAttrs",
+            "selfMs": 4.355,
+            "nodeHitCount": 3
+          },
+          {
+            "function": "abilityViews",
+            "selfMs": 4.329,
+            "nodeHitCount": 1
+          },
+          {
+            "function": "compileCardCached",
+            "selfMs": 4.322,
+            "nodeHitCount": 2
+          },
+          {
+            "function": "valueOf",
+            "selfMs": 3.313,
+            "nodeHitCount": 3
+          },
+          {
+            "function": "skillsShowing",
+            "selfMs": 3.204,
+            "nodeHitCount": 2
+          },
+          {
+            "function": "cardView",
+            "selfMs": 2.882,
+            "nodeHitCount": 2
+          },
+          {
+            "function": "queryHookStatics",
+            "selfMs": 2.188,
+            "nodeHitCount": 2
+          },
+          {
+            "function": "legalActionsOf",
+            "selfMs": 2.176,
+            "nodeHitCount": 1
+          },
+          {
+            "function": "chargeOf",
+            "selfMs": 2.176,
+            "nodeHitCount": 1
+          }
+        ]
+      }
+    },
+    {
+      "fixture": "s01-crowded-aura-12",
+      "engine": "rules",
+      "revision": 1,
+      "stateHash": "3a41fb2d1c9e7dde7944735f43120ca4ad7a5ee59777bacbd716d5030fbfd0e5",
+      "outcomeHash": "639b3763956cbd0d865b87d96b3a6d10e5a7d377b8c298f88c42c2583d3cb2dc",
+      "legalHash": "e75991e95e6450d171647f9c3ee2bf134630c4efc6a7d59e88572ae2206b27de",
+      "rejectedHash": "3718c7d68e432ee2c8bfe0386ffb4033e93f4008570544166cff17de9cb90b1f",
+      "viewerSnapshotHashes": {
+        "p1": "d4c14b81b122b23dfc99d8afe215323b85321c2b5a07cc1f11c7dd1e0ed2d6f7",
+        "p2": "40da99ae848b48259fee3b6554e04e3da086750dfbd2e6a88c62bfa91a8233f3"
+      },
+      "viewerPrivacy": {
+        "p1OwnHandCardIds": 9,
+        "p2OwnHandCardIds": 7,
+        "hiddenOpposingLifeIds": {
+          "forP1": 8,
+          "forP2": 8
+        },
+        "handAndLifeMasksAssertedForBothViewers": true
+      },
+      "callCountsPerSampledPhase": {
+        "executionsPerPhase": 35,
+        "aggregate": {
+          "legalOnly": {
+            "legalActions": 35,
+            "rejectedActions": 0,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "rejectedOnly": {
+            "legalActions": 0,
+            "rejectedActions": 35,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "twoViewerSnapshotsSameRevision": {
+            "legalActions": 0,
+            "rejectedActions": 35,
+            "boardView": 70,
+            "abilityAvailability": 70
+          },
+          "legalThenTwoViewerSnapshotsSameRevision": {
+            "legalActions": 35,
+            "rejectedActions": 35,
+            "boardView": 70,
+            "abilityAvailability": 70
+          }
+        },
+        "perExecution": {
+          "legalOnly": {
+            "legalActions": 1,
+            "rejectedActions": 0,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "rejectedOnly": {
+            "legalActions": 0,
+            "rejectedActions": 1,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "twoViewerSnapshotsSameRevision": {
+            "legalActions": 0,
+            "rejectedActions": 1,
+            "boardView": 2,
+            "abilityAvailability": 2
+          },
+          "legalThenTwoViewerSnapshotsSameRevision": {
+            "legalActions": 1,
+            "rejectedActions": 1,
+            "boardView": 2,
+            "abilityAvailability": 2
+          }
+        }
+      },
+      "timings": {
+        "legalOnly": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 4.697,
+          "p95Ms": 7.179
+        },
+        "rejectedOnly": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 6.091,
+          "p95Ms": 6.791
+        },
+        "twoViewerSnapshotsSameRevision": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 51.248,
+          "p95Ms": 68.649
+        },
+        "legalThenTwoViewerSnapshotsSameRevision": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 43.363,
+          "p95Ms": 51.383
+        }
+      },
+      "cpuProfile": {
+        "iterations": 24,
+        "sampling": "Inspector CPU samples; nodeHitCount is a profiler node field, not an exact call counter",
+        "topFunctionsBySampledSelfTime": [
+          {
+            "function": "permanents",
+            "selfMs": 179.027,
+            "nodeHitCount": 160
+          },
+          {
+            "function": "attrsNow",
+            "selfMs": 135.908,
+            "nodeHitCount": 121
+          },
+          {
+            "function": "get",
+            "selfMs": 115.833,
+            "nodeHitCount": 105
+          },
+          {
+            "function": "skillsShowing",
+            "selfMs": 109.053,
+            "nodeHitCount": 97
+          },
+          {
+            "function": "(anonymous)",
+            "selfMs": 80.675,
+            "nodeHitCount": 74
+          },
+          {
+            "function": "programsOf",
+            "selfMs": 66.861,
+            "nodeHitCount": 61
+          },
+          {
+            "function": "valueOf",
+            "selfMs": 61.793,
+            "nodeHitCount": 54
+          },
+          {
+            "function": "compileCardCached",
+            "selfMs": 58.816,
+            "nodeHitCount": 54
+          },
+          {
+            "function": "immunityStatics",
+            "selfMs": 42.212,
+            "nodeHitCount": 39
+          },
+          {
+            "function": "keywordsInForce",
+            "selfMs": 19.441,
+            "nodeHitCount": 18
+          },
+          {
+            "function": "findCard",
+            "selfMs": 12.093,
+            "nodeHitCount": 11
+          },
+          {
+            "function": "hookBodiesFor",
+            "selfMs": 11.963,
+            "nodeHitCount": 10
+          },
+          {
+            "function": "cardView",
+            "selfMs": 8.812,
+            "nodeHitCount": 8
+          },
+          {
+            "function": "skillLessNow",
+            "selfMs": 8.71,
+            "nodeHitCount": 7
+          },
+          {
+            "function": "set filename",
+            "selfMs": 8.647,
+            "nodeHitCount": 8
+          },
+          {
+            "function": "predicateOf",
+            "selfMs": 8.581,
+            "nodeHitCount": 8
+          }
+        ]
+      }
+    },
+    {
+      "fixture": "s07-crowded-aura-zero-power-checkpoint",
+      "engine": "rules",
+      "revision": 1,
+      "stateHash": "32ec99916a08562ba6c8f2184023a9edfe3110d5124dde6f6b2ad2066c4c2a06",
+      "outcomeHash": "639b3763956cbd0d865b87d96b3a6d10e5a7d377b8c298f88c42c2583d3cb2dc",
+      "legalHash": "e75991e95e6450d171647f9c3ee2bf134630c4efc6a7d59e88572ae2206b27de",
+      "rejectedHash": "3718c7d68e432ee2c8bfe0386ffb4033e93f4008570544166cff17de9cb90b1f",
+      "viewerSnapshotHashes": {
+        "p1": "9c319f5ef50127a6cc39fc8dc928bedec1f9325d9da66c85fc18aef1aac9c410",
+        "p2": "ab0265e091a205eb0d3c1197ffd7b421b643c7db689f3f5f8d1fa16e78de37b5"
+      },
+      "viewerPrivacy": {
+        "p1OwnHandCardIds": 9,
+        "p2OwnHandCardIds": 7,
+        "hiddenOpposingLifeIds": {
+          "forP1": 8,
+          "forP2": 8
+        },
+        "handAndLifeMasksAssertedForBothViewers": true
+      },
+      "callCountsPerSampledPhase": {
+        "executionsPerPhase": 35,
+        "aggregate": {
+          "legalOnly": {
+            "legalActions": 35,
+            "rejectedActions": 0,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "rejectedOnly": {
+            "legalActions": 0,
+            "rejectedActions": 35,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "twoViewerSnapshotsSameRevision": {
+            "legalActions": 0,
+            "rejectedActions": 35,
+            "boardView": 70,
+            "abilityAvailability": 70
+          },
+          "legalThenTwoViewerSnapshotsSameRevision": {
+            "legalActions": 35,
+            "rejectedActions": 35,
+            "boardView": 70,
+            "abilityAvailability": 70
+          }
+        },
+        "perExecution": {
+          "legalOnly": {
+            "legalActions": 1,
+            "rejectedActions": 0,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "rejectedOnly": {
+            "legalActions": 0,
+            "rejectedActions": 1,
+            "boardView": 0,
+            "abilityAvailability": 0
+          },
+          "twoViewerSnapshotsSameRevision": {
+            "legalActions": 0,
+            "rejectedActions": 1,
+            "boardView": 2,
+            "abilityAvailability": 2
+          },
+          "legalThenTwoViewerSnapshotsSameRevision": {
+            "legalActions": 1,
+            "rejectedActions": 1,
+            "boardView": 2,
+            "abilityAvailability": 2
+          }
+        }
+      },
+      "timings": {
+        "legalOnly": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 4.467,
+          "p95Ms": 5.75
+        },
+        "rejectedOnly": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 3.411,
+          "p95Ms": 4.03
+        },
+        "twoViewerSnapshotsSameRevision": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 45.815,
+          "p95Ms": 57.27
+        },
+        "legalThenTwoViewerSnapshotsSameRevision": {
+          "warmup": 5,
+          "samples": 30,
+          "p50Ms": 52.051,
+          "p95Ms": 57.456
+        }
+      },
+      "cpuProfile": {
+        "iterations": 24,
+        "sampling": "Inspector CPU samples; nodeHitCount is a profiler node field, not an exact call counter",
+        "topFunctionsBySampledSelfTime": [
+          {
+            "function": "permanents",
+            "selfMs": 274.386,
+            "nodeHitCount": 246
+          },
+          {
+            "function": "(anonymous)",
+            "selfMs": 181.898,
+            "nodeHitCount": 165
+          },
+          {
+            "function": "skillsShowing",
+            "selfMs": 142.008,
+            "nodeHitCount": 127
+          },
+          {
+            "function": "attrsNow",
+            "selfMs": 136.842,
+            "nodeHitCount": 121
+          },
+          {
+            "function": "get",
+            "selfMs": 132.088,
+            "nodeHitCount": 117
+          },
+          {
+            "function": "valueOf",
+            "selfMs": 56.671,
+            "nodeHitCount": 52
+          },
+          {
+            "function": "programsOf",
+            "selfMs": 53.555,
+            "nodeHitCount": 49
+          },
+          {
+            "function": "compileCardCached",
+            "selfMs": 49.72,
+            "nodeHitCount": 46
+          },
+          {
+            "function": "immunityStatics",
+            "selfMs": 39.631,
+            "nodeHitCount": 36
+          },
+          {
+            "function": "keywordsInForce",
+            "selfMs": 32.644,
+            "nodeHitCount": 29
+          },
+          {
+            "function": "hookBodiesFor",
+            "selfMs": 17.661,
+            "nodeHitCount": 16
+          },
+          {
+            "function": "skillLessNow",
+            "selfMs": 12.032,
+            "nodeHitCount": 11
+          },
+          {
+            "function": "printedKeywords",
+            "selfMs": 11.973,
+            "nodeHitCount": 11
+          },
+          {
+            "function": "cardView",
+            "selfMs": 8.985,
+            "nodeHitCount": 7
+          },
+          {
+            "function": "set filename",
+            "selfMs": 6.945,
+            "nodeHitCount": 6
+          },
+          {
+            "function": "parseSkills",
+            "selfMs": 6.391,
+            "nodeHitCount": 5
+          }
+        ]
+      }
+    }
+  ]
+}
