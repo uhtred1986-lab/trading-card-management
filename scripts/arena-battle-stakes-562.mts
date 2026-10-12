@@ -150,6 +150,14 @@ try {
    await page.tap('[data-battle-assumptions] summary');
    assert(await page.eval<boolean>("(()=>{const el=document.querySelector('[data-pass-action]');const r=el.getBoundingClientRect();const top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return r.top>=0&&r.bottom<=innerHeight&&(el===top||el.contains(top));})()"),'expanded assumptions keep Pass visible and unobscured');
    await page.tap('[data-battle-assumptions] summary');
+   if(viewport.mobile) {
+    await page.eval('window.__arenaSent=[]');
+    const point=await page.eval<TapArea>("(()=>{const r=document.querySelector('[data-pass-action]').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()");
+    await page.pointer('down',point.x,point.y);await page.pointer('up',point.x,point.y);await sleep(700);
+    const touched=await page.eval<Action[]>('window.__arenaSent??[]');assert.deepEqual(touched,[currentSnapshot.legal.find(row=>row.action.type==='pass')!.action],'200% real phone touch sends offered Pass');
+    assert(applyWithEvents(currentState,touched[0]!).events.some(event=>event.type==='powerCompare'),'touch Pass independently reaches actual power comparison');
+    await page.waitFor('[data-pass-action]:not(:disabled)');
+   }
    await page.eval("window.__arenaSent=[];document.activeElement?.blur()");
    let reached=false;
    for(let n=0;n<100;n++) {
