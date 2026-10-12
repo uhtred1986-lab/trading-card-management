@@ -166,6 +166,8 @@ export interface VmStatic {
   colors?: (Color | "any")[];
   /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
   onto?: string[];
+  /** The printed line this static belongs to, used to distinguish simultaneous replacement sources. */
+  skillIndex?: number;
 }
 
 /**
@@ -197,6 +199,33 @@ export interface PayerGrant {
   oncePerTurn?: true;
   /** The [Permanent] line saying it, for `oncePerTurn`. */
   skillIndex?: number;
+}
+
+/** A negative power effect that actually participates in a 21-6 result. */
+export interface PowerReductionSource {
+  /** A card skill, when the effect has one. */
+  source?: string;
+  /** The master of the skill, or the player whose turn created the effect. */
+  master: PlayerId;
+  /** The signed power change; always negative. */
+  value: number;
+}
+
+/**
+ * The power reductions currently applied to one card. Power layers are
+ * additive in the DBS ruleset, so a card at zero or below that returns above
+ * zero when these reductions are removed was reduced there by an effect
+ * (21-6-2-1). The caller uses the sources for the moved moment and 9-10's
+ * actor; a zero printed power with no reduction remains a rule move.
+ */
+export function powerReductionSources(state: VmState, id: string, standing: VmStatic[]): PowerReductionSource[] {
+  const timed = state.effects
+    .filter((effect) => effect.kind === "power" && effect.target === id && typeof effect.value === "number" && effect.value < 0)
+    .map((effect) => ({ source: effect.source, master: effect.master, value: effect.value as number }));
+  const permanent = standing
+    .filter((effect) => effect.kind === "power" && effect.target === id && typeof effect.value === "number" && effect.value < 0)
+    .map((effect) => ({ source: effect.source, master: effect.master, value: effect.value as number }));
+  return [...timed, ...permanent];
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
@@ -695,8 +724,8 @@ function collect(
     if (op.op === "replaceLeave") {
       if (!inPlayNow) continue;
       const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
-      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, optional: op.optional };
-      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
+      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, optional: op.optional, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
+      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value }, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) });
       continue;
     }
     if (op.op === "replace") {

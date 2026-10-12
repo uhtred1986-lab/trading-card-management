@@ -49,9 +49,6 @@ import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { PlayerId } from "./harness";
 import { isVmState, legacyState } from "../../src/lib/arena/engines";
 
-/** The probe sweep's `rule-processing` cause, for the cases here that lean on it. */
-const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: a Battle Card at 0 power or less stays in play (21-6) — `contract/probe-rules-parity.json`'s rule-processing cause";
-
 // ── the effect compiler ────────────────────────────────────────────────────
 
 {
@@ -626,11 +623,9 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   s = playG(s, { type: "choose", player: "p2", cards: [tough] });
   assert.ok(zoneOf(s, "p1", "battle").includes(tough), "22-12-like: their skill cannot KO it");
   // 21-6 still applies: a rule, not a skill, and it ignores even [Indestructible].
-  if (!rulesGap("compiler: TOUGH at 0 power (21-6)", RULE_PROCESSING, "no issue filed yet")) {
-    s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
-    s = playG(s, { type: "endMain", player: "p2" });
-    assert.ok(zoneOf(s, "p1", "drop").includes(tough), "21-6: 0 power is a rule, and rules are not skills");
-  }
+  s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
+  s = playG(s, { type: "endMain", player: "p2" });
+  assert.ok(zoneOf(s, "p1", "drop").includes(tough), "21-6: 0 power is a rule, and rules are not skills");
 }
 
 // ── cards under cards (23-2) and modal choice (20-2) ───────────────────────
@@ -650,9 +645,7 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   assertConsistentG(s);
 
   // 23-2-5: when the card on top leaves play, the stack goes with it. It
-  // leaves by a KO — the legacy fixture dropped it to 0 power and let 21-6
-  // take it, which the rules engine does not run yet (`RULE_PROCESSING`), and
-  // how it leaves is not what this case is about.
+  // leaves by a KO; how it leaves is not what this case is about.
   koCardG(s, host);
   assert.ok(zoneOf(s, "p1", "drop").includes(under), "the card underneath followed it to the Drop");
   assertConsistentG(s);

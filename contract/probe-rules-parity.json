@@ -1764,10 +1764,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "2c148eaf"
+      "digest": "ce6ec83f"
     },
-    "same": false,
-    "cause": "rule-processing"
+    "same": true
   },
   "SILENCER#0": {
     "legacy": {
