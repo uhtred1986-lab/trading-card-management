@@ -112,7 +112,7 @@ try {
    assert.equal(result.prompt.kind,'combo');assert.equal(result.prompt.player,'p2');
    const offense=snapshot562(result,4,'p2');result=apply562(result,offense.legal.find(l=>l.action.type==='pass')!.action).state as VmState;
    current=snapshot562(result,5);assert.equal(current.game.you,initial.game.you);
-   let end=Date.now()+7000;while(Date.now()<end && !(await page.eval<boolean>("document.querySelector('[data-pass-consequence]')?.textContent.includes('advances to damage') ?? false")))await sleep(100);
+   const end=Date.now()+7000;while(Date.now()<end && !(await page.eval<boolean>("document.querySelector('[data-pass-consequence]')?.textContent.includes('advances to damage') ?? false")))await sleep(100);
    assert(await page.eval<boolean>("document.querySelector('[data-pass-consequence]').textContent.includes('advances to damage')"),'same viewer updates from genuine Counter to Defense prompt');
    await page.eval("document.querySelector('nextjs-portal')?.remove()");
   writeFileSync(join(evidence,`after-${viewport.name}-${skin}-counter-to-defense.jpg`),await page.screenshot(false));
