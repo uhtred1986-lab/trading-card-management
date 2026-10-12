@@ -13,6 +13,8 @@ touches: src/lib/arena/vm/battle.ts, src/lib/arena/vm/flow.ts
 
 The existing battleEnd work moves all remaining combo cards to Drop, collects their departure Autos together with battle-end triggers, and lets the runner drain them afterwards. Manual 8-5-6 says Combo-to-Drop triggers enter pending, 8-5-7 specifies a checkpoint, and 8-5-8 then moves the cards; 8-5-9/10 separately pends and resolves battle-end triggers. #551 preserves this prior grouping and explicitly limits its claim to choices/8-5-4.
 
+**Audit evidence:** [cleanup-order-audit.md](evidence/609/cleanup-order-audit.md) records the manual sequence and current VM behavior. For an ordinary same-player Combo-to-Drop movement, §§9-6-9-1-3, 3-4-3, and 3-7-2 mean an 8-5-6 Auto that requests information about the moved card uses its new-area information, even though the 8-5-7 checkpoint precedes the physical move. This does not change live zone membership before 8-5-8; apply §9-6-9-1-2's inter-player/Battle/Unison exceptions where relevant. The repository contains a fixture for the distinct 8-5-10-1 “after you combo with this card” wording, but no actual card fixture for the generic 8-5-6 trigger; keep that evidence limitation explicit.
+
 **Build:** reconcile the exact printed trigger semantics and official manual ordering before changing the runner. Use real card wordings where available, and identify any ambiguity requiring a ruling. Add a persisted cleanup stage for the required checkpoints only after the semantics are established. Avoid double-pending departure triggers and keep combo power expiry at 8-5-5.
 
 **Acceptance:**
