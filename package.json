@@ -32,6 +32,8 @@
     "arena:fuzz": "tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts",
     "arena:coverage": "tsx --env-file-if-exists=.env.local scripts/arena-coverage.mts",
     "arena:playthrough": "tsx --env-file-if-exists=.env.local scripts/arena-playthrough.mts",
+    "arena:perf": "tsx scripts/arena-perf-baseline.mts --engine rules",
+    "arena:perf:browser": "tsx scripts/arena-perf-browser.mts",
     "arena:replay": "tsx scripts/arena-replay.mts",
     "arena:vs": "tsx --env-file-if-exists=.env.local scripts/arena-vs-claude.mts",
     "arena:gaps": "tsx --env-file-if-exists=.env.local scripts/arena-gaps.mts",
