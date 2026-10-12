@@ -48,13 +48,13 @@ import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { masterOf, nextPending, skillsShowing } from "./triggers";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, powerReductionSources, skillNegated, skillsNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
-import { fireAfterSkill, fireHook, queryHookStatics } from "./hooks";
+import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
 import { attrsNow, forbiddenForCard, forbids, readingBoard, staticsNow } from "./program";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
@@ -993,7 +993,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
       return result;
     }
-    if (frame.pendingHookSkill && (skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")))) {
+    if (frame.pendingHookSkill && (skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) || (frame.grantEffectId !== undefined && grantedSkillNegated(state, frame.card, frame.grantEffectId)) || (frame.standingGrantId !== undefined && grantedSkillNegated(state, frame.card, frame.standingGrantId)))) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
       return "done";
     }
@@ -1001,7 +1001,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card} can't activate skills, so its skill does not resolve` });
       return "done";
     }
-    if (frame.pendingHookIdentityMissing) {
+    if (frame.pendingHookIdentityMissing || (frame.pendingHookSkill && frame.skillIndex === undefined && frame.grantEffectId === undefined && frame.standingGrantId === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, frame.ops))) {
       throw new NotYet("negate a granted keyword hook that has no individual skill identity", "#602");
     }
     // The frame reaches the front only after its action price has finished.

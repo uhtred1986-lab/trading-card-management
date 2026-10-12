@@ -168,6 +168,8 @@ export interface VmStatic {
   onto?: string[];
   /** The printed line this static belongs to, used to distinguish simultaneous replacement sources. */
   skillIndex?: number;
+  /** One standing keyword grant's stable source/skill/op/target identity. */
+  standingGrantId?: string;
 }
 
 /**
@@ -457,6 +459,11 @@ export function skillNegated(state: VmState, id: string, index: number, kind?: s
   return !!kind && state.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as string));
 }
 
+/** Negation of one effect-granted keyword, keyed by its persisted effect ID. */
+export function grantedSkillNegated(state: VmState, id: string, grantId: number | string): boolean {
+  return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === id && (typeof grantId === "number" ? e.value === grantId : typeof e.value === "object" && e.value !== null && "standingGrantId" in e.value && e.value.standingGrantId === grantId));
+}
+
 /** The skills of this card that are off, as `stepScript` reads them: `"all"`, or the indexes. */
 export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
   if (skillsNegated(state, id)) return "all";
@@ -548,6 +555,7 @@ function collect(
   targets: (frame: ScriptFrame, op: Op) => string[],
   holds: (frame: ScriptFrame, op: Op) => boolean,
   measure: (frame: ScriptFrame, amount: Amount) => number,
+  path = "",
 ): void {
   // A `negate` (#276), a `costModifier` (#277) or a `modifyAttr` widening
   // (spec §2.5-1/§2.5-3, #275) is walked as the spelling it stands for, the
@@ -555,12 +563,12 @@ function collect(
   // written as the primitive reaches the static negation layer below,
   // `modifyAttr(attr: keywords, …)` reads as the `grant` case below, and
   // list-attribute `modifyAttr` shares the `gains` layer.
-  for (const op of ops.map((o) => replaceAs(costModifierAs(negateAs(modifyAttrAs(o)))))) {
+  for (const [index, op] of ops.map((o) => replaceAs(costModifierAs(negateAs(modifyAttrAs(o))))).entries()) {
     if (op.op === "if") {
       // A [Permanent] under a condition holds only while the condition does
       // (9-5-1-1), so the branch is taken afresh on every reading.
-      if (holds(frame, op)) collect(ctx, state, out, frame, op.then, inPlayNow, targets, holds, measure);
-      else if (op.else) collect(ctx, state, out, frame, op.else, inPlayNow, targets, holds, measure);
+      if (holds(frame, op)) collect(ctx, state, out, frame, op.then, inPlayNow, targets, holds, measure, `${path}${index}t/`);
+      else if (op.else) collect(ctx, state, out, frame, op.else, inPlayNow, targets, holds, measure, `${path}${index}f/`);
       continue;
     }
     // 20-14: a prohibition printed as a [Permanent] holds for as long as the
@@ -640,7 +648,7 @@ function collect(
       continue;
     }
     if (op.op === "grant") {
-      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "keyword", target: id, value: op.keyword });
+      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "keyword", target: id, value: op.keyword, ...(frame.skillIndex === undefined ? {} : { standingGrantId: `${frame.card}:${state.cards[frame.card]?.zoneEpoch ?? 0}:${state.cards[frame.card]?.flipped ? "back" : "front"}:${frame.skillIndex}:${path}${index}:${id}:${state.cards[id]?.zoneEpoch ?? 0}` }) });
       continue;
     }
     if (op.op === "gains") {

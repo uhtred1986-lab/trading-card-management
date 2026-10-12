@@ -109,6 +109,7 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
     case "negateSkills":
       return { kind: "negate", label: "skills negated" };
     case "negateSkill":
+    case "negateGrantedSkill":
       return { kind: "negate", label: "one skill negated" };
     case "negateSkillKind":
       return { kind: "negate", label: `[${KIND_WORDS[e.value as SkillKindPrefix]}] skills negated` };
