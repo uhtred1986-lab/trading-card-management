@@ -51,12 +51,13 @@ declaration checks passed. ops.rules documents native mill as its binding except
 language/declaration results, not runtime proof.
 
 The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
-runtime evidence. It records 16 named rules-engine gaps with stable IDs and live owners, two narrow
-positive scenarios (including the native mill exception), deferred statics, and the pending #548
-delivery separately from the unsupported base status. It also identifies the two suites whose
-legacy-oracle comparisons remain outside #459's fixed-expectation migration. The ALTC Counter
-alternative-price scenario now runs and asserts the chosen payment, resulting zones and the
-unaffordable case; its former skip was obsolete.
+runtime evidence. It records 21 narrow capability rows, five named rules-engine gaps with stable IDs
+and live owners, and 21 VM source sites, including the identity-less granted-Heroic guard owned by
+#602. It records merged #548 zero-power processing, #551 combo-to-Z-Energy, #553 static layers,
+#554 printed Heroic, #555 Aegis, #556 face-up Life events, and #601 fixed AI expectations from current
+runtime evidence. It keeps the native `mill` macro exception and #459 oracle migration gate separate
+from runtime support. The ALTC Counter alternative-price scenario actively asserts the chosen
+payment, resulting zones and unaffordable case.
 
 #170's closure and green declaration checks do not prove complete rules coverage. The inventory
 keeps behavior-level runtime assertions separate from hook contracts and declaration checks. Fuzz-40

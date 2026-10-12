@@ -33,14 +33,13 @@ export interface CapabilityEvidence {
 export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-skill-unread-referee",
-    label: "Unread skill handed to a referee",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    label: "An unread due skill explicitly interrupts the game",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "Rule text ingestion and resolution boundary (`src/lib/arena/vm/flow.ts`)",
     ownerIssue: 544,
-    skipWhere: "compiler: an unread skill put to the referee",
-    proof: "scripts/verify/compiler.ts — unread skill scenario is named and not asserted on rules engine",
-    detail: "An unread skill resolves to a note; the rules engine has no referee path for that skill.",
+    proof: "scripts/verify/compiler.ts \u2014 unread effect with referee context; scripts/verify/outcomes.ts \u2014 false condition, typed outcome, archive and privacy",
+    detail: "A due unread effect produces a typed interrupted outcome with no referee fallback or paid review. It is not resolved or labeled a draw; false conditions remain no-ops.",
   },
   {
     id: "arena-auto-own-cost",
@@ -56,14 +55,12 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-zero-power-rule-processing",
     label: "A Battle Card at zero or less power is processed",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "21-6; `contract/probe-rules-parity.json` rule-processing cause",
     ownerIssue: 548,
-    delivery: { state: "pending", reference: "PR #587" },
-    skipWhere: "compiler: TOUGH at 0 power (21-6)",
-    proof: "scripts/verify/compiler.ts — TOUGH scenario; intentionally retained unchanged while PR #587 is pending",
-    detail: "The current base leaves a Battle Card in play at zero or less power. Pending delivery is not current-base runtime evidence.",
+    proof: "scripts/verify/compiler.ts — active TOUGH assertion; scripts/verify/rule-processing.ts — simultaneous processing, replacement choices and reload",
+    detail: "The combined implementation processes zero-power Battle Cards before Autos, retaining simultaneous causes and replacement continuation across reload.",
   },
   {
     id: "arena-life-cost-damage-statistics",
@@ -79,57 +76,52 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-static-negate-keyword",
     label: "A Permanent negates a keyword",
-    status: "unsupported",
-    evidence: "runtime-gap",
-    citation: "9-1-5; `DEFERRED_STATICS.negateKeyword`",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "9-1-5",
     ownerIssue: 553,
-    skipWhere: "compiler: SELFMUTE negates its own [Blocker] (9-1-5)",
-    proof: "scripts/verify/compiler.ts — SELFMUTE static scenario",
-    detail: "The static reader does not apply `negateKeyword`.",
+    proof: "scripts/verify/static-layers-553.ts; scripts/verify/compiler.ts \u2014 named keyword suppression and grants",
+    detail: "The static layer applies named keyword negation after grants, respecting source validity and beNegated protections. Type-wide keyword negation is outside this row.",
   },
   {
     id: "arena-static-gains-trait",
     label: "A Permanent grants a trait in all areas",
-    status: "unsupported",
-    evidence: "runtime-gap",
-    citation: "20-1; `DEFERRED_STATICS.gains`",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "20-1",
     ownerIssue: 553,
-    skipWhere: "compiler: BECOMES gains ≪Saiyan≫ in all areas (20-1)",
-    proof: "scripts/verify/compiler.ts — BECOMES static scenario",
-    detail: "The static reader does not apply the `gains` operation.",
+    proof: "scripts/verify/static-layers-553.ts; scripts/verify/compiler.ts \u2014 trait gains and source scope",
+    detail: "Trait gains are applied in their declared areas; stale all-area compiled rows are blocked until rebuilt.",
   },
   {
     id: "arena-static-gains-name",
     label: "A Permanent grants a name",
-    status: "unsupported",
-    evidence: "runtime-gap",
-    citation: "20-1; `DEFERRED_STATICS.gains`",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "20-1",
     ownerIssue: 553,
-    skipWhere: "compiler: RENAMED also treated as {Planet M-2} (20-1)",
-    proof: "scripts/verify/compiler.ts — RENAMED static scenario",
-    detail: "The static reader does not apply the `gains` operation.",
+    proof: "scripts/verify/static-layers-553.ts; scripts/verify/compiler.ts \u2014 additional names",
+    detail: "The identity layer retains printed names and adds declared effective names while the source is valid.",
   },
   {
     id: "arena-static-gains-colors",
     label: "A Permanent grants colors in all areas",
-    status: "unsupported",
-    evidence: "runtime-gap",
-    citation: "20-1; `DEFERRED_STATICS.gains`",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "20-1",
     ownerIssue: 553,
-    skipWhere: "compiler: RECOLOR's colours in all of your areas (BT2-001)",
-    proof: "scripts/verify/compiler.ts — RECOLOR static scenario",
-    detail: "The static reader does not apply the `gains` operation.",
+    proof: "scripts/verify/static-layers-553.ts; scripts/verify/compiler.ts \u2014 effective colors",
+    detail: "Declared effective colors apply in their source scope. Original-color keyword eligibility remains separately tracked under #597.",
   },
   {
     id: "arena-combo-card-to-z-energy",
     label: "A combo card becomes Z-Energy at battle end",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "5-4, 8-5-2; `vm/index.ts` zEnergyFromCombo action",
     ownerIssue: 551,
-    skipWhere: "compiler: ZCHEAP paid with one Z-Energy made from a combo (5-4, 8-5-2)",
-    proof: "scripts/verify/compiler.ts — ZCHEAP scenario",
-    detail: "The rules engine does not offer the spent combo card as Z-Energy at the end of battle.",
+    proof: "scripts/verify/z-energy-combo-551.ts; scripts/verify/compiler.ts — actual ZCHEAP payment",
+    detail: "Both players get ordered optional choices with persisted continuation and a checkpoint before cleanup. Selected combo contributions remain through that checkpoint; Combo-to-Drop/end-of-battle Auto grouping remains separately tracked under #609.",
   },
   {
     id: "arena-counter-recursion",
@@ -167,46 +159,42 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-aegis-incremental-choice",
     label: "Aegis choice covers only the colors still missing",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "22-30-3",
     ownerIssue: 555,
-    skipWhere: "readings: [Aegis red/blue] asks only for the colour still to cover (22-30-3)",
-    proof: "scripts/verify/readings.ts — Aegis red/blue choice scenario",
-    detail: "After its first choice, the rules engine offers every card in hand rather than only cards covering a missing color.",
+    proof: "scripts/verify/aegis-555.ts \u2014 incremental mandatory coverage, three colors, invalid answers and reload",
+    detail: "Each prompt offers only cards covering missing distinct colors; payment occurs once after complete coverage. Original-color eligibility and additional-cost ordering remain #597 and #595.",
   },
   {
     id: "arena-heroic-once-per-turn",
-    label: "Heroic triggers only once per turn on that card",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    label: "Printed Heroic resolves once through turn-duration negation",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "22-35-3",
     ownerIssue: 554,
-    skipWhere: "wordings: [Heroic] pays out once a turn (22-35-3)",
-    proof: "scripts/verify/wordings.ts — Heroic self-negation scenario",
-    detail: "The afterSkill hook does not negate its own skill for the turn, so it can trigger more than once.",
+    proof: "scripts/verify/heroic-554.ts \u2014 Battle play, paid Extra activation, source departure, negation, independent owners, turn reset and reload",
+    detail: "The declared hook retains its printed skill identity and applies ordinary per-turn negation. Identity-less granted Heroic interrupts before sibling draws under #602; copied identity is not established here.",
   },
   {
     id: "arena-face-up-life-trigger",
     label: "A face-up Life card event fires its Auto",
-    status: "unsupported",
-    evidence: "runtime-gap",
-    citation: "3-9-2-1; `vm/host.ts` setFaceUp event emission",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "3-9-2-1",
     ownerIssue: 556,
-    skipWhere: "wordings: LIFEWATCH's [Auto] when it is flipped face up in life (3-9-2-1)",
-    proof: "scripts/verify/wordings.ts — LIFEWATCH face-up trigger scenario",
-    detail: "setFaceUp emits no faceUpTurned moment and the rules engine does not pend the trigger.",
+    proof: "scripts/verify/faceup-life-556.ts \u2014 source colors, audience, event binding, reload, masking and unrelated transitions",
+    detail: "Actual face-down to face-up Life transitions pend matching self Autos and controller watchers; non-Life targets and unchanged values do not fire.",
   },
   {
     id: "arena-static-gains-list-attributes",
     label: "A Permanent grants list attributes",
-    status: "unsupported",
-    evidence: "runtime-gap",
-    citation: "20-1; `DEFERRED_STATICS.gains`",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "20-1",
     ownerIssue: 553,
-    skipWhere: "language: a [Permanent] list attribute",
-    proof: "scripts/verify/language.ts — `gains` and modifyAttr list-attribute scenario",
-    detail: "Neither `gains` nor modifyAttr with values is read by the static layer.",
+    proof: "scripts/verify/static-layers-553.ts; scripts/verify/language.ts \u2014 list gains and timed expiry",
+    detail: "Permanent and timed list-attribute gains apply with source scope, expiry and persisted state.",
   },
   {
     id: "arena-counter-alternative-action-price",
@@ -239,14 +227,13 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   },
   {
     id: "arena-ai-vm-fixed-expectations",
-    label: "AI VM suite converted to fixed expectations",
-    status: "untested",
-    evidence: "suite-migration",
+    label: "AI presentation and requests have fixed rules-engine expectations",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "#459 fixed expected-state migration (test-lane status; no gameplay rule citation)",
-    ownerIssue: 459,
-    suite: "ai-vm",
-    proof: "scripts/verify/ai-vm.ts — stateText, decklistText and stubbed request still compare to legacy",
-    detail: "The language state-text fixture is a checked-in half, but the suite's engine comparison remains. This is separate from #575 runtime behavior.",
+    ownerIssue: 601,
+    proof: "scripts/verify/ai-vm.ts; scripts/verify/fixtures/ai-vm \u2014 21 migrated parity checks, two extra Leader facts and negative fixture controls",
+    detail: "The rules-only lane pins zones, both-viewer text, decklists, question, system and legal moves without invoking the legacy engine. Larger VM oracle migration remains #459.",
   },
   {
     id: "arena-legacy-saved-game",
@@ -263,15 +250,7 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
 
 export const NAMED_RUNTIME_GAPS = CAPABILITY_EVIDENCE.filter((row) => row.skipWhere !== undefined);
 
-export const DEFERRED_STATIC_EVIDENCE = [
-  { operation: "negateKeyword", capabilityIds: ["arena-static-negate-keyword"], ownerIssue: 553, citation: "9-1-5" },
-  {
-    operation: "gains",
-    capabilityIds: ["arena-static-gains-trait", "arena-static-gains-name", "arena-static-gains-colors", "arena-static-gains-list-attributes"],
-    ownerIssue: 553,
-    citation: "20-1",
-  },
-] as const;
+export const DEFERRED_STATIC_EVIDENCE: readonly { operation: string; capabilityIds: readonly string[]; ownerIssue: number; citation: string }[] = [];
 
 /** Test-lane evidence not yet converted to fixed expectations under #459. */
 export const ORACLE_MIGRATION_GAPS = CAPABILITY_EVIDENCE.filter((row) => row.evidence === "suite-migration");
@@ -287,7 +266,7 @@ export interface VmUnsupportedSourceSite {
   id: string;
   file: string;
   ordinal: number;
-  kind: "not-yet" | "silent-exit";
+  kind: "not-yet" | "silent-exit" | "interruption";
   classification: "current-runtime-unsupported" | "validated-guard" | "declaration-extension" | "referee-boundary" | "menu-gate";
   citation: string;
   detail: string;
@@ -298,6 +277,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-granted-hook-identity", file: "src/lib/arena/vm/flow.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", citation: "22-35-3; individual granted skill identity", ownerIssue: 602, detail: "A qualifying granted Heroic without individual skill identity interrupts before any hook body draws; sibling programs are discarded." },
   { id: "arena-vm-notyet-concede-program", file: "src/lib/arena/vm/index.ts", ordinal: 1, kind: "not-yet", classification: "declaration-extension", citation: "0-1-3-4", detail: "A concede declaration with a DO body has no execution semantics; current declarations are guarded by this path.", historicalIssues: [142] },
   { id: "arena-vm-notyet-apply-pass", file: "src/lib/arena/vm/index.ts", ordinal: 2, kind: "not-yet", classification: "validated-guard", citation: "Action declaration contract", detail: "Fallback if applying a declared pass action unexpectedly yields none; current action declarations are expected to validate this." },
   { id: "arena-vm-notyet-apply-activate", file: "src/lib/arena/vm/index.ts", ordinal: 3, kind: "not-yet", classification: "validated-guard", citation: "Action declaration contract", detail: "Fallback if applying a declared activate action unexpectedly yields none; current action declarations are expected to validate this.", historicalIssues: [147] },
@@ -312,8 +292,8 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
   { id: "arena-vm-notyet-cost-unbound-life", file: "src/lib/arena/vm/costs.ts", ordinal: 7, kind: "not-yet", classification: "validated-guard", citation: "21-3; price declaration contract", detail: "A record-sourced life amount requires caller binding; no supported caller may be inferred from this defensive branch alone. Treat this as untested caller reachability, not a proven legal mechanic gap.", historicalIssues: [149] },
   { id: "arena-vm-notyet-cost-unknown-consumes", file: "src/lib/arena/vm/costs.ts", ordinal: 8, kind: "not-yet", classification: "validated-guard", citation: "CostConsumes discriminated union / ruleset validation", detail: "Exhaustive-switch fallback for a malformed or future CostConsumes value; not a mechanic gap." },
   { id: "arena-vm-notyet-alt-pay-variant", file: "src/lib/arena/vm/costs.ts", ordinal: 9, kind: "not-yet", classification: "validated-guard", citation: "Alternative payment declaration contract; `vm/battle.ts` handles `program` separately", detail: "Fallback for an alternative-pay variant not handled by the legacy path; current reachable Counter `program` payments are handled separately.", historicalIssues: [150] },
-  { id: "arena-vm-note-unread-auto", file: "src/lib/arena/vm/flow.ts", ordinal: 1, kind: "silent-exit", classification: "referee-boundary", citation: "Rule text ingestion / referee outcome contract", detail: "An Auto with no readable program logs a note and resolves no effect; #544 concerns representing this interruption outcome, not implementing the mechanic.", ownerIssue: 544, sourceNeedle: "no rule this engine can read says what happens" },
-  { id: "arena-vm-note-auto-action-price", file: "src/lib/arena/vm/flow.ts", ordinal: 2, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "9-6-4; 4-3-3; 20-5", detail: "An Auto with its own action or X price is noted and does not resolve.", ownerIssue: 549, sourceNeedle: "charging an action price or an X price" },
+  { id: "arena-vm-note-unread-auto", file: "src/lib/arena/vm/flow.ts", ordinal: 1, kind: "interruption", classification: "validated-guard", citation: "Rule text ingestion / interruption outcome contract", detail: "A due unread Auto interrupts explicitly; this guard does not implement its unread mechanic.", historicalIssues: [544], sourceNeedle: "No readable rule program was produced." },
+  { id: "arena-vm-note-auto-action-price", file: "src/lib/arena/vm/flow.ts", ordinal: 2, kind: "interruption", classification: "current-runtime-unsupported", citation: "9-6-4; 4-3-3; 20-5", detail: "An Auto with an unsupported action or X price interrupts before its effect; implementing payment remains #549.", ownerIssue: 549, sourceNeedle: "Resolving this automatic skill requires an unsupported action or X price." },
   { id: "arena-vm-static-own-prohibition-unread", file: "src/lib/arena/vm/effects.ts", ordinal: 1, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "9-1-5; `DEFERRED_STATICS`", detail: "An unread Permanent is omitted from own-prohibition evaluation; this is the deferred static-reading boundary.", ownerIssue: 553, sourceNeedle: "if (!program || program.unsupported.length) continue;" },
   { id: "arena-vm-static-unread", file: "src/lib/arena/vm/effects.ts", ordinal: 2, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "20-1; `DEFERRED_STATICS`", detail: "An unread Permanent is omitted from static evaluation.", ownerIssue: 553, sourceNeedle: "program.unsupported.length || (only && !only(program.ops))" },
   { id: "arena-vm-static-view-unread", file: "src/lib/arena/vm/program.ts", ordinal: 1, kind: "silent-exit", classification: "current-runtime-unsupported", citation: "20-1; `DEFERRED_STATICS`", detail: "The view helper returns no static effects for an unread Permanent.", ownerIssue: 553, sourceNeedle: "if (!program || program.unsupported.length) return [];" },
@@ -322,6 +302,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-granted-hook-identity": "stepProgram|-|frame.pendingHookIdentityMissing",
   "arena-vm-notyet-concede-program": "apply|-|action.type === \"concede\" > def.do.length",
   "arena-vm-notyet-apply-pass": "apply|\"pass\"|took === \"none\"",
   "arena-vm-notyet-apply-activate": "apply|\"activate\"|took === \"none\"",
