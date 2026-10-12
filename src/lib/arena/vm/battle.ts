@@ -73,7 +73,7 @@ import { describeScript, markerReplacementPrompt, markerSubstituteFrame, replace
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs } from "../compile";
-import { altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { actionCostOf, altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import type { VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
@@ -545,14 +545,23 @@ export function counterAbilityAvailability(
         return selected?.index === skill.index;
       });
       if (offers.length) {
-        rows.push({ card, skill: skill.index, state: "offered", offers });
+        const pricedOffers = offers.map((offer) => {
+          const action = offer.action;
+          // Only a native ordinary orb price is a complete resource summary.
+          // Alternative/action prices remain incomplete rather than inferred free.
+          if (offer.cost || action.type !== "counter" || action.alt || !costIsOnlyOrbs(skill.cost)
+            || counterPriceOps(skillsShowing(ctx, state, card).scripts.bySkill[skill.index])) return offer;
+          const price = priceFor(ctx, game, state, game.actions.play!, card, counterPrice(ctx, game, state, card, skill));
+          return { ...offer, cost: actionCostOf(price) ?? { energy: 0, describe: "free" } };
+        });
+        rows.push({ card, skill: skill.index, state: "offered", offers: pricedOffers });
         continue;
       }
 
       // The engine's card-level counter refusal follows its own first matching
       // line. Attach it only to that selected line; a different same-window
       // line with no explicit action identity remains unclassified.
-      const canAnswer = selectedCounterSkill(ctx, state, card, window, skill.index);
+      const canAnswer = wantsLine(ctx, state, window, skill);
       if (!canAnswer) {
         rows.push({ card, skill: skill.index, state: "refused", why: [{ kind: "timing", window: skill.kind.slice("counter:".length) }] });
       } else if (refusalForCard && (selectedDefault?.index === skill.index || legalForCard.some((item) => item.action.type === "counter" && item.action.skill === skill.index))) {
