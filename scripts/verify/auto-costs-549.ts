@@ -8,6 +8,9 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { run } from "../../src/lib/arena/vm/flow";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
+import { NotYet } from "../../src/lib/arena/vm/errors";
+import { automaticPriceHost, canFinishAutomaticPrice } from "../../src/lib/arena/vm/auto-costs";
+import { stepScript, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { Op, Script } from "../../src/lib/arena/vm/script";
@@ -29,6 +32,8 @@ const defs = { ...DEFS,
   SPIRIT549: card("SPIRIT549", { energyCost: 0, skill: "[Auto][Spirit Boost 1]: When you play this card, draw 1 card." }),
   WEAK549: card("WEAK549", { energyCost: 0, power: 0, skill: null }),
   ENERGY549: card("ENERGY549", { colors: ["Red"], energyCost: 0, skill: null }),
+  // Synthetic supported price grammar; no printed card is asserted.
+  BUDGET549: card("BUDGET549", { energyCost: 0, skill: "[Auto] Choose 1 of your Battle Cards and switch it to Rest Mode, choose 3 cards in your hand and place them in your Drop Area, then switch this card to Rest Mode: When you play this card, draw 1 card." }),
 };
 const scripts = rulesFromCompiler(defs);
 function script(id: keyof typeof defs, ops: Op[], priceOps: Op[] | null = null): Script {
@@ -617,6 +622,45 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.equal(result.state.prompt.kind, "chooseCards");
   assert.ok(result.state.prompt.kind === "chooseCards" && result.state.prompt.choice.candidates.length === 20);
   console.log(`auto-costs-549 crowded 20-card price: ${(performance.now() - started).toFixed(1)} ms`);
+}
+// A payable later branch must not be called unaffordable because the earlier
+// branch exhausts the planner. Resting the source first makes every subsequent
+// three-card discard fail its final self-rest; resting another card can pay.
+{
+  const state = main();
+  const source = stage(state, "BUDGET549");
+  const other = stage(state, "ENERGY549");
+  while (state.sides.p1.zones.hand.length < 20) {
+    const id = state.sides.p1.zones.deck[0];
+    assert.ok(moveCard(state, dbs, id, "hand", { owner: "p1" }).ok);
+  }
+  const compiled = scripts.BUDGET549.bySkill[0];
+  assert.deepEqual(compiled.unsupported, []);
+  const ops = compiled.price?.ops;
+  assert.ok(ops);
+  assert.deepEqual(ops.map((op) => op.op), ["choose", "switchMode", "choose", "moveTo", "switchMode"]);
+  const frame: ScriptFrame = { ops, ip: 0, vars: {}, card: source, master: "p1", skillIndex: 0, trigger: "played" };
+  const before = JSON.stringify(state);
+  const payable = structuredClone(state);
+  const payableFrame = structuredClone(frame);
+  payable.programs = [];
+  assert.equal(stepScript(automaticPriceHost(ctx, dbs, payable, []), payableFrame), "wait");
+  assert.equal(payable.prompt.kind, "chooseCards");
+  if (payable.prompt.kind === "chooseCards") assert.deepEqual(payable.prompt.choice.candidates, [source, other]);
+  payable.lastChoice = [other];
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, payable, payableFrame), true, "the later first choice has a complete payable continuation");
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, state, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "search exhaustion must remain an unknown result, never false unaffordability");
+  assert.equal(JSON.stringify(state), before, "preflight changes no real game state");
+  const sides = JSON.stringify(state.sides);
+  const cards = JSON.stringify(state.cards);
+  const events = pend(state, source);
+  assert.equal(state.outcome?.kind, "interrupted");
+  assert.equal(state.outcome?.privateContext?.issue, "#549");
+  assert.equal(JSON.stringify(state.sides), sides, "no payment is taken on planner exhaustion");
+  assert.equal(JSON.stringify(state.cards), cards, "no mode or once-use is spent");
+  assert.equal(draws(events), 0);
+  assert.equal(events.some((event) => event.type === "skill"), false);
+  assert.equal(events.some((event) => event.type === "note" && /unaffordable/i.test(event.text)), false);
 }
 // #558 integration uses actual #549 cost frames, never a synthetic pending
 // extension. Public source identities stay pending during both decisions;
