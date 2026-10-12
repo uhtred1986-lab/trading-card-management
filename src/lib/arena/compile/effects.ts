@@ -2902,9 +2902,36 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       if (c.choices.some((ch) => ch.sel.area === "deck" || ch.sel.areas?.includes("deck"))) push([{ op: "shuffle" }]);
       continue;
     }
-    // "Place cards from the top of your deck under X **until there are 5 cards
-    // under** X" (BT2-009, #539): a count up to a total, which no move says.
-    // It read as moving the cards already under it; refused instead.
+    // BT2-009 (#539): fill one named card's stack to a total, using the
+    // current count after *each* top-deck placement. The printed number is a
+    // finite bound, so existing `choose`, `count` and `moveTo` operations can
+    // state this without guessing an amount once at compile or trigger time.
+    // Choose the host if several copies exist; an absent host does nothing.
+    const fillUnder = /^place cards from the top of your deck under (?:your )?(\{[^{}]+\}) until there are (\d+) cards under (?:your )?(\{[^{}]+\})[.]?$/i.exec(clause.trim());
+    if (fillUnder) {
+      const total = Number(fillUnder[2]);
+      const sameHost = fillUnder[1].toLowerCase() === fillUnder[3].toLowerCase();
+      const filter = parseFilter(fillUnder[1]);
+      // Keep the expansion bounded and the host exact. Another target, a
+      // missing card name or a wildly large total remains an honest gap.
+      if (!sameHost || !Number.isSafeInteger(total) || total < 1 || total > 20 || filter.unreadable || filter.names.length !== 1) {
+        refuse(clause);
+        continue;
+      }
+      const hostSel: Selector = { side: "you", area: "battle", filter, count: 1 };
+      const hostVar = `c${c.n++}`;
+      const chooseHost: Op = { op: "choose", sel: hostSel, as: hostVar, reason: `choose your ${fillUnder[1]} to fill` };
+      const underHost: Selector = { fromVar: hostVar };
+      const below: Selector = { side: "you", area: "under", underHost, count: 99 };
+      const steps: Op[] = Array.from({ length: total }, () => ({
+        op: "if" as const,
+        cond: { kind: "count" as const, sel: below, atMost: total - 1 },
+        then: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "deck" as const, take: 1 } }, to: "under" as const, under: { var: hostVar } }],
+      }));
+      push([{ op: "if", cond: { kind: "count", sel: hostSel, atLeast: 1 }, then: [chooseHost, ...steps] }]);
+      track(chooseHost, c);
+      continue;
+    }
     if (/\buntil there are \d+ cards? under\b/i.test(clause)) {
       refuse(clause);
       continue;
