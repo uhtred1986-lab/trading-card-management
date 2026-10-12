@@ -19,13 +19,12 @@ No dates are promised. Finish prerequisite acceptance before opening a dependent
 Integrity tracker #576 and UI tracker #578 are closed; actual milestone object closure is
 pending API access. M16 has zero open issues; M17 has the open cross-milestone umbrella
 #581, which stays open and needs reassignment. #572, #573, #570 and new #672 are complete.
-P0 #549 remains partial after #671's priority-owner Auto selection; #609's later cleanup
+P0 #549 remains partial after priority-owner selection and cost-free/priced secret declarations; #609's later cleanup
 checkpoint remains distinct from #675's completed current-DSL combo-entry fix.
 
 Fifteen original implementation issues remain: M5 #549/#550/#552/#595/#609/#540/#541/#542;
-M2 #566; M1 original children complete with #539 parent/#680 follow-up open; M13 #459/#118; M4 #105/#106; providers #381/#518.
-In flight: P0 #549 secret-Auto declaration (bounded priced-secret continuation); P2 #557 damage statistics are complete. P1 #574 is complete in PR #679; P1 #680 follows up BT31-116's free Extra activation. PR #678 completed
-#569 snapshot-derived read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
+M2 #566; M1 original children and #680 complete with #539 parent catalog/fuzz verification open; M13 #459/#118; M4 #105/#106; providers #381/#518.
+Delivered: #681 cost-free secret declarations, the priced-secret declaration increment, #682 damage statistics, #679 Charge/Desire and #684 BT31-116 free Extra activation. In flight: #683 Villainous/Extra keyword hooks; #609 cleanup has a rule-grounded plan awaiting shared runtime files. PR #678 completed #569 snapshot-derived read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
 Owner-run/ruling/catalog/fuzz/device/paid evidence is not inferred from local tests.
 Offline work remains a separate programme. The full issue catalogue below includes historical
 completed work as well as these remaining issues; current delivery state overrides old handovers.
@@ -230,6 +229,8 @@ No implementation issue has been marked fixed by this planning work. No producti
 deployment setting, or code PR merge was performed. Existing grounded prototype changes are preserved.
 Live-only verification is explicitly assigned to the owner; agents use local fixtures/PGlite.
 
-New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the fifteen original remaining issues; #574 retains this explicit shared payment limitation.
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks external activateSkill taxes visible to typed effect readers; compiler/schema and activation payment still need support. It covers taxes on normal and effect-invoked activations. This is additional to the fifteen original remaining issues; #574 retains this explicit shared payment limitation.
 
-P1 #680 (M1, #539 parent): replace the verified BT31-116 free-play misreading with a real hand Main/Battle activation. This is the second additional review follow-up alongside #677, distinct from the fifteen original remaining implementation issues.
+Completed P1 #680 (M1, #539 parent, PR #684): replaces the verified BT31-116 free-play misreading with a real hand Main/Battle activation. Its scoped runtime delivery is complete; #539 retains stored catalog and fuzz verification.
+
+P1 #683 (M5): complete Villainous individual self-negation and successful Extra keyword activation hooks. Implementation is serialized with #549/#609 runtime files; Auto/source-area/self-watcher coverage is explicitly unverified. This and #677 remain additional to the fifteen original issues.

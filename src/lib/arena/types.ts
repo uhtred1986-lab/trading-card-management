@@ -1014,6 +1014,8 @@ export type GameEvent =
    * skill belongs to the battle, and the board only draws it.
    */
   | { type: "skill"; card: string; skill: number; master: PlayerId; text: string; inBattle: boolean; reveal?: true; revealEpoch?: number }
+  /** 9-6-3-1: a secret priced [Auto] was declared; activation still awaits its full cost. */
+  | { type: "autoDeclared"; card: string; skill: number; master: PlayerId; text: string; revealEpoch: number }
   | { type: "effect"; effect: ContinuousEffect }
   /** A continuous effect reaching the end of its duration (9-9): the other end of `effect`. */
   | { type: "effectEnded"; effect: ContinuousEffect }

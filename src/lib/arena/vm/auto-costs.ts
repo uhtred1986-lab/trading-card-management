@@ -182,12 +182,13 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
 }
 
 /** Finish the activation only after the entire action price completed. */
-export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): void {
+export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }): void {
   const cost = frame.autoCost!;
   const inst = state.cards[frame.card];
   if (inst && (cost.skill.oncePerTurn || cost.skill.limit != null)) inst.usedThisTurn.push(cost.skill.index);
   spendSkillCostUses(state, ev, frame.card, cost.skill);
-  log(ev, { type: "skill", card: frame.card, skill: frame.skillIndex ?? cost.skill.index, master: frame.master, text: cost.skill.raw, inBattle: !!state.battle });
+  log(ev, { type: "skill", card: frame.card, skill: frame.skillIndex ?? cost.skill.index, master: frame.master, text: cost.skill.raw, inBattle: !!state.battle,
+    ...(frame.autoRevealEpoch === undefined ? {} : { reveal: true as const, revealEpoch: frame.autoRevealEpoch }) });
   const effect = { ...frame, ops: cost.effect, ip: 0 };
   delete effect.autoCost;
   delete effect.awaiting;
