@@ -95,6 +95,7 @@ const fixedText = {
   decklist: { p1: readFixture("deck-p1.txt"), p2: readFixture("deck-p2.txt") },
   combo: { p1: readFixture("combo-p1.txt"), p2: readFixture("combo-p2.txt") },
   question: readFixture("combo-question.txt"),
+  comboMenu: readFixture("combo-menu.txt"),
   systemPrimer: readFixture("system-primer.txt"),
 };
 function assertFixedText(actual: string, expected: string, label: string): void {
@@ -394,9 +395,17 @@ function toCombo(s: VmState): VmState {
       const textPart = userMessage.parts.find((p) => p.type === "text");
       assert.ok(textPart && textPart.type === "text", "no text part in user message");
       const [question, menu] = textPart.text.split("\n\nLEGAL MOVES:\n");
-      const menuLines = menu.split("\n\n")[0].split("\n");
+      assert.ok(menu, "the request has no legal-move menu");
+      const menuText = menu.split("\n\n")[0];
+      const menuLines = menuText.split("\n");
       assert.equal(menuLines.length, legal.length, "the menu sent is not the legal list");
       assertFixedText(question, fixedText.question, "the question sent to Claude differs from its fixed fixture");
+      assertFixedText(menuText, fixedText.comboMenu, "the numbered menu sent to Claude differs from its fixed fixture");
+      assert.throws(
+        () => assertFixedText(menuText, fixedText.comboMenu.replace("7. Combo CRIT", "7. Combo OTHER"), "altered combo-menu fixture"),
+        assert.AssertionError,
+        "an altered expected combo-menu line must fail the same comparison used for the checked-in fixture",
+      );
       assert.deepEqual(req.system.map((b) => b.text), [fixedText.systemPrimer, `YOUR DECK (You):\n${fixedText.decklist.p1}`], "the exact system prompt and decklist differ from their fixed fixtures");
       const moves = legal.map((l) => (l.action.type === "combo" ? `combo ${l.action.card ? s.cards[l.action.card].cardId : "pass"}` : l.action.type));
       assert.deepEqual([...moves].sort(), [...FIXED.comboLegalMoves].sort(), "the exact moves offered to the model differ from the fixed legal set");
