@@ -23,7 +23,7 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - [ ] #580 **P2/P3** — Android after web contract (Arena M4 — Android client enablement); exit: #105 and #106 consume the settled auth/snapshot/ability contract with polling and playback parity.
 - [ ] #511 **P2** — AI efficiency and live verification (AI providers — one contract, API or subscription, any vendor); exit: #381 implements the recorded cost ruling; #518 completes owner-run verification of already-built route; #511 records the result.
 
-## Delivery progress — 11 Oct 2026
+## Delivery progress — 12 Oct 2026
 
 - #543 delivered in PR #585: per-printed-skill readiness distinguishes missing readings and runtime support.
 - #545 delivered in PR #586: authoritative revision, durable action identity and stale-request recovery; Android Gradle validation remains blocked by repository connectivity.
@@ -41,14 +41,18 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 - #553 / PR #599: static/timed identity layers and named keyword negation, with stale all-area rows blocked.
 - #555 / PR #596: incremental mandatory Aegis choices and persisted payment continuation.
 - #556 / PR #600: matching face-up Life Autos and watchers with exact event-subject binding.
+- #601 / PR #603: fixed AI presentation, request and exact action-menu expectations; the larger #459 VM oracle migration remains open.
 
 These PRs have local verification and orchestrator review; they are not delivered yet. Main commit
 `74701713` (PR #586) currently has no reported Vercel status. The required deployment ordering in
 `docs/agent-brief.md` holds the next merge while independent implementation continues.
 The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
-with the implementation PRs that merge before it. The eleven-PR review combination passed local tests,
-typecheck, lint and build. Active isolated work covers #554 Heroic and #547 immutable rules/replay;
-#601 is implementing the bounded AI-oracle migration under #459, whose larger VM migration remains open. The locally reproduced additional
+with the implementation PRs that merge before it. The thirteen-source review combination passed local tests, typecheck, lint and build.
+PR #604 / #554 remains a draft while review fixes Heroic pending/checkpoint ordering and guards every unidentified granted hook.
+PR #605 / #547 remains a draft while review verifies immutable replay provenance, access control and portable browser evidence; it is stacked on #590.
+PR #606 / #540 remains a draft while review strengthens scoped bounce replacement and persistence proofs; owner real-deck fuzz remains unrun.
+#551 has a completed read-only preflight and awaits shared flow ownership; #541 waits for the recorded Union scope ruling.
+The locally reproduced additional
 Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
 P1 #597 separately owns original-color keyword payment eligibility after #553/#555.
 P1 #602 owns individual identity for granted Heroic; #554 explicitly guards that case before payout.
