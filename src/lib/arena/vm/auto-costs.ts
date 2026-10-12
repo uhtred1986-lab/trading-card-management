@@ -138,8 +138,12 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
   const choices: AutomaticCost["choices"] = [];
   const x = script.price?.x;
   const min = x?.min ?? 0;
-  const max = x ? x.max ?? activeEnergy(game, state, frame.master).length + payersFor(ctx, game, state, frame.master, bound.payers).length + Number(state.sides[frame.master].attrs.energyMarkers ?? 0) : 0;
-  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 0 || max < min) throw new NotYet("read the bounds of this Auto's X cost", "#549");
+  const capacity = activeEnergy(game, state, frame.master).length + payersFor(ctx, game, state, frame.master, bound.payers).length + Number(state.sides[frame.master].attrs.energyMarkers ?? 0);
+  const declaredMax = x?.max;
+  if (!Number.isInteger(min) || min < 0 || (declaredMax !== undefined && (!Number.isInteger(declaredMax) || declaredMax < min))) throw new NotYet("read the bounds of this Auto's X cost", "#549");
+  // A printed ceiling can be arbitrarily large; one unit of X consumes one
+  // available resource, so this cap excludes no payable value.
+  const max = x ? Math.min(declaredMax ?? capacity, capacity) : 0;
   for (let n = x ? min : 0; n <= max; n++) {
     const energy = bound.energy ?? { total: 0, orbs: {}, either: [] };
     const price = priceFor(ctx, game, state, game.actions.activate, frame.card, x ? { ...bound, energy: { ...energy, total: (energy.total ?? 0) + n } } : bound);

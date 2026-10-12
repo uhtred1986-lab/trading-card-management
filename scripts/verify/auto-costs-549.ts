@@ -177,6 +177,19 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.equal(draws(result.events), 2);
 }
 
+// A floor above all resources is unaffordable, while a very large printed
+// ceiling enumerates only values payable by the finite resource pool.
+{
+  const old = scripts.X549.bySkill[0];
+  scripts.X549.bySkill[0] = { ...old, price: { ...old.price!, x: { min: 100 } } };
+  const a = mainWith("X549"); stage(a.state, "ENERGY549", "energy"); const ev = pend(a.state, a.source);
+  assert.equal(a.state.outcome, undefined); assert.equal(a.state.prompt.kind, "main");
+  assert.ok(ev.some((e) => e.type === "note" && /unaffordable/.test(e.text)));
+  scripts.X549.bySkill[0] = { ...old, price: { ...old.price!, x: { min: 1, max: 1000000000 } } };
+  const b = mainWith("X549"); stage(b.state, "ENERGY549", "energy"); pend(b.state, b.source);
+  assert.ok(b.state.prompt.kind === "chooseMode" && b.state.prompt.options.length === 2);
+  scripts.X549.bySkill[0] = old;
+}
 // Resource tags use the declared planner, never a second free resolution.
 {
   const burst = mainWith("BURST549"); const before = burst.state.sides.p1.zones.deck.length;
