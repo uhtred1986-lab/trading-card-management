@@ -122,7 +122,7 @@ export {
   type ActivationLine,
 } from "./activate";
 export { vmHost } from "./host";
-export { masterOf, matchTriggers, nextPending, pendAutos, skillsShowing, type TriggerMatch, type VmPending } from "./triggers";
+export { masterOf, matchTriggers, nextPending, pendAutos, skillsShowing, type TriggerMatch, type VmPending, type VmPendingHook, type VmPendingRecord } from "./triggers";
 export { attributeGaps, attrsForDefs, attrsOf, cardAttributes, playerAttributes, withTokens, type AttrProblem, type AttrValue, type Attrs, type AttributeGaps } from "./cards";
 export { FilterNeedsAttribute, MEASURES, attributesRead, attributesRequired, deferredMeasures, measuresUsed, predicateOf, skillsIn, usesMeasure, type Measure } from "./filters";
 export {

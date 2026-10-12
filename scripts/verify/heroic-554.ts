@@ -12,10 +12,10 @@ const rules = engineFor("rules");
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "DBS rules failed to load");
 const dbs = loaded.definition;
-const ids = ["H554_BATTLE", "H554_OTHER", "H554_TARGET", "H554_GRANTED", "H554_EXTRA", "H554_PLAIN_EXTRA", "H554_REMOVE", "H554_NEGATE", "H554_ENERGY"];
+const ids = ["H554_BATTLE", "H554_OTHER", "H554_TARGET", "H554_GRANTED", "H554_EXTRA", "H554_PLAIN_EXTRA", "H554_REMOVE", "H554_NEGATE", "H554_ZERO_EXTRA", "H554_SELF_NEGATE", "H554_ENERGY"];
 const old = new Map(ids.map((id) => [id, DEFS[id]]));
 
-DEFS.H554_BATTLE = card("H554_BATTLE", { energyCost: 0, skill: "[Heroic]" });
+DEFS.H554_BATTLE = card("H554_BATTLE", { energyCost: 0, power: 10000, skill: "[Heroic]" });
 DEFS.H554_OTHER = card("H554_OTHER", { energyCost: 0, skill: "[Heroic]" });
 DEFS.H554_TARGET = card("H554_TARGET", { energyCost: 0, skill: null });
 DEFS.H554_GRANTED = card("H554_GRANTED", { energyCost: 0, skill: "[Heroic]" });
@@ -23,6 +23,8 @@ DEFS.H554_EXTRA = card("H554_EXTRA", { type: "EXTRA", energyCost: 0, power: null
 DEFS.H554_PLAIN_EXTRA = card("H554_PLAIN_EXTRA", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main]: Draw 1 card." });
 DEFS.H554_REMOVE = card("H554_REMOVE", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Heroic]<br>[Activate: Main]{r}: Choose 1 of your Battle Cards and place it in its owner's Drop Area." });
 DEFS.H554_NEGATE = card("H554_NEGATE", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Heroic]<br>[Activate: Main]{r}: Choose 1 of your Battle Cards and negate its skills for the turn." });
+DEFS.H554_ZERO_EXTRA = card("H554_ZERO_EXTRA", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Heroic]<br>[Activate: Main]{r}: Choose 1 of your Battle Cards and it gets -10000 power for the turn." });
+DEFS.H554_SELF_NEGATE = card("H554_SELF_NEGATE", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Heroic]<br>[Activate: Main]{r}: Choose 1 of your Extra Cards in your Drop Area and negate its skills for the turn." });
 DEFS.H554_ENERGY = card("H554_ENERGY", { energyCost: 0, skill: null });
 
 function mainPhase(seed = 554): VmState {
@@ -134,6 +136,50 @@ try {
     assert.ok(!s.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher), "the unpaid action consumes no Heroic use");
   }
 
+  // The trigger predicate names the activated Extra's Heroic identity. That
+  // qualification is captured before the Extra's own effect can negate it.
+  {
+    let s = mainPhase(55422);
+    const watcher = stage(s, "p1", "H554_BATTLE", "battle");
+    const energy = stage(s, "p1", "H554_ENERGY", "energy");
+    const extra = stage(s, "p1", "H554_SELF_NEGATE", "hand");
+    s.cards[energy].mode = "active";
+    const result = activate(s, extra);
+    if (result.state.prompt.kind === "chooseCards") {
+      const candidates = (result.state.prompt as { choice: { candidates: string[] } }).choice.candidates;
+      assert.deepEqual(candidates, [extra], "the Extra itself is the only Extra in Drop Area to choose");
+      const resumed = apply(JSON.parse(JSON.stringify(result.state)) as VmState, { type: "choose", player: "p1", cards: [extra] });
+      s = resumed.state;
+      assert.ok(resumed.events.some((event) => event.type === "draw" && event.player === "p1"), "the Heroic watcher resolves after the Extra's effect changes its keyword state");
+    } else {
+      s = result.state;
+      assert.ok(result.events.some((event) => event.type === "draw" && event.player === "p1"), "the captured Heroic watcher resolves after the Extra's effect changes its keyword state");
+    }
+    assert.ok(s.effects.some((effect) => effect.kind === "negateSkills" && effect.target === extra), "the Extra's own effect actually negates its Heroic source qualification");
+    assert.ok(s.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher), "the watcher still resolves its self-negating Heroic hook");
+  }
+
+  // Integration ordering regression: the activation's effect reduces its
+  // Heroic listener to zero; 21-6 must move that card before the captured
+  // Heroic Auto resolves, even though the Auto survives source departure.
+  {
+    const s = mainPhase(55421);
+    const watcher = stage(s, "p1", "H554_BATTLE", "battle");
+    const energy = stage(s, "p1", "H554_ENERGY", "energy");
+    const extra = stage(s, "p1", "H554_ZERO_EXTRA", "hand");
+    s.cards[energy].mode = "active";
+    const result = activate(s, extra);
+    const moves = result.events.filter((event) => event.type === "move").map((event) => ({ card: event.card, to: event.to }));
+    const order = result.events.filter((event) => event.type === "move" || event.type === "draw").map((event) => event.type === "move" ? `move:${event.card}:${event.to}` : `draw:${event.player}`);
+    console.log("  observed  Heroic/21-6 interaction order", JSON.stringify(order));
+    assert.ok(result.state.sides.p1.zones.drop.includes(watcher), "the 21-6 checkpoint drops the now-zero-power Heroic source");
+    const drop = result.events.findIndex((event) => event.type === "move" && event.card === watcher && event.to === "drop");
+    const draw = result.events.findIndex((event) => event.type === "draw" && event.player === "p1");
+    assert.ok(drop >= 0 && draw >= 0, `both 21-6 departure and captured Heroic resolve; actual order ${JSON.stringify(order)} (moves ${JSON.stringify(moves)})`);
+    assert.ok(draw > drop, `21-6 moves the zero-power Battle Card before the captured Heroic Auto resolves; observed ${JSON.stringify(order)}`);
+    assert.equal(result.events.filter((event) => event.type === "draw" && event.player === "p1").length, 1, "the captured Heroic resolves exactly once after its source leaves");
+  }
+
   // A non-Heroic Extra skill activation is not a 22-35-2 event, even if a
   // card with an identity-less granted Heroic is listening.
   {
@@ -166,7 +212,7 @@ try {
     assert.equal(s.cards[energy].mode, "rest", "the Extra skill cost was paid before the Heroic trigger was pended");
     assert.equal(s.prompt.kind, "chooseCards", "the activated skill asks for its declared target");
     assert.ok(s.programs.some((frame) => frame.card === extra && frame.afterSkillSource === undefined), "the activated effect has started after recording its pending trigger");
-    assert.ok(s.programs.some((frame) => frame.card === watcher && frame.pendingHookSkill), "the Heroic Auto is queued behind the resolving Extra skill");
+    assert.ok(s.pending.some((pending) => pending.kind === "hook" && pending.frame.card === watcher && pending.frame.pendingHookSkill), "the captured Heroic Auto waits in the checkpoint queue behind the resolving Extra skill");
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const choice = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
     assert.deepEqual(new Set(choice), new Set([watcher, other]), "the removal choice has exactly the Heroic watcher and one unrelated Battle Card");
@@ -211,6 +257,39 @@ try {
     assert.ok(!unmatched.events.some((event) => event.type === "draw"), "an unrelated event does not draw from Heroic");
   }
   {
+    let s = mainPhase(55605);
+    const granted = stage(s, "p1", "H554_GRANTED", "battle");
+    const target = stage(s, "p1", "H554_TARGET", "battle");
+    const energy = stage(s, "p1", "H554_ENERGY", "energy");
+    const extra = stage(s, "p1", "H554_NEGATE", "hand");
+    s.cards[energy].mode = "active";
+    addEffect(s, [], { master: "p1", source: granted, target: granted, kind: "keyword", value: { name: "Heroic" }, until: "turn" });
+    const activated = activate(s, extra).state;
+    assert.equal(activated.prompt.kind, "chooseCards", "the successful Extra skill waits for its chosen card before checking queued Heroic hooks");
+    const result = apply(JSON.parse(JSON.stringify(activated)) as VmState, { type: "choose", player: "p1", cards: [granted] });
+    s = result.state;
+    assert.ok(s.effects.some((effect) => effect.kind === "negateSkills" && effect.target === granted), "the Extra negates the grant card's whole skill set");
+    assert.ok(!s.overReason, "whole-skill negation cancels the identity-less hook before its #602 guard");
+    assert.ok(!result.events.some((event) => event.type === "draw" && event.player === "p1"), "neither the printed nor granted Heroic body draws after whole-skill negation");
+    assert.ok(s.sides.p1.zones.battle.includes(target), "the unused second target remains untouched");
+  }
+  {
+    let s = mainPhase(55606);
+    const granted = stage(s, "p1", "H554_GRANTED", "battle");
+    const energy = stage(s, "p1", "H554_ENERGY", "energy");
+    const extra = stage(s, "p1", "H554_EXTRA", "hand");
+    s.cards[energy].mode = "active";
+    addEffect(s, [], { master: "p1", source: granted, target: granted, kind: "keyword", value: { name: "Heroic" }, until: "turn" });
+    addEffect(s, [], { master: "p1", source: extra, target: granted, kind: "forbid", value: 0, forbid: { what: "activateSkill" }, until: "turn" });
+    const before = handSize(s, "p1");
+    const result = activate(s, extra);
+    s = result.state;
+    assert.ok(!s.overReason, "a live cannot-activate prohibition cancels the hook before its identity guard");
+    assert.equal(result.events.filter((event) => event.type === "draw" && event.player === "p1").length, 1, "only the activating Extra's own draw resolves; the prohibited Heroic hook does not");
+    assert.equal(handSize(s, "p1"), before, "the activating Extra's draw offsets its move with no Heroic bonus");
+    assert.ok(result.events.some((event) => event.type === "note" && event.text.includes("can't activate skills")), "the ordinary activation prohibition is visible at hook resolution");
+  }
+  {
     let s = mainPhase(5561);
     const granted = stage(s, "p1", "H554_GRANTED", "battle");
     const energy = stage(s, "p1", "H554_ENERGY", "energy");
@@ -222,9 +301,10 @@ try {
     const before = handSize(s, "p1");
     s = activate(s, extra).state;
     assert.equal(s.prompt.kind, "chooseCards", "the successful Heroic Extra activation pends its trigger behind its target prompt");
-    const guardIndex = s.programs.findIndex((frame) => frame.pendingHookIdentityMissing);
-    const firstHookIndex = s.programs.findIndex((frame) => frame.pendingHookSkill);
-    assert.ok(guardIndex >= 0 && firstHookIndex > guardIndex, "the unsupported grant guard is ahead of every queued afterSkill body, behind only its still-resolving Extra effect");
+    const pendingHooks = s.pending.filter((pending) => pending.kind === "hook");
+    const guardIndex = pendingHooks.findIndex((pending) => pending.frame.pendingHookIdentityMissing);
+    const firstHookIndex = pendingHooks.findIndex((pending) => pending.frame.pendingHookSkill && !pending.frame.pendingHookIdentityMissing);
+    assert.ok(guardIndex >= 0 && firstHookIndex > guardIndex, "the unsupported grant guard is ahead of every queued afterSkill body, while the Extra effect remains the active program");
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const candidate = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
     assert.deepEqual(new Set(candidate), new Set([granted, sibling, other]), "the prompt remains resumable with the mixed printed/granted source and an independent printed sibling");
@@ -249,6 +329,44 @@ try {
     assert.equal(handSize(s, "p1"), before - 1, "all Heroic bodies fail before drawing; only the activated Extra leaving hand changes hand size");
     assert.ok(!s.effects.some((effect) => effect.kind === "negateKeyword" && effect.target === granted), "the engine does not blanket-negate the granted Heroic keyword");
     assert.equal(s.cards[energy].mode, "rest", "the already-paid activation cost remains applied");
+  }
+  {
+    let s = mainPhase(55611);
+    const firstGrant = stage(s, "p1", "H554_GRANTED", "battle");
+    const lastGrant = stage(s, "p1", "H554_GRANTED", "battle");
+    const printedSibling = stage(s, "p1", "H554_BATTLE", "battle");
+    const target = stage(s, "p1", "H554_TARGET", "battle");
+    const energy = stage(s, "p1", "H554_ENERGY", "energy");
+    const extra = stage(s, "p1", "H554_NEGATE", "hand");
+    s.cards[energy].mode = "active";
+    for (const granted of [firstGrant, lastGrant]) {
+      addEffect(s, [], { master: "p1", source: granted, target: granted, kind: "keyword", value: { name: "Heroic" }, until: "turn" });
+    }
+    const before = handSize(s, "p1");
+    s = activate(s, extra).state;
+    assert.equal(s.prompt.kind, "chooseCards", "the paid Extra waits for its target while all three Heroic listeners are captured");
+    const guards = s.pending.filter((pending) => pending.kind === "hook" && pending.frame.pendingHookIdentityMissing);
+    const bodies = s.pending.filter((pending) => pending.kind === "hook" && pending.frame.pendingHookSkill && !pending.frame.pendingHookIdentityMissing);
+    assert.deepEqual(guards.map((pending) => pending.card), [firstGrant, lastGrant], "both identity-less grants have distinct ordered guards");
+    assert.ok(guards.length > 0 && bodies.length > 0 && s.pending.indexOf(guards.at(-1)!) < s.pending.indexOf(bodies[0]!), "all identity guards precede every sibling Heroic body");
+    s = JSON.parse(JSON.stringify(s)) as VmState;
+    const candidate = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+    assert.ok(candidate.includes(lastGrant) && candidate.includes(firstGrant), "either grant remains a legal negation target after reload");
+    const result = apply(s, { type: "choose", player: "p1", cards: [lastGrant] });
+    s = result.state;
+    assert.ok(s.effects.some((effect) => effect.kind === "negateSkills" && effect.target === lastGrant), "the requested negation genuinely applies to the last grant");
+    assert.ok(!result.events.some((event) => event.type === "draw" && event.player === "p1"), "the still-live first grant guard interrupts before either grant or printed sibling can draw");
+    const terminal = s as VmState & { outcome?: { kind: string; privateContext?: { issue?: string; detail?: string } } };
+    const diagnostic = terminal.outcome?.privateContext?.detail ?? s.overReason;
+    assert.ok(diagnostic?.includes("negate a granted keyword hook that has no individual skill identity"), "the earlier live grant retains its #602 limitation after the last grant is negated");
+    if (terminal.outcome) assert.equal(terminal.outcome.privateContext?.issue, "#602", "the private limitation remains attributed to #602");
+    else assert.ok(s.overReason?.includes("#602"), "the legacy terminal limitation remains attributed to #602");
+    assert.deepEqual(s.pending, [], "the interrupt discards the canceled last-grant guard and all sibling bodies");
+    assert.equal(handSize(s, "p1"), before - 1, "only the activated Extra leaving hand changes hand size; no Heroic payout occurs");
+    assert.equal(s.cards[energy].mode, "rest", "the successful Extra activation cost remains paid despite the limitation");
+    assert.ok(s.sides.p1.zones.battle.includes(firstGrant) && s.sides.p1.zones.battle.includes(printedSibling), "the guard does not invent a blanket negation or move the unaffected listeners");
+    assert.ok(!s.effects.some((effect) => effect.kind === "negateKeyword" && effect.target === firstGrant), "the engine never suppresses the earlier grant keyword to evade its guard");
+    assert.ok(s.sides.p1.zones.battle.includes(target), "the unrelated Battle Card remains untouched");
   }
 
   // A new turn expires the negation; separate owners have separate source
