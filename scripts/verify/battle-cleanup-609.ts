@@ -1,3 +1,4 @@
+import "./battle-cleanup-replacement-gap-609";
 /** Fixed §8-5 cleanup expectations on the rules engine; synthetic wording is intentional. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
