@@ -61,7 +61,7 @@ const FIXTURE: Record<string, [string, string | null]> = {
   combo: ["Combo? Tap a glowing card.", "Each adds its combo power and costs its combo cost."],
   blocker: ["Block with one of these?", "[Blocker] rests the card and makes it the guard instead."],
   counter: ["Play a counter?", "Counter cards are activated from hand and go to the Drop."],
-  zEnergyFromCombo: ["Send one combo card to Z-Energy?", "At the end of a battle, one card may go there instead of the Drop."],
+  zEnergyFromCombo: ["Move up to one Battle Card from your Combo Area to Z-Energy?", "The turn player and then the other player may each choose one (8-5-2/3)."],
   offering: ["[Offering]: drop one life, or let them draw two?", null],
   orderPending: ["Which skill resolves first?", "Several of your skills triggered at once."],
   gameOver: ["The game is over.", null],

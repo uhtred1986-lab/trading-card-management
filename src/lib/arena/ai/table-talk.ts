@@ -26,7 +26,8 @@ const MIN_NAME = 4;
 
 /** The names of `speaker`'s cards the other player cannot see, less any name that is public anyway. */
 export function secretNames(ctx: EngineContext, s: EngineState, speaker: PlayerId): string[] {
-  const seen = revealedTo(s, other(speaker));
+  const pinned = (ctx as EngineContext & { rulesetDefinition?: import("../rulesets/types").GameDefinition }).rulesetDefinition;
+  const seen = revealedTo(s, other(speaker), pinned);
   const nameOf = (id: string) => ctx.defs[s.cards[id]?.cardId ?? ""]?.name ?? null;
   const open = new Set<string>();
   const hidden = new Set<string>();

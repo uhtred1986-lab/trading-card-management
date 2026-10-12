@@ -27,12 +27,14 @@
  * it storable mid-decision and reproducible from seed plus actions.
  *
  * What #141 added is the **pend list**: an [Auto] whose moment has happened and
- * whose program has not run yet (9-6-2). It is state rather than a local because
- * a checkpoint can be reached with a question still to put, so the queue has to
- * survive being written to `arena_games.state` like everything else. The event
- * *log* is not here and is not going to be: events are returned from each call
- * and the row keeps the action log, which is the reproducible source — a second
- * copy in the state would be a second thing to keep true.
+ * whose program has not run yet (9-6-2). Captured event hooks that resolve as
+ * automatic effects join that same checkpoint queue, retaining their compiled
+ * frame and bindings until confirmative processing finishes. It is state rather
+ * than a local because a checkpoint can be reached with a question still to put,
+ * so the queue survives being written to `arena_games.state` like everything
+ * else. The event *log* is not here and is not going to be: events are returned
+ * from each call and the row keeps the action log, which is the reproducible
+ * source — a second copy in the state would be a second thing to keep true.
  *
  * What #142 added is everything that **outlives the step that made it**:
  * `effects` (9-1-4), `delayed` (20-15) and the `programs` a question suspended
@@ -44,20 +46,21 @@
  *
  * Pure and client-safe: types and one guard, no database, no `fs`.
  */
-import type { VmPending } from "./triggers";
+import type { VmPendingRecord } from "./triggers";
 import type { Game } from "../../catalog/games";
 import type { ScriptFrame } from "./script";
-import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, SkipWhat } from "../types";
+import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, ReplacementChoice, SkipWhat } from "../types";
 import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
 
 /**
  * The battle in progress (8-1), or its absence.
  *
- * The legacy engine's own `Battle` shape, pared to what #150's flow actually
- * reads and writes: no `revenge`/`reactivate` (22-9/22-8, keyword bodies
- * Stage 7 has not built) and no Z-Energy bookkeeping (`zEnergyFromCombo` is
- * #151's). What is here is what `ScriptHost.battle()` hands a running program
+ * The legacy engine's own `Battle` shape, pared to what the rules flow reads
+ * and writes: no `revenge`/`reactivate` (22-9/22-8, keyword bodies Stage 7 has
+ * not built). #551 adds the serializable end-of-battle Z-Energy choice cursor
+ * and held combo contribution needed through 8-5-4. What is here is what
+ * `ScriptHost.battle()` hands a running program
  * (`redirectAttack`, `negateAttack`, §22-13's [Union-Absorb] guard swap) and
  * what the board's `BattleView` reads back (`vm/view.ts`).
  */
@@ -102,6 +105,17 @@ export interface VmBattle {
    * battle does not get its place in it back. Absent on every other battle.
    */
   hiddenOut?: true;
+  /**
+   * 8-5-2..5: the per-player combo-to-Z choice and the checkpoint immediately
+   * after it. `retainedComboPower` keeps a chosen card's 8-5-4 contribution
+   * through that checkpoint; it is discarded when the Battle Cards leave
+   * Combo Areas at 8-5-5..8. Optional so saved states from before #551 load.
+   */
+  endCombo?: {
+    chooserIndex: number;
+    stage: "choices" | "checkpoint" | "cleanup";
+    retainedComboPower: Partial<Record<PlayerId, Record<string, number>>>;
+  };
 }
 
 /** What `vm/battle.ts`'s `damageLife` needs to pick up where it stopped: the legacy `battleDamage`'s `resume`, plus [Victory Strike]'s ending (the attacker's rule, read once when the damage began). */
@@ -282,12 +296,11 @@ export interface VmState {
   /** The phases in progress, innermost last. Empty only between a game ending and its over phase being entered. */
   flow: VmFrame[];
   /**
-   * The [Auto] skills whose moment has happened and whose program has not run
-   * (9-6-2), in the order they were pended. The *resolution* order is 9-6-6's
-   * and is `nextPending`'s, so this is a set with a tie-break rather than a
-   * queue — which is why a skill is taken off it by master and not by position.
+   * The [Auto] skills and captured event hooks whose moment has happened and
+   * whose program has not run, ordered by event/master for 9-6-6's checkpoint.
+   * `nextPending` selects the turn player's first, then the other player's.
    */
-  pending: VmPending[];
+  pending: VmPendingRecord[];
   /**
    * 9-1-4: every continuous effect in force, oldest first (9-9-2). The legacy
    * engine's own `ContinuousEffect`, because `src/lib/arena/effects.ts` turns
@@ -338,6 +351,17 @@ export interface VmState {
   carried?: { card: string; n: number } | null;
   /** 20-13: the turn being skipped whole ("skip your turn"), by number — every phase of it is entered skipped. Absent the rest of the time. */
   skippedTurn?: number;
+  /** 21-6's stable simultaneous set, retained while a 9-10 replacement asks its owner. */
+  ruleProcessing?: {
+    nextEvent: number;
+    attempts: number;
+    limit: number;
+    subjects: Record<string, number>;
+    pass: { id: string; event: number; reason: "rule" | "effect"; actor?: PlayerId; replacements: ReplacementChoice[] }[];
+    index: number;
+    used: Record<string, string[]>;
+    awaiting?: { id: string; choices: ReplacementChoice[]; allowNone: boolean; actor?: PlayerId };
+  };
 }
 
 /**

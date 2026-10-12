@@ -28,6 +28,7 @@ import { loadRules, rulesFor, rulesFromRows } from "./rules-store";
 import type { StoredSnapshot } from "./snapshot";
 import type { CardArt } from "./view";
 import { gameOr, type Game } from "@/lib/catalog/games";
+import { makeReplayBundle, persistReplayBundle, pinnedContext, readReplayBundle, type PinnedContext, type ReplayBundle } from "./replay-bundle";
 
 export type ArenaMode = "hotseat" | "sparring" | "tournament" | "versus";
 
@@ -133,6 +134,9 @@ export interface LoadedGame {
   version: number;
   /** Durable mutation acknowledgements, scoped by actor and request id. */
   actionReceipts: ActionReceipt[];
+  /** Null means historical/unpinned; these matches continue with legacy live inputs. */
+  rulesBundleHash: string | null;
+  replayDecks: { p1: import("./types").DeckInput; p2: import("./types").DeckInput } | null;
   /** Set only on a request replay; never persisted or projected to a client. */
   duplicateRequest?: boolean;
   ctx: EngineContext;
@@ -216,9 +220,16 @@ function cardIdsOf(state: EngineState): string[] {
  * taken as it is rather than read again — which also keeps every per-card
  * cache keyed on a definition's identity warm across the run.
  */
-async function contextFor(db: Db, state: EngineState, mode: string, reuse?: Pick<LoadedGame, "ctx" | "art">): Promise<{ ctx: EngineContext; art: Record<string, CardArt> }> {
+async function contextFor(db: Db, state: EngineState, mode: string, gameId: number, bundle: ReplayBundle | null, reuse?: Pick<LoadedGame, "ctx" | "art">): Promise<{ ctx: EngineContext; art: Record<string, CardArt> }> {
   const ids = cardIdsOf(state);
-  if (reuse && ids.every((id) => id in reuse.ctx.defs)) return { ctx: reuse.ctx, art: reuse.art };
+  const reused = reuse?.ctx as PinnedContext | undefined;
+  if (reuse && reused?.arenaGameId === gameId && (reused.rulesBundleHash ?? null) === (bundle?.hash ?? null) && ids.every((id) => id in reuse.ctx.defs)) return { ctx: reuse.ctx, art: reuse.art };
+  if (bundle) {
+    const ctx = pinnedContext(bundle);
+    ctx.referee = hasAnthropic() && mode !== "hotseat";
+    ctx.arenaGameId = gameId;
+    return { ctx, art: bundle.payload.art };
+  }
   const [rows, ruleRows] = ids.length ? await Promise.all([db.select().from(cardsTable).where(inArray(cardsTable.id, ids)), loadRules(db, ids)]) : [[], []];
   const defs: Record<string, CardDef> = {};
   const art: Record<string, CardArt> = {};
@@ -227,7 +238,9 @@ async function contextFor(db: Db, state: EngineState, mode: string, reuse?: Pick
     art[r.id] = { front: r.imageUrl, back: r.backImageUrl };
   }
   // The rules the engine plays by come from `card_rules`, not from a compile.
-  return { ctx: { defs, scripts: rulesFromRows(ruleRows, defs), referee: hasAnthropic() && mode !== "hotseat" }, art };
+  const ctx = { defs, scripts: rulesFromRows(ruleRows, defs), referee: hasAnthropic() && mode !== "hotseat" } as PinnedContext;
+  ctx.arenaGameId = gameId;
+  return { ctx, art };
 }
 
 /**
@@ -347,7 +360,13 @@ export async function startGame(
     .where(inArray(cardsTable.id, [...new Set([...a.cardIds, ...b.cardIds])]));
   const defs: Record<string, CardDef> = {};
   for (const r of rows) defs[r.id] = cardDefFrom(r);
-  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: hasAnthropic() && mode !== "hotseat" };
+  const art: Record<string, CardArt> = {};
+  for (const r of rows) art[r.id] = { front: r.imageUrl, back: r.backImageUrl };
+  const scripts = await rulesFor(db, defs);
+  const bundle = makeReplayBundle({ defs, scripts, art });
+  await persistReplayBundle(db, bundle);
+  const ctx = pinnedContext(bundle);
+  ctx.referee = hasAnthropic() && mode !== "hotseat";
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
   const { state, events } = engine.createGame(ctx, { seed, p1: a.input, p2: b.input });
   const [row] = await db
@@ -369,8 +388,11 @@ export async function startGame(
       beats: engine.toBeats(ctx, state, events, 0),
       turn: state.turn,
       debug,
+      rulesBundleHash: bundle.hash,
+      replayDecks: { p1: a.input, p2: b.input },
     })
     .returning({ id: arenaGames.id });
+  ctx.arenaGameId = row.id;
   return row.id;
 }
 
@@ -455,7 +477,10 @@ export async function loadGame(db: Db, id: number, reuse?: Pick<LoadedGame, "ctx
   // right for an archived one too: nothing here can be continued.
   if (row.snapshot) return null;
   const state = row.state as EngineState;
-  const { ctx, art } = await contextFor(db, state, row.mode, reuse);
+  const bundle = row.rulesBundleHash ? await readReplayBundle(db, row.rulesBundleHash) : null;
+  if (row.rulesBundleHash && !bundle) throw new Error("this match's pinned replay bundle is missing; refusing to load it with current rules");
+  if (row.rulesBundleHash && !row.replayDecks) throw new Error("this match's pinned replay deck inputs are missing");
+  const { ctx, art } = await contextFor(db, state, row.mode, id, bundle, reuse);
   const engine = engineFor(engineOr(row.engine));
   return withLegal(
     {
@@ -472,6 +497,8 @@ export async function loadGame(db: Db, id: number, reuse?: Pick<LoadedGame, "ctx
     p2DeckId: row.p2DeckId,
     version: row.version,
     actionReceipts: (row.actionReceipts as ActionReceipt[]) ?? [],
+    rulesBundleHash: row.rulesBundleHash,
+    replayDecks: row.replayDecks as LoadedGame["replayDecks"],
     ctx,
     state,
     actions: (row.actions as Action[]) ?? [],

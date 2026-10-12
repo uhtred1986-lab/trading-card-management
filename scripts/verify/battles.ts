@@ -41,7 +41,6 @@ import {
   placeUnderG,
   playG,
   powerOfG,
-  stageMoveG,
   unisonOf,
   zoneOf,
 } from "./harness";
@@ -49,7 +48,8 @@ import type { EngineState, PlayerId } from "./harness";
 
 // ── combos, blockers, counters, keywords ───────────────────────────────────
 
-// Combo power decides the battle (8-4-4/5); combo cards go to the Drop (8-5-8).
+// Combo power decides the battle (8-4-4/5); after optional 8-5-2/3 choices,
+// unselected combo cards go to the Drop (8-5-8).
 {
   let s = arenaG({ hand: ["V1", "V1"], energy: ["V1", "V1"], oppBattle: ["V-BLUE"] });
   const opp = zoneOf(s, "p2", "battle")[0];
@@ -66,6 +66,11 @@ import type { EngineState, PlayerId } from "./harness";
   assert.deepEqual(zoneOf(s, "p1", "combo"), [c1]);
   assert.equal(s.prompt.kind, "combo");
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  if (ENGINE === "rules") {
+    assert.equal(s.prompt.kind, "zEnergyFromCombo", "8-5-2: the turn player is offered one eligible Battle Card");
+    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: null });
+    assert.equal(s.prompt.kind, "main", "8-5-3: the other player has no eligible Combo Area Battle Card");
+  }
   const cmp = s.battle;
   assert.equal(cmp, null);
   assert.ok(zoneOf(s, "p2", "drop").includes(opp), "8-4-6-2: the guard is KO'd");
@@ -293,6 +298,9 @@ import type { EngineState, PlayerId } from "./harness";
   const c = findG(s, "p1", "hand", "COMBOBACK");
   s = playG(s, { type: "combo", player: "p1", card: c });
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
+  if (ENGINE === "rules" && s.prompt.kind === "zEnergyFromCombo") {
+    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: null });
+  }
   assert.ok(zoneOf(s, "p1", "battle").includes(c), "the combo card is played after the battle");
   assert.equal(s.cards[c].mode, "rest", "…in Rest Mode");
 }
@@ -503,12 +511,8 @@ import type { EngineState, PlayerId } from "./harness";
     assert.equal(s.prompt.kind, "zEnergyFromCombo");
     s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
   } else {
-    // 8-5-2's Z-Energy offer over a spent combo card is not built on the
-    // rules engine (`vm/index.ts`'s `DECLARED_BY.zEnergyFromCombo`, #151):
-    // the combo card goes to the Drop, and it is staged into the Z-Energy
-    // Area here so the [Z-Stack] half below (#155) runs on both engines.
-    assert.equal(s.prompt.kind, "main", "no Z-Energy offer on the rules engine yet (#151)");
-    stageMoveG(s, c, "zEnergy", "p1");
+    assert.equal(s.prompt.kind, "zEnergyFromCombo", "8-5-2: the rules engine offers the spent Battle Card");
+    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
   }
   assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
   const zb = findG(s, "p1", "zDeck", "ZB");

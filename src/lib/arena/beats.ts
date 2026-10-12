@@ -379,9 +379,10 @@ export function appendBeats(prev: Beats | null, next: Beats): Beats {
  * so its beat is not masked. The queue is returned unchanged when nothing is
  * hidden, so a snapshot with nothing to hide is the same object it was.
  */
-export function maskBeats(state: EngineState, beats: Beats | null, viewer: PlayerId): Beats | null {
+export function maskBeats(state: EngineState, beats: Beats | null, viewer: PlayerId, ctx?: EngineContext): Beats | null {
   if (!beats) return null;
-  const seen = revealedTo(state, viewer);
+  const pinned = (ctx as (EngineContext & { rulesetDefinition?: import("./rulesets/types").GameDefinition }) | undefined)?.rulesetDefinition;
+  const seen = revealedTo(state, viewer, pinned);
   const art: Beats["art"] = {};
   for (const [id, a] of Object.entries(beats.art)) if (seen.has(id)) art[id] = a;
   // #463: a `skill` beat carries the printed text and tag of the card that
