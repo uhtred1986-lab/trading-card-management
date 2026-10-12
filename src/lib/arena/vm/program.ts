@@ -52,7 +52,7 @@ import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
 import { mirrorSides } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
-import { keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
+import { grantedSkillNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
 import { SETUP_ZONES, hostOf, inPlayZones } from "./zones";
@@ -436,8 +436,8 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
       : refusedNegation
         ? mine.filter((e) => e.kind !== "negateKeyword")
         : mine;
-    const layerTimed = name === "keywords" && skillsNegated(state, id) ? timed.filter((e) => e.kind !== "keyword") : timed;
-    const value = valueOf(game, base, name, layerStatics, layerTimed);
+    const layerTimed = name === "keywords" ? timed.filter((e) => e.kind !== "keyword" || (!skillsNegated(state, id) && !grantedSkillNegated(state, id, e.id))) : timed;
+    const value = valueOf(game, base, name, name === "keywords" ? layerStatics.filter((e) => e.kind !== "keyword" || e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId)) : layerStatics, layerTimed);
     if (value !== undefined) out[name] = value;
   }
   // #154: a keyword's `attrBonus` hook is a further layer, read after the
@@ -471,7 +471,7 @@ function skillLessNow(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (skillsNegated(state, id)) return true;
   if (skillsShowing(ctx, state, id).skills.some((sk) => !skillNegated(state, id, sk.index, sk.kind))) return false;
   const granted = (e: { kind: string; target?: string; value?: unknown }) => e.kind === "keyword" && e.target === id && !keywordNegatedFor(ctx, game, state, id, (e.value as KeywordSkill)?.name, standing);
-  return !state.effects.some(granted) && !standing.some(granted);
+  return !state.effects.some((e) => granted(e) && !grantedSkillNegated(state, id, e.id)) && !standing.some((e) => granted(e) && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId)));
 }
 
 /**
@@ -613,8 +613,8 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
   const standing = statics(ctx, game, state);
   if (keywordNegatedFor(ctx, game, state, id, name, standing)) return false;
   for (const k of printedKeywords(ctx, state, id)) if (k.name === name) return true;
-  for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
-  for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name) return true;
+  for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name && !grantedSkillNegated(state, id, e.id)) return true;
+  for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) return true;
   return false;
 }
 
@@ -641,14 +641,19 @@ function printedKeywords(ctx: EngineContext, state: VmState, id: string): Keywor
  * hang at a given moment (#153); nothing else needs every keyword at once.
  */
 export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordSkill[] {
+  return keywordInstancesInForce(ctx, game, state, id).map((instance) => instance.keyword);
+}
+
+/** Keep each timed grant's persisted effect ID beside its keyword for hooks. */
+function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { keyword: KeywordSkill; grantEffectId?: number; standingGrantId?: string }[] {
   const card = state.cards[id];
   // 23-5-2-1, as in `hasKeyword`.
   if (!card || card.hidden || skillsNegated(state, id)) return [];
   const standing = statics(ctx, game, state);
-  const out: KeywordSkill[] = printedKeywords(ctx, state, id);
-  for (const e of state.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  for (const e of standing) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
-  return out.filter((k) => !keywordNegatedFor(ctx, game, state, id, k.name, standing));
+  const out: { keyword: KeywordSkill; grantEffectId?: number; standingGrantId?: string }[] = printedKeywords(ctx, state, id).map((keyword) => ({ keyword }));
+  for (const e of state.effects) if (e.kind === "keyword" && e.target === id && !grantedSkillNegated(state, id, e.id)) out.push({ keyword: e.value as KeywordSkill, grantEffectId: e.id });
+  for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) out.push({ keyword: e.value as KeywordSkill, ...(e.standingGrantId === undefined ? {} : { standingGrantId: e.standingGrantId }) });
+  return out.filter(({ keyword }) => !keywordNegatedFor(ctx, game, state, id, keyword.name, standing));
 }
 
 /**
@@ -696,6 +701,10 @@ export interface HookBody {
   ops: Op[];
   /** Printed keyword skill being resolved; needed by `negateOwnSkill` (9-1-5). */
   skillIndex?: number;
+  /** Identity of an effect-granted keyword; distinct from printed indexes. */
+  grantEffectId?: number;
+  /** Identity of a [Permanent] grant recomputed from the same source entry. */
+  standingGrantId?: string;
 }
 
 /**
@@ -721,23 +730,24 @@ export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: V
       }
     }
   }
-  for (const kw of keywordsInForce(ctx, game, state, subject)) {
+  for (const instance of keywordInstancesInForce(ctx, game, state, subject)) {
+    const kw = instance.keyword;
     const def = game.keywords[kw.name];
     const hooks = def?.hooks?.filter((hook) => hook.at === point) ?? [];
-    const skillIndex = hooks.length ? printed.get(kw.name)?.shift() : undefined;
+    const skillIndex = hooks.length && instance.grantEffectId === undefined && instance.standingGrantId === undefined ? printed.get(kw.name)?.shift() : undefined;
     // #156: a body names its keyword's parameters the way a `DO` does —
     // [Strike]'s `$x` is 2 on a [Double Strike] — bound from the instance in
     // force, granted or printed.
     for (const hook of hooks) {
-      out.push({ keyword: kw, ops: bindKeywordParams(hook.ops, def.takes, kw as unknown as Record<string, unknown>, game), ...(skillIndex === undefined ? {} : { skillIndex }) });
+      out.push({ keyword: kw, ops: bindKeywordParams(hook.ops, def.takes, kw as unknown as Record<string, unknown>, game), ...(skillIndex === undefined ? {} : { skillIndex }), ...(instance.grantEffectId === undefined ? {} : { grantEffectId: instance.grantEffectId }), ...(instance.standingGrantId === undefined ? {} : { standingGrantId: instance.standingGrantId }) });
     }
   }
   return out;
 }
 
 /** A minimal frame for a hook body: the language's own shape, `self` bound the way every program already reads its own card, plus whatever this hook's `vars` name. Exported for `vm/hooks.ts`'s `fireHook`. */
-export function hookFrame(game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number): ScriptFrame {
-  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { skillIndex }) };
+export function hookFrame(game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number, grantEffectId?: number, standingGrantId?: string): ScriptFrame {
+  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
 }
 
 export type QueryFact =

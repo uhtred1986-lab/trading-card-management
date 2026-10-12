@@ -1210,6 +1210,10 @@ export interface ScriptFrame {
   subject?: string;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
+  /** Persisted ID of the timed effect granting this individual keyword skill. */
+  grantEffectId?: number;
+  /** Stable provenance of a standing [Permanent] grant at this source's area entry. */
+  standingGrantId?: string;
   /** One-shot announcement at the paid activation boundary for an Extra with [Heroic]. */
   afterSkillSource?: string;
   /** A keyword hook represents a pending skill and is canceled if negated before resolution. */
@@ -2524,11 +2528,19 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
 
       case "negateOwnSkill": {
-        // 9-1-5: the skill switches itself off for the rest of the game.
-        // `negated` is a list of skill indexes on the instance, so this is the
-        // same mechanism another card's negation uses — and it is cleared when
-        // the card leaves play, because that is a different card (3-1-4).
-        if (!h.exists(frame.card) || frame.skillIndex == null) break;
+        // 9-1-5: the skill switches itself off for the stated duration. A
+        // printed/copied line has an index; a grant has its own provenance.
+        // Neither may silence another Heroic instance on the same card.
+        if (!h.exists(frame.card)) break;
+        const grantId = frame.grantEffectId ?? frame.standingGrantId;
+        if (grantId !== undefined) {
+          // Timed grants use their persisted effect ID; standing grants use
+          // the source's area entry and the Permanent's declared op path.
+          h.addEffect({ master: frame.master, source: frame.card, target: frame.card, kind: "negateGrantedSkill", value: typeof grantId === "number" ? grantId : { standingGrantId: grantId }, until: op.until ?? "game" });
+          h.note(`${h.nameOf(frame.card)}: that skill will not happen again${op.until ? ` this ${op.until}` : ""}`);
+          break;
+        }
+        if (frame.skillIndex == null) break;
         const off = h.negatedSkills(frame.card);
         if (off === "all" || off.includes(frame.skillIndex)) break;
         if (op.until === "turn" || op.until === "battle") {

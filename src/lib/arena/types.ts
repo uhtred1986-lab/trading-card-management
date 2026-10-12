@@ -566,21 +566,23 @@ export interface ContinuousEffect {
   /** The card it is about; empty for a rule that is about a player, not a card. */
   target: string;
   /**
-   * `negateSkill`: one skill of the card, by index in `value` (9-1-5, "negate
-   * this skill for the turn"). `negateSkillKind`: every skill of one kind,
+   * `negateSkill`: one printed/copied skill of the card, by index in `value`
+   * (9-1-5, "negate this skill for the turn"). `negateGrantedSkill`: one
+   * granted keyword, by timed effect ID or standing grant provenance in
+   * `value`. `negateSkillKind`: every skill of one kind,
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn"). `negateKeyword`: one keyword skill of the card, named in
    * `value` — the one the master picked ("choose up to 1 keyword skill on … and
    * negate that skill for the turn").
    */
-  kind: "power" | "comboPower" | "keyword" | "gains" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateSkillKind" | "negateKeyword" | "replaceLeave" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
+  kind: "power" | "comboPower" | "keyword" | "gains" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateGrantedSkill" | "negateSkillKind" | "negateKeyword" | "replaceLeave" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
    * `specifiedCost`'s value is the orbs it relaxes or demands (`sign: 1` reduces,
    * `-1` increases) rather than a flat number — see `costReduction` (script.ts)
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 };
+  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 } | { standingGrantId: string };
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
