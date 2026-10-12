@@ -25,7 +25,7 @@ tracking: true
 
 ## Order and hot files
 
-#543 and #545 are merged. #544 remains the next P0 trust item; #546 can proceed after #545. Serialize shared files according to the child touch sets and merge gates.
+All five implementation children are merged. Verify the epic acceptance against their combined evidence and retain owner-only limits; do not assign completed children again. Authoritative ability availability (#558) now has its #544/#545 prerequisites.
 
 Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
 

@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: Pay Aegis additional skill costs after the colored-card cost
 milestone: Arena M5 — Engine capability gaps and advanced mechanics
-labels: backlog, blocked, enhancement, area:arena-vm, phase:capability-gap, model:opus-5
+labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:capability-gap, model:opus-5
 stage: ui
 issue: 595
 priority: P1

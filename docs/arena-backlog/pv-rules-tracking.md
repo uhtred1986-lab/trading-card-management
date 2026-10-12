@@ -36,7 +36,7 @@ tracking: true
 
 ## Order and hot files
 
-#548 → #549 → #550 → #551 → #552 → #553 → #554 → #555 → #556 → #557
+Completed: #548/#551/#553/#554/#555/#556. Next engine writer: #549 Auto costs, followed by #550 binding and its dependants. #595/#597 are unblocked but share cost/keyword files; serialize them after the active engine writer. #609 rule audit can proceed read-only while #549 owns flow. #552/#602/#557 follow their specific dependencies.
 
 Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
 

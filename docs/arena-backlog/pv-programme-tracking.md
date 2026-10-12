@@ -78,3 +78,7 @@ Start P0 #543 readiness, #545 revision and #544 explicit interruption (serialize
 Use child dependencies, one issue/branch/draft PR, at most three disjoint worktrees. Shared flow/costs/snapshot/actions/page/hand/sheets/glossary/fixtures/schema are single-writer files. Do not select three ready issues without checking these overlaps. Worker agents never spawn nested agents. Owner live data/paid/config steps remain explicit; do not block independent local work on them.
 
 Full issue table, dependency references, acceptance and repository filenames are in `docs/arena-delivery-plan.md` and `docs/arena-backlog/pv-*.md`.
+
+## Next authorized wave
+
+The owner authorized the next wave after the twenty-PR delivery batch. #549 owns engine Auto cost resolution; #558 owns authoritative ability/decision projection and a read-only availability adapter; #609 audits battle cleanup ordering without concurrent flow writes. Their merged prerequisites are verified. #595/#597/#568 also have merged prerequisites and their stale blocked labels are removed, but shared files remain serialized. #561 follows merged #558 and will hide wrong-window/phase/zone abilities by default while showing timely resource-blocked reasons. The original artwork draft remains untouched.
