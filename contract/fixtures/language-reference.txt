@@ -3031,7 +3031,7 @@
     {
       "kind": "covers",
       "class": "primitive",
-      "signature": "{\"kind\":\"covers\",\"sel\":SELECTOR,\"colors\":[…]}",
+      "signature": "{\"kind\":\"covers\",\"sel\":SELECTOR,\"colors\":[…],\"original\"?:true|false}",
       "fields": [
         {
           "name": "sel",
@@ -3054,10 +3054,16 @@
             "White",
             "Colorless"
           ]
+        },
+        {
+          "name": "original",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
       "sentence": "1 card in your Battle Area carry  between them",
-      "doc": "do these cards carry every one of the colours between them — one card of each, or one multicolour card for two? [Arrival]'s Combo Area and [Revive]'s hand (22-29-3, 22-34-3), with the colours bound off the printed keyword (`colors: $colors`). A `DEFINE KEYWORD` body's word; no card's record says this (#155)"
+      "doc": "do these cards carry every one of the colours between them — one card of each, or one multicolour card for two? [Arrival]'s Combo Area and [Revive]'s hand (22-29-3, 22-34-3), with the colours bound off the printed keyword (`colors: $colors`). `original: true` reads the shown face before identity effects (22-29-3, 22-30-3, 22-34-3); absent reads effective colours. A `DEFINE KEYWORD` body's word; no card's record says this (#155, #597)"
     },
     {
       "kind": "sumsTo",
@@ -3267,6 +3273,15 @@
       "field": "colors",
       "type": "colors",
       "printed": "red",
+      "openTo": [
+        "strings",
+        "colors"
+      ]
+    },
+    {
+      "field": "originalColors",
+      "type": "colors",
+      "printed": "with original colours red",
       "openTo": [
         "strings",
         "colors"
