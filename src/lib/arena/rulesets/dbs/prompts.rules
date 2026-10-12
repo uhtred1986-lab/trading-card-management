@@ -67,8 +67,8 @@ DEFINE PROMPT replaceMove
   hint: "Choose one replacement, or let the original move happen."
 
 DEFINE PROMPT zEnergyFromCombo
-  question: "Send one combo card to Z-Energy?"
-  hint: "At the end of a battle, one card may go there instead of the Drop."
+  question: "Move up to one Battle Card from your Combo Area to Z-Energy?"
+  hint: "The turn player and then the other player may each choose one (8-5-2/3)."
 
 DEFINE PROMPT optionalCost
   question: "Pay the skill's cost for the card?"

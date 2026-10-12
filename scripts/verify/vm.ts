@@ -207,35 +207,12 @@ assert.equal(isVmState(createGame(CTX, DECKS).state), false, "a legacy state was
 assert.equal(isVmState(null), false, "null was read as a rules state");
 assert.equal(isVmState("rules"), false, "a string was read as a rules state");
 
-// ── 4. what it cannot do yet says which issue builds it ───────────────────
+// ── 4. declared moves refuse invalid timing as IllegalAction ───────────────
 
-// All six calls are answered now (#140); what is still missing is the *moves*
-// with a price and a program, and each of those names the issue that builds
-// it rather than failing as an unrecognised action. `NotYet` is an
-// `IllegalAction`, so the API answers `illegal_action` and the client shows
-// the sentence — the refusal a caller really gets, not a shortcut past it.
+// Battle-end Z-Energy selection is a native rule move now (8-5-2/3), so it
+// is covered by the dedicated scenario and the battle suite. Keep checking
+// that ordinary declared moves refuse invalid timing as IllegalAction.
 const rules = engineFor("rules");
-// `attacking` moved out of this list in #150 — `vm/battle.ts` declares it
-// natively now, so it is exercised as a real move (§17b below) rather than as
-// a gap. What is left of the battle that is still named work is the Z-Energy
-// a spent combo card may become at the end of it (#151's own
-// `zEnergyFromCombo`, `vm/index.ts`'s `DECLARED_BY`).
-const notYet: { what: string; run: () => unknown }[] = [
-  { what: "sending a combo card to Z-Energy", run: () => rules.apply(CTX, state, { type: "zEnergyFromCombo", player: "p1", card: null }) },
-];
-for (const { what, run } of notYet) {
-  assert.throws(
-    run,
-    (err: unknown) => {
-      assert.ok(err instanceof NotYet, `${what} on the rules engine threw ${err instanceof Error ? err.name : typeof err}, not NotYet`);
-      assert.match(err.issue, /^#\d+$/, `${what} does not name the issue that builds it`);
-      assert.ok(err.message.includes(err.issue), `${what}'s NotYet does not say which issue builds it in its own message`);
-      assert.ok(err instanceof IllegalAction, "a NotYet is not an IllegalAction, so the API would answer it as a crash");
-      return true;
-    },
-    `${what} on the rules engine was accepted`,
-  );
-}
 
 // A move that *is* declared is refused with a sentence rather than named as
 // missing work: playing is #146's paragraph in `actions.rules` and using a
@@ -4050,6 +4027,8 @@ console.log("verify/vm: ok");
     assert.equal(r.prompt.kind, "combo", "the defense side's combo offer did not open");
     assert.equal((r.prompt as { side: string }).side, "defense");
     r = rulesEngine.apply(CTX, r, { type: "pass", player: "p2" }).state as VmState; // defense: nothing to combo with
+    assert.equal(r.prompt.kind, "zEnergyFromCombo", "8-5-2: the turn player may choose one spent Battle Card");
+    r = rulesEngine.apply(CTX, r, { type: "zEnergyFromCombo", player: "p1", card: null }).state as VmState;
     assert.equal(r.battle, null, "the battle did not close at the end of the Battle End Step");
     assert.equal(r.prompt.kind, "main");
     assert.ok(r.sides.p2.zones.drop.includes(guard), "8-4-6-2: a tie is the attacker's (10000 vs 10000, or better with the combo) and the guard is KO'd");

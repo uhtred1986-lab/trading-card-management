@@ -48,7 +48,7 @@ import { PLAYERS, type PlayerId, type Requirement } from "../types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBattleActivation, applyBlock, applyCombo, applyCounter, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, readingBoard, spendProhibitionUse } from "./program";
 import { whoseSkills } from "./script";
 import { chargesOf, describePayment } from "./costs";
@@ -532,6 +532,10 @@ function apply(ctx: EngineContext, prev: VmState, action: Action): { state: VmSt
       spendUses(ctx, game, state, action);
       break;
     }
+    case "zEnergyFromCombo": {
+      if (applyZEnergyFromCombo(ctx, game, state, events, action) === "wait") return { state, events };
+      break;
+    }
     // #150: an [Activate: Battle] at the combo prompt is the declared
     // `activate` read against the battle's own window (`vm/battle.ts`); at
     // every other prompt it is the declaration as written, below.
@@ -620,16 +624,15 @@ function spendUses(ctx: EngineContext, game: GameDefinition, state: VmState, act
  * left of it is 13-3's Unison growth, whose once-a-turn gate the language has
  * no word for — a player attribute a condition can read and an op that sets one
  * — and the two answers that are not moves a menu enumerates. An activation
- * is declared (#147) and gone from this list too. `attack`, `block`, `combo`
- * and `counter` are #150's own paragraph — native rather than declared, and
+ * is declared (#147) and gone from this list too. `attack`, `block`, `combo`,
+ * `counter` and the battle-end `zEnergyFromCombo` choice are native mechanics,
+ * rather than declared actions, and
  * handled in the `switch` above before this table is ever consulted for
- * them — so they are gone from here as well; the Z-Energy a spent combo card
- * can become at the end of the battle is still #151's (`zEnergyFromCombo`).
+ * them — so they are gone from here as well.
  */
 const DECLARED_BY: Partial<Record<Action["type"], string>> = {
   growUnison: "#146",
   offering: "#157",
-  zEnergyFromCombo: "#151",
 };
 
 /** 6-2-1-9-1: the hand goes to the bottom of the deck, the deck is shuffled, and six new cards are drawn — once. */
@@ -705,6 +708,11 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     // natively above since the combo prompt is not among its declared ones.
     case "combo":
       return [...comboLegalActions(ctx, game, state), { action: { type: "pass", player: pr.player }, label: "Pass" }];
+    case "zEnergyFromCombo":
+      return [
+        ...pr.candidates.map((card) => ({ action: { type: "zEnergyFromCombo" as const, player: pr.player, card }, label: `Place ${shownName(ctx, state, card)} in Z-Energy` })),
+        { action: { type: "zEnergyFromCombo" as const, player: pr.player, card: null }, label: "Decline" },
+      ];
     case "chooseFirst":
       return PLAYERS.map((first) => ({ action: { type: "chooseFirst", player: pr.player, first }, label: first === pr.player ? "Go first" : "Go second" }));
     case "mulligan":

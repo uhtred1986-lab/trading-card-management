@@ -116,13 +116,12 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-combo-card-to-z-energy",
     label: "A combo card becomes Z-Energy at battle end",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "5-4, 8-5-2; `vm/index.ts` zEnergyFromCombo action",
     ownerIssue: 551,
-    skipWhere: "compiler: ZCHEAP paid with one Z-Energy made from a combo (5-4, 8-5-2)",
-    proof: "scripts/verify/compiler.ts — ZCHEAP scenario",
-    detail: "The rules engine does not offer the spent combo card as Z-Energy at the end of battle.",
+    proof: "scripts/verify/z-energy-combo-551.ts; scripts/verify/compiler.ts — actual ZCHEAP payment",
+    detail: "Both players get ordered optional choices with persisted continuation and a checkpoint before cleanup. Selected combo contributions remain through that checkpoint; Combo-to-Drop/end-of-battle Auto grouping remains separately tracked under #609.",
   },
   {
     id: "arena-counter-recursion",
