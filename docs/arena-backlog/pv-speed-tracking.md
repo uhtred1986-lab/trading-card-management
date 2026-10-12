@@ -36,3 +36,7 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 - [ ] Contract/privacy, stale/reload cases and cross-feature interactions pass.
 - [ ] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
 - [ ] Milestone checklist and canonical backlog files match delivered state.
+
+## Measured checkpoint follow-up
+
+- [ ] #607 **P1** — Profile and reduce repeated evaluation in corrected zero-power checkpoints (bounded child of #569; independent of polling #568). Local combined crowded-aura apply measures 781.947/898.881 ms p50/p95; the committed evidence and source stamp are in [evidence/607/review-baseline.json](evidence/607/review-baseline.json). Preserve the new rule processing and verify invalidation/interaction outcomes.
