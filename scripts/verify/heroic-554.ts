@@ -330,6 +330,44 @@ try {
     assert.ok(!s.effects.some((effect) => effect.kind === "negateKeyword" && effect.target === granted), "the engine does not blanket-negate the granted Heroic keyword");
     assert.equal(s.cards[energy].mode, "rest", "the already-paid activation cost remains applied");
   }
+  {
+    let s = mainPhase(55611);
+    const firstGrant = stage(s, "p1", "H554_GRANTED", "battle");
+    const lastGrant = stage(s, "p1", "H554_GRANTED", "battle");
+    const printedSibling = stage(s, "p1", "H554_BATTLE", "battle");
+    const target = stage(s, "p1", "H554_TARGET", "battle");
+    const energy = stage(s, "p1", "H554_ENERGY", "energy");
+    const extra = stage(s, "p1", "H554_NEGATE", "hand");
+    s.cards[energy].mode = "active";
+    for (const granted of [firstGrant, lastGrant]) {
+      addEffect(s, [], { master: "p1", source: granted, target: granted, kind: "keyword", value: { name: "Heroic" }, until: "turn" });
+    }
+    const before = handSize(s, "p1");
+    s = activate(s, extra).state;
+    assert.equal(s.prompt.kind, "chooseCards", "the paid Extra waits for its target while all three Heroic listeners are captured");
+    const guards = s.pending.filter((pending) => pending.kind === "hook" && pending.frame.pendingHookIdentityMissing);
+    const bodies = s.pending.filter((pending) => pending.kind === "hook" && pending.frame.pendingHookSkill && !pending.frame.pendingHookIdentityMissing);
+    assert.deepEqual(guards.map((pending) => pending.card), [firstGrant, lastGrant], "both identity-less grants have distinct ordered guards");
+    assert.ok(guards.length > 0 && bodies.length > 0 && s.pending.indexOf(guards.at(-1)!) < s.pending.indexOf(bodies[0]!), "all identity guards precede every sibling Heroic body");
+    s = JSON.parse(JSON.stringify(s)) as VmState;
+    const candidate = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+    assert.ok(candidate.includes(lastGrant) && candidate.includes(firstGrant), "either grant remains a legal negation target after reload");
+    const result = apply(s, { type: "choose", player: "p1", cards: [lastGrant] });
+    s = result.state;
+    assert.ok(s.effects.some((effect) => effect.kind === "negateSkills" && effect.target === lastGrant), "the requested negation genuinely applies to the last grant");
+    assert.ok(!result.events.some((event) => event.type === "draw" && event.player === "p1"), "the still-live first grant guard interrupts before either grant or printed sibling can draw");
+    const terminal = s as VmState & { outcome?: { kind: string; privateContext?: { issue?: string; detail?: string } } };
+    const diagnostic = terminal.outcome?.privateContext?.detail ?? s.overReason;
+    assert.ok(diagnostic?.includes("negate a granted keyword hook that has no individual skill identity"), "the earlier live grant retains its #602 limitation after the last grant is negated");
+    if (terminal.outcome) assert.equal(terminal.outcome.privateContext?.issue, "#602", "the private limitation remains attributed to #602");
+    else assert.ok(s.overReason?.includes("#602"), "the legacy terminal limitation remains attributed to #602");
+    assert.deepEqual(s.pending, [], "the interrupt discards the canceled last-grant guard and all sibling bodies");
+    assert.equal(handSize(s, "p1"), before - 1, "only the activated Extra leaving hand changes hand size; no Heroic payout occurs");
+    assert.equal(s.cards[energy].mode, "rest", "the successful Extra activation cost remains paid despite the limitation");
+    assert.ok(s.sides.p1.zones.battle.includes(firstGrant) && s.sides.p1.zones.battle.includes(printedSibling), "the guard does not invent a blanket negation or move the unaffected listeners");
+    assert.ok(!s.effects.some((effect) => effect.kind === "negateKeyword" && effect.target === firstGrant), "the engine never suppresses the earlier grant keyword to evade its guard");
+    assert.ok(s.sides.p1.zones.battle.includes(target), "the unrelated Battle Card remains untouched");
+  }
 
   // A new turn expires the negation; separate owners have separate source
   // cards and one side's use cannot consume the other's allowance.

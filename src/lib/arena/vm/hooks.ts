@@ -100,7 +100,7 @@ export function fireAfterSkill(
 ): void {
   if (!owner) return;
   const frames: ScriptFrame[] = [];
-  let missingIdentityCard: string | undefined;
+  const missingIdentityCards = new Set<string>();
   for (const other of inPlayZones(game).flatMap((area) => state.sides[owner].zones[area] ?? [])) {
     if (other === source) continue;
     for (const body of hookBodiesFor(ctx, game, state, other, "afterSkill")) {
@@ -110,7 +110,7 @@ export function fireAfterSkill(
       // Use the hook's own conditions and the source-event variables above;
       // an unrelated event's false branch must not raise this limitation.
       if (body.skillIndex === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, body.ops)) {
-        missingIdentityCard = other;
+        missingIdentityCards.add(other);
       }
     }
   }
@@ -118,7 +118,10 @@ export function fireAfterSkill(
   // checkpoint queue. Confirmative processing (including 21-6) must run
   // before any pending skill begins. Preserve collection order within this
   // event; existing pending skills remain ahead of these newly captured ones.
-  if (missingIdentityCard) {
+  // Validate every qualifying identity-less listener before any sibling
+  // afterSkill body. If a later card's skill is negated, an earlier one must
+  // still reach its own unsupported-identity guard rather than run unguarded.
+  for (const missingIdentityCard of missingIdentityCards) {
     state.pending.push({
       kind: "hook",
       card: missingIdentityCard,
