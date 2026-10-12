@@ -82,3 +82,12 @@ Full issue table, dependency references, acceptance and repository filenames are
 ## Next authorized wave
 
 The owner authorized the next wave after the twenty-PR delivery batch. #549 owns engine Auto cost resolution; #558 owns authoritative ability/decision projection and a read-only availability adapter; #609 audits battle cleanup ordering without concurrent flow writes. Their merged prerequisites are verified. #595/#597/#568 also have merged prerequisites and their stale blocked labels are removed, but shared files remain serialized. #561 follows merged #558 and will hide wrong-window/phase/zone abilities by default while showing timely resource-blocked reasons. The original artwork draft remains untouched.
+
+## Next-wave reviewed delivery
+
+- #614 refreshes stale prerequisite blocks and trackers; #613 records the #609 cleanup audit only. #609 remains open for separate checkpoints and real-card fixture evidence.
+- #615 delivers authoritative ability/decision projection (#558); #616 supplies actual cost-frame privacy and pending-state integration proof. #558 is complete at this scope.
+- #616 also delivers supported Auto pay/decline/reload and legal replacement-failure behavior. #549 remains open for unsupported price instructions, the bounded search, simultaneous-Auto selection and cost-free secret-area declarations; broader bindings remain #550.
+- Current disjoint workers cover #561 shared card-review UI, #568 unchanged polling responses and #595 Aegis cost order. Registry/progress reconciliation remains with the orchestrator.
+
+The implementation merge #616 deployed successfully at `a7572e9145beb995dafe73a3377e50569d5ddeba` (Vercel `HyFfFSP1tVAuRgGvyroX9JynjDro`). No deployment configuration fix is claimed.
