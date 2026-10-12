@@ -37,8 +37,9 @@
  *   names a place asks the card wherever it is, and one that names none asks it
  *   only in play.
  *
- *   *9-6-6 — the turn player's pending skills resolve first* is `nextPending`,
- *   copied from the legacy `checkpoint` rather than re-derived.
+ *   *9-6-6 — the turn player's pending skills resolve first* is enforced at
+ *   the checkpoint; a side with several may choose their order (#549), while
+ *   `nextPending` remains the singleton fallback.
  *
  * **What answers is an [Auto] — or a keyword that says so.** A keyword
  * skill's own moments (§22) are not read off the record on either engine —
@@ -53,7 +54,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches } from "../text/triggers";
+import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn } from "../text/triggers";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts } from "./script";
@@ -63,6 +64,7 @@ import type { PatternValue } from "../lang";
 import { ZONE_ARGS, type GameDefinition, type TriggerDef } from "../rulesets";
 import { TRIGGERS } from "../gaps";
 import { RulesetBroken } from "./errors";
+import { NotYet } from "./errors";
 import type { Moment } from "./events";
 import type { VmState } from "./state";
 import { findCard, inPlayZones } from "./zones";
@@ -85,7 +87,7 @@ export interface VmPending {
   card: string;
   /** Which of that face's skills, by its printed index. */
   skillIndex: number;
-  /** Whose skill it is. 9-6-6 orders the queue by this and nothing else. */
+  /** Whose skill it is. 9-6-6 gives this side priority at the checkpoint. */
   master: PlayerId;
   /** The declared moment it answers to — what `card_rules.trigger` says. */
   trigger: string;
@@ -255,8 +257,8 @@ export function masterOf(game: GameDefinition, state: VmState, id: string): Play
  * Queue every [Auto] that answers to this moment (9-6-2), and say which.
  *
  * Appends to `state.pending` in the order the declarations were read; the
- * *resolution* order is 9-6-6's and is `nextPending`'s, which is what makes the
- * queue a set rather than a sequence at this end.
+ * *resolution* priority follows 9-6-6; #549 lets the priority side choose
+ * among its pending skills when several answer at once.
  *
  * `only` narrows the matches to the ones a caller names — `vm/host.ts`'s
  * `pendByName`, where a program says "this card, this trigger" and nothing
@@ -264,6 +266,12 @@ export function masterOf(game: GameDefinition, state: VmState, id: string): Play
  */
 export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment, only?: (match: TriggerMatch) => boolean): VmPending[] {
   const pended: VmPending[] = [];
+  // The entry moment carries the actual source area. Save it on the battle,
+  // since several actions and even a JSON reload may separate entry from
+  // 8-5's cleanup departure. A later entry of this same copy replaces it.
+  if (state.battle && moment.event === "moved" && moment.card && moment.args.to === "combo" && moment.args.from !== "combo") {
+    (state.battle.comboOrigins ??= {})[moment.card] = moment.args.from === "hand" ? "hand" : "other";
+  }
   for (const match of matchTriggers(game, state, moment)) {
     if (only && !only(match)) continue;
     const inst = state.cards[match.card];
@@ -288,6 +296,20 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // The printed end-of-battle Auto answers only for this copy entering
+      // this battle's Combo Area from hand and surviving until cleanup. It
+      // cannot answer a generic battleEnd or a mid-battle Combo Area exit,
+      // even if an older/manual record names the broader trigger.
+      if (comboBattleEndOpponentTurn(sk) && state.turnPlayer === master) continue;
+      if (comboBattleEndFromHand(sk)) {
+        if (match.trigger !== "comboed" || state.battle?.step !== "battleEnd" || state.battle.endCombo?.stage !== "cleanup") continue;
+        const origin = state.battle.comboOrigins?.[match.card];
+        // A game saved before provenance existed cannot prove the source of
+        // this copy. Stop with a typed interruption instead of inventing a
+        // hand combo or silently losing a possibly due skill (#544, #572).
+        if (origin === undefined) throw new NotYet("infer the origin of a combo card in an older saved battle", "#572");
+        if (origin !== "hand") continue;
+      }
       // 5-5-1: a play into the Battle Area is also a placing (owner's ruling,
       // 2 Oct 2026), so one arrival matches `played` and `placed` both. A
       // skill whose record says both answers that arrival once, as `played`.
@@ -297,6 +319,11 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       state.pending.push(pending);
       pended.push(pending);
     }
+  }
+  // Keep provenance through matching the cleanup move to Drop, then forget
+  // it. A card that left and reentered from elsewhere must not inherit hand.
+  if (state.battle && moment.event === "moved" && moment.card && moment.args.from === "combo" && moment.args.to !== "combo") {
+    delete state.battle.comboOrigins?.[moment.card];
   }
   return pended;
 }
@@ -365,8 +392,9 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
 // ── the checkpoint's queue (4-2-2, 9-6-6) ───────────────────────────────────
 
 /**
- * The next [Auto] to resolve: the turn player's first, then the other player's
- * (9-6-6), taken off the queue.
+ * The singleton fallback: the turn player's first, then the other player's
+ * (9-6-6), taken off the queue. With several pending on one side, the
+ * checkpoint asks that player to choose their order (#549).
  *
  * Copied from the legacy `checkpoint` (`engine/engine.ts`) rather than
  * re-derived, because the ordering is the one thing two engines playing the
