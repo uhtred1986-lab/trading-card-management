@@ -133,6 +133,7 @@ import { backCharactersOf } from "../../src/lib/arena/text/cards";
 import { usableFrom } from "../../src/lib/arena/vm/activate";
 import { SEED_7_OPENING, SEED_7_P1_REDRAW } from "./vm-opening-459";
 import { CARD_VIEWS_459 } from "./vm-card-views-459";
+import { expectedTurnTrace } from "./vm-turn-459";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -643,10 +644,8 @@ for (const p of ["p1", "p2"] as PlayerId[]) {
 // ── 11. the turn, run as a program ─────────────────────────────────────────
 //
 // The claim #140 makes: a game on the rules engine plays turn to turn from the
-// `DEFINE PHASE` and `DEFINE STEP` declarations, and what it logs doing so is
-// what the engine that has been playing logs. Asserted here rather than left
-// to `arena:diff`, which needs a database and real saved games: the same
-// comparison, over the harness decks, in `npm test`.
+// `DEFINE PHASE` and `DEFINE STEP` declarations. The full action and event
+// streams are checked against the compact manual procedure in vm-turn-459.ts.
 
 /** Everything the turn asks for, answered with the move that takes none of what is offered. */
 function passOnly(engine: ReturnType<typeof engineFor>, start: unknown, first: PlayerId): { events: GameEvent[]; actions: Action[]; state: unknown } {
@@ -672,32 +671,27 @@ function passOnly(engine: ReturnType<typeof engineFor>, start: unknown, first: P
 
 {
   const rulesEngine = engineFor("rules");
-  const legacyEngine = engineFor("legacy");
   const born = rulesEngine.createGame(CTX, SAME);
-  const legacyBorn = legacyEngine.createGame(CTX, SAME);
 
   const played = passOnly(rulesEngine, born.state, "p1");
-  const oracled = passOnly(legacyEngine, legacyBorn.state, "p1");
   const end = played.state as VmState;
-  const legacyEnd = oracled.state as GameState;
+  const expected = expectedTurnTrace(false);
 
-  // The same questions in the same order, which is what makes one action log
-  // replayable on either engine — the property `arena:diff` is built on.
-  assert.deepEqual(played.actions, oracled.actions, "a pass-only game asks the two engines for different answers");
+  // The 145 expected questions are one choice, two mulligans, and 71 pairs of
+  // skip charge / end Main. Their order is the replay contract.
+  assert.deepEqual(played.actions, expected.actions, "a pass-only game changed its fixed action sequence");
 
   // The whole log, event for event, creation included. `reason` is the one
-  // field left out of the comparison: the rules engine says why a player lost
-  // in the words of the `DEFINE WIN` that ended it, and the legacy engine in
-  // its own — which is the difference the programme exists to make, and Stage
-  // 8 is where every word comes from the definition.
+  // field left out of the comparison: the wording of the deck-out reason is
+  // asserted separately below, while the event contract checks every field.
   const shown = (list: GameEvent[]) => JSON.parse(JSON.stringify(list.map((e) => (e.type === "gameOver" ? { ...e, reason: "…" } : e))));
-  assert.deepEqual(shown([...born.events, ...played.events]), shown([...legacyBorn.events, ...oracled.events]), "a pass-only game does not log the same thing on the two engines");
+  assert.deepEqual(shown([...born.events, ...played.events]), expected.events, "a pass-only game changed its full fixed event sequence");
 
-  // …and it really did play a game: to a deck-out, on the turn the legacy
-  // engine gets there, with the same winner.
+  // …and it really did play a game: to a deck-out on turn 72, when p2's
+  // 36-card post-setup deck has supplied its last draw.
   assert.equal(end.phase, "over", "a pass-only game on the rules engine never ended");
-  assert.equal(end.turn, legacyEnd.turn, "the two engines' pass-only games ran for a different number of turns");
-  assert.equal(end.winner, legacyEnd.winner, "the two engines' pass-only games ended with a different winner");
+  assert.equal(end.turn, 72, "a pass-only game did not end on p2's deck-out turn");
+  assert.equal(end.winner, "p1", "a pass-only game did not award the deck-out to p1");
   assert.ok(end.turn > 60, `a pass-only game ended on turn ${end.turn}, which is far too soon for a 50-card deck to run out`);
   assert.match(end.overReason ?? "", /Deck Area/, "a pass-only game did not end on a deck-out");
   assert.deepEqual(rulesEngine.legalActions(CTX, end), [], "a finished game still offers moves");
@@ -1950,10 +1944,10 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
 // Stage 5 rests on: what the interpreter used to do in a `case` of its own it
 // now does because `actions.rules` says so — the same menu, the same log, the
 // same board. Measured against the engine that has been playing, move for move,
-// the way §11 measures a game of nothing but passing.
+// the way §11 measures a game of nothing but passing, now against the fixed
+// turn trace in vm-turn-459.ts.
 {
   const rulesEngine = engineFor("rules");
-  const legacyEngine = engineFor("legacy");
 
   /** Everything the turn asks for, answered by charging the first card offered and declining the rest. */
   function chargeAndPass(engine: ReturnType<typeof engineFor>, start: unknown, first: PlayerId): { events: GameEvent[]; actions: Action[]; state: unknown } {
@@ -1978,15 +1972,12 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   }
 
   const born = rulesEngine.createGame(CTX, SAME);
-  const legacyBorn = legacyEngine.createGame(CTX, SAME);
   const played = chargeAndPass(rulesEngine, born.state, "p1");
-  const oracled = chargeAndPass(legacyEngine, legacyBorn.state, "p1");
   const end = played.state as VmState;
-  const legacyEnd = oracled.state as GameState;
+  const expected = expectedTurnTrace(true);
 
-  // The same questions answered by the same cards: a scripted game of charges
-  // and passes is one action log, replayable on either engine.
-  assert.deepEqual(played.actions, oracled.actions, "a game of charging and passing asks the two engines for different answers");
+  // Every charge names the next card in the fixed seed-7 hand/deck order.
+  assert.deepEqual(played.actions, expected.actions, "a game of charging and passing changed its full action sequence");
   assert.ok(
     played.actions.filter((a) => a.type === "charge" && a.card !== null).length > 50,
     `only ${played.actions.filter((a) => a.type === "charge" && a.card !== null).length} cards were charged in a whole game, and every turn offers one`,
@@ -1994,12 +1985,12 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
   const shownEvents = (list: GameEvent[]) => JSON.parse(JSON.stringify(list.map((e) => (e.type === "gameOver" ? { ...e, reason: "…" } : e))));
   assert.deepEqual(
     shownEvents([...born.events, ...played.events]),
-    shownEvents([...legacyBorn.events, ...oracled.events]),
-    "a game of charging and passing does not log the same thing on the two engines",
+    expected.events,
+    "a game of charging and passing changed its full fixed event sequence",
   );
   assert.equal(end.phase, "over", "a game of charging and passing on the rules engine never ended");
-  assert.equal(end.turn, legacyEnd.turn, "the two engines' charging games ran for a different number of turns");
-  assert.deepEqual(end.sides.p1.zones.energy, legacyEnd.players.p1.energy, "the two engines' Energy Areas hold different cards, or hold them in a different order");
+  assert.equal(end.turn, 72, "a charging game did not end on p2's deck-out turn");
+  assert.deepEqual(end.sides.p1.zones.energy, expected.p1Energy, "the Energy Area changed its seed-7 charge order");
 
   /** A rules game at its first Charge Phase question, with `cardIds` at the front of p1's hand. */
   function atCharge(...cardIds: string[]): VmState {
@@ -4270,10 +4261,10 @@ console.log("verify/vm: ok");
 
 // ── 26. what the pre-flip review of #166 found ──────────────────────────────
 //
-// Three readings the rules engine got wrong and the legacy engine gets right,
-// each fixed in `vm/` and each proved here against that engine rather than
-// against a number written down: the Active Step's own list of areas (7-2-7),
-// the face a measure is read off (1-9, 23-5-2) and "original power" (20-3-1).
+// Three readings the rules engine once got wrong, each proved against the
+// fixed values the manual and the printed fixture name: the Active Step's
+// areas (7-2-7), the face a measure reads (1-9, 23-5-2) and original power
+// (20-3-1).
 // They are one section because they are one review, and because all three are
 // the same failure — a value read one layer or one face away from the rule.
 {
@@ -4311,19 +4302,6 @@ console.log("verify/vm: ok");
     });
     assert.equal(s.cards[rested].mode, "active", "7-2-7: rested energy did not switch back to Active Mode in its master's Charge Phase");
 
-    // The same board on the engine that has been playing, so the fix is held
-    // to that engine rather than to this assertion's own wording.
-    let l = createGame(CTX, SAME).state;
-    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
-    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
-    l = apply(CTX, l, { type: "charge", player: "p1", card: l.players.p1.hand[0] }).state;
-    const legacyRested = l.players.p1.energy[0];
-    l.cards[legacyRested].mode = "rest";
-    l = apply(CTX, l, { type: "endMain", player: "p1" }).state;
-    l = apply(CTX, l, { type: "charge", player: "p2", card: null }).state;
-    l = apply(CTX, l, { type: "endMain", player: "p2" }).state;
-    assert.equal(l.cards[legacyRested].mode, s.cards[rested].mode, "the two engines disagree about whether the Active Step stands rested energy back up (7-2-7)");
   }
 
   // 1-9: a Leader that has flipped shows its awakened face, and that face's
