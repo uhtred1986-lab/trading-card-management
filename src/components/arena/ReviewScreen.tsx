@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { reviewFlagAction } from "@/app/arena/actions";
 import type { FlaggedGame, FlagLine } from "@/lib/arena/review-store";
+import { resolveOutcome } from "@/lib/arena/outcome";
 import type { Review, ReviewBeat } from "@/lib/arena/review";
 import type { CardView, SideView } from "@/lib/arena/view";
 
@@ -42,9 +43,13 @@ function modeLabel(mode: string): string {
 }
 
 function outcome(g: FlaggedGame): string {
-  if (g.status === "abandoned") return "abandoned";
-  if (g.status !== "over") return "in progress";
-  return g.winner === "p1" ? `${g.p1Name} won` : g.winner === "p2" ? `${g.p2Name} won` : "drawn";
+  const winner = g.winner === "p1" || g.winner === "p2" ? g.winner : null;
+  const result = resolveOutcome({ winner, overReason: g.reason, outcome: g.outcomeKind ? { kind: g.outcomeKind as "win" | "draw" | "concession" | "abandoned" | "interrupted", winner, reason: g.reason ?? "" } : null }, g.status);
+  if (!result) return "in progress";
+  if (result.kind === "interrupted") return "interrupted";
+  if (result.kind === "abandoned") return "abandoned";
+  if (result.kind === "draw") return "drawn";
+  return result.winner === "p1" ? `${g.p1Name} won` : result.winner === "p2" ? `${g.p2Name} won` : "drawn";
 }
 
 function Chip({ c }: { c: CardView }) {

@@ -43,9 +43,16 @@ export interface Choice {
   /** One line of table talk, or null when no model was asked. */
   say: string | null;
   /** Null when the decision was taken without an API call. */
-  spend: { model: string; provider?: string; input: number; output: number; cached: number; costMicros?: number } | null;
+  spend: { model: string; provider?: string; billed?: boolean; input: number; output: number; cached: number; cacheWrite?: number; costMicros?: number } | null;
   /** Why it was decided this way, for the log. */
   how: string;
+}
+
+/** The identity of one provider invocation and the game board it answered. */
+export interface AiCallAttribution {
+  gameId: number;
+  callId: string;
+  revision: number;
 }
 
 /**
@@ -197,7 +204,7 @@ function slotFor(tier: Tier, s: EngineState) {
 
 // ── the decision ───────────────────────────────────────────────────────────
 
-export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId, tier: Tier): Promise<Choice> {
+export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId, tier: Tier, attribution?: AiCallAttribution): Promise<Choice> {
   if (!legal.length) throw new Error("no legal move to choose from");
   const free = freeChoice(ctx, s, legal, p);
   if (free) return { index: free.index, say: null, spend: null, how: free.how };
@@ -222,14 +229,14 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
     messages: [{ role: "user", parts: [{ type: "text", text: question }] }],
   });
 
-  const { output } = await recordRun<z.infer<typeof MoveSchema>>(db, "arena_move", { prompt: s.prompt.kind, turn: s.turn, moves: legal.length }, res);
+  const { output } = await recordRun<z.infer<typeof MoveSchema>>(db, "arena_move", { prompt: s.prompt.kind, turn: s.turn, moves: legal.length, ...(attribution ? { arena: attribution } : {}) }, res);
   // The engine still refuses anything illegal; this only keeps an out-of-range
   // answer from throwing before it gets there.
   const index = Number.isInteger(output.move) && output.move >= 0 && output.move < legal.length ? output.move : 0;
   return {
     index,
     say: output.say?.trim() || null,
-    spend: { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) },
+    spend: { model: res.model, provider: res.provider, billed: res.billed, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, cacheWrite: res.usage.cacheWrite, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) },
     how: index === output.move ? "chosen by Claude" : `Claude answered ${output.move}, which is not on the list — took the first move`,
   };
 }
@@ -380,7 +387,8 @@ export async function ruleOnCard(
   db: Db,
   request: { cardId: string; cardName: string; text: string; unsupported: string[] },
   situation: string,
-): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; provider?: string; input: number; output: number; cached: number; costMicros?: number } | null }> {
+  attribution?: AiCallAttribution,
+): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; provider?: string; billed?: boolean; input: number; output: number; cached: number; cacheWrite?: number; costMicros?: number } | null }> {
   if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", valid: false, spend: null };
   const res = await generateJson({
     task: "arena_referee",
@@ -402,14 +410,14 @@ export async function ruleOnCard(
       },
     ],
   });
-  const { output } = await recordRun<z.infer<typeof RulingSchema>>(db, "arena_referee", { cardId: request.cardId, unsupported: request.unsupported }, res);
+  const { output } = await recordRun<z.infer<typeof RulingSchema>>(db, "arena_referee", { cardId: request.cardId, unsupported: request.unsupported, ...(attribution ? { arena: attribution } : {}) }, res);
   let ops: unknown;
   try {
     ops = JSON.parse(output.program);
   } catch {
     ops = [];
   }
-  const spend = { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) };
+  const spend = { model: res.model, provider: res.provider, billed: res.billed, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, cacheWrite: res.usage.cacheWrite, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) };
   // A malformed ruling is treated as "nothing happens" rather than trusted.
   if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend };
   return { ops: ops as Op[], why: output.why, valid: true, spend };

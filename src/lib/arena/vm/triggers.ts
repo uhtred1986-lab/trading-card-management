@@ -79,6 +79,8 @@ import { keywordMomentOf } from "./keyword-do";
  * which is the whole point, since a second game declares its own.
  */
 export interface VmPending {
+  /** Older serialized Auto entries omit the kind field. */
+  kind?: "auto";
   /** The card whose skill answers. */
   card: string;
   /** Which of that face's skills, by its printed index. */
@@ -90,6 +92,20 @@ export interface VmPending {
   /** The card the moment happened to, when that is another card (`BIND "subject"`). */
   subject?: string;
 }
+
+/** A captured declarative effect hook awaiting the same 9-6-6 checkpoint as an [Auto]. */
+export interface VmPendingHook {
+  kind: "hook";
+  card: string;
+  skillIndex: number | undefined;
+  master: PlayerId;
+  trigger: "afterSkill";
+  subject?: string;
+  /** Compiled operations and event bindings are captured when the event happens; never re-read card text. */
+  frame: import("./script").ScriptFrame;
+}
+
+export type VmPendingRecord = VmPending | VmPendingHook;
 
 /** A card asked whether it answers to a moment, and the name it would answer to. */
 export interface TriggerMatch {
@@ -153,7 +169,19 @@ function valueMatches(want: PatternValue, got: PatternValue | undefined): boolea
 /** The cards this declaration puts the question to, before `WHERE` narrows them. */
 function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment: Moment): string[] {
   const watcher = trigger.on.args.watcher;
-  if (watcher !== undefined) return inPlay(game, state, watching(state, trigger, moment, watcher));
+  if (watcher !== undefined) {
+    const sides = watching(state, trigger, moment, watcher);
+    const askedCards = inPlay(game, state, sides);
+    // 3-9-2-1: the card turned face up is still in its Life Area, and its own
+    // Auto can answer as well as the controller's in-play watchers. The
+    // declaration's watcher chooses the audience; this event subject is the
+    // one card that answers from outside that audience's in-play zones.
+    if (trigger.name === "flippedFaceUp" && moment.event === "faceUpTurned" && moment.args.in === "life" && moment.card) {
+      const at = findCard(state, moment.card);
+      if (at?.zone === "life" && sides.includes(masterOf(game, state, moment.card))) askedCards.push(moment.card);
+    }
+    return askedCards;
+  }
   // A moment with no card is about the board rather than about a card (a phase
   // beginning), so everything in play hears it; `WHERE` is what makes it one
   // side's, which is 7-1's own framing of "your Charge Phase".
@@ -345,8 +373,8 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
  * same game may not disagree about — a skill resolving a step later is a
  * different board.
  */
-export function nextPending(state: VmState): VmPending | null {
-  const pick = (p: PlayerId): VmPending | null => {
+export function nextPending(state: VmState): VmPendingRecord | null {
+  const pick = (p: PlayerId): VmPendingRecord | null => {
     const i = state.pending.findIndex((x) => x.master === p);
     return i >= 0 ? state.pending.splice(i, 1)[0] : null;
   };

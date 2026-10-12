@@ -79,6 +79,8 @@ export interface FlaggedGame {
   mode: string;
   status: string;
   winner: string | null;
+  reason: string | null;
+  outcomeKind: string | null;
   turn: number;
   p1User: string | null;
   p2User: string | null;
@@ -97,6 +99,8 @@ export async function gamesWithFlags(db: Db, openOnly = true): Promise<FlaggedGa
       mode: arenaGames.mode,
       status: arenaGames.status,
       winner: arenaGames.winner,
+      reason: arenaGames.reason,
+      outcomeKind: sql<string | null>`${arenaGames.state}->'outcome'->>'kind'`,
       turn: arenaGames.turn,
       p1User: arenaGames.p1User,
       p2User: arenaGames.p2User,

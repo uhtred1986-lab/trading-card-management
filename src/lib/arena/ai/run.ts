@@ -10,9 +10,10 @@
  * finished game can be read back move by move and the opponent tuned. Clauses
  * the compiler could not read are added to the backlog as they come up.
  */
-import { eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { arenaGames } from "@/db/schema";
+import { arenaAiUsage, arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import { spendMicros } from "@/lib/ai/models";
 import { skillsOf } from "../text/cards";
@@ -24,7 +25,7 @@ import { nameOf } from "../engine-state";
 import { recordDecision } from "./debug";
 import { shownName, stateText } from "./view";
 import { tableOf } from "./table";
-import { chooseMove, ruleOnCard, type Tier } from "./opponent";
+import { chooseMove, ruleOnCard, type AiCallAttribution, type Tier } from "./opponent";
 
 /** Re-exported from models.ts for backward compatibility (#515). */
 export { PRICES, costMicros, spendMicros } from "@/lib/ai/models";
@@ -53,22 +54,60 @@ export function decisionModel(spend: { model: string; provider?: string } | null
   return spend.provider && spend.provider !== "anthropic-api" ? `${spend.provider} · ${spend.model}` : spend.model;
 }
 
-async function addSpend(db: Db, gameId: number, spend: { model: string; provider?: string; input: number; output: number; cached: number; costMicros?: number } | null): Promise<number> {
-  if (!spend) return 0;
+export async function accountArenaUsage(
+  db: Db,
+  attribution: AiCallAttribution,
+  spend: { model: string; provider?: string; billed?: boolean; input: number; output: number; cached: number; cacheWrite?: number; costMicros?: number },
+): Promise<number> {
   const micros = spendMicros(spend);
-  const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
-  if (!row) return micros;
-  await db
-    .update(arenaGames)
-    .set({
-      aiCalls: row.aiCalls + 1,
-      aiInputTokens: row.aiInputTokens + spend.input,
-      aiOutputTokens: row.aiOutputTokens + spend.output,
-      aiCachedTokens: row.aiCachedTokens + spend.cached,
-      aiCostMicros: row.aiCostMicros + micros,
-    })
-    .where(eq(arenaGames.id, gameId));
+  const provider = spend.provider ?? "anthropic-api";
+  const billed = spend.billed ?? true;
+  const cacheWrite = spend.cacheWrite ?? 0;
+  // The receipt insert and cumulative update share one statement: a stale move
+  // still has its real provider usage recorded, while replaying this exact
+  // accounting identity cannot add the same usage a second time.
+  await db.execute(sql`
+    WITH inserted AS (
+      INSERT INTO ${arenaAiUsage} (
+        game_id, call_id, revision, model, provider, billed,
+        input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cost_micros
+      ) VALUES (
+        ${attribution.gameId}, ${attribution.callId}, ${attribution.revision}, ${spend.model}, ${provider}, ${billed},
+        ${spend.input}, ${spend.output}, ${spend.cached}, ${cacheWrite}, ${micros}
+      )
+      ON CONFLICT (game_id, call_id) DO NOTHING
+      RETURNING game_id
+    ), updated AS (
+      UPDATE ${arenaGames} AS game
+      SET ai_calls = game.ai_calls + 1,
+          ai_input_tokens = game.ai_input_tokens + ${spend.input},
+          ai_output_tokens = game.ai_output_tokens + ${spend.output},
+          ai_cached_tokens = game.ai_cached_tokens + ${spend.cached},
+          ai_cost_micros = game.ai_cost_micros + ${micros}
+      FROM inserted
+      WHERE game.id = inserted.game_id
+      RETURNING game.id
+    )
+    SELECT id FROM updated
+  `);
+
+  // Call ids are scoped to one physical provider call. A retry may repeat an
+  // identical receipt, but accidentally reusing its identity for different
+  // usage must fail loudly instead of hiding real spend.
+  const [receipt] = await db
+    .select()
+    .from(arenaAiUsage)
+    .where(and(eq(arenaAiUsage.gameId, attribution.gameId), eq(arenaAiUsage.callId, attribution.callId)))
+    .limit(1);
+  if (!receipt || receipt.revision !== attribution.revision || receipt.model !== spend.model || receipt.provider !== provider || receipt.billed !== billed || receipt.inputTokens !== spend.input || receipt.outputTokens !== spend.output || receipt.cacheReadTokens !== spend.cached || receipt.cacheCreationTokens !== cacheWrite || receipt.costMicros !== micros) {
+    throw new Error(`Arena AI usage identity ${attribution.callId} was reused with different accounting data`);
+  }
   return micros;
+}
+
+async function addSpend(db: Db, attribution: AiCallAttribution, spend: { model: string; provider?: string; billed?: boolean; input: number; output: number; cached: number; cacheWrite?: number; costMicros?: number } | null): Promise<number> {
+  if (!spend) return 0;
+  return accountArenaUsage(db, attribution, spend);
 }
 
 /** Piles the human cannot see, so a choice made out of one is a search (3-1-3). */
@@ -132,7 +171,8 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
     try {
       if (prompt.kind === "referee") {
         reuse = undefined;
-        const done = await runReferee(db, game, gameId);
+        const attribution = { gameId, callId: randomUUID(), revision: game.version };
+        const done = await runReferee(db, game, attribution);
         if (done) said.push(done);
         continue;
       }
@@ -142,8 +182,9 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
       // and `stateText` both read the table through `tableOf` (#457).
       const state = game.state;
       const started = Date.now();
-      const choice = await chooseMove(db, game.ctx, state, game.legal, ai, game.mode as Tier);
-      const micros = await addSpend(db, gameId, choice.spend);
+      const attribution = { gameId, callId: randomUUID(), revision: game.version };
+      const choice = await chooseMove(db, game.ctx, state, game.legal, ai, game.mode as Tier, attribution);
+      const micros = await addSpend(db, attribution, choice.spend);
       const chosen = game.legal[choice.index];
       await recordDecision(db, {
         gameId,
@@ -182,7 +223,8 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
   return { steps, said, error: null };
 }
 
-async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<string | null> {
+async function runReferee(db: Db, game: LoadedGame, attribution: AiCallAttribution): Promise<string | null> {
+  const gameId = attribution.gameId;
   const prompt = game.state.prompt;
   if (prompt.kind !== "referee") return null;
   // The referee is Stage 6's on the rules engine (`docs/arena-rules-language.md`):
@@ -194,8 +236,8 @@ async function runReferee(db: Db, game: LoadedGame, gameId: number): Promise<str
   const req = prompt.request;
   const started = Date.now();
   const situation = stateText(game.ctx, state, req.master);
-  const ruling = await ruleOnCard(db, { cardId: req.cardId, cardName: req.cardName, text: req.text, unsupported: req.unsupported }, situation);
-  const micros = await addSpend(db, gameId, ruling.spend);
+  const ruling = await ruleOnCard(db, { cardId: req.cardId, cardName: req.cardName, text: req.text, unsupported: req.unsupported }, situation, attribution);
+  const micros = await addSpend(db, attribution, ruling.spend);
 
   await recordDecision(db, {
     gameId,

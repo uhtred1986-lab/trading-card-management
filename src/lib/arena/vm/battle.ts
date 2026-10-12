@@ -46,7 +46,7 @@
  * offers the next card or, finding none left, falls through to the step
  * after.
  *
- * **What #150 built of damage, KO and combo, and what #151 still owns.**
+ * **Damage, KO, combo and battle cleanup.**
  * `dealDamage` here is the generic move a battle needs — the top of the
  * declared `life` zone to the hand, face down, one card per hit, stopping to
  * ask over a life card's own 9-10 replacement (#272) — and
@@ -59,10 +59,9 @@
  * outright — `damageRule` below). Combo is paid through the same
  * `energy`-priced planner every other move is (`vm/costs.ts`), reading `comboCostOf` — the
  * declared, reduction-aware attribute — rather than a number this module
- * invents; #151 owns the Z-Energy a spent combo card may become at the end
- * of the battle (`DECLARED_BY`'s own "#151" against `zEnergyFromCombo`) and
- * this module simply sends every combo card to the Drop instead, which is
- * the honest board until that lands.
+ * invents. At battle cleanup this module offers the turn player and then the
+ * other player one optional 8-5-2/3 choice, runs the 8-5-4 checkpoint, and
+ * sends every remaining combo card to its owner's Drop.
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
@@ -85,6 +84,7 @@ import { lifeReplacementChoices, markerReplacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
 import { masterOf, skillsShowing } from "./triggers";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
+import { isTokenCard } from "./zones";
 import type { VmBattle, VmState } from "./state";
 
 // ── the phase, from the Main Phase's own "attack" choice ────────────────────
@@ -286,14 +286,33 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
 
   battleEnd: {
     section: "8-5",
-    waits: "the Z-Energy offer over a spent combo card (#151 owns `zEnergyFromCombo`)",
+    waits: "the ordered 8-5-2/3 Z-Energy choices, the 8-5-4 checkpoint, then combo cleanup",
     run: (ctx, game, state, ev) => {
       const b = state.battle;
       if (!b) return;
       b.step = "battleEnd";
-      log(ev, { type: "battleStep", step: "battleEnd" });
-      // 8-5-5..8: every combo card, both sides, to the Drop — #151's own
-      // primitive picks up the Z-Energy offer this loop does not make.
+      if (!b.endCombo) {
+        log(ev, { type: "battleStep", step: "battleEnd" });
+        if (game.id === "dbs") b.endCombo = { chooserIndex: 0, stage: "choices", retainedComboPower: {} };
+      }
+      if (game.id === "dbs" && b.endCombo?.stage === "choices") {
+        if (askZEnergyChoices(ctx, game, state)) return "wait";
+        // Even if neither player has a candidate, 8-5-4 still precedes combo
+        // power dissipating and the cards going to Drop.
+        b.endCombo.stage = "checkpoint";
+        const top = state.flow[state.flow.length - 1];
+        if (top) top.reask = true;
+        return;
+      }
+      if (game.id === "dbs" && b.endCombo?.stage === "checkpoint") {
+        // Reaching this step again means the checkpoint after both choices
+        // has drained. 8-5-5 now ends every remaining combo contribution.
+        b.endCombo.stage = "cleanup";
+        b.endCombo.retainedComboPower = {};
+      }
+      // Existing cleanup batches the Drop moves before its checkpoint, so the
+      // 8-5-6/7 and 8-5-9 timing distinction remains a known limitation here;
+      // this work changes only the earlier 8-5-2/3 -> 8-5-4 ordering.
       // `moved()` already fires the generic `moved(from: combo)` moment
       // `comboed` reads (5-7's own "when this card is used in a combo" is
       // answered by the departure, not by a second `comboUsed` here — that
@@ -339,6 +358,58 @@ function attackTargetMomentArgs(
     targetRed: attrs.type === "UNISON" && colors.includes("Red"),
     targetSpecifiedCost: specified.length,
   };
+}
+
+/** 8-5-2/3: only Battle Cards in the relevant player's Combo Area are offered. */
+function comboBattleCards(ctx: EngineContext, state: VmState, player: PlayerId): string[] {
+  return (state.sides[player].zones.combo ?? []).filter((id) => {
+    const card = state.cards[id];
+    const type = ctx.defs[card?.cardId ?? ""]?.type;
+    return isTokenCard(card?.cardId ?? "") || type === "BATTLE" || type === "Z-BATTLE";
+  });
+}
+
+/** Advances past empty Combo Areas and puts the next rule choice on the board. */
+function askZEnergyChoices(ctx: EngineContext, _game: GameDefinition, state: VmState): boolean {
+  const end = state.battle!.endCombo!;
+  const players: PlayerId[] = [state.turnPlayer, other(state.turnPlayer)];
+  while (end.chooserIndex < players.length) {
+    const player = players[end.chooserIndex];
+    const candidates = comboBattleCards(ctx, state, player);
+    if (candidates.length) {
+      state.prompt = { kind: "zEnergyFromCombo", player, candidates };
+      return true;
+    }
+    end.chooserIndex++;
+  }
+  return false;
+}
+
+/** Applies one up-to-one answer, then offers the other player before checkpoint. */
+export function applyZEnergyFromCombo(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): "wait" | "done" {
+  if (action.type !== "zEnergyFromCombo") throw new RulesetBroken(state.game, "applyZEnergyFromCombo called on another action");
+  requirePrompt(state, action, ["zEnergyFromCombo"]);
+  const prompt = state.prompt as Extract<Prompt, { kind: "zEnergyFromCombo" }>;
+  const end = state.battle?.endCombo;
+  if (!end || end.stage !== "choices" || end.chooserIndex > 1) throw new IllegalAction("there is no Z-Energy combo choice in progress");
+  const chooser = [state.turnPlayer, other(state.turnPlayer)][end.chooserIndex];
+  if (action.player !== prompt.player || action.player !== chooser) throw new IllegalAction("it is not this player's Z-Energy choice");
+  if (action.card !== null) {
+    if (!prompt.candidates.includes(action.card) || !comboBattleCards(ctx, state, action.player).includes(action.card)) throw new IllegalAction("that Battle Card is no longer in this Combo Area");
+    const id = action.card;
+    const power = Number(attrsNow(ctx, game, state, id).comboPower ?? 0);
+    const retained = end.retainedComboPower[action.player] ?? (end.retainedComboPower[action.player] = {});
+    retained[id] = power;
+    // 8-5-2/3 places it in its owner's Z-Energy Area. Tokens are valid choices
+    // (19-1-6), but `moved` redirects their departure to Removed (19-1-7).
+    moved(ctx, game, state, ev, id, "zEnergy", { owner: state.cards[id].owner, reveal: true, reason: "rule" });
+  }
+  end.chooserIndex++;
+  if (askZEnergyChoices(ctx, game, state)) return "wait";
+  end.stage = "checkpoint";
+  const top = state.flow[state.flow.length - 1];
+  if (top) top.reask = true;
+  return "done";
 }
 
 /**

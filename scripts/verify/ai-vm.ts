@@ -43,7 +43,8 @@ import { NO_SETTINGS, setSettingsLoader } from "../../src/lib/ai/settings";
 import { EFFECT_LANGUAGE, ruleOnCard } from "../../src/lib/arena/ai/opponent";
 import { clarifyRule, type RuleToClarify } from "../../src/lib/arena/ai/clarify";
 import { claudeTeacher } from "../../src/lib/arena/ai/teach";
-import { reviewGame } from "../../src/lib/arena/ai/review";
+import { InterruptedGameReviewError, reviewGame } from "../../src/lib/arena/ai/review";
+import { interruptedOutcome } from "../../src/lib/arena/outcome";
 import { cards as cardsTable } from "../../src/db/schema";
 
 const card = (id: string, o: Partial<CardDef> = {}): CardDef => ({
@@ -581,6 +582,19 @@ function toCombo(s: EngineState, eid: EngineId): EngineState {
         assert.ok(b.output_config.format);
         assert.equal(typeof b.system, "string", "a single uncached system prompt goes out as a plain string");
         assert.ok((b.system as string).startsWith("You are coaching a Dragon Ball Super Card Game player"));
+
+        // An interrupted row must be rejected before the provider is called,
+        // even when review generation is configured and a fake provider is
+        // ready to answer. The private diagnostic remains in saved state only.
+        arenaRow.state = {
+          ...done,
+          winner: null,
+          overReason: interruptedOutcome().reason,
+          outcome: interruptedOutcome({ sourceCard: "SECRET-HIDDEN#17", detail: "unrevealed card text" }),
+        };
+        wire.length = 0;
+        await assert.rejects(reviewGame(db, 1), InterruptedGameReviewError);
+        assert.equal(wire.length, 0, "interrupted-game coaching never reaches the paid provider");
       }
     }
   } finally {

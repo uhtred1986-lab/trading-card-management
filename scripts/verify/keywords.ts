@@ -1097,14 +1097,19 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   );
   s = playG(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
   assert.equal(s.cards[e3].mode, "rest", "the {r} was paid");
-  assert.equal(s.prompt.kind, "chooseCards");
   const v1 = findG(s, "p1", "hand", "V1");
   const vb = findG(s, "p1", "hand", "V-BLUE");
-  s = playG(s, { type: "choose", player: "p1", cards: [v1] });
-  assert.equal(s.prompt.kind, "chooseCards", "one colour down, one to go");
-  const rest = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
-  assert.ok(rest.includes(vb) && !rest.includes(v1), "the picked card is off the menu");
-  s = playG(s, { type: "choose", player: "p1", cards: [vb] });
+  if (ENGINE === "rules") {
+    s = playG(s, { type: "choose", player: "p1", cards: [v1] });
+    assert.ok(zoneOf(s, "p1", "drop").includes(v1) && zoneOf(s, "p1", "drop").includes(vb), "the sole forced Blue completes the required cost");
+  } else {
+    assert.equal(s.prompt.kind, "chooseCards");
+    s = playG(s, { type: "choose", player: "p1", cards: [v1] });
+    assert.equal(s.prompt.kind, "chooseCards", "one colour down, one to go");
+    const rest = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
+    assert.ok(rest.includes(vb) && !rest.includes(v1), "the picked card is off the menu");
+    s = playG(s, { type: "choose", player: "p1", cards: [vb] });
+  }
   assert.ok(zoneOf(s, "p1", "drop").includes(v1) && zoneOf(s, "p1", "drop").includes(vb), "22-30-3: both dropped as the cost");
   assert.equal(s.prompt.kind, "chooseCards", "22-30-5: which energy to stand");
   s = playG(s, { type: "choose", player: "p1", cards: [e1] }, { type: "choose", player: "p1", cards: [e2] });
