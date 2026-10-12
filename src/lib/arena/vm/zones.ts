@@ -325,13 +325,22 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   }
 
   // ── into a zone ─────────────────────────────────────────────────────────
-  // 19-1-7: a token (or 14-1-4: a Z-card) leaving play or a combo for anywhere else is removed from
-  // the game instead — the legacy `move`'s own first redirect, read off the
-  // same two declared flags 3-1-6-1's clamp below reads ("in play, or a pile a
-  // card may sit on"), so the rule names no area but the one it sends to.
-  // 14-1-4 is the same redirect for a Z-card ([Ultimate]'s 22-14-3 half, which
-  // the legacy `move` folds into the same line, is Stage 7's and not read here).
-  if ((isTokenCard(card.cardId) || card.zCard === true) && from && heldInPlay(game, from.zone) && !heldInPlay(game, to) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
+  // 19-1-7 names a token's two departure areas. A token can be selected in a
+  // Combo Area (19-1-6), but moving it to Z-Energy still removes it.
+  const tokenLeavesItsAreas = isTokenCard(card.cardId) && from &&
+    (from.zone === "battle" || from.zone === "combo") &&
+    to !== "battle" && to !== "combo";
+  // 14-1-4 applies to moves out of Leader, Battle and Unison Areas. Combo is
+  // deliberately not in that list: a Z card already in Combo can be moved to
+  // Z-Energy at 8-5-2. Rule 16-1-4 further removes a Z-Battle Card whenever
+  // it leaves Battle, including movement into another listed area such as
+  // Unison and into Combo. [Ultimate]'s separate 22-14-3 rule is
+  // still handled by its own hook, not by this area redirect.
+  const zCardLeavesListedArea = card.zCard === true && from &&
+    ((["leader", "battle", "unison"].includes(from.zone) &&
+      !["leader", "battle", "unison"].includes(to)) ||
+      (from.zone === "battle" && to !== "battle"));
+  if ((tokenLeavesItsAreas || zCardLeavesListedArea) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
   const zone = game.zones[to];
   if (!zone) return { ok: false, refused: `the ${game.id} ruleset declares no zone called ${JSON.stringify(to)}` };
   if (zone.place === false) return { ok: false, refused: `the ${to} is not a place a card is put (${zone.text ?? "no card sits in it"})` };

@@ -1155,23 +1155,21 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
   const zc = findG(s, "p1", "zDeck", "ZCHEAP");
   assert.equal(DEFS.ZCHEAP.zEnergyCost, 2, "printed");
   assert.equal(zEnergyCostOfG(s, zc), 1, "1 less while its own [Permanent] is in force");
-  if (!rulesGap("compiler: ZCHEAP paid with one Z-Energy made from a combo (5-4, 8-5-2)", "the rules engine does not offer a spent combo card as Z-Energy at the end of a battle — `zEnergyFromCombo` is still listed as not built in vm/index.ts", "#151")) {
-    // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
-    // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
-    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
-    const c = findG(s, "p1", "hand", "V1");
-    s = passCombosG(playG(s, { type: "combo", player: "p1", card: c }));
-    assert.equal(s.prompt.kind, "zEnergyFromCombo");
-    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
-    assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
-    assert.ok(
-      labelsG(s).some((x) => x.startsWith("Play Z-Battle ZCHEAP")),
-      "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
-    );
-    s = playG(s, { type: "playZ", player: "p1", card: zc });
-    assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
-    assert.ok(zoneOf(s, "p1", "battle").includes(zc), "and the card actually entered play");
-  }
+  // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
+  // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  const c = findG(s, "p1", "hand", "V1");
+  s = passCombosG(playG(s, { type: "combo", player: "p1", card: c }));
+  assert.equal(s.prompt.kind, "zEnergyFromCombo");
+  s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
+  assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
+  assert.ok(
+    actsG(s).some((a) => a.type === "playZ" && a.card === zc),
+    "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
+  );
+  s = playG(s, { type: "playZ", player: "p1", card: zc });
+  assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
+  assert.ok(zoneOf(s, "p1", "battle").includes(zc), "and the card actually entered play");
 }
 
 {

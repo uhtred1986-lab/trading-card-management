@@ -105,6 +105,9 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
       const c = Number(attrsNow(ctx, game, state, id).comboPower ?? 0);
       contributions[id] = c;
       return n + c;
+    }, 0) + Object.entries(state.battle?.endCombo?.retainedComboPower?.[p] ?? {}).reduce((n, [id, c]) => {
+      contributions[id] = c;
+      return n + c;
     }, 0);
   const attackPower = power(b.attacker) + combo(state.turnPlayer);
   const guardPower = power(b.guard) + combo(defender);
