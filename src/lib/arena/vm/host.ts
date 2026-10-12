@@ -204,7 +204,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // is: "when this card is switched to Rest Mode by one of your skills",
       // "when your skill rests an opponent's Battle Card or energy" (#157).
       const controller = masterOf(game, state, id);
-      const cause: Record<string, string | boolean> = by ? { by: by.keyword ?? "skill", byOpponent: by.master !== controller } : {};
+      const cause: Record<string, string | boolean> = by
+        ? { by: by.keyword ?? "skill", byOpponent: by.master !== controller, notAwaken: by.keyword?.toLowerCase() !== "awaken" }
+        : {};
       emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller, args: { mode, in: at ?? "", ...cause } }, { type: "mode", card: id, mode });
       return true;
     },
@@ -539,7 +541,7 @@ function moveTo(
   // `verify/compiler.ts`'s STEALER case).
   const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
   const carry = !!opts.carry || (held(from) && held(to));
-  const placed = moveCard(state, game, id, to, { owner, position: opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
+  const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     return;

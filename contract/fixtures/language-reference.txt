@@ -1613,7 +1613,7 @@
     {
       "name": "replaceLeave",
       "class": "macro over `replace`",
-      "signature": "{\"op\":\"replaceLeave\",\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"mode\"?:\"active\"|\"rest\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replaceLeave\",\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"mode\"?:\"active\"|\"rest\",\"position\"?:\"top\"|\"bottom\",\"requestedTo\"?:\"hand\",\"until\"?:DURATION,\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "to",
@@ -1652,6 +1652,31 @@
           ]
         },
         {
+          "name": "position",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "top",
+            "bottom"
+          ]
+        },
+        {
+          "name": "requestedTo",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "hand"
+          ]
+        },
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
+        },
+        {
           "name": "optional",
           "required": false,
           "nullable": false,
@@ -1666,7 +1691,7 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, it goes to the drop instead",
-      "doc": "[Permanent] only (9-10): \"if this card would be KO'd, send it to the Warp instead\". \"by\" is which departure it replaces: omitted = any, \"skill\" = removed by an effect, \"ko\" = the KO, \"skillOrKo\" = either. \"bySide\" narrows that to the opponent's skill. \"optional\" is 9-10-3's \"you may\". Omit \"target\" for this card"
+      "doc": "9-10: \"to\" is the replacement destination; \"by\" narrows the cause, \"bySide\" narrows whose skill, and \"requestedTo\" narrows the original requested destination. \"position\" specifies top or bottom of a pile. Omit \"until\" for a [Permanent] (9-5-1); a timed effect records this redirect for the stated duration. Omit \"target\" for this card"
     },
     {
       "name": "replace",
@@ -3734,6 +3759,10 @@
       "words": "when your opponent attacks"
     },
     {
+      "name": "opponentAttacksRedUnison2",
+      "words": "when your opponent attacks your red Unison Card with a specified cost of 2"
+    },
+    {
       "name": "yourLeaderAttacked",
       "words": "when your Leader is attacked"
     },
@@ -3900,6 +3929,14 @@
     {
       "name": "restedTheirsBySkill",
       "words": "when your skill rests an opponent's card"
+    },
+    {
+      "name": "opponentEnergyActiveBySkill",
+      "words": "when your opponent switches your energy to Active Mode using a non-[Awaken] skill during their turn"
+    },
+    {
+      "name": "opponentOwnEnergyActiveBySkill",
+      "words": "when your opponent switches their energy to Active Mode using a non-[Awaken] skill during their turn"
     },
     {
       "name": "hiddenBySkill",

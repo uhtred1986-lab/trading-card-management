@@ -1183,7 +1183,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   });
   if (route.replacement) opts.usedReplacements?.add(route.replacement);
   if (route.stays) return;
-  const result = moveCard(state, game, id, route.to, { ...opts, ...(route.mode ? { mode: route.mode } : {}) });
+  const result = moveCard(state, game, id, route.to, { ...opts, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
   // Where it really went: a rule about what the card *is* may send it
   // somewhere else than asked (19-1-7, a token leaving play is removed).
