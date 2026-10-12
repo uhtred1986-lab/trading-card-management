@@ -9,6 +9,8 @@ import { db } from "@/db";
 import { arenaFeedback, arenaGames, cards } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction } from "@/lib/arena/vm/common";
+import { previewLoadedGame } from "@/lib/arena/gameplan-preview";
+import { validPlanActions, type GameplanPreview } from "@/lib/arena/gameplan-types";
 import { type Action, type GameState } from "@/lib/arena/types";
 import { printRule, readRule } from "@/lib/arena/lang";
 import { defaultEngine } from "@/lib/arena/engine-setting";
@@ -529,6 +531,27 @@ export async function matchGameId(matchId: number): Promise<{ gameId: number | n
   await requireSignedIn();
   const m = await matchById(db, matchId);
   return { gameId: m?.gameId ?? null, status: m?.status ?? "cancelled" };
+}
+
+/** A read-only, revision-bound projection of at most two Main Phase moves. */
+export async function previewGameplanAction(gameId: number, actions: Action[], basedOn: number): Promise<{ error: string | null; preview: GameplanPreview | null }> {
+  await requireSignedIn();
+  if (!Number.isInteger(gameId) || gameId < 1 || !Number.isInteger(basedOn) || basedOn < 0 || !validPlanActions(actions)) {
+    return { error: "choose one or two moves from this board", preview: null };
+  }
+  if (!(await canOpenGame(await requireSignedIn(), gameId))) return { error: "this is not your game", preview: null };
+  // Read only seat metadata before the full row, which also carries both
+  // concealed hands. A caller outside a versus match never loads that row.
+  const [seatRow] = await db.select({ mode: arenaGames.mode, p1User: arenaGames.p1User, p2User: arenaGames.p2User })
+    .from(arenaGames).where(eq(arenaGames.id, gameId)).limit(1);
+  if (!seatRow) return { error: "no such game", preview: null };
+  const user = await currentUser();
+  if (isVersus(seatRow.mode) && !seatOf(seatRow, user)) return { error: "this is not your game", preview: null };
+  const game = await loadGame(db, gameId);
+  if (!game) return { error: "no such game", preview: null };
+  // The plan module checks every action against the engine's legal menu, on
+  // each successive cloned state. Submitted JSON is never trusted as legality.
+  return previewLoadedGame(game, basedOn, actions, isVersus(game.mode) ? seatOf(game, user) : null);
 }
 
 /**
