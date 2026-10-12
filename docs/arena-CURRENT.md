@@ -1,6 +1,6 @@
 # Arena current state (short)
 
-Last updated: 11 Oct 2026
+Last updated: 12 Oct 2026
 
 Keep this file under 200 lines; update it when priorities or entry documentation changes.
 
@@ -35,9 +35,12 @@ Older handovers explain architecture/history; their dated queues do not override
 - **P2/P3 Android after web contract:** tracker #580; #105, #106.
 - **P2 AI efficiency and live verification:** tracker #511; #381, #518.
 
-Start P0 #543 readiness, #545 revision and #544 explicit interruption, then #548 zero-power/#549 Auto costs.
-Independent #559 accessible review can start on disjoint files. #558 contracts → #560/#561 review/abilities
-and #562 stakes → #563 phone → #564 desktop. Use exact dependencies in the delivery plan.
+The integrity prerequisites and #558–#562 are merged. Effective-colour payment #626 is merged in
+PR #629, but its main Vercel deployment currently reports failure; wait for a successful deployment
+before the next merge. Revive ordering #624 is reviewed and locally validated in PR #630, awaiting
+that gate. Phone board #563 is reviewed in PR #631 after browser and local acceptance; desktop #564 waits for its
+merge. #549 and #595 remain partial, and #550 remains blocked on #549's acceptance. Use the
+canonical issue records and milestone checklists for delivered state and exact dependencies.
 #575 inventory and #459 fixed expectations must precede legacy retirement; #105/#106 wait on web contracts.
 
 ## Reconciliation and evidence
@@ -51,8 +54,8 @@ declaration checks passed. ops.rules documents native mill as its binding except
 language/declaration results, not runtime proof.
 
 The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
-runtime evidence. It records 21 narrow capability rows, five named rules-engine gaps with stable IDs
-and live owners, and 21 VM source sites, including the identity-less granted-Heroic guard owned by
+runtime evidence. Main records 25 narrow capability rows, four named rules-engine gaps with stable IDs
+and live owners, and 27 VM source sites, including the identity-less granted-Heroic guard owned by
 #602. It records merged #548 zero-power processing, #551 combo-to-Z-Energy, #553 static layers,
 #554 printed Heroic, #555 Aegis, #556 face-up Life events, and #601 fixed AI expectations from current
 runtime evidence. It keeps the native `mill` macro exception and #459 oracle migration gate separate
