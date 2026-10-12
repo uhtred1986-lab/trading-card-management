@@ -47,6 +47,9 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden") && "var" in o.target && o.target.var === op.as);
         if (following?.op === "switchMode") found = found.filter((id) => host.modeOf(id) !== following.mode);
         if (following?.op === "hidden") found = found.filter((id) => host.isHidden(id) !== following.hidden);
+        const next = f.ops[f.ip + 1];
+        if (next?.op === "faceUp" && "var" in next.target && next.target.var === op.as && sel.side === "you" && sel.area === "life")
+          found = found.filter((id) => host.areaOf(id) === "life" && host.isFaceUp(id) !== (next.faceUp ?? true));
         const picked = f.awaiting === op.as ? f.vars[op.as] ?? [] : [];
         const all = [...new Set([...found, ...picked])];
         if (!sel.upTo && op.atMost === undefined && selectedCount(sel, all, host.nameOf) < (sel.count ?? 1)) unpaid();
@@ -64,6 +67,15 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       if (op?.op === "moveTo" && op.to === "under" && ref === op.target) {
         const under = op.under ? host.resolveRef(f, op.under) : [f.card];
         if (under.length !== 1 || !state.cards[under[0]]) unpaid();
+      }
+      // The effect interpreter skips an unchanged face. For a price, every
+      // named life card must actually turn over (5-8-2-2 / 3-9-2-1).
+      if (op?.op === "faceUp" && ref === op.target) {
+        // An earlier action can change a saved card's area. Only the exact
+        // Life-area transition has a payment proof; other areas are unknown.
+        if (found.some((id) => state.cards[id] && host.areaOf(id) !== "life"))
+          throw new NotYet("pay face-up action price outside the Life Area", "#549");
+        if (found.length !== 1 || found.some((id) => !state.cards[id] || host.isFaceUp(id) === (op.faceUp ?? true))) unpaid();
       }
       if ("var" in ref) {
         const chosen = f.ops.slice(0, f.ip).findLast((o) => o.op === "choose" && o.as === ref.var);
@@ -101,6 +113,11 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       if (host.isHidden(id) === hidden) unpaid();
       host.setHidden(id, hidden, by);
       if (host.isHidden(id) !== hidden) unpaid();
+    },
+    setFaceUp: (id, faceUp) => {
+      if (!state.cards[id] || host.isFaceUp(id) === faceUp) unpaid();
+      host.setFaceUp(id, faceUp);
+      if (host.isFaceUp(id) !== faceUp) unpaid();
     },
     changeMarkers: (id, delta) => {
       if (delta < 0 && host.markersOf(id) < -delta) unpaid();
@@ -271,7 +288,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
  * unsupported price unaffordable or letting its effect run for free. */
 export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"): void {
   const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
-    || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal"
+    || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal" || op.op === "faceUp"
     || (op.op === "if" && !!op.else?.length && pays(op.then) && pays(op.else))
     || (op.op === "chooseMode" && op.modes.length > 0 && op.modes.every((mode) => pays(mode.ops))));
   const check = (steps: Op[], nested: boolean): void => {
@@ -289,6 +306,19 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
         continue;
       }
       if (op.op === "reveal" && !op.sel.upTo && op.audience !== "you") continue;
+      // Only a compulsory own-Life pick immediately turned to the opposite
+      // face has a complete payment proof. Other shapes stay typed unknown.
+      if (op.op === "faceUp") {
+        const prior = steps[index - 1];
+        const sel = prior?.op === "choose" ? prior.sel : null;
+        if (prior?.op !== "choose" || !("var" in op.target) || op.target.var !== prior.as
+          || Object.keys(op.target).some((key) => key !== "var")
+          || !sel || sel.side !== "you" || sel.area !== "life" || sel.count !== 1 || sel.upTo
+          || Object.entries(sel).some(([key, value]) => value !== undefined && !["side", "area", "count", "upTo"].includes(key))
+          || (prior.chooser && prior.chooser !== "you") || prior.atMost !== undefined)
+          throw new NotYet(`pay ${label} face-up action price outside the verified Life choice`, owner);
+        continue;
+      }
       // Shuffling is permitted only after another payable step and at the
       // very end: no later price selector can depend on its random order.
       if (op.op === "shuffle" && !nested && index === steps.length - 1 && !op.inspectedOnly && pays(steps.slice(0, index))) continue;
