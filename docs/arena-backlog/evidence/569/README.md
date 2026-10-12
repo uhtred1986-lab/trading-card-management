@@ -75,16 +75,19 @@ hosted or device p95 was measured. No live database or paid provider was used.
 
 ## Latest-main replication
 
-After #675 merged, the same scripts ran sequentially against clean main `2d1d8f8` and the
-integrated candidate `ecdab63`; the matching lockfile used the same local dependencies. Exact
-`readStatics` calls remain **4 → 1**, the lazy legal getter remains **1 → 1**, and the real
-`snapshotOfGame` SHA-256 is identical. Across the S01 small, S01 crowded-aura and S07 checkpoint
-fixtures, state, outcome, legal, rejected and both viewer hashes all match.
+After #675 merged, the same scripts ran in three sequential pairs against clean main `2d1d8f8`
+and the integrated candidate `ecdab63`; run order alternated and the matching lockfile used the
+same local dependencies. Exact `readStatics` calls remain **4 → 1**, the lazy legal getter remains
+**1 → 1**, and the real `snapshotOfGame` SHA-256 is identical. Across all three pairs and the S01
+small, S01 crowded-aura and S07 checkpoint fixtures, state, outcome, legal, rejected and both
+viewer hashes match.
 
-This one 30-sample timing pair is mixed: crowded-aura p50/p95 is
-41.779/44.703 → 41.395/49.419 ms, while the S07 checkpoint is
-48.669/69.995 → 52.616/61.518 ms. The small fixture is 3.310/4.040 →
-3.408/4.778 ms. These differences are local timing noise; this single latest-main pair confirms
-reduced repeated evaluation and output parity, but does not establish a consistent wall-time gain.
-The earlier three-pair result above remains evidence for that older base only. Full values and
-source fingerprints are in `read-session-result.json`.
+The latest-main crowded-aura median p50/p95 is **43.386/47.445 → 41.395/49.419 ms**: p50 improves
+4.6%, while p95 regresses 4.2%. The S07 checkpoint median is **59.053/69.995 →
+52.974/61.229 ms**, improving 10.3% and 12.5%. The small fixture is noise-sized and makes no
+speed claim. This is mixed local latency evidence, not a consistent p95 improvement or a hosted
+performance claim. Inspector samples still put `permanents`, `attrsNow` and `skillsShowing` at the
+top; `immunityStatics` and per-line Permanent badges independently traverse standing rules, and
+memoizing guard-sensitive reads requires separate safety proof. The earlier three-pair result
+above remains evidence for that older base only. Full values, run orders and source fingerprints
+are in `read-session-result.json`.

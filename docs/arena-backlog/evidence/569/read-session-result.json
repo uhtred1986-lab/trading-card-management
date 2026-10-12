@@ -244,5 +244,142 @@
       }
     ],
     "interpretation": "Single local pair has mixed latency changes; it confirms identical outputs and fewer static evaluations, not a consistent current-main wall-time improvement."
+  },
+  "latestMainThreePairs": {
+    "baselineHead": "2d1d8f86bc3db270e40df6e2f3b3b36858d34db5",
+    "integratedHead": "ecdab6360d8b7468d821541cd81b4f42c093c903",
+    "baselineRuntimeSha256": "606ff945b9f723652ce5a47df535338246c8ca17ba199cb5fec8bbca06a4b235",
+    "integratedRuntimeSha256": "ee5ab951934c395c56fb90265d2a171d880644f9df5b878c70d358960db5e9c6",
+    "sequentialOrders": [
+      "baseline then candidate",
+      "candidate then baseline",
+      "baseline then candidate"
+    ],
+    "samplesPerSidePerPair": 30,
+    "exactCounter": {
+      "before": {
+        "head": "2d1d8f86bc3db270e40df6e2f3b3b36858d34db5",
+        "engine": "rules",
+        "revision": 7,
+        "viewer": "p1",
+        "legalReads": 1,
+        "staticsCalls": 4,
+        "snapshotHash": "7f598f45cf30eeb8cb2e7f6eee2ba4a97effd6895bc8db20b38c3bdbefc21e4a"
+      },
+      "after": {
+        "head": "7bad2a9a2eb2e5fdc8e2d29a4f7f84f1a7647a72",
+        "engine": "rules",
+        "revision": 7,
+        "viewer": "p1",
+        "legalReads": 1,
+        "staticsCalls": 1,
+        "snapshotHash": "7f598f45cf30eeb8cb2e7f6eee2ba4a97effd6895bc8db20b38c3bdbefc21e4a"
+      }
+    },
+    "fixtures": [
+      {
+        "name": "s01-small",
+        "hashesMatchAcrossAllPairs": true,
+        "legalThenTwoViewerSnapshotsMs": {
+          "p50": {
+            "baseline": [
+              3.31,
+              4.044,
+              3.876
+            ],
+            "candidate": [
+              3.408,
+              3.514,
+              3.865
+            ],
+            "medianBaseline": 3.876,
+            "medianCandidate": 3.514
+          },
+          "p95": {
+            "baseline": [
+              4.04,
+              5.251,
+              4.85
+            ],
+            "candidate": [
+              4.778,
+              5.027,
+              5.649
+            ],
+            "medianBaseline": 4.85,
+            "medianCandidate": 5.027
+          }
+        }
+      },
+      {
+        "name": "s01-crowded-aura-12",
+        "hashesMatchAcrossAllPairs": true,
+        "legalThenTwoViewerSnapshotsMs": {
+          "p50": {
+            "baseline": [
+              41.779,
+              48.586,
+              43.386
+            ],
+            "candidate": [
+              41.395,
+              40.259,
+              43.649
+            ],
+            "medianBaseline": 43.386,
+            "medianCandidate": 41.395
+          },
+          "p95": {
+            "baseline": [
+              44.703,
+              55.068,
+              47.445
+            ],
+            "candidate": [
+              49.419,
+              53.162,
+              47.958
+            ],
+            "medianBaseline": 47.445,
+            "medianCandidate": 49.419
+          }
+        }
+      },
+      {
+        "name": "s07-crowded-aura-zero-power-checkpoint",
+        "hashesMatchAcrossAllPairs": true,
+        "legalThenTwoViewerSnapshotsMs": {
+          "p50": {
+            "baseline": [
+              48.669,
+              59.486,
+              59.053
+            ],
+            "candidate": [
+              52.616,
+              55.501,
+              52.974
+            ],
+            "medianBaseline": 59.053,
+            "medianCandidate": 52.974
+          },
+          "p95": {
+            "baseline": [
+              69.995,
+              69.828,
+              78.76
+            ],
+            "candidate": [
+              61.518,
+              61.229,
+              60.949
+            ],
+            "medianBaseline": 69.995,
+            "medianCandidate": 61.229
+          }
+        }
+      }
+    ],
+    "interpretation": "Crowded-aura p50 improves modestly but p95 regresses; checkpoint p50/p95 improve. Local latency evidence remains mixed, while exact static-read reduction and all output hashes are stable."
   }
 }
