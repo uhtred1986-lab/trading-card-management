@@ -1232,6 +1232,8 @@ export interface Replacement {
   position?: "top" | "bottom";
   /** A timed skill replacement re-evaluates this selector at each departure. */
   target?: Selector;
+  /** The selector's captured bindings when a timed skill installed it. */
+  vars?: Record<string, string[]>;
   /**
    * Which departures it replaces. Absent is any of them ("would leave the
    * Battle Area"); `"skill"` is only an effect putting the card out; `"ko"`

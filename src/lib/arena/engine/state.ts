@@ -118,7 +118,7 @@ function replacementCandidates(ctx: GameContext, s: GameState, id: string): { so
     if (e.kind !== "replaceLeave" || !e.value || typeof e.value !== "object") continue;
     const replacement = e.value as Replacement;
     const target = replacement.target ?? { special: "self" as const };
-    const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: e.source ?? id, master: e.master ?? s.turnPlayer };
+    const frame: ScriptFrame = { ops: [], ip: 0, vars: replacement.vars ?? {}, card: e.source ?? id, master: e.master ?? s.turnPlayer };
     if (resolveSelector(ctx, s, frame, target).includes(id)) out.push({ source: e.source ?? "", replacement });
   }
   return out;

@@ -2395,8 +2395,20 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "replaceLeave":
         // A timed replacement stays attached to its source but keeps the
         // selector live so it also covers matching cards that enter later.
+        // Any variables the selector reads belong to the activation, not a
+        // fresh empty frame at departure time. A Ref variable is represented
+        // as a bound-selector variable so both selector and Ref forms keep
+        // their chosen card instances across the effect's duration.
         if (op.until) {
-          const target = op.target && "sel" in op.target ? op.target.sel : !op.target ? { special: "self" as const } : null;
+          const boundTarget = "__timedReplaceLeaveTarget";
+          const vars = Object.fromEntries(Object.entries(frame.vars).map(([name, ids]) => [name, [...ids]]));
+          const target = op.target && "sel" in op.target
+            ? op.target.sel
+            : op.target && "var" in op.target
+              ? (vars[boundTarget] = h.resolveRef(frame, op.target), { fromVar: boundTarget })
+              : !op.target
+                ? { special: "self" as const }
+                : null;
           if (!target) break;
           const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to as Area;
           h.addEffect({
@@ -2404,7 +2416,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             source: frame.card,
             target: "",
             kind: "replaceLeave",
-            value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target },
+            value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars },
             until: op.until,
           });
         }

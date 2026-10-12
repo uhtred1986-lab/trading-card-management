@@ -122,7 +122,7 @@ import { FILTER_FIELD_NAMES, parseDefinitions } from "../../src/lib/arena/lang";
 import { emptyFilter, type CardFilter } from "../../src/lib/arena/text/filters";
 import { describePayment as legacyDescribe, paymentOptions as legacyOptions, planPayment, playCost, whyNotPay } from "../../src/lib/arena/engine/state";
 import { paymentOptions as vmOptions } from "../../src/lib/arena/vm/costs";
-import type { CardDef, Color, PlayerId, Requirement } from "../../src/lib/arena/types";
+import type { CardDef, Color, PlayerId, Replacement, Requirement } from "../../src/lib/arena/types";
 import { legacyHost } from "../../src/lib/arena/engine/legacy-host";
 import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
@@ -1360,6 +1360,96 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       const zones = (seen.r.board as Record<PlayerId, { zones: Record<string, string[]> }>).p1.zones;
       const at = Object.keys(zones).find((z) => zones[z].includes(replacer));
       assert.equal(at, ends, `replaceLeave (${what}) did not send the card to ${ends} on the rules engine, so the parity is over an empty run`);
+    }
+
+    // A timed selector can depend on a prior choice. Its activation bindings
+    // must be serialized with the effect and supplied again when the next
+    // departure is checked; an empty frame silently makes this target vanish.
+    {
+      const previousTarget = DEFS.TARGET;
+      const previousOther = DEFS.OTHER;
+      DEFS.TARGET = card("TARGET", { energyCost: 1, power: 5000 });
+      DEFS.OTHER = card("OTHER", { energyCost: 1, power: 5000 });
+      try {
+        let selectedRules = "";
+        let otherRules = "";
+        let selectedLegacy = "";
+        let otherLegacy = "";
+        const run: Op[] = [
+          { op: "replaceLeave", to: "hand", by: "skill", bySide: "opponent", until: "nextTurn", target: { var: "picked" } },
+          { op: "moveTo", target: { var: "picked" }, to: "drop", cause: "effect" },
+        ];
+        const boundRules = onRules(run, (s) => {
+          selectedRules = staged(s, "p1", "TARGET");
+          otherRules = staged(s, "p1", "OTHER");
+          return { master: "p2", vars: { picked: [selectedRules] } };
+        });
+        const boundLegacy = onLegacy(run, (l) => {
+          const [a, b] = l.players.p1.deck.splice(0, 2);
+          assert.ok(a && b, "legacy fixture could not stage two targets");
+          l.cards[a].cardId = "TARGET";
+          l.cards[b].cardId = "OTHER";
+          l.players.p1.battle.push(a, b);
+          selectedLegacy = a;
+          otherLegacy = b;
+          return { master: "p2", vars: { picked: [a] } };
+        });
+        const boardZones = (board: unknown): Record<string, string[]> => {
+          const b = board as { p1: { zones?: Record<string, string[]> } & Record<string, unknown> };
+          return (b.p1.zones ?? b.p1) as Record<string, string[]>;
+        };
+        const rulesZones = boardZones(boundRules.board);
+        const legacyZones = boardZones(boundLegacy.board);
+        assert.ok(rulesZones.hand.includes(selectedRules), "rules timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
+        assert.ok(rulesZones.battle.includes(otherRules), "rules timed replacement broadened its bound target to a different Battle Card");
+        assert.ok(legacyZones.hand.includes(selectedLegacy), "legacy timed replacement lost the captured Ref variable and dropped its chosen card instead of sending it to hand");
+        assert.ok(legacyZones.battle.includes(otherLegacy), "legacy timed replacement broadened its bound target to a different Battle Card");
+
+        let selectorRulesTarget = "";
+        let selectorOtherRules = "";
+        let selectorLegacyTarget = "";
+        let selectorOtherLegacy = "";
+        const selectorRun: Op[] = [
+          { op: "replaceLeave", to: "hand", by: "skill", bySide: "opponent", until: "nextTurn", target: { sel: { fromVar: "picked" } } },
+          { op: "moveTo", target: { var: "picked" }, to: "drop", cause: "effect" },
+        ];
+        const selectorRules = onRules(selectorRun, (s) => {
+          selectorRulesTarget = staged(s, "p1", "TARGET");
+          selectorOtherRules = staged(s, "p1", "OTHER");
+          return { master: "p2", vars: { picked: [selectorRulesTarget] } };
+        });
+        const selectorLegacy = onLegacy(selectorRun, (l) => {
+          const [a, b] = l.players.p1.deck.splice(0, 2);
+          assert.ok(a && b, "legacy fixture could not stage two selector targets");
+          l.cards[a].cardId = "TARGET";
+          l.cards[b].cardId = "OTHER";
+          l.players.p1.battle.push(a, b);
+          selectorLegacyTarget = a;
+          selectorOtherLegacy = b;
+          return { master: "p2", vars: { picked: [a] } };
+        });
+        const selectorRulesZones = boardZones(selectorRules.board);
+        const selectorLegacyZones = boardZones(selectorLegacy.board);
+        assert.ok(selectorRulesZones.hand.includes(selectorRulesTarget) && selectorRulesZones.battle.includes(selectorOtherRules), "rules timed selector lost its captured fromVar binding or broadened to another card");
+        assert.ok(selectorLegacyZones.hand.includes(selectorLegacyTarget) && selectorLegacyZones.battle.includes(selectorOtherLegacy), "legacy timed selector lost its captured fromVar binding or broadened to another card");
+
+        const beforeSave = mainPhase();
+        const savedTarget = staged(beforeSave, "p1", "TARGET");
+        const savedMaster = beforeSave.sides.p2.zones.leader[0];
+        const installFrame: ScriptFrame = { ops: [run[0]], ip: 0, vars: { picked: [savedTarget] }, card: savedMaster, master: "p2" };
+        stepScript(vmHost(CTX, DBS, beforeSave, []), installFrame);
+        installFrame.vars.picked = [];
+        const afterReload = JSON.parse(JSON.stringify(beforeSave)) as VmState;
+        const persistedReplacement = afterReload.effects.find((effect) => effect.kind === "replaceLeave")?.value as Replacement | undefined;
+        assert.deepEqual(persistedReplacement?.vars?.__timedReplaceLeaveTarget, [savedTarget], "the effect did not keep its selected target when the game was serialized");
+        stepScript(vmHost(CTX, DBS, afterReload, []), { ops: [run[1]], ip: 0, vars: { picked: [savedTarget] }, card: savedMaster, master: "p2" });
+        assert.ok(afterReload.sides.p1.zones.hand.includes(savedTarget), "the reloaded timed replacement did not resolve its captured variable");
+      } finally {
+        if (previousTarget) DEFS.TARGET = previousTarget;
+        else delete DEFS.TARGET;
+        if (previousOther) DEFS.OTHER = previousOther;
+        else delete DEFS.OTHER;
+      }
     }
 
     // ── #137, chunk 2: the four rows a guard, an audience and subtraction unblocked ──
