@@ -123,8 +123,10 @@ export function startLiveGamePolling(options: PollOptions): { retry(): void; sto
         (async () => {
           const response = await fetcher(`/api/v1/games/${options.gameId}?sinceRevision=${revision}&sinceBeat=${beat}&wait=15`, {
             cache: "no-store",
+            headers: { Prefer: "return=minimal" },
             signal: controller.signal,
           });
+          if (response.status === 204) return null;
           if (!response.ok) throw new Error(`Arena refresh returned ${response.status}`);
           return (await response.json()) as Snapshot;
         })(),
@@ -132,6 +134,14 @@ export function startLiveGamePolling(options: PollOptions): { retry(): void; sto
         aborted,
       ]);
       if (stopped || ownGeneration !== generation) return;
+      if (next === null) {
+        // The server confirmed the same revision after its long-poll window.
+        // Keep both cursors and the last personalized snapshot untouched.
+        failures = 0;
+        options.onConnection("connected");
+        schedule(0);
+        return;
+      }
       if (!next || next.game?.id !== options.gameId || !Number.isSafeInteger(next.game.revision) || typeof next.game.status !== "string") {
         throw new Error("Arena refresh returned an invalid snapshot");
       }

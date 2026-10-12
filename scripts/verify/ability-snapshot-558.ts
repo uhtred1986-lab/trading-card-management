@@ -15,17 +15,18 @@ const engine = engineFor("rules");
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
-const ids = ["H558_MAIN", "H558_BATTLE", "H558_ATTACK", "H558_ENERGY", "H558_COST", "H558_COUNTER", "H558_COUNTER_PLAY", "H558_MULTI_COUNTER", "H558_AUTO"];
+const ids = ["H558_MAIN", "H558_BATTLE", "H558_ATTACK", "H558_ENERGY", "H558_COST", "H558_COUNTER", "H558_COUNTER_PLAY", "H558_MULTI_COUNTER", "H558_MIXED_COUNTER", "H558_AUTO"];
 const previous = new Map(ids.map((id) => [id, DEFS[id]]));
 
 DEFS.H558_MAIN = card("H558_MAIN", { energyCost: 0, power: 10000, skill: "[Activate: Main][Once per turn] Draw 1 card." });
 DEFS.H558_BATTLE = card("H558_BATTLE", { energyCost: 0, power: 10000, skill: "[Activate: Battle]: Draw 1 card." });
 DEFS.H558_ATTACK = card("H558_ATTACK", { energyCost: 0, power: 20000, skill: null });
-DEFS.H558_ENERGY = card("H558_ENERGY", { energyCost: 0, skill: null });
+DEFS.H558_ENERGY = card("H558_ENERGY", { energyCost: 0, colors: ["Blue"], skill: null });
 DEFS.H558_COST = card("H558_COST", { energyCost: 0, power: 10000, skill: "[Activate: Main]{r}: Draw 1 card." });
 DEFS.H558_COUNTER = card("H558_COUNTER", { energyCost: 0, skill: "[Counter: Attack] Negate the attack." });
 DEFS.H558_COUNTER_PLAY = card("H558_COUNTER_PLAY", { energyCost: 0, skill: "[Counter: Play] The Battle Card being played is placed in its owner's Drop Area instead of being played." });
 DEFS.H558_MULTI_COUNTER = card("H558_MULTI_COUNTER", { energyCost: 0, skill: "[Counter: Attack] Negate the attack.<br>[Counter: Attack] Negate the attack." });
+DEFS.H558_MIXED_COUNTER = card("H558_MIXED_COUNTER", { energyCost: 0, skill: "[Counter: Attack]{u}: Negate the attack.<br>[Counter: Play] The Battle Card being played is placed in its owner's Drop Area instead of being played." });
 DEFS.H558_AUTO = card("H558_AUTO", { energyCost: 0, power: 10000, skill: "[Auto] When this card is played, draw 1 card." });
 
 function fresh(seed: number): VmState {
@@ -63,11 +64,11 @@ function secondPlayerMain(seed = 5580): VmState {
   return state;
 }
 
-function stage(state: VmState, player: PlayerId, cardId: string, area: "hand" | "battle", excluded: string[] = []): string {
+function stage(state: VmState, player: PlayerId, cardId: string, area: "hand" | "battle" | "energy", excluded: string[] = []): string {
   const id = state.sides[player].zones.hand.find((candidate) => !excluded.includes(candidate));
   assert.ok(id);
   state.cards[id].cardId = cardId;
-  if (area === "battle") assert.ok(moveCard(state, dbs, id, area, { owner: player }).ok);
+  if (area !== "hand") assert.ok(moveCard(state, dbs, id, area, { owner: player }).ok);
   return id;
 }
 
@@ -166,6 +167,8 @@ try {
     const counter = stage(state, "p2", "H558_COUNTER", "hand");
     const playCounter = stage(state, "p2", "H558_COUNTER_PLAY", "hand", [counter]);
     const multiple = stage(state, "p2", "H558_MULTI_COUNTER", "hand", [counter, playCounter]);
+    const mixed = stage(state, "p2", "H558_MIXED_COUNTER", "hand", [counter, playCounter, multiple]);
+    const energy = stage(state, "p2", "H558_ENERGY", "energy", [counter, playCounter, multiple, mixed]);
     const attack = engine.legalActions(CTX, state).find((item) => item.action.type === "attack" && item.action.attacker === state.sides.p1.zones.leader[0] && item.action.target === state.sides.p2.zones.leader[0]);
     assert.ok(attack);
     const prompt = apply(state, attack.action);
@@ -176,6 +179,17 @@ try {
     const offered = availability.find((row) => row.card === counter);
     assert.equal(offered?.state, "offered");
     assert.equal(offered?.skill, 0);
+    assert.deepEqual(offered?.offers?.[0]?.cost, { energy: 0, describe: "free" }, "native zero-resource Counter cost is known, not inferred by the client");
+    const mixedAttack = availability.find((row) => row.card === mixed && row.skill === 0);
+    assert.equal(mixedAttack?.state, "offered");
+    assert.equal(mixedAttack?.offers?.[0]?.cost?.energy, 1);
+    assert.equal(mixedAttack?.offers?.[0]?.cost?.orbs?.Blue, 1);
+    const mixedPlay = availability.find((row) => row.card === mixed && row.skill === 10);
+    assert.equal(mixedPlay?.state, "refused");
+    assert.ok(mixedPlay?.why?.some((why) => why.kind === "timing" && why.window === "play"), "the selector fallback must not misclassify a mixed-card Counter line's window");
+    const paidMixed = engine.apply(CTX, prompt, mixedAttack!.offers![0].action);
+    assert.equal(paidMixed.state.cards[energy].mode, "rest", "the displayed native price equals the actual charge");
+    assert.equal(prompt.cards[energy].mode, "active", "the read-only price query does not pay energy");
     const wrongWindow = availability.find((row) => row.card === playCounter);
     assert.equal(wrongWindow?.state, "refused");
     assert.ok(wrongWindow?.why?.some((why) => why.kind === "timing"));
