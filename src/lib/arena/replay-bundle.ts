@@ -186,4 +186,3 @@ export async function replayRecord(db: Db, hash: string, decks: ReplayBundleReco
   const bundle = await readReplayBundle(db, hash);
   return bundle && decks ? { ...bundle, decks } : null;
 }
-
