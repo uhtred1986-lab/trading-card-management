@@ -235,6 +235,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "Timed grants use persistent effect IDs; standing grants distinguish source entry/face, skill/op path and bearer entry. Only the resolving instance is negated through the turn. Grant identities remain private; unsupported legacy hook frames with no identity interrupt before drawing rather than silently escaping self-negation. Local synthetic programs prove these bounded interactions, not exhaustive catalog or legacy-save migration coverage.",
   },
   {
+    id: "arena-extra-auto-keyword-activation",
+    label: "Successful Extra Auto skills capture eligible Heroic/Villainous hooks after payment",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "12-2-3; 22-35-2/3; 22-36-2/3",
+    ownerIssue: 683,
+    proof: "scripts/verify/villainous-683-auto-audit.ts and villainous-683-legacy-auto-audit.ts — legal Field arrival, free/paid/declined/unaffordable Auto, own in-play source, independent keyword spend and Battle source exclusion; scripts/verify/arena-extra-auto-db.mts and arena-extra-auto-rules-db.mts — isolated PGlite persisted payments/choices, request receipts, stale CAS and both viewers",
+    detail: "Successful Auto activation snapshots source qualification before effect changes and retains individual watcher identity. Failed or declined payment fires no hook. An in-play Extra can watch its own skill; another-card exclusion applies to Battle play. This bounded proof does not establish nested parent checkpoint ordering, catalog-wide coverage or live deployment behavior; #683 remains open for the parent ordering audit.",
+  },
+  {
     id: "arena-fill-under-named-host",
     label: "A named host is filled from the top of its owner's deck to the printed stack total",
     status: "supported",

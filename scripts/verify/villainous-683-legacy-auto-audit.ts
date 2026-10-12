@@ -5,6 +5,7 @@ import { engineFor } from "../../src/lib/arena/engines";
 import { move } from "../../src/lib/arena/engine/state";
 import type { GameState, PlayerId } from "../../src/lib/arena/types";
 
+export function verifyLegacyExtraAuto() {
 const legacy = engineFor("legacy");
 DEFS.V683_LEGACY_FIELD = card("V683_LEGACY_FIELD", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null,
   skill: "[Field]<br>[Heroic]<br>[Auto] When this card is placed in a Battle Area, draw 1 card." });
@@ -118,4 +119,6 @@ for (const pay of [false, true]) {
   assert.equal(started.events.filter((event) => event.type === "draw" && event.player === "p1").length, 2);
   assert.deepEqual((started.state as GameState).effects.filter((effect) => effect.kind === "negateSkill" && effect.target === card).map((effect) => effect.value), [10]);
   console.log("legacy in-play Extra Main: own Heroic pays once");
+}
+
 }

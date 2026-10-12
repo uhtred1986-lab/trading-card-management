@@ -1,5 +1,6 @@
 /** #683: finite Heroic/Villainous activation and individual-negation proof. */
 import "./villainous-683-auto-audit";
+import { verifyLegacyExtraAuto } from "./villainous-683-legacy-auto-audit";
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { RULES_ONLY } from "./rules-only";
@@ -11,6 +12,8 @@ import { hasKeyword, hookBodiesFor } from "../../src/lib/arena/vm/program";
 import { addEffect as legacyAddEffect, move } from "../../src/lib/arena/engine/state";
 import type { Action, PlayerId, GameState } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
+
+if (!RULES_ONLY) verifyLegacyExtraAuto();
 
 const ids = ["V683_WATCH", "V683_SOURCE", "V683_EXTRA", "V683_DESIRE", "V683_WISH", "V683_UNPAID", "V683_PRICE", "V683_COUNTER", "V683_OTHER", "V683_DUAL", "V683_PLAIN", "V683_STANDING", "V683_COPY_SOURCE", "V683_MUTATE", "V683_REMOVE"];
 const old = new Map(ids.map((id) => [id, DEFS[id]]));
