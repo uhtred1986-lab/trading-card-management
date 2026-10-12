@@ -118,6 +118,7 @@ export function verifyLegacyTimedGrants(): void {
   {
     const s = main(683206);
     const watcher = stage(s, "V683T_STANDING", "battle");
+    delete s.cards[watcher].zoneEpoch; // older persisted games had no area-entry generation
     const oldDone = payPending(activate(s).state as GameState, 1);
     assert.ok(oldDone.effects.some((e) => e.kind === "negateSkill" && e.target === watcher && e.value === -1), "standing grant used the legacy -1 spend");
     const source = stage(oldDone, "V683T_SOURCE", "battle");

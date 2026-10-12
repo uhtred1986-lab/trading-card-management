@@ -78,7 +78,7 @@ function emptyPlayer(id: PlayerId, name: string): PlayerState {
 
 function instance(id: string, cardId: string, owner: PlayerId, isToken = false): CardInstance {
   // prettier-ignore
-  return { id, cardId, owner, mode: "active", hidden: false, flipped: false, markers: 0, under: [], isToken, enteredTurn: 0, extraAttacks: 0, usedThisTurn: [], usedMarkerSkill: false, battledThisTurn: false, negated: [] };
+  return { id, cardId, owner, mode: "active", hidden: false, flipped: false, markers: 0, under: [], isToken, enteredTurn: 0, zoneEpoch: 0, extraAttacks: 0, usedThisTurn: [], usedMarkerSkill: false, battledThisTurn: false, negated: [] };
 }
 
 export function createGame(ctx: EngineContext, opts: GameOptions): Applied {
@@ -486,6 +486,9 @@ function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Pendi
   if (p.grantEffectId !== undefined) {
     return resolveHeroicVillainous(ctx, s, ev, p.card, p.master, p.afterSkillKeyword, -1, p.grantEffectId);
   }
+  if (p.standingGrantId !== undefined) {
+    return resolveHeroicVillainous(ctx, s, ev, p.card, p.master, p.afterSkillKeyword, -1, undefined, p.standingGrantId);
+  }
   if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master, p.afterSkillKeyword);
   if (p.afterSkillKeyword) {
     if (skillsNegated(s, p.card)) return "done";
@@ -770,18 +773,18 @@ function resolvePlay(
  * 22-35-3 / 22-36-3: [Heroic] draws a card, [Villainous] makes the opponent
  * drop one — and both then "negate the effects of this skill for the duration
  * of the turn", so each card does it once a turn however many more are played.
- * New events carry a printed/copied index or timed grant ID; -1 remains for
- * older saved and standing grants.
+ * New events carry a printed/copied index, timed grant ID, or standing grant
+ * identity; -1 remains for older saved grants.
  */
-function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, master: PlayerId, keywordName?: "Heroic" | "Villainous", skillIndex = -1, grantEffectId?: number): "done" | "wait" {
+function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, master: PlayerId, keywordName?: "Heroic" | "Villainous", skillIndex = -1, grantEffectId?: number, standingGrantId?: string): "done" | "wait" {
   // A pended keyword is still an [Auto] activation. Apply the same 20-14
   // prohibition at resolution as ordinary Autos, including old -1 grants.
   if (skillsNegated(s, card) || forbids(ctx, s, "activateSkill", { player: master, card })) return "done";
-  if (grantEffectId === undefined) {
-    if (skillNegated(s, card, skillIndex)) return "done";
-  } else if (s.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === card && e.value === grantEffectId)) {
-    return "done";
-  }
+  if (grantEffectId !== undefined) {
+    if (s.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === card && e.value === grantEffectId)) return "done";
+  } else if (standingGrantId !== undefined) {
+    if (s.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === card && typeof e.value === "object" && "standingGrantId" in e.value && e.value.standingGrantId === standingGrantId)) return "done";
+  } else if (skillNegated(s, card, skillIndex)) return "done";
   const name = keywordName ?? (has(ctx, s, card, "Heroic") ? "Heroic" : has(ctx, s, card, "Villainous") ? "Villainous" : null);
   if (name === "Heroic") {
     draw(ctx, s, ev, master, 1);
@@ -792,12 +795,13 @@ function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent
   } else {
     return "done";
   }
-  addEffect(s, ev, { target: card, kind: grantEffectId === undefined ? "negateSkill" : "negateGrantedSkill", value: grantEffectId ?? skillIndex, until: "turn" });
+  addEffect(s, ev, { target: card, kind: grantEffectId === undefined && standingGrantId === undefined ? "negateSkill" : "negateGrantedSkill", value: standingGrantId === undefined ? grantEffectId ?? skillIndex : { standingGrantId }, until: "turn" });
   return "done";
 }
 
-/** Freeze each printed, copied or timed watcher identity at the successful event. */
+/** Freeze each printed, copied, timed or standing watcher identity at the successful event. */
 function pendKeywordAfterSkill(ctx: EngineContext, s: GameState, source: string, owner: PlayerId, names: readonly ("Heroic" | "Villainous")[], battlePlay = false): void {
+  const standing = staticEffects(ctx, s);
   for (const id of cardsInPlay(s, owner)) {
     if (battlePlay && id === source) continue; // "Another" qualifies Battle plays, not Extra skill activations.
     for (const name of names) {
@@ -809,9 +813,11 @@ function pendKeywordAfterSkill(ctx: EngineContext, s: GameState, source: string,
         !s.effects.some((spent) => spent.kind === "negateGrantedSkill" && spent.target === id && spent.value === e.id),
       );
       for (const grant of grants) s.pending.push({ card: id, skillIndex: -1, grantEffectId: grant.id, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
-      if (!lines.length && !grants.length) {
-        // Standing grants have no provenance in the legacy engine yet. Keep
-        // the old pseudo-identity until that separate source/entry audit.
+      const standingGrants = standing.filter((e) => e.kind === "keyword" && e.target === id && typeof e.value === "object" && "name" in e.value && e.value.name === name && e.standingGrantId && !s.effects.some((spent) => spent.kind === "negateGrantedSkill" && spent.target === id && typeof spent.value === "object" && "standingGrantId" in spent.value && spent.value.standingGrantId === e.standingGrantId));
+      for (const grant of standingGrants) s.pending.push({ card: id, skillIndex: -1, standingGrantId: grant.standingGrantId, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
+      if (!lines.length && !grants.length && !standingGrants.length) {
+        // An older or unidentifiable saved grant keeps the -1 fallback; new
+        // standing grants use their own source/skill/op/recipient identity.
         if (!skillNegated(s, id, -1)) s.pending.push({ card: id, skillIndex: -1, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
       }
     }
