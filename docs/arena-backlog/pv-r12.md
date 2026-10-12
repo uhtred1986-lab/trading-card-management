@@ -38,7 +38,7 @@ unchanged.
 
 **Separate limitation.** Revive with an additional printed orb still uses the
 shared Auto payment path before its hand-colour DO, while 22-34-3 requires the
-colour payment first. The dedicated fixture records that order and then
+colour payment first (tracked separately in #624). The dedicated fixture records that order and then
 declines the colour payment; it is not counted as paid Revive resolution. No
 #549/#595 cost redesign is included. Aegis's previously recorded unsupported
 additional action prices remain unchanged.

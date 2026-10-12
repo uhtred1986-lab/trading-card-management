@@ -202,9 +202,9 @@ function koRevive(s: VmState, cardId = "REV597"): VmState {
   assert.ok(s.sides.p1.zones.drop.includes(rev)); assert.ok(red.every((id) => s.sides.p1.zones.hand.includes(id)), "failed original coverage charged a hand card"); assert.equal(s.prompt.kind, "main");
 }
 // Separate own-cost boundary, NOT paid-resolution evidence for 22-34-3:
-// current #549's shared Auto path charges Revive's additional orb before its
+// the shared Auto path charges Revive's additional orb before its
 // colour DO. Declining the later colour payment leaves the card KO'd. This
-// issue changes colour eligibility only, and does not claim to fix that order.
+// issue changes colour eligibility only; fixing that order belongs to #624.
 {
   let s = fixture(["R597", "B597"], ["REVFEE597", "SOURCE597"]); const rev = one(s, "battle", "REVFEE597"), hand = [...s.sides.p1.zones.hand];
   s = koRevive(s, "REVFEE597"); assert.equal(s.prompt.kind, "chooseMode", "priced Revive has a separate Auto own-cost offer");
