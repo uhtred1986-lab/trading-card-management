@@ -178,7 +178,7 @@ export function PreviewStage({
       ? defendView(snapshot)
       : fx === "victory"
         ? // `?fx=victory`: the `over` fixture won by you, as frame 10 draws it.
-          { ...snapshot, view: { ...snapshot.view, turn: 5, over: { winner: snapshot.view.you.player, reason: `${snapshot.view.them.name} has no life left` } } }
+          { ...snapshot, over: { kind: "win", winner: snapshot.view.you.player, reason: `${snapshot.view.them.name} has no life left` }, view: { ...snapshot.view, turn: 5, over: { winner: snapshot.view.you.player, reason: `${snapshot.view.them.name} has no life left` } } }
       : fx && fx !== "over"
         ? { ...snapshot, view: fx === "attack" ? { ...snapshot.view, battle: null } : fx === "finish" ? { ...snapshot.view, them: { ...snapshot.view.them, life: 1 } } : snapshot.view, beats: { seq: 0, list: [], art: snapshot.beats?.art ?? {} } }
         : snapshot,
@@ -199,7 +199,7 @@ export function PreviewStage({
         setShown((s) => ({
           ...s,
           game: { ...s.game, status: "over" },
-          over: { winner: v.you.player, reason: `${v.them.name} has no life left` },
+          over: { kind: "win", winner: v.you.player, reason: `${v.them.name} has no life left` },
           view: { ...s.view, battle: null, them: { ...s.view.them, life: 0 }, over: { winner: v.you.player, reason: `${v.them.name} has no life left` } },
           beats: { seq: 2, list: [clash, damage], art },
         })),
@@ -229,9 +229,8 @@ export function PreviewStage({
         <div className="mx-auto mt-3 max-w-xl px-2">
           <GameOver
             gameId={snapshot.game.id}
+            outcome={{ kind: "win", winner: snapshot.view.you.player, reason: "Claude's leader falls on turn 5." }}
             winnerName="Red Leader"
-            draw={false}
-            reason="Claude's leader falls on turn 5."
             turns={5}
             damage={{ you: 3, them: 8 }}
             spend={{ calls: 0, input: 0, output: 0, cached: 0, micros: 0 }}

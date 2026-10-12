@@ -19,7 +19,7 @@ import { currentOwner, currentUser, isArenaAdmin, requireSignedIn, requireSl } f
 import { assertOwnDeck, canOpenGame } from "@/lib/auth/ownership";
 import { flagTurn as storeFlagTurn, reopenFlag, reviewFlag, type FlagLine } from "@/lib/arena/review-store";
 import { advance } from "@/lib/arena/ai/run";
-import { reviewGame } from "@/lib/arena/ai/review";
+import { InterruptedGameReviewError, reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
 import { blankRule, confirmMatching, confirmRule, reopenRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { defsForCards } from "@/lib/arena/load";
@@ -634,6 +634,7 @@ export async function requestReview(gameId: number): Promise<{ error: string | n
   try {
     await reviewGame(db, gameId);
   } catch (err) {
+    if (err instanceof InterruptedGameReviewError) return { error: err.message };
     return { error: describeAiError(err) };
   }
   revalidatePath(`/arena/${gameId}`);

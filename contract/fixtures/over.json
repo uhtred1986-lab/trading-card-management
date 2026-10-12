@@ -115,7 +115,7 @@
     },
     "over": {
       "winner": "p2",
-      "reason": "You conceded"
+      "reason": "A player conceded."
     }
   },
   "legal": [],
@@ -131,6 +131,7 @@
         "t": "over",
         "winner": "p2",
         "reason": "You conceded",
+        "kind": "concession",
         "n": 1
       }
     ],
@@ -147,7 +148,9 @@
     "micros": 0
   },
   "over": {
+    "kind": "concession",
     "winner": "p2",
-    "reason": "You conceded"
+    "concededBy": "p1",
+    "reason": "A player conceded."
   }
 }

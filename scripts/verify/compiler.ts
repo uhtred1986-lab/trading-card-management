@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import {
   CTX,
   DEFS,
+  ENGINE,
   IMPL,
   actsG,
   addEffectG,
@@ -43,6 +44,7 @@ import {
   zoneOf,
 } from "./harness";
 import { validateProgram, type Op, type Script } from "../../src/lib/arena/vm/script";
+import type { VmState } from "../../src/lib/arena/vm/state";
 import { validateRule } from "../../src/lib/arena/lang/validate";
 import { deepEqual, parseRule, printRule, type Rule } from "../../src/lib/arena/lang";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
@@ -197,19 +199,36 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
   assertConsistentG(s);
 }
 
-// A skill the compiler cannot read is skipped when no referee is available…
+// An unread automatic skill ends the rules-engine game as an interruption.
+// The legacy lane retains its existing note-and-continue behavior.
 {
   let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
   const before = JSON.stringify(sideG(s, "p2"));
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") });
-  assert.equal(s.prompt.kind, "main", "the game carries on");
-  assert.equal(JSON.stringify(sideG(s, "p2")), before, "and nothing happened to the opponent");
+  if (ENGINE === "rules") {
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "an unread automatic effect is not treated as a successful no-op");
+    assert.equal(vm.winner, null, "an interruption is not a win or a draw");
+    assert.ok(!vm.outcome?.reason.includes("MYSTERY"), "the public reason does not name the source card");
+  } else {
+    assert.equal(s.prompt.kind, "main", "the legacy game carries on");
+    assert.equal(JSON.stringify(sideG(s, "p2")), before, "the legacy engine records no opponent effect");
+  }
 }
 
 // …and put to the referee when one is, whose ruling is a program in this same language.
 {
-  if (!rulesGap("compiler: an unread skill put to the referee", "the rules engine has no referee: a skill the compiler could not read resolves to a note (vm/flow.ts checkpoint)", "no issue filed yet")) {
-    const refCtx = { ...CTX, referee: true };
+  const refCtx = { ...CTX, referee: true };
+  if (ENGINE === "rules") {
+    let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
+    const before = zoneOf(s, "p1", "hand").length;
+    s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "an unread effect interrupts even when the context has a legacy referee");
+    assert.equal(vm.winner, null, "a rules interruption is not a draw or win");
+    assert.equal(vm.prompt.kind, "gameOver", "the rules engine does not pause for or request a referee ruling");
+    assert.equal(zoneOf(s, "p1", "hand").length, before - 1, "only the play happened; no unsupported effect was paid or applied");
+  } else {
     let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
     s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
     assert.equal(s.prompt.kind, "referee");
@@ -262,7 +281,18 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
 
 // 9-6-4: an [Auto] skill's cost may be declined, and then it does not resolve.
 {
-  if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
+  if (ENGINE === "rules") {
+    let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
+    const handBefore = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "AUTOCOST") });
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "a due Auto with an unimplemented own cost interrupts before drawing");
+    assert.equal(vm.outcome?.privateContext?.issue, "#549", "the private diagnostic points to the live Auto-cost implementation issue");
+    assert.ok(!vm.outcome?.reason.includes("AUTOCOST"), "the public outcome does not identify the source card");
+    assert.equal(zoneOf(s, "p1", "hand").length, handBefore - 1, "the card was played, but the Auto effect did not draw");
+    assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play cost was paid before interruption");
+  } else {
+    if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
     let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
     const c = findG(s, "p1", "hand", "AUTOCOST");
     const before = zoneOf(s, "p1", "hand").length;
@@ -281,6 +311,7 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
     assert.equal(zoneOf(t, "p1", "hand").length, handBefore - 1 + 2, "paid, so two cards were drawn");
     assert.equal(zoneOf(t, "p1", "energy").filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
     assertConsistentG(t);
+    }
   }
 }
 
@@ -1150,23 +1181,21 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
   const zc = findG(s, "p1", "zDeck", "ZCHEAP");
   assert.equal(DEFS.ZCHEAP.zEnergyCost, 2, "printed");
   assert.equal(zEnergyCostOfG(s, zc), 1, "1 less while its own [Permanent] is in force");
-  if (!rulesGap("compiler: ZCHEAP paid with one Z-Energy made from a combo (5-4, 8-5-2)", "the rules engine does not offer a spent combo card as Z-Energy at the end of a battle — `zEnergyFromCombo` is still listed as not built in vm/index.ts", "#151")) {
-    // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
-    // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
-    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
-    const c = findG(s, "p1", "hand", "V1");
-    s = passCombosG(playG(s, { type: "combo", player: "p1", card: c }));
-    assert.equal(s.prompt.kind, "zEnergyFromCombo");
-    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
-    assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
-    assert.ok(
-      labelsG(s).some((x) => x.startsWith("Play Z-Battle ZCHEAP")),
-      "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
-    );
-    s = playG(s, { type: "playZ", player: "p1", card: zc });
-    assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
-    assert.ok(zoneOf(s, "p1", "battle").includes(zc), "and the card actually entered play");
-  }
+  // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
+  // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  const c = findG(s, "p1", "hand", "V1");
+  s = passCombosG(playG(s, { type: "combo", player: "p1", card: c }));
+  assert.equal(s.prompt.kind, "zEnergyFromCombo");
+  s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
+  assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
+  assert.ok(
+    actsG(s).some((a) => a.type === "playZ" && a.card === zc),
+    "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
+  );
+  s = playG(s, { type: "playZ", player: "p1", card: zc });
+  assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
+  assert.ok(zoneOf(s, "p1", "battle").includes(zc), "and the card actually entered play");
 }
 
 {
