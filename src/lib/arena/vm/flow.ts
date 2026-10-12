@@ -48,17 +48,18 @@ import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { masterOf, nextPending, skillsShowing } from "./triggers";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, skillNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, powerReductionSources, skillNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
-import { stepScript, type ScriptFrame } from "./script";
+import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, inPlayZones, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, queryHookStatics } from "./hooks";
-import { forbiddenForCard, forbids } from "./program";
+import { attrsNow, forbiddenForCard, forbids, staticsNow } from "./program";
 import { playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK } from "./battle";
-import { leaveRoute } from "./replace";
+import { leaveRoute, replacementChoices, replacementIdentity } from "./replace";
+import { asksAQuestion } from "./script-schema";
 import { expireSkips, takeSkip } from "./skips";
 import type { VmFrame, VmState } from "./state";
 
@@ -497,7 +498,11 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // engine's own `{ op: "checkpoint" }` entries sit, because those are the
     // two places a player is about to be asked to act (9-6-6).
     // 20-13-4: and none in a skipped phase.
-    if (!top.skipped && checkpoint(ctx, game, state, ev)) continue;
+    if (!top.skipped) {
+      const checkpointResult = checkpoint(ctx, game, state, ev);
+      if (checkpointResult === "wait") return;
+      if (checkpointResult) continue;
+    }
 
     // #150: a move taken at a native prompt that does not end its step (an
     // [Activate: Battle] at the combo prompt) asks the step again — now, with
@@ -660,7 +665,11 @@ export function repeatAllowed(step: StepDef, frame: VmFrame): boolean {
  * price this engine cannot charge yet (#149). The fourth — the compiler could
  * not read the text — is the referee's, and on this engine it is a note.
  */
-function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): boolean {
+function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): boolean | "wait" {
+  if (resolveZeroPower(ctx, game, state, ev) === "wait") return "wait";
+  // A 9-10 substitute is part of confirmative rule processing: finish it,
+  // including any answer it asks for, before resolving pending Autos.
+  if (state.programs.length) return true;
   const next = nextPending(state);
   if (!next) return false;
   const named = state.cards[next.card]?.cardId ?? next.card;
@@ -738,6 +747,137 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   log(ev, { type: "skill", card: next.card, skill: next.skillIndex, master: next.master, text: skill?.raw ?? "", inBattle: false });
   state.programs.unshift(frame);
   return true;
+}
+
+/**
+ * 4-2-2-1 / 21-6: resolve all zero-power Battle Cards from one stable board
+ * view before asking about any pending Auto. The current pass and replacement
+ * choices live on VmState so an owner can answer a 9-10 question and reload
+ * without losing the simultaneous set or reusing a replacement.
+ */
+function resolveZeroPower(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "wait" | void {
+  // 21-6 is DBS-specific until rulesets declare rule procedures themselves.
+  if (state.game !== "dbs") return;
+  const battle = game.zones.battle ? "battle" : null;
+  if (!battle) return;
+  while (true) {
+    let processing = state.ruleProcessing;
+    if (!processing || processing.index >= processing.pass.length) {
+      const standing = staticsNow(ctx, game, state);
+      // 21-1-2-2-1: freeze every simultaneous subject and its cause before
+      // applying the first move in this checkpoint iteration.
+      const pass: NonNullable<VmState["ruleProcessing"]>["pass"] = [];
+      for (const player of Object.keys(state.sides) as PlayerId[]) {
+        for (const id of state.sides[player].zones[battle] ?? []) {
+          const card = state.cards[id];
+          if (!card || card.hidden) continue;
+          const power = attrsNow(ctx, game, state, id).power;
+          if (typeof power !== "number" || power > 0) continue;
+          const reductions = powerReductionSources(state, id, standing);
+          const netReduction = reductions.reduce((total, reduction) => total + reduction.value, 0);
+          const causedByEffect = reductions.length > 0 && power - netReduction > 0;
+          const targetMaster = masterOf(game, state, id);
+          const actor = causedByEffect
+            ? reductions.find((reduction) => reduction.master !== targetMaster)?.master ?? reductions[0]?.master
+            : undefined;
+          pass.push({ id, event: 0, reason: causedByEffect ? "effect" : "rule", ...(actor ? { actor } : {}), replacements: [] });
+        }
+      }
+      if (!pass.length) {
+        delete state.ruleProcessing;
+        return;
+      }
+      const totalCards = Object.keys(state.cards).length;
+      const replacementCeiling = Object.keys(state.cards).reduce((sum, id) => sum + skillsShowing(ctx, state, id).skills.length, 0);
+      processing ??= { nextEvent: 1, attempts: 0, limit: totalCards * (replacementCeiling + 1) + 1, subjects: {}, pass: [], index: 0, used: {} };
+      processing.pass = pass.map((item) => {
+        let event = processing!.subjects[item.id];
+        if (event === undefined) {
+          event = processing!.nextEvent++;
+          processing!.subjects[item.id] = event;
+        }
+        // Replacements are read against the same pre-move board as the whole
+        // simultaneous pass. A source leaving earlier in the pass cannot
+        // withdraw a replacement that already applied to a later subject.
+        const replacements = replacementChoices(ctx, game, state, item.id, item.reason, { actor: item.actor });
+        return { ...item, event, replacements };
+      });
+      processing.index = 0;
+      state.ruleProcessing = processing;
+    }
+
+    const item = processing.pass[processing.index];
+    const eventKey = `21-6:${item.event}`;
+    const usedReplacements = new Set(processing.used[item.id] ?? []);
+    let replaced: ReplacementResult | null | undefined;
+    const awaiting = processing.awaiting;
+    if (awaiting && awaiting.id === item.id) {
+      if (state.lastMode === null) throw new RulesetBroken(state.game, "21-6 replacement answer was lost before its subject resumed");
+      const index = state.lastMode;
+      state.lastMode = null;
+      delete processing.awaiting;
+      replaced = index >= awaiting.choices.length ? null : replacementRoute(awaiting.choices[index]);
+    } else {
+      const choices = item.replacements
+        .filter((choice) => !usedReplacements.has(replacementIdentity(choice.source, choice.skillIndex, eventKey, item.id)));
+      const allowNone = choices.length > 0 && choices.every((choice) => choice.optional);
+      if (choices.length > 1 || allowNone) {
+        processing.awaiting = { id: item.id, choices, allowNone, ...(item.actor ? { actor: item.actor } : {}) };
+        const prompt = replacementPrompt(state.cards[item.id].cardId, "drop", choices, allowNone);
+        state.prompt = { kind: "replaceMove", player: masterOf(game, state, item.id), card: item.id, reason: prompt.reason, options: prompt.options };
+        return "wait";
+      }
+      replaced = choices.length ? replacementRoute(choices[0]) : null;
+    }
+    if (++processing.attempts > processing.limit) throw new RulesetBroken(state.game, `21-6 replacement processing exceeded its finite bound of ${processing.limit} moves`);
+    const before = usedReplacements.size;
+    moved(ctx, game, state, ev, item.id, "drop", {
+      owner: state.cards[item.id].owner,
+      reason: item.reason,
+      ...(item.actor ? { actor: item.actor, by: "skill", byOpponent: item.actor !== masterOf(game, state, item.id) } : {}),
+      usedReplacements,
+      replacementEvent: eventKey,
+      ...(replaced === undefined ? {} : { replaced }),
+    });
+    processing.used[item.id] = [...usedReplacements];
+    const applied = usedReplacements.size > before;
+    const afterPower = attrsNow(ctx, game, state, item.id).power;
+    if (zoneOfCard(state, item.id) === battle && typeof afterPower === "number" && afterPower <= 0 && !applied) {
+      throw new RulesetBroken(state.game, `21-6 could not move ${item.id} out of battle and no unused replacement was applied`);
+    }
+    if (zoneOfCard(state, item.id) !== battle || (typeof afterPower === "number" && afterPower > 0)) {
+      delete processing.subjects[item.id];
+      delete processing.used[item.id];
+    }
+    processing.index++;
+    if (replaced?.ops?.length && asksAQuestion(replaced.ops)) {
+      state.programs.unshift({
+        ops: replaced.ops,
+        ip: 0,
+        vars: {},
+        card: replaced.source ?? item.id,
+        master: replaced.master ?? masterOf(game, state, item.id),
+        subject: item.id,
+        replacing: item.id,
+        ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}),
+      });
+      // The interpreter drains the saved substitute frame before its next
+      // checkpoint or Auto; any question it asks therefore suspends this
+      // record, including the stable remainder of the simultaneous set.
+      return;
+    }
+  }
+}
+
+function replacementRoute(choice: import("../types").ReplacementChoice): ReplacementResult {
+  return { source: choice.source, master: choice.master, skillIndex: choice.skillIndex, ...(choice.to ? { to: choice.to } : {}), ...(choice.mode ? { mode: choice.mode } : {}), ...(choice.ops ? { ops: choice.ops, ...(asksAQuestion(choice.ops) ? { deferred: true } : {}) } : {}) };
+}
+
+function zoneOfCard(state: VmState, id: string): string | null {
+  for (const side of Object.values(state.sides)) {
+    for (const [zone, cards] of Object.entries(side.zones)) if (cards.includes(id)) return zone;
+  }
+  return null;
 }
 
 /**
@@ -932,6 +1072,12 @@ export interface MoveCause {
   reason?: MoveReason;
   /** A 9-10 replacement the caller already decided on (`vm/replace.ts`): `null` for none, absent to look one up. */
   replaced?: ReplacementResult | null;
+  /** The skill master, for a replacement narrowed to an opponent's skill. */
+  actor?: PlayerId;
+  /** Replacements already used for the current subject event (21-6 substitute retry). */
+  usedReplacements?: Set<string>;
+  /** Stable identity of this confirmative 21-6 subject event, including across a replacement prompt/reload. */
+  replacementEvent?: string;
 }
 
 /**
@@ -948,7 +1094,14 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   const wasHidden = !!state.cards[id]?.hidden;
   // 9-10: a replacement stands in front of a card leaving play, and a
   // substitute keeps it where it is (9-10-1-1) — nothing below happens then.
-  const route = leaveRoute(ctx, game, state, ev, id, from, asked, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}) });
+  const route = leaveRoute(ctx, game, state, ev, id, from, asked, {
+    reason: opts.reason,
+    ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}),
+    ...(opts.actor ? { actor: opts.actor } : {}),
+    ...(opts.usedReplacements ? { usedReplacements: opts.usedReplacements } : {}),
+    ...(opts.replacementEvent ? { event: opts.replacementEvent } : {}),
+  });
+  if (route.replacement) opts.usedReplacements?.add(route.replacement);
   if (route.stays) return;
   const result = moveCard(state, game, id, route.to, { ...opts, ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
