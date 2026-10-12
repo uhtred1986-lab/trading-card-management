@@ -32,7 +32,7 @@ export async function verifyGameFlow(db: Db): Promise<void> {
   });
   await db.insert(schema.cards).values([
     card("BT18-960", "Flow Leader", "LEADER", { power: 10000, backName: "Flow Leader Awakened", backPower: 15000, backImageUrl: "https://img.example/BT18-960-back.png" }),
-    card("BT18-961", "Flow Fighter", "BATTLE", { power: 10000, energyCost: "1", comboPower: 5000, skill: "[Permanent] This card gets +3000 power." }),
+    card("BT18-961", "Flow Fighter", "BATTLE", { power: 10000, energyCost: "1", comboPower: 5000 }),
     card("BT18-962", "Flow Brawler", "BATTLE", { power: 15000, energyCost: "2", comboPower: 5000 }),
   ]);
   const [deck] = await db.insert(schema.decks).values({ name: "Flow Deck", game: "dbs" }).returning({ id: schema.decks.id });

@@ -36,7 +36,7 @@ import { stepScript } from "./script";
 import { asksAQuestion, describeScript } from "./script-schema";
 import { redirectOf } from "./common";
 import { type Replacement } from "../types";
-import type { MoveActor, MoveReason, ReplacementChoice, ReplacementResult } from "../types";
+import type { MoveActor, MoveReason, PlayerId, ReplacementChoice, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { log } from "./events";
 import { vmHost } from "./host";
@@ -57,10 +57,14 @@ let applyingReplacement = false;
 const LIFE_ZONE = "life";
 
 /** Every replacement standing in front of this card's departures, in the order the statics are read (the legacy order). */
-function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { source: string; r: Replacement }[] {
+function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { source: string; master: PlayerId; skillIndex?: number; r: Replacement }[] {
   return staticsNow(ctx, game, state)
     .filter((e) => e.kind === "replaceLeave" && e.target === id)
-    .map((e) => ({ source: e.source, r: e.value as Replacement }));
+    .map((e) => ({ source: e.source, master: e.master, ...(e.skillIndex === undefined ? {} : { skillIndex: e.skillIndex }), r: e.value as Replacement }));
+}
+
+export function replacementIdentity(source: string, skillIndex: number | undefined, event: string | undefined, target: string): string {
+  return JSON.stringify([event ?? "move", target, source, skillIndex ?? null]);
 }
 
 /**
@@ -95,10 +99,10 @@ export function replacementChoices(
   opts: { actor?: MoveActor; inSubstitute?: boolean } = {},
 ): ReplacementChoice[] {
   const out: ReplacementChoice[] = [];
-  for (const { source, r } of standing(ctx, game, state, id)) {
+  for (const { source, master, skillIndex, r } of standing(ctx, game, state, id)) {
     if (r.ops && (applyingReplacement || opts.inSubstitute)) continue;
     if (!causeMatches(game, state, id, r, reason, opts.actor)) continue;
-    out.push({ source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
+    out.push({ source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
   }
   return out;
 }
@@ -149,19 +153,30 @@ export function markerReplacementChoices(ctx: EngineContext, game: GameDefinitio
  * ask is left unapplied rather than half-run (§1.4 of
  * `docs/arena-move-replacement-scope.md`).
  */
-function replacementFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, reason: MoveReason | undefined): Replacement | null {
-  for (const { r } of standing(ctx, game, state, id)) {
+function replacementFor(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  id: string,
+  reason: MoveReason | undefined,
+  actor?: PlayerId,
+  used: ReadonlySet<string> = new Set<string>(),
+  event?: string,
+): { source: string; route: Replacement; identity: string } | null {
+  for (const { source, skillIndex, r } of standing(ctx, game, state, id)) {
+    const identity = replacementIdentity(source, skillIndex ?? r.skillIndex, event, id);
+    if (used.has(identity)) continue;
     if (r.optional) continue;
     if (r.ops && applyingReplacement) continue;
     if (r.ops && asksAQuestion(r.ops)) continue;
-    if (!causeMatches(game, state, id, r, reason, undefined)) continue;
-    return r;
+    if (!causeMatches(game, state, id, r, reason, actor)) continue;
+    return { source, route: { ...r, skillIndex: skillIndex ?? r.skillIndex }, identity };
   }
   return null;
 }
 
 /** What a departure becomes: the card stays where it is (a substitute ran, or will), or it goes here, in this mode. */
-export type LeaveRoute = { stays: true } | { stays: false; to: string; mode?: string };
+export type LeaveRoute = { stays: true; replacement?: string } | { stays: false; to: string; mode?: string; replacement?: string };
 
 /**
  * The 9-10 half of a move, read before the card goes anywhere — every mover
@@ -187,21 +202,25 @@ export function leaveRoute(
   id: string,
   from: string | null,
   to: string,
-  opts: { reason?: MoveReason; replaced?: ReplacementResult | null },
+  opts: { reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; usedReplacements?: ReadonlySet<string>; event?: string },
 ): LeaveRoute {
   const inPlay = inPlayZones(game);
   const held = (zone: string | null) => !!zone && (inPlay.includes(zone) || game.zones[zone]?.host === true);
   let mode: string | undefined;
   const fromLife = from === LIFE_ZONE;
+  const selected = ((from && inPlay.includes(from)) || fromLife) && !held(to) && opts.replaced === undefined && !fromLife
+    ? replacementFor(ctx, game, state, id, opts.reason, opts.actor, opts.usedReplacements, opts.event)
+    : null;
+  const selectedIdentity = selected?.identity ?? (opts.replaced?.source ? replacementIdentity(opts.replaced.source, opts.replaced.skillIndex, opts.event, id) : undefined);
   if (((from && inPlay.includes(from)) || fromLife) && !held(to)) {
-    const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : fromLife ? null : replacementFor(ctx, game, state, id, opts.reason);
+    const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : selected?.route ?? null;
     if (instead?.ops?.length) {
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });
       if (!("deferred" in instead && instead.deferred)) runReplacement(ctx, game, state, ev, id, instead);
-      return { stays: true };
+      return { stays: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
     }
     if (instead?.to && instead.to !== to) {
-      log(ev, { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to} instead` });
+      log(ev, { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to}${instead.mode === "rest" ? " in Rest Mode" : ""} instead` });
       to = instead.to;
       mode = instead.mode;
     } else if (instead && opts.replaced !== undefined) {
@@ -219,7 +238,7 @@ export function leaveRoute(
       if (redirect && redirect.to !== to) to = redirect.to;
     }
   }
-  return { stays: false, to, ...(mode ? { mode } : {}) };
+  return { stays: false, to, ...(mode ? { mode } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
 }
 
 /**
