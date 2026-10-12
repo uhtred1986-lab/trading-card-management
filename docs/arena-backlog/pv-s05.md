@@ -26,3 +26,5 @@ touches: src/lib/arena/snapshot.ts, src/lib/arena/vm/effects.ts, src/lib/arena/v
 **Order and hot files.** Follow prerequisite merge order and `docs/arena-delivery-plan.md`. `src/lib/arena/snapshot.ts`, `src/lib/arena/vm/effects.ts`, `src/lib/arena/vm/view.ts` must not have concurrent writers. Other ready issues can be assigned independently only after checking shared types/fixtures and migrations.
 
 **Out of scope.** Other plan tickets, production configuration, live database writes, new dependencies and paid AI calls. Preserve completed existing features and the legacy oracle. The design prototype is not authoritative rules code.
+
+**Bounded measured child:** #607 (P1) profiles and reduces evaluation cost inside corrected zero-power checkpoints. It is independent of polling #568; this parent retains broader immutable-revision sharing across legality, rejection and views.
