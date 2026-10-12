@@ -1,0 +1,32 @@
+.handViewport { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.handCards { width: max-content; min-width: 100%; }
+.handControl { min-height: 44px; min-width: 44px; }
+.scrollRail { display: none; }
+.fullscreenReview { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+@media (max-width: 1023px) {
+ .scrollRail { display: block; position: absolute; top: 0; right: 0; bottom: 0; width: 10px; z-index: 29; touch-action: pan-y; }
+ .board { padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+ .board :global(.arena-topbar) { top: env(safe-area-inset-top); height: auto; min-height: 48px; }
+ .board :global(.arena-phases-row) { display: none; }
+ .board :global(.arena-slot:not(.arena-slot-lifted):not(.arena-slot-land)) { display: none; }
+ .board :global(.arena-row) { --arena: .85; min-height: 0 !important; padding: 4px 32px; }
+ .board[data-phone-cinema="true"] :global(.arena-row) { min-height: 84px !important; }
+ .board[data-phone-cinema="true"] :global(.arena-lane) { min-height: 56px; }
+ .board :global(.arena-lane) { min-height: 0; flex: 0 0 auto; }
+ .board :global(.arena-pstrip) { height: auto; min-height: 28px; flex-wrap: wrap; padding: 2px 6px; gap: 6px; }
+ .board :global([data-player-resources]) { padding: 0 6px; }
+ .board :global([data-player-resources] button) { margin-left: auto; }
+ .handCards { justify-content: flex-start; padding-top: 4px; padding-bottom: 6px; min-height: 0 !important; }
+ /* A page-scroll rail beside the cards preserves vertical card drags without
+    trapping the page behind their pan-x gesture surface. */
+ .handViewport { margin-right: 10px; }
+ .handCard { touch-action: pan-x; }
+ .dock { padding-bottom: env(safe-area-inset-bottom); }
+ .dock :global(.arena-bar) { padding: 6px 10px; gap: 6px; }
+ .dock :global(.arena-bar[data-prompt-kind="payCost"]) { max-height: 70dvh; overflow-y: auto; overscroll-behavior-y: contain; }
+ .decisionDetails { max-height: 20dvh; overflow-y: auto; overscroll-behavior-y: contain; }
+ .dock :global([data-decision-summary]) { font-size: .75rem; }
+ .dock :global([data-battle-assumptions] summary) { font-size: .75rem; }
+ .dock :global([data-battle-assumptions]) { width: auto; }
+ .dock :global([data-pass-action]) { margin-left: auto; }
+}

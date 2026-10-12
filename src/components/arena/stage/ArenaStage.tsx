@@ -52,6 +52,7 @@ import { battleShape, BattleVerdict, ClashBeam, firedInBattle } from "./BattlePa
 import { DuelBand } from "./DuelBand";
 import { Ghosts } from "./Ghosts";
 import { Hand } from "./Hand";
+import phoneStyles from "./phone-board.module.css";
 import type { DropState } from "./StageZones";
 import { MarkerFlight } from "./MarkerFlight";
 import { fxVars, msFor, turnBannerMs } from "./motion";
@@ -203,6 +204,7 @@ export function ArenaStage({
   /** The narration log (#350): what `NarrationRibbon` said, kept, oldest first. */
   const [story, setStory] = useState<StoryLine[]>([]);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [zonesOpen, setZonesOpen] = useState(false);
   /** The end screen was put away to look at the final board. */
   const [endDismissed, setEndDismissed] = useState(false);
   const asked = useRef(false);
@@ -288,7 +290,9 @@ export function ArenaStage({
 
   // The fight, worked out once (`BattleParts`) and drawn by whichever staging
   // is chosen. `inplace` is the original board and lifts nothing.
-  const staged = staging !== "inplace" && !!view.battle;
+  const [phoneCinema, setPhoneCinema] = useState(false);
+  const effectiveStaging = !wide && !phoneCinema ? "inplace" : staging;
+  const staged = effectiveStaging !== "inplace" && !!view.battle;
   const shape = staged ? battleShape(view, firedInBattle(beats?.list)) : null;
   // Every card the staging draws, so the rows below do not draw it a second
   // time: one `layoutId` may exist in exactly one place, and it is what flies
@@ -329,7 +333,7 @@ export function ArenaStage({
   const handIds = new Set((view.you.hand ?? []).map((c) => c.id));
   const asksForBoard = yourAsk && Object.keys(taps.byCard).some((id) => !lifted.has(id) && !handIds.has(id));
   const asksForHand = yourAsk && Object.keys(taps.byCard).some((id) => handIds.has(id));
-  const takeoverOn = !!shape && staging === "takeover" && !asksForBoard;
+  const takeoverOn = !!shape && effectiveStaging === "takeover" && !asksForBoard;
   const bandOn = !!shape && !takeoverOn;
 
   useWakeLock(playable && !live.over);
@@ -454,7 +458,7 @@ export function ArenaStage({
   /** A card as the board currently draws it, wherever it sits. */
   const cardOf = (id: string): CardView | null => {
     for (const side of [view.you, view.them]) {
-      for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, ...side.energy, ...(side.hand ?? []), ...side.lifeFaceUp, ...side.zDeckFaceUp, ...(side.choices ?? []), side.dropTop]) {
+      for (const c of [side.leader, side.unison, ...side.battle, ...side.combo, ...side.energy, ...(side.hand ?? []), ...side.lifeFaceUp, ...side.zDeckFaceUp, ...(side.choices ?? []), ...Object.values(side.inspectableZones ?? {}).flat(), side.dropTop]) {
         if (c?.id === id) return c;
       }
     }
@@ -825,6 +829,12 @@ export function ArenaStage({
         const d = dragRef.current;
         if (!d || d.id !== id || d.pid !== e.pointerId) return;
         if (!d.on) {
+          // A sideways phone swipe belongs to the scrollable hand. Vertical
+          // gestures still use the existing server-offered play/charge drag.
+          if (!wide && Math.abs(e.clientX - d.sx) > Math.abs(e.clientY - d.sy) && Math.abs(e.clientX - d.sx) >= 8) {
+            dragRef.current = null;
+            return;
+          }
           // Under 8 px it is still a tap or a long press, and both keep working.
           if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 8) return;
           d.on = true;
@@ -941,6 +951,10 @@ export function ArenaStage({
         ["life", side.lifeFaceUp],
         ["Z-Deck", side.zDeckFaceUp],
         ["drop", [side.dropTop]],
+        ["Drop", side.inspectableZones?.drop ?? []],
+        ["Warp", side.inspectableZones?.warp ?? []],
+        ["Z-Energy", side.inspectableZones?.zEnergy ?? []],
+        ["Z-Deck", side.inspectableZones?.zDeck ?? []],
         ["search", side.choices ?? []],
       ];
       for (const [zone, cards] of zones) if (cards.some((c) => c?.id === id)) return { side, zone };
@@ -994,7 +1008,9 @@ export function ArenaStage({
    */
   const inPlayRun = [view.them, view.you].flatMap((side) => [side.leader, side.unison, ...side.battle].filter((c): c is CardView => !!c).map((card) => ({ card, yours: side === view.you })));
   const handRun = (view.you.hand ?? []).map((card) => ({ card, yours: true }));
-  const sequence = sheet ? (inPlayRun.some((i) => i.card.id === sheet.id) ? { label: "In play", items: inPlayRun } : handRun.some((i) => i.card.id === sheet.id) ? { label: "Your hand", items: handRun } : null) : null;
+  const zoneNames: Record<string, string> = { drop: "Drop", warp: "Warp", zEnergy: "Z-Energy", zDeck: "Z-Deck" };
+  const zoneRuns = [view.you, view.them].flatMap((side) => Object.entries(side.inspectableZones ?? {}).map(([zone, cards]) => ({ label: `${side.name} · ${zoneNames[zone] ?? zone}`, items: cards.map((card) => ({ card, yours: side === view.you })) })));
+  const sequence = sheet ? (inPlayRun.some((i) => i.card.id === sheet.id) ? { label: "In play", items: inPlayRun } : handRun.some((i) => i.card.id === sheet.id) ? { label: "Your hand", items: handRun } : zoneRuns.find((run) => run.items.some((i) => i.card.id === sheet.id)) ?? null) : null;
   const sheetAt = sheet ? locate(sheet.id) : null;
   const inPlaySides: InPlaySide[] = [view.them, view.you].map((side) => {
     const word = (c: CardView) => (c.mode === "rest" ? "rested" : "standing");
@@ -1016,8 +1032,9 @@ export function ArenaStage({
         // `.arena-board`): a full-width bar over the MATCH column, the field
         // with the hand and the prompt under it, and the inspector, sized to
         // the viewport so the hand and the field are on screen together.
-        className="arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]"
+        className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
         data-skin={skin}
+        data-phone-cinema={phoneCinema}
         style={{ ...turnStyle, ...fxVars(pace) }}
       >
         {/* Speed lines under an attack — a skin's moment, driven by the beat on
@@ -1030,6 +1047,7 @@ export function ArenaStage({
         )}
         {/* The edge: a thin line in the acting side's colour, switching with the banner. */}
         <div className="arena-edge" aria-hidden />
+        <div className={phoneStyles.scrollRail} aria-hidden />
         <TurnBanner call={turnCall} view={view} lighting={lighting} ms={turnBannerMs(pace)} holdUntilTap={pace === "step"} />
         <StepBanner step={step} hold={!!turnCall || playback.turnAhead} />
         {/* A skill fired inside a staged battle is said on the card that fired
@@ -1199,17 +1217,17 @@ export function ArenaStage({
             </div>
           )}
 
-          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
+          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
           </div>
 
           {/* The prompt bar: one line and its buttons, the last thing on the
             board. A takeover covers the field only, so the bar stays where it
             is and stays usable while the fight is up. */}
-          <div className="sticky bottom-0 z-30 lg:static lg:[grid-area:bar]">
+          <div className={`${phoneStyles.dock} sticky bottom-0 z-30 lg:static lg:[grid-area:bar]`}>
             <PromptPanel
               view={view}
               decision={live.decision}
-              handDecision={!wide && bandOn && asksForHand && view.prompt.kind === "combo"}
+              handDecision={!wide && asksForHand && view.prompt.kind === "combo"}
               overOutcome={live.over}
               playable={playable}
               yourTurn={yourTurn}
@@ -1291,6 +1309,26 @@ export function ArenaStage({
           <MarkerFlight beat={{ ...beatNow, from: beatNow.from }} hostRef={boardRef} art={beats?.art ?? {}} ownerOfTo={ownerOf(beatNow.card) ?? view.turnPlayer} ms={msFor(beatNow, pace)} />
         )}
 
+        {zonesOpen && (
+          <Sheet title="Zone inspection" onClose={() => setZonesOpen(false)}>
+            {[view.you, view.them].map((side) => <section key={side.player} className="space-y-3" aria-label={`${side.name} zones`}>
+              <h3 className="font-bold text-space-50">{side.name}</h3>
+              {([
+                ["Unison", side.unison ? 1 : 0, side.unison ? [side.unison] : []],
+                ["Z-Deck", side.zDeck, side.inspectableZones?.zDeck ?? side.zDeckFaceUp],
+                ["Z-Energy", side.zEnergy, side.inspectableZones?.zEnergy ?? []],
+                ["Drop", side.drop, side.inspectableZones?.drop ?? (side.dropTop ? [side.dropTop] : [])],
+                ["Warp", side.warp, side.inspectableZones?.warp ?? []],
+              ] as [string, number, CardView[]][]).map(([zone, count, cards]) => <div key={zone} data-inspect-zone={`${side.player}:${zone}`}>
+                <h4 className="text-sm font-semibold text-space-100">{zone} · {count}</h4>
+                {count > cards.length && <p className="text-xs text-space-300">{count - cards.length} card faces unavailable in this view.</p>}
+                {count === 0 && <p className="text-xs text-space-400">Empty</p>}
+                <div className="flex flex-wrap gap-2 pt-1">{cards.map((card) => <ArenaCard key={card.id} card={card} width={68} onTap={() => { setZonesOpen(false); setSheet(card); }} />)}</div>
+              </div>)}
+            </section>)}
+          </Sheet>
+        )}
+
         {moreOpen && (
           <Sheet title="Board controls" onClose={() => setMoreOpen(false)}>
             {/* The game page's links live here; give-up reads this live snapshot. */}
@@ -1334,6 +1372,7 @@ export function ArenaStage({
               </div>
             </MenuSection>
             <MenuSection title="Board">
+              <button type="button" className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden" aria-pressed={phoneCinema} onClick={() => setPhoneCinema(!phoneCinema)}>{phoneCinema ? "Use compact phone board" : "Enable cinematic battle staging"}</button>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
                 <StagingToggle gameId={gameId} staging={staging} />
                 <SkinToggle gameId={gameId} skin={skin} />
@@ -1391,9 +1430,9 @@ export function ArenaStage({
 
         {hover && !wide && !sheet && !searchOpen && <CardPreview card={hover.card} box={hover.box} narrator={narrator} />}
 
-        {sheet && (
+        {sheet && cardOf(sheet.id) && (
           <CardSheet
-            card={cardOf(sheet.id) ?? sheet}
+            card={cardOf(sheet.id)!}
             side={view.you}
             narrator={narrator}
             moves={playable && !busy && !isTargeting ? movesFor(sheet.id) : []}

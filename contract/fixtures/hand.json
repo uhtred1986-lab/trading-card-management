@@ -349,7 +349,13 @@
       "zEnergy": 0,
       "energyMarkers": 0,
       "activeEnergy": 2,
-      "dropTop": null
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
     },
     "them": {
       "player": "p2",
@@ -394,7 +400,13 @@
       "zEnergy": 0,
       "energyMarkers": 1,
       "activeEnergy": 0,
-      "dropTop": null
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
     },
     "turn": 3,
     "phase": "main",
