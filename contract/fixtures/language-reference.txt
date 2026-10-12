@@ -3952,6 +3952,10 @@
       "words": "at the end of your opponent's turn"
     },
     {
+      "name": "comboToDrop",
+      "words": "when a card in your Combo Area is placed in your Drop Area"
+    },
+    {
       "name": "comboed",
       "words": "when this card is used in a combo"
     },

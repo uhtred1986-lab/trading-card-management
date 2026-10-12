@@ -163,6 +163,9 @@ assert.equal(s.sides.p2.zones.combo.length, 0);
 assert.equal(result.events.filter((e) => e.type === "move" && e.card === turnSpent && e.to === "drop").length, 1);
 assert.equal(result.events.filter((e) => e.type === "move" && e.card === otherSpent && e.to === "drop").length, 1);
 assert.equal(result.events.filter((e) => e.type === "skill" && e.card === guard).length, 1, "non-turn player's generic Auto resolves before 8-5-9");
+const otherAuto = result.events.findIndex((e) => e.type === "skill" && e.card === guard);
+const firstDeparture = result.events.findIndex((e) => e.type === "move" && e.from === "combo" && e.to === "drop");
+assert.ok(otherAuto >= 0 && firstDeparture > otherAuto, "8-5-7 resolves the other player Auto before the first 8-5-8 departure");
 assert.equal(result.events.filter((e) => e.type === "skill" && e.card === attacker).length, 0, "turn player's generic Auto already resolved before this continuation");
 
 result = take(s, { type: "choose", player: "p1", cards: [turnSpent] });
