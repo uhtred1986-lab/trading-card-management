@@ -516,7 +516,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     engine:
       "Read off the tag and charged where the orbs are charged, so an unpayable one is neither offered nor resolved. It never names the skill it sits on, which is why the line keeps its own [Activate] or [Auto] type. Paying it is a moment cards watch, and those triggers fire.",
     engineRules:
-      "Built as a declared price (#157): `DEFINE COST spiritBoost` in `dbs/costs.rules` takes X markers off the card in your Unison Area, and the activation binds X off the line's tag and charges it after [Burst] and before the orbs, the legacy order. With no Unison, or too few markers on it, the line is refused with the legacy words (“[Spirit Boost] needs the markers”). Paying it is the `markerRemoved` moment named for the keyword, so cards watching the payment fire — the Unison it came off and your other cards — as on the legacy engine. Activated lines only: an [Auto]'s own price is not charged on this engine yet, [Spirit Boost] or otherwise.",
+      "Built as a declared price (#157): `DEFINE COST spiritBoost` in `dbs/costs.rules` takes X markers off the card in your Unison Area, and the activation binds X off the line's tag and charges it after [Burst] and before the orbs, the legacy order. With no Unison, or too few markers on it, the line is refused with the legacy words (“[Spirit Boost] needs the markers”). Paying it is the `markerRemoved` moment named for the keyword, so cards watching the payment fire — the Unison it came off and your other cards — as on the legacy engine. The supported [Auto] payment continuation also charges [Spirit Boost] after its payable decision; unaffordable and declined Autos do not resolve (#549). Unsupported price programs remain explicit interruptions.",
     support: "engine",
   },
 
@@ -643,7 +643,7 @@ export const MODIFIERS: ModifierDoc[] = [
     tag: "[Burst X]",
     section: "22-27",
     meaning: "Part of the cost: put X cards from the top of your deck into your Drop Area. Not activatable when your deck holds fewer than X.",
-    engine: "Charged where the orbs are charged, so a skill whose [Burst] cannot be paid is neither offered nor resolved. On the rules engine it is a declared price (`DEFINE COST burst`, #148): the top X cards of the deck go to the Drop, shown as they go, after a marker cost and before the orbs — the order the legacy engine pays them in — and a deck of fewer than X refuses the [Activate] line with the same reason. [Burst] on an [Auto] is not charged there yet: an [Auto]'s own price is not (the probe's `auto-price`).",
+    engine: "Charged where the orbs are charged, so a skill whose [Burst] cannot be paid is neither offered nor resolved. On the rules engine it is a declared price (`DEFINE COST burst`, #148): the top X cards of the deck go to the Drop, shown as they go, after a marker cost and before the orbs — the order the legacy engine pays them in — and a deck of fewer than X refuses the [Activate] line with the same reason. The supported [Auto] payment continuation also pays [Burst] before resolving the effect; declining or an unaffordable price cancels activation (#549). Unsupported price programs remain explicit interruptions.",
   },
   {
     tag: "[+X] / [−X]",
@@ -668,7 +668,7 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     tag: "[Auto]",
     section: "1-5-6",
     meaning: "Happens on its own when the printed moment occurs — when the card is played, attacks, is KO'd, and so on.",
-    engine: "The trigger puts the skill in pending for a checkpoint. The rules engine asks whether to pay a necessary cost (9-6-4), including printed energy, markers, Burst, Spirit Boost, supported action prices and energy X. Payment completes once before the effect; decline and unaffordable payment cancel activation. A satisfied condition alone or a public-area cost-free Auto is compulsory. The separate secret-area declaration exception (9-6-3-1-1) is not implemented by this cost continuation. Source, master, event subject, chosen price targets and X survive payment prompts and reload. Unsupported price instructions interrupt explicitly; pending skills retain the existing turn-player-first FIFO order, rather than offering the manual’s choice among simultaneous skills.",
+    engine: "The trigger puts the skill in pending for a checkpoint. The rules engine asks whether to pay a necessary cost (9-6-4), including printed energy, markers, Burst, Spirit Boost, supported action prices and energy X. Payment completes once before the effect; decline and unaffordable payment cancel activation. A satisfied condition alone or a public-area cost-free Auto is compulsory. The separate secret-area declaration exception (9-6-3-1-1) is not implemented by this cost continuation. Source, master, event subject, chosen price targets and X survive payment prompts and reload. Unsupported price instructions interrupt explicitly. At a checkpoint the turn player chooses among their pending skills before either cost or effect begins (9-6-3); the other player chooses when no turn-player skill remains. The selected source, skill, master and event subject are captured privately through JSON reload, and a changed queue or turn rejects the answer as stale.",
   },
   "activate:main": {
     tag: "[Activate: Main]",

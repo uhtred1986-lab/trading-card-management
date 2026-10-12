@@ -41,6 +41,16 @@ function stage(s: VmState, player: PlayerId, id: string, area: "hand" | "battle"
   return physical;
 }
 function apply(s: VmState, action: Action) { return rules.apply(CTX, s, action); }
+function selectPending(result: ReturnType<typeof apply>, label: string, matches: (pending: VmState["pending"][number]) => boolean): ReturnType<typeof apply> {
+  const s = result.state as VmState;
+  assert.equal(s.prompt.kind, "orderPending", `${label} awaits an explicit 9-6-3 selection`);
+  const candidates = s.prompt.kind === "orderPending" ? s.prompt.candidates.filter((index) => matches(s.pending[index])) : [];
+  assert.equal(candidates.length, 1, `${label} has one bound pending record`);
+  const action = rules.legalActions(CTX, s).find((entry) => entry.action.type === "orderPending" && entry.action.index === candidates[0])?.action;
+  assert.ok(action, `${label} is a legal selection`);
+  const selected = apply(JSON.parse(JSON.stringify(s)) as VmState, action);
+  return { state: selected.state, events: [...result.events, ...selected.events] };
+}
 function play(s: VmState, id: string) {
   const action = rules.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === id)?.action;
   assert.ok(action, `${id} has no legal play`);
@@ -75,9 +85,17 @@ try {
     const ids = bodies.map((body) => body.standingGrantId);
     assert.ok(ids.every((id) => id !== undefined) && ids[0] !== ids[1], "each [Permanent] line has separate stable provenance");
     const trigger = stage(s, "p1", "H602_PRINT", "hand");
-    const result = play(s, trigger);
-    s = result.state as VmState;
-    assert.equal(draws(result.events), 2);
+    const played = play(s, trigger);
+    const waiting = played.state as VmState;
+    assert.equal(waiting.prompt.kind, "orderPending", "two standing grants ask their master which Heroic resolves first");
+    const firstIndex = waiting.prompt.kind === "orderPending" ? waiting.prompt.candidates.find((index) => {
+      const pending = waiting.pending[index];
+      return pending.kind === "hook" && pending.frame.standingGrantId === ids[0];
+    }) : undefined;
+    assert.notEqual(firstIndex, undefined, "the first standing grant has a distinct pending choice");
+    const chosen = apply(JSON.parse(JSON.stringify(waiting)) as VmState, { type: "orderPending", player: "p1", index: firstIndex! });
+    s = chosen.state as VmState;
+    assert.equal(draws([...played.events, ...chosen.events]), 2);
     assert.ok(ids.every((id) => s.effects.some((effect) => effect.kind === "negateGrantedSkill" && effect.target === watcher && typeof effect.value === "object" && "standingGrantId" in effect.value && effect.value.standingGrantId === id)));
     assert.ok(!hasKeyword(CTX, dbs, s, watcher, "Heroic"), "both spent standing grants are absent from effective skills");
     for (const viewer of ["p1", "p2"] as const) {
@@ -111,7 +129,7 @@ try {
     assert.ok(freshId && freshId !== firstId, "the new copy-effect ID changes its derived skill index");
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const again = stage(s, "p1", "H602_PRINT", "hand");
-    const result = play(s, again);
+    const result = selectPending(play(s, again), "replacement copy grant", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.standingGrantId === freshId);
     assert.equal(draws(result.events), 2, "the replacement copy and newly played card answer");
     assert.ok(!result.state.overReason);
   }
@@ -131,7 +149,7 @@ try {
     s = activate(s, extra).state as VmState;
     assert.equal(s.prompt.kind, "chooseCards");
     assert.ok(s.pending.some((pending) => pending.kind === "hook" && pending.card === watcher && pending.frame.standingGrantId === firstId));
-    const result = apply(JSON.parse(JSON.stringify(s)) as VmState, { type: "choose", player: "p1", cards: [source] });
+    const result = selectPending(apply(JSON.parse(JSON.stringify(s)) as VmState, { type: "choose", player: "p1", cards: [source] }), "captured standing grant", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.standingGrantId === firstId);
     s = result.state as VmState;
     assert.ok(s.sides.p1.zones.drop.includes(source));
     assert.equal(draws(result.events), 2, "both captured standing-grant hooks resolve after the aura source departs");
@@ -142,7 +160,7 @@ try {
     assert.ok(freshId && freshId !== firstId, "the source's next area entry cannot reuse its earlier grant ID");
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const trigger = stage(s, "p1", "H602_PRINT", "hand");
-    const again = play(s, trigger);
+    const again = selectPending(play(s, trigger), "regranted listener", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.standingGrantId === freshId);
     assert.equal(draws(again.events), 2, "the regranted listener and source each answer once");
     assert.ok(!again.state.overReason);
   }
@@ -156,14 +174,14 @@ try {
     const firstId = hookBodiesFor(CTX, dbs, s, watcher, "afterSkill")[0]?.standingGrantId;
     assert.ok(firstId);
     const firstTrigger = stage(s, "p1", "H602_PRINT", "hand");
-    s = play(s, firstTrigger).state as VmState;
+    s = selectPending(play(s, firstTrigger), "bearer's first grant", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.standingGrantId === firstId).state as VmState;
     assert.ok(!hasKeyword(CTX, dbs, s, watcher, "Heroic"));
     const energy = stage(s, "p1", "H602_ENERGY", "energy");
     s.cards[energy].mode = "active";
     const extra = stage(s, "p1", "H602_REMOVE", "hand");
     s = activate(s, extra).state as VmState;
     assert.equal(s.prompt.kind, "chooseCards");
-    s = apply(s, { type: "choose", player: "p1", cards: [watcher] }).state as VmState;
+    s = selectPending(apply(s, { type: "choose", player: "p1", cards: [watcher] }), "played card's captured aura grant after bearer leaves", (pending) => pending.card === firstTrigger && pending.kind === "hook" && pending.frame.standingGrantId !== undefined).state as VmState;
     assert.ok(s.sides.p1.zones.drop.includes(watcher));
     assert.ok(moveCard(s, dbs, watcher, "battle", { owner: "p1" }).ok);
     const freshId = hookBodiesFor(CTX, dbs, s, watcher, "afterSkill")[0]?.standingGrantId;
@@ -185,7 +203,7 @@ try {
     const extra = stage(s, "p1", "H602_NEGATE", "hand");
     s = activate(s, extra).state as VmState;
     assert.equal(s.prompt.kind, "chooseCards");
-    const result = apply(JSON.parse(JSON.stringify(s)) as VmState, { type: "choose", player: "p1", cards: [source] });
+    const result = selectPending(apply(JSON.parse(JSON.stringify(s)) as VmState, { type: "choose", player: "p1", cards: [source] }), "captured listener after aura negation", (pending) => pending.card === watcher);
     s = result.state as VmState;
     assert.ok(s.effects.some((effect) => effect.kind === "negateSkills" && effect.target === source));
     assert.equal(draws(result.events), 1, "the other card's already-pending Heroic resolves after aura source negation");
@@ -203,7 +221,9 @@ try {
     const second = grant(s, watcher, watcher, "game");
     const third = grant(s, another, another, "game");
     const trigger = stage(s, "p1", "H602_PRINT", "hand");
-    const firstPlay = play(s, trigger);
+    const firstGrantChoice = selectPending(play(s, trigger), "first effect grant", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.grantEffectId === first.id);
+    const secondGrantChoice = selectPending(firstGrantChoice, "second effect grant", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.grantEffectId === second.id);
+    const firstPlay = selectPending(secondGrantChoice, "watcher's printed Heroic", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.grantEffectId === undefined);
     s = firstPlay.state as VmState;
     assert.equal(draws(firstPlay.events), 4, "two grants, a printed copy, and another card each draw");
     assert.ok(spent(s, watcher, first.id) && spent(s, watcher, second.id) && spent(s, another, third.id));
@@ -220,7 +240,11 @@ try {
     s = nextMain(s, "p2");
     assert.ok(!spent(s, watcher, first.id) && !spent(s, watcher, second.id), "the turn's negations expire");
     const laterTrigger = stage(s, "p1", "H602_PRINT", "hand");
-    const later = play(s, laterTrigger);
+    const laterFirst = selectPending(play(s, laterTrigger), "next-turn first grant", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.grantEffectId === first.id);
+    const laterSecond = selectPending(laterFirst, "next-turn second grant", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.grantEffectId === second.id);
+    const laterPrinted = selectPending(laterSecond, "next-turn printed watcher", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.grantEffectId === undefined);
+    const laterAnother = selectPending(laterPrinted, "next-turn other grant", (pending) => pending.card === another && pending.kind === "hook" && pending.frame.grantEffectId === third.id);
+    const later = selectPending(laterAnother, "next-turn earlier Battle Card", (pending) => pending.card === trigger);
     assert.equal(draws(later.events), 6, "the persistent grants and earlier printed cards can answer next turn");
   }
 
@@ -263,7 +287,7 @@ try {
     assert.ok(fresh.id > oldGrant.id && !spent(s, watcher, fresh.id), "effect IDs are monotonic, not reused after expiry");
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const again = stage(s, "p1", "H602_PRINT", "hand");
-    const result = play(s, again);
+    const result = selectPending(play(s, again), "fresh effect grant", (pending) => pending.card === watcher && pending.kind === "hook" && pending.frame.grantEffectId === fresh.id);
     assert.equal(draws(result.events), 2, "the fresh grant and the new card's own printed Heroic answer");
     assert.ok(spent(result.state as VmState, watcher, fresh.id));
   }

@@ -48,8 +48,8 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     evidence: "runtime-scenario",
     citation: "9-6-4; 5-8-2-2; 20-5",
     ownerIssue: 549,
-    proof: "scripts/verify/compiler.ts — AUTOCOST paid/declined; scripts/verify/auto-costs-549.ts — full action/resource costs, X, reload, stale and atomic rejection",
-    detail: "Supported orb/action/X prices complete before the effect; condition-only Autos remain compulsory. The instruction whitelist and bounded search interrupt explicitly; general binding remains #550 and broader price coverage remains #549.",
+    proof: "scripts/verify/compiler.ts — AUTOCOST paid/declined; scripts/verify/auto-costs-549.ts — full action/resource costs, X, actual play-triggered pending selection, turn-player priority, reload, stale and atomic rejection",
+    detail: "Supported orb/action/X prices complete before the effect; public-area condition-only Autos remain compulsory. Players choose among their own pending skills with turn-player priority, captured queue binding and private source labels. The secret-area declaration exception remains unimplemented. The instruction whitelist and bounded search interrupt explicitly; general binding remains #550 and broader price coverage remains #549.",
   },
   {
     id: "arena-zero-power-rule-processing",
