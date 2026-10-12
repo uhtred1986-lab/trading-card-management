@@ -166,6 +166,16 @@ for (const wrong of ["C680-RED", "C680-MULTI", "C680-ONE", "C680-MAIN", "C680-CO
   assert.ok(paid.state.sides.p1.zones.drop.includes(extra));
 }
 {
+  const { state, cell, energy, extras: [extra] } = prepared();
+  state.effects.push({ id: 680, target: extra, kind: "forbid", value: 0,
+    forbid: { what: "activateSkill", player: "p1" }, until: "turn",
+    source: state.sides.p1.zones.leader[0], createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
+  const paid = paidUntilExtra(state, cell, energy[3]);
+  assert.equal(paid.state.prompt.kind, "main", "a prohibited Extra line is not a legal free invocation");
+  assert.ok(paid.state.sides.p1.zones.hand.includes(extra));
+  assert.equal(paid.events.filter((event) => event.type === "skill" && event.card === extra).length, 0);
+}
+{
   const { state, cell, energy } = prepared([]);
   const other = stage(state, "C680-EXTRA", "hand", "p2");
   const paid = paidUntilExtra(state, cell, energy[3]);
@@ -188,6 +198,11 @@ for (const wrong of ["C680-RED", "C680-MULTI", "C680-ONE", "C680-MAIN", "C680-CO
   const cardChosen = take(paid.state, { type: "choose", player: "p1", cards: [second] });
   assert.equal(cardChosen.state.prompt.kind, "chooseMode");
   assert.ok(cardChosen.state.sides.p1.zones.hand.includes(first));
+  const staleLine = reload(cardChosen.state);
+  assert.ok(moveCard(staleLine, dbs, second, "drop", { owner: "p1" }).ok);
+  const staleLineBefore = JSON.stringify(staleLine);
+  assert.throws(() => rules.apply(ctx, staleLine, { type: "chooseMode", player: "p1", index: 1 }), IllegalAction);
+  assert.equal(JSON.stringify(staleLine), staleLineBefore);
   const lineChosen = take(cardChosen.state, { type: "chooseMode", player: "p1", index: 1 });
   const reloaded = take(reload(cardChosen.state), { type: "chooseMode", player: "p1", index: 1 });
   assert.deepEqual(reloaded.events, lineChosen.events);
