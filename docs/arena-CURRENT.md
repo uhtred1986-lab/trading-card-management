@@ -45,7 +45,7 @@ The latest close-out wave merged #669 integrity bookkeeping, #670 hand-origin ba
 Autos (#572), #671 pending-Auto selection (partial #549), #673 grouped readings,
 #674 bounded gameplan preview (#570), and #675 current-DSL combo-entry timing (#672/#573).
 #573 and #574 are complete at their scoped acceptance. PR #679 completes P1 #574 exact durations/Desire. PR #678 completed P2 #569
-snapshot-derived reads. PR #681 delivered cost-free secret Auto declarations; this increment delivers priced-secret declarations before payment. PR #682 completed genuine damage statistics (#557), and PR #684 completed BT31-116 free Extra activation (#680). PR #688 delivered bounded #683 Villainous/Extra hooks with remaining cases explicit. PR #689 delivered a narrow Auto-price pruning improvement. #459 fixed expectations pass both arena lanes, the no-legacy full-test proof and root build; #609 cleanup is in final testing with replacement combinations still open.
+snapshot-derived reads. PR #681 delivered cost-free secret Auto declarations; this increment delivers priced-secret declarations before payment. PR #682 completed genuine damage statistics (#557), and PR #684 completed BT31-116 free Extra activation (#680). PR #688 delivered bounded #683 Villainous/Extra hooks with remaining cases explicit. PR #689 delivered a narrow Auto-price pruning improvement. #459 fixed expectations pass both arena lanes, the no-legacy full-test proof and root build; #609 delivers the bounded cleanup checkpoints and pause/reload proof; replacement combinations remain open.
 #549 and #595 remain partial; #550 waits on complete #549 acceptance. #609's later cleanup
 checkpoint issue remains open and distinct from the completed combo-entry correction.
 
@@ -65,12 +65,11 @@ declaration checks passed. ops.rules documents native mill as its binding except
 language/declaration results, not runtime proof.
 
 The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
-runtime evidence. The inventory records 34 narrow capability rows, three named rules-engine gaps with stable IDs
-and live owners, and 29 VM source sites. Granted Heroic now carries individual timed/Permanent
+runtime evidence. The inventory records 35 narrow capability rows, three named rules-engine gaps with stable IDs
+and live owners, and 34 VM source sites. Granted Heroic now carries individual timed/Permanent
 identities; an older hook without identity still fails closed before drawing rather than being migrated. It records merged #548 zero-power processing, #551 combo-to-Z-Energy, #553 static layers,
 #554 printed Heroic, #555 Aegis, #556 face-up Life events, and #601 fixed AI expectations from current
-runtime evidence. It keeps the native `mill` macro exception and #459 oracle migration gate separate
-from runtime support. The ALTC Counter alternative-price scenario actively asserts the chosen
+runtime evidence. It keeps the native `mill` macro exception and completed #459 fixed-expectation test evidence separate from gameplay runtime support. The ALTC Counter alternative-price scenario actively asserts the chosen
 payment, resulting zones and unaffordable case.
 
 #170's closure and green declaration checks do not prove complete rules coverage. The inventory
