@@ -4,9 +4,9 @@ import { compileCostProgram, compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { validateProgram } from "../../src/lib/arena/vm/script";
-import { addSkip as legacySkip, taxesOn as legacyTaxes } from "../../src/lib/arena/engine/state";
+import { addSkip as legacySkip, playCost as legacyPlayCost, taxesOn as legacyTaxes } from "../../src/lib/arena/engine/state";
 import { addSkip as rulesSkip } from "../../src/lib/arena/vm/skips";
-import { taxesOn as rulesTaxes } from "../../src/lib/arena/vm/program";
+import { attrsNow, taxesOn as rulesTaxes } from "../../src/lib/arena/vm/program";
 import { isVmState } from "../../src/lib/arena/engines";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
@@ -125,6 +125,27 @@ function unavailable(candidate: string, energy: string[], mutate?: (state: Engin
   assertConsistentG(state);
 }
 unavailable("C574-DESIRE", ["V1"]); // printed energy cost exceeds current energy
+// SD7's bound uses the card's current energy cost. An in-force reduction can
+// make a printed-two Desire eligible with just one energy; that one energy is
+// counted for eligibility and is not paid as the invoked skill's original cost.
+{
+  let state = arenaG({ hand: ["C574-DESIRE"], energy: ["V1"] });
+  const leader = leaderOf(state, "p1");
+  state.cards[leader].cardId = "C574-WISH";
+  const id = zoneOf(state, "p1", "hand").find((item) => state.cards[item].cardId === "C574-DESIRE")!;
+  state.effects.push({ id: 5744, target: id, kind: "cost", value: 1, until: "turn",
+    source: leader, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
+  const currentCost = isVmState(state)
+    ? (() => { const loaded = rulesetFor("dbs"); if (!loaded.ok) throw Error("DBS ruleset did not load"); return attrsNow(CTX, loaded.definition, state, id).costOf; })()
+    : legacyPlayCost(CTX, state, id).total;
+  assert.equal(currentCost, 1, "20-21 reduces the eligible Desire's current energy cost below its printed 2");
+  state = take(state, { type: "activate", player: "p1", card: leader, skill: parseSkills(WISH)[0]!.index }).state;
+  assert.equal(state.prompt.kind, "chooseMode", "the reduced-cost Desire branch is offered");
+  state = take(state, { type: "chooseMode", player: "p1", index: 1 }).state;
+  assert.ok(zoneOf(state, "p1", "drop").includes(id));
+  assert.equal(zoneOf(state, "p1", "energy").filter((item) => state.cards[item].mode === "rest").length, 0);
+  assertConsistentG(state);
+}
 unavailable("C574-OTHER", ["V1", "V1"]); // wrong special trait
 unavailable("C574-COND", ["V1", "V1"]); // waived cost does not waive the condition
 unavailable("C574-ONCE", ["V1", "V1"], (state, id) => state.cards[id].usedThisTurn.push(0));

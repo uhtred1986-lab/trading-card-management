@@ -282,8 +282,8 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     evidence: "runtime-scenario",
     citation: "12-2-4-1–9; SD7-01 owner card review #539",
     ownerIssue: 574,
-    proof: "scripts/verify/duration-shuffle-574.ts — hand/trait/current-energy bound, Drop-before-skill, original-cost waiver, condition/once/prohibition, line choice, nested continuation, stale/reload and privacy",
-    detail: "The printed branch selects an eligible hand Extra and invokes its actual Activate: Main line with its original energy and skill costs waived, then resumes the invoking effect. Conditions, once limits and prohibitions still apply. External activateSkill taxes remain unsupported under #677; this row does not claim their payment.",
+    proof: "scripts/verify/duration-shuffle-574.ts — hand/trait/current-energy bound with a live cost reduction, Drop-before-skill, original-cost waiver, condition/once/prohibition, line choice, nested continuation, stale/reload and privacy",
+    detail: "The printed branch selects an eligible hand Extra by its current energy cost and invokes its actual Activate: Main line with its original energy and skill costs waived, then resumes the invoking effect. A live reduction can make a printed-cost-2 Extra eligible with one energy. Conditions, once limits and prohibitions still apply. External activateSkill taxes remain unsupported under #677; this row does not claim their payment.",
   },
   {
     id: "arena-activation-external-tax",
