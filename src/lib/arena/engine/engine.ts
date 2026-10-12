@@ -764,7 +764,9 @@ function resolvePlay(
  * New events carry a printed/copied index; -1 remains for older saved grants.
  */
 function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, master: PlayerId, keywordName?: "Heroic" | "Villainous", skillIndex = -1): "done" | "wait" {
-  if (skillNegated(s, card, skillIndex)) return "done";
+  // A pended keyword is still an [Auto] activation. Apply the same 20-14
+  // prohibition at resolution as ordinary Autos, including old -1 grants.
+  if (skillsNegated(s, card) || skillNegated(s, card, skillIndex) || forbids(ctx, s, "activateSkill", { player: master, card })) return "done";
   const name = keywordName ?? (has(ctx, s, card, "Heroic") ? "Heroic" : has(ctx, s, card, "Villainous") ? "Villainous" : null);
   if (name === "Heroic") {
     draw(ctx, s, ev, master, 1);
