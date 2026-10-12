@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: Make battle stakes resources and pass consequences explicit
 milestone: Arena M16 — Board redesign: play feel and card review
-labels: backlog, blocked, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
+labels: backlog, ready-for-agent, enhancement, area:arena-ui, phase:board-redesign, model:sonnet-5
 stage: ui
 issue: 562
 priority: P1

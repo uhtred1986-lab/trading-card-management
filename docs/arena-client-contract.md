@@ -853,3 +853,36 @@ Atlantic in the middle of every database round-trip.
 
 Budget to hold, once regions agree: **one round trip per action**, snapshot returned by the same
 `POST`. Never two.
+
+### Conditional battle stakes and exact energy payments (#562)
+
+Rules-engine `BattleView.stakes` is optional. It reuses the resolver's
+`beforeDamage` query and public totals: `hit`, `tied`, `target`, `lifeDamage`,
+`strikeDamage`, `markerLoss`, `critical`, `victoryStrike`, `potentialLethal`,
+`koPrevented`, and `assumption`. Leader life damage and Unison marker loss are
+separate quantities. Strike amount is retained even when less life remains.
+This is a conditional current-board projection, never a resolved outcome:
+responses, pending skills and replacements may change it. It reads no hidden
+life identities or opponent hand. Negated, no-longer-intact and completed
+battles omit the projection; legacy snapshots omit it too. Clients show an
+unavailable explanation when absent and do not reconstruct card rules.
+
+`PromptView.passConsequence` describes the real prompt's decline. Offense
+Pass gives the defender a response window; defense Pass advances toward the
+Damage Step, with checkpoints and replacements still able to intervene.
+Counter windows retain their own name. Older snapshots may omit this field.
+
+For a real `payCost` prompt, only its actor receives `PromptView.payments`:
+`{ option, energyRest: string[], markers }`. These are the existing offered
+payment options, with only Energy Area card ids exposed. The UI subtracts
+those exact public cards to display remaining ready energy by colour; it
+never chooses a payment from an amount-only drag preview. `SideView.energyColors` optionally carries `{ card, colors, paymentColors }` rows for public
+Energy Area ids, with effective `colors` from attributes and `paymentColors` from the current
+planner's existing `cardColors` query.
+CardView colours retain their printed meaning. Clients use payment rows
+for default counts and remaining-payment previews; older snapshots explicitly label
+printed-colour counts as incomplete. Multicolour cards count in each colour
+but remain one resource. Hidden Mode payment colours stay empty (23-5-2). Effective colours may be
+shown separately in inspection if they differ. Existing engine limitation:
+colour gains affect attributes but its payment query still reads base colours;
+this UI discloses that difference and does not invent additional payable orbs.

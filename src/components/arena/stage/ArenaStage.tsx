@@ -1206,6 +1206,7 @@ export function ArenaStage({
           <div className="sticky bottom-0 z-30 lg:static lg:[grid-area:bar]">
             <PromptPanel
               view={view}
+              decision={live.decision}
               overOutcome={live.over}
               playable={playable}
               yourTurn={yourTurn}

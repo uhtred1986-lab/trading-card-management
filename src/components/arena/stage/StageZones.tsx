@@ -10,6 +10,7 @@ import { Counter } from "../shared";
 import { Count } from "./BattleParts";
 import { ZoneAnchor } from "./anchors";
 import { StageCard, type Moment } from "./StageCard";
+import { energySummary } from "./stakes-model";
 
 export type CardProps = (c: CardView) => {
   card: CardView;
@@ -346,6 +347,7 @@ export function PlayerStrip({
 }) {
   const p = side.player;
   // A chip that arrives pops in (rd-04). The first render is not an arrival.
+  const [inspectEnergy, setInspectEnergy] = useState(false);
   const [seen, setSeen] = useState<{ ids: string[]; fresh: ReadonlySet<string> }>(() => ({ ids: side.energy.map((c) => c.id), fresh: new Set() }));
   const nowIds = side.energy.map((c) => c.id);
   if (nowIds.join("|") !== seen.ids.join("|")) setSeen({ ids: nowIds, fresh: new Set(nowIds.filter((id) => !seen.ids.includes(id))) });
@@ -450,15 +452,24 @@ export function PlayerStrip({
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-x-2 px-3 text-xs leading-snug text-space-100" data-player-resources={side.player}>
+        <span className="font-semibold">Life {side.life} · Energy {side.activeEnergy}/{side.energy.length} ready</span>
+        <span>{energySummary(side)}</span>
+        <button type="button" className="tap min-h-11 rounded px-2 font-semibold underline underline-offset-2" aria-expanded={inspectEnergy} onClick={() => setInspectEnergy((open) => !open)}>Inspect energy</button>
+        {willRest > 0 && <span className="w-full">Play costs {willRest} energy; remaining colours depend on the chosen payment.</span>}
+      </div>
+
       {/* The rarer things a strip has no room for, on a line of their own and
           only while they exist: energy a prompt is asking for, face-up life
           (3-9-2-1, open to both players), and rules on the player. */}
-      {(energyAsked || faceUp.length > 0 || (side.rules?.length ?? 0) > 0) && (
+      {(energyAsked || inspectEnergy || faceUp.length > 0 || (side.rules?.length ?? 0) > 0) && (
         <div className="mt-1 flex flex-wrap items-center gap-1 px-2">
-          {energyAsked &&
+          {inspectEnergy && <p className="w-full text-xs text-space-100">Ready/total by colour. A multicolour card counts in each colour but pays only one energy. Energy markers: {side.energyMarkers}.</p>}
+          {inspectEnergy && side.energyColors?.some((row) => JSON.stringify(row.colors) !== JSON.stringify(row.paymentColors)) && <p className="w-full text-xs text-space-100">{energySummary(side, [], "effective")}. Gained colours do not change energy payments in this arena yet; use the payment colours above.</p>}
+          {(energyAsked || inspectEnergy) &&
             energy.map((c) => (
               <span key={c.id} className={arrived.has(c.id) ? "arena-chip inline-flex" : "contents"}>
-                <StageCard {...cardProps(c)} width={44} upsideDown pulse={resting.has(c.id)} />
+                <StageCard {...cardProps(c)} onTap={cardProps(c).onTap ?? cardProps(c).onInspect} width={44} upsideDown pulse={resting.has(c.id)} />
               </span>
             ))}
           {faceUp.map((c) => (

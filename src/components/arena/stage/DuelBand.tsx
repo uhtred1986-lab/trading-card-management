@@ -74,6 +74,10 @@ export function DuelBand({ shape, cardProps, beat, progress }: StagingProps) {
           <Chain side={right} cardProps={cardProps} width={42} outward="right" beat={beat} />
         </div>
 
+        <div className="mt-1 flex justify-between text-xs text-space-100">
+          <span>{left.name} · {left === attack ? "attacker" : "defender"}</span>
+          <span>{right.name} · {right === attack ? "attacker" : "defender"}</span>
+        </div>
         <Totals left={left} right={right} />
         <TriggerLine beat={beat} name={name} />
       </div>
