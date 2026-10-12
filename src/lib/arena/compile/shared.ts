@@ -1,4 +1,4 @@
-import type { Op, Ref, Selector } from "../vm/script";
+import type { Duration, Op, Ref, Selector, Side } from "../vm/script";
 
 /** "The card that was switched to Hidden Mode by this skill" (BT28-105, BT28-121): the card the skill's price switched (`Ctx.priceChoice`). */
 export const SWITCHED_BY_THIS_SKILL = /\b(?:all )?the cards? (?:that (?:was|were) )?switched to (?:hidden|revealed) mode by this skill\b/i;
@@ -83,7 +83,7 @@ export interface Ctx {
    * where it goes instead, so it becomes a replacement rather than a move
    * (9-10).
    */
-  replacing: { by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string; event?: "life" | "marker"; to?: "hand" | "drop" } | null;
+  replacing: { by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string; subjectSide?: Side; event?: "life" | "marker"; to?: "hand" | "drop"; requestedTo?: "hand"; until?: Duration } | null;
   /**
    * The steps of a replacement's body read so far, when the sentence runs past
    * one clause and the word "instead" has not arrived yet (9-10, #107). Held

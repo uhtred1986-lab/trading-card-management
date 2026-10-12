@@ -539,7 +539,7 @@ function moveTo(
   // `verify/compiler.ts`'s STEALER case).
   const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
   const carry = !!opts.carry || (held(from) && held(to));
-  const placed = moveCard(state, game, id, to, { owner, position: opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
+  const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     return;

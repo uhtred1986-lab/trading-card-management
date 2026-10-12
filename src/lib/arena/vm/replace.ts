@@ -40,10 +40,11 @@ import type { MoveActor, MoveReason, PlayerId, ReplacementChoice, ReplacementRes
 import type { GameDefinition } from "../rulesets";
 import { log } from "./events";
 import { vmHost } from "./host";
-import { queryHookStatics, staticsNow } from "./program";
+import { queryHookStatics, resolveSelector, staticsNow } from "./program";
 import { masterOf } from "./triggers";
 import { inPlayZones } from "./zones";
 import type { VmState } from "./state";
+import type { ScriptFrame } from "./script";
 
 /**
  * A substitute is running: whatever it moves is moving for real, so a
@@ -58,9 +59,20 @@ const LIFE_ZONE = "life";
 
 /** Every replacement standing in front of this card's departures, in the order the statics are read (the legacy order). */
 function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { source: string; master: PlayerId; skillIndex?: number; r: Replacement }[] {
-  return staticsNow(ctx, game, state)
+  const out = staticsNow(ctx, game, state)
     .filter((e) => e.kind === "replaceLeave" && e.target === id)
     .map((e) => ({ source: e.source, master: e.master, ...(e.skillIndex === undefined ? {} : { skillIndex: e.skillIndex }), r: e.value as Replacement }));
+  // Timed replacements retain their selector and re-evaluate it at each
+  // departure, including cards that enter the Battle Area after activation.
+  for (const e of state.effects) {
+    if (e.kind !== "replaceLeave" || !e.source || !e.master || !e.value || typeof e.value !== "object") continue;
+    const stored = e.value as Replacement;
+    const r: Replacement = { ...stored, source: stored.source ?? e.source, master: stored.master ?? e.master };
+    const target = r.target ?? { special: "self" as const };
+    const frame: ScriptFrame = { ops: [], ip: 0, vars: r.vars ?? {}, card: e.source, master: e.master };
+    if (resolveSelector(ctx, game, state, frame, target).includes(id)) out.push({ source: e.source, master: e.master, ...(r.skillIndex === undefined ? {} : { skillIndex: r.skillIndex }), r });
+  }
+  return out;
 }
 
 export function replacementIdentity(source: string, skillIndex: number | undefined, event: string | undefined, target: string): string {
@@ -74,11 +86,12 @@ export function replacementIdentity(source: string, skillIndex: number | undefin
  * opponent's skill, which only a caller that knows the actor can satisfy. A
  * `life` replacement answers no Battle Area departure at all.
  */
-function causeMatches(game: GameDefinition, state: VmState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor): boolean {
+function causeMatches(game: GameDefinition, state: VmState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor, requestedTo?: string): boolean {
   if (r.kind === "life" || r.kind === "marker") return false;
   if (r.by === "skill" && reason !== "effect") return false;
   if (r.by === "ko" && reason !== "ko") return false;
   if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
+  if (r.requestedTo && r.requestedTo !== requestedTo) return false;
   if (r.bySide === "opponent" && (actor === undefined || actor === masterOf(game, state, id))) return false;
   return true;
 }
@@ -96,13 +109,13 @@ export function replacementChoices(
   state: VmState,
   id: string,
   reason: MoveReason | undefined,
-  opts: { actor?: MoveActor; inSubstitute?: boolean } = {},
+  opts: { actor?: MoveActor; inSubstitute?: boolean; requestedTo?: string } = {},
 ): ReplacementChoice[] {
   const out: ReplacementChoice[] = [];
   for (const { source, master, skillIndex, r } of standing(ctx, game, state, id)) {
     if (r.ops && (applyingReplacement || opts.inSubstitute)) continue;
-    if (!causeMatches(game, state, id, r, reason, opts.actor)) continue;
-    out.push({ source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
+    if (!causeMatches(game, state, id, r, reason, opts.actor, opts.requestedTo)) continue;
+    out.push({ source, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
   }
   return out;
 }
@@ -162,21 +175,22 @@ function replacementFor(
   actor?: PlayerId,
   used: ReadonlySet<string> = new Set<string>(),
   event?: string,
+  requestedTo?: string,
 ): { source: string; route: Replacement; identity: string } | null {
-  for (const { source, skillIndex, r } of standing(ctx, game, state, id)) {
+  for (const { source, master, skillIndex, r } of standing(ctx, game, state, id)) {
     const identity = replacementIdentity(source, skillIndex ?? r.skillIndex, event, id);
     if (used.has(identity)) continue;
     if (r.optional) continue;
     if (r.ops && applyingReplacement) continue;
     if (r.ops && asksAQuestion(r.ops)) continue;
-    if (!causeMatches(game, state, id, r, reason, actor)) continue;
-    return { source, route: { ...r, skillIndex: skillIndex ?? r.skillIndex }, identity };
+    if (!causeMatches(game, state, id, r, reason, actor, requestedTo)) continue;
+    return { source, route: { ...r, source: r.source ?? source, master: r.master ?? master, skillIndex: skillIndex ?? r.skillIndex }, identity };
   }
   return null;
 }
 
 /** What a departure becomes: the card stays where it is (a substitute ran, or will), or it goes here, in this mode. */
-export type LeaveRoute = { stays: true; replacement?: string } | { stays: false; to: string; mode?: string; replacement?: string };
+export type LeaveRoute = { stays: true; replacement?: string } | { stays: false; to: string; mode?: string; position?: "top" | "bottom"; replacement?: string };
 
 /**
  * The 9-10 half of a move, read before the card goes anywhere — every mover
@@ -207,9 +221,10 @@ export function leaveRoute(
   const inPlay = inPlayZones(game);
   const held = (zone: string | null) => !!zone && (inPlay.includes(zone) || game.zones[zone]?.host === true);
   let mode: string | undefined;
+  let insteadPosition: "top" | "bottom" | undefined;
   const fromLife = from === LIFE_ZONE;
   const selected = ((from && inPlay.includes(from)) || fromLife) && !held(to) && opts.replaced === undefined && !fromLife
-    ? replacementFor(ctx, game, state, id, opts.reason, opts.actor, opts.usedReplacements, opts.event)
+    ? replacementFor(ctx, game, state, id, opts.reason, opts.actor, opts.usedReplacements, opts.event, to)
     : null;
   const selectedIdentity = selected?.identity ?? (opts.replaced?.source ? replacementIdentity(opts.replaced.source, opts.replaced.skillIndex, opts.event, id) : undefined);
   if (((from && inPlay.includes(from)) || fromLife) && !held(to)) {
@@ -223,10 +238,12 @@ export function leaveRoute(
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to}${instead.mode === "rest" ? " in Rest Mode" : ""} instead` });
       to = instead.to;
       mode = instead.mode;
+      insteadPosition = instead.position;
     } else if (instead && opts.replaced !== undefined) {
       // A route the affected player picked says how the card arrives as well
       // as where, even when where is where it was going anyway.
       mode = instead.mode;
+      insteadPosition = instead.position;
     }
   }
   // The card's own rule (22-14-3): a `wouldLeave` body's `replace` record,
@@ -238,7 +255,7 @@ export function leaveRoute(
       if (redirect && redirect.to !== to) to = redirect.to;
     }
   }
-  return { stays: false, to, ...(mode ? { mode } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
+  return { stays: false, to, ...(mode ? { mode } : {}), ...(insteadPosition ? { position: insteadPosition } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
 }
 
 /**

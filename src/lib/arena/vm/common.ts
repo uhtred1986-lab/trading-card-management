@@ -65,13 +65,13 @@ export function tokenDefOf(cardId: string): CardDef {
  * `replaceLeave` prints and the only one `move()` can honour by changing a
  * destination. Everything else is a substitute, and runs.
  */
-export function redirectOf(ops: Op[]): { to: Area; mode?: "active" | "rest" } | null {
+export function redirectOf(ops: Op[]): { to: Area; mode?: "active" | "rest"; position?: "top" | "bottom" } | null {
   if (ops.length !== 1) return null;
   const only = ops[0];
   if (only.op !== "moveTo" || only.under || only.owner || only.to === "under" || only.to === "play") return null;
   const sel = "sel" in only.target ? only.target.sel : null;
   if (!sel || (sel.special !== "self" && sel.special !== "subject")) return null;
-  return { to: only.to as Area, ...(only.mode ? { mode: only.mode } : {}) };
+  return { to: only.to as Area, ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}) };
 }
 
 export function sideOf(master: PlayerId, side: Side | undefined): PlayerId[] {
