@@ -552,9 +552,11 @@ inputs and an immutable content-addressed bundle of the ruleset source, normaliz
 compiled card programs and art references. The export contains that bundle, seed and action list;
 the ordinary `Snapshot` contains none of them. Run an exact export offline with
 `DATABASE_URL='' npm run arena:replay -- <export.json> --runtime-revision <matching-source-sha>`
-from the matching application revision. Historical matches without a bundle remain playable through
-their compatibility path, but the admin export labels them non-exact and never substitutes today's
-deck or rules. A missing or hash-invalid pin fails closed instead of loading current mutable inputs.
+with the interpreter revision recorded in the bundle. An export may be marked `exact: false` only
+because it is being viewed from a newer deployment; its pinned inputs still replay when the operator
+checks out the recorded revision. Historical matches without a bundle remain playable through their
+compatibility path, but the admin export labels them non-exact and never substitutes today's deck or
+rules. A missing or hash-invalid pin fails closed instead of loading current mutable inputs.
 
 The deck endpoints are now live (13 Sep 2026) — read-only, shaped by `src/lib/decks/legality.ts`
 exactly as the web deck page renders it, and pinned by their own golden fixtures (§5.1) so a shape

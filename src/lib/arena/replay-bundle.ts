@@ -43,7 +43,10 @@ export interface PinnedContext extends EngineContext {
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, canonical(v)]));
+    // JavaScript's default string order is UTF-16 code-unit order and is
+    // independent of host locale/ICU configuration. Locale collation would
+    // make an identical bundle hash differently on some machines.
+    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([k, v]) => [k, canonical(v)]));
   }
   return value;
 }

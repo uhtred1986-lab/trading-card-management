@@ -174,7 +174,7 @@ export function AdminDrawer({
           href={`/api/v1/games/${game.id}/replay`}
           download={`arena-game-${game.id}-replay.json`}
           data-arena-admin="replay-export"
-          className="arena-admin-btn tap inline-flex min-h-11 items-center justify-center"
+          className="arena-admin-btn tap mb-3 inline-flex min-h-11 items-center justify-center px-4"
         >
           Download replay bundle
         </a>

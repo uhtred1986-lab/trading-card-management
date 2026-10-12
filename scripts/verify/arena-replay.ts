@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,7 +8,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "../../src/db/index.ts";
 import { arenaGames, arenaRuleBundles, cardRules, cards } from "../../src/db/schema.ts";
 import { loadGame, startGame } from "../../src/lib/arena/games.ts";
-import { clearReplayBundleCacheForTests, makeReplayBundle, pinnedContext, readReplayBundle, validateReplayBundle } from "../../src/lib/arena/replay-bundle.ts";
+import { clearReplayBundleCacheForTests, makeReplayBundle, pinnedContext, readReplayBundle, replayHash, validateReplayBundle } from "../../src/lib/arena/replay-bundle.ts";
 import { loadReplayExport } from "../../src/lib/arena/replay-export.ts";
 import { replayOffline } from "../../src/lib/arena/offline-replay.ts";
 import { tableOf } from "../../src/lib/arena/ai/table.ts";
@@ -19,6 +20,12 @@ import type { VmState } from "../../src/lib/arena/vm/state.ts";
 
 /** PGlite coverage for immutable inputs, corrections, offline replay and historical rows. */
 export async function verifyArenaReplay(db: Db, gameId: number, deckId: number): Promise<void> {
+  const unicodeFirst = { "😀": 4, "ä": 3, a: 1, A: 2 };
+  const unicodeReordered = { A: 2, a: 1, "😀": 4, "ä": 3 };
+  const utf16SortedJson = '{"A":2,"a":1,"ä":3,"😀":4}';
+  const utf16SortedHash = createHash("sha256").update(utf16SortedJson).digest("hex");
+  assert.equal(replayHash(unicodeFirst), utf16SortedHash, "bundle hashes use portable UTF-16 key order rather than host locale collation");
+  assert.equal(replayHash(unicodeReordered), utf16SortedHash, "Unicode-key hashes do not depend on insertion order");
   const route = fs.readFileSync(new URL("../../src/app/api/v1/games/[id]/replay/route.ts", import.meta.url), "utf8");
   const service = fs.readFileSync(new URL("../../src/lib/arena/replay-export.ts", import.meta.url), "utf8");
   const adminAuth = route.indexOf("routeViewer({ sl: true })");
@@ -187,6 +194,10 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
     fs.writeFileSync(exportPath, JSON.stringify({ exact: true, seed: storedGame.seed, engine: "rules", actions: storedGame.actions, decks: storedGame.replayDecks, bundle: proofBundle }));
     const output = execFileSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", "scripts/arena-replay.mts", exportPath, "--runtime-revision", proofRuntime], { encoding: "utf8", env: { ...process.env, DATABASE_URL: "" } });
     assert.deepEqual(JSON.parse(output).state, JSON.parse(JSON.stringify(storedGame.state)), "the exported JSON runs through the standalone offline CLI with no database");
+    const olderDeploymentPath = path.join(tempDir, "older-deployment-export.json");
+    fs.writeFileSync(olderDeploymentPath, JSON.stringify({ exact: false, reason: "Use the bundle's interpreter revision.", seed: storedGame.seed, engine: "rules", actions: storedGame.actions, decks: storedGame.replayDecks, bundle: proofBundle }));
+    const olderDeploymentOutput = execFileSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", "scripts/arena-replay.mts", olderDeploymentPath, "--runtime-revision", proofRuntime], { encoding: "utf8", env: { ...process.env, DATABASE_URL: "" } });
+    assert.deepEqual(JSON.parse(olderDeploymentOutput).state, JSON.parse(JSON.stringify(storedGame.state)), "a pinned export marked non-exact by a newer deployment replays on its recorded interpreter revision");
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

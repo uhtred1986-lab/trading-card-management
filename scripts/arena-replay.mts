@@ -24,8 +24,8 @@ const data = JSON.parse(fs.readFileSync(path, "utf8")) as {
   decks?: ReplayBundleRecord["decks"];
   bundle?: ReplayBundle;
 };
-if (!data.exact || !Number.isInteger(data.seed) || !data.engine || !Array.isArray(data.actions) || !data.decks || !data.bundle) {
-  throw new Error("This export is labelled unpinned or is missing replay inputs; exact offline replay is unavailable.");
+if (!Number.isInteger(data.seed) || !data.engine || !Array.isArray(data.actions) || !data.decks || !data.bundle) {
+  throw new Error("This export is unpinned or missing replay inputs; exact offline replay is unavailable.");
 }
 
 const replay = replayOffline({
