@@ -2402,23 +2402,51 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (op.until) {
           const boundTarget = "__timedReplaceLeaveTarget";
           const vars = Object.fromEntries(Object.entries(frame.vars).map(([name, ids]) => [name, [...ids]]));
+          const hasBoundSelector = (value: unknown): boolean => {
+            if (!value || typeof value !== "object") return false;
+            if (Array.isArray(value)) return value.some(hasBoundSelector);
+            return Object.entries(value).some(([key, child]) => key === "fromVar" || hasBoundSelector(child));
+          };
+          const captured = !!op.target && ("var" in op.target || hasBoundSelector(op.target));
           const target = op.target && "sel" in op.target
             ? op.target.sel
             : op.target && "var" in op.target
-              ? (vars[boundTarget] = h.resolveRef(frame, op.target), { fromVar: boundTarget })
+              ? (vars[boundTarget] = [...h.resolveRef(frame, op.target)], { fromVar: boundTarget })
               : !op.target
                 ? { special: "self" as const }
                 : null;
           if (!target) break;
           const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to as Area;
-          h.addEffect({
-            master: frame.master,
-            source: frame.card,
-            target: "",
-            kind: "replaceLeave",
-            value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars },
-            until: op.until,
-          });
+          if (captured) {
+            // 3-1-4: a selected card that leaves an Area is a new card. Store
+            // one effect on each captured instance so the normal zone-change
+            // cleanup removes that binding before the old ID returns to play.
+            // The selector-only form without a captured `fromVar` remains
+            // deliberately live and still sees later-arriving Battle Cards.
+            const ids = h.resolveRef(frame, op.target!);
+            for (const id of ids) {
+              const capturedVars = Object.fromEntries(Object.entries(vars).map(([name, values]) => [name, [...values]]));
+              capturedVars[boundTarget] = [id];
+              const bound = { fromVar: boundTarget } as Selector;
+              h.addEffect({
+                master: frame.master,
+                source: frame.card,
+                target: id,
+                kind: "replaceLeave",
+                value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target: bound, vars: capturedVars },
+                until: op.until,
+              });
+            }
+          } else {
+            h.addEffect({
+              master: frame.master,
+              source: frame.card,
+              target: "",
+              kind: "replaceLeave",
+              value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars },
+              until: op.until,
+            });
+          }
         }
         break;
 
