@@ -44,14 +44,13 @@ execution environment blocks api.github.com; connector issue access is not miles
 The latest close-out wave merged #669 integrity bookkeeping, #670 hand-origin battle-end
 Autos (#572), #671 pending-Auto selection (partial #549), #673 grouped readings,
 #674 bounded gameplan preview (#570), and #675 current-DSL combo-entry timing (#672/#573).
-#573 is complete and #574 is unblocked. PR #679 completes P1 #574 exact durations/Desire. PR #678 completed P2 #569
-snapshot-derived reads. Current work is P0 #549 secret-Auto declaration and bounded priced-secret continuation. P2 #557 completes
-genuine damage statistics; P1 #680 owns the remaining BT31-116 free Extra activation.
+#573 and #574 are complete at their scoped acceptance. PR #679 completes P1 #574 exact durations/Desire. PR #678 completed P2 #569
+snapshot-derived reads. PR #681 delivered cost-free secret Auto declarations; this increment delivers priced-secret declarations before payment. PR #682 completed genuine damage statistics (#557), and PR #684 completed BT31-116 free Extra activation (#680). Current implementation work is #683 Villainous/Extra keyword hooks; #609 cleanup checkpoints have a rule-grounded plan awaiting those hot files.
 #549 and #595 remain partial; #550 waits on complete #549 acceptance. #609's later cleanup
 checkpoint issue remains open and distinct from the completed combo-entry correction.
 
 Remaining original implementation queue (15): M5 #549/#550/#552/#595/#609/#540/#541/#542;
-M2 #566; M1 original reading children complete, parent #539 remains open for #680; M13 #459/#118; M4 #105/#106; providers #381/#518.
+M2 #566; M1 original reading children complete, parent #539 remains open for stored catalog/fuzz verification; M13 #459/#118; M4 #105/#106; providers #381/#518.
 Owner ruling/catalog/fuzz/device/paid verification gates remain explicit. Legacy retirement
 requires #459 and its other prerequisites. Offline work is a separate programme and is not
 being implemented by this wave. The original dirty artwork prototype is preserved.
@@ -67,7 +66,7 @@ declaration checks passed. ops.rules documents native mill as its binding except
 language/declaration results, not runtime proof.
 
 The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
-runtime evidence. Main records 33 narrow capability rows, three named rules-engine gaps with stable IDs
+runtime evidence. The inventory records 34 narrow capability rows, three named rules-engine gaps with stable IDs
 and live owners, and 29 VM source sites. Granted Heroic now carries individual timed/Permanent
 identities; an older hook without identity still fails closed before drawing rather than being migrated. It records merged #548 zero-power processing, #551 combo-to-Z-Energy, #553 static layers,
 #554 printed Heroic, #555 Aegis, #556 face-up Life events, and #601 fixed AI expectations from current
@@ -93,6 +92,8 @@ Additive migration proposals are local; owner-only/live acceptance stays explici
 Completing PRs set canonical backlog status closed and attach acceptance evidence; maintain the
 current queue/tracker. Do not bulk-sync older files over newer issue bodies/comments.
 
-New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks recognised external activateSkill taxes on normal and effect-invoked activations. This is additional to the fifteen original remaining issues; #574 retains this explicit shared payment limitation.
+New review follow-up: [#677](https://github.com/uhtred1986-lab/trading-card-management/issues/677) (P1, M5) tracks external activateSkill taxes visible to typed effect readers; compiler/schema and activation payment still need support. It covers taxes on normal and effect-invoked activations. This is additional to the fifteen original remaining issues; #574 retains this explicit shared payment limitation.
 
-Additional P1 reading follow-up [#680](https://github.com/uhtred1986-lab/trading-card-management/issues/680) (M1) replaces BT31-116's incorrect free Extra play with a real nested Main/Battle activation. All four original reading children are complete at their stated scopes; parent #539 remains open for this effect and catalog/fuzz proof.
+Completed P1 reading follow-up [#680](https://github.com/uhtred1986-lab/trading-card-management/issues/680) (M1, PR #684) replaces BT31-116's incorrect free Extra play with a real nested Main/Battle activation. All four original reading children are complete at their stated scopes; parent #539 remains open for stored catalog redraft/signoff and fuzz proof.
+
+Additional P1 follow-up [#683](https://github.com/uhtred1986-lab/trading-card-management/issues/683) (M5) covers missing Villainous self-negation and successful Extra activation hooks. Its implementation and unverified Auto/source-area/self-watcher boundaries remain open. Alongside #677, it is additional to the fifteen original implementation issues.
