@@ -39,13 +39,14 @@ tracking: true
 
 ## Delivery reconciliation — 11 Oct 2026
 
-**Priority:** P1. **Depends on:** #571, #572, #573, #574
+**Priority:** P1. **Depends on:** #571, #572, #573, #574, and the remaining BT31-116 effect #680.
 
-This broad issue is now a parent: #571 trigger scope; #572 combo-from-hand battle-end provenance; #573 grouped counts/shared conditions/mixed targets; #574 exact durations/Desire hand activation/shuffle. Preserve all original card rulings and acceptance. Every original bullet is assigned once; close parent only when every bullet has signed-off reading proof or an explicitly linked remaining issue.
+This broad issue is now a parent: #571 trigger scope; #572 combo-from-hand battle-end provenance; #573 grouped counts/shared conditions/mixed targets; #574 exact durations/Desire hand activation/shuffle; #680 the previously retained BT31-116 free Extra effect. The four scoped children are merged, but `play` still sends BT31-116's chosen Extra to the Battle Area instead of activating its [Activate: Main/Battle] line from hand. Preserve all original card rulings and acceptance. Keep this parent open until #680 has a nested-operation assertion and real payment/activation proof. Dedicated registered suites hold several original bullet assertions outside `scripts/verify/readings.ts`; do not describe that literal central-file gate as complete. Catalog-wide `arena:readings` sign-off and DB-backed fuzz 40 remain owner-run after the Deckplanet DNS `EAI_AGAIN` and the absence of a curated fuzz mode.
 
 Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full review: `docs/arena-playability-review.md`.
 
-- [ ] #571 Fix missing and over-broad card Auto trigger readings
-- [ ] #572 Bind end-of-battle Auto to this card comboed from hand
-- [ ] #573 Fix grouped counts shared conditions and mixed target readings
-- [ ] #574 Fix phase durations and Desire hand activation readings
+- [x] #571 Fix missing and over-broad card Auto trigger readings
+- [x] #572 Bind end-of-battle Auto to this card comboed from hand
+- [x] #573 Fix grouped counts shared conditions and mixed target readings
+- [x] #574 Fix phase durations and Desire hand activation readings
+- [ ] #680 Invoke BT31-116's free hand Extra [Activate: Main/Battle] skill instead of playing the Extra

@@ -3,8 +3,9 @@
  * interpreter can queue triggers too without importing the engine
  * (which imports the interpreter).
  */
-import { areaOf, cardsInPlay, forbids, masterOf, move, scriptsOfInstance, skillNegated, skillsNegated, skillsOfInstance } from "./state";
-import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, keywordTriggers } from "../text/triggers";
+import { areaOf, cardNow, cardsInPlay, forbids, masterOf, move, playCost, scriptsOfInstance, skillNegated, skillsNegated, skillsOfInstance } from "./state";
+import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, keywordTriggers, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { matches } from "../text/filters";
 import { NotYet } from "../vm/errors";
 import type { GameContext, MoveOptions } from "../types";
 // `masterOf` lives in `state.ts` — it is a question about where a card *is*,
@@ -72,6 +73,13 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     const isKeyword = sk.kind === "keyword" && keywordTriggers(sk, trigger);
     if (!isAuto && !isKeyword) continue;
     if (isAuto && !skillAnswersTo(ctx, s, card, sk, trigger)) continue;
+    const whiteCell = isAuto && trigger === "youPlayed" ? whiteCellPlayedSubjectFilter(sk) : null;
+    if (whiteCell && (!subject || !s.cards[subject] || !matches({ ...cardNow(ctx, s, subject),
+      // `cardNow` carries the shown face, but its energyCost is printed.
+      // `playCost.total` reads the in-force 20-21 cost adjustment, with no
+      // payment tax or one-off play price folded into that card attribute.
+      energyCost: playCost(ctx, s, subject).total,
+    }, whiteCell))) continue;
     // `comboed` is pended only by 8-5's battle cleanup, after moving this
     // card to Drop. Its earlier entry source still belongs to this battle.
     if (isAuto && comboBattleEndOpponentTurn(sk) && s.turnPlayer === master) continue;
