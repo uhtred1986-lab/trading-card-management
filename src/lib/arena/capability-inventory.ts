@@ -177,13 +177,13 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   },
   {
     id: "arena-revive-additional-cost-order",
-    label: "Priced Revive still pays its additional resource fee before hand colors",
-    status: "unsupported",
-    evidence: "runtime-gap",
+    label: "Revive pays original-colour hand cards before its supported live Auto price",
+    status: "supported",
+    evidence: "runtime-scenario",
     citation: "22-34-3",
     ownerIssue: 624,
-    proof: "scripts/verify/original-colors-597.ts — priced Revive pays the Red fee before the hand prompt; declining leaves it KO'd",
-    detail: "The active boundary assertion documents current incorrect order without claiming a paid resurrection. Color-first continuation and late-fee behavior remain #624; this is not a skipped test.",
+    proof: "scripts/verify/revive-cost-order-624.ts — independent hand-before-fee, live price, decline/failure, pending Auto, Counter: Play and saved-frame assertions",
+    detail: "A declaration-derived optional colour-cost continuation precedes supported generic Auto additional prices. Independent synthetic fixtures verify exact costs/events and no unpaid resurrection; broader Auto instruction and replacement coverage remains bounded by the existing engine. Already-paid older frames retain their stored history and continuation without repricing or a destructive migration. Original-colour eligibility remains separately tested by #597.",
   },
   {
     id: "arena-keyword-original-colors",
