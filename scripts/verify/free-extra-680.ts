@@ -22,8 +22,11 @@ const REDUCE = "[Auto] When you play a card, choose up to 1 of your Battle Cards
 const INCREASE = "[Auto] When you play a card, choose up to 1 of your Battle Cards and increase its energy cost by 1 for the turn.";
 const BOUNCE = "[Auto] When you play a card, choose up to 1 of your Battle Cards and return it to its owner's hand.";
 const EFFECT_ONLY_IF = "[Auto] Switch 1 of your energy to Hidden Mode: When you play a card, if your Leader Card is blue, draw 1 card.";
+const EXTRA_WATCH = "[Auto] When you activate a white Extra from your hand, draw 1 card.";
+const WISH = "[Activate: Main] Choose one- ・Draw 1 card. ・Choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.";
 const defs = { ...DEFS,
   "C680-LEADER": card("C680-LEADER", { type: "LEADER", colors: ["White"], energyCost: null, comboCost: null, comboPower: null, skill: AUTO }),
+  "C680-WISH": card("C680-WISH", { type: "LEADER", colors: ["White"], energyCost: null, comboCost: null, comboPower: null, skill: WISH }),
   "C680-CELL": card("C680-CELL", { colors: ["White"], characters: ["Cell"], energyCost: 3, skill: null }),
   "C680-CELL2": card("C680-CELL2", { colors: ["White"], characters: ["Cell"], energyCost: 2, skill: null }),
   "C680-FREECELL": card("C680-FREECELL", { colors: ["White"], characters: ["Cell"], energyCost: 3, skill: "[Permanent] You can play this card from your hand without paying its energy cost." }),
@@ -32,6 +35,9 @@ const defs = { ...DEFS,
   "C680-ENERGY": card("C680-ENERGY", { colors: ["White"], skill: null }),
   "C680-REDENERGY": card("C680-REDENERGY", { colors: ["Red"], skill: null }),
   "C680-EXTRA": card("C680-EXTRA", { type: "EXTRA", colors: ["White"], energyCost: 2, power: null, comboCost: null, comboPower: null, skill: EXTRA }),
+  "C680-ZERO": card("C680-ZERO", { type: "EXTRA", colors: ["White"], energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main/Battle] Draw 1 card." }),
+  "C680-DESIRE": card("C680-DESIRE", { type: "EXTRA", colors: ["White"], traits: ["Desire"], energyCost: 2, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] {r}{1}: Draw 1 card." }),
+  "C680-WATCH": card("C680-WATCH", { energyCost: 0, skill: EXTRA_WATCH }),
   "C680-TWO": card("C680-TWO", { type: "EXTRA", colors: ["White"], energyCost: 2, power: null, comboCost: null, comboPower: null, skill: TWO_LINES }),
   "C680-RED": card("C680-RED", { type: "EXTRA", colors: ["Red"], energyCost: 2, power: null, comboCost: null, comboPower: null, skill: EXTRA }),
   "C680-MULTI": card("C680-MULTI", { type: "EXTRA", colors: ["White", "Red"], energyCost: 2, power: null, comboCost: null, comboPower: null, skill: EXTRA }),
@@ -57,7 +63,7 @@ assert.deepEqual(compiled.ops.map((op) => op.op), ["invokeSkill"], "the trigger 
 assert.equal(compiled.ops[0]?.op === "invokeSkill" && compiled.ops[0].skillKind, "activate:main/battle");
 assert.deepEqual(compileCostProgram(parseSkills(AUTO)[0]!)?.ops.map((op) => op.op), ["choose", "hidden"]);
 
-function main(leader: "C680-LEADER" | "L-RED" = "C680-LEADER"): VmState {
+function main(leader: "C680-LEADER" | "C680-WISH" | "L-RED" = "C680-LEADER"): VmState {
   let state = rules.createGame(ctx, { seed: 680, p1: { name: "You", leader, main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
   state = rules.apply(ctx, state, { type: "chooseFirst", player: state.chooser, first: "p1" }).state as VmState;
   for (let i = 0; i < 24 && state.prompt.kind !== "main"; i++) state = rules.apply(ctx, state, { type: "pass", player: (state.prompt as { player: PlayerId }).player }).state as VmState;
@@ -209,6 +215,39 @@ function paidUntilExtra(state: VmState, cell: string, energy: string): { state: 
   assert.equal(energy.filter((id) => invoked.state.cards[id].hidden).length, 1, "only the Auto's own action price switched energy Hidden");
   assert.throws(() => rules.apply(ctx, invoked.state, { type: "choose", player: "p1", cards: [extra] }), IllegalAction);
 }
+// 12-1-3 still calls this an Extra activation when its original cost is
+// waived. The same watcher must answer the ordinary zero-price hand use.
+{
+  const { state, cell, energy, extras: [extra] } = prepared();
+  const watcher = stage(state, "C680-WATCH", "battle");
+  const paid = paidUntilExtra(state, cell, energy[3]);
+  const invoked = take(paid.state, { type: "choose", player: "p1", cards: [extra] });
+  assert.equal(draws(invoked.events), 2, "the invoked Extra's draw and its activation watcher both resolve");
+  assert.equal(invoked.events.filter((event) => event.type === "skill" && event.card === watcher).length, 1);
+}
+{
+  const state = main();
+  const watcher = stage(state, "C680-WATCH", "battle");
+  const extra = stage(state, "C680-ZERO", "hand");
+  const activated = take(state, { type: "activate", player: "p1", card: extra, skill: 0 });
+  assert.ok(activated.state.sides.p1.zones.drop.includes(extra));
+  assert.equal(draws(activated.events), 2, "a normally activated zero-cost hand Extra reaches the same watcher");
+  assert.equal(activated.events.filter((event) => event.type === "skill" && event.card === watcher).length, 1);
+}
+{
+  const state = main("C680-WISH");
+  stage(state, "C680-ENERGY", "energy");
+  stage(state, "C680-ENERGY", "energy");
+  const watcher = stage(state, "C680-WATCH", "battle");
+  const extra = stage(state, "C680-DESIRE", "hand");
+  const leader = state.sides.p1.zones.leader[0];
+  const started = take(state, { type: "activate", player: "p1", card: leader, skill: 0 });
+  assert.equal(started.state.prompt.kind, "chooseMode");
+  const invoked = take(started.state, { type: "chooseMode", player: "p1", index: 1 });
+  assert.ok(invoked.state.sides.p1.zones.drop.includes(extra));
+  assert.equal(draws(invoked.events), 2, "SD7's cost-waived Desire and the Extra-activation watcher both resolve");
+  assert.equal(invoked.events.filter((event) => event.type === "skill" && event.card === watcher).length, 1);
+}
 
 // Declining the Auto's own action price leaves both the energy and Extra
 // untouched. Declining only the *up to one* Extra choice keeps the paid Auto
@@ -297,7 +336,7 @@ for (const wrong of ["C680-RED", "C680-MULTI", "C680-ONE", "C680-MAIN", "C680-CO
   assert.ok(lineChosen.state.sides.p1.zones.hand.includes(first));
 }
 
-function legacyReady(): { legacy: ReturnType<typeof engineFor>; state: GameState; stageLegacy: (id: keyof typeof defs, area: "hand" | "energy") => string } {
+function legacyReady(): { legacy: ReturnType<typeof engineFor>; state: GameState; stageLegacy: (id: keyof typeof defs, area: "hand" | "energy" | "battle") => string } {
   const legacy = engineFor("legacy");
   let state = legacy.createGame(ctx, { seed: 681, p1: { name: "You", leader: "C680-LEADER", main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as GameState;
   state = legacy.apply(ctx, state, { type: "chooseFirst", player: (state.prompt as { player: PlayerId }).player, first: "p1" }).state as GameState;
@@ -308,7 +347,7 @@ function legacyReady(): { legacy: ReturnType<typeof engineFor>; state: GameState
   state = legacy.apply(ctx, state, { type: "endMain", player: "p2" }).state as GameState;
   state = legacy.apply(ctx, state, { type: "charge", player: "p1", card: null }).state as GameState;
   assert.equal(state.prompt.kind, "main");
-  const stageLegacy = (id: keyof typeof defs, area: "hand" | "energy") => {
+  const stageLegacy = (id: keyof typeof defs, area: "hand" | "energy" | "battle") => {
     const physical = state.players.p1.deck[0];
     assert.ok(physical);
     state.cards[physical].cardId = id;
@@ -357,6 +396,7 @@ for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
   const { legacy, state: starting, stageLegacy } = legacyReady();
   let state = starting;
   const energy = Array.from({ length: 4 }, () => stageLegacy("C680-ENERGY", "energy"));
+  const watcher = stageLegacy("C680-WATCH", "battle");
   const cell = stageLegacy("C680-CELL", "hand");
   const extra = stageLegacy("C680-EXTRA", "hand");
   const played = legacy.apply(ctx, state, { type: "play", player: "p1", card: cell });
@@ -368,7 +408,8 @@ for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
   assert.ok(state.players.p1.drop.includes(extra));
   assert.ok(!state.players.p1.battle.includes(extra));
   assert.equal(chosen.events.filter((event) => event.type === "skill" && event.card === extra).length, 1);
-  assert.equal(draws(chosen.events), 1);
+  assert.equal(draws(chosen.events), 2, "legacy: waived hand Extra still causes the ordinary activation watcher");
+  assert.equal(chosen.events.filter((event) => event.type === "skill" && event.card === watcher).length, 1);
   assert.equal(energy.filter((id) => state.cards[id].hidden).length, 0, "#549 legacy gap remains an active unsupported payment boundary");
 }
 
