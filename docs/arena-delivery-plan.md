@@ -22,9 +22,9 @@ pending API access. M16 has zero open issues; M17 has the open cross-milestone u
 P0 #549 remains partial after priority-owner selection and cost-free/priced secret declarations; #609's later cleanup
 checkpoint remains distinct from #675's completed current-DSL combo-entry fix.
 
-Fifteen original implementation issues remain: M5 #549/#550/#552/#595/#609/#540/#541/#542;
-M2 #566; M1 original children and #680 complete with #539 parent catalog/fuzz verification open; M13 #459/#118; M4 #105/#106; providers #381/#518.
-Delivered: #681 cost-free secret declarations, the priced-secret declaration increment, #682 damage statistics, #679 Charge/Desire and #684 BT31-116 free Extra activation. In flight: #683 Villainous/Extra keyword hooks; #609 cleanup has a rule-grounded plan awaiting shared runtime files. PR #678 completed #569 snapshot-derived read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
+Fourteen original implementation issues remain after #459 acceptance: M5 #549/#550/#552/#595/#609/#540/#541/#542;
+M2 #566; M1 original children and #680 complete with #539 parent catalog/fuzz verification open; M13 #118; M4 #105/#106; providers #381/#518.
+Delivered: #681 cost-free secret declarations, the priced-secret declaration increment, #682 damage statistics, #679 Charge/Desire and #684 BT31-116 free Extra activation. PR #688 delivered bounded #683 Villainous/Extra hooks, with remaining cases explicit. PR #689 prunes one impossible Auto-price branch; #549 stays open. #459 fixed-expectation acceptance passes. #609 cleanup runtime is in final integration/testing, with replacement boundaries still open. PR #678 completed #569 snapshot-derived read sharing. #550 and dependent binding/counter work retain their prerequisite gates.
 Owner-run/ruling/catalog/fuzz/device/paid evidence is not inferred from local tests.
 Offline work remains a separate programme. The full issue catalogue below includes historical
 completed work as well as these remaining issues; current delivery state overrides old handovers.
@@ -134,7 +134,7 @@ Issue bodies contain scoped build instructions, named acceptance scenarios and v
 |---|---|---|---|---|
 | [#575](https://github.com/uhtred1986-lab/trading-card-management/issues/575) V01 | P1 | Generate a capability and named test-gap inventory | Completed; see canonical acceptance | [pv-v01.md](arena-backlog/pv-v01.md) |
 | [#601](https://github.com/uhtred1986-lab/trading-card-management/issues/601) V02 | P2 | Replace AI presentation/request oracle with fixed expectations (child of #459) | Completed; see canonical acceptance | [pv-v02.md](arena-backlog/pv-v02.md) |
-| [#459](https://github.com/uhtred1986-lab/trading-card-management/issues/459) existing | P2 | Arena tests: off the legacy oracle — fixed expectations for the seven legacy-fixture suites, contract fixtures and verify/vm.ts | Ready; original acceptance retained | [pv-existing-459.md](arena-backlog/pv-existing-459.md) |
+| [#459](https://github.com/uhtred1986-lab/trading-card-management/issues/459) existing | P2 | Arena tests: off the legacy oracle — fixed expectations for the seven legacy-fixture suites, contract fixtures and verify/vm.ts | Completed fixed-expectation acceptance; see evidence | [pv-existing-459.md](arena-backlog/pv-existing-459.md) |
 | [#118](https://github.com/uhtred1986-lab/trading-card-management/issues/118) existing | P3 | Arena: delete engine/'s rule content, move the generic parts into vm/, drop the adapter and --engine | [#459](https://github.com/uhtred1986-lab/trading-card-management/issues/459), [#575](https://github.com/uhtred1986-lab/trading-card-management/issues/575), [#547](https://github.com/uhtred1986-lab/trading-card-management/issues/547), [#544](https://github.com/uhtred1986-lab/trading-card-management/issues/544), [#548](https://github.com/uhtred1986-lab/trading-card-management/issues/548), [#549](https://github.com/uhtred1986-lab/trading-card-management/issues/549) | [s10-01-retire-engine.md](arena-backlog/s10-01-retire-engine.md) |
 | [#168](https://github.com/uhtred1986-lab/trading-card-management/issues/168) existing | P3 | Arena Stage 10 tracking — retire the legacy engine | Tracking only | [s10-00-tracking.md](arena-backlog/s10-00-tracking.md) |
 

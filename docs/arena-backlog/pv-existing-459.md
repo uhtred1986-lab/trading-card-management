@@ -5,6 +5,7 @@ labels: enhancement, area:arena-vm, phase:rules-stage10, model:opus-5, ready-for
 stage: 10
 issue: 459
 priority: P2
+status: closed
 ---
 **Blocks:** #118. This was found in step 1 (#456).
 
@@ -56,6 +57,5 @@ full arena lanes pass 56/56. A local `npm test` with its default legacy arena
 invocation temporarily removed also passes, and `package.json` was restored
 byte for byte. The capability inventory now records the converted VM lane as
 supported test evidence. [Branch validation](evidence/459/README.md) records
-the exact commands and build-environment limits. Root review and integration
-remain before issue closure; the separate #118 legacy-compatibility checks
+the exact commands and build-environment limits. Root independently repeated the no-legacy full test, typecheck and lint, and the default production build passes after PR #689 integration. Root review is complete; the separate #118 legacy-compatibility checks
 remain executable in the normal lane.

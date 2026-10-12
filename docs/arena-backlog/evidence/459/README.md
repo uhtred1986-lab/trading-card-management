@@ -129,7 +129,4 @@ plus those 83 draw moves make 99 pass-only moves. Charging adds 71 moves. The
 - `npm run typecheck`, focused ESLint on changed scripts, and
   `scripts/verify/capabilities.mts --check` passed.
 
-The build remains for root validation: `npm run build` hit Turbopack's refusal
-of this worktree's external `node_modules` symlink; a webpack build reached
-standalone file copying but failed with `ENOSPC` on the shared 32 GB overlay.
-Only this worktree's generated `.next` directory was removed afterward.
+Root independently reran typecheck, full lint (zero errors; five existing prototype warnings), and the complete temporary no-legacy `npm test` proof: exit 0, 56/56 rules-only suites, zero legacy calls, and byte-identical package restoration with the same SHA-256 above. After integrating merged PR #689, the focused Auto-price test passes and `DATABASE_URL='' npm run build` passes using the default Turbopack build. The lockfile is unchanged; root replaced only the worktree's dependency symlink with local hard links to the identical locked dependency tree and removed generated build caches from completed branches to resolve the environment failures. No Snapshot or probe-digest fixture changed.
