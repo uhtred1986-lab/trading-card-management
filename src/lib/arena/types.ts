@@ -692,6 +692,8 @@ export interface PendingAuto {
   trigger: Trigger;
   /** Trigger context: the card that moved / was KO'd / attacked, when relevant. */
   subject?: string;
+  /** #683: the individual Heroic/Villainous keyword heard at activation time. */
+  afterSkillKeyword?: "Heroic" | "Villainous";
 }
 
 export type Trigger =
@@ -1098,6 +1100,8 @@ export type FlowStep =
    * response resolves first — and can mark this one negated on its way past.
    */
   | { op: "counter.resolve"; card: string; skill: number; player: PlayerId; negated?: boolean }
+  /** #683: action-price continuation; only a successful price reaches this hook boundary. */
+  | { op: "afterSkill.activate"; card: string; player: PlayerId; keywords: ("Heroic" | "Villainous")[] }
   /**
    * `empowerCarry` is the answer to an "empowerCarry" prompt (22-45-3): how
    * many markers, up to the printed [Empower]'s cap, to carry from the

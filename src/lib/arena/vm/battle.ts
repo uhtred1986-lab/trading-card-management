@@ -839,6 +839,10 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // answered outside one is written nowhere, as on the legacy engine.
   const b = state.battle;
   if (b) (b.counters ??= []).push({ card, by: action.player, after: state.sides[action.player].zones.combo?.length ?? 0 });
+  const afterSkillKeywords: ("Heroic" | "Villainous")[] = baseTypeOf(ctx, state, card) === "EXTRA"
+    ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
+    : [];
+  const afterSkill = afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {};
   moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
@@ -851,11 +855,11 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const priceOps = alt?.pay === "program" ? (alt.ops ?? null) : costIsOnlyOrbs(sk.cost) || alt ? null : counterPriceOps(showing.scripts.bySkill[sk.index]);
   if (priceOps) {
     const key = counterVarsKey(card, sk.index);
-    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, pricedBy: { key, text: sk.raw } });
+    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, pricedBy: { key, text: sk.raw }, ...afterSkill });
     return "done";
   }
   log(ev, { type: "skill", card, skill: sk.index, master: action.player, text: sk.raw, inBattle: !!b });
-  if (program.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index });
+  if (program.length || afterSkillKeywords.length) state.programs.unshift({ ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, ...afterSkill });
   return "done";
 }
 

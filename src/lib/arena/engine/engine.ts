@@ -391,6 +391,10 @@ function exec(ctx: EngineContext, s: GameState, ev: GameEvent[], step: FlowStep)
       s.flow.unshift({ op: "skill.resolve", card: step.card, skill: step.skill, player: step.player });
       return "done";
     }
+    case "afterSkill.activate": {
+      pendKeywordAfterSkill(ctx, s, step.card, step.player, step.keywords);
+      return "done";
+    }
 
     case "play.resolve":
       return resolvePlay(ctx, s, ev, step.card, step.player, step.markers, step.onto, step.negated, step.empowerCarry, step.using, step.mode);
@@ -477,11 +481,15 @@ function checkpoint(ctx: EngineContext, s: GameState, ev: GameEvent[]): "done" |
 
 function resolveAuto(ctx: EngineContext, s: GameState, ev: GameEvent[], p: PendingAuto): "done" | "wait" {
   const inst = s.cards[p.card];
-  // 22-35 / 22-36: [Heroic] and [Villainous] are pending skills with no
-  // printed line of their own, so they are pended at index -1 and there is no
-  // `Skill` to find. `resolveKeywordOrText` has always had a branch for them
-  // and nothing ever reached it — they were pended and then dropped here.
-  if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master);
+  // Older saved Heroic/Villainous grants used a shared -1 pseudo-index. New
+  // printed and copied watchers carry their own indexed keyword identity.
+  if (p.skillIndex === -1) return resolveHeroicVillainous(ctx, s, ev, p.card, p.master, p.afterSkillKeyword);
+  if (p.afterSkillKeyword) {
+    if (skillsNegated(s, p.card)) return "done";
+    const same = skillsOfInstance(ctx, s, p.card).find((sk) => sk.index === p.skillIndex && (sk.keyword?.name === p.afterSkillKeyword || sk.tags.includes(p.afterSkillKeyword!)));
+    if (!same || skillNegated(s, p.card, p.skillIndex, same.kind)) return "done";
+    return resolveHeroicVillainous(ctx, s, ev, p.card, p.master, p.afterSkillKeyword, p.skillIndex);
+  }
   const sk = skillsOfInstance(ctx, s, p.card).find((k) => k.index === p.skillIndex);
   if (!sk) return "done";
   // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
@@ -744,13 +752,7 @@ function resolvePlay(
   // 22-35-2 / 22-36-2: each pends when its owner plays *another* card with the
   // **same** keyword. They used to cross-match, so a [Villainous] card played
   // set off every [Heroic] on the board.
-  for (const name of ["Heroic", "Villainous"] as const) {
-    if (!has(ctx, s, card, name)) continue;
-    for (const id of cardsInPlay(s, p)) {
-      if (id === card || !has(ctx, s, id, name) || skillNegated(s, id, -1)) continue;
-      s.pending.push({ card: id, skillIndex: -1, master: p, trigger: "played", subject: card });
-    }
-  }
+  pendKeywordAfterSkill(ctx, s, card, p, (["Heroic", "Villainous"] as const).filter((name) => has(ctx, s, card, name)));
   s.flow.unshift({ op: "checkpoint" });
   return "done";
 }
@@ -759,21 +761,42 @@ function resolvePlay(
  * 22-35-3 / 22-36-3: [Heroic] draws a card, [Villainous] makes the opponent
  * drop one — and both then "negate the effects of this skill for the duration
  * of the turn", so each card does it once a turn however many more are played.
- * The pseudo-skill has no printed index, so the negation is recorded at -1.
+ * New events carry a printed/copied index; -1 remains for older saved grants.
  */
-function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, master: PlayerId): "done" | "wait" {
-  if (skillNegated(s, card, -1)) return "done";
-  if (has(ctx, s, card, "Heroic")) {
+function resolveHeroicVillainous(ctx: EngineContext, s: GameState, ev: GameEvent[], card: string, master: PlayerId, keywordName?: "Heroic" | "Villainous", skillIndex = -1): "done" | "wait" {
+  // A pended keyword is still an [Auto] activation. Apply the same 20-14
+  // prohibition at resolution as ordinary Autos, including old -1 grants.
+  if (skillsNegated(s, card) || skillNegated(s, card, skillIndex) || forbids(ctx, s, "activateSkill", { player: master, card })) return "done";
+  const name = keywordName ?? (has(ctx, s, card, "Heroic") ? "Heroic" : has(ctx, s, card, "Villainous") ? "Villainous" : null);
+  if (name === "Heroic") {
     draw(ctx, s, ev, master, 1);
-  } else if (has(ctx, s, card, "Villainous")) {
+  } else if (name === "Villainous") {
     // 20-7: which card leaves a hand is its owner's choice, so this runs the
     // ordinary discard rather than taking one off the end.
     s.flow.unshift({ op: "script.step", frame: { ops: [{ op: "discard", n: 1, side: "opponent" }], ip: 0, vars: {}, card, master } });
   } else {
     return "done";
   }
-  addEffect(s, ev, { target: card, kind: "negateSkill", value: -1, until: "turn" });
+  addEffect(s, ev, { target: card, kind: "negateSkill", value: skillIndex, until: "turn" });
   return "done";
+}
+
+/** Freeze each printed/copied watcher identity at the successful event. */
+function pendKeywordAfterSkill(ctx: EngineContext, s: GameState, source: string, owner: PlayerId, names: readonly ("Heroic" | "Villainous")[]): void {
+  for (const id of cardsInPlay(s, owner)) {
+    if (id === source) continue; // Battle-play "another"; source-Extra self-answer awaits a ruling.
+    for (const name of names) {
+      if (!has(ctx, s, id, name)) continue;
+      const lines = skillsOfInstance(ctx, s, id).filter((sk) => !skillNegated(s, id, sk.index, sk.kind) && (sk.keyword?.name === name || sk.tags.includes(name)));
+      if (!lines.length) {
+        // An old grant has no printed/copy index in the legacy engine. Keep
+        // its pre-existing pseudo-identity rather than inventing a new one.
+        if (!skillNegated(s, id, -1)) s.pending.push({ card: id, skillIndex: -1, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
+        continue;
+      }
+      for (const sk of lines) s.pending.push({ card: id, skillIndex: sk.index, master: owner, trigger: "played", subject: source, afterSkillKeyword: name });
+    }
+  }
 }
 
 // ── keyword skills and text effects ────────────────────────────────────────
@@ -3246,6 +3269,9 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         // Drop nothing can tell it from any other discarded card, and a board
         // could never say a counter was played (staging spec §3.1).
         if (s.battle) (s.battle.counters ??= []).push({ card: action.card, by: p, after: s.players[p].combo.length });
+        const afterSkillKeywords = baseType(d) === "EXTRA"
+          ? (["Heroic", "Villainous"] as const).filter((name) => has(ctx, s, action.card!, name))
+          : [];
         move(ctx, s, ev, action.card, "drop", p, { reason: "effect", reveal: true });
         // "When your opponent activates a [Counter] skill" (4-3): watched by
         // the other player's cards in play, with the counter card as subject.
@@ -3258,6 +3284,7 @@ export function apply(ctx: EngineContext, prev: GameState, action: Action): Appl
         // is simply what the flow being a stack already does — and a
         // [Counter: Counter] that negates marks the step below it on its way.
         s.flow.unshift({ op: "counter", window: "counter", responder: other(p) }, { op: "counter.resolve", card: action.card, skill: sk.index, player: p });
+        if (afterSkillKeywords.length) s.flow.unshift({ op: "afterSkill.activate", card: action.card, player: p, keywords: afterSkillKeywords });
         // 4-3-3: the price is paid on activation, before anyone may answer it,
         // so it goes on the front of the flow after everything else — the same
         // shape a printed action price uses.
@@ -3641,7 +3668,9 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     return;
   }
 
-  // Text skill with a native effect.
+  // Text skill with a native effect. Freeze the source before hand-to-Drop;
+  // the watcher set is read only after any separate action price completes.
+  let afterSkillKeywords: ("Heroic" | "Villainous")[] = [];
   if (baseType(d) === "EXTRA" && areaOf(s, card) === "hand") {
     // 12-2-2: pay the energy cost, card to the Drop, then the skill resolves with counter timing around it.
     if (waived) {
@@ -3661,12 +3690,16 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
       if (!pm) throw new IllegalAction("can't pay");
       pay(s, ev, p, pm);
     }
+    afterSkillKeywords = (["Heroic", "Villainous"] as const).filter((name) => has(ctx, s, card, name));
     move(ctx, s, ev, card, "drop", p, { reason: "cost", reveal: true });
     // 12-1-3: "when you activate a blue Extra from your hand" — watched by
     // your cards in play, with the Extra as the subject. [Field] comes this
     // way too, on its way to the Battle Area (22-3).
     for (const id of cardsInPlay(s, p)) pendTriggers(ctx, s, "extraActivated", id, card);
-  } else if (!waived) payOrbs();
+  } else {
+    if (!waived) payOrbs();
+    if (baseType(d) === "EXTRA") afterSkillKeywords = (["Heroic", "Villainous"] as const).filter((name) => has(ctx, s, card, name));
+  }
   s.resolving = { card, skill: sk.index, player: p };
   s.flow.unshift(
     { op: "counter", window: "skill", responder: other(p) },
@@ -3674,6 +3707,7 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     { op: "extra.finish", card },
     { op: "checkpoint" },
   );
+  if (afterSkillKeywords.length) s.flow.unshift({ op: "afterSkill.activate", card, player: p, keywords: afterSkillKeywords });
   // 4-3-3: an action price is paid on activation, before the counter window
   // opens — so it goes on the front of the flow, after everything else.
   const actionCost = waived ? null : priceFor(ctx, s, card, sk).ops;

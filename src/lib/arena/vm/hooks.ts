@@ -97,6 +97,7 @@ export function fireAfterSkill(
   source: string,
   cause: "battleCardPlayed" | "heroicExtraSkillActivated",
   owner: PlayerId | undefined = masterOf(game, state, source),
+  activatedKeywords?: ("Heroic" | "Villainous")[],
 ): void {
   if (!owner) return;
   const frames: ScriptFrame[] = [];
@@ -105,11 +106,11 @@ export function fireAfterSkill(
     if (other === source) continue;
     for (const body of hookBodiesFor(ctx, game, state, other, "afterSkill")) {
       const vars = { source: [source], activatedExtra: cause === "heroicExtraSkillActivated" ? [source] : [] };
-      const frame = hookFrame(game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars), vars, body.skillIndex, body.grantEffectId, body.standingGrantId);
+      const frame = hookFrame(game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars, activatedKeywords), vars, body.skillIndex, body.grantEffectId, body.standingGrantId);
       frames.push(frame);
       // Use the hook's own conditions and the source-event variables above;
       // an unrelated event's false branch must not raise this limitation.
-      if (body.skillIndex === undefined && body.grantEffectId === undefined && body.standingGrantId === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, body.ops)) {
+      if (body.skillIndex === undefined && body.grantEffectId === undefined && body.standingGrantId === undefined && hasActiveNegateOwnSkill(ctx, game, state, frame, frame.ops)) {
         missingIdentityCards.add(other);
       }
     }
@@ -157,6 +158,7 @@ function captureEventPredicates(
   subject: string,
   ops: Op[],
   vars: Record<string, string[]>,
+  activatedKeywords?: ("Heroic" | "Villainous")[],
 ): Op[] {
   const frame = hookFrame(game, state, subject, [], vars);
   const eventVars = new Set(Object.keys(vars));
@@ -182,9 +184,25 @@ function captureEventPredicates(
         return false;
     }
   };
+  // The Extra may already be in Drop when a separate action-price program
+  // finishes. Its event-time keywords were captured before that move; the
+  // remaining filter (including Extra type) is still checked normally.
+  const eventHolds = (cond: Cond): boolean => {
+    if (cond.kind === "any") return cond.conds.some(eventHolds);
+    if (cond.kind === "all") return cond.conds.every(eventHolds);
+    if (cond.kind === "not") return !eventHolds(cond.cond);
+    if (activatedKeywords && cond.kind === "count" && cond.sel.fromVar === "activatedExtra" && cond.sel.filter?.keywords.length) {
+      const wanted = cond.sel.filter.keywords;
+      const n = wanted.every((name) => activatedKeywords.includes(name as "Heroic" | "Villainous"))
+        ? (condHolds(ctx, game, state, frame, { ...cond, sel: { ...cond.sel, filter: { ...cond.sel.filter, keywords: [] } }, atLeast: 1, atMost: undefined }) ? 1 : 0)
+        : 0;
+      return (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost);
+    }
+    return condHolds(ctx, game, state, frame, cond);
+  };
   const capture = (program: Op[]): Op[] => program.flatMap((op) => {
     if (op.op !== "if") return [op];
-    if (boundOnly(op.cond)) return capture(condHolds(ctx, game, state, frame, op.cond) ? op.then : (op.else ?? []));
+    if (boundOnly(op.cond)) return capture(eventHolds(op.cond) ? op.then : (op.else ?? []));
     return [{ ...op, then: capture(op.then), ...(op.else ? { else: capture(op.else) } : {}) }];
   });
   return capture(ops);
