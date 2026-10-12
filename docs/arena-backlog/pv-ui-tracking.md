@@ -20,7 +20,7 @@ tracking: true
 - [x] #559 **P1** — Make card sheets and action controls accessible
 - [x] #560 **P1** — Extend the existing phone pager to tap-open fullscreen review
 - [x] #561 **P1** — Show Abilities now and collapse wrong-timing abilities
-- [ ] #562 **P1** — Make battle stakes resources and pass consequences explicit
+- [x] #562 **P1** — Make battle stakes resources and pass consequences explicit
 - [ ] #563 **P1** — Fit the phone board and crowded hand around the current decision
 - [ ] #564 **P1** — Consolidate desktop board status and contextual decision panel
 
@@ -31,7 +31,7 @@ tracking: true
 
 Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
 
-**Current delivery:** #558–#561 are merged. PR #621 displays timely, server-priced abilities in shared card review, collapses wrong timing and structural refusals, and preserves fullscreen paging. Reviewed EngineAPI-backed real-artwork evidence covers both skins, phone/desktop, same-view revision changes, keyboard access and 200% touch scrolling. Battle stakes and phone/desktop consolidation remain #562–#564.
+**Current delivery:** #558–#562 are merged. PR #621 displays timely, server-priced abilities in shared card review, collapses wrong timing and structural refusals, and preserves fullscreen paging. PR #627 adds conditional battle outcomes, actor/window, Pass consequences, public resources and exact payment previews. Reviewed EngineAPI-backed real-artwork evidence covers both skins, phone/desktop, same-view revisions, keyboard access and 200% touch scrolling. Its phone overlap correction compacts only empty lifted rows and keeps actual hand-combo taps plus Pass reachable; occupied rows retain their footprint and inspection access. Broader phone/crowded-hand and desktop consolidation remain #563/#564. Kotlin offline decoding remains unverified because the required plugin is absent from the existing cache.
 
 ## Acceptance
 
