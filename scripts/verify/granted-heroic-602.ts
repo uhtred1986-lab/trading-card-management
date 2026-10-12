@@ -1,4 +1,4 @@
-/** #602: timed [Heroic] grants retain individual, reloadable skill identities. */
+/** #602: effect and [Permanent] Heroic grants retain individual, reloadable skill identities. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { engineFor } from "../../src/lib/arena/engines";
@@ -80,8 +80,10 @@ try {
     assert.equal(draws(result.events), 2);
     assert.ok(ids.every((id) => s.effects.some((effect) => effect.kind === "negateGrantedSkill" && effect.target === watcher && typeof effect.value === "object" && "standingGrantId" in effect.value && effect.value.standingGrantId === id)));
     assert.ok(!hasKeyword(CTX, dbs, s, watcher, "Heroic"), "both spent standing grants are absent from effective skills");
-    const publicBoard = JSON.stringify(rules.boardView(CTX, s, "p1", {}));
-    assert.ok(!publicBoard.includes("standingGrantId") && !publicBoard.includes(ids[0]!), "grant provenance stays out of the public board projection");
+    for (const viewer of ["p1", "p2"] as const) {
+      const publicBoard = JSON.stringify(rules.boardView(CTX, s, viewer, {}));
+      assert.ok(!publicBoard.includes("standingGrantId") && !publicBoard.includes(ids[0]!), `grant provenance stays out of ${viewer}'s public board projection`);
+    }
     s = JSON.parse(JSON.stringify(s)) as VmState;
     const next = stage(s, "p1", "H602_PRINT", "hand");
     const second = play(s, next);
@@ -220,6 +222,31 @@ try {
     const laterTrigger = stage(s, "p1", "H602_PRINT", "hand");
     const later = play(s, laterTrigger);
     assert.equal(draws(later.events), 6, "the persistent grants and earlier printed cards can answer next turn");
+  }
+
+  // A grant belongs to its own player. The opponent's qualifying Heroic play
+  // cannot consume it; its master's later play draws exactly once.
+  {
+    let s = main(60212);
+    const p2Watcher = stage(s, "p2", "H602_GRANT", "battle");
+    const p2Grant = addEffect(s, [], { master: "p2", source: p2Watcher, target: p2Watcher, kind: "keyword", value: { name: "Heroic" }, until: "game" });
+    const p1Trigger = stage(s, "p1", "H602_PRINT", "hand");
+    const p1Before = s.sides.p1.zones.hand.length;
+    const p1Play = play(s, p1Trigger);
+    s = p1Play.state as VmState;
+    assert.equal(draws(p1Play.events, "p2"), 0, "the opponent's event does not trigger p2's grant");
+    assert.equal(s.sides.p1.zones.hand.length, p1Before - 1, "p1 pays its real Battle Card play from hand");
+    assert.ok(!spent(s, p2Watcher, p2Grant.id));
+    s = nextMain(s, "p1");
+    const p2Trigger = stage(s, "p2", "H602_PRINT", "hand");
+    const p2Before = s.sides.p2.zones.hand.length;
+    const p2Play = play(s, p2Trigger);
+    s = p2Play.state as VmState;
+    assert.equal(draws(p2Play.events, "p2"), 1, "p2's own legal play activates its grant");
+    assert.equal(s.sides.p2.zones.hand.length, p2Before, "one Heroic draw offsets p2's card leaving hand");
+    assert.ok(spent(s, p2Watcher, p2Grant.id));
+    assert.ok(!s.effects.some((effect) => effect.kind === "negateKeyword" && effect.target === p2Watcher));
+    assert.ok(!s.overReason);
   }
 
   // Ending a grant and granting the same keyword again creates a fresh ID.
