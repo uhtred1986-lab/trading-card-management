@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { battleFixture,paymentFixture,snapshot562,apply562,fixtureContext,engine562 } from './battle-engine-fixture-562';
+import { battleFixture,paymentFixture,snapshot562,apply562,fixtureContext,engine562,assertFixtureAreas } from './battle-engine-fixture-562';
 import { energySummary,stakesSummary } from '../../src/components/arena/stage/stakes-model';
 import { reconcileSnapshot } from '../../src/lib/arena/snapshot';
 import { moved } from '../../src/lib/arena/vm/flow';
@@ -8,6 +8,23 @@ import { addEffect } from '../../src/lib/arena/vm/effects';
 import { makeWhisFixture } from './ability-engine-fixture-561';
 import { moveCard } from '../../src/lib/arena/vm/zones';
 import { rulesetFor } from '../../src/lib/arena/rulesets';
+
+// The source and guard definitions must match their physical Leader/Unison areas.
+{
+ const {state}=battleFixture('double');
+ assertFixtureAreas(state);
+ const invalidLeader=structuredClone(state);
+ invalidLeader.cards[invalidLeader.battle!.attacker].cardId='V1';
+ assert.throws(()=>snapshot562(invalidLeader),/leader area requires a LEADER/, 'a Battle definition cannot masquerade as the attacking Leader');
+ const invalidGuard=structuredClone(state);
+ invalidGuard.cards[invalidGuard.battle!.guard].cardId='V1';
+ assert.throws(()=>snapshot562(invalidGuard),/leader area requires a LEADER/, 'the defending Leader has the same invariant');
+ const loaded=rulesetFor('dbs');assert(loaded.ok);
+ const invalidUnison=structuredClone(state);
+ const unit=invalidUnison.sides.p1.zones.hand.find(id=>invalidUnison.cards[id].cardId==='V1')!;
+ moveCard(invalidUnison,loaded.definition,unit,'unison',{owner:'p1'});
+ assert.throws(()=>snapshot562(invalidUnison),/unison area requires a UNISON/, 'a Battle definition cannot masquerade as a Unison');
+}
 
 for(const kind of ['tie','double','critical','lethal','victory'] as const){
  const {state}=battleFixture(kind);const before=snapshot562(state);
