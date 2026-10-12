@@ -19,6 +19,8 @@ data class Snapshot(
     val contract: Int,
     val game: GameInfo,
     val view: BoardView,
+    /** Current engine prompt and decision window; absent on older snapshots. */
+    val decision: Decision? = null,
     val legal: List<LegalAction>,
     val taps: Tappable,
     /**
@@ -37,6 +39,14 @@ data class Snapshot(
     val waiting: String? = null,
     val spend: Spend,
     val over: Outcome? = null,
+)
+
+@Serializable
+data class Decision(
+    val actor: String? = null,
+    val window: String,
+    val phase: String,
+    val battleStep: String? = null,
 )
 
 @Serializable
@@ -270,6 +280,49 @@ data class CardView(
     val effects: List<EffectView>? = null,
     /** This card's own [Permanent] skills and whether each is doing anything at this moment. */
     val permanents: List<PermanentView>? = null,
+    /** Per-line identity and current engine evidence, absent on older snapshots. */
+    val abilities: List<AbilityView>? = null,
+)
+
+@Serializable
+data class AbilityView(
+    val skillIndex: Int,
+    val kind: String,
+    val category: String,
+    val text: String,
+    val tags: List<String>,
+    val zone: String,
+    val owner: String,
+    val controller: String,
+    val origin: String,
+    val timing: String? = null,
+    val limit: AbilityLimit? = null,
+    val availability: String,
+    val notEvaluatedReason: String? = null,
+    val why: List<Requirement>? = null,
+    val costPreview: AbilityCostPreview,
+    val pending: Boolean? = null,
+    val permanentState: String? = null,
+)
+
+@Serializable
+data class AbilityLimit(
+    val max: Int,
+    val used: Int,
+    val remaining: Int,
+)
+
+@Serializable
+data class AbilityCostPreview(
+    /** "known" | "incomplete" | "notApplicable". */
+    val state: String,
+    val offers: List<AbilityCostOffer>? = null,
+)
+
+@Serializable
+data class AbilityCostOffer(
+    val label: String,
+    val cost: ActionCost,
 )
 
 /** One rule in force on a card or a player (`src/lib/arena/effects.ts`). */

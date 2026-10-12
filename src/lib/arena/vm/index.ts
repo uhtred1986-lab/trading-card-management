@@ -40,15 +40,15 @@
  * nothing here reads a file at request time.
  */
 import { IllegalAction } from "./common";
-import { type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../types";
+import { type AbilityAvailability, type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../types";
 import type { Beats } from "../beats";
 import type { BoardView, CardArt } from "../view";
 import { isZ } from "../text/cards";
 import { PLAYERS, type PlayerId, type Requirement } from "../types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
-import { applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBattleActivation, applyBlock, applyCombo, applyCounter, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
+import { abilityAvailability as declaredAbilityAvailability, applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterAbilityAvailability, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, readingBoard, spendProhibitionUse } from "./program";
 import { whoseSkills } from "./script";
 import { chargesOf, describePayment } from "./costs";
@@ -775,6 +775,15 @@ function rejectedActions(ctx: EngineContext, state: VmState, legal: LegalAction[
   return readingBoard(ctx, game, state, () => rejectedActionsOf(ctx, game, state, legal));
 }
 
+/** The current prompt's per-skill menu evidence, without stepping the VM. */
+function abilityAvailability(ctx: EngineContext, state: VmState, player: PlayerId, legal: LegalAction[], rejected: RejectedAction[]): AbilityAvailability[] {
+  const game = definitionFor(state.game, ctx);
+  return readingBoard(ctx, game, state, () => [
+    ...declaredAbilityAvailability(ctx, game, state, player, legal, rejected),
+    ...counterAbilityAvailability(ctx, game, state, player, legal, rejected),
+  ]);
+}
+
 function rejectedActionsOf(ctx: EngineContext, game: GameDefinition, state: VmState, legal: LegalAction[]): RejectedAction[] {
   const declared = declaredRejectedActions(ctx, game, state, legal);
   // `attack` is native (`vm/battle.ts`), so its own `whyNotAttack` reading is
@@ -849,9 +858,9 @@ function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: 
 }
 
 /** The board, drawn from the declarations for one side of the table. */
-function boardView(ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
+function boardView(ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>, availability: AbilityAvailability[] = []): BoardView {
   const game = definitionFor(state.game, ctx);
-  return readingBoard(ctx, game, state, () => vmBoardView(ctx, game, state, viewer, images));
+  return readingBoard(ctx, game, state, () => vmBoardView(ctx, game, state, viewer, images, availability));
 }
 
 /** One batch of events as the board plays them back. */
@@ -874,6 +883,7 @@ export const RULES = {
   apply: (ctx: EngineContext, prev: VmState, action: Action) => apply(withTokens(ctx), prev, action),
   legalActions: (ctx: EngineContext, state: VmState) => legalActions(withTokens(ctx), state),
   rejectedActions: (ctx: EngineContext, state: VmState, legal: LegalAction[]) => rejectedActions(withTokens(ctx), state, legal),
-  boardView: (ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>) => boardView(withTokens(ctx), state, viewer, images),
+  abilityAvailability: (ctx: EngineContext, state: VmState, player: PlayerId, legal: LegalAction[], rejected: RejectedAction[]) => abilityAvailability(withTokens(ctx), state, player, legal, rejected),
+  boardView: (ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>, availability?: AbilityAvailability[]) => boardView(withTokens(ctx), state, viewer, images, availability),
   toBeats: (ctx: EngineContext, state: VmState, events: GameEvent[], after = 0) => toBeats(withTokens(ctx), state, events, after),
 };

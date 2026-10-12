@@ -39,7 +39,27 @@
         ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
         "reading": "draw 1",
-        "referee": false
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "keyword",
+            "category": "manual",
+            "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+            "tags": [
+              "Awaken"
+            ],
+            "zone": "leader",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "notEvaluated",
+            "notEvaluatedReason": "notDecisionActor",
+            "costPreview": {
+              "state": "incomplete"
+            }
+          }
+        ]
       },
       "unison": null,
       "battle": [],
@@ -117,6 +137,12 @@
       "winner": "p2",
       "reason": "A player conceded."
     }
+  },
+  "decision": {
+    "actor": null,
+    "window": "gameOver",
+    "phase": "over",
+    "battleStep": null
   },
   "legal": [],
   "taps": {

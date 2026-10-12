@@ -8,7 +8,7 @@
 import { areaOf, comboPowerOf, scriptsOfInstance, copiedSkillsOn, face, keywordsInForce, powerOf, staticEffects } from "./engine";
 import { describeScript } from "./vm/script";
 import { skillsOf } from "./text/cards";
-import { type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "./types";
+import { type AbilityAvailability, type ActionCost, type EngineContext, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement, type Skill, type SkillKind } from "./types";
 import { def, emitsStatic, locate, masterOf, permanentStatics, type StaticEffect } from "./engine/state";
 import { describeEffect, describeStatic, type EffectView } from "./effects";
 import type { EngineState } from "./engines";
@@ -64,6 +64,97 @@ export interface CardView {
    * figures cannot show that), `unread` (the compiler cannot read it).
    */
   permanents?: PermanentView[];
+  /** Per-line identity and current engine evidence, for clients that show an ability panel. */
+  abilities?: AbilityView[];
+}
+
+export interface AbilityView {
+  /** Stable within this game: card instance id plus the engine's skill index. */
+  skillIndex: number;
+  kind: SkillKind;
+  category: "manual" | "automatic" | "passive" | "counter" | "keyword";
+  text: string;
+  tags: string[];
+  zone: string;
+  owner: PlayerId;
+  controller: PlayerId;
+  origin: "printed" | "copied";
+  timing?: string;
+  limit?: { max: number; used: number; remaining: number };
+  availability: "offered" | "refused" | "notEvaluated";
+  notEvaluatedReason?: "notDecisionActor" | "unsupported" | "unidentifiedAction";
+  why?: Requirement[];
+  /** Cost data is an exact engine offer; absent amounts are never represented as free. */
+  costPreview: { state: "known"; offers: { label: string; cost: ActionCost }[] } | { state: "incomplete" } | { state: "notApplicable" };
+  /** True only when this visible Auto line is currently queued to resolve. */
+  pending?: boolean;
+  /** Existing engine reading for standing effects, when this line is a Permanent. */
+  permanentState?: PermanentView["state"];
+}
+
+const MANUAL_KEYWORDS = new Set([
+  "Awaken", "Wish", "Evolve", "Union", "Over Realm", "Swap", "Arrival", "Successor",
+  "Aegis", "Rejuvenate", "Overlord", "Field", "Z-Awaken",
+]);
+
+/** Serialize the engine's existing line identity and offer evidence without making a legality decision. */
+export function abilityViews(input: {
+  card: string;
+  skills: Skill[];
+  copied: Set<number>;
+  zone: string;
+  owner: PlayerId;
+  controller: PlayerId;
+  viewer: PlayerId;
+  used: number[];
+  pending: Set<number>;
+  availability: AbilityAvailability[];
+  decisionActor?: PlayerId | null;
+  permanents: PermanentView[];
+}): AbilityView[] {
+  const bySkill = new Map(input.availability.filter((row) => row.card === input.card).map((row) => [row.skill, row]));
+  return input.skills.map((skill) => {
+    const evidence = bySkill.get(skill.index);
+    const category: AbilityView["category"] = skill.kind.startsWith("activate:") || (skill.kind === "keyword" && !!skill.keyword && MANUAL_KEYWORDS.has(skill.keyword.name))
+      ? "manual"
+      : skill.kind === "auto" ? "automatic"
+        : skill.kind === "permanent" ? "passive"
+          : skill.kind.startsWith("counter:") ? "counter" : "keyword";
+    const max = skill.oncePerTurn ? 1 : skill.limit;
+    const used = input.used.filter((index) => index === skill.index).length;
+    const offered = (evidence?.offers ?? []).map((offer) => offer.cost ? { label: offer.label, cost: offer.cost } : null);
+    const costPreview: AbilityView["costPreview"] = category === "passive" || category === "keyword"
+      ? { state: "notApplicable" }
+      : offered.length > 0 && offered.every((offer): offer is { label: string; cost: ActionCost } => offer !== null)
+        ? { state: "known", offers: offered }
+        : category === "automatic" && !input.pending.has(skill.index)
+          ? { state: "notApplicable" }
+          : { state: "incomplete" };
+    const permanent = input.permanents.find((row) => row.index === skill.index);
+    const availability = evidence?.state ?? "notEvaluated";
+    const notEvaluatedReason = evidence?.notEvaluatedReason ?? (availability === "notEvaluated" && category === "manual"
+      ? input.decisionActor !== input.viewer || input.decisionActor !== input.controller ? "notDecisionActor" : "unsupported"
+      : undefined);
+    return {
+      skillIndex: skill.index,
+      kind: skill.kind,
+      category,
+      text: skill.raw,
+      tags: skill.tags,
+      zone: input.zone,
+      owner: input.owner,
+      controller: input.controller,
+      origin: input.copied.has(skill.index) ? "copied" : "printed",
+      ...(skill.kind.startsWith("activate:") ? { timing: skill.kind.slice("activate:".length) } : {}),
+      ...(max != null ? { limit: { max, used, remaining: Math.max(0, max - used) } } : {}),
+      availability,
+      ...(notEvaluatedReason ? { notEvaluatedReason } : {}),
+      ...(evidence?.why ? { why: evidence.why } : {}),
+      costPreview,
+      ...(category === "automatic" ? { pending: input.pending.has(skill.index) } : {}),
+      ...(permanent ? { permanentState: permanent.state } : {}),
+    };
+  });
 }
 
 /** One [Permanent] skill of a card and its state now (review §3.5). */
@@ -285,7 +376,7 @@ function rulesOn(ctx: EngineContext, s: GameState, p: PlayerId, statics: StaticE
   return out;
 }
 
-function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<string, CardArt>, reveal: boolean, statics: StaticEffect[]): CardView {
+function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<string, CardArt>, reveal: boolean, statics: StaticEffect[], availability: AbilityAvailability[], viewer: PlayerId): CardView {
   const inst = s.cards[id];
   const d = def(ctx, s, id);
   const f = face(ctx, s, id);
@@ -297,7 +388,10 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
   const permanents: PermanentView[] = [];
   // 20-18: a skill this card has taken on is shown as one of its own, so the
   // board says what it can actually do right now.
-  for (const sk of [...skillsOf(d, side), ...copiedSkillsOn(ctx, s, id).map((c) => c.skill)]) {
+  const printedSkills = skillsOf(d, side);
+  const copiedSkills = copiedSkillsOn(ctx, s, id).map((c) => c.skill);
+  const skills = [...printedSkills, ...copiedSkills];
+  for (const sk of skills) {
     const sc = scripts.bySkill[sk.index];
     if (!sc) continue;
     if (sk.kind === "permanent") {
@@ -322,6 +416,21 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
   const inPlayHere = inPlayArea(s, id);
   const power = hidden ? null : inPlayHere ? powerOf(ctx, s, id) : f.power;
   const effects = hidden ? [] : effectsOn(ctx, s, id, statics);
+  const location = locate(s, id);
+  const abilityRows = hidden ? [] : abilityViews({
+    card: id,
+    skills,
+    copied: new Set(copiedSkills.map((skill) => skill.index)),
+    zone: location?.area ?? "unknown",
+    owner: inst.owner,
+    controller: masterOf(s, id),
+    viewer,
+    used: inst.usedThisTurn,
+    pending: new Set(s.pending.filter((item) => item.card === id).map((item) => item.skillIndex)),
+    availability,
+    decisionActor: "player" in s.prompt ? s.prompt.player : null,
+    permanents,
+  });
   return {
     id,
     cardId: inst.cardId,
@@ -346,6 +455,7 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
     ...(inPlayHere && power != null && f.power != null && power !== f.power ? { basePower: f.power } : {}),
     ...(effects.length ? { effects } : {}),
     ...(!hidden && permanents.length ? { permanents } : {}),
+    ...(abilityRows.length ? { abilities: abilityRows } : {}),
   };
 }
 
@@ -354,9 +464,9 @@ function inPlayArea(s: GameState, id: string): boolean {
   return a === "leader" || a === "battle" || a === "unison" || a === "combo";
 }
 
-function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<string, CardArt>, ownHand: boolean, viewer: PlayerId, statics: StaticEffect[]): SideView {
+function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<string, CardArt>, ownHand: boolean, viewer: PlayerId, statics: StaticEffect[], availability: AbilityAvailability[]): SideView {
   const ps = s.players[p];
-  const v = (id: string, reveal = true) => cardView(ctx, s, id, images, reveal, statics);
+  const v = (id: string, reveal = true) => cardView(ctx, s, id, images, reveal, statics, availability, viewer);
   const choices = hiddenChoices(ctx, s, p, viewer, ownHand);
   const rules = rulesOn(ctx, s, p, statics);
   return {
@@ -575,7 +685,7 @@ export function questionFor(ctx: EngineContext, s: GameState): PromptView {
  * change to the card that caused it from this, instead of a client diffing
  * power figures between two renders.
  */
-function battleView(ctx: EngineContext, s: GameState, images: Record<string, CardArt>, statics: StaticEffect[]): BattleView | null {
+function battleView(ctx: EngineContext, s: GameState, images: Record<string, CardArt>, statics: StaticEffect[], availability: AbilityAvailability[], viewer: PlayerId): BattleView | null {
   const b = s.battle;
   if (!b) return null;
   const defender = s.turnPlayer === "p1" ? "p2" : "p1";
@@ -605,22 +715,22 @@ function battleView(ctx: EngineContext, s: GameState, images: Record<string, Car
     step: b.step,
     attackPower,
     guardPower,
-    ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, s, c.card, images, true, statics), by: c.by, after: c.after ?? 0 })) } : {}),
+    ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, s, c.card, images, true, statics, availability, viewer), by: c.by, after: c.after ?? 0 })) } : {}),
     contributions,
   };
 }
 
-export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, images: Record<string, CardArt>): BoardView {
+export function boardView(ctx: EngineContext, s: GameState, viewer: PlayerId, images: Record<string, CardArt>, availability: AbilityAvailability[] = []): BoardView {
   const them = viewer === "p1" ? "p2" : "p1";
   // Read once for the whole board: every card asks which statics are on it.
   const statics = staticEffects(ctx, s);
   return {
-    you: sideView(ctx, s, viewer, images, true, viewer, statics),
-    them: sideView(ctx, s, them, images, false, viewer, statics),
+    you: sideView(ctx, s, viewer, images, true, viewer, statics, availability),
+    them: sideView(ctx, s, them, images, false, viewer, statics, availability),
     turn: s.turn,
     phase: s.phase,
     turnPlayer: s.turnPlayer,
-    battle: battleView(ctx, s, images, statics),
+    battle: battleView(ctx, s, images, statics, availability, viewer),
     prompt: questionFor(ctx, s),
     over: s.phase === "over" ? { winner: s.winner, reason: s.overReason ?? "" } : null,
   };

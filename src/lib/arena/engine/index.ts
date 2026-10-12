@@ -9,7 +9,7 @@
  * `GameState`, and every import of it outside this directory is a reader the
  * retirement still has to replace (`docs/architecture/arena.md`).
  */
-export { createGame, apply, legalActions, rejectedActions } from "./engine";
+export { createGame, apply, legalActions, rejectedActions, abilityAvailability } from "./engine";
 export { koCard, pendTriggers, masterOf } from "./triggers";
 export { resolveSelector, permanentStatics, scriptsOfInstance, copiedSkillsOn, emitsStatic } from "./state";
 export {
