@@ -1,0 +1,24 @@
+---
+title: [P1] Arena: Reconcile Combo-to-Drop and battle-end Auto checkpoint order
+milestone: Arena M5 — Engine capability gaps and advanced mechanics
+labels: backlog, blocked, enhancement, area:arena-vm, model:opus-5
+stage: ui
+issue: 609
+priority: P1
+touches: src/lib/arena/vm/battle.ts, src/lib/arena/vm/flow.ts
+---
+**Source:** `docs/rules/rulemanual.txt` 8-5-5..8-5-10; `src/lib/arena/vm/battle.ts`; `src/lib/arena/vm/flow.ts`; `src/lib/arena/rulesets/dbs/triggers.rules`.
+
+**Priority:** P1. **Parent:** #577. **Context:** #551 adds the ordered Z-Energy choices and 8-5-4 checkpoint; this is a distinct remaining cleanup issue.
+
+The existing battleEnd work moves all remaining combo cards to Drop, collects their departure Autos together with battle-end triggers, and lets the runner drain them afterwards. Manual 8-5-6 says Combo-to-Drop triggers enter pending, 8-5-7 specifies a checkpoint, and 8-5-8 then moves the cards; 8-5-9/10 separately pends and resolves battle-end triggers. #551 preserves this prior grouping and explicitly limits its claim to choices/8-5-4.
+
+**Build:** reconcile the exact printed trigger semantics and official manual ordering before changing the runner. Use real card wordings where available, and identify any ambiguity requiring a ruling. Add a persisted cleanup stage for the required checkpoints only after the semantics are established. Avoid double-pending departure triggers and keep combo power expiry at 8-5-5.
+
+**Acceptance:**
+- [ ] Record rule-grounded ordering for Combo-to-Drop versus end-of-battle Autos, including source area/validity and effect conditions; do not silently reinterpret the manual.
+- [ ] Named fixed scenarios assert state and effect order at each checkpoint, including an Auto that pauses, JSON reload, two players, source departure/negation, and simultaneous cleanup. Each Auto resolves once.
+- [ ] Preserve the completed #551 Z-Energy offers, 8-5-4 power retention, public beats and viewer privacy, plus current zero-power and Heroic checkpoint behavior.
+- [ ] Full local tests, typecheck, lint/build and glossary/reading evidence pass with DATABASE_URL=''; frozen legacy corpus unchanged. Owner data/fuzz/ruling limitations are explicit.
+
+One bounded PR; coordinate battle/flow with #551/#607. No paid AI, live database, new dependencies or unrelated mechanics.

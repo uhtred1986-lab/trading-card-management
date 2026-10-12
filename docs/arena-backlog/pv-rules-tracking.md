@@ -45,3 +45,5 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 - [ ] Contract/privacy, stale/reload cases and cross-feature interactions pass.
 - [ ] Applicable before/after screenshots and local checks are attached; production/paid evidence is identified as owner-run.
 - [ ] Milestone checklist and canonical backlog files match delivered state.
+
+- [ ] #609 **P1** — Reconcile remaining Combo-to-Drop versus end-of-battle Auto checkpoint grouping. #551 implements the preceding choices/8-5-4 and explicitly preserves this separate prior limitation.

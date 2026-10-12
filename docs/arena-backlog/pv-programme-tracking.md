@@ -58,6 +58,7 @@ The locally reproduced additional
 Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
 P1 #597 separately owns original-color keyword payment eligibility after #553/#555.
 P1 #607 profiles the corrected crowded-aura action cost (782 ms median locally) and bounds checkpoint evaluation reuse; it is a child of #569 independent of polling #568.
+P1 #609 separately reconciles the prior Combo-to-Drop/end-of-battle Auto grouping; #551 does not claim that ordering is corrected.
 P1 #602 owns individual identity for granted Heroic; #554 explicitly guards that case before payout.
 
 ## Reconciliation decisions
