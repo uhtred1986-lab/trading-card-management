@@ -8,6 +8,7 @@ import { addEffect } from "../../src/lib/arena/vm/effects";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { run } from "../../src/lib/arena/vm/flow";
 import { emptyFilter } from "../../src/lib/arena/text/filters";
+import oldAdditional from "./fixtures/aegis-595-old-additional.json";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
@@ -95,6 +96,23 @@ function declineEffect(s: VmState): VmState { assert.equal(s.prompt.kind, "choos
   // A stale resource at the saved fee prompt cannot charge another energy.
   const stale = reload(colorPaid.state); const payer = stale.programs[0].aegisCost!.choices![0].payment.rest[0]; stale.cards[payer].mode = "rest";
   const staleBefore = JSON.stringify(stale); assert.throws(() => mode(stale, 0), IllegalAction); assert.equal(JSON.stringify(stale), staleBefore);
+}
+// Captured at fccead5 with Aegis source identical to ed44cb0, at its saved
+// additional-payment prompt. This upgrade path honors already-paid colors,
+// even though that frame has no new native/action cursor fields.
+{
+  assert.equal(oldAdditional.source, "ed44cb0");
+  assert.equal(oldAdditional.runtimeHead, "fccead5");
+  const old = reload(oldAdditional.state as unknown as VmState);
+  assert.equal(old.prompt.kind, "chooseMode"); assert.equal(old.programs[0].aegisCost?.stage, "additional");
+  assert.ok([oldAdditional.cards[0], oldAdditional.cards[2]].every((id) => old.sides.p1.zones.drop.includes(id)));
+  const resumed = mode(old, 0);
+  assert.equal(resumed.state.prompt.kind, "chooseCards");
+  assert.equal(resumed.events.filter((e) => e.type === "move" && e.from === "hand" && e.to === "drop").length, 0);
+  assert.equal(rests(resumed.events).length, 1); assert.equal(skills(resumed.events, oldAdditional.card).length, 1);
+  assert.deepEqual(resumed.state.cards[oldAdditional.card].usedThisTurn, [0]);
+  const effect = declineEffect(resumed.state);
+  assert.equal(effect.prompt.kind, "combo"); assert.ok(!effect.programs.some((f) => f.aegisCost));
 }
 // One multicolor card pays only one hand card; fee remains strictly after it.
 {
@@ -185,32 +203,150 @@ for (const by of ["skill", undefined] as const) {
   assert.equal(skills(ev, a.card).length, by ? 1 : 0);
   assert.equal(s.prompt.kind, by ? "chooseCards" : "combo");
 }
-// Known unsupported additional action prices interrupt before taking colors,
-// energy, uses, or activating. The private issue/detail stay out of events.
+// The additional action price begins after the colored hand cards and native
+// fee, retains its choice across reload, and binds the chosen card to the cost.
 {
   const old = scripts.A595.bySkill[0];
   try {
     scripts.A595.bySkill[0] = { ...old, price: { ...old.price!, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "additional" }, { op: "moveTo", target: { var: "additional" }, to: "drop" }] } };
-    const a = defense(); const interrupted = activate(a.s, a.card);
-    assert.equal(interrupted.state.outcome?.kind, "interrupted"); assert.equal(interrupted.state.outcome?.privateContext?.issue, "#595");
-    assert.equal(interrupted.events.filter((e) => e.type === "move" || e.type === "mode" || e.type === "skill").length, 0);
-    assert.deepEqual(interrupted.state.cards[a.card].usedThisTurn, []);
-    assert.ok(a.cards.every((id) => interrupted.state.sides.p1.zones.hand.includes(id)));
-    assert.ok(!JSON.stringify(interrupted.events).includes("additional Aegis action price"));
+    const a = defense(); let s = activate(a.s, a.card).state;
+    s = choose(s, a.cards[0]).state;
+    const colors = choose(s, a.cards[2]); s = colors.state;
+    assert.equal(s.prompt.kind, "chooseMode"); assert.equal(skills(colors.events, a.card).length, 0);
+    const native = mode(s, 0); s = native.state;
+    assert.equal(s.prompt.kind, "chooseCards"); assert.equal(rests(native.events).length, 1);
+    assert.equal(skills(native.events, a.card).length, 0);
+    const saved = reload(s); assert.ok(saved.programs[0].aegisCost); assert.equal(saved.programs[0].aegisCost!.stage, "action");
+    const paid = choose(saved, a.cards[1]);
+    assert.ok(paid.state.sides.p1.zones.drop.includes(a.cards[1]));
+    assert.equal(skills(paid.events, a.card).length, 1);
+    assert.equal(paid.events.filter((e) => e.type === "mode" && e.mode === "rest").length, 0);
+    assert.deepEqual(paid.state.cards[a.card].usedThisTurn, [0]);
+    assert.throws(() => choose(s, a.cards[0]), IllegalAction, "a color card already paid cannot be reused as the action price");
+    const stale = reload(s); assert.ok(moveCard(stale, game, a.cards[1], "deck", { owner: "p1" }).ok);
+    const before = JSON.stringify(stale); assert.throws(() => choose(stale, a.cards[1]), IllegalAction);
+    assert.equal(JSON.stringify(stale), before, "a stale action-price answer cannot replay native payment");
   } finally { scripts.A595.bySkill[0] = old; }
 }
-// An affected owner's optional native-pool replacement requires a question;
-// this remaining boundary interrupts explicitly rather than declining it.
+// An action-price card that disappears with the colored cost leaves the
+// additional price known unaffordable. Keep the actual color payment only.
 {
+  const old = scripts.A595.bySkill[0];
+  try {
+    scripts.A595.bySkill[0] = { ...old, price: { ...old.price!, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "additional" }, { op: "moveTo", target: { var: "additional" }, to: "drop" }] } };
+    const a = defense("A595", ["RED595", "BLUE595"], ["RED595"]);
+    const failed = choose(activate(a.s, a.card).state, a.cards[0]); const s = failed.state;
+    assert.equal(s.prompt.kind, "combo"); assert.ok(a.cards.every((id) => s.sides.p1.zones.drop.includes(id)));
+    assert.equal(s.cards[a.energy[0]].mode, "active"); assert.equal(skills(failed.events, a.card).length, 0);
+    assert.deepEqual(s.cards[a.card].usedThisTurn, []);
+  } finally { scripts.A595.bySkill[0] = old; }
+}
+// An action price with two separate departures suspends between them. Its
+// first actual payment and the earlier native fee survive the saved frame;
+// finishing the second instruction activates exactly once.
+{
+  const old = scripts.A595.bySkill[0];
+  try {
+    scripts.A595.bySkill[0] = { ...old, price: { ...old.price!, ops: [
+      { op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "firstExtra" },
+      { op: "moveTo", target: { var: "firstExtra" }, to: "drop" },
+      { op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "secondExtra" },
+      { op: "moveTo", target: { var: "secondExtra" }, to: "drop" },
+    ] } };
+    const a = defense("A595", ["RED595", "BLUE595", "RED595", "BLUE595", "RED595"], ["RED595"]);
+    let s = activate(a.s, a.card).state; s = choose(s, a.cards[0]).state; s = choose(s, a.cards[1]).state;
+    assert.equal(s.prompt.kind, "chooseCards");
+    const first = choose(s, a.cards[2]); s = first.state;
+    assert.equal(s.prompt.kind, "chooseCards"); assert.ok(s.sides.p1.zones.drop.includes(a.cards[2]));
+    assert.equal(skills(first.events, a.card).length, 0); assert.deepEqual(s.cards[a.card].usedThisTurn, []);
+    const finished = choose(reload(s), a.cards[3]);
+    assert.ok(finished.state.sides.p1.zones.drop.includes(a.cards[3]));
+    assert.equal(skills(finished.events, a.card).length, 1);
+    assert.equal(rests(finished.events).length, 0, "native energy must not be charged again after reload");
+    assert.deepEqual(finished.state.cards[a.card].usedThisTurn, [0]);
+  } finally { scripts.A595.bySkill[0] = old; }
+}
+// A synthetic in-play pool prompts its affected owner for an optional route.
+// Keeping the requested destination completes payment; choosing Warp performs
+// a legal replacement, retains the earlier energy, then fails activation.
+{
+  for (const replacement of [false, true]) {
+    const a = defense("A595", ["MULTI595", "MULTI595"], ["RED595"]); const s = activate(a.s, a.card).state;
+    const custom = { ...game, costs: { ...game.costs, pool595: { ...game.costs.burst, name: "pool595", amount: "costOf", do: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "battle" as const } }, to: "drop" as const }] } } };
+    s.programs[0].aegisCost!.costs = ["energy", "pool595"];
+    addEffect(s, [], { target: a.card, kind: "replaceLeave", value: { to: "warp", optional: true, target: { special: "self" } }, until: "turn", source: a.card, master: "p1" });
+    s.lastChoice = [a.cards[0]]; const ev: GameEvent[] = []; run(ctx, custom, s, ev);
+    assert.equal(s.prompt.kind, "replaceMove"); assert.equal(s.prompt.player, "p1");
+    assert.equal(s.cards[a.energy[0]].mode, "rest"); assert.equal(skills(ev, a.card).length, 0);
+    const persisted = reload(s); persisted.lastMode = replacement ? 0 : 1; const next: GameEvent[] = []; run(ctx, custom, persisted, next);
+    assert.ok(persisted.sides.p1.zones[replacement ? "warp" : "drop"].includes(a.card));
+    assert.equal(skills(next, a.card).length, replacement ? 0 : 1);
+    assert.deepEqual(persisted.cards[a.card].usedThisTurn, replacement ? [] : [0]);
+    assert.equal(persisted.cards[a.energy[0]].mode, "rest");
+  }
+}
+// Two competing answers to the same native pool departure are put to the
+// affected owner. A same-destination route pays; a redirect fails after any
+// earlier native payment, and neither route can activate the skill twice.
+for (const index of [0, 1]) {
   const a = defense("A595", ["MULTI595", "MULTI595"], ["RED595"]); const s = activate(a.s, a.card).state;
   const custom = { ...game, costs: { ...game.costs, pool595: { ...game.costs.burst, name: "pool595", amount: "costOf", do: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "battle" as const } }, to: "drop" as const }] } } };
   s.programs[0].aegisCost!.costs = ["energy", "pool595"];
-  addEffect(s, [], { target: a.card, kind: "replaceLeave", value: { to: "warp", optional: true, target: { special: "self" } }, until: "turn", source: a.card, master: "p1" });
-  s.lastChoice = [a.cards[0]]; const ev: GameEvent[] = []; run(ctx, custom, s, ev);
-  assert.equal(s.outcome?.kind, "interrupted"); assert.equal(s.outcome?.privateContext?.issue, "#595");
-  assert.ok(s.sides.p1.zones.battle.includes(a.card)); assert.ok(s.sides.p1.zones.drop.includes(a.cards[0]));
-  assert.equal(s.cards[a.energy[0]].mode, "active", "known replacement question interrupts before the additional energy is charged");
-  assert.equal(skills(ev, a.card).length, 0); assert.deepEqual(s.cards[a.card].usedThisTurn, []);
+  addEffect(s, [], { target: a.card, kind: "replaceLeave", value: { to: "drop", target: { special: "self" } }, until: "turn", source: a.card, master: "p1" });
+  addEffect(s, [], { target: a.card, kind: "replaceLeave", value: { to: "warp", target: { special: "self" } }, until: "turn", source: a.card, master: "p1" });
+  s.lastChoice = [a.cards[0]]; run(ctx, custom, s, []);
+  assert.equal(s.prompt.kind, "replaceMove"); assert.equal(s.prompt.options.length, 2);
+  const saved = reload(s); saved.lastMode = index; const ev: GameEvent[] = []; run(ctx, custom, saved, ev);
+  assert.ok(saved.sides.p1.zones[index === 0 ? "drop" : "warp"].includes(a.card));
+  assert.equal(skills(ev, a.card).length, index === 0 ? 1 : 0);
+  assert.equal(saved.cards[a.energy[0]].mode, "rest");
+}
+// A two-card synthetic native pool suspends on each physical departure. The
+// saved cursor never replays the first card. A later card controlled by the
+// other player, or no longer in the declared mode, is a stale payment even
+// though its area string still reads "battle".
+{
+  const a = defense("A595", ["MULTI595", "MULTI595"], ["RED595"]);
+  const second = stage(a.s, "PAYER595", "battle");
+  const s = activate(a.s, a.card).state;
+  const custom = { ...game, costs: { ...game.costs, pool595: { ...game.costs.burst, name: "pool595", amount: "costOf", do: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "battle" as const, mode: "active" as const } }, to: "drop" as const }] } } };
+  const twoCost = { ...ctx, defs: { ...ctx.defs, A595: card("A595", { energyCost: 2, skill: "[Aegis red/blue][Once per turn] {1}" }) } };
+  for (const id of [a.card, second]) addEffect(s, [], { target: id, kind: "replaceLeave", value: { to: "warp", optional: true, target: { special: "self" } }, until: "turn", source: id, master: "p1" });
+  s.programs[0].aegisCost!.costs = ["energy", "pool595"];
+  s.lastChoice = [a.cards[0]]; run(twoCost, custom, s, []);
+  assert.equal(s.prompt.kind, "replaceMove"); assert.equal(s.prompt.card, a.card);
+  s.lastMode = 1; run(twoCost, custom, s, []);
+  assert.equal(s.prompt.kind, "replaceMove"); assert.equal(s.prompt.card, second);
+  assert.ok(s.sides.p1.zones.drop.includes(a.card)); assert.ok(s.sides.p1.zones.battle.includes(second));
+  const saved = reload(s);
+  const staleSide = reload(saved); staleSide.sides.p1.zones.battle = staleSide.sides.p1.zones.battle.filter((id) => id !== second); staleSide.sides.p2.zones.battle.push(second);
+  staleSide.lastMode = 1; const sideEvents: GameEvent[] = [];
+  assert.throws(() => run(twoCost, custom, staleSide, sideEvents), IllegalAction);
+  assert.equal(sideEvents.length, 0); assert.equal(staleSide.cards[a.energy[0]].mode, "rest");
+  const staleMode = reload(saved); staleMode.cards[second].mode = "rest"; staleMode.lastMode = 1; const modeEvents: GameEvent[] = [];
+  assert.throws(() => run(twoCost, custom, staleMode, modeEvents), IllegalAction);
+  assert.equal(modeEvents.length, 0);
+  saved.lastMode = 1; const finalEvents: GameEvent[] = []; run(twoCost, custom, saved, finalEvents);
+  assert.ok(saved.sides.p1.zones.drop.includes(second));
+  assert.equal(saved.sides.p1.zones.drop.filter((id) => id === a.card).length, 1);
+  assert.equal(skills(finalEvents, a.card).length, 1); assert.equal(rests(finalEvents).length, 0);
+}
+// The declared action-price move uses the same cost replacement host. A
+// voluntary redirect is a legal choice whose performed move defeats payment;
+// the color cards and earlier native energy remain spent under 5-8-4.
+{
+  const old = scripts.A595.bySkill[0];
+  try {
+    scripts.A595.bySkill[0] = { ...old, price: { ...old.price!, ops: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "drop" }] } };
+    const a = defense("A595", ["MULTI595", "MULTI595"], ["RED595"]); const s = activate(a.s, a.card).state;
+    addEffect(s, [], { target: a.card, kind: "replaceLeave", value: { to: "warp", optional: true, target: { special: "self" } }, until: "turn", source: a.card, master: "p1" });
+    const paid = choose(s, a.cards[0]); assert.equal(paid.state.prompt.kind, "replaceMove");
+    assert.equal(paid.state.cards[a.energy[0]].mode, "rest"); assert.equal(skills(paid.events, a.card).length, 0);
+    const redirected = mode(reload(paid.state), 0);
+    assert.ok(redirected.state.sides.p1.zones.warp.includes(a.card)); assert.equal(skills(redirected.events, a.card).length, 0);
+    assert.deepEqual(redirected.state.cards[a.card].usedThisTurn, []);
+    assert.equal(redirected.state.cards[a.energy[0]].mode, "rest");
+  } finally { scripts.A595.bySkill[0] = old; }
 }
 // A limited scoped payer's performed rest remains spent even if a LATER
 // mandatory pooled redirect defeats activation. Aegis's own limit stays free.
