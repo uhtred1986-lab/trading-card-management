@@ -143,6 +143,7 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[], invo
         under: [],
         isToken: true,
         enteredTurn: s.turn,
+        zoneEpoch: 0,
         extraAttacks: 0,
         usedThisTurn: [],
         usedMarkerSkill: false,

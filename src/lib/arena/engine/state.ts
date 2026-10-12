@@ -460,7 +460,11 @@ export function skillsOfInstance(ctx: GameContext, s: GameState, id: string): Sk
 export function keywordsInForce(ctx: GameContext, s: GameState, id: string): KeywordSkill[] {
   const inst = s.cards[id];
   const out: KeywordSkill[] = [];
-  for (const e of staticEffects(ctx, s)) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
+  for (const e of staticEffects(ctx, s)) {
+    if (e.kind !== "keyword" || e.target !== id) continue;
+    if (e.standingGrantId && s.effects.some((spent) => spent.kind === "negateGrantedSkill" && spent.target === id && typeof spent.value === "object" && "standingGrantId" in spent.value && spent.value.standingGrantId === e.standingGrantId)) continue;
+    out.push(e.value as KeywordSkill);
+  }
   if (!inst.hidden && !skillsNegated(s, id)) {
     const d = def(ctx, s, id);
     const side = inst.flipped && d.back ? "back" : "front";
@@ -478,7 +482,11 @@ export function keywordsInForce(ctx: GameContext, s: GameState, id: string): Key
       }
     }
   }
-  for (const e of s.effects) if (e.kind === "keyword" && e.target === id) out.push(e.value as KeywordSkill);
+  for (const e of s.effects) {
+    if (e.kind !== "keyword" || e.target !== id) continue;
+    if (s.effects.some((spent) => spent.kind === "negateGrantedSkill" && spent.target === id && spent.value === e.id)) continue;
+    out.push(e.value as KeywordSkill);
+  }
   // 9-1-5: a skill may name one keyword to negate rather than silencing the
   // card. Applied last, so it beats a grant of the same keyword — and the
   // prohibition that saves it (20-14) is only worth asking about when there is
@@ -898,6 +906,8 @@ const ONE_CARD = "__one";
 export interface StaticEffect {
   source: string;
   kind: "power" | "comboPower" | "keyword" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost" | "payer" | "skip";
+  /** One [Permanent] keyword grant's stable source/skill/op/recipient identity. */
+  standingGrantId?: string;
   /** The card it is about; empty for a rule about a player rather than a card. */
   target: string;
   /**
@@ -963,7 +973,7 @@ export function staticEffects(ctx: GameContext, s: GameState): StaticEffect[] {
           if (skillNegated(s, src, sk.index, sk.kind)) continue;
           const sc = scripts.bySkill[sk.index];
           if (!sc || sc.unsupported.length) continue;
-          collectStatics(ctx, s, out, src, p, inWarp ? sc.ops.filter(isWarpPermission) : sc.ops, inPlayNow);
+          collectStatics(ctx, s, out, src, p, inWarp ? sc.ops.filter(isWarpPermission) : sc.ops, inPlayNow, sk.index);
         }
       }
     }
@@ -1009,7 +1019,7 @@ function immunityStatics(ctx: GameContext, s: GameState): StaticEffect[] {
           // candidate card of every selector.
           if (!sc || sc.unsupported.length || !grantsImmunity(sc.ops)) continue;
           const found: StaticEffect[] = [];
-          collectStatics(ctx, s, found, src, p, sc.ops, inPlay(s, src));
+          collectStatics(ctx, s, found, src, p, sc.ops, inPlay(s, src), sk.index);
           for (const e of found) if (e.kind === "immune") out.push(e);
         }
       }
@@ -1052,7 +1062,7 @@ export function permanentStatics(ctx: GameContext, s: GameState, card: string, s
   computingStatics = true;
   try {
     const out: StaticEffect[] = [];
-    collectStatics(ctx, s, out, card, master, sc.ops, inPlay(s, card));
+    collectStatics(ctx, s, out, card, master, sc.ops, inPlay(s, card), sk.index);
     return out;
   } finally {
     computingStatics = false;
@@ -1089,7 +1099,7 @@ function mayHoldFromWarp(ctx: GameContext, s: GameState, card: string): boolean 
   return skillsOfInstance(ctx, s, card).some((sk) => sk.keyword?.name === "Over Realm");
 }
 
-function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], source: string, master: PlayerId, ops: Op[], inPlayNow: boolean): void {
+function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], source: string, master: PlayerId, ops: Op[], inPlayNow: boolean, skillIndex?: number, path = ""): void {
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: source, master };
   // A `negate` (#276), a `costModifier` (#277) or a `modifyAttr` widening
   // (spec §2.5-1/§2.5-3, #275) printed as a [Permanent] is read as the
@@ -1098,10 +1108,10 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
   // `costReduction` branch, and "this card gains [Blocker]" written as
   // `modifyAttr(attr: keywords, …)` the `grant` branch below, whichever way
   // the row was written.
-  for (const op of ops.map((o) => replaceAs(costModifierAs(negateAs(modifyAttrAs(o)))))) {
+  for (const [index, op] of ops.map((o) => replaceAs(costModifierAs(negateAs(modifyAttrAs(o))))).entries()) {
     if (op.op === "if") {
-      if (condHolds(ctx, s, frame, op.cond)) collectStatics(ctx, s, out, source, master, op.then, inPlayNow);
-      else if (op.else) collectStatics(ctx, s, out, source, master, op.else, inPlayNow);
+      if (condHolds(ctx, s, frame, op.cond)) collectStatics(ctx, s, out, source, master, op.then, inPlayNow, skillIndex, `${path}${index}t/`);
+      else if (op.else) collectStatics(ctx, s, out, source, master, op.else, inPlayNow, skillIndex, `${path}${index}f/`);
       continue;
     }
     if (op.op === "costReduction") {
@@ -1297,7 +1307,16 @@ function collectStatics(ctx: GameContext, s: GameState, out: StaticEffect[], sou
       if (value == null) continue;
       for (const id of staticTargets(ctx, s, frame, op.target ?? { sel: { special: "self" } })) out.push({ source, kind: op.attr, target: id, value });
     } else if (op.op === "grant") {
-      for (const id of staticTargets(ctx, s, frame, op.target)) out.push({ source, kind: "keyword", target: id, value: op.keyword });
+      for (const id of staticTargets(ctx, s, frame, op.target)) {
+        // Old saved states have no epoch. Keep their -1 grant behavior until
+        // either the source or recipient enters a new area under this code.
+        const sourceEpoch = s.cards[source]?.zoneEpoch;
+        const recipientEpoch = s.cards[id]?.zoneEpoch;
+        const standingGrantId = skillIndex === undefined || (sourceEpoch === undefined && recipientEpoch === undefined)
+          ? undefined
+          : `${source}:${sourceEpoch ?? 0}:${s.cards[source].flipped ? "back" : "front"}:${skillIndex}:${path}${index}:${id}:${recipientEpoch ?? 0}`;
+        out.push({ source, kind: "keyword", target: id, value: op.keyword, ...(standingGrantId === undefined ? {} : { standingGrantId }) });
+      }
     }
   }
 }
@@ -1445,6 +1464,7 @@ export function move(ctx: GameContext, s: GameState, ev: GameEvent[], id: string
   }
 
   const carry = !!opts.carry || ((wasInPlay || wasCombo) && (goesToPlay || goesToCombo));
+  if (from?.area !== to || from?.owner !== toOwner) inst.zoneEpoch = (inst.zoneEpoch ?? 0) + 1;
   if (!carry) {
     inst.mode = "active";
     inst.markers = 0;
@@ -1531,6 +1551,7 @@ export function placeUnder(ctx: GameContext, s: GameState, ev: GameEvent[], id: 
   inst.mode = "active";
   inst.markers = 0;
   inst.flipped = false;
+  inst.zoneEpoch = (inst.zoneEpoch ?? 0) + 1;
   inst.hidden = false;
   inst.negated = [];
   inst.usedThisTurn = [];

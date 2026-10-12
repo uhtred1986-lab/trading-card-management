@@ -257,6 +257,8 @@ export interface CardInstance {
   isToken: boolean;
   /** Turn number this card entered its current open area (for "played this turn" checks). */
   enteredTurn: number;
+  /** #683: persistent area-entry generation for standing keyword grants. */
+  zoneEpoch?: number;
   /** [X Attack] activations left this turn (22-8). */
   extraAttacks: number;
   /** Skill indexes already resolved this turn under [Once per turn] / [Limit]. */
@@ -694,6 +696,10 @@ export interface PendingAuto {
   subject?: string;
   /** #683: the individual Heroic/Villainous keyword heard at activation time. */
   afterSkillKeyword?: "Heroic" | "Villainous";
+  /** #683: persistent identity of a timed keyword grant captured at the event. */
+  grantEffectId?: number;
+  /** #683: source/skill/op/recipient identity of a standing keyword grant. */
+  standingGrantId?: string;
 }
 
 export type Trigger =
