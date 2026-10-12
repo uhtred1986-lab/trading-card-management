@@ -1,11 +1,14 @@
 /** #680: BT31-116's optional, cost-waived hand Extra skill activation. */
 import assert from "node:assert/strict";
 import { compileCostProgram, compileSkill } from "../../src/lib/arena/compile";
-import { move as legacyMove } from "../../src/lib/arena/engine/state";
+import { move as legacyMove, playCost as legacyPlayCost } from "../../src/lib/arena/engine/state";
+import { pendTriggers } from "../../src/lib/arena/engine/triggers";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { engineFor } from "../../src/lib/arena/engines";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
+import { attrsNow } from "../../src/lib/arena/vm/program";
+import { pendAutos } from "../../src/lib/arena/vm/triggers";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -15,10 +18,15 @@ import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 const AUTO = "[Auto] Switch 1 of your energy to Hidden Mode: When your <Cell> or <Cell Jr.> card—both white and with an energy cost of 3 or more—is played, activate an [Activate: Main/Battle] skill of up to 1 mono-white Extra with an energy cost of 2 in your hand.";
 const EXTRA = "[Activate: Main/Battle] {r}{1}: Draw 1 card.";
 const TWO_LINES = `${EXTRA}<br>[Activate: Main/Battle] {r}{1}: Draw 2 cards.`;
+const REDUCE = "[Auto] When you play a card, choose up to 1 of your Battle Cards and reduce its energy cost by 1 for the turn.";
+const INCREASE = "[Auto] When you play a card, choose up to 1 of your Battle Cards and increase its energy cost by 1 for the turn.";
+const BOUNCE = "[Auto] When you play a card, choose up to 1 of your Battle Cards and return it to its owner's hand.";
+const EFFECT_ONLY_IF = "[Auto] Switch 1 of your energy to Hidden Mode: When you play a card, if your Leader Card is blue, draw 1 card.";
 const defs = { ...DEFS,
   "C680-LEADER": card("C680-LEADER", { type: "LEADER", colors: ["White"], energyCost: null, comboCost: null, comboPower: null, skill: AUTO }),
   "C680-CELL": card("C680-CELL", { colors: ["White"], characters: ["Cell"], energyCost: 3, skill: null }),
   "C680-CELL2": card("C680-CELL2", { colors: ["White"], characters: ["Cell"], energyCost: 2, skill: null }),
+  "C680-FREECELL": card("C680-FREECELL", { colors: ["White"], characters: ["Cell"], energyCost: 3, skill: "[Permanent] You can play this card from your hand without paying its energy cost." }),
   "C680-GOHAN": card("C680-GOHAN", { colors: ["White"], characters: ["Son Gohan"], energyCost: 3, skill: null }),
   "C680-REDCELL": card("C680-REDCELL", { colors: ["Red"], characters: ["Cell"], energyCost: 3, skill: null }),
   "C680-ENERGY": card("C680-ENERGY", { colors: ["White"], skill: null }),
@@ -31,6 +39,11 @@ const defs = { ...DEFS,
   "C680-MAIN": card("C680-MAIN", { type: "EXTRA", colors: ["White"], energyCost: 2, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] Draw 1 card." }),
   "C680-COND": card("C680-COND", { type: "EXTRA", colors: ["White"], energyCost: 2, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main/Battle] If your Leader Card is blue: Draw 1 card." }),
   "C680-ONCE": card("C680-ONCE", { type: "EXTRA", colors: ["White"], energyCost: 2, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main/Battle][Once per turn] Draw 1 card." }),
+  "C680-REDUCE": card("C680-REDUCE", { energyCost: 0, skill: REDUCE }),
+  "C680-INCREASE": card("C680-INCREASE", { energyCost: 0, skill: INCREASE }),
+  "C680-BOUNCE": card("C680-BOUNCE", { energyCost: 0, skill: BOUNCE }),
+  "C680-IF": card("C680-IF", { energyCost: 0, skill: EFFECT_ONLY_IF }),
+  "C680-GENERIC": card("C680-GENERIC", { colors: ["White"], energyCost: 0, skill: null }),
 };
 const ctx = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
 const rules = engineFor("rules");
@@ -40,21 +53,18 @@ const dbs = loaded.definition;
 
 const compiled = compileSkill(parseSkills(AUTO)[0]!);
 assert.deepEqual(compiled.unsupported, []);
-assert.deepEqual(compiled.ops.map((op) => op.op), ["if"]);
-if (compiled.ops[0]?.op === "if") {
-  assert.deepEqual(compiled.ops[0].then.map((op) => op.op), ["invokeSkill"]);
-  assert.equal(compiled.ops[0].then[0]?.op === "invokeSkill" && compiled.ops[0].then[0].skillKind, "activate:main/battle");
-}
+assert.deepEqual(compiled.ops.map((op) => op.op), ["invokeSkill"], "the trigger guard runs at the play moment, not after the Auto price");
+assert.equal(compiled.ops[0]?.op === "invokeSkill" && compiled.ops[0].skillKind, "activate:main/battle");
 assert.deepEqual(compileCostProgram(parseSkills(AUTO)[0]!)?.ops.map((op) => op.op), ["choose", "hidden"]);
 
-function main(): VmState {
-  let state = rules.createGame(ctx, { seed: 680, p1: { name: "You", leader: "C680-LEADER", main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
+function main(leader: "C680-LEADER" | "L-RED" = "C680-LEADER"): VmState {
+  let state = rules.createGame(ctx, { seed: 680, p1: { name: "You", leader, main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
   state = rules.apply(ctx, state, { type: "chooseFirst", player: state.chooser, first: "p1" }).state as VmState;
   for (let i = 0; i < 24 && state.prompt.kind !== "main"; i++) state = rules.apply(ctx, state, { type: "pass", player: (state.prompt as { player: PlayerId }).player }).state as VmState;
   assert.equal(state.prompt.kind, "main");
   return state;
 }
-function stage(state: VmState, id: keyof typeof defs, area: "hand" | "energy", player: PlayerId = "p1"): string {
+function stage(state: VmState, id: keyof typeof defs, area: "hand" | "energy" | "battle", player: PlayerId = "p1"): string {
   const physical = state.sides[player].zones.deck[0];
   assert.ok(physical);
   state.cards[physical].cardId = id;
@@ -82,11 +92,85 @@ function prepared(extraIds: (keyof typeof defs)[] = ["C680-EXTRA"], playedId: ke
 for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
   const { state, cell, energy, extras: [extra] } = prepared(["C680-EXTRA"], wrong);
   const played = take(state, { type: "play", player: "p1", card: cell });
-  assert.equal(played.state.prompt.kind, "chooseMode", `#571 gap: ${wrong} currently pends the Auto before its effect guard`);
-  const declined = take(played.state, { type: "chooseMode", player: "p1", index: 1 });
-  assert.equal(energy.filter((id) => declined.state.cards[id].hidden).length, 0);
-  assert.ok(declined.state.sides.p1.zones.hand.includes(extra));
-  assert.equal(declined.events.filter((event) => event.type === "skill" && event.card === extra).length, 0);
+  assert.equal(played.state.prompt.kind, "main", `${wrong} does not pend the qualified Auto or offer its price`);
+  assert.equal(energy.filter((id) => played.state.cards[id].hidden).length, 0);
+  assert.ok(played.state.sides.p1.zones.hand.includes(extra));
+  assert.equal(played.events.filter((event) => event.type === "skill" && event.card === extra).length, 0);
+}
+{
+  const { state, cell, energy, extras: [extra] } = prepared();
+  state.effects.push({ id: 6801, target: cell, kind: "cost", value: 1, until: "turn",
+    source: state.sides.p1.zones.leader[0], createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
+  assert.equal(attrsNow(ctx, dbs, state, cell).costOf, 2);
+  const played = take(state, { type: "play", player: "p1", card: cell });
+  assert.equal(played.state.prompt.kind, "main", "an in-force cost reduction makes the Cell ineligible at the play moment");
+  assert.equal(energy.filter((id) => played.state.cards[id].hidden).length, 0);
+  assert.ok(played.state.sides.p1.zones.hand.includes(extra));
+}
+{
+  const { state, cell, extras: [extra] } = prepared(["C680-EXTRA"], "C680-FREECELL");
+  assert.equal(attrsNow(ctx, dbs, state, cell).costOf, 3);
+  assert.ok(rules.legalActions(ctx, state).some((row) => row.action.type === "play" && row.action.card === cell && row.action.alt === true));
+  const played = take(state, { type: "play", player: "p1", card: cell, alt: true });
+  assert.equal(played.state.prompt.kind, "chooseMode", "a free-play payment leaves the Cell's current energy cost at 3");
+  assert.ok(played.state.sides.p1.zones.hand.includes(extra));
+}
+{
+  const state = main();
+  const moment = { event: "moved", controller: "p1" as const, args: { asPlay: true, to: "battle" } };
+  assert.deepEqual(pendAutos(ctx, dbs, state, moment), [], "a played-card watcher cannot qualify without a subject");
+  assert.equal(state.pending.length, 0);
+}
+for (const [watchId, expectedCost, expectedArea] of [
+  ["C680-REDUCE", 2, "battle"],
+  ["C680-BOUNCE", 3, "hand"],
+] as const) {
+  const { state, cell, energy, extras: [extra] } = prepared();
+  const watcher = stage(state, watchId, "battle");
+  const played = take(state, { type: "play", player: "p1", card: cell });
+  assert.equal(played.state.prompt.kind, "orderPending");
+  assert.deepEqual(played.state.pending.map((item) => item.card), [played.state.sides.p1.zones.leader[0], watcher]);
+  const selected = take(played.state, { type: "orderPending", player: "p1", index: 1 });
+  const restored = take(reload(played.state), { type: "orderPending", player: "p1", index: 1 });
+  assert.deepEqual(restored.events, selected.events);
+  assert.deepEqual(restored.state, selected.state);
+  assert.equal(selected.state.prompt.kind, "chooseCards");
+  const changed = take(selected.state, { type: "choose", player: "p1", cards: [cell] });
+  assert.equal(changed.state.prompt.kind, "chooseMode", "the valid Cell's earlier trigger stays pending after the other Auto");
+  assert.equal(attrsNow(ctx, dbs, changed.state, cell).costOf, expectedCost);
+  assert.ok(changed.state.sides.p1.zones[expectedArea].includes(cell));
+  const pay = take(changed.state, { type: "chooseMode", player: "p1", index: 0 });
+  const energyPaid = take(pay.state, { type: "choose", player: "p1", cards: [energy[3]] });
+  assert.equal(energyPaid.state.prompt.kind, "chooseCards");
+  const invoked = take(energyPaid.state, { type: "choose", player: "p1", cards: [extra] });
+  assert.ok(invoked.state.sides.p1.zones.drop.includes(extra));
+  assert.equal(draws(invoked.events), 1, `${watchId}: captured trigger resolves after subject changes`);
+}
+{
+  const { state, cell, energy, extras: [extra] } = prepared(["C680-EXTRA"], "C680-CELL2");
+  stage(state, "C680-INCREASE", "battle");
+  const played = take(state, { type: "play", player: "p1", card: cell });
+  assert.equal(played.state.prompt.kind, "chooseCards", "only the cost-increase watcher pended for an originally cost-2 Cell");
+  assert.equal(played.state.pending.length, 0, "the invalid BT31 trigger was never queued");
+  const increased = take(played.state, { type: "choose", player: "p1", cards: [cell] });
+  assert.equal(attrsNow(ctx, dbs, increased.state, cell).costOf, 3);
+  assert.equal(increased.state.prompt.kind, "main", "a later increase cannot create a missed Auto trigger");
+  assert.equal(energy.filter((id) => increased.state.cards[id].hidden).length, 0);
+  assert.ok(increased.state.sides.p1.zones.hand.includes(extra));
+}
+{
+  const state = main("L-RED");
+  const energy = stage(state, "C680-ENERGY", "energy");
+  const source = stage(state, "C680-IF", "battle");
+  const subject = stage(state, "C680-GENERIC", "hand");
+  const played = take(state, { type: "play", player: "p1", card: subject });
+  assert.equal(played.state.prompt.kind, "chooseMode", "a body-only false condition does not suppress the Auto's cost decision");
+  const pay = take(played.state, { type: "chooseMode", player: "p1", index: 0 });
+  const paid = pay.state.prompt.kind === "chooseCards"
+    ? take(pay.state, { type: "choose", player: "p1", cards: [energy] }) : pay;
+  assert.equal(paid.state.cards[energy].hidden, true);
+  assert.equal(paid.events.filter((event) => event.type === "skill" && event.card === source).length, 1);
+  assert.equal(draws(paid.events), 0, "the effect-only condition remains false after payment and activation");
 }
 function paidUntilExtra(state: VmState, cell: string, energy: string): { state: VmState; events: GameEvent[] } {
   const played = take(state, { type: "play", player: "p1", card: cell });
@@ -213,10 +297,7 @@ for (const wrong of ["C680-RED", "C680-MULTI", "C680-ONE", "C680-MAIN", "C680-CO
   assert.ok(lineChosen.state.sides.p1.zones.hand.includes(first));
 }
 
-// The legacy engine shares the compiled nested invocation and its exact
-// selector, but #549 still owns its separate action-price omission. Pin both
-// facts on an actual play without treating the absent Hidden payment as legal.
-{
+function legacyReady(): { legacy: ReturnType<typeof engineFor>; state: GameState; stageLegacy: (id: keyof typeof defs, area: "hand" | "energy") => string } {
   const legacy = engineFor("legacy");
   let state = legacy.createGame(ctx, { seed: 681, p1: { name: "You", leader: "C680-LEADER", main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as GameState;
   state = legacy.apply(ctx, state, { type: "chooseFirst", player: (state.prompt as { player: PlayerId }).player, first: "p1" }).state as GameState;
@@ -234,6 +315,47 @@ for (const wrong of ["C680-RED", "C680-MULTI", "C680-ONE", "C680-MAIN", "C680-CO
     legacyMove(ctx, state, [], physical, area, "p1");
     return physical;
   };
+  return { legacy, state, stageLegacy };
+}
+for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
+  const { legacy, state, stageLegacy } = legacyReady();
+  Array.from({ length: 4 }, () => stageLegacy(wrong === "C680-REDCELL" ? "C680-REDENERGY" : "C680-ENERGY", "energy"));
+  const cell = stageLegacy(wrong, "hand");
+  const played = legacy.apply(ctx, state, { type: "play", player: "p1", card: cell });
+  assert.equal(played.state.prompt.kind, "main", `legacy: ${wrong} does not qualify at the play moment`);
+  assert.equal(played.state.pending.length, 0);
+}
+{
+  const { legacy, state, stageLegacy } = legacyReady();
+  const leader = state.players.p1.leader;
+  pendTriggers(ctx, state, "youPlayed", leader);
+  assert.equal(state.pending.length, 0, "legacy: a missing play subject is not qualified");
+  Array.from({ length: 4 }, () => stageLegacy("C680-ENERGY", "energy"));
+  const cell = stageLegacy("C680-CELL", "hand");
+  state.effects.push({ id: 6802, target: cell, kind: "cost", value: 1, until: "turn",
+    source: leader, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
+  assert.equal(legacyPlayCost(ctx, state, cell).total, 2);
+  const played = legacy.apply(ctx, state, { type: "play", player: "p1", card: cell });
+  assert.equal(played.state.prompt.kind, "main", "legacy: current cost 2 fails the at-least-3 trigger");
+  assert.equal(played.state.pending.length, 0);
+}
+{
+  const { legacy, state, stageLegacy } = legacyReady();
+  const cell = stageLegacy("C680-FREECELL", "hand");
+  assert.equal(legacyPlayCost(ctx, state, cell).total, 3);
+  const played = legacy.apply(ctx, state, { type: "play", player: "p1", card: cell, alt: true });
+  assert.equal(played.state.prompt.kind, "main", "legacy: its payment gap still omits the Auto price");
+  assert.equal(played.state.pending.length, 0);
+  // The Auto can have no eligible Extra here, so use its activation event as
+  // the proof that alternative play payment did not lower the card's cost.
+  assert.ok(played.events.some((event) => event.type === "skill" && event.card === state.players.p1.leader));
+}
+// The legacy engine shares the compiled nested invocation and its exact
+// selector, but #549 still owns its separate action-price omission. Pin both
+// facts on an actual play without treating the absent Hidden payment as legal.
+{
+  const { legacy, state: starting, stageLegacy } = legacyReady();
+  let state = starting;
   const energy = Array.from({ length: 4 }, () => stageLegacy("C680-ENERGY", "energy"));
   const cell = stageLegacy("C680-CELL", "hand");
   const extra = stageLegacy("C680-EXTRA", "hand");

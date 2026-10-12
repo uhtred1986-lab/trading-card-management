@@ -8,8 +8,23 @@
  * `engine/triggers.ts` (#118); nothing here reads a game.
  */
 import { effectHead, maskNames, trailingTrigger } from "./cards";
-import { expandSharedCardDescription, parseFilter, readsOr } from "./filters";
+import { expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "./filters";
 import type { Skill, Trigger } from "../types";
+
+/**
+ * BT31-116's shared Cell/Cell Jr. qualification belongs to the play moment,
+ * before its Auto price is offered (9-6-2). A later Auto may change the
+ * played card's cost or move it before this one resolves; neither can change
+ * which moment was witnessed. This is a narrow printed-wording bridge like
+ * the hand-combo origin checks below, not a runtime compilation of card text.
+ */
+const WHITE_CELL_PLAYED = parseFilter(expandSharedCardDescription("white <Cell> or <Cell Jr.> card with an energy cost of 3 or more"));
+export function whiteCellPlayedSubjectFilter(sk: Skill): CardFilter | null {
+  if (sk.kind !== "auto") return null;
+  const head = effectHead(maskNames(sk.effect).text);
+  return /^when your <cell> or <cell jr\.> card—both white and with an energy cost of 3 or more—is played\b/.test(head)
+    ? WHITE_CELL_PLAYED : null;
+}
 
 /** Keyword [Auto] skills and the events that make them pending (22). */
 export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
