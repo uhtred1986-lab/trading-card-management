@@ -331,6 +331,57 @@
             }
           }
         ]
+      },
+      "inspectableZones": {
+        "drop": [
+          {
+            "id": "p1#15",
+            "cardId": "U1",
+            "name": "U1",
+            "power": 5000,
+            "colors": [
+              "Red"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": null,
+            "comboCost": null,
+            "comboPower": null,
+            "keywords": [
+              "Blocker"
+            ],
+            "text": "[Blocker]",
+            "reading": "",
+            "referee": false,
+            "abilities": [
+              {
+                "skillIndex": 0,
+                "kind": "keyword",
+                "category": "keyword",
+                "text": "[Blocker]",
+                "tags": [
+                  "Blocker"
+                ],
+                "zone": "drop",
+                "owner": "p1",
+                "controller": "p1",
+                "origin": "printed",
+                "availability": "notEvaluated",
+                "costPreview": {
+                  "state": "notApplicable"
+                }
+              }
+            ]
+          }
+        ],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
       }
     },
     "them": {
@@ -376,7 +427,13 @@
       "zEnergy": 0,
       "energyMarkers": 1,
       "activeEnergy": 0,
-      "dropTop": null
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
     },
     "turn": 3,
     "phase": "main",

@@ -166,6 +166,12 @@
       "energyMarkers": 0,
       "activeEnergy": 0,
       "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      },
       "choices": [
         {
           "id": "p1#18",
@@ -1132,7 +1138,13 @@
       "zEnergy": 0,
       "energyMarkers": 1,
       "activeEnergy": 0,
-      "dropTop": null
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
     },
     "turn": 3,
     "phase": "main",

@@ -161,7 +161,13 @@
       "zEnergy": 0,
       "energyMarkers": 0,
       "activeEnergy": 0,
-      "dropTop": null
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
     },
     "them": {
       "player": "p2",
@@ -228,6 +234,36 @@
         "text": null,
         "reading": "",
         "referee": false
+      },
+      "inspectableZones": {
+        "drop": [
+          {
+            "id": "p2#44",
+            "cardId": "V-BLUE",
+            "name": "V-BLUE",
+            "power": 10000,
+            "colors": [
+              "Blue"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          }
+        ],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
       }
     },
     "turn": 3,
