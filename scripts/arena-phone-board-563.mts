@@ -21,7 +21,8 @@ const views: Viewport[] = [
 ];
 type Page = Awaited<ReturnType<Browser['page']>>;
 async function hitArea(page:Page,selector:string) {
- return page.eval<{x:number;y:number}|null>(`(() => {const el=document.querySelector(${JSON.stringify(selector)});if(!el)return null;const r=el.getBoundingClientRect();if(r.width<43.5||r.height<43.5)return null;for(let y=Math.max(22,r.top+22);y<=Math.min(innerHeight-22,r.bottom-22);y+=8)for(let x=Math.max(22,r.left+22);x<=Math.min(innerWidth-22,r.right-22);x+=8)if([-14,0,14].every(dx=>[-14,0,14].every(dy=>{const hit=document.elementFromPoint(x+dx,y+dy);return el===hit||el.contains(hit);})))return{x,y};return null;})()`);
+ const sample=selector.includes('[data-arena-card')?21:14;
+ return page.eval<{x:number;y:number}|null>(`(() => {const el=document.querySelector(${JSON.stringify(selector)});if(!el)return null;const r=el.getBoundingClientRect();if(r.width<43.5||r.height<43.5)return null;for(let y=Math.max(22,r.top+22);y<=Math.min(innerHeight-22,r.bottom-22);y+=8)for(let x=Math.max(22,r.left+22);x<=Math.min(innerWidth-22,r.right-22);x+=8)if([-${sample},0,${sample}].every(dx=>[-${sample},0,${sample}].every(dy=>{const hit=document.elementFromPoint(x+dx,y+dy);return el===hit||el.contains(hit);})))return{x,y};return null;})()`);
 }
 async function reach(page:Page,selector:string,dock=false) {
  for(let n=0;n<18;n++) {
@@ -37,7 +38,8 @@ async function reach(page:Page,selector:string,dock=false) {
    // narrow visible window between them at 200% text on a short phone.
    const desired=size.above?size.top+12:size.bar-56;
    const delta=desired-size.target;
-   const distance=Math.sign(delta)*Math.min(150,Math.max(50,Math.abs(delta)));
+   const visibleTravel=Math.max(32,size.bar-size.top-24);
+   const distance=Math.sign(delta)*Math.min(150,visibleTravel,Math.max(32,Math.abs(delta)));
    const surface=await page.eval<{x:number;y:number;name:string}|null>(`(() => {
     const min=${distance<0?20-distance:20},max=${distance>0?size.h-20-distance:size.h-20};
     const valid=(x,y)=>{const hit=document.elementFromPoint(x,y);return hit?.closest('.arena-board')&&!hit.closest('[data-arena-card],dialog,.arena-bar,[aria-hidden]')&&!['none','pan-x'].includes(getComputedStyle(hit).touchAction)};
@@ -50,7 +52,7 @@ async function reach(page:Page,selector:string,dock=false) {
     for(const y of ys)if(y>=min&&y<=max)for(const x of [${size.w}-30,${size.w}/2,30])if(valid(x,y))return{x,y,name:'visible board'};
     return null;
    })()`);
-   if(!surface)throw Error(`No visible board surface for vertical touch scroll: ${selector}`);
+   if(!surface){writeFileSync(join(evidence,'failure.jpg'),await page.screenshot(false));throw Error(`No visible board surface for vertical touch scroll: ${selector}; ${await page.eval<string>(`JSON.stringify({scrollY,maxScroll:document.documentElement.scrollHeight-innerHeight,height:innerHeight,target:document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect().toJSON(),top:document.querySelector('.arena-topbar')?.getBoundingClientRect().toJSON(),bar:document.querySelector('.arena-bar')?.getBoundingClientRect().toJSON(),toolbar:document.querySelector('[data-hand-toolbar]')?.getBoundingClientRect().toJSON(),resources:document.querySelector('[data-player-resources="p1"]')?.getBoundingClientRect().toJSON(),at:[50,100,150,200,250,300].map(y=>[y,document.elementFromPoint(innerWidth/2,y)?.outerHTML.slice(0,120)])})`)}`);}
    const start=surface.y,finish=start+distance;
    await bridge.call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:surface.x,y:start}]});
    for(let i=1;i<=8;i++){await bridge.call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:surface.x,y:start+(finish-start)*i/8}]});await sleep(25);}
@@ -77,7 +79,7 @@ async function handSwipe(page:Page,_y:number,dx:number) {
 mkdirSync(evidence,{recursive:true}); await requireServer(base);
 const browser=await Browser.launch();
 try {
- for(const skin of ['anime','night']) for(const viewport of views.filter(v=>!process.argv.includes('--actions-only')&&(!process.argv.includes('--phone-only')||v.name==='phone')&&(!process.argv.includes('--small-only')||v.name==='small'))) {
+ for(const skin of ['anime','night']) for(const viewport of views.filter(v=>!process.argv.includes('--actions-only')&&(!process.argv.includes('--phone-only')||v.name==='phone')&&(!process.argv.includes('--small-only')||v.name==='small')&&(!process.argv.includes('--landscape-only')||v.name==='landscape'))) {
   console.log(`${before?'before':'after'} ${skin} ${viewport.name}`);
   const made=phoneFixture(viewport.name==='short'?12:20);let snapshot=made.snapshot;let state=made.state;
   writeFileSync(fixture,JSON.stringify(snapshot));
@@ -92,6 +94,7 @@ try {
   await page.goto(`${base}/arena/preview?fixture=u06-engine-proof&skin=${skin}&admin=0&staging=band`);
   await page.waitFor('[data-battle-stakes]');await sleep(850);
   await page.eval("document.querySelector('nextjs-portal')?.remove()");
+  await page.eval('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   writeFileSync(join(evidence,`${before?'before':'after'}-${viewport.name}-${skin}.jpg`),await page.screenshot(false));
   if(!before) {
    assert(await page.eval<boolean>('document.documentElement.scrollWidth<=innerWidth+1'),'no horizontal page overflow');
@@ -153,6 +156,22 @@ try {
     await page.eval("document.documentElement.style.fontSize='200%'");
     await reach(page,'.arena-hand button[aria-label^="Inspect your hand"]');
     writeFileSync(join(evidence,`after-${viewport.name}-${skin}-200text-reduced-hand.jpg`),await page.screenshot(false));
+    if(viewport.name==='landscape') {
+     const details='[data-decision-summary] > div';
+     assert(await page.eval<boolean>(`(()=>{const el=document.querySelector('${details}');return el.scrollHeight>el.clientHeight+10;})()`),'200% landscape stakes and consequence have a scrollable viewport');
+     await page.swipe(details,0,-45);await sleep(300);
+     assert(await page.eval<boolean>(`(()=>{const el=document.querySelector('${details}'),p=el.querySelector('[data-pass-consequence]'),r=el.getBoundingClientRect(),t=p.getBoundingClientRect();return el.scrollTop>0&&t.top>=r.top-1&&t.bottom<=r.bottom+1;})()`),'actual touch reveals the full Pass consequence without activating Pass');
+     assert.deepEqual(await page.eval<Action[]>('window.__arenaSent??[]'),[combo.action],'stakes swipe sends no second action');
+     writeFileSync(join(evidence,`after-${viewport.name}-${skin}-200text-reduced-consequence.jpg`),await page.screenshot(false));
+     for(let n=0;n<5&&!(await hitArea(page,'[data-battle-assumptions] summary'));n++){await page.swipe(details,0,-45);await sleep(150);}
+     assert(await hitArea(page,'[data-battle-assumptions] summary'),'real stakes swipes expose the 44px public-rules summary');
+     await fingerTap(page,'[data-battle-assumptions] summary',true);
+     assert(await page.eval<boolean>("document.querySelector('[data-battle-assumptions]').open"),'public-rules details expand by actual touch');
+     for(let n=0;n<5&&!(await page.eval<boolean>(`(()=>{const el=document.querySelector('${details}'),p=el.querySelector('[data-battle-assumptions] p'),r=el.getBoundingClientRect(),t=p.getBoundingClientRect();return t.top>=r.top-1&&t.bottom<=r.bottom+1;})()`));n++){await page.swipe('[data-battle-assumptions] summary',0,-45);await sleep(150);}
+     assert(await page.eval<boolean>(`(()=>{const el=document.querySelector('${details}'),p=el.querySelector('[data-battle-assumptions] p'),r=el.getBoundingClientRect(),t=p.getBoundingClientRect();return t.top>=r.top-1&&t.bottom<=r.bottom+1;})()`),'actual touch reveals the complete expanded assumption');
+     assert.deepEqual(await page.eval<Action[]>('window.__arenaSent??[]'),[combo.action],'public-rules inspection sends no second action');
+     writeFileSync(join(evidence,`after-${viewport.name}-${skin}-200text-reduced-assumptions.jpg`),await page.screenshot(false));
+    }
     assert(await page.eval<boolean>('document.documentElement.scrollWidth<=innerWidth+1'),'200% has no horizontal page overflow');
     await page.eval('window.__arenaSent=[]');await fingerTap(page,'[data-pass-action]',true);
     const passed=await page.eval<Action[]>('window.__arenaSent??[]');assert.deepEqual(passed,[snapshot.legal.find(row=>row.action.type==='pass')!.action]);
@@ -200,7 +219,7 @@ try {
   }
   await page.close();
  }
- if(!before) for(const skin of ['anime','night']) for(const kind of (process.argv.includes('--charge-only')?['charge'] as const:['target','payment','counter','resource','charge'] as const)) {
+ if(!before&&!process.argv.includes('--layout-only')) for(const skin of ['anime','night']) for(const kind of (process.argv.includes('--charge-only')?['charge'] as const:['target','payment','counter','resource','charge'] as const)) {
   console.log(`actions ${skin} ${kind}`);
   let state=kind==='payment'?paymentFixture().state:kind==='counter'?makeWhisFixture('http://arena-561-art.local/BT1-055.webp').state:kind==='charge'?chargeFixture().state:phoneFixture().state;
   if(kind==='resource')state.cards[state.sides.p1.zones.energy[0]!]!.mode='rest';
