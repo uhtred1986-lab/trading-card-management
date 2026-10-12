@@ -68,6 +68,8 @@ export function isTokenCard(cardId: string): boolean {
 
 /** 19-1-7: where a token leaving play goes — the declared zone of 20-10, "removed from the game". */
 const TOKEN_EXIT = "removed";
+/** 14-1-4: the source areas a Z-Card must leave to be removed. */
+const Z_CARD_DEPARTURE_AREAS = new Set(["leader", "battle", "unison"]);
 /** 23-2-5: where the cards under a card go when it leaves play — the Drop Area, as `moveCard`'s own 23-2-5 half above already names it. */
 const PILE_EXIT = "drop";
 
@@ -330,16 +332,15 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   const tokenLeavesItsAreas = isTokenCard(card.cardId) && from &&
     (from.zone === "battle" || from.zone === "combo") &&
     to !== "battle" && to !== "combo";
-  // 14-1-4 applies to moves out of Leader, Battle and Unison Areas. Combo is
-  // deliberately not in that list: a Z card already in Combo can be moved to
-  // Z-Energy at 8-5-2. Rule 16-1-4 further removes a Z-Battle Card whenever
-  // it leaves Battle, including movement into another listed area such as
-  // Unison and into Combo. [Ultimate]'s separate 22-14-3 rule is
-  // still handled by its own hook, not by this area redirect.
-  const zCardLeavesListedArea = card.zCard === true && from &&
-    ((["leader", "battle", "unison"].includes(from.zone) &&
-      !["leader", "battle", "unison"].includes(to)) ||
-      (from.zone === "battle" && to !== "battle"));
+  // 14-1-4 removes a Z-Card when it leaves a Leader, Battle or Unison Area,
+  // regardless of its destination. The same zone name on the other player's
+  // side is a different area (3-1-1), so transfer between Battle Areas also
+  // leaves the source area. Combo is deliberately not listed: a Z-Card already
+  // in Combo can be moved to Z-Energy at 8-5-2. [Ultimate]'s separate 22-14-3
+  // rule is still handled by its own hook, not by this area redirect.
+  const destinationOwner = opts.owner ?? card.owner;
+  const zCardLeavesListedArea = card.zCard === true && from && Z_CARD_DEPARTURE_AREAS.has(from.zone) &&
+    (from.zone !== to || from.owner !== destinationOwner);
   if ((tokenLeavesItsAreas || zCardLeavesListedArea) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
   const zone = game.zones[to];
   if (!zone) return { ok: false, refused: `the ${game.id} ruleset declares no zone called ${JSON.stringify(to)}` };
@@ -361,6 +362,21 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   if (opts.mode !== undefined && !zone.modes?.includes(opts.mode)) return { ok: false, refused: `a card in the ${to} is never ${opts.mode}` };
 
   lift(board, id, host);
+  // 15-1-5: when the top Z-Leader leaves its Leader Area, that top card is
+  // removed and the underlying Leader stays in the same Area. A Z-Awakened
+  // stack is represented as [Leader, ...the Leader's carried under-cards] on
+  // the Z-Leader, so restore that pile to its original top card before the
+  // ordinary 23-2-5 release handling below.
+  if (card.zCard === true && from?.zone === "leader" && (to !== "leader" || from.owner !== toOwner) && card.under.length) {
+    const [leader, ...carried] = card.under.splice(0);
+    const underneath = board.cards[leader];
+    if (underneath) {
+      underneath.under.push(...carried);
+      board.sides[from.owner].zones.leader.splice(from.index, 0, leader);
+    } else {
+      card.under.push(...carried);
+    }
+  }
   // 23-2-5: a card leaving play (or a combo) for an area of another name
   // leaves its pile behind, each card in its owner's Drop Area — a Z-card
   // among them removed from the game (14-1-4) — the legacy `move`'s own line,

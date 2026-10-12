@@ -310,8 +310,9 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
         b.endCombo.stage = "cleanup";
         b.endCombo.retainedComboPower = {};
       }
-      // 8-5-6..8: autos caused by these departures are collected before the
-      // runner's checkpoint; they resolve after all combo cards reach Drop.
+      // Existing cleanup batches the Drop moves before its checkpoint, so the
+      // 8-5-6/7 and 8-5-9 timing distinction remains a known limitation here;
+      // this work changes only the earlier 8-5-2/3 -> 8-5-4 ordering.
       // `moved()` already fires the generic `moved(from: combo)` moment
       // `comboed` reads (5-7's own "when this card is used in a combo" is
       // answered by the departure, not by a second `comboUsed` here — that

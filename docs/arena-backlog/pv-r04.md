@@ -10,7 +10,7 @@ touches: src/lib/arena/vm/battle.ts, src/lib/arena/vm/index.ts, src/lib/arena/vm
 ---
 **Source:** `docs/rules/rulemanual.txt` 8-5-1..8, 14-1-4, 16-1-4, 19-1-6/7; `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.
 
-**Rule citation:** At 8-5-2/3, each player in turn-player order may place up to one Battle Card from their Combo Area into its owner's Z-Energy Area. Both answers precede the 8-5-4 checkpoint; combo power ends at 8-5-5 and remaining Battle Cards are dropped at 8-5-8. Tokens are selectable under 19-1-6, but 19-1-7 removes them when they leave Combo. Rule 14-1-4 removes Z-cards leaving Leader, Battle or Unison; 16-1-4 additionally removes a Z-Battle Card when it leaves Battle, including Battle-to-Combo. A Z-card already in Combo may be chosen into Z-Energy.
+**Rule citation:** At 8-5-2/3, each player in turn-player order may place up to one Battle Card from their Combo Area into its owner's Z-Energy Area. Both answers precede the 8-5-4 checkpoint; combo power ends at 8-5-5 and remaining Battle Cards are dropped at 8-5-8. Tokens are selectable under 19-1-6, but 19-1-7 removes them when they leave Combo. Rule 14-1-4 removes a Z-Card whenever it leaves Leader, Battle or Unison, regardless of destination. Rule 16-1-4 specifies a player's Z-Battle Card leaving that player's Battle Area, so a transfer to the other player's Battle Area also leaves that area. A Z-Card already in Combo may be chosen into Z-Energy. The existing cleanup still batches the Drop moves before resolving their triggers; this ticket does not claim to correct the separate 8-5-6/7 checkpoint timing.
 
 **Priority:** P1. **Delivery:** Rule engine correctness. **Plan key:** R04.
 

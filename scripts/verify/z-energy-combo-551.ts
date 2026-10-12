@@ -6,7 +6,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { run } from "../../src/lib/arena/vm/flow";
 import { moveCard, newCard } from "../../src/lib/arena/vm/zones";
 import { tokenCardId } from "../../src/lib/arena/vm/common";
-import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
+import type { Action, GameEvent, PlayerId, Prompt } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
 const rules = engineFor("rules");
@@ -15,7 +15,10 @@ assert.ok(loaded.ok, "DBS rules failed to load");
 const dbs = loaded.definition;
 const ids = ["Z551_BATTLE", "Z551_OTHER", "Z551_EXTRA", "Z551_ZBATTLE", "Z551_ZLEADER", "Z551_ZUNISON", "Z551_TOKEN"];
 const old = new Map(ids.map((id) => [id, DEFS[id]]));
-DEFS.Z551_BATTLE = card("Z551_BATTLE", { comboPower: 5000 });
+DEFS.Z551_BATTLE = card("Z551_BATTLE", {
+  comboPower: 5000,
+  skill: "[Auto] When this card is added to your Z-Energy, choose up to 1 of your Battle Cards in your Combo Area and draw 1 card.",
+});
 DEFS.Z551_OTHER = card("Z551_OTHER", { comboPower: 10000 });
 DEFS.Z551_EXTRA = card("Z551_EXTRA", { type: "EXTRA", power: null, comboCost: null, comboPower: null });
 DEFS.Z551_ZBATTLE = card("Z551_ZBATTLE", { type: "Z-BATTLE", zEnergyCost: 1, comboPower: 5000 });
@@ -83,6 +86,7 @@ try {
     const first = stage(state, "p1", "Z551_BATTLE", "combo");
     const second = stage(state, "p1", "Z551_OTHER", "combo");
     const other = stage(state, "p2", "Z551_BATTLE", "combo");
+    const handBeforeChoices = state.sides.p1.zones.hand.length;
     atBattleEnd(state, attacker, guard);
     assert.deepEqual(state.prompt, { kind: "zEnergyFromCombo", player: "p1", candidates: [first, second] });
     const choices = rules.legalActions(CTX, state).map((entry) => entry.action).filter((action) => action.type === "zEnergyFromCombo");
@@ -107,13 +111,26 @@ try {
     assert.equal(state.sides.p1.zones.zEnergy.includes(first), true);
     assert.equal(state.sides.p1.zones.combo.includes(first), false);
     assert.deepEqual(state.prompt, { kind: "zEnergyFromCombo", player: "p2", candidates: [other] });
+    assert.equal(state.pending.length, 1, "the selected card's addedToZEnergy Auto waits for the shared 8-5-4 checkpoint");
+    assert.equal(state.sides.p1.zones.hand.length, handBeforeChoices, "the Auto has not resolved between the two players' choices");
     const attackView = rules.boardView(CTX, state, "p1", {}).battle;
-    assert.equal(attackView?.attackPower, 25000, "the chosen card's combo power must remain through 8-5-4");
+    assert.equal(attackView?.attackPower, 25000, "the selected card's contribution remains while the second choice is pending");
     assert.equal(attackView?.contributions?.[first], 5000);
 
     state = JSON.parse(JSON.stringify(state)) as VmState;
-    state = take(state, { type: "zEnergyFromCombo", player: "p2", card: other }).state as VmState;
+    const finalChoice = take(state, { type: "zEnergyFromCombo", player: "p2", card: other });
+    state = finalChoice.state as VmState;
     assert.equal(state.sides.p2.zones.zEnergy.includes(other), true);
+    assert.equal(state.prompt.kind, "chooseCards", "the selected card's real addedToZEnergy Auto resolves at 8-5-4, before combo cleanup");
+    assert.deepEqual((state.prompt as Extract<Prompt, { kind: "chooseCards" }>).choice.candidates, [second]);
+    assert.equal((state.prompt as Extract<Prompt, { kind: "chooseCards" }>).choice.min, 0);
+    assert.equal((state.prompt as Extract<Prompt, { kind: "chooseCards" }>).choice.max, 1);
+    assert.ok(state.sides.p1.zones.combo.includes(second), "the unselected Battle Card is still in Combo while the Auto asks");
+    const checkpointView = rules.boardView(CTX, state, "p1", {}).battle;
+    assert.equal(checkpointView?.attackPower, 25000, "8-5-4 still sees the selected card's retained contribution while the unselected card remains in Combo");
+    state = JSON.parse(JSON.stringify(state)) as VmState;
+    state = take(state, { type: "choose", player: "p1", cards: [second] }).state as VmState;
+    assert.equal(state.sides.p1.zones.hand.length, handBeforeChoices + 1, "the addedToZEnergy Auto finishes before cleanup resumes");
     assert.equal(state.sides.p1.zones.combo.includes(second), false);
     assert.equal(state.sides.p1.zones.drop.includes(second), true, "unselected combo cards are dropped");
     assert.equal(state.battle, null, "cleanup resumes through the battle's normal end");
@@ -174,8 +191,9 @@ try {
     assert.equal(state.sides.p1.zones.zEnergy.includes(foreign), false);
   }
 
-  // 14-1-4 limits the Z redirect to Leader/Battle/Unison departures. 16-1-4
-  // adds Battle→Combo; a Z-Battle already in Combo can still enter Z-Energy.
+  // 14-1-4 removes a Z-Card whenever it leaves Leader/Battle/Unison,
+  // regardless of destination; 16-1-4 confirms the Battle-area case. A
+  // Z-Battle already in Combo can still enter Z-Energy.
   {
     let state = mainPhase(553);
     const zBattle = stage(state, "p1", "Z551_ZBATTLE", "battle");
@@ -185,7 +203,7 @@ try {
     const zBattleToUnison = stage(state, "p1", "Z551_ZBATTLE", "battle");
     const battleToUnison = moveCard(state, dbs, zBattleToUnison, "unison", { owner: "p1" });
     assert.ok(battleToUnison.ok);
-    assert.equal(battleToUnison.move.to, "removed", "16-1-4 removes a Z-Battle that leaves Battle even for another listed area");
+    assert.equal(battleToUnison.move.to, "removed", "14-1-4/16-1-4 remove a Z-Battle that leaves Battle even for another listed area");
 
     const zInCombo = stage(state, "p1", "Z551_ZBATTLE", "combo");
     const toEnergy = moveCard(state, dbs, zInCombo, "zEnergy", { owner: "p1" });
@@ -214,11 +232,51 @@ try {
     assert.ok(leaderToCombo.ok);
     assert.equal(leaderToCombo.move.to, "removed", "a Z-card leaving Leader is removed by 14-1-4");
 
+    const zLeaderToUnison = stage(state, "p1", "Z551_ZLEADER", "hand");
+    const leaderToUnison = moveCard(state, dbs, zLeaderToUnison, "leader", { owner: "p1" });
+    assert.ok(leaderToUnison.ok);
+    const leaderToOtherListedArea = moveCard(state, dbs, zLeaderToUnison, "unison", { owner: "p1" });
+    assert.ok(leaderToOtherListedArea.ok);
+    assert.equal(leaderToOtherListedArea.move.to, "removed", "leaving Leader removes the Z-Card even when its destination is Unison");
+
+    const zLeaderStays = stage(state, "p1", "Z551_ZLEADER", "hand");
+    assert.ok(moveCard(state, dbs, zLeaderStays, "leader", { owner: "p1" }).ok);
+    const sameLeaderArea = moveCard(state, dbs, zLeaderStays, "leader", { owner: "p1" });
+    assert.ok(sameLeaderArea.ok);
+    assert.equal(sameLeaderArea.move.to, "leader", "moving within the same player's Leader Area is not leaving it");
+
     const zUnison = stage(state, "p1", "Z551_ZUNISON", "hand");
     assert.ok(moveCard(state, dbs, zUnison, "unison", { owner: "p1" }).ok);
     const unisonToDrop = moveCard(state, dbs, zUnison, "drop", { owner: "p1" });
     assert.ok(unisonToDrop.ok);
     assert.equal(unisonToDrop.move.to, "removed", "a Z-card leaving Unison is removed by 14-1-4");
+
+    const zUnisonToLeader = stage(state, "p1", "Z551_ZUNISON", "hand");
+    assert.ok(moveCard(state, dbs, zUnisonToLeader, "unison", { owner: "p1" }).ok);
+    const unisonToLeader = moveCard(state, dbs, zUnisonToLeader, "leader", { owner: "p1" });
+    assert.ok(unisonToLeader.ok);
+    assert.equal(unisonToLeader.move.to, "removed", "leaving Unison removes the Z-Card even when its destination is Leader");
+
+    const zBattleTransfer = stage(state, "p1", "Z551_ZBATTLE", "battle");
+    const transfer = moveCard(state, dbs, zBattleTransfer, "battle", { owner: "p2" });
+    assert.ok(transfer.ok);
+    assert.equal(transfer.move.to, "removed", "16-1-4 removes a Z-Battle transferred out of its controller's Battle Area to the other player's Battle Area");
+
+    // Match the persisted shape produced by the existing 22-46 [Z-Awaken]
+    // stack path: top Z-Leader with the old Leader directly underneath it.
+    // 15-1-5 removes only that top Z-Leader when it leaves Leader.
+    state = mainPhase(559);
+    const baseLeader = state.sides.p1.zones.leader[0];
+    assert.ok(baseLeader);
+    const stackedZLeader = stage(state, "p1", "Z551_ZLEADER", "hand");
+    state.sides.p1.zones.hand = state.sides.p1.zones.hand.filter((id) => id !== stackedZLeader);
+    state.sides.p1.zones.leader[0] = stackedZLeader;
+    state.cards[stackedZLeader].under = [baseLeader];
+    const stackedDeparture = moveCard(state, dbs, stackedZLeader, "unison", { owner: "p1" });
+    assert.ok(stackedDeparture.ok);
+    assert.equal(stackedDeparture.move.to, "removed");
+    assert.deepEqual(state.sides.p1.zones.leader, [baseLeader], "15-1-5 leaves the underlying Leader in its original Leader Area");
+    assert.deepEqual(state.cards[stackedZLeader].under, [], "the removed Z-Leader no longer carries the retained Leader");
   }
 
   // Non-Battle cards in Combo are ineligible and go to Drop; the Z-Energy
