@@ -22,9 +22,9 @@ import { koCard, pendPlacedOnArrival, pendTriggers } from "./triggers";
 import { nextRandom, shuffle } from "../vm/rng";
 import { describeScript } from "../vm/script-schema";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
-import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
+import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, copiedSkillsOn, locate, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
 import { IllegalAction } from "../vm/common";
-import type { ActionCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
+import type { AbilityAvailability, ActionCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
 import type {
   Action,
   Applied,
@@ -2184,6 +2184,92 @@ function mainActions(ctx: EngineContext, s: GameState, p: PlayerId): LegalAction
 export function rejectedActions(ctx: EngineContext, s: GameState, legal: LegalAction[] = legalActions(ctx, s)): RejectedAction[] {
   const deps: RejectionDeps = { whyNotCharge, whyNotPlayFromHand, whyNotAttack, whyNotCombo, whyNotCounter, whyNotActivate, overRealmWarpLines, modeWhy, cardOf };
   return gatherRejectedActions(ctx, s, legal, deps);
+}
+
+/**
+ * The legacy engine's read-only answer for each visible manual skill on one
+ * player's cards. It uses the same `whyNotActivate` twin as `rejectedActions`
+ * and exact legal offers; absence from either list is never treated as a
+ * refusal. The current prompt actor is explicit; private affordability is not
+ * evaluated for another player's decision.
+ */
+export function abilityAvailability(
+  ctx: EngineContext,
+  s: GameState,
+  player: PlayerId,
+  legal: LegalAction[],
+  rejected: RejectedAction[],
+): AbilityAvailability[] {
+  const prompt = s.prompt;
+  const actor = "player" in prompt ? prompt.player : null;
+  const timing = prompt.kind === "main" ? "main" : prompt.kind === "combo" ? "battle" : null;
+  const canEvaluate = actor === player;
+  const visible = Object.keys(s.cards).filter((id) => {
+    const at = locate(s, id);
+    const card = s.cards[id];
+    return at?.owner === player && at.area !== "deck" && (at.area !== "life" || card.faceUp) && !card.hidden;
+  });
+  const rows: AbilityAvailability[] = [];
+  for (const card of visible) {
+    const inst = s.cards[card];
+    const definition = def(ctx, s, card);
+    const own = skillsOf(definition, inst.flipped && definition.back ? "back" : "front");
+    const skills = [...own, ...copiedSkillsOn(ctx, s, card).map((copy) => copy.skill)];
+    for (const skill of skills) {
+      if (!canEvaluate) {
+        const manual = skill.kind.startsWith("activate:") || ["Awaken", "Wish", "Evolve", "Union", "Over Realm", "Swap", "Arrival", "Successor", "Aegis", "Rejuvenate", "Overlord", "Field", "Z-Awaken"].includes(skill.keyword?.name ?? "");
+        if (manual) rows.push({ card, skill: skill.index, state: "notEvaluated", notEvaluatedReason: "notDecisionActor" });
+        continue;
+      }
+      const diagnosticTiming = timing ?? "main";
+      const why = whyNotActivate(ctx, s, player, card, skill, diagnosticTiming);
+      if (why === null) continue;
+      const offers = legal.filter((item) => item.action.type === "activate" && item.action.card === card && item.action.skill === skill.index);
+      if (offers.length) {
+        rows.push({ card, skill: skill.index, state: "offered", offers });
+        continue;
+      }
+      const refusal = rejected.find((item) => item.action.type === "activate" && item.action.card === card && item.action.skill === skill.index);
+      if (refusal) {
+        rows.push({ card, skill: skill.index, state: "refused", why: refusal.why });
+        continue;
+      }
+      if (timing === null && !why.some((item) => item.kind === "timing")) why.unshift({ kind: "timing", window: "main" });
+      if (why.length) rows.push({ card, skill: skill.index, state: "refused", why });
+      else rows.push({ card, skill: skill.index, state: "notEvaluated", notEvaluatedReason: "unsupported" });
+    }
+  }
+  // A counter is a manual skill used from hand, but its native window is not
+  // an activate action. Attribute the exact line carried by the counter menu
+  // (or by the counter's same whyNot twin) instead of treating the card-level
+  // action as evidence for every Counter line on that card.
+  if (prompt.kind === "counter") {
+    for (const card of visible) {
+      if (locate(s, card)?.area !== "hand") continue;
+      const counters = skillsOf(def(ctx, s, card)).filter((skill) => skill.kind.startsWith("counter:"));
+      if (!counters.length) continue;
+      if (!canEvaluate) {
+        for (const skill of counters) rows.push({ card, skill: skill.index, state: "notEvaluated", notEvaluatedReason: "notDecisionActor" });
+        continue;
+      }
+      const fits = counters.filter((skill) =>
+        (prompt.window === "play" && skill.kind === "counter:play") ||
+        (prompt.window === "attack" && (skill.kind === "counter:attack" || (skill.kind === "counter:battle card attack" && s.battle && baseType(def(ctx, s, s.battle.attacker)) === "BATTLE"))) ||
+        (prompt.window === "counter" && skill.kind === "counter:counter"),
+      );
+      const selected = fits[0] ?? counters[0];
+      const matchingOffers = legal.filter((item) => item.action.type === "counter" && item.action.player === player && item.action.card === card);
+      const refusal = rejected.find((item) => item.action.type === "counter" && item.action.player === player && item.action.card === card);
+      for (const skill of counters) {
+        const offers = matchingOffers.filter((item) => item.action.type === "counter" && item.action.skill === skill.index);
+        if (offers.length) rows.push({ card, skill: skill.index, state: "offered", offers });
+        else if (!fits.includes(skill)) rows.push({ card, skill: skill.index, state: "refused", why: [{ kind: "timing", window: skill.kind.slice("counter:".length) }] });
+        else if (refusal && selected.index === skill.index) rows.push({ card, skill: skill.index, state: "refused", why: refusal.why });
+        else rows.push({ card, skill: skill.index, state: "notEvaluated", notEvaluatedReason: "unidentifiedAction" });
+      }
+    }
+  }
+  return rows;
 }
 
 /**

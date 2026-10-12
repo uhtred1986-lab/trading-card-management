@@ -91,7 +91,27 @@
           "keywords": [],
           "text": "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.",
           "reading": "choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards",
-          "referee": false
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "auto",
+              "category": "automatic",
+              "text": "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it.",
+              "tags": [
+                "Auto"
+              ],
+              "zone": "hand",
+              "owner": "p2",
+              "controller": "p2",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              },
+              "pending": false
+            }
+          ]
         },
         {
           "id": "p2#37",
@@ -156,7 +176,27 @@
         ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
         "reading": "draw 1",
-        "referee": false
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "keyword",
+            "category": "manual",
+            "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+            "tags": [
+              "Awaken"
+            ],
+            "zone": "leader",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "notEvaluated",
+            "notEvaluatedReason": "notDecisionActor",
+            "costPreview": {
+              "state": "incomplete"
+            }
+          }
+        ]
       },
       "unison": null,
       "battle": [
@@ -211,6 +251,12 @@
       "hint": "Play cards, attack, or end the turn."
     },
     "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "main",
+    "phase": "main",
+    "battleStep": null
   },
   "legal": [],
   "taps": {

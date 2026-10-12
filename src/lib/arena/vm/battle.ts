@@ -66,7 +66,7 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
 import { IllegalAction } from "./common";
-import { type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
+import { type AbilityAvailability, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import { canCombo } from "../text/cards";
 import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../types";
 import { describeScript, markerReplacementPrompt, markerSubstituteFrame, replacementPrompt, routeOf, taxLabel, type Op, type ScriptFrame } from "./script";
@@ -487,6 +487,87 @@ function wantsLine(ctx: EngineContext, state: VmState, window: OpenWindow, sk: S
 }
 
 /**
+ * The exact counter line the native prompt would select for an action. Keep
+ * this in one place for the menu, resolver, refusal evidence, and snapshot:
+ * an ordinary paid counter uses the first matching printed line, while an
+ * explicit `skill` on an alternative-cost action selects that matching line.
+ */
+export function selectedCounterSkill(
+  ctx: EngineContext,
+  state: VmState,
+  card: string,
+  window: OpenWindow,
+  skillIndex?: number,
+): Skill | undefined {
+  const skills = skillsShowing(ctx, state, card).skills;
+  if (skillIndex !== undefined) {
+    const explicit = skills.find((skill) => skill.index === skillIndex && wantsLine(ctx, state, window, skill));
+    if (explicit) return explicit;
+  }
+  return skills.find((skill) => wantsLine(ctx, state, window, skill));
+}
+
+/** Counter lines have native offer/refusal evidence rather than DEFINE ACTION rows. */
+export function counterAbilityAvailability(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  player: PlayerId,
+  legal: LegalAction[],
+  rejected: RejectedAction[],
+): AbilityAvailability[] {
+  const prompt = state.prompt;
+  if (prompt.kind !== "counter") return [];
+  if (prompt.player !== player) {
+    return (state.sides[player].zones.hand ?? []).flatMap((card) => {
+      return skillsShowing(ctx, state, card).skills
+        .filter((skill) => skill.kind.startsWith("counter:"))
+        .map((skill) => ({ card, skill: skill.index, state: "notEvaluated" as const, notEvaluatedReason: "notDecisionActor" as const }));
+    });
+  }
+
+  const window: OpenWindow = prompt.window === "play" ? "play" : "attack";
+  const rows: AbilityAvailability[] = [];
+  const cards = new Set([...(state.sides[player].zones.hand ?? []), ...prompt.candidates]);
+  for (const card of cards) {
+    const counterSkills = skillsShowing(ctx, state, card).skills.filter((skill) => skill.kind.startsWith("counter:"));
+    if (!counterSkills.length) continue;
+    const selectedDefault = selectedCounterSkill(ctx, state, card, window);
+    const legalForCard = legal.filter((item) => item.action.type === "counter" && item.action.player === player && item.action.card === card);
+    const refusalForCard = rejected.find((item) => item.action.type === "counter" && item.action.player === player && item.action.card === card);
+    const why = refusalForCard?.why ?? counterWhy(ctx, game, state, player, card, prompt.window, prompt.candidates) ?? [];
+
+    for (const skill of counterSkills) {
+      const offers = legalForCard.filter((item) => {
+        const action = item.action;
+        if (action.type !== "counter") return false;
+        const selected = selectedCounterSkill(ctx, state, card, window, action.skill ?? selectedDefault?.index);
+        return selected?.index === skill.index;
+      });
+      if (offers.length) {
+        rows.push({ card, skill: skill.index, state: "offered", offers });
+        continue;
+      }
+
+      // The engine's card-level counter refusal follows its own first matching
+      // line. Attach it only to that selected line; a different same-window
+      // line with no explicit action identity remains unclassified.
+      const canAnswer = selectedCounterSkill(ctx, state, card, window, skill.index);
+      if (!canAnswer) {
+        rows.push({ card, skill: skill.index, state: "refused", why: [{ kind: "timing", window: skill.kind.slice("counter:".length) }] });
+      } else if (refusalForCard && (selectedDefault?.index === skill.index || legalForCard.some((item) => item.action.type === "counter" && item.action.skill === skill.index))) {
+        rows.push({ card, skill: skill.index, state: "refused", why: refusalForCard.why });
+      } else if (!prompt.candidates.includes(card) && why.length && selectedDefault?.index === skill.index) {
+        rows.push({ card, skill: skill.index, state: "refused", why });
+      } else {
+        rows.push({ card, skill: skill.index, state: "notEvaluated", notEvaluatedReason: "unidentifiedAction" });
+      }
+    }
+  }
+  return rows;
+}
+
+/**
  * 22-20: a card being played that is "not affected by [Counter: Play] skills"
  * empties the window outright — [Deflect]'s own `counterWindow` hook body
  * (`keywords.rules`), read the declarative way every query hook is
@@ -586,7 +667,7 @@ export function counterLegalActions(ctx: EngineContext, game: GameDefinition, st
   const window: OpenWindow = pr.window === "play" ? "play" : "attack";
   const out: LegalAction[] = [];
   for (const card of pr.candidates) {
-    const sk = skillsShowing(ctx, state, card).skills.find((s) => wantsLine(ctx, state, window, s));
+    const sk = selectedCounterSkill(ctx, state, card, window);
     const paid = sk ? planCost(ctx, game, state, pr.player, priceFor(ctx, game, state, game.actions.play!, card, counterPrice(ctx, game, state, card, sk)), card).ok : false;
     if (paid) out.push({ action: { type: "counter", player: pr.player, card }, label: `Counter with ${nameOf(ctx, state, card)}` });
     const alt = counterAlt(ctx, game, state, card, pr.player);
@@ -736,7 +817,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const card = action.card;
   const window: OpenWindow = pr.window === "play" ? "play" : "attack";
   const showing = skillsShowing(ctx, state, card);
-  const sk = showing.skills.find((s) => s.index === action.skill && wantsLine(ctx, state, window, s)) ?? showing.skills.find((s) => wantsLine(ctx, state, window, s));
+  const sk = selectedCounterSkill(ctx, state, card, window, action.skill);
   if (!sk) throw new IllegalAction("no counter skill on that card");
   // 5-3: the printed alternative is paid *instead of* the card's energy cost
   // and the line's orbs — the legacy `payAltCost` on `action.alt` (#439).

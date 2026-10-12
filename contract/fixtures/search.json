@@ -39,7 +39,36 @@
         ],
         "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
         "reading": "draw 1",
-        "referee": false
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "keyword",
+            "category": "manual",
+            "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+            "tags": [
+              "Awaken"
+            ],
+            "zone": "leader",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "refused",
+            "why": [
+              {
+                "kind": "timing",
+                "window": "main"
+              },
+              {
+                "kind": "condition",
+                "text": "When your life is at 4 or less"
+              }
+            ],
+            "costPreview": {
+              "state": "incomplete"
+            }
+          }
+        ]
       },
       "unison": null,
       "battle": [
@@ -64,7 +93,27 @@
           "keywords": [],
           "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
           "reading": "choose up to 1 <v1> card in your deck, move the chosen cards to hand, shuffle",
-          "referee": false
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "auto",
+              "category": "automatic",
+              "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
+              "tags": [
+                "Auto"
+              ],
+              "zone": "battle",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              },
+              "pending": false
+            }
+          ]
         }
       ],
       "combo": [],
@@ -1091,6 +1140,12 @@
       }
     },
     "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "chooseCards",
+    "phase": "main",
+    "battleStep": null
   },
   "legal": [
     {

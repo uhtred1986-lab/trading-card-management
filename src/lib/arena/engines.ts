@@ -25,8 +25,8 @@
  * Pure: no database (the default-engine setting is `engine-setting.ts`), so
  * `snapshot.ts` and the tests can use it.
  */
-import { apply, createGame, legalActions, rejectedActions } from "./engine";
-import { type Action, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction } from "./types";
+import { abilityAvailability as legacyAbilityAvailability, apply, createGame, legalActions, rejectedActions } from "./engine";
+import { type AbilityAvailability, type Action, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction } from "./types";
 import { toBeats, type Beats } from "./beats";
 import { boardView, type BoardView, type CardArt } from "./view";
 import { RULES } from "./vm";
@@ -144,8 +144,10 @@ export interface Engine {
   apply(ctx: EngineContext, state: EngineState, action: Action): { state: EngineState; events: GameEvent[] };
   legalActions(ctx: EngineContext, state: EngineState): LegalAction[];
   rejectedActions(ctx: EngineContext, state: EngineState, legal: LegalAction[]): RejectedAction[];
+  /** Current-window manual-skill offers and refusals, read without advancing the state. */
+  abilityAvailability(ctx: EngineContext, state: EngineState, player: PlayerId, legal: LegalAction[], rejected: RejectedAction[]): AbilityAvailability[];
   /** One side's view of the board, with what that viewer may not see hidden (3-1-3). */
-  boardView(ctx: EngineContext, state: EngineState, viewer: PlayerId, images: Record<string, CardArt>): BoardView;
+  boardView(ctx: EngineContext, state: EngineState, viewer: PlayerId, images: Record<string, CardArt>, availability?: AbilityAvailability[]): BoardView;
   /** One batch of events as the board plays them back, numbered from `after`. */
   toBeats(ctx: EngineContext, state: EngineState, events: GameEvent[], after?: number): Beats;
 }
@@ -157,7 +159,16 @@ export interface Engine {
  * which is what makes `arena:diff` and the contract fixtures the proof that
  * this commit moved no behaviour.
  */
-const LEGACY: Engine = { id: "legacy", createGame, apply, legalActions, rejectedActions, boardView, toBeats };
+const LEGACY: Engine = {
+  id: "legacy",
+  createGame,
+  apply,
+  legalActions,
+  rejectedActions,
+  abilityAvailability: (ctx, state, player, legal, rejected) => legacyAbilityAvailability(ctx, legacyState(state), player, legal, rejected),
+  boardView,
+  toBeats,
+};
 
 export class EngineNotBuilt extends Error {
   constructor(id: EngineId) {

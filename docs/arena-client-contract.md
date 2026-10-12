@@ -101,6 +101,8 @@ export interface Snapshot {
   };
   /** src/lib/arena/view.ts — unchanged, already carries per-card art. */
   view: BoardView;
+  /** The actor and current engine window, when the engine has a player prompt. */
+  decision?: { actor: "p1" | "p2" | null; window: string; phase: string; battleStep: string | null };
   /** src/lib/arena/engine — unchanged. The only moves that exist. */
   legal: LegalAction[];
   /** src/lib/arena/view.ts — legal indexed by the card each move names. */
@@ -214,6 +216,28 @@ export interface CardView {
   basePower?: number;            // the printed power, present only when `power` is not it
   effects?: EffectView[];        // every rule in force on this card now, its own [Permanent]'s included
   permanents?: PermanentView[];  // this card's own [Permanent] skills
+  abilities?: AbilityView[];     // per-line identity, type and engine availability evidence
+}
+
+export interface AbilityView {
+  skillIndex: number;            // stable with this card instance id, including copied-skill identity
+  kind: string;
+  category: "manual" | "automatic" | "passive" | "counter" | "keyword";
+  text: string;
+  tags: string[];
+  zone: string;
+  owner: "p1" | "p2";
+  controller: "p1" | "p2";
+  origin: "printed" | "copied";
+  timing?: string;
+  limit?: { max: number; used: number; remaining: number };
+  availability: "offered" | "refused" | "notEvaluated";
+  notEvaluatedReason?: "notDecisionActor" | "unsupported" | "unidentifiedAction";
+  why?: Requirement[];
+  costPreview: { state: "known"; offers: { label: string; cost: { energy: number; orbs?: Partial<Record<Color, number>>; markers?: number; describe: string } }[] }
+    | { state: "incomplete" | "notApplicable" };
+  pending?: boolean;
+  permanentState?: "on" | "off" | "inert" | "unread";
 }
 
 export interface SideView {
@@ -391,6 +415,37 @@ game:
 No other field changed shape and the contract did not bump (§7). The arena list (`/arena`) marks
 the same rows with a badge, from a plain presence check on the stored column — it never builds a
 `Snapshot` for a list row.
+
+### 3.6 Ability and decision evidence (issue #558)
+
+`decision` names the prompt actor and current engine window. Each visible card may include
+`abilities`, a line-by-line description keyed by the card instance id and `skillIndex`; copied
+skills retain the engine-assigned index and are marked `origin: "copied"`. The row describes the
+printed category, timing, zone, controller, limit use, queued Auto state, and existing Permanent
+state. It does not make a second legality decision on the client.
+
+`availability` is current engine evidence for an offered or refused manual activation or counter. An
+`offered` row carries the exact legal choices in `costPreview`; `refused` carries the engine's
+`Requirement[]`, including timing, zone, limit, and resource gates. `notEvaluated` is explicit:
+`notDecisionActor` means the current prompt belongs to another player and no private affordability
+was queried; `unsupported` means the engine has no authoritative result for that line;
+`unidentifiedAction` means a card-level native counter action does not identify this matching line.
+Clients
+must not turn either case into “available” or a zero-cost offer. A cost is `known` only when the
+engine supplied the exact current offer; otherwise it is `incomplete` (or `notApplicable` for
+categories with no activation price). Auto, passive, and keyword rows keep their category and any
+pending or Permanent evidence, but do not imply a manual offer. Counter rows may carry the exact
+native counter-window action, attributed to the selected Counter line; they do not imply an
+activation action.
+
+The native counter menu currently selects the first matching printed line for its unqualified
+card-level action. The snapshot reports that action only on the selected line. Other same-window
+lines are `notEvaluated/unidentifiedAction` unless an actual action explicitly names their
+`skillIndex`; this projection does not add menu choices or change counter rules.
+
+These fields are optional additions to `Snapshot` and `CardView`; old archived JSON without them
+still decodes. The contract version remains unchanged. Hidden opponent hands, face-down life, and
+other closed zones do not gain ability text, identity, or cost details through this projection.
 
 ## 4. `Beats` — the animation stream
 
