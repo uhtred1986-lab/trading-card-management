@@ -291,6 +291,7 @@ const MODIFY_ATTR_FIELDS: OpField[] = [
   { name: "sign", type: { enum: ["add", "remove"] }, default: "add" },
   { name: "keyword", type: "keyword" },
   { name: "flag", type: "boolean" },
+  { name: "allAreas", type: "boolean" },
   { name: "until", type: "duration" },
 ];
 const SELF: OpField = { name: "target", type: "ref", default: { sel: { special: "self" } } };
@@ -614,6 +615,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "colors", type: { list: { enum: COLORS } } },
       { name: "names", type: { list: "string" } },
       SELF,
+      { name: "allAreas", type: "boolean" },
     ],
     // A literal brace cannot appear in a template — `renderTemplate` reads it
     // as a field — so a gained card name is written out in words instead.

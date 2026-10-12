@@ -1742,10 +1742,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "801182ea"
+      "digest": "a33a7038"
     },
-    "same": false,
-    "cause": "keyword-negation-static"
+    "same": true
   },
   "SELFMUTET#0": {
     "legacy": {
