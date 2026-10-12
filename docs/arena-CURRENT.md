@@ -26,23 +26,34 @@ Older handovers explain architecture/history; their dated queues do not override
 
 ## Current milestones and priorities
 
-- **P0 Match integrity and recovery:** tracker #576; #543, #544, #545, #546, #547.
+- **Completed P0 Match integrity and recovery:** tracker #576; #543, #544, #545, #546, #547.
 - **P0/P1 Rule engine correctness:** tracker #577; #548, #549, #550, #551, #552, #553, #554, #555, #556, #557, #540, #541, #542.
-- **P1 Playable board and fullscreen cards:** tracker #578; #558, #559, #560, #561, #562, #563, #564.
+- **Completed P1 Playable board and fullscreen cards:** tracker #578; #558, #559, #560, #561, #562, #563, #564.
 - **P1/P2 Measured speed and gameplan:** tracker #579; #565, #566, #567, #568, #569, #570.
 - **P1 Outstanding card readings:** tracker #539; #571, #572, #573, #574.
 - **P2/P3 Independent coverage and retirement:** tracker #168; #575, #459, #118.
 - **P2/P3 Android after web contract:** tracker #580; #105, #106.
 - **P2 AI efficiency and live verification:** tracker #511; #381, #518.
 
-The integrity and UI trackers have completed their scoped acceptance; their GitHub milestone objects still await external closure. All #543–#547 and #558–#564 children are merged. Effective-colour payment #626 and Revive
-ordering #624 are merged in PRs #629/#630 and deployed successfully. Phone PR #631 is merged
-and deployed successfully. Granted Heroic identity #602 is merged in PR #638
-and deployed successfully. Desktop consolidation #564 is merged in PR #666 and deployed. The UI milestone implementation
-is complete; the tracker close-out records its combined evidence. #549 and #595 remain partial,
-and #550 remains blocked on #549's acceptance. Use the canonical issue records and milestone
-checklists for delivered state and exact dependencies.
-#575 inventory and #459 fixed expectations must precede legacy retirement; #105/#106 wait on web contracts.
+Integrity #576 and UI #578 are closed against their completed implementation children.
+Actual GitHub milestone closure remains pending API access: M16 (object 15) has no open
+issues; M17 (object 16) contains the open cross-milestone umbrella #581, which must remain
+open and should be moved out before M17 is treated as clear. The token exists, but this
+execution environment blocks api.github.com; connector issue access is not milestone mutation.
+
+The latest close-out wave merged #669 integrity bookkeeping, #670 hand-origin battle-end
+Autos (#572), #671 pending-Auto selection (partial #549), #673 grouped readings,
+#674 bounded gameplan preview (#570), and #675 current-DSL combo-entry timing (#672/#573).
+#573 is complete and #574 is unblocked. Current implementation work is P0 #549 secret-Auto
+declaration, P1 #574 exact durations/Desire and P2 #569 synchronous snapshot-derived reads.
+#549 and #595 remain partial; #550 waits on complete #549 acceptance. #609's later cleanup
+checkpoint issue remains open and distinct from the completed combo-entry correction.
+
+Remaining original implementation queue (18): M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
+M2 #566/#569; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
+Owner ruling/catalog/fuzz/device/paid verification gates remain explicit. Legacy retirement
+requires #459 and its other prerequisites. Offline work is a separate programme and is not
+being implemented by this wave. The original dirty artwork prototype is preserved.
 
 ## Reconciliation and evidence
 
@@ -55,8 +66,8 @@ declaration checks passed. ops.rules documents native mill as its binding except
 language/declaration results, not runtime proof.
 
 The DB-free, source-checked [capability inventory](arena-capability-inventory.md) is #575's current
-runtime evidence. Main records 26 narrow capability rows, four named rules-engine gaps with stable IDs
-and live owners, and 27 VM source sites. Granted Heroic now carries individual timed/Permanent
+runtime evidence. Main records 29 narrow capability rows, four named rules-engine gaps with stable IDs
+and live owners, and 29 VM source sites. Granted Heroic now carries individual timed/Permanent
 identities; an older hook without identity still fails closed before drawing rather than being migrated. It records merged #548 zero-power processing, #551 combo-to-Z-Energy, #553 static layers,
 #554 printed Heroic, #555 Aegis, #556 face-up Life events, and #601 fixed AI expectations from current
 runtime evidence. It keeps the native `mill` macro exception and #459 oracle migration gate separate

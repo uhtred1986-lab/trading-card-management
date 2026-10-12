@@ -127,10 +127,42 @@ PR #638 completes granted Heroic #602 and deployed at `86b76c4` (Vercel `45Tdh3F
 
 PR #666 completes desktop #564 and deployed at `0105aa9` (Vercel `GSLv1Boofhuu5ZArXs2bdhMPsyZH`). It removes the permanent Match column, widens the field/hand and keeps one decision panel above pinned inspection. Actual-artwork before/after and interaction evidence covers both skins, main/Counter/target, pinned Senzu abilities, short phones, keyboard and 200% text. The review fixed a clipped Pass button by bounding detail scrolling; captured actions are applied independently to EngineAPI. UI source `8f657b5` and combined source `1e9298e` pass their recorded gates. Combined tests are 47/47 legacy and 46/47 rules-only with the VM oracle excluded; root contract emission passes 47/47 on both engines with no tracked fixture changes. Typecheck/lint/build and generated checks pass (26 narrow capability entries, four named runtime gaps, 27 source guards); lint retains five prototype warnings. The UI tracker #578 now closes against the seven completed implementation children; #576 has completed its final combined acceptance review; its canonical tracker records the evidence and external verification limits.
 
-Current original implementation queue: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542; M2 #566/#569/#570; M1 #572/#573/#574; M13 #459/#118; M4 #105/#106; provider/model follow-ups #381/#518. #609 was closed on GitHub despite its audit and source explicitly retaining the runtime checkpoint limitation; it was reopened to match unfinished acceptance. #550 remains blocked on partial #549, and legacy retirement remains gated. Physical-device, hosted timing, live-deck/fuzz and paid-provider verification remain unclaimed.
+Before the latest close-out wave, the original implementation queue was: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542; M2 #566/#569/#570; M1 #572/#573/#574; M13 #459/#118; M4 #105/#106; provider/model follow-ups #381/#518. #609 was closed on GitHub despite its audit and source explicitly retaining the runtime checkpoint limitation; it was reopened to match unfinished acceptance. #550 remains blocked on partial #549, and legacy retirement remains gated. Physical-device, hosted timing, live-deck/fuzz and paid-provider verification remain unclaimed.
 
 A separate offline programme has five trackers #633–#637 and 27 child issues #639–#665, with canonical documentation proposed in draft PR #667. O1–O5 GitHub milestone creation/assignment remains pending; tracker creation is not provisioning or implementation. Independently actionable foundations are #639 tooling guidance, #640 portable replay and #649 curated-deck audit. Transport separation #648 now has merged #564; its pending offline-plan readiness should be refreshed before assignment. No offline implementation is claimed by this batch.
 
 ### Existing milestone close-out — 12 Oct 2026
 
 The owner requested completion of existing milestones with offline work kept separate. Integrity tracker #576 and UI tracker #578 have completed their scoped acceptance; GitHub milestone objects still require closure through an API with milestone permissions. Docs-only production deployments are deliberately skipped by `scripts/vercel-ignore-build.mjs`: the e1296b5 cancellation was expected, not a failed application build. The last successful application deployment remains #666. Existing #572 is ready after merged #571 and is assigned alongside a bounded #549 continuation on disjoint compiler/engine files. No offline implementation is assigned by this wave.
+
+### Latest merged wave and next existing work
+
+PR #669 closes integrity tracker #576. PR #670 closes #572 with captured hand-origin
+battle-end binding; #671 delivers actual priority-owner pending-Auto selection while #549
+stays partial. PR #673 supplies bounded named-host fill-under and grouped reading proofs.
+PR #674 closes #570 with an optional fixed-price Main/self-rest plan, real artwork and
+phone/desktop evidence, immutable saved-state tests, and preview failure/retry handling.
+PR #675 closes #672 and completes #573's current-DSL BT3-043 timing: ordinary self-combo
+Autos resolve before combat, while explicit end-of-battle Autos stay late. Legacy runtime
+and archived older DSL retain their historical timing; the golden oracle was not rewritten.
+
+The combined runtime at main `2d1d8f8` passed typecheck, lint (five prior warnings), full
+local tests and production build: legacy Arena 51/51, rules-only 50/51 with the retained
+VM oracle exclusion. Inventory: 29 narrow scenarios, four named runtime gaps, 29 VM sites.
+The owner confirmed `4a107d2`, `3eebd7`, `5c1f122` and `3e3785a` Ready in Vercel.
+Production status of the latest `2d1d8f8` has not yet been verified; deployment gates remain sequential.
+
+Eighteen original implementation issues remain: M5 #549/#550/#552/#557/#595/#609/#540/#541/#542;
+M2 #566/#569; M1 #574; M13 #459/#118; M4 #105/#106; providers #381/#518.
+Current disjoint assignments are #549's bounded secret-Auto declaration continuation,
+#574's exact duration/Desire/shuffle work, and #569's measured synchronous snapshot read
+session. Shared flow, types and generated metadata have explicit single-writer windows.
+#381's cheaper tiers are already implemented; its outstanding proof is the owner-run
+20-photo paid/catalog comparison. #518 retains its separate production connection proof.
+
+M16's tracker and all seven children are closed and it has zero open issues. M17's scoped
+integrity tracker and children are closed, but umbrella #581 remains open across milestones.
+Actual milestone objects 15/16 are not claimed closed: api.github.com is blocked by this
+environment despite a token being present, and the connector has no milestone mutation.
+Move the umbrella out of M17 before clean closure when API access is restored. Offline
+trackers and implementation are separate; no offline work is assigned here.
