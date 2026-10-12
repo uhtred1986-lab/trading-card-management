@@ -299,7 +299,6 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
       assert.equal(zoneOf(declined, "p1", "energy").filter((id) => declined.cards[id].mode === "rest").length, 1);
     }
   } else {
-    if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
     let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
     const c = findG(s, "p1", "hand", "AUTOCOST");
     const before = zoneOf(s, "p1", "hand").length;
@@ -318,7 +317,6 @@ import { isVmState, legacyState } from "../../src/lib/arena/engines";
     assert.equal(zoneOf(t, "p1", "hand").length, handBefore - 1 + 2, "paid, so two cards were drawn");
     assert.equal(zoneOf(t, "p1", "energy").filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
     assertConsistentG(t);
-    }
   }
 }
 
