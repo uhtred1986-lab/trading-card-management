@@ -10,7 +10,8 @@ import { boardView } from "../../src/lib/arena/view";
 import { AVAILABLE_ENGINES, EngineMismatch, engineFor, isVmState, legacyState, playableEngine, type Engine } from "../../src/lib/arena/engines";
 import type { Action, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm";
-import { CTX, fifty } from "./harness";
+import { CTX, cardNow, fifty, matches } from "./harness";
+import { emptyFilter } from "../../src/lib/arena/text/filters";
 import { RULES_ONLY } from "./rules-only";
 
 const CALLS: (keyof Engine & string)[] = ["createGame", "apply", "legalActions", "rejectedActions", "boardView", "toBeats"];
@@ -68,4 +69,39 @@ export function verifyLegacyVmCompatibility(rulesState: VmState): void {
   const legal = legalActions(CTX, board);
   const first = rejectedActions(CTX, board, legal).find((x) => x.action.type === "play" && x.action.card === card)?.why[0];
   assert.deepEqual(first, { kind: "energy", need: 1, have: 0 }, "legacy no longer answers the price before the permanent ban");
+
+  // §26: legacy cardNow/matches face semantics, including its Hidden Mode
+  // placeholder. These public legacy shape details belong to #118; vm.ts
+  // separately fixes the rules engine's printed/front/back/hidden attributes.
+  {
+    // The same board on the legacy engine, held to the same claims —
+    // `cardNow`, which every `matches` call reads a card through, was still
+    // returning the raw catalog row's `name`/`skill` regardless of the face
+    // showing until this issue.
+    const faceDecks = { seed: 7, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
+    let l = createGame(CTX, faceDecks).state;
+    l = apply(CTX, l, { type: "chooseFirst", player: (l.prompt as { player: PlayerId }).player, first: "p1" }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p1", redraw: false }).state;
+    l = apply(CTX, l, { type: "mulligan", player: "p2", redraw: false }).state;
+    const legacyLeader = l.players.p1.leader;
+    const legacyFront = cardNow(CTX, l, legacyLeader);
+    assert.equal(legacyFront.name, "L-RED", "the legacy engine is not read at its front side's name (1-9)");
+    assert.deepEqual(legacyFront.colors, ["Red"], "the legacy engine's unflipped colours moved for no reason");
+
+    l.cards[legacyLeader].flipped = true;
+    const legacyBack = cardNow(CTX, l, legacyLeader);
+    assert.equal(legacyBack.name, "L-RED awakened", "1-9: the legacy engine (matches/cardNow) is not read at a flipped Leader's back side's name (issue #327)");
+    assert.equal(legacyBack.skill, null, "1-9: the legacy engine is not read at a flipped Leader's back side's skill");
+    assert.deepEqual(legacyBack.colors, ["Red"], "10-1-3: the legacy engine's colours have no back-side value of their own either");
+    assert.ok(matches(legacyBack, { ...emptyFilter(), names: ["L-RED awakened"] }), "matches does not find a flipped Leader by its awakened name");
+    assert.ok(!matches(legacyBack, { ...emptyFilter(), names: ["L-RED"] }), "matches still finds a flipped Leader by its front name, which 10-1-3 says is no longer relevant");
+
+    l.cards[legacyLeader].flipped = false;
+    l.cards[legacyLeader].hidden = true;
+    const legacyHidden = cardNow(CTX, l, legacyLeader);
+    assert.equal(legacyHidden.name, "Hidden card", "23-5-2: the legacy engine's Hidden Mode reading lost its own placeholder name");
+    assert.equal(legacyHidden.skill, null, "23-5-2: the legacy engine was read at a Hidden Mode card's printed skill");
+    assert.deepEqual(legacyHidden.colors, [], "23-5-2: the legacy engine was read at a Hidden Mode card's printed colours");
+    assert.deepEqual(legacyHidden.traits, [], "23-5-2: the legacy engine was read at a Hidden Mode card's printed traits");
+  }
 }
