@@ -2346,6 +2346,13 @@ input[type="number"] {
   -webkit-text-stroke: 2.5px #000;
   animation: arena-fx-slam var(--fx-title, 640ms) cubic-bezier(0.2, 1.8, 0.4, 1) both;
 }
+.arena-end-status-title {
+  max-width: 100%;
+  font-size: clamp(36px, 9vw, 66px);
+  line-height: 0.95;
+  text-align: center;
+  text-wrap: balance;
+}
 .arena-end-win .arena-end-title {
   color: var(--color-ki-300);
   text-shadow: 0 0 40px var(--color-ki-500);
@@ -2395,6 +2402,9 @@ input[type="number"] {
 @media (min-width: 1024px) {
   .arena-end-title {
     font-size: 120px;
+  }
+  .arena-end-status-title {
+    font-size: clamp(66px, 8vw, 120px);
   }
   .arena-end-rays {
     width: 1500px;

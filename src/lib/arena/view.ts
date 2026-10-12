@@ -406,11 +406,12 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
  * The rules engine's reading is `vmRevealedTo` (`vm/view.ts`): the same rule,
  * read off its zone declarations' `visibility` (#458).
  */
-export function revealedTo(s: EngineState, viewer: PlayerId): Set<string> {
+export function revealedTo(s: EngineState, viewer: PlayerId, pinnedDefinition?: import("./rulesets/types").GameDefinition): Set<string> {
   if (isVmState(s)) {
-    const loaded = rulesetFor(s.game);
-    if (!loaded.ok) throw new Error(`the ${s.game} ruleset did not load, so no board can say what is hidden: ${loaded.errors[0]?.message ?? "no reason given"}`);
-    return vmRevealedTo(loaded.definition, s, viewer);
+    const loaded = pinnedDefinition ? null : rulesetFor(s.game);
+    const definition = pinnedDefinition ?? (loaded?.ok ? loaded.definition : null);
+    if (!definition) throw new Error(`the ${s.game} ruleset did not load, so no board can say what is hidden: ${loaded && !loaded.ok ? loaded.errors[0]?.message ?? "no reason given" : "no pinned definition"}`);
+    return vmRevealedTo(definition, s, viewer);
   }
   const out = new Set<string>();
   const add = (id: string | null | undefined) => {

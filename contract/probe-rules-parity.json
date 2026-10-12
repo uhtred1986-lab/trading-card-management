@@ -148,8 +148,8 @@
       "digest": "d724c4b4"
     },
     "rules": {
-      "outcome": "fired",
-      "digest": "6baf95d8"
+      "outcome": "didNotFire",
+      "digest": "57c9efc8"
     },
     "same": false,
     "cause": "auto-price"
@@ -1255,7 +1255,7 @@
     },
     "rules": {
       "outcome": "blank",
-      "digest": "2431749e"
+      "digest": "a48c1ccc"
     },
     "same": false,
     "cause": "legacy-habits"
@@ -1742,10 +1742,9 @@
     },
     "rules": {
       "outcome": "inForce",
-      "digest": "801182ea"
+      "digest": "a33a7038"
     },
-    "same": false,
-    "cause": "keyword-negation-static"
+    "same": true
   },
   "SELFMUTET#0": {
     "legacy": {
@@ -1765,10 +1764,9 @@
     },
     "rules": {
       "outcome": "fired",
-      "digest": "2c148eaf"
+      "digest": "ce6ec83f"
     },
-    "same": false,
-    "cause": "rule-processing"
+    "same": true
   },
   "SILENCER#0": {
     "legacy": {
