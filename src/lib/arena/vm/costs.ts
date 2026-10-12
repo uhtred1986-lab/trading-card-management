@@ -80,7 +80,6 @@ import type { Color, PlayerId, Requirement, Skill } from "../types";
 import type { Op, Selector } from "./script";
 import type { CostAsks, CostConsumes } from "../lang";
 import type { ActionDef, CostDef, GameDefinition } from "../rulesets";
-import { attrsOf } from "./cards";
 import type { PayerGrant, VmAltCost } from "./effects";
 import { attrsNow, staticsNow } from "./program";
 import { NotYet, RulesetBroken } from "./errors";
@@ -1312,7 +1311,7 @@ function leaderColors(ctx: EngineContext, game: GameDefinition, state: VmState, 
 }
 
 /**
- * A card's colours, by declared attribute (2-2).
+ * A payer's effective colours, by declared attribute (1-2-3, 2-2, 5-3).
  *
  * Exported so `vm/activate.ts`'s own `payWith` reading can settle a payer's
  * colours the same way this module does everywhere else it names one — the
@@ -1325,7 +1324,12 @@ export function cardColors(ctx: EngineContext, game: GameDefinition, state: VmSt
   // 23-5-2: energy in Hidden Mode has no colour, so it pays only the part of
   // a cost that asks for none (BT28-136 puts an opponent's cards there).
   if (!def || inst.hidden) return [];
-  const colors = attrsOf(def, game).attrs.colors;
+  // Read the same live identity layers as selectors and the public board.
+  // attrsNow owns the static-reading recursion guard and per-question cache;
+  // keeping this reader uncached lets source departure and expiry revoke a
+  // grant before the next payment. Explicit original-colour keyword costs
+  // use originalColors separately and never pass through this energy reader.
+  const colors = attrsNow(ctx, game, state, id).colors;
   return Array.isArray(colors) ? ([...colors] as Color[]) : [];
 }
 

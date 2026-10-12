@@ -176,7 +176,7 @@ for(const target of ['U05_UNISON','U05_INDESTRUCT'] as const){
  for(const viewer of ['p1','p2'] as const){const snapshot=snapshot562(state,1,viewer);for(const side of [snapshot.view.you,snapshot.view.them])assert(side.energyColors!.every(row=>side.energy.some(card=>card.id===row.card)),'rows name only public energy cards');}
 }
 
-// Existing planner limitation: granted Blue is effective but does not pay a Blue orb.
+// A public effective Blue grant pays the same Blue orb the board projects.
 {
  const {state,card,energy}=battleFixture();const loaded=rulesetFor('dbs');assert(loaded.ok);
  state.cards[energy].cardId='U05_RED_ENERGY';
@@ -185,9 +185,9 @@ for(const target of ['U05_UNISON','U05_INDESTRUCT'] as const){
  assert(!engine562.legalActions(fixtureContext(),state).some(row=>row.action.type==='activate'&&row.action.card===card),'printed Red alone cannot pay Blue cost');
  addEffect(state,[],{kind:'gains',target:energy,value:{names:[],characters:[],traits:[],colors:['Blue']},source,master:'p1',until:'turn'});
  const before=snapshot562(state);assert.match(energySummary(before.view.you,[],'effective'),/Blue 1\/1/);
- assert(!before.legal.some(row=>row.action.type==='activate'&&row.action.card===card),'existing limitation: gained Blue does not pay the Blue orb');
- assert.deepEqual(before.view.you.energyColors!.find(row=>row.card===energy)!.paymentColors,['Red']);
- assert.match(energySummary(before.view.you),/Payment colours: Red 1\/1/);
+ assert(before.legal.some(row=>row.action.type==='activate'&&row.action.card===card),'gained Blue pays the Blue orb');
+ assert.deepEqual(before.view.you.energyColors!.find(row=>row.card===energy)!.paymentColors,['Red','Blue']);
+ assert.match(energySummary(before.view.you),/Blue 1\/1/);
  assert.match(energySummary(before.view.you,[],'effective'),/Blue 1\/1/);
  const hidden=structuredClone(state);hidden.cards[energy].hidden=true;
  const hiddenSnapshot=snapshot562(hidden);const publiclyBlue=hiddenSnapshot.view.you.energyColors!.find(row=>row.card===energy)!.paymentColors.includes('Blue');
