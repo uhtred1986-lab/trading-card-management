@@ -1068,6 +1068,16 @@ THEN
 
 ### 20-3. Original
 
+The rules VM provides an explicit original-colour payment measure (#597).
+`(originalColors = [Blue])` selects cards whose shown face prints Blue; a list
+means any named original colour. `covers(sel: IN you.hand, colors: [Red, Blue],
+original: true)` requires all named colours between the selected cards.
+Arrival, Aegis and Revive opt into this basis under §§22-29-3, 22-30-3 and
+22-34-3. The `originalColors` attribute carries only its printed layer, like
+`originalPower`; identity gains and their expiry do not alter it. Ordinary
+`colors` filters and `covers` without `original` keep effective colours.
+
+
 20-3-1: "Original" is what a card describes before any skill effect has applied — distinct from its
 current, possibly modified, state. `P-295` prints "an original power of 500", and three more cards
 (`BT23-106`, `BT22-085`, `BT22-088`) print "an originally skill-less Battle Card" — a card that

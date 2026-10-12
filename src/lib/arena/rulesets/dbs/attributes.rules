@@ -56,6 +56,14 @@ DEFINE ATTRIBUTE colors                                                   -- §2
   face: true
   text: "the card's colors: red, blue, green, yellow, black, white, or none of them (1-8, 2-2); the face-showing ruling of 20 Sep 2026 (issue #327) names this one, though the catalog has never recorded a Leader's back printing a different colour from its front"
 
+-- Explicit keyword payments use this shown-face value before identity layers.
+DEFINE ATTRIBUTE originalColors                                           -- §§22-29-3, 22-30-3, 22-34-3
+  of: card
+  value: colors
+  printed: false
+  layers: [printed]
+  text: "the colours printed on the face this card is showing, before any identity effect; Hidden Mode has no face information (23-5-2)"
+
 DEFINE ATTRIBUTE energyCost                                               -- §2-5
   of: card
   value: number

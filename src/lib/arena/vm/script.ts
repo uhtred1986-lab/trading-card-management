@@ -404,8 +404,10 @@ export type Cond =
    * 22-34-3)? [Arrival]'s Combo Area and [Revive]'s hand, the colours bound
    * off the printed keyword (`covers(sel: IN you.combo, colors: $colors)`). No
    * card's record says this; a `DEFINE KEYWORD` body's word (Stage 7, #155).
+   * `original: true` uses shown-face colours before identity effects; absent
+   * keeps effective colours. The three keyword payments opt in (#597).
    */
-  | { kind: "covers"; sel: Selector; colors: Color[] }
+  | { kind: "covers"; sel: Selector; colors: Color[]; original?: boolean }
   /**
    * Can some of the cards among `sel` be picked so that their `attr` values
    * add up to exactly `total` — at least one card, and `total` above 0

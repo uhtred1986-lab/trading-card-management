@@ -81,6 +81,7 @@ export type Measure = { reads: readonly string[]; also?: readonly string[]; inst
  */
 export const MEASURES: Record<keyof CardFilter, Measure> = {
   colors: { reads: ["colors"] },
+  originalColors: { reads: ["originalColors"] },
   notColors: { reads: ["colors"] },
   monoColor: { reads: ["colors"] },
   multiColor: { reads: ["colors"] },
@@ -223,6 +224,8 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   if (f.type && base !== f.type) return false;
   if (f.notType && base === f.notType) return false;
 
+  // Original colours are a separate, explicitly requested measure.
+  if (f.originalColors?.length && !f.originalColors.some((c) => list(attrs.originalColors).includes(c))) return false;
   const colors = list(attrs.colors);
   const colourOk = f.multiColor ? f.colors.every((c) => colors.includes(c)) : f.colors.some((c) => colors.includes(c));
   if (f.colors.length && !colourOk) return false;

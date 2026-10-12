@@ -96,7 +96,9 @@ function continueAegisPayment(game: GameDefinition, ops: Op[], after?: Op[]): Op
     throw new RulesetBroken(game.id, `Aegis no longer declares its payment as a choose followed by a covers check`);
   }
   const colors = [...new Set(payment.cond.colors)];
-  const declaredColors = first.sel.filter?.colors;
+  const original = payment.cond.original;
+  const colorField = original ? "originalColors" : "colors";
+  const declaredColors = first.sel.filter?.[colorField];
   if (!colors.length || !declaredColors || !colors.every((c) => declaredColors.includes(c)) || declaredColors.some((c) => !colors.includes(c))) {
     throw new RulesetBroken(game.id, `Aegis must choose cards for every colour declared by its covers check`);
   }
@@ -104,7 +106,7 @@ function continueAegisPayment(game: GameDefinition, ops: Op[], after?: Op[]): Op
   if (paymentMove?.op !== "moveTo" || !("var" in paymentMove.target) || paymentMove.target.var !== first.as) {
     throw new RulesetBroken(game.id, `Aegis must move its declared choice as the card payment`);
   }
-  const selectedCovers = (variable: string, color: Color): Cond => ({ kind: "covers", sel: { fromVar: variable }, colors: [color] });
+  const selectedCovers = (variable: string, color: Color): Cond => ({ kind: "covers", sel: { fromVar: variable }, colors: [color], ...(original ? { original: true } : {}) });
   // Every card in the skill cost is required once activation is accepted.
   // Keep the VM's normal behavior of silently taking a sole forced candidate;
   // a choice among multiple eligible cards remains a mandatory one-card pick.
@@ -113,7 +115,7 @@ function continueAegisPayment(game: GameDefinition, ops: Op[], after?: Op[]): Op
     if (!first.sel.filter) throw new RulesetBroken(game.id, `Aegis payment selector must carry its declared colour filter`);
     return {
       ...selectOne(first.sel),
-      filter: { ...first.sel.filter, colors: [color] },
+      filter: { ...first.sel.filter, [colorField]: [color] },
     };
   };
   const chooseFor = (color: Color, as: string): Op => ({
@@ -154,7 +156,7 @@ function continueAegisPayment(game: GameDefinition, ops: Op[], after?: Op[]): Op
     ...first,
     sel: {
       ...selectOne(first.sel),
-      filter: { ...first.sel.filter!, colors },
+      filter: { ...first.sel.filter!, [colorField]: colors },
     },
     as: firstAs,
   };
@@ -164,7 +166,7 @@ function continueAegisPayment(game: GameDefinition, ops: Op[], after?: Op[]): Op
     then: [
       {
         op: "if",
-        cond: { kind: "covers", sel: { fromVar: firstAs }, colors },
+        cond: { kind: "covers", sel: { fromVar: firstAs }, colors, ...(original ? { original: true } : {}) },
         then: collectCards([firstAs]),
         else: completeColors(0, [firstAs]),
       },

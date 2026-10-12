@@ -1276,12 +1276,13 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [
       { name: "sel", type: "selector", required: true },
       { name: "colors", type: { list: { enum: COLORS } }, required: true },
+      { name: "original", type: "boolean" },
     ],
     sentence: (raw) => {
       const c = raw as CondOf<"covers">;
-      return `${describeSelector(c.sel, "")} carry ${c.colors.join(" and ")} between them`;
+      return `${describeSelector(c.sel, "")} carry ${c.original ? "original " : ""}${c.colors.join(" and ")} between them`;
     },
-    doc: "do these cards carry every one of the colours between them — one card of each, or one multicolour card for two? [Arrival]'s Combo Area and [Revive]'s hand (22-29-3, 22-34-3), with the colours bound off the printed keyword (`colors: $colors`). A `DEFINE KEYWORD` body's word; no card's record says this (#155)",
+    doc: "do these cards carry every one of the colours between them — one card of each, or one multicolour card for two? [Arrival]'s Combo Area and [Revive]'s hand (22-29-3, 22-34-3), with the colours bound off the printed keyword (`colors: $colors`). `original: true` reads the shown face before identity effects (22-29-3, 22-30-3, 22-34-3); absent reads effective colours. A `DEFINE KEYWORD` body's word; no card's record says this (#155, #597)",
   },
   sumsTo: {
     fields: [
@@ -2122,6 +2123,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
   bits.push(...f.colors.map((c) => c.toLowerCase()));
+  if (f.originalColors?.length) bits.push(`with original colours ${f.originalColors.map((c) => c.toLowerCase()).join(" or ")}`);
   // Every measure that *narrows by exclusion* was silent until 9 Sep 2026,
   // and a measure the reading drops always reads as the wider filter — the
   // one direction ground rule 5 forbids. "Non-black Battle Cards" printed as

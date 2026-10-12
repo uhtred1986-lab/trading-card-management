@@ -327,6 +327,7 @@ assert.deepEqual(Object.keys(MEASURES).sort(), [...FILTER_FIELD_NAMES].sort(), "
  */
 const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   colors: { colors: ["Blue"] },
+  originalColors: { originalColors: ["Blue"] },
   notColors: { notColors: ["Red"] },
   monoColor: { monoColor: true },
   multiColor: { multiColor: true, colors: ["Red", "Blue"] },
@@ -403,7 +404,10 @@ for (const field of FILTER_FIELD_NAMES) {
     const over = onACatalogRow(def);
     assert.equal(
       predicate(over),
-      matches(def, { ...emptyFilter(), ...filter }),
+      // The new explicit measure has no frozen-legacy counterpart. Its
+      // catalog-row expectation is printed colours; gameplay is #597's
+      // independent suite, including effective identity interactions.
+      field === "originalColors" ? def.colors.includes("Blue") : matches(def, { ...emptyFilter(), ...filter }),
       `the rules engine and the legacy engine disagree about whether ${def.id} satisfies ${JSON.stringify(filter)}`,
     );
   }
@@ -425,7 +429,7 @@ for (const field of FILTER_FIELD_NAMES) {
  */
 function onACatalogRow(def: CardDef): Attrs {
   const attrs = attrsOf(def, DBS).attrs;
-  return def.power == null ? attrs : { ...attrs, originalPower: def.power };
+  return { ...attrs, originalColors: def.colors, ...(def.power == null ? {} : { originalPower: def.power }) };
 }
 
 // The three measures a card's attributes cannot answer say so by name, with the

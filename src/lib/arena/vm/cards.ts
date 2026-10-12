@@ -137,7 +137,7 @@ const CATALOG: Record<keyof CardDef, Reader> = {
  * *is* printed: the difference is that none of these ten has a face of its
  * own on `CardDef` to read. #140 computes the first three; #275 the next six.
  */
-const FROM_BOARD = new Set(["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "originalPower"]);
+const FROM_BOARD = new Set(["costOf", "comboCostOf", "zEnergyCostOf", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "originalPower", "originalColors"]);
 
 /**
  * The printed face each board-filled price is a reading *of* (20-21).
