@@ -1,0 +1,232 @@
+{
+  "referenceBaseline": "74701713",
+  "measuredHead": "64fda61dbbc52f38328056b32d82d070fa55929e",
+  "runtimeSourcesDirty": false,
+  "runtimeSourceFingerprint": "7d50d17d09d7bb896963096ac26d97f6000760eaa83e3d245e9562376d8ecb6e",
+  "engine": "rules",
+  "cpuLocalOnly": true,
+  "metrics": [
+    {
+      "fixture": "small",
+      "phase": "legalActions",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 1.585,
+      "p95Ms": 2.096
+    },
+    {
+      "fixture": "small",
+      "phase": "apply",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 1.463,
+      "p95Ms": 2.388
+    },
+    {
+      "fixture": "small",
+      "phase": "illegalActionRejection",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.173,
+      "p95Ms": 0.351
+    },
+    {
+      "fixture": "small",
+      "phase": "rejectedActions",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.993,
+      "p95Ms": 1.608
+    },
+    {
+      "fixture": "small",
+      "phase": "boardView",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.083,
+      "p95Ms": 0.145
+    },
+    {
+      "fixture": "small",
+      "phase": "snapshotBuild",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.897,
+      "p95Ms": 1.431
+    },
+    {
+      "fixture": "small",
+      "phase": "snapshotSerialize",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.037,
+      "p95Ms": 0.049,
+      "payloadBytes": 10127
+    },
+    {
+      "fixture": "crowded-aura-12",
+      "phase": "legalActions",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 4.002,
+      "p95Ms": 5.651
+    },
+    {
+      "fixture": "crowded-aura-12",
+      "phase": "apply",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 781.947,
+      "p95Ms": 898.881
+    },
+    {
+      "fixture": "crowded-aura-12",
+      "phase": "illegalActionRejection",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.167,
+      "p95Ms": 0.258
+    },
+    {
+      "fixture": "crowded-aura-12",
+      "phase": "rejectedActions",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 3.083,
+      "p95Ms": 3.899
+    },
+    {
+      "fixture": "crowded-aura-12",
+      "phase": "boardView",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 15.772,
+      "p95Ms": 17.152
+    },
+    {
+      "fixture": "crowded-aura-12",
+      "phase": "snapshotBuild",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 19.704,
+      "p95Ms": 23.088
+    },
+    {
+      "fixture": "crowded-aura-12",
+      "phase": "snapshotSerialize",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.109,
+      "p95Ms": 0.181,
+      "payloadBytes": 29996
+    },
+    {
+      "fixture": "long-history",
+      "phase": "legalActions",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 1.019,
+      "p95Ms": 1.446
+    },
+    {
+      "fixture": "long-history",
+      "phase": "apply",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 22.638,
+      "p95Ms": 28.353
+    },
+    {
+      "fixture": "long-history",
+      "phase": "illegalActionRejection",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.166,
+      "p95Ms": 0.257
+    },
+    {
+      "fixture": "long-history",
+      "phase": "rejectedActions",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.839,
+      "p95Ms": 1.141
+    },
+    {
+      "fixture": "long-history",
+      "phase": "boardView",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.542,
+      "p95Ms": 0.795
+    },
+    {
+      "fixture": "long-history",
+      "phase": "snapshotBuild",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 1.473,
+      "p95Ms": 2.028
+    },
+    {
+      "fixture": "long-history",
+      "phase": "snapshotSerialize",
+      "warmup": 25,
+      "samples": 100,
+      "p50Ms": 0.052,
+      "p95Ms": 0.078,
+      "payloadBytes": 32546
+    },
+    {
+      "measurements": [
+        {
+          "fixture": "synthetic-250-actions-500-log-lines",
+          "phase": "storageWriteAcknowledgement",
+          "warmup": 25,
+          "samples": 100,
+          "p50Ms": 2.104,
+          "p95Ms": 2.972,
+          "maxQueriesPerAck": 1,
+          "payloadBytes": 39265
+        },
+        {
+          "fixture": "valid-game-with-synthetic-250-action-500-line-history",
+          "phase": "applyToGamePersistedAcknowledgement",
+          "warmup": 25,
+          "samples": 100,
+          "p50Ms": 2.402,
+          "p95Ms": 3.046,
+          "maxQueriesPerAck": 1,
+          "acknowledgedStateHistoryBytes": 38406,
+          "reloadVerified": true
+        },
+        {
+          "fixture": "unchanged-row-short-window",
+          "phase": "waitForRevisionIdlePoll",
+          "timeoutMs": 50,
+          "repeats": 3,
+          "averageQueries": 2,
+          "minQueries": 2,
+          "maxQueries": 2
+        },
+        {
+          "fixture": "unchanged-row-standard-window",
+          "phase": "waitForRevisionIdlePoll",
+          "timeoutMs": 15000,
+          "elapsedMs": 15002,
+          "queries": 17,
+          "changed": false
+        }
+      ]
+    },
+    {
+      "fixture": "mock-only",
+      "phase": "simulatedAiLatency",
+      "warmup": 0,
+      "samples": 15,
+      "configuredDelayMs": 20,
+      "p50Ms": 20.188,
+      "p95Ms": 20.318
+    }
+  ]
+}

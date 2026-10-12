@@ -47,6 +47,6 @@ export function fixedPrompt(kind: Prompt["kind"], from?: GameDefinition): Prompt
 }
 
 /** The hint a declaration carries for a kind whose question is built at the table (null when it carries none). */
-export function promptHint(kind: Prompt["kind"]): string | null {
-  return declared(kind)?.hint ?? null;
+export function promptHint(kind: Prompt["kind"], from?: GameDefinition): string | null {
+  return declared(kind, from)?.hint ?? null;
 }

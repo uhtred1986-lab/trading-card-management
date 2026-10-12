@@ -19,7 +19,10 @@
  *      Main Phase and counter windows to Opus 5 (the owner's choice).
  */
 import { z } from "zod";
+import { isDeepStrictEqual } from "node:util";
+import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
+import { aiRuns } from "@/db/schema";
 import { hasAnthropic, recordRun } from "@/lib/ai/client";
 import { arenaModel, arenaSlotFor } from "@/lib/ai/arena-models";
 import { generateJson } from "@/lib/ai/core";
@@ -43,9 +46,66 @@ export interface Choice {
   /** One line of table talk, or null when no model was asked. */
   say: string | null;
   /** Null when the decision was taken without an API call. */
-  spend: { model: string; provider?: string; input: number; output: number; cached: number; costMicros?: number } | null;
+  spend: { model: string; provider?: string; billed?: boolean; input: number; output: number; cached: number; cacheWrite?: number; costMicros?: number } | null;
   /** Why it was decided this way, for the log. */
   how: string;
+}
+
+/** The identity of one provider invocation and the game board it answered. */
+export interface AiCallAttribution {
+  gameId: number;
+  callId: string;
+  revision: number;
+}
+
+function spendFromRun(run: typeof aiRuns.$inferSelect) {
+  return {
+    model: run.model,
+    provider: run.provider,
+    billed: run.billed,
+    input: run.inputTokens ?? 0,
+    output: run.outputTokens ?? 0,
+    cached: run.cacheReadTokens ?? 0,
+    cacheWrite: run.cacheCreationTokens ?? 0,
+    ...(run.costMicros != null ? { costMicros: run.costMicros } : {}),
+  };
+}
+
+/** Rehydrate a provider decision already saved before a worker interruption. */
+export async function recordedMove(db: Db, callId: string, legal: LegalAction[]): Promise<Choice | null> {
+  const [run] = await db.select().from(aiRuns).where(eq(aiRuns.arenaCallId, callId)).limit(1);
+  if (!run) return null;
+  if (run.kind !== "arena_move") throw new Error("Arena advance call identity belongs to a different AI task.");
+  const parsed = MoveSchema.safeParse(run.output);
+  if (!parsed.success) throw new Error("The recorded Arena move result is invalid; refusing to call the provider again.");
+  const output = parsed.data;
+  const input = run.input && typeof run.input === "object" ? run.input as { arena?: { selectedAction?: unknown; selectedIndex?: unknown } } : null;
+  const selectedAction = input?.arena?.selectedAction;
+  const selectedIndex = input?.arena?.selectedIndex;
+  if (!selectedAction || !Number.isInteger(selectedIndex) || (selectedIndex as number) < 0) {
+    throw new Error("The recorded Arena move has no durable selected action; refusing to reinterpret its old menu index.");
+  }
+  const index = legal.findIndex((entry) => isDeepStrictEqual(entry.action, selectedAction));
+  if (index < 0) throw new Error("The recorded Arena action is no longer legal at this revision; refusing to apply a different menu choice.");
+  return {
+    index,
+    say: output.say?.trim() || null,
+    spend: spendFromRun(run),
+    how: selectedIndex === output.move ? "chosen by Claude" : `Claude answered ${output.move}, which is not on the list — took the first move`,
+  };
+}
+
+/** Rehydrate a referee ruling already saved before a worker interruption. */
+export async function recordedRuling(db: Db, callId: string): Promise<{ ops: Op[]; why: string; valid: boolean; spend: Choice["spend"] } | null> {
+  const [run] = await db.select().from(aiRuns).where(eq(aiRuns.arenaCallId, callId)).limit(1);
+  if (!run) return null;
+  if (run.kind !== "arena_referee") throw new Error("Arena advance call identity belongs to a different AI task.");
+  const parsed = RulingSchema.safeParse(run.output);
+  if (!parsed.success) throw new Error("The recorded referee result is invalid; refusing to call the provider again.");
+  let ops: unknown;
+  try { ops = JSON.parse(parsed.data.program); } catch { ops = []; }
+  if (!validateProgram(ops)) return { ops: [], why: `${parsed.data.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend: spendFromRun(run) };
+  return { ops: ops as Op[], why: parsed.data.why, valid: true, spend: spendFromRun(run) };
 }
 
 /**
@@ -197,7 +257,7 @@ function slotFor(tier: Tier, s: EngineState) {
 
 // ── the decision ───────────────────────────────────────────────────────────
 
-export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId, tier: Tier): Promise<Choice> {
+export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, legal: LegalAction[], p: PlayerId, tier: Tier, attribution?: AiCallAttribution, beforeProviderCall?: () => Promise<void>): Promise<Choice> {
   if (!legal.length) throw new Error("no legal move to choose from");
   const free = freeChoice(ctx, s, legal, p);
   if (free) return { index: free.index, say: null, spend: null, how: free.how };
@@ -209,6 +269,7 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
   // for the same position.
   const question = `${stateText(ctx, s, p)}\n\nYou are being asked: ${promptQuestion(ctx, s, p)}\n\nLEGAL MOVES:\n${movesText(legal)}\n\nAnswer with the number of your move and at most one short sentence of table talk. Your opponent reads that sentence, so never name or hint at a card in your hand, your life or your deck.`;
 
+  await beforeProviderCall?.();
   const res = await generateJson({
     task: "arena_move",
     provider: chosenModel.provider,
@@ -222,14 +283,22 @@ export async function chooseMove(db: Db, ctx: EngineContext, s: EngineState, leg
     messages: [{ role: "user", parts: [{ type: "text", text: question }] }],
   });
 
-  const { output } = await recordRun<z.infer<typeof MoveSchema>>(db, "arena_move", { prompt: s.prompt.kind, turn: s.turn, moves: legal.length }, res);
+  const modelOutput = res.parsed;
+  if (!modelOutput) throw new Error("The model's answer did not match the expected format — try again.");
+  const selectedIndex = Number.isInteger(modelOutput.move) && modelOutput.move >= 0 && modelOutput.move < legal.length ? modelOutput.move : 0;
+  const { output } = await recordRun<z.infer<typeof MoveSchema>>(db, "arena_move", {
+    prompt: s.prompt.kind,
+    turn: s.turn,
+    moves: legal.length,
+    ...(attribution ? { arena: { ...attribution, selectedIndex, selectedAction: legal[selectedIndex].action } } : {}),
+  }, res);
   // The engine still refuses anything illegal; this only keeps an out-of-range
   // answer from throwing before it gets there.
   const index = Number.isInteger(output.move) && output.move >= 0 && output.move < legal.length ? output.move : 0;
   return {
     index,
     say: output.say?.trim() || null,
-    spend: { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) },
+    spend: { model: res.model, provider: res.provider, billed: res.billed, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, cacheWrite: res.usage.cacheWrite, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) },
     how: index === output.move ? "chosen by Claude" : `Claude answered ${output.move}, which is not on the list — took the first move`,
   };
 }
@@ -380,8 +449,11 @@ export async function ruleOnCard(
   db: Db,
   request: { cardId: string; cardName: string; text: string; unsupported: string[] },
   situation: string,
-): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; provider?: string; input: number; output: number; cached: number; costMicros?: number } | null }> {
+  attribution?: AiCallAttribution,
+  beforeProviderCall?: () => Promise<void>,
+): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; provider?: string; billed?: boolean; input: number; output: number; cached: number; cacheWrite?: number; costMicros?: number } | null }> {
   if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", valid: false, spend: null };
+  await beforeProviderCall?.();
   const res = await generateJson({
     task: "arena_referee",
     tier: "best",
@@ -402,14 +474,14 @@ export async function ruleOnCard(
       },
     ],
   });
-  const { output } = await recordRun<z.infer<typeof RulingSchema>>(db, "arena_referee", { cardId: request.cardId, unsupported: request.unsupported }, res);
+  const { output } = await recordRun<z.infer<typeof RulingSchema>>(db, "arena_referee", { cardId: request.cardId, unsupported: request.unsupported, ...(attribution ? { arena: attribution } : {}) }, res);
   let ops: unknown;
   try {
     ops = JSON.parse(output.program);
   } catch {
     ops = [];
   }
-  const spend = { model: res.model, provider: res.provider, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) };
+  const spend = { model: res.model, provider: res.provider, billed: res.billed, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, cacheWrite: res.usage.cacheWrite, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) };
   // A malformed ruling is treated as "nothing happens" rather than trusted.
   if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend };
   return { ops: ops as Op[], why: output.why, valid: true, spend };

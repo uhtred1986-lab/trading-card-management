@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { PlayerId } from "@/lib/arena/types";
+import type { PublicOutcome } from "@/lib/arena/outcome";
 
 /**
  * The end of the game, on the board (`docs/arena-redesign/` frame 10,
@@ -26,7 +27,7 @@ export function GameEnd({
   onRematch,
   onDismiss,
 }: {
-  over: { winner: PlayerId | null; reason: string };
+  over: PublicOutcome;
   you: PlayerId;
   them: string;
   turn: number;
@@ -37,15 +38,16 @@ export function GameEnd({
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const tone = !over.winner ? "draw" : over.winner === you ? "win" : "lose";
-  const title = tone === "win" ? "VICTORY" : tone === "lose" ? "DEFEAT" : "DRAW";
+  const tone = over.kind === "interrupted" || over.kind === "abandoned" ? "interrupted" : over.kind === "draw" ? "draw" : over.winner === you ? "win" : "lose";
+  const title = tone === "win" ? "VICTORY" : tone === "lose" ? "DEFEAT" : tone === "draw" ? "DRAW" : over.kind === "abandoned" ? "ABANDONED" : "GAME INTERRUPTED";
+  const statusTitle = over.kind === "interrupted" || over.kind === "abandoned";
   // The engine's reason names the side ("Claude has no life left"); the turn is
   // the one fact it leaves out.
   const sub = over.reason ? `${over.reason[0].toUpperCase()}${over.reason.slice(1)} — turn ${turn}.` : tone === "win" ? `${them}'s leader falls on turn ${turn}.` : `Turn ${turn}.`;
   return (
     <div className={`arena-end arena-end-${tone}`} role="dialog" aria-modal="true" aria-label={title.toLowerCase()}>
-      {tone !== "draw" && <span className="arena-end-rays" aria-hidden />}
-      <h2 className="arena-end-title arena-impact">{title}</h2>
+      {(tone === "win" || tone === "lose") && <span className="arena-end-rays" aria-hidden />}
+      <h2 className={`arena-end-title arena-impact${statusTitle ? " arena-end-status-title" : ""}`}>{title}</h2>
       <p className="arena-end-sub">{sub}</p>
       {canRematch && (
         <button

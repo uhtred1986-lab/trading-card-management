@@ -111,7 +111,9 @@ function turnPhase(s: VmState): string {
   return "main";
 }
 
-function definitionOf(s: VmState): GameDefinition {
+function definitionOf(s: VmState, ctx?: EngineContext): GameDefinition {
+  const pinned = (ctx as (EngineContext & { rulesetDefinition?: GameDefinition }) | undefined)?.rulesetDefinition;
+  if (pinned?.id === s.game) return pinned;
   const loaded = rulesetFor(s.game);
   if (!loaded.ok) throw new Error(`the ${s.game} ruleset does not load, so the table cannot be read: ${JSON.stringify(loaded.errors[0])}`);
   return loaded.definition;
@@ -121,7 +123,7 @@ function rulesTable(raw: EngineContext, s: VmState): Table {
   // The engine's own entry points read a token's row through `withTokens`
   // (`vm/index.ts`'s `RULES`); this reads the same rows the same way.
   const ctx = withTokens(raw);
-  const game = definitionOf(s);
+  const game = definitionOf(s, raw);
   const defOf = (id: string): CardDef => {
     const d = ctx.defs[s.cards[id].cardId];
     if (!d) throw new Error(`no definition for ${s.cards[id].cardId}`);

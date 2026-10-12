@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { abandon, act, advanceGame, flagThisTurn, rematch } from "@/app/arena/actions";
 import { useRouter } from "next/navigation";
 
@@ -148,6 +148,8 @@ export function ArenaStage({
   abandonAction?: typeof abandon;
 }) {
   const [pending, startTransition] = useTransition();
+  const [advancing, setAdvancing] = useState(false);
+  const [advanceFailed, setAdvanceFailed] = useState(false);
   const [abandonPending, startAbandon] = useTransition();
   const [abandonError, setAbandonError] = useState<string | null>(null);
   const router = useRouter();
@@ -223,7 +225,9 @@ export function ArenaStage({
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
-  const live = useLiveGame(gameId, snapshot, pending || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
+  const liveGame = useLiveGame(gameId, snapshot, pending || advancing || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
+  const live = liveGame.snapshot;
+  const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
   const { view, legal, taps, log, beats } = live;
 
   const giveUp = () => {
@@ -255,6 +259,26 @@ export function ArenaStage({
   // status it was archived at, kept for the record — but `legal` is already
   // empty and `waiting` already null, so nothing here is actually pending.
   const playable = live.game.status === "playing" && !live.game.archived;
+
+  const launchAdvance = useCallback(() => {
+    if (asked.current) return;
+    asked.current = true;
+    setAdvanceFailed(false);
+    setError(null);
+    setAdvancing(true);
+    void server.advance(gameId)
+      .then((result) => {
+        if (result.error) {
+          setError(result.error);
+          setAdvanceFailed(true);
+        }
+      })
+      .catch(() => {
+        setError("The opponent could not be reached. Retry to resume the saved turn.");
+        setAdvanceFailed(true);
+      })
+      .finally(() => setAdvancing(false));
+  }, [gameId, server]);
 
   // Reduced motion is not a second code path: it simply never queues anything,
   // which is the same state the board reaches the instant you press Skip.
@@ -307,7 +331,7 @@ export function ArenaStage({
   const takeoverOn = !!shape && staging === "takeover" && !asksForBoard;
   const bandOn = !!shape && !takeoverOn;
 
-  useWakeLock(playable && !view.over);
+  useWakeLock(playable && !live.over);
 
   // The narration follows the beat on screen (workflow spec §7, Phase 3): one
   // sentence per beat, from the same stream the motion plays, so the words and
@@ -346,12 +370,8 @@ export function ArenaStage({
   // the opponent's reply inside `act` itself.
   useEffect(() => {
     if (!serverDecides || asked.current) return;
-    asked.current = true;
-    startTransition(async () => {
-      const r = await server.advance(gameId);
-      if (r.error) setError(r.error);
-    });
-  }, [serverDecides, gameId, server]);
+    launchAdvance();
+  }, [serverDecides, launchAdvance]);
 
   /**
    * Reading a card stops the fight (`docs/arena-battle-staging-spec.md`
@@ -399,6 +419,7 @@ export function ArenaStage({
     setSelected(null);
     setHover(null);
     setError(null);
+    setAdvanceFailed(false);
     setRefusal(null);
     setHeld(null);
     feel("tap");
@@ -413,6 +434,12 @@ export function ArenaStage({
       if (r.error) {
         setError(r.error);
         feel("illegal");
+      } else {
+        // `act` has committed the human action. Start the separate AI request
+        // without holding the action transition open, so the board acknowledges
+        // the move before the opponent finishes thinking.
+        asked.current = false;
+        launchAdvance();
       }
     });
   };
@@ -421,7 +448,7 @@ export function ArenaStage({
   const isTargeting = selected != null && !!targetsOf(selected);
   // While the story of the last turn is still being told, the board is a
   // picture rather than a control surface.
-  const busy = pending || playback.playing;
+  const busy = pending || advancing || playback.playing;
 
   /** A card as the board currently draws it, wherever it sits. */
   const cardOf = (id: string): CardView | null => {
@@ -1013,9 +1040,20 @@ export function ArenaStage({
           {/* The top bar, one row (`docs/arena-redesign/` frame 01): whose turn
               it is, then speed, review, the admin shield and the menu. It sticks
               to the top of a phone's screen so the turn is never scrolled away. */}
-          <div className="arena-topbar sticky top-0 z-30 flex h-[52px] min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:h-[60px] lg:gap-4 lg:pl-3 lg:pr-2 lg:[grid-area:top]">
+          <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-[60px]" : "h-[52px] sm:h-[52px] lg:h-[60px]"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:gap-4 lg:pl-3 lg:pr-2 lg:[grid-area:top]`}>
             <span className="arena-title arena-num hidden text-[19px] leading-none lg:inline">Arena</span>
             <TurnPill view={view} />
+            {showConnectionIssue && (
+              <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
+                <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-950/45 px-2 py-0.5 text-[11px] leading-none text-amber-100 sm:gap-2 sm:px-2.5 sm:py-1 sm:text-xs" role="status" aria-live="polite" data-arena-connection={liveGame.connection}>
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" aria-hidden="true" />
+                  <span className="shrink-0">{liveGame.connection === "offline" ? "Offline" : "Reconnecting…"}</span>
+                  <button type="button" onClick={liveGame.retry} className="min-h-11 min-w-[44px] shrink-0 rounded px-1 py-1 font-semibold text-white underline decoration-white/60 underline-offset-2 hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200" aria-label="Retry arena connection">
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="ml-auto flex shrink-0 items-center gap-0.5">
               <SpeedButton />
               <button
@@ -1166,6 +1204,7 @@ export function ArenaStage({
           <div className="sticky bottom-0 z-30 lg:static lg:[grid-area:bar]">
             <PromptPanel
               view={view}
+              overOutcome={live.over}
               playable={playable}
               yourTurn={yourTurn}
               waitingOnServer={waitingOnServer}
@@ -1173,6 +1212,10 @@ export function ArenaStage({
               playing={playback.playing}
               refusalText={refusal?.text ?? null}
               error={error}
+              onRetry={playable && advanceFailed ? () => {
+                asked.current = false;
+                launchAdvance();
+              } : undefined}
               pace={pace}
               playingMine={!!(beat && actorOf(beat) === view.you.player)}
               playingIndex={playback.index}
@@ -1311,9 +1354,9 @@ export function ArenaStage({
 
         {/* The end of the game, on the board (redesign frame 10): once the last
             beat has played, never over it. */}
-        {view.over && !playback.playing && !turnCall && !endDismissed && (
+        {live.over && !playback.playing && !turnCall && !endDismissed && (
           <GameEnd
-            over={view.over}
+            over={live.over}
             you={view.you.player}
             them={view.them.name}
             turn={view.turn}

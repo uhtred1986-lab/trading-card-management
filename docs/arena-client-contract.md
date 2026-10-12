@@ -120,9 +120,15 @@ export interface Snapshot {
   waiting: "you" | "opponent" | "referee" | null;
   /** What Claude has cost this game. */
   spend: { calls: number; input: number; output: number; cached: number; micros: number };
-  over: { winner: "p1" | "p2" | null; reason: string } | null;
+  over: { kind: "win" | "draw" | "concession" | "abandoned" | "interrupted"; winner: "p1" | "p2" | null; reason: string; concededBy?: "p1" | "p2" } | null;
 }
 ```
+
+`over.kind` distinguishes a genuine draw from an engine interruption. An interruption's public
+`reason` is deliberately generic; mechanic, card-instance and interpreter details remain in the
+server-side saved state. Older archived snapshots whose reason starts with
+`this engine cannot finish this game` are normalized to `interrupted` when projected. Abandonment
+is derived from row status and takes precedence over any stale winner in the saved state.
 
 `view`, `legal` and `taps` already exist and are already exactly this shape. The snapshot is mostly
 an envelope around code that is written, which is why this is a small piece of work rather than a
@@ -519,8 +525,9 @@ Only the Android app uses these; the web board calls §2 directly.
 | `GET` | `/api/v1/games` | `?limit=20` | game list, as `/arena` shows it |
 | `POST` | `/api/v1/games` | `{ p1DeckId, p2DeckId, mode, debug, engine? }` | `{ id, engine, engineNote? }` — `mode` excludes `versus`, §3.3 |
 | `GET` | `/api/v1/games/{id}` | `?sinceRevision=R&sinceBeat=N&wait=25` | `Snapshot` — §6 |
+| `GET` | `/api/v1/games/{id}/replay` | — | admin-only immutable replay export; never part of `Snapshot` |
 | `POST` | `/api/v1/games/{id}/actions` | `{ index, basedOn, requestId }` | `Snapshot` — your move only |
-| `POST` | `/api/v1/games/{id}/advance` | — | `Snapshot` once Claude has finished deciding |
+| `POST` | `/api/v1/games/{id}/advance` | — | current `Snapshot` after this advance finishes, or while another request owns the revision lease; AI errors include `aiError` |
 | `POST` | `/api/v1/games/{id}/abandon` | `{ basedOn, requestId }` | `Snapshot` |
 | `GET` | `/api/v1/app/version` | — | `{ versionCode, versionName, sha256, notes }` |
 | `GET` | `/api/v1/app/apk` | — | the signed APK, behind the same auth |
@@ -545,6 +552,17 @@ same version-guarded write as the move or abandonment. A repeated id with the sa
 the current snapshot without applying the mutation or advancing Claude again; reusing it for a
 different payload returns `idempotency_conflict`. Receipts stay with the game for its lifetime.
 Older clients that omit freshness or identity fields receive `contract_mismatch` and must update.
+
+**Replay exports are a separate admin-only surface.** A newly created match stores its original deck
+inputs and an immutable content-addressed bundle of the ruleset source, normalized card catalogue,
+compiled card programs and art references. The export contains that bundle, seed and action list;
+the ordinary `Snapshot` contains none of them. Run an exact export offline with
+`DATABASE_URL='' npm run arena:replay -- <export.json> --runtime-revision <matching-source-sha>`
+with the interpreter revision recorded in the bundle. An export may be marked `exact: false` only
+because it is being viewed from a newer deployment; its pinned inputs still replay when the operator
+checks out the recorded revision. Historical matches without a bundle remain playable through their
+compatibility path, but the admin export labels them non-exact and never substitutes today's deck or
+rules. A missing or hash-invalid pin fails closed instead of loading current mutable inputs.
 
 The deck endpoints are now live (13 Sep 2026) — read-only, shaped by `src/lib/decks/legality.ts`
 exactly as the web deck page renders it, and pinned by their own golden fixtures (§5.1) so a shape
@@ -654,9 +672,17 @@ Cost note: a long-poll holds a Vercel function for up to `wait` seconds. For one
 irrelevant; if it ever is not, the knob is `wait`.
 
 **The web board uses this too**, through `stage/useLiveGame.ts` — the one place either client
-reaches `/api/v1` rather than the functions behind it. `act()` still runs the whole opponent turn
-before it returns, but `advance` commits each of Claude's moves as it makes them, so polling the row
-shows them arriving instead of a pulsing dot for a minute and then everything at once. Verified: a
+reaches `/api/v1` rather than the functions behind it. `act()` returns after the human action is
+persisted; the browser starts `advance` as a separate background request and polls the row, so the
+move is acknowledged before Claude finishes thinking and each of Claude's moves can be animated as
+soon as it arrives. Web and HTTP advances share one per-game-revision lease and durable decision
+checkpoint, so concurrent requests cannot start duplicate provider calls for that revision.
+
+If a worker stops after it marks a provider request attempted but before its result reaches
+`ai_runs`, the request outcome is ambiguous. The lease then remains attention-required and future
+advances fail closed instead of resending a potentially billable request. If the response was
+recorded, a later request reuses that result, usage receipt and gameplay CAS. This is crash recovery
+for recorded outcomes, not a guarantee that every provider call is exactly once. Verified: a
 20-second poll returned in 4.1 s when an action landed, carrying exactly the beats numbered above
 the client's mark.
 

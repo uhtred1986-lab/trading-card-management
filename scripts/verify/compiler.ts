@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import {
   CTX,
   DEFS,
+  ENGINE,
   IMPL,
   actsG,
   addEffectG,
@@ -43,14 +44,12 @@ import {
   zoneOf,
 } from "./harness";
 import { validateProgram, type Op, type Script } from "../../src/lib/arena/vm/script";
+import type { VmState } from "../../src/lib/arena/vm/state";
 import { validateRule } from "../../src/lib/arena/lang/validate";
 import { deepEqual, parseRule, printRule, type Rule } from "../../src/lib/arena/lang";
 import type { CardScripts } from "../../src/lib/arena/vm/script";
 import type { PlayerId } from "./harness";
 import { isVmState, legacyState } from "../../src/lib/arena/engines";
-
-/** The probe sweep's `rule-processing` cause, for the cases here that lean on it. */
-const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: a Battle Card at 0 power or less stays in play (21-6) — `contract/probe-rules-parity.json`'s rule-processing cause";
 
 // ── the effect compiler ────────────────────────────────────────────────────
 
@@ -200,19 +199,36 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   assertConsistentG(s);
 }
 
-// A skill the compiler cannot read is skipped when no referee is available…
+// An unread automatic skill ends the rules-engine game as an interruption.
+// The legacy lane retains its existing note-and-continue behavior.
 {
   let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
   const before = JSON.stringify(sideG(s, "p2"));
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") });
-  assert.equal(s.prompt.kind, "main", "the game carries on");
-  assert.equal(JSON.stringify(sideG(s, "p2")), before, "and nothing happened to the opponent");
+  if (ENGINE === "rules") {
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "an unread automatic effect is not treated as a successful no-op");
+    assert.equal(vm.winner, null, "an interruption is not a win or a draw");
+    assert.ok(!vm.outcome?.reason.includes("MYSTERY"), "the public reason does not name the source card");
+  } else {
+    assert.equal(s.prompt.kind, "main", "the legacy game carries on");
+    assert.equal(JSON.stringify(sideG(s, "p2")), before, "the legacy engine records no opponent effect");
+  }
 }
 
 // …and put to the referee when one is, whose ruling is a program in this same language.
 {
-  if (!rulesGap("compiler: an unread skill put to the referee", "the rules engine has no referee: a skill the compiler could not read resolves to a note (vm/flow.ts checkpoint)", "no issue filed yet")) {
-    const refCtx = { ...CTX, referee: true };
+  const refCtx = { ...CTX, referee: true };
+  if (ENGINE === "rules") {
+    let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
+    const before = zoneOf(s, "p1", "hand").length;
+    s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "an unread effect interrupts even when the context has a legacy referee");
+    assert.equal(vm.winner, null, "a rules interruption is not a draw or win");
+    assert.equal(vm.prompt.kind, "gameOver", "the rules engine does not pause for or request a referee ruling");
+    assert.equal(zoneOf(s, "p1", "hand").length, before - 1, "only the play happened; no unsupported effect was paid or applied");
+  } else {
     let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
     s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
     assert.equal(s.prompt.kind, "referee");
@@ -265,7 +281,18 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
 
 // 9-6-4: an [Auto] skill's cost may be declined, and then it does not resolve.
 {
-  if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
+  if (ENGINE === "rules") {
+    let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
+    const handBefore = zoneOf(s, "p1", "hand").length;
+    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "AUTOCOST") });
+    const vm = s as VmState;
+    assert.equal(vm.outcome?.kind, "interrupted", "a due Auto with an unimplemented own cost interrupts before drawing");
+    assert.equal(vm.outcome?.privateContext?.issue, "#549", "the private diagnostic points to the live Auto-cost implementation issue");
+    assert.ok(!vm.outcome?.reason.includes("AUTOCOST"), "the public outcome does not identify the source card");
+    assert.equal(zoneOf(s, "p1", "hand").length, handBefore - 1, "the card was played, but the Auto effect did not draw");
+    assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play cost was paid before interruption");
+  } else {
+    if (!rulesGap("compiler: AUTOCOST's [Auto] price, declined and paid (9-6-4)", "an [Auto]'s own price is not charged on the rules engine — the probe sweep's auto-price cause", "no issue filed yet")) {
     let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
     const c = findG(s, "p1", "hand", "AUTOCOST");
     const before = zoneOf(s, "p1", "hand").length;
@@ -284,6 +311,7 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
     assert.equal(zoneOf(t, "p1", "hand").length, handBefore - 1 + 2, "paid, so two cards were drawn");
     assert.equal(zoneOf(t, "p1", "energy").filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
     assertConsistentG(t);
+    }
   }
 }
 
@@ -626,11 +654,9 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   s = playG(s, { type: "choose", player: "p2", cards: [tough] });
   assert.ok(zoneOf(s, "p1", "battle").includes(tough), "22-12-like: their skill cannot KO it");
   // 21-6 still applies: a rule, not a skill, and it ignores even [Indestructible].
-  if (!rulesGap("compiler: TOUGH at 0 power (21-6)", RULE_PROCESSING, "no issue filed yet")) {
-    s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
-    s = playG(s, { type: "endMain", player: "p2" });
-    assert.ok(zoneOf(s, "p1", "drop").includes(tough), "21-6: 0 power is a rule, and rules are not skills");
-  }
+  s.effects.push({ id: 998, target: tough, kind: "power", value: -99000, until: "turn", ownerTurn: "p2", master: "p2", createdTurn: s.turn });
+  s = playG(s, { type: "endMain", player: "p2" });
+  assert.ok(zoneOf(s, "p1", "drop").includes(tough), "21-6: 0 power is a rule, and rules are not skills");
 }
 
 // ── cards under cards (23-2) and modal choice (20-2) ───────────────────────
@@ -650,9 +676,7 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   assertConsistentG(s);
 
   // 23-2-5: when the card on top leaves play, the stack goes with it. It
-  // leaves by a KO — the legacy fixture dropped it to 0 power and let 21-6
-  // take it, which the rules engine does not run yet (`RULE_PROCESSING`), and
-  // how it leaves is not what this case is about.
+  // leaves by a KO; how it leaves is not what this case is about.
   koCardG(s, host);
   assert.ok(zoneOf(s, "p1", "drop").includes(under), "the card underneath followed it to the Drop");
   assertConsistentG(s);
@@ -1042,12 +1066,10 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   // 9-1-5: one named keyword goes, the card keeps the rest of itself.
   const s = stagedG({ battle: ["SELFMUTE"] });
   const mute = findG(s, "p1", "battle", "SELFMUTE");
-  if (!rulesGap("compiler: SELFMUTE negates its own [Blocker] (9-1-5)", "a [Permanent] `negateKeyword` is not read by the rules engine's static layer (`DEFERRED_STATICS.negateKeyword`)", "#153"))
-    assert.ok(!hasIn(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
+  assert.ok(!hasIn(ctx, s, mute, "Blocker"), "the card negated its own [Blocker]");
 }
 
 {
-  if (!rulesGap("compiler: BECOMES gains ≪Saiyan≫ in all areas (20-1)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153")) {
     // 20-1: a card that gains a trait is that trait to every skill that names
     // one — this is about what the card *is*, not what it does.
     let s = stagedG({ hand: ["SAIYANKILL"], energy: ["V1"], oppBattle: ["BECOMES", "BIG"] });
@@ -1060,7 +1082,6 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
     // Only one card on their side is a Saiyan, so the choice is forced and taken.
     assert.ok(zoneOf(s, "p2", "drop").includes(becomes), "the ≪Saiyan≫ skill found it");
     assert.ok(zoneOf(s, "p2", "battle").includes(findG(s, "p2", "battle", "BIG")), "and left the card that is not one");
-  }
 }
 
 {
@@ -1070,22 +1091,21 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   // skill naming the card they become passed them over.
   const compiled = compileSkill(parseSkills("[Permanent] This card is also treated as {Planet M-2} in all areas.")[0]);
   assert.deepEqual(compiled.unsupported, [], "the wording reads");
-  assert.deepEqual(compiled.ops, [{ op: "gains", target: { sel: { special: "self" } }, traits: [], characters: [], colors: [], names: ["planet m-2"] }], "the clause is read lowercased, as every trait and character from this rule is; every name comparison is case-insensitive");
+  assert.deepEqual(compiled.ops, [{ op: "gains", target: { sel: { special: "self" } }, traits: [], characters: [], colors: [], names: ["planet m-2"], allAreas: true }], "the clause is read lowercased, as every trait and character from this rule is; every name comparison is case-insensitive, and its all-area source validity is preserved");
 
   // …and the card answers to both names, in any area, to anything that asks
   // what a card *is*.
   const s = stagedG({ battle: ["RENAMED"], hand: ["RENAMED"] });
   const asked = parseFilter("{Planet M-2}");
-  const gained = !rulesGap("compiler: RENAMED also treated as {Planet M-2} (20-1)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153");
   for (const area of ["battle", "hand"] as const) {
     const id = findG(s, "p1", area, "RENAMED");
-    if (gained) assert.ok(matchesG(s, id, asked), `the copy in your ${area} is found by its gained name`);
+    assert.ok(matchesG(s, id, asked), `the copy in your ${area} is found by its gained name`);
     assert.ok(matchesG(s, id, parseFilter("{RENAMED}")), "…and still by its own");
   }
   // A card without the skill is not: the gain is this card's, not the name's.
   assert.ok(!matchesG(s, leaderOf(s, "p1"), asked));
   // "Other than {Planet M-2}" reads the same list, so the exclusion catches it too.
-  if (gained) assert.ok(!matchesG(s, findG(s, "p1", "battle", "RENAMED"), parseFilter("card other than {Planet M-2}")));
+  assert.ok(!matchesG(s, findG(s, "p1", "battle", "RENAMED"), parseFilter("card other than {Planet M-2}")));
 }
 
 {
@@ -1115,11 +1135,10 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   // where it is (20-1), and here the areas that matter are the ones off the
   // table — the colour of a card in your energy is what pays for costs.
   const s = stagedG({ battle: ["RECOLOR"], hand: ["RECOLORED"], energy: ["RECOLORED"], oppHand: ["RECOLORED"] });
-  if (!rulesGap("compiler: RECOLOR's colours in all of your areas (BT2-001)", "`gains` is not read by the rules engine's static layer (`DEFERRED_STATICS.gains`)", "#153"))
-    for (const area of ["hand", "energy"] as const) {
-      const id = findG(s, "p1", area, "RECOLORED");
-      assert.deepEqual(cardNowG(s, id).colors, ["Yellow", "Red", "Blue", "Green"], `the copy in your ${area} gained the three colours`);
-    }
+  for (const area of ["hand", "energy"] as const) {
+    const id = findG(s, "p1", area, "RECOLORED");
+    assert.deepEqual(cardNowG(s, id).colors, ["Yellow", "Red", "Blue", "Green"], `the copy in your ${area} gained the three colours`);
+  }
   // "Your" areas, so their copy of the same card is untouched.
   assert.deepEqual(cardNowG(s, findG(s, "p2", "hand", "RECOLORED")).colors, ["Yellow"]);
   // The card printing the skill is not itself a <RECOLORED>.
@@ -1162,23 +1181,21 @@ const RULE_PROCESSING = "rule processing (21) does not run on the rules engine: 
   const zc = findG(s, "p1", "zDeck", "ZCHEAP");
   assert.equal(DEFS.ZCHEAP.zEnergyCost, 2, "printed");
   assert.equal(zEnergyCostOfG(s, zc), 1, "1 less while its own [Permanent] is in force");
-  if (!rulesGap("compiler: ZCHEAP paid with one Z-Energy made from a combo (5-4, 8-5-2)", "the rules engine does not offer a spent combo card as Z-Energy at the end of a battle — `zEnergyFromCombo` is still listed as not built in vm/index.ts", "#151")) {
-    // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
-    // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
-    s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
-    const c = findG(s, "p1", "hand", "V1");
-    s = passCombosG(playG(s, { type: "combo", player: "p1", card: c }));
-    assert.equal(s.prompt.kind, "zEnergyFromCombo");
-    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
-    assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
-    assert.ok(
-      labelsG(s).some((x) => x.startsWith("Play Z-Battle ZCHEAP")),
-      "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
-    );
-    s = playG(s, { type: "playZ", player: "p1", card: zc });
-    assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
-    assert.ok(zoneOf(s, "p1", "battle").includes(zc), "and the card actually entered play");
-  }
+  // Build exactly 1 Z-Energy card — one short of the printed cost of 2, but
+  // exactly the reduced one — by comboing a card at the end of a battle (8-5-2).
+  s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
+  const c = findG(s, "p1", "hand", "V1");
+  s = passCombosG(playG(s, { type: "combo", player: "p1", card: c }));
+  assert.equal(s.prompt.kind, "zEnergyFromCombo");
+  s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
+  assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
+  assert.ok(
+    actsG(s).some((a) => a.type === "playZ" && a.card === zc),
+    "offered on 1 Z-Energy — the printed 2 would refuse this, so the legality gate is reading the reduction",
+  );
+  s = playG(s, { type: "playZ", player: "p1", card: zc });
+  assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: the one Z-Energy card paid the whole (reduced) cost, not 2");
+  assert.ok(zoneOf(s, "p1", "battle").includes(zc), "and the card actually entered play");
 }
 
 {

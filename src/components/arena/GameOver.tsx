@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { rematch, requestReview } from "@/app/arena/actions";
 import type { GameReview } from "@/lib/arena/ai/review";
+import type { PublicOutcome } from "@/lib/arena/outcome";
 import { ReportBug } from "./ReportBug";
 
 /**
@@ -17,9 +18,8 @@ import { ReportBug } from "./ReportBug";
  */
 export function GameOver({
   gameId,
+  outcome,
   winnerName,
-  draw,
-  reason,
   turns,
   damage,
   spend,
@@ -31,9 +31,8 @@ export function GameOver({
   cards,
 }: {
   gameId: number;
+  outcome: PublicOutcome;
   winnerName: string | null;
-  draw: boolean;
-  reason: string;
   turns: number;
   damage: { you: number; them: number };
   spend: { calls: number; input: number; output: number; cached: number; micros: number };
@@ -55,16 +54,18 @@ export function GameOver({
   const dollars = spend.micros / 1_000_000;
   const cost = dollars < 0.01 && dollars > 0 ? "under $0.01" : `$${dollars.toFixed(2)}`;
   const cachedShare = spend.input + spend.cached > 0 ? Math.round((spend.cached / (spend.input + spend.cached)) * 100) : 0;
+  const draw = outcome.kind === "draw";
+  const resultTitle = outcome.kind === "interrupted" ? "Game interrupted" : outcome.kind === "abandoned" ? "Game abandoned" : draw ? "A draw" : `${winnerName} wins`;
 
   return (
     <section className="relative isolate space-y-3 overflow-hidden rounded-xl border border-space-700/70 bg-space-900/60 p-4">
       {/* Slow rays behind a slammed title (rd-07). A background layer, and not
           drawn at all for a draw, which has no winner to celebrate. */}
-      {!draw && <span className="arena-fx-rays" aria-hidden />}
+      {!draw && outcome.kind !== "interrupted" && outcome.kind !== "abandoned" && <span className="arena-fx-rays" aria-hidden />}
       <div className="text-center">
-        <p className="text-[11px] uppercase tracking-[0.28em] text-space-400">{draw ? "Draw" : winnerName ? "Result" : "Over"}</p>
-        <p className="arena-fx-title mt-1 text-3xl font-bold tracking-tight text-ki-300 sm:text-4xl">{draw ? "A draw" : `${winnerName} wins`}</p>
-        <p className="mt-1 text-xs text-space-300">{reason}</p>
+        <p className="text-[11px] uppercase tracking-[0.28em] text-space-400">{draw ? "Draw" : outcome.kind === "interrupted" || outcome.kind === "abandoned" ? "Status" : "Result"}</p>
+        <p className="arena-fx-title mt-1 text-3xl font-bold tracking-tight text-ki-300 sm:text-4xl">{resultTitle}</p>
+        <p className="mt-1 text-xs text-space-300">{outcome.reason}</p>
       </div>
 
       <div className="space-y-2">
@@ -130,7 +131,7 @@ export function GameOver({
         </div>
       )}
 
-      {review ? (
+      {outcome.kind === "interrupted" ? null : review ? (
         <div className="space-y-2 rounded-lg border-l-2 border-ki-500 bg-space-800 p-3 text-xs leading-relaxed">
           <p className="text-space-100">{review.verdict}</p>
           <p className="text-space-300">

@@ -16,15 +16,31 @@ import type { AdminDebug } from "@/lib/arena/admin-debug";
  * is answered with no error and no change, so a screenshot shows the state the
  * fixture describes and the opened sheets, never a server round trip.
  */
+type PreviewDriver = { actions: unknown[]; advances: number; failFirstAdvance?: boolean; failedFirstAdvance?: boolean };
+function previewDriver(): PreviewDriver | undefined {
+  return (window as unknown as { __arenaPreviewDriver?: PreviewDriver }).__arenaPreviewDriver;
+}
+
 const STUB = {
   // What the board sent, kept where a scripted drive can read it: a drag that
   // plays a card sends one `play`, and a refused one sends nothing (rd-03).
   act: async (_gameId: number, action: unknown) => {
     const w = window as unknown as { __arenaSent?: unknown[] };
     (w.__arenaSent ??= []).push(action);
+    previewDriver()?.actions.push(action);
     return { error: null };
   },
-  advance: async () => ({ error: null }),
+  advance: async () => {
+    const driver = previewDriver();
+    if (driver) {
+      driver.advances++;
+      if (driver.failFirstAdvance && !driver.failedFirstAdvance) {
+        driver.failedFirstAdvance = true;
+        return { error: "The mocked opponent advance failed. Retry to resume the saved turn." };
+      }
+    }
+    return { error: null };
+  },
   // Flagging, answered without a database: the flag the drawer would get back.
   flag: async (gameId: number, note: string | null) => ({ error: null, created: true, flag: { id: 1, gameId, turn: 4, beatIndex: 0, note, flaggedBy: null, reviewerNote: null, resolved: false } }),
   // The end screen's Rematch: answered, never redirected — there is no game to start.
@@ -162,7 +178,7 @@ export function PreviewStage({
       ? defendView(snapshot)
       : fx === "victory"
         ? // `?fx=victory`: the `over` fixture won by you, as frame 10 draws it.
-          { ...snapshot, view: { ...snapshot.view, turn: 5, over: { winner: snapshot.view.you.player, reason: `${snapshot.view.them.name} has no life left` } } }
+          { ...snapshot, over: { kind: "win", winner: snapshot.view.you.player, reason: `${snapshot.view.them.name} has no life left` }, view: { ...snapshot.view, turn: 5, over: { winner: snapshot.view.you.player, reason: `${snapshot.view.them.name} has no life left` } } }
       : fx && fx !== "over"
         ? { ...snapshot, view: fx === "attack" ? { ...snapshot.view, battle: null } : fx === "finish" ? { ...snapshot.view, them: { ...snapshot.view.them, life: 1 } } : snapshot.view, beats: { seq: 0, list: [], art: snapshot.beats?.art ?? {} } }
         : snapshot,
@@ -183,7 +199,7 @@ export function PreviewStage({
         setShown((s) => ({
           ...s,
           game: { ...s.game, status: "over" },
-          over: { winner: v.you.player, reason: `${v.them.name} has no life left` },
+          over: { kind: "win", winner: v.you.player, reason: `${v.them.name} has no life left` },
           view: { ...s.view, battle: null, them: { ...s.view.them, life: 0 }, over: { winner: v.you.player, reason: `${v.them.name} has no life left` } },
           beats: { seq: 2, list: [clash, damage], art },
         })),
@@ -213,9 +229,8 @@ export function PreviewStage({
         <div className="mx-auto mt-3 max-w-xl px-2">
           <GameOver
             gameId={snapshot.game.id}
+            outcome={{ kind: "win", winner: snapshot.view.you.player, reason: "Claude's leader falls on turn 5." }}
             winnerName="Red Leader"
-            draw={false}
-            reason="Claude's leader falls on turn 5."
             turns={5}
             damage={{ you: 3, them: 8 }}
             spend={{ calls: 0, input: 0, output: 0, cached: 0, micros: 0 }}
