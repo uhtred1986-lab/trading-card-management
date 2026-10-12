@@ -513,6 +513,15 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // `resolvePlay` pushes.
     if (releaseResolvingPlay(state)) continue;
 
+    // #609: a saved 8-5-8 replacement substitute is part of this native
+    // departure, not a checkpoint of its own. Re-enter battleEnd to record
+    // its actual destination before the 8-5-9 group is announced.
+    if (top.reask && top.phase === "battle" && name === "battleEnd" && state.battle?.endCombo?.stage === "departures" && state.battle.endCombo.substituteDeparture) {
+      delete top.reask;
+      delete top.asking;
+      continue;
+    }
+
     // 4-2-2: a checkpoint, here and nowhere else. Between one step and the
     // next, and before any question is put — which is where the legacy
     // engine's own `{ op: "checkpoint" }` entries sit, because those are the
@@ -1117,7 +1126,14 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       delete frame.afterSkillKeywords;
       fireAfterSkill(ctx, game, state, source, "heroicExtraSkillActivated", frame.master, keywords);
     }
-    return stepScript(vmHost(ctx, game, state, ev), frame);
+    const substitute = state.battle?.endCombo?.stage === "departures" ? state.battle.endCombo.substituteDeparture : undefined;
+    const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
+    if (ownCleanupSubstitute) substitute.active = true;
+    try {
+      return stepScript(vmHost(ctx, game, state, ev), frame);
+    } finally {
+      if (ownCleanupSubstitute) delete substitute!.active;
+    }
   } catch (err) {
     if (err instanceof AutoPaymentFailed) {
       log(ev, { type: "note", text: frame.aegisCost ? "Aegis activation failed: a replacement caused payment to fail" : "Auto skill canceled: a replacement caused payment to fail" });

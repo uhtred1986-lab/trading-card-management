@@ -9,7 +9,7 @@ import { addEffect } from "../../src/lib/arena/vm/effects";
 import { run } from "../../src/lib/arena/vm/flow";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { NotYet } from "../../src/lib/arena/vm/errors";
-import { automaticPriceHost, canFinishAutomaticPrice } from "../../src/lib/arena/vm/auto-costs";
+import { automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "../../src/lib/arena/vm/auto-costs";
 import { staticsNow } from "../../src/lib/arena/vm/program";
 import { stepScript, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -41,6 +41,10 @@ const defs = { ...DEFS,
   TARGET_ALIAS549: card("TARGET_ALIAS549", { name: "Another Name", alsoNames: ["Price Target"], skill: null }),
   TARGET_BACK549: card("TARGET_BACK549", { name: "Front Name", back: { name: "Price Target", power: 10000, skill: null }, skill: null }),
   PERM549: card("PERM549", { energyCost: 0, skill: "[Permanent] This card gets +1000 power." }),
+  FACEUP549: card("FACEUP549", { skill: "[Auto] Flip 1 card in your life face up: When you play this card, draw 1 card." }),
+  FACEDOWN549: card("FACEDOWN549", { skill: "[Auto] Flip 1 card in your life face down: When you play this card, draw 1 card." }),
+  FACEWATCH549: card("FACEWATCH549", { skill: "[Auto] When this card in your life is flipped face up, draw 1 card." }),
+  AEGISFACE549: card("AEGISFACE549", { skill: "[Aegis red/blue]" }),
 };
 const scripts = rulesFromCompiler(defs);
 function script(id: keyof typeof defs, ops: Op[], priceOps: Op[] | null = null): Script {
@@ -959,6 +963,106 @@ function mainWith(id: string) { const state = main(); return { state, source: st
     assert.equal(s.state.outcome?.kind, "interrupted"); assert.equal(s.state.outcome?.privateContext?.issue, "#549");
   }
   scripts.ACTION549.bySkill[0] = old;
+}
+// A compiled own-Life face turn pays only when the chosen card actually
+// changes from face down to face up. The public turn event precedes the
+// priced Auto, and its Life-area watcher answers at the next checkpoint.
+{
+  assert.deepEqual(scripts.FACEUP549.bySkill[0].price?.ops?.map((op) => op.op), ["choose", "faceUp"]);
+  const a = mainWith("FACEUP549");
+  const [target, alreadyUp] = a.state.sides.p1.zones.life;
+  assert.ok(target && alreadyUp);
+  a.state.cards[target].cardId = "FACEWATCH549";
+  a.state.cards[alreadyUp].faceUp = true;
+  const beforeOther = JSON.stringify(snapshot(a.state, "p2"));
+  assert.ok(!beforeOther.includes(target), "a face-down Life card stays secret before payment");
+  pend(a.state, a.source);
+  assert.equal(a.state.prompt.kind, "chooseMode");
+  const declined = answer(a.state, declines(a.state));
+  assert.equal(declined.state.cards[target].faceUp, false);
+  assert.equal(draws(declined.events), 0);
+  const opened = answer(a.state, 0);
+  assert.equal(opened.state.prompt.kind, "chooseCards");
+  if (opened.state.prompt.kind === "chooseCards") {
+    assert.ok(opened.state.prompt.choice.candidates.includes(target));
+    assert.ok(!opened.state.prompt.choice.candidates.includes(alreadyUp));
+  }
+  const saved = JSON.stringify(opened.state);
+  assert.throws(() => choose(opened.state, [alreadyUp]), IllegalAction);
+  assert.equal(JSON.stringify(opened.state), saved);
+  const stale = reload(opened.state); stale.cards[target].faceUp = true;
+  const staleBefore = JSON.stringify(stale);
+  assert.throws(() => choose(stale, [target]), IllegalAction);
+  assert.equal(JSON.stringify(stale), staleBefore);
+  const paid = choose(reload(opened.state), [target]);
+  assert.equal(paid.state.cards[target].faceUp, true);
+  assert.equal(paid.state.prompt.kind, "main");
+  assert.equal(draws(paid.events), 2, "the priced Auto and Life-area watcher both resolve once");
+  assert.ok(paid.events.findIndex((event) => event.type === "note" && /face up/.test(event.text)) < paid.events.findIndex((event) => event.type === "skill" && event.card === a.source));
+  assert.ok(paid.events.some((event) => event.type === "skill" && event.card === target), "the face-up moment reaches the watcher checkpoint");
+  assert.ok(snapshot(paid.state, "p2").view.them.lifeFaceUp.some((card) => card.id === target));
+  assert.ok(!JSON.stringify(snapshot(paid.state, "p2")).includes("autoCost"));
+  const impossible = mainWith("FACEUP549");
+  for (const id of impossible.state.sides.p1.zones.life) impossible.state.cards[id].faceUp = true;
+  const before = JSON.stringify(impossible.state.sides);
+  const denied = pend(impossible.state, impossible.source);
+  assert.equal(impossible.state.prompt.kind, "main");
+  assert.equal(JSON.stringify(impossible.state.sides), before);
+  assert.equal(draws(denied), 0);
+  assert.ok(denied.some((event) => event.type === "note" && /unaffordable/.test(event.text)));
+  const down = mainWith("FACEDOWN549");
+  const downTarget = down.state.sides.p1.zones.life[0]; assert.ok(downTarget);
+  down.state.cards[downTarget].faceUp = true;
+  const otherDown = down.state.sides.p1.zones.life[1]; assert.ok(otherDown);
+  down.state.cards[otherDown].faceUp = true;
+  pend(down.state, down.source);
+  const downOffer = answer(down.state, 0);
+  assert.equal(downOffer.state.prompt.kind, "chooseCards");
+  if (downOffer.state.prompt.kind === "chooseCards") assert.deepEqual(downOffer.state.prompt.choice.candidates, [downTarget, otherDown]);
+  const turnedDown = choose(reload(downOffer.state), [downTarget]);
+  assert.equal(turnedDown.state.cards[downTarget].faceUp, false);
+  assert.ok(!JSON.stringify(snapshot(turnedDown.state, "p2")).includes(downTarget), "face-down Life is private again");
+  assert.equal(draws(turnedDown.events), 1);
+  assert.ok(turnedDown.events.findIndex((event) => event.type === "note" && /face down/.test(event.text)) < turnedDown.events.findIndex((event) => event.type === "skill"));
+  for (const owner of ["#549", "#595"] as const) {
+    assert.throws(() => readableAutomaticPrice([{ op: "faceUp", target: { sel: { special: "self" } } }], owner === "#549" ? "Auto" : "Aegis", owner),
+      (err: unknown) => err instanceof NotYet && err.issue === owner, "an unproved face target stays typed unknown");
+  }
+}
+// Aegis uses the same strict action-price host after its hand-color payment.
+// Its compiled face-turn suffix is valid for that host too; colored cards are
+// spent before the face-up note, and neither step is confused with activation.
+{
+  const old = scripts.AEGISFACE549.bySkill[0];
+  scripts.AEGISFACE549.bySkill[0] = { ...old, price: { ...old.price!, ops: scripts.FACEUP549.bySkill[0].price!.ops! } };
+  let s = main(); const source = stage(s, "AEGISFACE549");
+  const energy = stage(s, "ENERGY549", "energy"); s.cards[energy].mode = "rest";
+  const [red, blue] = s.sides.p1.zones.hand;
+  assert.ok(red && blue);
+  s.cards[red].cardId = "ENERGY549"; s.cards[blue].cardId = "V-BLUE";
+  const life = s.sides.p1.zones.life[0]; assert.ok(life);
+  s = rules.apply(ctx, s, { type: "endMain", player: "p1" }).state as VmState;
+  s = rules.apply(ctx, s, { type: "charge", player: "p2", card: null }).state as VmState;
+  s = rules.apply(ctx, s, { type: "attack", player: "p2", attacker: s.sides.p2.zones.leader[0], target: s.sides.p1.zones.leader[0] }).state as VmState;
+  s = rules.apply(ctx, s, { type: "pass", player: "p2" }).state as VmState;
+  assert.equal(s.prompt.kind, "combo");
+  const declared = rules.apply(ctx, reload(s), { type: "activate", player: "p1", card: source, skill: 0 }); s = declared.state as VmState;
+  assert.equal(s.prompt.kind, "chooseCards");
+  assert.equal(declared.events.filter((event) => event.type === "skill" && event.card === source).length, 0);
+  const colors = choose(s, [red]); s = colors.state;
+  assert.ok(s.sides.p1.zones.drop.includes(red) && s.sides.p1.zones.drop.includes(blue));
+  assert.equal(colors.events.filter((event) => event.type === "skill" && event.card === source).length, 0);
+  assert.equal(s.cards[life].faceUp, false);
+  assert.equal(s.prompt.kind, "chooseCards");
+  const saved = JSON.stringify(s);
+  assert.throws(() => choose(s, [red]), IllegalAction);
+  assert.equal(JSON.stringify(s), saved);
+  const paid = choose(reload(s), [life]);
+  assert.equal(paid.state.cards[life].faceUp, true);
+  assert.ok(paid.events.some((event) => event.type === "note" && /face up/.test(event.text)));
+  assert.ok(paid.events.some((event) => event.type === "skill" && event.card === source));
+  assert.ok(paid.events.findIndex((event) => event.type === "note" && /face up/.test(event.text)) < paid.events.findIndex((event) => event.type === "skill" && event.card === source));
+  scripts.AEGISFACE549.bySkill[0] = old;
 }
 // #558 integration uses actual #549 cost frames, never a synthetic pending
 // extension. Public source identities stay pending during both decisions;
