@@ -39,4 +39,4 @@ Dependencies in each issue are merge gates; sequence above also serializes share
 
 ## Measured checkpoint follow-up
 
-- [ ] #607 **P1** — Profile and reduce repeated evaluation in corrected zero-power checkpoints (bounded child of #569; independent of polling #568). Local combined crowded-aura apply measures 781.947/898.881 ms p50/p95; the committed evidence and source stamp are in [evidence/607/review-baseline.json](evidence/607/review-baseline.json). Preserve the new rule processing and verify invalidation/interaction outcomes.
+- [ ] #607 **P1** — Profile and reduce repeated evaluation in corrected zero-power checkpoints (bounded child of #569; independent of polling #568). Isolated same-fixture apply improved from 656.847/887.796 ms to 83.144/95.482 ms p50/p95; state, event, legal/rejected-action and masked-view hashes match. Reports are [baseline](evidence/607/checkpoint-cache-baseline.json) and [optimized](evidence/607/checkpoint-cache-optimized.json); clean-stack publication remains pending, so this is not delivered. Preserve rule processing and verify invalidation/interaction outcomes.
