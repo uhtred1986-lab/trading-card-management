@@ -4,7 +4,7 @@ import { canOpenGame } from "@/lib/auth/ownership";
 import { arenaGames } from "@/db/schema";
 import { fail, ok, pollParams, seatFor } from "@/lib/arena/api";
 import { isVersus, loadArchivedGame, loadGame, seatOf } from "@/lib/arena/games";
-import { snapshotOfGame, waitForBeats, waitForRevision } from "@/lib/arena/session";
+import { snapshotOfGame, waitForBeats, waitForRevisionResult } from "@/lib/arena/session";
 import { archivedSnapshotFor } from "@/lib/arena/snapshot";
 import { currentUser, routeViewer } from "@/lib/auth";
 
@@ -49,16 +49,24 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const versus = isVersus(head.mode);
       const seat = versus ? seatOf(head, await currentUser()) : null;
       if (versus && !seat) return fail("not_found", `no game ${id}`);
-      const moved = sinceRevision == null
-        ? await waitForBeats(db, id, sinceBeat, waitMs)
-        : await waitForRevision(db, id, sinceRevision, waitMs);
+      let revisionWait: Awaited<ReturnType<typeof waitForRevisionResult>> | null = null;
+      if (sinceRevision == null) await waitForBeats(db, id, sinceBeat, waitMs);
+      else revisionWait = await waitForRevisionResult(db, id, sinceRevision, waitMs);
+      // Authorization and the versus-seat check above apply before this
+      // no-body answer. It avoids loading action history, replay rules,
+      // catalog art and a viewer-specific Snapshot when the row is unchanged.
+      // The next client long-poll rechecks immediately from the same cursors.
+      if (revisionWait?.kind === "missing") return fail("not_found", `no game ${id}`);
+      if (revisionWait?.kind === "unchanged") {
+        return new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
+      }
       const game = await loadGame(db, id);
       if (!game) return fail("not_found", `no game ${id}`);
       const snapshot = await snapshotOfGame(db, game, seat);
       // A status-only revision must reach the client, but the old animation
       // queue is not a new story. Beat progress stays on its own cursor.
       const hasNewBeats = (snapshot.beats?.seq ?? 0) > sinceBeat;
-      return ok(moved ? (hasNewBeats ? snapshot : { ...snapshot, beats: null }) : { ...snapshot, beats: null });
+      return ok(hasNewBeats ? snapshot : { ...snapshot, beats: null });
     }
   }
 
