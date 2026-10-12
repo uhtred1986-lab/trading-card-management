@@ -35,7 +35,6 @@ import {
   playG,
   powerIn,
   priceCondition,
-  rulesGap,
   skillLines,
   skillNegatedG,
   skillsNegatedG,
@@ -1343,17 +1342,25 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   s = playG(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
   const reds = zoneOf(s, "p1", "hand").filter((id) => s.cards[id].cardId === "V1");
   const blue = findG(s, "p1", "hand", "V-BLUE");
-  if (!rulesGap("readings: [Aegis red/blue] asks only for the colour still to cover (22-30-3)", "the rules engine's [Aegis] choice offers every card in hand after the first, not only the ones that cover what is missing", "no issue filed yet")) {
+  {
     s = playG(s, { type: "choose", player: "p1", cards: [reds[0]] });
-    assert.equal(s.prompt.kind, "chooseCards", "blue is still to cover");
-    const menu = (s.prompt as { choice: { candidates: string[]; min: number } }).choice;
-    assert.deepEqual(menu.candidates, [blue], "only the card that covers what is missing");
-    assert.equal(menu.min, 1, "and stopping here is not on the menu");
-    assert.ok(!labelsG(s).includes("Choose none"));
-    s = playG(s, { type: "choose", player: "p1", cards: [blue] });
-    assert.ok(zoneOf(s, "p1", "drop").includes(reds[0]) && zoneOf(s, "p1", "drop").includes(blue), "22-30-3: a covering pair");
-    assert.ok(!zoneOf(s, "p1", "drop").includes(reds[1]), "and only the two it needed");
-    assertConsistentG(s);
+    if (ENGINE === "rules") {
+      assert.ok(zoneOf(s, "p1", "drop").includes(reds[0]) && zoneOf(s, "p1", "drop").includes(blue), "the forced sole Blue completes the required cost without an optional partial choice");
+      assert.ok(!zoneOf(s, "p1", "drop").includes(reds[1]), "the extra Red is not paid");
+      assert.equal(s.prompt.kind, "chooseCards", "after the forced color completion, the next choice is for energy");
+      assert.match((s.prompt as { choice: { reason: string } }).choice.reason, /energy to switch/);
+      assertConsistentG(s);
+    } else {
+      assert.equal(s.prompt.kind, "chooseCards", "blue is still to cover");
+      const menu = (s.prompt as { choice: { candidates: string[]; min: number } }).choice;
+      assert.deepEqual(menu.candidates, [blue], "only the card that covers what is missing");
+      assert.equal(menu.min, 1, "and stopping here is not on the menu");
+      assert.ok(!labelsG(s).includes("Choose none"));
+      s = playG(s, { type: "choose", player: "p1", cards: [blue] });
+      assert.ok(zoneOf(s, "p1", "drop").includes(reds[0]) && zoneOf(s, "p1", "drop").includes(blue), "22-30-3: a covering pair");
+      assert.ok(!zoneOf(s, "p1", "drop").includes(reds[1]), "and only the two it needed");
+      assertConsistentG(s);
+    }
   }
 }
 
@@ -1369,8 +1376,10 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   s = playG(s, { type: "attack", player: "p2", attacker: leaderOf(s, "p2"), target: leaderOf(s, "p1") }, { type: "pass", player: "p2" });
   assert.ok(canActivateG(s, aeg), "one card covering both is enough to activate");
   s = playG(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
-  const purple = findG(s, "p1", "hand", "PURPLE");
-  s = playG(s, { type: "choose", player: "p1", cards: [purple] });
+  const purple = ENGINE === "rules"
+    ? zoneOf(s, "p1", "drop").find((id) => s.cards[id].cardId === "PURPLE")!
+    : findG(s, "p1", "hand", "PURPLE");
+  if (ENGINE !== "rules") s = playG(s, { type: "choose", player: "p1", cards: [purple] });
   assert.ok(zoneOf(s, "p1", "drop").includes(purple), "it paid the whole cost by itself");
   assertConsistentG(s);
 }
