@@ -332,7 +332,7 @@ export function DockedInspector({
           <button
             type="button"
             onClick={onUnpin}
-            className="shrink-0 rounded-full border border-space-500 px-2 py-px text-[10px] uppercase tracking-wider text-space-200 hover:border-ki-400 hover:text-ki-300"
+            className="tap min-h-11 shrink-0 rounded-full border border-space-500 px-3 py-2 text-xs uppercase tracking-wider text-space-200 hover:border-ki-400 hover:text-ki-300"
           >
             pinned · esc
           </button>

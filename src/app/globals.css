@@ -863,21 +863,11 @@ input[type="number"] {
   }
 }
 
-/* ==========================================================================
- * The desktop board (#444, `docs/arena-redesign/` frames desk-01…12, the
- * prototype's `.arena.desk`): one grid the height of the viewport.
- *
- *   bar   bar    bar          60 px
- *   left  field  inspector    the rest
- *   left  hand   inspector    the fan (~200 px)
- *   left  prompt inspector    one line and its buttons
- *
- * The left column is MATCH, the phase list and a tip; the inspector always
- * holds a card. Nothing scrolls the page, so the hand and the field are on
- * screen together and a drag never needs a scroll. The field's cards scale
- * with the viewport's height as well as its width (below), which is what
- * lets 1280 × 800 fit as well as 1440 × 900. Below lg nothing here applies.
- * ========================================================================== */
+/* The context wrapper is transparent in the phone flow: its single prompt
+   keeps the established sticky position after the hand. */
+.arena-context { display: contents; }
+/* Desktop: one match strip, a broad board/hand and a contextual column. The
+   decision stays at the top of that column while card inspection changes. */
 /* A missed drag must not paint the board's words blue. */
 .arena-board {
   -webkit-user-select: none;
@@ -892,15 +882,16 @@ input[type="number"] {
     display: grid;
     /* The full-bleed game page pads its main by 0.5 rem top and bottom. */
     height: calc(100dvh - 1rem);
-    min-height: 600px;
+    /* Text-only zoom grows rem units. Allow page scrolling so the decision
+       and its controls never have to compete with a clipped fixed board. */
+    min-height: max(600px, 48rem);
     max-width: none;
-    grid-template-columns: 220px minmax(0, 1fr) 300px;
-    grid-template-rows: 60px minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      "top top top"
-      "left field side"
-      "left hand side"
-      "left bar side";
+      "top top"
+      "field side"
+      "hand side";
     /* Both axes now: the turn wash runs 14 % past the board's edges, and the
        board is exactly the viewport's height. */
     overflow: clip;
@@ -913,6 +904,37 @@ input[type="number"] {
   .arena-board .arena-field {
     --arena: 1.2;
   }
+  .arena-context {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    border-left: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+    background: rgba(4, 7, 18, 0.55);
+  }
+  [data-skin="anime"] .arena-context {
+    border-left: 2px solid var(--ink);
+    background: rgba(255, 255, 255, 0.78);
+  }
+  .arena-context > :first-child {
+    max-height: 70%;
+    overflow-y: auto;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+    overscroll-behavior: contain;
+  }
+  [data-skin="anime"] .arena-context > :first-child { border-bottom: 2px solid var(--ink); }
+  .arena-context .arena-bar {
+    padding: 12px;
+    gap: 8px;
+  }
+  .arena-context [data-decision-summary] {
+    max-height: 20dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .arena-context .arena-bar > p { flex-basis: 100%; }
+  .arena-context > :last-child { overflow: hidden; }
+  .arena-match-phases { background: transparent; }
   .arena-title {
     color: var(--color-space-50);
   }
@@ -965,7 +987,7 @@ input[type="number"] {
 }
 @media (min-width: 1280px) {
   .arena-board {
-    grid-template-columns: 250px minmax(0, 1fr) 370px;
+    grid-template-columns: minmax(0, 1fr) 380px;
   }
   .arena-board .arena-field.arena-hand {
     --arena: 1.33;
