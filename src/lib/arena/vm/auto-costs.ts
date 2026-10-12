@@ -9,7 +9,10 @@ import { IllegalAction, sideOf } from "./common";
 import { NotYet, RulesetBroken } from "./errors";
 import { activeEnergy, cardColors, chargeCost, payersFor, planCost, priceFor, spendSkillCostUses, type Price, type VmPayment } from "./costs";
 import { log } from "./events";
+import { hasPossibleReplacement, possibleAltPaymentReplacement, staticsNow } from "./program";
 import type { VmState } from "./state";
+import { skillsShowing } from "./triggers";
+import { inPlayZones } from "./zones";
 
 /** 5-8-4: a legal replacement failed an attempted payment. Retain the
  * already performed payment/replacement, then cancel activation. */
@@ -92,6 +95,56 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
   };
 }
 
+/** One exact dead end, before expanding a hand choice. The only remaining
+ * movement is of cards chosen from the hand to the Drop, so it cannot stand an
+ * already-rested source up for the final mandatory self-rest. Keep this narrow:
+ * an aliased choice, another destination, a replacement or a nested reference
+ * can make the intervening movement affect the source. */
+function cannotRestSourceAfterHandPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): boolean {
+  const [choose, move, rest, ...extra] = frame.ops.slice(frame.ip);
+  if (extra.length || choose?.op !== "choose" || move?.op !== "moveTo" || rest?.op !== "switchMode") return false;
+  if (rest.mode !== "rest" || Object.keys(rest).some((key) => !["op", "target", "mode"].includes(key))) return false;
+  if (!("sel" in rest.target) || rest.target.sel.special !== "self" || Object.keys(rest.target.sel).length !== 1) return false;
+  if (Object.keys(choose).some((key) => !["op", "sel", "as", "reason"].includes(key))) return false;
+  const sel = choose.sel;
+  if (sel.side !== "you" || sel.area !== "hand" || !Number.isInteger(sel.count) || (sel.count ?? 0) < 1
+    // Compiler selectors carry undefined defaults for filters and alternate
+    // sources. Only a *set* extra field changes what "from hand" can mean.
+    || Object.entries(sel).some(([key, value]) => value !== undefined && !["side", "area", "count", "upTo"].includes(key))) return false;
+  if (move.to !== "drop" || Object.keys(move).some((key) => !["op", "target", "to", "reveal"].includes(key))
+    || !("var" in move.target) || move.target.var !== choose.as || Object.keys(move.target).length !== 1) return false;
+  const source = state.cards[frame.card];
+  const host = vmHost(ctx, game, state, []);
+  if (!source || source.mode !== "rest" || !["battle", "unison", "energy"].includes(host.areaOf(frame.card) ?? "")) return false;
+  // resolveSelector includes already-picked cards on a resumed choice. A saved
+  // alias to the source must not be mistaken for an ordinary hand candidate.
+  const hand = new Set(host.zone(frame.master, "hand"));
+  if (hand.has(frame.card) || (frame.vars[choose.as] ?? []).some((id) => !hand.has(id))
+    || state.lastChoice?.some((id) => !hand.has(id)) || frame.moveLoop || frame.replacing) return false;
+  // A cost-move replacement can run another program, including a mode reset.
+  // A [Permanent] whose condition is false now can become active after the
+  // first hand departure. Read every in-play source's actual record/copy
+  // program, including both conditional branches, before excluding that path.
+  // No remaining move puts a new Permanent source in play. A keyword
+  // wouldLeave hook only answers departures from held areas, not this hand.
+  if (state.effects.length) return false;
+  for (const side of Object.values(state.sides)) {
+    for (const zone of inPlayZones(game)) {
+      for (const id of side.zones[zone] ?? []) {
+        const showing = skillsShowing(ctx, state, id);
+        for (const skill of showing.skills) {
+          if (skill.kind !== "permanent") continue;
+          const program = showing.scripts.bySkill[skill.index];
+          if (program && hasPossibleReplacement(program.ops)) return false;
+        }
+      }
+    }
+  }
+  // Keyword altPayment bodies are also evaluated as standing programs.
+  if (possibleAltPaymentReplacement(game)) return false;
+  return !staticsNow(ctx, game, state).some((staticEffect) => staticEffect.kind === "replaceLeave");
+}
+
 /** Preflight on an isolated board, including earlier instructions and all
  * source/event/X bindings. No cost, trigger or prompt escapes this simulation.
  * Choices are single-card interpreter answers, so every branch is replayable. */
@@ -99,6 +152,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
   let budget = 2000;
   const visit = (s: VmState, f: ScriptFrame): boolean => {
     if (--budget < 0) throw new NotYet("plan this Auto action price within the bounded choice search", "#549");
+    if (cannotRestSourceAfterHandPrice(ctx, game, s, f)) return false;
     s.programs = [];
     try {
       const result = stepScript(automaticPriceHost(ctx, game, s, []), f);
