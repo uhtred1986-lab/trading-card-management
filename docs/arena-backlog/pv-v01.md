@@ -5,6 +5,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage1
 stage: 10
 issue: 575
 priority: P1
+status: closed
 touches: src/lib/arena/glossary.ts, scripts/verify-rules.ts, docs/arena-CURRENT.md
 ---
 **Source:** `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.
