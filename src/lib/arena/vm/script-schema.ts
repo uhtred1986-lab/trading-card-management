@@ -362,7 +362,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
   shuffle: { fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }], sentence: "shuffle" },
-  invokeSkill: { fields: [{ name: "trait", type: "string", required: true }, { name: "skillKind", type: { enum: ["activate:main"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] }, required: true }], sentence: "activate the chosen {trait} card's {skillKind} skill" },
+  invokeSkill: {
+    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
+    sentence: (raw) => {
+      const op = raw as OpOf<"invokeSkill">;
+      return "trait" in op ? `activate the chosen ${op.trait} card's ${op.skillKind} skill` : `activate up to 1 ${op.skillKind} skill of ${describeSelector(op.sel)} for free`;
+    },
+    doc: "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.",
+  },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {
     fields: CHOOSE_FIELDS,
@@ -1663,6 +1670,14 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     for (const f of spec.fields) {
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
+    }
+    // 12-2-4: Desire and the optional hand-Extra choice are two bounded
+    // readings. Mixing their fields would silently change the old cost gate.
+    if (o.op === "invokeSkill") {
+      const desire = typeof o.trait === "string" && o.maxCost === "currentEnergy" && o.sel === undefined && o.skillKind === "activate:main";
+      const selected = o.trait === undefined && o.maxCost === undefined && o.skillKind === "activate:main/battle" && isRecord(o.sel)
+        && o.sel.side === "you" && o.sel.area === "hand" && o.sel.count === 1 && o.sel.upTo === true;
+      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line or an optional one-card hand selector for a Main/Battle line`;
     }
     // A marker loss is read at one moment only — 13-5-2's, an attack on a
     // Unison — so `event: marker` names it and `by: attack` belongs to it

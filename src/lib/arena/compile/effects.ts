@@ -2916,6 +2916,24 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       i++;
       continue;
     }
+    // BT31-116 (#539/#680): another effect activates the hand Extra's real
+    // Main/Battle line (§12-2-4); it does not play that Extra into Battle.
+    // Keep the whole printed target on one optional selector so declining the
+    // choice is distinct from finding no legal line, and neither pays an
+    // original Extra or skill cost.
+    const freeExtra = /^activate an \[activate: ?main\/battle\] skill of (up to 1 mono-white extra with an energy cost of 2 in your hand)[.]?$/i.exec(clause.trim());
+    if (freeExtra) {
+      const sel = parseTarget(freeExtra[1]);
+      if (sel?.side === "you" && sel.area === "hand" && sel.count === 1 && sel.upTo === true
+        && sel.filter?.type === "EXTRA" && sel.filter.monoColor === true
+        && sel.filter.colors.length === 1 && sel.filter.colors[0] === "White"
+        && sel.filter.costMin === 2 && sel.filter.costMax === 2 && !sel.filter.unreadable) {
+        push([{ op: "invokeSkill", sel, skillKind: "activate:main/battle", from: "hand" }]);
+        continue;
+      }
+      refuse(clause);
+      continue;
+    }
     // BT2-009 (#539): fill one named card's stack to a total, using the
     // current count after *each* top-deck placement. The printed number is a
     // finite bound, so existing `choose`, `count` and `moveTo` operations can
