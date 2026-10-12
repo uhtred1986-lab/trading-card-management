@@ -19,14 +19,14 @@ tracking: true
 - [x] #565 **P1** — Measure arena acknowledgement polling AI and rendering costs
 - [ ] #566 **P1** — Acknowledge human actions before resumable AI advance
 - [x] #567 **P1** — Record concurrent AI usage atomically
-- [ ] #568 **P2** — Skip unchanged snapshot loads with revision-aware polling
+- [x] #568 **P2** — Skip unchanged snapshot loads with revision-aware polling
 - [ ] #569 **P2** — Share immutable derived evaluation by match revision
 - [ ] #570 **P2** — Preview a gameplan without committing moves
 
 
 ## Order and hot files
 
-#565/#567/#607 are delivered; #566 is partial. #568 prerequisites (#545/#565) are merged, but its snapshot writes must follow #558 ownership. #569 follows #568 and #570 follows the ability/layout contracts.
+#565/#567/#568/#607 are delivered; #566 is partial. PR #619 avoids unchanged projections with an explicitly negotiated 204 response after authorization, preserving old-tab JSON behavior and revision-check cadence. Local modeled post-auth evidence shows 19 → 18 SELECTs per 15 seconds; hosted timing remains unclaimed. #569 follows this delivered polling contract and #570 follows the ability/layout contracts.
 
 Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
 
