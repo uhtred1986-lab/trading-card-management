@@ -25,48 +25,43 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 
 ## Delivery progress — 12 Oct 2026
 
-- #543 delivered in PR #585: per-printed-skill readiness distinguishes missing readings and runtime support.
-- #545 delivered in PR #586: authoritative revision, durable action identity and stale-request recovery; Android Gradle validation remains blocked by repository connectivity.
-- Owner-requested repository maintenance #583 delivered in PR #584: duplicate GitHub test, BugBot and acceptance workflows removed. Local verification and production deployment remain.
+Previously delivered: #543 in PR #585, #545 in PR #586, and owner-requested duplicate GitHub-check removal #583 in PR #584. Android Gradle and owner real-deck/paid-provider checks remain unclaimed.
 
-### Reviewed work awaiting merge
+The merge campaign resumed after the owner confirmed the prior production deployment finished. Sixteen reviewed PRs merged to main, in sequence:
 
-- #548 / PR #587: zero-power rule processing, replacement choices and reload continuation.
-- #559 / PR #589: accessible card sheets with keyboard navigation and explicit close controls.
-- #567 / PR #590: independent atomic AI usage ledger, duplicate-call protection and concurrent accounting.
-- #546 / PR #591: recoverable polling, request deadlines, Offline/Reconnecting status and Retry.
-- #565 / PR #592: reproducible engine and persisted-acknowledgement performance baseline.
-- #571 / PR #594: exact card trigger/filter readings, including real Awaken exceptions.
-- #544 / PR #598: typed interrupted outcomes, public privacy, archive and review guards.
-- #553 / PR #599: static/timed identity layers and named keyword negation, with stale all-area rows blocked.
-- #555 / PR #596: incremental mandatory Aegis choices and persisted payment continuation.
-- #556 / PR #600: matching face-up Life Autos and watchers with exact event-subject binding.
-- #601 / PR #603: fixed AI presentation, request and exact action-menu expectations; the larger #459 VM oracle migration remains open.
-- #554 / PR #604: printed Heroic identity and turn reset with persisted pending/checkpoint ordering; stacked on #587. Granted identity remains #602.
-- #547 / PR #605: immutable match inputs, private replay export, portable hashes and offline CLI; stacked on #590.
-- #540 / PR #606: bound-target and duration/lifetime fixes reviewed at final commit `446`; owner real-deck fuzz remains unrun.
-- #551 / PR #608: persisted combo-to-Z-Energy cleanup reviewed at commit `5b4`; the prior Combo-to-Drop/end-of-battle Auto grouping remains the separate #609 follow-up.
-- #560 / PR #610: fullscreen card review with real phone artwork and selection-safe behavior; reviewed at commit `bb8`.
-- #566 / PR #611: human acknowledgement before resumable AI advance; durable recovery and lease fencing reviewed at `c0106a4`; intentionally partial and references #566 because an unrecorded provider outcome remains fail-closed.
+| PR | Issue | Delivered change |
+| --- | --- | --- |
+| #587 | #548 | Zero-power checkpoint processing and frozen replacement continuation |
+| #590 | #567 | Atomic independent AI usage accounting |
+| #589 | #559 | Accessible card/action sheets |
+| #604 | #554 | Printed Heroic identity and checkpoint ordering; granted identity remains #602 |
+| #599 | #553 | Static/timed identity and named keyword layers |
+| #610 | #560 | Explicit fullscreen card inspection, swipe paging and selection-safe review |
+| #605 | #547 | Immutable match inputs and private replay export |
+| #591 | #546 | Recoverable polling, deadlines and reconnect feedback |
+| #608 | #551 | Ordered combo-to-Z-Energy choices and 8-5-4 checkpoint; later ordering remains #609 |
+| #592 | #565 | Reproducible local performance baseline |
+| #612 | #607 | Bounded checkpoint read cache; clean-stack p50/p95 628.709/791.338 ms to 72.133/80.835 ms with identical recorded state/event/action/view hashes |
+| #598 | #544 | Typed interrupted outcomes, privacy and archive/review guards |
+| #596 | #555 | Incremental mandatory Aegis choices; cost order/original colors remain #595/#597 |
+| #600 | #556 | Face-up Life moments, subject binding and watchers |
+| #603 | #601 | Fixed AI request/action-menu expectations; broader VM oracle retirement remains #459/#118 |
+| #611 | #566 (partial) | Durable human acknowledgement and saved-result AI recovery; unknown provider outcome is attention-required, never automatically resent |
 
-- #607 / PR #612: bounded checkpoint evaluation cache reviewed at `20eb05e`; clean-stack local p50/p95 628.709/791.338 ms to 72.133/80.835 ms, with identical recorded state/event/action/view hashes.
+Production deployments through #603 reported Vercel success before each subsequent merge. Main `65367783708e261eb5742320afdc503db177a048` (#611) reports a failed Vercel deployment: https://vercel.com/gullet-cove/trading-card-management/bgBPdmTokcfWcAY99FyysyDW6P3N. Its final-main local production build and focused face-up Life check pass. This workspace cannot read Vercel logs because its enforced network policy excludes the Vercel API; the first deployment error has been requested from the owner. Do not guess the failure or run the unrelated configured database. Further main merges are held until this deployment failure is resolved.
 
-The reviewed PRs listed above are ready for merge but not delivered until their dependency and merge gates clear. Nineteen PRs are reviewed-ready, including the progress-doc PR. Main commit
-`74701713` (PR #586) currently has no reported Vercel status. The required deployment ordering in
-`docs/agent-brief.md` holds the next merge while independent implementation continues.
-The #575 capability inventory (PR #593) remains a draft: its runtime evidence must be reconciled
-with the implementation PRs that merge before it. The thirteen-source review combination passed local tests, typecheck, lint and build.
-The final Heroic checkpoint/guard fixes also pass the combined full test, typecheck, lint and build gates.
-The fifteen-source combination including immutable replay and the current bounce fix passes full tests, typecheck, lint and build.
-The nineteen-source review integration at `f6c489b` passes tests, typecheck, lint and build (six existing warnings). Full tests passed at `01da997`; final benchmark-only type corrections leave that runtime unchanged, and final typecheck/build pass. The final benchmark smoke matches all ten recorded output hashes. The remaining rules-only VM oracle exclusion is explicit. Nineteen reviewed PRs are ready for merge, excluding draft #575; ready status does not mean delivered.
-PR #606 / #540 has reviewed variable-bound timed replacement targets and duration/lifetime fixes at final commit `446`; persistence, scope and opponent-turn duration proofs pass. Owner real-deck fuzz remains unrun.
-PR #608 / #551 implements persisted combo-to-Z-Energy cleanup, reviewed at `5b4`; it explicitly leaves the prior Combo-to-Drop/end-of-battle Auto grouping to #609. PR #610 / #560 provides fullscreen review with real phone artwork and selection-safe behavior, reviewed at `bb8`. PR #611 / #566 provides immediate human acknowledgement and durable AI advance, reviewed at `c0106a4`; it remains partial and does not claim universal exactly-once provider behavior. #541 waits for the recorded Union scope ruling.
-The locally reproduced additional
-Aegis cost-ordering defect is a separate P1 follow-up, #595, in M5; it depends on #555.
-P1 #597 separately owns original-color keyword payment eligibility after #553/#555.
-P1 #607 profiles corrected crowded-aura action cost and bounds checkpoint evaluation reuse; PR #612 is published on a clean prerequisite stack, reviewed-ready and awaiting merge. It is a child of #569 independent of polling #568.
-P1 #609 separately reconciles the prior Combo-to-Drop/end-of-battle Auto grouping; #551 does not claim that ordering is corrected. It is listed in the M5 milestone and its canonical tracking file.
-P1 #602 owns individual identity for granted Heroic; #554 explicitly guards that case before payout.
+### Remaining reviewed work
+
+- PR #594 / #571: five official trigger/filter readings; a branch merge briefly lost #556 behavior, caught before merge and restored with focused #556/#571 and full rules checks. Current reviewed candidate: `50113da`.
+- PR #606 / #540: timed hand-return replacement, variable-bound lifetime and opponent-turn duration; current reviewed candidate: `0b63263`. The attack-return fixture is synthetic; owner real-deck fuzz remains unrun.
+- PR #588 / #581: this delivery progress and milestone reconciliation; ready after final documentation validation.
+- PR #593 / #575 remains draft while capability/test metadata is reconciled with the actual merged runtime. Its narrow evidence must not be promoted as exhaustive rules coverage.
+
+The nineteen-source review combination passed full tests, typecheck, lint and build; actual final main is being checked separately. The lone rules-only VM oracle exclusion remains explicit. Local lint warnings, hosted/device timing limits and owner real-deck checks stay recorded. No claim of universal exactly-once provider calls is made.
+
+### Follow-ups and scope boundaries
+
+P1 #595 owns Aegis cost ordering; #597 original-color payment eligibility; #602 granted Heroic identity; #609 later Combo-to-Drop/end-of-battle Auto grouping. #607 is the bounded measured child of broader cache-sharing #569, independent of polling #568. #541 waits for the recorded Union scope ruling. Remaining board gameplan and ability-contract work follows the original dependencies.
 
 ## Reconciliation decisions
 
