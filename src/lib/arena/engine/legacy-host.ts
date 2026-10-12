@@ -9,6 +9,7 @@ import { koCard, masterOf, pendPlacedWatchers, pendTriggers } from "./triggers";
 import type { Op } from "../vm/script";
 import type { Area, Color, FlowStep, GameEvent, GameState, PlayerId } from "../types";
 import type { ScriptHost } from "../vm/script-host";
+import { IllegalAction } from "../vm/common";
 
 /**
  * The legacy engine as a host.
@@ -19,7 +20,7 @@ import type { ScriptHost } from "../vm/script-host";
  * interpreter wrote out inline — `changeMarkers`, `createToken` — and the body
  * is that code, unchanged.
  */
-export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): ScriptHost {
+export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[], invocation?: Pick<ScriptHost, "invokableSkills" | "invokeSkill">): ScriptHost {
   const inst = (id: string) => s.cards[id];
   return {
     exists: (id) => !!s.cards[id],
@@ -46,6 +47,11 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       const held = s.players[p][area];
       if (typeof held === "string") return [held];
       return held === null ? [] : held.slice();
+    },
+    invokableSkills: (player, card, op) => invocation?.invokableSkills(player, card, op) ?? [],
+    invokeSkill: (player, card, index, op) => {
+      if (!invocation) throw new IllegalAction("nested skill activation is unavailable here");
+      invocation.invokeSkill(player, card, index, op);
     },
     playerName: (p) => s.players[p].name,
     turn: () => s.turn,
@@ -103,6 +109,7 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[]): Scr
       s.players[p].damageTaken += n;
     },
     shuffleDecks: (players) => shuffleDecks(s, players),
+    shuffleLives: (players) => shuffleLives(s, players),
     setEnteredTurn: (id, turn) => {
       inst(id).enteredTurn = turn;
     },
@@ -281,6 +288,23 @@ function shuffleDecks(s: GameState, players: PlayerId[]): void {
       state = t;
       const j = Math.floor((((r ^ (r >>> 14)) >>> 0) / 4294967296) * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    s.rngState = state;
+  }
+}
+
+/** 5-11-2: the Life Area is randomized by the same saved RNG after a search. */
+function shuffleLives(s: GameState, players: PlayerId[]): void {
+  for (const p of players) {
+    const life = s.players[p].life;
+    let state = s.rngState;
+    for (let i = life.length - 1; i > 0; i--) {
+      const t = (state + 0x6d2b79f5) | 0;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      state = t;
+      const j = Math.floor((((r ^ (r >>> 14)) >>> 0) / 4294967296) * (i + 1));
+      [life[i], life[j]] = [life[j], life[i]];
     }
     s.rngState = state;
   }

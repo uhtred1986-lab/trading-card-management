@@ -117,7 +117,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
  * `subject` — `modifyAttrAs` is what reads the two together.
  */
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
-export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "game", "whileSourceInPlay"] as const satisfies readonly Duration[];
+export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "game", "whileSourceInPlay"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
@@ -361,7 +361,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
-  shuffle: { fields: [SIDE], sentence: "shuffle" },
+  shuffle: { fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }], sentence: "shuffle" },
+  invokeSkill: { fields: [{ name: "trait", type: "string", required: true }, { name: "skillKind", type: { enum: ["activate:main"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] }, required: true }], sentence: "activate the chosen {trait} card's {skillKind} skill" },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {
     fields: CHOOSE_FIELDS,
@@ -900,6 +901,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   addLife:            "macro over `move`",
   lifeDownTo:         "macro over `move`",
   shuffle:            "primitive",
+  invokeSkill:        "primitive",
   energyMarker:       "macro over `modifyAttr`",
   choose:             "primitive",
   look:               "macro over `reveal`",
@@ -2490,6 +2492,7 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   nextTurn: " until the end of your opponent's turn",
   opponentTurn: " until the start of your opponent's next turn",
   afterNextCharge: " through your next Charge Phase",
+  afterOpponentCharge: " through your opponent's next Charge Phase",
   game: " for the rest of the game",
   whileSourceInPlay: " while this card is in a Battle Area",
 };

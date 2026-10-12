@@ -362,6 +362,11 @@ export function endAfterChargeEffects(state: VmState, ev: GameEvent[], cards: st
   return dropEffects(state, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
+/** End a source-controller's opponent-Charge restriction after that phase, even when its target changed control. */
+export function endAfterOpponentChargeEffects(state: VmState, ev: GameEvent[]): ContinuousEffect[] {
+  return dropEffects(state, ev, (e) => !(e.until === "afterOpponentCharge" && e.master !== state.turnPlayer && e.createdTurn < state.turn));
+}
+
 /**
  * "…while this card is in a Battle Area" (`whileSourceInPlay`): every effect
  * the card made with that duration ends as the card leaves the Battle Area —

@@ -21,6 +21,7 @@ tracking: true
 - [ ] #550 **P1** — Carry chosen cost values and targets into skill effects
 - [x] #551 **P1** — Offer eligible spent combo cards as Z-Energy
 - [ ] #609 **P1** — Reconcile remaining Combo-to-Drop versus end-of-battle Auto checkpoint grouping; #551 implements the preceding choices/8-5-4 and explicitly leaves this prior grouping for follow-up.
+- [x] #672 **P0** — Resolve card-specific combo Autos at the combo-entry checkpoint; #609 retains the later cleanup grouping.
 - [ ] #552 **P1** — Implement Counter Counter response chains
 - [x] #553 **P1** — Resolve static identity keyword and negation layers
 - [x] #554 **P1** — Enforce Heroic once-per-turn use
@@ -32,13 +33,14 @@ tracking: true
 - [x] #626 **P1** — Apply effective colours to payment planning, preserving Hidden Mode (PR #629; production rerun succeeded)
 - [x] #624 **P1** — Pay Revive hand colors before its additional Auto cost (confirmed boundary in #597; distinct from eligibility)
 - [x] #602 **P1** — Preserve granted Heroic individual skill identity (depends on #554; printed/copied behavior remains #554)
+- [ ] #677 **P1** — Charge recognised external activateSkill taxes on normal and invoked activations; #574 records the active omission boundary.
 - [ ] #540 — existing issue; preserve original acceptance and latest rulings
 - [ ] #541 — existing issue; preserve original acceptance and latest rulings
 - [ ] #542 — existing issue; preserve original acceptance and latest rulings
 
 ## Order and hot files
 
-Completed: #548/#551/#553/#554/#555/#556/#597/#626/#624/#602. Supported Auto costs (#549) and Aegis additional-cost order (#595) are partially delivered with explicit remaining boundaries. Revive PR #630 is merged and deployed; serialize Auto/cost/keyword writers. #602 granted Heroic identity is merged in PR #638 and deployed. #550 remains blocked on #549's full acceptance, despite supported Auto X-binding cases. #609 has a read-only audit and remains open for checkpoint implementation and real-card evidence. #552/#602/#557 follow their specific dependencies.
+Completed: #548/#551/#553/#554/#555/#556/#597/#626/#624/#602/#672. Supported Auto costs (#549) and Aegis additional-cost order (#595) are partially delivered with explicit remaining boundaries. Revive PR #630 is merged and deployed; serialize Auto/cost/keyword writers. #602 granted Heroic identity is merged in PR #638 and deployed. #550 remains blocked on #549's full acceptance, despite supported Auto X-binding cases. #609 has a read-only audit and remains open for checkpoint implementation and real-card evidence. #677 owns the external activation-tax gap exposed by #574. #552/#557 follow their specific dependencies.
 
 Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
 

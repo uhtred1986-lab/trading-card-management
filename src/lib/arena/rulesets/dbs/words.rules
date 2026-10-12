@@ -272,6 +272,11 @@ DEFINE WORDS untilAfterNextCharge
   of: until
   text: "through the next Charge Phase"
 
+DEFINE WORDS untilAfterOpponentCharge
+  of: until
+  you: "through your next Charge Phase"
+  text: "through {them}'s next Charge Phase"
+
 DEFINE WORDS untilGame
   of: until
   text: "for the rest of the game"

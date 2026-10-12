@@ -863,6 +863,8 @@ interface RuleInForce {
   /** The card whose skill made the rule; null for a turn-long effect that names none. */
   source: string | null;
   until: EffectUntil;
+  /** The source controller of a timed rule; absent on standing/own rules. */
+  master?: PlayerId;
   forbid: Prohibition;
 }
 
@@ -879,7 +881,7 @@ interface RuleInForce {
  */
 function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string, opts: { hooks?: boolean } = {}): RuleInForce[] {
   const out: RuleInForce[] = [];
-  for (const e of state.effects) if (e.kind === "forbid" && e.forbid) out.push({ target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid });
+  for (const e of state.effects) if (e.kind === "forbid" && e.forbid) out.push({ target: e.target, source: e.source ?? null, until: e.until, master: e.master, forbid: e.forbid });
   for (const e of statics(ctx, game, state)) if (e.kind === "forbid") out.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition });
   if (card) {
     const master = masterOf(game, state, card);
@@ -1049,6 +1051,7 @@ export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState
 export function forbiddenForCard(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, card: string): boolean {
   for (const rule of prohibitions(ctx, game, state, card, { hooks: false })) {
     if (rule.target !== card || rule.forbid.what !== what || (rule.forbid.uses ?? 0) > 0 || rule.forbid.pay) continue;
+    if (what === "switchToActiveInCharge" && rule.until === "afterOpponentCharge" && rule.master === state.turnPlayer) continue;
     if (escapeHolds(ctx, game, state, rule.forbid, { card }, rule.source)) continue;
     return true;
   }

@@ -619,6 +619,28 @@ function usesLeft(sk: Skill, used: number[]): number | null {
 // the keyword's `DO` alone.
 const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim() || (line.keyword && !line.script) ? true : !!line.script && line.script.unsupported.length === 0);
 
+/** SD7-01: choose an Extra's real Main line, retaining every non-price activation gate. */
+export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): ActivationLine[] {
+  if (op.from !== "hand" || op.maxCost !== "currentEnergy" || findCard(state, card)?.zone !== "hand" || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
+  const attrs = attrsNow(ctx, game, state, card);
+  const traits = attrs.traits;
+  const energyCost = attrs.costOf;
+  if (!Array.isArray(traits) || !traits.some((trait) => String(trait).toLowerCase() === op.trait.toLowerCase()) || typeof attrs.energyCost !== "number" || typeof energyCost !== "number" || energyCost > zone(state, player, "energy").length) return [];
+  const def = game.actions.activate;
+  if (!def) return [];
+  return activationsOf(ctx, state, def, card, game).filter((line) => {
+    const sk = line.skill;
+    if (line.kind !== op.skillKind || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
+    if (!costIsOnlyOrbs(sk.cost) && !line.script.price?.condition && !line.script.price?.ops?.length) return false;
+    if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return false;
+    if (usesLeft(sk, state.cards[card]?.usedThisTurn ?? []) === 0) return false;
+    if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) return false;
+    if (sk.sparking != null && zone(state, player, ACTIVATION_ZONES.sparking).length < sk.sparking) return false;
+    const condition = line.script.price?.condition;
+    return !condition || vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, condition);
+  });
+}
+
 // ── taking one ──────────────────────────────────────────────────────────────
 
 /**
@@ -642,7 +664,7 @@ const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim()
  * counter window around it is not opened: the legacy engine opens it with no
  * candidates at all, so there is nothing to answer it with.
  */
-export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Pick<ScriptFrame, "ops" | "vars">): void {
+export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Pick<ScriptFrame, "ops" | "vars">, waived = false): void {
   const { card, skill: sk } = line;
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
@@ -653,7 +675,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
-  spendSkillCostUses(state, ev, card, sk);
+  if (!waived) spendSkillCostUses(state, ev, card, sk);
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
   // Not for a keyword's own move: its `DO` says where the card goes, and
@@ -667,7 +689,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // 4-3-3: a line with an action price is announced once the price is paid —
   // the legacy `skill.resolve`, which runs after the price — so it is the
   // price's frame finishing that announces it (`vm/host.ts`'s `saveVars`).
-  const priceOps = actionPriceOf(line);
+  const priceOps = waived ? null : actionPriceOf(line);
   if (!announcesBeforePrice(line) && !priceOps) announce(state, ev, player, line);
   // A keyword's own move runs the keyword's `DO` — the keyword's rules are the
   // effect (22-1), and the record of a line like "[Overlord]" says nothing —
