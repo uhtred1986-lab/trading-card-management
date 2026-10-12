@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { replayOffline } from "../src/lib/arena/offline-replay.ts";
 import type { Action } from "../src/lib/arena/types.ts";
 import type { EngineId } from "../src/lib/arena/engines.ts";
-import type { ReplayBundle, ReplayBundleRecord } from "../src/lib/arena/replay-bundle.ts";
+import type { ReplayBundle, ReplayBundleRecord } from "../src/lib/arena/replay-core.ts";
 
 function usage(): never {
   console.error("Usage: DATABASE_URL='' npm run arena:replay -- <export.json> --runtime-revision <sha>");
@@ -28,7 +28,7 @@ if (!Number.isInteger(data.seed) || !data.engine || !Array.isArray(data.actions)
   throw new Error("This export is unpinned or missing replay inputs; exact offline replay is unavailable.");
 }
 
-const replay = replayOffline({
+const replay = await replayOffline({
   bundle: { ...data.bundle, decks: data.decks },
   engine: data.engine,
   seed: data.seed!,
