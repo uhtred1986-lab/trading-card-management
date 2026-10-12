@@ -17,7 +17,7 @@ import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
-import { MatchColumn, PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
+import { PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
 import type { TurnCall } from "./useBeatPlayer";
 import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/arena/lighting";
 import type { ArenaSkin } from "@/lib/arena/skin";
@@ -1028,10 +1028,8 @@ export function ArenaStage({
         ref={boardRef}
         // Below sm the board runs to the screen's edges (the page keeps a
         // 0.5 rem gutter for everything else), so its edge line is flush.
-        // From lg the board is the redesign's desktop grid (#444, `globals.css`
-        // `.arena-board`): a full-width bar over the MATCH column, the field
-        // with the hand and the prompt under it, and the inspector, sized to
-        // the viewport so the hand and the field are on screen together.
+        // From lg the board has one match strip over the field and hand, with
+        // the decision above card review in the contextual right column.
         className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
         data-skin={skin}
         data-phone-cinema={phoneCinema}
@@ -1057,12 +1055,14 @@ export function ArenaStage({
             so the inspector can run the full height of it, hand included. */}
         {/* From lg it is `display: contents`: its children are placed in the grid's areas. */}
         <div className="flex min-w-0 flex-1 flex-col lg:contents">
-          {/* The top bar, one row (`docs/arena-redesign/` frame 01): whose turn
-              it is, then speed, review, the admin shield and the menu. It sticks
+          {/* One desktop match strip: turn and phase are said here, while the
+              board's two resource strips show life and energy at their zones.
+              It sticks
               to the top of a phone's screen so the turn is never scrolled away. */}
-          <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-[60px]" : "h-[52px] sm:h-[52px] lg:h-[60px]"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:gap-4 lg:pl-3 lg:pr-2 lg:[grid-area:top]`}>
+          <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-auto" : "h-[52px] sm:h-[52px] lg:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]`}>
             <span className="arena-title arena-num hidden text-[19px] leading-none lg:inline">Arena</span>
             <TurnPill view={view} />
+            <PhaseChips view={view} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
             {showConnectionIssue && (
               <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
                 <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-950/45 px-2 py-0.5 text-[11px] leading-none text-amber-100 sm:gap-2 sm:px-2.5 sm:py-1 sm:text-xs" role="status" aria-live="polite" data-arena-connection={liveGame.connection}>
@@ -1220,10 +1220,11 @@ export function ArenaStage({
           <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
           </div>
 
-          {/* The prompt bar: one line and its buttons, the last thing on the
-            board. A takeover covers the field only, so the bar stays where it
-            is and stays usable while the fight is up. */}
-          <div className={`${phoneStyles.dock} sticky bottom-0 z-30 lg:static lg:[grid-area:bar]`}>
+          {/* CSS places this single decision panel under the hand on phones and
+              above inspection on desktop. Its React instance stays mounted
+              while a card is pinned or hovered, preserving focused controls. */}
+          <div className="arena-context lg:min-h-0 lg:[grid-area:side]">
+          <div className={`${phoneStyles.dock} sticky bottom-0 z-30 lg:static lg:z-auto lg:shrink-0`}>
             <PromptPanel
               view={view}
               decision={live.decision}
@@ -1259,12 +1260,7 @@ export function ArenaStage({
               onSkip={playback.skip}
             />
           </div>
-        </div>
-
-        {/* The left column: who is in the match, the phase list, a tip. */}
-        <MatchColumn view={view} versus={live.game.mode === "versus"} className="hidden lg:flex lg:[grid-area:left]" />
-
-        <div className="hidden lg:block lg:min-h-0 lg:[grid-area:side]">
+          <div className="hidden lg:block lg:min-h-0 lg:flex-1">
           <InspectorColumn
             tab={deskTab}
             onTab={setDeskTab}
@@ -1301,6 +1297,8 @@ export function ArenaStage({
             }
             story={story}
           />
+          </div>
+          </div>
         </div>
 
         {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
