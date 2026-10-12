@@ -393,31 +393,20 @@ if (ENGINE === "rules") {
   // rows it covered stop differing and this fails until `npm run contract:emit`
   // records the new, smaller list. `--explain` prints both engines' reading of
   // every differing rule.
-  // The ops a rule's program carries, through its `if`s — what a cause about
-  // one kind of [Permanent] reads, so it names the rule rather than guessing
-  // from the log.
-  const opsIn = (ops: ProbeRule["ops"]): ProbeRule["ops"] => ops.flatMap((o) => (o.op === "if" ? [o, ...opsIn(o.then), ...opsIn(o.else ?? [])] : [o]));
-  const hasOp = (rule: ProbeRule, test: (o: ProbeRule["ops"][number]) => boolean) => opsIn(rule.ops).some(test);
   const CAUSES: { id: string; says: string; holds: (f: string, old: ProbeRun, rules: ProbeRun, rule: ProbeRule) => boolean }[] = [
     {
       id: "rule-processing",
-      says: "Rule processing (21) does not run on the rules engine: a Battle Card at 0 power or less (21-6) and a Unison with no markers left (21-9) stay where they are, where legacy puts them in the Drop with no KO. A skill's KO itself is real since #146; this state-based half is not built on that branch.",
+      says: "Unison marker processing (21-9) does not run on the rules engine: a Unison with no markers left stays where it is, where legacy puts it in the Drop with no KO. Battle Card zero-power processing (21-6) is implemented separately.",
       // The card under test can be the one processed, before the probe ever
       // reaches its goal — a [Rejuvenate] Unison staged with no markers goes
       // to the Drop as the opponent attacks (#155), which only the log says,
       // and the rules engine then reaches its move and names the first gate.
       holds: (_f, old, rules, rule) =>
         old.result.some((line) => {
-          const m = /^(.*) goes from the (?:Battle|Unison) Area to the Drop$/.exec(line);
+          const m = /^(.*) goes from the Unison Area to the Drop$/.exec(line);
           return !!m && !old.applied.some((a) => a.endsWith(`${m[1]} is KO'd.`)) && !rules.result.includes(line);
         }) ||
         (old.log.includes(`${rule.def.name} goes to the Drop.`) && !rules.log.includes(`${rule.def.name} goes to the Drop.`) && !old.log.some((l) => l.startsWith(`${rule.def.name} is KO'd`))),
-    },
-    {
-      id: "keyword-negation-static",
-      says: "A [Permanent] that negates a keyword (`negateKeyword`) is not collected on the rules engine (`DEFERRED_STATICS.negateKeyword`, #153), so the card still reads the keyword in force where legacy reads none.",
-      holds: (_f, old, rules, rule) =>
-        hasOp(rule, (o) => o.op === "negateKeyword") && rules.result.some((l) => /^keywords in force: /.test(l) && !old.result.includes(l)),
     },
     {
       id: "evolve-moved-twice",

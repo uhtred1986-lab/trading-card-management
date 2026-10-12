@@ -46,7 +46,6 @@ import {
   parseSkills,
   patternKey,
   powerIn,
-  rulesGap,
   programShape,
   skillRecords,
   triggersOf,
@@ -360,10 +359,8 @@ import type { CardFilter, SchemaOp } from "./harness";
   // A list attribute is read wherever the card is, which is what `gains` says.
   const gained = aura([{ op: "gains", target: yourBattle, traits: ["Saiyan"] }]);
   const counts = aura([{ op: "modifyAttr", target: yourBattle, attr: "traits", values: ["Saiyan"] }]);
-  if (!rulesGap("language: a [Permanent] list attribute", "`gains` and `modifyAttr(traits)` are not read by the rules engine's static layer — `DEFERRED_STATICS.gains`, and `modifyAttr` with `values` reaches no layer", "#153")) {
-    assert.deepEqual(cardNowG(counts.s, counts.v1, counts.ctx).traits, cardNowG(gained.s, gained.v1, gained.ctx).traits, "modifyAttr(traits) is `gains`");
-    assert.ok(cardNowG(counts.s, counts.v1, counts.ctx).traits.includes("Saiyan"), "…and both of them gained it");
-  }
+  assert.deepEqual(cardNowG(counts.s, counts.v1, counts.ctx).traits, cardNowG(gained.s, gained.v1, gained.ctx).traits, "modifyAttr(traits) is `gains`");
+  assert.ok(cardNowG(counts.s, counts.v1, counts.ctx).traits.includes("Saiyan"), "…and both of them gained it");
 }
 
 // ── the engine reads rows and nothing else ───────────────────────────────────
