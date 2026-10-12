@@ -34,6 +34,7 @@ tracking: true
 - [x] #624 **P1** — Pay Revive hand colors before its additional Auto cost (confirmed boundary in #597; distinct from eligibility)
 - [x] #602 **P1** — Preserve granted Heroic individual skill identity (depends on #554; printed/copied behavior remains #554)
 - [ ] #677 **P1** — Charge recognised external activateSkill taxes on normal and invoked activations; #574 records the active omission boundary.
+- [ ] #683 **P1** — Complete Villainous individual turn negation and Heroic/Villainous Extra activation hooks; serialize activation, flow and keyword writers with #549/#680/#677.
 - [ ] #540 — existing issue; preserve original acceptance and latest rulings
 - [ ] #541 — existing issue; preserve original acceptance and latest rulings
 - [ ] #542 — existing issue; preserve original acceptance and latest rulings
@@ -42,7 +43,7 @@ tracking: true
 
 Completed: #548/#551/#553/#554/#555/#556/#597/#626/#624/#602/#672. Supported Auto costs (#549) and Aegis additional-cost order (#595) are partially delivered with explicit remaining boundaries. Revive PR #630 is merged and deployed; serialize Auto/cost/keyword writers. #602 granted Heroic identity is merged in PR #638 and deployed. #550 remains blocked on #549's full acceptance, despite supported Auto X-binding cases. #609 has a read-only audit and remains open for checkpoint implementation and real-card evidence. #677 owns the external activation-tax gap exposed by #574. #552/#557 follow their specific dependencies.
 
-Dependencies in each issue are merge gates; sequence above also serializes shared files. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
+Dependencies in each issue are merge gates; sequence above also serializes shared files. #683 is the source-reviewed Extra keyword/Villainous follow-up; its runtime and glossary changes wait for #680/#549 hot-file handoff. Never run two writers on the same engine flow, costs, snapshot/actions, stage/page, shared sheet, glossary, verify fixture or schema migration. Use at most three separate worktrees/branches after checking full touch sets; workers do not spawn nested agents. Engine/compiler workers also coordinate glossary and named scenario files even when not listed explicitly.
 
 ## Acceptance
 
