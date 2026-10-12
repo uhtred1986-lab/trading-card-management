@@ -59,6 +59,13 @@ function selected(s: VmState, area: "hand" | "combo" | "life", original = false)
   return resolveSelector(ctx, game, s, frame(s), { side: "you", area, filter: { ...emptyFilter(), ...(original ? { originalColors: ["Blue"] } : { colors: ["Blue"] }) } });
 }
 const available = (s: VmState, card: string) => engine.legalActions(ctx, s).some((a) => a.action.type === "activate" && a.action.card === card);
+function originalRefusal(s: VmState, card: string): void {
+  const legal = engine.legalActions(ctx, s);
+  const rejected = engine.rejectedActions(ctx, s, legal).find((r) => r.action.type === "activate" && r.action.card === card);
+  assert.ok(rejected, "original-colour refusal was absent from typed action evidence");
+  const reason = rejected.why.find((r) => r.kind === "condition");
+  assert.ok(reason?.kind === "condition"); assert.match(reason.text, /original colours cover Red and Blue/);
+}
 const choice = (s: VmState) => { assert.equal(s.prompt.kind, "chooseCards"); return (s.prompt as { choice: { candidates: string[]; min: number; reason: string } }).choice; };
 function defense(s: VmState): VmState {
   s = act(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
@@ -110,7 +117,7 @@ function privacy(s: VmState): void {
   assert.deepEqual(selected(s, "combo"), [red]); assert.deepEqual(selected(s, "combo", true), []);
   assert.equal(condHolds(ctx, game, s, frame(s), { kind: "covers", sel: { side: "you", area: "combo" }, colors: ["Red", "Blue"] }), true, "ordinary coverage keeps effective colours");
   assert.equal(condHolds(ctx, game, s, frame(s), { kind: "covers", sel: { side: "you", area: "combo" }, colors: ["Red", "Blue"], original: true }), false);
-  assert.ok(!available(s, arr), "Red gaining Blue supplied Arrival's original Blue");
+  assert.ok(!available(s, arr), "Red gaining Blue supplied Arrival's original Blue"); originalRefusal(s, arr);
   assert.throws(() => act(s, { type: "activate", player: "p1", card: arr, skill: 0 }), /condition|Combo|refus|cannot|illegal/i);
   privacy(s);
   s = act(s, { type: "combo", player: "p1", card: blue });
@@ -136,7 +143,7 @@ function privacy(s: VmState): void {
   const s = defense(fixture(["R597", "R597"], ["AEG597", "SOURCE597"]));
   const aeg = one(s, "battle", "AEG597");
   assert.equal(selected(s, "hand").length, 2); assert.equal(selected(s, "hand", true).length, 0);
-  assert.ok(!available(s, aeg), "effective hand coverage wrongly offered Aegis"); privacy(s);
+  assert.ok(!available(s, aeg), "effective hand coverage wrongly offered Aegis"); originalRefusal(s, aeg); privacy(s);
   put(s, "B597", "combo"); assert.ok(!available(s, aeg), "Aegis paid with the wrong area");
 }
 {
