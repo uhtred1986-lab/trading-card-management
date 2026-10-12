@@ -36,6 +36,10 @@ The storage-only calibration updates a synthetic game row in PGlite with a 250-a
 
 The standard idle `waitForRevision` window was measured directly in PGlite at 15 seconds from the reloaded row's actual revision: elapsed `15,002 ms`, `17` reads, unchanged result. Three additional short 50 ms calibration waits each used two reads. These counts describe the current polling schedule on local PGlite and are reported as observations, not fixed guarantees.
 
+## #568 unchanged-revision response
+
+On the same local PGlite setup, a route-section fixture run after modeled authorization used `19` versus `18` total SELECTs for a 15-second unchanged wait. It is not an authenticated HTTP-route invocation: `revision-polling-568.mts` exercises the production head query, revision wait, game loader, snapshot projection, and response-choice branches in PGlite; a separate source-order assertion and existing auth/access tests cover the route guards. The `17` revision-row checks did not change; the opted-in fast path avoided one full game/projection read. It also avoided returning the fixture's `2,097`-byte snapshot body (204 response). The skipped projection measured p50 `0.357 ms` across seven repeated local samples. This is a deterministic local fixture result, not a hosted database or production latency claim. A shorter 50 ms verification run independently observed `4 → 3` SELECTs and `2,097 → 0` body bytes.
+
 AI timing is explicitly mocked and separated from engine CPU: a fixed 20 ms delay yielded p50 `20.214 ms` and p95 `20.593 ms` (15 samples). It is not a provider benchmark and made no network call.
 
 | Headless preview viewport | Fixture | rAF interval p50/p95 | Frames >50 ms | Long Tasks |

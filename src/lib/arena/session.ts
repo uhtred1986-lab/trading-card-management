@@ -132,15 +132,34 @@ export async function waitForBeats(db: Db, gameId: number, sinceBeat: number, ti
   }
 }
 
-/** Long-poll authoritative state/status mutations, including writes with no beat. */
-export async function waitForRevision(db: Db, gameId: number, sinceRevision: number, timeoutMs = 25_000): Promise<boolean> {
+export type RevisionWaitResult =
+  | { kind: "changed"; revision: number }
+  | { kind: "unchanged"; revision: number }
+  | { kind: "missing" };
+
+/**
+ * Long-poll authoritative state/status mutations, including writes with no
+ * beat. `unchanged` is returned only after observing the requested revision
+ * still current at timeout; `changed` also covers a cursor ahead of the row,
+ * which the caller must answer with the current full snapshot.
+ */
+export async function waitForRevisionResult(db: Db, gameId: number, sinceRevision: number, timeoutMs = 25_000): Promise<RevisionWaitResult> {
   const started = Date.now();
   for (;;) {
     const [row] = await db.select({ revision: arenaGames.version }).from(arenaGames).where(eq(arenaGames.id, gameId)).limit(1);
-    if (!row) return false;
-    if (row.revision > sinceRevision) return true;
+    if (!row) return { kind: "missing" };
+    // A cursor behind or ahead of the row needs an authoritative full read.
+    // In particular, never tell a client holding a future cursor that the
+    // server is unchanged: its local state must be reconciled to this row.
+    if (row.revision !== sinceRevision) return { kind: "changed", revision: row.revision };
     const elapsed = Date.now() - started;
-    if (elapsed >= timeoutMs) return false;
+    if (elapsed >= timeoutMs) return { kind: "unchanged", revision: row.revision };
     await new Promise((resolve) => setTimeout(resolve, Math.min(longPollStepMs(elapsed), timeoutMs - elapsed)));
   }
+}
+
+/** Backward-compatible boolean form retained for existing wait callers. */
+export async function waitForRevision(db: Db, gameId: number, sinceRevision: number, timeoutMs = 25_000): Promise<boolean> {
+  const result = await waitForRevisionResult(db, gameId, sinceRevision, timeoutMs);
+  return result.kind === "changed" && result.revision > sinceRevision;
 }
