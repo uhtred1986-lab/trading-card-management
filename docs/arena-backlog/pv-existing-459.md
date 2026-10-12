@@ -36,7 +36,7 @@ Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full revi
 
 ## Audit reconciliation — 12 Oct 2026
 
-The seven fixture suites named above have moved to the rules engine, and contract snapshots are emitted from rules. The two keyword cases named in the original problem (`continuations` and `koCard`/TAKER2) are also engine-neutral. The only remaining oracle exclusion in `verify-arena.ts` is `vm`; `ai-vm` now runs under `--rules-only` with fixed fixtures. The saved legacy-game check in `engine-default` remains #118 scope.
+The seven fixture suites named above have moved to the rules engine, and contract snapshots are emitted from rules. The two keyword cases named in the original problem (`continuations` and `koCard`/TAKER2) are also engine-neutral. At this audit point the only remaining oracle exclusion in `verify-arena.ts` was `vm`; `ai-vm` already ran under `--rules-only` with fixed fixtures. The saved legacy-game check in `engine-default` remains #118 scope.
 
 The bounded AI presentation migration is tracked separately as [#601](pv-v02.md) and is complete. Its acceptance covers only `ai-vm`; #459 remains open for the larger `vm.ts` comparison-to-fixed-expectation migration and the remaining gate work.
 

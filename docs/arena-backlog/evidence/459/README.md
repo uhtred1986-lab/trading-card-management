@@ -2,9 +2,9 @@
 
 The seven historical fixture suites, contract emission, two keyword cases and
 AI presentation suite were already on rules-engine fixtures at `0e0af6b`.
-`scripts/verify-arena.ts --rules-only` still lists `vm` as not run. The saved
-legacy-game check in `engine-default` belongs to #118. This branch has not yet
-earned #459's zero-legacy-call acceptance or closure.
+The branch now includes `vm` in `scripts/verify-arena.ts --rules-only`; its
+guarded direct run reports zero legacy calls. The saved legacy-game check in
+`engine-default` belongs to #118. Full-suite acceptance is pending.
 
 ## Assertions migrated in the first bounded unit
 
@@ -48,6 +48,35 @@ full rules-only gate, the normal full gate and a local `npm test` run with the
 legacy run removed before closure.
 
 No contract or probe digest fixture was edited.
+
+## Assertion inventory and #118 boundary
+
+The large former comparisons remain broad checks: two complete 145-action
+games with 544 and 615 full event objects; 40 filter fields across each of 98
+catalog rows (3,920 fixed outcomes); 45 price/payment boards, all 98 catalog
+prices, and all 29 complete script cases checked for both spelled and lowered
+forms (58 full `Seen` comparisons). The five `resolvingPlay` variants also
+check their complete resolving records for both forms. Seven complete card
+views and the smaller exact action, event, refusal, zone and legal-menu
+assertions appear in the mapping above. The table states the independent rule,
+printed-card or fixed-pile basis for each changed comparison; these totals
+describe cases, not a count of `assert` calls.
+
+The normal VM lane deliberately retains these #118 compatibility assertions,
+all guarded from `--rules-only`:
+
+- `vm-legacy-118.ts`: six adapter function identities and availability,
+  legacy-shaped state and saved-state seam, the legacy price-before-ban
+  answer, and legacy front/back/Hidden Mode `cardNow` and name-filter facts.
+- `vm-legacy-118.ts`: legacy host primitive/spelled equivalence and its
+  negation, Leader flip and mode facts for §14's three primitive programs.
+- `vm.ts` §14: legacy host spelled/lowered self-equivalence across the 29
+  scripts, the bound-target, timed-selector and lifetime behavior, its
+  resolving-play records and the legacy-only side of the negate-attack fact.
+
+These compatibility assertions run in the normal lane and are excluded only
+from the rules-only lane. Their removal belongs to #118; their presence does
+not supply any rules-engine gameplay expectation.
 
 ## Rules-only source audit
 
