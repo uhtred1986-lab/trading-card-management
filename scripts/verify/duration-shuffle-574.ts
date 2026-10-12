@@ -1,12 +1,14 @@
 /** #574: the owned Charge duration and SD7 closed-area shuffle readings. */
 import assert from "node:assert/strict";
-import { compileSkill } from "../../src/lib/arena/compile";
+import { compileCostProgram, compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { validateProgram } from "../../src/lib/arena/vm/script";
-import { addSkip as legacySkip } from "../../src/lib/arena/engine/state";
+import { addSkip as legacySkip, taxesOn as legacyTaxes } from "../../src/lib/arena/engine/state";
 import { addSkip as rulesSkip } from "../../src/lib/arena/vm/skips";
+import { taxesOn as rulesTaxes } from "../../src/lib/arena/vm/program";
 import { isVmState } from "../../src/lib/arena/engines";
+import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { EngineState } from "../../src/lib/arena/engines";
 import { CTX, DEFS, ENGINE, IMPL, arenaG, assertConsistentG, card, leaderOf, powerOfG, zoneOf } from "./harness";
@@ -18,6 +20,8 @@ const WISH = "[Activate: Main] Choose one- ・Draw 1 card. ・Choose 1 ≪Desire
 const WISH_CHAIN = `${WISH.slice(0, -1)}. Then draw 2 cards.`;
 const DESIRE = "[Activate: Main] {r}{1}: Draw 1 card.";
 
+const injected = ["C574-LOCK", "C574-VICTIM", "C574-POWER", "C574-SEARCH", "C574-DRAGON", "C574-WISH", "C574-WISH-CHAIN", "C574-DESIRE", "C574-OTHER", "C574-COND", "C574-ONCE", "C574-MULTI"] as const;
+try {
 DEFS["C574-LOCK"] = card("C574-LOCK", { energyCost: 0, skill: CHARGE });
 DEFS["C574-VICTIM"] = card("C574-VICTIM", { skill: "[Activate: Main] Switch this card to Active Mode." });
 DEFS["C574-POWER"] = card("C574-POWER", { energyCost: 0, skill: POWER });
@@ -146,6 +150,44 @@ unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
   assert.ok(zoneOf(state, "p1", "drop").includes(id));
   assertConsistentG(state);
 }
+// Active gap boundary for #677: the existing, recognised 20-14 price is
+// visible to both tax readers, but neither normal nor nested Activate: Main
+// currently charges it. This asserts the missing payment, not legal behavior.
+{
+  const price = compileCostProgram(parseSkills("[Activate: Main] Place 1 card from your hand in your Drop Area: Draw 1 card.")[0]!);
+  assert.deepEqual(price?.unsupported, []);
+  assert.deepEqual(price?.ops.map((op) => op.op), ["discard"]);
+  const loaded = rulesetFor("dbs");
+  if (!loaded.ok) throw Error("DBS ruleset did not load");
+  for (const nested of [false, true]) {
+    let state = arenaG({ hand: ["C574-ONCE", "V1"], energy: ["V1", "V1"] });
+    const leader = leaderOf(state, "p1");
+    if (nested) state.cards[leader].cardId = "C574-WISH";
+    const id = zoneOf(state, "p1", "hand").find((item) => state.cards[item].cardId === "C574-ONCE")!;
+    state.effects.push({ id: 5743, target: id, kind: "forbid", value: 0,
+      forbid: { what: "activateSkill", pay: price!.ops }, until: "turn",
+      source: leader, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
+    const taxes: ReturnType<typeof legacyTaxes> = isVmState(state)
+      ? rulesTaxes(CTX, loaded.definition, state, "activateSkill", { player: "p1", card: id })
+      : legacyTaxes(CTX, state, "activateSkill", { player: "p1", card: id });
+    assert.equal(taxes.length, 1, "#677: existing readers recognise the extra activation price");
+    assert.deepEqual(taxes[0].ops, price!.ops);
+    if (nested) {
+      state = take(state, { type: "activate", player: "p1", card: leader, skill: parseSkills(WISH)[0]!.index }).state;
+      const result = take(state, { type: "chooseMode", player: "p1", index: 1 });
+      state = result.state;
+      assert.equal(result.events.filter((event) => event.type === "move" && event.from === "hand" && event.to === "drop").length, 1,
+        "#677 gap: only the Extra moves to Drop; the external activation price is omitted");
+    } else {
+      const result = take(state, { type: "activate", player: "p1", card: id, skill: parseSkills(DEFS["C574-ONCE"].skill!)[0]!.index });
+      state = result.state;
+      assert.equal(result.events.filter((event) => event.type === "move" && event.from === "hand" && event.to === "drop").length, 1,
+        "#677 gap: normal activation also omits the external price");
+    }
+    assert.ok(zoneOf(state, "p1", "drop").includes(id));
+    assertConsistentG(state);
+  }
+}
 unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
   zoneOf(state, "p1", "hand").splice(zoneOf(state, "p1", "hand").indexOf(id), 1);
   zoneOf(state, "p1", "drop").push(id);
@@ -255,6 +297,47 @@ for (const transfer of [false, true]) {
   assertConsistentG(state);
 }
 
+// A lock made by p1 during p2's turn names p2's *next* Charge. If its target
+// changes controller to p1, the intervening p1 Charge must stand it and must
+// not consume p2's lock. Returning it to p2 tests both the actual Active Step
+// and a skipped due phase, including the saved-state boundary at each turn.
+for (const skipDue of [false, true]) {
+  let state = arenaG();
+  state = take(state, { type: "endMain", player: "p1" }).state;
+  state = take(state, { type: "charge", player: "p2", card: null }).state;
+  const target = stage(state, "p1", "C574-VICTIM", "battle");
+  state.cards[target].mode = "rest";
+  state.effects.push({ id: 5742, target, kind: "forbid", value: 0,
+    forbid: { what: "switchToActiveInCharge" }, until: "afterOpponentCharge",
+    source: leaderOf(state, "p1"), createdTurn: state.turn, ownerTurn: "p2", master: "p1" });
+  const beforeOwnCharge = JSON.parse(JSON.stringify(state)) as EngineState;
+  const ownCharge = take(state, { type: "endMain", player: "p2" });
+  const ownReloaded = take(beforeOwnCharge, { type: "endMain", player: "p2" });
+  assert.equal(JSON.stringify(ownReloaded.state), JSON.stringify(ownCharge.state));
+  assert.deepEqual(ownReloaded.events, ownCharge.events);
+  state = ownCharge.state;
+  assert.equal(state.cards[target].mode, "active", "p1's own Charge is outside p1's opponent-Charge lock");
+  assert.ok(state.effects.some((effect) => effect.id === 5742), "off-turn lock waits for p2's next Charge");
+  state = take(state, { type: "charge", player: "p1", card: null }).state;
+  zoneOf(state, "p1", "battle").splice(zoneOf(state, "p1", "battle").indexOf(target), 1);
+  zoneOf(state, "p2", "battle").push(target);
+  state.cards[target].mode = "rest";
+  if (skipDue) {
+    if (isVmState(state)) rulesSkip(state, "p2", "charge", "next");
+    else legacySkip(state, "p2", "charge", "next");
+  }
+  const beforeDue = JSON.parse(JSON.stringify(state)) as EngineState;
+  const due = take(state, { type: "endMain", player: "p1" });
+  const dueReloaded = take(beforeDue, { type: "endMain", player: "p1" });
+  assert.equal(JSON.stringify(dueReloaded.state), JSON.stringify(due.state));
+  assert.deepEqual(dueReloaded.events, due.events);
+  state = due.state;
+  assert.equal(state.cards[target].mode, "rest", "p2's due Charge cannot stand the target");
+  assert.equal(due.events.some((event) => event.type === "phase" && event.phase === "charge" && event.player === "p2" && event.skipped), skipDue);
+  assert.ok(!state.effects.some((effect) => effect.id === 5742), "lock ends after the due Charge, including when skipped");
+  assertConsistentG(state);
+}
+
 // The first Main skill's prompt exposes matching identities from deck and
 // life to the skill's master only. A JSON round trip must preserve that
 // inspection through the choice and produce the same deterministic shuffle.
@@ -317,4 +400,7 @@ for (const transfer of [false, true]) {
   assert.equal(powerOfG(state, id), 10000, "bonus is gone at the beginning of your next turn");
   assert.ok(!state.effects.some((e) => e.source === id && e.until === "nextTurn"));
   assertConsistentG(state);
+}
+} finally {
+  for (const id of injected) delete DEFS[id];
 }

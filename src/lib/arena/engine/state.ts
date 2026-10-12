@@ -1880,6 +1880,9 @@ export function forbiddenForCard(s: GameState, what: ForbiddenAction, card: stri
   if (
     s.effects.some((e) => {
       if (e.kind !== "forbid" || e.target !== card || e.forbid?.what !== what) return false;
+      // A source's "your opponent's next Charge Phase" cannot prevent the
+      // Active Step on that source player's own intervening turn.
+      if (what === "switchToActiveInCharge" && e.until === "afterOpponentCharge" && e.master === s.turnPlayer) return false;
       if ((e.forbid.uses ?? 0) > 0 || e.forbid.pay) return false;
       if (ctx && unlessHolds(ctx, s, e.forbid, { card }, e.source ?? null)) return false;
       return true;
