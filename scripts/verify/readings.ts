@@ -2315,12 +2315,22 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   assert.deepEqual(cond?.sel?.filter?.colors, ["Blue", "Yellow"], "…for a blue or yellow card only");
 }
 
-// #539: "10 or more total <A> or <B>" is one count; a searched deck is shuffled; "until there are 5 under" is refused.
+// #539: "10 or more total <A> or <B>" is one count; a searched deck is shuffled; BT2-009 fills its named pile to five.
 {
   const one = (text: string) => compileSkill(parseSkills(text)[0]);
   const bt2 = one("[Auto] When this card attacks, draw 1 card, and if there are 10 or more total <Son Goku> or <Vegeta> in your Drop Area, this card gains +5000 power and [Double Strike] for the duration of the turn.");
   const cond = (bt2.ops[1] as { cond: { kind: string; atLeast?: number; sel?: { filter?: { characters: string[] } } } }).cond;
   assert.deepEqual([cond.kind, cond.atLeast, cond.sel?.filter?.characters.map((x) => x.toLowerCase())], ["count", 10, ["son goku", "vegeta"]], "BT2-001: both names, one total");
   assert.deepEqual(one("[Activate: Main] Switch this card to Rest Mode: Choose up to 2 [Dragon Ball] cards from your deck or life and add them to your hand. Then shuffle any areas you looked through.").ops.map((o) => o.op), ["choose", "moveTo", "shuffle"], "SD7-01: the deck is shuffled");
-  assert.ok(one("[Auto] When this card KOs your opponent's Battle Card, place cards from the top of your deck under your {Majin Buu's Sealed Ball} until there are 5 cards under {Majin Buu's Sealed Ball}.").unsupported.length > 0, "BT2-009 is refused, not misread");
+  const ball = one("[Auto] When this card KOs your opponent's Battle Card, place cards from the top of your deck under your {Majin Buu's Sealed Ball} until there are 5 cards under {Majin Buu's Sealed Ball}.");
+  assert.deepEqual(ball.unsupported, [], "BT2-009: full printed placement is read");
+  const guarded = ball.ops[0] as { cond: { kind: string; sel: { side: string; area: string; filter: { names: string[] } }; atLeast: number }; then: { op: string; sel?: { area: string }; as?: string; cond?: { sel: { underHost: { fromVar: string } }; atMost: number }; then?: { target: { sel: { area: string; take: number } }; under: { var: string } }[] }[] };
+  assert.deepEqual([guarded.cond.kind, guarded.cond.sel.side, guarded.cond.sel.area, guarded.cond.sel.filter.names, guarded.cond.atLeast],
+    ["count", "you", "battle", ["Majin Buu's Sealed Ball"], 1], "BT2-009 needs your named host in play");
+  assert.equal(guarded.then[0].op, "choose", "BT2-009 binds one of multiple named hosts");
+  assert.equal(guarded.then.length, 6, "five opportunities to fill, checked against the live pile");
+  for (const step of guarded.then.slice(1)) {
+    assert.deepEqual([step.cond?.atMost, step.cond?.sel.underHost.fromVar, step.then?.[0]?.target.sel.area, step.then?.[0]?.target.sel.take, step.then?.[0]?.under.var],
+      [4, guarded.then[0].as, "deck", 1, guarded.then[0].as], "BT2-009 takes only the next top card while the chosen host is below five");
+  }
 }
