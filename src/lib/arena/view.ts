@@ -197,6 +197,9 @@ export interface SideView {
   energyMarkers: number;
   activeEnergy: number;
   dropTop: CardView | null;
+  /** Viewer-readable cards for zone inspection. Counts also include unreadable cards.
+   * Z-Deck follows the existing owner/face-up visibility policy; Hidden Mode is excluded. */
+  inspectableZones?: { drop: CardView[]; warp: CardView[]; zEnergy: CardView[]; zDeck: CardView[] };
   /**
    * Cards the current prompt names that live in no drawn zone — the deck, the
    * Drop below its top card, the Warp, face-down life, the Z-Deck, under
@@ -453,7 +456,7 @@ function cardView(ctx: EngineContext, s: GameState, id: string, images: Record<s
   });
   return {
     id,
-    cardId: inst.cardId,
+    cardId: hidden ? "" : inst.cardId,
     name: hidden ? "Face-down card" : f.name,
     power,
     colors: hidden ? [] : d.colors,
@@ -489,6 +492,8 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
   const v = (id: string, reveal = true) => cardView(ctx, s, id, images, reveal, statics, availability, viewer);
   const choices = hiddenChoices(ctx, s, p, viewer, ownHand);
   const rules = rulesOn(ctx, s, p, statics);
+  const readable = revealedTo(s, viewer);
+  const inspect = (ids: string[]) => ids.filter((id) => readable.has(id)).map((id) => v(id));
   return {
     player: p,
     name: ps.name,
@@ -510,6 +515,7 @@ function sideView(ctx: EngineContext, s: GameState, p: PlayerId, images: Record<
     energyMarkers: ps.energyMarkers,
     activeEnergy: ps.energy.filter((id) => s.cards[id].mode === "active").length,
     dropTop: ps.drop[0] ? v(ps.drop[0]) : null,
+    inspectableZones: { drop: inspect(ps.drop), warp: inspect(ps.warp), zEnergy: inspect(ps.zEnergy), zDeck: inspect(ps.zDeck) },
     ...(choices.length ? { choices: choices.map((id) => v(id)) } : {}),
     ...(rules.length ? { rules } : {}),
   };

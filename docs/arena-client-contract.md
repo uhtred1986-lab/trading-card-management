@@ -171,6 +171,8 @@ export interface Tappable {
 
 export interface SideView {
   // …unchanged…
+  /** Viewer-readable faces for browsing zones; counts may include hidden cards. */
+  inspectableZones?: { drop: CardView[]; warp: CardView[]; zEnergy: CardView[]; zDeck: CardView[] };
   /** Cards the current prompt names that no zone draws (deck, Drop below the top, Warp, face-down
    *  life, Z-Deck, under a card). Only on the side of the player being asked, and only for that
    *  player's view: a search of your deck reveals those cards to you and to nobody else. */
@@ -182,6 +184,14 @@ export interface SideView {
 //   step?: { index: number; count: number; label: string }; // from the engine's flow; count 0 = total unknown
 //   cost?: string;                                       // `payCost` / `optionalCost`'s describe, unflattened
 ```
+
+`inspectableZones` follows the existing engine visibility policy for the stated viewer:
+Drop, Warp and Z-Energy are open; an owner's Z-Deck is readable, while the opponent's
+Z-Deck exposes only faces already public under that policy. Hidden Mode faces are
+excluded. Deck, hand and Life identities are never added by this inspection projection.
+Clients retain the counts and explain any unreadable remainder without inventing card
+names. Archived snapshots without the optional field keep their existing top-card,
+face-up-card and count views. Inspection does not advance the engine or alter legality.
 
 ### 3.2 Rules in force (added 6 Sep 2026, `docs/arena-compiler-workflow-review.md` §3.3–3.5, §3.8)
 
