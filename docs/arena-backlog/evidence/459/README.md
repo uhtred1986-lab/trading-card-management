@@ -27,15 +27,16 @@ earned #459's zero-legacy-call acceptance or closure.
 | §21 | Legacy-side offers and first refusals for a control play, prohibited play, card's own ban, prohibited charge and skill; no-Unison and legal grow checks; grown marker and under-card; legacy price-before-ban divergence | Each shared gameplay result already has a direct rules assertion with the exact offer/refusal, including the two charge menu variants, and the grow result checks the exact marker/under-card and once-per-turn fact. The intentional legacy ordering is separately asserted against fixed `{kind:"energy",need:1,have:0}` in guarded `vm-legacy-118.ts`; the rules result stays fixed to `{kind:"forbidden",by:"F-NO-PLAY",until:"permanent"}`. Manual §§20-14, 7-2-11, 13-3 and printed prohibitions ground the rules results. |
 | §§1–3/5 adapter | Six legacy adapter function identities, legacy availability, legacy state shape and saved-state seam | The same assertions now live in `vm-legacy-118.ts`, guarded by `RULES_ONLY`. They remain executable in the normal VM lane for #118 and are explicitly excluded from #459's rules-only lane. Rules-engine interface, state, round-trip and invalid-state checks remain in `vm.ts`. |
 | §26 legacy faces | Legacy `cardNow` front/back/Hidden Mode name, skill, colours and traits; `matches` awakened/front name predicate | These are compatibility assertions about the old interpreter's public card reading, now retained verbatim in guarded `vm-legacy-118.ts` for #118. The rules-only lane has its own fixed `attrsNow` assertions for every front/back/hidden field and the separate full `CardView` fixture in §31. |
+| §7 | Every sampled `CardFilter` field on every catalog row: 40 fields × 98 rows, including the explicit `originalColors` exception | `vm-filters-459.ts` fixes the exact 98-row order and all 40 complete matching sets or complements. The two distinct `RENAMED` rows have distinct keys. Each outcome was checked against its sampled phrase and the printed synthetic rows: blue/red/multicolour, characters/traits/names, printed keyword and skill lines, card types, numeric printed costs/power/combo including null and X, token/Z flags and the deferred catalog flags. The test checks corpus identity, set membership validity and every one of 3,920 outcomes. A new card or changed printed row now needs deliberate expectation review. |
 | §26 Active Step | Whether a rested Energy card becomes active at its master's next Active Step | Direct fixed `mode === "active"` assertion remains, grounded in 7-2-7's named Energy Area. The paired legacy fixture added no other field check. |
 
 §23 and §24 removed seven legacy outcome assertions. Each compared fact maps to
 a direct literal rules assertion above; those cases never compared event, legal
 action or view objects. §22 and §31 had broad object comparisons, retained as
-exact fixed objects. The remaining live oracle sections are §7, §14,
-§17. The #118 adapter, saved-state and legacy face-reading checks remain in a
+exact fixed objects. The remaining live oracle sections are §14 and §17.
+The #118 adapter, saved-state and legacy face-reading checks remain in a
 separate guarded module for explicit retirement. A direct VM rules-only run now
-completes, but the remaining §7/14/17 oracle calls have not been removed and
+completes, but the remaining §14/17 oracle calls have not been removed and
 that run alone is not #459 acceptance.
 
 No contract or probe digest fixture was edited.

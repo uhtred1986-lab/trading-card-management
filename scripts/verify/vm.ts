@@ -122,7 +122,7 @@ import { legacyHost } from "../../src/lib/arena/engine/legacy-host";
 import { moveAs, stepScript, type Op, type PayWith, type Ref, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import { skillsNegated as legacySkillsNegated } from "../../src/lib/arena/engine/state";
 import { skillsNegated as vmSkillsNegated } from "../../src/lib/arena/vm/effects";
-import { CTX, DEFS, assertMenuInvariants, card, fifty, matches } from "./harness";
+import { CTX, DEFS, assertMenuInvariants, card, fifty } from "./harness";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
 import { backCharactersOf } from "../../src/lib/arena/text/cards";
 import { usableFrom } from "../../src/lib/arena/vm/activate";
@@ -130,6 +130,7 @@ import { SEED_7_OPENING, SEED_7_P1_REDRAW } from "./vm-opening-459";
 import { CARD_VIEWS_459 } from "./vm-card-views-459";
 import { expectedTurnTrace } from "./vm-turn-459";
 import { verifyLegacyVmCompatibility } from "./vm-legacy-118";
+import { FILTER_CORPUS_459, FILTER_MATCHES_459, fixedFilterMatch459 } from "./vm-filters-459";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -360,6 +361,12 @@ const CORPUS: CardDef[] = [
   card("COMBO10K", { comboPower: 10000 }),
   card("NOCOMBO", { comboPower: null }),
 ];
+assert.deepEqual(CORPUS.map((def, i) => i === 91 ? "RENAMED+alsoNames" : def.id), FILTER_CORPUS_459, "the reviewed 98-card filter corpus changed");
+for (const [field, set] of Object.entries(FILTER_MATCHES_459)) {
+  const rows = "only" in set ? set.only : set.except;
+  assert.equal(new Set(rows).size, rows.length, `the fixed ${field} list repeats a corpus row`);
+  for (const row of rows) assert.ok(FILTER_CORPUS_459.includes(row), `the fixed ${field} list names an unreviewed row: ${row}`);
+}
 
 for (const field of FILTER_FIELD_NAMES) {
   const filter = FILTER_SAMPLES[field];
@@ -371,15 +378,12 @@ for (const field of FILTER_FIELD_NAMES) {
   for (const attr of attributesRead(filter)) assert.ok(attr in DBS.attributes, `a filter measuring ${field} reads ${attr}, which the DBS ruleset does not declare`);
 
   const predicate = predicateOf(filter, DBS);
-  for (const def of CORPUS) {
+  for (const [i, def] of CORPUS.entries()) {
     const over = onACatalogRow(def);
     assert.equal(
       predicate(over),
-      // The new explicit measure has no frozen-legacy counterpart. Its
-      // catalog-row expectation is printed colours; gameplay is #597's
-      // independent suite, including effective identity interactions.
-      field === "originalColors" ? def.colors.includes("Blue") : matches(def, { ...emptyFilter(), ...filter }),
-      `the rules engine and the legacy engine disagree about whether ${def.id} satisfies ${JSON.stringify(filter)}`,
+      fixedFilterMatch459(field, FILTER_CORPUS_459[i]),
+      `the rules engine disagrees with the reviewed fixed expectation for ${FILTER_CORPUS_459[i]} under ${field}`,
     );
   }
 }
@@ -395,8 +399,8 @@ for (const field of FILTER_FIELD_NAMES) {
  * Mode card shows nothing (1-9, 23-5-2) — neither of which a `CardDef` on its
  * own can be in, so here the face showing is the row and the seed is `power`.
  * Written out rather than left absent, because a measure reading an attribute
- * nothing filled answers `false` for every card, and a sweep comparing two
- * engines would then agree only where the legacy one also said no.
+ * nothing filled answers `false` for every card. The fixed expectation sweep
+ * checks both matching and nonmatching rows for that measure.
  */
 function onACatalogRow(def: CardDef): Attrs {
   const attrs = attrsOf(def, DBS).attrs;
