@@ -1,6 +1,7 @@
 /** Fixed expectations from 9-6-4 / 5-8-2 / 20-5, independent of the legacy oracle. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
+import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { engineFor } from "../../src/lib/arena/engines";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -66,6 +67,10 @@ function answer(s: VmState, index: number, p: PlayerId = "p1") { return rules.ap
 function choose(s: VmState, cards: string[]) { return rules.apply(ctx, reload(s), { type: "choose", player: "p1", cards }) as { state: VmState; events: GameEvent[] }; }
 function declines(s: VmState): number { assert.equal(s.prompt.kind, "chooseMode"); return s.prompt.kind === "chooseMode" ? s.prompt.options.length - 1 : -1; }
 function draws(ev: GameEvent[]) { return ev.filter((e) => e.type === "draw").length; }
+
+function snapshot(current: VmState, viewer: PlayerId = "p1") {
+  return buildSnapshot({ id: 549, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: current, legal: rules.legalActions(ctx, current), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+}
 
 // A real play moment opens a cost decision without paying or drawing. Decline
 // and paid resolution are different actions, and invalid answers are atomic.
@@ -421,5 +426,66 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.equal(result.state.prompt.kind, "chooseCards");
   assert.ok(result.state.prompt.kind === "chooseCards" && result.state.prompt.choice.candidates.length === 20);
   console.log(`auto-costs-549 crowded 20-card price: ${(performance.now() - started).toFixed(1)} ms`);
+}
+// #558 integration uses actual #549 cost frames, never a synthetic pending
+// extension. Public source identities stay pending during both decisions;
+// decline, failure and resolution clear that badge without exposing the cursor.
+{
+  const a = mainWith("A549"); stage(a.state, "ENERGY549", "energy");
+  pend(a.state, a.source, "p1", "PRIVATE_549_EVENT_SUBJECT");
+  a.state.programs[0].vars.privateCost = ["PRIVATE_549_PRICE_TARGET"];
+  for (const viewer of ["p1", "p2"] as const) {
+    const view = snapshot(reload(a.state), viewer);
+    const side = viewer === "p1" ? view.view.you : view.view.them;
+    const ability = side.battle.find((c) => c.id === a.source)?.abilities?.find((row) => row.skillIndex === 0);
+    assert.equal(ability?.pending, true); assert.equal(ability?.category, "automatic");
+    assert.equal(ability?.costPreview.state, "incomplete", "the public contract does not expose a private plan as a known preview");
+    const wire = JSON.stringify(view); assert.ok(!wire.includes("PRIVATE_549_EVENT_SUBJECT")); assert.ok(!wire.includes("PRIVATE_549_PRICE_TARGET")); assert.ok(!wire.includes("autoCost"));
+  }
+  for (const result of [answer(a.state, declines(a.state)), answer(a.state, 0)]) {
+    assert.equal(snapshot(result.state).view.you.battle.find((c) => c.id === a.source)?.abilities?.[0]?.pending, false);
+  }
+  const mixed = mainWith("MIX549"); stage(mixed.state, "ENERGY549", "energy"); pend(mixed.state, mixed.source);
+  const price = answer(mixed.state, 0); assert.equal(price.state.prompt.kind, "chooseCards");
+  assert.equal(snapshot(reload(price.state)).view.you.battle.find((c) => c.id === mixed.source)?.abilities?.[0]?.pending, true);
+  const chosen = price.state.prompt.kind === "chooseCards" ? price.state.prompt.choice.candidates[0] : "";
+  const resolved = choose(price.state, [chosen]);
+  assert.equal(snapshot(resolved.state).view.you.battle.find((c) => c.id === mixed.source)?.abilities?.[0]?.pending, false);
+}
+// Face-up Life is public to both seats; closed hand/life and Hidden Mode do
+// not project the front's pending ability or private payment/source bindings.
+{
+  const a = main(); const source = stage(a, "A549", "hand", "p2");
+  assert.ok(moveCard(a, dbs, source, "life", { owner: "p2" }).ok); a.cards[source].faceUp = true;
+  stage(a, "ENERGY549", "energy", "p2"); pend(a, source, "p2");
+  for (const viewer of ["p1", "p2"] as const) {
+    const view = snapshot(a, viewer); const side = viewer === "p2" ? view.view.you : view.view.them;
+    assert.equal(side.lifeFaceUp.find((c) => c.id === source)?.abilities?.[0]?.pending, true);
+  }
+  const secret = main(); stage(secret, "ENERGY549", "energy"); const ownHandSource = stage(secret, "A549", "hand"); pend(secret, ownHandSource);
+  assert.equal(snapshot(secret).view.you.hand?.find((c) => c.id === ownHandSource)?.abilities?.[0]?.pending, true);
+  const other = snapshot(secret, "p2"); assert.equal(other.view.them.hand, null); assert.ok(!JSON.stringify(other).includes(ownHandSource));
+  const lifeSecret = main(); const lifeSource = stage(lifeSecret, "A549", "hand");
+  assert.ok(moveCard(lifeSecret, dbs, lifeSource, "life", { owner: "p1" }).ok); stage(lifeSecret, "ENERGY549", "energy"); pend(lifeSecret, lifeSource);
+  assert.ok(!JSON.stringify(snapshot(lifeSecret, "p2")).includes(lifeSource));
+  const hidden = mainWith("A549"); stage(hidden.state, "ENERGY549", "energy"); pend(hidden.state, hidden.source); hidden.state.cards[hidden.source].hidden = true;
+  for (const viewer of ["p1", "p2"] as const) {
+    const view = snapshot(hidden.state, viewer); const side = viewer === "p1" ? view.view.you : view.view.them;
+    assert.equal(side.battle.find((c) => c.id === hidden.source)?.abilities?.length ?? 0, 0, "a masked hidden source has no projected front ability");
+    assert.ok(!JSON.stringify(view).includes(defs.A549.skill!));
+  }
+}
+// A payment failed by the opponent's valid replacement clears pending even
+// while the following queued Auto's own cost prompt remains pending.
+{
+  const old = scripts.MIX549.bySkill[0];
+  script("MIX549", [{ op: "draw", n: 1 }], [{ op: "moveTo", target: { sel: { special: "subject" } }, to: "drop" }]);
+  const a = mainWith("MIX549"); const next = stage(a.state, "B549"); stage(a.state, "ENERGY549", "energy"); stage(a.state, "ENERGY549", "energy");
+  const target = stage(a.state, "V1", "battle", "p2"); addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
+  a.state.pending.push({ card: a.source, master: "p1", skillIndex: 0, trigger: "played", subject: target }); pend(a.state, next);
+  const opened = answer(a.state, 0); const failed = answer(opened.state, 0, "p2"); const view = snapshot(failed.state);
+  assert.equal(view.view.you.battle.find((c) => c.id === a.source)?.abilities?.[0]?.pending, false);
+  assert.equal(view.view.you.battle.find((c) => c.id === next)?.abilities?.[0]?.pending, true);
+  scripts.MIX549.bySkill[0] = old;
 }
 console.log("auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed");
