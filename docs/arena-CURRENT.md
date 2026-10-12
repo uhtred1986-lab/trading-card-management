@@ -35,12 +35,12 @@ Older handovers explain architecture/history; their dated queues do not override
 - **P2/P3 Android after web contract:** tracker #580; #105, #106.
 - **P2 AI efficiency and live verification:** tracker #511; #381, #518.
 
-The integrity prerequisites and #558–#562 are merged. Effective-colour payment #626 is merged in
-PR #629, but its main Vercel deployment currently reports failure; wait for a successful deployment
-before the next merge. Revive ordering #624 is reviewed and locally validated in PR #630, awaiting
-that gate. Phone board #563 is reviewed in PR #631 after browser and local acceptance; desktop #564 waits for its
-merge. #549 and #595 remain partial, and #550 remains blocked on #549's acceptance. Use the
-canonical issue records and milestone checklists for delivered state and exact dependencies.
+The integrity prerequisites and #558–#563 are merged. Effective-colour payment #626 and Revive
+ordering #624 are merged in PRs #629/#630 and deployed successfully. Phone PR #631 is merged
+and deployed successfully. Granted Heroic identity #602 and desktop consolidation
+#564 are the next active P1 work, with separate engine/UI writers. #549 and #595 remain partial,
+and #550 remains blocked on #549's acceptance. Use the canonical issue records and milestone
+checklists for delivered state and exact dependencies.
 #575 inventory and #459 fixed expectations must precede legacy retirement; #105/#106 wait on web contracts.
 
 ## Reconciliation and evidence
