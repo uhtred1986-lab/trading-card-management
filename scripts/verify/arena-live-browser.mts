@@ -42,7 +42,8 @@ delete terminal.rejected;
 terminal.taps = { byCard: {}, bare: [], attackTargets: {} };
 terminal.view.phase = realTerminalShape.view.phase;
 terminal.view.prompt = realTerminalShape.view.prompt;
-terminal.over = { winner: fixture.game.you, reason: "The match is over." };
+const terminalOutcome = { kind: "win" as const, winner: fixture.game.you, reason: "The match is over." };
+terminal.over = terminalOutcome;
 terminal.view.over = terminal.over;
 
 mkdirSync(evidenceDir, { recursive: true });
