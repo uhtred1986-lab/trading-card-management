@@ -87,12 +87,14 @@ function drive(s: S, o: { prefer?: (a: Action, s: S) => boolean; decline?: boole
     if (o.stop?.(s)) return s;
     if (s.prompt.kind === "main" && !s.battle && s.pending.length === 0) return s;
     const options = menu(s).filter(({ action }) => action.type !== "concede");
+    if (process.env.U1A_TRACE === "2") console.log("   menu", s.prompt.kind, JSON.stringify(options.map((x) => x.action)));
     const pick =
       (o.prefer && options.find(({ action }) => o.prefer!(action, s))) ??
       options.find(({ action }) => action.type === "optionalCost") ??
       (o.decline
         ? options.filter(({ action }) => action.type === "chooseMode").pop()
         : options.find(({ action }) => action.type === "chooseMode")) ??
+      (o.decline ? options.find(({ action }) => action.type === "choose" && action.cards.length === 0) : undefined) ??
       options.find(({ action }) => action.type === "choose") ??
       options.find(({ action }) => action.type === "pass") ??
       options[0];
@@ -199,6 +201,90 @@ async function main(): Promise<void> {
       assert.equal(withSkill.power, 21000, "…and the Unison gets +6000 power for the turn");
       assert.equal(withSkill.asked, false, "[Once per turn] (22-11-2): the second attack on the Unison is not answered again");
       assert.equal(withSkill.second, 4, "…and the Unison (15000 + 6000 power) beats the 20000 attacker, so no marker falls");
+    }
+
+
+    // SD15-02 #20: "[-6][Auto] If your opponent's life is at 3 or more: When your mono-red ≪Saiyan≫ Leader Card is attacked, deal 1 damage to your opponent."
+    // (The Unison at zero markers should then go to the Drop Area, 21-9-2; the engine does not do that yet: issue #759, so it is not asserted here.)
+    {
+      const run = (oppLife: number): number => {
+        let s = board();
+        const leader = setLeader(s, "p1", "SD15-01");
+        const cabba = stage(s, "p1", "SD15-02", "unison");
+        s.cards[cabba].markers = 6;
+        s = toP2Main(s);
+        s.sides.p2.zones.life.splice(oppLife);
+        const attacker = stage(s, "p2", "BIG", "battle");
+        s = drive(apply(s, attackAction(s, attacker, leader)));
+        return lifeOf(s, "p2");
+      };
+      assert.equal(run(8), 7, "8-1-3: the attack on the Leader pends [-6]; paid, it deals 1 damage to the opponent");
+      assert.equal(run(2), 2, "opponent's life at 2: the condition is not met, nothing is dealt");
+    }
+
+    // SD15-02 #0 "[Auto][Limit 1] When this card is placed in your Drop Area from your Unison Area, choose up to 1 of your mono-red Leader Cards and it gets +5000 power
+    // for the turn", with DB3-001 "If your Leader Card is red and your opponent's life is at 5 or more : When this card is played, deal 1 damage to your opponent."
+    // Playing a Unison over the one in the Unison Area sends that one to the Drop Area (3-11-5).
+    for (const oppLife of [8, 4]) {
+      let s = board({ hand: ["DB3-001"] });
+      const leader = setLeader(s, "p1", "SD15-01");
+      const cabba = stage(s, "p1", "SD15-02", "unison");
+      s.cards[cabba].markers = 3;
+      s.sides.p2.zones.life.splice(oppLife);
+      const roshi = zoneOf(s, "p1", "hand").find((id) => s.cards[id].cardId === real("DB3-001"))!;
+      s = drive(apply(s, { type: "playUnison", player: "p1", card: roshi, x: 2 }), { prefer: choosing(leader) });
+      assert.deepEqual(unisonOf(s, "p1"), roshi, "DB3-001 is the Unison now");
+      assert.ok(zoneOf(s, "p1", "drop").includes(cabba), "3-11-5: SD15-02 went to the Drop Area");
+      assert.equal(powerOfG(s, leader), 15000, "SD15-02's 'from your Unison Area to your Drop Area' Auto: the mono-red Leader gets +5000");
+      assert.equal(lifeOf(s, "p2"), oppLife === 8 ? 7 : 4, oppLife === 8 ? "DB3-001: red Leader, opponent's life 8 (5 or more): 1 damage" : "opponent's life 4: DB3-001 deals nothing");
+    }
+
+    // SD5-01 back: "[Auto] When this card attacks, draw 1 card." (the flipped face, any target)
+    {
+      let s = board({ oppBattle: ["SD15-03"] });
+      const leader = setLeader(s, "p1", "SD5-01", true);
+      const target = zoneOf(s, "p2", "battle").find((id) => s.cards[id].cardId === real("SD15-03"))!;
+      s.cards[target].mode = "rest";
+      const before = handOf(s, "p1");
+      s = drive(apply(s, attackAction(s, leader, target)));
+      assert.equal(handOf(s, "p1"), before + 1, "the back face draws 1 attacking a Battle Card");
+    }
+
+    // SD5-02: "When this card attacks, you may draw 1 card. If you did not draw a card with this skill, this card gains [Double Strike]".
+    for (const draw of [true, false]) {
+      let s = board({ battle: ["SD5-02"] });
+      const bardock = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === real("SD5-02"))!;
+      const before = handOf(s, "p1");
+      s = drive(apply(s, attackAction(s, bardock, oppLeader(s))), { decline: !draw });
+      assert.equal(handOf(s, "p1"), before + (draw ? 1 : 0), draw ? "chose to draw: draws 1" : "declined: no draw");
+      assert.equal(hasG(s, bardock, "Strike"), !draw, draw ? "drew: no [Double Strike]" : "did not draw: gains [Double Strike]");
+    }
+
+    // BT1-014 / BT4-012: "When this card attacks, you may choose 1 card from your life and add it to your hand. If you do so, this card gains +10000 power and [Double Strike] / [Critical]".
+    for (const [id, kw] of [["BT1-014", "Strike"], ["BT4-012", "Critical"]] as const) {
+      for (const pay of [true, false]) {
+        let s = board({ battle: [id] });
+        const unit = zoneOf(s, "p1", "battle").find((x) => s.cards[x].cardId === real(id))!;
+        const [hand, life, power] = [handOf(s, "p1"), lifeOf(s, "p1"), powerOfG(s, unit)];
+        s = drive(apply(s, attackAction(s, unit, oppLeader(s))), { decline: !pay });
+        assert.equal(lifeOf(s, "p1"), life - (pay ? 1 : 0), `${id}: life card ${pay ? "taken" : "kept"}`);
+        assert.equal(handOf(s, "p1"), hand + (pay ? 1 : 0), `${id}: hand`);
+        assert.equal(powerOfG(s, unit), power + (pay ? 10000 : 0), `${id}: +10000 only if you did so`);
+        assert.equal(hasG(s, unit, kw), pay, `${id}: ${kw} only if you did so`);
+      }
+    }
+
+    // DB2-004: "[Auto] Choose 1 card in your life and add it to your hand: When this card attacks, switch this card to Active Mode, then it gets +10000 power and can't attack for the turn."
+    {
+      let s = board({ battle: ["DB2-004"] });
+      const unit = zoneOf(s, "p1", "battle").find((x) => s.cards[x].cardId === real("DB2-004"))!;
+      const [hand, life] = [handOf(s, "p1"), lifeOf(s, "p1")];
+      s = drive(apply(s, attackAction(s, unit, oppLeader(s))));
+      assert.equal(lifeOf(s, "p1"), life - 1, "the price: 1 life card to the hand");
+      assert.equal(handOf(s, "p1"), hand + 1);
+      assert.equal(modeOf(s, unit), "active", "switched to Active Mode");
+      assert.equal(powerOfG(s, unit), 15000, "+10000 power");
+      assert.equal(menu(s).some(({ action }) => action.type === "attack" && action.attacker === unit), false, "can't attack for the turn");
     }
 
     console.log("  #757 U1-a: trigger and keyword scenarios passed");
