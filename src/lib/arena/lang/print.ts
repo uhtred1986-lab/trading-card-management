@@ -201,6 +201,8 @@ function printFilterValue(kind: FilterFieldType, v: unknown): string {
       return v === null ? "null" : String(v);
     case "boolean":
       return String(v);
+    case "variable":
+      return v === null ? "null" : atom(v as string);
     case "powerRel": {
       const r = v as CardFilter["powerRel"];
       if (r === null) return "null";

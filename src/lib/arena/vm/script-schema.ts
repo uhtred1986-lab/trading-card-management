@@ -1888,6 +1888,8 @@ function filterValueHolds(kind: FilterFieldType, x: unknown): boolean {
       return x === null || typeof x === "boolean";
     case "number":
       return x === null || (typeof x === "number" && Number.isFinite(x));
+    case "variable":
+      return x === null || (typeof x === "string" && /^[A-Za-z_]\w*$/.test(x));
     case "powerRel":
       return x === null || (isRecord(x) && !unknownKey(x, ["of", "cmp", "var"]) && POWER_REL_OF.includes(x.of) && POWER_REL_CMP.includes(x.cmp) && (x.var === undefined || typeof x.var === "string"));
     case "filters":
@@ -2248,6 +2250,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   else if (f.specifiedCostMax != null) bits.push(`with a specified cost of ${f.specifiedCostMax} or less`);
   else if (f.specifiedCostMin != null) bits.push(`with a specified cost of ${f.specifiedCostMin} or more`);
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
+  if (f.nameInSkillTextOf) bits.push("whose card name is in the text of a skill on the chosen card");
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
 }

@@ -152,13 +152,12 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
     id: "arena-priced-choice-binds-x",
     label: "X from a chosen action-price value reaches the effect",
-    status: "unsupported",
-    evidence: "runtime-gap",
-    citation: "20-5; action-price binding contract",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "20-5-3; 4-3-3; 5-3; 5-8-1; 22-10-7; action-price binding contract (`scripts/verify/cost-binding-550.ts` header)",
     ownerIssue: 550,
-    skipWhere: "compiler: X bound by a price that chooses (20-5)",
-    proof: "scripts/verify/compiler.ts — chosen-price X scenario",
-    detail: "The price program's bindX does not reach the effect. This row is scoped to X binding, not all Counter or action-price support.",
+    proof: "scripts/verify/compiler.ts — chosen-price X scenario (a printed [Activate] action price, two chosen, two drawn); scripts/verify/cost-binding-550.ts — [Activate] chosen card read by the effect (BT28-105 wording: the chosen card's front power, not a same-area alternative's), refused wrong actor/non-candidate/empty/stale answers with nothing charged, JSON reload at the price resolving identically, both viewer projections; [Activate] X from a choosing price across a reload part-way through the choice, X = 0 drawing nothing; [Counter] printed action price on the strict host carrying X into the effect with one activation and no cursor left; BT28-124's action alternative offered only while its condition holds and paying with the chosen card; scripts/verify/auto-costs-549.ts — an Auto's action-chosen X in its own frame",
+    detail: "A price program's choices bind their names (`$cN`) and a `bindX` choice binds X on the effect's frame, for a printed [Activate] action price (`saveVars`/`saveX`), a [Counter]'s printed action price (`stepCounterCost`, X carried since #550), a [Counter]'s action alternative and an Auto's price (its own frame). An energy X already paid wins over a chosen one. Invoked activations waive the original skill cost (12-2-4-4), so no price binds anything there and X-priced lines are not invocable. A [Swap]'s action price binds nothing for the keyword's own move, and an [Activate] price that moves this card under another card is still not chargeable; both are outside this row.",
   },
   {
     id: "arena-aegis-incremental-choice",

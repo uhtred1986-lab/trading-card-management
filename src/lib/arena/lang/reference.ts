@@ -214,6 +214,8 @@ export function sampleFilterValue(t: FilterFieldType): unknown {
       return true;
     case "number":
       return 3;
+    case "variable":
+      return "c0";
     case "powerRel":
       return { cmp: "<=", of: "self" };
     case "filters":

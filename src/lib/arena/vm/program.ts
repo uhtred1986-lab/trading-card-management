@@ -46,7 +46,7 @@ import { backCharactersOf, baseType, coversColors, eachNamedHolds, keywordsInSki
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { CardIdentityGain, Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { counterKindOf, other } from "../types";
-import { parseFilter, powerRelOk, type CardFilter } from "../text/filters";
+import { nameInSkillText, parseFilter, powerRelOk, type CardFilter } from "../text/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
@@ -321,6 +321,13 @@ export function immunityRefusing(ctx: EngineContext, game: GameDefinition, state
         (!im.rule.fromFilter || (!!source && !!state.cards[source] && predicateOf(im.rule.fromFilter, game)(attrsNow(ctx, game, state, source)))),
     ) ?? null
   );
+}
+
+/** Every name a card answers to in `attrs` (20-1): its printed one and any a skill gave it "in all areas". */
+function namesNow(attrs: Attrs): string[] {
+  const own = attrs.name;
+  const also = attrs.alsoNames;
+  return [...(typeof own === "string" ? [own] : []), ...(Array.isArray(also) ? (also as readonly string[]) : [])];
 }
 
 /**
@@ -1244,6 +1251,14 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.filter?.powerRel) {
       const against = sel.filter.powerRel.of === "chosen" ? (sel.filter.powerRel.var ? (frame.vars[sel.filter.powerRel.var]?.[0] ?? null) : null) : frame.card;
       if (!against || !powerRelOk(sel.filter, measureOf(ctx, game, state, id, "power", movementInfo), measureOf(ctx, game, state, against, "power"))) return false;
+    }
+    // 2-3-2: "whose card name is in the text of a skill on the chosen card"
+    // (BT30-084, #542) — read off the printed skills of the card the price
+    // chose (`$cN`, #550). Nothing bound is nothing to match (ground rule 5).
+    if (sel.filter?.nameInSkillTextOf) {
+      const against = frame.vars[sel.filter.nameInSkillTextOf]?.[0] ?? null;
+      const host = against ? ctx.defs[state.cards[against]?.cardId] : undefined;
+      if (!host || !nameInSkillText(namesNow(attrsNow(ctx, game, state, id)), host.skill)) return false;
     }
     // 22-16: [Barrier]'s own `chooseable` hook fact (#154's `forbid(what:
     // beChosen)`), checked on its own rather than through `forbids()`'s wider
