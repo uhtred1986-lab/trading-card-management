@@ -66,6 +66,7 @@ import { interruptedOutcome, type StoredOutcome } from "../outcome";
 import { stepAegisCost } from "./aegis-costs";
 import { stepSwapCost } from "./swap-costs";
 import { queueUniqueChoice, stepUniqueKeep } from "./unique";
+import { emptyUnisons } from "./unison-zero";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { IllegalAction } from "./common";
@@ -511,6 +512,8 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // move left in one Battle Area are processed before anything else runs
     // (`vm/unique.ts`). Mid-program, `stepScript` asks the same question after
     // each instruction (`ScriptHost.ruleInterrupt`).
+    // 21-9-2 (#759): a Unison with no markers left goes to the Drop Area now.
+    dropEmptyUnisons(ctx, game, state, ev);
     queueUniqueChoice(ctx, game, state);
     if (state.programs.length) {
       if (stepProgram(ctx, game, state, ev) === "wait") return;
@@ -953,6 +956,19 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
   } catch (err) {
     if (!(err instanceof NotYet)) throw err;
     interruptGame(ctx, game, state, ev, { sourceCard: frame.card, skillIndex: frame.skillIndex, trigger: frame.trigger, issue: err.issue, detail: err.message });
+  }
+}
+
+/**
+ * 21-9-2 (#759), interruptive: every Unison Card in a Unison Area with zero or
+ * fewer markers is placed in its owner's Drop Area, simultaneously (21-1-2-1-1).
+ * Each is tried once per call, so a 9-10 substitute that keeps one in place
+ * cannot loop; the next look tries again.
+ */
+function dropEmptyUnisons(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
+  for (const [id, owner] of emptyUnisons(state)) {
+    log(ev, { type: "note", text: `${state.cards[id].cardId} has no markers left (21-9): it is placed in its owner's Drop Area` });
+    moved(ctx, game, state, ev, id, "drop", { owner, reason: "rule" });
   }
 }
 

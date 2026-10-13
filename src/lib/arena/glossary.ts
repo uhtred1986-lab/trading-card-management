@@ -463,7 +463,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "cost",
     meaning: "Part of a skill's cost: remove X markers from your Unison Card. A skill whose [Spirit Boost] can't be paid can't be activated.",
     engineRules:
-      "Built as a declared price (#157): `DEFINE COST spiritBoost` in `dbs/costs.rules` takes X markers off the card in your Unison Area, and the activation binds X off the line's tag and charges it after [Burst] and before the orbs. With no Unison, or too few markers on it, the line is refused (“[Spirit Boost] needs the markers”). Paying it is the `markerRemoved` moment named for the keyword, so cards watching the payment fire — the Unison it came off and your other cards. The supported [Auto] payment continuation also charges [Spirit Boost] after its payable decision; unaffordable and declined Autos do not resolve (#549). Unsupported price programs remain explicit interruptions.",
+      "Built as a declared price (#157): `DEFINE COST spiritBoost` in `dbs/costs.rules` takes X markers off the card in your Unison Area, and the activation binds X off the line's tag and charges it after [Burst] and before the orbs. With no Unison, or too few markers on it, the line is refused (“[Spirit Boost] needs the markers”). Paying the last marker places the Unison in the Drop Area (21-9-2, #759). Paying it is the `markerRemoved` moment named for the keyword, so cards watching the payment fire — the Unison it came off and your other cards. The supported [Auto] payment continuation also charges [Spirit Boost] after its payable decision; unaffordable and declined Autos do not resolve (#549). Unsupported price programs remain explicit interruptions.",
     support: "engine",
   },
 
@@ -592,7 +592,7 @@ export const MODIFIERS: ModifierDoc[] = [
     tag: "[+X] / [−X]",
     section: "13-4",
     meaning: "A Unison Card's marker cost: add or remove that many markers to activate the skill. One marker skill per Unison per turn.",
-    engine: "Only payable while the card is in the Unison Area, only with the markers to spend, and the card's marker skills are locked for the turn once one is used.",
+    engine: "Only payable while the card is in the Unison Area, only with the markers to spend, and the card's marker skills are locked for the turn once one is used. A Unison whose last marker is paid or lost (an attack taking it, 13-5-2) is placed in its owner's Drop Area at that moment (21-9-2, interruptive rule processing, #759: `vm/unison-zero.ts`), so its Autos for being placed in the Drop Area from the Unison Area pend.",
   },
 ];
 
