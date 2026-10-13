@@ -620,7 +620,7 @@ export const MODIFIERS: ModifierDoc[] = [
     tag: "[Once per turn]",
     section: "22-11",
     meaning: "The skill may be activated and resolved once in a turn. Two cards with the same skill each get their own once.",
-    engine: "Counted on the copy, so two copies with the same line each get their own once. A used line is refused, and on the rules engine a pending [Auto] whose once is spent fails to activate rather than resolving again (22-11-4/5, #741). The rules engine keeps the copy's count when it changes area; the legacy engine starts it again (3-1-4 read as a new card), and the manual does not say which.",
+    engine: "Counted on the copy, so two copies with the same line each get their own once. A used line is refused, and on the rules engine a pending [Auto] whose once is spent fails to activate rather than resolving again (22-11-4/5, #741). A copy that changes area is a new card (3-1-4), so its count starts again on the rules engine (#746); a Battle/Unison move into Battle, Unison or Combo, and Combo into Battle, carries it (3-1-4-1/3-1-4-2, which the manual words as carrying effects applied to the card — a reading, not a stated ruling). [Limit X] is not reset by a move.",
   },
   {
     tag: "[Limit X]",
