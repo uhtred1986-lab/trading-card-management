@@ -82,7 +82,7 @@
 import type { EngineContext, GameEvent, Payer } from "../types";
 import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
-import { costIsOnlyOrbs } from "../compile";
+import { aegisPriceLine, costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
@@ -283,7 +283,7 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
     markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(sk.spiritBoost ?? 0), by: "Spirit Boost" } },
     payers: payWithPayers(ctx, game, state, player, line),
-    unreadable: chargeablePrice(line) ? null : sk.cost,
+    unreadable: chargeablePrice(line) ? null : aegisPriceLine(sk).cost,
   };
 }
 
@@ -411,13 +411,21 @@ export function scopedPayersSpent(ctx: EngineContext, game: GameDefinition, stat
  * precedent).
  */
 function chargeablePrice(line: ActivationLine): boolean {
-  if (costIsOnlyOrbs(line.skill.cost)) return true;
+  const aegis = line.keyword?.name === "Aegis";
+  // 22-30-2 (#595): an [Aegis] line prints nothing after its tag but its skill
+  // cost, and its effect is the keyword's own (22-30-5). A record that holds a
+  // program of its own drafted that cost as an effect, to run after activation
+  // and free when it cannot; it is refused as unread until it is rebuilt.
+  if (aegis && line.script?.ops.length) return false;
+  if (costIsOnlyOrbs(aegisPriceLine(line.skill).cost)) return true;
   const price = line.script?.price;
   if (!price) return false;
   // 4-3-3: an action price is charged by `resolveActivation` (#458) — on a
   // printed line. A keyword's own move runs its `DO` in place of the record
-  // and has nowhere to charge one, so it stays refused.
-  if (price.ops?.length) return !line.keyword;
+  // and has nowhere to charge one, so it stays refused. [Aegis] is the
+  // exception: its stored continuation pays the action after the colour
+  // cards and native fee (22-30-3, `vm/aegis-costs.ts`).
+  if (price.ops?.length) return !line.keyword || aegis;
   // 20-5: an X price is chargeable once X is named, which the menu does —
   // one candidate per payable value (`vm/actions.ts`'s `activation`, #439).
   if (price.x || price.payWith?.length) return true;
