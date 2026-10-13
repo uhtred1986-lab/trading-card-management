@@ -82,6 +82,7 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   originallySkillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   skillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   powerRel: { except: [] },
+  nameInSkillTextOf: { except: [] },
   z: { only: ["ZB", "ZCHEAP", "ZED"] },
 };
 

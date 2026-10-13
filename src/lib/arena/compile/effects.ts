@@ -1,5 +1,5 @@
 import { keywordOf, orbsIn } from "../text/cards";
-import { parseFilter } from "../text/filters";
+import { emptyFilter, parseFilter } from "../text/filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../vm/script";
 import type { DelayScope, DelayTiming, SkillKindPrefix } from "../types";
 import { parseConditionClause } from "./conditions";
@@ -95,6 +95,9 @@ function chosenRef(desc: string, c: Ctx): Ref | null {
   }
   return best && !tied ? { var: best.name } : null;
 }
+
+/** BT30-084's filter phrase (2-3-2): a card whose name is written in {} in a skill of the chosen card. */
+const NAME_IN_SKILL_TEXT = /\s+whose card name is in the text of an? skill on the chosen card/i;
 
 function refFor(clause: string, c: Ctx): Ref | null {
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
@@ -2122,7 +2125,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       ))
   ) {
     const onto = refFor(m[3], c);
-    const ref = refFor(m[1], c);
+    // "…Battle Card **whose card name is in the text of a skill on the chosen
+    // card** from your Warp" (BT30-084, #542): the phrase is the filter's
+    // `nameInSkillTextOf`, bound to the choice it points at (`c.last`, which the
+    // price's choice, #550, left). Struck out of the description first, or
+    // "the chosen card" in it would be taken for the target.
+    const inText = NAME_IN_SKILL_TEXT.exec(m[1]);
+    const ref = refFor(inText ? m[1].replace(NAME_IN_SKILL_TEXT, "") : m[1], c);
+    if (inText) {
+      // Nothing chosen to look in, or a description that is not a selector: unread (ground rule 5).
+      if (!c.last || !ref || !("sel" in ref)) return null;
+      ref.sel = { ...ref.sel, filter: { ...emptyFilter(), ...ref.sel.filter, nameInSkillTextOf: c.last } };
+    }
     const mode = (m[2] ?? m[4]) as "rest" | "active" | undefined;
     // 9-1-5: the sets print "for game" as well as "for the game"; anything
     // shorter than the game is an effect with a duration.
