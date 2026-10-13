@@ -24,9 +24,11 @@ import { GAMES, GAME_INFO, type Game } from "./games";
 import { setCodeOfNumber, setLineFor, setNameFor, setSortKey } from "./sets";
 import { draftCards, reviewOpenRules } from "@/lib/arena/draft";
 import { countRules } from "@/lib/arena/rules-store";
+import { catalogPageUrl, fetchCatalogPages } from "./deckplanet-fetch";
 
+/** First page of a game's catalog (the API caps `limit` at 500; see deckplanet-fetch.ts). */
 export function catalogUrl(game: Game): string {
-  return `https://api.deckplanet.net/cardsearch/${GAME_INFO[game].catalogPath}?limit=100000`;
+  return catalogPageUrl(GAME_INFO[game].catalogPath, 1);
 }
 
 /** The original game's catalog, kept as a constant for the sync script. */
@@ -335,11 +337,7 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
 // ── fetch + persist ────────────────────────────────────────────────────────
 
 export async function fetchDeckplanet(game: Game = "dbs"): Promise<DpCard[]> {
-  const res = await fetch(catalogUrl(game), { headers: { accept: "application/json" } });
-  if (!res.ok) throw new Error(`deckplanet ${game} ${res.status} ${res.statusText}`);
-  const json = (await res.json()) as { data?: DpCard[] };
-  if (!Array.isArray(json.data)) throw new Error(`deckplanet ${game}: unexpected payload shape`);
-  return json.data;
+  return fetchCatalogPages<DpCard>(game, GAME_INFO[game].catalogPath);
 }
 
 function chunk<T>(arr: T[], size: number): T[][] {
