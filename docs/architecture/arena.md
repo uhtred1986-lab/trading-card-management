@@ -78,13 +78,24 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   plays, activations, attacks and `endMain` (plus the `payCost` energy question, resting the energy
   that keeps the rest of the hand payable) from the observation and decisions alone — no search, no
   RNG drawn, ties by canonical id, a counted work bound (`MAIN_LIMITS`), an activation at most once
-  per card per turn (read off the public beats). `localPolicy(fallback)` is shortcuts → Main Phase →
-  `fallback` for every other window (#647/#650 own those). `guardedDecide` carries a small
+  per card per turn (read off the public beats). `mainPolicy(fallback)` is #646's stack (shortcuts →
+  Main Phase → `fallback`), kept for comparison. `guardedDecide` carries a small
   serialisable memory per seat (policy RNG included) and ends a turn that runs past
   `TURN_GUARD.decisions` or revisits one position more than `TURN_GUARD.repeats` times (`endMain`,
-  else `pass`, else an explicit interruption); `boundary.ts`'s `localStep` is one whole local
-  decision. The online opponent does not load it. Proof: `scripts/verify/arena-policy-main.mts`
-  (`npm test`); strength: `npm run arena:policy-eval`.
+  else `pass`, else a battle window's "don't block"/"don't counter", else an explicit
+  interruption); `boundary.ts`'s `localStep` is one whole local decision. The online opponent does
+  not load it. Proof: `scripts/verify/arena-policy-main.mts` (`npm test`).
+  **The local battle is `policy/combat.ts`** (#647): the blocker, counter and combo windows, judged at
+  the current totals from the engine's public `stakes` (attacker wins ties, [Strike], [Critical],
+  [Victory Strike], lethal) and the seat's own hand and field — never a guess at the other hand. Each
+  option is costed (life by how low it leaves the seat, a KO'd card by its board value, a card or
+  energy spent): a block or counter is taken when it costs less than what the battle threatens (the
+  counter timing comes before the blocker window on this engine, so a blocker still to be asked is
+  an alternative to a counter), and combos (and readable "+N power" battle activations) cover the
+  deficit with the cheapest set that is exactly enough, only when the battle is worth that set.
+  Bounded by `COMBAT_LIMITS` (a counted branch-and-bound cover search), no RNG drawn.
+  `localPolicy(fallback)` is shortcuts → Main Phase → battle → `fallback` (#650 owns the rest).
+  Proof: `scripts/verify/arena-policy-combat.mts` (`npm test`); strength: `npm run arena:policy-eval`.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

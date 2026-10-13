@@ -69,11 +69,11 @@ export async function mainFixtureBundle(): Promise<ReplayBundleRecord> {
 }
 
 /**
- * The fixture game played on to p1's Main Phase on turn 3 (its second turn) by plain moves:
- * p1 goes first, both keep, every charge charges, every play is declined, every turn ends.
+ * The fixture game (this bundle or another built the same way, #647) played on to p1's Main Phase
+ * on turn 3 (its second turn) by plain moves: p1 goes first, both keep, every charge charges, every play is declined, every turn ends.
  */
-export async function mainPhaseMatch(bundle: ReplayBundleRecord, seed = MAIN_FIXTURE_SEED): Promise<PinnedMatch> {
-  let { match } = await createPinnedMatch({ bundle, seed, interpreterRevision: MAIN_FIXTURE_REVISION });
+export async function mainPhaseMatch(bundle: ReplayBundleRecord, seed = MAIN_FIXTURE_SEED, interpreterRevision = MAIN_FIXTURE_REVISION): Promise<PinnedMatch> {
+  let { match } = await createPinnedMatch({ bundle, seed, interpreterRevision });
   for (let n = 0; n < 200; n++) {
     const s = match.state;
     if (s.turn >= 3 && s.prompt.kind === "main" && s.prompt.player === "p1") return match;

@@ -43,12 +43,12 @@ import { applyDecision, localStep, policyTurn } from "../../src/lib/arena/policy
 import { answerFor, resolveAnswer, uniformPolicy, type Policy, type PolicyInput } from "../../src/lib/arena/policy/contract.ts";
 import { policyRng } from "../../src/lib/arena/policy/rng.ts";
 import { shortcutThen } from "../../src/lib/arena/policy/shortcuts.ts";
-import { guardedDecide, localMemory, localPolicy, mainChoice, paymentChoice, MAIN_LIMITS, TURN_GUARD, type MainChoice } from "../../src/lib/arena/policy/main.ts";
+import { guardedDecide, localMemory, mainChoice, mainPolicy, paymentChoice, MAIN_LIMITS, TURN_GUARD, type MainChoice } from "../../src/lib/arena/policy/main.ts";
 
 const ROOT = process.cwd();
 const started = Date.now();
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-const LOCAL = localPolicy(uniformPolicy);
+const LOCAL = mainPolicy(uniformPolicy);
 const BASELINE = shortcutThen(uniformPolicy);
 /**
  * For the named scenarios only: outside the Main Phase, decline (pass, no block, no counter) so a
@@ -59,7 +59,7 @@ const DECLINE: Policy = (input, rng) => {
   const no = open.find((d) => d.kind === "menu" && (d.type === "pass" || ("card" in d.action && d.action.card === null))) ?? open[0];
   return { answer: answerFor(input.decisions, no.id), rng };
 };
-const SCENARIO_POLICY = localPolicy(DECLINE);
+const SCENARIO_POLICY = mainPolicy(DECLINE);
 
 // ---------------------------------------------------------------------------------------------
 // 1. A pure layer.
@@ -268,7 +268,7 @@ const EMPTY_P2 = { battle: [] as { cardId: string; mode: "active" | "rest" }[] }
   // No way to end the turn: an interruption, not an invented move.
   const noExit: PolicyInput = { ...turnInput, decisions: { ...turnInput.decisions, decisions: turnInput.decisions.decisions.filter((d) => d.kind !== "menu" || (d.type !== "endMain" && d.type !== "pass")) } };
   const stuck = guardedDecide(stubborn, noExit, { ...localMemory(policyRng(1)), turn: noExit.observation.turn, decisions: TURN_GUARD.decisions });
-  assert.ok(!stuck.ok && /neither endMain nor pass/.test(stuck.interrupted), "with no endMain or pass the guard interrupts");
+  assert.ok(!stuck.ok && /no endMain, pass or decline/.test(stuck.interrupted), "with no endMain, pass or decline the guard interrupts");
   const viaBoundary = localStep(m, "p1", 0, { ...localMemory(policyRng(1)), turn: m.state.turn, decisions: TURN_GUARD.decisions }, stubborn);
   assert.ok(viaBoundary.ok && viaBoundary.guard, "through the boundary the tripped guard plays endMain");
   named.push("no loop (+ guard, + interruption)");

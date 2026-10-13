@@ -41,12 +41,13 @@
  * seat's decisions: if a turn runs past `TURN_GUARD.decisions` decisions, or the
  * same position (observation less its beat history, with the same decision set)
  * comes round more than `TURN_GUARD.repeats` times, the guard ends the turn
- * (`endMain`, else `pass`) or — with neither open — interrupts rather than
- * inventing a move or a result.
+ * (`endMain`, else `pass`, else a battle window's decline) or — with none open —
+ * interrupts rather than inventing a move or a result.
  *
- * Out of scope here (later O2 issues): combat responses and combos (#647),
- * every other constrained choice (#650). Outside the Main Phase and its payment
- * question, `mainThen` hands the decision to the policy it wraps.
+ * Combat responses and combos are `combat.ts`'s (#647); every other
+ * constrained choice is #650's. Outside the Main Phase and its payment
+ * question (a combo's payment included), `mainThen` hands the decision to the
+ * policy it wraps.
  *
  * Policy layer: value imports only from `src/lib/arena/policy/` (checked by
  * `scripts/verify/arena-policy-contract.mts`).
@@ -423,10 +424,12 @@ export function mainThen(fallback: Policy): Policy {
 }
 
 /**
- * The local policy as O2-03 leaves it: the free-choice shortcuts (#645), then
- * the Main Phase, then `fallback` for every window a later issue owns.
+ * The local policy as O2-03 left it: the free-choice shortcuts (#645), then
+ * the Main Phase, then `fallback` for every other window — the battle's
+ * included. Kept for comparison; the local policy is `combat.ts`'s
+ * `localPolicy` (#647), which answers the battle's windows before `fallback`.
  */
-export function localPolicy(fallback: Policy): Policy {
+export function mainPolicy(fallback: Policy): Policy {
   return shortcutThen(mainThen(fallback));
 }
 
@@ -460,9 +463,18 @@ function positionKey(input: PolicyInput): string {
 }
 
 /**
+ * The decision that ends what the seat is doing: `endMain`, else `pass`, else
+ * — in the battle's windows (#647) — "don't block" or "don't counter".
+ */
+function guardExit(open: readonly Decision[]): Decision | undefined {
+  const menu = open.filter((d): d is MenuDecision => d.kind === "menu");
+  return menu.find((d) => d.type === "endMain") ?? menu.find((d) => d.type === "pass") ?? menu.find((d) => (d.type === "block" || d.type === "counter") && d.action.card === null);
+}
+
+/**
  * Ask `policy`, unless this seat's turn has run too long or come round to the
- * same position too often: then end the turn (`endMain`, else `pass`), or —
- * with neither open — interrupt. Pure; the memory comes back new.
+ * same position too often: then end the turn (`guardExit`), or — with no exit
+ * open — interrupt. Pure; the memory comes back new.
  */
 export function guardedDecide(policy: Policy, input: PolicyInput, memory: LocalMemory): GuardedAnswer {
   const turn = input.observation.turn;
@@ -473,8 +485,8 @@ export function guardedDecide(policy: Policy, input: PolicyInput, memory: LocalM
   const next: LocalMemory = { v: 1, rng: memory.rng, turn, decisions: (fresh ? 0 : memory.decisions) + 1, seen };
   const tripped = next.decisions > TURN_GUARD.decisions ? `${next.decisions} decisions this turn` : seen[key] > TURN_GUARD.repeats ? `the same position ${seen[key]} times this turn` : null;
   if (tripped) {
-    const out = input.decisions.decisions.find((d) => d.kind === "menu" && d.type === "endMain") ?? input.decisions.decisions.find((d) => d.kind === "menu" && d.type === "pass");
-    if (!out) return { ok: false, interrupted: `cycle guard: ${tripped}, and neither endMain nor pass is open`, memory: next };
+    const out = guardExit(input.decisions.decisions);
+    if (!out) return { ok: false, interrupted: `cycle guard: ${tripped}, and no endMain, pass or decline is open`, memory: next };
     return { ok: true, answer: answerFor(input.decisions, out.id), memory: next, guard: `cycle guard: ${tripped} — ${out.kind === "menu" ? out.type : out.id}` };
   }
   const chosen = policy(input, memory.rng);

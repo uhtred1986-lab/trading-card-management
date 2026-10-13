@@ -1,13 +1,15 @@
 /**
- * #646: how much the Main-Phase policy (`src/lib/arena/policy/main.ts`) is worth, measured.
+ * #646, #647: how much the local policy is worth, measured.
  *
- * Seeded games on the three database-free fixtures (#641's, #644's, #646's), the local policy
- * (`localPolicy(uniformPolicy)`: the #645 shortcuts, then the Main Phase and its payments, every
- * other window uniform) against two baselines, in both seats:
+ * Seeded games on the four database-free fixtures (#641's, #644's, #646's, #647's), the local
+ * policy (`combat.ts`'s `localPolicy(uniformPolicy)`: the #645 shortcuts, the #646 Main Phase and
+ * its payments, the #647 battle windows, every other window uniform) against these baselines, in
+ * both seats:
  *
  *   uniform    `uniformPolicy` everywhere — no shortcuts, no heuristic
- *   shortcuts  `shortcutThen(uniformPolicy)` — the same shortcuts and the same uniform combat
- *              windows, so the difference is the Main Phase alone
+ *   shortcuts  `shortcutThen(uniformPolicy)` — the same shortcuts, every other window uniform
+ *   main646    `mainPolicy(uniformPolicy)` — the #646 policy: the same shortcuts and Main Phase,
+ *              uniform battle windows, so the difference is the battle policy alone
  *   control    the shortcuts baseline against itself (no local policy at all): each fixture's
  *              seat bias, which the rows above must be read against
  *
@@ -23,11 +25,13 @@
 import { fixtureBundle, FIXTURE_REVISION, FIXTURE_SEED } from "./verify/arena-browser-fixture.ts";
 import { policyFixtureBundle, POLICY_FIXTURE_REVISION, POLICY_FIXTURE_SEED } from "./verify/arena-policy-fixture.ts";
 import { mainFixtureBundle, MAIN_FIXTURE_REVISION, MAIN_FIXTURE_SEED } from "./verify/arena-policy-main-fixture.ts";
+import { combatFixtureBundle, COMBAT_FIXTURE_REVISION, COMBAT_FIXTURE_SEED } from "./verify/arena-policy-combat-fixture.ts";
 import { playDuel, quantile, summarise, wilson, type DuelResult, type DuelSummary } from "./verify/arena-policy-duel.ts";
 import type { PlayerId } from "../src/lib/arena/types";
 import { uniformPolicy, type Policy } from "../src/lib/arena/policy/contract";
 import { shortcutThen } from "../src/lib/arena/policy/shortcuts";
-import { localPolicy, MAIN_POLICY_VERSION } from "../src/lib/arena/policy/main";
+import { mainPolicy, MAIN_POLICY_VERSION } from "../src/lib/arena/policy/main";
+import { localPolicy, COMBAT_POLICY_VERSION } from "../src/lib/arena/policy/combat";
 
 function flag(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -46,11 +50,13 @@ const fixtures = [
   { name: "641", bundle: await fixtureBundle(), revision: FIXTURE_REVISION, seed: FIXTURE_SEED },
   { name: "644", bundle: await policyFixtureBundle(), revision: POLICY_FIXTURE_REVISION, seed: POLICY_FIXTURE_SEED },
   { name: "646", bundle: await mainFixtureBundle(), revision: MAIN_FIXTURE_REVISION, seed: MAIN_FIXTURE_SEED },
+  { name: "647", bundle: await combatFixtureBundle(), revision: COMBAT_FIXTURE_REVISION, seed: COMBAT_FIXTURE_SEED },
 ];
 const local = localPolicy(uniformPolicy);
 const baselines: { name: string; policy: Policy; test?: Policy }[] = [
   { name: "uniform", policy: uniformPolicy },
   { name: "shortcuts", policy: shortcutThen(uniformPolicy) },
+  { name: "main646", policy: mainPolicy(uniformPolicy) },
   // The control: the baseline against itself, so a fixture's seat bias is visible beside the rows above.
   { name: "control", policy: shortcutThen(uniformPolicy), test: shortcutThen(uniformPolicy) },
 ];
@@ -93,10 +99,10 @@ for (const b of baselines) {
 }
 
 if (json) {
-  console.log(JSON.stringify({ policy: `main v${MAIN_POLICY_VERSION}`, gamesPerFixture: games, maxMoves, rows, seconds: (Date.now() - started) / 1000 }, null, 2));
+  console.log(JSON.stringify({ policy: `main v${MAIN_POLICY_VERSION} + combat v${COMBAT_POLICY_VERSION}`, gamesPerFixture: games, maxMoves, rows, seconds: (Date.now() - started) / 1000 }, null, 2));
 } else {
   const pct = (x: unknown) => (typeof x === "number" ? `${(x * 100).toFixed(0)} %` : "-");
-  console.log(`Main-Phase policy v${MAIN_POLICY_VERSION} vs baselines, ${games} games per fixture (half from each seat), max ${maxMoves} moves`);
+  console.log(`Local policy (main v${MAIN_POLICY_VERSION} + combat v${COMBAT_POLICY_VERSION}) vs baselines, ${games} games per fixture (half from each seat), max ${maxMoves} moves`);
   console.log("baseline   fixture  W-L-D (unfinished)   win rate (95 % CI)     p1 W-L  p2 W-L  damage dealt/taken  guard trips  step p95 ms");
   for (const r of rows) {
     console.log(
