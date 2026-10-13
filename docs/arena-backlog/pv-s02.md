@@ -6,6 +6,7 @@ stage: ui
 issue: 566
 priority: P1
 touches: src/app/arena/actions.ts, src/lib/arena/ai/advance-lease.ts, src/lib/arena/ai/debug.ts, src/lib/arena/ai/opponent.ts, src/lib/arena/ai/run.ts, src/components/arena/stage/ArenaStage.tsx, src/components/arena/stage/PromptPanel.tsx, src/db/schema.ts, drizzle/0048_arena_advance_leases.sql, scripts/verify/arena-advance-leases.mts, scripts/verify/arena-advance-browser-evidence.mts
+status: closed
 ---
 **Source:** `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.
 

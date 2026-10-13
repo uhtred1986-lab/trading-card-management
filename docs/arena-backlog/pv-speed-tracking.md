@@ -7,6 +7,7 @@ issue: 579
 priority: P1/P2
 touches:
 tracking: true
+status: closed
 ---
 **Source:** `docs/arena-playability-review.md`; `docs/arena-delivery-plan.md`; `docs/agent-brief.md`.
 

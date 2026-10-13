@@ -77,6 +77,16 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
 
 ## Running things (the habits that cost most when missed)
 
+- **In a Claude Code on the web sandbox, test on Node 24 and unset the shared `DATABASE_URL`**
+  (verified 13 Oct 2026). The sandbox's default `node` is 22.22 (`/opt/node22`); under it tsx
+  loads some modules twice, and three proofs fail although nothing is wrong
+  (`revision-polling-568`, the provider registry in `arena-advance-leases`/`arena-policy-shortcuts`,
+  `PolicyInterruption` in `arena-local-worker`, the `.css` stub in `arena-session-648`). Node 24 is at
+  `/usr/local/bin`: `export PATH=/usr/local/bin:$PATH` before `npm test` and the build. Install with
+  Node 22's npm, `/opt/node22/bin/npm ci` (npm 11 rejects the lockfile's optional platform
+  packages), and give each worktree its own `node_modules`: Turbopack refuses a symlinked one. The
+  environment's `DATABASE_URL` is another app's, and `derived-read-569` refuses to run beside it:
+  `env -u DATABASE_URL npm test`.
 - **Run `npm test` and `npm run build` in the foreground.** A backgrounded run
   finishing does not reliably wake you, and agents have stalled for good that way.
 - **Don't pipe long output through `| tail`**: it buffers to the end and looks like a hang.
