@@ -8,7 +8,7 @@
  * that needs a decision sets `state.prompt` and stops. That makes every
  * state storable mid-prompt and replayable from the action log.
  */
-import { baseType, canCombo, isZ, keywordOf, skillsOf, specifiedCostOf } from "../text/cards";
+import { baseType, canCombo, isZ, keywordOf, printedDescription, skillsOf, specifiedCostOf } from "../text/cards";
 // Not the compiler's programs: `costIsOnlyOrbs` and `costText` are spelling
 // tests over the printed price and `parseConditionClause` reads a keyword's
 // own reminder. Nothing here builds a program — since 8 Sep 2026 the price
@@ -1306,20 +1306,23 @@ function successorPool(ctx: EngineContext, s: GameState, p: PlayerId): string[] 
 }
 
 /**
- * 22-22-3: the cards in hand a [Swap X] could reveal — Battle Cards whose
- * energy cost is exactly X.
+ * 22-22-3: the cards in hand a [Swap X] could reveal — the *specified*
+ * Battle Cards whose energy cost is exactly X.
  *
  * One list for both the offer and the choice. 22-22-3 is explicit that a
  * [Swap] which cannot choose one of these cannot be activated at all, and
  * while `whyNot` did not know that, the skill was offered, charged its orbs and
- * only then found nothing to choose. The description printed after the tag
- * ("≪Goku's Lineage≫ with an energy cost of 8") is still read by cost alone —
- * see the [Swap] entry in `glossary.ts`.
+ * only then found nothing to choose. "Specified" is the description printed
+ * after the price (22-22-2, "≪Goku's Lineage≫ with an energy cost of 8"), read
+ * with the filter grammar every other keyword site here reads — the same words
+ * the rules engine's `asPrinted` reads (#731). Until 13 Oct 2026 it was read
+ * by cost alone, and a [Swap] naming a trait offered every cost-X Battle Card.
  */
-function swapCandidates(ctx: EngineContext, s: GameState, p: PlayerId, x: number): string[] {
+function swapCandidates(ctx: EngineContext, s: GameState, p: PlayerId, x: number, sk: Skill): string[] {
+  const filter = parseFilter(printedDescription(sk));
   return s.players[p].hand.filter((id) => {
     const d = def(ctx, s, id);
-    return baseType(d) === "BATTLE" && d.energyCost === x;
+    return baseType(d) === "BATTLE" && d.energyCost === x && matches(cardNow(ctx, s, id), filter);
   });
 }
 
@@ -2672,7 +2675,7 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
       case "Swap": {
         if (timing !== "main" || areaOf(s, card) !== "battle" || !costIsOrbsOnly || !canPayOrbs()) return null;
         // 22-22-3: with nothing in hand to reveal it cannot be activated.
-        if (!swapCandidates(ctx, s, p, k.x).length) return null;
+        if (!swapCandidates(ctx, s, p, k.x, sk).length) return null;
         return `Swap ${name} for a cost-${k.x} card from hand`;
       }
       case "Arrival": {
@@ -2927,7 +2930,7 @@ function whyNotActivate(ctx: EngineContext, s: GameState, p: PlayerId, card: str
         wantTiming("main");
         wantZone("battle");
         // 22-22-3: with nothing in hand to reveal, [Swap] cannot be activated.
-        if (!swapCandidates(ctx, s, p, k.x).length) why.push({ kind: "target", reason: `no cost-${k.x} Battle Card in your hand` });
+        if (!swapCandidates(ctx, s, p, k.x, sk).length) why.push({ kind: "target", reason: `no specified cost-${k.x} Battle Card in your hand` });
         if (!costIsOrbsOnly) unread();
         else why.push(...orbs());
         return why;
@@ -3690,7 +3693,7 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
   }
   if (k?.name === "Swap") {
     payOrbs();
-    const cands = swapCandidates(ctx, s, p, k.x);
+    const cands = swapCandidates(ctx, s, p, k.x, sk);
     s.continuations.swap = { card };
     s.flow.unshift(
       { op: "prompt", prompt: { kind: "chooseCards", player: p, choice: { reason: `Swap: play a cost-${k.x} Battle Card`, candidates: cands, min: 0, max: 1, continuation: "swap" } } },

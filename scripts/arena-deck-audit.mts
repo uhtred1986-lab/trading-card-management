@@ -445,15 +445,15 @@ export const UNOWNED: Record<string, string> = {
   U1: "Card-level scenario gates: nothing plays these cards' wordings on the rules engine; every compiled-only mechanic needs one deterministic scenario per deck (`arena:scenario`/`stage()` fixtures), then its tier can move to E/K.",
   U2: "SD15-01 [Awaken] is refused as `unread` although it compiles: the printed OR condition (life <= 4, or a red Unison with a specified cost of 2) is dropped from the record's price, so the Deck A Leader never awakens.",
   U3: "Unread clauses with a specified-cost filter or a mid-line [Spirit Boost 1]: SD15-01 awakened [Auto] #0 and SD15-03 #10/#20.",
-  U4: "BT4-079 [Swap] with an action price (\"{y}, choose 1 card from your hand and place it in your Drop Area\") is refused as `unread`.",
+  U4: "Resolved by #729: BT4-079's [Swap] with an action price (\"{y}, choose 1 card from your hand and place it in your Drop Area\") was refused as `unread`. The rules engine now compiles the price and pays it after the energy on the strict action-price host, offering the [Swap] only when the whole price is payable and a specified card is still in hand afterwards (22-22-3) (`arena-swap-action-price`).",
   U5: "Resolved by #716: a [Counter] whose printed price is more than orbs was never offered (refused as `unread`). The rules engine now reads BT5-023's and BT6-026's \"Your Leader Card is red:\" condition and BT10-008's restriction price and offers each when the whole price can be paid (`arena-counter-action-price`).",
-  U6: "[Swap] names a trait (<<Goku's Lineage>>) but the engine filters by energy cost only (glossary: partial), so it offers off-trait Battle Cards. The owner decided on 13 Oct 2026 that this is NOT accepted: fix first (#731).",
+  U6: "Resolved by #731: [Swap] named a trait (<<Goku's Lineage>>) but the engine filtered by energy cost only, offering off-trait Battle Cards (the owner did not accept the approximation, 13 Oct 2026). Both engines now read the printed description with the filter grammar on the offer and the choice (SD5-04/SD5-05's ASCII \"<<...>>\" included), and the glossary badge is `engine` (`arena-swap-specified-card`).",
   U7: "Unison cards carry no energy cost or specified cost in the public feed; the owner's hand-entered `cards.specified_cost` (database) is an input the offline pack must carry, and this audit cannot see it. Resolved: the owner ruled SD15-02 and DB3-001 `{r}{r}` on 13 Oct 2026 (migration 0049, #733); the pack builder carries them from a committed data file.",
   U8: "[Unique] rule processing (21-11, keep the newest when two end up in play) is not built on the rules engine (glossary: partial).",
 };
 
 /** Manual skills the engine refused as `unread` in the audit play-through (validated by `--play`). */
-export const KNOWN_REFUSALS: Record<string, string> = { "SD15-01#10": "U2", "BT4-079#0": "U4" };
+export const KNOWN_REFUSALS: Record<string, string> = { "SD15-01#10": "U2" };
 
 export const FAMILIES: Family[] = [
   { key: "kind-main", label: "[Activate: Main] skill", match: /^kind:activate:main$/, tier: "S", windows: ["main"], note: "Offered on the Main Phase menu." },
@@ -475,7 +475,7 @@ export const FAMILIES: Family[] = [
   { key: "kw-strike", label: "[Strike] / [Double Strike]", match: /^kw:Strike$/, tier: "K", refs: ["scripts/verify/battles.ts:244,309 - 2 damage, markers off a Unison"], note: "" },
   { key: "kw-attack", label: "[Attack X]", match: /^kw:Attack$/, tier: "C", owners: ["U1"], note: "Glossary says the engine plays it; no scenario located (grep of scripts/verify)." },
   { key: "kw-awaken", label: "[Awaken]", match: /^kw:Awaken$/, tier: "K", refs: ["scripts/verify/battles.ts:380 - offered only when the printed condition holds, flips the Leader"], windows: ["main"], note: "SD5-01's Awaken is offered in the audit play-through; SD15-01's is refused `unread` (U2), so the keyword scenario does not transfer to it." },
-  { key: "kw-swap", label: "[Swap X]", match: /^kw:Swap$/, tier: "P", refs: ["scripts/verify/keywords.ts:317 - cost-X Battle Card in hand", "scripts/verify/workflow.ts:498-509"], owners: ["U6", 731, "U4", 729], windows: ["chooseCards"], note: "Offers every cost-X Battle Card, not just the named trait; BT4-079's priced Swap is refused unread." },
+  { key: "kw-swap", label: "[Swap X]", match: /^kw:Swap$/, tier: "K", evidence: ["arena-swap-specified-card", "arena-swap-action-price"], refs: ["scripts/verify/swap-729-731.ts - specified card only on offer and choice (SD5-05's <<Goku's Lineage>>), BT4-079's price on the strict host", "scripts/verify/keywords.ts:317 - specified cost-X card, both engines", "scripts/verify/workflow.ts:498-513"], owners: [731, 729], windows: ["chooseCards"], note: "U6 resolved by #731 (the printed description is read); U4 resolved by #729 (BT4-079's action price is paid on the strict host)." },
   { key: "kw-unique", label: "[Unique]", match: /^kw:Unique$/, tier: "P", refs: ["scripts/verify/battles.ts:361 - second copy cannot be played"], owners: ["U8", 730], note: "The 21-11 keep-newest half is not built." },
   { key: "kw-supercombo", label: "[Super Combo] (deck limit 4)", match: /^kw:Super Combo$/, tier: "D", note: "legality() counts it (see the legality block)." },
 
@@ -494,7 +494,7 @@ export const FAMILIES: Family[] = [
   { key: "op-if", label: "Conditional (\"if ...\")", match: /^op:if$/, tier: "C", owners: ["U1"], note: "" },
   { key: "cond", label: "Conditions: Leader match, life, counts, did/chose, battle, turn", match: /^cond:/, tier: "C", owners: ["U1"], note: "Condition readings are covered at parse level in readings.ts; no played scenario." },
 
-  { key: "unread", label: "Clause the compiler cannot read", match: /^unread:/, tier: "B", owners: ["U3", 728, "U4", 729], note: "The referee path is outside the offline MVP; an unread due skill interrupts the game (arena-skill-unread-referee)." },
+  { key: "unread", label: "Clause the compiler cannot read", match: /^unread:/, tier: "B", owners: ["U3", 728], note: "The referee path is outside the offline MVP; an unread due skill interrupts the game (arena-skill-unread-referee)." },
 ];
 
 /** Existing issues cited as owners, as read with `gh` on the audit date. */
@@ -814,9 +814,13 @@ function check(catalog: CatalogCard[], snap: Snapshot, play: PlayStats[] | null)
     if (file && !existsSync(file)) fail(`${f.key}: ${file} does not exist`);
   }
   const badge = (k: keyof typeof KEYWORDS) => KEYWORDS[k].support;
-  if (badge("Swap") !== "partial" || badge("Unique") !== "partial") fail("glossary: Swap/Unique are no longer `partial` - revisit tiers P");
+  if (badge("Unique") !== "partial") fail("glossary: Unique is no longer `partial` - revisit tier P");
   if (badge("Super Combo") !== "deck") fail("glossary: Super Combo is no longer a deck rule");
-  for (const k of ["Blocker", "Barrier", "Deflect", "Critical", "Strike", "Awaken"] as const) if (badge(k) !== "engine") fail(`glossary: ${k} is no longer \`engine\` - revisit tier K`);
+  for (const k of ["Blocker", "Barrier", "Deflect", "Critical", "Strike", "Awaken", "Swap"] as const) if (badge(k) !== "engine") fail(`glossary: ${k} is no longer \`engine\` - revisit tier K`);
+  // U6 resolved (#731): both engines read [Swap]'s printed description; U4
+  // resolved (#729): its action price goes through the strict host.
+  if (!/IN you\.hand asPrinted, as: "swapIn"/.test(readFileSync("src/lib/arena/rulesets/dbs/keywords.rules", "utf8"))) fail("keywords.rules: [Swap] no longer reads its printed description (asPrinted) - revisit U6 (#731)");
+  if (!/readableAutomaticPrice\(ops, LABEL, OWNER\)/.test(readFileSync("src/lib/arena/vm/swap-costs.ts", "utf8"))) fail("vm/swap-costs.ts no longer reads [Swap] action prices through the strict host (#729) - revisit U4");
   if (A.skills.some((s) => s.kind === "counter:counter") || B.skills.some((s) => s.kind === "counter:counter")) fail("a [Counter: Counter] skill is now in a deck: #552 becomes a blocker");
 
   // 4. Unread tallies the doc quotes.

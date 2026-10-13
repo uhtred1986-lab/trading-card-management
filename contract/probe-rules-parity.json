@@ -1924,11 +1924,11 @@
   "SWAPPER#0": {
     "legacy": {
       "outcome": "fired",
-      "digest": "ca3d56c8"
+      "digest": "4f0d06ae"
     },
     "rules": {
       "outcome": "fired",
-      "digest": "ca3d56c8"
+      "digest": "4f0d06ae"
     },
     "same": true
   },

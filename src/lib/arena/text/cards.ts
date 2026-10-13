@@ -480,7 +480,33 @@ export function isZ(def: CardDef): boolean {
  * the same words.
  */
 export function printedDescription(sk: Pick<Skill, "effect" | "cost">): string {
-  return sk.effect || sk.cost;
+  return normalizeDescription(sk.effect || sk.cost);
+}
+
+/**
+ * Two spellings the catalog prints on keyword descriptions, written the way
+ * the filter grammar (`parseFilter`) reads them (#731). Neither appears in any
+ * other keyword description the engine reads today — the [Swap] neighbours
+ * diff of 13 Oct 2026 (60 lines) is the proof — so every other reading is
+ * unchanged.
+ *
+ * - "<<Goku's Lineage>>" (SD5-04, SD5-05): ASCII angle pairs for the trait
+ *   brackets ≪…≫. Read as they stand, the outer "<" opened a character name
+ *   and the trait became a character called "<Goku's Lineage".
+ * - "Green/Yellow <Broly: Br>" (EX19-31): 1-8-1-1-1-1 — "X/Y" in card text
+ *   names a multicolor card with both colours, which the catalog otherwise
+ *   always spells "X/Y multicolor". Read bare, the slash was two colour words
+ *   and either one would do (`matches`), so a mono-green Broly qualified.
+ *
+ * Only the text outside the bracketed names is touched: a name may carry a
+ * colour word and a slash of its own.
+ */
+function normalizeDescription(text: string): string {
+  const traits = text.replace(/<<([^<>]+)>>/g, "≪$1≫");
+  return traits
+    .split(/(<[^>]*>|≪[^≫]*≫|\{[^}]*\}|\[[^\]]*\])/)
+    .map((part, i) => (i % 2 ? part : part.replace(/\b(red|blue|green|yellow|black)\/(red|blue|green|yellow|black)\b(?!\s+multi-?colou?r)/gi, "$1/$2 multicolor")))
+    .join("");
 }
 
 /** The character names a keyword line prints in ‹…› (22-13): "<Goku> <Vegeta>" → ["Goku", "Vegeta"]. */

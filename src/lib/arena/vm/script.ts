@@ -1211,6 +1211,8 @@ export interface ScriptFrame {
   autoCost?: import("./auto-costs").AutomaticCost;
   /** #716: a [Counter]'s printed action price, paid on the strict host before the skill activates. Additive: older states never carry one. */
   counterCost?: import("./battle").CounterCost;
+  /** #729: a [Swap]'s printed action price, paid on the strict host after its energy and before the swap. Additive: older states never carry one. */
+  swapCost?: import("./swap-costs").SwapCost;
   ops: Op[];
   ip: number;
   vars: Record<string, string[]>;

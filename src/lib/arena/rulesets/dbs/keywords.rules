@@ -492,18 +492,23 @@ DEFINE KEYWORD Swap
   TAKES (x: number)
   text: "Return this Battle Card to your hand and play a named Battle Card with an energy cost of X from your hand in its place."
   -- A move (#157), offered as an [Activate: Main] from the Battle Area while
-  -- a Battle Card with an energy cost of X is in the hand (22-22-3: with
-  -- none to choose it cannot be activated). The choice is filtered by cost
-  -- only, as on the legacy engine — a [Swap] that names a character offers
-  -- every cost-X Battle Card. The price is the line's printed orbs; the card
-  -- returns to the hand as the cost whether or not one is chosen, and the
-  -- chosen card is played through the [Counter: Play] window.
+  -- a specified Battle Card with an energy cost of X is in the hand (22-22-3:
+  -- with none to choose it cannot be activated). "Specified" is the
+  -- description printed after the price (22-22-2) — ≪Goku's Lineage≫, "Mono-red
+  -- <Broly: Br>", "Yellow <Frieza> … and [Swap]" — read by `asPrinted` with the
+  -- compiler's filter grammar, on the offer and on the choice alike (#731);
+  -- the legacy engine reads the same description the same way. The price is
+  -- the line's printed orbs and condition; an action printed with them
+  -- (BT4-079) is paid after the energy on the strict action-price host by
+  -- the move's stored continuation (`vm/swap-costs.ts`, #729), before this
+  -- `DO` runs. The card returns to the hand as the cost whether or not one is
+  -- chosen, and the chosen card is played through the [Counter: Play] window.
   offer: "activate:main"
   REFUSE zone(area: battle) UNLESS count([self] IN you.battle) >= 1
-  REFUSE target(reason: "no cost-{x} Battle Card in your hand") UNLESS count((type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand) >= 1
+  REFUSE target(reason: "no specified cost-{x} Battle Card in your hand") UNLESS count((type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand asPrinted) >= 1
   label: "Swap {card} for a cost-{x} card from hand"
   DO {
-    choose(sel: UP TO 1 (type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand, as: "swapIn", reason: "[Swap]: the Battle Card to play in its place, or none")
+    choose(sel: UP TO 1 (type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand asPrinted, as: "swapIn", reason: "[Swap]: the Battle Card to play in its place, or none")
     moveTo(target: [self], to: hand, cause: cost)
     play(target: $swapIn, counterWindow: true)
   }

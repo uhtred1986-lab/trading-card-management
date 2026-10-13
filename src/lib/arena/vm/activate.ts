@@ -55,7 +55,9 @@
  *   the effect announced and started from what it chose once it is paid
  *   (`resolveActivation`). *An X price* (20-5) is one candidate per value
  *   (`vm/actions.ts`, #439). A keyword's own move with an action price is still
- *   refused as the printed price rather than charged as nothing.
+ *   refused as the printed price rather than charged as nothing — except
+ *   [Aegis] (#595) and [Swap] (#729), whose stored continuations pay theirs on
+ *   the strict action-price host (`vm/aegis-costs.ts`, `vm/swap-costs.ts`).
  *
  *   *[Spirit Boost X]* (22-43) is a price in markers off a Unison with moments
  *   of its own to fire (sixteen cards watch the payment itself); it is refused
@@ -424,8 +426,10 @@ function chargeablePrice(line: ActivationLine): boolean {
   // printed line. A keyword's own move runs its `DO` in place of the record
   // and has nowhere to charge one, so it stays refused. [Aegis] is the
   // exception: its stored continuation pays the action after the colour
-  // cards and native fee (22-30-3, `vm/aegis-costs.ts`).
-  if (price.ops?.length) return !line.keyword || aegis;
+  // cards and native fee (22-30-3, `vm/aegis-costs.ts`). [Swap] is the other
+  // (#729): its stored continuation pays the action after the energy and
+  // before the swap (`vm/swap-costs.ts`), on the strict action-price host.
+  if (price.ops?.length) return !line.keyword || aegis || !!swapActionPrice(line);
   // 20-5: an X price is chargeable once X is named, which the menu does —
   // one candidate per payable value (`vm/actions.ts`'s `activation`, #439).
   if (price.x || price.payWith?.length) return true;
@@ -797,6 +801,21 @@ function actionPriceOf(line: ActivationLine): Script["ops"] | null {
 }
 
 /**
+ * #729 (22-22-2, 4-3-3): the action a [Swap] line prints before its colon —
+ * BT4-079's "{y}, choose 1 card from your hand and place it in your Drop
+ * Area" — read off the record, or null for a [Swap] whose price is orbs and
+ * conditions alone, and for every other line. It is not `actionPriceOf`'s:
+ * a keyword's own move has no printed effect to charge it in front of, so it
+ * is paid by its own stored continuation (`vm/swap-costs.ts`) on the strict
+ * action-price host, after the energy and before the keyword's `DO`.
+ */
+export function swapActionPrice(line: Pick<ActivationLine, "keyword" | "script">): Op[] | null {
+  if (line.keyword?.name !== "Swap") return null;
+  const ops = line.script?.price?.ops;
+  return ops?.length ? ops : null;
+}
+
+/**
  * Can this action price be paid right now? The legacy `canPayCostProgram`
  * (`engine/state.ts`), op for op, over the declared zones.
  *
@@ -893,10 +912,14 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * the legacy engine makes too: its `Field` case pays the Extra's energy cost
  * first and announces the skill as it resolves (`resolvesLater`), so it is
  * announced after the price. Aegis also announces after payment: 22-30-3
- * places its hand-color payment before determining the additional price.
+ * places its hand-color payment before determining the additional price. So
+ * does a [Swap] with an action price (#729), which no legacy `case` charges:
+ * like a printed line's action price (#458), a [Counter]'s (#716) and
+ * [Aegis]'s, it is announced once the whole price is paid, so a price that
+ * fails (5-8-4) leaves no skill announced.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length;
+  return !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line);
 }
 
 /** The `skill` event for a line being used (9-6). */

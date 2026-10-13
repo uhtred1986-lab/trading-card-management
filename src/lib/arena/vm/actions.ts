@@ -42,8 +42,9 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationAlt, activationTaxes, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueActivationTaxes, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
+import { activationAlt, activationTaxes, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueActivationTaxes, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
+import { assertSwapPricePayable, queueSwapCost, swapPriceRefusals } from "./swap-costs";
 import { readableAutomaticPrice } from "./auto-costs";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { NotYet, RulesetBroken } from "./errors";
@@ -248,6 +249,10 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   if (!why.length && def.cost?.length) {
     const plan = planCost(ctx, game, state, player, price, line.card);
     if (!plan.ok) why.push(...plan.why);
+    // #729: a [Swap]'s action price is offered only when the energy this plan
+    // pays leaves the whole action payable on the strict host, and 22-22-3's
+    // reveal still possible after it — proven on a copy of the board.
+    else if (!gates.after.length) why.push(...swapPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
   }
   why.push(...gates.after);
   const out: Candidate[] = [{ card: line.card, skill: line.skillIndex, why, price }];
@@ -878,6 +883,9 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       state.prompt = { kind: "payCost", player, action, options: plan.options, describe: label.charAt(0).toLowerCase() + label.slice(1) };
       return "asked";
     }
+    // #729 (5-8-3): the energy chosen must leave a [Swap]'s whole action price
+    // payable; refused here, on a copy, while nothing is paid.
+    if (line) assertSwapPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
     if (early) announce(state, ev, player, early);
     // BT28-106: a once-per-turn grant whose card paid this line is spent.
     const spent = line ? scopedPayersSpent(ctx, game, state, player, line) : null;
@@ -889,7 +897,12 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // program of nine different lines. `vm/activate.ts` counts the use, sends an
   // Extra to the Drop (12-2-2), announces the line and queues its frame — and
   // the moment is fired here, as a moment and never as a trigger name.
-  if (line) {
+  if (line && swapActionPrice(line)) {
+    // #729: the [Swap]'s action price is paid next, on the strict host, as a
+    // stored continuation (`vm/swap-costs.ts`); the skill is used — announced,
+    // counted, its moments fired and its `DO` queued — only once it is paid.
+    queueSwapCost(state, player, line);
+  } else if (line) {
     // Read where the line was used **before** it is used: 12-2-2 sends an Extra
     // to the Drop as part of using it, and "from: hand" is what 22-10 asks
     // about.
