@@ -533,10 +533,48 @@ export function printedNames(sk: Pick<Skill, "effect" | "cost">): string[] {
  * found must share a power. One reading for both engines.
  */
 export function eachNamedHolds(names: string[], pool: { id: string; characters: string[]; power: number }[], samePower: boolean): boolean {
-  if (!names.length) return false;
-  const found = names.map((n) => pool.find((c) => c.characters.some((x) => x.toLowerCase() === n.toLowerCase())));
-  if (found.some((f) => !f) || new Set(found.map((f) => f!.id)).size < names.length) return false;
-  return !samePower || new Set(found.map((f) => f!.power)).size === 1;
+  return namedSetCandidates(names, pool, [], samePower).length > 0;
+}
+
+/**
+ * The cards of `pool` that can still be part of a complete set (22-13-4-2,
+ * 22-13-5-2): one card per name, no card answering two names, and with
+ * `samePower` all of one power (printed power — a pool built from the
+ * definitions). `picked` are the cards already chosen: each must stand for a
+ * different name, and a candidate is offered only if the names still open can
+ * be filled from the pool around it. With nothing picked, an empty answer
+ * means no complete set exists (which is what `eachNamedHolds` asks).
+ */
+export function namedSetCandidates(names: string[], pool: { id: string; characters: string[]; power: number }[], picked: string[], samePower: boolean): string[] {
+  if (!names.length) return [];
+  const answers = (name: string, c: { characters: string[] }) => c.characters.some((x) => x.toLowerCase() === name.toLowerCase());
+  const fixed = pool.filter((c) => picked.includes(c.id));
+  if (fixed.length !== picked.length) return [];
+  /** Can these names be given distinct cards (the ones in `used` already spoken for), all of power `power` when it is set? */
+  const fill = (open: string[], used: Set<string>, power: number | null): boolean => {
+    if (!open.length) return true;
+    const [name, ...rest] = open;
+    return pool.some((c) => !used.has(c.id) && answers(name, c) && (power === null || c.power === power) && fill(rest, new Set([...used, c.id]), power));
+  };
+  const sameOf = (cards: typeof fixed): number | null | false => {
+    if (!samePower || !cards.length) return null;
+    return new Set(cards.map((c) => c.power)).size === 1 ? cards[0].power : false;
+  };
+  return pool
+    .filter((c) => !picked.includes(c.id))
+    .filter((c) => {
+      const all = [...fixed, c];
+      const power = sameOf(all);
+      if (power === false) return false;
+      // Which names the cards are standing for is itself a search: try each way of seating them.
+      const seat = (cards: typeof fixed, open: string[]): boolean => {
+        if (!cards.length) return fill(open, new Set(all.map((x) => x.id)), power);
+        const [x, ...rest] = cards;
+        return open.some((n, i) => answers(n, x) && seat(rest, open.filter((_, j) => j !== i)));
+      };
+      return seat(all, names);
+    })
+    .map((c) => c.id);
 }
 
 /**
