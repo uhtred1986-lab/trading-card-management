@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { canOpenGame } from "@/lib/auth/ownership";
-import { ArenaStage } from "@/components/arena/stage/ArenaStage";
+import { OnlineArenaStage } from "@/components/arena/session/OnlineArenaStage";
 import { hasAnthropic } from "@/lib/ai/client";
 import { GameOver } from "@/components/arena/GameOver";
 import { cardsOnTable } from "@/components/arena/shared-display";
@@ -20,7 +20,6 @@ import { archivedSnapshotFor } from "@/lib/arena/snapshot";
 import { LIGHTING_COOKIE, lightingFrom } from "@/lib/arena/lighting";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { STAGING_COOKIE, stagingFrom } from "@/lib/arena/staging";
-import { abandon } from "../actions";
 
 export const dynamic = "force-dynamic";
 /** A Tournament turn can take Claude a while to think through. */
@@ -94,7 +93,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
           {snap.over && ` ${snap.over.kind === "interrupted" ? "Game interrupted" : snap.over.kind === "abandoned" ? "Game abandoned" : snap.over.kind === "draw" ? "A draw" : `${snap.over.winner === "p1" ? archived.p1Name : archived.p2Name} won`} — ${snap.over.reason}`}
         </p>
 
-        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} />
+        <OnlineArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} canAbandon={false} />
       </div>
     );
   }
@@ -182,7 +181,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
       {/* The whole snapshot, because the board keeps watching the game while
           the server is deciding and replaces it with what it reads. */}
       <div id="board" className="scroll-mt-2">
-        <ArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} menu={menu} abandonAction={abandon} />
+        <OnlineArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} menu={menu} />
       </div>
     </div>
   );

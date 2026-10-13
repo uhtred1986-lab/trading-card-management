@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { rematch, requestReview } from "@/app/arena/actions";
+import { reportBug, rematch, requestReview } from "@/app/arena/actions";
 import type { GameReview } from "@/lib/arena/ai/review";
 import type { PublicOutcome } from "@/lib/arena/outcome";
 import { ReportBug } from "./ReportBug";
@@ -163,7 +163,7 @@ export function GameOver({
       ) : null}
 
       <div className="text-center">
-        <ReportBug gameId={gameId} cards={cards} />
+        <ReportBug cards={cards} onReport={(note, cardId) => reportBug(gameId, note, cardId)} />
       </div>
     </section>
   );

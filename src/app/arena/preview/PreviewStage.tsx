@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { chooseSkin, chooseStaging, reportBug } from "@/app/arena/actions";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
+import { startLiveGamePolling } from "@/components/arena/stage/liveGamePolling";
+import { capabilitiesOf, type ArenaSession } from "@/components/arena/session/contract";
 import { GameOver } from "@/components/arena/GameOver";
 import type { Beat, NumberedBeat } from "@/lib/arena/beats";
 import { setPacePref, type Pace } from "@/lib/arena/pace";
@@ -26,7 +30,7 @@ function previewDriver(): PreviewDriver | undefined {
 const STUB = {
   // What the board sent, kept where a scripted drive can read it: a drag that
   // plays a card sends one `play`, and a refused one sends nothing (rd-03).
-  act: async (_gameId: number, action: unknown) => {
+  act: async (action: unknown) => {
     const w = window as unknown as { __arenaSent?: unknown[] };
     (w.__arenaSent ??= []).push(action);
     previewDriver()?.actions.push(action);
@@ -44,10 +48,50 @@ const STUB = {
     return { error: null };
   },
   // Flagging, answered without a database: the flag the drawer would get back.
-  flag: async (gameId: number, note: string | null) => ({ error: null, created: true, flag: { id: 1, gameId, turn: 4, beatIndex: 0, note, flaggedBy: null, reviewerNote: null, resolved: false } }),
+  flag: async (note: string | null, gameId = 0) => ({ error: null, created: true, flag: { id: 1, gameId, turn: 4, beatIndex: 0, note, flaggedBy: null, reviewerNote: null, resolved: false } }),
   // The end screen's Rematch: answered, never redirected — there is no game to start.
   rematch: async () => ({ error: null }),
 };
+
+/** The fixture's two priced plans; with `rejectOnce`, the first check fails as a transport would. */
+function pricedPlans(proof: { actions: Action[]; first: GameplanPreview; second: GameplanPreview }, rejectOnce: boolean): NonNullable<ArenaSession["preview"]> {
+  let rejected = false;
+  return async (actions) => {
+    if (rejectOnce && !rejected) {
+      rejected = true;
+      throw new Error("mock preview transport failed");
+    }
+    const first = JSON.stringify(actions[0]) === JSON.stringify(proof.actions[0]);
+    const second = actions.length === 1 || JSON.stringify(actions[1]) === JSON.stringify(proof.actions[1]);
+    return first && second ? { error: null, preview: actions.length === 1 ? proof.first : proof.second } : { error: "choose the fixture's priced moves", preview: null };
+  };
+}
+
+/**
+ * The preview's transport (#648): the stubs above behind the same `ArenaSession`
+ * the online page uses. `watch` is the real poller, as before, so a fixture that
+ * waits on the opponent still shows the offline chip without a database.
+ */
+function previewSession(gameId: number, refresh: () => void, preview?: ArenaSession["preview"]): ArenaSession {
+  // The preferences and the bug report are the real actions, as the board called them before the seam.
+  const methods = {
+    advance: STUB.advance,
+    rematch: STUB.rematch,
+    flag: (note: string | null) => STUB.flag(note, gameId),
+    preview,
+    chooseSkin: (skin: Parameters<typeof chooseSkin>[1]) => chooseSkin(gameId, skin),
+    chooseStaging: (staging: Parameters<typeof chooseStaging>[1]) => chooseStaging(gameId, staging),
+    reportBug: (note: string, cardId: string | null) => reportBug(gameId, note, cardId),
+  };
+  return {
+    gameId,
+    capabilities: capabilitiesOf(methods),
+    act: (action) => STUB.act(action),
+    watch: (options) => startLiveGamePolling({ gameId, ...options }),
+    refresh,
+    ...methods,
+  };
+}
 
 /**
  * `?fx=defend` (preview only): the `attack` fixture turned round, so the
@@ -169,13 +213,23 @@ export function PreviewStage({
   planProof?: { actions: Action[]; first: GameplanPreview; second: GameplanPreview };
   rejectPlanOnce?: boolean;
 }) {
-  const planRejected = useRef(false);
+  const router = useRouter();
   // `?replay=1` (preview only): the fixture's own beats, played from the start. It is the
   // `reveal`/`ko` path without a filter — mount the board with an empty queue, then deliver
   // the beats the way a later snapshot would — so a recording catches the first beat.
   const fx = fxParam ?? (replay ? "replay" : null);
   // `?referee=1`: one of your Battle Cards is one the referee rules on, so the badge can be seen.
   const snapshot = useMemo(() => (referee && fixture.view.you.battle[0] ? { ...fixture, view: { ...fixture.view, you: { ...fixture.view.you, battle: fixture.view.you.battle.map((c, i) => (i === 0 ? { ...c, referee: true } : c)) } } } : fixture), [fixture, referee]);
+  const gameId = snapshot.game.id;
+  const session = useMemo(
+    () =>
+      previewSession(
+        gameId,
+        () => router.refresh(),
+        planProof ? pricedPlans(planProof, rejectPlanOnce) : undefined,
+      ),
+    [gameId, router, planProof, rejectPlanOnce],
+  );
   useEffect(() => {
     if (pace) setPacePref(pace);
   }, [pace]);
@@ -231,18 +285,7 @@ export function PreviewStage({
   }, [fx, snapshot]);
   return (
     <>
-      <ArenaStage gameId={snapshot.game.id} snapshot={shown} skin={skin} staging={staging} server={planProof ? {
-        ...STUB,
-        preview: async (_gameId: number, actions: Action[]) => {
-          if (rejectPlanOnce && !planRejected.current) {
-            planRejected.current = true;
-            throw new Error("mock preview transport failed");
-          }
-          const first = JSON.stringify(actions[0]) === JSON.stringify(planProof.actions[0]);
-          const second = actions.length === 1 || JSON.stringify(actions[1]) === JSON.stringify(planProof.actions[1]);
-          return first && second ? { error: null, preview: actions.length === 1 ? planProof.first : planProof.second } : { error: "choose the fixture's priced moves", preview: null };
-        },
-      } : STUB} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} menu={PREVIEW_MENU} />
+      <ArenaStage session={session} snapshot={shown} skin={skin} staging={staging} announceTurn={announceTurn} admin={admin} adminDebug={admin ? PREVIEW_DEBUG : null} menu={PREVIEW_MENU} />
       {fx === "over" && (
         <div className="mx-auto mt-3 max-w-xl px-2">
           <GameOver

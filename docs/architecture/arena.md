@@ -175,6 +175,20 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `readRule` and `saveRule`), and `describeFilter`/`printFilter` read one without crashing.
   `saveRule` re-validates every write, so no writer — workbench, Explain to Claude, the
   referee's drafts — can skip the gate.
+- **The board talks to a session, not to the server** (`src/components/arena/session/`, #648 / O3-01):
+  `ArenaStage` takes an `ArenaSession` (`contract.ts`) — `act`, `watch` (snapshots in, connection
+  status), `refresh`, and optional `advance`/`abandon`/`rematch`/`flag`/`preview`/`chooseSkin`/
+  `chooseStaging`/`reportBug`, whose presence is the `capabilities` the board hides controls by. The
+  online transport (server actions, the revision/beat long poll, `router.refresh` on a stale
+  rejection) is `online.ts`, wrapped for the server-rendered game page as `OnlineArenaStage`; the
+  fixture preview builds its own session from stubs. **The board's value-import graph reaches no
+  `@/app` action and no `next/navigation`** — a local worker session (O3-02/O3-05) is another
+  implementation of the same interface. `LiveGameCore` (also in `contract.ts`, wrapped by
+  `useLiveGame`) is the reconcile logic: it adopts only a newer revision of *its own* game, takes a
+  beats-only advance at the same revision, and refuses stale and cross-session snapshots.
+  Proved by `scripts/verify/arena-session-648.mts` (graph, conformance on an in-memory session,
+  server-render of the board over it); the click-through half is browser-driven
+  (`arena-advance-browser-evidence.mts`, `npm run arena:shots`).
 - **The block builder** (`src/lib/arena/lang/blocks.ts`, `components/arena/rules/Blocks.tsx`,
   `/arena/rules/build/[id]`, #469): a rule spelled out as WHEN · COST · IF · THEN blocks, **generated
   from the schema** — what a clause may hold comes off `OP_SCHEMA`/`COND_SCHEMA`/`whenMoments()`/
