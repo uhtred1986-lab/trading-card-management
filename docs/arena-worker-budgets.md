@@ -291,4 +291,6 @@ page.
   whole local step — `policyTurn` (alias table, snapshot, legal list), policy, guard and move — at
   about a third of the 30 ms `decisionMs.p95` budget on an unthrottled laptop. Its deterministic
   bound is the work counter (`MAIN_LIMITS.work`), not a clock. Running it in the worker bench is left
-  to O3's worker session.
+  to O3's worker session. The battle policy (#647, `policy/combat.ts`) is measured the same way by
+  `scripts/verify/arena-policy-combat.mts` (asserted at most 5 ms p95 and 100 ms max per decision in
+  Node), with its own deterministic bound (`COMBAT_LIMITS.work`).
