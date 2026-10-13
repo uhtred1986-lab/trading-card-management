@@ -79,7 +79,6 @@ export function AdminDrawer({
   snapshot,
   debug,
   beats,
-  log,
   narrator,
   onFlag,
   onClose,
@@ -87,7 +86,6 @@ export function AdminDrawer({
   snapshot: Snapshot;
   debug: AdminDebug | null;
   beats: NumberedBeat[];
-  log: string[];
   narrator: Narrator;
   /** Flags the game's current turn (`flagThisTurn`); the server reads the turn, this only carries the note. */
   onFlag: (note: string | null) => Promise<{ error: string | null; flag: FlagLine | null; created: boolean }>;

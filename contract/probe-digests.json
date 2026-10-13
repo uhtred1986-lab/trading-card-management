@@ -1,7 +1,7 @@
 {
   "ABSORBER#0": {
     "outcome": "notOffered",
-    "digest": "bbb023a5"
+    "digest": "17062112"
   },
   "ACTIVE-HUNTER#0": {
     "outcome": "inForce",
@@ -13,7 +13,7 @@
   },
   "ALLYC#0": {
     "outcome": "notOffered",
-    "digest": "3ac271f1"
+    "digest": "f83139f2"
   },
   "ALTC#0": {
     "outcome": "fired",
@@ -124,8 +124,8 @@
     "digest": "b577a6aa"
   },
   "CONDDRAW#0": {
-    "outcome": "fired",
-    "digest": "04b0e7d5"
+    "outcome": "didNotFire",
+    "digest": "52a7e75e"
   },
   "CONDOR#0": {
     "outcome": "fired",
@@ -269,7 +269,7 @@
   },
   "EVO#0": {
     "outcome": "fired",
-    "digest": "73cc3842"
+    "digest": "3561057e"
   },
   "EXILE#0": {
     "outcome": "fired",
@@ -305,7 +305,7 @@
   },
   "FUSER#0": {
     "outcome": "notOffered",
-    "digest": "aa35f8c1"
+    "digest": "51ec5ff2"
   },
   "GLOATER#0": {
     "outcome": "noScenario",
@@ -317,7 +317,7 @@
   },
   "GOTEN#0": {
     "outcome": "inForce",
-    "digest": "ed3cd9c3"
+    "digest": "12145185"
   },
   "GRABBER#0": {
     "outcome": "fired",
@@ -361,7 +361,7 @@
   },
   "KEEPER#0": {
     "outcome": "inForce",
-    "digest": "00264035"
+    "digest": "12145185"
   },
   "KILLER#0": {
     "outcome": "fired",
@@ -373,7 +373,7 @@
   },
   "L-RED#0": {
     "outcome": "notOffered",
-    "digest": "0aefde1a"
+    "digest": "01745e54"
   },
   "LEADERGRAB#0": {
     "outcome": "fired",
@@ -385,7 +385,7 @@
   },
   "LEADS#0": {
     "outcome": "notOffered",
-    "digest": "3ac271f1"
+    "digest": "f83139f2"
   },
   "LIFEGIVER#0": {
     "outcome": "fired",
@@ -449,11 +449,11 @@
   },
   "MYEND#0": {
     "outcome": "fired",
-    "digest": "ae4a0295"
+    "digest": "e4b60064"
   },
   "MYSTERY#0": {
     "outcome": "blank",
-    "digest": "c3822172"
+    "digest": "a48c1ccc"
   },
   "NOCOPIES#0": {
     "outcome": "fired",
@@ -485,7 +485,7 @@
   },
   "ONCEONLY#0": {
     "outcome": "fired",
-    "digest": "94656674"
+    "digest": "77cd1ca2"
   },
   "ONLYONE#0": {
     "outcome": "inForce",
@@ -573,7 +573,7 @@
   },
   "REJ#0": {
     "outcome": "notOffered",
-    "digest": "15a11623"
+    "digest": "d98b96c3"
   },
   "RELKO#0": {
     "outcome": "fired",
@@ -697,7 +697,7 @@
   },
   "SWAPPER#0": {
     "outcome": "fired",
-    "digest": "4f0d06ae"
+    "digest": "5097eadb"
   },
   "TAKER#0": {
     "outcome": "fired",
@@ -821,7 +821,7 @@
   },
   "ZB#0": {
     "outcome": "notOffered",
-    "digest": "908e4eec"
+    "digest": "f1c68976"
   },
   "ZCHEAP#0": {
     "outcome": "inForce",

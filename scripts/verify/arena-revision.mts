@@ -19,7 +19,7 @@ import { reconcileSnapshot } from "../../src/lib/arena/snapshot.ts";
 import type { Action } from "../../src/lib/arena/types.ts";
 
 export async function verifyArenaRevision(db: Db, deckId: number): Promise<void> {
-  const id = await startGame(db, deckId, deckId, "hotseat", false, { p1User: null, p2User: null }, "rules");
+  const id = await startGame(db, deckId, deckId, "hotseat", false, { p1User: null, p2User: null });
   const original = (await loadGame(db, id))!;
   const firstAction: Action = original.legal[0].action;
   const firstIdentity = {
@@ -81,7 +81,7 @@ export async function verifyArenaRevision(db: Db, deckId: number): Promise<void>
   assert.equal(oldRetry?.duplicateRequest, true, "an old request remains recognizable after later game writes");
   assert.equal(oldRetry?.version, moved.version, "retries converge on the current authoritative board");
 
-  const abandonId = await startGame(db, deckId, deckId, "hotseat", false, { p1User: null, p2User: null }, "rules");
+  const abandonId = await startGame(db, deckId, deckId, "hotseat", false, { p1User: null, p2User: null });
   const beforeAbandon = (await loadGame(db, abandonId))!;
   const priorBeats = { seq: 37, list: [], art: {} };
   await db.update(schema.arenaGames).set({ beats: priorBeats }).where(eq(schema.arenaGames.id, abandonId));

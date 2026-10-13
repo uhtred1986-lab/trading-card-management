@@ -1,7 +1,7 @@
 /** #597: independent expected-state evidence for original-colour keyword payments. */
 import assert from "node:assert/strict";
 import { CTX, rulesFromCompiler } from "./harness";
-import { playableEngine } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { attrsNow, condHolds, resolveSelector } from "../../src/lib/arena/vm/program";
 import { addEffect, endEffects } from "../../src/lib/arena/vm/effects";
@@ -14,7 +14,7 @@ import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/are
 import { FILES } from "../../src/lib/arena/rulesets/dbs/files";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const engine = playableEngine("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const game = loaded.definition;
@@ -76,7 +76,7 @@ function privacy(s: VmState): void {
   const beats = { seq: 1, list: [], art: Object.fromEntries(Object.entries(s.cards).map(([id, c]) => [id, { cardId: c.cardId, name: c.cardId, imageUrl: null }])) };
   for (const viewer of ["p1", "p2"] as const) {
     const them = viewer === "p1" ? "p2" : "p1";
-    const snap = buildSnapshot({ id: 1, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Them", ctx, state: s, legal: engine.legalActions(ctx, s), log: [], beats, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+    const snap = buildSnapshot({ id: 1, mode: "versus", status: "playing", p1Name: "You", p2Name: "Them", ctx, state: s, legal: engine.legalActions(ctx, s), log: [], beats, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
     assert.equal(snap.view.them.hand, null);
     const named = (value: unknown, found = new Set<string>()): Set<string> => {
       if (Array.isArray(value)) for (const x of value) named(x, found);

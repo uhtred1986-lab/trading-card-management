@@ -6,7 +6,7 @@ import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { validateProgram } from "../../src/lib/arena/vm/script";
 import type { Action, GameEvent } from "../../src/lib/arena/types";
 import type { EngineState } from "../../src/lib/arena/engines";
-import { CTX, DEFS, ENGINE, IMPL, arenaG, assertConsistentG, card, hasG, leaderOf, placeUnderG, powerOfG, zoneOf } from "./harness";
+import { CTX, DEFS, IMPL, arenaG, assertConsistentG, card, hasG, leaderOf, placeUnderG, powerOfG, zoneOf } from "./harness";
 
 const FILL = "[Auto] When this card KOs your opponent's Battle Card, place cards from the top of your deck under your {Majin Buu's Sealed Ball} until there are 5 cards under {Majin Buu's Sealed Ball}.";
 const BALL = "C573-BALL";
@@ -76,7 +76,7 @@ const one = (text: string) => compileSkill(parseSkills(text)[0]!);
 
 function take(state: EngineState, action: Action): { state: EngineState; events: GameEvent[] } {
   assert.ok(IMPL.legalActions(CTX, state).some((row) => JSON.stringify(row.action) === JSON.stringify(action)),
-    `${ENGINE}: expected ${JSON.stringify(action)} at ${state.prompt.kind}`);
+    `rules: expected ${JSON.stringify(action)} at ${state.prompt.kind}`);
   return IMPL.apply(CTX, state, action);
 }
 
@@ -137,23 +137,22 @@ for (const [blue, life, shouldDraw] of [[true, 4, true], [true, 5, false], [fals
   state = joined.state;
   assert.ok(zoneOf(state, "p1", "combo").includes(source));
   // Current DBS answers this ordinary self-combo Auto at the 5-7 entry
-  // checkpoint, before combat. The frozen legacy runtime still answers its
-  // stored `comboed` record at cleanup.
-  assert.equal(joined.events.filter((e) => e.type === "skill" && e.card === source).length, ENGINE === "rules" ? 1 : 0);
-  assert.equal(zoneOf(state, "p1", "hand").length, beforeHand - 1 + Number(ENGINE === "rules" && shouldDraw));
+  // checkpoint, before combat.
+  assert.equal(joined.events.filter((e) => e.type === "skill" && e.card === source).length, 1);
+  assert.equal(zoneOf(state, "p1", "hand").length, beforeHand - 1 + Number(shouldDraw));
   const events = joined.events.slice();
   for (let i = 0; i < 5 && state.prompt.kind !== "main"; i++) {
     const prompt = state.prompt;
     const action: Action = prompt.kind === "combo" ? { type: "pass", player: prompt.player }
       : prompt.kind === "zEnergyFromCombo" ? { type: "zEnergyFromCombo", player: prompt.player, card: null }
-      : (() => { throw Error(`${ENGINE}: BT3-043 stopped at ${prompt.kind}`); })();
+      : (() => { throw Error(`rules: BT3-043 stopped at ${prompt.kind}`); })();
     const next = take(state, action);
     state = next.state;
     events.push(...next.events);
   }
   assert.equal(state.prompt.kind, "main");
   const compared = events.flatMap((e) => e.type === "powerCompare" ? [e.attackPower] : []);
-  assert.deepEqual(compared, [ENGINE === "rules" && blue && life <= 4 ? 25000 : 15000], "current rules apply BT3-043's conditional bonus before comparison");
+  assert.deepEqual(compared, [blue && life <= 4 ? 25000 : 15000], "current rules apply BT3-043's conditional bonus before comparison");
   assert.equal(zoneOf(state, "p1", "hand").length, beforeHand - 1 + Number(shouldDraw), "BT3-043 draw shares both outer conditions");
   assert.equal(events.filter((e) => e.type === "skill" && e.card === source).length, 1);
   assertConsistentG(state);
@@ -206,7 +205,7 @@ function battle(state: EngineState, attacker: string, victim: string): { state: 
     const p = state.prompt;
     const action: Action = p.kind === "combo" ? { type: "pass", player: p.player }
       : p.kind === "zEnergyFromCombo" ? { type: "zEnergyFromCombo", player: p.player, card: null }
-      : (() => { throw Error(`${ENGINE}: battle reached ${p.kind}`); })();
+      : (() => { throw Error(`rules: battle reached ${p.kind}`); })();
     const next = take(state, action);
     state = next.state;
     events.push(...next.events);
@@ -237,12 +236,12 @@ for (const existing of [0, 2, 5, 6]) {
   if (existing === 0) start.cards[top[0]!].cardId = "C573-SECRET";
   const before = zoneOf(start, "p1", "deck").length;
   const result = battle(JSON.parse(JSON.stringify(start)) as EngineState, koer, victim);
-  assert.equal(result.state.prompt.kind, "main", `${ENGINE}: one host needs no choice`);
+  assert.equal(result.state.prompt.kind, "main", `rules: one host needs no choice`);
   const needed = Math.max(0, 5 - existing);
   assert.equal(result.state.cards[balls[0]!].under.length, existing + needed);
   assert.deepEqual(result.state.cards[balls[0]!].under,
-    ENGINE === "rules" ? [...top].reverse().concat(prior) : prior.concat(top),
-    "fills with only the deck's top cards in each engine's established stack order");
+    [...top].reverse().concat(prior),
+    "fills with only the deck's top cards in the established stack order");
   assert.equal(zoneOf(result.state, "p1", "deck").length, before - needed);
   assert.equal(result.events.filter((e) => e.type === "stack" && e.top === balls[0]).length, needed);
   assert.equal(result.events.filter((e) => e.type === "skill" && e.card === koer).length, 1, "one Auto from this KO");
@@ -252,7 +251,7 @@ for (const existing of [0, 2, 5, 6]) {
   if (existing === 0) {
     const beats = IMPL.toBeats(CTX, result.state, result.events, 0);
     for (const viewer of ["p1", "p2"] as const) {
-      const snap = buildSnapshot({ id: 573, revision: 1, mode: "versus", engine: ENGINE, status: "playing",
+      const snap = buildSnapshot({ id: 573, revision: 1, mode: "versus", status: "playing",
         p1Name: "Player 1", p2Name: "Player 2", ctx: CTX, state: result.state, legal: [], log: [], beats,
         spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
       const host = (viewer === "p1" ? snap.view.you : snap.view.them).battle.find((c) => c.id === balls[0]);
@@ -269,7 +268,7 @@ for (const existing of [0, 2, 5, 6]) {
   const top = zoneOf(state, "p1", "deck").slice();
   const result = battle(state, koer, victim);
   assert.equal(result.state.cards[balls[0]!].under.length, 3, "short deck contributes only available cards");
-  assert.deepEqual(result.state.cards[balls[0]!].under, ENGINE === "rules" ? [...top].reverse().concat(prior) : prior.concat(top));
+  assert.deepEqual(result.state.cards[balls[0]!].under, [...top].reverse().concat(prior));
   assert.equal(result.events.filter((e) => e.type === "stack" && e.top === balls[0]).length, 2);
   assert.equal(result.state.cards[energy].mode, "active");
   assertConsistentG(result.state);
@@ -316,4 +315,4 @@ for (const where of ["energy", "opponent"] as const) {
 delete DEFS[BALL];
 delete DEFS[KOER];
 for (const id of ["C573-EACH", "C573-GOKU", "C573-VEGETA", "C573-OTHER", "C573-REST", "C573-SUM", "C573-C4A", "C573-C4B", "C573-C5", "C573-TOTAL", "C573-SHARED", "C573-SECRET"]) delete DEFS[id];
-console.log(`#573 grouped readings and BT2-009 fill-under scenarios passed on ${ENGINE}`);
+console.log(`#573 grouped readings and BT2-009 fill-under scenarios passed on rules`);

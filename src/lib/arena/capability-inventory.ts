@@ -52,7 +52,7 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     label: "A Battle Card at zero or less power is processed",
     status: "supported",
     evidence: "runtime-scenario",
-    citation: "21-6; `contract/probe-rules-parity.json` rule-processing cause",
+    citation: "21-6",
     ownerIssue: 548,
     proof: "scripts/verify/compiler.ts — active TOUGH assertion; scripts/verify/rule-processing.ts — simultaneous processing, replacement choices and reload",
     detail: "The combined implementation processes zero-power Battle Cards before Autos, retaining simultaneous causes and replacement continuation across reload.",
@@ -237,7 +237,7 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     evidence: "runtime-scenario",
     citation: "12-2-3; 22-35-2/3; 22-36-2/3",
     ownerIssue: 683,
-    proof: "scripts/verify/villainous-683-auto-audit.ts — legal Field arrival, free/paid/declined/unaffordable Auto, own in-play source, independent keyword spend and Battle source exclusion; scripts/verify/arena-extra-auto-db.mts and arena-extra-auto-rules-db.mts — isolated PGlite persisted payments/choices, request receipts, stale CAS and both viewers",
+    proof: "scripts/verify/villainous-683-auto-audit.ts — legal Field arrival, free/paid/declined/unaffordable Auto, own in-play source, independent keyword spend and Battle source exclusion; scripts/verify/arena-extra-auto-rules-db.mts — isolated PGlite persisted payments/choices, request receipts, stale CAS and both viewers",
     detail: "Successful Auto activation snapshots source qualification before effect changes and retains individual watcher identity. Failed or declined payment fires no hook. An in-play Extra can watch its own skill; another-card exclusion applies to Battle play. villainous-683-parent-continuation.ts also proves child effect, parent continuation, then keyword choice across saved prompts on both engines. This bounded evidence does not establish catalog-wide coverage or live deployment behavior.",
   },
   {

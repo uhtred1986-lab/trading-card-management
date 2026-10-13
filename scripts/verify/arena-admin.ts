@@ -10,7 +10,7 @@ import { basicAuthOn, isAdminUser, parseAdmins } from "../../src/lib/auth/admin"
 import { foldStory, newestFirst } from "../../src/lib/arena/story";
 import type { Beats } from "../../src/lib/arena/beats";
 import { CTX, fifty } from "./harness";
-import { engineFor, type EngineId } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import type { Action } from "../../src/lib/arena/types";
 import { replayForReview } from "../../src/lib/arena/review";
 import { cleanNote } from "../../src/lib/arena/review-store";
@@ -69,9 +69,9 @@ assert.equal(foldStory(story, silent, narrator, 9, () => "p2"), story, "a silent
 // The match review (#351): a game is replayed from its seed and actions through the
 // Engine interface, with no new engine code: the board at the start of a turn and
 // each move's menu come out of the same calls the saved-game layer makes.
-for (const id of ["legacy", "rules"] as EngineId[]) {
+for (const id of ["rules"] as const) {
   const options = { seed: 11, p1: { name: "Player", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
-  const eng = engineFor(id);
+  const eng = RULES;
   let { state } = eng.createGame(CTX, options);
   const actions: Action[] = [];
   // The first legal move each time, ending the turn as soon as the menu allows, until turn 4.
@@ -83,7 +83,7 @@ for (const id of ["legacy", "rules"] as EngineId[]) {
   }
   const names = { p1: "Player", p2: "Claude" } as const;
   const decision = { turn: 3, player: "p1", kind: "move", decidedBy: "claude", how: "because", model: "m", chosenLabel: "never matches", say: null, inputTokens: 1, outputTokens: 2, latencyMs: 3 };
-  const run = (decisions: (typeof decision)[], turn?: number, acts = actions) => replayForReview({ engine: id, ctx: CTX, options, actions: acts, decisions, images: {}, names, turn });
+  const run = (decisions: (typeof decision)[], turn?: number, acts = actions) => replayForReview({ ctx: CTX, options, actions: acts, decisions, images: {}, names, turn });
   const r = run([decision], 3);
   assert.equal(r.drift, null, `${id}: the replay reaches the end of the log`);
   assert.ok(r.turns.length >= 3 && r.turns.includes(3), `${id}: the game's turns are listed`);

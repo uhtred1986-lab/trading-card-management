@@ -1,6 +1,6 @@
 /** Face-up Life transitions bind one public moment to the life card and its controller (#556). */
 import assert from "node:assert/strict";
-import { buildSnapshot, CTX, DEFS, ENGINE, IMPL, stagedG, zoneOf, findG, type EngineState, type CardDef } from "./harness";
+import { buildSnapshot, CTX, DEFS, IMPL, stagedG, zoneOf, findG, type EngineState, type CardDef } from "./harness";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { stepScript, type ScriptFrame } from "../../src/lib/arena/vm/script";
@@ -50,7 +50,6 @@ try {
     return buildSnapshot({
       id: 556,
       mode: "versus",
-      engine: ENGINE,
       status: "playing",
       p1Name: "You",
       p2Name: "Opponent",
@@ -92,7 +91,7 @@ try {
     assert.equal(s.prompt.kind, "chooseCards", "the source Auto asks which Life card to flip");
     const action: Action = { type: "choose", player: "p1", cards: [target] };
     let result = apply(s, action);
-    if (ENGINE === "rules" && result.state.prompt.kind === "orderPending") {
+    if (result.state.prompt.kind === "orderPending") {
       const choices = result.state.prompt.candidates.filter((i) => result.state.pending[i]?.card === target);
       assert.equal(choices.length, 1, "the Life card's own Auto is a unique offered choice");
       const order: Action = { type: "orderPending", player: "p1", index: choices[0] };
@@ -176,18 +175,16 @@ try {
 
   // `faceUp` is a generic VM operation. 3-9-2-1's Life trigger must not
   // arise from changing a Battle Card's face-up attribute.
-  if (ENGINE === "rules") {
-    const loaded = rulesetFor("dbs");
-    assert.ok(loaded.ok, "the DBS rule declarations load for the VM-level negative case");
-    const s = stagedG({ battle: ["LIFE556_RED_SOURCE", "LIFE556_RED_WATCHER"] }) as VmState;
-    const target = findG(s, "p1", "battle", "LIFE556_RED_SOURCE");
-    const source = putLifeCard(s, "p1", "LIFE556_RED_SOURCE");
-    const events: GameEvent[] = [];
-    const frame: ScriptFrame = { ops: [{ op: "faceUp", target: { var: "target" } }], ip: 0, vars: { target: [target] }, card: source, master: "p1" };
-    assert.equal(stepScript(vmHost(CTX, loaded.definition, s, events), frame), "done");
-    assert.equal(s.cards[target].faceUp, true, "the unrelated generic face-up operation still changes its target");
-    assert.equal(s.pending.filter((pending) => pending.trigger === "flippedFaceUp").length, 0, "a Battle Card face change does not queue the Life-only moment");
-  }
+  const loaded = rulesetFor("dbs");
+  assert.ok(loaded.ok, "the DBS rule declarations load for the VM-level negative case");
+  const s = stagedG({ battle: ["LIFE556_RED_SOURCE", "LIFE556_RED_WATCHER"] }) as VmState;
+  const target = findG(s, "p1", "battle", "LIFE556_RED_SOURCE");
+  const source = putLifeCard(s, "p1", "LIFE556_RED_SOURCE");
+  const events: GameEvent[] = [];
+  const frame: ScriptFrame = { ops: [{ op: "faceUp", target: { var: "target" } }], ip: 0, vars: { target: [target] }, card: source, master: "p1" };
+  assert.equal(stepScript(vmHost(CTX, loaded.definition, s, events), frame), "done");
+  assert.equal(s.cards[target].faceUp, true, "the unrelated generic face-up operation still changes its target");
+  assert.equal(s.pending.filter((pending) => pending.trigger === "flippedFaceUp").length, 0, "a Battle Card face change does not queue the Life-only moment");
 } finally {
   for (const id of fixtureIds) {
     const previous = previousDefs.get(id);

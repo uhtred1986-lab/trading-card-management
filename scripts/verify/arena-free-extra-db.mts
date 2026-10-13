@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import type { Db } from "../../src/db/index.ts";
 import { arenaGames } from "../../src/db/schema.ts";
-import { engineFor } from "../../src/lib/arena/engines.ts";
+import { RULES } from "../../src/lib/arena/vm/index.ts";
 import { applyToGame, loadGame, mutationFingerprint, StaleGame, type LoadedGame } from "../../src/lib/arena/games.ts";
 import { rulesetFor } from "../../src/lib/arena/rulesets/index.ts";
 import { snapshotOfGame } from "../../src/lib/arena/session.ts";
@@ -24,7 +24,7 @@ const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
 export async function verifyArenaFreeExtra(db: Db): Promise<void> {
   const rules = rulesetFor("dbs");
   assert.ok(rules.ok);
-  const engine = engineFor("rules");
+  const engine = RULES;
   let state = engine.createGame(ctx, { seed: 6802,
     p1: { name: "Alice", leader: "DB680-LEADER", main: fifty("V1") },
     p2: { name: "Bob", leader: "L-BLUE", main: fifty("V-BLUE") },

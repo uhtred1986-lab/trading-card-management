@@ -10,7 +10,7 @@ import type { Action } from "../../src/lib/arena/types.ts";
 
 export async function verifyArenaGameplan(db: Db): Promise<void> {
   for (const engine of ["legacy", "rules"] as const) {
-  const state = planState(engine);
+  const state = planState();
   const [created] = await db.insert(arenaGames).values({
     p1Name: "Alice", p2Name: "Bob", p1User: "alice", p2User: "bob",
     seed: 570, mode: "versus", engine, state, version: 7,

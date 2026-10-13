@@ -28,7 +28,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { checkImportGraph, diskRead, legacyEngineRule, policyLayerRule, policyLayerSourceViolations } from "../lib/import-graph.ts";
+import { checkImportGraph, diskRead, policyLayerRule, policyLayerSourceViolations } from "../lib/import-graph.ts";
 import { fixtureBundle, FIXTURE_REVISION, FIXTURE_SEED } from "./arena-browser-fixture.ts";
 import { pick } from "./arena-browser-scenario.ts";
 import { hiddenFrom, permutedFor, shuffled, strings, testRandom } from "./arena-policy-permute.ts";
@@ -89,7 +89,7 @@ const started = Date.now();
   ] as const) {
     assert.ok(policyLayerSourceViolations("src/lib/arena/policy/contract.ts", `${base}\n${extra}\n`).includes(expected), `the source scan catches "${expected}"`);
   }
-  const boundary = checkImportGraph(path.join(ROOT, BOUNDARY), ROOT, diskRead, { forbidFile: legacyEngineRule });
+  const boundary = checkImportGraph(path.join(ROOT, BOUNDARY), ROOT, diskRead);
   assert.deepEqual(boundary.violations, [], "the boundary is browser-safe (#641's rule)");
 }
 

@@ -5,7 +5,7 @@
  * legal actions and snapshots are then produced by the rules engine.
  */
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { buildSnapshot, type Snapshot } from "../../src/lib/arena/snapshot";
@@ -51,7 +51,7 @@ DEFS.U04_BLUE_ENERGY = card("U04_BLUE_ENERGY", {
 });
 
 const ctx = { ...CTX, defs: DEFS, scripts: rulesFromCompiler(DEFS) };
-const engine = engineFor("rules");
+const engine = RULES;
 const dbsLoaded = rulesetFor("dbs");
 if (!dbsLoaded.ok) throw new Error(`DBS ruleset failed to load: ${JSON.stringify(dbsLoaded.errors)}`);
 const dbs = dbsLoaded.definition;
@@ -115,7 +115,6 @@ function snap(state: VmState, revision: number, images: Record<string, CardArt>)
   return buildSnapshot({
     id: 561,
     revision,
-    engine: "rules",
     mode: "versus",
     status: "playing",
     p1Name: "You",

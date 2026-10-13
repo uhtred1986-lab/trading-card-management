@@ -15,7 +15,7 @@ import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { isVmState } from "../../src/lib/arena/vm/state";
 import type { Action, EngineState, PlayerId } from "./harness";
-import { CTX, DEFS, ENGINE, IMPL, assertConsistentG, card, compileSkill, findG, labelsG, parseSkills, playG, stageMoveG, stagedG, zoneOf } from "./harness";
+import { CTX, DEFS, IMPL, assertConsistentG, card, compileSkill, findG, labelsG, parseSkills, playG, stageMoveG, stagedG, zoneOf } from "./harness";
 
 const PILE = "[Permanent] If this card would be removed from your Battle Area by an opponent's skill or KO'd, you may choose 1 card in your hand and discard it instead.";
 // A printed "up to" inside the offer: the choice may stop short of its number,
@@ -33,7 +33,7 @@ const fixtureIds = ["PILE720", "UPTO720", "MUST720", "HANDA720", "HANDB720"];
 const reload = (s: EngineState): EngineState => JSON.parse(JSON.stringify(s));
 const choose = (s: EngineState, cards: string[], player: PlayerId = "p1") => IMPL.apply(CTX, reload(s), { type: "choose", player, cards } as Action).state;
 const view = (s: EngineState, viewer: PlayerId) => JSON.stringify(buildSnapshot({
-  id: 720, revision: 1, mode: "versus", engine: "rules", status: "playing",
+  id: 720, revision: 1, mode: "versus", status: "playing",
   p1Name: "Player 1", p2Name: "Player 2", ctx: CTX, state: s as never,
   legal: [], log: [], beats: null, spotlight: null,
   spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {},
@@ -156,7 +156,7 @@ try {
     assert.ok(zoneOf(paid, "p1", "drop").includes(hand[0]));
   }
 
-  console.log(`#720 (${ENGINE}): a voluntary KO substitute is owed in full — an empty answer is refused, an unpayable offer is not made`);
+  console.log(`#720 (rules): a voluntary KO substitute is owed in full — an empty answer is refused, an unpayable offer is not made`);
 } finally {
   for (const id of fixtureIds) delete DEFS[id];
 }

@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { DEFS, ENGINE, card } from "./harness";
+import { DEFS, card } from "./harness";
 import type { CardDef } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { familyOf, probe, scenariosFor, type ProbeRule, type ProbeRun } from "../../src/lib/arena/probe";
@@ -36,14 +36,14 @@ function ruleFor(def: CardDef, index = 0): ProbeRule {
 /** The default board for a rule: the first scenario, which is what a stored probe re-runs. */
 function run(def: CardDef, index = 0): ProbeRun {
   const rule = ruleFor(def, index);
-  return probe(rule, scenariosFor(rule)[0], ENGINE);
+  return probe(rule, scenariosFor(rule)[0]);
 }
 
 function variant(def: CardDef, key: string, index = 0): ProbeRun {
   const rule = ruleFor(def, index);
   const scenario = scenariosFor(rule).find((s) => s.key === key);
   assert.ok(scenario, `${def.id} has a ${key} scenario`);
-  return probe(rule, scenario, ENGINE);
+  return probe(rule, scenario);
 }
 
 const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
@@ -64,7 +64,7 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
   // it is the one true sentence about 802 rules of the catalog.
   const orphan: ProbeRule = { def: card("P-ORPHAN", {}), side: "front", skillIndex: 0, kind: "auto", trigger: [], ops: [], open: false, unread: [], price: { condition: null, ops: null } };
   assert.equal(familyOf(orphan), "none");
-  const none = probe(orphan, scenariosFor(orphan)[0], ENGINE);
+  const none = probe(orphan, scenariosFor(orphan)[0]);
   assert.equal(none.outcome, "noScenario");
   assert.match(none.result[0], /names a moment the engine does not know/);
 
@@ -137,7 +137,7 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
     unread: ["do something nobody has taught the compiler"],
     price: { condition: null, ops: null },
   };
-  const r = probe(open, scenariosFor(open)[0], ENGINE);
+  const r = probe(open, scenariosFor(open)[0]);
   // It fires and does nothing: that is the answer, not a failure.
   assert.equal(r.outcome, "blank");
   assert.ok(
@@ -260,7 +260,7 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
     unread: [],
     price: { condition: null, ops: null },
   };
-  const blocker = probe(kw, scenariosFor(kw)[0], ENGINE);
+  const blocker = probe(kw, scenariosFor(kw)[0]);
   assert.equal(blocker.outcome, "fired");
   assert.ok(
     blocker.result.some((r) => /\[Blocker\]/.test(r)) || said(blocker).includes("Blocker"),
@@ -293,7 +293,7 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
     for (const rec of skillRecords(def)) {
       const rule = ruleFor(def, rec.skillIndex);
       for (const scenario of scenariosFor(rule)) {
-        const r = probe(rule, scenario, ENGINE);
+        const r = probe(rule, scenario);
         assert.notEqual(r.outcome, "error", `${def.id} ${scenario.key}: ${r.result.join(" | ")}`);
         assert.ok(r.digest.length === 8, "every run has a digest to compare");
       }
@@ -307,53 +307,20 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
 // and it needs the database. This is the same idea with no database: every
 // synthetic card in `DEFS` with a skill, probed on its first scenario, and
 // the digest written down. An engine change that moves one shows up here as
-// a readable diff — which is what lets the rules engine be built beside the
-// legacy one and checked against it (`docs/arena-ruleset-spec.md`). Run
-// `npm run contract:emit` to accept a change on purpose.
+// a readable diff. Run `npm run contract:emit` to accept a change on purpose.
 //
 // It lives beside `contract/fixtures/`, not in it: the Kotlin round-trip
 // decodes every JSON file in that folder as a `Snapshot`, and this is not one.
 //
 // Meaningful only once every suite before this one has actually run: `DEFS`
-// is built up by each suite's own top-level cards, and on `--engine rules`
-// today several of them are skipped before they add theirs (`EngineMismatch`),
-// which would compare a partial catalog against a fixture built from the
-// whole one and fail for a reason that has nothing to do with a probe.
+// is built up by each suite's own top-level cards.
 //
-// On the rules engine (#459) the sweep is checked against the two files and
-// nothing else, which is what lets it run with no legacy engine at all: every
-// suite now runs there, so `DEFS` is the whole catalog. `probe-digests.json`
-// stays the golden record of what the legacy engine concluded; each row of
-// `probe-rules-parity.json` must carry that record as its `legacy` column,
-// the rules engine's digest as it is now as its `rules` column, `same` exactly
-// when the two agree, and a cause whenever they do not. The causes themselves
-// are judged on the legacy pass below, which can still run both engines; once
-// the legacy engine is gone (#118) the file is what they were.
+// Before #118 this file recorded what the legacy engine concluded, with a
+// second file (`probe-rules-parity.json`) naming where the rules engine
+// differed and why. The legacy engine is gone: the record is the rules
+// engine's own, and the parity file went with the comparison.
 
-if (ENGINE === "rules") {
-  const golden = JSON.parse(fs.readFileSync(path.join(process.cwd(), "contract", "probe-digests.json"), "utf8")) as Record<string, { outcome: string; digest: string }>;
-  type Row = { legacy: { outcome: string; digest: string }; rules: { outcome: string; digest: string }; same: boolean; cause?: string };
-  const parity = JSON.parse(fs.readFileSync(path.join(process.cwd(), "contract", "probe-rules-parity.json"), "utf8")) as Record<string, Row>;
-  const keys: string[] = [];
-  for (const def of Object.values(DEFS).sort((a, b) => a.id.localeCompare(b.id))) {
-    for (const rec of skillRecords(def)) {
-      const rule = ruleFor(def, rec.skillIndex);
-      const key = `${def.id}#${rec.skillIndex}`;
-      keys.push(key);
-      const rules = probe(rule, scenariosFor(rule)[0], "rules");
-      const row = parity[key];
-      assert.ok(row && golden[key], `${key} is a fixture rule that contract/probe-digests.json or contract/probe-rules-parity.json does not know — run \`npm run contract:emit\``);
-      assert.deepEqual(row.legacy, golden[key], `${key}: probe-rules-parity.json's legacy column is not probe-digests.json's record`);
-      assert.deepEqual({ outcome: rules.outcome, digest: rules.digest }, row.rules, `${key}: the rules engine's probe answers differently from probe-rules-parity.json (${row.rules.outcome} → ${rules.outcome}). If the engine change is deliberate, run \`npm run contract:emit\` and review the diff.`);
-      assert.equal(row.same, golden[key].digest === rules.digest, `${key}: probe-rules-parity.json says the engines ${row.same ? "agree" : "differ"}, and they do not`);
-      assert.ok(row.same || !!row.cause, `${key}: the engines differ and probe-rules-parity.json names no cause`);
-    }
-  }
-  assert.deepEqual(Object.keys(golden).filter((k) => !keys.includes(k)).concat(keys.filter((k) => !(k in golden))), [], "contract/probe-digests.json names a rule the fixtures no longer have, or misses one — run `npm run contract:emit`");
-  assert.deepEqual(Object.keys(parity).sort(), [...keys].sort(), "contract/probe-rules-parity.json names a rule the fixtures no longer have, or misses one — run `npm run contract:emit`");
-  const moved = keys.filter((k) => !parity[k].same).length;
-  console.log(`verify/probe: ${keys.length - moved}/${keys.length} fixture digests are the legacy record on the rules engine; ${moved} differ, each with its recorded cause`);
-} else {
+{
   const digests: Record<string, { outcome: string; digest: string }> = {};
   for (const def of Object.values(DEFS).sort((a, b) => a.id.localeCompare(b.id))) {
     for (const rec of skillRecords(def)) {
@@ -362,6 +329,7 @@ if (ENGINE === "rules") {
       digests[`${def.id}#${rec.skillIndex}`] = { outcome: r.outcome, digest: r.digest };
     }
   }
+  assert.ok(Object.values(digests).every((r) => r.outcome !== "error"), "the probe never errors on a fixture card: the staging is built from the definition");
   const file = path.join(process.cwd(), "contract", "probe-digests.json");
   const text = JSON.stringify(digests, null, 2) + "\n";
   if (process.argv.includes("--emit")) {
@@ -378,113 +346,6 @@ if (ENGINE === "rules") {
       "a rule's probe answers differently from the fixture. If the engine change is deliberate, run `npm run contract:emit` and review the diff.",
     );
     assert.deepEqual(Object.keys(stored).filter((k) => !(k in digests)), [], "a fixture rule no longer exists — run `npm run contract:emit`");
-  }
-
-  // #161: the same sweep, on the rules engine — the same staged boards, built
-  // from the ruleset definition (`probe.ts`'s `opening`/`put`), the same fixed
-  // answering policy, the same digest over what was concluded.
-  //
-  // One row per rule: what each engine concluded, and whether the two digests
-  // agree. A row that differs must be **explained** — it carries a `cause`, and
-  // a difference no cause covers fails this suite — so "the moved list is empty
-  // or explained" is an assertion rather than a sentence. Every cause below is
-  // a thing the rules engine does not build yet (or, once, a legacy habit it
-  // does not share), named with the issue that builds it; when one is built the
-  // rows it covered stop differing and this fails until `npm run contract:emit`
-  // records the new, smaller list. `--explain` prints both engines' reading of
-  // every differing rule.
-  const CAUSES: { id: string; says: string; holds: (f: string, old: ProbeRun, rules: ProbeRun, rule: ProbeRule) => boolean }[] = [
-    {
-      id: "rule-processing",
-      says: "Unison marker processing (21-9) does not run on the rules engine: a Unison with no markers left stays where it is, where legacy puts it in the Drop with no KO. Battle Card zero-power processing (21-6) is implemented separately.",
-      // The card under test can be the one processed, before the probe ever
-      // reaches its goal — a [Rejuvenate] Unison staged with no markers goes
-      // to the Drop as the opponent attacks (#155), which only the log says,
-      // and the rules engine then reaches its move and names the first gate.
-      holds: (_f, old, rules, rule) =>
-        old.result.some((line) => {
-          const m = /^(.*) goes from the Unison Area to the Drop$/.exec(line);
-          return !!m && !old.applied.some((a) => a.endsWith(`${m[1]} is KO'd.`)) && !rules.result.includes(line);
-        }) ||
-        (old.log.includes(`${rule.def.name} goes to the Drop.`) && !rules.log.includes(`${rule.def.name} goes to the Drop.`) && !old.log.some((l) => l.startsWith(`${rule.def.name} is KO'd`))),
-    },
-    {
-      id: "evolve-moved-twice",
-      says: "Legacy moves an evolved card a second time, from the Battle Area to the Battle Area (`play.resolve` after `stackOnto`), which takes it out of the slot it just took over; the rules engine stacks it once and keeps the slot (22-5-5, #157). A legacy bug, recorded rather than copied: fixing it there would move the legacy probe digests.",
-      holds: (_f, old, rules) => {
-        const twice = (l: string) => / enters the Battle Area from the Battle Area\.$/.test(l);
-        return old.applied.some(twice) && !rules.applied.some(twice) && JSON.stringify(old.applied.filter((l) => !twice(l))) === JSON.stringify(rules.applied) && JSON.stringify(old.result) === JSON.stringify(rules.result);
-      },
-    },
-    {
-      id: "empty-combo-prompt",
-      says: "The defender's combo prompt with nothing to combo: legacy always asks it (`battle.promptCombo`), so a keyword probe that waits for the defender to act stops there and reads a combo refusal for the card; the rules engine skips a combo step nobody can use (`vm/battle.ts`'s `comboWork`) and the probe runs on to the next Main Phase, where nothing is refused either. Not the keyword: [Z-Stack] is a moment, not a move, and is built since #155 (ZB's own line pends as the card is played, which this board never does).",
-      holds: (_f, old, rules) =>
-        old.result.some((l) => / is not a Battle Card with a combo cost\.$/.test(l)) && /never offered, and the engine gives no reason/.test(rules.result.join("|")) && old.log[old.log.length - 1] === "Defense Step." && rules.log.includes("Damage Step."),
-    },
-    {
-      id: "unreadable-price",
-      says: "An [Activate] with a price the rules engine's activation cannot read yet (a cost program; an X price is read since #439) is refused as 'cannot read this text yet'; legacy offers it, or names what it could not pay. [Burst X] (#148) and [Spirit Boost X] (#157) are declared prices and no longer among them.",
-      holds: (_f, _old, rules) => /cannot read .* text yet/.test(rules.result.join("|")),
-    },
-    {
-      id: "auto-price",
-      says: "An [Auto]'s own printed Energy cost ('{r}:' before the trigger) is not implemented on the rules engine (#549). Legacy charges it and resolves the effect; the rules engine interrupts before the effect rather than treating the skill as free.",
-      holds: (_f, old, rules) => old.applied.filter((l) => /Rest Mode/.test(l)).length > rules.applied.filter((l) => /Rest Mode/.test(l)).length,
-    },
-    {
-      id: "hoisted-if-announced",
-      says: "A skill whose hoisted 'if' is false: legacy announces the skill and then does nothing; the rules engine never pends it. Same board, outcome fired vs didNotFire.",
-      holds: (_f, old, rules) => old.outcome === "fired" && rules.outcome === "didNotFire",
-    },
-    {
-      id: "legacy-habits",
-      says: "Legacy narrates the End Phase twice around an [Auto] at turn end and notes 'Claude ruled on this' when no compiler read the clause; the rules engine instead interrupts before an unread automatic effect can silently resolve. A rules-engine game also logs a 'negated for the rest of the game' effect legacy keeps silent.",
-      holds: (_f, old, rules) => new Set(old.applied).size < old.applied.length || /Claude ruled/.test(old.applied.join("|")) || /negated for the rest of the game/.test(rules.applied.join("|")),
-    },
-  ];
-  type Row = { legacy: { outcome: string; digest: string }; rules: { outcome: string; digest: string }; same: boolean; cause?: string };
-  const parity: Record<string, Row> = {};
-  const unexplained: string[] = [];
-  for (const def of Object.values(DEFS).sort((a, b) => a.id.localeCompare(b.id))) {
-    for (const rec of skillRecords(def)) {
-      const rule = ruleFor(def, rec.skillIndex);
-      const scenario = scenariosFor(rule)[0];
-      const key = `${def.id}#${rec.skillIndex}`;
-      const legacy = digests[key];
-      const rules = probe(rule, scenario, "rules");
-      const same = legacy.digest === rules.digest;
-      let cause: string | undefined;
-      if (!same) {
-        const old = probe(rule, scenario);
-        cause = CAUSES.find((c) => c.holds(scenario.family, old, rules, rule))?.id;
-        if (!cause) unexplained.push(key);
-        // `--explain` prints what each engine concluded for every rule that differs.
-        if (process.argv.includes("--explain")) {
-          console.log(`\n${key} [${scenario.key}] ${old.outcome} / ${rules.outcome} (${cause ?? "UNEXPLAINED"})`);
-          console.log(`  legacy applied: ${JSON.stringify(old.applied)}\n  rules  applied: ${JSON.stringify(rules.applied)}`);
-          console.log(`  legacy result:  ${JSON.stringify(old.result)}\n  rules  result:  ${JSON.stringify(rules.result)}`);
-        }
-      }
-      parity[key] = { legacy, rules: { outcome: rules.outcome, digest: rules.digest }, same, ...(cause ? { cause } : {}) };
-    }
-  }
-  assert.deepEqual(unexplained, [], "a rule's probe differs between the engines for a reason no CAUSES entry names — a new divergence: explain it (or fix it) before recording it");
-  assert.ok(
-    Object.values(parity).every((r) => r.same || r.rules.outcome !== "error"),
-    "the rules engine's probe never errors on a fixture card: the staging is built from the definition",
-  );
-  const summaryFile = path.join(process.cwd(), "contract", "probe-rules-parity.json");
-  const summaryText = JSON.stringify(parity, null, 2) + "\n";
-  const total = Object.keys(parity).length;
-  const moved = Object.values(parity).filter((r) => !r.same).length;
-  if (process.argv.includes("--emit")) {
-    fs.writeFileSync(summaryFile, summaryText);
-    console.log(`verify-arena: wrote probe-rules-parity.json (${total} rules, ${moved} differ from legacy, all explained)`);
-  } else {
-    assert.ok(fs.existsSync(summaryFile), "contract/probe-rules-parity.json is missing — run `npm run contract:emit`");
-    // A Windows checkout with core.autocrlf has the file in CRLF; the sweep writes LF.
-    assert.equal(summaryText, fs.readFileSync(summaryFile, "utf8").replace(/\r\n/g, "\n"),"the rules-engine probe sweep no longer matches contract/probe-rules-parity.json — review the diff and run `npm run contract:emit` if the change is deliberate (a rules-engine gap closing, most likely)");
-    console.log(`verify/probe: ${total - moved}/${total} fixture digests are the same on the rules engine; ${moved} differ, each explained`);
+    console.log(`verify/probe: ${Object.keys(digests).length} fixture digests match`);
   }
 }

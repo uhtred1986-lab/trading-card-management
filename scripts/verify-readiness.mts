@@ -203,8 +203,8 @@ export async function verifyReadiness(db: Db): Promise<void> {
   await assert.rejects(startGame(db, locked, ok, "hotseat"), /"Locked Deck" has 1 card with no rule yet/, "the first deck is refused, named, with its count");
   await assert.rejects(startGame(db, ok, locked, "hotseat"), /"Locked Deck" has 1 card/, "so is the second");
   assert.ok((await startGame(db, ok, ok, "hotseat")) > 0, "a deck with only drafts plays");
-  await assert.rejects(openMatch(db, "alice", locked, true, "legacy"), /"Locked Deck" has 1 card/, "a host's locked deck is refused at the invitation");
-  const matchId = await openMatch(db, "alice", ok, true, "legacy");
+  await assert.rejects(openMatch(db, "alice", locked, true), /"Locked Deck" has 1 card/, "a host's locked deck is refused at the invitation");
+  const matchId = await openMatch(db, "alice", ok, true);
   await assert.rejects(joinMatch(db, matchId, "bob", locked), /"Locked Deck" has 1 card/, "a joiner's locked deck is refused at join");
   const [m] = await db.select().from(schema.arenaMatches).where(eq(schema.arenaMatches.id, matchId));
   assert.equal(m.status, "open", "a refused join puts the match back");

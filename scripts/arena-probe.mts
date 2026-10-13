@@ -1,8 +1,8 @@
 /**
  * Run the probe over stored rules.
  *
- *   npm run arena:probe -- [--card BT16-042] [--set BT16] [--all] [--limit 500] [--fill] [--engine legacy|rules]
- *   npm run arena:reprobe -- [--write] [--engine legacy|rules]
+ *   npm run arena:probe -- [--card BT16-042] [--set BT16] [--all] [--limit 500] [--fill]
+ *   npm run arena:reprobe -- [--write]
  *
  * The sweep tries every matching rule on its default board and reports what
  * came back — how many fired, how many played as blank, how many the engine
@@ -18,16 +18,17 @@
  * lists, separately, the ones that now contradict the owner — "expected
  * fired, now didNotFire" — which `--write` never accepts.
  *
- * `--engine` (default `legacy`) is the engine the staged board is opened on
- * (`probe()`'s own `engineFor` switch); `probe()` never throws, so a rule
- * tried on an engine that cannot yet stage or play it comes back with outcome
- * `error` rather than crashing the sweep — which is what running this on
- * `rules` today mostly reports, and is itself the honest measurement.
+ * The staged board is opened on the rules engine, the only engine since #118.
+ * Stored probes taken before that were measured on the legacy engine; the first
+ * `arena:reprobe` after it lists the ones the rules engine answers differently,
+ * and `--write` re-records them. `probe()` never throws: a rule the engine
+ * cannot yet stage or play comes back with outcome `error` rather than
+ * crashing the sweep.
  */
 import { sql } from "drizzle-orm";
 import { db } from "../src/db";
 import { rows as rowsOf } from "../src/db/rows";
-import { isEngineId, type EngineId } from "../src/lib/arena/engines";
+import { DEFAULT_ENGINE } from "../src/lib/arena/engine-ids";
 import { probe, ruleFrom, scenariosFor, type ProbeRun } from "../src/lib/arena/probe";
 import { defsForCards } from "../src/lib/arena/load";
 import { expectedRules, probedRules, programOf, setProbe, worklist, type StoredProbe, type WorklistRow } from "../src/lib/arena/rules-store";
@@ -41,12 +42,6 @@ const value = (name: string) => {
 };
 
 const limit = Number(value("limit") ?? 0) || 0;
-const engineArg = value("engine") ?? "legacy";
-if (!isEngineId(engineArg)) throw new Error(`--engine must be one of legacy, rules; got ${engineArg}`);
-// Given its own annotation, rather than left for control-flow narrowing to
-// infer: `sweep`/`reprobe` close over this from separate function bodies,
-// which the type checker does not track back to the guard above.
-const engineId: EngineId = engineArg;
 
 /** The rules to sweep: one card, one set, the arena's own decks, or the catalog. */
 async function pick(): Promise<WorklistRow[]> {
@@ -85,7 +80,7 @@ const stored = (run: ProbeRun): StoredProbe => ({
   result: run.result,
   assumptions: run.assumptions,
   at: new Date().toISOString(),
-  engine: engineId,
+  engine: DEFAULT_ENGINE,
 });
 
 async function sweep(): Promise<number> {
@@ -104,14 +99,14 @@ async function sweep(): Promise<number> {
   for (const { row, rule } of rules) {
     const scenarios = scenariosFor(rule);
     const scenario = scenarios[0];
-    const run = probe(rule, scenario, engineId);
+    const run = probe(rule, scenario);
     // Asked about one card, say everything: the other boards a rule has
     // (the KO board's inHand twin, the reduced board a self specified-cost
     // reducer gets — issue #255) are printed beside the first, and only the
     // first is counted or kept, since that is what a stored probe re-runs.
     if (flag("card")) {
       for (const other of scenarios.slice(1)) {
-        const more = probe(rule, other, engineId);
+        const more = probe(rule, other);
         console.log(`  ${row.cardId} [${row.kind}] ${other.key} → ${more.outcome}: ${more.result.join(" | ") || "—"}`);
       }
     }
@@ -157,7 +152,7 @@ async function reprobe(): Promise<number> {
       moved.push(`${row.cardId} [${row.skillIndex}]: the board "${was.scenario}" is not one this rule has any more`);
       continue;
     }
-    const run = probe(rule, scenario, engineId);
+    const run = probe(rule, scenario);
     if (run.digest === was.digest) continue;
     moved.push(`${row.cardId} [${row.skillIndex}] ${scenario.key}: ${was.outcome} → ${run.outcome}\n    was: ${was.result.join(" | ") || "—"}\n    now: ${run.result.join(" | ") || "—"}`);
     if (flag("write")) await setProbe(db, row.id, stored(run));

@@ -11,7 +11,7 @@
  */
 
 import type { CardFilter } from "./text/filters";
-import type { CardScripts, Cond, Op, ScriptFrame, Selector } from "./vm/script";
+import type { CardScripts, Cond, Op, Selector } from "./vm/script";
 
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];

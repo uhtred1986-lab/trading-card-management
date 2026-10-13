@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Browser, requireServer, sleep, type Viewport } from "./lib/cdp.mts";
 import { buildSnapshot } from "../src/lib/arena/snapshot.ts";
-import { engineFor } from "../src/lib/arena/engines.ts";
+import { RULES } from "../src/lib/arena/vm/index.ts";
 import { previewGameplan } from "../src/lib/arena/gameplan-preview.ts";
 import { planMoves, sameValue } from "../src/lib/arena/gameplan-types.ts";
 import { planActions, planCtx, planState } from "./verify/gameplan-fixture-570.ts";
@@ -20,15 +20,15 @@ const images = {
   "PLAN-READY": { front: "http://arena-561-art.local/BT1-055", back: null },
   V1: { front: "http://arena-561-art.local/BT11-053", back: null },
 };
-const state = planState("rules");
+const state = planState();
 const actions = planActions(state);
 const snapshot = buildSnapshot({
-  id: 570, revision: 7, mode: "versus", engine: "rules", status: "playing", p1Name: "You", p2Name: "Opponent",
-  ctx: planCtx, state, legal: engineFor("rules").legalActions(planCtx, state), log: [], beats: null,
+  id: 570, revision: 7, mode: "versus", status: "playing", p1Name: "You", p2Name: "Opponent",
+  ctx: planCtx, state, legal: RULES.legalActions(planCtx, state), log: [], beats: null,
   spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p1", images,
 });
-const first = previewGameplan({ engine: "rules", ctx: planCtx, state, art: images, player: "p1", actions: actions.slice(0, 1) });
-const second = previewGameplan({ engine: "rules", ctx: planCtx, state, art: images, player: "p1", actions });
+const first = previewGameplan({ ctx: planCtx, state, art: images, player: "p1", actions: actions.slice(0, 1) });
+const second = previewGameplan({ ctx: planCtx, state, art: images, player: "p1", actions });
 assert.equal(first.steps.length, 2);
 assert.deepEqual(second.steps.map((step) => step.budget.ready), [2, 1, 0]);
 mkdirSync(evidence, { recursive: true });

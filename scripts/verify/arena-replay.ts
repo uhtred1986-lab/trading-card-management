@@ -15,7 +15,7 @@ import { tableOf } from "../../src/lib/arena/ai/table.ts";
 import { buildSnapshot } from "../../src/lib/arena/snapshot.ts";
 import type { Beats } from "../../src/lib/arena/beats.ts";
 import type { EngineContext } from "../../src/lib/arena/types.ts";
-import { engineFor } from "../../src/lib/arena/engines.ts";
+import { RULES } from "../../src/lib/arena/vm/index.ts";
 import type { VmState } from "../../src/lib/arena/vm/state.ts";
 
 /** PGlite coverage for immutable inputs, corrections, offline replay and historical rows. */
@@ -72,7 +72,7 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   assert.equal(stillOld.rulesBundleHash, storedGame.rulesBundleHash, "a correction cannot retarget an ongoing game");
   assert.equal(stillOld.ctx.defs["BT18-961"].name, original.ctx.defs["BT18-961"].name, "old game reads its pinned catalogue");
 
-  correctedId = await startGame(db, deckId, deckId, "hotseat", false, { p1User: null, p2User: null }, "rules");
+  correctedId = await startGame(db, deckId, deckId, "hotseat", false, { p1User: null, p2User: null });
   const corrected = (await loadGame(db, correctedId))!;
   correctedBundleHash = corrected.rulesBundleHash;
   assert.equal(corrected.ctx.defs["BT18-961"].name, "Corrected Flow Fighter", "a new game sees the corrected catalogue");
@@ -117,17 +117,17 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   board.turn = 2;
   board.turnPlayer = "p1";
   board.prompt = { kind: "main", player: "p1" };
-  const unchangedView = engineFor("rules").boardView(original.ctx, board, "p1", original.art);
+  const unchangedView = RULES.boardView(original.ctx, board, "p1", original.art);
   assert.equal(unchangedView.you.battle.find((card) => card.cardId === "BT18-961")?.power, 13000, "the old match's actual board calculation keeps its confirmed Permanent");
   assert.equal(tableOf(original.ctx, board).power(inPlay), 13000, "the AI table reads the old match's pinned definition and program");
-  assert.equal(engineFor("rules").boardView(stillOld.ctx, board, "p1", stillOld.art).you.battle.find((card) => card.cardId === "BT18-961")?.power, 13000, "the old game still renders the old effect after a fresh load");
-  const oldPlay = engineFor("rules").legalActions(original.ctx, board).some((entry) => entry.action.type === "play" && entry.action.card === inHand);
-  const newPlay = engineFor("rules").legalActions(corrected.ctx, board).some((entry) => entry.action.type === "play" && entry.action.card === inHand);
+  assert.equal(RULES.boardView(stillOld.ctx, board, "p1", stillOld.art).you.battle.find((card) => card.cardId === "BT18-961")?.power, 13000, "the old game still renders the old effect after a fresh load");
+  const oldPlay = RULES.legalActions(original.ctx, board).some((entry) => entry.action.type === "play" && entry.action.card === inHand);
+  const newPlay = RULES.legalActions(corrected.ctx, board).some((entry) => entry.action.type === "play" && entry.action.card === inHand);
   assert.equal(oldPlay, true, "the old specified cost remains payable with its one active energy");
   assert.equal(newPlay, false, "the new specified cost uses the corrected four-energy catalogue value");
-  const playAction = engineFor("rules").legalActions(original.ctx, board).find((entry) => entry.action.type === "play" && entry.action.card === inHand)!.action;
-  const oldEvents = engineFor("rules").apply(original.ctx, board, playAction).events;
-  const reloadedEvents = engineFor("rules").apply(stillOld.ctx, board, playAction).events;
+  const playAction = RULES.legalActions(original.ctx, board).find((entry) => entry.action.type === "play" && entry.action.card === inHand)!.action;
+  const oldEvents = RULES.apply(original.ctx, board, playAction).events;
+  const reloadedEvents = RULES.apply(stillOld.ctx, board, playAction).events;
   assert.deepEqual(reloadedEvents, oldEvents, "old-game action events are identical after a fresh pinned reload");
 
   // With enough energy, both pinned revisions can play the same card. The old
@@ -142,11 +142,11 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
     enough.sides.p1.zones.energy.push(id);
     enough.cards[id].mode = "active";
   }
-  const oldAffordable = engineFor("rules").legalActions(original.ctx, enough).find((entry) => entry.action.type === "play" && entry.action.card === inHand)?.action;
-  const newAffordable = engineFor("rules").legalActions(corrected.ctx, enough).find((entry) => entry.action.type === "play" && entry.action.card === inHand)?.action;
+  const oldAffordable = RULES.legalActions(original.ctx, enough).find((entry) => entry.action.type === "play" && entry.action.card === inHand)?.action;
+  const newAffordable = RULES.legalActions(corrected.ctx, enough).find((entry) => entry.action.type === "play" && entry.action.card === inHand)?.action;
   assert.ok(oldAffordable && newAffordable, "both revisions allow the play when four energy is available");
-  const oldApplied = engineFor("rules").apply(original.ctx, enough, oldAffordable);
-  const newApplied = engineFor("rules").apply(corrected.ctx, enough, newAffordable);
+  const oldApplied = RULES.apply(original.ctx, enough, oldAffordable);
+  const newApplied = RULES.apply(corrected.ctx, enough, newAffordable);
   const oldAppliedState = oldApplied.state as VmState;
   const newAppliedState = newApplied.state as VmState;
   assert.equal(oldAppliedState.sides.p1.zones.energy.filter((id) => oldAppliedState.cards[id].mode === "rest").length, 1, "the old printed one-energy cost rests one of four energy");
@@ -167,9 +167,9 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   const opponentDef = original.ctx.defs[board.cards[originalHand].cardId];
   const fakeBeats = { seq: 1, list: [{ t: "draw", n: 1, player: "p2", card: originalHand }], art: { [originalHand]: { cardId: board.cards[originalHand].cardId, name: opponentDef.name, imageUrl: null } } } as Beats;
   const baseSnapshot = (ctx: EngineContext) => buildSnapshot({
-    id: original.id, revision: original.version, mode: original.mode, engine: original.engine, game: original.game,
+    id: original.id, revision: original.version, mode: original.mode, game: original.game,
     status: original.status, p1Name: original.p1Name, p2Name: original.p2Name, p1User: original.p1User, p2User: original.p2User,
-    ctx, state: board, legal: engineFor("rules").legalActions(ctx, board), log: [], beats: fakeBeats, spotlight: null,
+    ctx, state: board, legal: RULES.legalActions(ctx, board), log: [], beats: fakeBeats, spotlight: null,
     spend: original.spend, ai: null, viewer: "p1", images: original.art,
   });
   assert.deepEqual(baseSnapshot(original.ctx).beats?.art, {}, "snapshot masks a hidden card using the old pinned zones");
@@ -181,7 +181,6 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   }
   const replay = await replayOffline({
     bundle: { ...proofBundle, decks: storedGame.replayDecks! },
-    engine: "rules",
     seed: storedGame.seed,
     actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[],
     interpreterRevision: proofRuntime,
@@ -201,9 +200,9 @@ export async function verifyArenaReplay(db: Db, gameId: number, deckId: number):
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
-  await assert.rejects(replayOffline({ bundle: { ...proofBundle, decks: storedGame.replayDecks! }, engine: "rules", seed: storedGame.seed, actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[], interpreterRevision: "b547000000000000000000000000000000000001" }), /does not match/, "foreign interpreter provenance is refused");
+  await assert.rejects(replayOffline({ bundle: { ...proofBundle, decks: storedGame.replayDecks! }, seed: storedGame.seed, actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[], interpreterRevision: "b547000000000000000000000000000000000001" }), /does not match/, "foreign interpreter provenance is refused");
   const unknownRuntimeBundle = await makeReplayBundle({ defs: bundle!.payload.defs, scripts: bundle!.payload.scripts, art: bundle!.payload.art, rulesetFiles: bundle!.payload.rulesetFiles, runtime: null });
-  await assert.rejects(replayOffline({ bundle: { ...unknownRuntimeBundle, decks: storedGame.replayDecks! }, engine: "rules", seed: storedGame.seed, actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[], interpreterRevision: null }), /missing or does not match/, "unknown interpreter provenance cannot claim exact replay");
+  await assert.rejects(replayOffline({ bundle: { ...unknownRuntimeBundle, decks: storedGame.replayDecks! }, seed: storedGame.seed, actions: storedGame.actions as import("../../src/lib/arena/types.ts").Action[], interpreterRevision: null }), /missing or does not match/, "unknown interpreter provenance cannot claim exact replay");
   assert.equal(await validateReplayBundle({ ...proofBundle, format: 2 as 1 }), false, "unknown bundle formats are rejected");
 
   await db.update(arenaGames).set({ rulesBundleHash: null, replayDecks: null }).where(eq(arenaGames.id, correctedId));

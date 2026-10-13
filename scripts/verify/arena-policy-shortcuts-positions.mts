@@ -10,7 +10,7 @@
  *   641      #641's fixed-seed game, 120 moves
  *   642:<id> every #642 scenario, at every position it reaches
  *   644/<n>  the compound-choice fixture (Red/Blue decks of cost 1-2), 8 seeds
- *   rules/<n>, legacy/<n>
+ *   rules/<n>
  *            a synthetic deck of mixed cost, colour and one X-cost Unison, on a
  *            plain `EngineContext` exactly as the online game holds it, on both
  *            engines, 16 seeds — enough to reach redraws, off-colour charges and tied charge scores
@@ -20,7 +20,8 @@
  * Deterministic: seeds and the mover (`pick`) are fixed, so a position's label means the
  * same position on every run.
  */
-import { engineFor, type EngineState } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
+import type { EngineState } from "../../src/lib/arena/engines";
 import { createPinnedMatch, applyMove, legalMoves } from "../../src/lib/arena/browser.ts";
 import { defsFrom } from "../../src/lib/arena/vm/common";
 import type { Action, CardDef, EngineContext, LegalAction, PlayerId } from "../../src/lib/arena/types";
@@ -115,9 +116,9 @@ export async function collectPositions(options: { empower?: boolean } = {}): Pro
     }
   }
 
-  // The synthetic deck on a plain context, both engines — the online game's own shape.
-  for (const engineId of ["rules", "legacy"] as const) {
-    const engine = engineFor(engineId);
+  // The synthetic deck on a plain context — the online game's own shape.
+  for (const engineId of ["rules"] as const) {
+    const engine = RULES;
     for (let k = 0; k < 16; k++) {
       let state = engine.createGame(SYNTH_CTX, { seed: 1000 + k, p1: { name: "You", leader: "L-RED", main: deckFor(k, 0) }, p2: { name: "Claude", leader: "L-BLUE", main: deckFor(k, 1) } }).state;
       let legal = engine.legalActions(SYNTH_CTX, state);
@@ -133,9 +134,8 @@ export async function collectPositions(options: { empower?: boolean } = {}): Pro
   }
 
   if (options.empower) {
-    // The harness reads `--engine` from argv; the proof runs with `--engine rules`.
     const h = await import("./harness");
-    if (h.ENGINE === "rules") {
+    {
       const { CTX, DEFS, IMPL, arenaG, findG } = h;
       const play = (s: EngineState, a: Action) => IMPL.apply(CTX, s, a).state;
       for (const [id, skill] of [["EMP", "[Empower Red 2]"], ["EMP1", "[Empower Red 1]"], ["EMPANY", "[Empower 2]"]] as const) {

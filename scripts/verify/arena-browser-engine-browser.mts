@@ -21,7 +21,6 @@ import { Browser, findChrome } from "../lib/cdp.mts";
 import { serveRepoModules } from "../lib/module-server.mts";
 import { fixtureBundle, FIXTURE_REVISION, FIXTURE_SEED } from "./arena-browser-fixture.ts";
 import { runBrowserScenario, type ScenarioResult } from "./arena-browser-scenario.ts";
-import { legacyEngineRule as legacyRule } from "../lib/import-graph.ts";
 
 const MAX_STEPS = 120;
 
@@ -65,7 +64,6 @@ try {
   assert.equal(server.refused.length, 0, `the worker asked for nothing outside the module graph (${server.refused.join(", ")})`);
   for (const m of server.served) {
     const rel = m.slice(1);
-    assert.equal(legacyRule(rel), null, `the browser loaded no legacy-engine module (${rel})`);
     assert.ok(!/^src\/(db|app)\/|^src\/lib\/(auth|ai|cache|cardtrader)\//.test(rel), `the browser loaded no server module (${rel})`);
   }
 

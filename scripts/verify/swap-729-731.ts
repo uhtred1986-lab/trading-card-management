@@ -13,7 +13,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { compileCard } from "../../src/lib/arena/compile";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
@@ -27,7 +27,7 @@ import { stepSwapCost } from "../../src/lib/arena/vm/swap-costs";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId, Requirement } from "../../src/lib/arena/types";
 
-const engine = engineFor("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 
@@ -113,7 +113,7 @@ const activate = (s: VmState, id: string) => apply(s, { type: "activate", player
 const choose = (s: VmState, ids: string[], player: PlayerId = "p1") => apply(s, { type: "choose", player, cards: ids });
 const candidates = (s: VmState) => (s.prompt.kind === "chooseCards" ? [...s.prompt.choice.candidates].sort() : []);
 const at = (ev: GameEvent[], test: (e: GameEvent) => boolean) => ev.findIndex(test);
-const view = (s: VmState, viewer: PlayerId) => JSON.stringify(buildSnapshot({ id: 729, revision: 1, mode: "versus", engine: "rules", status: "playing",
+const view = (s: VmState, viewer: PlayerId) => JSON.stringify(buildSnapshot({ id: 729, revision: 1, mode: "versus", status: "playing",
   p1Name: "Player 1", p2Name: "Player 2", ctx, state: s, legal: [], log: [], beats: null, spotlight: null,
   spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} }));
 

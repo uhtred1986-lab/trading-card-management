@@ -1,8 +1,8 @@
 /**
  * Reproducible local Arena phase baseline. No live database, provider, or
  * product telemetry: `DATABASE_URL='' npx tsx scripts/arena-perf-baseline.mts`.
- * Run with `--engine rules`; fixture cards and state come from the same
- * EngineAPI test helpers used by the arena verification suite.
+ * Fixture cards and state come from the same EngineAPI test helpers used by
+ * the arena verification suite.
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -15,7 +15,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { eq, inArray } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
-import { arenaG, CTX, ENGINE, IMPL } from "./verify/harness.ts";
+import { arenaG, CTX, IMPL } from "./verify/harness.ts";
 import { buildSnapshot } from "../src/lib/arena/snapshot.ts";
 import { IllegalAction } from "../src/lib/arena/vm/common.ts";
 import type { Action, LegalAction } from "../src/lib/arena/types.ts";
@@ -95,7 +95,6 @@ function fixture(fixtureName: string, options: Parameters<typeof arenaG>[0], his
     id: 1,
     revision: historyLines,
     mode: "hotseat" as const,
-    engine: ENGINE,
     status: "playing",
     p1Name: "Synthetic Player One",
     p2Name: "Synthetic Player Two",
@@ -114,7 +113,7 @@ function fixture(fixtureName: string, options: Parameters<typeof arenaG>[0], his
   const encoded = JSON.stringify(snapshot);
   // The opposing hand must remain masked, and timing output cannot contain it.
   assert.equal(snapshot.view.them.hand, null, `${fixtureName} keeps the other hand hidden`);
-  for (const id of (state as { sides?: Record<string, { zones: { hand: string[] } }> }).sides?.p2.zones.hand ?? []) {
+  for (const id of state.sides.p2.zones.hand) {
     assert.equal(encoded.includes(id), false, `${fixtureName} snapshot does not expose opposing hand instance ids`);
   }
   return { state, legal, action, badAction, snapshotInput, serializedBytes: Buffer.byteLength(encoded) };
@@ -174,7 +173,7 @@ async function seedGameFixture(db: Db) {
     { deckId: deck.id, cardId: "P0PERF-002", zone: "main", quantity: 25 },
     { deckId: deck.id, cardId: "P0PERF-003", zone: "main", quantity: 25 },
   ]);
-  const id = await startGame(db, deck.id, deck.id, "hotseat", false, { p1User: null, p2User: null }, "rules");
+  const id = await startGame(db, deck.id, deck.id, "hotseat", false, { p1User: null, p2User: null });
   return { id, deckId: deck.id };
 }
 
@@ -187,7 +186,6 @@ async function persistenceMetrics(data: ReturnType<typeof fixture>) {
     p1Name: "synthetic",
     p2Name: "synthetic",
     seed: 17,
-    engine: ENGINE,
     state: data.state,
   }).returning({ id: schema.arenaGames.id });
   const payload = {
@@ -319,7 +317,6 @@ async function persistenceMetrics(data: ReturnType<typeof fixture>) {
 }
 
 async function main() {
-  assert.equal(ENGINE, "rules", "run with --engine rules so the current Arena engine is measured explicitly");
   assert.equal(process.env.DATABASE_URL ?? "", "", "benchmark must not connect to a configured/live database");
   const fixtures: [string, NonNullable<Parameters<typeof arenaG>[0]>, number][] = [
     ["small", { hand: ["V1"], energy: ["V1"], battle: ["V1"], oppBattle: ["V-BLUE"] }, 20],
@@ -337,7 +334,7 @@ async function main() {
     mockAi.push(performance.now() - start);
   }
   output.push({ fixture: "mock-only", phase: "simulatedAiLatency", warmup: 0, samples: mockAi.length, configuredDelayMs: 20, ...summarize(mockAi) });
-  console.log(JSON.stringify({ referenceBaseline: REFERENCE_BASELINE, ...runtimeStamp(), engine: ENGINE, cpuLocalOnly: true, metrics: output }, null, 2));
+  console.log(JSON.stringify({ referenceBaseline: REFERENCE_BASELINE, ...runtimeStamp(), cpuLocalOnly: true, metrics: output }, null, 2));
 }
 
 main().catch((error) => {

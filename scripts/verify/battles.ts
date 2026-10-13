@@ -28,7 +28,6 @@ import assert from "node:assert/strict";
 import {
   CTX,
   DEFS,
-  ENGINE,
   IMPL,
   actsG,
   arenaG,
@@ -66,11 +65,9 @@ import type { EngineState, PlayerId } from "./harness";
   assert.deepEqual(zoneOf(s, "p1", "combo"), [c1]);
   assert.equal(s.prompt.kind, "combo");
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
-  if (ENGINE === "rules") {
-    assert.equal(s.prompt.kind, "zEnergyFromCombo", "8-5-2: the turn player is offered one eligible Battle Card");
-    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: null });
-    assert.equal(s.prompt.kind, "main", "8-5-3: the other player has no eligible Combo Area Battle Card");
-  }
+  assert.equal(s.prompt.kind, "zEnergyFromCombo", "8-5-2: the turn player is offered one eligible Battle Card");
+  s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: null });
+  assert.equal(s.prompt.kind, "main", "8-5-3: the other player has no eligible Combo Area Battle Card");
   const cmp = s.battle;
   assert.equal(cmp, null);
   assert.ok(zoneOf(s, "p2", "drop").includes(opp), "8-4-6-2: the guard is KO'd");
@@ -298,7 +295,7 @@ import type { EngineState, PlayerId } from "./harness";
   const c = findG(s, "p1", "hand", "COMBOBACK");
   s = playG(s, { type: "combo", player: "p1", card: c });
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
-  if (ENGINE === "rules" && s.prompt.kind === "zEnergyFromCombo") {
+  if (s.prompt.kind === "zEnergyFromCombo") {
     s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: null });
   }
   assert.ok(zoneOf(s, "p1", "battle").includes(c), "the combo card is played after the battle");
@@ -507,13 +504,8 @@ import type { EngineState, PlayerId } from "./harness";
   s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
   const c = findG(s, "p1", "hand", "V1");
   s = playG(s, { type: "combo", player: "p1", card: c }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
-  if (ENGINE === "legacy") {
-    assert.equal(s.prompt.kind, "zEnergyFromCombo");
-    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
-  } else {
-    assert.equal(s.prompt.kind, "zEnergyFromCombo", "8-5-2: the rules engine offers the spent Battle Card");
-    s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
-  }
+  assert.equal(s.prompt.kind, "zEnergyFromCombo", "8-5-2: the rules engine offers the spent Battle Card");
+  s = playG(s, { type: "zEnergyFromCombo", player: "p1", card: c });
   assert.deepEqual(zoneOf(s, "p1", "zEnergy"), [c]);
   const zb = findG(s, "p1", "zDeck", "ZB");
   assert.ok(
@@ -522,7 +514,6 @@ import type { EngineState, PlayerId } from "./harness";
   );
   // The menu's exact words are the legacy engine's; the rules engine's are
   // the generic builder over `actions.rules`' `label:` (Stage 8).
-  if (ENGINE === "legacy") assert.ok(labelsG(s).some((x) => x.startsWith("Play Z-Battle ZB")));
   s = playG(s, { type: "playZ", player: "p1", card: zb });
   assert.equal(zoneOf(s, "p1", "zEnergy").length, 0, "5-4-1: Z-Energy paid to the Drop");
   assert.equal(s.prompt.kind, "chooseCards", "22-47: Z-Stack asks for the card to place under");
@@ -553,7 +544,6 @@ import type { EngineState, PlayerId } from "./harness";
   const base = zoneOf(s, "p1", "battle")[0];
   assert.ok(labelsG(s).some((x) => x.startsWith("Evolve EVO")));
   s = playG(s, { type: "activate", player: "p1", card: evo, skill: 0 });
-  if (ENGINE === "legacy") assert.equal(s.prompt.kind, "chooseCards");
   if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [base] });
   assert.deepEqual(zoneOf(s, "p1", "battle"), [evo]);
   assert.deepEqual(s.cards[evo].under, [base]);
@@ -601,4 +591,4 @@ import type { EngineState, PlayerId } from "./harness";
   assert.equal(run(), run());
 }
 
-if (ENGINE === "rules") console.log("verify/battles: every case ran on the rules engine — no keyword gap left (#156)");
+console.log("verify/battles: every case ran on the rules engine — no keyword gap left (#156)");

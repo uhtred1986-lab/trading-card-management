@@ -225,7 +225,7 @@ export function ArenaStage({
   const liveGame = useLiveGame(session, snapshot, pending || advancing || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
   const live = liveGame.snapshot;
   const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
-  const { view, legal, taps, log, beats } = live;
+  const { view, legal, taps, beats } = live;
   const [planOpen, setPlanOpen] = useState(false);
   const [planRevision, setPlanRevision] = useState(live.game.revision);
   const [planFirst, setPlanFirst] = useState<Action | null>(null);
@@ -1442,7 +1442,7 @@ export function ArenaStage({
           </Sheet>
         )}
 
-        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
+        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
         <ClashBeam beat={beat} hostRef={boardRef} />

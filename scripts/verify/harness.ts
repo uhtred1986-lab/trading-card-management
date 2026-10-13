@@ -6,29 +6,19 @@
  * `scripts/verify-arena.ts` imports them — which matters, because the blocks
  * add cards to `DEFS` as they go and `CTX` compiles them lazily.
  *
- * `--engine legacy|rules` on the command line picks the engine every suite
- * below creates and plays its games on, defaulting to `legacy` — the only
- * engine any of them has ever run on, and still what plain `npm test` runs
- * (`npm run test:rules` is `--engine rules`, `scripts/verify-arena.ts`).
- * Routing `createGame`/`apply`/`legalActions`/`rejectedActions` through
- * `engineFor(ENGINE)` here, once, is what lets `game()`, `arena()` and
- * `play()` stay engine-agnostic rather than every suite importing the switch
- * itself. `createGame` and `apply` still hand back a `GameState` — every
- * fixture below reads one directly (`s.prompt`, `s.players`, `move()`, …) —
- * so a state the rules engine dealt is named by `legacyState` as an
- * `EngineMismatch` rather than read field by field as `undefined`; that is
- * the whole of what "runs on rules" means for these suites today; `vm.ts` and
- * `rulesets.ts` name an engine explicitly instead of reading `ENGINE`,
- * because proving the switch itself must not depend on which side of it
- * happens to be selected.
+ * There is one engine (the rules engine, #118) and every suite plays on it:
+ * `createGame`/`apply`/`legalActions`/`rejectedActions` are `IMPL`'s, the
+ * `*G` helpers below stage and read a board through the state seam
+ * (`engine-state.ts`) and the declared readers (`vm/`). The `G` suffix is
+ * historical (it marked the generic twin of a legacy function).
  */
 import assert from "node:assert/strict";
-import { capabilityForLegacySkip, capabilityForSkip } from "../../src/lib/arena/capability-inventory";
+import { capabilityForSkip } from "../../src/lib/arena/capability-inventory";
 import { defsFrom } from "../../src/lib/arena/vm/common";
 import { seedFrom } from "../../src/lib/arena/vm/rng";
-import { type Action, type CardDef, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction, type Requirement } from "../../src/lib/arena/types";
-import { RULES_ONLY } from "./rules-only";
-import { engineFor, FALLBACK_ENGINE, isEngineId, isVmState, legacyState, type EngineId, type EngineState } from "../../src/lib/arena/engines";
+import { type Action, type CardDef, type EngineContext, type GameEvent, type PlayerId, type RejectedAction, type LegalAction, type Requirement } from "../../src/lib/arena/types";
+import type { EngineState } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { energyMarkersOf, leaderOf, unisonOf, zoneOf, type ZoneArea } from "../../src/lib/arena/engine-state";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -45,20 +35,17 @@ import { hasKeyword as vmHasKeyword } from "../../src/lib/arena/vm/program";
 import { lifeReplacementChoices as vmLifeReplacementChoices } from "../../src/lib/arena/vm/replace";
 import { moved as vmMoved } from "../../src/lib/arena/vm/flow";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
-import { appendBeats, maskBeats, toBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
+import { appendBeats, maskBeats, type Beat, type Beats, type NumberedBeat } from "../../src/lib/arena/beats";
 import { buildSnapshot, rejectedFor, waitingFor, type Snapshot } from "../../src/lib/arena/snapshot";
-import { boardView } from "../../src/lib/arena/view";
 import { missingEnergyChip, missingEnergyChips, pill, priceOf, refusal, sentence, stepText } from "../../src/lib/arena/wording";
 import { narrate } from "../../src/lib/arena/narration";
 import { colourOf, DEFAULT_LIGHTING, encodeLighting, LEADER_COLOURS, lightingFrom, LIGHTING_VERSION, mix, RIVAL, toneFor, TONES, turnVars } from "../../src/lib/arena/lighting";
 import { trailingTrigger, parseSkills, keywordOf, orbsIn, eitherOrbsIn, skillLines } from "../../src/lib/arena/text/cards";
 import { KEYWORDS, keywordTagSpellings, keywordsByGroup, tagBody, tagParsesTo } from "../../src/lib/arena/glossary";
 import { parseFilter, matches, parseCondition, type CardFilter } from "../../src/lib/arena/text/filters";
-import { addEffect, schedule, move, locate, placeUnder, planPayment, playCost, powerOf, forbids, has, cardNow, comboCostOf, zEnergyCostOf, skillNegated, skillsNegated, lifeReplacementChoicesFor } from "../../src/lib/arena/engine/state";
 import { compileCostProgram, compileSkill, costIsOnlyOrbs, costText, parseConditionClause, parseTarget, priceCondition, priceX, splitClauses } from "../../src/lib/arena/compile";
 import { COND_CLASS, COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_CLASS, OP_SCHEMA, condSignature, describeCond, describeScript, opSignature, validateProgram as validate, type Op as SchemaOp } from "../../src/lib/arena/vm/script";
 import { autoTriggerMatches } from "../../src/lib/arena/text/triggers";
-import { koCard, masterOf, pendTriggers } from "../../src/lib/arena/engine/triggers";
 import { masterOf as vmMasterOf } from "../../src/lib/arena/vm/triggers";
 import type { KeywordSkill, Trigger } from "../../src/lib/arena/types";
 import { canonical, hoist, patternKey, programShape, rulesFromCompiler, skillRecords } from "../../src/lib/arena/draft";
@@ -68,33 +55,7 @@ import { clauseShape, describeTrigger, mechanismOf, triggersOf } from "../../src
 
 // ── the engine every suite below plays on ───────────────────────────────────
 
-const engineArg = process.argv.indexOf("--engine");
-const engineValue = engineArg >= 0 ? process.argv[engineArg + 1] : undefined;
-if (engineValue !== undefined && !isEngineId(engineValue)) throw new Error(`--engine must be one of legacy, rules; got ${engineValue}`);
-// `FALLBACK_ENGINE`, not `DEFAULT_ENGINE`: the flip at #166 made the default a
-// new game's engine, not this harness's. Every fixture here is legacy-shaped
-// (`legacyState` below narrows it), `npm test` runs this file once with no flag
-// and once with `--engine rules` and needs the first to be the legacy pass, and
-// `npm run contract:emit` re-emits the contract fixtures from whichever engine
-// this resolves to — so a default that followed the flip would quietly move
-// them.
-export const ENGINE: EngineId = engineValue ?? FALLBACK_ENGINE;
-const IMPL = engineFor(ENGINE);
-
-function createGame(ctx: EngineContext, options: GameOptions): { state: GameState; events: GameEvent[] } {
-  const made = IMPL.createGame(ctx, options);
-  return { state: legacyState(made.state), events: made.events };
-}
-function apply(ctx: EngineContext, state: GameState, action: Action): { state: GameState; events: GameEvent[] } {
-  const made = IMPL.apply(ctx, state, action);
-  return { state: legacyState(made.state), events: made.events };
-}
-function legalActions(ctx: EngineContext, state: GameState): LegalAction[] {
-  return IMPL.legalActions(ctx, state);
-}
-function rejectedActions(ctx: EngineContext, state: GameState, legal: LegalAction[] = legalActions(ctx, state)): RejectedAction[] {
-  return IMPL.rejectedActions(ctx, state, legal);
-}
+const IMPL = RULES;
 
 // ── synthetic cards ────────────────────────────────────────────────────────
 
@@ -264,76 +225,6 @@ const CTX = { defs: DEFS, scripts: rulesFromCompiler(DEFS) };
 
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
 
-function game(seed = 1, p1 = fifty("V1"), p2 = fifty("V-BLUE"), z: string[] = []) {
-  return createGame(CTX, { seed, p1: { name: "You", leader: "L-RED", main: p1, z }, p2: { name: "Claude", leader: "L-BLUE", main: p2 } }).state;
-}
-
-/** Apply a list of actions, asserting each is legal. */
-function play(s: GameState, ...actions: Action[]): GameState {
-  for (const a of actions) s = apply(CTX, s, a).state;
-  return s;
-}
-
-function labels(s: GameState): string[] {
-  return legalActions(CTX, s).map((a) => a.label);
-}
-
-/** Every card instance is in exactly one area (3-1). */
-function assertConsistent(s: GameState): void {
-  const seen = new Map<string, number>();
-  for (const p of ["p1", "p2"] as PlayerId[]) {
-    const ps = s.players[p];
-    const all = [ps.leader, ps.unison, ...ps.deck, ...ps.hand, ...ps.drop, ...ps.warp, ...ps.life, ...ps.battle, ...ps.combo, ...ps.energy, ...ps.zDeck, ...ps.zEnergy, ...ps.removed].filter(
-      Boolean,
-    ) as string[];
-    for (const id of all) seen.set(id, (seen.get(id) ?? 0) + 1);
-    for (const id of all) for (const u of s.cards[id].under) seen.set(u, (seen.get(u) ?? 0) + 1);
-    // 3-9 sets no ceiling on life: [Rejuvenate] and "place the top card of
-    // your deck in your Life Area" can take it past the 8 it starts with.
-  }
-  for (const id of Object.keys(s.cards)) assert.equal(seen.get(id), 1, `${id} is in exactly one place (found ${seen.get(id) ?? 0})`);
-}
-
-/** A game already in p1's Main Phase on turn 3 with a chosen hand and energy. */
-function arena(opts: { hand?: string[]; energy?: string[]; battle?: string[]; oppHand?: string[]; oppBattle?: string[]; oppEnergy?: string[]; z?: string[] } = {}): GameState {
-  let s = game(7, fifty("V1"), fifty("V-BLUE"), opts.z);
-  const chooser = (s.prompt as { player: PlayerId }).player;
-  s = play(s, { type: "chooseFirst", player: chooser, first: "p1" }, { type: "mulligan", player: "p1", redraw: false }, { type: "mulligan", player: "p2", redraw: false });
-  s = play(s, { type: "charge", player: "p1", card: null }, { type: "endMain", player: "p1" });
-  s = play(s, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" });
-  s = play(s, { type: "charge", player: "p1", card: null });
-  assert.equal(s.prompt.kind, "main");
-  // Set the table by hand: swap deck cards for the wanted definitions and move them.
-  const ctx = CTX;
-  const give = (p: PlayerId, ids: string[], area: "hand" | "energy" | "battle") => {
-    for (const cardId of ids) {
-      const inst = s.players[p].deck.find((id) => s.cards[id].cardId === "V1" || s.cards[id].cardId === "V-BLUE")!;
-      s.cards[inst].cardId = cardId;
-      move(ctx, s, [], inst, area, p);
-    }
-  };
-  give("p1", opts.hand ?? [], "hand");
-  give("p1", opts.energy ?? [], "energy");
-  give("p1", opts.battle ?? [], "battle");
-  give("p2", opts.oppHand ?? [], "hand");
-  give("p2", opts.oppEnergy ?? [], "energy");
-  give("p2", opts.oppBattle ?? [], "battle");
-  for (const id of s.players.p1.hand.slice()) if (s.cards[id].cardId === "V1" && !(opts.hand ?? []).includes("V1")) move(ctx, s, [], id, "deck", "p1", { position: "bottom" });
-  for (const id of s.players.p2.hand.slice()) if (s.cards[id].cardId === "V-BLUE") move(ctx, s, [], id, "deck", "p2", { position: "bottom" });
-  return s;
-}
-
-const find = (s: GameState, p: PlayerId, area: "hand" | "battle" | "energy" | "zDeck", cardId: string) => s.players[p][area].find((id) => s.cards[id].cardId === cardId)!;
-
-function assertConsistentAfterDrop(s: GameState) {
-  // The test removed life cards outright; put them in the drop so the invariant holds.
-  const gone = Object.keys(s.cards).filter((id) => s.cards[id].owner === "p1" && !locate(s, id));
-  s.players.p1.drop.push(...gone);
-}
-
-const acts = (s: GameState) => legalActions(CTX, s).map((a) => a.action);
-const canActivate = (s: GameState, card: string) => acts(s).some((a) => a.type === "activate" && a.card === card);
-
 /**
  * The identity `rejectedActions` dedupes on: its own `cardOf`, which reads a
  * one-card `cards` as well as `card` and `attacker`. A `choose` prompt carries
@@ -356,14 +247,8 @@ function cardKeyOf(a: Action): string {
 }
 
 /**
- * §3.2, over two lists and nothing else.
- *
- * Taken as the two lists rather than as a state so the *same* assertion runs on
- * either engine: the legacy engine's fixtures below hand it a `GameState`'s
- * menu, and `verify/vm.ts` hands it a rules game's, which is built from
- * `DEFINE ACTION` declarations instead of from a predicate and its `whyNot`
- * twin (#144). One promise, one function, two interpreters — a second copy
- * would be the workflow spec asserted twice and agreed with once.
+ * §3.2, over two lists and nothing else: one promise, asserted over a menu and
+ * its rejections wherever they come from.
  */
 function assertMenuInvariants(legal: LegalAction[], rejected: RejectedAction[], where: string): void {
   const offered = new Set(legal.map((l) => JSON.stringify(l.action)));
@@ -391,60 +276,16 @@ function assertMenuInvariants(legal: LegalAction[], rejected: RejectedAction[], 
   }
 }
 
-/** No action in both lists, and no rejection without a reason. Run over every state a fixture holds. */
-function assertDisjoint(s: GameState, where: string): RejectedAction[] {
-  const ctx = CTX;
-  const legal = legalActions(ctx, s);
-  const rejected = rejectedActions(ctx, s, legal);
-  assertMenuInvariants(legal, rejected, where);
-  return rejected;
-}
-
-// ── the state interface (#152): the same staging helpers, on either engine ──
+// ── the state interface (#152): staging helpers and readers ─────────────────
 //
-// Everything above this line reads and writes `GameState` directly — `game`,
-// `arena`, `play`, `find`, `labels` and the assertions built on them — and
-// stays exactly as it was: every other suite (`setup`, `compiler`, `keywords`,
-// `readings`, `wordings`, `contract`, `deck-api`, `language`) still imports
-// those, still narrows through `legacyState`, and is still meant to read
-// `skipped — EngineMismatch` under `--engine rules` until its own stage lands.
-// Changing what they narrow to is not this issue's to do.
-//
-// What *is* this issue's: `battles.ts` and `workflow.ts` need the same fixture
-// vocabulary — a board staged to a name, a card found by its catalog id, the
-// menu read off it — built once, generically, rather than each suite (or each
-// one, copying `verify/vm.ts`'s own local `stage`/`atMain`/`legacyBoard`)
-// growing its own copy. The names below are deliberately the `G` (generic)
-// twin of the function above them with the same job: `gameG`/`arenaG` for
-// `game`/`arena`, `playG` for `play`, `findG` for `find`, `labelsG`/`actsG`/
-// `canActivateG` for `labels`/`acts`/`canActivate`.
-//
-// **The fields that differ.** `EngineState`'s own doc (`engines.ts`) already
-// names what the two shapes share by name — `prompt`, `battle`, `winner`,
-// `overReason`, `phase`, `turn`, `turnPlayer`, `effects` — and #152 adds
-// `cards[id].{mode,markers,under,flipped,faceUp,hidden,battledThisTurn}` to
-// that list (the last one ported from `NARROWER` to real by this same issue,
-// `vm/zones.ts`). Those are read directly off `EngineState` below with no
-// branch, because they *are* the same field. What is not the same field is an
-// **area**: `players[p][area]` (legacy) against `sides[p].zones[area]` (rules)
-// — `zoneOf`/`leaderOf`/`unisonOf` are the one seam a caller needs, mirroring
-// `sideName`/`damageTaken`'s own precedent in `engines.ts` for a field the two
-// engines keep under a different name.
-//
-// **Why `arenaG`'s two branches stay two branches rather than one generic
-// mover.** The legacy branch delegates to `arena` above, unchanged, because
-// that fixture stages a card through the real `move()` — zone-entry moments
-// included — and nothing about this issue asks it to stage more cheaply than
-// it already does. The rules branch is `verify/vm.ts`'s own `stage`/`atMain`
-// (§23/§24), moved here rather than copied a third time: a raw relabel-and-
-// splice into the zone array, no moment fired, `mode` set active outside the
-// hand — the same "kept local since only this suite needs it" fixture that
-// file's own comment describes, now shared. The two fixtures were never going
-// to produce identical events (one is the real move machinery, the other is a
-// board built by hand for a test), so making them the same *function* would
-// only hide that they are not the same *staging strategy* — the state
-// interface is the seam, not a pretence that both engines set a table the
-// same way.
+// `gameG`/`arenaG`/`playG`/`findG`/`labelsG`/`actsG`/`canActivateG` stage a
+// board to a name, find a card by its catalog id and read the menu. Fields the
+// state shares by name (`prompt`, `battle`, `winner`, `overReason`, `phase`,
+// `turn`, `turnPlayer`, `effects`, `cards[id].{mode,markers,under,flipped,
+// faceUp,hidden,battledThisTurn}`) are read directly; an **area** is
+// `sides[p].zones[area]`, read through `zoneOf`/`leaderOf`/`unisonOf`.
+// `arenaOnRules` is a raw relabel-and-splice into the zone array, no moment
+// fired, `mode` set active outside the hand.
 
 const ZONE_AREAS: ZoneArea[] = ["deck", "hand", "energy", "battle", "drop", "warp", "life", "combo", "zDeck", "zEnergy", "removed"];
 
@@ -455,16 +296,15 @@ const ZONE_AREAS: ZoneArea[] = ["deck", "hand", "energy", "battle", "drop", "war
  * as a second copy.
  */
 function setEnergyMarkersG(s: EngineState, p: PlayerId, n: number): void {
-  if (isVmState(s)) s.sides[p].attrs.energyMarkers = n;
-  else s.players[p].energyMarkers = n;
+  s.sides[p].attrs.energyMarkers = n;
 }
 
-/** A fresh game on whichever engine `--engine` named — `IMPL.createGame` itself, undressed of the `legacyState` narrowing `game()` above applies. */
+/** A fresh game: `IMPL.createGame` itself. */
 function gameG(seed = 1, p1 = fifty("V1"), p2 = fifty("V-BLUE"), z: string[] = []): EngineState {
   return IMPL.createGame(CTX, { seed, p1: { name: "You", leader: "L-RED", main: p1, z }, p2: { name: "Claude", leader: "L-BLUE", main: p2 } }).state;
 }
 
-/** Apply a list of actions on whichever engine `--engine` named, asserting each is legal (`IllegalAction`/`RulesetBroken` throw on their own). */
+/** Apply a list of actions, asserting each is legal (`IllegalAction`/`RulesetBroken` throw on their own). */
 function playG(s: EngineState, ...actions: Action[]): EngineState {
   for (const a of actions) s = IMPL.apply(CTX, s, a).state;
   return s;
@@ -491,7 +331,7 @@ function findG(s: EngineState, p: PlayerId, area: ZoneArea, cardId: string): str
   return id!;
 }
 
-/** `verify/vm.ts` §23/§24's own `stage`, moved here so `battles.ts` and `workflow.ts` do not each grow a copy: one card moved from the deck into a named area, cardId swapped, mode set active outside the hand — a raw fixture, no moment fired. */
+/** One card moved from the deck into a named area, cardId swapped, mode set active outside the hand — a raw fixture, no moment fired. */
 function stageOnRules(r: VmState, p: PlayerId, cardId: string, area: "hand" | "energy" | "battle"): string {
   const filler = p === "p1" ? "V1" : "V-BLUE";
   const inst = r.sides[p].zones.deck.find((id) => r.cards[id].cardId === filler);
@@ -513,7 +353,7 @@ interface ArenaOpts {
   z?: string[];
 }
 
-/** `verify/vm.ts` §23/§24's own `atMain`: p1's Main Phase, their second turn, on the rules engine. */
+/** p1's Main Phase, their second turn. */
 function arenaOnRules(opts: ArenaOpts): VmState {
   let r = IMPL.createGame(CTX, { seed: 7, p1: { name: "You", leader: "L-RED", main: fifty("V1"), z: opts.z ?? [] }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
   const chooser = (r.prompt as { player: PlayerId }).player;
@@ -535,31 +375,25 @@ function arenaOnRules(opts: ArenaOpts): VmState {
   return r;
 }
 
-/** `arena()` above, on whichever engine `--engine` named — see the header comment above this section for why the two branches stage a board differently rather than sharing one mover. */
+/** p1's Main Phase on turn 3 with the staged cards, the dealt filler left in both hands. */
 function arenaG(opts: ArenaOpts = {}): EngineState {
-  return ENGINE === "rules" ? arenaOnRules(opts) : arena(opts);
+  return arenaOnRules(opts);
 }
 
 /**
- * `arena()`'s board on whichever engine `--engine` named, hand included (#459).
- *
- * `arenaG`'s rules branch leaves the dealt filler in both hands, and
- * `battles.ts`/`workflow.ts`/`keywords.ts` were written against that. `arena()`
- * itself ends by putting p1's dealt V1s on the bottom of the deck (unless V1
- * was asked for) and every one of p2's dealt V-BLUEs — and the seven suites
- * that moved off the legacy engine count hands, read `hand[0]` and draw the
- * contract fixtures from those boards. This is that board on the rules engine:
- * the same staging, the same last step, the same card ids in the same places.
+ * `arenaG`'s board with the dealt filler put back: p1's dealt V1s go to the
+ * bottom of the deck (unless V1 was asked for) and so does every one of p2's
+ * dealt V-BLUEs, which is what the suites that count hands, read `hand[0]` and
+ * draw the contract fixtures from were written against.
  */
 function stagedG(opts: ArenaOpts = {}): EngineState {
-  if (ENGINE !== "rules") return arena(opts);
   const r = arenaOnRules(opts);
   for (const id of r.sides.p1.zones.hand.slice()) if (r.cards[id].cardId === "V1" && !(opts.hand ?? []).includes("V1")) moveCard(r, DBS_DEFINITION, id, "deck", { position: "bottom" });
   for (const id of r.sides.p2.zones.hand.slice()) if (r.cards[id].cardId === "V-BLUE") moveCard(r, DBS_DEFINITION, id, "deck", { position: "bottom" });
   return r;
 }
 
-/** Every card instance is in exactly one area (3-1) — `assertConsistent` above, generic over the area names `zoneOf` reads. */
+/** Every card instance is in exactly one area (3-1). */
 function assertConsistentG(s: EngineState): void {
   const seen = new Map<string, number>();
   for (const p of ["p1", "p2"] as PlayerId[]) {
@@ -579,13 +413,13 @@ function isPlacedG(s: EngineState, id: string): boolean {
   return Object.values(s.cards).some((c) => c.under.includes(id));
 }
 
-/** `assertConsistentAfterDrop` above, generic: a fixture that removed life cards outright by splicing the array puts them in the Drop so the invariant holds. */
+/** A fixture that removed life cards outright by splicing the array puts them in the Drop so the invariant holds. */
 function assertConsistentAfterDropG(s: EngineState): void {
   const gone = Object.keys(s.cards).filter((id) => s.cards[id].owner === "p1" && !isPlacedG(s, id));
   zoneOf(s, "p1", "drop").push(...gone);
 }
 
-/** `assertDisjoint` above, over `IMPL` rather than the legacy-narrowed `legalActions`/`rejectedActions` module functions — the same §3.2 promise, on whichever engine staged the board. */
+/** §3.2: no action in both lists, and no rejection without a reason, over `IMPL`. */
 function assertDisjointG(s: EngineState, where: string): RejectedAction[] {
   const legal = IMPL.legalActions(CTX, s);
   const rejected = IMPL.rejectedActions(CTX, s, legal);
@@ -599,55 +433,47 @@ const DBS_DEFINITION = (() => {
   return r.definition;
 })();
 
-/**
- * `placeUnder` (`engine/state`) on whichever engine `--engine` named — a
- * fixture reaching for 23-2 directly, the way a card's own skill does through
- * `moveCard`'s `under` option (`vm/host.ts`'s `placeUnder`, #152).
- */
+/** 23-2: a fixture reaching for one card under another directly, the way a card's own skill does through `moveCard`'s `under` option. */
 function placeUnderG(s: EngineState, id: string, host: string): boolean {
-  if (isVmState(s)) return moveCard(s, DBS_DEFINITION, id, "drop", { under: host }).ok;
-  return placeUnder(CTX, s, [], id, host);
+  return moveCard(s, DBS_DEFINITION, id, "drop", { under: host }).ok;
 }
 
-/** `addEffect` above, on whichever engine `--engine` named — both take the identical `EffectSpec`/`Omit<ContinuousEffect,…>` shape, so a fixture's call site needs no change beyond which state it hands in. */
-function addEffectG(s: EngineState, ev: GameEvent[], e: Parameters<typeof addEffect>[2]): void {
-  if (isVmState(s)) vmAddEffect(s, ev, e);
-  else addEffect(s, ev, e);
+/** Add a continuous effect. */
+function addEffectG(s: EngineState, ev: GameEvent[], e: Parameters<typeof vmAddEffect>[2]): void {
+  vmAddEffect(s, ev, e);
 }
 
-/** `powerOf` above, on whichever engine `--engine` named — `battle.ts`'s own local reading of `attrsNow(...).power`, the declared attribute rather than the legacy engine's own computed one. */
+/** A card's power: the declared attribute (`attrsNow(...).power`). */
 function powerOfG(s: EngineState, id: string): number {
-  return isVmState(s) ? Number(attrsNow(withTokens(CTX), DBS_DEFINITION, s, id).power ?? 0) : powerOf(CTX, s, id);
+  return Number(attrsNow(withTokens(CTX), DBS_DEFINITION, s, id).power ?? 0);
 }
 
-/** `has` above, on whichever engine `--engine` named — `hasKeyword` (`vm/program.ts`) reads the same three sources `has` does: a printed skill still showing, a `keyword`-kind effect, and a [Permanent] static, so a keyword copied on by `copySkills` reads the same way a printed one does. */
+/** `hasKeyword` (`vm/program.ts`) reads the same three sources: a printed skill still showing, a `keyword`-kind effect, and a [Permanent] static, so a keyword copied on by `copySkills` reads the same way a printed one does. */
 function hasG(s: EngineState, id: string, name: KeywordSkill["name"]): boolean {
-  return isVmState(s) ? vmHasKeyword(withTokens(CTX), DBS_DEFINITION, s, id, name) : has(CTX, s, id, name);
+  return vmHasKeyword(withTokens(CTX), DBS_DEFINITION, s, id, name);
 }
 
-/** `skillNegated` above, on whichever engine `--engine` named. */
-function skillNegatedG(s: EngineState, id: string, index: number, kind?: Parameters<typeof skillNegated>[3]): boolean {
-  return isVmState(s) ? vmSkillNegated(s, id, index, kind) : skillNegated(s, id, index, kind);
+/** Is this one skill negated. */
+function skillNegatedG(s: EngineState, id: string, index: number, kind?: Parameters<typeof vmSkillNegated>[3]): boolean {
+  return vmSkillNegated(s, id, index, kind);
 }
 
-/** `masterOf` above, on whichever engine `--engine` named — 3-1-6, the side whose in-play area currently holds the card, else its owner. The rules engine's own `masterOf` needs the `GameDefinition` triggers.ts already threads through everywhere else, so `DBS_DEFINITION` is bound here exactly as `powerOfG` binds it. */
+/** 3-1-6, the side whose in-play area currently holds the card, else its owner. */
 function masterOfG(s: EngineState, id: string): PlayerId {
-  return isVmState(s) ? vmMasterOf(DBS_DEFINITION, s, id) : masterOf(s, id);
+  return vmMasterOf(DBS_DEFINITION, s, id);
 }
 
-/** `lifeReplacementChoicesFor` above, on whichever engine `--engine` named — 9-10's `life` event (#272), the replacements that answer a life card's own move to `dest`; the rules engine's reader is `vm/replace.ts`'s `lifeReplacementChoices`. */
+/** 9-10's `life` event (#272), the replacements that answer a life card's own move to `dest`. */
 function lifeReplacementChoicesForG(s: EngineState, id: string, dest: "hand" | "drop") {
-  return isVmState(s) ? vmLifeReplacementChoices(CTX, DBS_DEFINITION, s, id, dest) : lifeReplacementChoicesFor(CTX, s, id, dest);
+  return vmLifeReplacementChoices(CTX, DBS_DEFINITION, s, id, dest);
 }
 
 /**
- * Test-only staging: relocate a card instance into a named zone, on whichever
- * engine `--engine` named — a raw splice like `stageOnRules`'s own above, not
+ * Test-only staging: relocate a card instance into a named zone — a raw splice like `stageOnRules`'s own above, not
  * a move a rule would make (no event, no moment, no reason). Used where a
  * fixture needs a card in the Drop or at the bottom of the deck before the
  * move under test runs, and the *how it got there* is not itself part of what
- * is being checked — `move(CTX, …)` remains the right call for a fixture that
- * needs the real thing (a reason, a position, an event log).
+ * is being checked; `moveG` is the call for a fixture that needs the real mover.
  */
 function stageMoveG(s: EngineState, id: string, area: ZoneArea, side: PlayerId): void {
   for (const p of ["p1", "p2"] as PlayerId[]) {
@@ -660,115 +486,91 @@ function stageMoveG(s: EngineState, id: string, area: ZoneArea, side: PlayerId):
   zoneOf(s, side, area).push(id);
 }
 
-// ── the legacy-only readers the seven fixture suites used, generically (#459) ─
+// ── readers over the declared attributes (#459) ─────────────────────────────
 //
-// `setup`, `compiler`, `readings`, `wordings`, `contract`, `language` and
-// `lang` read a staged board through the legacy engine's own `engine/state`
-// and `engine/triggers` functions. Each reader below is the same question on
-// whichever engine `--engine` named, so those suites run on the rules engine
-// for real rather than skipping under `EngineMismatch` — the step #118's
-// deletion of the legacy engine waits on. The rules engine's answer is its own
-// declared reading (`attrsNow`, `cardPrice`, `forbids`, `findCard`, …), the
-// one `verify/vm.ts` already asserts agrees with the legacy function by name.
+// Each reads a staged board through the rules engine's declared reading
+// (`attrsNow`, `cardPrice`, `forbids`, `findCard`, …).
 
-/** `powerOf`'s reading, on either engine, with the context the caller staged (a fixture may compile its own rules). */
+/** A card's power with the context the caller staged (a fixture may compile its own rules). */
 function powerIn(ctx: EngineContext, s: EngineState, id: string): number {
-  return isVmState(s) ? Number(attrsNow(withTokens(ctx), DBS_DEFINITION, s, id).power ?? 0) : powerOf(ctx, s, id);
+  return Number(attrsNow(withTokens(ctx), DBS_DEFINITION, s, id).power ?? 0);
 }
 
 /** `has`'s reading with the caller's own context — `hasG` with a context that is not `CTX`. */
 function hasIn(ctx: EngineContext, s: EngineState, id: string, name: KeywordSkill["name"]): boolean {
-  return isVmState(s) ? vmHasKeyword(withTokens(ctx), DBS_DEFINITION, s, id, name) : has(ctx, s, id, name);
+  return vmHasKeyword(withTokens(ctx), DBS_DEFINITION, s, id, name);
 }
 
-/** The face a card shows now (`cardNow`): the printed values with every layer over them, as the four attributes a fixture reads. */
+/** The face a card shows now: the printed values with every layer over them, as the four attributes a fixture reads. */
 function cardNowG(s: EngineState, id: string, ctx: EngineContext = CTX): Pick<CardDef, "name" | "colors" | "traits" | "characters"> {
-  if (!isVmState(s)) return cardNow(ctx, s, id);
   const a = attrsNow(withTokens(ctx), DBS_DEFINITION, s, id);
   return { name: String(a.name ?? ""), colors: (a.colors ?? []) as CardDef["colors"], traits: (a.traits ?? []) as string[], characters: (a.characters ?? []) as string[] };
 }
 
-/** Does this card, as it stands, match the filter — `matches(cardNow(…))` on legacy, the declared predicate over `attrsNow` on rules (`verify/vm.ts` §7 holds the two to the same answer). */
+/** Does this card, as it stands, match the filter — the declared predicate over `attrsNow`. */
 function matchesG(s: EngineState, id: string, filter: CardFilter, ctx: EngineContext = CTX): boolean {
-  if (!isVmState(s)) return matches(cardNow(ctx, s, id), filter);
   return vmPredicateOf(filter, DBS_DEFINITION)(attrsNow(withTokens(ctx), DBS_DEFINITION, s, id));
 }
 
-/** `playCost`'s two halves: the total and the coloured (specified) part, off `cardPrice` on rules. */
+/** The play cost's two halves: the total and the coloured (specified) part, off `cardPrice`. */
 function playCostG(s: EngineState, id: string): { total: number; specified: Partial<Record<string, number>> } {
-  if (!isVmState(s)) return playCost(CTX, s, id);
   const p = vmCardPrice(withTokens(CTX), DBS_DEFINITION, s, id);
   return { total: p.total, specified: p.orbs };
 }
 
-/** 20-21's combo cost in force — `comboCostOf` on legacy, the declared `comboCostOf` attribute on rules. */
+/** 20-21's combo cost in force — the declared `comboCostOf` attribute. */
 function comboCostOfG(s: EngineState, id: string): number {
-  return isVmState(s) ? Number(attrsNow(withTokens(CTX), DBS_DEFINITION, s, id).comboCostOf ?? 0) : comboCostOf(CTX, s, id);
+  return Number(attrsNow(withTokens(CTX), DBS_DEFINITION, s, id).comboCostOf ?? 0);
 }
 
-/** 20-21's Z-Energy cost in force — `zEnergyCostOf`, or the declared attribute of that name. */
+/** 20-21's Z-Energy cost in force — the declared `zEnergyCostOf` attribute. */
 function zEnergyCostOfG(s: EngineState, id: string): number {
-  return isVmState(s) ? Number(attrsNow(withTokens(CTX), DBS_DEFINITION, s, id).zEnergyCostOf ?? 0) : zEnergyCostOf(CTX, s, id);
+  return Number(attrsNow(withTokens(CTX), DBS_DEFINITION, s, id).zEnergyCostOf ?? 0);
 }
 
-/** 20-14's prohibition reader on either engine. */
-function forbidsG(s: EngineState, what: Parameters<typeof forbids>[2], opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {
-  return isVmState(s) ? vmForbids(withTokens(CTX), DBS_DEFINITION, s, what, opts) : forbids(CTX, s, what, opts);
+/** 20-14's prohibition reader. */
+function forbidsG(s: EngineState, what: Parameters<typeof vmForbids>[3], opts: { player?: PlayerId; card?: string; bySkill?: boolean } = {}): boolean {
+  return vmForbids(withTokens(CTX), DBS_DEFINITION, s, what, opts);
 }
 
 /** 9-1-5: are all of this card's skills negated. */
 function skillsNegatedG(s: EngineState, id: string): boolean {
-  return isVmState(s) ? vmSkillsNegated(s, id) : skillsNegated(s, id);
+  return vmSkillsNegated(s, id);
 }
 
 /** Where a card is — which area and where in it — or null for a card under another card or out of every zone. */
 function locateG(s: EngineState, id: string): { area: string; index: number } | null {
-  if (!isVmState(s)) {
-    const at = locate(s, id);
-    return at ? { area: at.area, index: at.index } : null;
-  }
   const at = vmFindCard(s, id);
   return at ? { area: at.zone, index: at.index } : null;
 }
 
 /** 5-12: KO a card, the way a rule does — through the engine's own KO, with its moments and replacements. */
 function koCardG(s: EngineState, id: string, ev: GameEvent[] = [], ctx: EngineContext = CTX): void {
-  if (isVmState(s)) vmKoCard(withTokens(ctx), DBS_DEFINITION, s, ev, id);
-  else koCard(ctx, s, ev, id);
+  vmKoCard(withTokens(ctx), DBS_DEFINITION, s, ev, id);
 }
 
 /**
- * A fixture's own move of one card to a named area of a side: the legacy
- * engine's `move` (which reads a 9-10 replacement for a card leaving play
- * itself), or the rules engine's one mover `moveCard`, which records a
- * replacement and applies none.
+ * A fixture's own move of one card to a named area of a side through the rules
+ * engine's one mover `moveCard`, which records a replacement and applies none.
  */
 function moveG(s: EngineState, id: string, area: ZoneArea | "unison", side: PlayerId, opts: { position?: "top" | "bottom"; reason?: "effect" } = {}, ctx: EngineContext = CTX): void {
-  if (!isVmState(s)) {
-    move(ctx, s, [], id, area, side, opts);
-    return;
-  }
+  void ctx;
   const r = moveCard(s, DBS_DEFINITION, id, area, { owner: side, position: opts.position });
   assert.ok(r.ok, `the fixture could not move ${id} to ${side}'s ${area}: ${r.ok ? "" : r.refused}`);
 }
 
 /** A rule-procedure move with no acting skill, used to check replacement cause scope. */
 export function moveByRuleG(s: EngineState, id: string, area: ZoneArea, side: PlayerId, ctx: EngineContext = CTX): void {
-  if (isVmState(s)) {
-    vmMoved(ctx, DBS_DEFINITION, s, [], id, area, { owner: side, reason: "rule" });
-    return;
-  }
-  move(ctx, s, [], id, area, side, { reason: "rule" });
+  vmMoved(ctx, DBS_DEFINITION, s, [], id, area, { owner: side, reason: "rule" });
 }
 
-/** 20-15: write a delayed effect down, on either engine — both take the same spec. */
+/** 20-15: write a delayed effect down. */
 function scheduleG(s: EngineState, ev: GameEvent[], spec: Parameters<typeof vmSchedule>[2]): void {
-  if (isVmState(s)) vmSchedule(s, ev, spec);
-  else schedule(s, ev, spec);
+  vmSchedule(s, ev, spec);
 }
 
 /**
- * The moment a legacy trigger name stands for, as `dbs/triggers.rules`
+ * The moment a trigger name stands for, as `dbs/triggers.rules`
  * declares it — only the two `verify/lang.ts` fires by hand.
  */
 const MOMENT_FOR: Partial<Record<Trigger, (card: string, controller: PlayerId) => VmMoment>> = {
@@ -776,13 +578,9 @@ const MOMENT_FOR: Partial<Record<Trigger, (card: string, controller: PlayerId) =
   attacks: (card, controller) => ({ event: "attackDeclared", card, controller, args: { role: "attacker" } }),
 };
 
-/** Ask the board whether anything answers to `trigger` happening to `card`, and return how many [Auto] skills were pended — `pendTriggers` on legacy, the declared moment fired on rules. The pending list is cleared first. */
+/** Ask the board whether anything answers to `trigger` happening to `card`, and return how many [Auto] skills were pended — the declared moment fired. The pending list is cleared first. */
 function pendedG(ctx: EngineContext, s: EngineState, trigger: Trigger, card: string): number {
   s.pending = [];
-  if (!isVmState(s)) {
-    pendTriggers(ctx, s, trigger, card);
-    return s.pending.length;
-  }
   const moment = MOMENT_FOR[trigger];
   assert.ok(moment, `pendedG has no declared moment for ${trigger}`);
   vmFire(withTokens(ctx), DBS_DEFINITION, s, moment(card, s.cards[card].owner));
@@ -791,16 +589,12 @@ function pendedG(ctx: EngineContext, s: EngineState, trigger: Trigger, card: str
 
 /**
  * Every case a suite could not assert on the rules engine, named where it is
- * skipped — the generic twin of `keywords.ts`'s own `notYetGap`, for the
- * suites #459 moved off the legacy engine. Each entry is a rules-engine gap a
- * real game would hit too (an unread static, a legacy-only field), never a
- * fixture that merely has not been ported: `verify-arena.ts` prints the list
- * at the end of a run, so `--rules-only` says exactly which assertions still
- * stand only on the legacy pass.
+ * skipped. Each entry is a rules-engine gap a real game would hit too (an
+ * unread static, a missing window), never a fixture that merely has not been
+ * ported: `verify-arena.ts` prints the list at the end of a run.
  */
 const RULES_GAPS: string[] = [];
 function rulesGap(where: string, _what: string, _issue: string): boolean {
-  if (ENGINE !== "rules") return false;
   if (!_what.trim() || !_issue.trim()) throw new Error(`rulesGap ${where} needs its behavior note and owner note`);
   const row = capabilityForSkip(where);
   const line = `${row.id} [${row.status}; ${row.citation}; owner #${row.ownerIssue}]: ${row.label} — ${row.detail}`;
@@ -809,25 +603,9 @@ function rulesGap(where: string, _what: string, _issue: string): boolean {
   return true;
 }
 
-/**
- * A case about the legacy engine itself — a legacy game made, saved and read
- * back — which `--rules-only` cannot run because it plays the legacy engine on
- * purpose. Run on every other pass, `--engine rules` included; listed with the
- * gaps under `--rules-only`, so the cases #118 has to decide about are named.
- */
-function legacyOnly(where: string, what: string, issue: string): boolean {
-  if (!RULES_ONLY) return false;
-  if (!what.trim() || !issue.trim()) throw new Error(`legacyOnly ${where} needs its behavior note and owner note`);
-  const row = capabilityForLegacySkip(where);
-  const line = `${row.id} [${row.status}; ${row.citation}; owner #${row.ownerIssue}]: ${row.label} — ${row.detail}`;
-  console.log(`  skipped case — ${line}`);
-  RULES_GAPS.push(line);
-  return true;
-}
-
-/** 19-1: is this instance a token — a flag on the legacy card, the id its definition is encoded in on the rules engine. */
+/** 19-1: is this instance a token — the id its definition is encoded in. */
 function isTokenG(s: EngineState, id: string): boolean {
-  return isVmState(s) ? vmIsTokenCard(s.cards[id].cardId) : s.cards[id].isToken;
+  return vmIsTokenCard(s.cards[id].cardId);
 }
 
 /** One side's whole board as plain data — every area, the Leader and Unison, the energy markers — for a fixture that asserts nothing about a side changed. */
@@ -837,10 +615,9 @@ function sideG(s: EngineState, p: PlayerId): Record<string, unknown> {
 
 /**
  * Pass every combo prompt a battle puts up, whoever it is put to, until the
- * battle moves on. The legacy engine asks both sides every time; the rules
- * engine skips a combo step nobody can use (`vm/battle.ts`'s `comboWork`, the
- * probe sweep's `empty-combo-prompt` cause) — so a fixture that wrote one
- * `pass` per side names the outcome rather than the number of questions.
+ * battle moves on. The engine skips a combo step nobody can use
+ * (`vm/battle.ts`'s `comboWork`, the probe sweep's `empty-combo-prompt` cause)
+ * — so a fixture names the outcome rather than the number of questions.
  */
 function passCombosG(s: EngineState): EngineState {
   for (let i = 0; i < 4 && s.prompt.kind === "combo"; i++) s = playG(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
@@ -848,15 +625,11 @@ function passCombosG(s: EngineState): EngineState {
 }
 
 /**
- * A staged card that has been in play since before this turn. The legacy
- * engine records the turn a card entered play (`enteredTurn`) and a fixture
- * that stages a card straight into the Battle Area sets it back to 0; the
- * rules engine keeps no such field — nothing it plays reads one — so there is
- * nothing to set.
+ * A staged card that has been in play since before this turn. The rules engine
+ * keeps no entered-turn field — nothing it plays reads one — so there is
+ * nothing to set; kept so a fixture states the intent.
  */
-function settledG(s: EngineState, id: string): void {
-  if (!isVmState(s)) s.cards[id].enteredTurn = 0;
-}
+function settledG(_s: EngineState, _id: string): void {}
 
 export {
   COND_CLASS,
@@ -874,40 +647,28 @@ export {
   RIVAL,
   TONES,
   IMPL,
-  acts,
   actsG,
-  addEffect,
   addEffectG,
   appendBeats,
-  apply,
-  arena,
   arenaG,
   stagedG,
-  assertConsistent,
-  assertConsistentAfterDrop,
   assertConsistentAfterDropG,
   assertConsistentG,
-  assertDisjoint,
   assertDisjointG,
   assertMenuInvariants,
   canActivateG,
   autoTriggerMatches,
-  boardView,
   buildSnapshot,
-  canActivate,
   canonical,
   card,
   cardKeyOf,
-  cardNow,
   clauseShape,
   colourOf,
-  comboCostOf,
   compileCostProgram,
   compileSkill,
   condSignature,
   costIsOnlyOrbs,
   costText,
-  createGame,
   defsFrom,
   describeCond,
   describeScript,
@@ -916,10 +677,7 @@ export {
   encodeLighting,
   energyMarkersOf,
   fifty,
-  find,
   findG,
-  forbids,
-  legacyOnly,
   settledG,
   passCombosG,
   isTokenG,
@@ -940,24 +698,17 @@ export {
   scheduleG,
   skillsNegatedG,
   zEnergyCostOfG,
-  lifeReplacementChoicesFor,
   lifeReplacementChoicesForG,
-  game,
   gameG,
-  has,
   hasG,
   hoist,
   keywordOf,
   keywordPlays,
   keywordTagSpellings,
   keywordsByGroup,
-  koCard,
-  labels,
   labelsG,
   leaderOf,
-  legalActions,
   lightingFrom,
-  locate,
   maskBeats,
   masterOfG,
   matches,
@@ -965,7 +716,6 @@ export {
   missingEnergyChip,
   missingEnergyChips,
   mix,
-  move,
   narrate,
   opSignature,
   orbsIn,
@@ -976,38 +726,28 @@ export {
   parseTarget,
   patternKey,
   pill,
-  placeUnder,
   placeUnderG,
-  planPayment,
   rejectedActionsG,
   setEnergyMarkersG,
-  play,
-  playCost,
   playG,
-  powerOf,
   powerOfG,
   priceCondition,
   priceOf,
   priceX,
   programShape,
   refusal,
-  rejectedActions,
   rejectedFor,
   rulesFromCompiler,
-  schedule,
   seedFrom,
   sentence,
   skillLines,
-  skillNegated,
   skillNegatedG,
   skillRecords,
-  skillsNegated,
   splitClauses,
   stageMoveG,
   stepText,
   tagBody,
   tagParsesTo,
-  toBeats,
   toneFor,
   trailingTrigger,
   triggersOf,
@@ -1015,7 +755,6 @@ export {
   unisonOf,
   validate,
   waitingFor,
-  zEnergyCostOf,
   zoneOf,
 };
-export type { Action, Beat, Beats, CardDef, CardFilter, EngineState, GameState, NumberedBeat, PlayerId, RejectedAction, Requirement, SchemaOp, Snapshot, Trigger, VmState };
+export type { Action, Beat, Beats, CardDef, CardFilter, EngineState, NumberedBeat, PlayerId, RejectedAction, Requirement, SchemaOp, Snapshot, Trigger, VmState };

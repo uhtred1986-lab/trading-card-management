@@ -1,6 +1,6 @@
 /** Rule 21-6's confirmative Battle Card power check. */
 import assert from "node:assert/strict";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { CTX, DEFS, fifty } from "./harness";
 import type { CardDef, EngineContext } from "../../src/lib/arena/types";
@@ -9,7 +9,7 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { attrsNow } from "../../src/lib/arena/vm/program";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "the DBS ruleset loads for rule-processing scenarios");
 const DBS = loaded.definition;

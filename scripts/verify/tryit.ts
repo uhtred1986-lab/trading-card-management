@@ -2,7 +2,7 @@
  * Try it → fix it (#470): the rule being built, tried on boards made from its
  * condition, judged, and every wrong row pointing at its block.
  *
- * Pure: the probe on the two engines and nothing else — no database (the
+ * Pure: the probe on the rules engine and nothing else — no database (the
  * stored half, `card_rules.expectations` and `arena:reprobe`'s "expected X,
  * now Y", is in `verify-db.mts`). Part of `npm test`, run on its own.
  *
@@ -10,7 +10,7 @@
  * in the language (`parseRule`), not yet saved anywhere.
  */
 import assert from "node:assert/strict";
-import { DEFAULT_ENGINE, FALLBACK_ENGINE } from "../../src/lib/arena/engines";
+import { DEFAULT_ENGINE } from "../../src/lib/arena/engines";
 import { parseRule, type Rule } from "../../src/lib/arena/lang";
 import { resolvePath } from "../../src/lib/arena/lang/path";
 import { skillRecords } from "../../src/lib/arena/draft";
@@ -68,7 +68,7 @@ const TWO = "Attacks · 2 blue cards in your drop area";
 
 {
   const tried = tryRule(tide(">= 3"));
-  assert.equal(tried.engines.main, "rules", "Try it plays on the engine games use");
+  assert.equal(tried.rows[0].rules.engine, DEFAULT_ENGINE, "Try it plays on the engine games use");
   const three = row(tried, THREE);
   const two = row(tried, TWO);
   assert.equal(three.rules.headline, "draws 1", `3 blue cards → draws 1: ${three.rules.result.join(" | ")}`);
@@ -153,16 +153,14 @@ const TWO = "Attacks · 2 blue cards in your drop area";
   assert.ok(wrong.rows.find((x) => x.key === "play")?.rules.fires, "the play board fires on the WHEN as built");
 }
 
-// ── Engines disagreeing is shown as both ────────────────────────────────────
+// ── A supported Auto action price ───────────────────────────────────────────
 
 {
-  // A supported Auto action price now pays and resolves on both engines.
+  // A supported Auto action price pays and resolves.
   // Trace notes preserve the cost path without becoming extra costs.
   const priced = probeRuleOf(rule(`WHEN [auto] attacks\nCOST DO {\n  mill(n: 1)\n}\nTHEN\n  draw(n: 1)`), def("T-PRICE", "Priced Seer", "[Auto] When this card attacks, put the top card of your deck in your Drop Area: draw 1 card."), "front", 0);
   const tried = tryRule(priced);
   const attack = tried.rows.find((x) => x.key === "attack") as TryRow;
-  assert.equal(attack.disagree, false, "the supported mill price agrees with the legacy result");
-  assert.equal(attack.legacy.headline, "draws 1");
   assert.equal(attack.rules.headline, "draws 1");
   assert.equal(attack.rules.outcome, "fired");
   assert.equal(attack.gate, null, "a paid supported Auto has no failed cost gate");
@@ -174,7 +172,7 @@ const TWO = "Attacks · 2 blue cards in your drop area";
   assert.ok(!attack.rules.result.includes("the game is interrupted"));
 }
 
-// ── Met / not-met pairs, both engines, opposite outcomes ────────────────────
+// ── Met / not-met pairs, opposite outcomes ──────────────────────────────────
 
 {
   const cases: { what: string; card: CardDef; src: string; pairs: number }[] = [
@@ -192,10 +190,10 @@ const TWO = "Attacks · 2 blue cards in your drop area";
     assert.deepEqual(edgeScenarios(r, base, "x").map((s) => s.key), edges.map((s) => s.key), `${c.what}: scenariosFor carries the edge boards`);
     // A pair is met then not met; an `all` of two shares its met board.
     assert.equal(edges.length, c.pairs + 1, `${c.what}: ${edges.map((s) => s.title).join(" / ")}`);
-    for (const engine of [DEFAULT_ENGINE, FALLBACK_ENGINE]) {
-      const [met, ...unmet] = edges.map((s) => tryRule(r, [], { main: engine, other: engine }).rows.find((x) => x.key === s.key) as TryRow);
-      assert.ok(met.rules.fires, `${c.what} on ${engine}: "${met.title}" fires — ${met.rules.result.join(" | ")} / ${met.rules.input.join(" | ")}`);
-      for (const u of unmet) assert.ok(!u.rules.fires, `${c.what} on ${engine}: "${u.title}" does not — ${u.rules.result.join(" | ")}`);
+    {
+      const [met, ...unmet] = edges.map((s) => tryRule(r, []).rows.find((x) => x.key === s.key) as TryRow);
+      assert.ok(met.rules.fires, `${c.what}: "${met.title}" fires — ${met.rules.result.join(" | ")} / ${met.rules.input.join(" | ")}`);
+      for (const u of unmet) assert.ok(!u.rules.fires, `${c.what}: "${u.title}" does not — ${u.rules.result.join(" | ")}`);
     }
   }
   // A condition the probe cannot stage gets the default board and a line saying so.
@@ -266,10 +264,10 @@ const FIXTURES: [string, string][] = [
     };
     const view = ruleViewOf(r);
     for (const scenario of scenariosFor(r)) {
-      for (const engine of [FALLBACK_ENGINE, DEFAULT_ENGINE]) {
-        const plain = probe(r, scenario, engine);
-        const run = probe(r, scenario, engine, { trace: true });
-        const at = `${id} ${scenario.key} on ${engine}`;
+      {
+        const plain = probe(r, scenario);
+        const run = probe(r, scenario, { trace: true });
+        const at = `${id} ${scenario.key}`;
         assert.equal(run.digest, plain.digest, `${at}: the markers change nothing (${plain.outcome} → ${run.outcome})`);
         assert.deepEqual(run.applied, plain.applied, `${at}: the same lines`);
         assert.deepEqual(run.prompts, plain.prompts, `${at}: the same questions`);
@@ -305,9 +303,7 @@ const FIXTURES: [string, string][] = [
 
 {
   const r = tide(">= 3");
-  for (const s of scenariosFor(r)) assert.equal(probe(r, s).digest, probe(r, s, FALLBACK_ENGINE).digest, `${s.key}: probe() with no engine is the legacy engine`);
-  assert.equal(FALLBACK_ENGINE, "legacy");
-  assert.equal(probe(r, scenariosFor(r)[0]).trace, undefined, "and is untraced unless asked");
+  assert.equal(probe(r, scenariosFor(r)[0]).trace, undefined, "probe() is untraced unless asked");
 }
 
 // ── The reprobe check: "expected X, now Y" ──────────────────────────────────

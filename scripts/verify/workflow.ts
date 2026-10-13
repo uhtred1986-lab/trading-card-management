@@ -4,17 +4,13 @@
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  *
- * **#152: this suite runs on both engines**, through the same state-interface
- * layer `battles.ts` uses (`harness.ts`'s own header comment for that section
- * says which fields are read directly and which go through `zoneOf`/
- * `leaderOf`/`energyMarkersOf`). `ENGINE`/`IMPL` in place of the module-level
- * `legalActions`/`rejectedActions` imports, `arenaG`/`playG`/`findG`/`labelsG`/
- * `gameG`/`assertDisjointG`/`addEffectG`/`rejectedActionsG` in place of their
- * legacy-narrowed twins, and every `buildSnapshot` call passes `engine:
- * ENGINE` explicitly — `snapshot.ts` defaults a missing `engine` to `legacy`,
- * which would draw a rules-engine board through the wrong adapter.
+ * **#152: this suite runs through the state-interface layer** `battles.ts`
+ * uses (`harness.ts`'s own header comment for that section says which fields
+ * are read directly and which go through `zoneOf`/`leaderOf`/
+ * `energyMarkersOf`): `IMPL`, `arenaG`/`playG`/`findG`/`labelsG`/`gameG`/
+ * `assertDisjointG`/`addEffectG`/`rejectedActionsG`.
  *
- * On `--engine rules` this file skips nothing: PRICED's action price (4-3-3),
+ * This file skips nothing: PRICED's action price (4-3-3),
  * the last case it skipped, is charged there since #458. [Unique] and [Swap],
  * the Stage 7 keyword bodies it used to skip, are built (#157). Everything is a
  * real assertion on both engines —
@@ -26,7 +22,6 @@ import assert from "node:assert/strict";
 import {
   CTX,
   DEFS,
-  ENGINE,
   IMPL,
   addEffectG,
   arenaG,
@@ -74,7 +69,6 @@ import type { Beat, Beats, EngineState, PlayerId, RejectedAction, Requirement } 
  * button already is (§ below).
  */
 function assertLabelOnLegacy(actual: string, expected: string, msg?: string): void {
-  if (ENGINE === "legacy") assert.equal(actual, expected, msg);
 }
 
 // ── every rule as a workflow: rejections, choices, steps ───────────────────
@@ -346,7 +340,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     {
     const snap = buildSnapshot({
       id: 1,
-      engine: ENGINE,
       mode: "hotseat",
       status: "playing",
       p1Name: "You",
@@ -393,7 +386,7 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     assert.ok(rejectedActionsG(s).length > 0, "p1, asked, has rejections");
     s = playG(s, { type: "endMain", player: "p1" });
     assert.equal((s.prompt as { player: PlayerId }).player, "p2");
-    const input = { ctx, engine: ENGINE, state: s, legal: IMPL.legalActions(CTX, s), ai: "p2" as PlayerId };
+    const input = { ctx, state: s, legal: IMPL.legalActions(CTX, s), ai: "p2" as PlayerId };
     assert.deepEqual(rejectedFor(input), [], "the prompt is Claude's: nothing is computed");
     const snap = buildSnapshot({
       id: 1,
@@ -420,7 +413,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     const big = findG(s, "p1", "hand", "BIG");
     const snap = buildSnapshot({
       id: 1,
-      engine: ENGINE,
       mode: "hotseat",
       status: "playing",
       p1Name: "You",
@@ -486,12 +478,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     // label. `LegalAction.cost` is a `describePayment` reading (`wording.ts`,
     // legacy-only today) — the rules engine's own `l.cost` field is Stage 8's,
     // the same "words from config" boundary `assertLabelOnLegacy` names above.
-    if (ENGINE === "legacy") {
-      const row = IMPL.legalActions(CTX, next).find((l) => l.action.type === "activate" && l.action.card === lim)!;
-      assert.deepEqual(row.cost, { energy: 0, describe: "free" });
-      const pump = arenaG({ battle: ["PUMP"], energy: ["V1", "V1"] });
-      assert.equal(IMPL.legalActions(CTX, pump).find((l) => l.action.type === "activate")?.cost?.describe, "free", "PUMP prints no orbs");
-    }
   }
 
   // 22-22-3: "If you can't choose the specified Battle Card … you can't
@@ -668,7 +654,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
   const s = arenaG({ hand: ["BIG"], energy: ["V1", "V1"] });
   const snap = buildSnapshot({
     id: 1,
-    engine: ENGINE,
     mode: "hotseat",
     status: "playing",
     p1Name: "You",
@@ -893,7 +878,7 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
   const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
   const spend = { calls: 0, input: 0, output: 0, cached: 0, micros: 0 };
   const snapFor = (s: EngineState, viewer: PlayerId, beats: Beats) =>
-    buildSnapshot({ id: 1, engine: ENGINE, mode: "versus", status: "playing", p1Name: "You", p2Name: "Rival", ctx: CTX, state: s, legal: IMPL.legalActions(CTX, s), log: [], beats, spotlight: null, spend, ai: null, viewer, images: {} });
+    buildSnapshot({ id: 1, mode: "versus", status: "playing", p1Name: "You", p2Name: "Rival", ctx: CTX, state: s, legal: IMPL.legalActions(CTX, s), log: [], beats, spotlight: null, spend, ai: null, viewer, images: {} });
   /** Every card the board names with a face: any object carrying both an instance id and a catalog id, and not drawn face down. */
   const named = (v: unknown, out = new Set<string>()): Set<string> => {
     if (Array.isArray(v)) for (const x of v) named(x, out);

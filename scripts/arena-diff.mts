@@ -1,14 +1,14 @@
 /**
  * Replay a saved game's action log from its seed and compare what comes out
- * with what the row holds — the oracle check for the two engines.
+ * with what the row holds.
  *
- *   npm run arena:diff -- <gameId> [--engine legacy|rules] [--all]
+ *   npm run arena:diff -- <gameId> [--all]
  *
  * A game is its seed plus its actions (`docs/arena-client-contract.md`), so a
- * replay on the engine that wrote it must land on the very same state; a
- * replay on the other engine is how the rules engine proves it plays the same
- * game. The first action whose prompt differs, or which one engine refuses, is
- * where the two part company — that is what is reported, not a bare "differs".
+ * replay on the rules engine must land on the very same state. The first action
+ * the engine refuses, or whose resulting state differs, is what is reported, not
+ * a bare "differs". A row the legacy engine wrote (none survive the 0050
+ * migration) is reported and skipped.
  *
  * The decks are read as they are now. A deck edited since the game was played
  * changes the shuffle, and the report says so rather than blaming an engine.
@@ -18,8 +18,9 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { arenaGames } from "../src/db/schema";
 import { IllegalAction } from "../src/lib/arena/vm/common";
-import { type Action, type EngineContext, type GameState } from "../src/lib/arena/types";
-import { engineFor, engineOr, isEngineId, legacyState, type EngineId } from "../src/lib/arena/engines";
+import { type Action, type EngineContext } from "../src/lib/arena/types";
+import { isVmState } from "../src/lib/arena/engines";
+import { RULES } from "../src/lib/arena/vm";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
 import { rulesFor } from "../src/lib/arena/rules-store";
 import { formatDiffReport, groupDiffOutcomes, type DiffOutcome } from "./lib/arena-diff-report";
@@ -65,12 +66,12 @@ function firstDiff(a: unknown, b: unknown, at = "state"): string | null {
   return a === b || (a === undefined && b === null) || (a === null && b === undefined) ? null : `${at}: ${JSON.stringify(a)} against ${JSON.stringify(b)} on the row`;
 }
 
-async function replay(id: number, on: EngineId | undefined): Promise<Report | null> {
+async function replay(id: number): Promise<Report | null> {
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
   if (!row) return null;
-  const engineId = on ?? engineOr(row.engine);
-  const engine = engineFor(engineId);
-  const stored = row.state as GameState;
+  if (!isVmState(row.state)) throw new Error(`game ${id}: saved on the retired legacy engine, nothing to replay`);
+  const engine = RULES;
+  const stored = row.state;
   const actions = (row.actions as Action[]) ?? [];
   if (row.p1DeckId == null || row.p2DeckId == null) throw new Error(`game ${id}: a deck is gone, nothing to replay from`);
   const a = await deckInputFor(db, row.p1DeckId);
@@ -80,17 +81,14 @@ async function replay(id: number, on: EngineId | undefined): Promise<Report | nu
   // The referee is off: a replay must not ask Claude anything, and every
   // ruling a game needed is already in its action log as `refereeRuling`.
   const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: false };
-  // The oracle compares the legacy shape on both engines; #164 is where a
-  // `rules` replay is read as its own.
-  let state = legacyState(engine.createGame(ctx, { seed: row.seed, p1: a.input, p2: b.input }).state);
-  const deckChanged =
-    [...state.players.p1.deck, ...state.players.p1.hand, ...state.players.p1.life].length !== a.cardIds.length - 1 ||
-    [...state.players.p2.deck, ...state.players.p2.hand, ...state.players.p2.life].length !== b.cardIds.length - 1;
+  let state = engine.createGame(ctx, { seed: row.seed, p1: a.input, p2: b.input }).state;
+  const countOf = (p: "p1" | "p2") => [...state.sides[p].zones.deck, ...state.sides[p].zones.hand, ...state.sides[p].zones.life].length;
+  const deckChanged = countOf("p1") !== a.cardIds.length - 1 || countOf("p2") !== b.cardIds.length - 1;
   let divergence: Report["divergence"] = null;
   for (let i = 0; i < actions.length; i++) {
     const action = actions[i];
     try {
-      state = legacyState(engine.apply(ctx, state, action).state);
+      state = engine.apply(ctx, state, action).state;
     } catch (err) {
       divergence = { at: i, why: err instanceof IllegalAction ? `refused: ${err.message}` : `threw: ${err instanceof Error ? err.message : String(err)}` };
       break;
@@ -99,7 +97,7 @@ async function replay(id: number, on: EngineId | undefined): Promise<Report | nu
   const diff = firstDiff(canonical(state), canonical(stored));
   const same = diff === null;
   if (!divergence && !same) divergence = { at: actions.length, why: `after every action, ${diff}` };
-  return { id, engine: engineId, actions: actions.length, divergence, same, deckChanged };
+  return { id, engine: "rules", actions: actions.length, divergence, same, deckChanged };
 }
 
 function say(r: Report): void {
@@ -107,14 +105,14 @@ function say(r: Report): void {
   console.log(`game ${r.id} on ${r.engine}: ${r.actions} actions — ${verdict}${r.deckChanged ? " (a deck was edited since the game, so the shuffle differs)" : ""}`);
 }
 
-const on = value("engine");
-if (on !== undefined && !isEngineId(on)) throw new Error(`--engine must be one of legacy, rules; got ${on}`);
-
 if (flag("all")) {
   const rows = await db.select({ id: arenaGames.id }).from(arenaGames).orderBy(desc(arenaGames.id)).limit(Number(value("limit") ?? 50) || 50);
   const outcomes: DiffOutcome[] = [];
   for (const { id } of rows) {
-    const r = await replay(id, on);
+    const r = await replay(id).catch((err: unknown) => {
+      console.log(String(err instanceof Error ? err.message : err));
+      return null;
+    });
     if (r) outcomes.push(r);
   }
   // Grouped by cause rather than dumped one line per game (docs/arena-tooling.md §4): two games
@@ -124,8 +122,8 @@ if (flag("all")) {
   for (const line of formatDiffReport(groupDiffOutcomes(outcomes))) console.log(line);
 } else {
   const id = Number(args.find((a) => /^\d+$/.test(a)));
-  if (!Number.isInteger(id)) throw new Error("usage: arena:diff -- <gameId> [--engine legacy|rules] | --all [--limit N]");
-  const r = await replay(id, on);
+  if (!Number.isInteger(id)) throw new Error("usage: arena:diff -- <gameId> | --all [--limit N]");
+  const r = await replay(id);
   if (!r) throw new Error(`no game ${id}`);
   say(r);
 }

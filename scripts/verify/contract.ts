@@ -15,7 +15,6 @@ import {
   CTX,
   DEFAULT_LIGHTING,
   DEFS,
-  ENGINE,
   IMPL,
   LEADER_COLOURS,
   LIGHTING_VERSION,
@@ -33,7 +32,6 @@ import {
   narrate,
   playG,
   stagedG,
-  toBeats,
   toneFor,
   turnVars,
   unisonOf,
@@ -133,11 +131,10 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
 
   // ── golden fixtures ──────────────────────────────────────────────────────
 
-  const snapshotFor = (state: EngineState, beats: ReturnType<typeof toBeats> | null) =>
+  const snapshotFor = (state: EngineState, beats: Beats | null) =>
     buildSnapshot({
       id: 1,
       mode: "hotseat",
-      engine: ENGINE,
       status: state.phase === "over" ? "over" : "playing",
       p1Name: "You",
       p2Name: "Claude",
@@ -324,7 +321,6 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
       buildSnapshot({
         id: 1,
         mode: "versus",
-        engine: ENGINE,
         status: "playing",
         p1Name: "Red aggro",
         p2Name: "Blue control",
@@ -506,7 +502,7 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
   // rules engine with its own `vmRevealedTo` masking (#458).
   const dir = path.join(process.cwd(), "contract", "fixtures");
   const emit = process.argv.includes("--emit");
-  const mine = ENGINE === "rules" ? Object.entries(fixtures) : [];
+  const mine = Object.entries(fixtures);
   if (emit) fs.mkdirSync(dir, { recursive: true });
   for (const [name, snapshot] of mine) {
     const file = path.join(dir, `${name}.json`);
@@ -522,7 +518,7 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
       `the shape clients receive has changed (contract/fixtures/${name}.json). If that is deliberate, run \`npm run contract:emit\` and review the diff.`,
     );
   }
-  if (emit) console.log(`verify-arena: wrote ${mine.length} contract fixtures (${ENGINE})`);
+  if (emit) console.log(`verify-arena: wrote ${mine.length} contract fixtures (rules)`);
 
   // The bare-button tone on both clients (`docs/arena-hud-spec.md` §2.3): an
   // action that declines, skips, passes, ends or cancels is rendered as a
@@ -655,7 +651,6 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
   const snap = buildSnapshot({
     id: 1,
     mode: "hotseat",
-    engine: ENGINE,
     status: "playing",
     p1Name: "You",
     p2Name: "Claude",
