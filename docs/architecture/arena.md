@@ -53,6 +53,17 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   import into that graph must stay portable**: `scripts/verify/arena-browser-boundary.mts`
   (`npm test`) fails on any legacy-engine, server, package, Node-builtin or `process.env` import
   reached from it; `arena-browser-engine-browser.mts` plays the scenario in a real worker.
+- **Hidden instance ids** (`src/lib/arena/conceal.ts`, 13 Oct 2026): an instance id is a decklist
+  position, so **no `Snapshot` carries the id of a card its viewer may not read** — on either
+  engine, for every viewer. `buildSnapshotWith` conceals last, over the whole snapshot: a
+  positional alias (`?p2:hand:3`, valid on that revision's board only) everywhere but the beats,
+  `?` in the beats (an unwatchable move loses its card even when the card is public now), and
+  `?shown:<k>` for a secret [Auto] declared from a hidden area (#549). The REST client acts by
+  index; a whole `Action` from the web board (`act`) or the gameplan preview is resolved back by
+  `session.ts`'s `resolveForViewer`, refusing a foreign or stale alias and a raw hidden id. A test
+  that looks a hidden card up on a board looks it up by `hiddenAliases(state, viewer)[id]`.
+  `scripts/verify/arena-snapshot-conceal.mts` (`npm test`) proves no leak and permutation
+  invariance for both seats on both engines. Contract: `docs/arena-client-contract.md` §3.7.
 - **The local policy boundary** (`src/lib/arena/policy/`, #644): a local opponent sees one seat's
   `PolicyObservation` (`observation.ts`, a restriction of that seat's masked `Snapshot` — own hand
   and decklist counts, the public boards, counts of hidden zones, the beat history, its own prompt)
@@ -60,7 +71,8 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   stable id, plus one **compound `pick`** for a "choose (up to) N" question, played as the engine's
   one-card answers), and draws on its own `PolicyRng` (`rng.ts`). **Instance ids of cards the seat
   cannot read never reach a policy** — an id is a decklist position — they are positional aliases
-  (`?p2:hand:3`) on the board and in decisions and `?` in beats. Only `boundary.ts` reads a
+  (`?p2:hand:3`, the table `conceal.ts` builds for the online board too) on the board and in
+  decisions and `?` in beats. Only `boundary.ts` reads a
   `PinnedMatch`; it keeps the `DecisionKey`, and `applyDecision` refuses malformed, foreign, stale
   and unknown answers. **The policy layer imports nothing outside `policy/`** and names no engine
   state, seed or ambient randomness: `scripts/verify/arena-policy-contract.mts` (`npm test`) fails

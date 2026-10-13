@@ -244,9 +244,10 @@ function checkPosition(label: string, match: PinnedMatch, revision: number): voi
       const twin = permutedFor(match, seat, revision * 7 + salt);
       if (hidden.size > 1 && canonicalJson(twin.state) !== canonicalJson(match.state)) tally.permutationsNontrivial++;
       const twinTurn = policyTurn(twin, seat, revision);
-      // Negative control: without the alias table the same twin is told apart (instance ids in the beats).
+      // Negative control: without the alias table (and on a board left unconcealed, `conceal.ts`)
+      // the same twin is told apart (instance ids in the beats).
       if (revision === 30 && label === "641") {
-        const raw = (m: PinnedMatch) => canonicalJson(buildObservation(projectSnapshot(m, seat, { revision }), seat, ownDeck(m, seat), {}, { p1: [], p2: [] }));
+        const raw = (m: PinnedMatch) => canonicalJson(buildObservation(projectSnapshot(m, seat, { revision, unconcealedForProof: true }), seat, ownDeck(m, seat), {}, { p1: [], p2: [] }));
         assert.notEqual(raw(twin), raw(match), `${where}: an observation that skips the alias table does see the permutation (the check is not vacuous)`);
         tally.negativeControls++;
       }
