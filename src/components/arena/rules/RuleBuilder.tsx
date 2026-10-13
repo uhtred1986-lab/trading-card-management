@@ -18,7 +18,7 @@ import { ProbePane } from "./ProbePane";
  * Two extension points other issues fill in, rendering nothing when absent:
  * `teachTabs` (#473's "In my words" and "Like a card", beside "Blocks") and
  * `tryIt` (#470's Try it → fix it, under the blocks). Until #470 lands, Try it
- * is the existing probe on the **saved** rule, on the legacy engine (#161).
+ * is the existing probe on the **saved** rule, on the rules engine (#161).
  */
 export interface TeachTab {
   key: string;

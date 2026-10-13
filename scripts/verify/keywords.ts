@@ -34,7 +34,6 @@ import {
   priceOf,
   rejectedActionsG,
   sentence,
-  settledG,
   skillNegatedG,
   splitClauses,
   stageMoveG,
@@ -2044,7 +2043,6 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     let s = arenaG({ hand: ["E-SWAPA"], energy: ["V1"], battle: ["V1", "BIG"], oppBattle: ["BIG"] });
     const [v1, mine] = zoneOf(s, "p1", "battle");
     const theirs = zoneOf(s, "p2", "battle")[0];
-    settledG(s, v1);
     s.cards[theirs].mode = "rest";
     s = playG(s, { type: "attack", player: "p1", attacker: v1, target: theirs });
     assert.equal(s.prompt.kind, "combo");

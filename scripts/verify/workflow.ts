@@ -55,22 +55,6 @@ import type { Beat, Beats, EngineState, PlayerId, RejectedAction, Requirement } 
 // No keyword gap is left here: [Barrier] is done (#154), its rejection reason
 // too (#152), and [Swap] is a keyword move since #157.
 
-/**
- * A menu label's exact wording — checked only on the legacy engine.
- *
- * The rules engine's own labels come off `actions.rules`' declared `label:`
- * plus a generic builder (`vm/actions.ts`), not the legacy engine's bespoke
- * per-action narration, and reconciling the two words-for-words is Stage 8's
- * ("words from config", `docs/arena-backlog.md` §2) — a later stage than the
- * one that put a `label` on the row at all. This is not a `keywordGap`: the
- * *behaviour* every one of these cases checks (what is offered, what is
- * refused and why) runs for real on both engines; only the sentence a client
- * would show is out of scope here, the same way the Unison "with X = 3"
- * button already is (§ below).
- */
-function assertLabelOnLegacy(actual: string, expected: string, msg?: string): void {
-}
-
 // ── every rule as a workflow: rejections, choices, steps ───────────────────
 //
 // `docs/arena-workflow-spec.md` §3.6. `legalActions` says only what the server
@@ -94,7 +78,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     const plays = rejected.filter((r) => r.action.type === "play" && r.action.card === big);
     assert.equal(plays.length, 1, "one rejection per card per action type");
     assert.deepEqual(first(plays[0]), { kind: "energy", need: 5, have: 2 });
-    assertLabelOnLegacy(plays[0].label, "Play BIG (5)");
     // Energy markers count as energy (1-14).
     setEnergyMarkersG(s, "p1", 3);
     assert.equal(ofCard(assertDisjointG(s, "BIG with markers"), "play", big), undefined, "5 energy sources pay a cost of 5");
@@ -109,7 +92,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     assert.ok(r, "a rested Battle Card gets an attack rejection");
     assert.deepEqual(first(r), { kind: "mode", card: mine, mode: "rest" });
     assert.ok(!r!.why.some((w) => w.kind === "timing"), "…and it is not blamed on the phase");
-    assertLabelOnLegacy(r!.label, "Attack with V1");
   }
 
   // On the first player's first turn the attack is refused for its timing.
@@ -136,7 +118,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     s = playG(s, { type: "charge", player: "p1", card: zoneOf(s, "p1", "hand")[0] });
     const again = ofCard(assertDisjointG(s, "after charging"), "charge", zoneOf(s, "p1", "hand")[0]);
     assert.deepEqual(first(again), { kind: "oncePerTurn", what: "charge" });
-    assertLabelOnLegacy(again!.label, `Charge V1`);
   }
 
   // A [Once per turn] skill, used, is refused for that reason; before use it is
@@ -149,9 +130,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     assert.equal(s.prompt.kind, "main");
     const r = ofCard(assertDisjointG(s, "ONCE used"), "activate", once);
     assert.deepEqual(first(r), { kind: "oncePerTurn", what: "skill" });
-    // The label names the skill line, not just the card: one card can now be
-    // refused several activations and three identical rows identify nothing.
-    assertLabelOnLegacy(r!.label, "Activate ONCE: Draw 1 card.");
   }
 
   // 20-14: a prohibition names the card whose rule it is.
@@ -183,7 +161,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     const blocker = findG(s, "p1", "hand", "BLOCKER");
     const extra = findG(s, "p1", "hand", "E-DRAW");
     assert.deepEqual(first(ofCard(rejected, "combo", blocker)), { kind: "energy", need: 1, have: 0 });
-    assertLabelOnLegacy(ofCard(rejected, "combo", blocker)!.label, "Combo BLOCKER");
     assert.deepEqual(first(ofCard(rejected, "combo", extra)), { kind: "cardType", card: extra, needs: "a Battle Card with a combo cost" });
     assert.deepEqual(first(ofCard(rejected, "activate", extra)), { kind: "timing", window: "main" });
     // The attacker itself: rested by attacking, and in the battle.
@@ -245,7 +222,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     assert.equal(mine.length, 1, "exactly one rejection, for the line that is spent");
     assert.equal(mine[0].action.type === "activate" && mine[0].action.skill, skills[1].index, "…filed under that line's index, not the card's first");
     assert.deepEqual(first(mine[0]), { kind: "oncePerTurn", what: "skill" });
-    assertLabelOnLegacy(mine[0].label, "Activate TWOLINE: Draw 1 card.", "the label says which line it is");
   }
 
   // The price before the colon comes off the **record**, not off the card's
@@ -319,7 +295,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     const r = ofCard(assertDisjointG(s, kind), "activate", inst);
     assert.ok(r, `${kind}: the negated card is on the rejected list`);
     assert.deepEqual(first(r), { kind: "other", detail: "the skill is negated" }, `${kind}: and the reason names the negation`);
-    assertLabelOnLegacy(r!.label, "Activate PUMP: This card gets +5000 power for the turn.");
   }
 
   // The compiler cannot read E-MYSTERY, and says so rather than staying silent.
@@ -477,7 +452,7 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     // The price is on the row: the engine's own reckoning, not a guess off the
     // label. `LegalAction.cost` is a `describePayment` reading (`wording.ts`,
     // legacy-only today) — the rules engine's own `l.cost` field is Stage 8's,
-    // the same "words from config" boundary `assertLabelOnLegacy` names above.
+    // the same "words from config" boundary (Stage 8).
   }
 
   // 22-22-3: "If you can't choose the specified Battle Card … you can't
@@ -523,7 +498,6 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     assert.equal(s.prompt.kind, "blocker");
     const r = ofCard(rejectedActionsG(s), "block", tired);
     assert.deepEqual(first(r), { kind: "mode", card: tired, mode: "rest" });
-    assertLabelOnLegacy(r!.label, "Block with BLOCKER");
   }
   {
     // A choice: the card with [Barrier] is excluded by its own rule (22-16),

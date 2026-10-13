@@ -95,19 +95,6 @@ export async function recordedMove(db: Db, callId: string, legal: LegalAction[])
   };
 }
 
-/** Rehydrate a referee ruling already saved before a worker interruption. */
-export async function recordedRuling(db: Db, callId: string): Promise<{ ops: Op[]; why: string; valid: boolean; spend: Choice["spend"] } | null> {
-  const [run] = await db.select().from(aiRuns).where(eq(aiRuns.arenaCallId, callId)).limit(1);
-  if (!run) return null;
-  if (run.kind !== "arena_referee") throw new Error("Arena advance call identity belongs to a different AI task.");
-  const parsed = RulingSchema.safeParse(run.output);
-  if (!parsed.success) throw new Error("The recorded referee result is invalid; refusing to call the provider again.");
-  let ops: unknown;
-  try { ops = JSON.parse(parsed.data.program); } catch { ops = []; }
-  if (!validateProgram(ops)) return { ops: [], why: `${parsed.data.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend: spendFromRun(run) };
-  return { ops: ops as Op[], why: parsed.data.why, valid: true, spend: spendFromRun(run) };
-}
-
 /**
  * Attacking, and the doctrine for playing well — judgement about the game,
  * not a fact `game.rules`/`zones.rules` could state, so it stays hand-written

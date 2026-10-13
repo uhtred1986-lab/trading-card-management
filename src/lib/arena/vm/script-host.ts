@@ -1,18 +1,18 @@
 /**
  * What a program needs from a game, and nothing else.
  *
- * `stepScript` (`./script.ts`) runs the same `Op` tree both engines read off
- * the same `card_rules` row. If it reached into a `GameState` field by field
+ * `stepScript` (`./script.ts`) runs the `Op` tree a `card_rules` row holds; the
+ * deleted legacy engine (#118) read the same tree. If it reached into a `GameState` field by field
  * it could only ever run on the engine that has those fields, and a record
  * would then mean one thing on `legacy` and another on `rules` — which is the
  * one thing the two-engine plan may not allow (plan Stage 4, #142).
  *
  * So the interpreter is handed a **host**: every read and every change it
  * makes to the game, named. `vm/host.ts` implements it over `VmState`; the
- * legacy engine's `legacyHost` (`engine/legacy-host.ts`, split out of this
- * file by #118) is the same interface over `GameState`, a thin wrapper — each
- * method is the call the interpreter used to make inline. The two engines
- * diverge only where the game does.
+ * deleted legacy engine's `legacyHost` (`engine/legacy-host.ts`, #118) was
+ * the same interface over `GameState`, a thin wrapper — each method was the
+ * call the interpreter used to make inline. The two engines diverged only where
+ * the game did.
  *
  * Three rules kept this interface honest while it was being pulled out:
  *
