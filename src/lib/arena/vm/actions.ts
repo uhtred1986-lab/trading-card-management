@@ -44,6 +44,7 @@ import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { activationAlt, activationTaxes, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueActivationTaxes, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
+import { readableAutomaticPrice } from "./auto-costs";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { NotYet, RulesetBroken } from "./errors";
 import { fire } from "./events";
@@ -832,6 +833,9 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   if (line?.keyword?.name === "Aegis") {
     // 22-30-3: only the hand-colour payment is started now. Additional cost,
     // successful activation and effect all follow its stored continuation.
+    // An action price outside the shared strict host is refused here, while
+    // nothing is paid, not after the colour cards have gone to the Drop.
+    readableAutomaticPrice(line.script?.price?.ops ?? [], "Aegis", "#595");
     queueAegisCost(game, state, player, line, def.cost ?? [], chosen.x);
     if (def.again !== true) answered(state);
     return "done";

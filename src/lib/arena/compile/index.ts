@@ -5,7 +5,7 @@ import type { CardDef, KeywordSkill, Skill } from "../types";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
-import { compileCostProgram, costText, counterAltCost, priceCondition, priceX } from "./prices";
+import { aegisPriceLine, compileCostProgram, costText, counterAltCost, priceCondition, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
@@ -502,7 +502,9 @@ export function compileCardCached(card: CardDef, side: "front" | "back" = "front
 export function compileCard(card: CardDef, side: "front" | "back" = "front"): CardScripts {
   const bySkill: Record<number, Script> = {};
   const unsupported: string[] = [];
-  for (const sk of skillsOf(card, side)) {
+  for (const printed of skillsOf(card, side)) {
+    // 22-30-2: an [Aegis] line's text after its tag is its price (#595).
+    const sk = aegisPriceLine(printed);
     const script = compileSkill(sk);
     // The price rides with the program. This is the only place it is read for
     // a context built from card text — `rulesFor` reads the row instead — and

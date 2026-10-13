@@ -18,7 +18,7 @@ import { compileCardCached, compileSkill } from "./compile";
 import { parseSkills, skillLines } from "./text/cards";
 import { type CardDef, type KeywordSkill } from "./types";
 import { type CardScripts, type Op } from "./vm/script";
-import { compileCostProgram, costText, priceCondition, priceX } from "./compile";
+import { aegisPriceLine, compileCostProgram, costText, priceCondition, priceX } from "./compile";
 import type { Cond, CostRecord } from "./vm/script";
 import { describeScript } from "./vm/script";
 
@@ -60,8 +60,11 @@ export function skillRecords(def: CardDef): SkillRecord[] {
     const text = side === "front" ? def.skill : def.back?.skill;
     if (!text) continue;
     const lines = skillLines(text);
-    for (const sk of parseSkills(text)) {
-      if (!sk.effect.trim()) continue;
+    for (const parsed of parseSkills(text)) {
+      if (!parsed.effect.trim()) continue;
+      // 22-30-2: an [Aegis] line's text after its tag is its price, drafted
+      // as the record's cost program rather than its effect (#595).
+      const sk = aegisPriceLine(parsed);
       const script = compileSkill(sk);
       const { cond, ops } = hoist(script.ops);
       const permanent = sk.kind === "permanent";
