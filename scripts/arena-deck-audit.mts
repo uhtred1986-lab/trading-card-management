@@ -21,6 +21,7 @@
  * `--check` run proves the copies still equal the importer's source text.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { legality, type LegalityCard } from "../src/lib/decks/legality";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { compileCard, compileCostProgram, costIsOnlyOrbs, priceCondition } from "../src/lib/arena/compile";
@@ -155,7 +156,7 @@ const toLegalityRow = (r: Resolved): LegalityCard => ({
   colors: r.card.colors, limitedTo: r.card.limitedTo, isBanned: r.card.isBanned, skill: r.card.skill, game: "dbs",
 });
 
-function loadSnapshot(): Snapshot {
+export function loadSnapshot(): Snapshot {
   return JSON.parse(readFileSync(SNAPSHOT, "utf8")) as Snapshot;
 }
 
@@ -208,9 +209,10 @@ export interface SkillAudit {
   /** [Permanent] only: does the static layer have an op to apply? */
   staticEmits: boolean | null;
   /**
-   * A [Counter] whose printed price is more than orbs. The rules engine never
-   * offers one (`counterCandidates`' `costIsOnlyOrbs`, `vm/battle.ts` `counterWhy`:
-   * refused as `unread`), whether the extra is a condition or an action.
+   * A [Counter] whose printed price is more than orbs. Until #716 the rules
+   * engine never offered one (refused as `unread`); since #716 it offers one
+   * whose price record reads and can be paid in full (`vm/battle.ts`
+   * `counterRoutes`), so this is descriptive and no longer a tier-B blocker.
    */
   counterNonOrbPrice: boolean;
 }
@@ -294,9 +296,9 @@ export interface PlayStats {
   choices: Record<string, number>;
 }
 
-const RUNTIME = "a649000000000000000000000000000000000649";
+export const RUNTIME = "a649000000000000000000000000000000000649";
 
-async function deckBundle(cards: CatalogCard[], decks: { p1: DeckSpec; p2: DeckSpec }, all: CatalogCard[]) {
+export async function deckBundle(cards: CatalogCard[], decks: { p1: DeckSpec; p2: DeckSpec }, all: CatalogCard[]) {
   const [{ makeReplayBundle }, { DBS_FILES }] = await Promise.all([import("../src/lib/arena/replay-core"), import("../src/lib/arena/rulesets/dbs")]);
   const defs: Record<string, ReturnType<typeof cardDefFrom>> = {};
   const scripts: Record<string, ReturnType<typeof compileCard>> = {};
@@ -318,14 +320,14 @@ async function deckBundle(cards: CatalogCard[], decks: { p1: DeckSpec; p2: DeckS
 }
 
 export async function playMatchups(all: CatalogCard[], games: number, maxMoves = 3000): Promise<PlayStats[]> {
-  const [{ playDuel }, { localPolicy }, { uniformPolicy }, { legalMoves, RULES_ENGINE }] = await Promise.all([
+  const [{ playDuel }, { localPolicy }, { legalMoves, RULES_ENGINE }] = await Promise.all([
     import("./verify/arena-policy-duel.ts"),
     import("../src/lib/arena/policy/combat"),
-    import("../src/lib/arena/policy/contract"),
     import("../src/lib/arena/browser"),
   ]);
   const cards = [...new Map(DECKS.flatMap((d) => resolveDeck(d, all).rows.map((r) => [r.card.id, r.card] as const))).values()];
-  const policy = localPolicy(uniformPolicy);
+  // #650: the complete local policy; a question none of its handlers reads interrupts the game (a stop below).
+  const policy = localPolicy();
   const out: PlayStats[] = [];
   for (const p1 of DECKS) {
     for (const p2 of DECKS) {
@@ -429,7 +431,7 @@ export const UNOWNED: Record<string, string> = {
   U2: "SD15-01 [Awaken] is refused as `unread` although it compiles: the printed OR condition (life <= 4, or a red Unison with a specified cost of 2) is dropped from the record's price, so the Deck A Leader never awakens.",
   U3: "Unread clauses with a specified-cost filter or a mid-line [Spirit Boost 1]: SD15-01 awakened [Auto] #0 and SD15-03 #10/#20.",
   U4: "BT4-079 [Swap] with an action price (\"{y}, choose 1 card from your hand and place it in your Drop Area\") is refused as `unread`.",
-  U5: "The rules engine never offers a [Counter] whose printed price is more than orbs (`counterCandidates`' `costIsOnlyOrbs`; refused as `unread`): BT5-023 and BT6-026 (price condition \"Your Leader Card is red:\"), BT10-008 (restriction price, which the compiler also cannot read).",
+  U5: "Resolved by #716: a [Counter] whose printed price is more than orbs was never offered (refused as `unread`). The rules engine now reads BT5-023's and BT6-026's \"Your Leader Card is red:\" condition and BT10-008's restriction price and offers each when the whole price can be paid (`arena-counter-action-price`).",
   U6: "[Swap] names a trait (<<Goku's Lineage>>) but the engine filters by energy cost only (glossary: partial), so it offers off-trait Battle Cards.",
   U7: "Unison cards carry no energy cost or specified cost in the public feed; the owner's hand-entered `cards.specified_cost` (database) is an input the offline pack must carry, and this audit cannot see it.",
   U8: "[Unique] rule processing (21-11, keep the newest when two end up in play) is not built on the rules engine (glossary: partial).",
@@ -467,6 +469,7 @@ export const FAMILIES: Family[] = [
 
   { key: "price-choose", label: "Auto/Activate price: choose a card and move it (hand to Drop, life to hand)", match: /^price:(choose|moveTo)$/, tier: "C", evidence: ["arena-auto-own-cost"], owners: [549, "U1"], windows: ["chooseMode", "chooseCards"], note: "BT9-031 is the named hand-to-Drop shape; DB2-004 and SD5-04 move a Life card to the hand, a shape the row does not name. Auto prices ask pay/decline through a `chooseMode` today, not the `optionalCost` prompt." },
   { key: "price-cond", label: "Condition-only price (\"If your Leader is red and life <= 4:\")", match: /^pricecond:(leaderMatches|life)$/, tier: "C", evidence: ["arena-auto-own-cost"], owners: [549, "U1"], note: "Row: public-area condition-only Autos stay compulsory." },
+  { key: "price-restriction", label: "Restriction printed as a [Counter] price (\"You can't activate the [Counter: Play] skills of other cards for the turn:\")", match: /^price:forbid$/, tier: "E", evidence: ["arena-counter-action-price"], owners: [716], windows: ["counter"], note: "BT10-008's own text is the #716 fixture: put in force before the skill, binding other cards' [Counter: Play] only." },
   { key: "op-altcost", label: "Counter alternative price (Life card instead of energy; free with markers)", match: /^op:altCost$/, tier: "C", evidence: ["arena-counter-alternative-action-price"], owners: ["U1"], windows: ["counter", "chooseCards"], note: "The row is one ALTC fixture shape; BT5-023, BT4-097 and BT10-008 are not that fixture." },
 
   { key: "op-choose", label: "Choose cards / targets", match: /^op:choose$/, tier: "C", owners: ["U1"], windows: ["chooseCards"], note: "\"Up to N\" picks, energy picks, hand picks." },
@@ -494,6 +497,7 @@ export const OWNER_ISSUES: Record<number, { state: "open" | "closed"; title: str
   655: { state: "open", title: "[P1] Arena O4-02: Build complete versioned offline deck packs" },
   661: { state: "open", title: "[P1] Arena O4-06: Verify the airplane-mode MVP and publish the support matrix" },
   672: { state: "closed", title: "[P0] Resolve card-specific combo Autos at the combo-entry checkpoint" },
+  716: { state: "open", title: "[P1] Arena: pay [Counter] action prices through the strict price host" },
 };
 
 export function familyOf(mechanic: string): Family | undefined {
@@ -506,7 +510,7 @@ export type SkillTier = Tier | "OK";
 export function skillTier(a: SkillAudit): SkillTier {
   if (!a.read) return "B";
   if (a.face === "front" && KNOWN_REFUSALS[`${a.cardId}#${a.index}`]) return "B";
-  if (a.priceRead === false || a.counterNonOrbPrice) return "B";
+  if (a.priceRead === false) return "B";
   if (a.kind === "auto" && a.triggers.length === 0) return "B";
   if (a.kind === "permanent" && a.staticEmits === false) return "B";
   const tiers = a.mechanics.map((m) => familyOf(m)?.tier ?? "B");
@@ -689,7 +693,7 @@ export function renderPlay(stats: PlayStats[]): string {
   return [
     table(head, rows),
     "",
-    `Games: ${games} (${stats[0]?.games ?? 0} per ordered matchup, seeds 649.., policy seeds 1000.., \`localPolicy(uniformPolicy)\` on both seats, 3000-move cap).`,
+    `Games: ${games} (${stats[0]?.games ?? 0} per ordered matchup, seeds 649.., policy seeds 1000.., \`localPolicy()\` (#650: every window handled, an unreadable one interrupts) on both seats, 3000-move cap).`,
     "",
     `- Prompt kinds the policy was asked (decisions, all games): ${fmt(prompts)}.`,
     `- Games in which a manual skill (card#skill) was on the legal list at least once: ${fmt(offered)}.`,
@@ -798,11 +802,12 @@ function check(catalog: CatalogCard[], snap: Snapshot, play: PlayStats[] | null)
   if (unreadIds(A) !== "SD15-01b#0,SD15-03#10,SD15-03#20") fail(`deck A unread set changed: ${unreadIds(A)}`);
   if (unreadIds(B) !== "") fail(`deck B unread set changed: ${unreadIds(B)}`);
   const unreadPrice = (a: DeckAudit) => a.skills.filter((s) => s.priceRead === false).map((s) => `${s.cardId}#${s.index}`).join(",");
-  if (unreadPrice(A) !== "BT10-008#0" || unreadPrice(B) !== "") fail(`unreadable price set changed: A=${unreadPrice(A)} B=${unreadPrice(B)}`);
+  if (unreadPrice(A) !== "" || unreadPrice(B) !== "") fail(`unreadable price set changed: A=${unreadPrice(A)} B=${unreadPrice(B)}`);
   const nonOrbCounters = (a: DeckAudit) => [...new Set(a.skills.filter((s) => s.counterNonOrbPrice).map((s) => `${s.cardId}#${s.index}`))].sort().join(",");
   if (nonOrbCounters(A) !== "BT10-008#0,BT5-023#0,BT6-026#0" || nonOrbCounters(B) !== "") fail(`non-orb Counter set changed: A=${nonOrbCounters(A)} B=${nonOrbCounters(B)}`);
-  // The engine rule the table relies on is still in the source.
-  if (!/costIsOnlyOrbs\(sk\.cost\)\) why\.push\(\{ kind: "unread"/.test(readFileSync("src/lib/arena/vm/battle.ts", "utf8"))) fail("vm/battle.ts counterWhy no longer refuses non-orb Counter prices as unread - revisit U5");
+  // The engine rule the table relies on is still in the source (#716: non-orb
+  // [Counter] prices go through the strict action-price host).
+  if (!/readableAutomaticPrice\(ops, "\[Counter\]", "#716"\)/.test(readFileSync("src/lib/arena/vm/battle.ts", "utf8"))) fail("vm/battle.ts no longer reads non-orb [Counter] prices through the strict host (#716) - revisit U5");
 
   // 5. The play-through still shows what the doc says (only with --play).
   if (play) {
@@ -810,7 +815,10 @@ function check(catalog: CatalogCard[], snap: Snapshot, play: PlayStats[] | null)
     const refused = new Set(play.flatMap((s) => Object.keys(s.refusedUnread)));
     const nonOrb = new Set(audits.flatMap((a) => a.skills.filter((s) => s.counterNonOrbPrice).map((s) => `${s.cardId}#${s.index}`)));
     for (const k of Object.keys(KNOWN_REFUSALS)) if (!refused.has(k)) fail(`play-through no longer refuses ${k} as unread - move it out of KNOWN_REFUSALS`);
-    for (const k of refused) if (!KNOWN_REFUSALS[k] && !nonOrb.has(k)) fail(`play-through refuses ${k} as unread and neither KNOWN_REFUSALS nor the non-orb Counter rule explains it`);
+    for (const k of refused) if (!KNOWN_REFUSALS[k]) fail(`play-through refuses ${k} as unread and KNOWN_REFUSALS does not explain it${nonOrb.has(k) ? " (a non-orb [Counter]: U5 regressed, #716)" : ""}`);
+    // U5 resolved (#716): each non-orb [Counter] of the decks is put in a counter window in at least one game.
+    const offeredCounters = new Set(play.flatMap((s) => Object.keys(s.offered)));
+    for (const k of nonOrb) if (!offeredCounters.has(`${k.split("#")[0]}#counter`)) fail(`play-through never offers ${k}'s [Counter] - U5 (#716) not visible in play`);
   }
 
   // 6. The doc's generated blocks equal what the code produces now (the play block only when played).
@@ -919,4 +927,5 @@ async function main() {
   for (const name of BLOCKS) if (blocks[name] !== undefined) console.log(`<!-- ${name} -->\n${blocks[name]}\n`);
   console.log(JSON.stringify(summarise(auditDecks(catalog)), null, 1));
 }
-await main();
+// Run only as a script: `scripts/verify/arena-policy-choices.mts` (#650) imports the decks and the bundle builder.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) await main();

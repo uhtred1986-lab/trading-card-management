@@ -106,8 +106,23 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   an alternative to a counter), and combos (and readable "+N power" battle activations) cover the
   deficit with the cheapest set that is exactly enough, only when the battle is worth that set.
   Bounded by `COMBAT_LIMITS` (a counted branch-and-bound cover search), no RNG drawn.
-  `localPolicy(fallback)` is shortcuts → Main Phase → battle → `fallback` (#650 owns the rest).
-  Proof: `scripts/verify/arena-policy-combat.mts` (`npm test`); strength: `npm run arena:policy-eval`.
+  `combatPolicy(fallback)` is #647's stack (shortcuts → Main Phase → battle → `fallback`), kept for
+  comparison. Proof: `scripts/verify/arena-policy-combat.mts` (`npm test`).
+  **The constrained choices are `policy/choices.ts`** (#650): a card pick is answered as one compound
+  `pick` (validated by the contract, played card by card through the boundary), sized and ranked by
+  whose cards they are and what the resolving skill's sentence does to them (hurt the opponent or
+  help the seat: as many as allowed, most valuable first; a cost: the fewest it must, least valuable
+  first; "different names" and a 22-30-3 colour cover honoured); modes, replacements (9-10), Auto
+  prices, [Offering] and "you may" are scored option by option; simultaneous Autos resolve in trigger
+  order. `WINDOW_HANDLERS` maps every `DECISION_WINDOWS` kind to the layer that answers it (a missing
+  kind fails to compile); `optionalCost` and `offering` are legacy-engine prompt kinds the rules
+  engine asks as `chooseMode`. `localPolicy(fallback = interruptingPolicy)` is shortcuts → Main Phase
+  → battle → choices → `fallback`, and the default fallback throws `PolicyInterruption`, which
+  `guardedDecide`/`localStep` return as `interrupted` — a question no handler reads stops the session
+  rather than being guessed. Proof: `scripts/verify/arena-policy-choices.mts` (`npm test`: the coverage
+  matrix, named scenarios on synthetic cards, every position of the fixture games and the two #649
+  audit decks); strength: `npm run arena:policy-eval` (`combat647` is the #647 baseline, `--audit`
+  adds the #649 decks).
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

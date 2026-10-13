@@ -631,13 +631,13 @@ export const MODIFIERS: ModifierDoc[] = [
     tag: "[Bond X]",
     section: "22-21",
     meaning: "The skill is only valid while you have X or more Battle Cards in your Battle Area — or X or more of a named Battle Card, when one is printed.",
-    engine: "Checked before the skill is offered, and the refusal names the count you have. A [Bond X] that names a card is read as the plain count of Battle Cards.",
+    engine: "Checked before the skill is offered, and the refusal names the count you have. A [Bond X] that names a card is read as the plain count of Battle Cards. On a [Permanent] the rules engine applies the skill only while its master has the count (#716); the legacy engine does not check it there.",
   },
   {
     tag: "[Sparking X]",
     section: "22-26",
     meaning: "The skill is only valid while you have X or more cards in your Drop Area.",
-    engine: "Checked before the skill is offered, with the count in the refusal.",
+    engine: "Checked before the skill is offered, with the count in the refusal. On a [Permanent] — BT5-023's “[Permanent][Sparking 5] … adding a card from your life to your hand instead of paying its energy cost” — the rules engine applies the skill only while its master's Drop holds X (#716); the legacy engine does not check it there.",
   },
   {
     tag: "[Burst X]",
@@ -700,13 +700,13 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     section: "22-10",
     meaning: "Pends when your opponent plays a card, and may be activated from your hand during a counter timing. The card then goes to your Drop Area.",
     engine:
-      "Offered in the counter window between a play being declared and its resolving — unless the card being played has [Deflect], which empties it. The counter resolves first and the play after it: rested, negated or replaced as the counter says, with the energy for the play still paid. On both engines since #150; a play a skill makes opens no window on either.",
+      "Offered in the counter window between a play being declared and its resolving — unless the card being played has [Deflect], which empties it. The counter resolves first and the play after it: rested, negated or replaced as the counter says, with the energy for the play still paid. On both engines since #150; a play a skill makes opens no window on either. A price beyond orbs is paid as for [Counter: Attack] below. BT10-008's “You can't activate the [Counter: Play] skills of other cards for the turn:” is read as that price — a rule put in force before the skill activates, binding only other cards' [Counter: Play] lines (not [Counter: Attack]) for the turn (#716). One difference: its “then play this card” plays it from the Drop Area, where the activation placed it (22-10-7), rather than straight from the hand, so a “when played from your hand” moment does not see it.",
   },
   "counter:attack": {
     tag: "[Counter: Attack]",
     section: "22-10",
     meaning: "Pends when your opponent declares an attack.",
-    engine: "Offered in the counter window that follows the declaration. A line saying “when you activate this card's [Counter] from your hand without paying its energy cost” is its own timing and fires only on that free-from-hand path.",
+    engine: "Offered in the counter window that follows the declaration. A line saying “when you activate this card's [Counter] from your hand without paying its energy cost” is its own timing and fires only on that free-from-hand path. A printed price beyond orbs (1-6, 5-8) is the rules engine's since #716: a condition before the colon (“Your Leader Card is red:”, BT5-023, BT6-026) is offered only while it holds and refused with a `condition` reason otherwise; an action price is offered only when the strict action-price host (the one [Auto] and [Aegis] prices use) proves the whole of it payable after the energy, then paid with the card still in the hand — the [Counter] itself is never one of the cards it picks — and only once it is paid in full does the card go to the Drop and the skill activate, with what the price chose handed to the effect. A price that can no longer be paid fails the activation (5-8-4): the energy stays spent and the card goes to the Drop (22-10-7-1), with no skill. Price instructions the host does not verify, and an action alternative beside a printed action price, are refused as a typed #716 gap, never activated free. The legacy engine is unchanged (frozen, #118): it offers such a counter whenever its price record reads, without checking the condition first (the effect's own copy of the condition still applies) and without charging a printed action price.",
   },
   "counter:battle card attack": {
     tag: "[Counter: Battle Card Attack]",

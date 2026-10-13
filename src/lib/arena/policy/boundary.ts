@@ -181,12 +181,15 @@ export type LocalStep =
  * under the cycle guard (`main.ts`), and the move played — the whole of what a
  * local session does per decision. The policy sees the `PolicyInput` and its
  * own memory (RNG included) and nothing else; `memory` comes back advanced
- * whether or not the move was played. A guard that finds no way to end the turn
- * interrupts (`interrupted`) and the match is left as it was: no move and no
- * result is invented.
+ * whether or not the move was played. A guard that finds no way to end the turn,
+ * a policy that throws `PolicyInterruption` (#650: a question no handler reads),
+ * and a referee question interrupt (`interrupted`) and the match is left as it
+ * was: no move and no result is invented.
  */
 export function localStep(match: PinnedMatch, seat: PlayerId, revision: number, memory: LocalMemory, policy: Policy): LocalStep {
   const turn = policyTurn(match, seat, revision);
+  // #650: a question the seat is asked but no decision can answer (a referee program) is a typed interruption.
+  if (turn.input.decisions.actor === seat && turn.input.decisions.unsupported) return { ok: false, reason: "interrupted", detail: `unsupported decision: ${turn.input.decisions.unsupported}`, memory };
   if (turn.input.decisions.actor !== seat || !turn.input.decisions.decisions.length) return { ok: false, reason: "notAsked", detail: `${seat} has no decision to make`, memory };
   const decided = guardedDecide(policy, turn.input, memory);
   if (!decided.ok) return { ok: false, reason: "interrupted", detail: decided.interrupted, memory: decided.memory };

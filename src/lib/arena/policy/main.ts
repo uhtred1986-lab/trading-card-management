@@ -53,7 +53,7 @@
  * `scripts/verify/arena-policy-contract.mts`).
  */
 import type { PlayerId } from "../types";
-import { answerFor, fingerprint, stableJson, type Decision, type MenuDecision, type Policy, type PolicyAnswer, type PolicyInput } from "./contract";
+import { answerFor, fingerprint, PolicyInterruption, stableJson, type Decision, type MenuDecision, type Policy, type PolicyAnswer, type PolicyInput } from "./contract";
 import type { CardFacts, PolicyObservation } from "./observation";
 import type { PolicyRng } from "./rng";
 import { shortcutThen } from "./shortcuts";
@@ -208,6 +208,23 @@ function strikeOf(c: CardFacts | null): number {
 }
 
 const hasKeyword = (c: CardFacts | null | undefined, name: string) => !!c?.keywords.some((k) => k.trim().toLowerCase() === name);
+
+/**
+ * What losing `damage` life from `life` costs its owner: lethal is 1,000, every
+ * life left lower dearer, +0.5 a card when it goes to the Drop rather than the
+ * hand (22-6 [Critical]). The battle policy (#647) weighs a hit by it; the
+ * choice handlers (#650) a life card paid or dropped.
+ */
+export function lifeLoss(life: number, damage: number, critical: boolean, victory: boolean): number {
+  if (damage <= 0) return 0;
+  if (victory || damage >= life) return SCORE.lethal;
+  let loss = 0;
+  for (let k = 0; k < damage; k++) {
+    const left = life - k - 1;
+    loss += (left <= 1 ? 4 : left <= 3 ? 2 : 1) + (critical ? 0.5 : 0);
+  }
+  return loss;
+}
 
 /** What a card is worth on the board: its power, its keywords, a draw in its text. */
 export function cardValue(c: CardFacts): number {
@@ -489,6 +506,13 @@ export function guardedDecide(policy: Policy, input: PolicyInput, memory: LocalM
     if (!out) return { ok: false, interrupted: `cycle guard: ${tripped}, and no endMain, pass or decline is open`, memory: next };
     return { ok: true, answer: answerFor(input.decisions, out.id), memory: next, guard: `cycle guard: ${tripped} — ${out.kind === "menu" ? out.type : out.id}` };
   }
-  const chosen = policy(input, memory.rng);
+  let chosen: ReturnType<Policy>;
+  try {
+    chosen = policy(input, memory.rng);
+  } catch (error) {
+    // #650: a question no handler can read stops the session with its reason; nothing is guessed.
+    if (error instanceof PolicyInterruption) return { ok: false, interrupted: `unsupported decision: ${error.message}`, memory: next };
+    throw error;
+  }
   return { ok: true, answer: chosen.answer, memory: { ...next, rng: chosen.rng }, guard: null };
 }

@@ -154,13 +154,16 @@ export function shortcutChoice(input: ShortcutInput): ShortcutChoice | null {
 export function shortcutInputOf(input: PolicyInput): ShortcutInput {
   const { observation, decisions } = input;
   const mine = observation.prompt.mine ? observation.prompt : null;
+  // #650: the board's prompt view carries no `max` for an [Empower] carry, so the local seat reads the
+  // cap off its own decisions — the engine offers every amount from none to the cap (22-45-3).
+  const offered = decisions.decisions.flatMap((d) => (d.kind === "menu" && d.type === "empowerCarry" && typeof d.action.amount === "number" ? [d.action.amount] : []));
   return {
     seat: decisions.seat,
     window: decisions.window,
     decisions: decisions.decisions.flatMap((d) => (d.kind === "menu" ? [{ id: d.id, type: d.type, action: d.action }] : [])),
     hand: (observation.you.hand ?? []).map((c) => ({ id: c.id, energyCost: c.energyCost, colors: c.colors })),
     leaderColors: observation.you.leader?.colors ?? [],
-    carryMax: mine?.max ?? null,
+    carryMax: mine?.max ?? (offered.length ? Math.max(...offered) : null),
   };
 }
 

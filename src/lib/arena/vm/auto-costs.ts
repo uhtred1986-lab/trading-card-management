@@ -49,6 +49,9 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     replacementsFor: (id, reason, opts) => host.replacementsFor(id, reason === "ko" ? "ko" : "cost", { ...opts, actor: undefined }),
     resolveSelector: (f, sel) => {
       let found = host.resolveSelector(f, sel);
+      // #716: a [Counter] declared from the hand is the card being activated;
+      // it cannot also be one of the cards its own price picks out.
+      if (f.counterCost && !sel.special) found = found.filter((id) => id !== f.card);
       const op = f.ops[f.ip];
       if (op?.op === "choose" && op.sel === sel) {
         const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden" || o.op === "ko") && "var" in o.target && o.target.var === op.as);
@@ -148,6 +151,14 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       if (!state.cards[id] || host.isFaceUp(id) === faceUp) unpaid();
       host.setFaceUp(id, faceUp);
       if (host.isFaceUp(id) !== faceUp) unpaid();
+    },
+    // #716: a restriction printed as the price ("You can't activate the
+    // [Counter: Play] skills of other cards for the turn", BT10-008) is paid
+    // when the rule is actually in force afterwards (5-8-2-2).
+    addEffect: (e) => {
+      const before = state.effects.length;
+      host.addEffect(e);
+      if (e.kind === "forbid" && state.effects.length !== before + 1) unpaid();
     },
     changeMarkers: (id, delta) => {
       if (delta < 0 && host.markersOf(id) < -delta) unpaid();
@@ -474,7 +485,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
 export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"): void {
   const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
     || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal" || op.op === "faceUp"
-    || op.op === "ko" || op.op === "addMarker"
+    || op.op === "ko" || op.op === "addMarker" || op.op === "forbid"
     || (op.op === "if" && !!op.else?.length && pays(op.then) && pays(op.else))
     || (op.op === "chooseMode" && op.modes.length > 0 && op.modes.every((mode) => pays(mode.ops))));
   /** A completed interpreter step of one of these shapes necessarily changed
@@ -512,6 +523,13 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
   /** "Add N markers to this card" with a printed positive N (BT31). */
   const verifiedAddMarker = (op: Extract<Op, { op: "addMarker" }>): boolean =>
     isSelf(op.target) && typeof op.n === "number" && Number.isInteger(op.n) && op.n > 0;
+  /** "You can't …" printed as the price: a rule the payer puts on themself
+   * for a span (#716, BT10-008). Only the plain player form — no card target,
+   * escape, price, budget or description — is known to be performable in
+   * full every time; any other restriction shape stays typed unknown. */
+  const verifiedRestriction = (op: Extract<Op, { op: "forbid" }>): boolean => op.side === "you" && !op.target && !op.filter
+    && !op.unless && !op.unlessPay?.length && op.uses === undefined && !op.byTypes?.length && !op.turnPlayer && !op.sameNameAsSelf
+    && op.bySkill === undefined && (op.until === "turn" || op.until === "battle");
   /** `paid` means every path to this point completed an action, not just
    * that an opcode named an action. `terminal` follows all ancestor tails. */
   const check = (steps: Op[], paid = false, terminal = true, nested = false): boolean => {
@@ -550,7 +568,7 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
         paid = true;
         continue;
       }
-      if ((op.op === "ko" && verifiedKo(op, steps[index - 1])) || (op.op === "addMarker" && verifiedAddMarker(op))) {
+      if ((op.op === "ko" && verifiedKo(op, steps[index - 1])) || (op.op === "addMarker" && verifiedAddMarker(op)) || (op.op === "forbid" && verifiedRestriction(op))) {
         paid = true;
         continue;
       }
