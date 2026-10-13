@@ -5,13 +5,12 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
 - **Arena rules engine** (`src/lib/arena/vm/`, behind the `Engine` interface in `engines.ts`): a
   game is a state plus an event log; `apply()` is the only mutator. `legalActions()` offers only
   skills the engine can pay for **and** resolve, and drives both the UI and Claude's move menu.
-  **What both engines share has its own home** (#118, step 1): the vocabulary in `types.ts`, card
+  **What the engine is built on has its own home**: the vocabulary in `types.ts`, card
   text in `text/` (`cards.ts`, `filters.ts`, `triggers.ts` — the printed-trigger fallback for a
   skill with no record), the compiler in `compile.ts` + `compile/`, the record interpreter
   (`stepScript`) and `OP_SCHEMA`/`COND_SCHEMA` in `vm/script.ts`/`vm/script-schema.ts`, the
   `ScriptHost` interface in `vm/script-host.ts`, the RNG in `vm/rng.ts`, and the state-free helpers
-  (`programsOf`, token ids, `redirectOf`, `IllegalAction`, …) in `vm/common.ts`. `vm/` imports
-  nothing from `engine/`. Doc: `docs/arena-code-map.md`.
+  (`programsOf`, token ids, `redirectOf`, `IllegalAction`, …) in `vm/common.ts`. There is one engine: the hand-written legacy engine (`engine/`) was deleted by #118. Doc: `docs/arena-code-map.md`.
 - **What the rules engine keeps between reads** (the performance pass of 2 Oct 2026): a skill
   text's parse (`parseSkills`, per text) and a card's printed attributes (`attrsOf`, per
   definition) are memoised and **frozen**, so a caller that mutates one throws instead of
@@ -28,30 +27,23 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
   `docs/arena-code-map.md`.
-- **Two engines, chosen per game** (`src/lib/arena/engines.ts`): the config-driven `rules` engine
-  (`vm/`) is the **default** since 20 Sep 2026 (#166); `legacy` (`engine/`, frozen) stays the
-  oracle and is what Settings → Arena engine puts new games back on. Every mode is played on both
-  since #458 made a **1 v 1**'s hidden-hand masking read the rules engine's own state
-  (`vm/view.ts`'s `vmRevealedTo`); a mode an engine is not built for would resolve to the fallback
-  (`engineForMode`, never a refusal of the default path). A game keeps the
-  engine it was made on — `engineFor(id)` is the one switch, and `engineOr`'s own fallback is
-  `FALLBACK_ENGINE`, not the default, because an unreadable stored value is an old legacy row.
-  **Retiring `legacy` (Stage 10, #118) is under way, not done**: `engine/` now holds only the
-  legacy engine over `GameState` (`engine.ts`, `state.ts`, `triggers.ts`'s KO and pending,
-  `legacy-host.ts`, `rejections.ts`), and every import of it from outside the directory is a reader
-  the retirement still has to replace — see `docs/arena-history-lessons.md`'s last entry for the
-  list. **Saved legacy games, once it goes: Archive** (owner's ruling on #119, 20 Sep 2026,
-  `docs/arena-ruleset-spec.md` §6; built by #335): a `legacy` row with a stored `snapshot` is
-  listed and shown read-only with a banner, nothing replays, and `legalActions`/`apply` are never
-  called for it. `legacy` stays in `ENGINE_IDS` as the marker those rows carry.
+- **One engine** (`src/lib/arena/engines.ts`): the config-driven `rules` engine (`vm/`) plays every
+  mode; `engineFor` and the legacy adapter are gone (#118, 13 Oct 2026). `ENGINE_IDS` is
+  `["rules"]` and the `engine` column stays (no destructive schema change) but only `rules` is
+  written or read. **Saved legacy games were deleted** (owner's ruling of 13 Oct 2026):
+  migration `0050_arena_retire_legacy_engine.sql` removes every `arena_games` row whose `engine`
+  column and whose state's top-level `engine` are both not `rules`, with their decisions,
+  per-game AI receipts, advance leases and flags; lobby matches, feedback and bug reports keep
+  their own rows and lose only the game id. A stray legacy row that slips through fails closed:
+  `loadGame` throws `LegacyGameRetired` and the API answers 410 "gone".
   **One rejection per card per action type, except an activation, which is one per skill line**
   (§3.2). Doc: `docs/arena-code-map.md`.
 - **The browser-safe rules entry** (`src/lib/arena/browser.ts`, #641): create a game on a pinned
   replay bundle, apply moves, list legal moves and project one seat's masked `Snapshot`, with only
   the rules engine, `replay-core.ts` and the engine-neutral cores (`snapshot-core.ts`,
-  `view-core.ts`, `beats-core.ts`, `engine-ids.ts`) — never `engines.ts` or `engine/`. **A new
+  `view-core.ts`, `beats-core.ts`, `engine-ids.ts`) — never `engines.ts`. **A new
   import into that graph must stay portable**: `scripts/verify/arena-browser-boundary.mts`
-  (`npm test`) fails on any legacy-engine, server, package, Node-builtin or `process.env` import
+  (`npm test`) fails on any server, package, Node-builtin or `process.env` import
   reached from it; `arena-browser-engine-browser.mts` plays the scenario in a real worker.
 - **Hidden instance ids** (`src/lib/arena/conceal.ts`, 13 Oct 2026): an instance id is a decklist
   position, so **no `Snapshot` carries the id of a card its viewer may not read** — on either
@@ -115,8 +107,8 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   first; "different names" and a 22-30-3 colour cover honoured); modes, replacements (9-10), Auto
   prices, [Offering] and "you may" are scored option by option; simultaneous Autos resolve in trigger
   order. `WINDOW_HANDLERS` maps every `DECISION_WINDOWS` kind to the layer that answers it (a missing
-  kind fails to compile); `optionalCost` and `offering` are legacy-engine prompt kinds the rules
-  engine asks as `chooseMode`. `localPolicy(fallback = interruptingPolicy)` is shortcuts → Main Phase
+  kind fails to compile); `optionalCost` and `offering` were legacy-engine prompt kinds; the rules
+  engine asks them as `chooseMode`. `localPolicy(fallback = interruptingPolicy)` is shortcuts → Main Phase
   → battle → choices → `fallback`, and the default fallback throws `PolicyInterruption`, which
   `guardedDecide`/`localStep` return as `interrupted` — a question no handler reads stops the session
   rather than being guessed. Proof: `scripts/verify/arena-policy-choices.mts` (`npm test`: the coverage
@@ -202,8 +194,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   #255): the feed carries no cost orbs, so an X-cost card's coloured price is entered by hand. The
   catalog upsert must `coalesce` this column — remove that and the next sync erases every entry.
   Doc: `docs/arena-code-map.md`.
-- **The record's WHEN is the engine's WHEN** (`answersTo`, `vm/triggers.ts`; the legacy
-  `skillAnswersTo`, `engine/triggers.ts`): an [Auto] skill's trigger comes off
+- **The record's WHEN is the engine's WHEN** (`answersTo`, `vm/triggers.ts`): an [Auto] skill's trigger comes off
   `card_rules.trigger`; only a skill with no record falls back to the printed text
   (`autoTriggerMatches`, `text/triggers.ts`). Doc: `docs/arena-code-map.md`.
 - **Arena UI** (`/arena`, `src/components/arena/`, `docs/arena-client-contract.md`): phone-first
@@ -261,7 +252,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   that compiles card text. Doc: `docs/arena-code-map.md`.
 - **Try it → fix it** (`src/lib/arena/tryit.ts`, panel `components/arena/rules/tryit/`, actions
   `app/arena/rules/probe-actions.ts`, #470): the builder's unsaved rule, probed on the boards its
-  trigger and condition call for, on the engine games use with legacy beside it. Each beat carries
+  trigger and condition call for, on the rules engine. Each beat carries
   the `RulePath` of its block, so a wrong row opens that block. **`probe()`'s own default stays
   `FALLBACK_ENGINE`**: Try it passes the engine explicitly. The owner's judgements are
   `card_rules.expectations`. Doc: `docs/arena-tooling.md`.
@@ -277,7 +268,7 @@ Before opening arena docs or engine source for a specific question, start with
 as the entry point. There are 20+ other `docs/arena-*.md` files (several 400–900+ lines); grep
 them for the term you need rather than reading multiple specs end to end. The compiler lives
 under `src/lib/arena/compile/` (`compile.ts` is its stable public barrel); `vm/script.ts` +
-`vm/script-schema.ts` and the legacy `engine/engine.ts`/`engine/state.ts` are each 2,000–3,300
+`vm/script-schema.ts` are each 2,000–3,300
 lines — grep for the symbol first and read a line range, don't open these files whole. For iterating on pure rule
 logic, `npx tsx scripts/verify-rules.ts` and `npx tsx scripts/verify-arena.ts` are much faster than
 full `npm test` (which also runs `verify-db.mts`, spinning up PGlite + migrations every time); run
@@ -305,7 +296,7 @@ npm run arena:readings # The other half: what the compiler reads every skill to 
                        # beside the program in words. Diff it before and after a compiler change — a
                        # clause that compiles and reads wrongly moves no coverage number (--grep, --unread)
 npm run arena:diff     # Replay a saved game's action log from its seed and compare with the row
-                       # (-- <gameId> [--engine legacy|rules] | --all): the oracle check between the engines
+                       # (-- <gameId> | --all): replays a saved game from its seed on the rules engine
 ```
 
 `npm test` needs no database or network. Everything else needs `DATABASE_URL` in `.env.local`,

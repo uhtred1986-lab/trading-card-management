@@ -166,8 +166,8 @@ async function reprobe(): Promise<number> {
 /**
  * The owner's judgements (#470), apart from the digests above: a digest
  * moving says a result changed; this says it is now *wrong* by the owner's
- * own word — "expected fired, now didNotFire". Each is re-run on the engine
- * it was judged on, whatever `--engine` says. `--write` never touches these:
+ * own word — "expected fired, now didNotFire". Each is re-run on the rules engine.
+ * `--write` never touches these:
  * only the owner changes what should happen.
  */
 async function reexpect(): Promise<void> {
