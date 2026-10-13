@@ -7,6 +7,7 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { replacementChoices } from "../../src/lib/arena/vm/replace";
 import { run } from "../../src/lib/arena/vm/flow";
+import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Op } from "../../src/lib/arena/vm/script";
@@ -17,13 +18,14 @@ assert.ok(loaded.ok);
 const dbs = loaded.definition;
 const defs = { ...DEFS,
   WATCH609: card("WATCH609", { skill: "[Auto] When a card in your Combo Area is placed in your Drop Area, choose up to 1 Battle Card in your Combo Area and draw 1 card." }),
+  WOPT609: card("WOPT609", { skill: "[Auto] When a card in your Combo Area is placed in your Drop Area, choose up to 1 Battle Card in your Combo Area." }),
   END609: card("END609", { skill: "[Auto] At the end of a battle, draw 1 card." }),
   LATE609: card("LATE609", { comboPower: 5000, skill: "[Auto] At the end of the battle after you combo with this card from your hand, draw 1 card." }),
   SUBJECT609: card("SUBJECT609", { comboPower: 5000 }),
   ULT609: card("ULT609", { comboPower: 5000, skill: "[Ultimate]" }),
 };
 const scripts = rulesFromCompiler(defs);
-function auto(id: "WATCH609" | "END609" | "LATE609", trigger: "comboToDrop" | "battleEnd" | "comboed", ops: Op[]) {
+function auto(id: "WATCH609" | "WOPT609" | "END609" | "LATE609", trigger: "comboToDrop" | "battleEnd" | "comboed", ops: Op[]) {
   const compiled = scripts[id].bySkill[0];
   assert.ok(compiled);
   scripts[id].bySkill[0] = { ...compiled, trigger: [trigger], unsupported: [], price: undefined, ops };
@@ -35,6 +37,11 @@ auto("WATCH609", "comboToDrop", [
   { op: "choose", sel: { side: "you", area: "combo", count: 1, upTo: true }, as: "redirected" },
   { op: "replaceLeave", target: { var: "redirected" }, to: "warp", until: "battle" },
   { op: "draw", n: 1 },
+]);
+auto("WOPT609", "comboToDrop", [
+  { op: "choose", sel: { side: "you", area: "combo", count: 1, upTo: true }, as: "redirected" },
+  { op: "replaceLeave", target: { var: "redirected" }, to: "warp", until: "battle" },
+  { op: "replaceLeave", target: { var: "redirected" }, to: "hand", until: "battle" },
 ]);
 auto("END609", "battleEnd", [{ op: "draw", n: 1 }]);
 auto("LATE609", "comboed", [{ op: "draw", n: 1 }]);
@@ -178,12 +185,19 @@ for (const choose of [true, false]) {
   assert.equal(after.events.filter((e) => e.type === "skill" && e.card === watcher).length, 0, "the 8-5-7 Auto must not activate twice across reload");
   assert.equal(after.events.filter((e) => e.type === "draw" && e.player === "p1").length >= 1, true);
   if (choose) {
+    // The generic Auto resolved at 8-5-7 before any other route existed. The
+    // later 8-5-8 event is replaced under 9-10-1; nothing reverses or repeats
+    // the resolved Auto, and no Drop arrival is invented.
     assert.ok(after.events.some((e) => e.type === "effect" && e.effect.kind === "replaceLeave" && e.effect.target === subject));
-    assert.equal(after.state.outcome?.kind, "interrupted");
-    assert.equal(after.state.outcome?.privateContext?.issue, "#609");
-    assert.ok(after.state.sides.p1.zones.combo.includes(subject));
-    assert.equal(after.events.some((e) => e.type === "move" && e.card === subject), false, "do not move before reporting the changed projected route");
-    assert.equal(after.events.some((e) => e.type === "skill" && e.card === ender), false);
+    assert.ok(!after.state.outcome);
+    assert.equal(after.state.prompt.kind, "main");
+    assert.ok(after.state.sides.p1.zones.warp.includes(subject));
+    assert.equal(after.events.filter((e) => e.type === "move" && e.card === subject).length, 1);
+    assert.equal(after.events.filter((e) => e.type === "move" && e.card === subject && e.to === "warp").length, 1);
+    const departure = after.events.findIndex((e) => e.type === "move" && e.card === subject);
+    const battleEnd = after.events.findIndex((e) => e.type === "skill" && e.card === ender);
+    assert.ok(departure >= 0 && departure < battleEnd, "8-5-10 battle-end Auto follows the replaced 8-5-8 departure");
+    assert.equal(after.events.filter((e) => e.type === "skill" && e.card === ender).length, 1);
   } else {
     assert.ok(!after.state.outcome);
     assert.equal(after.state.prompt.kind, "main");
@@ -192,6 +206,57 @@ for (const choose of [true, false]) {
     const battleEnd = after.events.findIndex((e) => e.type === "skill" && e.card === ender);
     assert.ok(departure >= 0 && departure < battleEnd, "8-5-10 battle-end Auto follows the 8-5-8 physical departure");
   }
+}
+
+// Case 3: the resolved 8-5-7 Auto installs two competing redirects. The 8-5-8
+// event asks the affected subject's master which applies (9-10-2, 9-10-2-1)
+// exactly as for a subject with no watcher. The offer survives JSON reload, a
+// wrong actor is refused without changing it, neither viewer projection leaks
+// internal cleanup progress, and either answer moves the subject once before
+// the 8-5-10 battle-end Auto.
+for (const warp of [true, false]) {
+  const s = main();
+  const watcher = stage(s, "WOPT609", "p1", "battle");
+  const ender = stage(s, "END609", "p1", "battle");
+  const guard = stage(s, "SUBJECT609", "p2", "battle");
+  const subject = stage(s, "SUBJECT609", "p1", "combo");
+  atEnd(s, watcher, guard);
+  const announced = take(s, { type: "zEnergyFromCombo", player: "p1", card: null });
+  assert.equal(announced.state.prompt.kind, "chooseCards");
+  assert.equal(announced.events.filter((e) => e.type === "skill" && e.card === watcher).length, 1);
+  const offered = take(announced.state, { type: "choose", player: "p1", cards: [subject] });
+  assert.ok(!offered.state.outcome);
+  assert.equal(offered.state.prompt.kind, "replaceMove");
+  assert.equal(offered.state.prompt.player, "p1");
+  assert.equal(offered.state.battle?.endCombo?.stage, "departures");
+  assert.equal(offered.state.battle?.endCombo?.awaitingDeparture?.card, subject);
+  assert.ok(offered.state.sides.p1.zones.combo.includes(subject));
+  assert.equal(offered.events.some((e) => e.type === "move" && e.card === subject), false);
+  assert.equal(offered.events.some((e) => e.type === "skill" && e.card === ender), false, "8-5-9 waits for the 8-5-8 answer");
+  const frozen = JSON.stringify(offered.state);
+  assert.throws(() => rules.apply(ctx, reload(offered.state), { type: "chooseMode", player: "p2", index: 0 }));
+  assert.equal(JSON.stringify(offered.state), frozen);
+  const legal = rules.legalActions(ctx, reload(offered.state));
+  const answers = legal.map((a) => a.action).filter((a) => a.type === "chooseMode");
+  assert.ok(answers.length === 2 && answers.every((a) => a.player === "p1"), "only the affected player answers the 8-5-8 question");
+  for (const viewer of ["p1", "p2"] as const) {
+    const shown = JSON.stringify(buildSnapshot({ id: 609, engine: "rules", mode: "versus", status: "playing", p1Name: "Turn", p2Name: "Other", ctx,
+      state: reload(offered.state), legal, log: [], beats: null, spotlight: null,
+      spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} }));
+    assert.ok(!shown.includes("awaitingDeparture") && !shown.includes("preDropTriggeredSubjects") && !shown.includes("subjectInfo")
+      && !shown.includes("cleanupOccurrence"), "internal cleanup progress is not public Snapshot data");
+  }
+  assert.equal(offered.state.prompt.options.length, 2);
+  const after = take(offered.state, { type: "chooseMode", player: "p1", index: warp ? 0 : 1 });
+  assert.ok(!after.state.outcome);
+  assert.equal(after.state.prompt.kind, "main");
+  assert.ok(after.state.sides.p1.zones[warp ? "warp" : "hand"].includes(subject));
+  assert.equal(after.events.filter((e) => e.type === "move" && e.card === subject).length, 1);
+  assert.equal(after.events.filter((e) => e.type === "skill" && e.card === watcher).length, 0, "the resolved generic Auto is not announced again");
+  const departure = after.events.findIndex((e) => e.type === "move" && e.card === subject);
+  const battleEnd = after.events.findIndex((e) => e.type === "skill" && e.card === ender);
+  assert.ok(departure >= 0 && departure < battleEnd);
+  assert.equal(after.events.filter((e) => e.type === "skill" && e.card === ender).length, 1);
 }
 
 // A card with no generic watcher still gets its legal optional 9-10 choice

@@ -132,15 +132,30 @@ assert.equal(s.programs[0].subjectInfo?.faceUp, false, "9-6-9-1-3 uses Drop info
 assert.equal(s.sides.p1.zones.drop.includes(turnSpent), false, "projected information did not move the live card");
 assert.ok(!result.events.some((e) => e.type === "move" && e.card === turnSpent && e.to === "drop"));
 
-// If an 8-5-7 effect changes the later route, the already-resolved generic
-// occurrence cannot be retroactively assigned a new destination. This saved
-// state mutation stands in for that unresolved combination at the boundary.
+// If the later route changes after 8-5-6 (this saved-state mutation stands in
+// for 8-5-7 work), the generic occurrence already announced is not revoked or
+// re-announced. 8-5-8 applies the [Ultimate] route under 9-10 like any other
+// departure, and the 8-5-10 battle-end Auto still follows it.
 {
   const changed = reload(s);
   changed.cards[turnSpent].cardId = "ULT609";
   const after = take(changed, { type: "choose", player: "p1", cards: [turnSpent] });
-  assert.equal(after.state.outcome?.kind, "interrupted");
-  assert.equal(after.state.outcome?.privateContext?.issue, "#609");
+  assert.equal(after.state.outcome, undefined);
+  // Only the other player's card is in a Drop Area now, so the battle-end
+  // Auto's single candidate needs no question and the battle completes.
+  assert.equal(after.state.prompt.kind, "main");
+  assert.equal(after.state.battle, null);
+  assert.ok(after.state.sides.p1.zones.removed.includes(turnSpent));
+  assert.ok(after.state.sides.p2.zones.drop.includes(otherSpent));
+  assert.equal(after.events.filter((e) => e.type === "move" && e.card === turnSpent).length, 1);
+  assert.equal(after.events.filter((e) => e.type === "move" && e.card === turnSpent && e.from === "combo" && e.to === "removed").length, 1);
+  const otherAuto = after.events.findIndex((e) => e.type === "skill" && e.card === guard);
+  const redirected = after.events.findIndex((e) => e.type === "move" && e.card === turnSpent);
+  const battleEnd = after.events.findIndex((e) => e.type === "skill" && e.card !== guard);
+  assert.ok(otherAuto >= 0 && otherAuto < redirected && redirected < battleEnd, "8-5-7, then the replaced 8-5-8 departure, then 8-5-10");
+  assert.equal(after.events.filter((e) => e.type === "skill" && e.card !== guard).length, 1);
+  assert.equal(after.events.filter((e) => e.type === "skill" && e.card === attacker).length, 0, "the resolved generic Auto is not announced again");
+  assert.equal(after.state.pending.filter((p) => p.kind !== "hook" && p.trigger === "comboToDrop").length, 0);
 }
 
 // §9-6-11: once this Auto activated, a later source departure while its
