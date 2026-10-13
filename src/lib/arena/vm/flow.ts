@@ -68,6 +68,7 @@ import { stepSwapCost } from "./swap-costs";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { IllegalAction } from "./common";
+import { spendUse, usesLeft } from "./limits";
 
 export { NOT_YET_REASON_PREFIX } from "../outcome";
 
@@ -328,6 +329,9 @@ const STEP_WORK: Record<string, Work> = {
         // 5-5-4: so is "a turn in which this card was placed in a Battle Area".
         delete inst.placedThisTurn;
       }
+      // 22-44-3 (#741): "during the same turn" — the count a master keeps of
+      // each [Limit X] line across copies is over with the turn too.
+      for (const side of Object.values(state.sides)) delete side.limitUses;
       // Every `DEFINE ATTRIBUTE of: player, reset: turnStart` fact returns to
       // its rest value here, off the declaration rather than by name (issue
       // #269) — both sides, the same simplicity `usedThisTurn` above already
@@ -753,6 +757,17 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A 9-10 substitute is part of confirmative rule processing: finish it,
   // including any answer it asks for, before resolving pending Autos.
   if (state.programs.length) return true;
+  // 22-11-4/5 and 22-44-4/5 (#741): a pending [Auto] whose line has no use
+  // left this turn fails to activate — dropped before the order is asked, so
+  // it is never offered or paid for. Not while an order question is open: that
+  // question froze the queue, and nothing resolves until it is answered.
+  if (!state.pendingOrder) {
+    state.pending = state.pending.filter((item) => {
+      const spent = spentLine(ctx, state, item);
+      if (spent && item.kind !== "hook" && !secretAutoSource(game, state, item)) log(ev, { type: "note", text: spentNote(state, item.card, spent) });
+      return !spent;
+    });
+  }
   const next = chosenPending(ctx, game, state);
   if (next === "wait") return "wait";
   if (next === "declined") return true;
@@ -768,6 +783,12 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const showing = skillsShowing(ctx, state, next.card);
   const skill = showing.skills.find((sk) => sk.index === next.skillIndex);
   const program = showing.scripts.bySkill[next.skillIndex];
+  // #741: the queue was swept before the order was asked; this is the same
+  // rule for the one taken off it, in case a use was spent in between.
+  if (skill && usesLeft(state, next.master, next.card, skill) === 0) {
+    if (!secretAutoSource(game, state, next)) log(ev, { type: "note", text: spentNote(state, next.card, skill) });
+    return true;
+  }
   const frame: ScriptFrame & { autoRevealEpoch?: number } = {
     ops: program?.ops ?? [],
     ip: 0,
@@ -869,6 +890,18 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   return true;
 }
 
+/** 22-11-5 / 22-44-5 (#741): the line of a pending [Auto] when it has no use left this turn for its master, else null. */
+function spentLine(ctx: EngineContext, state: VmState, item: VmPendingRecord): Skill | null {
+  if (item.kind === "hook") return null;
+  const sk = skillsShowing(ctx, state, item.card).skills.find((line) => line.index === item.skillIndex);
+  return sk && usesLeft(state, item.master, item.card, sk) === 0 ? sk : null;
+}
+
+/** The public note for a pending [Auto] that failed to activate on its ceiling. */
+function spentNote(state: VmState, card: string, sk: Skill): string {
+  return `${state.cards[card]?.cardId ?? card}'s skill has no use left this turn (${sk.oncePerTurn ? "[Once per turn]" : `[Limit ${sk.limit}]`}), so it does not activate`;
+}
+
 /** 9-6-4: a satisfied condition alone is not an optional cost. */
 function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }, skill: Skill | undefined, program: Script): void {
   // §§12-2-2/3 and 22-35/36: an Extra's [Auto] is a successful Extra skill
@@ -886,6 +919,10 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
   }
   const priced = automaticHasPrice(skill, program);
   if (!priced || !skill) {
+    // 22-11-2 / 22-44-3 (#741): activated here, with nothing to pay — one use
+    // spent. A priced line spends it once its whole price is paid
+    // (`finishAutomaticCost`), so a declined or failed price spends nothing.
+    if (skill) spendUse(state, frame.master, frame.card, skill);
     const reveal = skill?.kind === "auto" && secretAutoSource(game, state, { card: frame.card, master: frame.master, skillIndex: frame.skillIndex ?? 0, trigger: frame.trigger ?? "" });
     let autoRevealEpoch: number | undefined;
     if (reveal) {

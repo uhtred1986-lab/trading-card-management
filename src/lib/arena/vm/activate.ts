@@ -101,6 +101,7 @@ import type { VmState } from "./state";
 import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
 import { skillsShowing } from "./triggers";
 import { findCard } from "./zones";
+import { spendUse, usesLeft } from "./limits";
 
 /**
  * One candidate of an activation: the copy on the table, the printed line, and
@@ -482,7 +483,7 @@ export function activationRefusals(
   // with the price — the legacy `whyNotActivate` asks it at the same place.
   const unpaid = banned ? null : unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card));
   if (unpaid) before.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
-  const left = usesLeft(sk, inst?.usedThisTurn ?? []);
+  const left = usesLeft(state, player, card, sk);
   if (left === 0) before.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   // 22-6 / 22-31: [Bond X] and [Sparking X] are conditions on using the skill,
   // counted over a pool the game declares.
@@ -622,13 +623,6 @@ export function usableFrom(script: Script | undefined): Area[] {
   return [...out];
 }
 
-/** 22-44-3: how many more times this line may be used this turn, or null for a line with no ceiling. The legacy `usesLeft`. */
-function usesLeft(sk: Skill, used: number[]): number | null {
-  const cap = sk.oncePerTurn ? 1 : sk.limit;
-  if (cap == null) return null;
-  return Math.max(0, cap - used.filter((i) => i === sk.index).length);
-}
-
 /**
  * Can the effect after the colon be resolved at all? The legacy `canResolve`,
  * with no referee: a line with no effect resolves to nothing, and a line with
@@ -663,7 +657,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
     // not, so an Extra whose tax cannot be paid is not eligible at all.
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card))) return false;
-    if (usesLeft(sk, state.cards[card]?.usedThisTurn ?? []) === 0) return false;
+    if (usesLeft(state, player, card, sk) === 0) return false;
     if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) return false;
     if (sk.sparking != null && zone(state, player, ACTIVATION_ZONES.sparking).length < sk.sparking) return false;
     const condition = line.script.price?.condition;
@@ -722,8 +716,9 @@ export function queueActivationTaxes(state: VmState, player: PlayerId, card: str
  * it before anything here runs, which is the order #148 settled and the order a
  * replay depends on. What is left is the part that is not a price:
  *
- *   *22-44-3* the use itself, counted on the copy so a [Once per turn] line is
- *   refused for the rest of the turn, and 13-4's lock on a second marker skill.
+ *   *22-11-2 / 22-44-3* the use itself — on the copy for a [Once per turn]
+ *   line, on its master across every copy for a [Limit X] line
+ *   (`vm/limits.ts`, #741) — and 13-4's lock on a second marker skill.
  *   *12-2-2* an Extra used from the hand goes to the Drop Area as it resolves.
  *   *9-6-2* the `skill` beat — the line **as printed**, tag and all, which is
  *   what the legacy engine logs (`sk.raw`) and therefore what the two logs are
@@ -744,7 +739,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   const afterSkillKeywords: ("Heroic" | "Villainous")[] = isExtra(ctx, game, state, card)
     ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
     : [];
-  if (sk.oncePerTurn || sk.limit != null) inst.usedThisTurn.push(sk.index);
+  spendUse(state, player, card, sk);
   if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.

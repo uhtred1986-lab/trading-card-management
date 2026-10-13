@@ -4860,6 +4860,8 @@ verifyLegacyVmCompatibility(state);
     // 9-1-3-2 the other way: in the Battle Area the line names the hand, and is refused there.
     const inPlay = structuredClone(after);
     inPlay.cards[vegeta].usedThisTurn = [];
+    // #741: a [Limit 1] is counted on its master across copies, not on the copy.
+    delete inPlay.sides.p1.limitUses;
     for (const id of inPlay.sides.p1.zones.energy) inPlay.cards[id].mode = "active";
     assert.equal(offer(inPlay, vegeta), undefined, "a line that plays this card from the hand is offered while the card is in the Battle Area");
     assert.deepEqual(why(inPlay, vegeta), { kind: "zone", card: vegeta, area: "hand" }, "the line in the Battle Area is not refused for being out of the hand (9-1-3-2)");

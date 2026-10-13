@@ -41,6 +41,7 @@ import { cardColors } from "./costs";
 import { DEFERRED_STATICS, STATIC_OPS } from "./effects";
 import { costModifierAs, describeScript, modifyAttrAs, negateAs, replaceAs, type Op } from "./script";
 import { masterOf, skillsShowing } from "./triggers";
+import { usedForView } from "./limits";
 import { findCard, hostOf, inPlayZones, isTokenCard } from "./zones";
 import { secretAutoSource } from "./secret-auto";
 import type { GameDefinition } from "../rulesets";
@@ -427,7 +428,8 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     owner: inst.owner,
     controller: masterOf(game, state, id),
     viewer,
-    used: inst.usedThisTurn ?? [],
+    // #741: a [Limit X] line shows its master's count across every copy.
+    used: usedForView(state, masterOf(game, state, id), id, showing.skills),
     pending,
     availability,
     decisionActor: "player" in state.prompt ? state.prompt.player : null,

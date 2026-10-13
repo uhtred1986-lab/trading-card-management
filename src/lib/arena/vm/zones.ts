@@ -102,14 +102,17 @@ export interface VmCard {
   /** 1-10-2 Hidden Mode: face down in play, no information (23-5). */
   hidden: boolean;
   /**
-   * 22-44-3: the skill lines of this copy that have been used this turn, one
-   * entry per use, so [Once per turn] and [Limit X] are the same count with a
-   * different ceiling.
+   * 22-11 / 22-44: the skill lines of this copy that have been used this
+   * turn, one entry per use.
    *
    * A fact about the copy on the table rather than anything a card's text can
-   * say, which is why it is here beside `markers` and `flipped` — and per
-   * *instance* rather than per card number, the same approximation the legacy
-   * engine makes. `endTurn` empties it.
+   * say, which is why it is here beside `markers` and `flipped`. It is what
+   * 22-11-3's [Once per turn] is counted on, per copy. It survives a change of
+   * area on this engine (the legacy engine empties it there, reading 3-1-4's
+   * "new card" into it; the manual does not say which, so that stays as it
+   * was). A [Limit X] line is counted across copies on its master instead
+   * (`VmSide.limitUses`, `vm/limits.ts`, #741) and is listed here only as this
+   * copy's own history. `endTurn` empties it.
    */
   usedThisTurn: number[];
   /** 13-4: a card may use no second marker skill this turn. Emptied with the list above. */
