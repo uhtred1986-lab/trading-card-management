@@ -50,8 +50,9 @@ its blockers are resolved and its scenario gates pass (plan, "Delivery and picku
    that `scripts/arena-gaps.mts` also measures, because compiling alone proves none of them: `triggersOf` for every
    [Auto] (a compiled Auto with no trigger never fires), the price readers (`costIsOnlyOrbs`, `compileCostProgram`,
    `priceCondition`) for every Activate/Counter/Auto price, and the static layer's `emitsStatic` for every [Permanent].
-5. **Runtime:** the same cards are compiled into a replay bundle and played by `localPolicy(uniformPolicy)` (#644-#647)
-   on the rules-only engine through `playDuel`, recording every prompt kind, every manual skill on the legal list, and
+5. **Runtime:** the same cards are compiled into a replay bundle and played by the local policy (#644-#647; since #650
+   `localPolicy()`, which answers every window and interrupts on a question it cannot read, where the #649 run used
+   `localPolicy(uniformPolicy)`, uniform for the constrained choices) on the rules-only engine through `playDuel`, recording every prompt kind, every manual skill on the legal list, and
    every skill the engine refuses as `unread` (`RULES_ENGINE.rejectedActions`). Fresh compile, not stored records.
 6. **Support tiers** (compilation alone is never support):
 
@@ -214,39 +215,37 @@ Results of the audit play-through are in section 6. A matchup is "supported" onl
 | Matchup | Games | Finished | p1 / p2 wins | End reason | Stopped |
 |---|---|---|---|---|---|
 | A (p1) vs A (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
-| A (p1) vs B (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
-| B (p1) vs A (p2) | 20 | 20 | 7 / 13 | all by empty Life Area (0-1-3-2) | none |
-| B (p1) vs B (p2) | 20 | 20 | 13 / 7 | all by empty Life Area (0-1-3-2) | none |
+| A (p1) vs B (p2) | 20 | 20 | 10 / 10 | all by empty Life Area (0-1-3-2) | none |
+| B (p1) vs A (p2) | 20 | 20 | 8 / 12 | all by empty Life Area (0-1-3-2) | none |
+| B (p1) vs B (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
 
-Games: 80 (20 per ordered matchup, seeds 649.., policy seeds 1000.., `localPolicy(uniformPolicy)` on both seats, 3000-move cap).
+Games: 80 (20 per ordered matchup, seeds 649.., policy seeds 1000.., `localPolicy()` (#650: every window handled, an unreadable one interrupts) on both seats, 3000-move cap).
 
-- Prompt kinds the policy was asked (decisions, all games): blocker 495, charge 1048, chooseCards 657, chooseFirst 80, chooseMode 82, combo 5529, counter 601, main 5477, mulligan 160, orderPending 2, payCost 178, zEnergyFromCombo 914.
-- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 46, BT11-008#blocker 32, BT3-027#counter 44, BT4-077#0 11, BT4-078#0 39, BT4-081#0 4, BT4-084#0 34, BT4-085#0 3, BT4-086#0 5, BT4-091#0 41, BT4-091#blocker 48, BT4-096#0 47, BT4-097#counter 55, BT6-025#0 49, DB1-019#0 35, DB3-001#10 31, DB3-001#20 8, SD15-02#10 18, SD15-04#0 1, SD5-01#10 58, SD5-04#10 10, SD5-05#0 5, TB1-023#0 42.
-- Games in which the engine refused a manual skill as `unread`: BT4-079#0 17, BT5-023#0 32, BT6-026#0 27, SD15-01#10 60.
-- Games in which a Leader awakened: SD5-01 56.
-- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 48, BT10-008 39, BT11-008 39, BT11-011 39, BT14-006 44, BT14-010 54, BT4-012 49, BT4-077 55, BT4-078 55, BT4-079 50, BT4-081 48, BT4-084 57, BT4-085 50, BT4-086 32, BT4-089 56, BT4-091 56, BT6-010 24, BT6-011 49, BT9-031 17, DB2-004 50, DB3-001 31, SD15-02 18, SD15-03 29, SD15-04 33, SD15-05 29, SD5-02 45, SD5-03 21, SD5-04 29, SD5-05 39, TB1-055 9.
+- Prompt kinds the policy was asked (decisions, all games): blocker 493, charge 1091, chooseCards 575, chooseFirst 80, chooseMode 96, combo 5809, counter 602, main 5725, mulligan 160, orderPending 6, payCost 185, zEnergyFromCombo 965.
+- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 44, BT11-008#blocker 34, BT3-027#counter 43, BT4-077#0 17, BT4-078#0 42, BT4-081#0 6, BT4-084#0 32, BT4-085#0 10, BT4-086#0 6, BT4-091#0 37, BT4-091#blocker 46, BT4-096#0 51, BT4-097#counter 56, BT6-025#0 52, DB1-019#0 36, DB3-001#10 30, DB3-001#20 9, SD15-02#10 19, SD15-04#0 1, SD5-01#10 57, SD5-04#10 10, SD5-05#0 3, TB1-023#0 45.
+- Games in which the engine refused a manual skill as `unread`: BT4-079#0 21, BT5-023#0 32, BT6-026#0 30, SD15-01#10 60.
+- Games in which a Leader awakened: SD5-01 55.
+- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 48, BT10-008 40, BT11-008 43, BT11-011 43, BT14-006 45, BT14-010 54, BT4-012 51, BT4-077 57, BT4-078 53, BT4-079 51, BT4-081 54, BT4-084 55, BT4-085 53, BT4-086 35, BT4-089 56, BT4-091 58, BT6-010 26, BT6-011 49, BT9-031 16, DB2-004 52, DB3-001 30, SD15-02 19, SD15-03 32, SD15-04 36, SD15-05 35, SD5-02 43, SD5-03 20, SD5-04 36, SD5-05 42, TB1-055 10.
 
 `chooseCards` questions asked (the engine's own reason text, decisions across all games):
 
-- 109x choose up to 1 ≪Goku's Lineage≫ from among them
-- 96x [Swap]: the Battle Card to play in its place, or none
-- 74x You may choose up to 2 of your energy (2 more)
-- 69x Choose up to 1 of your opponent's Battle Cards or Unison Cards
-- 67x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
-- 66x choose up to 1 of your red ≪Saiyan≫ Leader Cards
-- 49x You may choose up to 2 of your energy
+- 106x choose up to 1 ≪Goku's Lineage≫ from among them
+- 78x [Swap]: the Battle Card to play in its place, or none
+- 72x You may choose up to 2 of your energy (2 more)
+- 67x Choose up to 1 of your opponent's Battle Cards or Unison Cards
+- 63x choose up to 1 of your red ≪Saiyan≫ Leader Cards
+- 62x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
 - 32x choose up to 1 of your opponent's Battle Cards
-- 22x choose 2 cards from your hand (2 more)
-- 21x choose 2 cards from your hand
-- 13x choose up to 1 of your red Unison Cards
+- 23x choose 2 cards from your hand (2 more)
+- 16x choose up to 1 of your red Unison Cards
+- 13x choose up to 1 of your opponent's Rest Mode Battle Cards
+- 11x Choose 1 card from your life
+- 10x choose up to 1 of your red energy
 - 8x Choose 1 Extra Card in your hand
-- 8x choose up to 1 of your opponent's Rest Mode Battle Cards
-- 7x Choose 1 card from your life
-- 7x choose up to 1 of your red energy
-- 3x Choose 1 of your Leader Cards or Battle Cards
+- 6x you may choose 1 card from your life
+- 3x Choose 1 card in your life
 - 3x you may choose 1 card in your life
 - 2x choose up to 1 of your mono-red Leader Cards
-- 1x you may choose 1 card from your life
 <!-- /GENERATED:play -->
 
 Reading it:
@@ -439,18 +438,18 @@ until a scenario plays them. **#577** is the delivery epic for all of these.
 |---|---|---|---|
 | chooseFirst | every match | - | 80 |
 | mulligan | every match | - | 160 |
-| charge | every match | - | 1048 |
-| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 5477 |
-| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5529 |
-| blocker | every match | BT11-008#0, BT4-091#10 | 495 |
-| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 601 |
-| orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 2 |
-| chooseCards | by card | SD15-01#10, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20, SD15-04#0 | 657 |
-| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 82 |
+| charge | every match | - | 1091 |
+| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 5725 |
+| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5809 |
+| blocker | every match | BT11-008#0, BT4-091#10 | 493 |
+| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 602 |
+| orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 6 |
+| chooseCards | by card | SD15-01#10, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20, SD15-04#0 | 575 |
+| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 96 |
 | replaceMove | no audited card needs it | - | 0 |
-| zEnergyFromCombo | every match | - | 914 |
+| zEnergyFromCombo | every match | - | 965 |
 | optionalCost | no audited card needs it | - | 0 |
-| payCost | every match | - | 178 |
+| payCost | every match | - | 185 |
 | offering | no audited card needs it | - | 0 |
 | empowerCarry | no audited card needs it | - | 0 |
 <!-- /GENERATED:windows -->
@@ -468,6 +467,13 @@ For #650:
   (red with blue and green cards), once in the Deck B mirror.
 - **Not reachable here, handlers still needed for the shared contract:** `replaceMove`, `optionalCost`, `offering`,
   `empowerCarry`. No audited card opens them.
+- **Delivered by #650** (`src/lib/arena/policy/choices.ts`, `WINDOW_HANDLERS`): every window above has a non-fallback
+  handler, `localPolicy()` interrupts instead of guessing, and `scripts/verify/arena-policy-choices.mts` plays one game
+  per ordered matchup of these decks with every decision answered by its declared layer. The four kinds no audited card
+  opens are staged on synthetic cards there: `replaceMove` (a Life card to the hand instead of the Drop; a KO
+  substitute), `empowerCarry` (an [Empower] Unison) on the rules engine, and `optionalCost`/`offering` as contract-built
+  inputs with the legacy engine's own answers — the rules engine never asks those two kinds (an Auto's price and
+  [Offering] arrive as `chooseMode`, which is staged on the rules engine too).
 - **Interruptions:** nothing in the reachable play is a referee question. The blocked cards above are not asked about
   at all (they are never offered), so a policy has no decision to make for them until U2/U4/U5 are fixed. Fixing them
   adds `chooseCards` (SD15-01 Awaken's energy and Cabba picks, BT6-026's discard and two targets) and `counter`
