@@ -3703,6 +3703,14 @@
       ]
     },
     {
+      "field": "nameInSkillTextOf",
+      "type": "variable",
+      "printed": "card whose card name is in the text of a skill on the chosen card",
+      "openTo": [
+        "string"
+      ]
+    },
+    {
       "field": "z",
       "type": "tri",
       "printed": "Z-card",

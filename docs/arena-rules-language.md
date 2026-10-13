@@ -1140,6 +1140,19 @@ or less". It is matched against the markers the card carries now, so a `count` o
 Card with 2 or more markers" in the Unison Area is BT10-008's [Permanent] gate (#721). An exact "with
 2 markers on it" is a play's arrival (13-2-3) and is not a filter.
 
+### A name in the text of a skill on the chosen card (13 Oct 2026)
+
+BT30-084's "Play up to 1 Battle Card whose card name is in the text of a skill on the chosen card from
+your Warp on top of the chosen card" is a filter field, `nameInSkillTextOf = c0`: the **name of the
+variable** an earlier `choose … as` bound (the price's `c0`, #550), written as a bare name in the
+field form (it has no printed words, so the filter is always written field by field, never `$c0`,
+which is a macro hole). The card is kept when its name is written in `{}` in a printed skill of that
+card. Rule Manual 2-3-2: `{}` text with no noun refers to the card of that name; 2-3-1-1: names are
+equal only when all the text is the same (so `{Son Goku, The Awakened Power}` does not name Son Goku);
+2-3-2-1: singular and plural are one reference. Words outside `{}` are not a reference. The check
+runs on the printed text of the chosen card, never by compiling at game time, and with nothing bound
+it matches nothing. `play … onto: $c0` is the existing "on top of the chosen card" form.
+
 ### Combo power, and different card names (2 Oct 2026)
 
 2-8: combo power is a filter measure, `comboPowerMin`/`comboPowerMax`, printed "with 5000 combo
