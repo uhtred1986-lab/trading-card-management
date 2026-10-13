@@ -233,11 +233,8 @@ async function main(): Promise<void> {
       removeAndAnswer(gokuA);
       assert.ok(state.sides.p1.zones.battle.includes(gokuA), "SD15-03 played itself back from the Drop");
       assert.equal(state.cards[cabba].markers, 1, "[Spirit Boost 1]: one marker off SD15-02");
-      // A second use the same turn is not asserted: both engines count
-      // [Limit X] on the card instance (the glossary's documented 22-44
-      // approximation), and a card that went to the Drop and came back is a
-      // new instance (3-1-4), so neither another copy nor this one is held to
-      // the shared count. That is a separate engine change (the PR says so).
+      // The second use the same turn — this copy again, or the other one — is
+      // refused across copies (22-44-3): `limit-copies-741.ts` (#741).
       void gokuB;
     }
     console.log("  #728: SD15 specified-cost, [Awaken] OR and Spirit Boost readings, and rules-engine scenarios passed");

@@ -619,13 +619,13 @@ export const MODIFIERS: ModifierDoc[] = [
     tag: "[Once per turn]",
     section: "22-11",
     meaning: "The skill may be activated and resolved once in a turn. Two cards with the same skill each get their own once.",
-    engine: "Counted on the card in play. Copies of the same card number are counted separately, which is right here and an approximation for [Limit X].",
+    engine: "Counted on the copy, so two copies with the same line each get their own once. A used line is refused, and on the rules engine a pending [Auto] whose once is spent fails to activate rather than resolving again (22-11-4/5, #741). The rules engine keeps the copy's count when it changes area; the legacy engine starts it again (3-1-4 read as a new card), and the manual does not say which.",
   },
   {
     tag: "[Limit X]",
     section: "22-44",
     meaning: "The skill may be activated and resolved X times in a turn, counted across every copy of the same skill on cards with the same card number.",
-    engine: "Counted on the card in play rather than across copies, so two copies of the same card each get X uses instead of sharing them — and a card that leaves play and comes back is a new card with a fresh count (SD15-03's [Auto][Limit 1] that plays itself back from the Drop could answer again the same turn, #728).",
+    engine: "On the rules engine, counted on the master across every copy of the card number (#741): a declared [Activate], an [Auto] (its pending activations fail once X have resolved, 22-44-4, and a priced one spends its use once its whole price is paid), an invoked line and a [Counter] all read and spend the one count, which survives a copy leaving play and coming back and ends with the turn. SD15-03's [Auto][Limit 1] [Spirit Boost 1] answers once a turn across copies. The board shows the shared count on every copy. The legacy engine still counts per copy and starts again when a card changes area.",
   },
   {
     tag: "[Bond X]",

@@ -87,6 +87,7 @@ import { fireHook } from "./hooks";
 import { leaveRoute, lifeReplacementChoices, markerReplacementChoices, replacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
+import { spendUse, usesLeft } from "./limits";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
 import { findCard, isTokenCard, moveCard } from "./zones";
 import type { VmBattle, VmState } from "./state";
@@ -751,6 +752,9 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
       if (!wantsLine(ctx, state, window, sk)) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card, skillKind: sk.kind })) continue;
+      // 22-44-3 (#741): a [Limit X] [Counter] whose uses are spent this turn,
+      // by this copy or another of the same card number, is not offered.
+      if (usesLeft(state, responder, card, sk) === 0) continue;
       // 5-8-3 (#716): a price beyond orbs — a condition ("Your Leader Card is
       // red", BT5-023), an action ("Choose 1 of your white Battle Cards and
       // switch it to Hidden Mode", BT28-121) or a restriction (BT10-008) — is
@@ -923,6 +927,7 @@ function activateCounterSkill(
   const b = state.battle;
   if (b) (b.counters ??= []).push({ card, by: player, after: state.sides[player].zones.combo?.length ?? 0 });
   const afterSkill = afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {};
+  spendUse(state, player, card, sk);
   moved(ctx, game, state, ev, card, "drop", { owner: player, reveal: true });
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
@@ -1186,6 +1191,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     const b = state.battle;
     if (b) (b.counters ??= []).push({ card, by: action.player, after: state.sides[action.player].zones.combo?.length ?? 0 });
     const afterSkill = afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {};
+    spendUse(state, action.player, card, sk);
     moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
     fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
     const key = counterVarsKey(card, sk.index);
@@ -1800,6 +1806,8 @@ function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   const b = state.battle;
   if (sk.kind === "counter:battle card attack" && b && baseTypeOf(ctx, state, b.attacker) !== "BATTLE") why.push({ kind: "target", reason: "only an attacking Battle Card" });
   if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) why.push({ kind: "unread", card });
+  const left = usesLeft(state, player, card, sk);
+  if (left === 0) why.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   const banned = forbiddenBy(ctx, game, state, "activateCounter", { player, card, skillKind: sk.kind });
   if (banned) why.push({ kind: "forbidden", ...banned });
   why.push(...priceOf(sk));

@@ -224,6 +224,14 @@ export interface VmSide {
    * Made on demand, so a state saved before it existed reads as none.
    */
   skips?: VmSkip[];
+  /**
+   * 22-44-3 (#741): how many times this player, as master, has used each
+   * [Limit X] line this turn, across every copy of the card — keyed by
+   * `vm/limits.ts`'s `limitKey` (card number, face, line). Made on the first
+   * use and dropped at the end of the turn, so a state saved before it existed,
+   * or a turn nobody used one in, reads as none.
+   */
+  limitUses?: Record<string, number>;
 }
 
 /** One 20-13 skip entry: what is skipped, whether this turn's occurrence or the next one, and the turn it was made on. */
