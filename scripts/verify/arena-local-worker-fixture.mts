@@ -27,3 +27,8 @@ export async function stagedPack(): Promise<OfflinePack> {
 export function auditPack(): Promise<OfflinePack> {
   return buildMastersPack({ runtimeRevision: LOCAL_REVISION });
 }
+
+/** The audited pack with the owner's Unison specified costs (#733) withheld: a missing input again. */
+export function withheldCostsPack(): Promise<OfflinePack> {
+  return buildMastersPack({ runtimeRevision: LOCAL_REVISION, specifiedCosts: {} });
+}

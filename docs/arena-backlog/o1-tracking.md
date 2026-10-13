@@ -3,6 +3,7 @@ title: [Tracking] Arena O1 — Developer efficiency and offline foundations
 issue: 633
 milestone: Arena O1 — Developer efficiency and offline foundations
 labels: backlog, epic, area:arena-contract, phase:arena-home, model:opus-5
+status: closed
 stage: offline-o1
 tracking: true
 ---

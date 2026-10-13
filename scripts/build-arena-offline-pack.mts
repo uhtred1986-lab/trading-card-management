@@ -12,8 +12,9 @@
  *   npx tsx scripts/build-arena-offline-pack.mts --out pack.json      # write the pack (canonical JSON)
  *   npx tsx scripts/build-arena-offline-pack.mts --runtime <sha>      # pin another interpreter revision (default: git HEAD)
  *   npx tsx scripts/build-arena-offline-pack.mts --specified-costs f.json
- *        # {"SD15-02":"{r}{r}", ...}: the owner's `cards.specified_cost` values for the Unison cards (U7).
- *        # Without it the pack records them as missing inputs and stays unplayable.
+ *        # {"SD15-02":"{r}{r}", ...}: overrides the owner's `cards.specified_cost` values for the Unison cards (U7).
+ *        # Default: OWNER_SPECIFIED_COSTS_PATH (owner ruling of 13 Oct 2026, migration 0049 / PR #733). An
+ *        # empty object makes the pack record the Unison cards as missing inputs again.
  *
  * The blocker register below is the audit's (`docs/arena-offline-deck-audit.md` §8);
  * `scripts/verify/arena-offline-pack.mts` fails when the two disagree.
@@ -37,6 +38,9 @@ import type { CatalogCard } from "../src/lib/catalog/deckplanet";
 
 export const SNAPSHOT_PATH = "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json";
 export const AUDIT_PATH = "docs/arena-offline-deck-audit.md";
+export const OWNER_SPECIFIED_COSTS_PATH = "docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json";
+/** The owner's `cards.specified_cost` values (U7), as committed; `--specified-costs` overrides them. */
+export const OWNER_SPECIFIED_COSTS: Record<string, string> = (JSON.parse(readFileSync(OWNER_SPECIFIED_COSTS_PATH, "utf8")) as { specifiedCosts: Record<string, string> }).specifiedCosts;
 export const PACK_ID = "masters-sd15-vs-sd5";
 
 /**
@@ -53,28 +57,25 @@ const link = (issue: number) => ({ issue, url: `${ISSUE_URL}${issue}` });
 interface BlockerSpec { id: string; decks: string[]; cards: string[] | ((cards: CatalogCard[]) => string[]); issues: number[]; status: BlockerStatus; summary?: string }
 
 /**
- * The audit's blocker register (§8), with the decks and cards it names. U7's
- * status is computed: resolved only when every Unison card carries the
- * owner's specified cost.
+ * The audit's blocker register (§8), with the decks and cards it names (deck A
+ * is the owner-amended list of 13 Oct 2026, so there is no legality-decision blocker). U7's
+ * status is computed: resolved when every Unison card carries the owner's
+ * specified cost (it does by default since 13 Oct 2026).
  */
 export const BLOCKERS: BlockerSpec[] = [
   { id: "U1", decks: ["A", "B"], cards: [], issues: [650, 651, 661, 655], status: "open" },
-  { id: "U2", decks: ["A"], cards: ["SD15-01"], issues: [539], status: "open" },
-  { id: "U3", decks: ["A"], cards: ["SD15-01", "SD15-03"], issues: [539, 549], status: "open" },
-  { id: "U4", decks: ["B"], cards: ["BT4-079"], issues: [], status: "open" },
+  { id: "U2", decks: ["A"], cards: ["SD15-01"], issues: [728], status: "open" },
+  { id: "U3", decks: ["A"], cards: ["SD15-01", "SD15-03"], issues: [728, 549], status: "open" },
+  { id: "U4", decks: ["B"], cards: ["BT4-079"], issues: [729], status: "open" },
   { id: "U5", decks: ["A"], cards: ["BT5-023", "BT6-026", "BT10-008"], issues: [716], status: "resolved" },
-  { id: "U6", decks: ["B"], cards: (cards) => cards.filter((c) => /\[Swap/i.test(c.skill ?? "")).map((c) => c.id), issues: [], status: "open" },
+  { id: "U6", decks: ["B"], cards: (cards) => cards.filter((c) => /\[Swap/i.test(c.skill ?? "")).map((c) => c.id), issues: [731], status: "open" },
   { id: "U7", decks: ["A"], cards: ["SD15-02", "DB3-001"], issues: [655], status: "missing-input" },
-  { id: "U8", decks: ["A"], cards: ["SD15-05"], issues: [], status: "open" },
-  {
-    id: "A-LEGALITY", decks: ["A"], cards: ["BT10-008"], issues: [], status: "decision",
-    summary: "Deck A is illegal as printed (BT10-008 x2, restricted to 1): the owner decides whether the pack carries the as-printed list or a one-copy variant; no variant is invented.",
-  },
+  { id: "U8", decks: ["A"], cards: ["SD15-05"], issues: [730], status: "open" },
 ];
 
 export interface BuildOptions {
   runtimeRevision: string;
-  /** The owner's `cards.specified_cost` text by card id (`{r}{r}`). */
+  /** The owner's `cards.specified_cost` text by card id (`{r}{r}`); defaults to OWNER_SPECIFIED_COSTS. */
   specifiedCosts?: Record<string, string>;
 }
 
@@ -122,7 +123,7 @@ export async function mastersPackInput(options: BuildOptions): Promise<MakeOffli
   const art: Record<string, CardArt> = {};
   for (const id of [...cards.keys()].sort()) {
     const c = cards.get(id)!;
-    const def = cardDefFrom({ ...(c as never as Parameters<typeof cardDefFrom>[0]), specifiedCost: options.specifiedCosts?.[id] ?? null });
+    const def = cardDefFrom({ ...(c as never as Parameters<typeof cardDefFrom>[0]), specifiedCost: (options.specifiedCosts ?? OWNER_SPECIFIED_COSTS)[id] ?? null });
     defs[id] = def;
     scripts[id] = compileCard(def, "front");
     if (def.back) scripts[`${id}#back`] = compileCard(def, "back");
