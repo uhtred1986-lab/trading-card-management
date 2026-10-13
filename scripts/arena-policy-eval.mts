@@ -1,0 +1,107 @@
+/**
+ * #646: how much the Main-Phase policy (`src/lib/arena/policy/main.ts`) is worth, measured.
+ *
+ * Seeded games on the three database-free fixtures (#641's, #644's, #646's), the local policy
+ * (`localPolicy(uniformPolicy)`: the #645 shortcuts, then the Main Phase and its payments, every
+ * other window uniform) against two baselines, in both seats:
+ *
+ *   uniform    `uniformPolicy` everywhere — no shortcuts, no heuristic
+ *   shortcuts  `shortcutThen(uniformPolicy)` — the same shortcuts and the same uniform combat
+ *              windows, so the difference is the Main Phase alone
+ *   control    the shortcuts baseline against itself (no local policy at all): each fixture's
+ *              seat bias, which the rows above must be read against
+ *
+ * Reports wins, losses, draws, unfinished games, life damage dealt and taken, a 95 % Wilson interval
+ * on the win rate and the per-decision wall time of the whole local step. Deterministic: the same
+ * flags give the same games. No database, no provider, no network.
+ *
+ *   npm run arena:policy-eval                     # 20 games per fixture and baseline (10 per seat)
+ *   npm run arena:policy-eval -- --games 40 --json
+ *
+ * Flags: --games N (per fixture and baseline, even; default 20), --max-moves N (default 3000), --json.
+ */
+import { fixtureBundle, FIXTURE_REVISION, FIXTURE_SEED } from "./verify/arena-browser-fixture.ts";
+import { policyFixtureBundle, POLICY_FIXTURE_REVISION, POLICY_FIXTURE_SEED } from "./verify/arena-policy-fixture.ts";
+import { mainFixtureBundle, MAIN_FIXTURE_REVISION, MAIN_FIXTURE_SEED } from "./verify/arena-policy-main-fixture.ts";
+import { playDuel, quantile, summarise, wilson, type DuelResult, type DuelSummary } from "./verify/arena-policy-duel.ts";
+import type { PlayerId } from "../src/lib/arena/types";
+import { uniformPolicy, type Policy } from "../src/lib/arena/policy/contract";
+import { shortcutThen } from "../src/lib/arena/policy/shortcuts";
+import { localPolicy, MAIN_POLICY_VERSION } from "../src/lib/arena/policy/main";
+
+function flag(name: string): string | undefined {
+  const i = process.argv.indexOf(`--${name}`);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+}
+const known = new Set(["--games", "--max-moves", "--json"]);
+for (const a of process.argv.slice(2)) {
+  if (a.startsWith("--") && !known.has(a)) { console.error(`unknown flag ${a}`); process.exit(2); }
+}
+const games = Number(flag("games") ?? 20);
+const maxMoves = Number(flag("max-moves") ?? 3000);
+const json = process.argv.includes("--json");
+if (!Number.isInteger(games) || games < 2 || games % 2) { console.error("--games must be an even integer >= 2"); process.exit(2); }
+
+const fixtures = [
+  { name: "641", bundle: await fixtureBundle(), revision: FIXTURE_REVISION, seed: FIXTURE_SEED },
+  { name: "644", bundle: await policyFixtureBundle(), revision: POLICY_FIXTURE_REVISION, seed: POLICY_FIXTURE_SEED },
+  { name: "646", bundle: await mainFixtureBundle(), revision: MAIN_FIXTURE_REVISION, seed: MAIN_FIXTURE_SEED },
+];
+const local = localPolicy(uniformPolicy);
+const baselines: { name: string; policy: Policy; test?: Policy }[] = [
+  { name: "uniform", policy: uniformPolicy },
+  { name: "shortcuts", policy: shortcutThen(uniformPolicy) },
+  // The control: the baseline against itself, so a fixture's seat bias is visible beside the rows above.
+  { name: "control", policy: shortcutThen(uniformPolicy), test: shortcutThen(uniformPolicy) },
+];
+
+interface Row extends Omit<DuelSummary, "finished"> {
+  baseline: string;
+  fixture: string;
+  winRate: number | null;
+  ci95: [number, number];
+  stepMs?: { p50: number; p95: number; max: number };
+  stopped?: (string | null)[];
+}
+const rows: Row[] = [];
+const started = Date.now();
+for (const b of baselines) {
+  const all: { seat: PlayerId; r: DuelResult }[] = [];
+  for (const f of fixtures) {
+    const results: { seat: PlayerId; r: DuelResult }[] = [];
+    for (let g = 0; g < games; g++) {
+      const seat: PlayerId = g % 2 === 0 ? "p1" : "p2";
+      // Each game seed is played once from each seat, so the deal is shared between the two.
+      const r = await playDuel({ bundle: f.bundle, interpreterRevision: f.revision, gameSeed: f.seed * 1000 + Math.floor(g / 2), policySeed: 7919 + g, testSeat: seat, test: b.test ?? local, baseline: b.policy, maxMoves });
+      results.push({ seat, r });
+    }
+    all.push(...results);
+    const s = summarise(results);
+    const steps = results.flatMap((x) => x.r.stepMs);
+    const [lo, hi] = wilson(s.wins, s.wins + s.losses);
+    rows.push({
+      baseline: b.name, fixture: f.name, games: s.games, wins: s.wins, losses: s.losses, draws: s.draws, unfinished: s.unfinished,
+      winRate: s.wins + s.losses ? s.wins / (s.wins + s.losses) : null, ci95: [lo, hi],
+      bySeat: s.bySeat, damageDealt: s.damageDealt, damageTaken: s.damageTaken, guards: s.guards,
+      stepMs: { p50: quantile(steps, 0.5), p95: quantile(steps, 0.95), max: Math.max(...steps) },
+      stopped: results.filter((x) => x.r.stopped).map((x) => x.r.stopped),
+    });
+  }
+  const s = summarise(all);
+  const [lo, hi] = wilson(s.wins, s.wins + s.losses);
+  rows.push({ baseline: b.name, fixture: "all", games: s.games, wins: s.wins, losses: s.losses, draws: s.draws, unfinished: s.unfinished, winRate: s.wins + s.losses ? s.wins / (s.wins + s.losses) : null, ci95: [lo, hi], bySeat: s.bySeat, damageDealt: s.damageDealt, damageTaken: s.damageTaken, guards: s.guards });
+}
+
+if (json) {
+  console.log(JSON.stringify({ policy: `main v${MAIN_POLICY_VERSION}`, gamesPerFixture: games, maxMoves, rows, seconds: (Date.now() - started) / 1000 }, null, 2));
+} else {
+  const pct = (x: unknown) => (typeof x === "number" ? `${(x * 100).toFixed(0)} %` : "-");
+  console.log(`Main-Phase policy v${MAIN_POLICY_VERSION} vs baselines, ${games} games per fixture (half from each seat), max ${maxMoves} moves`);
+  console.log("baseline   fixture  W-L-D (unfinished)   win rate (95 % CI)     p1 W-L  p2 W-L  damage dealt/taken  guard trips  step p95 ms");
+  for (const r of rows) {
+    console.log(
+      `${String(r.baseline).padEnd(10)} ${String(r.fixture).padEnd(8)} ${`${r.wins}-${r.losses}-${r.draws} (${r.unfinished})`.padEnd(20)} ${`${pct(r.winRate)} (${pct(r.ci95[0])}-${pct(r.ci95[1])})`.padEnd(22)} ${`${r.bySeat.p1.wins}-${r.bySeat.p1.losses}`.padEnd(7)} ${`${r.bySeat.p2.wins}-${r.bySeat.p2.losses}`.padEnd(7)} ${`${r.damageDealt}/${r.damageTaken}`.padEnd(19)} ${`${r.guards.test}/${r.guards.baseline}`.padEnd(12)} ${r.stepMs ? r.stepMs.p95.toFixed(1) : ""}`,
+    );
+  }
+  console.log(`${((Date.now() - started) / 1000).toFixed(0)} s`);
+}

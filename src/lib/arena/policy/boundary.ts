@@ -7,7 +7,8 @@
  * `DecisionKey` that maps an answer back to a move for the session. A policy
  * (`contract.ts`'s `Policy`) is handed `PolicyInput` and its own RNG state and
  * nothing else: no `EngineState`, no seed, no game RNG, no context, no other
- * seat's hand or deck order.
+ * seat's hand or deck order. `localStep` (#646) is one whole local decision:
+ * input, the local policy under `main.ts`'s cycle guard, and the move played.
  *
  * Browser-safe: this sits on `browser.ts` and the engine-neutral cores, and is
  * an entry of `scripts/verify/arena-browser-boundary.mts`.
@@ -20,7 +21,8 @@ import { IllegalAction } from "../vm/common";
 import { vmRevealedTo } from "../vm/view";
 import { isTokenCard } from "../vm/zones";
 import { buildObservation, type AliasTable, type DeckEntry, type PolicyObservation, type SecretAreas } from "./observation";
-import { buildDecisions, resolveAnswer, type DecisionKey, type PolicyInput, type RefusalReason } from "./contract";
+import { buildDecisions, resolveAnswer, type DecisionKey, type Policy, type PolicyInput, type RefusalReason } from "./contract";
+import { guardedDecide, type LocalMemory } from "./main";
 
 const SEATS: PlayerId[] = ["p1", "p2"];
 
@@ -202,4 +204,27 @@ export function applyDecision(match: PinnedMatch, key: DecisionKey, answer: unkn
     if (error instanceof IllegalAction) return { ok: false, reason: "refused", detail: error.message };
     throw error;
   }
+}
+
+export type LocalStep =
+  | { ok: true; match: PinnedMatch; events: GameEvent[]; id: string; memory: LocalMemory; guard: string | null }
+  | { ok: false; reason: RefusalReason | "refused" | "interrupted" | "notAsked"; detail: string; memory: LocalMemory };
+
+/**
+ * One local decision for `seat` (#646): its input, the local policy's answer
+ * under the cycle guard (`main.ts`), and the move played — the whole of what a
+ * local session does per decision. The policy sees the `PolicyInput` and its
+ * own memory (RNG included) and nothing else; `memory` comes back advanced
+ * whether or not the move was played. A guard that finds no way to end the turn
+ * interrupts (`interrupted`) and the match is left as it was: no move and no
+ * result is invented.
+ */
+export function localStep(match: PinnedMatch, seat: PlayerId, revision: number, memory: LocalMemory, policy: Policy): LocalStep {
+  const turn = policyTurn(match, seat, revision);
+  if (turn.input.decisions.actor !== seat || !turn.input.decisions.decisions.length) return { ok: false, reason: "notAsked", detail: `${seat} has no decision to make`, memory };
+  const decided = guardedDecide(policy, turn.input, memory);
+  if (!decided.ok) return { ok: false, reason: "interrupted", detail: decided.interrupted, memory: decided.memory };
+  const played = applyDecision(match, turn.key, decided.answer);
+  if (!played.ok) return { ...played, memory: decided.memory };
+  return { ...played, memory: decided.memory, guard: decided.guard };
 }
