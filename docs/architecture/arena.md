@@ -111,6 +111,10 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   matrix, named scenarios on synthetic cards, every position of the fixture games and the two #649
   audit decks); strength: `npm run arena:policy-eval` (`combat647` is the #647 baseline, `--audit`
   adds the #649 decks).
+  **Evaluation (#651)**: `docs/arena-policy-evaluation.md` — seeded games across both seats and every
+  baseline with intervals, seat bias against a control, hidden-state variants, determinism, latency in
+  Node and Chrome; `npm run arena:policy-eval -- --check` is the gate in `npm test`;
+  `npm run arena:policy-browser` needs Chrome. The `holdout` seed set is reserved for O5.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.
