@@ -158,6 +158,26 @@ function scopedPayWith(text: string): Op | null {
   return { op: "payWith", target: { sel: where }, forSkillsOf, max, ...(m[2] ? { oncePerTurn: true as const } : {}) };
 }
 
+/**
+ * 22-13-4-2-1, BT31-001: "You can choose the specified Battle Cards in your
+ * Battle Area or your Drop when choosing cards to use with the [Union] skill
+ * of a red <Veku> or <Gogeta> card from your hand. If you do, send the chosen
+ * cards to their owner's Warp." Two sentences that are one standing
+ * permission, so the clause list (which reads a choice, then a move to the
+ * Warp) never sees them. Fusion only (the owner's ruling of 13 Oct 2026): the
+ * card text says [Union], but [Union-Potara] is placed on top and
+ * [Union-Absorb] is not activated from the hand. The engine's [Union] keyword
+ * reads the permit and sends those cards to the Warp itself. Null for any
+ * other sentence, and for a description the filter grammar cannot read.
+ */
+function unionFusionAreasPermit(text: string): Op | null {
+  const m = /^you (?:can|may) choose the specified battle cards in your battle area or your drop when choosing cards to use with the \[union\] skill of an? (.+?) cards? from your hand\.?\s*if you do,? send the chosen cards to their owner'?s warp\.?$/i.exec(text.trim());
+  if (!m) return null;
+  const filter = filterFor(m[1].replace(/\s+or\s+/gi, " "), null);
+  if (!filter) return null;
+  return { op: "permit", what: "unionFusionAreas", target: { sel: { special: "self" } }, until: "game", filter };
+}
+
 function compileSkillText(skill: Skill): Script {
   // [Union-Fusion] and [Union-Potara] print two character names where an
   // effect would go, and the engine reads those itself. [Union-Absorb] is
@@ -220,6 +240,8 @@ function compileSkillText(skill: Skill): Script {
   // the clause list would cut at the comma and leave both halves unread.
   const scoped = c.permanent ? scopedPayWith(text) : null;
   if (scoped) return { ops: [scoped], unsupported: [] };
+  const unionAreas = c.permanent ? unionFusionAreasPermit(text) : null;
+  if (unionAreas) return { ops: [unionAreas], unsupported: [] };
   const opener = /^if (.+?),\s*(?=you (?:can|may)\s)/.exec(said);
   const permission = counterAltCost(said.slice(opener?.[0].length ?? 0).replace(/^you (?:can|may)\s+/, ""), c);
   // Only a *program* price needs the opener taken off. A waiver and a price
