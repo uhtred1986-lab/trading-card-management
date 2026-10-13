@@ -319,5 +319,125 @@ const passUntil = (s: VmState, until: (t: VmState) => boolean): VmState =>
   }
 }
 
+// ── Counter alternative price ──────────────────────────────────────────────
+// 5-3 / 5-8-2-3 / 9-7: a [Counter] may be declared by paying another price in place of its energy cost;
+// the card then goes to the Drop Area and its effect resolves in the counter motion (9-7-3-5).
+const counterAlt = (s: VmState, card: string) => legal(s).find((l) => l.action.type === "counter" && l.action.card === card && l.action.alt)?.action;
+const counterPaid = (s: VmState, card: string) => legal(s).find((l) => l.action.type === "counter" && l.action.card === card && !l.action.alt)?.action;
+{
+  // BT5-023: Permanent "(takes effect when you have 5 or more cards in your Drop Area) ... by adding a card from your life to your hand instead of paying its energy cost."
+  // Counter: "Your Leader Card is red: Choose up to 1 of your cards and it gets +40000 power for the duration of the battle, then choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the duration of the turn."
+  const defend = (drop: number, energy: number) => {
+    const s = mainOf("p2", 7573, { p1: "L-RED", p2: "L-BLUE" });
+    const c = stage(s, "p1", "BT5-023", "hand");
+    for (let i = 0; i < drop; i++) stage(s, "p1", "RED757", "drop");
+    for (let i = 0; i < energy; i++) stage(s, "p1", "RED757", "energy");
+    const foe = stage(s, "p2", "V-BLUE", "battle");
+    return { s: attackTo(s, "p2", leaderOf(s, "p2")), c, foe };
+  };
+  const none = defend(4, 0);
+  assert.notEqual(none.s.prompt.kind, "counter", "nothing can be declared, so the window is skipped");
+  assert.equal(counterAlt(none.s, none.c), undefined, "4 cards in the Drop Area: the Permanent has not taken effect, no free way in");
+  assert.equal(counterPaid(none.s, none.c), undefined, "and there is no energy to pay for it");
+  const five = defend(5, 0);
+  const alt = counterAlt(five.s, five.c);
+  assert.ok(alt, "5 cards in the Drop Area and no energy: offered by the life alternative");
+  assert.equal(counterPaid(five.s, five.c), undefined, "the energy way is not available");
+  const life = zone(five.s, "p1", "life").length;
+  const handBefore = zone(five.s, "p1", "hand").length;
+  let s = play(five.s, alt!);
+  assert.equal(zone(s, "p1", "life").length, life - 1, "a card left the Life Area");
+  assert.equal(zone(s, "p1", "hand").length, handBefore, "...and was added to the hand while the Counter itself left it");
+  assert.ok(zone(s, "p1", "drop").includes(five.c), "the Counter went to the Drop Area (22-10-7)");
+  assert.equal(s.prompt.kind, "chooseCards");
+  let q = promptOf(s).choice;
+  assert.deepEqual([q.min, q.max], [0, 1], "\"Choose up to 1 of your cards\" (5-2-4)");
+  assert.ok(q.candidates.includes(leaderOf(s, "p1")));
+  s = choose(s, "p1", [leaderOf(s, "p1")]);
+  assert.equal(s.prompt.kind, "chooseCards");
+  q = promptOf(s).choice;
+  assert.deepEqual([q.min, q.max], [0, 1], "\"choose up to 1 of your opponent's Battle Cards\"");
+  assert.deepEqual(q.candidates, [five.foe], "only the opponent's Battle Card");
+  s = choose(s, "p1", [five.foe]);
+  assert.equal(attrs(s, leaderOf(s, "p1")).power, 10000 + 40000, "+40000 for the battle");
+  assert.equal(attrs(s, five.foe).power, 10000 - 10000, "-10000 for the turn");
+  // 5-2-4: "up to" may be answered with nobody.
+  let z = play(five.s, alt!);
+  z = choose(z, "p1", []);
+  assert.equal(attrs(z, leaderOf(z, "p1")).power, 10000, "chose 0: no bonus");
+  // With energy: both ways are offered and the energy way leaves the Life Area alone.
+  const both = defend(5, 1);
+  assert.ok(counterAlt(both.s, both.c) && counterPaid(both.s, both.c), "energy and 5 in the Drop: both prices on offer");
+  const paid = play(both.s, counterPaid(both.s, both.c)!);
+  assert.equal(zone(paid, "p1", "life").length, life, "paying energy takes nothing from the Life Area");
+  // No Life card: the alternative can't be paid (5-8-3).
+  const bare = defend(5, 0);
+  empty(bare.s, "p1", "life");
+  assert.equal(counterAlt(bare.s, bare.c), undefined, "no Life card to add: not offered");
+}
+{
+  // BT4-097: "[Permanent] If your Leader Card is <<Goku's Lineage>>, when you activate this card's [Counter], you may choose 1 card in your life and add it to your hand. If you do so, you may activate this card's [Counter] without paying its energy cost."
+  // [Counter: Attack] Negate the attack.   (Leader SD5-01 is the audited deck B's own Leader.)
+  const defend = (leader: string, yellow: number) => {
+    const s = mainOf("p2", 7574, { p1: leader, p2: "L-BLUE" });
+    const c = stage(s, "p1", "BT4-097", "hand");
+    for (let i = 0; i < yellow; i++) stage(s, "p1", "BT4-084", "energy");
+    return { s: attackTo(s, "p2", leaderOf(s, "p2")), c };
+  };
+  const nothing = defend("SD5-01", 0);
+  const alt = counterAlt(nothing.s, nothing.c);
+  assert.ok(alt, "Goku's Lineage Leader, no energy: offered through the life alternative");
+  const life = zone(nothing.s, "p1", "life").length;
+  events = [];
+  const s = play(nothing.s, alt!);
+  assert.equal(zone(s, "p1", "life").length, life - 1, "1 card from the Life Area");
+  assert.ok(zone(s, "p1", "drop").includes(nothing.c), "the Counter is in the Drop Area");
+  assert.ok(events.some((e) => e.type === "attackNegated"), "Negate the attack (9-7-3-5)");
+  const wrong = defend("L-RED", 0);
+  assert.equal(counterAlt(wrong.s, wrong.c), undefined, "a Leader that is not Goku's Lineage: no free way in");
+  const rich = defend("SD5-01", 1);
+  assert.ok(counterPaid(rich.s, rich.c), "with a yellow energy the printed cost is also on offer");
+  const keepsLife = play(rich.s, counterPaid(rich.s, rich.c)!);
+  assert.equal(zone(keepsLife, "p1", "life").length, life, "paying energy leaves the Life Area alone");
+}
+{
+  // BT10-008: "[Permanent] If you have a red Unison Card with 2 or more markers in play, you can activate this card's [Counter] skill from your hand without paying its energy cost."
+  // Counter: "You can't activate the [Counter: Play] skills of other cards for the turn: Choose up to 2 of your opponent's Battle Cards, they get -15000 power for the turn, then play this card."
+  const window = (markers: number) => {
+    const s = mainOf("p2", 7575, { p1: "L-RED", p2: "L-BLUE" });
+    const y = stage(s, "p1", "BT10-008", "hand");
+    const u = stage(s, "p1", "RUNI757", "unison");
+    s.cards[u].markers = markers;
+    const pl = stage(s, "p2", "V-BLUE", "hand");
+    stage(s, "p2", "V-BLUE", "energy"); stage(s, "p2", "V-BLUE", "energy");
+    const foes = [stage(s, "p2", "V-BLUE", "battle"), stage(s, "p2", "V-BLUE", "battle"), stage(s, "p2", "V-BLUE", "battle")];
+    let t = play(s, { type: "play", player: "p2", card: pl });
+    if (t.prompt.kind === "payCost") t = play(t, legal(t)[0].action);
+    return { s: t, y, foes };
+  };
+  const one = window(1);
+  assert.equal(counterAlt(one.s, one.y), undefined, "a red Unison with 1 marker: no free way in");
+  const w = window(2);
+  const alt = counterAlt(w.s, w.y);
+  assert.ok(alt, "a red Unison with 2 markers and no energy: the Counter is offered free");
+  let s = play(w.s, alt!);
+  assert.equal(s.prompt.kind, "chooseCards");
+  // "Up to 2" is asked one card at a time, each pick optional (5-2-4), the first pick no longer on offer.
+  let q = promptOf(s).choice;
+  assert.deepEqual([q.min, q.max], [0, 1], "first pick of \"up to 2\": 0 or 1");
+  assert.ok(w.foes.every((id) => q.candidates.includes(id)), "the opponent's Battle Cards are the candidates");
+  assert.ok(q.candidates.every((id) => zone(s, "p2", "battle").includes(id)), "...and only theirs");
+  s = choose(s, "p1", [w.foes[0]]);
+  assert.equal(s.prompt.kind, "chooseCards");
+  q = promptOf(s).choice;
+  assert.deepEqual([q.min, q.max], [0, 1], "second pick: 0 or 1");
+  assert.ok(!q.candidates.includes(w.foes[0]) && q.candidates.includes(w.foes[1]), "the first pick is not offered again");
+  s = choose(s, "p1", [w.foes[1]]);
+  assert.equal(attrs(s, w.foes[0]).power, 10000 - 15000, "-15000 power for the turn");
+  assert.equal(attrs(s, w.foes[1]).power, 10000 - 15000);
+  assert.equal(attrs(s, w.foes[2]).power, 10000, "the third was not chosen");
+  assert.ok(zone(s, "p1", "battle").includes(w.y), "...then play this card");
+}
+
 console.log("#757 U1-b: played price and choice scenarios passed");
 export default Promise.resolve();
