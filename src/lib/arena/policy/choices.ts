@@ -20,7 +20,8 @@
  *                 costs the seat (to the Drop, the Warp, the deck's bottom, a
  *                 KO, a Life card at 3 or fewer) takes the fewest it must, the
  *                 least valuable first. "Different names" and a 22-30-3 colour
- *                 cover are honoured while choosing.
+ *                 cover are honoured while choosing. A 21-11 [Unique] question
+ *                 (the copy that stays in play) keeps the most valuable copy.
  *   chooseMode    every option is scored and the best taken, ties to the
  *   replaceMove   first printed: a price ("Pay: …", "Pay {r} and …") is worth
  *   optionalCost  paying when it costs less than the skill is worth (1.5: an
@@ -370,6 +371,8 @@ function pickChoice(input: PolicyInput, pick: PickDecision, work: Work): ChoiceR
   let generous: boolean;
   let why: string;
   if (theirs) { generous = !(HELP.test(clause) && !HARM.test(clause)); why = generous ? "targets the opponent's most valuable" : "gives the opponent its least valuable"; }
+  // 21-11 (#730): the copy chosen is the one that stays in play; the rest go to the Drop.
+  else if (/^\[unique\] \(21-11\)/i.test(reason)) { generous = true; why = "[Unique] (21-11): keeps its most valuable copy"; }
   else if (lifeToHand) { generous = o.you.life - owed > 3; why = generous ? "takes a Life card while life allows" : "keeps its life"; }
   else if (harmful) { generous = false; why = "pays with its least valuable"; }
   // A question about the seat's own hand that no readable skill sentence explains is the price of

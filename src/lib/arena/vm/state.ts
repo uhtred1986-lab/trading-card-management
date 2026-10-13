@@ -402,6 +402,8 @@ export interface VmState {
     used: Record<string, string[]>;
     awaiting?: { id: string; choices: ReplacementChoice[]; allowNone: boolean; actor?: PlayerId };
   };
+  /** #730: how many 21-11 [Unique] processings have begun, each one's 9-10 event identity (`vm/unique.ts`). Absent on a state saved before it existed. */
+  uniqueEvents?: number;
 }
 
 /**

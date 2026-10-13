@@ -279,6 +279,12 @@ export interface ScriptHost {
   resume(frame: ScriptFrame): void;
   /** Run `first` now and come back to `frame` — a replacement's substitute, which may itself ask (9-10-1-1). */
   interrupt(first: ScriptFrame, frame: ScriptFrame): void;
+  /**
+   * 21-1-2-1 (#730): interruptive rule processing due now, as a frame to run
+   * before the next instruction of `frame` — 21-11's [Unique] choice on the
+   * rules engine. Absent on a host that processes none mid-program.
+   */
+  ruleInterrupt?(frame: ScriptFrame): ScriptFrame | null;
   /** 5-5-3: play these cards, then come back to `frame`. */
   /**
    * `counterWindow` (#155): the play a keyword's own move makes opens the

@@ -76,6 +76,7 @@ import { activationMoment, activationTaxes, canPayPriceProgram, invokedMainLines
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
+import { uniqueFrame } from "./unique";
 import type { VmState } from "./state";
 
 /**
@@ -452,6 +453,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       state.programs.unshift(frame);
       state.programs.unshift(first);
     },
+    // 21-11 (#730): two same-named [Unique] cards the instruction just put
+    // in one Battle Area are processed before the next instruction. A price
+    // on the strict action-price host (which spreads this host) is proven and
+    // paid as one unit, so it is not cut; the runner's own look takes the
+    // violation the moment the price frame hands back control.
+    ruleInterrupt: (frame) => (frame.autoCost || frame.swapCost || frame.aegisCost || frame.counterCost || frame.reviveCost ? null : uniqueFrame(ctx, game, state)),
     // 5-5-3: the `play` op, and therefore **every** play on this engine — an
     // `ACTION play` says `DO { play(target: $card) }` and arrives here too, so a
     // play a player declares and a play a skill makes are one act (#146).
