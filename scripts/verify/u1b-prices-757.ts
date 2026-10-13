@@ -12,7 +12,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
 import { cardDefFrom } from "../../src/lib/arena/load";
 import { moveCard } from "../../src/lib/arena/vm/zones";
-import { attrsNow } from "../../src/lib/arena/vm/program";
+import { attrsNow, hasKeyword } from "../../src/lib/arena/vm/program";
 import { withTokens } from "../../src/lib/arena/vm/cards";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -46,6 +46,8 @@ Object.assign(defs, {
   BLUE757: card("BLUE757", { colors: ["Blue"], skill: null }),
   EXTRA757: card("EXTRA757", { type: "EXTRA", colors: ["Red"], energyCost: 1, power: null, comboCost: null, comboPower: null, skill: null }),
   BUNI757: card("BUNI757", { type: "UNISON", colors: ["Blue"], energyCost: 1, power: 5000, comboCost: null, comboPower: null, skill: null }),
+  EXACT757: card("EXACT757", { colors: ["Blue"], power: 20000, skill: null }),
+  BIG757: card("BIG757", { colors: ["Blue"], power: 25000, skill: null }),
   RUNI757: card("RUNI757", { type: "UNISON", colors: ["Red"], energyCost: 1, power: 5000, comboCost: null, comboPower: null, skill: null }),
 });
 
@@ -603,6 +605,147 @@ const sorted = (ids: string[]) => [...ids].sort();
   assert.ok(zone(s, "p1", "hand").includes(t3), "added to the hand");
   assert.ok(zone(s, "p1", "deck").includes(t1) && zone(s, "p1", "deck").includes(t2), "the others went back to the deck, which was shuffled");
   assert.equal(zone(s, "p1", "deck").length, zone(s0, "p1", "deck").length - 1);
+}
+
+{
+  // BT1-014 [Auto] "When this card attacks, you may choose 1 card from your life and add it to your hand. If you do so, this card gains +10000 power and [Double Strike] for the duration of the turn."
+  // BT4-012 [Auto] the same with +10000 power and [Critical].
+  for (const [id, kw] of [["BT1-014", "Strike"], ["BT4-012", "Critical"]] as const) {
+    const s0 = mainOf("p2", 7591);
+    const c = stage(s0, "p2", id, "battle");
+    const life = zone(s0, "p2", "life").length;
+    const hand = zone(s0, "p2", "hand").length;
+    let s = attackTo(s0, "p2", c);
+    let q = ask(s);
+    assert.deepEqual([q.min, q.max], [0, 1], `${id}: "you may choose 1 card from your life" is optional (min 0)`);
+    assert.deepEqual(sorted(q.candidates), sorted(zone(s, "p2", "life")), `${id}: every Life card is on offer`);
+    const done = choose(s, "p2", [q.candidates[0]]);
+    assert.equal(zone(done, "p2", "life").length, life - 1);
+    assert.equal(zone(done, "p2", "hand").length, hand + 1);
+    assert.equal(attrs(done, c).power, 15000, `${id}: +10000 power ("if you do so", 20-16)`);
+    assert.equal(hasKeyword(ctx, game, done, c, kw), true, `${id}: gains [${kw}]`);
+    // Declined: "if you do so" is not met (20-16-1).
+    const declined = choose(s, "p2", []);
+    assert.equal(zone(declined, "p2", "life").length, life);
+    assert.equal(attrs(declined, c).power, 5000, `${id}: nothing gained when no card was added`);
+    assert.equal(hasKeyword(ctx, game, declined, c, kw), false);
+  }
+}
+{
+  // SD5-02 [Auto] "When this card attacks, you may draw 1 card. If you did not draw a card with this skill, this card gains [Double Strike] for the duration of the turn."
+  for (const [index, draws] of [[0, true], [1, false]] as const) {
+    const s0 = mainOf("p2", 7592);
+    const c = stage(s0, "p2", "SD5-02", "battle");
+    const hand = zone(s0, "p2", "hand").length;
+    let s = attackTo(s0, "p2", c);
+    assert.equal(s.prompt.kind, "chooseMode", "\"you may\" asks");
+    assert.deepEqual(promptOf(s).options, ["draw 1 card", "Don't"]);
+    s = mode(s, "p2", index);
+    assert.equal(zone(s, "p2", "hand").length, hand + (draws ? 1 : 0), draws ? "drew 1" : "declined: no draw");
+    assert.equal(hasKeyword(ctx, game, s, c, "Strike"), !draws, draws ? "drew: no [Double Strike]" : "did not draw: [Double Strike]");
+  }
+}
+{
+  // SD5-01 [Awaken] "When your life is at 4 or less: You may choose up to 2 of your energy, switch them to Active Mode, and flip this card over."
+  const s0 = mainOf("p1", 7593, { p1: "SD5-01", p2: "L-BLUE" });
+  zone(s0, "p1", "life").splice(4);
+  const rest = [0, 1, 2].map(() => stage(s0, "p1", "RED757", "energy"));
+  for (const e of rest) s0.cards[e].mode = "rest";
+  const awaken = legal(s0).find((l) => l.action.type === "activate" && l.action.card === leaderOf(s0, "p1"));
+  assert.ok(awaken, "offered at 4 life");
+  let s = play(s0, awaken!.action);
+  const q1 = ask(s);
+  assert.deepEqual([q1.min, q1.max], [0, 1], "the first of \"up to 2\" energy");
+  s = choose(s, "p1", [rest[0]]);
+  const q2 = ask(s);
+  assert.deepEqual([q2.min, q2.max], [0, 1]);
+  assert.ok(!q2.candidates.includes(rest[0]));
+  s = choose(s, "p1", [rest[1]]);
+  assert.equal(s.cards[rest[0]].mode, "active");
+  assert.equal(s.cards[rest[1]].mode, "active");
+  assert.equal(s.cards[rest[2]].mode, "rest", "only the two chosen");
+  assert.equal(s.cards[leaderOf(s, "p1")].flipped, true, "flipped");
+  // 5 life: the condition is not met.
+  const t0 = mainOf("p1", 7593, { p1: "SD5-01", p2: "L-BLUE" });
+  assert.equal(legal(t0).some((l) => l.action.type === "activate" && l.action.card === leaderOf(t0, "p1")), false, "5 life: not offered");
+}
+{
+  // BT6-025 [Activate: Main] "If your Leader Card is red: Choose up to 1 of your opponent's Battle Cards with 20000 power or less and KO it."
+  const run = (leader: string) => {
+    const s = mainOf("p1", 7594, { p1: leader, p2: "L-BLUE" });
+    const c = stage(s, "p1", "BT6-025", "hand");
+    energyFor(s, "p1", 1);
+    const small = stage(s, "p2", "V-BLUE", "battle");
+    const exact = stage(s, "p2", "EXACT757", "battle");
+    const big = stage(s, "p2", "BIG757", "battle");
+    return { s, c, small, exact, big };
+  };
+  const r = run("L-RED");
+  let s = play(r.s, { type: "activate", player: "p1", card: r.c, skill: 0 });
+  while (s.prompt.kind === "payCost") s = play(s, legal(s)[0].action);
+  const q = ask(s);
+  assert.deepEqual([q.min, q.max], [0, 1]);
+  assert.ok(q.candidates.includes(r.small), "a 10000-power Battle Card is on offer");
+  assert.ok(q.candidates.includes(r.exact), "so is one with exactly 20000 power (\"or less\")");
+  assert.ok(!q.candidates.includes(r.big), "a 25000-power one is not");
+  s = choose(s, "p1", [r.small]);
+  assert.ok(zone(s, "p2", "drop").includes(r.small), "KO'd to the Drop Area");
+  assert.ok(zone(s, "p2", "battle").includes(r.big));
+  const b = run("L-BLUE");
+  assert.equal(legal(b.s).some((l) => l.action.type === "activate" && l.action.card === b.c), false, "a blue Leader: the condition-only price fails, not offered");
+}
+{
+  // TB1-023 [Activate: Main] "Choose all red <<Saiyan>> cards in your Battle Area. They gain [Barrier] until the end of your opponent's next turn."
+  const s0 = mainOf("p1", 7595);
+  const c = stage(s0, "p1", "TB1-023", "hand");
+  const saiyan = stage(s0, "p1", "BT11-011", "battle");
+  const saiyan2 = stage(s0, "p1", "BT6-010", "battle");
+  const plain = stage(s0, "p1", "RED757", "battle");
+  const foe = stage(s0, "p2", "BT11-011", "battle");
+  const s = play(s0, { type: "activate", player: "p1", card: c, skill: 0 });
+  assert.notEqual(s.prompt.kind, "chooseCards", "\"choose all\" asks nothing");
+  assert.equal(hasKeyword(ctx, game, s, saiyan, "Barrier"), true, "a red <<Saiyan>> card in my Battle Area");
+  assert.equal(hasKeyword(ctx, game, s, saiyan2, "Barrier"), true);
+  assert.equal(hasKeyword(ctx, game, s, plain, "Barrier"), false, "a red non-<<Saiyan>> card does not");
+  assert.equal(hasKeyword(ctx, game, s, foe, "Barrier"), false, "nor does the opponent's Saiyan");
+}
+{
+  // SD15-02 [+1][Activate: Main] "Choose up to 1 of your opponent's Battle Cards or Unison Cards and it gets -10000 power for the turn."
+  const s0 = mainOf("p1", 7596);
+  const u = stage(s0, "p1", "SD15-02", "unison");
+  const mine = stage(s0, "p1", "RED757", "battle");
+  const foeB = stage(s0, "p2", "V-BLUE", "battle");
+  const foeU = stage(s0, "p2", "RUNI757", "unison");
+  const act = legal(s0).find((l) => l.action.type === "activate" && l.action.card === u && l.action.skill === 10);
+  assert.ok(act, "[+1][Activate: Main] is offered");
+  let s = play(s0, act!.action);
+  const q = ask(s);
+  assert.deepEqual([q.min, q.max], [0, 1]);
+  assert.deepEqual(sorted(q.candidates), sorted([foeB, foeU]), "the opponent's Battle Cards and Unison Cards, nothing of mine");
+  assert.ok(!q.candidates.includes(mine) && !q.candidates.includes(u));
+  s = choose(s, "p1", [foeU]);
+  assert.equal(attrs(s, foeU).power, 5000 - 10000, "-10000 for the turn");
+  assert.equal(attrs(s, foeB).power, 10000);
+  assert.equal(s.cards[u].markers, 1, "[+1] added a marker");
+}
+{
+  // SD15-02 [Auto][Limit 1] "When this card is placed in your Drop Area from your Unison Area, choose up to 1 of your mono-red Leader Cards and it gets +5000 power for the turn."
+  const run = (leader: string) => {
+    const s = mainOf("p1", 7597, { p1: leader, p2: "L-BLUE" });
+    const u = stage(s, "p1", "SD15-02", "unison");
+    const next = stage(s, "p1", "RUNI757", "hand");
+    energyFor(s, "p1", 2);
+    return { s: play(s, { type: "playUnison", player: "p1", card: next, x: 1 }), u };
+  };
+  const r = run("L-RED");
+  assert.ok(zone(r.s, "p1", "drop").includes(r.u), "SD15-02 was placed in the Drop Area from the Unison Area (3-11-5)");
+  const q = ask(r.s);
+  assert.deepEqual([q.min, q.max], [0, 1]);
+  assert.deepEqual(q.candidates, [leaderOf(r.s, "p1")], "my mono-red Leader only (not the opponent's)");
+  const s = choose(r.s, "p1", [leaderOf(r.s, "p1")]);
+  assert.equal(attrs(s, leaderOf(s, "p1")).power, 10000 + 5000);
+  const b = run("L-BLUE");
+  assert.notEqual(b.s.prompt.kind, "chooseCards", "a blue Leader is not mono-red: nothing to choose");
 }
 
 console.log("#757 U1-b: played price and choice scenarios passed");
