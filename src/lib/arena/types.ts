@@ -384,8 +384,16 @@ export interface Permission {
    * [Field] skill on this card in your hand can also be activated at
    * [Activate: Battle] timings" (BT29-041, BT29-042). Read from the hand,
    * where the skill is used; `filter` is not read.
+   * `unionFusionAreas`: while the card granting it (the target) is in play, its
+   * master's [Union-Fusion] may choose its specified Battle Cards from the
+   * Battle Area and the Drop as well as the hand (22-13-4-2-1), those two
+   * going to their owner's Warp — "You can choose the specified Battle Cards
+   * in your Battle Area or your Drop when choosing cards to use with the
+   * [Union] skill of a red <Veku> or <Gogeta> card from your hand. If you do,
+   * send the chosen cards to their owner's Warp" (BT31-001, owner's ruling of
+   * 13 Oct 2026). `filter` says which cards' [Union-Fusion] it widens.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }

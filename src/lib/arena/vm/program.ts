@@ -42,7 +42,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../types";
-import { backCharactersOf, baseType, coversColors, eachNamedHolds, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
+import { backCharactersOf, baseType, coversColors, namedSetCandidates, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { CardIdentityGain, Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { counterKindOf, other } from "../types";
@@ -1459,14 +1459,13 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // read off the line the program belongs to.
     case "oneOf":
       return c.of.includes(c.value);
-    case "eachNamed": {
-      const sk = lineOf(ctx, state, frame);
-      if (!sk) return false;
-      const pool = resolveSelector(ctx, game, state, frame, c.sel).map((id) => {
-        const def = ctx.defs[state.cards[id].cardId];
-        return { id, characters: def?.characters ?? [], power: def?.power ?? 0 };
-      });
-      return eachNamedHolds(printedNames(sk), pool, !!c.samePower);
+    case "eachNamed":
+      return namedCandidates(ctx, game, state, frame, c.sel, [], !!c.samePower).length > 0;
+    // BT31-001 (22-13-4-2-1): a `permit` of `unionFusionAreas` whose filter the
+    // card using this line answers, under the same master.
+    case "permits": {
+      const card = frame.card;
+      return !!card && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && permitted(ctx, game, state, p.filter, card));
     }
     // #155: [Arrival]/[Revive]'s colours and [Successor]'s exact sum, read
     // through the shared readings `text/cards.ts` gives both engines.
@@ -1491,6 +1490,24 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     case "markerSkillUsed":
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => !!state.cards[id]?.usedMarkerSkill);
   }
+}
+
+/**
+ * [Union]'s named characters (22-13): the cards among `sel` that can still be
+ * part of a full set of the characters the frame's line prints — one card per
+ * name, `samePower` all of one *printed* power (22-13-4-2; the owner's ruling
+ * of 13 Oct 2026 for BT31-001: printed, so a buffed card still qualifies) —
+ * given the cards already `picked`. With nothing picked, none at all means the
+ * line cannot be paid.
+ */
+export function namedCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, picked: string[], samePower = true): string[] {
+  const sk = lineOf(ctx, state, frame);
+  if (!sk) return [];
+  const pool = resolveSelector(ctx, game, state, frame, sel).map((id) => {
+    const def = ctx.defs[state.cards[id].cardId];
+    return { id, characters: def?.characters ?? [], power: def?.power ?? 0 };
+  });
+  return namedSetCandidates(printedNames(sk), pool, picked, samePower);
 }
 
 /** The name `sumsTo` binds one card to while it reads that card's measure through `amount`. */

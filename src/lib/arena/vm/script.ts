@@ -399,6 +399,13 @@ export type Cond =
    */
   | { kind: "eachNamed"; sel: Selector; samePower?: boolean }
   /**
+   * Does a `permit` of this kind stand for the frame's own card — the card
+   * whose line this program is — under its master? [Union-Fusion]'s widened
+   * areas (`unionFusionAreas`, BT31-001): the permission's `filter` is asked of
+   * the card using the line, not of the card granting it.
+   */
+  | { kind: "permits"; what: "unionFusionAreas" }
+  /**
    * Do the cards among `sel` carry every one of these colours between them —
    * one card of each, or one multicolour card for two (22-29-3, 22-30-3,
    * 22-34-3)? [Arrival]'s Combo Area and [Revive]'s hand, the colours bound
@@ -479,7 +486,7 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -976,8 +983,11 @@ export type Op =
    * `overRealmFromWarp` (BT31-150): the target's [Over Realm] skill may be
    * activated from its owner's Warp as from the hand (22-15); read while the
    * card is in the Warp.
+   * `unionFusionAreas` (BT31-001): the master's [Union-Fusion] on a card the
+   * `filter` describes may choose its specified cards from the Battle Area and
+   * the Drop too (22-13-4-2-1); read in play, as most permits are.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp"; until: Duration; target: Ref; filter?: CardFilter }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1803,6 +1813,38 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         };
         // Cards picked so far, while a multi-card choice is part-answered.
         const sofar = frame.awaiting === op.as ? (frame.vars[op.as] ?? []) : [];
+
+        // 22-13-4-2: the characters a [Union-Fusion] line names, one card each
+        // and all of one printed power, picked one card at a time among the
+        // cards that still leave a complete set (the same set `eachNamed`
+        // asked before the line was offered). Cards picked from the Battle
+        // Area or the Drop (BT31-001, 22-13-4-2-1) are bound apart, as
+        // `<as>Outside`, because they go to the Warp and the hand's to the Drop.
+        if (op.namedSet) {
+          const answer = frame.awaiting === op.as ? h.lastChoice() : null;
+          if (answer) h.clearLastChoice();
+          let picked = [...sofar];
+          for (const id of answer ?? []) {
+            if (!h.namedCandidates(frame, op.sel, picked).includes(id)) throw new IllegalAction("that card can no longer be chosen");
+            picked = [...picked, id];
+          }
+          const cands = h.namedCandidates(frame, op.sel, picked);
+          if (picked.length >= want || !cands.length) {
+            frame.awaiting = undefined;
+            take(picked.length >= want ? picked : []);
+            frame.vars[`${op.as}Outside`] = frame.vars[op.as].filter((id) => h.areaOf(id) !== "hand");
+            break;
+          }
+          frame.awaiting = op.as;
+          frame.vars[op.as] = picked;
+          h.resume(frame);
+          h.ask({
+            kind: "chooseCards",
+            player: op.chooser ? sideOf(master, op.chooser)[0] : master,
+            choice: { reason: `${op.reason ?? `${h.nameOf(frame.card)}: choose`}${want - picked.length === 1 ? "" : ` (${want - picked.length} more)`}`, candidates: cands, min: 1, max: 1, continuation: op.as },
+          });
+          return "wait";
+        }
 
         // 22-38-3 (#155): a set whose measures add up to exactly `sumTo`,
         // picked one card at a time, and only cards that still leave a way to

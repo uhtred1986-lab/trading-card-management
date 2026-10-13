@@ -321,7 +321,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -336,6 +336,11 @@ const CHOOSE_FIELDS: OpField[] = [
         offCard: "picks one card at a time until their sumAttr adds up to exactly this much, offering only the cards that still leave a way to the exact sum; the selector's count is not read, and a set that cannot be finished binds nothing — [Successor]'s cost (22-38-3)",
       },
       { name: "sumAttr", type: { enum: AMOUNT_ATTRS }, offCard: "the measure sumTo adds up — energyCost when left out" },
+      {
+        name: "namedSet",
+        type: "boolean",
+        offCard: "picks one card at a time for the characters the keyword line prints in ‹…› — one card per name, all of one printed power — offering only the cards that still leave a complete set; binds the picks to `as` and those that stood outside the hand to `<as>Outside` — [Union-Fusion] (22-13-4-2)",
+      },
       {
         name: "atMost",
         type: "amount",
@@ -816,10 +821,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "overRealmFromWarp") {
         return renderTemplate("{target}'s [Over Realm] skill can be activated from its owner's Warp under the same conditions as from the hand", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
       }
+      if (op.what === "unionFusionAreas") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Fusion] can choose its specified cards in your Battle Area or Drop, those going to their owner's Warp${forThe(op.until, r)}`;
       if (op.what === "fieldBattle") return `the [Field] skill on ${describeRef(op.target)} in your hand can also be activated at [Activate: Battle] timings`;
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },
-    doc: 'a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged). The filter says *which* cards — leave it out only when the card does',
+    doc: 'a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or "you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand" (22-13-4-2-1, "unionFusionAreas", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). The filter says *which* cards — leave it out only when the card does',
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
   chooseMode: {
@@ -1290,6 +1296,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "does every character the keyword line prints in ‹…› stand on a different card among these — and, with samePower, are they of one power? [Union]'s check before it is offered (22-13-4, 22-13-5). No card's record says this; it is read off the line a keyword's own program belongs to, like the `asPrinted` selector flag",
   },
+  permits: {
+    fields: [{ name: "what", type: { enum: ["unionFusionAreas"] }, required: true }],
+    sentence: () => "a [Permanent] of yours widens where this card's [Union-Fusion] may choose its cards from",
+    doc: "does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. A `DEFINE KEYWORD` body's word; no card's record says this",
+  },
   covers: {
     fields: [
       { name: "sel", type: "selector", required: true },
@@ -1361,6 +1372,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   flag:           "primitive",
   oneOf:          "primitive",
   eachNamed:      "primitive",
+  permits:        "primitive",
   covers:         "primitive",
   sumsTo:         "primitive",
   attacked:       "macro over `count`",
@@ -1387,7 +1399,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
  * Not a validation rule — `validateProgram` accepts every schema row, because a
  * stored program is checked against the language and not against this list.
  */
-export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "flag", "oneOf", "eachNamed", "covers", "sumsTo", "attacked", "markerSkillUsed"];
+export const CONDITIONS_OFF_A_CARD: readonly Cond["kind"][] = ["asking", "forbidden", "flag", "oneOf", "eachNamed", "permits", "covers", "sumsTo", "attacked", "markerSkillUsed"];
 
 // ── validation, for programs that did not come from the compiler ───────────
 

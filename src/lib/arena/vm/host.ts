@@ -71,7 +71,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
 import { activationMoment, activationTaxes, canPayPriceProgram, invokedMainLines, queueActivationTaxes, resolveActivation } from "./activate";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
@@ -154,6 +154,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     resolveRef: (frame, ref) => resolveRef(ctx, game, state, frame, ref),
     amount: (frame, a) => amount(ctx, game, state, frame, a),
     condHolds: (frame, c) => condHolds(ctx, game, state, frame, c),
+    namedCandidates: (frame, sel, picked) => namedCandidates(ctx, game, state, frame, sel, picked),
 
     // ── what the program can change ──────────────────────────────────────
     note: (text) => {
