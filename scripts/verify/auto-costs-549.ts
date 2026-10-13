@@ -9,7 +9,7 @@ import { addEffect } from "../../src/lib/arena/vm/effects";
 import { run } from "../../src/lib/arena/vm/flow";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { NotYet } from "../../src/lib/arena/vm/errors";
-import { automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "../../src/lib/arena/vm/auto-costs";
+import { automaticPriceHost, canFinishAutomaticPrice, interchangeableCandidates, readableAutomaticPrice } from "../../src/lib/arena/vm/auto-costs";
 import { staticsNow } from "../../src/lib/arena/vm/program";
 import { stepScript, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -186,6 +186,14 @@ function assertPrivateInterruption(s: VmState) {
   scripts.FREE549.bySkill[0] = prior;
 }
 function mainWith(id: string) { const state = main(); return { state, source: stage(state, id) }; }
+/** Step a price to its first card prompt on a copy, as the planner does. */
+function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFrame; candidates: string[] } {
+  const s = reload(state); const f = structuredClone(frame);
+  s.programs = [];
+  assert.equal(stepScript(automaticPriceHost(ctx, dbs, s, []), f), "wait");
+  assert.equal(s.prompt.kind, "chooseCards");
+  return { s, f, candidates: s.prompt.kind === "chooseCards" ? s.prompt.choice.candidates : [] };
+}
 // A false condition takes precedence over an unread price/effect.
 {
   const old = scripts.MIX549.bySkill[0];
@@ -760,7 +768,18 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   const replaced = reload(a.state);
   const target = replaced.sides.p1.zones.hand[0];
   addEffect(replaced, [], { master: "p1", source: a.source, target, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, replaced, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "cost-move replacement bypasses the shortcut");
+  // The shortcut is bypassed, so the ordinary search decides it. The other 19
+  // identical hand copies are one class; the replacement's own target is not.
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, replaced, frame, { symmetry: false }), (err: unknown) => err instanceof NotYet && err.issue === "#549", "cost-move replacement bypasses the shortcut");
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, replaced, frame), false, "the full search with interchangeable copies proves the rested source unpayable");
+  {
+    const { s, f, candidates } = atPrompt(replaced, frame);
+    const classes = interchangeableCandidates(ctx, dbs, s, f, candidates, new Set());
+    assert.equal(candidates.length, 20);
+    assert.ok(!classes.has(target) && ![...classes.values()].includes(target), "a card named by an effect is never folded into another class");
+    assert.equal(new Set(classes.values()).size, 1, "the other identical copies share one representative");
+    assert.equal(classes.size, 18, "19 identical copies keep exactly one answer");
+  }
   // This synthetic [Permanent] is dormant at 20 hand cards, then becomes a
   // replacement after the first hand departure. Inspecting only current
   // statics would incorrectly prune the entire price before it can activate.
@@ -774,7 +793,14 @@ function mainWith(id: string) { const state = main(); return { state, source: st
   assert.ok(moveCard(conditional, dbs, extra, "hand", { owner: "p1" }).ok);
   assert.equal(conditional.sides.p1.zones.hand.length, 20);
   assert.equal(staticsNow(ctx, dbs, conditional).some((effect) => effect.kind === "replaceLeave"), false);
-  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, conditional, frame), (err: unknown) => err instanceof NotYet && err.issue === "#549", "dormant conditional replacement bypasses the shortcut");
+  assert.throws(() => canFinishAutomaticPrice(ctx, dbs, conditional, frame, { symmetry: false }), (err: unknown) => err instanceof NotYet && err.issue === "#549", "dormant conditional replacement bypasses the shortcut");
+  // The audit's P0 case: with interchangeable copies the exact search finishes.
+  // The replacement would stand up the Permanent, not the rested source, and
+  // applying it diverts the cost move, so no branch pays (5-8-2-2-1-1).
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, conditional, frame), false, "dormant conditional replacement is decided, not left unknown");
+  const standing = reload(conditional);
+  standing.cards[a.source].mode = "active";
+  assert.equal(canFinishAutomaticPrice(ctx, dbs, standing, frame), true, "with an active source the same search finds the declined-replacement payment");
   assert.ok(moveCard(conditional, dbs, conditional.sides.p1.zones.hand[0], "drop", { owner: "p1" }).ok);
   assert.equal(staticsNow(ctx, dbs, conditional).some((effect) => effect.kind === "replaceLeave"), true);
   scripts.PERM549.bySkill[0] = oldPermanent;
