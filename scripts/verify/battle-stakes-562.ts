@@ -8,6 +8,7 @@ import { addEffect } from '../../src/lib/arena/vm/effects';
 import { makeWhisFixture } from './ability-engine-fixture-561';
 import { moveCard } from '../../src/lib/arena/vm/zones';
 import { rulesetFor } from '../../src/lib/arena/rulesets';
+import { hiddenAliases } from '../../src/lib/arena/conceal';
 
 // The source and guard definitions must match their physical Leader/Unison areas.
 {
@@ -172,7 +173,8 @@ for(const target of ['U05_UNISON','U05_INDESTRUCT'] as const){
  assert.equal(continuation.prompt.kind,'main');continuation=apply562(continuation,{type:'endMain',player:'p2'}).state as typeof state;
  assert.deepEqual(snapshot562(continuation).view.you.energyColors!.find(c=>c.card===red)!.colors,['Red'],'turn expiry removes colour grant');
  const hidden=structuredClone(state);hidden.cards[red].hidden=true;hidden.effects=[];
- assert.deepEqual(snapshot562(hidden).view.you.energyColors!.find(c=>c.card===red)!.colors,[],'hidden printed colours stay hidden');
+ // A Hidden Mode card is named by its position on the board, never its instance id (`conceal.ts`).
+ assert.deepEqual(snapshot562(hidden).view.you.energyColors!.find(c=>c.card===hiddenAliases(hidden,'p1')[red])!.colors,[],'hidden printed colours stay hidden');
  for(const viewer of ['p1','p2'] as const){const snapshot=snapshot562(state,1,viewer);for(const side of [snapshot.view.you,snapshot.view.them])assert(side.energyColors!.every(row=>side.energy.some(card=>card.id===row.card)),'rows name only public energy cards');}
 }
 
@@ -189,11 +191,11 @@ for(const target of ['U05_UNISON','U05_INDESTRUCT'] as const){
  assert.deepEqual(before.view.you.energyColors!.find(row=>row.card===energy)!.paymentColors,['Red','Blue']);
  assert.match(energySummary(before.view.you),/Blue 1\/1/);
  assert.match(energySummary(before.view.you,[],'effective'),/Blue 1\/1/);
- const hidden=structuredClone(state);hidden.cards[energy].hidden=true;
- const hiddenSnapshot=snapshot562(hidden);const publiclyBlue=hiddenSnapshot.view.you.energyColors!.find(row=>row.card===energy)!.paymentColors.includes('Blue');
- assert.deepEqual(hiddenSnapshot.view.you.energyColors!.find(row=>row.card===energy)!.paymentColors,[],'Hidden Mode has no payment colour even with public grants');
+ const hidden=structuredClone(state);hidden.cards[energy].hidden=true;const hiddenAs=hiddenAliases(hidden,'p1')[energy];
+ const hiddenSnapshot=snapshot562(hidden);const publiclyBlue=hiddenSnapshot.view.you.energyColors!.find(row=>row.card===hiddenAs)!.paymentColors.includes('Blue');
+ assert.deepEqual(hiddenSnapshot.view.you.energyColors!.find(row=>row.card===hiddenAs)!.paymentColors,[],'Hidden Mode has no payment colour even with public grants');
  const offersBlue=engine562.legalActions(fixtureContext(),hidden).some(row=>row.action.type==='activate'&&row.action.card===card);
  assert.equal(publiclyBlue,offersBlue,'public hidden-energy grant and actual Blue-cost planner agree');
- assert.equal(hiddenSnapshot.view.you.energy.find(row=>row.id===energy)!.colors.length,0,'hidden printed face remains withheld');
+ assert.equal(hiddenSnapshot.view.you.energy.find(row=>row.id===hiddenAs)!.colors.length,0,'hidden printed face remains withheld');
 }
 console.log('Battle stakes #562: resolver outcomes, replacement/pending uncertainty, privacy, effective energy colours/payment/source expiry and stale reload passed');

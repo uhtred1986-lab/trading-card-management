@@ -16,7 +16,9 @@ import type { Action, PlayerId } from "./types";
 import { applyToGame, loadArchivedGame, loadGame, type LoadedGame, type MutationIdentity } from "./games";
 import { advance, aiPlayerOf } from "./ai/run";
 import { longPollStepMs } from "./poll-schedule";
-import { archivedSnapshotFor, buildSnapshot, withSnapshotReading, type Snapshot } from "./snapshot";
+import { archivedSnapshotFor, buildSnapshot, viewerFor, withSnapshotReading, type Snapshot } from "./snapshot";
+import { conceal, hiddenAliases, resolveAliased, type Resolved } from "./conceal";
+import type { GameDefinition } from "./rulesets/types";
 import type { CardArt } from "./view";
 
 /**
@@ -44,6 +46,26 @@ export async function snapshotOfGame(db: Db, game: LoadedGame, viewer: PlayerId 
   // The spread reads `game.legal`'s lazy getter. Keep that read, the rejected
   // menu, ability availability and board view in one immutable read session.
   return withSnapshotReading(game, () => buildSnapshot({ ...game, revision: game.version, ai: aiPlayerOf(game), viewer, images }));
+}
+
+/**
+ * What a client sent back — a whole `Action`, or a plan of them — with the
+ * card aliases its board named hidden cards by (`conceal.ts`) turned back into
+ * instance ids, for the viewer that board was drawn for. Read against the
+ * game as loaded, so the caller must already have refused a `basedOn` that is
+ * not `game.version`: an alias means a position on one revision only.
+ */
+export function resolveForViewer<T>(game: LoadedGame, value: T, seat: PlayerId | null): Resolved<T> {
+  const viewer = viewerFor({ ai: aiPlayerOf(game), state: game.state, viewer: seat });
+  const pinned = (game.ctx as { rulesetDefinition?: GameDefinition }).rulesetDefinition;
+  return resolveAliased(value, game.state, viewer, pinned);
+}
+
+/** The other way: anything built from the game for this viewer, its hidden cards named by alias. */
+export function concealForViewer<T>(game: LoadedGame, value: T, seat: PlayerId | null): T {
+  const viewer = viewerFor({ ai: aiPlayerOf(game), state: game.state, viewer: seat });
+  const pinned = (game.ctx as { rulesetDefinition?: GameDefinition }).rulesetDefinition;
+  return conceal(value, hiddenAliases(game.state, viewer, pinned));
 }
 
 /**

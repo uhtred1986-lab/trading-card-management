@@ -295,7 +295,7 @@ export type SecretAreas = Readonly<Record<PlayerId, readonly string[]>>;
  * beat keeps the moment and loses the card, or a policy could follow a card
  * into a hand and out of it again — which no player at the table can.
  */
-function historicalMask(b: NumberedBeat, secret: SecretAreas): NumberedBeat {
+export function historicalMask(b: NumberedBeat, secret: SecretAreas): NumberedBeat {
   const isSecret = (p: PlayerId | null | undefined, area: string) => !!p && secret[p].includes(area);
   if (b.t === "draw" && b.card && isSecret(b.player, "hand")) return { ...b, card: BEAT_ALIAS };
   if (b.t === "move" && !b.reveal && isSecret(b.owner, b.from) && isSecret(b.owner, b.to)) return { ...b, card: BEAT_ALIAS };
