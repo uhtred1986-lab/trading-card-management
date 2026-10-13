@@ -125,6 +125,23 @@ export function legacyEngineRule(rel: string): string | null {
 }
 
 /**
+ * #655's `forbidFile` rule for the offline pack runtime (`src/lib/arena/local/`): everything
+ * `legacyEngineRule` refuses, plus every place a card definition or program could be fetched
+ * from instead of the pack — the catalog sources (all of `src/lib/catalog/` but the game ids),
+ * the database loader, the rule drafter/store, the server's replay bundle and the review store.
+ * The compiler itself is not refused here because the rules engine already reads printed costs
+ * through `compile.ts` helpers; `scripts/verify/arena-offline-pack.mts` checks that the pack
+ * module's own imports name no compiler or card-text reader.
+ */
+export function offlinePackRule(rel: string): string | null {
+  const legacy = legacyEngineRule(rel);
+  if (legacy) return legacy;
+  if (/^src\/lib\/catalog\//.test(rel) && rel !== "src/lib/catalog/games.ts") return "catalog source import";
+  if (/^src\/lib\/arena\/(load|draft|rules-store|replay-bundle|review|review-load|review-store|rule-review|rule-review-store|offline-replay)\.ts$/.test(rel)) return "server-side card source import";
+  return null;
+}
+
+/**
  * #644's `forbidFile` rule for the policy layer (`src/lib/arena/policy/` but its
  * `boundary.ts`): a policy may load nothing but other policy-layer modules — no
  * engine, no snapshot builder, no RNG of the game's, no provider, no database.
