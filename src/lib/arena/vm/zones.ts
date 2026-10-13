@@ -442,11 +442,6 @@ function lift(board: Board, id: string, host: string | null): void {
   }
 }
 
-/**
- * 3-1-4: a card that changes area is treated as a new card. Mode, markers and
- * both faces go back to what a card arriving in this zone has — which is the
- * zone's first declared mode, or none when it declares none.
- */
 /** 3-1-4-1 / 3-1-4-2: the moves that do not make a new card of it (`from` zone -> `to` zones). */
 const KEEPS_USES: Record<string, string[]> = {
   battle: ["battle", "unison", "combo"],
@@ -454,6 +449,11 @@ const KEEPS_USES: Record<string, string[]> = {
   combo: ["battle"],
 };
 
+/**
+ * 3-1-4: a card that changes area is treated as a new card. Mode, markers and
+ * both faces go back to what a card arriving in this zone has — which is the
+ * zone's first declared mode, or none when it declares none.
+ */
 function reset(card: VmCard, zone: ZoneDef | null): void {
   card.mode = zone ? arrivalMode(zone) : null;
   card.markers = 0;
