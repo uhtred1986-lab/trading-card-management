@@ -14,6 +14,7 @@ import { hasPossibleReplacement, possibleAltPaymentReplacement, staticsNow } fro
 import type { VmState } from "./state";
 import { skillsShowing } from "./triggers";
 import { inPlayZones } from "./zones";
+import { canCombo } from "../text/cards";
 
 /** 5-8-4: a legal replacement failed an attempted payment. Retain the
  * already performed payment/replacement, then cancel activation. */
@@ -37,6 +38,22 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
   const koablePrice = (id: string, master: PlayerId): boolean => !!state.cards[id] && host.areaOf(id) === "battle"
     && !(host.hasKeyword(id, "Indestructible") && host.masterOf(id) !== master)
     && !host.forbids("beKOd", { card: id }) && !host.forbids("beKOdBySkill", { player: master, card: id });
+  /** "Use 1 card from under this card in a combo" (BT29-030). The interpreter's
+   * `comboFrom` skips a card when no battle has the master in it (5-7-1), and
+   * a card already in a Combo Area; 5-7-2 admits only a Battle Card with a
+   * combo cost and combo power, and a combo prohibition stops it. A skipped
+   * or impossible combo is no payment (5-8-2-2). */
+  const comboablePrice = (id: string, master: PlayerId): boolean => {
+    const b = host.battle();
+    return !!b && (host.masterOf(b.attacker) === master || host.masterOf(b.guard) === master)
+      && !!state.cards[id] && host.areaOf(id) !== "combo" && canCombo(host.defOf(id))
+      && !host.forbids("combo", { player: master, card: id });
+  };
+  /** "This card gets -15000 power for the turn" (DB2-011). Power is read in
+   * battle (2-7-1) and may go below zero (2-7-2), so the change is always
+   * performable on a card in the Battle or Leader Area; an effect left on a
+   * card anywhere else changes nothing the game reads (3-1-4). */
+  const poweredPrice = (id: string): boolean => !!state.cards[id] && ["battle", "leader"].includes(host.areaOf(id) ?? "");
   return {
     ...host,
     forbids: (what, opts) => {
@@ -55,12 +72,13 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       if (f.counterCost && !sel.special) found = found.filter((id) => id !== f.card);
       const op = f.ops[f.ip];
       if (op?.op === "choose" && op.sel === sel) {
-        const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden" || o.op === "ko") && "var" in o.target && o.target.var === op.as);
+        const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden" || o.op === "ko" || o.op === "comboFrom") && "var" in o.target && o.target.var === op.as);
         if (following?.op === "switchMode") found = found.filter((id) => host.modeOf(id) !== following.mode);
         if (following?.op === "hidden") found = found.filter((id) => host.isHidden(id) !== following.hidden);
         // 5-12-1: only a Battle Card in the Battle Area can be KO'd. "Your
         // <Vegeta> cards" also reads the Leader, which no KO can move.
         if (following?.op === "ko") found = found.filter((id) => koablePrice(id, f.master));
+        if (following?.op === "comboFrom") found = found.filter((id) => comboablePrice(id, f.master));
         const next = f.ops[f.ip + 1];
         if (next?.op === "faceUp" && "var" in next.target && next.target.var === op.as && sel.side === "you" && sel.area === "life")
           found = found.filter((id) => host.areaOf(id) === "life" && host.isFaceUp(id) !== (next.faceUp ?? true));
@@ -94,6 +112,9 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       // A KO price names Battle Cards that can actually be KO'd now; the
       // interpreter would otherwise skip the rest without moving anything.
       if (op?.op === "ko" && ref === op.target && (!found.length || found.some((id) => !koablePrice(id, f.master)))) unpaid();
+      if (op?.op === "comboFrom" && ref === op.target && (!found.length || found.some((id) => !comboablePrice(id, f.master)))) unpaid();
+      // An empty target would add no effect at all: no payment.
+      if (op?.op === "power" && ref === op.target && (found.length !== 1 || !poweredPrice(found[0]))) unpaid();
       // "Add 1 marker to this card": only a card still in play can carry it.
       if (op?.op === "addMarker" && ref === op.target
         && (found.length !== 1 || found.some((id) => !state.cards[id] || !inPlayZones(game).includes(host.areaOf(id) ?? "")))) unpaid();
@@ -112,7 +133,9 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     },
     move: (id, to, owner, opts) => {
       if (host.areaOf(id) === to) unpaid();
-      const actual = host.move(id, to, owner, { ...opts, reason: "cost" });
+      // A combo paid as a cost is still a combo (5-7-3-1), as a cost KO is a
+      // KO; its arrival in the Combo Area is verified below (5-8-2-2-1-1).
+      const actual = host.move(id, to, owner, { ...opts, reason: opts?.reason === "combo" && to === "combo" ? "combo" : "cost" });
       if (actual !== to || host.areaOf(id) !== to) {
         const replaced = opts?.replaced;
         if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
@@ -157,9 +180,20 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     // [Counter: Play] skills of other cards for the turn", BT10-008) is paid
     // when the rule is actually in force afterwards (5-8-2-2).
     addEffect: (e) => {
+      if (e.kind === "power" && (!e.target || !poweredPrice(e.target))) unpaid();
       const before = state.effects.length;
       host.addEffect(e);
       if (e.kind === "forbid" && state.effects.length !== before + 1) unpaid();
+      // The power change must be in force on the card afterwards (5-8-2-2).
+      if (e.kind === "power" && (state.effects.length !== before + 1
+        || !state.effects.some((x) => x.kind === "power" && x.target === e.target && x.value === e.value && x.until === e.until))) unpaid();
+    },
+    // 3-1-4-3: "with its skills negated" is part of the combo action; the
+    // negation must actually stand on the card.
+    negateAll: (id) => {
+      const before = state.effects.length;
+      host.negateAll(id);
+      if (state.effects.length !== before + 1 || !state.effects.some((x) => x.kind === "negateSkills" && x.target === id)) unpaid();
     },
     changeMarkers: (id, delta) => {
       if (delta < 0 && host.markersOf(id) < -delta) unpaid();
@@ -486,7 +520,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
 export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"): void {
   const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
     || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal" || op.op === "faceUp"
-    || op.op === "ko" || op.op === "addMarker" || op.op === "forbid"
+    || op.op === "ko" || op.op === "addMarker" || op.op === "forbid" || op.op === "comboFrom" || op.op === "power"
     || (op.op === "if" && !!op.else?.length && pays(op.then) && pays(op.else))
     || (op.op === "chooseMode" && op.modes.length > 0 && op.modes.every((mode) => pays(mode.ops))));
   /** A completed interpreter step of one of these shapes necessarily changed
@@ -524,6 +558,31 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
   /** "Add N markers to this card" with a printed positive N (BT31). */
   const verifiedAddMarker = (op: Extract<Op, { op: "addMarker" }>): boolean =>
     isSelf(op.target) && typeof op.n === "number" && Number.isInteger(op.n) && op.n > 0;
+  /** A filter that narrows nothing, apart from the named keys. */
+  const blankFilter = (filter: unknown, allowed: Record<string, unknown> = {}): boolean => !filter || (typeof filter === "object"
+    && Object.entries(filter).every(([key, value]) => key in allowed ? value === allowed[key] || value === undefined || value === null || value === false
+      : value === undefined || value === null || value === false || (Array.isArray(value) && value.length === 0)));
+  /** The immediately preceding compulsory single pick of your own, saved as
+   * the one variable this instruction names. */
+  const singleOwnPick = (target: Ref, prior: Op | undefined, area: string, filter: Record<string, unknown> = {}): boolean => {
+    if (prior?.op !== "choose" || !("var" in target) || target.var !== prior.as || Object.keys(target).some((key) => key !== "var")) return false;
+    const sel = prior.sel;
+    return sel.side === "you" && sel.area === area && sel.count === 1 && !sel.upTo && prior.atMost === undefined
+      && (!prior.chooser || prior.chooser === "you") && blankFilter(sel.filter, filter)
+      && Object.entries(sel).every(([key, value]) => value === undefined || ["side", "area", "count", "upTo", "filter"].includes(key));
+  };
+  /** "Flip 1 card in your life face up/down", and BT12-023's "flip 1 face-up
+   * card in your life face down": a compulsory own-Life pick turned at once.
+   * A face filter may only ask for the face the turn leaves. */
+  const verifiedFaceTurn = (op: Extract<Op, { op: "faceUp" }>, prior: Op | undefined): boolean =>
+    singleOwnPick(op.target, prior, "life", (op.faceUp ?? true) ? {} : { faceUp: true });
+  /** "Use 1 card from under this card in a combo [with its skills negated]"
+   * (BT29-030): a compulsory pick of one card from the source's own pile. */
+  const verifiedCombo = (op: Extract<Op, { op: "comboFrom" }>, prior: Op | undefined): boolean => singleOwnPick(op.target, prior, "under");
+  /** "This card gets -N power for the turn" (DB2-011): a printed loss on the
+   * source itself, for the turn or the battle. */
+  const verifiedPower = (op: Extract<Op, { op: "power" }>): boolean => isSelf(op.target)
+    && typeof op.amount === "number" && Number.isInteger(op.amount) && op.amount < 0 && (op.until === "turn" || op.until === "battle");
   /** "You can't …" printed as the price: a rule the payer puts on themself
    * for a span (#716, BT10-008). Only the plain player form — no card target,
    * escape, price, budget or description — is known to be performable in
@@ -558,18 +617,12 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
       // Only a compulsory own-Life pick immediately turned to the opposite
       // face has a complete payment proof. Other shapes stay typed unknown.
       if (op.op === "faceUp") {
-        const prior = steps[index - 1];
-        const sel = prior?.op === "choose" ? prior.sel : null;
-        if (prior?.op !== "choose" || !("var" in op.target) || op.target.var !== prior.as
-          || Object.keys(op.target).some((key) => key !== "var")
-          || !sel || sel.side !== "you" || sel.area !== "life" || sel.count !== 1 || sel.upTo
-          || Object.entries(sel).some(([key, value]) => value !== undefined && !["side", "area", "count", "upTo"].includes(key))
-          || (prior.chooser && prior.chooser !== "you") || prior.atMost !== undefined)
-          throw new NotYet(`pay ${label} face-up action price outside the verified Life choice`, owner);
+        if (!verifiedFaceTurn(op, steps[index - 1])) throw new NotYet(`pay ${label} face-up action price outside the verified Life choice`, owner);
         paid = true;
         continue;
       }
-      if ((op.op === "ko" && verifiedKo(op, steps[index - 1])) || (op.op === "addMarker" && verifiedAddMarker(op)) || (op.op === "forbid" && verifiedRestriction(op))) {
+      if ((op.op === "ko" && verifiedKo(op, steps[index - 1])) || (op.op === "addMarker" && verifiedAddMarker(op)) || (op.op === "forbid" && verifiedRestriction(op))
+        || (op.op === "comboFrom" && verifiedCombo(op, steps[index - 1])) || (op.op === "power" && verifiedPower(op))) {
         paid = true;
         continue;
       }
