@@ -1122,6 +1122,14 @@ THEN
   play(target: [self])
 ```
 
+### Markers as a filter measure (13 Oct 2026)
+
+13-2: markers are a filter measure, `markersMin`/`markersMax`, printed "with 2 or more markers" /
+"with 3 or fewer markers" and read from "N or more markers", "N or fewer/less markers" and "N markers
+or less". It is matched against the markers the card carries now, so a `count` over "red Unison
+Card with 2 or more markers" in the Unison Area is BT10-008's [Permanent] gate (#721). An exact "with
+2 markers on it" is a play's arrival (13-2-3) and is not a filter.
+
 ### Combo power, and different card names (2 Oct 2026)
 
 2-8: combo power is a filter measure, `comboPowerMin`/`comboPowerMax`, printed "with 5000 combo

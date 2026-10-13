@@ -131,6 +131,9 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   // 2-8: "cards with 5000 combo power" (BT29-030).
   comboPowerMin: { reads: ["comboPower"] },
   comboPowerMax: { reads: ["comboPower"] },
+  // 13-2: "a red Unison Card with 2 or more markers" (BT10-008, #721).
+  markersMin: { reads: ["markers"] },
+  markersMax: { reads: ["markers"] },
   faceUp: { instance: "which copy of the card is face up is about the instance in its area (3-9-2-1), not about the card" },
   powerRel: { instance: "a bound read off another card the skill has chosen, so it is applied where that card is known" },
   unreadable: { instance: "the compiler refused the phrase: the selector offers nothing rather than a card failing to match" },
@@ -291,6 +294,13 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   const combo = number(attrs.comboPower);
   if (f.comboPowerMin != null && (combo == null || combo < f.comboPowerMin)) return false;
   if (f.comboPowerMax != null && (combo == null || combo > f.comboPowerMax)) return false;
+  // 13-2: the markers the card carries now. A card with no marker attribute
+  // (a game without markers) carries none.
+  if (f.markersMin != null || f.markersMax != null) {
+    const markers = number(attrs.markers) ?? 0;
+    if (f.markersMin != null && markers < f.markersMin) return false;
+    if (f.markersMax != null && markers > f.markersMax) return false;
+  }
   return true;
 }
 

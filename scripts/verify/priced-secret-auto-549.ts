@@ -114,10 +114,13 @@ function skillCount(events: GameEvent[], card: string): number { return events.f
   const history = beats(declared.state, declared.events);
   for (const viewer of ["p1", "p2"] as const) {
     const shown = snapshot(reload(declared.state), viewer, history);
-    assert.equal(shown.beats?.art[source]?.cardId, "PRICE549");
+    // p1 reads its own hand; p2 is shown the card under an opaque name, never its instance id (`conceal.ts`).
+    const as = viewer === "p1" ? source : "?shown:0";
+    assert.equal(shown.beats?.art[as]?.cardId, "PRICE549");
+    if (viewer === "p2") assert.ok(!JSON.stringify(shown).includes(`"${source}"`), "the declared card's instance id is not on p2's board");
     assert.equal(shown.beats?.art[other], undefined);
     assert.ok(!JSON.stringify(shown).includes("revealEpoch"));
-    const said = shown.beats?.list.find((beat) => beat.t === "autoDeclared" && beat.card === source);
+    const said = shown.beats?.list.find((beat) => beat.t === "autoDeclared" && beat.card === as);
     assert.ok(said && said.t === "autoDeclared");
     const publicDeclared: Beat = said;
     assert.equal(Object.hasOwn(publicDeclared, "revealEpoch"), false, "both viewers receive a valid declaration beat without the private epoch");
@@ -134,7 +137,9 @@ function skillCount(events: GameEvent[], card: string): number { return events.f
   const later = rules.apply(ctx, reload(declined.state), { type: "pass", player: "p1" });
   const old = snapshot(later.state as VmState, "p2", history);
   assert.equal(old.beats?.art[source], undefined);
-  const oldDeclaration = old.beats?.list.find((beat) => beat.t === "autoDeclared" && beat.card === source);
+  assert.equal(old.beats?.art["?shown:0"], undefined);
+  const oldDeclaration = old.beats?.list.find((beat) => beat.t === "autoDeclared");
+  assert.equal(oldDeclaration?.t === "autoDeclared" ? oldDeclaration.card : undefined, "?", "a lapsed declaration no longer names its card at all");
   assert.equal(oldDeclaration?.t === "autoDeclared" ? oldDeclaration.text : undefined, "");
   assert.ok(!JSON.stringify(old).includes("PRICE549"));
   assert.ok(!describeEvents(ctx, declined.state, [...declared.events, ...declined.events]).join(" ").includes("PRICE549"));
@@ -147,12 +152,12 @@ function skillCount(events: GameEvent[], card: string): number { return events.f
   assert.ok(activated && activated.type === "skill" && activated.reveal);
   assert.equal(activated.revealEpoch, declaration.revealEpoch);
   const paidHistory = beats(paid.state, paid.events, history);
-  assert.equal(snapshot(reload(paid.state), "p2", paidHistory).beats?.art[source]?.cardId, "PRICE549");
+  assert.equal(snapshot(reload(paid.state), "p2", paidHistory).beats?.art["?shown:0"]?.cardId, "PRICE549");
   assert.ok(!describeEvents(ctx, paid.state, [...declared.events, ...paid.events]).join(" ").includes("PRICE549"), "paid secret activation must not leave a permanent name in the saved log");
   const afterPaid = rules.apply(ctx, reload(paid.state), { type: "pass", player: "p1" });
   const concealed = snapshot(afterPaid.state as VmState, "p2", paidHistory);
   assert.equal(concealed.beats?.art[source], undefined);
-  assert.ok(concealed.beats?.list.every((beat) => (beat.t !== "skill" && beat.t !== "autoDeclared") || beat.card !== source || beat.text === ""));
+  assert.ok(concealed.beats?.list.every((beat) => (beat.t !== "skill" && beat.t !== "autoDeclared") || (beat.card === "?" && beat.text === "")));
 }
 
 // A supported action price suspends twice. Its declaration epoch stays bound
@@ -169,7 +174,7 @@ function skillCount(events: GameEvent[], card: string): number { return events.f
   assert.equal(paying.state.prompt.kind, "chooseCards");
   assert.equal(paying.state.programs[0]?.autoRevealEpoch, epoch);
   assert.equal(skillCount(paying.events, source), 0);
-  assert.equal(snapshot(reload(paying.state), "p2", history).beats?.art[source]?.cardId, "ACTION549");
+  assert.equal(snapshot(reload(paying.state), "p2", history).beats?.art["?shown:0"]?.cardId, "ACTION549");
   const before = JSON.stringify(paying.state);
   assert.throws(() => choose(paying.state, [other], "p2"), IllegalAction);
   assert.equal(JSON.stringify(paying.state), before);
@@ -178,7 +183,7 @@ function skillCount(events: GameEvent[], card: string): number { return events.f
   const fired = paid.events.find((event) => event.type === "skill" && event.card === source);
   assert.ok(fired && fired.type === "skill" && fired.revealEpoch === epoch);
   assert.equal(paid.state.sides.p1.zones.drop.includes(other), true);
-  assert.equal(snapshot(paid.state, "p2", beats(paid.state, paid.events, history)).beats?.art[source]?.cardId, "ACTION549");
+  assert.equal(snapshot(paid.state, "p2", beats(paid.state, paid.events, history)).beats?.art["?shown:0"]?.cardId, "ACTION549");
 }
 
 // An unaffordable declaration and two occurrences on one card remain distinct
@@ -207,8 +212,9 @@ function skillCount(events: GameEvent[], card: string): number { return events.f
   assert.equal(second.state.prompt.kind, "chooseMode");
   assert.notEqual(second.state.programs[0]?.autoRevealEpoch, firstEpoch);
   const history = beats(second.state, second.events, firstBeat);
-  const oldBeat = snapshot(second.state, "p2", history).beats?.list.filter((beat) => beat.t === "autoDeclared" && beat.card === source) ?? [];
+  const oldBeat = snapshot(second.state, "p2", history).beats?.list.filter((beat) => beat.t === "autoDeclared") ?? [];
   assert.equal(oldBeat.length, 2);
+  assert.deepEqual(oldBeat.map((beat) => beat.t === "autoDeclared" && beat.card), ["?", "?shown:0"], "only the live declaration names its card, and not by id");
   assert.equal(oldBeat[0].t === "autoDeclared" && oldBeat[0].text, "");
   assert.ok(oldBeat[1].t === "autoDeclared" && oldBeat[1].text.includes("draw 1"));
 }

@@ -97,7 +97,9 @@ export async function verifyArenaSecretAuto(db: Db): Promise<void> {
     assert.ok(reread);
     reread.ctx = ctx;
     const shown = await snapshotOfGame(db, reread, "p2");
-    assert.equal(shown.beats?.art[secret]?.cardId, "SECRET549");
+    // Shown to p2 under an opaque name, never its instance id, a hidden decklist position (`conceal.ts`).
+    assert.equal(shown.beats?.art["?shown:0"]?.cardId, "SECRET549");
+    assert.equal(shown.beats?.art[secret], undefined);
     assert.equal(shown.beats?.art[other], undefined);
     assert.equal(shown.spotlight, null, "VM declarations do not create a persistent spotlight");
     assert.ok(!shown.log.join(" ").includes("SECRET549") && !shown.log.join(" ").includes("When you play this card"));
@@ -109,9 +111,11 @@ export async function verifyArenaSecretAuto(db: Db): Promise<void> {
     concealed.ctx = ctx;
     const masked = await snapshotOfGame(db, concealed, "p2");
     assert.equal(masked.beats?.art[secret], undefined);
+    assert.equal(masked.beats?.art["?shown:0"], undefined);
     assert.equal(masked.spotlight, null);
     assert.ok(!masked.log.join(" ").includes("SECRET549") && !masked.log.join(" ").includes("When you play this card"), "later saved log cannot restore the secret declaration");
-    const oldSkill = masked.beats?.list.find((beat) => beat.t === "skill" && beat.card === secret);
+    const oldSkill = masked.beats?.list.find((beat) => beat.t === "skill");
+    assert.equal(oldSkill?.t === "skill" ? oldSkill.card : undefined, "?", "an expired declaration names no card");
     assert.equal(oldSkill?.t === "skill" ? oldSkill.text : undefined, "", "retained skill beat is masked after the declaration expires");
     assert.ok(!JSON.stringify(masked).includes("SECRET549"), "the whole later viewer snapshot conceals the previously declared card");
   } finally {

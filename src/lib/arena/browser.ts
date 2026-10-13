@@ -25,7 +25,7 @@ import { RULES } from "./vm";
 import { isVmState, type VmState } from "./vm/state";
 import { appendBeats } from "./beats-core";
 import type { Beats } from "./beats";
-import { buildSnapshotWith, type EngineResolver, type Snapshot } from "./snapshot-core";
+import { buildSnapshotWith, buildUnconcealedSnapshotForProof, type EngineResolver, type Snapshot } from "./snapshot-core";
 import { assertInterpreterRevision, pinnedContext, validateReplayBundle, type PinnedContext, type ReplayBundleRecord } from "./replay-core";
 
 /** The rules engine, typed as the switch's `Engine` (what `engines.ts` does for the server). */
@@ -115,11 +115,13 @@ export function applyMove(match: PinnedMatch, action: Action): { match: PinnedMa
  * One side's board, masked for that viewer exactly as the server's
  * `buildSnapshot` masks it: the same core, bound to the rules engine.
  * `viewer` names the seat, so the other seat's moves and hidden cards are
- * never in the result.
+ * never in the result, and a hidden card is named only by its position
+ * (`conceal.ts`). `unconcealedForProof` keeps the raw instance ids, for a
+ * proof's negative control only (`arena-policy-contract.mts`).
  */
-export function projectSnapshot(match: PinnedMatch, viewer: PlayerId, options: { id?: number; revision?: number; mode?: ArenaMode } = {}): Snapshot {
+export function projectSnapshot(match: PinnedMatch, viewer: PlayerId, options: { id?: number; revision?: number; mode?: ArenaMode; unconcealedForProof?: true } = {}): Snapshot {
   const over = match.state.phase === "over";
-  return buildSnapshotWith(rulesOnly, {
+  return (options.unconcealedForProof ? buildUnconcealedSnapshotForProof : buildSnapshotWith)(rulesOnly, {
     id: options.id ?? 0,
     revision: options.revision ?? 0,
     mode: options.mode ?? "versus",

@@ -313,7 +313,7 @@
       },
       {
         "t": "move",
-        "card": "p2#32",
+        "card": "?",
         "from": "life",
         "to": "hand",
         "owner": "p2",
@@ -325,7 +325,7 @@
         "amount": 1,
         "critical": false,
         "cards": [
-          "p2#32"
+          "?"
         ],
         "n": 8,
         "by": "p1#15"

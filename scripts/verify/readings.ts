@@ -2350,3 +2350,39 @@ import type { VmState } from "../../src/lib/arena/vm/state";
       [4, guarded.then[0].as, "deck", 1, guarded.then[0].as], "BT2-009 takes only the next top card while the chosen host is below five");
   }
 }
+
+// #721: markers as a measure. "A red Unison Card with 2 or more markers" (BT10-008's [Permanent]) used to
+// compile as any red Unison; the neighbours below are the other printings of the wording (13 Oct 2026 audit).
+{
+  const one = (text: string) => compileSkill(parseSkills(text)[0]);
+  const bounds = (text: string) => {
+    const f = parseFilter(text);
+    return [f.markersMin, f.markersMax];
+  };
+  assert.deepEqual(bounds("red Unison Card with 2 or more markers"), [2, null]);
+  assert.deepEqual(bounds("Unison Cards with 3 or fewer markers"), [null, 3]);
+  assert.deepEqual(bounds("Unison Cards with 3 or less markers"), [null, 3]);
+  assert.deepEqual(bounds("red Unison Card with 1000 power and 2 markers or less"), [null, 2], "EX19-01: the order the other way round");
+  assert.deepEqual(bounds("Unison Card with 2 or more markers and 4 or fewer markers"), [2, 4], "both ends");
+  assert.deepEqual(bounds("Unison Card with 2 markers"), [null, null], "an exact count is a play's arrival (13-2-3), not a bound on a card in play");
+  assert.deepEqual(bounds("red Unison Card"), [null, null]);
+
+  type Sel = { side?: string; area?: string; filter?: { colors: string[]; markersMin: number | null; markersMax: number | null } };
+  const gate = one("[Permanent] If you have a red Unison Card with 2 or more markers in play, you can activate this card's [Counter] skill from your hand without paying its energy cost.");
+  assert.deepEqual(gate.unsupported, []);
+  const cond = (gate.ops[0] as { cond: { kind: string; sel: Sel } }).cond;
+  assert.equal(cond.kind, "count");
+  assert.deepEqual([cond.sel.area, cond.sel.filter?.colors, cond.sel.filter?.markersMin, cond.sel.filter?.markersMax], ["unison", ["Red"], 2, null], "BT10-008, whole");
+
+  // BT15-086: the opponent's Unison with 4 or more markers, then the removal.
+  const strip = one("[Auto] When this card is KO'd, choose up to 1 of your opponent's Unison Cards with 4 or more markers and remove a marker from it.");
+  assert.deepEqual(strip.unsupported, []);
+  const picked = (strip.ops[0] as { sel: Sel }).sel;
+  assert.deepEqual([picked.side, picked.area, picked.filter?.markersMin], ["opponent", "unison", 4]);
+
+  // EX19-01: "and 2 markers or less" stays inside the one description; it is not a second choice.
+  const small = one("[Auto] When this card is played, choose up to 1 of your red Unison Cards with 1000 power and 2 markers or less and add a marker to it.");
+  assert.deepEqual(small.unsupported, []);
+  assert.deepEqual(small.ops.map((o) => o.op), ["choose", "addMarker"], "one choice, then the marker");
+  assert.deepEqual((small.ops[0] as { sel: Sel }).sel.filter?.markersMax, 2);
+}
