@@ -25,6 +25,13 @@
  * session as `interrupted` with the reason. Nothing falls back to a network or
  * provider, and no outcome is invented.
  *
+ * One writer (#654): a `start`/`resume` may name the page's writer lease (`writer`); every commit is
+ * then fenced by it in the store's own transaction, and a commit refused because another tab took
+ * the match over (`fenced`) answers `busy-elsewhere` and turns the session read-only for good. A
+ * `readOnly` resume replays and serves the board but writes nothing and refuses every mutation as
+ * `busy-elsewhere` — a watching tab's view. Who holds the lease, and restarting a dead worker, is
+ * the page's (`./ownership.ts`, `./recovery.ts`).
+ *
  * Browser-safe: it imports the portable entry, the pack runtime, the conceal
  * rules and the policy, and is an entry of `scripts/verify/arena-browser-boundary.mts`.
  */
@@ -40,7 +47,7 @@ import { localMemory, MAIN_POLICY_VERSION, type LocalMemory } from "../policy/ma
 import { CHOICE_POLICY_VERSION } from "../policy/choices";
 import { policyRng } from "../policy/rng";
 import { fingerprint, stableJson, type Policy } from "../policy/contract";
-import { STORAGE_PROTOCOL_CODE, StorageError } from "./storage";
+import { STORAGE_PROTOCOL_CODE, StorageError, type WriterFence } from "./storage";
 import {
   ADVANCE_DEFAULT, BATCH_DEFAULT, ERROR_SENTENCE, envelope, parseRequest,
   type AdvanceRequest, type AdvanceStop, type ApplyRequest, type CancelRequest, type DisposeRequest, type ErrorMessage,
@@ -91,7 +98,12 @@ export interface MatchJournal {
  */
 export interface JournalStore {
   get(matchId: string): MatchJournal | null | Promise<MatchJournal | null>;
-  put(journal: MatchJournal): void | Promise<void>;
+  /**
+   * `fence` (#654): the writer this commit is made for. A store that keeps writer leases (the
+   * IndexedDB one) refuses a commit whose fence is not the match's current lease, as a
+   * `StorageError` "fenced", writing nothing; the in-memory store has no leases and ignores it.
+   */
+  put(journal: MatchJournal, fence?: WriterFence | null): void | Promise<void>;
 }
 
 export function memoryJournalStore(): JournalStore & { journals: Map<string, MatchJournal> } {
@@ -159,6 +171,10 @@ interface Session {
   /** The running advance, so `cancel`/`dispose` can stop it at its next batch boundary. */
   advancing: { requestId: string; cancelled: boolean } | null;
   disposed: boolean;
+  /** #654: the writer lease every commit is fenced by (null: unfenced). */
+  writer: WriterFence | null;
+  /** #654: this session only shows the match (opened read-only, or its writer was superseded); every mutation is `busy-elsewhere`. */
+  readOnly: string | null;
 }
 
 const FNV_OFFSET = 0x811c9dc5;
@@ -232,7 +248,13 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
 
   /** Write the journal of the next state, then take it: the journal is never behind what the page was told. */
   async function commit(s: Session, next: Partial<Session>): Promise<void> {
-    await store.put(journalOf(s, next));
+    try {
+      await store.put(journalOf(s, next), s.writer);
+    } catch (e) {
+      // Another tab took the match over (#654): nothing was written, and this session never writes again.
+      if (e instanceof StorageError && e.code === "fenced") s.readOnly = e.message;
+      throw e;
+    }
     Object.assign(s, next);
   }
 
@@ -281,12 +303,14 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
           seed: req.seed, policySeed: req.policySeed, interpreterRevision: req.interpreterRevision, batch: req.batch ?? BATCH_DEFAULT,
           match, memory: localMemory(policyRng(req.policySeed)), entries: [], receipts: new Map(), trace: FNV_OFFSET,
           status: statusOf(match), interruption: null, busy: null, advancing: null, disposed: false,
+          writer: req.writer ?? null, readOnly: null,
         };
       } else {
         s = await replayJournal(req);
       }
       if (token.disposed) throw new Refusal("disposed", `session ${req.sessionId} was disposed while it opened`);
-      await store.put(journalOf(s));
+      // A read-only view writes nothing; a writer saves (or, on resume, re-checks with its fence) before it answers.
+      if (!s.readOnly) await store.put(journalOf(s), s.writer);
       session = s;
       result(s, req.requestId);
     } finally {
@@ -333,6 +357,7 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
       seed: journal.seed, policySeed: journal.policySeed, interpreterRevision: journal.interpreterRevision, batch: req.batch ?? BATCH_DEFAULT,
       match, memory, entries: journal.entries, receipts: new Map(journal.receipts.map((r) => [r.requestId, r])), trace,
       status: journal.status === "interrupted" ? "interrupted" : statusOf(match), interruption: journal.interruption, busy: null, advancing: null, disposed: false,
+      writer: req.writer ?? null, readOnly: req.readOnly ? "this tab was opened to watch the match, not to play it" : null,
     };
   }
 
@@ -349,6 +374,7 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
     if (req.actor !== s.human) throw new Refusal("actor", `${req.actor} is the computer's seat`);
     const payload = { basedOn: req.basedOn, action: req.action };
     if (receipt(s, req.requestId, payload)) return result(s, req.requestId, { duplicate: true });
+    if (s.readOnly) throw new Refusal("busy-elsewhere", s.readOnly);
     if (s.busy) throw new Refusal("busy", "");
     if (req.basedOn !== revision(s)) throw new Refusal("stale", `based on ${req.basedOn}, the board is at ${revision(s)}`);
     if (s.status === "over") throw new Refusal("over", "");
@@ -381,6 +407,7 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
     const payload = { basedOn: req.basedOn, type: "advance", maxDecisions: max };
     const seen = receipt(s, req.requestId, payload);
     if (seen) return result(s, req.requestId, { duplicate: true, stopped: seen.stopped ?? "limit" });
+    if (s.readOnly) throw new Refusal("busy-elsewhere", s.readOnly);
     if (s.busy) throw new Refusal("busy", "");
     if (req.basedOn !== revision(s)) throw new Refusal("stale", `based on ${req.basedOn}, the board is at ${revision(s)}`);
     if (s.status === "interrupted") throw new Refusal("interrupted", s.interruption ?? "");

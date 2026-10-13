@@ -11,6 +11,8 @@
  *   - `decisions`, key `[matchId, index]`: one record per committed decision, as the journal keeps it
  *     (a human move as the engine move it resolved to; an AI move by its decision id), each chained
  *     to the one before.
+ *   - `owners` (schema version 2, #654), key `matchId`: the match's writer lease — the holding tab's
+ *     opaque id, its fencing epoch, heartbeat and whether it was released (`LeaseRecord`).
  *
  * One commit is one IndexedDB transaction over both stores: the decisions the commit adds and the
  * header that counts them are written together or not at all. A transaction aborted for any reason —
@@ -35,8 +37,13 @@
  * email, no projected board, no engine state (it is re-created by replay). The pack is stored by
  * hash only; the page supplies it again on resume.
  *
- * Multi-tab single-writer ownership is #654; nothing here assumes one writer beyond the
- * transaction itself, and a connection closes itself when another tab upgrades the database.
+ * One writer per match (#654): the `owners` store (schema version 2, added by an additive migration)
+ * holds one lease per match — which tab holds it, its fencing epoch, its last heartbeat. A commit
+ * may carry the writer's fence (`put(journal, fence)`); the lease is read in the commit's own
+ * transaction and a commit whose fence is not the current lease is refused (`fenced`) with nothing
+ * written, so a suspended or superseded writer can never append to a newer owner's history. A commit
+ * without a fence is refused while any writer holds the match. Claiming, renewing and releasing the
+ * lease is `./ownership.ts`. A connection closes itself when another tab upgrades the database.
  *
  * Browser-safe: no `node:`, no database, no network; an entry of `scripts/verify/arena-browser-boundary.mts`.
  */
@@ -49,6 +56,8 @@ export const LOCAL_DB_NAME = "dbs-arena-local";
 export const STORAGE_SCHEMA = 1;
 const MATCHES = "matches";
 const DECISIONS = "decisions";
+/** One writer lease per match (#654, `./ownership.ts`). */
+export const OWNERS = "owners";
 
 export interface Migration {
   /** The database version this migration brings the database to. */
@@ -66,6 +75,13 @@ export const MIGRATIONS: readonly Migration[] = [
     run(db) {
       db.createObjectStore(MATCHES, { keyPath: "matchId" });
       db.createObjectStore(DECISIONS, { keyPath: ["matchId", "index"] });
+    },
+  },
+  {
+    version: 2,
+    describe: "owners (one writer lease per match, its fencing epoch and heartbeat; #654)",
+    run(db) {
+      db.createObjectStore(OWNERS, { keyPath: "matchId" });
     },
   },
 ];
@@ -88,7 +104,9 @@ export type StorageErrorCode =
   /** The device's storage quota is exhausted. */
   | "quota"
   /** The transaction was aborted (another reason, named in the message). */
-  | "aborted";
+  | "aborted"
+  /** The commit's writer is not the match's current writer (another tab took it over, #654); nothing was written. */
+  | "fenced";
 
 /** How the worker reports each storage failure to the page (`./protocol.ts`). */
 export const STORAGE_PROTOCOL_CODE: Record<StorageErrorCode, LocalErrorCode> = {
@@ -101,6 +119,7 @@ export const STORAGE_PROTOCOL_CODE: Record<StorageErrorCode, LocalErrorCode> = {
   tampered: "journal",
   truncated: "journal",
   rewrite: "journal",
+  fenced: "busy-elsewhere",
 };
 
 export class StorageError extends Error {
@@ -145,9 +164,58 @@ export interface DecisionRecord {
   chain: string;
 }
 
+/** Who may commit to a match: the lease's holder (a tab) and the epoch it was granted at (#654). */
+export interface WriterFence {
+  holder: string;
+  epoch: number;
+}
+
+/** The writer lease of one match (`owners` store, #654). Each grant raises `epoch`; a commit must carry the current one. */
+export interface LeaseRecord {
+  schema: number;
+  matchId: string;
+  /** The tab that holds (or last held) the match: an opaque id, never an account. */
+  holder: string;
+  epoch: number;
+  /** The holder's clock (ms since the epoch) at its last claim or renewal. */
+  heartbeatAt: number;
+  /** The holder let go; the next claim needs no wait. */
+  released: boolean;
+}
+
 /** The exact field sets written, so a proof can show nothing else is stored. */
 export const MATCH_RECORD_FIELDS = ["schema", "matchId", "journalFormat", "packHash", "decks", "human", "seed", "policySeed", "interpreterRevision", "policyVersion", "revision", "decisions", "chain", "aiMemory", "receipts", "trace", "status", "interruption", "digest"] as const;
 export const DECISION_RECORD_FIELDS = ["schema", "matchId", "index", "entry", "chain"] as const;
+export const LEASE_RECORD_FIELDS = ["schema", "matchId", "holder", "epoch", "heartbeatAt", "released"] as const;
+
+/** Check a stored lease: schema and shape. `undefined` (no lease) is `null`. */
+export function readLeaseRecord(matchId: string, raw: unknown): LeaseRecord | null {
+  if (raw === undefined) return null;
+  const what = `the writer lease of match ${matchId}`;
+  if (!isRecord(raw)) throw new StorageError("corrupt", `${what} is not a record`);
+  schemaOf(what, raw);
+  for (const k of Object.keys(raw)) if (!(LEASE_RECORD_FIELDS as readonly string[]).includes(k)) throw new StorageError("corrupt", `${what}: unexpected field ${k}`);
+  const r = raw as Partial<LeaseRecord>;
+  if (r.matchId !== matchId || !isStr(r.holder) || !isInt(r.epoch) || (r.epoch as number) < 1 || typeof r.heartbeatAt !== "number" || typeof r.released !== "boolean") {
+    throw new StorageError("corrupt", `${what} is malformed`);
+  }
+  return r as LeaseRecord;
+}
+
+/**
+ * The fencing rule, applied inside a commit's transaction: a fenced commit needs the lease to be
+ * exactly its fence and not released; an unfenced one needs no writer to hold the match.
+ */
+export function fenceRefusal(lease: LeaseRecord | null, fence: WriterFence | null | undefined): string | null {
+  if (fence) {
+    if (!lease) return `no writer holds the match; this writer's claim (epoch ${fence.epoch}) is not on the device`;
+    if (lease.holder !== fence.holder || lease.epoch !== fence.epoch) return `another writer holds the match now (epoch ${lease.epoch}); this writer's epoch ${fence.epoch} is superseded`;
+    if (lease.released) return `this writer released the match (epoch ${fence.epoch})`;
+    return null;
+  }
+  if (lease && !lease.released) return `a writer holds the match (epoch ${lease.epoch}); a commit without its fence is refused`;
+  return null;
+}
 
 const chainStart = (matchId: string) => fingerprint(`${LOCAL_DB_NAME}:${matchId}`);
 const chainNext = (previous: string, entry: JournalEntry) => fingerprint(`${previous}|${stableJson(entry)}`);
@@ -285,7 +353,8 @@ export interface IndexedDbStoreOptions {
 
 export interface IndexedDbJournalStore extends JournalStore {
   get(matchId: string): Promise<MatchJournal | null>;
-  put(journal: MatchJournal): Promise<void>;
+  /** One commit; with a `fence`, refused as `fenced` unless that fence is the match's current lease (#654). */
+  put(journal: MatchJournal, fence?: WriterFence | null): Promise<void>;
   /** Open (and if need be upgrade) the database now, so the first commit does not wait for it; a failure is reported by the next `get`/`put`. */
   warm(): void;
   /** Close the connection (the next call opens it again). */
@@ -419,46 +488,68 @@ export function indexedDbJournalStore(options: IndexedDbStoreOptions = {}): Inde
     });
   }
 
-  async function put(journal: MatchJournal): Promise<void> {
+  async function put(journal: MatchJournal, fence?: WriterFence | null): Promise<void> {
     const chains = chainOf(journal.matchId, journal.entries);
     const header = matchRecordOf(journal, chains);
     const d = await db();
     const doing = `saving match ${journal.matchId} at revision ${header.revision}`;
+    // A database without the owners store (a proof's schema-1 build) has no leases to check; a fenced commit there cannot be checked and is refused.
+    const fenced = d.objectStoreNames.contains(OWNERS);
+    if (!fenced && fence) throw new StorageError("fenced", `${doing}: this database has no writer leases to check the fence against`);
     return new Promise((resolve, reject) => {
-      const tx = transaction(d, "readwrite", doing);
+      let tx: IDBTransaction;
+      try {
+        tx = d.transaction(fenced ? [MATCHES, DECISIONS, OWNERS] : [MATCHES, DECISIONS], "readwrite");
+      } catch (e) {
+        connection = null; // a closed connection: the next call opens a new one
+        return reject(storageErrorOf(e, doing));
+      }
       let failure: StorageError | null = null;
       const fail = (e: unknown) => { if (!failure) { failure = storageErrorOf(e, doing); try { tx.abort(); } catch { /* already finished */ } } };
       const matches = tx.objectStore(MATCHES);
       const decisions = tx.objectStore(DECISIONS);
-      const head = matches.get(journal.matchId);
-      head.onsuccess = () => {
-        try {
-          let from = 0;
-          if (head.result !== undefined) {
-            const stored = head.result as unknown;
-            if (!isRecord(stored)) throw new StorageError("corrupt", `${doing}: the stored header is not a record`);
-            schemaOf(`saved match ${journal.matchId}`, stored);
-            const s = stored as Partial<MatchRecord>;
-            from = isInt(s.decisions) ? s.decisions : -1;
-            const same = (k: keyof MatchRecord) => stableJson(s[k]) === stableJson(header[k]);
-            if (from < 0 || from > journal.entries.length) throw new StorageError("rewrite", `${doing}: the device holds ${String(s.decisions)} decisions; a commit never shortens a match`);
-            if (from > 0 && chains[from - 1] !== s.chain) throw new StorageError("rewrite", `${doing}: its first ${from} decisions are not the stored ones`);
-            for (const k of ["packHash", "decks", "human", "seed", "policySeed", "interpreterRevision", "policyVersion", "journalFormat"] as const) {
-              if (!same(k)) throw new StorageError("rewrite", `${doing}: ${k} differs from the stored match`);
-            }
-            // Nothing new (a resume re-saving what it read): write nothing, so it needs no storage space.
-            if (from === journal.entries.length && s.digest === header.digest) return;
-          }
-          for (let i = from; i < journal.entries.length; i++) {
-            const record: DecisionRecord = { schema: STORAGE_SCHEMA, matchId: journal.matchId, index: i, entry: journal.entries[i], chain: chains[i] };
-            decisions.put(record);
-          }
-          options.faults?.duringWrite?.({ tx, decisions, matchId: journal.matchId, added: journal.entries.length - from });
-          matches.put(header);
-        } catch (e) { fail(e); }
-      };
       tx.oncomplete = () => (failure ? reject(failure) : resolve());
       tx.onabort = () => reject(failure ?? storageErrorOf(tx.error, doing));
+      const writeAfterHead = () => {
+        const head = matches.get(journal.matchId);
+        head.onsuccess = () => {
+          try {
+            let from = 0;
+            if (head.result !== undefined) {
+              const stored = head.result as unknown;
+              if (!isRecord(stored)) throw new StorageError("corrupt", `${doing}: the stored header is not a record`);
+              schemaOf(`saved match ${journal.matchId}`, stored);
+              const s = stored as Partial<MatchRecord>;
+              from = isInt(s.decisions) ? s.decisions : -1;
+              const same = (k: keyof MatchRecord) => stableJson(s[k]) === stableJson(header[k]);
+              if (from < 0 || from > journal.entries.length) throw new StorageError("rewrite", `${doing}: the device holds ${String(s.decisions)} decisions; a commit never shortens a match`);
+              if (from > 0 && chains[from - 1] !== s.chain) throw new StorageError("rewrite", `${doing}: its first ${from} decisions are not the stored ones`);
+              for (const k of ["packHash", "decks", "human", "seed", "policySeed", "interpreterRevision", "policyVersion", "journalFormat"] as const) {
+                if (!same(k)) throw new StorageError("rewrite", `${doing}: ${k} differs from the stored match`);
+              }
+              // Nothing new (a resume re-saving what it read): write nothing, so it needs no storage space.
+              if (from === journal.entries.length && s.digest === header.digest) return;
+            }
+            for (let i = from; i < journal.entries.length; i++) {
+              const record: DecisionRecord = { schema: STORAGE_SCHEMA, matchId: journal.matchId, index: i, entry: journal.entries[i], chain: chains[i] };
+              decisions.put(record);
+            }
+            options.faults?.duringWrite?.({ tx, decisions, matchId: journal.matchId, added: journal.entries.length - from });
+            matches.put(header);
+          } catch (e) { fail(e); }
+        };
+      };
+      // The fence is read in this very transaction: a takeover committed before it is seen, one after it waits for it (#654).
+      if (fenced) {
+        const lease = tx.objectStore(OWNERS).get(journal.matchId);
+        lease.onsuccess = () => {
+          try {
+            const refusal = fenceRefusal(readLeaseRecord(journal.matchId, lease.result), fence);
+            if (refusal) throw new StorageError("fenced", `${doing}: ${refusal}`);
+            writeAfterHead();
+          } catch (e) { fail(e); }
+        };
+      } else writeAfterHead();
     });
   }
 

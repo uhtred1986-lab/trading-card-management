@@ -182,7 +182,7 @@ try {
   const dump = await callNoPack<{ version: number; stores: string[]; matches: Record<string, unknown>[]; decisions: Record<string, unknown>[]; databases: string[] | null }>(page, "dump");
   report.stored = { version: dump.version, stores: dump.stores, matches: dump.matches.length, decisions: dump.decisions.length, bytes: JSON.stringify(dump).length, databases: dump.databases };
   const head = dump.matches.find((m) => m.matchId === MATCH)!;
-  check(dump.version === 1 && stableJson(dump.stores.sort()) === stableJson(["decisions", "matches"]), "6. the database is schema version 1 with the stores matches and decisions");
+  check(dump.version === 2 && stableJson(dump.stores.sort()) === stableJson(["decisions", "matches", "owners"]), "6. the database is schema version 2 with the stores matches, decisions and owners (#654)");
   check(dump.matches.every((m) => stableJson(Object.keys(m).sort()) === stableJson([...MATCH_RECORD_FIELDS].sort())) && dump.decisions.every((d) => stableJson(Object.keys(d).sort()) === stableJson([...DECISION_RECORD_FIELDS].sort())), "6. every record has exactly the journal's fields");
   const mine = dump.decisions.filter((d) => d.matchId === MATCH).sort((a, b) => (a.index as number) - (b.index as number));
   check(stableJson(decided(mine.map((d) => d.entry as MatchJournal["entries"][number]))) === stableJson(decided(refJournal.entries)) && head.trace === refJournal.trace && stableJson(head.aiMemory) === stableJson(refJournal.aiMemory),
@@ -206,7 +206,7 @@ try {
   const v = await inPage<Record<string, { ok?: boolean; code?: string | null; version?: number; stores?: string[] }>>(page, `globalThis.__P.versions(${JSON.stringify(MATCH)})`);
   report.versions = v;
   check(v.v1Write.ok && v.atV1.version === 1, "8. saved by schema 1");
-  check(v.upgraded.ok && v.atV2.version === 2 && v.atV2.stores!.includes("proof-notes"), "8. upgraded 1 → 2 additively, the save reads back identical");
+  check(v.upgraded.ok && v.atV2.version === 2 && v.atV2.stores!.includes("owners"), "8. upgraded 1 → 2 additively (the owners store of #654), the save reads back identical");
   check(v.failing.code === "upgrade" && v.afterFailing.version === 2 && !v.afterFailing.stores!.includes("proof-half") && v.stillV2.ok, "8. a failing migration: upgrade error, version 2 kept without the half-made store, the save intact");
   check(v.olderBuild.code === "newer" && v.afterOlder.version === 2 && v.intact.ok, "8. an older build refuses the newer database as newer and leaves it intact");
 

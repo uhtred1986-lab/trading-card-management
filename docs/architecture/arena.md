@@ -168,7 +168,29 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   account or collection data; a local match id may not be all digits (a server `games` id). Proofs:
   `scripts/verify/arena-local-storage.mts` (`npm test`, on a labelled fake IndexedDB) and in Chrome's
   real one `npm run arena:local-storage-browser` (reloads, kills inside an open transaction, real
-  quota exhaustion, damage, upgrade). One writer per match across tabs is #654.
+  quota exhaustion, damage, upgrade). One writer per match across tabs is #654, below.
+- **One writer per local match, and worker recovery** (#654, `src/lib/arena/local/{ownership,recovery}.ts`):
+  schema version 2 adds an `owners` store — one writer lease per match (holding tab id, a fencing
+  `epoch` raised by every grant, heartbeat, released). Every commit carries the writer's fence
+  (`writer` on `start`/`resume`, optional, protocol still v1) and reads the lease in its own
+  transaction: a superseded or suspended writer's commit is refused (`fenced`, wire code
+  `busy-elsewhere`) with nothing written, so the history stays linear whatever the timers believe.
+  Where `navigator.locks` exists an exclusive Web Lock per match coordinates (the browser frees it
+  when a tab closes or crashes, so a waiting tab takes over at once); without it the lease alone
+  (`LEASE_TTL_MS` 8 s, `HEARTBEAT_MS` 2 s). A `BroadcastChannel` carries hints only. The page holds
+  a `LocalMatchSupervisor` (an `ArenaSession`): the owner tab plays; another tab is *watching* — a
+  read-only resume (`readOnly`, every move `busy-elsewhere`) that refreshes on the holder's commits
+  and takes over when it lets go, or on `takeOver()` ("play here instead", which fences the old
+  holder). A worker that fails, or stays silent past `hungMs` (15 s; `openMs` 120 s for an open; an
+  idle ping every 5 s) is terminated, a new epoch claimed for the same tab, a new worker resumed from
+  the device at the last commit; a human move is resent with its request id (applied once, or
+  answered from its receipt as a duplicate), an AI advance re-issued (the lost batch recomputed from
+  the journalled AI memory and RNG). States `opening/owner/watching/recovering/storage/failed/stopped/closed`
+  are reported (`onState`, and to the board as connection states); `stop()`/`retry()` cancel and
+  restart; after `maxRestarts` (3) deaths in a row it stops as `failed`. `dispose()` releases the
+  lease and lock and stops every worker, timer and channel. Proofs: `scripts/verify/arena-local-ownership.mts`
+  (`npm test`; in-process killable workers, the fake IndexedDB, Node's Web Locks) and two real Chrome
+  tabs `npm run arena:local-ownership-browser`. Not yet wired to the board (O3-05).
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

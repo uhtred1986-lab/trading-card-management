@@ -302,10 +302,11 @@ await damaged("a forged save with recomputed digests (a changed AI decision)", (
 
 // ── 5. Versions ──────────────────────────────────────────────────────────────────────────────────
 {
-  assert.equal(MIGRATIONS.length, 1, "this build's schema is version 1");
+  assert.equal(MIGRATIONS.length, 2, "this build's schema is version 2 (#654 added the owners store)");
   const fake = new FakeIndexedDb();
-  const v1 = MIGRATIONS;
-  const v2: Migration[] = [...MIGRATIONS, { version: 2, describe: "proof: an additive step (a new store)", run(db) { db.createObjectStore("proof-notes", { keyPath: "id" }); } }];
+  // Version 1 is the #653 build; version 2 is this one, whose real additive step adds the owners store (#654).
+  const v1: Migration[] = MIGRATIONS.slice(0, 1);
+  const v2: Migration[] = [...MIGRATIONS];
   const broken: Migration[] = [...v2, { version: 3, describe: "proof: a step that fails half-way", run(db) { db.createObjectStore("proof-half", { keyPath: "id" }); throw new Error("disk on fire"); } }];
   const journal = (await onDevice(fakeR, "local-r1"))!;
   const old = storeOn(fake, { migrations: v1 });
@@ -317,7 +318,7 @@ await damaged("a forged save with recomputed digests (a changed AI decision)", (
   assert.equal(stableJson(await upgraded.get("local-r1")), stableJson(journal), "after the upgrade to version 2 the save reads back identical");
   upgraded.close();
   assert.equal(fake.databases.get(DB)!.version, 2, "the database is at version 2");
-  assert.ok(fake.databases.get(DB)!.stores.has("proof-notes"), "with the new store added");
+  assert.ok(fake.databases.get(DB)!.stores.has("owners"), "with the owners store added (#654)");
   {
     const ch = inProcessChannel({ store: storeOn(fake, { migrations: v2 }) });
     const s = await resumeLoopMatch(ch.port, pack, "local-r1", opts());
