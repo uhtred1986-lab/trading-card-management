@@ -34,7 +34,7 @@ tracking: true
 - [x] #624 **P1** — Pay Revive hand colors before its additional Auto cost (confirmed boundary in #597; distinct from eligibility)
 - [x] #602 **P1** — Preserve granted Heroic individual skill identity (depends on #554; printed/copied behavior remains #554)
 - [ ] #677 **P1** — Charge recognised external activateSkill taxes on normal and invoked activations; #574 records the active omission boundary.
-- [ ] #683 **P1** — Villainous individual negation and successful Main/invoked/Counter Extra hooks have a bounded local implementation/proof; Auto, nonhand, source-self, full saved-session/viewer and catalog acceptance remain open.
+- [x] #683 **P1** — Villainous individual negation and successful Main/invoked/Counter/Auto Extra hooks, with timed/standing grant identity, proven per engine including a saved-session PGlite scenario; nonhand real-card eligibility and the source-self ruling stay recorded partials, catalog/fuzz/live are owner-run.
 - [ ] #540 — existing issue; preserve original acceptance and latest rulings
 - [ ] #541 — existing issue; preserve original acceptance and latest rulings
 - [ ] #542 — existing issue; preserve original acceptance and latest rulings
