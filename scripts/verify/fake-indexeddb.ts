@@ -1,5 +1,5 @@
 /**
- * A FAKE IndexedDB for the Node proof of `src/lib/arena/local/storage.ts` (#653) â€” test-only, not a
+ * A FAKE IndexedDB for the Node proof of `src/lib/arena/local/storage.ts` (#653) — test-only, not a
  * polyfill. No IndexedDB implementation is installed (`fake-indexeddb` is not a dependency, and none
  * may be added), so this implements exactly the subset the store uses, with IndexedDB's semantics
  * where the store's correctness depends on them:
@@ -12,7 +12,7 @@
  *    the transaction and fires `abort`.
  *  - `get` / `put` with a key path (string or array); values are structured-cloned both ways.
  *  - a quota (`quotaBytes`): a `put` that would exceed it fails with `QuotaExceededError`.
- *  - `crash()`: the process dies â€” nothing in flight commits, nothing more runs; `revive()` is a new
+ *  - `crash()`: the process dies — nothing in flight commits, nothing more runs; `revive()` is a new
  *    process over the same persisted data.
  *
  * Not implemented (the store does not use them): indexes, cursors, key ranges, `add`, `delete`,
