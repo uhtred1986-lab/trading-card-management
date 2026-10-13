@@ -3645,6 +3645,22 @@
       ]
     },
     {
+      "field": "markersMin",
+      "type": "number",
+      "printed": "card with 3 or more markers",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
+      "field": "markersMax",
+      "type": "number",
+      "printed": "card with 3 or fewer markers",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
       "field": "originallySkillLess",
       "type": "boolean",
       "printed": "originally skill-less",

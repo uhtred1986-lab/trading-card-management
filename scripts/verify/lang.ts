@@ -772,6 +772,10 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { comboPowerMax: 10000 },
     { comboPowerMin: 5000, comboPowerMax: 10000 },
     { powerMin: 10000, powerMax: 10000, comboPowerMin: 5000, comboPowerMax: 5000 },
+    // 13-2: "a red Unison Card with 2 or more markers" (BT10-008, #721).
+    { markersMin: 2 },
+    { markersMax: 3 },
+    { markersMin: 2, markersMax: 4 },
     { powerRel: { of: "self", cmp: "<=" } },
     // "…the chosen card's power" (BT19-096): measured against a bound
     // variable, not this card — the shape `compileClause` builds by filling

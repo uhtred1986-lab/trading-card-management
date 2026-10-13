@@ -338,6 +338,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   skillLess: { skillLess: true },
   comboPowerMin: { comboPowerMin: 5000 },
   comboPowerMax: { comboPowerMax: 5000 },
+  markersMin: { markersMin: 2 },
+  markersMax: { markersMax: 2 },
   faceUp: { faceUp: true },
   powerRel: { powerRel: { of: "self", cmp: "<=" } },
   unreadable: { unreadable: true },

@@ -37,8 +37,9 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
  * is the word that turns the rest of the phrase into a filter.
  */
 // "…with 5000 combo power **and different card names**" (BT29-030) is the same
-// shape: a second measure of the set being chosen, not a second clause.
-const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|\d+ combo power|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
+// shape: a second measure of the set being chosen, not a second clause. So is
+// "…with 1000 power **and 2 markers or less**" (EX19-01, #721).
+const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
 
 /**
  * "Choose all of your opponent's skill-less Battle Cards **and** Battle Cards
