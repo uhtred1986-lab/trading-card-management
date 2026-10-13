@@ -69,6 +69,7 @@ import type { Moment } from "./events";
 import type { VmState } from "./state";
 import { findCard, inPlayZones } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
+import { usableFrom } from "./activate";
 import { keywordMomentOf } from "./keyword-do";
 import { attrsNow } from "./program";
 import type { Attrs } from "./cards";
@@ -127,6 +128,8 @@ export interface TriggerMatch {
    * front side answers although it is face down.
    */
   front?: true;
+  /** Asked only because it sits in a hand: the caller keeps it if its skill plays this card from there. */
+  handWatcher?: true;
 }
 
 // ── matching a moment against the declarations ──────────────────────────────
@@ -141,20 +144,21 @@ export interface TriggerMatch {
  * that was merely placed — so a moment states the fields the patterns ask
  * about rather than leaving them out to be read as either.
  */
-export function matchTriggers(game: GameDefinition, state: VmState, moment: Moment): TriggerMatch[] {
+export function matchTriggers(game: GameDefinition, state: VmState, moment: Moment, alsoHand = false): TriggerMatch[] {
   const out: TriggerMatch[] = [];
   for (const trigger of Object.values(game.triggers)) {
     if (trigger.on.event !== moment.event) continue;
     if (!fieldsMatch(trigger.on.args, moment.args)) continue;
     const asksHidden = trigger.on.args.hidden === true;
-    for (const card of asked(game, state, trigger, moment)) {
+    const fromHand = new Set<string>();
+    for (const card of asked(game, state, trigger, moment, alsoHand ? fromHand : undefined)) {
       // 9-6-9-3: a card that moved (or was KO'd) face down does not answer to
       // its own area-movement [Auto]s, "unless specified otherwise" — and the
       // declaration that names `hidden: true` is what specifies it.
       if (card === moment.card && moment.args.hidden === true && !asksHidden) continue;
       if (!holdsFor(game, state, trigger, card)) continue;
       const subject = trigger.bind === "subject" && moment.card !== undefined ? { subject: moment.card } : {};
-      out.push({ trigger: trigger.name, card, ...subject, ...(asksHidden && card === moment.card ? { front: true as const } : {}) });
+      out.push({ trigger: trigger.name, card, ...subject, ...(asksHidden && card === moment.card ? { front: true as const } : {}), ...(fromHand.has(card) ? { handWatcher: true as const } : {}) });
     }
   }
   return out;
@@ -176,11 +180,14 @@ function valueMatches(want: PatternValue, got: PatternValue | undefined): boolea
 }
 
 /** The cards this declaration puts the question to, before `WHERE` narrows them. */
-function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment: Moment): string[] {
+function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment: Moment, handOut?: Set<string>): string[] {
   const watcher = trigger.on.args.watcher;
   if (watcher !== undefined) {
     const sides = watching(state, trigger, moment, watcher);
     const askedCards = inPlay(game, state, sides);
+    // 9-1-3-2 / 9-6-3-1-1: a watcher whose own skill plays this card from the
+    // hand is heard there too; `pendAutos` keeps only the skills that say so.
+    if (handOut) for (const p of sides) for (const id of state.sides[p].zones.hand) { askedCards.push(id); handOut.add(id); }
     // 3-9-2-1: the card turned face up is still in its Life Area, and its own
     // Auto can answer as well as the controller's in-play watchers. The
     // declaration's watcher chooses the audience; this event subject is the
@@ -279,7 +286,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   if (state.battle && moment.event === "moved" && moment.card && moment.args.to === "combo" && moment.args.from !== "combo") {
     (state.battle.comboOrigins ??= {})[moment.card] = moment.args.from === "hand" ? "hand" : "other";
   }
-  for (const match of matchTriggers(game, state, moment)) {
+  for (const match of matchTriggers(game, state, moment, true)) {
     if (only && !only(match)) continue;
     if (match.trigger === "comboToDrop" && moment.args.cleanupDeparture === true) continue;
     if (match.trigger === "comboToDrop" && moment.args.fromHolder !== moment.controller) continue;
@@ -308,6 +315,15 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // 9-1-3-2: an [Auto] whose effect takes this card out of an area outside
+      // play ("play this card from your hand") works from that area only
+      // (9-6-3-1-1 lets its master leave it undeclared there). A hand copy is
+      // asked for these skills alone; an in-play copy has nothing to take out.
+      const outside = sk.kind === "auto" ? usableFrom(showing.scripts.bySkill[sk.index]) : [];
+      const at = findCard(state, match.card)?.zone;
+      if (match.handWatcher) {
+        if (!at || !outside.includes(at as never)) continue;
+      } else if (at && game.zones[at]?.inPlay === true && outside.length > 0 && outside.every((a) => game.zones[a]?.inPlay !== true)) continue;
       if (match.trigger === "comboed" && moment.args.cleanupDeparture === true && comboBattleEndSelf(sk)) continue;
       if (moment.args.cleanupSpecial === true && !comboBattleEndSelf(sk)) continue;
       // The named Cell/CELL Jr. is qualified at the *play* moment, before an
