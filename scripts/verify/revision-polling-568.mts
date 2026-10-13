@@ -171,7 +171,7 @@ const wait = route.indexOf("await waitForRevisionResult(db, id, sinceRevision, w
 const preference = route.indexOf('req.headers.get("Prefer") === "return=minimal"');
 const preferenceGuard = route.indexOf('revisionWait?.kind === "unchanged" && prefersMinimal');
 const unchanged = route.indexOf('status: 204, headers: { "Cache-Control": "private, no-store" }');
-const fullLoad = route.indexOf("const game = await loadGame(db, id);");
+const fullLoad = route.indexOf("const game = await loadGame(db, id).catch(retiredGame);");
 assert.ok(preference >= 0 && auth >= 0 && auth < gameAccess && gameAccess < seatGate && seatGate < wait && wait < preferenceGuard && preferenceGuard < unchanged && unchanged < fullLoad,
   "the opted-in no-body response follows auth/ownership/seat checks and precedes expensive game projection");
 

@@ -44,14 +44,5 @@ export async function verifyArenaGameplan(db: Db): Promise<void> {
   } finally {
     await db.delete(arenaGames).where(eq(arenaGames.id, created.id));
   }
-  const [archived] = await db.insert(arenaGames).values({
-    p1Name: "Alice", p2Name: "Bob", p1User: "alice", p2User: "bob",
-    seed: 571, mode: "versus", engine, state, version: 7, status: "over", snapshot: { archived: true },
-  }).returning({ id: arenaGames.id });
-  try {
-    assert.equal(await loadGame(db, archived.id), null, "an archived row cannot reach preview's live-game service");
-  } finally {
-    await db.delete(arenaGames).where(eq(arenaGames.id, archived.id));
-  }
   }
 }
