@@ -57,7 +57,7 @@ import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zon
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
 import { attrsNow, forbiddenForCard, forbids, hasKeyword, readingBoard, staticsNow, taxesOn } from "./program";
 import { attrsOf, playerAttributes } from "./cards";
-import { BATTLE_STEP_WORK } from "./battle";
+import { BATTLE_STEP_WORK, stepCounterCost } from "./battle";
 import { leaveRoute, replacementChoices, replacementIdentity } from "./replace";
 import { asksAQuestion } from "./script-schema";
 import { expireSkips, takeSkip } from "./skips";
@@ -1078,6 +1078,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   try {
     if (frame.reviveCost) return stepReviveCost(ctx, game, state, ev, frame);
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
+    if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
     if (frame.autoCost) {
       const cost = frame.autoCost;
       if (cost.stage === "offer") {

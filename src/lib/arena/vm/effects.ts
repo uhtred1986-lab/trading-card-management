@@ -516,6 +516,13 @@ export function permanents(
         for (const sk of showing.skills) {
           if (sk.kind !== "permanent") continue;
           if (skillNegated(state, src, sk.index, sk.kind)) continue;
+          // 22-26 / 22-21: a [Sparking X] or [Bond X] [Permanent] is valid only
+          // while its master has the count — BT5-023's "[Permanent][Sparking 5]
+          // …adding a card from your life to your hand instead of paying its
+          // energy cost" offered nothing before #716 let its [Counter] be
+          // offered at all. The same zones `vm/activate.ts` counts.
+          if (sk.sparking != null && (state.sides[p].zones.drop ?? []).length < sk.sparking) continue;
+          if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
           const ops = zone === "warp" ? program.ops.filter((op) => op.op === "permit" && op.what === "overRealmFromWarp") : program.ops;

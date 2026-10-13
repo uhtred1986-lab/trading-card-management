@@ -466,6 +466,26 @@ export interface Prohibition {
    * leaves it absent and covers both.
    */
   bySkill?: boolean;
+  /**
+   * `activateCounter` only: the one [Counter] kind it names — "[Counter: Play]
+   * skills" is not every [Counter] (22-10-2-1). Matched against the line being
+   * activated (`skillKind` in the matchers' options); absent means any kind.
+   */
+  counterKind?: CounterKind;
+  /** "…of **other** cards" (BT10-008): the card that made the rule is not bound by it. */
+  otherCards?: boolean;
+}
+
+/** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */
+export type CounterKind = "play" | "attack" | "battleCardAttack" | "counter";
+
+/** The `CounterKind` of a printed line's `kind` ("counter:battle card attack" → "battleCardAttack"), or null for a line that is no [Counter]. */
+export function counterKindOf(kind: string): CounterKind | null {
+  if (kind === "counter:play") return "play";
+  if (kind === "counter:attack") return "attack";
+  if (kind === "counter:battle card attack") return "battleCardAttack";
+  if (kind === "counter:counter") return "counter";
+  return null;
 }
 
 /**
