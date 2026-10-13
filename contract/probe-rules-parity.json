@@ -1029,11 +1029,11 @@
   "L-RED#0": {
     "legacy": {
       "outcome": "notOffered",
-      "digest": "45a2bd90"
+      "digest": "0aefde1a"
     },
     "rules": {
       "outcome": "notOffered",
-      "digest": "45a2bd90"
+      "digest": "0aefde1a"
     },
     "same": true
   },

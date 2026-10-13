@@ -133,12 +133,44 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // than failing: the skill would be offered without its second requirement.
   // A body clause never arrives here compound, because `splitClauses` has
   // already broken it at the "and".
-  if (/ and /.test(t)) {
+  // "Or" binds loosest (below), so a sentence that joins whole conditions
+  // with "or" is cut there first: "your life is at 4 or less, **or** you have
+  // 2 or more energy and you have …" (BT31-001) is life, or the rest — never
+  // (life or energy) and the rest (#728).
+  if (/ and /.test(t) && !/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t)) {
     const conds: Cond[] = [];
     const raw = clause.trim().split(/ and /i);
     let charged = false;
-    for (const [i, part] of t.split(/ and /).entries()) {
-      const got = parseConditionClause(part.trim(), true);
+    const parts = t.split(/ and /);
+    for (const [i, part] of parts.entries()) {
+      // "You have 2 or more energy **and a yellow Z-Unison with a specified
+      // cost of 1 in play**" (BT25-099, BT26-001 and ten more [Awaken]s, #728):
+      // the second half shares the first one's "you have". Read bare it is no
+      // condition, and the count below then took the whole sentence for one
+      // description — 2 or more energy cards that are Z-Unisons. Only a half
+      // that opens with an article and names a card is carried, so "you have 2
+      // or more energy and you have …" and "… and your Leader …" read as they
+      // always did; "and **a combo cost of 1** in your Z-Energy" (BT19-116) and
+      // "and **an energy cost of 3**" (P-438) are measures of the card before
+      // them, and "and **a player has** a <Son Gohan: SH> card" (BT19-063) has
+      // a subject of its own.
+      // The half before has to name its own place, or the place printed at the
+      // end belongs to both: "1 or more red cards and 1 or more green cards
+      // **in your Combo Area**" (BT25-128) is not red cards anywhere in play.
+      const before = i > 0 ? parts[i - 1].trim() : "";
+      const placed = /\b(?:energy|hand|drop|warp|life|deck|z-energy|area|in play)\b/.test(before.replace(/^(?:you have|your opponent has) /, ""));
+      const subject = placed ? /^(you have|your opponent has) /.exec(before) : null;
+      const half = part.trim();
+      // A count carries the same way: "you have 3 or more energy **and 2 or
+      // more skill-less Battle Cards in play**", "your opponent has 8 or more
+      // cards in their hand **and 3 or more energy**".
+      const namesACard =
+        /^(?:an?|\d+ or (?:more|less|fewer)) /.test(half) &&
+        !/\b(?:has|have|is|are)\b/.test(half) &&
+        /\b(?:cards?|unisons?|z-unisons?|extras?|z-extras?|leaders?|energy)\b|\{[^}]+\}|<[^>]+>|≪[^≫]+≫/.test(half) &&
+        !/^an? (?:energy|combo) cost\b|^an? specified cost\b/.test(half);
+      const carried = subject && namesACard ? parseConditionClause(`${subject[1]} ${half}`, true) : null;
+      const got = carried ?? parseConditionClause(part.trim(), true);
       if (!got) {
         conds.length = 0;
         // A part the compiler reads as something the player *does* is a price
@@ -446,6 +478,26 @@ function parseCountCondition(t: string): Cond | null {
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, said] = m;
+  // "You have 3 or more energy **and you send** 1 red card, 1 blue card, …
+  // from your Drop Area to your Warp" (SD16-03, #728): a count's description
+  // never has a second subject in it. Read as one, the action became a colour
+  // filter on the Drop and the price was neither checked nor charged.
+  if (/\band you\b/.test(said)) return null;
+  // Nor a second count: "1 or more red <Son Goku> cards **and 1 or more** red
+  // <Vegeta> cards in your Drop" (BT31-001), "1 or more black cards and 1 or
+  // more white cards in your Drop" (BT29-085) are two counts, and read as one
+  // the two descriptions became either one. Each is read on its own, the
+  // place printed at the end shared with a first half that names none.
+  const two = /^(.+?) and (\d+ or (?:more|less|fewer)) (.+)$/.exec(said);
+  if (two) {
+    if (none) return null;
+    const lead = /^(you have|your opponent has|there(?: (?:are|is)|'s|'re))/.exec(t)![1];
+    const area = /\s(in (?:play|(?:your|their|your opponent's) [a-z- ]+))$/.exec(two[3])?.[1];
+    const named = /\b(?:energy|hand|drop|warp|life|deck|z-energy|area|in play)\b/.test(two[1]);
+    const first = parseCountCondition(`${lead} ${num ? `${num} or ${dir} ` : ""}${two[1]}${!named && area ? ` ${area}` : ""}`);
+    const second = parseCountCondition(`${lead} ${two[2]} ${two[3]}`);
+    return first && second ? { kind: "all", conds: [first, second] } : null;
+  }
   // "10 or more **total** <Son Goku> or <Vegeta> in your Drop Area" (BT2-001,
   // #539): one count over both names, not either name reaching 10 alone. The
   // filter already reads two names as either, so the "or" is not split.

@@ -2284,10 +2284,14 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   assert.deepEqual([c?.sel.side, c?.sel.area, c?.sel.notInBattle], ["opponent", "battle", true], "BT29-036: not the card in the battle");
 }
 
-// Measures no filter carries are refused, not dropped (#537): BT5-119, SD15-01.
+// Measures no filter carries are refused, not dropped (#537): BT5-119. SD15-01's
+// "with a specified cost of 2" became a measure in #728 (`sd15-readings-728.ts`);
+// any other sentence about a specified cost is still refused.
 {
   assert.ok(parseFilter("Battle Card with an energy cost less than or equal to your current energy").unreadable, "cost ≤ current energy is refused");
-  assert.ok(parseFilter("red Unison Cards with a specified cost of 2").unreadable, "a specified cost is refused");
+  const sd15 = parseFilter("red Unison Cards with a specified cost of 2");
+  assert.deepEqual([sd15.unreadable, sd15.specifiedCostMin, sd15.specifiedCostMax], [false, 2, 2], "a specified cost of 2 is a measure");
+  assert.ok(parseFilter("a card whose specified cost was reduced").unreadable, "another specified-cost sentence is refused");
 }
 
 // ── #539: "Then, if" under the open condition; Battle Cards and energy ──────
