@@ -639,7 +639,7 @@ the same as if it were still in `CLAUDE.md`.
   perhaps 50–100 tokens — still comfortably over Opus 5's 512-token minimum and nowhere near Haiku
   4.5's 4,096, so Tournament games cache and Sparring games do not, unchanged. Re-measure exactly
   from a played game's `ai_runs` row rather than trusting this estimate.
-  **#162 put the "cannot go wrong" shortcuts on both engines.** `chooseMove`'s `freeChoice`/
+  **#162 put the "cannot go wrong" shortcuts on both engines** (**#645 moved the rules themselves to `policy/shortcuts.ts`; `ai/shortcut-input.ts` is the adapter, `opponent.ts` keeps none**). `chooseMove`'s `freeChoice`/
   `chargeChoice`/`mulliganChoice` now read the board through the `zoneOf`/`catalogDefOf`/`leaderOf`
   seam (`engine-state.ts`, the same one `#161`'s probe uses) instead of `GameState`'s own shape, so
   a rules-engine game's coin flip, mulligan and charge decide themselves exactly as a legacy one's
