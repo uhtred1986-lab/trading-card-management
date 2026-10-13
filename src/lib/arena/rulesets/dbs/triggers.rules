@@ -226,6 +226,14 @@ DEFINE TRIGGER droppedFromBattle
   BIND "self"
   text: "when a skill sends this card from a Battle Area to the Drop"
 
+-- §3-1-5 — the same move made by an opponent's skill: SD15-03's "placed in
+-- your Drop Area from your Battle Area by an opponent's skill" (#728). Its
+-- "or KO'd" half is `koed`; a KO is not a skill's move (`ko`, not `moved`).
+DEFINE TRIGGER droppedByOpponent
+  ON moved(by: skill, byOpponent: true, from: battle, to: drop)
+  BIND "self"
+  text: "when an opponent's skill sends this card from a Battle Area to the Drop"
+
 -- §20-7 — when a skill sends this card from your hand to the Drop: a
 -- discard by a skill's effect or as its cost (1-6, 1-7-1, 20-7-4). Pended by
 -- name from a skill's own move, like `droppedFromBattle` above; a card leaving

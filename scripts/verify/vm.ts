@@ -340,6 +340,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   comboPowerMax: { comboPowerMax: 5000 },
   markersMin: { markersMin: 2 },
   markersMax: { markersMax: 2 },
+  specifiedCostMin: { specifiedCostMin: 2 },
+  specifiedCostMax: { specifiedCostMax: 1 },
   faceUp: { faceUp: true },
   powerRel: { powerRel: { of: "self", cmp: "<=" } },
   unreadable: { unreadable: true },

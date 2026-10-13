@@ -1,0 +1,948 @@
+# #728 readings/gap diff, whole catalog, both faces (13 Oct 2026)
+# Source: deckplanet dbs_masters_cards feed fetched 13 Oct 2026 (read-only GETs), shaped by src/lib/catalog/deckplanet.ts;
+# owner specified costs SD15-02 and DB3-001 = {r}{r} (migration 0049). For every skill: printed text, describeScript
+# reading, compiled price (condition/ops) and unread clauses, compiled on origin/main 9f7058b4 (before) and on branch
+# arena-728-sd15-readings (after). A skill is listed when its reading, ops, price or unread set changed. Null
+# specifiedCostMin/Max fields are ignored; price JSON omits empty/default fields. "- unread" = a clause that now reads;
+# "+ unread" = a clause newly refused (each was a wrong reading before; see the PR).
+
+== BT10-019#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red Unison Card with a specified cost of 4 or 1 red ≪Earthling≫ card with an energy cost of 4 or less among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 red Unison Card with a specified cost of 4 or red ≪earthling≫ card with an energy cost of 4 or less of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 red Unison Card with a specified cost of 4 or 1 red ≪Earthling≫ card with an energy cost of 4 or less among them to your hand
+== BT10-048#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue Unison Card with a specified cost of 2 or 1 blue <Trunks: Future> card among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 blue Unison Card with a specified cost of 2 or blue <trunks: future> card of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 blue Unison Card with a specified cost of 2 or 1 blue <Trunks: Future> card among them to your hand
+== BT10-067#10 permanent
+  printed: [Permanent] If your Leader Card is green and you have a green Unison Card with a specified cost of 2 in play, you can play this card from your hand without paying its energy cost.
+  - reads: if your leader is Green: this card may be played for no energy
+  + reads: if your leader is Green: if there are 1 or more green Unison Cards with a specified cost of 2 in your Unison Area: this card may be played for no energy
+  - unread: you have a green Unison Card with a specified cost of 2 in play
+== BT10-070#10 auto
+  printed: [Auto] When this card is played, choose one? ・Look at up to 5 cards from the top of your deck, add up to 1 green Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck. ・This card gains [Blocker] until the start of your next turn.
+  - reads: choose one — look at the top 5, shuffle / this card gains [Blocker] until the end of your opponent's turn
+  + reads: choose one — look at the top 5, choose up to 1 green Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle / this card gains [Blocker] until the end of your opponent's turn
+  - unread: add up to 1 green Unison Card with a specified cost of 2 among them to your hand
+== BT10-071#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green Unison Card with a specified cost of 2 or 1 green ≪Saiyan≫ card with an energy cost of 3 or less among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 green Unison Card with a specified cost of 2 or green ≪saiyan≫ card with an energy cost of 3 or less of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green Unison Card with a specified cost of 2 or 1 green ≪Saiyan≫ card with an energy cost of 3 or less among them to your hand
+== BT10-093#20 keyword
+  printed: [Awaken] When your life is at 3 or less, or you have a yellow Unison Card with a specified cost of 4 in play: You may draw 2 cards, then switch up to 1 of your energy to Active Mode and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":3},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":4,"specifiedCostMax":4}},"atLeast":1}]}}
+== BT10-107#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow Unison Card with a specified cost of 2 or 1 yellow ≪Saiyan≫ card with an energy cost of 3 or less among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow Unison Card with a specified cost of 2 or yellow ≪saiyan≫ card with an energy cost of 3 or less of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow Unison Card with a specified cost of 2 or 1 yellow ≪Saiyan≫ card with an energy cost of 3 or less among them to your hand
+== BT11-021#20 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red <Broly: Br> card or 1 red Unison Card with a specified cost of 1 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 red <broly: br> card or red Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 red <Broly: Br> card or 1 red Unison Card with a specified cost of 1 among them to your hand
+== BT11-061#10 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a green Unison Card with a specified cost of 2 in play: You may draw 1 card, switch up to 1 of your energy to Active Mode, add cards from your life to your hand until you have 6 life left, and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Green"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== BT11-068#0 counter:attack
+  printed: [Counter: Attack] Negate the attack, play this card, then look at up to 7 cards from the top of your deck, add up to 1 green Unison Card with a specified cost of 3 among them to your hand, then shuffle your deck.
+  - reads: negate the attack, choose this card, play the chosen cards, look at the top 7, shuffle
+  + reads: negate the attack, choose this card, play the chosen cards, look at the top 7, choose up to 1 green Unison Card with a specified cost of 3 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green Unison Card with a specified cost of 3 among them to your hand
+== BT11-079#10 auto
+  printed: [auto] When this card is discarded from your hand by a [union] skill, look at up to 7 cards from the top of your deck, add up to 1 green Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 7, shuffle
+  + reads: look at the top 7, choose up to 1 green Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green Unison Card with a specified cost of 2 among them to your hand
+== BT11-102#10 activate:main
+  printed: [activate: main][once per turn] {y}: Look at up to 5 cards from the top of your deck, add up to 1 yellow Unison Card with a specified cost of 3 or up to 1 yellow ≪Demon Clan≫ card with an energy cost of 3 or less among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow Unison Card with a specified cost of 3 or yellow ≪demon clan≫ card with an energy cost of 3 or less of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow Unison Card with a specified cost of 3 or up to 1 yellow ≪Demon Clan≫ card with an energy cost of 3 or less among them to your hand
+== BT12-061#20 activate:main
+  printed: [Activate: Main] If your Leader Card is a ≪Slug's Army≫ card and your opponent has 7 or more cards in their hand and 1 or more energy: Choose up to 1 mono-green ≪Slug's Army≫ card with 19000 power or less in your hand and play it; you can't activate the [Activate: Main] skill on copies of this card for the turn.
+  - reads: if your leader is ≪slug's army≫: choose up to 1 mono-colour green ≪Slug's Army≫ card with 19000 power or less in your hand, play the chosen cards
+  + reads: if your leader is ≪slug's army≫ and there are 7 or more cards in your opponent's hand and there are 1 or more cards in your opponent's Energy Area: choose up to 1 mono-colour green ≪Slug's Army≫ card with 19000 power or less in your hand, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"traits":["slug's army"]}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"traits":["slug's army"]}},{"kind":"count","sel":{"side":"opponent","area":"hand"},"atLeast":7},{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":1}]}}
+== BT12-085#20 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a yellow Unison Card with a specified cost of 2 in play: You may draw 1 card, switch up to 1 of your energy to Active Mode, add cards from your life to your hand until you have 6 life left, and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== BT12-099#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow skill-less Battle Card or yellow Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow skill-less Battle Card or yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow skill-less Battle Card or yellow Unison Card with a specified cost of 2 among them to your hand
+== BT12-104#0 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Frieza's Army≫ card with an energy cost of 3 or less or up to 1 yellow Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow ≪frieza's army≫ card with an energy cost of 3 or less or yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow ≪Frieza's Army≫ card with an energy cost of 3 or less or up to 1 yellow Unison Card with a specified cost of 2 among them to your hand
+== BT13-007#10 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 ≪Bardock's Crew≫ card with an energy cost of 5 or less or up to 1 red Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 ≪bardock's crew≫ card with an energy cost of 5 or less or red Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 ≪Bardock's Crew≫ card with an energy cost of 5 or less or up to 1 red Unison Card with a specified cost of 2 among them to your hand
+== BT13-022#10 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Saiyan≫ card with an energy cost of 5 or less or up to 1 red Unison Card with a specified cost of 1 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 red ≪saiyan≫ card with an energy cost of 5 or less or red Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 red ≪Saiyan≫ card with an energy cost of 5 or less or up to 1 red Unison Card with a specified cost of 1 among them to your hand
+== BT13-032#20 keyword
+  printed: [Awaken] When your life is at 3 or less or you have a blue Unison Card with a specified cost of 4 in play: You may draw 2 cards, switch up to 1 of your energy to Active Mode, then flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":3},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":4,"specifiedCostMax":4}},"atLeast":1}]}}
+== BT13-043#0 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue ≪Earthling≫ card with an energy cost of 3 or less or up to 1 blue Unison Card with a specified cost of 1 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 blue ≪earthling≫ card with an energy cost of 3 or less or blue Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 blue ≪Earthling≫ card with an energy cost of 3 or less or up to 1 blue Unison Card with a specified cost of 1 among them to your hand
+== BT13-049#0 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 ≪Boujack Brigade≫ card with an energy cost of 3 or less or up to 1 blue Unison Card with a specified cost of 4 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 ≪boujack brigade≫ card with an energy cost of 3 or less or blue Unison Card with a specified cost of 4 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 ≪Boujack Brigade≫ card with an energy cost of 3 or less or up to 1 blue Unison Card with a specified cost of 4 among them to your hand
+== BT13-080#0 auto
+  printed: [auto] When this card is played, look at up to 7 cards from the top of your deck, add up to 1 green Unison Card with a specified cost of 2 or up to 1 green Extra Card with the [field] skill among them to your hand, then shuffle your deck.
+  - reads: look at the top 7, shuffle
+  + reads: look at the top 7, choose up to 1 green Unison Card with a specified cost of 2 or green Extra Card with [Field] of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green Unison Card with a specified cost of 2 or up to 1 green Extra Card with the [field] skill among them to your hand
+== BT13-113#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Android≫ card with an energy cost of 3 or less or up to 1 yellow Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow ≪android≫ card with an energy cost of 3 or less or yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow ≪Android≫ card with an energy cost of 3 or less or up to 1 yellow Unison Card with a specified cost of 2 among them to your hand
+== BT14-001#20 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a red Unison Card with a specified cost of 2 in play: You may draw 1 card, switch up to 1 of your energy to Active Mode, add cards from your life to your hand until you have 5 life left, then flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== BT14-017#10 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red <Jiren> card or 1 red Unison Card with a specified cost of 1 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 red <jiren> card or red Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 red <Jiren> card or 1 red Unison Card with a specified cost of 1 among them to your hand
+== BT14-031b#20 activate:main
+  printed: [Activate: Main][Once per turn][Spirit Boost 1] (You must remove a marker from your Unison Card to activate this skill.) This card gets +5000 power for the turn; if you have a blue Unison Card with a specified cost of 3 or more in play, this card gains [Double Strike].
+  - reads: this card +5000 power for the turn
+  + reads: this card +5000 power for the turn, if there are 1 or more blue Unison Cards with a specified cost of 3 or more in your Unison Area: this card gains [Double Strike] for the turn
+  - unread: if you have a blue Unison Card with a specified cost of 3 or more in play
+  - unread: this card gains [Double Strike]
+== BT14-035#10 auto
+  printed: [auto][limit 1]{u}, if your Leader Card is blue: When this card attacks, it gets +5000 power for the turn, and if you have a blue Unison Card with a specified cost of 3 in play, switch this card to Active Mode and it gains [double strike] for the turn.
+  - reads: if your leader is Blue: this card +5000 power for the turn
+  + reads: if your leader is Blue: this card +5000 power for the turn, if there are 1 or more blue Unison Cards with a specified cost of 3 in your Unison Area: switch this card to active mode, this card gains [Double Strike] for the turn
+  - unread: if you have a blue Unison Card with a specified cost of 3 in play
+  - unread: switch this card to Active Mode
+  - unread: it gains [double strike] for the turn
+== BT14-039#0 activate:main
+  printed: [activate: main]{u}, if your Leader Card is a blue <Trunks: Youth> card and you have a blue Unison Card with a specified cost of 3 in play: Play this card from your hand.
+  - reads: if your leader is Blue <trunks: youth>: choose this card, play the chosen cards
+  + reads: if your leader is Blue <trunks: youth> and there are 1 or more blue Unison Cards with a specified cost of 3 in your Unison Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Blue"],"characters":["trunks: youth"],"unreadable":true,"type":"UNISON"}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Blue"],"characters":["trunks: youth"]}},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":3,"specifiedCostMax":3}},"atLeast":1}]}}
+== BT14-048#0 activate:main
+  printed: [activate: main]{u}, if your Leader Card is a blue <Trunks: Youth> card and you have a blue Unison Card with a specified cost of 3 in play: Play this card from your hand.
+  - reads: if your leader is Blue <trunks: youth>: choose this card, play the chosen cards
+  + reads: if your leader is Blue <trunks: youth> and there are 1 or more blue Unison Cards with a specified cost of 3 in your Unison Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Blue"],"characters":["trunks: youth"],"unreadable":true,"type":"UNISON"}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Blue"],"characters":["trunks: youth"]}},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":3,"specifiedCostMax":3}},"atLeast":1}]}}
+== BT14-057#10 activate:main
+  printed: [activate: main][once per turn] Add 1 card from your life to your hand: Look at up to 3 cards from the top of your deck, add up to 1 blue Unison Card with a specified cost of 3 among them to your hand, then shuffle your deck. If you added a card to your hand, choose 1 card in your hand and place it at the bottom of your deck.
+  - reads: look at the top 3, shuffle, if you added a card to your hand: choose 1 card in your hand, move the chosen cards to deck
+  + reads: look at the top 3, choose up to 1 blue Unison Card with a specified cost of 3 of the cards looked at, move the chosen cards to hand, shuffle, if you added a card to your hand: choose 1 card in your hand, move the chosen cards to deck
+  - unread: add up to 1 blue Unison Card with a specified cost of 3 among them to your hand
+== BT14-059#0 permanent
+  printed: [Permanent] If you have a blue Unison Card with a specified cost of 3 in play, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.
+  - reads: (nothing)
+  + reads: if there are 1 or more blue Unison Cards with a specified cost of 3 in your Unison Area: choose this card, play the chosen cards
+  - unread: If you have a blue Unison Card with a specified cost of 3 in play
+  - unread: you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost
+== BT14-059#10 activate:battle
+  printed: [Activate: Battle][Limit 1] (You can only activate this skill once per turn across all copies of this card.) [Spirit Boost 1] (You must remove a marker from your Unison Card to activate this skill.) If your Leader Card is a mono-blue <Trunks: Youth> card: Draw 1 card, then choose up to 1 of your Leader Cards or Unison Cards and 
+  - reads: draw 1, choose one — choose up to 1 card in your Leader Area / choose up to 1 card in your Unison Area, the chosen cards +10000 power for the battle
+  + reads: if your leader is Blue <trunks: youth>: draw 1, choose one — choose up to 1 card in your Leader Area / choose up to 1 card in your Unison Area, the chosen cards +10000 power for the battle
+  - price: {}
+  + price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Blue"],"monoColor":true,"characters":["trunks: youth"]}}}
+== BT14-071#0 activate:main
+  printed: [activate: main][limit 1] {g}, if you have 3 or more energy and a green Unison Card in play: Play this card from your hand; if you do, choose up to 1 of your opponent's Unison Cards and remove a marker from it.
+  - reads: if there are 3 or more green Unison Cards in your Energy Area: choose this card, play the chosen cards, if you took that choice: choose up to 1 card in your opponent's Unison Area, remove 1 marker
+  + reads: if there are 3 or more cards in your Energy Area and there are 1 or more green Unison Cards in your Unison Area: choose this card, play the chosen cards, if you took that choice: choose up to 1 card in your opponent's Unison Area, remove 1 marker
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Green"],"type":"UNISON"}},"atLeast":3}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Green"],"type":"UNISON"}},"atLeast":1}]}}
+== BT14-078#30 activate:main
+  printed: [activate: main][limit 1] (You can only activate this skill once per turn across all copies of this card.) [spirit boost 1] (You must remove a marker from your Unison Card to activate this skill.) Play 1 Majin Token, then add up to 1 card from your life to your hand. (Majin Tokens have 15000 power, 0 combo cost, and 5000 combo p
+  - reads: choose up to 1 card in your Life Area, move the chosen cards to hand
+  + reads: play 1 Majin Token (15000 power), choose up to 1 card in your Life Area, move the chosen cards to hand
+  - unread: [spirit boost 1] Play 1 Majin Token
+== BT14-092#10 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a yellow Unison Card with a specified cost of 2 in play: You may draw 1 card, switch up to 1 of your energy to Active Mode, add cards from your life to your hand until you have 6 life left, then flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== BT14-097#20 activate:main
+  printed: [activate: main]{y}{y}{y}, if you have 4 or more energy and a yellow Unison Card in play: Play this card from your hand.
+  - reads: if there are 4 or more yellow Unison Cards in your Energy Area: choose this card, play the chosen cards
+  + reads: if there are 4 or more cards in your Energy Area and there are 1 or more yellow Unison Cards in your Unison Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Yellow"],"type":"UNISON"}},"atLeast":4}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Yellow"],"type":"UNISON"}},"atLeast":1}]}}
+== BT14-130#10 auto
+  printed: [Auto][Limit 1] (You can only activate this skill once per turn across all copies of this card.) If your opponent has 3 or less energy and you place this card in its owner's Drop Area from your hand or Battle Area: When your opponent activates the [Activate] skill on an Extra Card with an original energy cost of 1 or 2 that does
+  - price: {"condition":{"kind":"count","sel":{"special":"self"},"atMost":3}}
+  + price: {}
+== BT15-001#10 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a red Unison Card with a specified cost of 3 in play: You may draw 2 cards, add cards from your life to your hand until you have 6 life left, and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":3,"specifiedCostMax":3}},"atLeast":1}]}}
+== BT15-007#10 activate:main
+  printed: [activate: main]{r}{1}, if your Leader Card is a red <Son Goten> card and you choose this card and 1 of your Unison Cards and switch them to Rest Mode: Draw 1 card. If you have a red Unison Card with a specified cost of 3 or more in play, you may have 1 of your Leader Cards get +15000 power and [triple strike] until the end of a
+  - reads: if your leader is Red <son goten>: draw 1
+  + reads: if your leader is Red <son goten>: draw 1, if there are 1 or more red Unison Cards with a specified cost of 3 or more in your Unison Area: you may: 1 card in your Leader Area +15000 power for the turn, 1 card in your Leader Area gains [Triple Strike] for the turn
+  - unread: If you have a red Unison Card with a specified cost of 3 or more in play
+  - unread: you may have 1 of your Leader Cards get +15000 power and [triple strike] until the end of a battle or the end of the turn
+== BT15-016#10 permanent
+  printed: [Permanent] If you have a red Unison Card with a specified cost of 3 or more in play, you can activate this card's [Counter] skill from your hand without paying its energy cost.
+  - reads: (nothing)
+  + reads: if there are 1 or more red Unison Cards with a specified cost of 3 or more in your Unison Area: this card's [Counter] may be activated for no energy
+  - unread: If you have a red Unison Card with a specified cost of 3 or more in play
+  - unread: you can activate this card's [Counter] skill from your hand without paying its energy cost
+== BT15-031#10 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a blue Unison Card with a specified cost of 2 in play: You may draw 2 cards, add cards from your life to your hand until you have 6 life left, then flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== BT16-063#0 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green ≪Universe 6≫ card with an energy cost of 4 or less or 1 green Unison Card with a specified cost of 1 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 green ≪universe 6≫ card with an energy cost of 4 or less or green Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green ≪Universe 6≫ card with an energy cost of 4 or less or 1 green Unison Card with a specified cost of 1 among them to your hand
+== BT16-076#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Saiyan≫ card with an energy cost of 4 or less or 1 yellow Unison Card with a specified cost of 1 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow ≪saiyan≫ card with an energy cost of 4 or less or yellow Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow ≪Saiyan≫ card with an energy cost of 4 or less or 1 yellow Unison Card with a specified cost of 1 among them to your hand
+== BT16-109#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 black ≪Saiyan≫ card with an energy cost of 4 or less or 1 black Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 black ≪saiyan≫ card with an energy cost of 4 or less or black Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 black ≪Saiyan≫ card with an energy cost of 4 or less or 1 black Unison Card with a specified cost of 2 among them to your hand
+== BT17-008#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Saiyan≫ card with an energy cost of 4 or less or 1 red Unison Card with a specified cost of 1 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 red ≪saiyan≫ card with an energy cost of 4 or less or red Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 red ≪Saiyan≫ card with an energy cost of 4 or less or 1 red Unison Card with a specified cost of 1 among them to your hand
+== BT17-032#20 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a blue Unison Card with a specified cost of 2 in play: You may draw 1 card, switch up to 1 of your energy to Active Mode, add cards from your life to your hand until you have 6 life left, and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== BT17-059#0 auto
+  printed: [Auto] Add 1 card from your life to your hand: When this card attacks, you may draw 1 card. If you don't, play up to 1 green Unison Card with a specified cost of 1 from your hand with a marker on it.
+  - reads: you may: draw 1
+  + reads: you may: draw 1, if not (the offer was taken): choose up to 1 green Unison Card with a specified cost of 1 in your hand, play the chosen cards
+  - unread: play up to 1 green Unison Card with a specified cost of 1 from your hand with a marker on it
+== BT17-059b#0 auto
+  printed: [Auto] When this card attacks, you may draw 1 card. If you don't, play up to 1 green Unison Card with a specified cost of 1 from your hand with a marker on it.
+  - reads: you may: draw 1
+  + reads: you may: draw 1, if not (the offer was taken): choose up to 1 green Unison Card with a specified cost of 1 in your hand, play the chosen cards
+  - unread: play up to 1 green Unison Card with a specified cost of 1 from your hand with a marker on it
+== BT17-068#20 auto
+  printed: [Auto] When this card is played, you can't play copies of this card this turn. Additionally, you may place 1 green Unison Card with a specified cost of 3 or less from your Drop Area at the bottom of your deck. If you do, your opponent discards 1 card from their hand.
+  - reads: you can't play another copy of this card for the turn
+  + reads: you can't play another copy of this card for the turn, you may: choose 1 green Unison Card with a specified cost of 3 or less in your Drop Area, move the chosen cards to deck, if the offer was taken: opponent discards 1
+  - unread: you may place 1 green Unison Card with a specified cost of 3 or less from your Drop Area at the bottom of your deck
+  - unread: If you do
+  - unread: your opponent discards 1 card from their hand
+== BT17-069#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green Unison Card with a specified cost of 3 or less among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 green Unison Card with a specified cost of 3 or less of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green Unison Card with a specified cost of 3 or less among them to your hand
+== BT17-078#0 activate:main
+  printed: [Activate: Main][Limit 1] If your Leader Card is a <Cooler> card: Look at up to 7 cards from the top of your deck, then choose one— ・Play up to 1 green Unison Card with a specified cost of 1 and [Empower] among them with a marker on it, then shuffle your deck. ・Play up to 1 green <Cooler> card with an energy cost of 2 or less am
+  - reads: if your leader is <cooler>: look at the top 7, choose one — shuffle / choose up to 1 green <cooler> card with an energy cost of 2 or less of the cards looked at, play the chosen cards, shuffle
+  + reads: if your leader is <cooler>: look at the top 7, choose one — choose up to 1 green Unison Card with [Empower] with a specified cost of 1 of the cards looked at, play the chosen cards, shuffle / choose up to 1 green <cooler> card with an energy cost of 2 or less of the cards looked at, play the chosen cards, shuffle
+  - unread: Play up to 1 green Unison Card with a specified cost of 1 and [Empower] among them with a marker on it
+== BT17-081#0 auto
+  printed: [Auto] Add 1 card from your life to your hand: When this card attacks, look at up to 5 cards from the top of your deck, play up to 1 yellow Unison Card with a specified cost of 1 among them with a marker on it in Rest Mode, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow Unison Card with a specified cost of 1 of the cards looked at, play the chosen cards in rest mode, shuffle
+  - unread: play up to 1 yellow Unison Card with a specified cost of 1 among them with a marker on it in Rest Mode
+== BT17-081b#0 auto
+  printed: [auto][once per turn] When this card attacks, draw 1 card, then play up to 1 yellow Unison card with a specified cost of 1 from your hand with a marker on it in Rest Mode.
+  - reads: draw 1
+  + reads: draw 1, choose up to 1 yellow Unison Card with a specified cost of 1 in your hand, play the chosen cards in rest mode
+  - unread: play up to 1 yellow Unison card with a specified cost of 1 from your hand with a marker on it in Rest Mode
+== BT17-095#0 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow Unison Card with a specified cost of 3 or less among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow Unison Card with a specified cost of 3 or less of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow Unison Card with a specified cost of 3 or less among them to your hand
+== BT17-107#0 activate:main
+  printed: [Activate: Main][Limit 1] If your Leader Card is a yellow <Son Goku> card: Look at up to 7 cards from the top of your deck, then choose one— ・Add up to 1 yellow ≪Saiyan≫ card with an energy cost of 4 or less among them to your hand, then shuffle your deck. ・Play up to 1 yellow Unison Card with a specified cost of 1 among them wi
+  - reads: if your leader is Yellow <son goku>: look at the top 7, choose one — choose up to 1 yellow ≪saiyan≫ card with an energy cost of 4 or less of the cards looked at, move the chosen cards to hand, shuffle / shuffle
+  + reads: if your leader is Yellow <son goku>: look at the top 7, choose one — choose up to 1 yellow ≪saiyan≫ card with an energy cost of 4 or less of the cards looked at, move the chosen cards to hand, shuffle / choose up to 1 yellow Unison Card with a specified cost of 1 of the cards looked at, play the chosen cards, shuffle
+  - unread: Play up to 1 yellow Unison Card with a specified cost of 1 among them with a marker on it
+== BT17-110#10 keyword
+  printed: [Awaken] When your life is at 3 or less or you have a black Unison Card with a specified cost of 3 in play: You may switch up to 2 of your energy to Active Mode, play up to 1 Demon Realm Soldier Token, and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":3},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Black"],"type":"UNISON","specifiedCostMin":3,"specifiedCostMax":3}},"atLeast":1}]}}
+== BT17-115#20 activate:main
+  printed: [activate: main]{b}{b}, if you have 3 or more energy and 2 or more skill-less Battle Cards in play: Play this card from your hand.
+  - reads: if there are 3 or more skill-less Battle Cards in your Energy Area: choose this card, play the chosen cards
+  + reads: if there are 3 or more cards in your Energy Area and there are 2 or more skill-less Battle Cards in your Battle Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"type":"BATTLE","skillLess":true}},"atLeast":3}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"type":"BATTLE","skillLess":true}},"atLeast":2}]}}
+== BT17-125#0 auto
+  printed: [auto][limit 1] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 black ≪Android≫ card, black ≪Demon God≫ card, or black Unison Card with a specified cost of 3 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 black ≪android≫ card or black ≪demon god≫ card or black Unison Card with a specified cost of 3 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 black ≪Android≫ card, black ≪Demon God≫ card, or black Unison Card with a specified cost of 3 among them to your hand
+== BT18-001#10 auto
+  printed: [Auto][Once per turn] When you use a card in a combo, look at up to 3 cards from the top of your deck, add up to 1 red ≪Saiyan≫ card or 1 red Unison with a specified cost of 2 among them to your hand, and place the remaining cards at the bottom of your deck in any order.
+  - reads: look at the top 3, move the chosen cards to deck
+  + reads: look at the top 3, choose up to 1 red ≪saiyan≫ card or red Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, move the chosen cards to deck
+  - unread: add up to 1 red ≪Saiyan≫ card or 1 red Unison with a specified cost of 2 among them to your hand
+== BT18-009#10 auto
+  printed: [Auto] If this card's power is 20000 or more: When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 red ≪Saiyan≫ card with an energy cost of 5 or less or 1 red Unison with a specified cost of 3 among them to your hand, then shuffle your deck.
+  - reads: if this card has 20000 or more power: look at the top 5, shuffle
+  + reads: if this card has 20000 or more power: look at the top 5, choose up to 1 red ≪saiyan≫ card with an energy cost of 5 or less or red Unison Card with a specified cost of 3 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 red ≪Saiyan≫ card with an energy cost of 5 or less or 1 red Unison with a specified cost of 3 among them to your hand
+== BT18-027#10 auto
+  printed: [Auto] If your Leader is a ≪Shadow Dragon≫ card: When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Shadow Dragon≫ card with an energy cost of 4 or less or 1 red Unison with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: if your leader is ≪shadow dragon≫: look at the top 5, shuffle
+  + reads: if your leader is ≪shadow dragon≫: look at the top 5, choose up to 1 red ≪shadow dragon≫ card with an energy cost of 4 or less or red Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 red ≪Shadow Dragon≫ card with an energy cost of 4 or less or 1 red Unison with a specified cost of 2 among them to your hand
+== BT18-101#10 activate:main
+  printed: [Activate: Main][Limit 1] If your Leader is a yellow ≪Bardock's Crew≫ card and you discard this card from your hand: Look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Bardock's Crew≫ card with an energy cost of 4 or less or 1 yellow Unison with a specified cost of 2 among them to your hand, then shuffle your d
+  - reads: if your leader is Yellow ≪bardock's crew≫: look at the top 5, shuffle
+  + reads: if your leader is Yellow ≪bardock's crew≫: look at the top 5, choose up to 1 yellow ≪bardock's crew≫ card with an energy cost of 4 or less or yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow ≪Bardock's Crew≫ card with an energy cost of 4 or less or 1 yellow Unison with a specified cost of 2 among them to your hand
+== BT18-108#10 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Bardock's Crew≫ card with an energy cost of 4 or less or 1 yellow Unison with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow ≪bardock's crew≫ card with an energy cost of 4 or less or yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow ≪Bardock's Crew≫ card with an energy cost of 4 or less or 1 yellow Unison with a specified cost of 2 among them to your hand
+== BT18-109#40 auto
+  printed: [auto] If you have 4 or more energy and a yellow <Pan: SH> card in play: When this card is played, it gains [double strike] and [barrier] for the turn.
+  - reads: if there are 4 or more yellow <pan: sh> cards in your Energy Area: this card gains [Double Strike] for the turn, this card gains [Barrier] for the turn
+  + reads: if there are 4 or more cards in your Energy Area and there are 1 or more yellow <pan: sh> cards you have in play: this card gains [Double Strike] for the turn, this card gains [Barrier] for the turn
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Yellow"],"characters":["pan: sh"]}},"atLeast":4}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":4},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Yellow"],"characters":["pan: sh"]}},"atLeast":1}]}}
+== BT19-022#20 activate:main/battle
+  printed: [activate: main/battle][limit 1]{1}, if your Leader is a red <Android 13> card and you have 2 or more energy and a red <Android 15> card in your Z-Energy: Your opponent may choose 2 of their Battle Cards and have them get -20000 power for the turn. If they don't, you draw 1 card and play this card from your hand.
+  - reads: if your leader is Red <android 13> <android 15>: your opponent may: choose 2 Battle Cards in your opponent's Battle Area, the chosen cards -20000 power for the turn, if not (you took all 2): choose this card, play the chosen cards
+  + reads: if your leader is Red <android 13> and there are 2 or more cards in your Energy Area and there are 1 or more red <android 15> cards in your Z-Energy Area: your opponent may: choose 2 Battle Cards in your opponent's Battle Area, the chosen cards -20000 power for the turn, if not (you took all 2): choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Red"],"characters":["android 13","android 15"]}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Red"],"characters":["android 13"]}},{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"zEnergy","filter":{"colors":["Red"],"characters":["android 15"]}},"atLeast":1}]}}
+== BT19-024#10 activate:main/battle
+  printed: [activate: main/battle][limit 1]{1}, if your Leader is a red <Android 13> card and you have 2 or more energy and a red <Android 14> card in your Z-Energy: Your opponent may choose 2 of their Battle Cards and have them get -20000 power for the turn. If they don't, you draw 1 card and play this card from your hand.
+  - reads: if your leader is Red <android 13> <android 14>: your opponent may: choose 2 Battle Cards in your opponent's Battle Area, the chosen cards -20000 power for the turn, if not (you took all 2): choose this card, play the chosen cards
+  + reads: if your leader is Red <android 13> and there are 2 or more cards in your Energy Area and there are 1 or more red <android 14> cards in your Z-Energy Area: your opponent may: choose 2 Battle Cards in your opponent's Battle Area, the chosen cards -20000 power for the turn, if not (you took all 2): choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Red"],"characters":["android 13","android 14"]}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Red"],"characters":["android 13"]}},{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"zEnergy","filter":{"colors":["Red"],"characters":["android 14"]}},"atLeast":1}]}}
+== BT19-042#10 activate:main
+  printed: [activate: main][limit 1]{1}, if your opponent has 2 or more energy and you return 1 of your ≪Evil Incarnate≫ cards or 2 of your ≪Villainous≫ cards—none of which have the same name as this card—to your hand: Play this card from your hand.
+  - reads: if there are 2 or more ≪evil incarnate≫ cards in your opponent's Energy Area, or there are 2 or more this card: choose this card, play the chosen cards
+  + reads: (nothing)
+  - price: {"condition":{"kind":"any","conds":[{"kind":"count","sel":{"side":"opponent","area":"energy","filter":{"traits":["evil incarnate"]}},"atLeast":2},{"kind":"count","sel":{"special":"self"},"atLeast":2}]}}
+  + price: {}
+  + unread: {1}, if your opponent has 2 or more energy and you return 1 of your ≪Evil Incarnate≫ cards or 2 of your ≪Villainous≫ cards—none of which have the same name as this card—to your hand
+== BT19-058#0 auto
+  printed: [auto][limit 1] If your Leader is a blue <Gotenks: SH> card: When this card is played, choose up to 1 of your opponent's Unisons with a specified cost of 1 and return it to its owner's hand.
+  - reads: (nothing)
+  + reads: if your leader is Blue <gotenks: sh>: choose up to 1 Unison Card with a specified cost of 1 in your opponent's Unison Area, move the chosen cards to hand
+  - unread: choose up to 1 of your opponent's Unisons with a specified cost of 1
+  - unread: return it to its owner's hand
+== BT19-100#30 keyword
+  printed: [Awaken] When your life is at 2 or less, or your opponent has 2 or more energy and 2 or more ≪Slug's Army≫ cards are in your Z-Energy: You may draw 2 cards, switch up to 1 of your energy to Active Mode, and add the top card of your deck to your life.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":2},{"kind":"count","sel":{"side":"opponent","area":"energy","filter":{"traits":["slug's army"]}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":2},{"kind":"all","conds":[{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"zEnergy","filter":{"traits":["slug's army"]}},"atLeast":2}]}]}}
+== BT19-140#20 auto
+  printed: [Auto] When this card is played from your hand, choose one― ・Place up to 3 cards from the top of your deck in your Drop, and if there are a total of 7 or more cards in all Drops, draw 2 cards. ・Choose up to 1 of your opponent's Battle Cards with an energy cost of 7 or less, ignoring [Barrier], and send it to its owner's Warp. ・C
+  - reads: (nothing)
+  + reads: choose one — 3 from the top of the deck to the Drop / choose up to 1 Battle Card with an energy cost of 7 or less in your opponent's Battle Area, move the chosen cards to warp / choose up to 1 Unison Card with 7 or fewer markers with a specified cost of 2 or less in your opponent's Unison Area, move the chosen cards to warp
+  - unread: Choose up to 1 of your opponent's Unisons with a specified cost of 2 or less and 7 or fewer markers
+  - unread: send it to its owner's Warp
+== BT20-064#20 auto
+  printed: [auto][limit 1] When this card attacks, your opponent chooses 1 of their Unisons with a specified cost of 3 or less and places it in its owner's Drop. If they don't place a card in their Drop, they discard 1 card from their hand.
+  - reads: (nothing)
+  + reads: choose 1 Unison Card with a specified cost of 3 or less in your opponent's Unison Area, move the chosen cards to drop
+  - unread: your opponent chooses 1 of their Unisons with a specified cost of 3 or less
+  - unread: places it in its owner's Drop
+== BT20-064#30 activate:main
+  printed: [activate: main][limit 1]{g}{g}, if you have 3 or more energy and a green Z-Battle Card in play: Play this card from your hand.
+  - reads: if there are 3 or more green Z-Battle Cards in your Energy Area: choose this card, play the chosen cards
+  + reads: if there are 3 or more cards in your Energy Area and there are 1 or more green Z-Battle Cards in your Battle Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Green"],"type":"BATTLE","z":true}},"atLeast":3}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"colors":["Green"],"type":"BATTLE","z":true}},"atLeast":1}]}}
+== BT20-131#20 activate:main
+  printed: [activate: main][limit 1]{b}, if your Leader is black and your opponent has 2 or more energy and a Battle Card in play: Play this card from your hand.
+  - reads: if your leader is Black: choose this card, play the chosen cards
+  + reads: if your leader is Black and there are 2 or more cards in your opponent's Energy Area and there are 1 or more Battle Cards in your opponent's Battle Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Black"],"type":"BATTLE"}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Black"]}},{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"opponent","area":"battle","filter":{"type":"BATTLE"}},"atLeast":1}]}}
+== BT20-133#30 activate:main
+  printed: [activate: main]{b}{b}, if your Leader is a black <Cumber> card and your opponent has 2 or more energy and a Battle Card in play: Play this card from your hand.
+  - reads: if your leader is Black <cumber>: choose this card, play the chosen cards
+  + reads: if your leader is Black <cumber> and there are 2 or more cards in your opponent's Energy Area and there are 1 or more Battle Cards in your opponent's Battle Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Black"],"characters":["cumber"],"type":"BATTLE"}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Black"],"characters":["cumber"]}},{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"opponent","area":"battle","filter":{"type":"BATTLE"}},"atLeast":1}]}}
+== BT21-001#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and there is a {Son Gohan, Awakened Hidden Power} under your opponent's Leader: Add up to 1 {Power Pole} from your deck to your hand, shuffle your deck, draw 1 card, and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"all","conds":[{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2}]},{"kind":"count","sel":{"side":"you","area":"under","underHost":{"special":"opponentLeader"},"filter":{"names":["son gohan, awakened hidden power"]}},"atLeast":1}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"under","underHost":{"special":"opponentLeader"},"filter":{"names":["son gohan, awakened hidden power"]}},"atLeast":1}]}]}}
+== BT21-035#10 auto
+  printed: [Auto] Place 1 mono-blue <Vegeta> with an energy cost of 1 or 1 mono-blue ≪Brainwashed≫ from your hand under a {Universal Tuffleization Plan} in your Battle Area: When this card attacks, draw 2 cards.
+  - price: {"ops":[{"op":"choose","sel":{"side":"you","area":"hand","filter":{"anyOf":[{"colors":["Blue"],"monoColor":true,"characters":["vegeta"],"traits":["brainwashed"],"costMin":1,"costMax":1},{"colors":["Blue"],"monoColor":true,"characters":["vegeta"],"traits":["brainwashed"],"costMin":1,"costMax":1}]},"count":1},"as":"c0","reason":"Place 1 mono-blue <Vegeta> with an energy cost of 1 or 1 mono-blue ≪Brainwashed≫ from your hand under a {Universal Tuffleization Plan} in your Battle Area"},{"op":"moveTo","target":{"var":"c0"},"to":"under","under":{"sel":{"side":"you","area":"play","filter":{"names":["universal tuffleization plan"]},"count":1}}}]}
+  + price: {"ops":[{"op":"choose","sel":{"side":"you","area":"hand","filter":{"colors":["Blue"],"monoColor":true,"characters":["vegeta"],"traits":["brainwashed"],"costMin":1,"costMax":1},"count":1},"as":"c0","reason":"Place 1 mono-blue <Vegeta> with an energy cost of 1 or 1 mono-blue ≪Brainwashed≫ from your hand under a {Universal Tuffleization Plan} in your Battle Area"},{"op":"moveTo","target":{"var":"c0"},"to":"under","under":{"sel":{"side":"you","area":"play","filter":{"names":["universal tuffleization plan"]},"count":1}}}]}
+== BT21-062#10 auto
+  printed: [auto]{u}, if your Leader is blue, you place 1 card from your hand into your Drop, and you remove this card in your Drop from the game: When a card in the Battle Area is placed at the bottom of a deck, choose up to 1 of your opponent's Unisons with a specified cost of 2 or less and place it at the bottom of their deck.
+  - reads: (nothing)
+  + reads: if your leader is Blue: choose up to 1 Unison Card with a specified cost of 2 or less in your opponent's Unison Area, move the chosen cards to deck
+  - unread: choose up to 1 of your opponent's Unisons with a specified cost of 2 or less
+  - unread: place it at the bottom of their deck
+== BT21-066#20 activate:main
+  printed: [Activate: Main][Once per turn] Place 1 mono-blue <Vegeta: GT> with an energy cost of 1 or 1 mono-blue ≪Brainwashed≫ from your hand under this card: Draw 1 card.
+  - price: {"ops":[{"op":"choose","sel":{"side":"you","area":"hand","filter":{"anyOf":[{"colors":["Blue"],"monoColor":true,"characters":["vegeta: gt"],"traits":["brainwashed"],"costMin":1,"costMax":1},{"colors":["Blue"],"monoColor":true,"characters":["vegeta: gt"],"traits":["brainwashed"],"costMin":1,"costMax":1}]},"count":1},"as":"c0","reason":"Place 1 mono-blue <Vegeta: GT> with an energy cost of 1 or 1 mono-blue ≪Brainwashed≫ from your hand under this card"},{"op":"moveTo","target":{"var":"c0"},"to":"under"}]}
+  + price: {"ops":[{"op":"choose","sel":{"side":"you","area":"hand","filter":{"colors":["Blue"],"monoColor":true,"characters":["vegeta: gt"],"traits":["brainwashed"],"costMin":1,"costMax":1},"count":1},"as":"c0","reason":"Place 1 mono-blue <Vegeta: GT> with an energy cost of 1 or 1 mono-blue ≪Brainwashed≫ from your hand under this card"},{"op":"moveTo","target":{"var":"c0"},"to":"under"}]}
+== BT21-138#20 activate:main
+  printed: [Activate: Main][Limit 1] If your Leader is a black ≪Demon Realm Race≫, you have a black Unison with a specified cost of 3 in play, and you place 1 card from your hand at the bottom of your deck: Play this card from your Warp.
+  - reads: if your leader is Black ≪demon realm race≫: choose this card, play the chosen cards
+  + reads: if your leader is Black ≪demon realm race≫ and there are 1 or more black Unison Cards with a specified cost of 3 you have in play: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Black"],"traits":["demon realm race"],"unreadable":true,"type":"UNISON"}},"ops":[{"op":"choose","sel":{"side":"you","area":"hand","count":1},"as":"c0","reason":"place 1 card from your hand at the bottom of your deck"},{"op":"moveTo","target":{"var":"c0"},"to":"deck","position":"bottom"}]}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Black"],"traits":["demon realm race"]}},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Black"],"type":"UNISON","specifiedCostMin":3,"specifiedCostMax":3}},"atLeast":1}]},"ops":[{"op":"choose","sel":{"side":"you","area":"hand","count":1},"as":"c0","reason":"place 1 card from your hand at the bottom of your deck"},{"op":"moveTo","target":{"var":"c0"},"to":"deck","position":"bottom"}]}
+== BT23-001#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a {Destroyed West City} in your Battle Area: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"names":["destroyed west city"]}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"names":["destroyed west city"]}},"atLeast":1}]}]}}
+== BT23-002#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a {Destroyed West City} in your Battle Area: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"names":["destroyed west city"]}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"names":["destroyed west city"]}},"atLeast":1}]}]}}
+== BT23-055#30 auto
+  printed: [Auto] If you have 3 or more energy and you declare 1 number: When this card is played, until the end of your opponent's turn, your opponent can't play a Battle Card with an original power the same as your declared number unless they place 1 card from their hand at the bottom of their deck.
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3}}
+  + price: {}
+== BT23-099#30 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and you have 3 or more Z-Energy: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"all","conds":[{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2}]},{"kind":"count","sel":{"side":"you","area":"zEnergy"},"atLeast":3}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"zEnergy"},"atLeast":3}]}]}}
+== BT23-110#30 activate:main
+  printed: [activate: main][limit 1]{y}, if your Leader is a yellow ≪Universe 7≫ <Son Goku> card and you have 3 or more energy and 3 or more Z-Energy: Draw 1 card and play this card from your hand.
+  - reads: if your leader is Yellow <son goku> ≪universe 7≫: draw 1, choose this card, play the chosen cards
+  + reads: if your leader is Yellow <son goku> ≪universe 7≫ and there are 3 or more cards in your Energy Area and there are 3 or more cards in your Z-Energy Area: draw 1, choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Yellow"],"characters":["son goku"],"traits":["universe 7"]}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Yellow"],"characters":["son goku"],"traits":["universe 7"]}},{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3},{"kind":"count","sel":{"side":"you","area":"zEnergy"},"atLeast":3}]}}
+== BT24-001#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or your life is at 6 or less and you have a red <Bulma> card in your Drop: Draw 2 cards.
+  - price: {"condition":{"kind":"all","conds":[{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"life","side":"you","atMost":6}]},{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["Red"],"characters":["bulma"]}},"atLeast":1}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"life","side":"you","atMost":6},{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["Red"],"characters":["bulma"]}},"atLeast":1}]}]}}
+== BT24-002#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and you have a red Z-Unison with a specified cost of 1 in play: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT24-025#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a blue <Hirudegarn> card in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Blue"],"characters":["hirudegarn"]}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Blue"],"characters":["hirudegarn"]}},"atLeast":1}]}]}}
+== BT24-026#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and 1 or more <Tapion> cards and 1 or more <Minotia> cards in your Drop: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"drop","filter":{"characters":["tapion","minotia"]}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"drop","filter":{"characters":["tapion"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"drop","filter":{"characters":["minotia"]}},"atLeast":1}]}]}]}}
+== BT24-029#0 permanent
+  printed: [Permanent] If you have a blue Z-Unison with a specified cost of 2 in play, reduce the energy cost of this card in your Z-Deck by 1.
+  - reads: (nothing)
+  + reads: if there are 1 or more blue Z-Unison Cards with a specified cost of 2 you have in play: this card costs 1 less
+  - unread: If you have a blue Z-Unison with a specified cost of 2 in play
+  - unread: reduce the energy cost of this card in your Z-Deck by 1
+== BT24-055#10 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a green Z-Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Green"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2,"z":true}},"atLeast":1}]}}
+== BT24-105#10 activate:main
+  printed: [activate: main][limit 1]{y}, if your Leader is a green <Frieza> card and you have 1 or more green energy and 1 or more yellow energy: Draw 1 card and play this card from your hand.
+  - reads: if your leader is Green Yellow <frieza>: draw 1, choose this card, play the chosen cards
+  + reads: if your leader is Green <frieza> and there are 1 or more green cards in your Energy Area and there are 1 or more yellow cards in your Energy Area: draw 1, choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Green","Yellow"],"characters":["frieza"]}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Green"],"characters":["frieza"]}},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Green"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Yellow"]}},"atLeast":1}]}}
+== BT24-106#10 activate:main
+  printed: [activate: main][limit 1]{y}, if your Leader is a green <Frieza> card and you have 1 or more green energy and 1 or more yellow energy: Draw 1 card and play this card from your hand.
+  - reads: if your leader is Green Yellow <frieza>: draw 1, choose this card, play the chosen cards
+  + reads: if your leader is Green <frieza> and there are 1 or more green cards in your Energy Area and there are 1 or more yellow cards in your Energy Area: draw 1, choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Green","Yellow"],"characters":["frieza"]}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Green"],"characters":["frieza"]}},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Green"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Yellow"]}},"atLeast":1}]}}
+== BT24-112#10 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a black Z-Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Black"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2,"z":true}},"atLeast":1}]}}
+== BT25-002b#10 activate:main
+  printed: [Activate: Main] If you have a red Z-Unison with a specified cost of 1 in play, and you remove 7 [Dragon Ball] cards in your Drop from the game: Add up to 1 card from the top of your deck to your life.
+  - reads: (nothing)
+  + reads: if there are 1 or more red Z-Unison Cards with a specified cost of 1 you have in play: choose up to 1 card in your deck, move the chosen cards to life
+  - price: {}
+  + price: {"condition":{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1},"ops":[{"op":"choose","sel":{"side":"you","area":"drop","filter":{"keywords":["Dragon Ball"]},"count":7},"as":"c0","reason":"remove 7 [Dragon Ball] cards in your Drop from the game"},{"op":"moveTo","target":{"var":"c0"},"to":"removed"}]}
+  - unread: If you have a red Z-Unison with a specified cost of 1 in play, and you remove 7 [Dragon Ball] cards in your Drop from the game
+== BT25-036#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a card with {Gotenks} in its card name in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"namesIncluding":["gotenks"]}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"namesIncluding":["gotenks"]}},"atLeast":1}]}]}}
+== BT25-037#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a blue Z-Unison with a specified cost of 1 in play: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT25-042#10 activate:main
+  printed: [-3][Activate: Main] If you have 4 or more energy and 2 or more blue Z-Extras in your Battle Area: Choose 2 ofyour opponent's Battle Cards, return them to their owner's hand, and this card gets +20000 power for the turn.
+  - reads: if there are 4 or more blue Z-Extra Cards in your Energy Area: choose 2 Battle Cards in your opponent's Battle Area, move the chosen cards to hand, this card +20000 power for the turn
+  + reads: if there are 4 or more cards in your Energy Area and there are 2 or more blue Z-Extra Cards in your Battle Area: choose 2 Battle Cards in your opponent's Battle Area, move the chosen cards to hand, this card +20000 power for the turn
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Blue"],"type":"EXTRA","z":true}},"atLeast":4}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":4},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"colors":["Blue"],"type":"EXTRA","z":true}},"atLeast":2}]}}
+== BT25-070b#10 activate:battle
+  printed: [Activate: Battle][Once per turn] If it's your opponent's turn and you have 1 or more red cards and 1 or more green cards in your Combo Area: During this turn, the next time your activate [Arrival Red/Green] on a <Vegeta> or <Trunks: Future> card in your hand, reduce the skill cost by {r}.
+  - price: {"condition":{"kind":"all","conds":[{"kind":"isTurnPlayer","who":"opponent"},{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Red","Green"]}},"atLeast":1}]}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"isTurnPlayer","who":"opponent"},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Red"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Green"]}},"atLeast":1}]}]}}
+== BT25-099#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a yellow Z-Unison with a specified cost of 1 in play: Switch this card and up to 1 of your energy to Active Mode, place up to 1 {7 Shadow Dragons Assembled} from your Z-Deck in your Battle Area, and add cards from your life to your hand until you have 6 li
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT25-127#20 auto
+  printed: [Auto] When this card is played, draw 1 card, choose up to 1 of your green Z-Unisons with a specified costof 1 and add 2 markers to it, then choose up to 1 of your opponent's Battle Cards and it gets -15000 power for the turn.
+  - reads: draw 1, choose up to 1 green Z-Unison Card in your Unison Area, add 2 marker, choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards -15000 power for the turn
+  + reads: draw 1, choose up to 1 green Z-Unison Card with a specified cost of 1 in your Unison Area, add 2 marker, choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards -15000 power for the turn
+== BT25-128#30 activate:battle
+  printed: [Activate: Battle][Once per turn] If you have 1 or more red cards and 1 or more green cards in your Combo Area: Draw 1 card.
+  - reads: if there are 1 or more red green cards in your Combo Area: draw 1
+  + reads: if there are 1 or more red cards in your Combo Area and there are 1 or more green cards in your Combo Area: draw 1
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Red","Green"]}},"atLeast":1}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Red"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Green"]}},"atLeast":1}]}}
+== BT25-129#30 activate:battle
+  printed: [Activate: Battle][Limit 1] If you have 1 or more red cards and 1 or more green cards in your Combo Area: Switch this card to Active Mode.
+  - reads: if there are 1 or more red green cards in your Combo Area: switch this card to active mode
+  + reads: if there are 1 or more red cards in your Combo Area and there are 1 or more green cards in your Combo Area: switch this card to active mode
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Red","Green"]}},"atLeast":1}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Red"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Green"]}},"atLeast":1}]}}
+== BT26-001#10 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and a red Z-Unison with a specified cost of 1 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT26-022#10 activate:battle
+  printed: [activate: battle][limit 1]{1}, if your opponent has 3 or more energy and you have 1 or more <Android 17> card and 1 or more <Hell Fighter 17> card in your Combo Area: Draw 1 card, play this card from your hand, and this card gains [barrier] until the end fo your opponent's turn.
+  - reads: if there are 3 or more <android 17> <hell fighter 17> cards in your opponent's Energy Area: draw 1, choose this card, play the chosen cards
+  + reads: if there are 3 or more cards in your opponent's Energy Area and there are 1 or more <android 17> cards in your Combo Area and there are 1 or more <hell fighter 17> cards in your Combo Area: draw 1, choose this card, play the chosen cards
+  - price: {"condition":{"kind":"count","sel":{"side":"opponent","area":"energy","filter":{"characters":["android 17","hell fighter 17"]}},"atLeast":3}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":3},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"combo","filter":{"characters":["android 17"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"combo","filter":{"characters":["hell fighter 17"]}},"atLeast":1}]}]}}
+== BT26-060#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a green Z-Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Green"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2,"z":true}},"atLeast":1}]}]}}
+== BT26-061#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a green Z-Unison with a specified cost of 1 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Green"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT26-062#20 activate:battle
+  printed: [Activate: Battle][Once per turn]{g}, if you have 3 or more energy and 2 or more green cards in your Combo Area: Play up to 1 mono-green Battle Card with {Great Saiyaman} in its card name from your hand, and it gains [Blocker] until the end of your opponent's turn.
+  - reads: if there are 3 or more green cards in your Energy Area: choose up to 1 mono-colour green Battle Card with {great saiyaman} in its card name in your hand, play the chosen cards, the chosen cards gains [Blocker] until the end of your opponent's turn
+  + reads: if there are 3 or more cards in your Energy Area and there are 2 or more green cards in your Combo Area: choose up to 1 mono-colour green Battle Card with {great saiyaman} in its card name in your hand, play the chosen cards, the chosen cards gains [Blocker] until the end of your opponent's turn
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Green"]}},"atLeast":3}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3},{"kind":"count","sel":{"side":"you","area":"combo","filter":{"colors":["Green"]}},"atLeast":2}]}}
+== BT26-090#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a yellow <Son Goku> card with an energy cost of 4 or more in play: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Yellow"],"characters":["son goku"],"costMin":4}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Yellow"],"characters":["son goku"],"costMin":4}},"atLeast":1}]}]}}
+== BT26-091#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a yellow Z-Unison with a specified cost of 1 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT26-120#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a black Z-Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Black"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2,"z":true}},"atLeast":1}]}]}}
+== BT27-027#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a Blue/Green multicolor Z-Extra in your Battle Area: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Blue","Green"],"multiColor":true,"type":"EXTRA","z":true}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"colors":["Blue","Green"],"multiColor":true,"type":"EXTRA","z":true}},"atLeast":1}]}]}}
+== BT27-066#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a yellow Z-Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 4 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2,"z":true}},"atLeast":1}]}]}}
+== BT28-028#0 auto
+  printed: [Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 blue ≪Demon Realm≫ card or up to 1 blue Unison with a specified cost of 2 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 blue ≪demon realm≫ card or blue Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 blue ≪Demon Realm≫ card or up to 1 blue Unison with a specified cost of 2 to your hand
+== BT28-028#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a blue Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}]}}
+== BT28-028b#20 activate:main
+  printed: [Activate: Main][Once per turn] Draw 1 card, then choose all of your mono-blue Unisons with a specified cost of 2 and switch them to Active Mode.
+  - reads: draw 1
+  + reads: draw 1, choose all mono-colour blue Unison Cards with a specified cost of 2 in your Unison Area, switch the chosen cards to active mode
+  - unread: choose all of your mono-blue Unisons with a specified cost of 2
+  - unread: switch them to Active Mode
+== BT28-035#10 counter:play
+  printed: [Counter: Play] Play this card, then choose all of your mono-blue Unisons with a specified cost of 2 and switch them to Active Mode.
+  - reads: choose this card, play the chosen cards, switch the chosen cards to active mode
+  + reads: choose this card, play the chosen cards, choose all mono-colour blue Unison Cards with a specified cost of 2 in your Unison Area, switch the chosen cards to active mode
+  - unread: choose all of your mono-blue Unisons with a specified cost of 2
+== BT28-037#10 auto
+  printed: [Auto][Limit 1] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue ≪Demon Realm≫ card or up to 1 blue Unison with a specified cost of 2 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 blue ≪demon realm≫ card or blue Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 blue ≪Demon Realm≫ card or up to 1 blue Unison with a specified cost of 2 to your hand
+== BT28-056#20 keyword
+  printed: [Awaken] When you have 2 or more energy and a green Z-Extra with an energy cost of 2 in your Battle Area: Play 3 Multi-Form Tokens into your Battle Area, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left. (Multi-Form tokens have 10000 power, 0 combo cost, and 5000 
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Green"],"type":"EXTRA","costMin":2,"costMax":2,"z":true}},"atLeast":2}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"colors":["Green"],"type":"EXTRA","costMin":2,"costMax":2,"z":true}},"atLeast":1}]}}
+== BT28-078#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a yellow Z-Unison with a specified cost of 1 in play: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT28-079#0 auto
+  printed: [Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Saiyan≫ card with an energy cost of 5 or less or up to 1 yellow Unison with a specified cost of 2 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow ≪saiyan≫ card with an energy cost of 5 or less or yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow ≪Saiyan≫ card with an energy cost of 5 or less or up to 1 yellow Unison with a specified cost of 2 to your hand
+== BT28-079#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a yellow Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}]}}
+== BT28-093#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow <Vegito> card or up to 1 yellow Unison with a specified cost of 2 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow <vegito> card or yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow <Vegito> card or up to 1 yellow Unison with a specified cost of 2 to your hand
+== BT28-126#0 auto
+  printed: [Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 white ≪God≫ card or up to 1 white Unison with a specified cost of 2 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 white ≪god≫ card or white Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 white ≪God≫ card or up to 1 white Unison with a specified cost of 2 to your hand
+== BT29-043#0 activate:main
+  printed: [activate: main][once per turn] Add 1 card from your hand to your Z-Energy: Look at up to 5 cards from the top of your deck, add up to 1 green ≪Earthling≫ card or up to 1 green Unison with a specified cost of 1 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 green ≪earthling≫ card or green Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green ≪Earthling≫ card or up to 1 green Unison with a specified cost of 1 to your hand
+== BT29-043#10 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and a green Unison in play: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Green"],"type":"UNISON"}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Green"],"type":"UNISON"}},"atLeast":1}]}]}}
+== BT29-049#0 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green ≪Earthling≫ card with an energy cost of 4 or less or up to 1 green Unison with a specified cost of 1 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 green ≪earthling≫ card with an energy cost of 4 or less or green Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green ≪Earthling≫ card with an energy cost of 4 or less or up to 1 green Unison with a specified cost of 1 to your hand
+== BT29-058#10 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and a ≪Ginyu Force≫ card with an energy cost of 4 or more in play: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"traits":["ginyu force"],"costMin":4}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"traits":["ginyu force"],"costMin":4}},"atLeast":1}]}]}}
+== BT29-085#20 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and 1 or more black cards and 1 or more white cards in your Drop: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["Black","White"]}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["Black"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["White"]}},"atLeast":1}]}]}]}}
+== BT29-086#20 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and a black Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Black"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}]}}
+== BT30-001b#10 auto
+  printed: [auto] If you have 1 or more {Spirit} under any of the cards in your Battle Area and you place all of them at the bottom of their owner's deck: At the end of your turn, draw 1 card.
+  - reads: if there are 1 or more {spirit} cards under your card: draw 1
+  + reads: (nothing)
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"under","underHost":{"side":"you","area":"battle","count":99,"fromVar":"looked"},"filter":{"names":["spirit"]}},"atLeast":1}}
+  + price: {}
+  + unread: If you have 1 or more {Spirit} under any of the cards in your Battle Area and you place all of them at the bottom of their owner's deck
+== BT30-044#10 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and a green Z-Unison with a specified cost of 1 in play: Add up to 1 {Absorption} from your deck to your hand, shuffle your deck, draw 1 card, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Green"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT30-067#10 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and a yellow Z-Unison with a specified cost of 1 in play: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":1,"specifiedCostMax":1,"z":true}},"atLeast":1}]}]}}
+== BT31-001#10 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and you have 1 or more red <Son Goku> cards and 1 or more red <Vegeta> cards in your Drop: Draw 2 cards and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["Red"],"characters":["son goku","vegeta"]}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["Red"],"characters":["son goku"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["Red"],"characters":["vegeta"]}},"atLeast":1}]}]}]}}
+== BT31-002#10 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and you have a red Z-Extra in your Battle Area: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"all","conds":[{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2}]},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"colors":["Red"],"type":"EXTRA","z":true}},"atLeast":1}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"colors":["Red"],"type":"EXTRA","z":true}},"atLeast":1}]}]}}
+== BT31-027#20 keyword
+  printed: [awaken] When you have 2 or more energy and a blue Z-Unison with a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2,"z":true}},"atLeast":1}]}}
+== BT31-041#0 auto
+  printed: [auto] Discard 1 card from your hand: When this card attacks, look at up to 5 cards from the top of your deck, add up to a total of 2 mono-green cards that are ≪Saiyan≫ cards or Unisons with a specified cost of 2 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 2 mono-colour green ≪saiyan≫ cards or Unison Cards with a specified cost of 2 in your Unison Area, move the chosen cards to hand, shuffle
+  - unread: add up to a total of 2 mono-green cards that are ≪Saiyan≫ cards or Unisons with a specified cost of 2 to your hand
+== BT31-041#10 keyword
+  printed: [awaken] When your life is at 4 or less, or you have 2 or more energy and a green Unison wth a specified cost of 2 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"play","filter":{"colors":["Green"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}]}}
+== BT31-061#40 activate:battle
+  printed: [activate: battle] [limit 1] {y}, if you have 3 or more energy and 2 or more cards in your Combo Area: Play this card from your hand.
+  - reads: if there are 3 or more cards in your Energy Area: choose this card, play the chosen cards
+  + reads: if there are 3 or more cards in your Energy Area and there are 2 or more cards in your Combo Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3},{"kind":"count","sel":{"side":"you","area":"combo"},"atLeast":2}]}}
+== EB1-20#20 permanent
+  printed: [Permanent] If your Leader Card is a ≪Android≫ card or ≪Heroine≫ card, you have a Unison Card in play with a specified cost of 2 or more, and it's your opponent's turn, reduce the energy cost of this card in your hand by 3.
+  - reads: if your leader is ≪android≫, or your leader is ≪heroine≫: if it is your opponent's turn: this card costs 3 less
+  + reads: if your leader is ≪android≫, or your leader is ≪heroine≫: if there are 1 or more Unison Cards with a specified cost of 2 or more in your Unison Area: if it is your opponent's turn: this card costs 3 less
+  - unread: you have a Unison Card in play with a specified cost of 2 or more
+== EB1-34#20 activate:main
+  printed: [Activate: Main][Once per turn][Burst 2] If your opponent has 8 or more cards in their hand and 3 or more energy: This card gets +16000 power and [Double Strike] until the start of your next Main Phase.
+  - reads: if there are 8 or more cards in your opponent's hand: this card +16000 power for the turn, this card gains [Double Strike] for the turn
+  + reads: if there are 8 or more cards in your opponent's hand and there are 3 or more cards in your opponent's Energy Area: this card +16000 power for the turn, this card gains [Double Strike] for the turn
+  - price: {"condition":{"kind":"count","sel":{"side":"opponent","area":"hand"},"atLeast":8}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"opponent","area":"hand"},"atLeast":8},{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":3}]}}
+== EX11-01#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or your opponent has 3 or more energy and you have a red Unison Card with a specified cost of 2 in play: You may draw 2 cards, choose cards in your life and add them to your hand until you have 6 life left, and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":3},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}]}}
+== EX11-03#10 auto
+  printed: [Auto] When you play this card, choose one- ・Look at up to 5 cards from the top of your deck, choose up to 1 red Unison Card with a specified cost of 2 or up to 1 red ≪Universe 7≫ card with an energy cost of 4 or less among them, add it to your hand, then shuffle your deck. ・Choose 1 of your Leader Cards and it gets -5000 power 
+  - reads: choose one — look at the top 5, shuffle / choose 1 card in your Leader Area, the chosen cards -5000 power for the turn, this card +5000 power for the turn
+  + reads: choose one — look at the top 5, choose up to 1 red Unison Card with a specified cost of 2 or red ≪Universe 7≫ card with an energy cost of 4 or less of the cards looked at, move the chosen cards to hand, shuffle / choose 1 card in your Leader Area, the chosen cards -5000 power for the turn, this card +5000 power for the turn
+  - unread: choose up to 1 red Unison Card with a specified cost of 2 or up to 1 red ≪Universe 7≫ card with an energy cost of 4 or less among them
+  - unread: add it to your hand
+== EX11-05#10 activate:main
+  printed: [Activate: Main] If you have a red Unison Card with a specified cost of 2 in play and you have no Battle Cards in play: Play this card from your hand.
+  - reads: (nothing)
+  + reads: if there are 1 or more red Unison Cards with a specified cost of 2 in your Unison Area and there are no Battle Cards in your Battle Area: choose this card, play the chosen cards
+  - price: {}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"type":"BATTLE"}},"atMost":0}]}}
+  - unread: If you have a red Unison Card with a specified cost of 2 in play and you have no Battle Cards in play
+== EX11-06#20 auto
+  printed: [auto]{r}{r}, if your Leader Card is red and you have a red Unison Card with a specified cost of 2 in play: At the end of a battle in which you combo with this card from your hand, play this card.
+  - reads: if your leader is Red: choose this card, play the chosen cards
+  + reads: if your leader is Red and there are 1 or more red Unison Cards with a specified cost of 2 in your Unison Area: choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Red"],"unreadable":true,"type":"UNISON"}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Red"]}},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== EX11-07#10 permanent
+  printed: [Permanent] If you have a red Unison Card with a specified cost of 2 in play, reduce the energy cost of this card in your hand by 1.
+  - reads: (nothing)
+  + reads: if there are 1 or more red Unison Cards with a specified cost of 2 in your Unison Area: this card costs 1 less
+  - unread: If you have a red Unison Card with a specified cost of 2 in play
+  - unread: reduce the energy cost of this card in your hand by 1
+== EX12-01#10 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a yellow Unison Card with a specified cost of 2 in play: You may choose up to 2 of your energy, switch them to Active Mode, then choose cards in your life and add them to your hand until you have 6 life left, and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== EX12-01b#10 permanent
+  printed: [Permanent] If you have a yellow Unison Card with a specified cost of 2 in play, when a player plays a Battle Card, that player can't play Battle Cards for the turn.
+  - unread: If you have a yellow Unison Card with a specified cost of 2 in play
+== EX12-03#20 permanent
+  printed: [Permanent] During your opponent's turn, if you have a yellow Unison Card with a specified cost of 2 in play, reduce the energy cost of this card in your hand by 2.
+  - reads: (nothing)
+  + reads: if it is your opponent's turn: if there are 1 or more yellow Unison Cards with a specified cost of 2 in your Unison Area: this card costs 2 less
+  - unread: if you have a yellow Unison Card with a specified cost of 2 in play
+  - unread: reduce the energy cost of this card in your hand by 2
+== EX12-04#10 permanent
+  printed: [Permanent] If you have a yellow Unison Card with a specified cost of 2 in play, reduce the energy cost of this card in your hand by 1.
+  - reads: (nothing)
+  + reads: if there are 1 or more yellow Unison Cards with a specified cost of 2 in your Unison Area: this card costs 1 less
+  - unread: If you have a yellow Unison Card with a specified cost of 2 in play
+  - unread: reduce the energy cost of this card in your hand by 1
+== EX12-05#10 activate:main
+  printed: [Activate: Main] If you have a yellow Unison Card with a specified cost of 2 in play and you have no Battle Cards in play: Play this card from your hand.
+  - reads: (nothing)
+  + reads: if there are 1 or more yellow Unison Cards with a specified cost of 2 in your Unison Area and there are no Battle Cards in your Battle Area: choose this card, play the chosen cards
+  - price: {}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Yellow"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"type":"BATTLE"}},"atMost":0}]}}
+  - unread: If you have a yellow Unison Card with a specified cost of 2 in play and you have no Battle Cards in play
+== EX12-06#0 auto
+  printed: [Auto] When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 yellow Unison Card with a specified cost of 2 or up to 1 yellow ≪Universe 11≫ card with an energy cost of 4 or less among them, add it to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 yellow Unison Card with a specified cost of 2 or yellow ≪Universe 11≫ card with an energy cost of 4 or less of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: choose up to 1 yellow Unison Card with a specified cost of 2 or up to 1 yellow ≪Universe 11≫ card with an energy cost of 4 or less among them
+  - unread: add it to your hand
+== EX12-07#10 activate:battle
+  printed: [Activate: Battle] If your Leader Card is a ≪Universe 11≫ card and it's your turn: Choose up to 1 of your Leader Cards or up to 1 of your yellow Unison Cards with a specified cost of 2 and it gets +10000 power for the turn.
+  - reads: (nothing)
+  + reads: if your leader is ≪universe 11≫ and it is your turn: choose one — choose up to 1 card in your Leader Area / choose up to 1 yellow Unison Card with a specified cost of 2 in your Unison Area, the chosen cards +10000 power for the turn
+  - unread: Choose up to 1 of your Leader Cards or up to 1 of your yellow Unison Cards with a specified cost of 2
+  - unread: it gets +10000 power for the turn
+== EX13-15#10 activate:main
+  printed: [activate: main] If your Leader Card is a green <Gotenks> card and you return this card to its owner's hand: Look at up to 5 cards from the top of your deck, add up to 1 green <Gotenks> card or 1 green Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: if your leader is Green <gotenks>: look at the top 5, shuffle
+  + reads: if your leader is Green <gotenks>: look at the top 5, choose up to 1 green <gotenks> card or green Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green <Gotenks> card or 1 green Unison Card with a specified cost of 2 among them to your hand
+== EX14-01#20 activate:main
+  printed: [-3][activate: main]{r}{r}{r}, if your Leader Card is a red ≪Earthling≫-only card and all of your energy is mono-red: Choose up to 1 red Unison Card with a specified cost of 4 in your hand and play it with 2 markers on it.
+  - reads: (nothing)
+  + reads: if your leader is Red ≪earthling≫ and every card in your Energy Area is also among the mono-colour red cards in your Energy Area: choose up to 1 red Unison Card with a specified cost of 4 in your hand, play the chosen cards
+  - unread: Choose up to 1 red Unison Card with a specified cost of 4 in your hand
+  - unread: play it with 2 markers on it
+== EX17-03#20 auto
+  printed: [auto][limit 2] (You can only activate this skill twice per turn across all copies of this card.) [spirit boost 2] (You must remove 2 markers from your Unison Card to activate this skill.) If your opponent has 3 or more energy and it's your turn: When this card attacks or at the end of a battle in which this card was used in a c
+  - reads: choose up to 1 mono-colour blue card in your Leader Area, switch the chosen cards to active mode, the chosen cards +5000 power for the turn, negate the skills of the chosen cards for the turn
+  + reads: if there are 3 or more cards in your opponent's Energy Area and it is your turn: choose up to 1 mono-colour blue card in your Leader Area, switch the chosen cards to active mode, the chosen cards +5000 power for the turn, negate the skills of the chosen cards for the turn
+  - price: {}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":3},{"kind":"isTurnPlayer"}]}}
+== EX21-11#10 permanent
+  printed: [permanent] If this card is in Rest Mode, your opponent can't attack your Unisons with specified costs of 2.
+  - reads: if this card is in rest mode: your opponent can't attack
+  + reads: (nothing)
+  + unread: your opponent can't attack your Unisons with specified costs of 2
+== EX21-11#30 activate:main
+  printed: [activate: main][limit 1]{y}{y}, if your Leader is a yellow <Toppo> card and you have a Unison with a specified cost of 2 in play: Draw 1 card, and play this card from your hand.
+  - reads: if your leader is Yellow <toppo>: draw 1, choose this card, play the chosen cards
+  + reads: if your leader is Yellow <toppo> and there are 1 or more Unison Cards with a specified cost of 2 you have in play: draw 1, choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"colors":["Yellow"],"characters":["toppo"],"unreadable":true,"type":"UNISON"}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Yellow"],"characters":["toppo"]}},{"kind":"count","sel":{"side":"you","area":"play","filter":{"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== EX21-30#10 activate:main
+  printed: [Activate: Main][Limit 1] If your Leader's back side is {Frieza, Resurrected} and you place 1 card from your hand at the bottom of your deck: Look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Frieza's Army≫ card with an energy cost of 4 or less or 1 yellow Unison with a specified cost of 2 among them to your h
+  - reads: if your leader's back side is frieza, resurrected: look at the top 5, shuffle
+  + reads: if your leader's back side is frieza, resurrected: look at the top 5, choose up to 1 yellow ≪frieza's army≫ card with an energy cost of 4 or less or yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow ≪Frieza's Army≫ card with an energy cost of 4 or less or 1 yellow Unison with a specified cost of 2 among them to your hand
+== EX23-18#0 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue ≪Saiyan≫ card with an energy cost of 4 or less or up to 1 blue Unison with a specified cost of 2 to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 blue ≪saiyan≫ card with an energy cost of 4 or less or blue Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 blue ≪Saiyan≫ card with an energy cost of 4 or less or up to 1 blue Unison with a specified cost of 2 to your hand
+== P-211#10 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have a blue Unison Card with a specified cost of 3 in play: You may draw 2 cards and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Blue"],"type":"UNISON","specifiedCostMin":3,"specifiedCostMax":3}},"atLeast":1}]}}
+== P-224#10 auto
+  printed: [Auto] If your Leader Card is a green <Frieza> card: When this card is KO'd, add up to 1 green Unison Card with a specified cost of 2 from your Drop Area to your hand.
+  - reads: (nothing)
+  + reads: if your leader is Green <frieza>: choose up to 1 green Unison Card with a specified cost of 2 in your Drop Area, move the chosen cards to hand
+  - unread: add up to 1 green Unison Card with a specified cost of 2 from your Drop Area to your hand
+== P-273#20 permanent
+  printed: [Permanent] If your Leader Card is a red <King Piccolo> card and you have a red Unison Card with a specified cost of 2 in play, you can activate this card's [Counter] skill from your hand without paying its energy cost.
+  - reads: if your leader is Red <king piccolo>: this card's [Counter] may be activated for no energy
+  + reads: if your leader is Red <king piccolo>: if there are 1 or more red Unison Cards with a specified cost of 2 in your Unison Area: this card's [Counter] may be activated for no energy
+  - unread: you have a red Unison Card with a specified cost of 2 in play
+== P-280#0 auto
+  printed: [Auto] When this card is played from your hand, look at up to 5 cards from the top of your deck, add up to 1 mono-green ≪Slug's Army≫ card with an energy cost of 3 or less or up to 1 mono-green Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 mono-colour green ≪slug's army≫ card with an energy cost of 3 or less or mono-colour green Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 mono-green ≪Slug's Army≫ card with an energy cost of 3 or less or up to 1 mono-green Unison Card with a specified cost of 2 among them to your hand
+== P-298#20 activate:main
+  printed: [activate: main]{u}, if your opponent has 3 or more energy and you place 1 blue <Son Goku> card with an energy cost of 1 and 1 blue <Vegeta> card with an energy cost of 1 from your Drop Area at the bottom of your deck in any order: Play this card from your hand.
+  - reads: if there are 3 or more blue <son goku> <vegeta> cards with an energy cost of 1 in your Drop Area: choose this card, play the chosen cards
+  + reads: (nothing)
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"drop","filter":{"colors":["Blue"],"characters":["son goku","vegeta"],"costMin":1,"costMax":1}},"atLeast":3}}
+  + price: {}
+  + unread: {u}, if your opponent has 3 or more energy and you place 1 blue <Son Goku> card with an energy cost of 1 and 1 blue <Vegeta> card with an energy cost of 1 from your Drop Area at the bottom of your deck in any order
+== P-338#20 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a green Unison Card with a specified cost of 3 in play: You may draw 1 card, switch up to 1 of your energy to Active Mode, and flip this card over.
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Green"],"type":"UNISON","specifiedCostMin":3,"specifiedCostMax":3}},"atLeast":1}]}}
+== P-448#10 auto
+  printed: [Auto][Limit 1] If your Leader is a yellow <Super 17> card and it's your turn: When this card is discarded from your hand by a skill, look at up to 7 cards from the top of your deck, add up to 1 yellow Unison with a specified cost of 2 among them to your hand, and shuffle your deck.
+  - reads: if your leader is Yellow <super 17> and it is your turn: look at the top 7, shuffle
+  + reads: if your leader is Yellow <super 17> and it is your turn: look at the top 7, choose up to 1 yellow Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 yellow Unison with a specified cost of 2 among them to your hand
+== P-458#30 activate:main
+  printed: [Activate: Main] Remove this card from the game, choose one red Unison with a specified cost of 1 in your Unison Area, add a marker to it, and it gains [Barrier] until the end of your opponent's next turn.
+  - reads: move this card to removed
+  + reads: move this card to removed, choose 1 red Unison Card with a specified cost of 1 in your Unison Area, add 1 marker, the chosen cards gains [Barrier] until the end of your opponent's turn
+  - unread: choose one red Unison with a specified cost of 1 in your Unison Area
+  - unread: add a marker to it
+  - unread: it gains [Barrier] until the end of your opponent's next turn
+== P-464#30 activate:main
+  printed: [activate: main][once per turn]{g}{g}, if your leader is a green ≪Frieza Clan≫ card and you have 4 or more energy: Play 1 green Unison with a specified cost of 3 or less from your hand with a marker on it.
+  - reads: (nothing)
+  + reads: if your leader is Green ≪frieza clan≫ and there are 4 or more cards in your Energy Area: choose 1 green Unison Card with a specified cost of 3 or less in your hand, play the chosen cards
+  - unread: Play 1 green Unison with a specified cost of 3 or less from your hand with a marker on it
+== P-494#10 activate:main
+  printed: [activate: main][limit 1]{b}, if your Leader is a black <Cumber> card, and your opponent has 2 or more energy and 2 or more Battle Cards in play: Draw 1 card and play this card from your hand.
+  - reads: if your leader is a match: draw 1, choose this card, play the chosen cards
+  + reads: if your leader is Black <cumber> and there are 2 or more cards in your opponent's Energy Area and there are 2 or more Battle Cards in your opponent's Battle Area: draw 1, choose this card, play the chosen cards
+  - price: {"condition":{"kind":"leaderMatches","filter":{"anyOf":[{"colors":["Black"],"characters":["cumber"]},{"type":"BATTLE"}]}}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"leaderMatches","filter":{"colors":["Black"],"characters":["cumber"]}},{"kind":"count","sel":{"side":"opponent","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"opponent","area":"battle","filter":{"type":"BATTLE"}},"atLeast":2}]}}
+== P-495#20 keyword
+  printed: [Awaken] When your life is at 4 or less, or you have 2 or more energy and a green ≪Scientist≫ Z-Battle Card with an energy cost of 1 in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.
+  - price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"energy","filter":{"colors":["Green"],"traits":["scientist"],"type":"BATTLE","costMin":1,"costMax":1,"z":true}},"atLeast":2}]}}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":2},{"kind":"count","sel":{"side":"you","area":"battle","filter":{"colors":["Green"],"traits":["scientist"],"type":"BATTLE","costMin":1,"costMax":1,"z":true}},"atLeast":1}]}]}}
+== P-538#20 activate:main
+  printed: [activate: main][limit 1]{g}, if you have 4 or more energy and you add this card to Z-Energy: Play up to 1 green <Gogeta: Br> card with an energy cost of 8 from your Z-Energy, and that card gains [dual attack] for the turn.
+  - reads: if there are 4 or more this card: choose up to 1 green <gogeta: br> card with an energy cost of 8 in your Z-Energy Area, play the chosen cards, the chosen cards gains [Dual Attack] for the turn
+  + reads: (nothing)
+  - price: {"condition":{"kind":"count","sel":{"special":"self"},"atLeast":4}}
+  + price: {}
+  + unread: {g}, if you have 4 or more energy and you add this card to Z-Energy
+== P-574#30 auto
+  printed: [Auto] When this card is played, choose up to 1 of your red Z-Unisons and add 1 marker to it. Additionally, if that card has a specified cost of 1, choose up to 1 of your opponent's Battle Cards or Unisons and it gets -5000 power for the turn.
+  - reads: choose up to 1 red Z-Unison Card in your Unison Area, add 1 marker
+  + reads: choose up to 1 red Z-Unison Card in your Unison Area, add 1 marker, if that card is card with a specified cost of 1: choose up to 1 card in your opponent's Battle Area or Unison Area, the chosen cards -5000 power for the turn
+  - unread: if that card has a specified cost of 1
+  - unread: choose up to 1 of your opponent's Battle Cards or Unisons
+  - unread: it gets -5000 power for the turn
+== P-715b#10 auto
+  printed: [auto][once per turn] When your red Unison with a specified cost of 3 attacks, play up to 1 red ≪Android≫ with an energy cost of 1 from your Drop in Rest Mode, then choose up to 1 of your opponent's Battle Cards, ignoring [barrier], and it gets -10000 power for the turn.
+  - reads: choose up to 1 red ≪android≫ card with an energy cost of 1 in your Drop Area, play the chosen cards in rest mode, choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards -10000 power for the turn
+  + reads: if that card is a red Unison Card with a specified cost of 3: choose up to 1 red ≪android≫ card with an energy cost of 1 in your Drop Area, play the chosen cards in rest mode, choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards -10000 power for the turn
+== P-737#20 permanent
+  printed: [permanent] If you have a Z-Unison with a specified cost of 2 in play, you may activate this card's [counter] skill from your hand without paying its energy cost.
+  - reads: (nothing)
+  + reads: if there are 1 or more Z-Unison Cards with a specified cost of 2 you have in play: this card's [Counter] may be activated for no energy
+  - unread: If you have a Z-Unison with a specified cost of 2 in play
+  - unread: you may activate this card's [counter] skill from your hand without paying its energy cost
+== SD12-03#10 auto
+  printed: [Auto] When this card is KO'd, look at up to 7 cards from the top of your deck, add up to 1 blue Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.
+  - reads: look at the top 7, shuffle
+  + reads: look at the top 7, choose up to 1 blue Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 blue Unison Card with a specified cost of 2 among them to your hand
+== SD12-04#10 auto
+  printed: [Auto] When this card is KO'd, draw 1 card, then add up to 1 blue Unison Card with a specified cost of 2 from your Drop Area to your hand.
+  - reads: draw 1
+  + reads: draw 1, choose up to 1 blue Unison Card with a specified cost of 2 in your Drop Area, move the chosen cards to hand
+  - unread: add up to 1 blue Unison Card with a specified cost of 2 from your Drop Area to your hand
+== SD13-04#0 auto
+  printed: [auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green Unison Card with a specified cost of 2 or 1 green ≪Frieza's Army≫ card with an energy cost of 4 or less among them to your hand, then shuffle your deck.
+  - reads: look at the top 5, shuffle
+  + reads: look at the top 5, choose up to 1 green Unison Card with a specified cost of 2 or green ≪frieza's army≫ card with an energy cost of 4 or less of the cards looked at, move the chosen cards to hand, shuffle
+  - unread: add up to 1 green Unison Card with a specified cost of 2 or 1 green ≪Frieza's Army≫ card with an energy cost of 4 or less among them to your hand
+== SD15-01#10 keyword
+  printed: [Awaken] When your life is at 4 or less or you have a red Unison Card with a specified cost of 2 in play: You may switch up to 2 of your energy to Active Mode, add cards from your life to your hand until you have 5 life left, choose up to 1 of your red Unison Cards with {Cabba} in its name and add a marker to it, then flip this 
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"life","side":"you","atMost":4},{"kind":"count","sel":{"side":"you","area":"unison","filter":{"colors":["Red"],"type":"UNISON","specifiedCostMin":2,"specifiedCostMax":2}},"atLeast":1}]}}
+== SD15-01b#0 auto
+  printed: [Auto] When this card attacks, draw 1 card, then choose up to 1 of your red Unison Cards with a specified cost of 2 and no keyword skills, and it gains [Double Strike] for the turn.
+  - reads: draw 1
+  + reads: draw 1, choose up to 1 red Unison Card with a specified cost of 2 and no keyword skills in your Unison Area, the chosen cards gains [Double Strike] for the turn
+  - unread: choose up to 1 of your red Unison Cards with a specified cost of 2 and no keyword skills
+  - unread: it gains [Double Strike] for the turn
+== SD15-03#10 permanent
+  printed: [Permanent] If this card is in Rest Mode and you have a red Unison Card with a specified cost of 2 in play, this card and your red Leader Card get +1000 power.
+  - reads: if this card is in rest mode: this card +1000 power, 1 red card in your Leader Area +1000 power
+  + reads: if this card is in rest mode: if there are 1 or more red Unison Cards with a specified cost of 2 in your Unison Area: this card +1000 power, 1 red card in your Leader Area +1000 power
+  - unread: you have a red Unison Card with a specified cost of 2 in play
+== SD15-03#20 auto
+  printed: [Auto][Limit 1] (You can only activate this skill once per turn across all copies of this card.) [Spirit Boost 1] (You must remove a marker from your Unison Card to activate this skill.) When this card is placed in your Drop Area from your Battle Area by an opponent's skill or KO'd, play this card from your Drop Area.
+  - unread: [Spirit Boost 1] When this card is placed in your Drop Area from your Battle Area by an opponent's skill or KO'd
+== SD16-03#30 activate:main
+  printed: [activate: main][limit 1] (You can only activate this skill once per turn across all copies of this card.) [spirit boost 1] (You must remove a marker from your Unison Card to activate this skill.) {1}, if you have 3 or more energy and you send 1 red card, 1 blue card, 1 green card, and 1 yellow card from your Drop Area to your W
+  - reads: choose this card, play the chosen cards, the chosen cards gains [Critical] for the turn
+  + reads: (nothing)
+  + unread: (You must remove a marker from your Unison Card to activate this skill.) {1}, if you have 3 or more energy and you send 1 red card, 1 blue card, 1 green card, and 1 yellow card from your Drop Area to your Warp
+== SD16-04#10 activate:main
+  printed: [activate: main][limit 1] (You can only activate this skill once per turn across all copies of this card.) [spirit boost 1] (You must remove a marker from your Unison Card to activate this skill.) {1}, if your Leader Card is a <Masked Saiyan> or <Bardock: Xeno> card and you discard this card from your hand: Your opponent may cho
+  - reads: your opponent may: choose 1 card in your opponent's Life Area, move the chosen cards to deck, if not (you took that choice): choose this card, play the chosen cards
+  + reads: if your leader is <masked saiyan>, or your leader is <bardock: xeno>: your opponent may: choose 1 card in your opponent's Life Area, move the chosen cards to deck, if not (you took that choice): choose this card, play the chosen cards
+  - price: {}
+  + price: {"condition":{"kind":"any","conds":[{"kind":"leaderMatches","filter":{"characters":["masked saiyan"]}},{"kind":"leaderMatches","filter":{"characters":["bardock: xeno"]}}]},"ops":[{"op":"moveTo","target":{"sel":{"special":"self","area":"hand"}},"to":"drop","reveal":true}]}
+== SD20-01#0 activate:main
+  printed: [Activate: Main][Once per turn] Look at up to 10 cards from the top of your deck, add up to 1 yellow ≪Earthling≫-only card with an energy cost of 1 or 1 yellow Unison with a specified cost of 1 among them to your hand, then shuffle your deck.
+  - reads: look at the top 10, choose up to 1 yellow ≪earthling≫ Unison Card with an energy cost of 1 or yellow ≪earthling≫ Unison Card with an energy cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+  + reads: look at the top 10, choose up to 1 yellow ≪earthling≫ card with an energy cost of 1 or yellow Unison Card with a specified cost of 1 of the cards looked at, move the chosen cards to hand, shuffle
+== SD9-01#20 keyword
+  printed: [Awaken] When you have {King Vegeta's Dynasty} in your Battle Area and 3 or more cards in your energy: You may draw 1 card, choose up to 1 of your energy and switch it to Active Mode, and flip this card over.
+  - price: {"condition":{"kind":"count","sel":{"side":"you","area":"energy","filter":{"names":["king vegeta's dynasty"]}},"atLeast":1}}
+  + price: {"condition":{"kind":"all","conds":[{"kind":"count","sel":{"side":"you","area":"battle","filter":{"names":["king vegeta's dynasty"]}},"atLeast":1},{"kind":"count","sel":{"side":"you","area":"energy"},"atLeast":3}]}}
+{
+  changed: 185,
+  cards: 177,
+  readsChanged: 125,
+  opsOnly: 0,
+  priceChanged: 94,
+  nowFullyRead: 85,
+  newlyUnread: 6,
+  withNewUnreadClause: 6
+}

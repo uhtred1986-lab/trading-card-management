@@ -723,6 +723,7 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   removedFromBattle: { event: "moved", args: { from: "battle", asPlay: false, by: "skill" } },
   removedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
   droppedFromBattle: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill" } },
+  droppedByOpponent: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill", byOpponent: true } },
   leftBattleToDrop: { event: "moved", args: { from: "battle", to: "drop", asPlay: false } },
   // 20-7: the hand's side of `droppedFromBattle`, pended by name from `moveTo`
   // for a card a skill's effect or price took out of the hand.

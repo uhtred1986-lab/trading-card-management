@@ -56,6 +56,7 @@ export function pendTriggers(ctx: GameContext, s: GameState, trigger: Trigger, c
     trigger === "unisonToDrop" ||
     trigger === "removedFromBattle" ||
     trigger === "droppedFromBattle" ||
+    trigger === "droppedByOpponent" ||
     trigger === "droppedFromHand" ||
     trigger === "removedByOpponent" ||
     trigger === "addedToZEnergy" ||
