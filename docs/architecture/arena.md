@@ -46,6 +46,13 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   called for it. `legacy` stays in `ENGINE_IDS` as the marker those rows carry.
   **One rejection per card per action type, except an activation, which is one per skill line**
   (§3.2). Doc: `docs/arena-code-map.md`.
+- **The browser-safe rules entry** (`src/lib/arena/browser.ts`, #641): create a game on a pinned
+  replay bundle, apply moves, list legal moves and project one seat's masked `Snapshot`, with only
+  the rules engine, `replay-core.ts` and the engine-neutral cores (`snapshot-core.ts`,
+  `view-core.ts`, `beats-core.ts`, `engine-ids.ts`) — never `engines.ts` or `engine/`. **A new
+  import into that graph must stay portable**: `scripts/verify/arena-browser-boundary.mts`
+  (`npm test`) fails on any legacy-engine, server, package, Node-builtin or `process.env` import
+  reached from it; `arena-browser-engine-browser.mts` plays the scenario in a real worker.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

@@ -26,7 +26,7 @@
  */
 import type { EngineContext, GameEvent } from "../types";
 import type { Beat, BeatArt, Beats, NumberedBeat } from "../beats";
-import { SKILL_LABELS, relateBeats, revealedMove } from "../beats";
+import { SKILL_LABELS, relateBeats, revealedMove } from "../beats-core";
 import { describeEffect } from "../effects";
 import { rulesetFor } from "../rulesets";
 import { attrsOf } from "./cards";
