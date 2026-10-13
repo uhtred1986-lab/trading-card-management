@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { resolve } from "node:path";
-import { arenaG, addEffectG, CTX, ENGINE, IMPL, zoneOf, buildSnapshot } from "../verify/harness";
+import { arenaG, addEffectG, CTX, IMPL, zoneOf, buildSnapshot } from "../verify/harness";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { attrsNow } from "../../src/lib/arena/vm/program";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -77,7 +77,6 @@ function runtimeFingerprint(): { files: readonly string[]; sha256: string; dirty
   return { files: RUNTIME_FILES, sha256: hash.digest("hex"), dirty: Boolean(changed) };
 }
 
-assert.equal(ENGINE, "rules", "run with --engine rules");
 assert.ok(!process.env.DATABASE_URL, "this benchmark must use no database");
 
 const warmup = numericFlag("warmup", 5);
@@ -125,7 +124,6 @@ const snapshot = (viewer: "p1" | "p2") => buildSnapshot({
   id: 607,
   revision: 1,
   mode: "versus",
-  engine: "rules",
   status: "playing",
   p1Name: "You",
   p2Name: "Other",

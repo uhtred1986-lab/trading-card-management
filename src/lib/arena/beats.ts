@@ -6,26 +6,21 @@
  * them into *beats*: the same story, told in the few shapes a board can draw,
  * with every card named by the instance id both clients key their cards on.
  *
- * It is a translation, not a passthrough. Several events have no picture and
- * deliberately collapse to nothing, and `powerCompare` becomes one `clash`.
- * The switch is exhaustive, so a new engine event is a compile error here
- * rather than a moment the board silently stops showing.
+ * This file holds the shapes (`Beat`, `Beats`); the translation is
+ * `vm/beats.ts`'s `vmToBeats`, behind the engine's `toBeats`. Several events
+ * have no picture and deliberately collapse to nothing, and `powerCompare`
+ * becomes one `clash`.
  *
  * Pure: no database, no images. `art` carries the name captured *at event
  * time* — a KO'd card is gone from any later view, so a client cannot look it
  * up — and `session.ts` fills in the image URLs, which is what keeps this
  * testable in `npm test`.
  */
-import { copiedSkillsOn, face, scriptsOfInstance } from "./engine";
-import { skillsOf } from "./text/cards";
-import { type EngineContext, type GameEvent, type GameState, type PlayerId } from "./types";
+import type { PlayerId } from "./types";
 import type { Area, EffectUntil } from "./types";
-import { def } from "./engine/state";
-import { describeEffect, type EffectKind } from "./effects";
-import { SKILL_LABELS, relateBeats, revealedMove } from "./beats-core";
+import type { EffectKind } from "./effects";
 
-// The engine-neutral pieces live in `beats-core.ts` (#641), outside the legacy
-// engine's import graph; every existing caller keeps importing them from here.
+// The queue helpers live in `beats-core.ts`; every existing caller keeps importing them from here.
 export { BEAT_CAP, EMPTY_BEATS, SKILL_LABELS, appendBeats, maskBeats, relateBeats, revealedMove } from "./beats-core";
 
 export type Beat =
@@ -106,197 +101,3 @@ export interface Beats {
   /** Keyed by instance id, for cards that have left the board by now. */
   art: Record<string, BeatArt>;
 }
-
-/**
- * The card, tag and clause behind a `skill` event — which is also exactly what
- * the board's spotlight banner needs, so `games.ts` reads it from here rather
- * than working it out a second time.
- */
-export function describeSkillEvent(
-  ctx: EngineContext,
-  state: GameState,
-  e: Extract<GameEvent, { type: "skill" }>,
-): { cardId: string; name: string; label: string; text: string; unread: boolean } | null {
-  const inst = state.cards[e.card];
-  if (!inst) return null;
-  try {
-    const d = def(ctx, state, e.card);
-    const side = inst.flipped && d.back ? "back" : "front";
-    // Copies included (20-18): a skill the card took on is narrated as its own.
-    const sk = [...skillsOf(d, side), ...copiedSkillsOn(ctx, state, e.card).map((c) => c.skill)].find((x) => x.index === e.skill);
-    const compiled = scriptsOfInstance(ctx, state, e.card).bySkill[e.skill];
-    return {
-      cardId: inst.cardId,
-      name: face(ctx, state, e.card).name,
-      label: sk?.tags[0] ?? SKILL_LABELS[sk?.kind ?? ""] ?? "Skill",
-      text: e.text.replace(/\s+/g, " ").trim(),
-      unread: !!compiled?.unsupported.length,
-    };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * One batch of events, numbered from `after`.
- *
- * `after` is the seq the queue is already at, so beats keep climbing across
- * the several `apply()` calls one opponent turn takes.
- */
-export function toBeats(ctx: EngineContext, state: GameState, events: GameEvent[], after = 0): Beats {
-  const list: NumberedBeat[] = [];
-  const art: Record<string, BeatArt> = {};
-  let n = after;
-
-  const push = (b: Beat) => list.push({ ...b, n: ++n } as NumberedBeat);
-
-  /** Remember a card as it is *now*, before it leaves the board for good. */
-  const remember = (id: string) => {
-    if (art[id]) return;
-    const inst = state.cards[id];
-    if (!inst) return;
-    let name = inst.cardId;
-    try {
-      name = face(ctx, state, id).name;
-    } catch {
-      // A token whose definition has gone, or a card mid-move: the id reads
-      // better than throwing away the whole batch.
-    }
-    art[id] = { cardId: inst.cardId, name, imageUrl: null };
-  };
-
-  for (const e of events) {
-    switch (e.type) {
-      case "phase":
-        push({ t: "phase", phase: e.phase, player: e.player, turn: e.turn, ...(e.skipped ? { skipped: true as const } : {}) });
-        break;
-      case "battleStep":
-        // A battle step is a named step like a phase is; the client labels it.
-        // 20-13: a step that is skipped is still announced — the board should
-        // show the moment going by rather than the battle jumping over it.
-        // The beat's `player` stays the turn player for every step, as it
-        // always has; a battle step is narrated without naming a side.
-        push({ t: "phase", phase: e.step, player: state.turnPlayer, turn: state.turn, ...(e.skipped ? { skipped: true as const } : {}) });
-        break;
-      case "draw":
-        remember(e.card);
-        push({ t: "draw", player: e.player, card: e.card });
-        break;
-      case "move":
-        remember(e.card);
-        push({ t: "move", card: e.card, from: e.from, to: e.to, owner: e.owner, ...(revealedMove(e, state.cards[e.card]?.faceUp) ? { reveal: true as const } : {}) });
-        break;
-      case "mode":
-        remember(e.card);
-        push({ t: "mode", card: e.card, mode: e.mode });
-        break;
-      case "flip":
-        // Only the awakening. A leader turning back has no moment to show.
-        if (e.flipped) {
-          remember(e.card);
-          push({ t: "flip", card: e.card });
-        }
-        break;
-      case "markers":
-        remember(e.card);
-        if (e.from) remember(e.from);
-        push({ t: "markers", card: e.card, delta: e.delta, total: e.total, ...(e.from ? { from: e.from } : {}) });
-        break;
-      case "token":
-        // A token is pushed straight into the Battle Area with no `move`, so
-        // without this it would appear out of nowhere between two snapshots.
-        remember(e.card);
-        push({ t: "token", card: e.card, owner: e.owner });
-        break;
-      case "attack":
-        remember(e.attacker);
-        remember(e.target);
-        push({ t: "attack", attacker: e.attacker, target: e.target });
-        break;
-      case "guardChanged":
-        remember(e.guard);
-        remember(e.by);
-        push({ t: "block", guard: e.guard, by: e.by });
-        break;
-      case "powerCompare":
-        remember(e.attacker);
-        remember(e.guard);
-        push({ t: "clash", attacker: e.attacker, guard: e.guard, attackPower: e.attackPower, guardPower: e.guardPower, hit: e.hit });
-        break;
-      case "damage":
-        for (const c of e.cards) remember(c);
-        push({ t: "damage", player: e.player, amount: e.amount, critical: e.critical, cards: e.cards });
-        break;
-      case "ko":
-        remember(e.card);
-        push({ t: "ko", card: e.card, owner: ownerOf(state, e.card) });
-        break;
-      case "attackNegated":
-        push({ t: "negated" });
-        break;
-      case "skill": {
-        const d = describeSkillEvent(ctx, state, e);
-        if (d) {
-          remember(e.card);
-          push({ t: "skill", card: e.card, label: d.label, text: d.text, unread: d.unread, owner: e.master, inBattle: e.inBattle });
-        }
-        break;
-      }
-      case "effect":
-      case "effectEnded": {
-        const fx = e.effect;
-        // Every card a beat names must bring a face (contract §4), so a
-        // source or target no longer in the game is left out rather than
-        // named without one.
-        const card = fx.target && state.cards[fx.target] ? fx.target : null;
-        const source = fx.source && state.cards[fx.source] ? fx.source : null;
-        if (card) remember(card);
-        if (source) remember(source);
-        const d = describeEffect(fx);
-        const player = card ? null : (fx.forbid?.player ?? null);
-        if (e.type === "effect") push({ t: "effect", card, player, kind: d.kind, label: d.label, until: fx.until, source, owner: fx.master });
-        else push({ t: "effectEnded", card, player, kind: d.kind, label: d.label, source });
-        break;
-      }
-      case "gameOver":
-        push({ t: "over", winner: e.winner, reason: e.reason });
-        break;
-
-      // Nothing to draw. Each of these is either an input, bookkeeping, or a
-      // number that simply reads differently in the next snapshot.
-      case "gameStart": // the mulligan prompt follows immediately and says it better
-      case "action": // the input, not a picture of it
-      case "hidden": // a card's facing is already in the view
-      case "energyMarker": // a counter in the side panel, with no motion of its own
-      case "delayed": // written down for later; it gets its moment when it fires
-      case "stack": // the stacked card's own `move` beat covers the arrival
-      case "note": // engine commentary, for the log only
-      case "autoDeclared": // the legacy engine does not produce VM declaration events
-        break;
-
-      default: {
-        const _exhaustive: never = e;
-        void _exhaustive;
-        break;
-      }
-    }
-  }
-
-  relateBeats(list, state.prompt.kind);
-  return { seq: n, list, art };
-}
-
-/**
- * Whose card this is, found by looking for it.
- *
- * A KO'd card has already moved to its owner's Drop by the time the events are
- * translated, so the answer is there; `null` only if it left the game entirely.
- */
-function ownerOf(state: GameState, id: string): PlayerId | null {
-  for (const p of ["p1", "p2"] as PlayerId[]) {
-    const ps = state.players[p];
-    if (ps.drop.includes(id) || ps.battle.includes(id) || ps.removed.includes(id) || ps.warp.includes(id)) return p;
-  }
-  return null;
-}
-

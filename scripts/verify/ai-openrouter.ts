@@ -28,7 +28,7 @@ import { NO_SETTINGS, setSettingsLoader, type AiSettings } from "../../src/lib/a
 import { pickable, needsOf } from "../../src/lib/ai/catalog";
 import { chooseMove } from "../../src/lib/arena/ai/opponent";
 import { defsFrom } from "../../src/lib/arena/vm/common";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { zoneOf } from "../../src/lib/arena/engine-state";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -522,7 +522,7 @@ const CTX: EngineContext = { defs: DEFS, scripts: {} };
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
 
 async function arena(): Promise<void> {
-  const rules = engineFor("rules");
+  const rules = RULES;
   let s = rules.createGame(CTX, { seed: 7, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } }).state;
   const ap = (a: Action) => (s = rules.apply(CTX, s, a).state);
   ap({ type: "chooseFirst", player: (s.prompt as { player: PlayerId }).player, first: "p1" });

@@ -8,7 +8,7 @@ import type { Db } from "@/db";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { decisionsFor } from "./ai/debug";
 import type { Action, EngineContext } from "./types";
-import { engineOr } from "./engines";
+import { LegacyGameRetired, isVmState } from "./engines";
 import { deckInputFor, defsForCards } from "./load";
 import { flagsForGame, type FlagLine } from "./review-store";
 import { replayForReview, type Review } from "./review";
@@ -34,7 +34,7 @@ export async function loadReview(db: Db, gameId: number, turn: number | undefine
 
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
   if (!row) return fallback("This game no longer exists.");
-  if (row.snapshot) return fallback("This game was archived from the old engine; it keeps its last board, not its moves, so it cannot be replayed.");
+  if (!isVmState(row.state)) return fallback(new LegacyGameRetired().message + ", so it cannot be replayed.");
   if (row.p1DeckId == null || row.p2DeckId == null) return fallback("A deck of this game has been deleted, so the game cannot be replayed from its seed.");
   const a = await deckInputFor(db, row.p1DeckId);
   const b = await deckInputFor(db, row.p2DeckId);
@@ -51,7 +51,6 @@ export async function loadReview(db: Db, gameId: number, turn: number | undefine
   let review: Review;
   try {
     review = replayForReview({
-      engine: engineOr(row.engine),
       ctx,
       options: { seed: row.seed, p1: a.input, p2: b.input },
       actions: (row.actions as Action[]) ?? [],

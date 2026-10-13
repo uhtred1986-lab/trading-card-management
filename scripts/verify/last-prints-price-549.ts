@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
@@ -22,7 +22,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { Action, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
@@ -54,7 +54,7 @@ const skills = (ev: GameEvent[], id: string) => ev.filter((e) => e.type === "ski
 const declineIndex = (s: VmState) => { assert.ok(s.prompt.kind === "chooseMode"); return s.prompt.kind === "chooseMode" ? s.prompt.options.length - 1 : -1; };
 const candidates = (s: VmState) => (s.prompt.kind === "chooseCards" ? [...s.prompt.choice.candidates].sort() : []);
 function snapshot(s: VmState, viewer: PlayerId) {
-  return buildSnapshot({ id: 549, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: s, legal: rules.legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+  return buildSnapshot({ id: 549, mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: s, legal: rules.legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }
 /** Both projections of a pending price decision: the payer is asked; the
  * opponent waits with no legal move; neither view carries the cost cursor. */

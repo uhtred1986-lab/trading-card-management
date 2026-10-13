@@ -10,9 +10,16 @@ to work on next* — this document is the reference for *what exists and why*, n
 Every sentence here that states a rule or an invariant is binding on future work in that module,
 the same as if it were still in `CLAUDE.md`.
 
+**Since #118 (13 Oct 2026) the legacy engine is gone.** `src/lib/arena/engine/`, the `engineFor`
+switch, the adapter, the `arena.engine` setting, the archived-game read path and every `--engine`
+flag were deleted, and migration `0050_arena_retire_legacy_engine.sql` deleted the saved legacy
+games. Where a bullet below says "both engines", "the legacy engine", `engine/` or `engineFor`, it
+records how the rules engine was built and what it was held to at the time; the rules engine
+(`vm/`) is the only engine, and `docs/architecture/arena.md` is the current statement.
+
 ---
 
-- **Arena rules engine** (`src/lib/arena/engine/`): **Dragon Ball Super
+- **Arena rules engine** (`src/lib/arena/vm/`; the hand-written predecessor in `engine/` was deleted by #118): **Dragon Ball Super
   only — it does not play Fusion World**, so `deckInputFor` returns null for such a deck and the
   arena's deck lists ask for `game: "dbs"`. Pure TypeScript, no React,
   no database. A game is a `GameState` plus an append-only event log; `apply(ctx, state, action)` is the
@@ -48,20 +55,12 @@ the same as if it were still in `CLAUDE.md`.
   (copied in equal at Stage 3, checked equal since #163) — `/arena/rules/keywords` shows that copy
   rather than this file's, since a card's rule is checked against the declaration, not the page;
   the *engine* line stays this file's alone, since a `.rules` declaration has no field for it.
-- **Two engines, chosen per game** (`src/lib/arena/engines.ts`, since 9 Sep 2026): `legacy` is
-  `src/lib/arena/engine/` — frozen, bug fixes only — and `rules` is the configuration-driven
-  engine being built beside it under `src/lib/arena/vm/` (the programme: the plan the owner
-  approved on 9 Sep 2026; specified in `docs/arena-rules-language.md` and
-  `docs/arena-ruleset-spec.md`). A game keeps the engine it was made on (`arena_games.engine`,
-  and `arena_matches.engine` for a 1 v 1), because `state` is that engine's shape and `actions`
-  replay only on it. `engineFor(row.engine)` is the one switch; `games.ts`, `snapshot.ts` and
-  the scripts go through it and never import `./engine` to play a saved game. `ENGINE_INFO`
-  says which engines can play; the `/arena` form greys the rest, and the `arena.engine`
-  setting (Settings → Arena engine, `engine-setting.ts`) is the default, falling back to
-  `DEFAULT_ENGINE` — **`rules` since #166** (20 Sep 2026), so the setting is now the way *back*
-  to `legacy` rather than the way forward. The old engine stays the **oracle**: `arena:diff` replays a game's actions on either
-  engine and must land on the row's state. `Snapshot.game.engine`/`.game` are the one
-  contract change. `engineFor` resolves **both** ids — the `Engine` interface is the six calls
+- **One engine** (`src/lib/arena/engines.ts`; was "two engines, chosen per game" from 9 Sep 2026 to #118):
+  `rules` is the configuration-driven engine under `src/lib/arena/vm/` (specified in
+  `docs/arena-rules-language.md` and `docs/arena-ruleset-spec.md`). `arena_games.engine` and
+  `arena_matches.engine` stay as single-valued columns defaulting to `rules`; `games.ts`,
+  `snapshot.ts` and the scripts play through `RULES`. `Snapshot.game.engine`/`.game` are the one
+  contract change. The `Engine` interface is the six calls
   `createGame`, `apply`, `legalActions`, `rejectedActions`, `boardView` and `toBeats`, and what the
   rules engine cannot do yet it refuses with `NotYet`, naming the issue that builds it (an
   `IllegalAction`, so the API answers one rather than failing).
@@ -538,24 +537,10 @@ the same as if it were still in `CLAUDE.md`.
   (§3.2, amended 8 Sep 2026): a card prints up to nine of them and one being on the menu says
   nothing about the others. The two places that promise is asserted are
   `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`; they must say the same thing.
-- **Archived legacy games** (issue #335, owner's ruling #119, 20 Sep 2026): once a legacy row's
-  `arena_games.snapshot` column is set, `games.ts`'s `loadArchivedGame` — never `loadGame` — is
-  what answers for it. `loadGame` itself returns null for a row with a stored snapshot, so
-  `legalActions`/`apply` are structurally unreachable rather than merely unused; every caller that
-  already treats a null `LoadedGame` as "no such game" refuses an archived row the same way for
-  free. `session.ts`'s `snapshotOf` checks `loadArchivedGame` first and reads the frozen board
-  straight out of `StoredSnapshot` (`snapshot.ts`) through the pure `archivedSnapshotFor` —
-  `legal`/`taps`/`waiting` are overridden there rather than trusted from storage, so a row archived
-  mid-game reads exactly like a finished one: nothing to tap, nothing to wait on. A `versus` row
-  keeps one masked `Snapshot` per seat rather than one shared board, since it is the one mode with a
-  real hidden-hand boundary between two logins to preserve forever — flattening it into a single
-  frozen render would leak one seat's hand to the other; every other mode has no second viewer to
-  protect against, so it gets one `shared` board. `scripts/arena-snapshot-legacy.mts`
-  (`npm run arena:snapshot-legacy`, owner-run, needs `DATABASE_URL`) is what writes the column,
-  computing each row's snapshot(s) through the still-live legacy engine while it exists to compute
-  them — the read path itself does not care whether `engine/` has actually been deleted yet, only
-  whether the column is set. `docs/arena-client-contract.md`'s `game.archived` is the one field a
-  client reads to show the "archived, cannot be continued" banner.
+- **Saved legacy games are deleted** (owner's ruling of 13 Oct 2026, replacing #335/#119's archive):
+  migration 0050 removes them and nothing reads or writes the `snapshot` column for a game any more.
+  A stray legacy row fails closed: `loadGame` throws `LegacyGameRetired`, the API answers 410, and
+  `game.archived` is no longer sent.
   `docs/arena-refusals-spec.md` is the brief that measured it, and holds what is still unworded.
   `src/lib/arena/wording.ts` is the only place a `Requirement` becomes a sentence,
   `src/lib/arena/narration.ts` the only place a beat does, and `src/lib/arena/effects.ts` the only

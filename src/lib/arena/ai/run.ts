@@ -2,9 +2,8 @@
  * Driving Claude's side of a game.
  *
  * `advance` runs until the human has to decide something: Claude's own moves
- * when it is Claude's turn, and referee rulings whenever a card's text defeats
- * the compiler — those can belong to either player, so they are handled even
- * in a hot-seat game.
+ * when it is Claude's turn. (Referee rulings went with the legacy engine,
+ * #118: the rules engine never puts a `referee` prompt.)
  *
  * Every decision is written down, whether or not it cost anything, so a
  * finished game can be read back move by move and the opponent tuned. Clauses
@@ -16,16 +15,13 @@ import type { Db } from "@/db";
 import { aiRuns, arenaAdvanceCalls, arenaAiUsage, arenaGames } from "@/db/schema";
 import { describeAiError } from "@/lib/ai/client";
 import { spendMicros } from "@/lib/ai/models";
-import { skillsOf } from "../text/cards";
 import { type Action, type Area, type PlayerId } from "../types";
-import { markRuleSeen, saveRule } from "../rules-store";
 import { applyToGame, loadGame, StaleGame, type LoadedGame } from "../games";
-import { legacyState } from "../engines";
 import { nameOf } from "../engine-state";
 import { recordDecision } from "./debug";
 import { shownName, stateText } from "./view";
 import { tableOf } from "./table";
-import { chooseMove, recordedMove, recordedRuling, ruleOnCard, type AiCallAttribution, type Tier } from "./opponent";
+import { chooseMove, recordedMove, type AiCallAttribution, type Tier } from "./opponent";
 import { claimAdvance, failAdvance, finishAdvance, markProviderAttempt, saveAdvanceCheckpoint, type AdvanceCheckpoint } from "./advance-lease";
 
 /** Re-exported from models.ts for backward compatibility (#515). */
@@ -38,8 +34,7 @@ export { PRICES, costMicros, spendMicros } from "@/lib/ai/models";
  * it handed every future mode to Claude by default, and 1 v 1 was the first
  * one that would have been wrong. `chooseMove` below reads the board through
  * the `zoneOf`/`catalogDefOf` seam for its "cannot go wrong" shortcuts (#162)
- * and through `tableOf` (`./table.ts`, #457) for everything it puts to
- * Claude, so a game against Claude plays through on either engine.
+ * and through `tableOf` (`./table.ts`, #457) for everything it puts to Claude.
  */
 export function aiPlayerOf(game: { mode: string }): PlayerId | null {
   return game.mode === "sparring" || game.mode === "tournament" ? "p2" : null;
@@ -155,8 +150,7 @@ export interface AdvanceResult {
  *
  * `warm` is a game this request has just loaded or written (`act()`'s own
  * move): its cards and rules are this game's for the whole run, so each step
- * reads the row and nothing else. A referee ruling can write a rule, so after
- * one they are read again.
+ * reads the row and nothing else.
  */
 export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick<LoadedGame, "ctx" | "art">): Promise<AdvanceResult> {
   const said: string[] = [];
@@ -168,10 +162,8 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
     reuse = game;
     const ai = aiPlayerOf(game);
     const prompt = game.state.prompt;
-    if (prompt.kind !== "referee") {
-      if (!ai) break;
-      if (!("player" in prompt) || prompt.player !== ai) break;
-    }
+    if (!ai) break;
+    if (!("player" in prompt) || prompt.player !== ai) break;
     const claim = await claimAdvance(db, gameId, game.version, async (callId) => {
       const [run] = await db.select({ id: aiRuns.id }).from(aiRuns).where(eq(aiRuns.arenaCallId, callId)).limit(1);
       return !!run;
@@ -181,19 +173,9 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
     if (claim.kind === "applied") return { steps, said, error: null };
 
     try {
-      if (prompt.kind === "referee") {
-        reuse = undefined;
-        const attribution = { gameId, callId: claim.callId, revision: game.version };
-        const done = await runReferee(db, game, attribution, claim, async () => {
-          await markProviderAttempt(db, claim);
-        });
-        await finishAdvance(db, claim);
-        if (done) said.push(done);
-        continue;
-      }
       const aiActor = ai as PlayerId;
-      // Claude's own move, on whichever engine dealt the game: `chooseMove`
-      // and `stateText` both read the table through `tableOf` (#457).
+      // Claude's own move: `chooseMove` and `stateText` both read the table
+      // through `tableOf` (#457).
       const state = game.state;
       const started = Date.now();
       const attribution = { gameId, callId: claim.callId, revision: game.version };
@@ -277,63 +259,4 @@ export async function advance(db: Db, gameId: number, maxSteps = 80, warm?: Pick
     }
   }
   return { steps, said, error: null };
-}
-
-async function runReferee(db: Db, game: LoadedGame, attribution: AiCallAttribution, claim: Extract<Awaited<ReturnType<typeof claimAdvance>>, { kind: "claimed" }>, beforeProviderCall: () => Promise<void>): Promise<string | null> {
-  const gameId = attribution.gameId;
-  const prompt = game.state.prompt;
-  if (prompt.kind !== "referee") return null;
-  // The referee is Stage 6's on the rules engine (`docs/arena-rules-language.md`):
-  // nothing there ever puts this prompt, so a `"referee"` kind is the legacy
-  // engine's in practice — `legacyState` makes that the checked fact this
-  // function reads rather than an assumption a future rules-engine referee
-  // would silently violate.
-  const state = legacyState(game.state);
-  const req = prompt.request;
-  const started = Date.now();
-  const situation = stateText(game.ctx, state, req.master);
-  const ruling = claim.checkpoint?.kind === "referee"
-    ? claim.checkpoint
-    : (await recordedRuling(db, attribution.callId)) ?? await ruleOnCard(db, { cardId: req.cardId, cardName: req.cardName, text: req.text, unsupported: req.unsupported }, situation, attribution, beforeProviderCall);
-  await saveAdvanceCheckpoint(db, claim, { kind: "referee", ...ruling });
-  const micros = await addSpend(db, attribution, ruling.spend);
-
-  await recordDecision(db, {
-    gameId,
-    arenaCallId: attribution.callId,
-    turn: state.turn,
-    phase: state.phase,
-    promptKind: "referee",
-    player: req.master,
-    kind: "referee",
-    decidedBy: ruling.spend ? "claude" : "rule",
-    how: `${req.cardName}: ${ruling.why}`,
-    model: decisionModel(ruling.spend),
-    menu: req.unsupported,
-    chosenLabel: `${ruling.ops.length} operation${ruling.ops.length === 1 ? "" : "s"}`,
-    promptText: game.debug && ruling.spend ? `${req.text}\n\n${situation}` : null,
-    spend: ruling.spend ? { ...ruling.spend, micros } : null,
-    latencyMs: ruling.spend ? Date.now() - started : null,
-  });
-
-  // Nothing Claude decides is invisible again: a ruling that was a program
-  // becomes the card's draft rule, with Claude's reason as its explanation.
-  // It shows up in the worklist like any other draft — and the next game
-  // loads it from the row, so the card is not put to the referee twice.
-  const inst = state.cards[req.card];
-  const d = game.ctx.defs[req.cardId];
-  const side = inst?.flipped && d?.back ? "back" : "front";
-  if (ruling.valid) {
-    const sk = d ? skillsOf(d, side).find((k) => k.index === req.skillIndex) : undefined;
-    await saveRule(db, { cardId: req.cardId, side, skillIndex: req.skillIndex, ops: ruling.ops, source: "claude", status: "draft", explanation: ruling.why, printed: req.text, kind: sk?.kind ?? "auto" });
-  }
-  // The skill has now actually come up in a game, which is what sorts the
-  // same-wording groups: a wording a game has met is worth teaching the compiler
-  // before one that has not. The worked example is the draft written above,
-  // so there is nowhere else for it to be kept.
-  await markRuleSeen(db, req.cardId, side, req.skillIndex);
-
-  const line = `referee on ${req.cardName}: ${ruling.why}`;
-  await applyToGame(db, gameId, { type: "refereeRuling", player: req.master, ops: ruling.ops }, { say: line }, { game });
-  return line;
 }

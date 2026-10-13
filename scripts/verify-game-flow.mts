@@ -14,7 +14,7 @@ import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
 import { applyToGame, clearBeats, clearBeatsForTurn, loadGame, StaleGame, startGame, type LoadedGame } from "../src/lib/arena/games.ts";
 import { artForGame, snapshotOfGame } from "../src/lib/arena/session.ts";
-import { engineFor } from "../src/lib/arena/engines.ts";
+import { RULES } from "../src/lib/arena/vm/index.ts";
 import type { Action } from "../src/lib/arena/types.ts";
 
 export async function verifyGameFlow(db: Db): Promise<void> {
@@ -56,8 +56,8 @@ export async function verifyGameFlow(db: Db): Promise<void> {
     unread: [],
   });
 
-  const id = await startGame(db, deck.id, deck.id, "hotseat", false, { p1User: null, p2User: null }, "rules");
-  const engine = engineFor("rules");
+  const id = await startGame(db, deck.id, deck.id, "hotseat", false, { p1User: null, p2User: null });
+  const engine = RULES;
 
   // ── loadGame: the context, the art beside it, and `legal` on demand ──
   const g0 = (await loadGame(db, id))!;

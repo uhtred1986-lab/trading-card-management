@@ -14,9 +14,52 @@
  * Android app carries in Kotlin.
  */
 import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, whoseSkills, type Op } from "./vm/script";
-import type { StaticEffect } from "./engine/state";
-import type { Color, ContinuousEffect, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "./types";
+import type { AltCost, Color, ContinuousEffect, Replacement, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "./types";
 import { dbsWords, type BoardWords } from "./board-words";
+
+/** What a card counts as, once its skills have had their say (20-1). */
+export interface Gains {
+  traits: string[];
+  characters: string[];
+  colors: Color[];
+  /** "This card is also treated as {Planet M-2} in all areas" — a whole card name, not a character. */
+  names: string[];
+}
+
+/** A standing effect a [Permanent] skill emits while its card is where the skill is valid (9-5, 9-9). */
+export interface StaticEffect {
+  source: string;
+  kind: "power" | "comboPower" | "keyword" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "zEnergy" | "specifiedCost" | "negateKeyword" | "gains" | "replaceLeave" | "forbid" | "permit" | "immune" | "altCost" | "payer" | "skip";
+  /** One [Permanent] keyword grant's stable source/skill/op/recipient identity. */
+  standingGrantId?: string;
+  /** The card it is about; empty for a rule about a player rather than a card. */
+  target: string;
+  /**
+   * `specifiedCost` carries the orbs it relaxes or demands, not a flat number
+   * — see `playCost`, which is the only reader. `skip` carries the player and
+   * which of the two battle steps its condition currently gates (9-5,
+   * #278) — a standing rule read live at the step, never a one-shot entry.
+   */
+  value:
+    | number
+    | KeywordSkill
+    | KeywordSkill["name"]
+    | Prohibition
+    | Permission
+    | Immunity
+    | AltCost
+    | Gains
+    | Replacement
+    | { colors: (Color | "any")[]; sign: 1 | -1 }
+    | { payAs: "energy" | Color }
+    | { what: SkipWhat; player: PlayerId };
+  /** Set when `kind` is "skillCost" or "evolveCost". */
+  skillKind?: SkillKindPrefix;
+  /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
+  colors?: (Color | "any")[];
+  /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
+  onto?: string[];
+}
 
 export type EffectKind = "power" | "comboPower" | "keyword" | "negate" | "forbid" | "permit" | "cost" | "other";
 

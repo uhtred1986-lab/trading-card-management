@@ -12,11 +12,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { currentUser } from "@/lib/auth";
 import type { PlayerId } from "./types";
-import { ENGINE_IDS } from "./engines";
+import { ENGINE_IDS, LegacyGameRetired } from "./engines";
 import { isVersus, seatOf, type Seats } from "./games";
 import { CONTRACT_VERSION } from "./snapshot";
 
-export type ErrorCode = "bad_request" | "not_found" | "illegal_action" | "game_over" | "not_your_turn" | "stale" | "idempotency_conflict" | "ai_error" | "contract_mismatch";
+export type ErrorCode = "bad_request" | "not_found" | "illegal_action" | "game_over" | "not_your_turn" | "stale" | "idempotency_conflict" | "ai_error" | "contract_mismatch" | "gone";
 
 const STATUS: Record<ErrorCode, number> = {
   bad_request: 400,
@@ -28,10 +28,21 @@ const STATUS: Record<ErrorCode, number> = {
   idempotency_conflict: 409,
   ai_error: 502,
   contract_mismatch: 426,
+  gone: 410,
 };
 
 export function fail(code: ErrorCode, message: string) {
   return NextResponse.json({ error: { code, message } }, { status: STATUS[code] });
+}
+
+/**
+ * `loadGame(...).catch(retiredGame)`: a row the retired legacy engine wrote
+ * (#118; the cleanup migration deletes them, this is for one that slipped
+ * through) answers 410 with the reason instead of a server error.
+ */
+export function retiredGame(err: unknown): NextResponse {
+  if (err instanceof LegacyGameRetired) return fail("gone", err.message);
+  throw err;
 }
 
 export function ok<T>(body: T) {
@@ -60,7 +71,7 @@ export const newGameSchema = z.object({
   // there is nothing here for a client to create in one call.
   mode: z.enum(["hotseat", "sparring", "tournament"]).default("hotseat"),
   debug: z.boolean().default(true),
-  /** Which engine plays it (`engines.ts`); left out, the `arena.engine` setting decides. */
+  /** Accepted for older clients; the rules engine is the only one (#118), so only `rules` is valid and it changes nothing. */
   engine: z.enum(ENGINE_IDS).optional(),
 });
 

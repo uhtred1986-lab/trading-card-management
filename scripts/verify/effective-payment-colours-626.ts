@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { hiddenAliases } from "../../src/lib/arena/conceal";
 import { compileCard } from "../../src/lib/arena/compile";
-import { playableEngine } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { buildSnapshot, reconcileSnapshot } from "../../src/lib/arena/snapshot";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
@@ -14,7 +14,7 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Op } from "../../src/lib/arena/vm/script";
 
-const engine = playableEngine("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 const def = (id: string, patch: Partial<CardDef> = {}): CardDef => ({ id, name: id, type: "BATTLE", colors: ["Red"], energyCost: 1, zEnergyCost: null, power: 10000, comboCost: 0, comboPower: 5000, skill: null, characters: [], traits: [], ...patch });
@@ -62,7 +62,7 @@ function fixture(energy = ["R626"], source?: string) {
 const offered = (s: VmState, card: string) => engine.legalActions(ctx, s).some((r) => r.action.type === "activate" && r.action.card === card);
 const activate = (s: VmState, card: string, pay?: string[]) => apply(s, { type: "activate", player: "p1", card, skill: 0, ...(pay ? { pay } : {}) });
 function snap(s: VmState, viewer: PlayerId = "p1", revision = 1) {
-  return buildSnapshot({ id: 626, revision, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: s, legal: engine.legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+  return buildSnapshot({ id: 626, revision, mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: s, legal: engine.legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }
 // A Hidden Mode card is named by its position on the board, not its instance id (`conceal.ts`).
 const colors = (s: VmState, id: string) => snap(s).view.you.energyColors!.find((r) => r.card === (hiddenAliases(s, "p1")[id] ?? id))!.paymentColors;

@@ -70,9 +70,8 @@ export interface Snapshot {
      * Which engine is playing this game and which card game the decks belong
      * to (added 9 Sep 2026, `src/lib/arena/engines.ts`). A client shows the
      * engine as a badge and reads nothing else off either: what the board is,
-     * `view` says. `legacy` is the hand-written engine; `rules` the
-     * configuration-driven one beside it, and **the default for a new game
-     * since 20 Sep 2026** (#166).
+     * `view` says. Since #118 (13 Oct 2026) the only value is `rules`; the
+     * hand-written `legacy` engine and its saved games were deleted.
      *
      * The flip changed which value is common, not the field: the type, the
      * two spellings and the contract version are unchanged, and the emitted
@@ -81,7 +80,7 @@ export interface Snapshot {
      * the ordinary one. A game keeps the engine it was made on, so a client
      * must go on reading this per game rather than assuming the default.
      */
-    engine: "legacy" | "rules";
+    engine: "rules";
     game: "dbs" | "fusion";
     status: "playing" | "over" | "abandoned";
     turn: number;
@@ -93,9 +92,7 @@ export interface Snapshot {
     p1User?: string | null;
     p2User?: string | null;
     /**
-     * True only for a legacy row read off its stored snapshot rather than
-     * computed live (§3.5, issue #335). Absent — never `false` — on every
-     * live snapshot, so the field changes no existing fixture.
+     * Never sent since #118: archived legacy games were deleted (§3.5).
      */
     archived?: true;
   };
@@ -387,7 +384,12 @@ A client may draw these and nothing else with them. Working out which cards are 
 each contributes, or whether a skill fired is the engine's job — inferring a trigger from a power
 figure changing is the exact failure §1 is about.
 
-### 3.5 Archived games (added 20 Sep 2026, issue #335, owner's ruling #119)
+### 3.5 Archived games (added 20 Sep 2026, issue #335, owner's ruling #119; **retired 13 Oct 2026, #118**)
+
+**Superseded.** The owner ruled on 13 Oct 2026 that saved legacy games are deleted rather than
+archived (migration `0050_arena_retire_legacy_engine.sql`). No `archived` snapshot is produced any
+more, `game.archived` is never sent, and a stray legacy row answers `410 gone`. A client may stop
+reading the field. The text below is the history of the archive design.
 
 Stage 10 retires `src/lib/arena/engine/` — the legacy engine — but `arena_games` rows made on it
 (`engine = "legacy"`) still exist afterward, and "a game is its seed plus its actions" (§1's own

@@ -1,7 +1,7 @@
 /** 8-5-2..8-5-8: each player may move one spent Battle Card to Z-Energy. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { run } from "../../src/lib/arena/vm/flow";
 import { moveCard, newCard } from "../../src/lib/arena/vm/zones";
@@ -9,7 +9,7 @@ import { tokenCardId } from "../../src/lib/arena/vm/common";
 import type { Action, GameEvent, PlayerId, Prompt } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "DBS rules failed to load");
 const dbs = loaded.definition;

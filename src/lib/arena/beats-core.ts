@@ -1,9 +1,9 @@
 /**
- * The engine-neutral half of `beats.ts` (#641): the queue bookkeeping and the
- * per-viewer masking both engines' beats go through, with no import of the
- * legacy engine (`./engine`). `beats.ts` re-exports every name here, so
- * existing callers are unchanged; the rules engine (`vm/beats.ts`), `snapshot`
- * and the browser-safe entry (`browser.ts`) reach these without `./engine`.
+ * The queue half of `beats.ts` (#641): the queue bookkeeping and the
+ * per-viewer masking the rules engine's beats go through. `beats.ts`
+ * re-exports every name here, so existing callers are unchanged; the rules
+ * engine (`vm/beats.ts`), `snapshot` and the browser-safe entry (`browser.ts`)
+ * reach these directly.
  *
  * Checked by `scripts/verify/arena-browser-boundary.mts`.
  */

@@ -24,7 +24,7 @@
  */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
@@ -37,7 +37,7 @@ import { secretAreas } from "../../src/lib/arena/policy/boundary";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId, Prompt } from "../../src/lib/arena/types";
 
-const engine = engineFor("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 
@@ -69,7 +69,7 @@ const counterPrompt = (s: VmState) => {
   return s.prompt as Extract<Prompt, { kind: "counter" }>;
 };
 const skills = (ev: GameEvent[], id: string) => ev.filter((e) => e.type === "skill" && e.card === id).length;
-const snapshot = (s: VmState, viewer: PlayerId) => buildSnapshot({ id: 552, revision: 1, mode: "versus", engine: "rules", status: "playing",
+const snapshot = (s: VmState, viewer: PlayerId) => buildSnapshot({ id: 552, revision: 1, mode: "versus", status: "playing",
   p1Name: "Player 1", p2Name: "Player 2", ctx, state: s, legal: [], log: [], beats: null, spotlight: null,
   spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 const refused = (s: VmState, action: Action, why: string) => {

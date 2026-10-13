@@ -296,7 +296,7 @@ export async function verifyArenaAdvanceLeases(db: Db): Promise<void> {
     arena: { ...previousSettings.arena, sparring: { provider: liveFake.id, model: "fake/model" } },
   } as AiSettings;
   await saveSettings(db, fakeSettings);
-  const gameId = await startGame(db, deck.id, deck.id, "sparring", false, { p1User: null, p2User: null }, "rules");
+  const gameId = await startGame(db, deck.id, deck.id, "sparring", false, { p1User: null, p2User: null });
   try {
     let observedSlowCall = false;
     for (let i = 0; i < 80 && !observedSlowCall; i++) {

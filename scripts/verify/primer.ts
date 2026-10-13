@@ -11,9 +11,7 @@ import assert from "node:assert/strict";
 import { DBS_FILES, loadDbs, loadRuleset } from "../../src/lib/arena/rulesets";
 import { areasLine, generatedPrimer, turnStructure, winCondition, zoneNames } from "../../src/lib/arena/ai/primer";
 import { FIXED_PROMPT_KINDS, fixedPrompt, promptHint } from "../../src/lib/arena/prompt-words";
-import { questionFor } from "../../src/lib/arena/view";
 import { promptView } from "../../src/lib/arena/vm/view";
-import type { GameState } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
 const dbs = loadDbs();
@@ -48,9 +46,8 @@ for (const zone of Object.keys(def.zones)) {
 assert.ok(turnStructure(def).startsWith("How a turn goes: "));
 assert.ok(winCondition(def).startsWith("Winning: "));
 
-// Build item 2: `questionFor` (legacy) and `promptView` (rules) answer a
-// fixed-question prompt kind with the same words, and those words are the
-// definition's (`prompts.rules`). The literals below are the hand-written
+// Build item 2: `promptView` answers a fixed-question prompt kind with words
+// that are the definition's (`prompts.rules`). The literals below are the hand-written
 // table `prompt-words.ts` used to hold, kept as the byte-for-byte fixture: a
 // change to a question now has to be made here on purpose.
 const FIXTURE: Record<string, [string, string | null]> = {
@@ -67,16 +64,10 @@ const FIXTURE: Record<string, [string, string | null]> = {
   gameOver: ["The game is over.", null],
 };
 assert.deepEqual([...FIXED_PROMPT_KINDS].sort(), Object.keys(FIXTURE).sort());
-const fakeCtx = {} as Parameters<typeof questionFor>[0];
 for (const kind of FIXED_PROMPT_KINDS) {
   const [question, hint] = FIXTURE[kind];
   const words = fixedPrompt(kind);
   assert.deepEqual(words, { question, hint }, `prompts.rules' "${kind}" moved`);
-
-  const legacyState = { prompt: { kind, player: "p1" }, flow: [] } as unknown as GameState;
-  const legacy = questionFor(fakeCtx, legacyState);
-  assert.equal(legacy.question, question, `view.ts's questionFor("${kind}") question`);
-  assert.equal(legacy.hint, hint, `view.ts's questionFor("${kind}") hint`);
 
   const rulesState = { prompt: { kind, player: "p1" } } as unknown as VmState;
   const rules = promptView(rulesState);
@@ -101,13 +92,13 @@ if (edited.ok) {
 }
 
 // The one prompt kind reachable on the rules engine whose text is not fixed:
-// a counter/combo's own price, the same interpolation the legacy engine does.
+// a counter/combo's own price.
 const payCostState = { prompt: { kind: "payCost", player: "p1", describe: "activate «Kamehameha»" } } as unknown as VmState;
 assert.equal(promptView(payCostState).question, "Which energy do you rest to activate «Kamehameha»?");
 assert.equal(promptView(payCostState).cost, "activate «Kamehameha»");
 
 // A program's own question (#152): the choice's reason, its count, and where it
-// sits in the chain — the legacy `questionFor`'s words, field for field.
+// sits in the chain.
 const chooseState = { prompt: { kind: "chooseCards", player: "p1", choice: { reason: "Choose up to 1 card", candidates: [], min: 0, max: 1, continuation: "" } }, programs: [] } as unknown as VmState;
 assert.deepEqual(promptView(chooseState), {
   kind: "chooseCards",

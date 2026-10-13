@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { interruptedOutcome, NOT_YET_REASON_PREFIX, resolveOutcome } from "../../src/lib/arena/outcome";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { RULES } from "../../src/lib/arena/vm";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
-import { archivedSnapshotFor, buildSnapshot, type Snapshot } from "../../src/lib/arena/snapshot";
+import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { vmToBeats } from "../../src/lib/arena/vm/beats";
 import type { Beats } from "../../src/lib/arena/beats";
 
@@ -114,39 +113,6 @@ assert.ok(pricedResult.events.some((event) => event.type === "note" && event.tex
 assert.ok(pricedEnded.sides.p1.zones.drop.includes(pricedSource), "Revive does not execute its move when its additional cost is unpayable");
 assert.notEqual(pricedEnded.prompt.kind, "chooseCards", "Revive's effect prompt never opens after canceled payment");
 
-const archiveBase = JSON.parse(readFileSync("contract/fixtures/versus.json", "utf8")) as Snapshot;
-const archive = (over: Snapshot["over"], status = "over") => {
-  const base = { ...archiveBase, game: { ...archiveBase.game, status }, over, view: { ...archiveBase.view, over: over ? { winner: over.winner, reason: over.reason } : null } };
-  return { p1: base, p2: { ...base, game: { ...base.game, you: "p2" as const } } };
-};
-const newInterrupt = interruptedOutcome({ sourceCard: "opponent#17", detail: "hidden identity detail" });
-const newInterruptArchive = archive(newInterrupt);
-for (const seat of ["p1", "p2"] as const) {
-  const projected = archivedSnapshotFor(newInterruptArchive, seat);
-  assert.equal(projected?.over?.kind, "interrupted", "typed interruption survives archive projection for each viewer");
-  assert.ok(!JSON.stringify(projected).includes("opponent#17"));
-}
-const restoredConcession = archivedSnapshotFor(archive({
-  kind: "concession",
-  winner: "p2",
-  concededBy: "p1",
-  reason: "A player conceded.",
-}), "p1");
-assert.equal(restoredConcession?.over?.kind, "concession", "typed concession survives archive projection");
-assert.equal(restoredConcession?.over?.concededBy, "p1");
-const archivedLegacyInterrupt = archivedSnapshotFor(archive({
-  winner: null,
-  reason: `${NOT_YET_REASON_PREFIX} — BT99-999 private detail`,
-} as Snapshot["over"]), "p2");
-assert.equal(archivedLegacyInterrupt?.over?.kind, "interrupted", "old prefixed archived interruptions are normalized");
-assert.doesNotMatch(JSON.stringify(archivedLegacyInterrupt), /BT99-999|private detail/);
-
-const archivedDraw = archivedSnapshotFor(archive({ kind: "draw", winner: null, reason: "Both players lost." }), "p1");
-assert.equal(archivedDraw?.over?.kind, "draw", "a real draw stays a draw when archived");
-const archivedAbandoned = archivedSnapshotFor(archive({ kind: "win", winner: "p1", reason: "life ended" }, "abandoned"), "p2");
-assert.equal(archivedAbandoned?.over?.kind, "abandoned", "abandonment status overrides a stale archived winner");
-assert.equal(archivedAbandoned?.over?.winner, null);
-
 // Exercise live projection for both 1 v 1 seats, including the log and beat
 // paths. The VM state keeps the source instance for diagnostics, while neither
 // viewer receives it in the snapshot.
@@ -156,7 +122,6 @@ const liveSnapshot = (viewer: "p1" | "p2", state = saved, beats: Beats = liveBea
   id: 544,
   revision: 1,
   mode: "versus",
-  engine: "rules",
   status: "over",
   p1Name: "You",
   p2Name: "Opponent",

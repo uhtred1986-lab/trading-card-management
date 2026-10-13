@@ -225,7 +225,7 @@ export function ArenaStage({
   const liveGame = useLiveGame(session, snapshot, pending || advancing || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
   const live = liveGame.snapshot;
   const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
-  const { view, legal, taps, log, beats } = live;
+  const { view, legal, taps, beats } = live;
   const [planOpen, setPlanOpen] = useState(false);
   const [planRevision, setPlanRevision] = useState(live.game.revision);
   const [planFirst, setPlanFirst] = useState<Action | null>(null);
@@ -290,10 +290,7 @@ export function ArenaStage({
   // referee ruling is the server's, and either side may trigger that.
   const serverDecides = live.game.mode !== "versus" ? waitingOnServer : live.waiting === "referee";
   const rejected = live.rejected ?? [];
-  // An archived game (issue #335) may still read `"playing"` — it is the
-  // status it was archived at, kept for the record — but `legal` is already
-  // empty and `waiting` already null, so nothing here is actually pending.
-  const playable = live.game.status === "playing" && !live.game.archived;
+  const playable = live.game.status === "playing";
 
   const launchAdvance = useCallback(() => {
     if (asked.current) return;
@@ -1445,7 +1442,7 @@ export function ArenaStage({
           </Sheet>
         )}
 
-        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
+        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
         <ClashBeam beat={beat} hostRef={boardRef} />
@@ -1458,7 +1455,7 @@ export function ArenaStage({
             you={view.you.player}
             them={view.them.name}
             turn={view.turn}
-            canRematch={!live.game.archived && session.capabilities.rematch}
+            canRematch={session.capabilities.rematch}
             versus={live.game.mode === "versus"}
             onRematch={() => session.rematch!()}
             onDismiss={() => setEndDismissed(true)}

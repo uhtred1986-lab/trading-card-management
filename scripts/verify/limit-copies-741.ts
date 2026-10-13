@@ -19,7 +19,7 @@
  */
 import assert from "node:assert/strict";
 import type { VmState } from "../../src/lib/arena/vm/state";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { compileSkill } from "../../src/lib/arena/compile";
@@ -70,7 +70,7 @@ add("R741-ATTACKER", { type: "BATTLE", colors: ["Blue"], energyCost: 0, power: 1
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "the DBS ruleset should load");
 const DBS = loaded.definition;
-const rules = engineFor("rules");
+const rules = RULES;
 const deck = { seed: 741, p1: { name: "P1", leader: "L-RED", main: fifty("V1") }, p2: { name: "P2", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
 async function main(): Promise<void> {
@@ -141,7 +141,7 @@ async function main(): Promise<void> {
     const offered = (s: VmState, id: string) => rules.legalActions(CTX, s).find(({ action }) => action.type === "activate" && action.card === id);
     const refused = (s: VmState, id: string) => rules.rejectedActions(CTX, s, rules.legalActions(CTX, s)).find((r) => r.action.type === "activate" && (r.action as { card: string }).card === id)?.why[0];
     const limitRow = (s: VmState, viewer: PlayerId, id: string, skillIndex: number) => {
-      const snap = buildSnapshot({ id: 741, engine: "rules", mode: "versus", status: "playing", p1Name: "P1", p2Name: "P2", ctx: CTX, state: s, legal: rules.legalActions(CTX, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+      const snap = buildSnapshot({ id: 741, mode: "versus", status: "playing", p1Name: "P1", p2Name: "P2", ctx: CTX, state: s, legal: rules.legalActions(CTX, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
       const side = viewer === "p1" ? snap.view.you : snap.view.them;
       return side.battle.find((v) => v.id === id)?.abilities?.find((a) => a.skillIndex === skillIndex)?.limit;
     };

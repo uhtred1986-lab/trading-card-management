@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { vmToBeats } from "../../src/lib/arena/vm/beats";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
@@ -13,7 +13,7 @@ import type { Beats } from "../../src/lib/arena/beats";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { Op } from "../../src/lib/arena/vm/script";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
@@ -53,7 +53,7 @@ function order(state: VmState, index: number, player: PlayerId, decline = false)
   return rules.apply(ctx, reload(state), { type: "orderPending", player, index, ...(decline ? { decline: true as const } : {}) }) as { state: VmState; events: GameEvent[] };
 }
 function snapshot(state: VmState, viewer: PlayerId, beats: Beats | null = null) {
-  return buildSnapshot({ id: 5491, engine: "rules", mode: "versus", status: "playing", p1Name: "First", p2Name: "Second", ctx, state, legal: rules.legalActions(ctx, state), log: [], beats, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+  return buildSnapshot({ id: 5491, mode: "versus", status: "playing", p1Name: "First", p2Name: "Second", ctx, state, legal: rules.legalActions(ctx, state), log: [], beats, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }
 const skillEvents = (events: GameEvent[], card: string): Extract<GameEvent, { type: "skill" }>[] =>
   events.filter((event): event is Extract<GameEvent, { type: "skill" }> => event.type === "skill" && event.card === card);

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
@@ -16,7 +16,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { Op, Script } from "../../src/lib/arena/vm/script";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
@@ -95,7 +95,7 @@ function declines(s: VmState): number { assert.equal(s.prompt.kind, "chooseMode"
 function draws(ev: GameEvent[]) { return ev.filter((e) => e.type === "draw").length; }
 
 function snapshot(current: VmState, viewer: PlayerId = "p1") {
-  return buildSnapshot({ id: 549, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: current, legal: rules.legalActions(ctx, current), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+  return buildSnapshot({ id: 549, mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: current, legal: rules.legalActions(ctx, current), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }
 function missingHookIdentity(card: string, master: PlayerId): VmState["pending"][number] {
   return { kind: "hook", card, master, skillIndex: undefined, trigger: "afterSkill", frame: { ops: [], ip: 0, vars: {}, card, master, pendingHookSkill: true, pendingHookIdentityMissing: true } };

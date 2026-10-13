@@ -603,12 +603,10 @@ interface CounterCandidate {
 }
 
 /**
- * The three windows this engine opens, and the legacy engine's word for each
- * (`CounterWindow`): the one after an attack is declared (8-1-4), the one
+ * The three windows this engine opens, by their `CounterWindow` word: the one after an attack is declared (8-1-4), the one
  * between a play being declared and its resolving (9-6, #150's second), and
  * since #552 the one over each counter motion (`counter`, 9-7-3-3), where only
- * a [Counter: Counter] answers (22-10-3-4). The legacy `skill` window, opened
- * there with no candidates at all, is not opened here.
+ * a [Counter: Counter] answers (22-10-3-4). `skill` is never opened.
  */
 type OpenWindow = "attack" | "play" | "counter";
 
@@ -972,8 +970,8 @@ export interface CounterMotion {
  * order — and no checkpoint runs between them (9-7-3-5-2), the runner
  * draining programs before it looks for one. False, and nothing changed but
  * `opened`, when the opponent has nothing to answer with: the window is not
- * put (9-7-2-3 lets a holder decline silently, and the legacy engine opens no
- * empty window either).
+ * put (9-7-2-3 lets a holder decline silently; the attack and play windows
+ * open no empty window either).
  */
 export function openCounterCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): boolean {
   const motion = frame.counterMotion;

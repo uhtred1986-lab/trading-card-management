@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ENGINE_INFO, engineOr } from "@/lib/arena/engines";
 import { modeLabel, seatOf } from "@/lib/arena/games";
 import { RematchButton } from "./RematchButton";
 import { resolveOutcome } from "@/lib/arena/outcome";
@@ -17,8 +16,6 @@ export interface GameRowData {
   outcomeKind?: string | null;
   turn: number;
   mode: string;
-  engine: string;
-  archived: boolean;
   turnPlayer: string | null;
 }
 
@@ -87,10 +84,6 @@ function GameRow({ g, me }: { g: GameRowData; me: string | null }) {
           <span>{opponentLabel(g, me)}</span>
           <span>turn {g.turn}</span>
           <span>{modeLabel(g.mode)}</span>
-          {/* Inverted at #166: the badge marks the games that are *not* on the default engine. */}
-          {engineOr(g.engine) === "legacy" && <span className="rounded-full border border-space-700 px-1.5 text-[10px] uppercase tracking-wider text-space-400">{ENGINE_INFO.legacy.label}</span>}
-          {/* Issue #335: read off its stored snapshot rather than computed live — read-only. */}
-          {g.archived && <span className="rounded-full border border-dbs-yellow/50 px-1.5 text-[10px] uppercase tracking-wider text-dbs-yellow">archived</span>}
           <span className={g.status === "playing" ? "text-ki-300" : ""}>{move ? `${resultLabel(g)} · ${move}` : resultLabel(g)}</span>
         </span>
       </Link>
@@ -98,7 +91,7 @@ function GameRow({ g, me }: { g: GameRowData; me: string | null }) {
         <Link href={`/arena/${g.id}`} className={action}>
           {watching ? "Watch" : "Continue"}
         </Link>
-      ) : g.status === "over" && !g.archived ? (
+      ) : g.status === "over" ? (
         <RematchButton gameId={g.id} versus={versus} />
       ) : (
         <Link href={`/arena/${g.id}`} className={action}>

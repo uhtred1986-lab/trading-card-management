@@ -13,10 +13,6 @@ import type { Db } from "../src/db/index.ts";
 import { allocationForCards, buildConflicts } from "../src/lib/decks/reservations.ts";
 import { pricesForPrints, priceForFinish } from "../src/lib/pricing/queries.ts";
 import { expand } from "../src/lib/collection/lots.ts";
-import type { ArenaMode } from "../src/lib/arena/games.ts";
-import type { PlayerId } from "../src/lib/arena/types.ts";
-import type { BoardView, SideView } from "../src/lib/arena/view.ts";
-import type { Snapshot } from "../src/lib/arena/snapshot.ts";
 
 const client = new PGlite();
 const db = drizzle(client, { schema }) as unknown as Db;
@@ -768,117 +764,73 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   await db.delete(schema.decks).where(inArray(schema.decks.id, [mine.id, theirs.id, nobodys.id]));
 }
 
-// ── Archived legacy games read their stored snapshot, never the engine (#335) ──
-// A legacy row is ordinary until it has a stored snapshot; once it does,
-// `loadArchivedGame`/`snapshotOf` must answer from that JSON alone —
-// `loadGame`'s `legalActions` must never be reached for it — and a `versus`
-// row keeps the same two-seat gate a live one has, checked before the stored
-// snapshot is ever read.
+// ── Migration 0050 deletes the games saved on the legacy engine (#118) ─────────
+// The owner's ruling of 13 Oct 2026: the legacy engine is gone and so are its
+// saves. A game is legacy when its `engine` column is not `rules` AND its state
+// is not the rules engine's shape (`engine: "rules"` at the top level). The
+// migration has already run once above; the rows are inserted afterwards and its
+// SQL is run again, which is what a database holding legacy games would see.
 {
-  const { inArray } = await import("drizzle-orm");
-  const { isVersus, listGames, loadArchivedGame, loadGame, seatOf } = await import("../src/lib/arena/games.ts");
-  const { snapshotOf } = await import("../src/lib/arena/session.ts");
-  const { archivedSnapshotFor, CONTRACT_VERSION } = await import("../src/lib/arena/snapshot.ts");
+  const { eq, inArray } = await import("drizzle-orm");
+  const { loadGame } = await import("../src/lib/arena/games.ts");
+  const { LegacyGameRetired } = await import("../src/lib/arena/engines.ts");
 
-  const emptySide = (player: PlayerId, name: string): SideView => ({
-    player,
-    name,
-    leader: null,
-    unison: null,
-    battle: [],
-    combo: [],
-    energy: [],
-    hand: [],
-    handCount: 0,
-    life: 0,
-    lifeFaceUp: [],
-    zDeckFaceUp: [],
-    deck: 0,
-    drop: 0,
-    warp: 0,
-    zDeck: 0,
-    zEnergy: 0,
-    energyMarkers: 0,
-    activeEnergy: 0,
-    dropTop: null,
-  });
-  const names = { p1: "Alice", p2: "Bob" } as const;
-  const boardFor = (you: PlayerId): BoardView => ({
-    you: emptySide(you, names[you]),
-    them: emptySide(you === "p1" ? "p2" : "p1", names[you === "p1" ? "p2" : "p1"]),
-    turn: 4,
-    phase: "main",
-    turnPlayer: you,
-    battle: null,
-    prompt: { kind: "main", player: you, question: "What will you do?", hint: null },
-    over: null,
-  });
-  // A real (if hand-built) `Snapshot`, exactly the shape a live game's last
-  // `buildSnapshot` call would have produced — `legal`/`taps`/`waiting` still
-  // carry what they held live, since it is `archivedSnapshotFor`'s job, not
-  // the storage's, to read them back as empty.
-  const snapshotFor = (mode: ArenaMode, you: PlayerId): Snapshot => ({
-    contract: CONTRACT_VERSION,
-    game: { id: 0, revision: 0, mode, engine: "legacy", game: "dbs", status: "playing", turn: 4, p1Name: names.p1, p2Name: names.p2, you },
-    view: boardFor(you),
-    legal: [{ action: { type: "endMain", player: you }, label: "End turn" }],
-    taps: { byCard: {}, bare: [0], attackTargets: {} },
-    beats: null,
-    spotlight: null,
-    log: ["Game on."],
-    waiting: "you",
-    spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
-    over: null,
-  });
+  const game = async (values: Partial<typeof schema.arenaGames.$inferInsert>) =>
+    (await db.insert(schema.arenaGames).values({ p1Name: "Alice", p2Name: "Bob", seed: 1, mode: "hotseat", state: { turn: 4 }, ...values }).returning({ id: schema.arenaGames.id }))[0].id;
+  const hang = async (gameId: number, tag: string) => {
+    await db.insert(schema.arenaDecisions).values({ gameId, seq: 1, turn: 1, phase: "main", promptKind: "main", player: "p1", decidedBy: "rule", how: tag });
+    await db.insert(schema.arenaAiUsage).values({ gameId, callId: tag, revision: 1, model: "m", provider: "anthropic-api", billed: true, inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0, costMicros: 5 });
+    await db.insert(schema.arenaAdvanceCalls).values({ gameId, revision: 1, callId: tag, phase: "applied" });
+    await db.insert(schema.arenaFlags).values({ gameId, turn: 1, beatIndex: 0 });
+    const [match] = await db.insert(schema.arenaMatches).values({ hostUser: "alice", gameId, status: "started" }).returning({ id: schema.arenaMatches.id });
+    const [report] = await db.insert(schema.arenaFeedback).values({ note: tag, gameId, state: { kept: true } }).returning({ id: schema.arenaFeedback.id });
+    return { match: match.id, report: report.id };
+  };
 
-  // A hot-seat legacy row, archived: one shared board.
-  const [hot] = await db
-    .insert(schema.arenaGames)
-    .values({ p1Name: names.p1, p2Name: names.p2, seed: 1, mode: "hotseat", engine: "legacy", state: { turn: 4 }, snapshot: { shared: snapshotFor("hotseat", "p1") } })
-    .returning({ id: schema.arenaGames.id });
+  // Two legacy rows (one archived with a stored snapshot), a rules row, and a rules-shaped row whose column kept the old default.
+  const legacy = await game({ engine: "legacy", state: { turn: 4, players: {} } });
+  const archivedLegacy = await game({ engine: "legacy", state: { turn: 9 }, snapshot: { shared: { stored: true } } });
+  const rules = await game({ engine: "rules", state: { engine: "rules", turn: 2 } });
+  const rulesDefaulted = await game({ engine: "legacy", state: { engine: "rules", turn: 3 } });
+  const legacyKids = await hang(legacy, "legacy-a");
+  await hang(archivedLegacy, "legacy-b");
+  const rulesKids = await hang(rules, "rules-a");
+  const defaultedKids = await hang(rulesDefaulted, "rules-b");
+  const [run] = await db.insert(schema.aiRuns).values({ kind: "arena", arenaCallId: "legacy-a", model: "m", costMicros: 5 }).returning({ id: schema.aiRuns.id });
 
-  assert.ok(await loadArchivedGame(db, hot.id), "an archived row is found by its stored snapshot");
-  assert.equal(await loadGame(db, hot.id), null, "loadGame refuses an archived row rather than calling its engine to build one");
-  const hotSnap = await snapshotOf(db, hot.id);
-  assert.equal(hotSnap?.legal.length, 0, "no legal actions are offered once archived");
-  assert.deepEqual(hotSnap?.taps, { byCard: {}, bare: [], attackTargets: {} });
-  assert.equal(hotSnap?.waiting, null, "nothing is waited on");
-  assert.equal(hotSnap?.game.archived, true, "the flag the banner reads");
-  assert.equal(hotSnap?.game.status, "playing", "the row's last status is kept for the record, even though it can no longer be acted on");
+  const sqlText = fs.readFileSync(path.join(dir, "0050_arena_retire_legacy_engine.sql"), "utf8");
+  for (const stmt of sqlText.split("--> statement-breakpoint")) {
+    const t = stmt.trim();
+    if (t) await client.exec(t);
+  }
 
-  // A live legacy row — no stored snapshot — is unaffected: not archived, and
-  // not flagged as such in the list either.
-  const [live] = await db
-    .insert(schema.arenaGames)
-    .values({ p1Name: names.p1, p2Name: names.p2, seed: 2, mode: "hotseat", engine: "legacy", state: { turn: 1 } })
-    .returning({ id: schema.arenaGames.id });
-  assert.equal(await loadArchivedGame(db, live.id), null, "a legacy row with no stored snapshot is not archived");
-  const listed = new Map((await listGames(db, 50)).map((g) => [g.id, g]));
-  assert.equal(listed.get(live.id)?.archived, false, "a live row is not flagged archived in the list");
-  assert.equal(listed.get(hot.id)?.archived, true, "an archived row is flagged in the list");
+  const left = new Set((await db.select({ id: schema.arenaGames.id }).from(schema.arenaGames).where(inArray(schema.arenaGames.id, [legacy, archivedLegacy, rules, rulesDefaulted]))).map((r) => r.id));
+  assert.deepEqual([...left].sort(), [rules, rulesDefaulted].sort(), "only the rules-shaped games survive — the legacy one, and the archived legacy one, are gone");
+  const hanging = async (table: typeof schema.arenaDecisions | typeof schema.arenaAiUsage | typeof schema.arenaAdvanceCalls | typeof schema.arenaFlags, ids: number[]) =>
+    (await db.select({ g: table.gameId }).from(table).where(inArray(table.gameId, ids))).map((r) => r.g).sort();
+  for (const table of [schema.arenaDecisions, schema.arenaAiUsage, schema.arenaAdvanceCalls, schema.arenaFlags]) {
+    assert.deepEqual(await hanging(table, [legacy, archivedLegacy]), [], "the dependents of a deleted legacy game are deleted with it");
+    assert.deepEqual(await hanging(table, [rules, rulesDefaulted]), [rules, rulesDefaulted].sort(), "a surviving game keeps its decisions, receipts, leases and flags");
+  }
+  const matchOf = async (id: number) => (await db.select({ g: schema.arenaMatches.gameId }).from(schema.arenaMatches).where(eq(schema.arenaMatches.id, id)))[0];
+  assert.deepEqual(await matchOf(legacyKids.match), { g: null }, "a lobby match survives with its game id cleared");
+  assert.deepEqual(await matchOf(rulesKids.match), { g: rules }, "a rules game's match keeps its game");
+  assert.deepEqual(await matchOf(defaultedKids.match), { g: rulesDefaulted });
+  const reportOf = async (id: number) => (await db.select({ g: schema.arenaFeedback.gameId, state: schema.arenaFeedback.state }).from(schema.arenaFeedback).where(eq(schema.arenaFeedback.id, id)))[0];
+  assert.deepEqual(await reportOf(legacyKids.report), { g: null, state: { kept: true } }, "a bug report keeps its own copy of the state and loses only the game id");
+  assert.equal((await reportOf(rulesKids.report)).g, rules);
+  assert.equal((await db.select({ id: schema.aiRuns.id }).from(schema.aiRuns).where(eq(schema.aiRuns.id, run.id))).length, 1, "the billing ledger (ai_runs) is untouched");
+  assert.equal((await client.query<{ column_default: string }>("select column_default from information_schema.columns where table_name = 'arena_games' and column_name = 'engine'")).rows[0].column_default, "'rules'::text", "new rows default to the rules engine");
 
-  // A `versus` row: one masked `Snapshot` per seat, gated the same way a live
-  // 1 v 1 is — before the store is ever read.
-  const store = { p1: snapshotFor("versus", "p1"), p2: snapshotFor("versus", "p2") };
-  assert.equal(archivedSnapshotFor(store, "p1")?.game.you, "p1", "the pure reader picks the asking seat's own board");
-  assert.equal(archivedSnapshotFor(store, null), null, "no `shared` key on a versus store, so no seat means no board");
+  // A stray legacy row that slipped through fails closed with a clear message, not a crash.
+  const stray = await game({ engine: "legacy", state: { turn: 4, players: {} } });
+  await assert.rejects(loadGame(db, stray), LegacyGameRetired, "a stray legacy row is refused by name");
+  await assert.rejects(loadGame(db, stray), /legacy engine, which has been retired/);
 
-  const [vs] = await db
-    .insert(schema.arenaGames)
-    .values({ p1Name: names.p1, p2Name: names.p2, p1User: "alice", p2User: "bob", seed: 3, mode: "versus", engine: "legacy", state: { turn: 4 }, snapshot: store })
-    .returning({ id: schema.arenaGames.id });
-
-  const archivedVs = await loadArchivedGame(db, vs.id);
-  assert.ok(archivedVs && isVersus(archivedVs.mode));
-  assert.equal(seatOf(archivedVs!, "alice"), "p1");
-  assert.equal(seatOf(archivedVs!, "bob"), "p2");
-  assert.equal(seatOf(archivedVs!, "carol"), null, "the versus gate holds for an archived row exactly as a live one's does");
-
-  assert.equal((await snapshotOf(db, vs.id, "p1"))?.game.you, "p1", "alice's seat gets alice's masked board");
-  assert.equal((await snapshotOf(db, vs.id, "p2"))?.game.you, "p2", "bob's seat gets bob's");
-  assert.equal(await snapshotOf(db, vs.id, null), null, "no seat, no board — the caller applies the gate before ever reaching this");
-
-  await db.delete(schema.arenaGames).where(inArray(schema.arenaGames.id, [hot.id, live.id, vs.id]));
+  await db.delete(schema.arenaMatches).where(inArray(schema.arenaMatches.id, [legacyKids.match, rulesKids.match, defaultedKids.match]));
+  await db.delete(schema.arenaFeedback).where(inArray(schema.arenaFeedback.id, [legacyKids.report, rulesKids.report, defaultedKids.report]));
+  await db.delete(schema.aiRuns).where(eq(schema.aiRuns.id, run.id));
+  await db.delete(schema.arenaGames).where(inArray(schema.arenaGames.id, [rules, rulesDefaulted, stray]));
 }
 
 // Issue #379: syncs write less (own file, own ids).
@@ -898,7 +850,6 @@ await (await import("./verify/arena-secret-auto-db.mts")).verifyArenaSecretAuto(
 await (await import("./verify/arena-priced-secret-auto-db.mts")).verifyArenaPricedSecretAuto(db);
 await (await import("./verify/arena-damage-statistics-db.mts")).verifyArenaDamageStatistics(db);
 await (await import("./verify/arena-free-extra-db.mts")).verifyArenaFreeExtra(db);
-await (await import("./verify/arena-extra-auto-db.mts")).verifyArenaExtraAuto(db);
 await (await import("./verify/arena-extra-auto-rules-db.mts")).verifyArenaExtraAutoRules(db);
 await (await import("./verify/arena-grant-identity-db.mts")).verifyArenaGrantIdentity(db);
 

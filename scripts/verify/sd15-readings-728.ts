@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { compileCard, compileSkill } from "../../src/lib/arena/compile";
 import type { VmState } from "../../src/lib/arena/vm/state";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { matches, parseFilter, emptyFilter, specifiedOrbsKnown } from "../../src/lib/arena/text/filters";
 import { parseSkills, skillsOf } from "../../src/lib/arena/text/cards";
@@ -50,7 +50,7 @@ add("R728-GOKU", { type: "BATTLE", colors: ["Red"], energyCost: 4, power: 20000,
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "the DBS ruleset should load");
 const DBS = loaded.definition;
-const rules = engineFor("rules");
+const rules = RULES;
 const deck = { seed: 728, p1: { name: "P1", leader: "L-RED", main: fifty("V1") }, p2: { name: "P2", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
 async function main(): Promise<void> {

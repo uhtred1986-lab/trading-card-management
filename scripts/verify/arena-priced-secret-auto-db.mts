@@ -5,7 +5,7 @@ import type { Db } from "../../src/db/index.ts";
 import { arenaGames } from "../../src/db/schema.ts";
 import { applyToGame, loadGame, StaleGame } from "../../src/lib/arena/games.ts";
 import { snapshotOfGame } from "../../src/lib/arena/session.ts";
-import { engineFor } from "../../src/lib/arena/engines.ts";
+import { RULES } from "../../src/lib/arena/vm/index.ts";
 import { rulesetFor } from "../../src/lib/arena/rulesets/index.ts";
 import { run } from "../../src/lib/arena/vm/flow.ts";
 import { moveCard } from "../../src/lib/arena/vm/zones.ts";
@@ -14,7 +14,7 @@ import type { EngineContext, PlayerId } from "../../src/lib/arena/types.ts";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness.ts";
 
 export async function verifyArenaPricedSecretAuto(db: Db): Promise<void> {
-  const engine = engineFor("rules");
+  const engine = RULES;
   const loadedRules = rulesetFor("dbs");
   assert.ok(loadedRules.ok);
   // Synthetic boundary record: no claim that this is a printed card.

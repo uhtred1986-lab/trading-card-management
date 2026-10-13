@@ -17,7 +17,7 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "./../src/db";
 import { arenaFeedback, cards as cardsTable } from "../src/db/schema";
-import type { GameState } from "../src/lib/arena/types";
+import type { VmState } from "../src/lib/arena/vm/state";
 import { loadRules } from "../src/lib/arena/rules-store";
 import { skillLines } from "../src/lib/arena/text/cards";
 import { cardDefFrom } from "../src/lib/arena/load";
@@ -71,14 +71,16 @@ for (const r of rows) {
     for (const line of log.slice(-12)) console.log(`    ${line}`);
   }
   if (one) {
-    const st = r.state as GameState | null;
+    const st = r.state as VmState | null;
     if (st) {
       console.log(`\n  seed ${st.seed}, ${(r.actions as unknown[])?.length ?? 0} actions — replay with those two.`);
       for (const p of ["p1", "p2"] as const) {
-        const ps = st.players[p];
+        const side = st.sides?.[p];
+        if (!side) continue; // a row the retired legacy engine wrote has no sides
         const nameOf = (id: string) => st.cards[id]?.cardId ?? id;
-        console.log(`  ${ps.name}: life ${ps.life.length}, hand ${ps.hand.length}, energy ${ps.energy.length} (${ps.energy.filter((i) => st.cards[i]?.mode === "active").length} active)`);
-        console.log(`     leader ${nameOf(ps.leader)}  battle [${ps.battle.map(nameOf).join(", ")}]`);
+        const z = side.zones;
+        console.log(`  ${side.name}: life ${z.life.length}, hand ${z.hand.length}, energy ${z.energy.length} (${z.energy.filter((i) => st.cards[i]?.mode === "active").length} active)`);
+        console.log(`     leader ${nameOf(z.leader[0])}  battle [${z.battle.map(nameOf).join(", ")}]`);
       }
     }
   }

@@ -1,13 +1,13 @@
 /**
- * Hidden instance ids never reach a board (`src/lib/arena/conceal.ts`), proved on both engines
+ * Hidden instance ids never reach a board (`src/lib/arena/conceal.ts`), proved on the rules engine
  * and for both seats, without a database.
  *
  * An instance id is a decklist position (`${p}#${n}`, made before the shuffle), so a hidden
  * card's id names it as surely as its face. #644 proved the policy observation free of them;
  * this proves the online `Snapshot` — what the web board and the Android app are sent — is too.
  *
- *   1. Positions. Games on each engine (`engineFor`, through the server's own `buildSnapshot`)
- *      and, on the rules engine, #641's fixed-seed game and every #642 scenario (through
+ *   1. Positions. Games on the rules engine (through the server's own `buildSnapshot`)
+ *      and #641's fixed-seed game and every #642 scenario (through
  *      `projectSnapshot`, the same core), drawn for p1 and for p2 in a 1 v 1 and for the human
  *      against Claude:
  *        - no hidden id: no instance id the viewer may not read (the test's own list: the other
@@ -15,8 +15,7 @@
  *          snapshot, as a value or as a key;
  *        - permutation invariance: swapping the identities, order and instance ids of every card
  *          the viewer cannot see leaves the snapshot byte-identical;
- *        - negative control: the same twin *is* told apart on a board left unconcealed, on each
- *          engine and for each seat — the check is not vacuous;
+ *        - negative control: the same twin *is* told apart on a board left unconcealed, for each seat — the check is not vacuous;
  *        - round trip: every move in the asked seat's `legal` resolves (`resolveAliased`) to
  *          exactly the engine's move at that index;
  *        - refusals: an alias this seat was not given (another seat's, or a position that no
@@ -30,9 +29,11 @@ import { fixtureBundle, FIXTURE_REVISION, FIXTURE_SEED } from "./arena-browser-f
 import { pick } from "./arena-browser-scenario.ts";
 import { renamed, shuffled, strings, testRandom } from "./arena-policy-permute.ts";
 import { runScenario, scenarioIds } from "./arena-scenarios.ts";
-import { engineFor, type EngineId, type EngineState } from "../../src/lib/arena/engines.ts";
+import type { EngineState } from "../../src/lib/arena/engines.ts";
+import type { EngineId } from "../../src/lib/arena/engine-ids.ts";
+import { RULES } from "../../src/lib/arena/vm/index.ts";
 import { appendBeats } from "../../src/lib/arena/beats-core.ts";
-import { buildSnapshot, buildSnapshotWith, buildUnconcealedSnapshotForProof, type Snapshot, type SnapshotInput } from "../../src/lib/arena/snapshot.ts";
+import { buildSnapshot, buildUnconcealedSnapshotForProof, type Snapshot, type SnapshotInput } from "../../src/lib/arena/snapshot.ts";
 import { applyMove, createPinnedMatch, legalMoves, projectSnapshot, type PinnedMatch } from "../../src/lib/arena/browser.ts";
 import { ALIAS_PATTERN, hiddenAliases, resolveAliased } from "../../src/lib/arena/conceal.ts";
 import { canonicalJson } from "../../src/lib/arena/replay-core.ts";
@@ -45,15 +46,13 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const tally = { positions: 0, boards: 0, permutations: 0, nontrivial: 0, controls: new Set<string>(), roundTrips: 0, foreign: 0, stale: 0, raw: 0 };
 
 // ---------------------------------------------------------------------------------------------
-// The test's own reading of either engine's state — not `conceal.ts`'s.
+// The test's own reading of the engine's state — not `conceal.ts`'s.
 
 type Zones = Record<string, string[]>;
 type AnyCard = { cardId: string; owner: PlayerId; hidden?: boolean; faceUp?: boolean };
 
 function zonesOf(state: EngineState, p: PlayerId): Zones {
-  if ("sides" in state) return state.sides[p].zones as Zones;
-  const s = state.players[p];
-  return { deck: s.deck, hand: s.hand, life: s.life, zDeck: s.zDeck, drop: s.drop, warp: s.warp, battle: s.battle, combo: s.combo, energy: s.energy, zEnergy: s.zEnergy, removed: s.removed ?? [], leader: [s.leader], unison: s.unison ? [s.unison] : [] };
+  return state.sides[p].zones as Zones;
 }
 
 /** What `seat` may not read: the other hand and Z-Deck, both decks and lives, face down; Hidden Mode anywhere; less what its own question shows it. */
@@ -193,12 +192,12 @@ function checkBoard(b: Board): Snapshot {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 1. Both engines, through the server's `buildSnapshot`.
+// 1. The rules engine, through the server's `buildSnapshot`.
 
 const MIX = (v: string) => ["DRAWER", "PUMP", "BLOCKER", "CRIT", "KILLER", "BIG", "E-DRAW", "FLIPPER", "LIFEGIVER", v].flatMap((id) => Array.from({ length: 5 }, () => id));
 
-for (const engineId of ["legacy", "rules"] as EngineId[]) {
-  const engine = engineFor(engineId);
+for (const engineId of ["rules"] as EngineId[]) {
+  const engine = RULES;
   for (const seed of [3, 17]) {
     const created = engine.createGame(CTX, { seed, p1: { name: "Red", leader: "L-RED", main: MIX("V1") }, p2: { name: "Blue", leader: "L-BLUE", main: MIX("V-BLUE") } });
     let state = created.state;
@@ -207,7 +206,7 @@ for (const engineId of ["legacy", "rules"] as EngineId[]) {
       tally.positions++;
       const legal = engine.legalActions(CTX, state);
       const input = (mode: "versus" | "sparring", viewer: PlayerId | null) => (s: EngineState, q: Beats | null): SnapshotInput => ({
-        id: 1, revision: n, mode, engine: engineId, status: "playing", p1Name: "Red", p2Name: "Blue", ctx: CTX, state: s,
+        id: 1, revision: n, mode, status: "playing", p1Name: "Red", p2Name: "Blue", ctx: CTX, state: s,
         legal: engine.legalActions(CTX, s), log: [], beats: q, spotlight: null,
         spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: mode === "sparring" ? "p2" : null, viewer, images: {},
       });
@@ -221,7 +220,7 @@ for (const engineId of ["legacy", "rules"] as EngineId[]) {
           engine: engineId, seat, state, legal, beats, salt: seed * 1000 + n * 3 + (seat === "p1" ? 1 : 2),
           otherAliases: other ? aliasesIn(other) : new Set(),
           control: n >= 10,
-          build: (s, q, unconcealed) => (unconcealed ? buildUnconcealedSnapshotForProof((id) => engineFor(id), make(s, q)) : buildSnapshot(make(s, q))),
+          build: (s, q, unconcealed) => (unconcealed ? buildUnconcealedSnapshotForProof(make(s, q)) : buildSnapshot(make(s, q))),
         });
       }
       // The 1 v 1 seats, the other way round, so p1 is also offered p2's aliases.
@@ -274,10 +273,9 @@ for (const id of scenarioIds()) {
   assert.ok(evidence.pass, `scenario ${id} still passes with the observer attached`);
 }
 
-// `buildSnapshotWith` is the one door: the browser entry and the server entry conceal alike.
-assert.equal(typeof buildSnapshotWith, "function");
+// `buildSnapshot` is the one door: the browser entry and the server entry conceal alike.
 assert.ok(tally.foreign > 0 && tally.stale > 0 && tally.raw > 0, "every refusal was exercised");
 assert.ok(tally.nontrivial > tally.permutations / 2, `most permuted states really differ (${tally.nontrivial} of ${tally.permutations})`);
 
-console.log(`arena-snapshot-conceal: ${tally.positions} positions, ${tally.boards} boards on both engines; ${tally.permutations} permuted hidden states (${tally.nontrivial} differing) drawn byte-identically`);
+console.log(`arena-snapshot-conceal: ${tally.positions} positions, ${tally.boards} boards on the rules engine; ${tally.permutations} permuted hidden states (${tally.nontrivial} differing) drawn byte-identically`);
 console.log(`  negative control caught on ${[...tally.controls].sort().join(", ")}; ${tally.roundTrips} legal moves resolved to the engine's own; refusals: ${tally.foreign} foreign, ${tally.stale} stale, ${tally.raw} raw hidden ids; ${((Date.now() - started) / 1000).toFixed(1)} s`);

@@ -1,68 +1,28 @@
 /**
- * The engines a game can be played on, and the one switch between them.
+ * The engine interface and the one engine behind it.
  *
- * `legacy` is the hand-written engine in `./engine/`, which plays the
- * original game's rule manual as TypeScript. `rules` is the
- * configuration-driven engine built beside it (`./vm/`,
- * `docs/arena-ruleset-spec.md`) and, since #166 (20 Sep 2026), the
- * `DEFAULT_ENGINE`. It is listed, described and resolvable here — a call it
- * cannot answer says which issue builds it. A game that reaches what it does
- * not build ends rather than continuing (`vm/flow.ts`'s `stepProgram`).
+ * The rules engine (`./vm/`, `docs/arena-ruleset-spec.md`) is the only engine:
+ * the hand-written legacy engine and the `engineFor` switch between the two
+ * were deleted by #118 (owner, 13 Oct 2026). `Engine` stays as the interface
+ * a second game's definition would meet — `RULES` satisfies it — and the
+ * saved-game layer reads a state through `rulesState`, which refuses what the
+ * rules engine did not write.
  *
- * The flip changed the default and nothing else: `ENGINE_INFO[id].available`
- * still says which engines a new game may be made on at all, the `arena.engine`
- * setting still overrides the constant (`engine-setting.ts`), and the one mode
- * the rules engine is not built for — a 1 v 1, whose hidden-hand masking still
- * reads the legacy `GameState` (#162) — resolves to `FALLBACK_ENGINE` through
- * `games.ts`'s `engineForMode` instead of refusing the default path.
- *
- * A game picks its engine when it is made (`arena_games.engine`) and keeps it:
- * `state` is the shape that engine writes, and `actions` replay only on it.
- * Everything that plays a saved game goes through `engineFor(row.engine)` and
- * never imports `./engine` for the purpose — that is what lets the old engine
- * keep working untouched while the new one is proven against it.
- *
- * Pure: no database (the default-engine setting is `engine-setting.ts`), so
- * `snapshot.ts` and the tests can use it.
+ * Pure: no database, so `snapshot.ts` and the tests can use it.
  */
-import { abilityAvailability as legacyAbilityAvailability, apply, createGame, legalActions, rejectedActions } from "./engine";
-import { type AbilityAvailability, type Action, type EngineContext, type GameEvent, type GameOptions, type GameState, type LegalAction, type PlayerId, type RejectedAction } from "./types";
-import { toBeats, type Beats } from "./beats";
-import { boardView, type BoardView, type CardArt } from "./view";
-import { RULES } from "./vm";
+import { type AbilityAvailability, type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type PlayerId, type RejectedAction } from "./types";
+import type { Beats } from "./beats";
+import type { BoardView, CardArt } from "./view";
 import { isVmState, type VmState } from "./vm/state";
-import { ENGINE_INFO, type EngineId } from "./engine-ids";
+import type { EngineId } from "./engine-ids";
 
 export { isVmState };
+export { DEFAULT_ENGINE, ENGINE_IDS, ENGINE_INFO, type EngineId, type EngineInfo } from "./engine-ids";
 
-// Ids, descriptions and the default/fallback live in `engine-ids.ts` (#641),
-// which loads neither engine; they are re-exported here unchanged.
-export { AVAILABLE_ENGINES, DEFAULT_ENGINE, ENGINE_IDS, ENGINE_INFO, FALLBACK_ENGINE, engineOr, isEngineId, type EngineId, type EngineInfo } from "./engine-ids";
+/** The state shape the engine writes. To the saved-game layer it is opaque JSON in `arena_games.state`. */
+export type EngineState = VmState;
 
-/**
- * The state shapes an engine may write.
- *
- * To the saved-game layer a state is opaque: it is stored as JSON in
- * `arena_games.state` and handed back to the engine that wrote it. Naming the
- * two shapes in one union is what lets the switch below be typed at all — and
- * what lets `legacyState` refuse a state the caller was about to read with
- * the wrong engine's eyes.
- */
-export type EngineState = GameState | VmState;
-
-/**
- * What the saved-game layer asks of an engine.
- *
- * Six calls, and the last two are the ones Stage 0 left out: `snapshot.ts`
- * needs a board drawn from a state it cannot read, and `games.ts` needs that
- * state's events turned into beats. Both were legacy imports until now, which
- * is the thing that gave a second engine nowhere to stand.
- *
- * Every parameter is `EngineState` rather than one engine's shape, because an
- * engine is chosen at runtime from a column; each implementation narrows to
- * its own. That narrowing is safe for the same reason the column exists: a
- * game keeps the engine it was made on.
- */
+/** What the saved-game layer asks of an engine. */
 export interface Engine {
   id: EngineId;
   createGame(ctx: EngineContext, options: GameOptions): { state: EngineState; events: GameEvent[] };
@@ -78,107 +38,35 @@ export interface Engine {
 }
 
 /**
- * The legacy engine is an **adapter and nothing else**: every call is the
- * function the old engine already exported, reached through the interface
- * instead of by import. Nothing about how a legacy game plays changes here,
- * which is what makes `arena:diff` and the contract fixtures the proof that
- * this commit moved no behaviour.
+ * A saved game the rules engine did not write — a row from the retired legacy
+ * engine that the cleanup migration (`0050`) somehow missed. It fails closed
+ * with this message instead of being read as something it is not.
  */
-const LEGACY: Engine = {
-  id: "legacy",
-  createGame,
-  apply,
-  legalActions,
-  rejectedActions,
-  abilityAvailability: (ctx, state, player, legal, rejected) => legacyAbilityAvailability(ctx, legacyState(state), player, legal, rejected),
-  boardView,
-  toBeats,
-};
-
-export class EngineNotBuilt extends Error {
-  constructor(id: EngineId) {
-    super(`the ${ENGINE_INFO[id].label} cannot play a game yet`);
-    this.name = "EngineNotBuilt";
+export class LegacyGameRetired extends Error {
+  constructor() {
+    super("this game was saved on the legacy engine, which has been retired; it can no longer be opened");
+    this.name = "LegacyGameRetired";
   }
 }
 
-/**
- * The one switch: the engine that wrote a state is the engine that reads it.
- *
- * Every id resolves — an engine that cannot play a game yet still answers for
- * the rows and the tests that name it, and refuses per call (`NotYet`) rather
- * than as a whole. Whether a *new* game may be made on it is a different
- * question, and `playableEngine` is where it is asked.
- */
-export function engineFor(id: EngineId): Engine {
-  return id === "rules" ? RULES : LEGACY;
+/** A stored state as the rules engine's `VmState`, or `LegacyGameRetired`. */
+export function rulesState(value: unknown): VmState {
+  if (!isVmState(value)) throw new LegacyGameRetired();
+  return value;
 }
 
-/**
- * The engine a new game may be created on, or `EngineNotBuilt`.
- *
- * `engineFor` used to throw this, which conflated two things: resolving the
- * interpreter for a row that already exists, and letting someone start a game
- * on an engine that cannot finish one. The availability flag is the honest
- * test of the second, and it is the same one `engine-setting.ts` already
- * applies to the default-engine setting.
- */
-export function playableEngine(id: EngineId): Engine {
-  if (!ENGINE_INFO[id].available) throw new EngineNotBuilt(id);
-  return engineFor(id);
-}
-
-/**
- * A state written by one engine, about to be read by another. Only reachable
- * through a hand-edited row or a bug in the switch — which is exactly why it
- * says both names.
- */
-export class EngineMismatch extends Error {
-  constructor(wrote: EngineId, reading: EngineId) {
-    super(`this game was made on the ${ENGINE_INFO[wrote].label} and cannot be read by the ${ENGINE_INFO[reading].label}`);
-    this.name = "EngineMismatch";
-  }
-}
-
-/**
- * A state the app layer around the switch may read as the legacy `GameState`.
- *
- * Most of the app outside the six engine calls reads only the fields the two
- * state shapes already share by name — `turn`, `phase`, `winner`,
- * `overReason`, `prompt`, `cards` — and is engine-generic for that reason
- * (`games.ts`, `snapshot.ts`), and Claude's side reads either shape through
- * `ai/table.ts` (#457). What still reads the legacy shape is code only a
- * legacy game reaches — the referee in `ai/run.ts`, since the rules engine
- * never puts a `referee` prompt. This is the seam for exactly that code, and
- * it is a *check* rather than a cast — a `rules` state reaching it throws by
- * name instead of reading every field as `undefined`.
- */
-export function legacyState(value: unknown): GameState {
-  if (isVmState(value)) throw new EngineMismatch("rules", "legacy");
-  return value as GameState;
-}
-
-/**
- * One side's name, off whichever shape wrote this state (`.players[p].name`
- * on the legacy engine, `.sides[p].name` on the rules engine) — the one field
- * the two keep under a different top-level key but the same name, and so the
- * one reading generic enough to be worth a function rather than a
- * `legacyState` narrowing at every call site that only ever wants this.
- * `games.ts`'s log narration and the board's game-over screen are both this
- * reading and nothing more.
- */
+/** One side's name. */
 export function sideName(state: EngineState, p: PlayerId): string {
-  return isVmState(state) ? state.sides[p].name : state.players[p].name;
+  return state.sides[p].name;
 }
 
 /**
  * How much damage this side has taken (21-3), for the game-over screen.
  *
- * Both engines accumulate their `damage` event amounts. A rules-engine save
- * from before that counter existed has no lifetime figure to show: its
+ * A save from before the lifetime counter existed has no figure to show: its
  * absent counter is unavailable, never a fabricated zero or a partial total.
  */
 export function damageTaken(state: EngineState, p: PlayerId): number | null {
-  const count = isVmState(state) ? state.damageTotals?.[p] : state.players[p].damageTaken;
+  const count = state.damageTotals?.[p];
   return typeof count === "number" && Number.isSafeInteger(count) && count >= 0 ? count : null;
 }

@@ -10,7 +10,6 @@ import { comboBattleEndFromHand, comboBattleEndOpponentTurn } from "../../src/li
 import {
   CTX,
   DEFS,
-  ENGINE,
   actsG,
   assertConsistentG,
   autoTriggerMatches,
@@ -1275,15 +1274,13 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   const theirHand = zoneOf(s, "p2", "hand").length;
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "BOUNCE") });
   if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [grudge] });
-  if (ENGINE === "rules") {
-    assert.equal(s.prompt.kind, "orderPending", "GRUDGE's hidden [Auto] awaits its master's declaration");
-    const pending = s as VmState;
-    const choices = pending.prompt.kind === "orderPending" ? pending.prompt.candidates : [];
-    assert.deepEqual(choices, [0]);
-    assert.deepEqual([pending.pending[0]?.card, pending.pending[0]?.master, pending.pending[0]?.skillIndex], [grudge, "p2", 0]);
-    assert.ok(actsG(s).some((action) => action.type === "orderPending" && action.player === "p2" && action.index === 0 && !action.decline));
-    s = playG(s, { type: "orderPending", player: "p2", index: 0 });
-  }
+  assert.equal(s.prompt.kind, "orderPending", "GRUDGE's hidden [Auto] awaits its master's declaration");
+  const pending = s as VmState;
+  const choices = pending.prompt.kind === "orderPending" ? pending.prompt.candidates : [];
+  assert.deepEqual(choices, [0]);
+  assert.deepEqual([pending.pending[0]?.card, pending.pending[0]?.master, pending.pending[0]?.skillIndex], [grudge, "p2", 0]);
+  assert.ok(actsG(s).some((action) => action.type === "orderPending" && action.player === "p2" && action.index === 0 && !action.decline));
+  s = playG(s, { type: "orderPending", player: "p2", index: 0 });
   // The card itself came back to hand, and the skill drew them one more.
   assert.equal(zoneOf(s, "p2", "hand").length, theirHand + 2, "3-1: it was removed, and it noticed");
   assertConsistentG(s);
@@ -1542,23 +1539,11 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   const blue = findG(s, "p1", "hand", "V-BLUE");
   {
     s = playG(s, { type: "choose", player: "p1", cards: [reds[0]] });
-    if (ENGINE === "rules") {
-      assert.ok(zoneOf(s, "p1", "drop").includes(reds[0]) && zoneOf(s, "p1", "drop").includes(blue), "the forced sole Blue completes the required cost without an optional partial choice");
-      assert.ok(!zoneOf(s, "p1", "drop").includes(reds[1]), "the extra Red is not paid");
-      assert.equal(s.prompt.kind, "chooseCards", "after the forced color completion, the next choice is for energy");
-      assert.match((s.prompt as { choice: { reason: string } }).choice.reason, /energy to switch/);
-      assertConsistentG(s);
-    } else {
-      assert.equal(s.prompt.kind, "chooseCards", "blue is still to cover");
-      const menu = (s.prompt as { choice: { candidates: string[]; min: number } }).choice;
-      assert.deepEqual(menu.candidates, [blue], "only the card that covers what is missing");
-      assert.equal(menu.min, 1, "and stopping here is not on the menu");
-      assert.ok(!labelsG(s).includes("Choose none"));
-      s = playG(s, { type: "choose", player: "p1", cards: [blue] });
-      assert.ok(zoneOf(s, "p1", "drop").includes(reds[0]) && zoneOf(s, "p1", "drop").includes(blue), "22-30-3: a covering pair");
-      assert.ok(!zoneOf(s, "p1", "drop").includes(reds[1]), "and only the two it needed");
-      assertConsistentG(s);
-    }
+    assert.ok(zoneOf(s, "p1", "drop").includes(reds[0]) && zoneOf(s, "p1", "drop").includes(blue), "the forced sole Blue completes the required cost without an optional partial choice");
+    assert.ok(!zoneOf(s, "p1", "drop").includes(reds[1]), "the extra Red is not paid");
+    assert.equal(s.prompt.kind, "chooseCards", "after the forced color completion, the next choice is for energy");
+    assert.match((s.prompt as { choice: { reason: string } }).choice.reason, /energy to switch/);
+    assertConsistentG(s);
   }
 }
 
@@ -1574,10 +1559,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   s = playG(s, { type: "attack", player: "p2", attacker: leaderOf(s, "p2"), target: leaderOf(s, "p1") }, { type: "pass", player: "p2" });
   assert.ok(canActivateG(s, aeg), "one card covering both is enough to activate");
   s = playG(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
-  const purple = ENGINE === "rules"
-    ? zoneOf(s, "p1", "drop").find((id) => s.cards[id].cardId === "PURPLE")!
-    : findG(s, "p1", "hand", "PURPLE");
-  if (ENGINE !== "rules") s = playG(s, { type: "choose", player: "p1", cards: [purple] });
+  const purple = zoneOf(s, "p1", "drop").find((id) => s.cards[id].cardId === "PURPLE")!;
   assert.ok(zoneOf(s, "p1", "drop").includes(purple), "it paid the whole cost by itself");
   assertConsistentG(s);
 }
@@ -1593,18 +1575,8 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   DEFS.LEADS = { ...DEFS.V1, id: "LEADS", name: "LEADS", power: 20000, skill: "[Alliance Red] When this card attacks, this card gets +5000 power for the battle." };
   let s = stagedG({ battle: ["LEADS", "ALLY"] });
   const leads = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === "LEADS")!;
-  const ally = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === "ALLY")!;
-  const hand = zoneOf(s, "p1", "hand").length;
   s = playG(s, { type: "attack", player: "p1", attacker: leads, target: leaderOf(s, "p2") });
-  if (ENGINE === "rules") {
-    assert.equal((s as VmState).outcome?.kind, "interrupted", "the unsupported Auto action price interrupts instead of silently taking no payment");
-  } else {
-  assert.equal(s.prompt.kind, "chooseCards", "22-32-3: which cards to rest as the cost");
-  s = playG(s, { type: "choose", player: "p1", cards: [ally] });
-  assert.equal(s.cards[ally].mode, "rest", "it was rested to pay");
-  assert.equal(zoneOf(s, "p1", "hand").length, hand + 1, "and it noticed");
-  assertConsistentG(s);
-  }
+  assert.equal((s as VmState).outcome?.kind, "interrupted", "the unsupported Auto action price interrupts instead of silently taking no payment");
 }
 
 {

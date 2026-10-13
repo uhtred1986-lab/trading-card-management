@@ -4,14 +4,12 @@ import { compileCostProgram, compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { validateProgram } from "../../src/lib/arena/vm/script";
-import { addSkip as legacySkip, playCost as legacyPlayCost, taxesOn as legacyTaxes } from "../../src/lib/arena/engine/state";
 import { addSkip as rulesSkip } from "../../src/lib/arena/vm/skips";
 import { attrsNow, taxesOn as rulesTaxes } from "../../src/lib/arena/vm/program";
-import { isVmState } from "../../src/lib/arena/engines";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { EngineState } from "../../src/lib/arena/engines";
-import { CTX, DEFS, ENGINE, IMPL, arenaG, assertConsistentG, card, leaderOf, powerOfG, zoneOf } from "./harness";
+import { CTX, DEFS, IMPL, arenaG, assertConsistentG, card, leaderOf, powerOfG, zoneOf } from "./harness";
 
 const CHARGE = "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards, switch it to Rest Mode, and it can't switch to Active Mode during your opponent's next Charge Phase.";
 const POWER = "[Auto] When you play this card, this card gains +5000 power until the beginning of your next turn.";
@@ -57,7 +55,7 @@ if (chain.ops[0]?.op === "chooseMode") assert.deepEqual(chain.ops[0].modes[1]?.o
 
 function take(state: EngineState, action: Action): { state: EngineState; events: GameEvent[] } {
   assert.ok(IMPL.legalActions(CTX, state).some((row) => JSON.stringify(row.action) === JSON.stringify(action)),
-    `${ENGINE}: expected ${JSON.stringify(action)} at ${state.prompt.kind}`);
+    `rules: expected ${JSON.stringify(action)} at ${state.prompt.kind}`);
   return IMPL.apply(CTX, state, action);
 }
 
@@ -135,9 +133,7 @@ unavailable("C574-DESIRE", ["V1"]); // printed energy cost exceeds current energ
   const id = zoneOf(state, "p1", "hand").find((item) => state.cards[item].cardId === "C574-DESIRE")!;
   state.effects.push({ id: 5744, target: id, kind: "cost", value: 1, until: "turn",
     source: leader, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
-  const currentCost = isVmState(state)
-    ? (() => { const loaded = rulesetFor("dbs"); if (!loaded.ok) throw Error("DBS ruleset did not load"); return attrsNow(CTX, loaded.definition, state, id).costOf; })()
-    : legacyPlayCost(CTX, state, id).total;
+  const currentCost = (() => { const loaded = rulesetFor("dbs"); if (!loaded.ok) throw Error("DBS ruleset did not load"); return attrsNow(CTX, loaded.definition, state, id).costOf; })();
   assert.equal(currentCost, 1, "20-21 reduces the eligible Desire's current energy cost below its printed 2");
   state = take(state, { type: "activate", player: "p1", card: leader, skill: parseSkills(WISH)[0]!.index }).state;
   assert.equal(state.prompt.kind, "chooseMode", "the reduced-cost Desire branch is offered");
@@ -189,9 +185,7 @@ unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
     state.effects.push({ id: 5743, target: id, kind: "forbid", value: 0,
       forbid: { what: "activateSkill", pay: price!.ops }, until: "turn",
       source: leader, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
-    const taxes: ReturnType<typeof legacyTaxes> = isVmState(state)
-      ? rulesTaxes(CTX, loaded.definition, state, "activateSkill", { player: "p1", card: id })
-      : legacyTaxes(CTX, state, "activateSkill", { player: "p1", card: id });
+    const taxes = rulesTaxes(CTX, loaded.definition, state, "activateSkill", { player: "p1", card: id });
     assert.equal(taxes.length, 1, "#677: existing readers recognise the extra activation price");
     assert.deepEqual(taxes[0].ops, price!.ops);
     if (nested) {
@@ -238,7 +232,7 @@ unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
   assert.equal(state.prompt.kind, "chooseCards");
   if (state.prompt.kind !== "chooseCards") throw Error("Desire hand choice missing");
   assert.deepEqual(state.prompt.choice.candidates, desires);
-  const observer = buildSnapshot({ id: 574, revision: 2, mode: "versus", engine: ENGINE, status: "playing",
+  const observer = buildSnapshot({ id: 574, revision: 2, mode: "versus", status: "playing",
     p1Name: "Player 1", p2Name: "Player 2", ctx: CTX, state, legal: [], log: [], beats: IMPL.toBeats(CTX, state, [], 0), spotlight: null,
     spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p2", images: {} });
   assert.ok(!JSON.stringify(observer).includes("C574-DESIRE"), "opponent view masks hand Desire identities and choice candidates");
@@ -315,8 +309,7 @@ for (const transfer of [false, true]) {
   let state = arenaG({ hand: ["C574-LOCK"], oppBattle: ["C574-VICTIM"] });
   const lockCard = zoneOf(state, "p1", "hand").find((id) => state.cards[id].cardId === "C574-LOCK")!;
   const victim = zoneOf(state, "p2", "battle").find((id) => state.cards[id].cardId === "C574-VICTIM")!;
-  if (isVmState(state)) rulesSkip(state, "p2", "charge", "next");
-  else legacySkip(state, "p2", "charge", "next");
+  rulesSkip(state, "p2", "charge", "next");
   state = take(state, { type: "play", player: "p1", card: lockCard }).state;
   state = take(state, { type: "choose", player: "p1", cards: [victim] }).state;
   assert.ok(state.effects.some((effect) => effect.until === "afterOpponentCharge" && effect.target === victim));
@@ -357,8 +350,7 @@ for (const skipDue of [false, true]) {
   zoneOf(state, "p2", "battle").push(target);
   state.cards[target].mode = "rest";
   if (skipDue) {
-    if (isVmState(state)) rulesSkip(state, "p2", "charge", "next");
-    else legacySkip(state, "p2", "charge", "next");
+    rulesSkip(state, "p2", "charge", "next");
   }
   const beforeDue = JSON.parse(JSON.stringify(state)) as EngineState;
   const due = take(state, { type: "endMain", player: "p1" });
@@ -392,7 +384,7 @@ for (const skipDue of [false, true]) {
   assert.equal(state.prompt.kind, "chooseCards");
   if (state.prompt.kind !== "chooseCards") throw Error("search choice missing");
   assert.ok(state.prompt.choice.candidates.includes(lifeBall) && state.prompt.choice.candidates.includes(deckBall));
-  const p2 = buildSnapshot({ id: 574, revision: 1, mode: "versus", engine: ENGINE, status: "playing",
+  const p2 = buildSnapshot({ id: 574, revision: 1, mode: "versus", status: "playing",
     p1Name: "Player 1", p2Name: "Player 2", ctx: CTX, state, legal: [], log: [], beats: IMPL.toBeats(CTX, state, started.events, 0),
     spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p2", images: {} });
   assert.ok(!JSON.stringify(p2).includes("C574-DRAGON"), "opponent's public view does not reveal searched Life/Deck identity");

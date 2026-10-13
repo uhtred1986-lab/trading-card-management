@@ -16,7 +16,7 @@ import { db } from "../src/db";
 import { cardRules, cards as cardsTable, decks } from "../src/db/schema";
 import { DEFAULT_GAME } from "../src/lib/catalog/games";
 import type { CostRecord } from "../src/lib/arena/draft";
-import { emitsStatic } from "../src/lib/arena/engine/state";
+import { emitsStatic } from "./lib/emits-static";
 import { MECHANISMS, PHRASING_ONLY, clauseShape, mechanismNeeds, mechanismOf } from "../src/lib/arena/gaps";
 import { deckInputFor } from "../src/lib/arena/load";
 import { programOf, type RuleRow } from "../src/lib/arena/rules-store";

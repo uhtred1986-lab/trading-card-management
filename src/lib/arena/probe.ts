@@ -24,9 +24,9 @@ import { matches, parseFilter, type CardFilter } from "./text/filters";
 import { resolvePath } from "./lang/path";
 import { countArea, countSide, edgeScenarios, edgeTitle, knobWords, ruleViewOf, splitKey, STAGEABLE_AREAS } from "./probe-edges";
 import { heldFrom, instrument, instrumentProgram, isMarker, looksHoisted } from "./probe-trace";
-import { engineFor, FALLBACK_ENGINE, isVmState, type Engine, type EngineId, type EngineState } from "./engines";
+import type { Engine, EngineState } from "./engines";
+import { RULES } from "./vm";
 import { leaderOf, zoneOf } from "./engine-state";
-import { addEffect, move, placeUnder } from "./engine/state";
 import { addEffect as vmAddEffect } from "./vm/effects";
 import { moveCard } from "./vm/zones";
 import { sentence } from "./wording";
@@ -397,14 +397,12 @@ function drive(impl: Engine, ctx: EngineContext, s: EngineState, actions: Action
  * hands emptied to the bottom of the deck so only what the probe stages is in
  * them.
  *
- * The same walk on either engine — the prompts are one union — and the same
- * board: what differs is only how the area is read (`zoneOf`, the seam
- * `engine-state.ts` offers) and how a card is sent to the bottom of the deck,
- * which on the rules engine is the declared-zone mover (`vm/zones.ts`) rather
- * than the legacy `move`. Neither is a move a rule makes, so no moment fires.
+ * The areas are read through `zoneOf` (the seam `engine-state.ts` offers) and a
+ * card is sent to the bottom of the deck by the declared-zone mover
+ * (`vm/zones.ts`). That is not a move a rule makes, so no moment fires.
  */
-function opening(ctx: EngineContext, engine: EngineId, actor: PlayerId): EngineState {
-  const impl = engineFor(engine);
+function opening(ctx: EngineContext, actor: PlayerId): EngineState {
+  const impl: Engine = RULES;
   let s = impl.createGame(ctx, { seed: 7, p1: { name: "You", leader: LEADER, main: deck(FILLER) }, p2: { name: "Opponent", leader: THEIR_LEADER, main: deck(FILLER) } }).state;
   const chooser = (s.prompt as { player: PlayerId }).player;
   s = drive(impl, ctx, s, [{ type: "chooseFirst", player: chooser, first: YOU }]);
@@ -422,12 +420,10 @@ function opening(ctx: EngineContext, engine: EngineId, actor: PlayerId): EngineS
   return s;
 }
 
-/** Move a card to an area of the board on whichever engine wrote it, with no event and no moment. */
-function send(ctx: EngineContext, s: EngineState, id: string, area: "hand" | "battle" | "energy" | "unison" | "drop" | "combo" | "deck" | "life", p: PlayerId, opts: { position?: "top" | "bottom" } = {}): void {
-  if (isVmState(s)) {
-    const r = moveCard(s, rulesDefinition(), id, area, { owner: p, ...opts });
-    if (!r.ok) throw new Error(`the probe could not stage ${id} in the ${area}: ${r.refused}`);
-  } else move(ctx, s, [], id, area, p, opts);
+/** Move a card to an area of the board with no event and no moment. */
+function send(_ctx: EngineContext, s: EngineState, id: string, area: "hand" | "battle" | "energy" | "unison" | "drop" | "combo" | "deck" | "life", p: PlayerId, opts: { position?: "top" | "bottom" } = {}): void {
+  const r = moveCard(s, rulesDefinition(), id, area, { owner: p, ...opts });
+  if (!r.ok) throw new Error(`the probe could not stage ${id} in the ${area}: ${r.refused}`);
 }
 
 const deck = (id: string) => Array.from({ length: 50 }, () => id);
@@ -438,10 +434,8 @@ function put(ctx: EngineContext, s: EngineState, p: PlayerId, cardId: string, ar
   const inst = pile[pile.length - 1];
   s.cards[inst].cardId = cardId;
   // The relabel is a new card as far as 14-1-4 goes: the rules engine's flag for a Z-card was set from the card this copy was dealt as.
-  if (isVmState(s)) {
-    if (isZ(ctx.defs[cardId])) s.cards[inst].zCard = true;
-    else delete s.cards[inst].zCard;
-  }
+  if (isZ(ctx.defs[cardId])) s.cards[inst].zCard = true;
+  else delete s.cards[inst].zCard;
   send(ctx, s, inst, area, p);
   return inst;
 }
@@ -526,14 +520,13 @@ function copiesFrom(ops: Op[]): { side?: string; area?: string } | null {
   return {};
 }
 
-/** 23-2: one card under another, on whichever engine wrote the board. */
-function placeUnderCard(ctx: EngineContext, s: EngineState, id: string, host: string): void {
-  if (isVmState(s)) moveCard(s, rulesDefinition(), id, "drop", { under: host });
-  else placeUnder(ctx, s, [], id, host);
+/** 23-2: one card under another. */
+function placeUnderCard(s: EngineState, id: string, host: string): void {
+  moveCard(s, rulesDefinition(), id, "drop", { under: host });
 }
 
-function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId, trace = false): Staged {
-  const impl = engineFor(engine);
+function stage(rule: ProbeRule, scenario: ProbeScenario, trace = false): Staged {
+  const impl: Engine = RULES;
   const { defs, scripts } = propsFor(rule, trace);
   const ctx: EngineContext = { defs, scripts };
   const family = scenario.family;
@@ -554,7 +547,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId, trace
   const turn = Object.values(knobs).find((v): v is "you" | "opponent" => v === "you" || v === "opponent");
   const actor: PlayerId = turn ? (turn === "you" ? YOU : THEM) : theirs ? THEM : YOU;
 
-  const s = opening(ctx, engine, actor);
+  const s = opening(ctx, actor);
   const input: string[] = [`${actor === YOU ? "your" : "the opponent's"} Main Phase, turn ${s.turn}`];
 
   // The card under test, where its skill is valid — or in hand, when that is
@@ -589,7 +582,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId, trace
     const area = from.area === "combo" ? "combo" : from.area === "drop" ? "drop" : from.area === "hand" ? "hand" : "battle";
     if (from.area === "under") {
       const beneath = put(ctx, s, YOU, SOURCE, "battle");
-      placeUnderCard(ctx, s, beneath, card);
+      placeUnderCard(s, beneath, card);
       input.push(`a card under ${rule.def.name} carrying [Blocker], a [Permanent] and an [Auto]`);
     } else {
       put(ctx, s, theirSide ? THEM : YOU, SOURCE, area);
@@ -652,8 +645,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId, trace
 
   if (scenario.variant === "negated") {
     const negate = { target: card, kind: "negateSkills", value: 0, until: "turn", master: THEM } as const;
-    if (isVmState(s)) vmAddEffect(s, [], negate);
-    else addEffect(s, [], negate);
+    vmAddEffect(s, [], negate);
     input.push("this card's skills are negated (9-1-5)");
   }
 
@@ -912,19 +904,16 @@ const empty = (scenario: ProbeScenario, outcome: ProbeOutcome, said: string[]): 
  * Run one rule on one board and say what happened.
  *
  * Deterministic: one seed, two fixed decks, one fixed answering policy. The
- * only thing that varies is the rule — and which engine plays it. The board is
- * dealt through `engineFor`, and staged through `engine-state.ts`'s zone seam
- * (and, on the rules engine, the declared-zone mover over the loaded
- * definition), so the same ten families run on both (#161). A rule the rules
- * engine cannot play yet answers with its `NotYet` as an `error` outcome, or
- * with a different conclusion; neither crashes a sweep.
+ * only thing that varies is the rule. The board is dealt by the rules engine
+ * and staged through `engine-state.ts`'s zone seam and the declared-zone mover
+ * over the loaded definition. A rule the engine cannot play yet answers with
+ * its `NotYet` as an `error` outcome, or with a different conclusion; neither
+ * crashes a sweep.
  *
- * The default is `FALLBACK_ENGINE`, not `DEFAULT_ENGINE`: every stored probe
- * answer was taken on the legacy engine, and #166's flip of the default must
- * not silently re-answer them. A probe on the other engine is this argument,
- * said out loud.
+ * Stored probe digests taken before #118 were measured on the legacy engine;
+ * `npm run arena:reprobe` re-answers them on the rules engine (the owner runs it).
  */
-export function probe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId = FALLBACK_ENGINE, opts: { trace?: boolean } = {}): ProbeRun {
+export function probe(rule: ProbeRule, scenario: ProbeScenario, opts: { trace?: boolean } = {}): ProbeRun {
   if (scenario.family === "none") {
     return empty(scenario, "noScenario", [
       rule.kind === "auto"
@@ -933,14 +922,14 @@ export function probe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId
     ]);
   }
   try {
-    return runProbe(rule, scenario, engine, !!opts.trace);
+    return runProbe(rule, scenario, !!opts.trace);
   } catch (err) {
     return empty(scenario, "error", [`the probe could not be run: ${err instanceof Error ? err.message : String(err)}`]);
   }
 }
 
-function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId, trace: boolean): ProbeRun {
-  const staged = stage(rule, scenario, engine, trace);
+function runProbe(rule: ProbeRule, scenario: ProbeScenario, trace: boolean): ProbeRun {
+  const staged = stage(rule, scenario, trace);
   const ctx = staged.ctx;
   const { impl } = staged;
   const legalActions = (c: EngineContext, st: EngineState) => impl.legalActions(c, st);
@@ -980,7 +969,7 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId, tr
   }
 
   const from = testedAt < 0 ? steps.length : testedAt;
-  const applied = logLines(ctx, steps, from, engine);
+  const applied = logLines(ctx, steps, from);
   const result = boardChanges(ctx, steps, from);
   const assumptions = assumptionsOf(ctx, s, staged.card, rule, steps);
   const prompts = steps.filter((st) => st.ask).map((st) => ({ ask: st.ask as string, chose: st.chose }));
@@ -1015,18 +1004,18 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId, tr
     result: said.length ? said : [outcome === "blank" ? "nothing happened: the skill has no program" : "nothing changed on the board"],
     assumptions,
     prompts,
-    log: logLines(ctx, steps, 0, engine),
+    log: logLines(ctx, steps, 0),
     outcome,
     digest: digestOf(outcome, missed ? [] : applied, said),
-    ...(trace ? { trace: traceOf(ctx, rule, staged.card, steps, from, engine, !!missed) } : {}),
+    ...(trace ? { trace: traceOf(ctx, rule, staged.card, steps, from, !!missed) } : {}),
   };
 }
 
 /** Which block made which line of `applied`, read off the markers a traced run carries (`probe-trace.ts`). */
-function traceOf(ctx: EngineContext, rule: ProbeRule, card: string, steps: ProbeStep[], from: number, engine: EngineId, missed: boolean): NonNullable<ProbeRun["trace"]> {
+function traceOf(ctx: EngineContext, rule: ProbeRule, card: string, steps: ProbeStep[], from: number, missed: boolean): NonNullable<ProbeRun["trace"]> {
   const view = ruleViewOf(rule);
   const { reached } = attributeSteps(steps, from, card, rule.skillIndex, !!view.cond);
-  const { paths } = tracedLogLines(ctx, steps, from, engine);
+  const { paths } = tracedLogLines(ctx, steps, from);
   const notes = [...new Set(steps.slice(from).flatMap((st) => st.events.flatMap((e) => (e.type === "note" && !isMarker(e.text) ? [e.text] : []))))];
   // What the rule's own steps changed, apart from the game going on around it
   // (the opponent's draw when the turn is run to its end).

@@ -1,122 +1,46 @@
 /**
- * The default engine after the flip, and the two things the flip must not
- * break (#166).
+ * The rules engine is the only engine (#118).
  *
- * `DEFAULT_ENGINE` is `rules` since 20 Sep 2026, which turns three quiet
- * assumptions into claims worth asserting:
+ * The legacy engine, the `engineFor` switch and the `arena.engine` setting are
+ * gone (owner, 13 Oct 2026). What stays worth asserting:
  *
- *  1. **A new game with no choice made is on the rules engine.** The creation
- *     path's engine is `defaultEngine(db)` — the `arena.engine` setting, or
- *     the constant when nothing is stored — resolved against the mode by
- *     `engineForMode`. Both are asserted here against a settings table stood
- *     up by hand, because that is the whole of what `/arena`'s form action and
- *     `POST /api/v1/games` decide before they call `startGame`.
- *  2. **Every mode is built on both engines.** A 1 v 1's hidden-hand masking
- *     was legacy-only (#162) and resolved to `FALLBACK_ENGINE` with a reason;
- *     since #458 the rules engine masks its own state and a 1 v 1 stays on
- *     it. `modeRefusal` is still the one rule a refusal would go through.
- *  3. **Existing legacy games open unchanged.** A saved row's engine is read
- *     with `engineOr`, whose fallback is deliberately `FALLBACK_ENGINE` and
- *     not `DEFAULT_ENGINE`: a value that cannot be read is an old row, and
- *     every old state is legacy-shaped. A real legacy game is made, stored as
- *     a row would be, read back the way `loadGame` reads one, and played —
- *     the same moves, from the engine that wrote it.
- *
- * Engine-agnostic on purpose: like `vm` and `rulesets` it names the engines it
- * is asking about and ignores `harness.ts`'s `--engine`, since proving the
- * switch cannot depend on which side of it happens to be selected.
+ *  1. **The id.** `rules` is the only engine id and the default, and its info
+ *     names no availability switch.
+ *  2. **A new game is a rules game.** A state the engine deals is recognised by
+ *     its shape (`isVmState`), which is how a saved game is read now — the
+ *     `arena_games.engine` column is written `rules` and never read.
+ *  3. **A stray legacy row fails closed.** The cleanup migration (`0050`,
+ *     `verify-db.mts`) deletes every game saved on the legacy engine; one that
+ *     slipped through is refused by name (`LegacyGameRetired`) with a clear
+ *     message, never read as a rules state.
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
-import type { Db } from "../../src/db";
-import { createGame, legalActions } from "../../src/lib/arena/engine";
-import { DEFAULT_ENGINE, ENGINE_INFO, FALLBACK_ENGINE, engineFor, engineOr, isVmState } from "../../src/lib/arena/engines";
-import { defaultEngine } from "../../src/lib/arena/engine-setting";
-import { engineForMode, modeRefusal, type ArenaMode } from "../../src/lib/arena/games";
-import { CTX, fifty, legacyOnly } from "./harness";
+import { DEFAULT_ENGINE, ENGINE_IDS, ENGINE_INFO, LegacyGameRetired, isVmState, rulesState } from "../../src/lib/arena/engines";
+import { CTX, fifty, gameG } from "./harness";
 
-const MODES: ArenaMode[] = ["hotseat", "sparring", "tournament", "versus"];
+// ── 1. the id ──────────────────────────────────────────────────────────────
 
-// ── 1. the flip ────────────────────────────────────────────────────────────
+assert.deepEqual([...ENGINE_IDS], ["rules"], "the rules engine is not the only engine id");
+assert.equal(DEFAULT_ENGINE, "rules", "the default engine is not the rules engine");
+assert.equal(ENGINE_INFO.rules.id, "rules");
 
-assert.equal(DEFAULT_ENGINE, "rules", "the default engine is not the rules engine — #166 flipped it");
-assert.equal(FALLBACK_ENGINE, "legacy", "the fallback engine is not the legacy one, which is the only engine built for every mode");
-assert.equal(ENGINE_INFO[DEFAULT_ENGINE].available, true, "the default engine says it cannot play a game, which would strand every creation path");
+// ── 2. a new game is a rules game ──────────────────────────────────────────
 
-// The two constants are now different questions and must not be re-conflated:
-// one is what a new game gets, the other what an unreadable stored value means.
-assert.notEqual(DEFAULT_ENGINE, FALLBACK_ENGINE, "the default and the fallback are the same engine again, so nothing below is actually being tested");
+const made = gameG(11, fifty("V1"), fifty("V-BLUE"));
+assert.equal(isVmState(made), true, "a freshly dealt game is not recognised as a rules state");
+// A saved row is JSON: the shape survives the round trip, and `rulesState` hands it back.
+const stored = JSON.parse(JSON.stringify(made)) as unknown;
+assert.equal(isVmState(stored), true, "a stored rules state is not recognised after a JSON round trip");
+assert.equal(rulesState(stored).turn, made.turn, "a stored rules state is not read back as itself");
+assert.ok(CTX.defs["L-RED"], "the harness context lost its fixture cards");
 
-// ── 2. which modes each engine is built for ────────────────────────────────
+// ── 3. a stray legacy row fails closed ─────────────────────────────────────
 
-// The fallback earns its name: it is refused for nothing.
-for (const mode of MODES) assert.equal(modeRefusal(FALLBACK_ENGINE, mode), null, `the fallback engine is not built for ${mode}, so a mode the default cannot play has nowhere to go`);
-
-// #458: and so is the rules engine, a 1 v 1 included, now that its masking
-// reads its own state.
-for (const mode of MODES) assert.equal(modeRefusal("rules", mode), null, `the rules engine is refused for ${mode}, which #162 and #458 let through`);
-
-// ── 3. the creation path, with no choice made ──────────────────────────────
-
-/** Just enough `Db` for `defaultEngine`, which reads one settings row and nothing else. */
-const settingsDb = (value: unknown): Db => ({ query: { settings: { findFirst: async () => (value === undefined ? undefined : { key: "arena", value }) } } }) as unknown as Db;
-
-/**
- * `defaultEngine` is async, and a plain `.ts` file runs as CJS under `tsx`,
- * which has no top-level `await` — so this half is a promise `verify-arena.ts`
- * waits on (`export default` below), exactly as `ai-vm` does.
- */
-async function creationPath(): Promise<void> {
-  assert.equal(await defaultEngine(settingsDb(undefined)), "rules", "a database with no arena setting does not give a new game the rules engine");
-  assert.equal(await defaultEngine(settingsDb({})), "rules", "an arena setting that names no engine does not fall back to the default");
-  assert.equal(await defaultEngine(settingsDb({ engine: "nonsense" })), "rules", "an unreadable stored engine does not fall back to the default");
-  // The setting is the way back, which is the reason it survived the flip.
-  assert.equal(await defaultEngine(settingsDb({ engine: "legacy" })), "legacy", "the arena setting can no longer put new games back on the legacy engine");
-
-  // What `/arena`'s form action and `POST /api/v1/games` do with that answer.
-  for (const mode of ["hotseat", "sparring", "tournament"] as const) {
-    const resolved = engineForMode(await defaultEngine(settingsDb(undefined)), mode);
-    assert.equal(resolved.engine, "rules", `a new ${mode} game with no choice made is not on the rules engine`);
-    assert.equal(resolved.note, null, `a new ${mode} game explains an engine it did not fall back from`);
-  }
-
-  // A 1 v 1 too since #458: both engines keep the two hands hidden.
-  const versus = engineForMode(await defaultEngine(settingsDb(undefined)), "versus");
-  assert.equal(versus.engine, "rules", "a 1 v 1 with no choice made is not on the rules engine (#458)");
-  assert.equal(versus.note, null, "a 1 v 1 explains an engine it did not fall back from");
-
-  // The setting's own answer is honoured for the modes it can be honoured for.
-  assert.equal(engineForMode("legacy", "hotseat").engine, "legacy", "the setting's choice of the legacy engine was overridden by the default");
-  assert.equal(engineForMode("legacy", "versus").engine, "legacy", "a 1 v 1 on the legacy engine was resolved to something else");
-}
-
-// ── 4. existing legacy games open unchanged ────────────────────────────────
-
-// A row's engine, read as `loadGame` reads one. The fallback is what a row
-// from before the column means, so it must stay legacy however the default
-// moves — reading a legacy `GameState` with the rules engine's eyes is the
-// failure this guards.
-for (const stored of [null, undefined, "", "nonsense", 7]) {
-  assert.equal(engineOr(stored), "legacy", `a saved game whose engine column reads ${JSON.stringify(stored)} would be opened on the ${engineOr(stored)} engine`);
-}
-assert.equal(engineOr("rules"), "rules", "a rules-engine row is not read back as one");
-assert.equal(engineOr("legacy"), "legacy", "a legacy row is not read back as one");
-
-if (!legacyOnly("engine-default: a saved legacy game opens unchanged", "it makes and plays a legacy game, which is what this section is about", "#118 decides what a legacy row becomes")) {
-  const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
-  const made = createGame(CTX, DECKS);
-  // The row as `arena_games` holds it: JSON state, and the engine that wrote it.
-  const row = JSON.parse(JSON.stringify({ engine: "legacy", state: made.state })) as { engine: string; state: unknown };
-
-  const engine = engineFor(engineOr(row.engine));
-  assert.equal(engine.id, "legacy", "a legacy-engine row no longer resolves to the legacy engine, so every saved game would be read by the wrong one");
-  assert.equal(isVmState(row.state), false, "a legacy state claims to have been written by the rules engine");
-  assert.deepEqual(
-    engine.legalActions(CTX, row.state as never),
-    legalActions(CTX, made.state),
-    "a saved legacy game read back through the switch offers different moves than the engine that wrote it",
-  );
-}
-
-export default creationPath();
+// What the legacy engine wrote had `players`/`prompt` at the top level and no `engine: "rules"` marker.
+const legacyShaped = { seed: 11, turn: 3, turnPlayer: "p1", phase: "main", players: { p1: {}, p2: {} }, cards: {}, prompt: { kind: "main", player: "p1" } };
+assert.equal(isVmState(legacyShaped), false, "a legacy-shaped state claims to have been written by the rules engine");
+assert.throws(() => rulesState(legacyShaped), LegacyGameRetired, "a legacy-shaped state was read as a rules state");
+assert.throws(() => rulesState(null), LegacyGameRetired, "a missing state was read as a rules state");
+assert.throws(() => rulesState({ ...legacyShaped, engine: "legacy" }), /legacy engine, which has been retired/, "the refusal does not say why");

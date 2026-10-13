@@ -1,7 +1,7 @@
 /** Focused engine evidence for #558's authoritative ability availability. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
@@ -11,7 +11,7 @@ import { parseSkills } from "../../src/lib/arena/text/cards";
 import type { Action, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const engine = engineFor("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
@@ -205,7 +205,6 @@ try {
     const promptLegal = engine.legalActions(CTX, prompt);
     const promptSnapshot = buildSnapshot({
       id: 55823,
-      engine: "rules",
       mode: "versus",
       status: "playing",
       p1Name: "You",
@@ -306,7 +305,6 @@ try {
     const legal = engine.legalActions(CTX, state);
     const snapshot = buildSnapshot({
       id: 55831,
-      engine: "rules",
       mode: "versus",
       status: "playing",
       p1Name: "You",
@@ -336,7 +334,6 @@ try {
 
     const secondViewer = buildSnapshot({
       id: 55832,
-      engine: "rules",
       mode: "versus",
       status: "playing",
       p1Name: "You",
@@ -368,7 +365,6 @@ try {
     const skillIndex = parseSkills(DEFS.H558_AUTO.skill).find((skill) => skill.kind === "auto")!.index;
     const snapshot = (current: VmState) => buildSnapshot({
       id: 55833,
-      engine: "rules",
       mode: "versus",
       status: "playing",
       p1Name: "You",

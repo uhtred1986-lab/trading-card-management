@@ -29,10 +29,9 @@
  */
 import type { AbilityAvailability, EngineContext } from "../types";
 import type { CardDef, PlayerId, Prohibition } from "../types";
-import type { StaticEffect } from "../engine/state";
 import type { BattleView, BoardView, CardArt, CardView, PermanentView, PromptView, SideView } from "../view";
 import { abilityViews } from "../view-core";
-import { describeEffect, describeStatic, type EffectView } from "../effects";
+import { describeEffect, describeStatic, type EffectView, type StaticEffect } from "../effects";
 import { attrsOf, type Attrs } from "./cards";
 import { skillsOf } from "../text/cards";
 import { attrsNow, forbids, hasKeyword, keywordsInForce, permanentStaticsOf, staticsNow } from "./program";

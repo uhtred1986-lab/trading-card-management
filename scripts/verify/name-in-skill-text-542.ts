@@ -19,7 +19,7 @@
  */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { compileCard } from "../../src/lib/arena/compile";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
@@ -29,7 +29,7 @@ import { IllegalAction } from "../../src/lib/arena/vm/common";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 
-const engine = engineFor("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 

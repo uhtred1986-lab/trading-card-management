@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import type { Db } from "../../src/db/index.ts";
 import { arenaGames } from "../../src/db/schema.ts";
-import { damageTaken, engineFor } from "../../src/lib/arena/engines.ts";
+import { damageTaken } from "../../src/lib/arena/engines.ts";
+import { RULES } from "../../src/lib/arena/vm/index.ts";
 import { applyToGame, loadGame, mutationFingerprint, StaleGame, type LoadedGame } from "../../src/lib/arena/games.ts";
 import { rulesetFor } from "../../src/lib/arena/rulesets/index.ts";
 import { snapshotOfGame } from "../../src/lib/arena/session.ts";
@@ -17,7 +18,7 @@ const other = (p: PlayerId): PlayerId => p === "p1" ? "p2" : "p1";
 function stagedDamageGame(): VmState {
   const rules = rulesetFor("dbs");
   assert.ok(rules.ok);
-  const engine = engineFor("rules");
+  const engine = RULES;
   let state = engine.createGame(CTX, {
     seed: 557,
     p1: { name: "Alice", leader: "L-RED", main: Array(50).fill("V1") },

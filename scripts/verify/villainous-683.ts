@@ -1,24 +1,15 @@
 /** #683: finite Heroic/Villainous activation and individual-negation proof. */
 import "./villainous-683-auto-audit";
 import "./villainous-683-parent-continuation";
-import { verifyLegacyExtraAuto } from "./villainous-683-legacy-auto-audit";
-import { verifyLegacyTimedGrants } from "./villainous-683-legacy-timed";
-import { verifyLegacyStandingGrants } from "./villainous-683-legacy-standing";
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { RULES_ONLY } from "./rules-only";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { hasKeyword, hookBodiesFor } from "../../src/lib/arena/vm/program";
-import { addEffect as legacyAddEffect, has as legacyHas, move } from "../../src/lib/arena/engine/state";
-import type { Action, PlayerId, GameState } from "../../src/lib/arena/types";
+import type { Action, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
-
-if (!RULES_ONLY) verifyLegacyExtraAuto();
-if (!RULES_ONLY) verifyLegacyTimedGrants();
-if (!RULES_ONLY) verifyLegacyStandingGrants();
 
 const ids = ["V683_WATCH", "V683_SOURCE", "V683_EXTRA", "V683_DESIRE", "V683_WISH", "V683_UNPAID", "V683_PRICE", "V683_COUNTER", "V683_OTHER", "V683_DUAL", "V683_PLAIN", "V683_STANDING", "V683_COPY_SOURCE", "V683_MUTATE", "V683_REMOVE"];
 const old = new Map(ids.map((id) => [id, DEFS[id]]));
@@ -41,11 +32,10 @@ DEFS.V683_REMOVE = card("V683_REMOVE", { type: "EXTRA", energyCost: 0, power: nu
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
-const rules = engineFor("rules");
-const legacy = engineFor("legacy");
-const engines: readonly (readonly ["rules" | "legacy", typeof rules])[] = RULES_ONLY ? [["rules", rules]] : [["rules", rules], ["legacy", legacy]];
+const rules = RULES;
+const engines: readonly (readonly ["rules", typeof rules])[] = [["rules", rules]];
 
-function main(engine: typeof rules, seed: number, leader = "L-RED"): VmState | GameState {
+function main(engine: typeof rules, seed: number, leader = "L-RED"): VmState {
   let s = engine.createGame(CTX, {
     seed,
     p1: { name: "You", leader, main: fifty("V1") },
@@ -65,10 +55,10 @@ function main(engine: typeof rules, seed: number, leader = "L-RED"): VmState | G
 // nested Extra still has a successful skill activation and its own effect
 // completes before Villainous asks the opponent to discard.
 for (const [name, engine] of engines) {
-  const s = main(engine, 68390 + Number(name === "legacy"), "V683_WISH");
-  const watcher = name === "rules" ? stageVm(s as VmState, "V683_WATCH", "battle") : stageLegacy(s as GameState, "V683_WATCH", "battle");
-  const source = name === "rules" ? stageVm(s as VmState, "V683_DESIRE", "hand") : stageLegacy(s as GameState, "V683_DESIRE", "hand");
-  const leader = name === "rules" ? (s as VmState).sides.p1.zones.leader[0]! : (s as GameState).players.p1.leader;
+  const s = main(engine, 68390, "V683_WISH");
+  const watcher = stageVm(s as VmState, "V683_WATCH", "battle");
+  const source = stageVm(s as VmState, "V683_DESIRE", "hand");
+  const leader = (s as VmState).sides.p1.zones.leader[0]!;
   const action = engine.legalActions(CTX, s).find((entry) => entry.action.type === "activate" && entry.action.card === leader)?.action;
   assert.ok(action, `${name} offers parent invocation`);
   const offered = engine.apply(CTX, s, action);
@@ -88,14 +78,7 @@ function stageVm(s: VmState, id: string, zone: "hand" | "battle", player: Player
   return physical;
 }
 
-function stageLegacy(s: GameState, id: string, zone: "hand" | "battle", player: PlayerId = "p1"): string {
-  const physical = s.players[player].hand.find((id) => !ids.includes(s.cards[id].cardId))!;
-  s.cards[physical].cardId = id;
-  if (zone !== "hand") move(CTX, s, [], physical, zone, player, { reason: "effect" });
-  return physical;
-}
-
-function chooseDiscard(engine: typeof rules, s: VmState | GameState, player: PlayerId = "p2", preferredWatcher?: string): { state: VmState | GameState; events: ReturnType<typeof rules.apply>["events"] } {
+function chooseDiscard(engine: typeof rules, s: VmState, player: PlayerId = "p2", preferredWatcher?: string): { state: VmState; events: ReturnType<typeof rules.apply>["events"] } {
   if (s.prompt.kind === "orderPending") {
     const vm = s as VmState;
     const index = vm.prompt.kind === "orderPending" ? (vm.prompt.candidates.find((i) => vm.pending[i]?.card === preferredWatcher) ?? vm.prompt.candidates[0]) : undefined;
@@ -114,22 +97,17 @@ function chooseDiscard(engine: typeof rules, s: VmState | GameState, player: Pla
 // A native Counter is itself a successful Extra skill activation, even when
 // it negates the attack; its owner's Villainous watcher still answers.
 for (const [name, engine] of engines) {
-  let s = main(engine, 68330 + Number(name === "legacy"));
+  let s = main(engine, 68330);
   for (const [type, player] of [["endMain", "p1"], ["charge", "p2"], ["endMain", "p2"], ["charge", "p1"]] as const) {
     const action = engine.legalActions(CTX, s).find((entry) => entry.action.type === type && entry.action.player === player && (entry.action.type !== "charge" || entry.action.card == null))?.action;
     assert.ok(action, `${name} advances to the next turn with ${type}`);
     s = engine.apply(CTX, s, action).state;
   }
   assert.equal(s.prompt.kind, "main");
-  const watcher = name === "rules" ? stageVm(s as VmState, "V683_WATCH", "battle", "p2") : stageLegacy(s as GameState, "V683_WATCH", "battle", "p2");
-  let barredOther: string | undefined;
-  if (name === "legacy") {
-    barredOther = stageLegacy(s as GameState, "V683_WATCH", "battle", "p1");
-    legacyAddEffect(s as GameState, [], { master: "p2", source: (s as GameState).players.p2.leader, target: barredOther, kind: "forbid", value: 0, forbid: { what: "activateSkill" }, until: "turn" });
-  }
-  const counter = name === "rules" ? stageVm(s as VmState, "V683_COUNTER", "hand", "p2") : stageLegacy(s as GameState, "V683_COUNTER", "hand", "p2");
-  const attacker = name === "rules" ? (s as VmState).sides.p1.zones.leader[0]! : (s as GameState).players.p1.leader;
-  const target = name === "rules" ? (s as VmState).sides.p2.zones.leader[0]! : (s as GameState).players.p2.leader;
+  const watcher = stageVm(s as VmState, "V683_WATCH", "battle", "p2");
+  const counter = stageVm(s as VmState, "V683_COUNTER", "hand", "p2");
+  const attacker = (s as VmState).sides.p1.zones.leader[0]!;
+  const target = (s as VmState).sides.p2.zones.leader[0]!;
   const attack = engine.apply(CTX, s, { type: "attack", player: "p1", attacker, target });
   assert.equal(attack.state.prompt.kind, "counter", `${name} opened Counter: Attack`);
   const offered = engine.legalActions(CTX, attack.state).find((entry) => entry.action.type === "counter" && entry.action.card === counter)?.action;
@@ -137,41 +115,37 @@ for (const [name, engine] of engines) {
   const answer = engine.apply(CTX, attack.state, offered);
   const chosen = chooseDiscard(engine, answer.state, "p1");
   assert.ok(chosen.state.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher && effect.value === 0), `${name} Counter consumes the watcher once`);
-  if (barredOther) assert.ok(!chosen.state.effects.some((effect) => effect.kind === "negateSkill" && effect.target === barredOther), "an opponent's targeted barrier cannot consume or bar the Counter owner's keyword");
   console.log(`  ${name} Counter: opponent choice and individual negation`);
 }
 
 for (const [name, engine] of engines) {
   for (const extra of [false, true]) {
-    const s = main(engine, 68300 + (name === "rules" ? 0 : 10) + Number(extra));
-    const watcher = name === "rules" ? stageVm(s as VmState, "V683_WATCH", "battle") : stageLegacy(s as GameState, "V683_WATCH", "battle");
-    const source = name === "rules" ? stageVm(s as VmState, extra ? "V683_EXTRA" : "V683_SOURCE", "hand") : stageLegacy(s as GameState, extra ? "V683_EXTRA" : "V683_SOURCE", "hand");
+    const s = main(engine, 68300 + (0) + Number(extra));
+    const watcher = stageVm(s as VmState, "V683_WATCH", "battle");
+    const source = stageVm(s as VmState, extra ? "V683_EXTRA" : "V683_SOURCE", "hand");
     const action = engine.legalActions(CTX, s).find((entry) => entry.action.type === (extra ? "activate" : "play") && entry.action.card === source)?.action;
     assert.ok(action, `${name} offers ${extra ? "Extra activation" : "Battle play"}`);
     const activated = engine.apply(CTX, s, action as Action);
     const chosen = chooseDiscard(engine, activated.state);
     const state = chosen.state;
-    assert.ok(name === "rules"
-      ? (state as VmState).effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher && effect.value === 0)
-      : (state as GameState).effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher && effect.value === 0),
+    assert.ok((state as VmState).effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher && effect.value === 0),
     `${name} ${extra ? "Extra" : "Battle"} negates only the printed Villainous identity`);
     console.log(`  ${name} ${extra ? "Extra" : "Battle"}: opponent choice and individual negation`);
   }
 }
 
 for (const [name, engine] of engines) {
-  const s = main(engine, 68370 + Number(name === "legacy"));
-  const watcher = name === "rules" ? stageVm(s as VmState, "V683_WATCH", "battle") : stageLegacy(s as GameState, "V683_WATCH", "battle");
-  const opposite = name === "rules" ? stageVm(s as VmState, "V683_OTHER", "hand") : stageLegacy(s as GameState, "V683_OTHER", "hand");
-  const unpaid = name === "rules" ? stageVm(s as VmState, "V683_UNPAID", "hand") : stageLegacy(s as GameState, "V683_UNPAID", "hand");
+  const s = main(engine, 68370);
+  const watcher = stageVm(s as VmState, "V683_WATCH", "battle");
+  const opposite = stageVm(s as VmState, "V683_OTHER", "hand");
+  const unpaid = stageVm(s as VmState, "V683_UNPAID", "hand");
   const play = engine.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === opposite)?.action;
   assert.ok(play);
   const result = engine.apply(CTX, s, play);
   assert.ok(!result.state.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher), `${name} Heroic source never spends Villainous`);
   assert.ok(!result.events.some((event) => event.type === "move" && event.to === "drop" && event.card !== opposite), `${name} no opponent discard on opposite keyword`);
   const after = result.state;
-  if (name === "rules") for (const id of (after as VmState).sides.p1.zones.energy) (after as VmState).cards[id].mode = "rest";
-  else for (const id of (after as GameState).players.p1.energy) (after as GameState).cards[id].mode = "rest";
+  for (const id of (after as VmState).sides.p1.zones.energy) (after as VmState).cards[id].mode = "rest";
   assert.ok(!engine.legalActions(CTX, after).some((entry) => entry.action.type === "activate" && entry.action.card === unpaid), `${name} refuses an unpaid red orb`);
   console.log(`  ${name} negative: unpaid and opposite keyword`);
 }
@@ -179,9 +153,9 @@ for (const [name, engine] of engines) {
 // A separate action price is still a price. Nothing answers until the owner
 // actually makes that payment, and the saved continuation retains the source.
 for (const [name, engine] of engines) {
-  let s = main(engine, 68350 + Number(name === "legacy"));
-  const watcher = name === "rules" ? stageVm(s as VmState, "V683_WATCH", "battle") : stageLegacy(s as GameState, "V683_WATCH", "battle");
-  const source = name === "rules" ? stageVm(s as VmState, "V683_PRICE", "hand") : stageLegacy(s as GameState, "V683_PRICE", "hand");
+  let s = main(engine, 68350);
+  const watcher = stageVm(s as VmState, "V683_WATCH", "battle");
+  const source = stageVm(s as VmState, "V683_PRICE", "hand");
   const action = engine.legalActions(CTX, s).find((entry) => entry.action.type === "activate" && entry.action.card === source)?.action;
   assert.ok(action, `${name} offers the priced Extra`);
   const offered = engine.apply(CTX, s, action);
@@ -189,13 +163,9 @@ for (const [name, engine] of engines) {
   assert.equal(s.prompt.kind, "chooseCards", `${name} asks the owner for action payment first`);
   assert.equal((s.prompt as { player: PlayerId }).player, "p1");
   assert.ok(!s.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher), "the unpaid price cannot spend Villainous");
-  if (name === "rules") {
-    const continuation = (s as VmState).programs.find((frame) => frame.afterSkillSource === source);
-    assert.deepEqual(continuation?.afterSkillKeywords, ["Villainous"], "the frozen source keyword is stored across the price prompt");
-    assert.ok(!(s as VmState).pending.some((pending) => pending.card === watcher), "the watcher is not yet pending");
-  } else {
-    assert.ok((s as GameState).flow.some((step) => step.op === "afterSkill.activate" && step.card === source), "the paid activation continuation is saved");
-  }
+  const continuation = (s as VmState).programs.find((frame) => frame.afterSkillSource === source);
+  assert.deepEqual(continuation?.afterSkillKeywords, ["Villainous"], "the frozen source keyword is stored across the price prompt");
+  assert.ok(!(s as VmState).pending.some((pending) => pending.card === watcher), "the watcher is not yet pending");
   s = JSON.parse(JSON.stringify(s));
   const candidates = (s.prompt as { choice: { candidates: string[] } }).choice.candidates.filter((id) => id !== source);
   assert.ok(candidates.length);
@@ -217,11 +187,10 @@ for (const [name, engine] of engines) {
 // The optional discard has no candidate, but the keyword's own one-use
 // negation is unconditional after it answers the successful event.
 for (const [name, engine] of engines) {
-  const s = main(engine, 68380 + Number(name === "legacy"));
-  const watcher = name === "rules" ? stageVm(s as VmState, "V683_WATCH", "battle") : stageLegacy(s as GameState, "V683_WATCH", "battle");
-  const source = name === "rules" ? stageVm(s as VmState, "V683_SOURCE", "hand") : stageLegacy(s as GameState, "V683_SOURCE", "hand");
-  if (name === "rules") for (const id of [...(s as VmState).sides.p2.zones.hand]) assert.ok(moveCard(s as VmState, dbs, id, "drop", { owner: "p2" }).ok);
-  else for (const id of [...(s as GameState).players.p2.hand]) move(CTX, s as GameState, [], id, "drop", "p2", { reason: "effect" });
+  const s = main(engine, 68380);
+  const watcher = stageVm(s as VmState, "V683_WATCH", "battle");
+  const source = stageVm(s as VmState, "V683_SOURCE", "hand");
+  for (const id of [...(s as VmState).sides.p2.zones.hand]) assert.ok(moveCard(s as VmState, dbs, id, "drop", { owner: "p2" }).ok);
   const action = engine.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === source)?.action;
   assert.ok(action);
   const result = engine.apply(CTX, s, action);
@@ -232,9 +201,9 @@ for (const [name, engine] of engines) {
 // One bearer may have both printed keywords. Each is its own pended skill and
 // its own turn-long negation; resolving Villainous cannot consume Heroic.
 for (const [name, engine] of engines) {
-  let s = main(engine, 68360 + Number(name === "legacy"));
-  const watcher = name === "rules" ? stageVm(s as VmState, "V683_DUAL", "battle") : stageLegacy(s as GameState, "V683_DUAL", "battle");
-  const source = name === "rules" ? stageVm(s as VmState, "V683_DUAL", "hand") : stageLegacy(s as GameState, "V683_DUAL", "hand");
+  let s = main(engine, 68360);
+  const watcher = stageVm(s as VmState, "V683_DUAL", "battle");
+  const source = stageVm(s as VmState, "V683_DUAL", "hand");
   const action = engine.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === source)?.action;
   assert.ok(action);
   let result = engine.apply(CTX, s, action);
@@ -257,93 +226,6 @@ for (const [name, engine] of engines) {
   assert.deepEqual(spent.sort((a, b) => Number(a) - Number(b)), [0, 10], `${name} separately negates Heroic and Villainous at their printed offsets`);
   assert.equal(events.filter((event) => event.type === "draw" && event.player === "p1").length, 1, `${name} Heroic draws once`);
   console.log(`  ${name} dual keywords: independent pended identities`);
-}
-
-if (!RULES_ONLY) {
-  let s = main(legacy, 68399) as GameState;
-  const watcher = stageLegacy(s, "V683_OTHER", "battle");
-  const first = legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Villainous" }, until: "turn" });
-  const source = stageLegacy(s, "V683_SOURCE", "hand");
-  const action = legacy.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === source)?.action;
-  assert.ok(action);
-  const activated = legacy.apply(CTX, s, action);
-  assert.ok(!activated.events.some((event) => event.type === "draw" && event.player === "p1"), "a Villainous grant cannot accidentally resolve the bearer's printed Heroic");
-  s = chooseDiscard(legacy, activated.state).state as GameState;
-  assert.ok(s.effects.some((effect) => effect.kind === "negateGrantedSkill" && effect.target === watcher && effect.value === first.id), "only the timed Villainous grant's persistent ID is spent");
-  assert.ok(legacyHas(CTX, s, watcher, "Heroic"), "the printed Heroic identity is independent");
-  assert.ok(!legacyHas(CTX, s, watcher, "Villainous"), "the spent timed grant supplies no keyword");
-  const second = legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Villainous" }, until: "turn" });
-  assert.notEqual(second.id, first.id);
-  assert.ok(legacyHas(CTX, s, watcher, "Villainous"), "same-turn regrant supplies a fresh keyword identity");
-  const again = stageLegacy(s, "V683_SOURCE", "hand");
-  const playAgain = legacy.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === again)?.action;
-  assert.ok(playAgain);
-  s = chooseDiscard(legacy, legacy.apply(CTX, s, playAgain).state).state as GameState;
-  assert.equal(s.effects.filter((effect) => effect.kind === "negateGrantedSkill" && effect.target === watcher && effect.value === second.id).length, 1, "new timed grant pays and spends exactly once");
-  assert.ok(legacyHas(CTX, s, watcher, "Heroic"));
-  console.log("  legacy timed grant: event keyword and distinct regrant ID leave printed Heroic intact");
-}
-
-if (!RULES_ONLY) {
-  for (const granted of [false, true]) for (const barrierKind of ["forbid", "negateSkills"] as const) {
-    const s = main(legacy, 68400 + Number(granted) + 2 * Number(barrierKind === "negateSkills")) as GameState;
-    const watcher = stageLegacy(s, granted ? "V683_PLAIN" : "V683_WATCH", "battle");
-    if (granted) legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Villainous" }, until: "turn" });
-    const barrier = s.players.p2.leader;
-    legacyAddEffect(s, [], { master: "p2", source: barrier, target: watcher, kind: barrierKind, value: 0, ...(barrierKind === "forbid" ? { forbid: { what: "activateSkill" as const } } : {}), until: "turn" });
-    const source = stageLegacy(s, "V683_SOURCE", "hand");
-    const opposingHand = s.players.p2.hand.length;
-    const action = legacy.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === source)?.action;
-    assert.ok(action);
-    const played = legacy.apply(CTX, s, action);
-    assert.equal(played.state.prompt.kind, "main", "a forbidden pended keyword has no discard prompt");
-    assert.ok(!played.state.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher), "refused activation spends no keyword use");
-    assert.ok(!played.events.some((event) => event.type === "draw" && event.player === "p1"), "refused keyword has no Heroic payout");
-    assert.equal((played.state as GameState).players.p2.hand.length, opposingHand, "refused Villainous discards no opposing card");
-    console.log(`  legacy ${granted ? "old grant" : "indexed"} ${barrierKind} at fulfillment: no payout or spend`);
-  }
-
-  for (const granted of [false, true]) {
-    const s = main(legacy, 68420 + Number(granted)) as GameState;
-    const watcher = stageLegacy(s, granted ? "V683_PLAIN" : "V683_OTHER", "battle");
-    if (granted) legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Heroic" }, until: "turn" });
-    legacyAddEffect(s, [], { master: "p2", source: s.players.p2.leader, target: watcher, kind: "forbid", value: 0, forbid: { what: "activateSkill" }, until: "turn" });
-    const source = stageLegacy(s, "V683_OTHER", "hand");
-    const handBefore = s.players.p1.hand.length;
-    const action = legacy.legalActions(CTX, s).find((entry) => entry.action.type === "play" && entry.action.card === source)?.action;
-    assert.ok(action);
-    const played = legacy.apply(CTX, s, action);
-    assert.equal((played.state as GameState).players.p1.hand.length, handBefore - 1, "refused Heroic cannot replenish the played hand card");
-    assert.ok(!played.events.some((event) => event.type === "draw" && event.player === "p1"), "refused Heroic emits no draw");
-    assert.ok(!played.state.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher), "refused Heroic remains unspent");
-    console.log(`  legacy ${granted ? "old grant" : "indexed"} Heroic prohibition: no draw or spend`);
-  }
-
-  // The successful Extra pends Villainous before its own target prompt. A
-  // barrier imposed while that effect is suspended still cancels the
-  // later [Auto] activation after JSON reload, without rewinding the Extra.
-  for (const granted of [false, true]) for (const barrierKind of ["forbid", "negateSkills"] as const) {
-    let s = main(legacy, 68410 + Number(granted) + 2 * Number(barrierKind === "negateSkills")) as GameState;
-    const watcher = stageLegacy(s, granted ? "V683_PLAIN" : "V683_WATCH", "battle");
-    if (granted) legacyAddEffect(s, [], { master: "p1", source: watcher, target: watcher, kind: "keyword", value: { name: "Villainous" }, until: "turn" });
-    const otherCard = stageLegacy(s, "V683_PLAIN", "battle");
-    const source = stageLegacy(s, "V683_REMOVE", "hand");
-    const action = legacy.legalActions(CTX, s).find((entry) => entry.action.type === "activate" && entry.action.card === source)?.action;
-    assert.ok(action);
-    s = legacy.apply(CTX, s, action).state as GameState;
-    assert.equal(s.prompt.kind, "chooseCards", "the Extra effect suspends before the pending keyword resolves");
-    assert.equal(s.prompt.player, "p1");
-    assert.ok(s.pending.some((pending) => pending.card === watcher && pending.afterSkillKeyword === "Villainous"), "the watcher is pending across the effect prompt");
-    const opposingHand = s.players.p2.hand.length;
-    legacyAddEffect(s, [], { master: "p2", source: s.players.p2.leader, target: watcher, kind: barrierKind, value: 0, ...(barrierKind === "forbid" ? { forbid: { what: "activateSkill" as const } } : {}), until: "turn" });
-    s = JSON.parse(JSON.stringify(s)) as GameState;
-    const resumed = legacy.apply(CTX, s, { type: "choose", player: "p1", cards: [otherCard] });
-    assert.equal(resumed.state.prompt.kind, "main", "the new barrier cancels the later Villainous hand choice");
-    assert.ok(!resumed.state.effects.some((effect) => effect.kind === "negateSkill" && effect.target === watcher), "the refused pending Auto leaves its keyword unspent");
-    assert.ok((resumed.state as GameState).players.p1.drop.includes(otherCard), "the Extra's own effect still completed before the refused keyword");
-    assert.equal((resumed.state as GameState).players.p2.hand.length, opposingHand, "refused pending Villainous discards no opposing card");
-    console.log(`  legacy ${granted ? "old grant" : "indexed"} ${barrierKind} after pending: reload cancels keyword without undoing Extra`);
-  }
 }
 
 // The rules VM must preserve all three grant identities that #602 established

@@ -36,14 +36,14 @@ async function seedGame() {
     { deckId: deck.id, cardId: "P0POLL-L", zone: "leader", quantity: 1 },
     { deckId: deck.id, cardId: "P0POLL-B", zone: "main", quantity: 50 },
   ]);
-  const gameId = await startGame(db, deck.id, deck.id, "hotseat", false, { p1User: null, p2User: null }, "rules");
+  const gameId = await startGame(db, deck.id, deck.id, "hotseat", false, { p1User: null, p2User: null });
   return { gameId, deckId: deck.id };
 }
 
 function snapshot(revision: number, status = "playing"): Snapshot {
   return {
     contract: 2,
-    game: { id: 42, revision, mode: "versus", engine: "legacy", game: "dbs", status, turn: 1, p1Name: "A", p2Name: "B", you: "p1" },
+    game: { id: 42, revision, mode: "versus", engine: "rules", game: "dbs", status, turn: 1, p1Name: "A", p2Name: "B", you: "p1" },
     view: {} as Snapshot["view"], legal: [], taps: {} as Snapshot["taps"], beats: null, spotlight: null,
     log: [], waiting: status === "playing" ? "opponent" : null,
     spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, over: null,
@@ -171,7 +171,7 @@ const wait = route.indexOf("await waitForRevisionResult(db, id, sinceRevision, w
 const preference = route.indexOf('req.headers.get("Prefer") === "return=minimal"');
 const preferenceGuard = route.indexOf('revisionWait?.kind === "unchanged" && prefersMinimal');
 const unchanged = route.indexOf('status: 204, headers: { "Cache-Control": "private, no-store" }');
-const fullLoad = route.indexOf("const game = await loadGame(db, id);");
+const fullLoad = route.indexOf("const game = await loadGame(db, id).catch(retiredGame);");
 assert.ok(preference >= 0 && auth >= 0 && auth < gameAccess && gameAccess < seatGate && seatGate < wait && wait < preferenceGuard && preferenceGuard < unchanged && unchanged < fullLoad,
   "the opted-in no-body response follows auth/ownership/seat checks and precedes expensive game projection");
 

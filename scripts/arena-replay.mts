@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import { replayOffline } from "../src/lib/arena/offline-replay.ts";
 import type { Action } from "../src/lib/arena/types.ts";
-import type { EngineId } from "../src/lib/arena/engines.ts";
+import type { EngineId } from "../src/lib/arena/engine-ids.ts";
 import type { ReplayBundle, ReplayBundleRecord } from "../src/lib/arena/replay-core.ts";
 
 function usage(): never {
@@ -19,18 +19,20 @@ if (!path || !runtime || !/^[0-9a-f]{7,40}$/i.test(runtime)) usage();
 const data = JSON.parse(fs.readFileSync(path, "utf8")) as {
   exact?: boolean;
   seed?: number;
-  engine?: EngineId;
+  engine?: EngineId | "legacy";
   actions?: Action[];
   decks?: ReplayBundleRecord["decks"];
   bundle?: ReplayBundle;
 };
+if (data.engine && data.engine !== "rules") {
+  throw new Error("This export was made on the retired legacy engine; only rules-engine games can be replayed (#118).");
+}
 if (!Number.isInteger(data.seed) || !data.engine || !Array.isArray(data.actions) || !data.decks || !data.bundle) {
   throw new Error("This export is unpinned or missing replay inputs; exact offline replay is unavailable.");
 }
 
 const replay = await replayOffline({
   bundle: { ...data.bundle, decks: data.decks },
-  engine: data.engine,
   seed: data.seed!,
   actions: data.actions,
   interpreterRevision: runtime,

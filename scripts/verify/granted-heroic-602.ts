@@ -1,7 +1,7 @@
 /** #602: effect and [Permanent] Heroic grants retain individual, reloadable skill identities. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { addEffect, endEffects } from "../../src/lib/arena/vm/effects";
 import { hasKeyword, hookBodiesFor } from "../../src/lib/arena/vm/program";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -9,7 +9,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { Action, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;

@@ -14,7 +14,7 @@ import { NotYet } from "../../src/lib/arena/vm/errors";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { EngineState } from "../../src/lib/arena/engines";
-import { CTX, DEFS, ENGINE, IMPL, stagedG, assertConsistentG, card, leaderOf, rejectedActionsG, zoneOf } from "./harness";
+import { CTX, DEFS, IMPL, stagedG, assertConsistentG, card, leaderOf, rejectedActionsG, zoneOf } from "./harness";
 
 const TAX = "[Permanent] Your opponent can't activate skills unless they send 1 card from their hand to their Warp each time.";
 const WISH = "[Activate: Main] Choose one- ・Draw 1 card. ・Choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.";
@@ -67,7 +67,7 @@ try {
 
   // ── helpers ────────────────────────────────────────────────────────────
   const take = (state: EngineState, action: Action): { state: EngineState; events: GameEvent[] } => {
-    assert.ok(IMPL.legalActions(CTX, state).some((row) => JSON.stringify(row.action) === JSON.stringify(action)), `${ENGINE}: expected ${JSON.stringify(action)} at ${state.prompt.kind}`);
+    assert.ok(IMPL.legalActions(CTX, state).some((row) => JSON.stringify(row.action) === JSON.stringify(action)), `rules: expected ${JSON.stringify(action)} at ${state.prompt.kind}`);
     return IMPL.apply(CTX, state, action);
   };
   const ids = (state: EngineState, p: PlayerId, area: "hand" | "drop" | "warp" | "battle", cardId: string) => zoneOf(state, p, area).filter((id) => state.cards[id].cardId === cardId);
@@ -101,8 +101,8 @@ try {
   const stops = (run: () => { state: EngineState }) => {
     try {
       const result = run();
-      assert.equal(result.state.prompt.kind, "gameOver", `${ENGINE}: an untaxed activation must not continue`);
-      assert.ok(JSON.stringify(result.state).includes("#677"), `${ENGINE}: the interruption names #677`);
+      assert.equal(result.state.prompt.kind, "gameOver", `rules: an untaxed activation must not continue`);
+      assert.ok(JSON.stringify(result.state).includes("#677"), `rules: the interruption names #677`);
     } catch (err) {
       if (!(err instanceof NotYet)) throw err;
       assert.equal(err.issue, "#677");
@@ -117,7 +117,7 @@ try {
     const extra = ids(state, "p1", "hand", "C677-EXTRA")[0];
     const fodder = ids(state, "p1", "hand", "C677-FODDER")[0];
     const offer = IMPL.legalActions(CTX, state).find((row) => row.action.type === "activate" && row.action.card === extra);
-    assert.ok(offer && / — first pay: /.test(offer.label), `${ENGINE}: the button names the price: ${offer?.label}`);
+    assert.ok(offer && / — first pay: /.test(offer.label), `rules: the button names the price: ${offer?.label}`);
     const result = payWith(take(state, activateOf(state, extra)), fodder);
     assert.deepEqual(ids(result.state, "p1", "drop", "C677-EXTRA"), [extra]);
     assert.deepEqual(ids(result.state, "p1", "warp", "C677-FODDER"), [fodder], "the tax is paid once, with the other hand card");
@@ -211,7 +211,7 @@ try {
     assert.deepEqual(ids(asked, "p1", "drop", "C677-DESIRE"), [desire], "the Extra is used: in the Drop as the price is asked");
     assert.equal(draws(step.events), 0, "neither the nested skill nor the parent has resolved yet");
     // Both viewers: the opponent never sees which hand cards could pay.
-    const view = (viewer: PlayerId) => JSON.stringify(buildSnapshot({ id: 677, revision: 3, mode: "versus", engine: ENGINE, status: "playing",
+    const view = (viewer: PlayerId) => JSON.stringify(buildSnapshot({ id: 677, revision: 3, mode: "versus", status: "playing",
       p1Name: "Player 1", p2Name: "Player 2", ctx: CTX, state: asked, legal: [], log: [], beats: IMPL.toBeats(CTX, asked, step.events, 0), spotlight: null,
       spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} }));
     assert.ok(!view("p2").includes("C677-FODDER"), "the opponent's view masks the price's hand candidates");

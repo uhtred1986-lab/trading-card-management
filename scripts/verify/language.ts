@@ -21,7 +21,6 @@ import {
   COND_SCHEMA,
   CTX,
   DEFS,
-  ENGINE,
   EFFECT_LANGUAGE,
   IMPL,
   OP_CLASS,
@@ -376,18 +375,14 @@ import type { CardFilter, SchemaOp } from "./harness";
   const hand = zoneOf(s, "p1", "hand").length;
   const r = IMPL.apply(bare, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") });
   assert.equal(zoneOf(r.state, "p1", "hand").length, hand - 1, "the card itself was played");
-  if (ENGINE === "rules") {
-    const vm = r.state as VmState;
-    assert.equal(vm.outcome?.kind, "interrupted", "the absent program interrupts the game");
-    assert.ok(r.events.some((e) => e.type === "note" && e.text === vm.outcome?.reason), "the public log explains the interruption generically");
-    assert.ok(!JSON.stringify(r.events).includes("DRAWER"), "public interruption events do not name the source card");
-  } else {
-    assert.ok(r.events.some((e) => e.type === "note" && /no rule stored — played as blank/.test(e.text)), "the legacy log records its existing blank-skill behavior");
-  }
+  const vm = r.state as VmState;
+  assert.equal(vm.outcome?.kind, "interrupted", "the absent program interrupts the game");
+  assert.ok(r.events.some((e) => e.type === "note" && e.text === vm.outcome?.reason), "the public log explains the interruption generically");
+  assert.ok(!JSON.stringify(r.events).includes("DRAWER"), "public interruption events do not name the source card");
   s = stagedG({ hand: ["DRAWER"], energy: ["V1"] });
   const resolved = IMPL.apply(CTX, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "DRAWER") }).state;
   assert.equal(zoneOf(resolved, "p1", "hand").length, hand, "with its rule it draws");
-  if (ENGINE === "rules") assert.equal((resolved as VmState).outcome, undefined, "a supported Auto resolution continues without an interruption");
+  assert.equal((resolved as VmState).outcome, undefined, "a supported Auto resolution continues without an interruption");
   // A [Permanent] is read from the same rows — the static layer compiles nothing.
   const t = stagedG({ battle: ["AURA", "V1"] });
   assert.equal(powerIn(bare, t, findG(t, "p1", "battle", "V1")), 10000, "no rules, no aura");

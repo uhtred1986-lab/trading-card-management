@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { LegalAction, Requirement } from "../../src/lib/arena/types";
 import type { CardView } from "../../src/lib/arena/view";
 import { CTX, DEFS, card as definition, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { Action, PlayerId } from "../../src/lib/arena/types";
@@ -152,7 +152,7 @@ function move(action: LegalAction["action"], label = "engine offer", cost?: Lega
 // has a Battle ability, not a Main ability. Its actual artwork remains the
 // UI fixture; this separate card exists only to exercise generic Main timing.
 {
-  const engine = engineFor("rules");
+  const engine = RULES;
   const loaded = rulesetFor("dbs");
   assert.ok(loaded.ok);
   const previous = new Map(["U04_MAIN", "U04_BATTLE", "U04_COUNTER"].map((id) => [id, DEFS[id]]));
