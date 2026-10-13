@@ -6,7 +6,7 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf } from "./cards";
+import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf, specifiedCostOf } from "./cards";
 import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "../types";
 
 export interface CardFilter {
@@ -176,6 +176,20 @@ export interface CardFilter {
   markersMin: number | null;
   markersMax: number | null;
   /**
+   * "A red Unison Card **with a specified cost of 2**" (SD15-01, SD15-03 and
+   * some 170 more lines, nearly all on Unisons), "Unisons with a specified
+   * cost of 2 or less": how many coloured orbs the card's specified cost
+   * (1-2-3) has, inclusive bounds. Answered only where that cost is *known*:
+   * the owner's stored `specifiedCost` (`cards.specified_cost`), or a fixed
+   * numeric energy cost, whose orbs the engine fills by its one-per-colour
+   * convention (`specifiedCostOf`). A Unison has no energy cost in the feed, so
+   * one with nothing stored is unknown and matches no bound at all — neither
+   * "2" nor "2 or less" — rather than answering as if it had no orbs (#728).
+   * Until 13 Oct 2026 the phrase made the whole description unreadable.
+   */
+  specifiedCostMin: number | null;
+  specifiedCostMax: number | null;
+  /**
    * "An originally skill-less Battle Card" (20-3-1, 1-5-9): the card printed
    * with no text at all, whether or not a later effect granted it a skill —
    * narrower than "skill-less" on its own, which would also ask about a skill
@@ -285,6 +299,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   comboPowerMax: "number",
   markersMin: "number",
   markersMax: "number",
+  specifiedCostMin: "number",
+  specifiedCostMax: "number",
   originallySkillLess: "boolean",
   skillLess: "boolean",
   powerRel: "powerRel",
@@ -350,6 +366,8 @@ export function emptyFilter(): CardFilter {
     comboPowerMax: null,
     markersMin: null,
     markersMax: null,
+    specifiedCostMin: null,
+    specifiedCostMax: null,
     originallySkillLess: false,
     skillLess: false,
     powerRel: null,
@@ -391,7 +409,10 @@ function eitherFilter(text: string): CardFilter | null {
   const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   // "…with an energy cost of 1 or 5" (BT29-032, #537): two costs, either one.
   // Read as a bound it was the first number alone. "4 or less" is not this.
-  const costs = /\benergy costs? (?:of )?(\d+) or (\d+)\b(?!\s*or\b)/i.exec(t);
+  // Not "…with an energy cost of 1 **or 1 yellow Unison** with a specified
+  // cost of 1" (SD20-01, #728): there the second number is the next
+  // description's count, and the "or" is between two descriptions.
+  const costs = /\benergy costs? (?:of )?(\d+) or (\d+)\b(?!\s*or\b)(?!\s+(?:red|blue|green|yellow|black|white|mono|multi|card|unison|extra|battle|leader|z-|<|≪|\{))/i.exec(t);
   if (costs) {
     const at = (n: string) => parseFilter(t.slice(0, costs.index) + t.slice(costs.index).replace(costs[0], `energy cost of ${n}`));
     return { ...emptyFilter(), anyOf: [at(costs[1]), at(costs[2])] };
@@ -540,12 +561,35 @@ function parseOneFilter(text: string): CardFilter {
   // one is only about the keywords, so a card with an [Auto] and no keyword
   // still qualifies.
   if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
-  // Two measures no filter field carries (#537): "with a specified cost of 2"
-  // (SD15-01, SD13-04) and "an energy cost less than or equal to your current
-  // energy" (BT5-119, SD7-01). Dropped, the description offered every card the
-  // rest of it named — the widening ground rule 5 forbids — so the phrase is
-  // refused instead, and the skill goes to the referee.
-  if (/\bspecified cost\b|\benergy costs? (?:of )?(?:less than or equal to|no (?:more|greater) than|equal to or less than) (?:the (?:amount|number) of )?your (?:current )?energy\b/.test(lower)) f.unreadable = true;
+  // "With a specified cost of 2", "with specified costs of 2 or less", "with a
+  // specified cost of 3 or more" (SD15-01, SD15-03, #728): a bound on the
+  // orbs of the card's specified cost — see `specifiedCostMin`. Any other
+  // sentence about a specified cost ("reduce the specified cost of …") is not
+  // a measure of the card, and with "an energy cost less than or equal to your
+  // current energy" (BT5-119, SD7-01) stays a measure no field carries (#537):
+  // dropped, the description offered every card the rest of it named — the
+  // widening ground rule 5 forbids — so the phrase is refused instead.
+  // BT25-127 prints "a specified costof 1": the missing space is a typo, not
+  // another measure, and before #728 it slipped past the refusal below and
+  // chose any green Z-Unison.
+  const specified = /\bspecified costs?\s*(?:of\s*)?(\d+)(?: or (less|fewer|more))?\b/.exec(lower);
+  if (specified) {
+    if (specified[2] !== "more") f.specifiedCostMax = Number(specified[1]);
+    if (specified[2] !== "less" && specified[2] !== "fewer") f.specifiedCostMin = Number(specified[1]);
+    // The measure is nearly always the second of two descriptions — "a blue
+    // ≪Saiyan≫ or ≪Earthling≫ card with an energy cost of 3 or less **or** 1
+    // blue Unison Card with a specified cost of 3" (BT14-040), "…card―both
+    // green and with an energy cost of 4 or less―or 1 green Unison…"
+    // (BT18-083). When `eitherFilter` could not cut such a phrase in two, read
+    // as one description every word lands on one card — a ≪Saiyan≫ Unison with
+    // both costs — which is a wrong card rather than a missing one. So an "or"
+    // still standing here (not a bound's, not between two colours) refuses it.
+    const loose = colourText
+      .replace(/\b(?:or|and\/or) (?:less|more|fewer)\b/g, " ")
+      .replace(/\b(?:red|blue|green|yellow|black|white),? (?:and\/or|or) (?=red|blue|green|yellow|black|white)/g, " ");
+    if (/\bor\b/.test(loose)) f.unreadable = true;
+  }
+  if ((!specified && /\bspecified cost/.test(lower)) || /\benergy costs? (?:of )?(?:less than or equal to|no (?:more|greater) than|equal to or less than) (?:the (?:amount|number) of )?your (?:current )?energy\b/.test(lower)) f.unreadable = true;
   // "An originally skill-less Battle Card" (20-3-1): printed with no text at
   // all, which the catalog only ever writes with the adverb — see
   // `originallySkillLess` above for why bare "skill-less" is a separate
@@ -841,7 +885,25 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   const combo = typeof d.comboPower === "number" ? d.comboPower : null;
   if (f.comboPowerMin != null && (combo == null || combo < f.comboPowerMin)) return false;
   if (f.comboPowerMax != null && (combo == null || combo > f.comboPowerMax)) return false;
+  // 1-2-3: the orbs of the specified cost, where it is known (#728) — see the field.
+  if (f.specifiedCostMin != null || f.specifiedCostMax != null) {
+    const orbs = specifiedOrbsKnown(d);
+    if (orbs == null) return false;
+    if (f.specifiedCostMin != null && orbs < f.specifiedCostMin) return false;
+    if (f.specifiedCostMax != null && orbs > f.specifiedCostMax) return false;
+  }
   return true;
+}
+
+/**
+ * How many coloured orbs a card's specified cost has, or null when nobody
+ * knows (#728): the stored value when there is one, the one-per-colour
+ * convention for a fixed numeric energy cost (`specifiedCostOf`), and nothing
+ * for a card with no number to fill it from — a Unison off the feed, an X cost.
+ */
+export function specifiedOrbsKnown(d: CardDef): number | null {
+  if (!d.specifiedCost && typeof d.energyCost !== "number") return null;
+  return Object.values(specifiedCostOf(d)).reduce((n, k) => n + (k ?? 0), 0);
 }
 
 /** "When your life is at 4 or less" and friends — the conditions Awaken/Wish print most often. */

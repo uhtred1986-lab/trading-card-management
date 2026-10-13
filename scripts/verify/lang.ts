@@ -776,6 +776,12 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { markersMin: 2 },
     { markersMax: 3 },
     { markersMin: 2, markersMax: 4 },
+    // 1-2-3: "a red Unison Card with a specified cost of 2" (SD15-01, #728).
+    { specifiedCostMin: 2, specifiedCostMax: 2 },
+    { specifiedCostMax: 2 },
+    { specifiedCostMin: 3 },
+    { specifiedCostMin: 1, specifiedCostMax: 3 },
+    { colors: ["Red"], type: "UNISON", specifiedCostMin: 2, specifiedCostMax: 2, noKeywords: true },
     { powerRel: { of: "self", cmp: "<=" } },
     // "…the chosen card's power" (BT19-096): measured against a bound
     // variable, not this card — the shape `compileClause` builds by filling
@@ -800,8 +806,12 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     "red skill-less Battle Card with an energy cost of 1",
     "card with 5000 combo power",
     "card with a combo power of 5000 or more",
+    "red Unison Card with a specified cost of 2 and no keyword skills",
+    "Unison Card with a specified cost of 2 or less",
   ])
     tripFilter(parseFilter(text), `filter from "${text}"`);
+  // The specified cost (1-2-3, #728) prints in the words `parseFilter` reads.
+  assert.equal(printFilter({ ...emptyFilter(), type: "UNISON", specifiedCostMin: 2, specifiedCostMax: 2 }), '"unison card with a specified cost of 2"');
 
   // The combo-power measure prints in its own words, not as the field form —
   // the printed form is what a person reads.

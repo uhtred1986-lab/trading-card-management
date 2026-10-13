@@ -119,16 +119,19 @@ assert.equal(pack.qualification.playable, false, "the audited pair is not playab
   const bare = await mastersPackInput({ runtimeRevision: REV, specifiedCosts: {} });
   assert.deepEqual(bare.missingInputs.map((m) => m.card).sort(), ["DB3-001", "SD15-02"], "without the owner's costs both Unison cards are missing inputs");
   assert.equal(bare.blockers.find((b) => b.id === "U7")?.status, "missing-input", "and U7 is open");
-  // Every audited blocker cleared (U7's input comes by default): the unread clauses alone still block.
+  // Every audited blocker cleared (U7's input comes by default). Since #728 no
+  // program of the pair holds an unread clause, so an unread one is staged to
+  // prove that an unresolved mechanic alone still keeps a pack unplayable.
   const input = await mastersPackInput({ runtimeRevision: REV });
   assert.deepEqual(input.missingInputs, [], "the owner's specified costs clear the missing inputs");
   assert.equal(input.blockers.find((b) => b.id === "U7")?.status, "resolved", "and resolve U7");
+  assert.deepEqual(Object.entries(input.scripts).filter(([, s]) => s.unsupported.length).map(([k]) => k), [], "#728: no program of the pair holds an unread clause");
   input.blockers = input.blockers.map((b) => ({ ...b, status: "resolved" as const }));
-  const cleared = await makeOfflinePack(input);
+  const unread = { ...input, scripts: { ...input.scripts, "SD15-03": { ...input.scripts["SD15-03"], unsupported: ["staged unread clause"] } } };
+  const cleared = await makeOfflinePack(unread);
   assert.equal(cleared.qualification.playable, false, "an unresolved mechanic alone keeps a pack unplayable");
-  assert.deepEqual(cleared.qualification.reasons, ["unresolved mechanic: SD15-01#back has 2 unread clause(s)", "unresolved mechanic: SD15-03 has 2 unread clause(s)"], "the unread programs are named");
-  // …and with no unread clause (staged), the pack would qualify on its own interpreter only.
-  for (const key of ["SD15-01#back", "SD15-03"]) input.scripts[key] = { ...input.scripts[key], unsupported: [] };
+  assert.deepEqual(cleared.qualification.reasons, ["unresolved mechanic: SD15-03 has 1 unread clause(s)"], "the unread program is named");
+  // …and with no unread clause and every blocker resolved, the pack would qualify on its own interpreter only.
   const staged = await makeOfflinePack(input);
   assert.equal(staged.qualification.playable, true, "a staged pack with nothing open qualifies");
   assert.equal((await qualifyOfflinePack(staged, REV)).playable, true, "on its own interpreter");

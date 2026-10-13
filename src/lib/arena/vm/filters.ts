@@ -134,6 +134,10 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   // 13-2: "a red Unison Card with 2 or more markers" (BT10-008, #721).
   markersMin: { reads: ["markers"] },
   markersMax: { reads: ["markers"] },
+  // 1-2-3: "a red Unison Card with a specified cost of 2" (SD15-01, #728).
+  // `energyCost` is read to tell a known cost from an unknown one (below).
+  specifiedCostMin: { reads: ["specifiedCost", "energyCost"] },
+  specifiedCostMax: { reads: ["specifiedCost", "energyCost"] },
   faceUp: { instance: "which copy of the card is face up is about the instance in its area (3-9-2-1), not about the card" },
   powerRel: { instance: "a bound read off another card the skill has chosen, so it is applied where that card is known" },
   unreadable: { instance: "the compiler refused the phrase: the selector offers nothing rather than a card failing to match" },
@@ -300,6 +304,18 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
     const markers = number(attrs.markers) ?? 0;
     if (f.markersMin != null && markers < f.markersMin) return false;
     if (f.markersMax != null && markers > f.markersMax) return false;
+  }
+  // 1-2-3: the orbs of the specified cost (#728), as the legacy `matches`
+  // reads them. `attrsNow` seeds the attribute from `specifiedCostOf`, which
+  // answers no orbs both for "none" and for "nobody entered them": a stored
+  // value is never empty, and a fixed numeric energy cost is filled by the
+  // engine's convention, so an empty list on a card with no number (a Unison
+  // off the feed) is unknown and matches no bound.
+  if (f.specifiedCostMin != null || f.specifiedCostMax != null) {
+    const orbs = Array.isArray(attrs.specifiedCost) ? attrs.specifiedCost.length : null;
+    if (orbs == null || (orbs === 0 && number(attrs.energyCost) == null)) return false;
+    if (f.specifiedCostMin != null && orbs < f.specifiedCostMin) return false;
+    if (f.specifiedCostMax != null && orbs > f.specifiedCostMax) return false;
   }
   return true;
 }

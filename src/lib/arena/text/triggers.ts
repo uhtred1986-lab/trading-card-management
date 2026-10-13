@@ -194,7 +194,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "koed":
       // "…removed from a Battle Area by a skill **or KO'd**" is the KO half of
       // a wording whose other half is `removedFromBattle`.
-      return /when this card is ko'?d|when this card is removed from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d/.test(t);
+      // SD15-03 (#728) writes the same pair with "placed in your Drop Area from
+      // your Battle Area by an opponent's skill or KO'd"; the first half is
+      // `droppedByOpponent`.
+      return /when this card is ko'?d|when this card is removed from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d|when this card is placed in [a-z' ]*drop area from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d/.test(t);
     // 3-1: a move an effect caused, which is not a KO — the cards write "or
     // KO'd" when they mean both.
     case "removedFromBattle":
@@ -205,6 +208,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // hand is that moment and not this.
     case "droppedFromBattle":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t);
+    // The same move by an opponent's skill (SD15-03, #728).
+    case "droppedByOpponent":
+      return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
     // The hand's side of the same sentence (SD13-05, BT7-127, BT11-022): a
     // skill discarded it, as its effect or as its cost (1-6, 1-7-1, 20-7-4).
     // SD13-05 says "**If** this card is placed …" after a condition before the

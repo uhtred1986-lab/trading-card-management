@@ -794,6 +794,12 @@ export type Trigger =
    * any destination, so a card bounced to the hand is that and not this.
    */
   | "droppedFromBattle"
+  /**
+   * The same move made by an *opponent's* skill: "when this card is placed in
+   * your Drop Area from your Battle Area by an opponent's skill or KO'd"
+   * (SD15-03, #728). Its "or KO'd" half is `koed`.
+   */
+  | "droppedByOpponent"
   /** The same sentence with no cause named, which is every cause: a skill and a battle KO alike. */
   | "leftBattleToDrop"
   /**

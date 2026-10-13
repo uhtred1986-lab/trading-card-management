@@ -2063,7 +2063,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       // and life" (BT21-027): a counted description that says nowhere where the
       // cards come from. Read with no area it chose them from the cards you
       // have in play, which is never where a card "added to your hand" is.
-      if (to === "hand" && /^add /.test(t) && /^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among|of)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, ""))) return null;
+      // The "of" in "with a specified cost **of** 2" (BT28-096, #728) is the
+      // measure's, not a place, and does not let the clause through.
+      if (to === "hand" && /^add /.test(t) && /^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among|of)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, "").replace(/\bspecified costs? of\b/g, ""))) return null;
       const ref = refFor(m[1], c);
       return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
     }
@@ -2163,6 +2165,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       const sel = parseTarget(desc, c.lastSeen);
       if (sel && !sel.special) ref = { sel };
     }
+    // A card is played *from* somewhere (5-5-3) — never from play. A Unison
+    // description that names no place and follows no look ("play up to 1
+    // black Unison with a specified cost of 3 **and a marker on it**",
+    // BT21-137, whose "from your deck" the "and" cut away) defaulted to the
+    // cards already in play, and the skill "played" one of those. Refused for
+    // the specified-cost descriptions #728 made readable; the same default on
+    // other "play" clauses is older and left as it reads (see the PR).
+    if ("sel" in ref && ref.sel.area === "play" && !ref.sel.special && !ref.sel.fromVar && !ref.sel.areas?.length && (ref.sel.filter?.specifiedCostMin != null || ref.sel.filter?.specifiedCostMax != null)) return null;
     const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
@@ -2228,10 +2238,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // card was never on offer.
   if ((m = /^choose up to (\d+) of ((?:your opponent's|your) .+?) or up to (\d+) of ((?:your opponent's|your) .+)$/.exec(t))) {
     const half = (n: string, phrase: string): Selector | null => {
-      // A measure the filter grammar does not carry would be read away, and
-      // the half offered wider than printed (EX12-07's "with a specified cost
-      // of 2"): refused instead.
-      if (/\bspecified cost\b/.test(phrase)) return null;
+      // EX12-07's "with a specified cost of 2" was refused here while the
+      // filter grammar could not carry it; since #728 it is a measure
+      // (`specifiedCostMin`), and a specified-cost phrase it cannot read still
+      // makes the description unreadable, so `parseTarget` refuses that half.
       // "Your [green] Leaders" (P-691) is the Leader, described or not.
       const leader = /^your (?:(.+?) )?leaders?(?: cards?)?$/.exec(phrase);
       if (leader) {
@@ -2514,6 +2524,11 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     if (/^attack\b/.test(rest)) {
       // "attack this card" is about the defender, not the attacker.
       if (/^attack (?:this card|it)\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target: { sel: { special: "self" } }, ...withUnless }];
+      // "Your opponent can't attack **your Unisons with** specified costs of 2"
+      // (EX21-11, #728): the "with" describes the cards attacked, not the
+      // attackers. Read below it forbade the attackers instead — and, while
+      // the measure was unreadable, every attack. Left to the referee.
+      if (/^attack your .+ with (?:an? )?specified costs?\b/.test(rest)) return null;
       const withWhat = /\bwith (.*)$/.exec(rest)?.[1];
       const filter = withWhat ? filterFor(withWhat, null) : undefined;
       // Same again: an unread description would forbid every attack rather

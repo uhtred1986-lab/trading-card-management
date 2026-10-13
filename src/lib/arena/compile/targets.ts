@@ -874,6 +874,9 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     // "A Unison Card with 2 or more markers" (BT10-008, #721): the same lesson.
     f.markersMin != null ||
     f.markersMax != null ||
+    // "A Unison with a specified cost of 2" (EX21-11, #728): the same lesson.
+    f.specifiedCostMin != null ||
+    f.specifiedCostMax != null ||
     f.powerRel != null ||
     f.monoColor ||
     // A colour narrows an energy area as much as any other: "your blue energy"

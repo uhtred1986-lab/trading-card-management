@@ -2241,6 +2241,11 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // 13-2: "a red Unison Card with 2 or more markers" (BT10-008, #721), in the words `parseFilter` reads back.
   if (f.markersMin != null) bits.push(`with ${f.markersMin} or more markers`);
   if (f.markersMax != null) bits.push(`with ${f.markersMax} or fewer markers`);
+  // 1-2-3: "a red Unison Card with a specified cost of 2" (SD15-01, #728), in the words `parseFilter` reads back.
+  if (f.specifiedCostMin != null && f.specifiedCostMin === f.specifiedCostMax) bits.push(`with a specified cost of ${f.specifiedCostMin}`);
+  else if (f.specifiedCostMin != null && f.specifiedCostMax != null) bits.push(`with a specified cost of ${f.specifiedCostMin} or more and a specified cost of ${f.specifiedCostMax} or less`);
+  else if (f.specifiedCostMax != null) bits.push(`with a specified cost of ${f.specifiedCostMax} or less`);
+  else if (f.specifiedCostMin != null) bits.push(`with a specified cost of ${f.specifiedCostMin} or more`);
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
