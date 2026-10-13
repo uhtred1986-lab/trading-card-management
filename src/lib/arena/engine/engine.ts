@@ -25,7 +25,7 @@ import { NotYet } from "../vm/errors";
 import { rejectedActions as gatherRejectedActions, type RejectionDeps } from "./rejections";
 import { activeEnergy, addEffect, altCostFor, canPayCostProgram, areaOf, cardNow, cardsInPlay, comboCostOf, comboPowerOf, def, draw, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects, endTurnRelativeEffects, expireDelayed, expireSkips, takeSkip, stepSkippedByPermanent, face, forbids, fireDelayed, has, describePayment, forbiddenBy, forbiddenForCard, inPlay, keyword, LIFE_AT_START, lifeReplacementChoicesFor, markerReplacementChoicesFor, move, note, OPENING_HAND, pay, payAltCost, paymentOptions, payZEnergy, permits, orbCount, planPayment, pricePayers, playCost, powerOf, resolveSelector, schedule, staticEffects, spendProhibitionUse, setMode, skillsOfInstance, copiedSkillsOn, locate, taxesOn, condHolds, invokerEnergy, liftFromPile, skillNegated, skillsNegated, whyNotPay, scriptsOfInstance, zEnergyCostOf } from "./state";
 import { IllegalAction } from "../vm/common";
-import type { AbilityAvailability, ActionCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
+import type { AbilityAvailability, ActionCost, AltCost, EngineContext, GameOptions, LegalAction, Payer } from "../types";
 import type {
   Action,
   Applied,
@@ -2576,6 +2576,18 @@ export function overRealmWarpLines(ctx: EngineContext, s: GameState, p: PlayerId
  * rules, plus text skills whose cost is orbs only and whose effect the native
  * resolver reads. Everything else waits for compiled scripts / the referee.
  */
+/**
+ * 5-3 / 12-2-2-2: the other price an Extra's line may be used at from the
+ * hand — the card's alternative for playing it, or (#742) a waiver of the
+ * energy cost for its [Activate: Battle] line alone ("you can activate this
+ * card's [Activate: Battle] skill from your hand without paying its energy
+ * cost"), which no other line of the card may use. The rules engine's
+ * `activationAlt`, read the same way.
+ */
+function extraAltFor(ctx: EngineContext, s: GameState, card: string, p: PlayerId, sk: Skill): AltCost | null {
+  return altCostFor(ctx, s, card, p, "play") ?? (sk.kind === "activate:battle" ? altCostFor(ctx, s, card, p, "activate:battle") : null);
+}
+
 function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string, sk: Skill, timing: "main" | "battle", alt = false, onto?: string): string | null {
   // `onto` (EX03-16) names an [Evolve]'s base with the activation: nothing
   // else takes one.
@@ -2786,7 +2798,11 @@ function activatable(ctx: EngineContext, s: GameState, p: PlayerId, card: string
       // energy cost — but the *skill's* orbs are still paid, and out of what
       // is left. Checked against the whole pool, this offered skills whose
       // orbs needed the very energy [Invoker] was about to rest.
-      if (!altCostFor(ctx, s, card, p, "play")) return null;
+      const a = extraAltFor(ctx, s, card, p, sk);
+      if (!a) return null;
+      // #742: a waiver for this [Activate: Battle] line alone rests nothing;
+      // the line's own orbs are still paid out of the whole pool.
+      if (a.for === "activate:battle") return canPayOrbs() ? `Activate ${name} (for no energy)` : null;
       const spoken = invokerEnergy(ctx, s, p);
       if (!planPayment(ctx, s, p, orbTotal, orbSpecified, undefined, orbEither, spoken ? [spoken] : undefined, pricePayerCards)) return null;
       return `Activate ${name} by resting a Red/Blue energy ([Invoker])`;
@@ -3752,7 +3768,7 @@ function activateLine(ctx: EngineContext, s: GameState, ev: GameEvent[], p: Play
     if (waived) {
       // The Extra still enters the Drop as part of activation (12-2-2).
     } else if (alt) {
-      const a = altCostFor(ctx, s, card, p, "play");
+      const a = extraAltFor(ctx, s, card, p, sk);
       if (!a || !payAltCost(ctx, s, ev, p, a)) throw new IllegalAction("can't pay that price");
       payOrbs();
     } else {

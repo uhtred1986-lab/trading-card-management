@@ -219,23 +219,23 @@ Results of the audit play-through are in section 6. A matchup is "supported" onl
 <!-- GENERATED:play -->
 | Matchup | Games | Finished | p1 / p2 wins | End reason | Stopped |
 |---|---|---|---|---|---|
-| A (p1) vs A (p2) | 20 | 20 | 13 / 7 | all by empty Life Area (0-1-3-2) | none |
+| A (p1) vs A (p2) | 20 | 20 | 14 / 6 | all by empty Life Area (0-1-3-2) | none |
 | A (p1) vs B (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
 | B (p1) vs A (p2) | 20 | 20 | 10 / 10 | all by empty Life Area (0-1-3-2) | none |
 | B (p1) vs B (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
 
 Games: 80 (20 per ordered matchup, seeds 649.., policy seeds 1000.., `localPolicy()` (#650: every window handled, an unreadable one interrupts) on both seats, 3000-move cap).
 
-- Prompt kinds the policy was asked (decisions, all games): blocker 468, charge 1138, chooseCards 919, chooseFirst 80, chooseMode 166, combo 5748, counter 946, main 5735, mulligan 160, orderPending 7, payCost 202, zEnergyFromCombo 1099.
-- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 48, BT11-008#blocker 36, BT3-027#counter 43, BT4-077#0 20, BT4-078#0 42, BT4-079#0 16, BT4-081#0 7, BT4-084#0 43, BT4-085#0 8, BT4-086#0 7, BT4-091#0 41, BT4-091#blocker 44, BT4-096#0 50, BT4-097#counter 55, BT5-023#counter 50, BT6-025#0 54, BT6-026#counter 40, DB1-019#0 41, DB3-001#10 24, DB3-001#20 5, SD15-01#10 60, SD15-02#10 18, SD5-01#10 58, SD5-04#10 15, SD5-05#0 7, TB1-023#0 47.
+- Prompt kinds the policy was asked (decisions, all games): blocker 476, charge 1147, chooseCards 933, chooseFirst 80, chooseMode 168, combo 5792, counter 964, main 5786, mulligan 160, orderPending 7, payCost 204, zEnergyFromCombo 1102.
+- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 48, BT11-008#blocker 37, BT3-027#counter 43, BT4-077#0 20, BT4-078#0 42, BT4-079#0 16, BT4-081#0 7, BT4-084#0 43, BT4-085#0 8, BT4-086#0 7, BT4-091#0 41, BT4-091#blocker 44, BT4-096#0 50, BT4-097#counter 55, BT5-023#counter 50, BT6-025#0 54, BT6-026#counter 40, DB1-019#0 41, DB3-001#10 24, DB3-001#20 5, SD15-01#10 60, SD15-02#10 18, SD5-01#10 58, SD5-04#10 15, SD5-05#0 7, TB1-023#0 47.
 - Games in which the engine refused a manual skill as `unread`: none.
 - Games in which a Leader awakened: SD15-01 60, SD5-01 58.
-- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 51, BT10-008 30, BT11-008 44, BT11-011 45, BT14-006 49, BT14-010 53, BT4-012 51, BT4-077 57, BT4-078 54, BT4-079 48, BT4-081 54, BT4-084 55, BT4-085 49, BT4-086 34, BT4-089 57, BT4-091 56, BT6-010 36, BT6-011 50, BT9-031 14, DB2-004 53, DB3-001 24, SD15-02 18, SD15-03 35, SD15-04 44, SD15-05 30, SD5-02 46, SD5-03 27, SD5-04 35, SD5-05 43, TB1-055 11.
+- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 51, BT10-008 30, BT11-008 44, BT11-011 45, BT14-006 49, BT14-010 53, BT4-012 51, BT4-077 57, BT4-078 54, BT4-079 48, BT4-081 54, BT4-084 55, BT4-085 49, BT4-086 34, BT4-089 57, BT4-091 56, BT6-010 36, BT6-011 50, BT9-031 15, DB2-004 53, DB3-001 24, SD15-02 18, SD15-03 36, SD15-04 44, SD15-05 30, SD5-02 46, SD5-03 27, SD5-04 35, SD5-05 43, TB1-055 11.
 
 `chooseCards` questions asked (the engine's own reason text, decisions across all games):
 
 - 107x choose up to 1 ≪Goku's Lineage≫ from among them
-- 95x choose up to 1 of your red Unison Cards with a specified cost of 2 and no keyword skills
+- 104x choose up to 1 of your red Unison Cards with a specified cost of 2 and no keyword skills
 - 87x [Swap]: the Battle Card to play in its place, or none
 - 79x You may switch up to 2 of your energy to Active Mode (2 more)
 - 77x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
@@ -244,15 +244,15 @@ Games: 80 (20 per ordered matchup, seeds 649.., policy seeds 1000.., `localPolic
 - 65x choose up to 1 of your red ≪Saiyan≫ Leader Cards
 - 58x you may choose 1 red card from your hand
 - 54x choose up to 1 of your opponent's Battle Cards
-- 48x Choose up to 1 of your opponent's Battle Cards or Unison Cards
+- 52x Choose up to 1 of your opponent's Battle Cards or Unison Cards
 - 27x choose 2 cards from your hand (2 more)
 - 18x choose up to 1 of your red energy
 - 15x Choose 1 card from your life
 - 14x choose up to 1 of your opponent's Rest Mode Battle Cards
 - 7x choose up to 1 of your red Unison Cards
 - 5x Choose 1 card in your life
+- 5x Choose 1 Extra Card in your hand
 - 5x you may choose 1 card from your life
-- 4x Choose 1 Extra Card in your hand
 - 4x you may choose 1 card in your life
 - 3x choose up to 1 of your mono-red Leader Cards
 - 2x choose 1 card from your hand
@@ -393,7 +393,7 @@ has an op the static layer applies. Until #716, Counter lines that printed a non
 | Auto at the end of a battle after a combo from hand | E | 6 | `arena-combo-from-hand-battle-end`; `arena-combo-cleanup-checkpoints` | #572 (closed), #609 (closed) | - | BT6-010 and TB1-055 bind this copy's hand origin; BT6-010 also the opponent's turn. |
 | Auto when a card attacks / a Leader or Unison is attacked | C | 11 | scripts/verify/readings.ts, readings-571.ts - the reading of these triggers (parse level), not a played game | #571 (closed), U1 | - | SD15-01's red-Unison-only trigger is a #571 reading. |
 | Auto when a card is played | C | 8 | - | U1 | - | The most common trigger; generic suites use it, no scenario names these wordings. |
-| Auto when an opponent's skill sends this card from the Battle Area to the Drop | K | 1 | scripts/verify/sd15-readings-728.ts - SD15-03: an opponent's skill drops it, [Spirit Boost 1] takes a marker off SD15-02 and it plays itself back | #728 | - | SD15-03 #20; [Limit 1] is counted per card instance, not across copies (glossary, 22-44). |
+| Auto when an opponent's skill sends this card from the Battle Area to the Drop | K | 1 | scripts/verify/sd15-readings-728.ts - SD15-03: an opponent's skill drops it, [Spirit Boost 1] takes a marker off SD15-02 and it plays itself back | #728 | - | SD15-03 #20; [Limit 1] is counted across copies on its master (22-44-3, #741: scripts/verify/limit-copies-741.ts). |
 | Auto when this card is KO'd | C | 1 | scripts/verify/sd15-readings-728.ts - SD15-03's "or KO'd" half (reading only) | U1 | - | SD15-03 #20's second half; no scenario KOs it. |
 | Auto at turn end / Unison to Drop / [Spirit Boost] payment | C | 3 | - | U1 | - | Each is one card (BT4-081, SD15-02, SD15-05). |
 | [Blocker] | K | 2 | scripts/verify/battles.ts:92-127 - [Blocker] redirect, rested Blocker not offered | - | blocker | - |
@@ -454,18 +454,18 @@ until a scenario plays them. **#577** is the delivery epic for all of these.
 |---|---|---|---|
 | chooseFirst | every match | - | 80 |
 | mulligan | every match | - | 160 |
-| charge | every match | - | 1138 |
-| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 5735 |
-| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5748 |
-| blocker | every match | BT11-008#0, BT4-091#10 | 468 |
-| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 946 |
+| charge | every match | - | 1147 |
+| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 5786 |
+| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5792 |
+| blocker | every match | BT11-008#0, BT4-091#10 | 476 |
+| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 964 |
 | orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 7 |
-| chooseCards | by card | SD15-01#10, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20 | 919 |
-| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 166 |
+| chooseCards | by card | SD15-01#10, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20 | 933 |
+| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 168 |
 | replaceMove | no audited card needs it | - | 0 |
-| zEnergyFromCombo | every match | - | 1099 |
+| zEnergyFromCombo | every match | - | 1102 |
 | optionalCost | no audited card needs it | - | 0 |
-| payCost | every match | - | 202 |
+| payCost | every match | - | 204 |
 | offering | no audited card needs it | - | 0 |
 | empowerCarry | no audited card needs it | - | 0 |
 <!-- /GENERATED:windows -->

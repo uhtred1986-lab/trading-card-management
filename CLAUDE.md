@@ -94,7 +94,8 @@ npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv 
 ```
 
 `npm test` needs no database or network; everything else needs `DATABASE_URL` in `.env.local`
-(except `android:test`, which needs Docker). The `arena:*` scripts, `contract:emit`, `android:test`
+(except `android:test`, which needs Docker — and is not run: no native Android app is planned,
+owner 13 Oct 2026). The `arena:*` scripts, `contract:emit`, `android:test`
 and the rest of the arena tooling are listed with their flags in `docs/architecture/arena.md`;
 `docs/arena-tooling.md` explains what each proves — read it before changing the compiler or the
 engine. There is no test framework, only `assert` scripts run with `tsx`.

@@ -256,7 +256,7 @@ const COST_MODIFIER_FIELDS: OpField[] = [
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "pay", type: { enum: ["none", "life", "program", "energy"] } },
   { name: "n", type: "number" },
-  { name: "for", type: { enum: ["counter", "play"] }, default: "counter" },
+  { name: "for", type: { enum: ["counter", "play", "activate:battle"] }, default: "counter" },
   { name: "alt", type: "ops" },
   { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
@@ -684,7 +684,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [
       { name: "pay", type: { enum: ["none", "life", "program", "energy"] }, required: true },
       { name: "n", type: "number" },
-      { name: "for", type: { enum: ["counter", "play"] }, default: "counter" },
+      { name: "for", type: { enum: ["counter", "play", "activate:battle"] }, default: "counter" },
       { name: "ops", type: "ops" },
       { name: "orbs", type: { list: { enum: ["any", ...COLORS] } } },
       {
@@ -710,9 +710,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
                 : `by adding ${op.n ?? 1} from your life to your hand`;
       const who = op.target ? describeRef(op.target) : "this card";
       const until = op.until ? ` until ${op.until === "game" ? "the game ends" : op.until}` : "";
-      return `${op.for === "play" ? `${who} may be played` : `${who}'s [Counter] may be activated`} ${price}${until}`;
+      const move = op.for === "play" ? `${who} may be played` : op.for === "activate:battle" ? `${who}'s [Activate: Battle] may be activated from your hand` : `${who}'s [Counter] may be activated`;
+      return `${move} ${price}${until}`;
     },
-    doc: 'another way to pay for a [Counter] (or a play, "for":"play") (5-3) — "none", "life" (n cards), a reduced "energy" price ("orbs"), or a "program" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits "target"/"until"; a card that grants it to *other* cards for a span carries both — "Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …" (BT11-033)',
+    doc: 'another way to pay for a [Counter] (or a play, "for":"play"; or an Extra\'s [Activate: Battle] line used from the hand, "for":"activate:battle" — the energy cost of 12-2-2-2 only, the line\'s own price still paid, #742) (5-3) — "none", "life" (n cards), a reduced "energy" price ("orbs"), or a "program" the card asks for instead. Printed on the card itself this is [Permanent]-only and omits "target"/"until"; a card that grants it to *other* cards for a span carries both — "Until the start of your next turn, you can activate mono-blue cards with [Counter] skills from your hand by …" (BT11-033)',
   },
   payWith: {
     fields: [

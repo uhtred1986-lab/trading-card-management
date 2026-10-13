@@ -335,6 +335,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "Both engines read the taxes once as the activation is declared (before 20-14 counted uses are spent) and queue one price frame per tax in front of the activation's own counter window, effect and invoking parent, so a saved game charges each once. The set must be payable whole (each tax and their shared hand need). Only a synthetic wording is compiled — no printed card is claimed — and a keyword's own activation move, an [Auto] (incl. Heroic/Villainous hooks) and a [Counter] under a tax stop with a typed #677 NotYet rather than resolving untaxed. The price owed is fixed at declaration: a rule whose source leaves mid-payment is still paid, and one newly in force mid-payment is not added. Saved-session DB revision/CAS is not separately exercised for this path.",
   },
   {
+    id: "arena-limit-across-copies",
+    label: "[Limit X] is counted across every copy of the card, per master and turn",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "22-44-3, 22-44-4, 22-44-5; 22-11-3 per-copy control",
+    ownerIssue: 741,
+    proof: "scripts/verify/limit-copies-741.ts — SD15-03's [Limit 1][Spirit Boost 1] Auto answers once across three copies, including the copy that left and re-entered play, with no second marker paid, across a JSON reload, shown spent on both viewers' boards and back the next turn; declared [Activate: Main] [Limit 1]/[Limit 2] across copies with the [Limit 1] refusal; an unpriced [Limit 1] Auto played twice draws once; a [Counter: Attack][Limit 1] second copy is no candidate; [Once per turn] copies stay per copy; the eleven catalog [Limit 1] wordings of the #728 readings diff read as [Limit 1], not [Once per turn]",
+    detail: "The rules engine keeps one count per master per [Limit X] line (card number, face, line) on the side, spent by a declared or invoked activation, a paid or unpriced Auto and a Counter, read by every offer and by the Auto checkpoint (an exhausted pending Auto fails to activate and is never offered its price), and dropped at the end of the turn. The legacy engine still counts per copy. Synthetic neighbours stand for the paths; the catalog wordings are proved as readings only.",
+  },
+  {
     id: "arena-face-up-life-trigger",
     label: "A face-up Life card event fires its Auto",
     status: "supported",
