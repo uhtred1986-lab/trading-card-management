@@ -67,9 +67,14 @@
  * `scripts/verify/arena-policy-contract.mts`).
  */
 import { answerFor, type Decision, type MenuDecision, type Policy, type PolicyInput } from "./contract";
-import { activationsThisTurn, cardValue, mainThen } from "./main";
+import { activationsThisTurn, cardValue, lifeLoss, mainThen } from "./main";
 import type { CardFacts, PolicyObservation, SideFacts } from "./observation";
 import { shortcutThen } from "./shortcuts";
+import { choicesThen } from "./choices";
+import { interruptingPolicy } from "./contract";
+
+/** What losing `damage` life costs its owner (`main.ts` since #650, where the choice handlers read it too). */
+export { lifeLoss };
 
 export const COMBAT_POLICY_VERSION = 1;
 
@@ -175,18 +180,6 @@ function battleOf(o: PolicyObservation): Battle | null {
     koPrevented: s?.koPrevented ?? hasKeyword(guardCard, "indestructible"),
     defender,
   };
-}
-
-/** What losing `damage` life from `life` costs its owner: lethal is 1,000, every life left lower dearer. */
-export function lifeLoss(life: number, damage: number, critical: boolean, victory: boolean): number {
-  if (damage <= 0) return 0;
-  if (victory || damage >= life) return COST.lethal;
-  let loss = 0;
-  for (let k = 0; k < damage; k++) {
-    const left = life - k - 1;
-    loss += (left <= 1 ? 4 : left <= 3 ? 2 : 1) + (critical ? 0.5 : 0);
-  }
-  return loss;
 }
 
 /** What a hit costs the defender when the guard is `guardCard` (in area `target`). */
@@ -447,10 +440,23 @@ export function combatThen(fallback: Policy): Policy {
 }
 
 /**
- * The local policy as O2-04 leaves it: the free-choice shortcuts (#645), the
+ * The local policy as O2-04 left it: the free-choice shortcuts (#645), the
  * Main Phase and its payments (#646), the battle's windows (#647), then
- * `fallback` for every window a later issue owns (#650).
+ * `fallback` for every other window. Kept for comparison (#650's strength
+ * check); the local policy is `localPolicy` below.
  */
-export function localPolicy(fallback: Policy): Policy {
+export function combatPolicy(fallback: Policy): Policy {
   return shortcutThen(mainThen(combatThen(fallback)));
+}
+
+/**
+ * The local policy (#650): the free-choice shortcuts (#645), the Main Phase and
+ * its payments (#646), the battle's windows (#647), then the constrained
+ * choices — card picks, modes, replacements, prices, Auto order (`choices.ts`).
+ * Every `DECISION_WINDOWS` kind has a handler (`WINDOW_HANDLERS`), so
+ * `fallback` is reached only by a question no handler can read; by default it
+ * interrupts (`interruptingPolicy`) rather than guessing.
+ */
+export function localPolicy(fallback: Policy = interruptingPolicy): Policy {
+  return shortcutThen(mainThen(combatThen(choicesThen(fallback))));
 }

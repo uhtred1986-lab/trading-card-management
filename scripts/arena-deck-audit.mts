@@ -21,6 +21,7 @@
  * `--check` run proves the copies still equal the importer's source text.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { legality, type LegalityCard } from "../src/lib/decks/legality";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { compileCard, compileCostProgram, costIsOnlyOrbs, priceCondition } from "../src/lib/arena/compile";
@@ -155,7 +156,7 @@ const toLegalityRow = (r: Resolved): LegalityCard => ({
   colors: r.card.colors, limitedTo: r.card.limitedTo, isBanned: r.card.isBanned, skill: r.card.skill, game: "dbs",
 });
 
-function loadSnapshot(): Snapshot {
+export function loadSnapshot(): Snapshot {
   return JSON.parse(readFileSync(SNAPSHOT, "utf8")) as Snapshot;
 }
 
@@ -295,9 +296,9 @@ export interface PlayStats {
   choices: Record<string, number>;
 }
 
-const RUNTIME = "a649000000000000000000000000000000000649";
+export const RUNTIME = "a649000000000000000000000000000000000649";
 
-async function deckBundle(cards: CatalogCard[], decks: { p1: DeckSpec; p2: DeckSpec }, all: CatalogCard[]) {
+export async function deckBundle(cards: CatalogCard[], decks: { p1: DeckSpec; p2: DeckSpec }, all: CatalogCard[]) {
   const [{ makeReplayBundle }, { DBS_FILES }] = await Promise.all([import("../src/lib/arena/replay-core"), import("../src/lib/arena/rulesets/dbs")]);
   const defs: Record<string, ReturnType<typeof cardDefFrom>> = {};
   const scripts: Record<string, ReturnType<typeof compileCard>> = {};
@@ -319,14 +320,14 @@ async function deckBundle(cards: CatalogCard[], decks: { p1: DeckSpec; p2: DeckS
 }
 
 export async function playMatchups(all: CatalogCard[], games: number, maxMoves = 3000): Promise<PlayStats[]> {
-  const [{ playDuel }, { localPolicy }, { uniformPolicy }, { legalMoves, RULES_ENGINE }] = await Promise.all([
+  const [{ playDuel }, { localPolicy }, { legalMoves, RULES_ENGINE }] = await Promise.all([
     import("./verify/arena-policy-duel.ts"),
     import("../src/lib/arena/policy/combat"),
-    import("../src/lib/arena/policy/contract"),
     import("../src/lib/arena/browser"),
   ]);
   const cards = [...new Map(DECKS.flatMap((d) => resolveDeck(d, all).rows.map((r) => [r.card.id, r.card] as const))).values()];
-  const policy = localPolicy(uniformPolicy);
+  // #650: the complete local policy; a question none of its handlers reads interrupts the game (a stop below).
+  const policy = localPolicy();
   const out: PlayStats[] = [];
   for (const p1 of DECKS) {
     for (const p2 of DECKS) {
@@ -692,7 +693,7 @@ export function renderPlay(stats: PlayStats[]): string {
   return [
     table(head, rows),
     "",
-    `Games: ${games} (${stats[0]?.games ?? 0} per ordered matchup, seeds 649.., policy seeds 1000.., \`localPolicy(uniformPolicy)\` on both seats, 3000-move cap).`,
+    `Games: ${games} (${stats[0]?.games ?? 0} per ordered matchup, seeds 649.., policy seeds 1000.., \`localPolicy()\` (#650: every window handled, an unreadable one interrupts) on both seats, 3000-move cap).`,
     "",
     `- Prompt kinds the policy was asked (decisions, all games): ${fmt(prompts)}.`,
     `- Games in which a manual skill (card#skill) was on the legal list at least once: ${fmt(offered)}.`,
@@ -926,4 +927,5 @@ async function main() {
   for (const name of BLOCKS) if (blocks[name] !== undefined) console.log(`<!-- ${name} -->\n${blocks[name]}\n`);
   console.log(JSON.stringify(summarise(auditDecks(catalog)), null, 1));
 }
-await main();
+// Run only as a script: `scripts/verify/arena-policy-choices.mts` (#650) imports the decks and the bundle builder.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) await main();
