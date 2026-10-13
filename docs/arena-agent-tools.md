@@ -254,6 +254,7 @@ Other repo drivers on the same CDP layer: `npm run arena:shots` and `npm run are
 | `rg` on Git Bash `PATH` | Unavailable (the agent's Grep tool is the substitute). |
 | Playwright / Puppeteer | Not installed and not a dependency; do not install. |
 | Chrome/Edge via `scripts/lib/cdp.mts` | Available; used above. |
+| Focused scenario run, Node and browser worker | `npm run arena:scenario [-- --browser]` (`docs/arena-tooling.md` §5b). |
 | Service worker offline page, IndexedDB contents of the real app | Not observed (nothing registered / stored on `/arena/preview`). |
 | Heap/memory profiling, tracing | Not tried (`HeapProfiler`/`Performance` CDP domains are reachable through `Browser.send`; untested). |
 | Custom MCP server / LSP MCP | Not used, not required. The session also lists built-in browser and Chrome extension MCP tools; those were not exercised for this issue. |
