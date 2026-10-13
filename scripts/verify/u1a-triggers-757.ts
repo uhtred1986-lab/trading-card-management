@@ -25,7 +25,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { RULES } from "../../src/lib/arena/vm";
 import type { Action, CardDef, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
-import { CTX, DEFS, arenaG, hasG, leaderOf, powerOfG, unisonOf, zoneOf } from "./harness";
+import { CTX, DEFS, arenaG, card, hasG, leaderOf, powerOfG, unisonOf, zoneOf } from "./harness";
 
 const SNAPSHOT = "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json";
 const OWNER_COSTS = (JSON.parse(readFileSync("docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json", "utf8")) as { specifiedCosts: Record<string, string> }).specifiedCosts;
@@ -34,7 +34,7 @@ const SNAP = (JSON.parse(readFileSync(SNAPSHOT, "utf8")) as { cards: Record<stri
 const PREFIX = "R757-";
 const REAL = ["SD15-01", "SD15-02", "SD15-03", "SD15-05", "BT1-014", "BT4-012", "BT6-010", "BT6-011", "BT11-008", "BT11-011", "DB2-004", "DB3-001", "SD5-01", "SD5-02", "SD5-03", "SD5-04", "SD5-05", "BT4-081", "BT4-089"];
 // A filler already in the harness (V1, BIG, …) stays itself; everything else is the real card.
-const real = (id: string): string => (DEFS[id] && !id.startsWith(PREFIX) ? id : `${PREFIX}${id}`);
+const real = (id: string): string => (id.startsWith(PREFIX) || (DEFS[id] && !REAL.includes(id)) ? id : `${PREFIX}${id}`);
 for (const id of REAL) {
   const row = SNAP.find((c) => c.id === id);
   assert.ok(row, `${id} is in the #649 snapshot`);
@@ -42,6 +42,10 @@ for (const id of REAL) {
   const def: CardDef = cardDefFrom({ ...(row as never as Parameters<typeof cardDefFrom>[0]), specifiedCost: spec ?? null } as never);
   DEFS[real(id)] = { ...def, id: real(id) };
 }
+
+// Plain stand-ins that carry no wording under test: a yellow Leader without ≪Goku's Lineage≫ and yellow energy.
+DEFS[`${PREFIX}YLEADER`] = card(`${PREFIX}YLEADER`, { type: "LEADER", colors: ["Yellow"], energyCost: null, comboCost: null, comboPower: null, power: 10000 });
+DEFS[`${PREFIX}YENERGY`] = card(`${PREFIX}YENERGY`, { colors: ["Yellow"] });
 
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "the DBS ruleset should load");
@@ -54,9 +58,9 @@ const menu = (s: S) => rules.legalActions(CTX, s);
 const ENERGY = ["V1", "V1", "V1", "V1", "V1", "V1", "V1", "V1", "V1", "V1"];
 
 /** p1's Main Phase (turn 3) with `battle`/`hand` staged by real card ids, plenty of energy, and p2's cards. */
-function board(opts: { hand?: string[]; battle?: string[]; oppBattle?: string[]; oppHand?: string[] } = {}): S {
+function board(opts: { hand?: string[]; battle?: string[]; oppBattle?: string[]; oppHand?: string[]; yellow?: boolean } = {}): S {
   const map = (ids?: string[]) => ids?.map(real);
-  return arenaG({ hand: map(opts.hand), battle: map(opts.battle), oppBattle: map(opts.oppBattle), oppHand: map(opts.oppHand), energy: ENERGY, oppEnergy: ENERGY }) as S;
+  return arenaG({ hand: map(opts.hand), battle: map(opts.battle), oppBattle: map(opts.oppBattle), oppHand: map(opts.oppHand), energy: opts.yellow ? ENERGY.map(() => `${PREFIX}YENERGY`) : ENERGY, oppEnergy: ENERGY }) as S;
 }
 /** Take a deck card of `player` into `area` as `cardId` (a raw fixture; no moment fires). */
 function stage(s: S, player: PlayerId, cardId: string, area: "battle" | "unison" | "hand" | "drop"): string {
@@ -139,7 +143,7 @@ async function main(): Promise<void> {
 
     const choosing = (card: string) => (a: Action) => a.type === "choose" && a.cards.includes(card);
     const oppLeader = (s: S): string => leaderOf(s, "p2");
-    const modeOf = (s: S, id: string): string => s.cards[id].mode;
+    const modeOf = (s: S, id: string): string | null => s.cards[id].mode;
 
     // SD15-01 front: "When this card attacks, draw 1 card, then it gets +5000 power for the turn."
     {
@@ -287,6 +291,152 @@ async function main(): Promise<void> {
       assert.equal(menu(s).some(({ action }) => action.type === "attack" && action.attacker === unit), false, "can't attack for the turn");
     }
 
+
+    // ── Auto when a card is played (5-5, 9-6-2) ──────────────────────────────
+    const inHand = (s: S, id: string, p: PlayerId = "p1"): string => zoneOf(s, p, "hand").find((x) => s.cards[x].cardId === real(id))!;
+    const playIt = (s: S, id: string, o: Parameters<typeof drive>[1] = {}): S => drive(apply(s, { type: "play", player: "p1", card: inHand(s, id) }), o);
+
+    // BT6-010: "When you play this card, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the duration of the turn."
+    {
+      let s = board({ hand: ["BT6-010"], oppBattle: ["BIG"] });
+      const big = zoneOf(s, "p2", "battle")[0];
+      s = playIt(s, "BT6-010", { prefer: choosing(big) });
+      assert.equal(powerOfG(s, big), 20000, "25000 - 5000");
+    }
+    // BT6-011: "When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 cards from your hand and place them in your Drop Area."
+    for (const saiyan of [true, false]) {
+      let s = board({ hand: ["BT6-011"], battle: saiyan ? ["SD15-03"] : [] });
+      const [hand, drop] = [handOf(s, "p1"), zoneOf(s, "p1", "drop").length];
+      s = playIt(s, "BT6-011");
+      assert.equal(handOf(s, "p1"), saiyan ? hand - 1 + 2 - 2 : hand - 1, saiyan ? "played, drew 2, dropped 2" : "no ≪Saiyan≫ card in play: only the play");
+      assert.equal(zoneOf(s, "p1", "drop").length, drop + (saiyan ? 2 : 0));
+    }
+    // BT11-008: "If you have a red Unison Card in play : When this card is played, draw 1 card."
+    for (const unison of [true, false]) {
+      let s = board({ hand: ["BT11-008"] });
+      if (unison) stage(s, "p1", "SD15-02", "unison");
+      const hand = handOf(s, "p1");
+      s = playIt(s, "BT11-008");
+      assert.equal(handOf(s, "p1"), hand - 1 + (unison ? 1 : 0), unison ? "red Unison in play: draws 1" : "no Unison: nothing");
+    }
+    // BT11-011: "If your Leader Card is red : When this card is played from your hand, choose up to 1 of your red Unison Cards and add a marker to it."
+    for (const red of [true, false]) {
+      let s = board({ hand: ["BT11-011"] });
+      if (!red) setLeader(s, "p1", "SD5-01");
+      const cabba = stage(s, "p1", "SD15-02", "unison");
+      s.cards[cabba].markers = 2;
+      s = playIt(s, "BT11-011", { prefer: choosing(cabba) });
+      assert.equal(s.cards[cabba].markers, red ? 3 : 2, red ? "red Leader: a marker is added" : "yellow Leader: condition not met");
+    }
+    // SD5-03: "When you play this card, if your Leader Card is ≪Goku's Lineage≫, choose up to 1 of your opponent's Battle Cards and KO it."
+    for (const lineage of [true, false]) {
+      let s = board({ hand: ["SD5-03"], oppBattle: ["BIG"], yellow: true });
+      setLeader(s, "p1", lineage ? "SD5-01" : `${PREFIX}YLEADER`);
+      const big = zoneOf(s, "p2", "battle")[0];
+      s = playIt(s, "SD5-03", { prefer: choosing(big) });
+      assert.equal(zoneOf(s, "p2", "drop").includes(big), lineage, lineage ? "≪Goku's Lineage≫ Leader: KO (5-12-1)" : "Leader is not ≪Goku's Lineage≫: no KO");
+    }
+    // SD5-05: "When you play this card, choose up to 1 of your opponent's Rest Mode Battle Cards and KO it."
+    {
+      let s = board({ hand: ["SD5-05"], oppBattle: ["BIG", "BIG"], yellow: true });
+      const [rested, active] = zoneOf(s, "p2", "battle");
+      s.cards[rested].mode = "rest";
+      s = playIt(s, "SD5-05", { prefer: choosing(rested) });
+      assert.ok(zoneOf(s, "p2", "drop").includes(rested), "the Rest Mode Battle Card is KO'd");
+      assert.ok(zoneOf(s, "p2", "battle").includes(active), "the Active one stays");
+    }
+    // BT4-089: "When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 ≪Goku's Lineage≫ from among them and add it to your hand, then shuffle your deck."
+    {
+      let s = board({ hand: ["BT4-089"], yellow: true });
+      const top = s.sides.p1.zones.deck.slice(0, 3);
+      s.cards[top[1]].cardId = real("SD5-03");
+      const hand = handOf(s, "p1");
+      s = playIt(s, "BT4-089", { prefer: choosing(top[1]) });
+      assert.ok(zoneOf(s, "p1", "hand").includes(top[1]), "the ≪Goku's Lineage≫ card from the top 3 is in the hand");
+      assert.equal(handOf(s, "p1"), hand, "played 1, took 1");
+    }
+
+    // ── Auto when this card is KO'd; [Spirit Boost X] marker price; Auto on a [Spirit Boost] payment ──
+    // SD15-03: "[Auto][Limit 1] [Spirit Boost 1] When this card is placed in your Drop Area from your Battle Area by an opponent's skill or KO'd, play this card from your Drop Area."
+    // SD15-05: "[Auto] If your opponent has 2 or more energy : When you remove a marker from one of your red Unison Cards using a [Spirit Boost] skill, you may play this card from your hand."
+    {
+      const run = (o: { markers: number; oppEnergy?: boolean; playFive?: boolean }) => {
+        let s = board({ hand: ["SD15-05"], battle: ["SD15-03"] });
+        setLeader(s, "p1", "SD15-01");
+        const goku = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === real("SD15-03"))!;
+        const five = inHand(s, "SD15-05");
+        let cabba: string | null = null;
+        if (o.markers > 0) {
+          cabba = stage(s, "p1", "SD15-02", "unison");
+          s.cards[cabba].markers = o.markers;
+        }
+        s.cards[goku].mode = "rest";
+        s = toP2Main(s);
+        const bigId = stage(s, "p2", "BIG", "battle");
+        // p2's energy count is what SD15-05's condition reads ("your opponent" is p2).
+        if (o.oppEnergy === false) s.sides.p2.zones.energy.splice(1);
+        s = drive(apply(s, attackAction(s, bigId, goku)), { decline: o.playFive === false, prefer: (a) => a.type === "choose" && a.cards.includes(five) && o.playFive !== false });
+        return { s, goku, five, cabba };
+      };
+      // 5-12-1: the rested SD15-03 (21000 with the Unison) loses to BIG (25000) and is KO'd; [Spirit Boost 1] (22-43-3) takes a marker off SD15-02; it plays itself from the Drop Area.
+      const a = run({ markers: 3 });
+      assert.ok(zoneOf(a.s, "p1", "battle").includes(a.goku), "KO'd: SD15-03 is played back from the Drop Area");
+      assert.equal(a.s.cards[a.cabba!].markers, 2, "…the price: [Spirit Boost 1] takes exactly 1 marker (3 → 2); SD15-05 has no price of its own");
+      assert.ok(zoneOf(a.s, "p1", "battle").includes(a.five), "SD15-05: [Spirit Boost] removed a marker from a red Unison and the opponent has 2+ energy, so it is played from the hand");
+      // No marker on a Unison (22-43-3): the price cannot be paid, SD15-03 stays in the Drop Area and SD15-05 has no payment to answer.
+      const b = run({ markers: 0 });
+      assert.ok(zoneOf(b.s, "p1", "drop").includes(b.goku), "no Unison, no marker to remove: SD15-03 stays in the Drop Area");
+      assert.ok(zoneOf(b.s, "p1", "hand").includes(b.five), "SD15-05 stays in the hand");
+      // "If your opponent has 2 or more energy" (SD15-05): with fewer the Auto is not made pending.
+      const c = run({ markers: 3, oppEnergy: false });
+      assert.ok(zoneOf(c.s, "p1", "hand").includes(c.five), "opponent with fewer than 2 energy: SD15-05 is not offered");
+      // "you may": declining keeps it in the hand.
+      const d = run({ markers: 3, playFive: false });
+      assert.ok(zoneOf(d.s, "p1", "hand").includes(d.five), "SD15-05 declined: still in the hand");
+    }
+
+    // BT4-081: "[auto] At the end of your turn, switch this card to Active Mode." (7-4-2)
+    {
+      let s = board({ battle: ["BT4-081"], yellow: true });
+      const goku = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === real("BT4-081"))!;
+      s.cards[goku].mode = "rest";
+      s = apply(s, { type: "endMain", player: "p1" });
+      s = drive(s, { stop: (x) => x.prompt.kind === "charge" });
+      assert.equal(s.turnPlayer, "p2");
+      assert.equal(modeOf(s, goku), "active", "switched to Active Mode in the End Phase");
+      // Control: a plain rested Battle Card is still rested there, so the switch is the card's Auto.
+      let c = board({ battle: ["V1"] });
+      const plain = zoneOf(c, "p1", "battle").find((id) => c.cards[id].cardId === "V1")!;
+      c.cards[plain].mode = "rest";
+      c = drive(apply(c, { type: "endMain", player: "p1" }), { stop: (x) => x.prompt.kind === "charge" });
+      assert.equal(modeOf(c, plain), "rest", "control: nothing else switches it");
+    }
+
+    // SD5-04: "[activate: main] [once per turn] Choose 1 card from your life and add it to your hand: Switch this card to Active Mode, and if you have 2 or less life, this card gains [triple strike]".
+    {
+      let s = board({ battle: ["SD5-04"], yellow: true });
+      const unit = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === real("SD5-04"))!;
+      s.cards[unit].mode = "rest";
+      const offered = (x: S): boolean => menu(x).some(({ action }) => action.type === "activate" && action.card === unit);
+      assert.equal(offered(s), true, "offered");
+      const life = lifeOf(s, "p1");
+      const act = menu(s).find(({ action }) => action.type === "activate" && action.card === unit)!;
+      s = drive(apply(s, act.action));
+      assert.equal(lifeOf(s, "p1"), life - 1, "the price: 1 life card to the hand");
+      assert.equal(modeOf(s, unit), "active", "switched to Active Mode");
+      assert.equal(hasG(s, unit, "Strike"), false, "more than 2 life: no [triple strike]");
+      s.cards[unit].mode = "rest";
+      assert.equal(offered(s), false, "22-11-2: [Once per turn] used up this turn");
+      s = toP2Main(s);
+      s = apply(s, { type: "endMain", player: "p2" });
+      s = drive(s, { stop: (x) => x.prompt.kind === "main" && x.turnPlayer === "p1" });
+      s.cards[unit].mode = "rest";
+      assert.equal(offered(s), true, "…and offered again on the next turn");
+      s.sides.p1.zones.life.splice(2);
+      s = drive(apply(s, menu(s).find(({ action }) => action.type === "activate" && action.card === unit)!.action));
+      assert.equal(hasG(s, unit, "Strike"), true, "with 2 or less life left after the price: gains [triple strike]");
+    }
+
     console.log("  #757 U1-a: trigger and keyword scenarios passed");
   } finally {
     for (const id of Object.keys(DEFS).filter((k) => k.startsWith(PREFIX))) delete DEFS[id];
@@ -294,9 +444,3 @@ async function main(): Promise<void> {
 }
 
 export default main();
-void unisonOf;
-void hasG;
-void powerOfG;
-void lifeOf;
-void toP2Main;
-void stage;
