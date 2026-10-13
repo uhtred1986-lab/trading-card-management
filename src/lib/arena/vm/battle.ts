@@ -902,7 +902,10 @@ export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state:
     if (err instanceof AutoPaymentFailed) return failCounter(ctx, game, state, ev, frame);
     throw err;
   }
-  activateCounterSkill(ctx, game, state, ev, frame.master, frame.card, cost.skill, cost.effect, cost.free, cost.afterSkillKeywords, frame.vars);
+  // #550 (20-5-3): what the price chose — its names and, for a `bindX`
+  // choice, X — is the effect's, exactly as `vm/activate.ts` hands an
+  // [Activate]'s price on through `saveVars`/`saveX`.
+  activateCounterSkill(ctx, game, state, ev, frame.master, frame.card, cost.skill, cost.effect, cost.free, cost.afterSkillKeywords, frame.vars, frame.x);
   return "done";
 }
 
@@ -919,7 +922,7 @@ function failCounter(ctx: EngineContext, game: GameDefinition, state: VmState, e
  */
 function activateCounterSkill(
   ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, card: string, sk: Skill, program: Op[], free: boolean,
-  afterSkillKeywords: ("Heroic" | "Villainous")[], vars: ScriptFrame["vars"] = {},
+  afterSkillKeywords: ("Heroic" | "Villainous")[], vars: ScriptFrame["vars"] = {}, x?: number,
 ): void {
   // 22-10-7: the battle writes the counter down before it is lost in the
   // Drop (staging spec §3.1) — the battle's own record, so a [Counter: Play]
@@ -933,7 +936,7 @@ function activateCounterSkill(
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
   fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", from: "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
   log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!b });
-  if (program.length || afterSkillKeywords.length) state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, ...afterSkill });
+  if (program.length || afterSkillKeywords.length) state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, ...afterSkill, ...(x === undefined ? {} : { x }) });
 }
 
 /**
