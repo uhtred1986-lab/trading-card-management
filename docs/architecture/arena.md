@@ -65,7 +65,15 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and unknown answers. **The policy layer imports nothing outside `policy/`** and names no engine
   state, seed or ambient randomness: `scripts/verify/arena-policy-contract.mts` (`npm test`) fails
   otherwise, and proves no leak, permutation invariance and round trips on the #641/#642 fixtures.
-  The online Claude opponent (`ai/`) does not use it.
+  The online Claude opponent (`ai/`) does not use the contract itself, but **its free choices are
+  this layer's** (#645): the "cannot go wrong" shortcuts — one legal move, the coin flip, mulligan,
+  charge, Z-Energy, [Empower] markers — are pure functions in `policy/shortcuts.ts` over the
+  observation + decisions (ties go to the first of the tied decisions in the order listed; no RNG
+  is drawn). `ai/shortcut-input.ts` is the online adapter: it reads the engine's state (either
+  engine) into the shortcuts' input and maps the decision back to the menu index; `opponent.ts`
+  keeps no copy of the rules. `scripts/verify/arena-policy-shortcuts.mts` (`npm test`) holds the
+  adapter to origin/main's choices at 3,153 positions (`scripts/verify/fixtures/arena-policy-shortcuts/before.json`).
+  **A new shortcut goes in `shortcuts.ts`, never in `opponent.ts`.**
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

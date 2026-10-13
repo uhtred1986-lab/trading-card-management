@@ -61,7 +61,7 @@ streaming, no tool loop and no Batch API in `src/` today. Money: `PRICES` and `c
 the SDK through the same modules.
 
 **Arena invariants that must not move:** the engine computes the legal moves; decisions that cannot
-go wrong never reach a model (`freeChoice`, "only one legal move"); the model answers a number from
+go wrong never reach a model (`freeChoice` in `ai/shortcut-input.ts`, rules in `policy/shortcuts.ts` since #645; "only one legal move"); the model answers a number from
 the list, so an answer can be unwise but never illegal. These live above the AI layer and stay there.
 
 ## Target layout

@@ -43,7 +43,7 @@ import { nextInt, nextRandom, policyRng, type PolicyRng } from "../../src/lib/ar
 
 const ROOT = process.cwd();
 const SEATS: PlayerId[] = ["p1", "p2"];
-const LAYER = ["src/lib/arena/policy/contract.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts"];
+const LAYER = ["src/lib/arena/policy/contract.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts", "src/lib/arena/policy/shortcuts.ts"];
 const BOUNDARY = "src/lib/arena/policy/boundary.ts";
 const started = Date.now();
 
@@ -61,7 +61,7 @@ const started = Date.now();
     const found = policyLayerSourceViolations(f, fs.readFileSync(path.join(ROOT, f), "utf8"));
     assert.deepEqual(found, [], `${f} names engine state or ambient randomness: ${found.join("; ")}`);
   }
-  assert.deepEqual([...walked].sort(), [...LAYER].sort(), "the policy layer is exactly its three modules");
+  assert.deepEqual([...walked].sort(), [...LAYER].sort(), "the policy layer is exactly its four modules");
 
   const contractPath = path.join(ROOT, "src/lib/arena/policy/contract.ts");
   const sabotaged = (extra: string) => (file: string) => (file === contractPath ? `${fs.readFileSync(contractPath, "utf8")}\n${extra}\n` : diskRead(file));
