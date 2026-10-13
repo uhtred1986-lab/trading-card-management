@@ -322,7 +322,11 @@ export function activationAlt(
   line: ActivationLine,
 ): { alt: VmAltCost; bound: BoundAmounts; resting: string[] } | null {
   if (def.alt === undefined || !inHand(state, line.card) || !isExtra(ctx, game, state, line.card)) return null;
-  const alt = altCostFor(ctx, game, state, line.card, player, def.alt);
+  // #742: "you can activate this card's [Activate: Battle] skill from your
+  // hand without paying its energy cost" waives the energy cost for that line
+  // alone (12-2-2-2) — `for: "activate:battle"`, asked only of such a line,
+  // so the card's [Activate: Main] keeps its full price.
+  const alt = altCostFor(ctx, game, state, line.card, player, def.alt) ?? (line.skill.kind === "activate:battle" ? altCostFor(ctx, game, state, line.card, player, "activate:battle") : null);
   return alt ? { alt, bound: boundFor(ctx, game, state, player, line, false), resting: restingFor(alt) } : null;
 }
 

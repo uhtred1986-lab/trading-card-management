@@ -1,0 +1,45 @@
+== BT13-120#10 permanent
+  printed: [Permanent] If you have 1 or more mono-yellow energy in Active Mode, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.
+  -  reads:   if there are 1 or more mono-colour yellow cards in your Energy Area in active mode: choose this card, play the chosen cards
+  +  reads:   if there are 1 or more mono-colour yellow cards in your Energy Area in active mode: this card's [Activate: Battle] may be activated from your hand for no energy
+== BT13-151#10 permanent
+  printed: [Permanent] If your opponent has 3 or more cards in their Warp, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.
+  -  reads:   if there are 3 or more cards in your opponent's Warp: choose this card, play the chosen cards
+  +  reads:   if there are 3 or more cards in your opponent's Warp: this card's [Activate: Battle] may be activated from your hand for no energy
+== BT14-059#0 permanent
+  printed: [Permanent] If you have a blue Unison Card with a specified cost of 3 in play, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.
+  -  reads:   if there are 1 or more blue Unison Cards with a specified cost of 3 in your Unison Area: choose this card, play the chosen cards
+  +  reads:   if there are 1 or more blue Unison Cards with a specified cost of 3 in your Unison Area: this card's [Activate: Battle] may be activated from your hand for no energy
+== BT15-057#0 permanent
+  printed: [Permanent] If your Leader Card is a ≪Universe 6≫ card, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.
+  -  reads:   if your leader is ≪universe 6≫: choose this card, play the chosen cards
+  +  reads:   if your leader is ≪universe 6≫: this card's [Activate: Battle] may be activated from your hand for no energy
+== BT16-019#10 permanent
+  printed: [Permanent] If your Leader Card is a mono-red ≪Universe 7≫ card, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.
+  -  reads:   if your leader is Red ≪universe 7≫: choose this card, play the chosen cards
+  +  reads:   if your leader is Red ≪universe 7≫: this card's [Activate: Battle] may be activated from your hand for no energy
+== BT9-017#0 permanent
+  printed: [Permanent] You can activate this card's [Activate: Battle] from your hand without paying its energy cost.
+  -  reads:   choose this card, play the chosen cards
+  +  reads:   this card's [Activate: Battle] may be activated from your hand for no energy
+== BT9-036#0 permanent
+  printed: [Permanent] You can activate this card's [Activate: Battle] from your hand without paying its energy cost.
+  -  reads:   choose this card, play the chosen cards
+  +  reads:   this card's [Activate: Battle] may be activated from your hand for no energy
+== BT9-051#0 permanent
+  printed: [Permanent] You can activate this card's [Activate: Battle] from your hand without paying its energy cost.
+  -  reads:   choose this card, play the chosen cards
+  +  reads:   this card's [Activate: Battle] may be activated from your hand for no energy
+== BT9-067#0 permanent
+  printed: [Permanent] You can activate this card's [Activate: Battle] from your hand without paying its energy cost.
+  -  reads:   choose this card, play the chosen cards
+  +  reads:   this card's [Activate: Battle] may be activated from your hand for no energy
+== BT9-086#0 permanent
+  printed: [Permanent] You can activate this card's [Activate: Battle] from your hand without paying its energy cost.
+  -  reads:   choose this card, play the chosen cards
+  +  reads:   this card's [Activate: Battle] may be activated from your hand for no energy
+== EX13-28#0 permanent
+  printed: [Permanent] If you have a ≪Great Ape≫ card in play in your Battle Area, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.
+  -  reads:   if there are 1 or more ≪great ape≫ cards in your Battle Area: choose this card, play the chosen cards
+  +  reads:   if there are 1 or more ≪great ape≫ cards in your Battle Area: this card's [Activate: Battle] may be activated from your hand for no energy
+11 skills changed of 13614 before / 13614 after
