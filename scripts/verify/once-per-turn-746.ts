@@ -77,7 +77,6 @@ async function main(): Promise<void> {
       assert.ok(mainOf(g.get()) === player && g.get().turn > from, `reached ${player}'s next Main Phase`);
     }
     const offered = (s: VmState, id: string) => rules.legalActions(CTX, s).find(({ action }) => action.type === "activate" && action.card === id);
-    const refused = (s: VmState, id: string) => rules.rejectedActions(CTX, s, rules.legalActions(CTX, s)).find((r) => r.action.type === "activate" && (r.action as { card: string }).card === id)?.why[0];
     const limitRow = (s: VmState, viewer: PlayerId, id: string, skillIndex: number) => {
       const snap = buildSnapshot({ id: 746, engine: "rules", mode: "versus", status: "playing", p1Name: "P1", p2Name: "P2", ctx: CTX, state: s, legal: rules.legalActions(CTX, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
       const side = viewer === "p1" ? snap.view.you : snap.view.them;
