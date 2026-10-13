@@ -31,6 +31,7 @@ import { NOT_YET_REASON_PREFIX, resolveOutcome, type PublicOutcome } from "./out
 import { rulesetFor, type GameDefinition } from "./rulesets";
 import { withTokens } from "./vm/cards";
 import { readingBoard } from "./vm/program";
+import { conceal, concealBeats, hiddenAliases, secretAreasFor } from "./conceal";
 
 /** Bumped only when a field is removed or its meaning changes. */
 export const CONTRACT_VERSION = 2;
@@ -193,18 +194,20 @@ export function rejectedForWith(resolve: EngineResolver, input: Pick<SnapshotInp
 export type EngineResolver = (id: EngineId) => Engine;
 
 /**
- * The moves this board may list. A 1 v 1 seat (`viewer` named) sees none of
- * the other seat's: their labels name the cards in that player's hand ("Play
- * Son Goku"), which is exactly what 3-3-3 keeps from the opponent, and the
- * server refuses a move from the wrong seat anyway (#458). Everyone else keeps
- * the whole list, as before.
+ * The moves this board may list: none of the other side's. Their labels name
+ * the cards in that player's hand ("Play Son Goku"), which is exactly what
+ * 3-3-3 keeps from the opponent, and the server refuses a move from the wrong
+ * seat anyway (#458). Read against the board's viewer, derived or named: a
+ * 1 v 1 seat, and the human against Claude, whose board used to carry Claude's
+ * whole menu while it decided — beside the aliases that are meant to keep
+ * those hand cards unnamed (`conceal.ts`). Hot-seat's viewer *is* the asked
+ * player, so it keeps every move it had.
  */
-function legalFor(input: Pick<SnapshotInput, "state" | "status" | "legal" | "viewer">): LegalAction[] {
+function legalFor(input: Pick<SnapshotInput, "ai" | "state" | "status" | "legal" | "viewer">): LegalAction[] {
   if (input.status !== "playing") return [];
-  if (!input.viewer) return input.legal;
   const prompt = input.state.prompt;
   const asked = "player" in prompt ? prompt.player : null;
-  return asked && asked !== input.viewer ? [] : input.legal;
+  return asked && asked !== viewerFor(input) ? [] : input.legal;
 }
 
 /**
@@ -224,6 +227,31 @@ export function withSnapshotReading<T>(input: Pick<SnapshotInput, "engine" | "ct
 }
 
 export function buildSnapshotWith(resolve: EngineResolver, input: SnapshotInput): Snapshot {
+  return withSnapshotReading(input, () => concealFor(input, buildSnapshotInRead(resolve, input)));
+}
+
+/**
+ * The board with every card its viewer may not read named only by where it
+ * lies (`conceal.ts`): an instance id is a decklist position, so a hidden
+ * card's id names it as surely as its face. Done last, over the whole
+ * snapshot, so no field — `legal`, `taps`, `rejected`, an effect's source, a
+ * beat — can carry one by being added later.
+ */
+function concealFor(input: SnapshotInput, snapshot: Snapshot): Snapshot {
+  const viewer = snapshot.game.you;
+  const pinned = (input.ctx as EngineContext & { rulesetDefinition?: GameDefinition }).rulesetDefinition;
+  const aliases = hiddenAliases(input.state, viewer, pinned);
+  const beats = concealBeats(snapshot.beats, aliases, secretAreasFor(input.state, viewer, pinned));
+  const rest = conceal({ ...snapshot, beats: null }, aliases);
+  return { ...rest, beats };
+}
+
+/**
+ * The snapshot exactly as built, raw instance ids and all. Only for proofs
+ * that must show the concealment is what makes a hidden permutation
+ * invisible (`scripts/verify/arena-snapshot-conceal.mts`); never sent.
+ */
+export function buildUnconcealedSnapshotForProof(resolve: EngineResolver, input: SnapshotInput): Snapshot {
   return withSnapshotReading(input, () => buildSnapshotInRead(resolve, input));
 }
 

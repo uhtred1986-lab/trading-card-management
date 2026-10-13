@@ -21,6 +21,7 @@ import { currentOwner, currentUser, isArenaAdmin, requireSignedIn, requireSl } f
 import { assertOwnDeck, canOpenGame } from "@/lib/auth/ownership";
 import { flagTurn as storeFlagTurn, reopenFlag, reviewFlag, type FlagLine } from "@/lib/arena/review-store";
 import { advance } from "@/lib/arena/ai/run";
+import { concealForViewer, resolveForViewer } from "@/lib/arena/session";
 import { InterruptedGameReviewError, reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
 import { blankRule, confirmMatching, confirmRule, reopenRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
@@ -551,7 +552,14 @@ export async function previewGameplanAction(gameId: number, actions: Action[], b
   if (!game) return { error: "no such game", preview: null };
   // The plan module checks every action against the engine's legal menu, on
   // each successive cloned state. Submitted JSON is never trusted as legality.
-  return previewLoadedGame(game, basedOn, actions, isVersus(game.mode) ? seatOf(game, user) : null);
+  const seat = isVersus(game.mode) ? seatOf(game, user) : null;
+  if (game.version !== basedOn) return { error: "the board changed; refresh the plan", preview: null };
+  // In and out through the viewer's aliases (`conceal.ts`): the plan names
+  // cards as the board did, and its budget never names a hidden one.
+  const resolved = resolveForViewer(game, actions, seat);
+  if (!resolved.ok) return { error: resolved.reason, preview: null };
+  const result = previewLoadedGame(game, basedOn, resolved.value, seat);
+  return result.preview ? { ...result, preview: concealForViewer(game, result.preview, seat) } : result;
 }
 
 /**
@@ -583,6 +591,11 @@ export async function act(gameId: number, action: Action, basedOn: number, reque
     if (err instanceof RequestIdentityConflict) return { error: err.message };
     throw err;
   }
+  // The board this action was picked from named hidden cards by alias
+  // (`conceal.ts`); an alias means a position on that revision only.
+  if (current.version !== basedOn) return { error: "the board has moved on — read it again" };
+  const resolved = resolveForViewer(current, action, isVersus(current.mode) ? seatOf(current, actor) : null);
+  if (!resolved.ok) return { error: resolved.reason };
   try {
     const refused = await refuse(gameId, true);
     if (refused) return { error: refused };
@@ -591,7 +604,7 @@ export async function act(gameId: number, action: Action, basedOn: number, reque
     // in reply. Not in a 1 v 1, where the queue is also the other device's
     // only copy. See `src/lib/arena/beats.ts` and `clearBeatsForTurn`; it is
     // done in the same write as the move.
-    await applyToGame(db, gameId, action, undefined, {
+    await applyToGame(db, gameId, resolved.value, undefined, {
       clearBeats: true,
       game: current,
       expectedRevision: basedOn,

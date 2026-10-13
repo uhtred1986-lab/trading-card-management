@@ -18,6 +18,7 @@ export {
   CONTRACT_VERSION,
   archivedSnapshotFor,
   buildSnapshotWith,
+  buildUnconcealedSnapshotForProof,
   reconcileSnapshot,
   rejectedForWith,
   viewerFor,
