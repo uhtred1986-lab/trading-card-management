@@ -252,7 +252,9 @@ for (const optional of [true, false]) {
   assert.deepEqual(s.sides.p1.zones.hand, a.cards);
   assert.equal(rests(s), 0); noActivation(s, substituted.events, a.rev);
   assert.ok(!s.programs.some((f) => f.reviveCost || f.autoCost));
-  s = choose(s, []).state; assert.equal(s.prompt.kind, "main");
+  // #720: a taken voluntary substitute owes its choice in full (9-10-3-1).
+  assert.throws(() => choose(s, []), IllegalAction);
+  s = choose(s, [a.cards[1]]).state; assert.equal(s.prompt.kind, "main");
 }
 // The shared Auto action-price runner must also honour a selected hand route.
 // Here a generic played Auto's hand discard is redirected after its Red energy
@@ -317,7 +319,10 @@ for (const replacement of ["optional", "mandatory", "effect-only"] as const) {
   assert.equal(s.prompt.kind, "chooseCards"); assert.ok(s.prompt.kind === "chooseCards" && s.prompt.player === "p2");
   assert.ok(s.sides.p2.zones.battle.includes(target)); noActivation(s, failed.events, a.rev);
   assert.ok(!s.programs.some((f) => f.reviveCost || f.autoCost));
-  s = apply(s, { type: "choose", player: "p2", cards: [] }).state; assert.equal(s.prompt.kind, "main"); assert.ok(s.sides.p1.zones.drop.includes(a.rev));
+  // #720: a taken voluntary substitute owes its choice in full (9-10-3-1).
+  const owed = s.prompt.kind === "chooseCards" ? s.prompt.choice.candidates.slice(0, 1) : [];
+  assert.equal(owed.length, 1); assert.throws(() => apply(s, { type: "choose", player: "p2", cards: [] }), IllegalAction);
+  s = apply(s, { type: "choose", player: "p2", cards: owed }).state; assert.equal(s.prompt.kind, "main"); assert.ok(s.sides.p1.zones.drop.includes(a.rev));
 }
 // Cost-triggered Autos remain pending through the additional cost prompt,
 // resolve only after this continuation pays or fails, and pay independently.

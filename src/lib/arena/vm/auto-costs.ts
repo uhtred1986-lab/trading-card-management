@@ -114,7 +114,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       const actual = host.move(id, to, owner, { ...opts, reason: "cost" });
       if (actual !== to || host.areaOf(id) !== to) {
         const replaced = opts?.replaced;
-        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}) });
+        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
       return actual;
@@ -129,7 +129,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       host.ko(id, by, opts);
       if (host.areaOf(id) !== "drop" || !state.sides[owner].zones.drop.includes(id)) {
         const replaced = opts?.replaced;
-        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}) });
+        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
     },

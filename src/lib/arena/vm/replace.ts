@@ -32,7 +32,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../types";
-import { stepScript } from "./script";
+import { canMakeOffer, stepScript } from "./script";
 import { asksAQuestion, describeScript } from "./script-schema";
 import { redirectOf } from "./common";
 import { type Replacement } from "../types";
@@ -119,7 +119,17 @@ export function replacementChoices(
     // Keep them on the frozen choice through a replacement prompt/reload.
     out.push({ source, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.vars ? { vars: r.vars } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
   }
-  return out;
+  return offerable(ctx, game, state, id, out);
+}
+
+/**
+ * 9-10-3 (#720): a voluntary substitute the affected player could not pay in
+ * full is not offered (`canMakeOffer`, read against this board). The rest keep
+ * their order, so the menu's indexes are the ones the prompt shows.
+ */
+function offerable(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, choices: ReplacementChoice[]): ReplacementChoice[] {
+  const master = masterOf(game, state, id);
+  return choices.filter((c) => canMakeOffer(c, id, master, (frame, sel) => resolveSelector(ctx, game, state, { ...frame, vars: { ...((c as ReplacementChoice & { vars?: Record<string, string[]> }).vars ?? {}), ...frame.vars } }, sel)));
 }
 
 /**
@@ -142,7 +152,7 @@ export function lifeReplacementChoices(ctx: EngineContext, game: GameDefinition,
     if (r.ops && applyingReplacement) continue;
     out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
   }
-  return out;
+  return offerable(ctx, game, state, id, out);
 }
 
 /**
@@ -158,7 +168,7 @@ export function markerReplacementChoices(ctx: EngineContext, game: GameDefinitio
     if (r.kind !== "marker" || !r.ops?.length) continue;
     out.push({ source, optional: r.optional, ops: r.ops, ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
   }
-  return out;
+  return offerable(ctx, game, state, id, out);
 }
 
 /**
