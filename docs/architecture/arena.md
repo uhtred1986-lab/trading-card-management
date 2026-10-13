@@ -74,6 +74,17 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   keeps no copy of the rules. `scripts/verify/arena-policy-shortcuts.mts` (`npm test`) holds the
   adapter to origin/main's choices at 3,153 positions (`scripts/verify/fixtures/arena-policy-shortcuts/before.json`).
   **A new shortcut goes in `shortcuts.ts`, never in `opponent.ts`.**
+  **The local Main Phase is `policy/main.ts`** (#646): a bounded, deterministic scorer of the open
+  plays, activations, attacks and `endMain` (plus the `payCost` energy question, resting the energy
+  that keeps the rest of the hand payable) from the observation and decisions alone — no search, no
+  RNG drawn, ties by canonical id, a counted work bound (`MAIN_LIMITS`), an activation at most once
+  per card per turn (read off the public beats). `localPolicy(fallback)` is shortcuts → Main Phase →
+  `fallback` for every other window (#647/#650 own those). `guardedDecide` carries a small
+  serialisable memory per seat (policy RNG included) and ends a turn that runs past
+  `TURN_GUARD.decisions` or revisits one position more than `TURN_GUARD.repeats` times (`endMain`,
+  else `pass`, else an explicit interruption); `boundary.ts`'s `localStep` is one whole local
+  decision. The online opponent does not load it. Proof: `scripts/verify/arena-policy-main.mts`
+  (`npm test`); strength: `npm run arena:policy-eval`.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

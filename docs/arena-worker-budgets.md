@@ -285,3 +285,10 @@ page.
   preview page.
 - **Sustained play.** A 120-move game and 20 repeats; thermal and battery behaviour over long
   sessions is unmeasured.
+- **The local policy's own cost (#646).** The bench plays the #641 `pick()` moves, not a policy. The
+  Main-Phase policy is measured in Node only, by `scripts/verify/arena-policy-main.mts`: the policy
+  alone at well under a millisecond p95 (asserted at most 5 ms, a sixth of `decisionMs.p95`), and the
+  whole local step — `policyTurn` (alias table, snapshot, legal list), policy, guard and move — at
+  about a third of the 30 ms `decisionMs.p95` budget on an unthrottled laptop. Its deterministic
+  bound is the work counter (`MAIN_LIMITS.work`), not a clock. Running it in the worker bench is left
+  to O3's worker session.

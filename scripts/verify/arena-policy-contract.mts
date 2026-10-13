@@ -2,7 +2,8 @@
  * #644 (plan O2-01): the restricted policy observation and the legal-decision contract
  * (`src/lib/arena/policy/`), proved without a database.
  *
- *   1. Import guards. The policy layer (`contract.ts`, `observation.ts`, `rng.ts`) loads
+ *   1. Import guards. The policy layer (`contract.ts`, `observation.ts`, `rng.ts`, `shortcuts.ts`,
+ *      `main.ts`) loads
  *      nothing outside `policy/` — no engine, no game RNG, no provider, no database — and its
  *      source names no engine state, seed or ambient randomness. The boundary (`boundary.ts`)
  *      passes #641's browser rule. Each rule is first shown to catch a deliberately added import.
@@ -30,6 +31,7 @@ import path from "node:path";
 import { checkImportGraph, diskRead, legacyEngineRule, policyLayerRule, policyLayerSourceViolations } from "../lib/import-graph.ts";
 import { fixtureBundle, FIXTURE_REVISION, FIXTURE_SEED } from "./arena-browser-fixture.ts";
 import { pick } from "./arena-browser-scenario.ts";
+import { hiddenFrom, permutedFor, shuffled, strings, testRandom } from "./arena-policy-permute.ts";
 import { runScenario, scenarioIds } from "./arena-scenarios.ts";
 import { policyFixtureBundle, POLICY_FIXTURE_REVISION, POLICY_FIXTURE_SEED } from "./arena-policy-fixture.ts";
 import type { Action, LegalAction, PlayerId } from "../../src/lib/arena/types";
@@ -39,11 +41,11 @@ import { canonicalJson } from "../../src/lib/arena/replay-core.ts";
 import { applyDecision, ownDeck, policyTurn, type PolicyTurn } from "../../src/lib/arena/policy/boundary.ts";
 import { buildObservation } from "../../src/lib/arena/policy/observation.ts";
 import { answerFor, resolveAnswer, uniformPolicy, PICK_ID, type PolicyAnswer } from "../../src/lib/arena/policy/contract.ts";
-import { nextInt, nextRandom, policyRng, type PolicyRng } from "../../src/lib/arena/policy/rng.ts";
+import { nextRandom, policyRng, type PolicyRng } from "../../src/lib/arena/policy/rng.ts";
 
 const ROOT = process.cwd();
 const SEATS: PlayerId[] = ["p1", "p2"];
-const LAYER = ["src/lib/arena/policy/contract.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts", "src/lib/arena/policy/shortcuts.ts"];
+const LAYER = ["src/lib/arena/policy/contract.ts", "src/lib/arena/policy/main.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts", "src/lib/arena/policy/shortcuts.ts"];
 const BOUNDARY = "src/lib/arena/policy/boundary.ts";
 const started = Date.now();
 
@@ -61,7 +63,7 @@ const started = Date.now();
     const found = policyLayerSourceViolations(f, fs.readFileSync(path.join(ROOT, f), "utf8"));
     assert.deepEqual(found, [], `${f} names engine state or ambient randomness: ${found.join("; ")}`);
   }
-  assert.deepEqual([...walked].sort(), [...LAYER].sort(), "the policy layer is exactly its four modules");
+  assert.deepEqual([...walked].sort(), [...LAYER].sort(), "the policy layer is exactly its five modules");
 
   const contractPath = path.join(ROOT, "src/lib/arena/policy/contract.ts");
   const sabotaged = (extra: string) => (file: string) => (file === contractPath ? `${fs.readFileSync(contractPath, "utf8")}\n${extra}\n` : diskRead(file));
@@ -95,73 +97,7 @@ const started = Date.now();
 // Helpers.
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-/** The test's own list of what `seat` may not read: the other hand, every deck and life and the other Z-Deck, face down — less the cards the seat's own question shows it. */
-function hiddenFrom(state: VmState, seat: PlayerId): Set<string> {
-  const out = new Set<string>();
-  for (const p of SEATS) {
-    const zones = state.sides[p].zones as Record<string, string[]>;
-    const ids = [...(zones.deck ?? []), ...(zones.life ?? []), ...(p === seat ? [] : [...(zones.hand ?? []), ...(zones.zDeck ?? [])])];
-    for (const id of ids) if (!state.cards[id]?.faceUp) out.add(id);
-    for (const z of Object.values(zones)) for (const id of z ?? []) if (state.cards[id]?.hidden) out.add(id);
-  }
-  const pr = state.prompt;
-  if (pr.kind === "chooseCards" && pr.player === seat) for (const id of pr.choice.candidates) out.delete(id);
-  return out;
-}
-
 const FORBIDDEN_KEYS = new Set(["revealEpoch", "rngState", "seed", "imageUrl"]);
-function strings(value: unknown, out: { values: Set<string>; keys: Set<string> } = { values: new Set(), keys: new Set() }) {
-  if (typeof value === "string") out.values.add(value);
-  else if (Array.isArray(value)) for (const v of value) strings(v, out);
-  else if (value && typeof value === "object") for (const [k, v] of Object.entries(value)) { out.keys.add(k); strings(v, out); }
-  return out;
-}
-
-/** A small deterministic RNG for the test's own permutations. */
-function testRandom(seed: number) {
-  let r = policyRng(seed);
-  return (bound: number) => { const n = nextInt(r, bound); r = n.rng; return n.value; };
-}
-function shuffled<T>(list: T[], rand: (n: number) => number): T[] {
-  const out = [...list];
-  for (let i = out.length - 1; i > 0; i--) { const j = rand(i + 1); [out[i], out[j]] = [out[j], out[i]]; }
-  return out;
-}
-
-/** Rename instance ids everywhere — object keys and string values — by exact match. */
-function renamed<T>(value: T, sigma: Map<string, string>): T {
-  const walk = (v: unknown): unknown => {
-    if (typeof v === "string") return sigma.get(v) ?? v;
-    if (Array.isArray(v)) return v.map(walk);
-    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [sigma.get(k) ?? k, walk(x)]));
-    return v;
-  };
-  return walk(value) as T;
-}
-
-/**
- * An equivalent information set for `seat`: the cards it cannot see get each other's identities
- * (within an owner), the fully hidden areas are reordered, and those cards' instance ids are
- * permuted throughout the state and the beat history.
- */
-function permutedFor(match: PinnedMatch, seat: PlayerId, salt: number): PinnedMatch {
-  const rand = testRandom(salt);
-  const state = clone(match.state);
-  const hidden = hiddenFrom(state, seat);
-  // Ids the engine is holding onto outside the zones (a skill in flight) keep their identity.
-  const held = strings({ ...state, cards: null, sides: null }).values;
-  for (const p of SEATS) {
-    const mine = [...hidden].filter((id) => state.cards[id].owner === p && !held.has(id) && !state.cards[id].hidden && ["deck", "hand", "life"].some((z) => (state.sides[p].zones as Record<string, string[]>)[z]?.includes(id)));
-    const ids = shuffled(mine.map((id) => state.cards[id].cardId), rand);
-    mine.forEach((id, i) => (state.cards[id].cardId = ids[i]));
-    const zones = state.sides[p].zones as Record<string, string[]>;
-    for (const z of Object.keys(zones)) if (zones[z]?.length && zones[z].every((id) => hidden.has(id))) zones[z] = shuffled(zones[z], rand);
-  }
-  const pool = SEATS.map((p) => [...hidden].filter((id) => state.cards[id].owner === p).sort());
-  const sigma = new Map<string, string>();
-  for (const ids of pool) { const to = shuffled(ids, rand); ids.forEach((id, i) => sigma.set(id, to[i])); }
-  return { ...match, state: renamed(state, sigma), beats: renamed(clone(match.beats), sigma) };
-}
 
 const isOver = (m: PinnedMatch) => m.state.phase === "over";
 const actorOf = (m: PinnedMatch): PlayerId | null => (isOver(m) ? null : ((m.state.prompt as { player?: PlayerId }).player ?? null));
