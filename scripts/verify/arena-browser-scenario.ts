@@ -89,7 +89,7 @@ function checkViewerSafe(match: PinnedMatch, viewer: PlayerId, snap: Snapshot, l
  * concedes while anything else is open, and activates a repeatable skill only
  * every fifth step, so the game moves on through plays, battles and turns.
  */
-function pick(step: number, legal: LegalAction[]): Action | null {
+export function pick(step: number, legal: LegalAction[]): Action | null {
   const open = legal.filter((l) => l.action.type !== "concede");
   const varied = step % 5 === 0 ? open : open.filter((l) => l.action.type !== "activate");
   const from = varied.length ? varied : open.length ? open : legal;

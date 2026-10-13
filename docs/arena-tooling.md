@@ -729,6 +729,13 @@ npm run arena:scenario -- --list                                     # ids, seed
   browser-safe, edits one expectation to prove it bites, and drives the CLI for exit 0 (all),
   exit 1 (`mismatch-demo`, a wrong revision) and exit 2 (unknown id/flag).
 
+**Worker latency, responsiveness and memory budgets (#643):** `npm run arena:worker-bench -- --check`
+times the same engine in a browser worker (per-decision latency, main-thread long tasks, payload,
+memory, a simulated 4x phone) and exits 1 when a budget in `scripts/lib/worker-budgets.ts` is
+exceeded. It needs Chrome, so it is not in `npm test`; its budget logic and the table's agreement with
+`docs/arena-worker-budgets.md` are (`scripts/verify/arena-worker-budgets.ts`). Numbers, method and
+limits: `docs/arena-worker-budgets.md`.
+
 Not covered: scenarios on real catalog cards (the fixture is synthetic; a real bundle comes from an
 admin replay export), the legacy engine (server-only; `browser.ts` refuses it by name) and any
 scenario needing the database. Run them on real data only when the owner asks.
