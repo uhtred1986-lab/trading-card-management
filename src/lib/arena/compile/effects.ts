@@ -535,7 +535,9 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // card, so the fragment says nothing the clause after it does not.
   if (/^choose$/.test(t)) return "skip";
   // Reminders that restate a rule the engine already applies.
-  if (/^(?:you can't activate|this skill can only be activated)/.test(t)) return "skip";
+  // Not "you can't activate the [Counter: Play] skills of other cards": that
+  // is a rule of its own (BT10-008's price, #716), read by `compileProhibition`.
+  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills of other cards\b/.test(t)) return "skip";
   // "This card can't be played" on its own is one of those. The forms that say
   // *how* — "by skills from any area", "from any area except by skills" — are
   // not: nothing else in the engine applies them, and skipping them here was
@@ -2520,7 +2522,18 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
       return [{ op: "forbid", what: "attack", side, until, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined, ...withUnless }];
     }
-    if (/^activate\b/.test(rest) && /\[counter/.test(rest)) return [{ op: "forbid", what: "activateCounter", side, until, ...withUnless }];
+    if (/^activate\b/.test(rest) && /\[counter/.test(rest)) {
+      // #716: "the [Counter: Play] skills of other cards for the turn"
+      // (BT10-008's price) names one kind of [Counter] and leaves this card
+      // out. Only that exact form is narrowed; any other description beside
+      // "of other cards" stays the bare rule it was read as before.
+      const narrow = /^activate (?:the )?\[counter: (play|attack|battle card attack|counter)\] skills of other cards(?:\s+(?:for|during|until)\b.*)?$/.exec(rest);
+      if (narrow) {
+        const counterKind = narrow[1] === "battle card attack" ? "battleCardAttack" : (narrow[1] as "play" | "attack" | "counter");
+        return [{ op: "forbid", what: "activateCounter", side, until, counterKind, otherCards: true, ...withUnless }];
+      }
+      return [{ op: "forbid", what: "activateCounter", side, until, ...withUnless }];
+    }
     if (/^activate\b/.test(rest) && /\[blocker/.test(rest)) return [{ op: "forbid", what: "block", side, until, ...withUnless }];
     // "You can't place cards in your energy for the turn" (EX22-02): the
     // Charge Phase, which the engine offers as an action of its own (3-8).

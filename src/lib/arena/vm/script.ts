@@ -14,7 +14,7 @@ import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
 import type { ScriptHost } from "./script-host";
-import type { AltCost, Area, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
+import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -937,7 +937,10 @@ export type Op =
    * `play`, `switchEnergyToActive`). `byTypes` narrows it to an action a skill
    * of those card types takes, and `turnPlayer` to whoever's turn it is
    * (BT8-051's "if the turn player would use the skill of a Battle Card or
-   * Extra Card to switch energy to Active Mode").
+   * Extra Card to switch energy to Active Mode"). `counterKind` narrows an
+   * `activateCounter` rule to one [Counter] kind ("[Counter: Play] skills"),
+   * and `otherCards` leaves the card that made the rule out of it ("…of other
+   * cards", BT10-008, #716).
    */
   | {
       op: "forbid";
@@ -953,6 +956,8 @@ export type Op =
       unlessPay?: Op[];
       byTypes?: ("LEADER" | "BATTLE" | "EXTRA" | "UNISON")[];
       turnPlayer?: true;
+      counterKind?: CounterKind;
+      otherCards?: true;
     }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
@@ -1204,6 +1209,8 @@ export interface ScriptFrame {
   aegisCost?: import("./aegis-costs").AegisCost;
   /** #549: captured, reloadable Auto cost/effect continuation. */
   autoCost?: import("./auto-costs").AutomaticCost;
+  /** #716: a [Counter]'s printed action price, paid on the strict host before the skill activates. Additive: older states never carry one. */
+  counterCost?: import("./battle").CounterCost;
   ops: Op[];
   ip: number;
   vars: Record<string, string[]>;
@@ -2407,6 +2414,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
             ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
+            ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
