@@ -107,10 +107,9 @@ export interface VmCard {
    *
    * A fact about the copy on the table rather than anything a card's text can
    * say, which is why it is here beside `markers` and `flipped`. It is what
-   * 22-11-3's [Once per turn] is counted on, per copy. It survives a change of
-   * area on this engine (the legacy engine empties it there, reading 3-1-4's
-   * "new card" into it; the manual does not say which, so that stays as it
-   * was). A [Limit X] line is counted across copies on its master instead
+   * 22-11-3's [Once per turn] is counted on, per copy. A change of area
+   * empties it (3-1-4: a new card; #746), except the moves 3-1-4-1/3-1-4-2
+   * carry through. A [Limit X] line is counted across copies on its master instead
    * (`VmSide.limitUses`, `vm/limits.ts`, #741) and is listed here only as this
    * copy's own history. `endTurn` empties it.
    */
@@ -318,6 +317,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     const leaderUnderZLeader = from?.zone === "leader" && at.zone === "leader" && onTop.zCard === true;
     if (!leaderUnderZLeader) {
       card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
+      card.usedThisTurn = []; // 3-1-4: a new card, so a fresh [Once per turn] (#746)
       reset(card, null);
     }
     // A card that already has a pile of its own — an evolved Battle Card, a
@@ -401,7 +401,15 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     }
   }
   if (!opts.carry) {
-    if (from?.zone !== to || from.owner !== toOwner) card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
+    if (from?.zone !== to || from.owner !== toOwner) {
+      card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
+      // 3-1-4: a card that changed area is a new card, so its [Once per turn]
+      // use (22-11-3, counted on the copy) starts again. 3-1-4-1/3-1-4-2: a move
+      // Battle/Unison -> Battle/Unison/Combo, or Combo -> Battle, carries what was
+      // on the card, and the use with it. [Limit X] is counted on the master
+      // (`VmSide.limitUses`), not here, and is untouched (22-44-3, #741).
+      if (!(from && KEEPS_USES[from.zone]?.includes(to))) card.usedThisTurn = [];
+    }
     reset(card, zone);
   }
   else if (zone.modes && !zone.modes.includes(card.mode ?? "")) card.mode = arrivalMode(zone);
@@ -433,6 +441,13 @@ function lift(board: Board, id: string, host: string | null): void {
     above.under = above.under.filter((u) => u !== id);
   }
 }
+
+/** 3-1-4-1 / 3-1-4-2: the moves that do not make a new card of it (`from` zone -> `to` zones). */
+const KEEPS_USES: Record<string, string[]> = {
+  battle: ["battle", "unison", "combo"],
+  unison: ["battle", "unison", "combo"],
+  combo: ["battle"],
+};
 
 /**
  * 3-1-4: a card that changes area is treated as a new card. Mode, markers and
