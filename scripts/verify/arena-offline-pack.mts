@@ -148,9 +148,10 @@ assert.equal(pack.qualification.playable, false, "the audited pair is not playab
   assert.equal(pack.blockers.find((b) => b.id === "U5")?.status, "resolved", "U5 (resolved by #716) stays listed as resolved");
   assert.equal(pack.blockers.find((b) => b.id === "U4")?.status, "resolved", "U4 (resolved by #729: BT4-079's [Swap] price) stays listed as resolved");
   assert.equal(pack.blockers.find((b) => b.id === "U6")?.status, "resolved", "U6 (resolved by #731: [Swap] reads its printed description) stays listed as resolved");
-  // After #728, #729 and #731 the only open blockers are the scenario gate (U1) and [Unique] (U8).
-  assert.deepEqual(pack.blockers.filter((b) => b.status !== "resolved").map((b) => b.id), ["U1", "U8"], "U1 and U8 are the only open blockers");
-  assert.deepEqual(pack.qualification.reasons.map((r) => r.split(" (")[0]), ["blocker U1", "blocker U8"], "the pack's reasons are exactly those two");
+  assert.equal(pack.blockers.find((b) => b.id === "U8")?.status, "resolved", "U8 (resolved by #730: the master chooses which [Unique] copy stays) stays listed as resolved");
+  // After #728, #729, #731 and #730 the only open blocker is the scenario gate (U1).
+  assert.deepEqual(pack.blockers.filter((b) => b.status !== "resolved").map((b) => b.id), ["U1"], "U1 is the only open blocker");
+  assert.deepEqual(pack.qualification.reasons.map((r) => r.split(" (")[0]), ["blocker U1"], "the pack's only reason is U1");
   {
     // #729/#731 in the pinned programs: BT4-079's price record, and the
     // ruleset text whose [Swap] reads the printed description.

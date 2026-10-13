@@ -277,10 +277,11 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "play",
     meaning: "While a card with [Unique] is in play you can't play another card with the same name. If two are somehow in play at once, their master keeps one and drops the rest.",
     engine:
-      "The play is blocked, with the card already out named as the reason. When two do end up in play the engine keeps the newest instead of asking which to keep — 21-11 gives that choice to the master.",
+      "The play is blocked, with the card already out named as the reason. The legacy engine has no question for 21-11: when two do end up in play its rule processing drops all but the newest without asking — its stated boundary; the rules engine asks the master.",
     engineRules:
-      "The play half is built (#157) as a `playRefused` hook body in `keywords.rules` — `forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false)` — read off the [Unique] card already in play whenever a play is checked, so the same declared play is refused with the same reason (`forbidden`, by the card already out) and a play a skill makes is not, as on the legacy engine. The 21-11 half is not built: rule processing does not run on the rules engine, so two copies that do end up in play both stay, where the legacy engine keeps the newest.",
-    support: "partial",
+      "The play half is built (#157) as a `playRefused` hook body in `keywords.rules` — `forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false)` — read off the [Unique] card already in play whenever a play is checked, so the same declared play is refused with the same reason (`forbidden`, by the card already out) and a play a skill makes is not. The 21-11 half is built (#730, `vm/unique.ts`) as interruptive rule processing (21-11-1): the moment two or more cards with [Unique] in force and the same name are in one Battle Area — checked after every instruction of a running program and whenever the runner regains control, before any checkpoint — their master is asked (`chooseCards`, exactly one) which stays; the rest go to the Drop Area by the rule, one by one, through 9-10 replacements (a single mandatory one applies; several or optional ones are asked as `replaceMove`), and their Drop moments pend Autos as any move does. The question is stored on its frame, survives a JSON reload, refuses a wrong actor and a stale card, and the local policy keeps the most valuable copy. Hidden Mode cards are not counted. Not processed: the keyword-less \"only 1 copy of this card can be placed in your Battle Area\" wording and the [Z-Extra] and Unison limits 21-11-2 also names.",
+    support: "engine",
+    runtimeEvidence: { status: "supported", capabilityIds: ["arena-unique-master-choice"] },
   },
   Overlord: {
     tag: "[Overlord]",

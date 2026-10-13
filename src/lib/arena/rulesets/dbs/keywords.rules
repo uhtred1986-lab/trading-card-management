@@ -219,7 +219,8 @@ DEFINE KEYWORD Unique
   -- refuses its master's declared play of a card with its name, as the legacy
   -- `canPlay`/`whyNotPlay` do; a play a skill makes is not refused here, as it
   -- is not there. 21-11's half — two in play at once, the master keeps one —
-  -- is rule processing, which the rules engine does not run yet.
+  -- is interruptive rule processing, run by the interpreter itself
+  -- (`vm/unique.ts`, #730), not by a hook.
   HOOK playRefused {
     forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false, until: game)
   }

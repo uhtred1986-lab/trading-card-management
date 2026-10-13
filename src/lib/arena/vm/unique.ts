@@ -83,6 +83,51 @@ function group(ctx: EngineContext, game: GameDefinition, state: VmState, side: P
   return (state.sides[side]?.zones[BATTLE] ?? []).filter((id) => !state.cards[id]?.hidden && faceName(ctx, state, id) === name && hasKeyword(ctx, game, state, id, "Unique"));
 }
 
+const UNIQUE_WORD = /\[unique\]/gi;
+/** A line whose leading run of bracketed tags carries [Unique]: the card's own keyword. */
+const OWN_KEYWORD = /^\s*(?:\[[^\]]*\]\s*)*\[unique\]/i;
+
+/** The printed text of both faces, split into lines. */
+const linesOf = (text: string | null | undefined): string[] => (text ?? "").split(/<br\s*\/?>/i);
+
+/** Where a card prints [Unique]: as its own keyword, and/or anywhere else (a grant to another card). */
+function printed(ctx: EngineContext, state: VmState, id: string): { own: boolean; elsewhere: boolean } {
+  const def = ctx.defs[state.cards[id]?.cardId ?? ""];
+  let own = false;
+  let elsewhere = false;
+  for (const line of [...linesOf(def?.skill), ...linesOf(def?.back?.skill)]) {
+    const n = (line.match(UNIQUE_WORD) ?? []).length;
+    if (!n) continue;
+    const mine = OWN_KEYWORD.test(line);
+    if (mine) own = true;
+    if (n > (mine ? 1 : 0)) elsewhere = true;
+  }
+  return { own, elsewhere };
+}
+
+/**
+ * Which cards can have [Unique] in force at all: `none` when no card in play
+ * prints it and no timed effect grants it; `printed` when only cards printing
+ * it as their own keyword can; `any` when something in play (or a timed
+ * effect) may grant it to another card. Lets the per-instruction look skip
+ * `hasKeyword`'s full static read on every board that cannot violate 21-11.
+ */
+function uniqueReach(ctx: EngineContext, game: GameDefinition, state: VmState): "none" | "printed" | "any" {
+  if (state.effects.some((e) => e.kind === "keyword" && (e.value as { name?: string } | undefined)?.name === "Unique")) return "any";
+  let reach: "none" | "printed" = "none";
+  for (const side of PLAYERS) {
+    for (const [zone, ids] of Object.entries(state.sides[side]?.zones ?? {})) {
+      if (game.zones[zone]?.inPlay !== true) continue;
+      for (const id of ids) {
+        const p = printed(ctx, state, id);
+        if (p.elsewhere) return "any";
+        if (p.own) reach = "printed";
+      }
+    }
+  }
+  return reach;
+}
+
 /**
  * The first 21-11 [Unique] violation on the board, or null. Cheap when there
  * is none: names are compared first, and [Unique] is asked only of a name that
@@ -91,10 +136,16 @@ function group(ctx: EngineContext, game: GameDefinition, state: VmState, side: P
  */
 export function uniqueViolation(ctx: EngineContext, game: GameDefinition, state: VmState): { side: PlayerId; name: string; cards: string[] } | null {
   if (state.game !== "dbs" || !game.zones[BATTLE]) return null;
+  // [Unique] in force needs the word printed somewhere in play — on the card
+  // or on whatever grants it — or a timed grant naming it. Without either no
+  // card has it, and `hasKeyword`'s full static read is not needed.
+  const reach = uniqueReach(ctx, game, state);
+  if (reach === "none") return null;
   for (const side of PLAYERS) {
     const seen = new Map<string, number>();
     for (const id of state.sides[side]?.zones[BATTLE] ?? []) {
       if (state.cards[id]?.hidden) continue;
+      if (reach === "printed" && !printed(ctx, state, id).own) continue;
       const name = faceName(ctx, state, id);
       if (name !== undefined) seen.set(name, (seen.get(name) ?? 0) + 1);
     }

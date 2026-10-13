@@ -394,6 +394,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "Energy first (`applyDeclared`), then the action on the strict action-price host shared with Auto, [Aegis] and [Counter], with 22-22-3's reveal appended to every payability proof; the skill is announced and its moments fired only once the price is paid. The compiler now reads a [Swap] line's price (the tag no longer blanks it): BT4-079, BT16-116/118/120, P-374 (hand to deck bottom), BT29-037/039 (discard) and P-594 (restriction, a typed gap) gained price records. Only BT4-079 has a card-level scenario. Legacy engine unchanged: a [Swap] whose price is more than orbs is refused as unread there.",
   },
   {
+    id: "arena-unique-master-choice",
+    label: "Two same-named [Unique] cards in one Battle Area: the master chooses the one that stays",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "21-11-1, 21-11-3, 22-39-4, 21-1-2-1, 9-10",
+    ownerIssue: 730,
+    proof: "scripts/verify/unique-730.ts - SD15-05 (catalog text) played beside itself by a skill: the master is asked before the skill's next instruction (its draw comes after), exactly one kept (the older copy or the newer), the rest to the Drop before the draw; both viewer projections (only the master is offered the copies); wrong actor, non-candidate, two and none refused unchanged; JSON reload mid-question resolves identically; three copies with a stale answer refused; the opponent's copies asked of their master during the turn player's action; the local policy answers through the choices layer and plays, the same from a JSON copy; a dropped copy's Drop Auto fires; a mandatory 9-10 redirect applied and an optional one asked (wrong actor refused, reload mid-question); neighbours unchanged (no [Unique], the keyword-less 'only 1 copy' wording, different names, a Hidden Mode copy)",
+    detail: "Interruptive (21-11-1): `stepScript` asks the host after every instruction and the runner looks whenever it regains control, so the question comes before any further instruction, checkpoint or Auto. The choice is a `chooseCards` (min 1, max 1) stored on a `uniqueKeep` frame; departures are rule moves through 9-10. Not processed: the keyword-less 'only 1 copy of this card can be placed in your Battle Area' wording and the [Z-Extra] and Unison limits of 21-11-2. Legacy engine unchanged: it keeps the newest copy without asking.",
+  },
+  {
     id: "arena-native-mill-macro-exception",
     label: "Mill remains a native operation",
     status: "supported",

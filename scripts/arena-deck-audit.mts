@@ -458,7 +458,7 @@ export const UNOWNED: Record<string, string> = {
   U5: "Resolved by #716: a [Counter] whose printed price is more than orbs was never offered (refused as `unread`). The rules engine now reads BT5-023's and BT6-026's \"Your Leader Card is red:\" condition and BT10-008's restriction price and offers each when the whole price can be paid (`arena-counter-action-price`).",
   U6: "Resolved by #731: [Swap] named a trait (<<Goku's Lineage>>) but the engine filtered by energy cost only, offering off-trait Battle Cards (the owner did not accept the approximation, 13 Oct 2026). Both engines now read the printed description with the filter grammar on the offer and the choice (SD5-04/SD5-05's ASCII \"<<...>>\" included), and the glossary badge is `engine` (`arena-swap-specified-card`).",
   U7: "Unison cards carry no energy cost or specified cost in the public feed; the owner's hand-entered `cards.specified_cost` (database) is an input the offline pack must carry, and this audit cannot see it. Resolved: the owner ruled SD15-02 and DB3-001 `{r}{r}` on 13 Oct 2026 (migration 0049, #733); the pack builder carries them from a committed data file.",
-  U8: "[Unique] rule processing (21-11, keep the newest when two end up in play) is not built on the rules engine (glossary: partial).",
+  U8: "Resolved by #730: [Unique]'s 21-11 half (two same-named copies in one Battle Area) kept the newest on the legacy engine and was not processed at all on the rules engine (glossary: partial). The rules engine now processes it as interruptive rule processing: the master chooses the copy that stays (`chooseCards`, reloadable, answered by the local policy) and the rest go to the Drop Area through 9-10 (`arena-unique-master-choice`, `scripts/verify/unique-730.ts`).",
 };
 
 /** Manual skills the engine refused as `unread` in the audit play-through (validated by `--play`). */
@@ -487,7 +487,7 @@ export const FAMILIES: Family[] = [
   { key: "kw-attack", label: "[Attack X]", match: /^kw:Attack$/, tier: "C", owners: ["U1"], note: "Glossary says the engine plays it; no scenario located (grep of scripts/verify)." },
   { key: "kw-awaken", label: "[Awaken]", match: /^kw:Awaken$/, tier: "K", windows: ["main"], refs: ["scripts/verify/battles.ts:380 - offered only when the printed condition holds, flips the Leader", "scripts/verify/sd15-readings-728.ts - SD15-01: offered at 4 life or with a {r}{r} red Unison, not with an unknown-cost, blue or one-orb one; flips"], note: "SD5-01's and SD15-01's Awakens are offered in the audit play-through (U2 resolved by #728)." },
   { key: "kw-swap", label: "[Swap X]", match: /^kw:Swap$/, tier: "K", evidence: ["arena-swap-specified-card", "arena-swap-action-price"], refs: ["scripts/verify/swap-729-731.ts - specified card only on offer and choice (SD5-05's <<Goku's Lineage>>), BT4-079's price on the strict host", "scripts/verify/keywords.ts:317 - specified cost-X card, both engines", "scripts/verify/workflow.ts:498-513"], owners: [731, 729], windows: ["chooseCards"], note: "U6 resolved by #731 (the printed description is read); U4 resolved by #729 (BT4-079's action price is paid on the strict host)." },
-  { key: "kw-unique", label: "[Unique]", match: /^kw:Unique$/, tier: "P", refs: ["scripts/verify/battles.ts:361 - second copy cannot be played"], owners: ["U8", 730], note: "The 21-11 keep-newest half is not built." },
+  { key: "kw-unique", label: "[Unique]", match: /^kw:Unique$/, tier: "K", evidence: ["arena-unique-master-choice"], refs: ["scripts/verify/battles.ts:361 - second copy cannot be played", "scripts/verify/unique-730.ts - SD15-05 played beside itself by a skill: the master chooses the copy that stays before the skill continues, the rest go to the Drop Area"], owners: [730], windows: ["chooseCards"], note: "U8 resolved by #730 (21-11: the master chooses; legacy engine still keeps the newest)." },
   { key: "kw-supercombo", label: "[Super Combo] (deck limit 4)", match: /^kw:Super Combo$/, tier: "D", note: "legality() counts it (see the legality block)." },
 
   { key: "tag-spirit", label: "[Spirit Boost X] marker price", match: /^tag:Spirit Boost$/, tier: "C", evidence: ["arena-auto-own-cost"], owners: [549, "U1"], note: "Glossary: the supported Auto continuation charges it after the payable decision (#549); no scenario names SD15-01's back Auto." },
@@ -825,9 +825,8 @@ function check(catalog: CatalogCard[], snap: Snapshot, play: PlayStats[] | null)
     if (file && !existsSync(file)) fail(`${f.key}: ${file} does not exist`);
   }
   const badge = (k: keyof typeof KEYWORDS) => KEYWORDS[k].support;
-  if (badge("Unique") !== "partial") fail("glossary: Unique is no longer `partial` - revisit tier P");
   if (badge("Super Combo") !== "deck") fail("glossary: Super Combo is no longer a deck rule");
-  for (const k of ["Blocker", "Barrier", "Deflect", "Critical", "Strike", "Awaken", "Swap"] as const) if (badge(k) !== "engine") fail(`glossary: ${k} is no longer \`engine\` - revisit tier K`);
+  for (const k of ["Blocker", "Barrier", "Deflect", "Critical", "Strike", "Awaken", "Swap", "Unique"] as const) if (badge(k) !== "engine") fail(`glossary: ${k} is no longer \`engine\` - revisit tier K`);
   // U6 resolved (#731): both engines read [Swap]'s printed description; U4
   // resolved (#729): its action price goes through the strict host.
   if (!/IN you\.hand asPrinted, as: "swapIn"/.test(readFileSync("src/lib/arena/rulesets/dbs/keywords.rules", "utf8"))) fail("keywords.rules: [Swap] no longer reads its printed description (asPrinted) - revisit U6 (#731)");
