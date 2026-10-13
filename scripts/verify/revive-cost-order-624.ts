@@ -147,7 +147,7 @@ for (const hand of [["RED624", "BLUE624", "GREEN624"], ["MULTI624", "GREEN624"]]
   assert.ok(a.cards.slice(0, -1).every((id) => s.sides.p1.zones.drop.includes(id)));
   const paid = mode(s, 0); s = paid.state; events.push(...paid.events);
   assert.equal(rests(s), 1); assert.ok(s.sides.p1.zones.battle.includes(a.rev));
-  assert.equal(skillEvents(events, a.rev).length, 1); assert.deepEqual(s.cards[a.rev].usedThisTurn, [0]);
+  assert.equal(skillEvents(events, a.rev).length, 1); assert.deepEqual(s.cards[a.rev].usedThisTurn, []); // the revived card is a new card (3-1-4, #746); 22-34-4 negates [Revive] for the turn on its own
   const colorEnd = events.findLastIndex((e) => e.type === "move" && a.cards.includes(e.card));
   const energyAt = events.findIndex((e) => e.type === "mode" && e.mode === "rest");
   const activateAt = events.findIndex((e) => e.type === "skill" && e.card === a.rev);
