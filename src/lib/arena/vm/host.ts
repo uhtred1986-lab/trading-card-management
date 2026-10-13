@@ -72,7 +72,7 @@ import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
-import { activationMoment, canPayPriceProgram, invokedMainLines, resolveActivation } from "./activate";
+import { activationMoment, activationTaxes, canPayPriceProgram, invokedMainLines, queueActivationTaxes, resolveActivation } from "./activate";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
@@ -128,8 +128,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const line = invokedMainLines(ctx, game, state, player, id, op).find((candidate) => candidate.skillIndex === skillIndex);
       if (!line) throw new IllegalAction("the selected skill is no longer eligible");
       const moment = activationMoment(ctx, game, state, player, line);
+      // #677: the waiver is of the printed price (12-2-4) only. A 20-14 tax
+      // is read before the counted use is spent and queued in front of the
+      // nested effect, which is itself in front of the invoking parent.
+      const taxes = activationTaxes(ctx, game, state, player, id);
       spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
       resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
+      queueActivationTaxes(state, player, id, taxes);
       fire(ctx, game, state, moment);
     },
     playerName: (p) => state.sides[p].name,

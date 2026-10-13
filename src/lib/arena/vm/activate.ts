@@ -90,7 +90,8 @@ import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, hasKeyword, permissions, resolveRef, resolveSelector, staticsNow } from "./program";
+import { attrsNow, forbiddenBy, hasKeyword, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
+import { describeScript, taxHandNeed } from "./script-schema";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
 import { vmHost } from "./host";
@@ -461,6 +462,10 @@ export function activationRefusals(
   // which is what makes the *first* requirement the same requirement.
   const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card });
   if (banned) before.push({ kind: "forbidden", ...banned });
+  // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
+  // with the price — the legacy `whyNotActivate` asks it at the same place.
+  const unpaid = banned ? null : unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card));
+  if (unpaid) before.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
   const left = usesLeft(sk, inst?.usedThisTurn ?? []);
   if (left === 0) before.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   // 22-6 / 22-31: [Bond X] and [Sparking X] are conditions on using the skill,
@@ -639,12 +644,56 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
     if (line.kind !== op.skillKind || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
     if (!costIsOnlyOrbs(sk.cost) && !line.script.price?.condition && !line.script.price?.ops?.length) return false;
     if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return false;
+    // #677: the printed price is waived (12-2-4); an external 20-14 tax is
+    // not, so an Extra whose tax cannot be paid is not eligible at all.
+    if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card))) return false;
     if (usesLeft(sk, state.cards[card]?.usedThisTurn ?? []) === 0) return false;
     if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) return false;
     if (sk.sparking != null && zone(state, player, ACTIVATION_ZONES.sparking).length < sk.sparking) return false;
     const condition = line.script.price?.condition;
     return !condition || vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, condition);
   });
+}
+
+/**
+ * #677, 20-14-1: "your opponent can't activate skills unless they … each
+ * time" — every price in force on this player using a skill of this card, in
+ * the order the rules are read. Read once, as the activation is declared and
+ * before 20-14's counted uses are spent, so the activation that spends a
+ * counted rule's last free use is not itself charged; the frames queued from
+ * this list are the identity of what is owed, so a saved game charges each
+ * once and a reload neither repeats nor skips one.
+ */
+export function activationTaxes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): TaxInForce[] {
+  return taxesOn(ctx, game, state, "activateSkill", { player, card });
+}
+
+/**
+ * The first of these taxes the player cannot pay, or null when the set can be
+ * paid whole: each on its own (`canPayPriceProgram`), and the hand cards they
+ * take between them (`taxHandNeed`) out of a hand the activating card is not
+ * counted in. A null answer is what lets the activation be offered at all.
+ */
+export function unpaidActivationTax(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, taxes: TaxInForce[]): TaxInForce | null {
+  const single = taxes.find((t) => !canPayPriceProgram(ctx, game, state, player, card, t.ops));
+  if (single) return single;
+  if (taxes.length > 1) {
+    const hand = zone(state, player, ACTIVATION_ZONES.hand).filter((id) => id !== card).length;
+    if (taxHandNeed(taxes.map((t) => t.ops)) > hand) return taxes[taxes.length - 1];
+  }
+  return null;
+}
+
+/**
+ * Queue the taxes in front of everything the activation itself queued — its
+ * action price, its effect and the parent of an invoked line — so they are
+ * paid at the successful activation boundary, before the skill's effect and
+ * before the moment's triggers resolve. Each runs in its own frame, the
+ * activating card as "this card" (a price's choice never offers it) and the
+ * activating player as "you".
+ */
+export function queueActivationTaxes(state: VmState, player: PlayerId, card: string, taxes: TaxInForce[]): void {
+  for (const t of [...taxes].reverse()) state.programs.unshift({ ops: t.ops, ip: 0, vars: {}, card, master: player });
 }
 
 // ── taking one ──────────────────────────────────────────────────────────────

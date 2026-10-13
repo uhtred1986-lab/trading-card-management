@@ -958,6 +958,10 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const showing = skillsShowing(ctx, state, card);
   const sk = selectedCounterSkill(ctx, state, card, window, action.skill);
   if (!sk) throw new IllegalAction("no counter skill on that card");
+  // #677 boundary: a 20-14 price on activating skills covers a [Counter] too
+  // (9-7), which this window does not charge yet — stopped before anything is
+  // paid rather than resolved untaxed.
+  if (taxesOn(ctx, game, state, "activateSkill", { player: action.player, card }).length) throw new NotYet("charge a 20-14 activation tax on a [Counter] skill", "#677");
   // 5-3: the printed alternative is paid *instead of* the card's energy cost
   // and the line's orbs — the legacy `payAltCost` on `action.alt` (#439).
   const alt = action.alt ? counterAlt(ctx, game, state, card, action.player) : null;
