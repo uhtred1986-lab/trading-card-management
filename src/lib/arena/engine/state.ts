@@ -2003,7 +2003,7 @@ function orbPayment(ctx: GameContext, s: GameState, payer: PlayerId, orbs: (Colo
  * BT11-033's "until the start of your next turn, mono-blue [Counter] cards in
  * your hand …"). Either way the candidate still has to be affordable now.
  */
-export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: PlayerId, which: "counter" | "play" = "counter"): AltCost | null {
+export function altCostFor(ctx: GameContext, s: GameState, card: string, payer: PlayerId, which: AltCost["for"] = "counter"): AltCost | null {
   const candidates: AltCost[] = [];
   for (const e of s.effects) if (e.kind === "altCost" && e.target === card && e.altCost) candidates.push(e.altCost);
   for (const e of staticEffects(ctx, s)) if (e.kind === "altCost" && e.target === card) candidates.push(e.value as AltCost);
