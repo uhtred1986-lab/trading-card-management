@@ -367,6 +367,15 @@ export async function instantiateOfflinePack(input: InstantiateInput): Promise<{
   if (!valid.ok) throw new Error(`offline pack is invalid: ${valid.errors.join("; ")}`);
   const q = await qualifyOfflinePack(input.pack, input.interpreterRevision);
   if (!q.playable && !input.allowUnqualified) throw new Error(`offline pack is not playable: ${q.reasons.join("; ")}`);
+  return matchFromPack(input);
+}
+
+/**
+ * Create the game of a pack the caller has already validated and qualified
+ * (#652's worker does both itself, to name every refusal). The card bundle's
+ * hashes are still checked by `createPinnedMatch`.
+ */
+export function matchFromPack(input: Omit<InstantiateInput, "allowUnqualified">): Promise<{ match: PinnedMatch; events: GameEvent[] }> {
   const deck = (key: string) => {
     const d = input.pack.decks.find((x) => x.key === key);
     if (!d) throw new Error(`offline pack has no deck ${key}`);

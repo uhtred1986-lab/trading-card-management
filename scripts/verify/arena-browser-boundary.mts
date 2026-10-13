@@ -27,8 +27,9 @@ import { buildSnapshot } from "../../src/lib/arena/snapshot.ts";
 import { replayHash } from "../../src/lib/arena/replay-core.ts";
 
 const ROOT = process.cwd();
-// #644: the policy boundary (and through it the policy layer) is browser-safe too; #655: so is the offline pack runtime.
-const ENTRIES = ["src/lib/arena/browser.ts", "src/lib/arena/snapshot-core.ts", "src/lib/arena/view-core.ts", "src/lib/arena/beats-core.ts", "src/lib/arena/engine-ids.ts", "src/lib/arena/vm/index.ts", "src/lib/arena/policy/boundary.ts", "src/lib/arena/local/pack.ts"];
+// #644: the policy boundary (and through it the policy layer) is browser-safe too; #655: so is the offline pack runtime;
+// #652: and the local match worker (its entry, host and protocol).
+const ENTRIES = ["src/lib/arena/browser.ts", "src/lib/arena/snapshot-core.ts", "src/lib/arena/view-core.ts", "src/lib/arena/beats-core.ts", "src/lib/arena/engine-ids.ts", "src/lib/arena/vm/index.ts", "src/lib/arena/policy/boundary.ts", "src/lib/arena/local/pack.ts", "src/lib/arena/local/worker-entry.ts", "src/lib/arena/local/worker.ts", "src/lib/arena/local/protocol.ts"];
 
 /** The rule #641 adds on top of #640's: no file of the legacy engine, nor the switch that loads it. */
 const legacyRule = legacyEngineRule;

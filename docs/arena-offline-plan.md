@@ -55,7 +55,7 @@ Separate board presentation from session transport while preserving online behav
 | Issue | Work | Prerequisites |
 |---|---|---|
 | #648 (O3-01) | Separate ArenaStage presentation from online session transport | #564 |
-| #652 (O3-02) | Implement a revisioned local match worker protocol | #641, #651 |
+| #652 (O3-02) | Implement a revisioned local match worker protocol (delivered: `src/lib/arena/local/{protocol,worker,worker-entry}.ts` and the page client `src/components/arena/session/local.ts`; journal in memory until #653) | #641, #651 |
 | #653 (O3-03) | Persist versioned local matches transactionally in IndexedDB | #652 |
 | #654 (O3-04) | Recover interrupted workers and enforce one writer per local match | #653 |
 | #656 (O3-05) | Connect the existing board to local start, resume and finish flows | #648, #654, #655 |
