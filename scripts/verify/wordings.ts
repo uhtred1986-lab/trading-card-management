@@ -33,7 +33,6 @@ import {
   priceCondition,
   rejectedActionsG,
   scheduleG,
-  settledG,
   splitClauses,
   stagedG,
   trailingTrigger,
@@ -214,7 +213,6 @@ import type { EngineState, Trigger } from "./harness";
   DEFS.VICTORY = { ...DEFS.V1, id: "VICTORY", name: "VICTORY", power: 30000, skill: "[Victory Strike]" };
   let s = stagedG({ battle: ["VICTORY"] });
   const vs = zoneOf(s, "p1", "battle")[0];
-  settledG(s, vs);
   s = playG(s, { type: "attack", player: "p1", attacker: vs, target: leaderOf(s, "p2") });
   while (s.prompt.kind === "counter" || s.prompt.kind === "blocker" || s.prompt.kind === "combo") {
     if (s.prompt.kind === "blocker") s = playG(s, { type: "block", player: s.prompt.player, card: null });
@@ -233,7 +231,6 @@ import type { EngineState, Trigger } from "./harness";
   const setup = (attacker: string) => {
     let g = stagedG({ battle: [attacker] });
     const me = zoneOf(g, "p1", "battle")[0];
-    settledG(g, me);
     const uni = zoneOf(g, "p2", "deck")[0];
     g.cards[uni].cardId = "UNI";
     moveG(g, uni, "unison", "p2");

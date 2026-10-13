@@ -393,7 +393,7 @@ function parseSkillsUncached(text: string): Skill[] {
  * not an effect, and the keyword carries its two numbers as parameters so a
  * `DEFINE KEYWORD` can gate on them (#155): the markers "Remove N markers from
  * this card" takes, and the ceiling "if your life is at N or less" adds. The
- * legacy engine reads the same two numbers off the text with the same words
+ * legacy engine (deleted by #118) read the same two numbers off the text with the same words
  * (`rejuvenateCost`); a cost in other words carries neither.
  */
 function rejuvenateOf(text: string): KeywordSkill {
@@ -486,8 +486,8 @@ export function isZ(def: CardDef): boolean {
 
 /**
  * The description a keyword line prints after its tag and price — [Evolve]{1}:
- * <Nail>'s "<Nail>", [Union-Fusion]'s "<Goku> <Vegeta>". The legacy engine
- * reads `sk.effect || sk.cost` at every keyword site that needs one; this is
+ * <Nail>'s "<Nail>", [Union-Fusion]'s "<Goku> <Vegeta>". The legacy engine (deleted by #118)
+ * read `sk.effect || sk.cost` at every keyword site that needs one; this is
  * that reading, named, so the rules engine's `asPrinted` and `eachNamed` read
  * the same words.
  */

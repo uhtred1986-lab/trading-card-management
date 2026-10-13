@@ -624,13 +624,6 @@ function passCombosG(s: EngineState): EngineState {
   return s;
 }
 
-/**
- * A staged card that has been in play since before this turn. The rules engine
- * keeps no entered-turn field — nothing it plays reads one — so there is
- * nothing to set; kept so a fixture states the intent.
- */
-function settledG(_s: EngineState, _id: string): void {}
-
 export {
   COND_CLASS,
   COND_SCHEMA,
@@ -678,7 +671,6 @@ export {
   energyMarkersOf,
   fifty,
   findG,
-  settledG,
   passCombosG,
   isTokenG,
   sideG,

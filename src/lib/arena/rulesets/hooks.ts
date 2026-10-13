@@ -9,7 +9,7 @@
  * to a place nothing tests (`docs/arena-ruleset-spec.md` §7).
  *
  * **Confirmed by #153's inventory** of every inline keyword site in the
- * legacy engine (`src/lib/arena/engine/`) against the plan's own fifteen
+ * legacy engine (`src/lib/arena/engine/`, deleted by #118) against the plan's own fifteen
  * names, grouped exactly as `docs/arena-backlog/s7-0{2,3,4,5}-*.md` split
  * them (`docs/arena-ruleset-spec.md` §4 has the full site-by-site table):
  *
