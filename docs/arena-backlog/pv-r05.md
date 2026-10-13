@@ -5,6 +5,7 @@ labels: backlog, blocked, enhancement, area:arena-vm, phase:capability-gap, mode
 stage: ui
 issue: 552
 priority: P1
+status: closed
 touches: src/lib/arena/vm/flow.ts, src/lib/arena/vm/activate.ts, src/lib/arena/rulesets/dbs/battle.rules
 ---
 **Source:** `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.

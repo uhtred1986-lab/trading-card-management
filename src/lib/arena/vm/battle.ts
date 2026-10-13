@@ -224,7 +224,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
   // answers the attack itself rather than whatever guards it in the end.
   battleCounterAttack: {
     section: "8-1-4",
-    waits: "9-7-3's recursion — a [Counter: Counter] answering the counter just taken (the legacy `counter` window); this engine opens the attack window and, since #150, the play window (`openPlayCounterWindow`), but neither over its own resolution",
+    waits: "a counter window as a declaration — the attack window here, the play window (`openPlayCounterWindow`, #150) and, since #552, the [Counter: Counter] window over each counter motion (`openCounterCounterWindow`, 9-7-3-3) are native code",
     run: (ctx, game, state) => openCounterWindow(ctx, game, state),
   },
 
@@ -603,18 +603,22 @@ interface CounterCandidate {
 }
 
 /**
- * The two windows this engine opens, and the legacy engine's word for each
- * (`CounterWindow`): the one after an attack is declared (8-1-4) and the one
- * between a play being declared and its resolving (9-6, #150's second). The
- * other two legacy words are not opened here — `counter` (a [Counter:
- * Counter] answering a counter, 9-7-3's recursion) and `skill`, which the
- * legacy engine opens with no candidates at all.
+ * The three windows this engine opens, by their `CounterWindow` word: the one after an attack is declared (8-1-4), the one
+ * between a play being declared and its resolving (9-6, #150's second), and
+ * since #552 the one over each counter motion (`counter`, 9-7-3-3), where only
+ * a [Counter: Counter] answers (22-10-3-4). `skill` is never opened.
  */
-type OpenWindow = "attack" | "play";
+type OpenWindow = "attack" | "play" | "counter";
+
+/** The prompt's window word read as one this engine opens. */
+const openWindowOf = (window: Extract<Prompt, { kind: "counter" }>["window"]): OpenWindow => (window === "play" || window === "counter" ? window : "attack");
 
 /** Is this printed line one the window offers? The legacy `counterCandidates`' own `want`. */
 function wantsLine(ctx: EngineContext, state: VmState, window: OpenWindow, sk: Skill): boolean {
   if (window === "play") return sk.kind === "counter:play";
+  // 22-10-3-4: a [Counter: Counter] is made pending when the opponent
+  // activates a [Counter] (9-7-3-3), and nothing else answers that timing.
+  if (window === "counter") return sk.kind === "counter:counter";
   const b = state.battle;
   if (!b) return false;
   return sk.kind === "counter:attack" || (sk.kind === "counter:battle card attack" && baseTypeOf(ctx, state, b.attacker) === "BATTLE");
@@ -660,7 +664,7 @@ export function counterAbilityAvailability(
     });
   }
 
-  const window: OpenWindow = prompt.window === "play" ? "play" : "attack";
+  const window = openWindowOf(prompt.window);
   const rows: AbilityAvailability[] = [];
   const cards = new Set([...(state.sides[player].zones.hand ?? []), ...prompt.candidates]);
   for (const card of cards) {
@@ -936,8 +940,53 @@ function activateCounterSkill(
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
   fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", from: "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
   log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!b });
-  if (program.length || afterSkillKeywords.length) state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, ...afterSkill, ...(x === undefined ? {} : { x }) });
+  // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
+  // with no effect to run, so the opponent's [Counter: Counter] window
+  // (9-7-3-3) opens over it once it reaches the front (`vm/flow.ts`).
+  state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, counterMotion: { by: player }, ...afterSkill, ...(x === undefined ? {} : { x }) });
 }
+
+/**
+ * #552: a counter motion on the queue (9-7-2). `opened` once its [Counter:
+ * Counter] window has been considered, so a reload or a declined window never
+ * asks twice; `asking` while that window is the prompt on the table, so a
+ * 3-8-2 payment interrupted there restores the same window. Additive: older
+ * states never carry one.
+ */
+export interface CounterMotion {
+  by: PlayerId;
+  opened?: true;
+  asking?: true;
+}
+
+/**
+ * 9-7-3-3/9-7-3-4, 22-10-3-4 (#552): the counter timing after a [Counter] is
+ * activated and before its effect resolves. Its activator's opponent is asked
+ * with every [Counter: Counter] in their hand they can pay for and resolve
+ * (`counterCandidates`, the same reading the attack and play windows make).
+ * Called by `vm/flow.ts` when a counter motion first reaches the front of the
+ * queue, so every motion activated on top of it (`activateCounterSkill`
+ * unshifts each) is answered and resolved before it — 9-7-3-5's descending
+ * order — and no checkpoint runs between them (9-7-3-5-2), the runner
+ * draining programs before it looks for one. False, and nothing changed but
+ * `opened`, when the opponent has nothing to answer with: the window is not
+ * put (9-7-2-3 lets a holder decline silently; the attack and play windows
+ * open no empty window either).
+ */
+export function openCounterCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): boolean {
+  const motion = frame.counterMotion;
+  if (!motion || motion.opened) return false;
+  motion.opened = true;
+  const responder = other(motion.by);
+  const candidates = counterCandidates(ctx, game, state, responder, "counter");
+  if (!candidates.length) return false;
+  motion.asking = true;
+  state.prompt = { kind: "counter", player: responder, window: "counter", candidates: candidates.map((c) => c.card) };
+  return true;
+}
+
+/** #552: the counter motion whose [Counter: Counter] window is the prompt on the table, if any — at the front of the queue while asked. */
+const askingMotion = (state: VmState): ScriptFrame | undefined => (state.programs[0]?.counterMotion?.asking ? state.programs[0] : undefined);
 
 /**
  * 5-3: the other price a [Counter] in the hand may be activated at — one its
@@ -967,7 +1016,7 @@ function counterAlt(ctx: EngineContext, game: GameDefinition, state: VmState, ca
 export function counterLegalActions(ctx: EngineContext, game: GameDefinition, state: VmState): LegalAction[] {
   const pr = state.prompt;
   if (pr.kind !== "counter") return [];
-  const window: OpenWindow = pr.window === "play" ? "play" : "attack";
+  const window = openWindowOf(pr.window);
   const out: LegalAction[] = [];
   for (const card of pr.candidates) {
     const sk = selectedCounterSkill(ctx, state, card, window);
@@ -1084,7 +1133,7 @@ export function openKeywordPlayWindow(ctx: EngineContext, game: GameDefinition, 
 }
 
 /** Which window the counter prompt on the table (or the one a `payCost` interrupted) belongs to: a play being resolved, or the battle's. */
-const windowNow = (state: VmState): OpenWindow => (state.resolving?.frame ? "play" : "attack");
+const windowNow = (state: VmState): OpenWindow => (askingMotion(state) ? "counter" : state.resolving?.frame ? "play" : "attack");
 
 const canResolveLine = (sk: Skill, script: { unsupported: unknown[] } | undefined): boolean => (!sk.effect.trim() ? true : !!script && script.unsupported.length === 0);
 
@@ -1124,10 +1173,18 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   if (action.type !== "counter") throw new RulesetBroken(state.game, "applyCounter called on a non-counter action");
   requirePrompt(state, action, ["counter"]);
   const pr = state.prompt as Extract<Prompt, { kind: "counter" }>;
-  if (!action.card) return "done";
+  // 9-7-3-4 (#552): doing nothing at a [Counter: Counter] window ends that
+  // counter timing, and the motion under it resolves (9-7-3-5).
+  if (!action.card) {
+    delete askingMotion(state)?.counterMotion?.asking;
+    return "done";
+  }
   if (!pr.candidates.includes(action.card)) throw new IllegalAction("that card can't counter now");
+  // 22-10-5: a [Counter] is activated only from the hand — a frozen candidate
+  // that has since left it (a reload of a stale window) is refused.
+  if (!state.sides[action.player].zones.hand?.includes(action.card)) throw new IllegalAction("that card is no longer in your hand");
   const card = action.card;
-  const window: OpenWindow = pr.window === "play" ? "play" : "attack";
+  const window = openWindowOf(pr.window);
   const showing = skillsShowing(ctx, state, card);
   const sk = selectedCounterSkill(ctx, state, card, window, action.skill);
   if (!sk) throw new IllegalAction("no counter skill on that card");
@@ -1176,6 +1233,10 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     chargeCost(ctx, game, state, ev, action.player, plan.payment, card, ["energy"]);
     spendSkillCostUses(state, ev, card, sk);
   }
+  // #552: the price is settled (the 3-8-2 question above is behind us), so
+  // the [Counter: Counter] window this answers is over (9-7-3-4-1); the new
+  // motion goes in front of the one it answers.
+  delete askingMotion(state)?.counterMotion?.asking;
   const program = showing.scripts.bySkill[sk.index]?.ops ?? [];
   // #716 (5-8-1, 9-7-3-2): a printed action price is paid after the energy
   // and before the skill activates — on the strict host, as a stored
@@ -1198,7 +1259,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
     fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
     const key = counterVarsKey(card, sk.index);
-    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, pricedBy: { key, text: sk.raw }, ...afterSkill });
+    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, pricedBy: { key, text: sk.raw }, counterMotion: { by: action.player }, ...afterSkill });
     return "done";
   }
   activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords);

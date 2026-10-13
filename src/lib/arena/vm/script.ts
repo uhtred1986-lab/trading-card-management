@@ -1222,6 +1222,8 @@ export interface ScriptFrame {
   autoCost?: import("./auto-costs").AutomaticCost;
   /** #716: a [Counter]'s printed action price, paid on the strict host before the skill activates. Additive: older states never carry one. */
   counterCost?: import("./battle").CounterCost;
+  /** #552: this frame is an activated [Counter]'s counter motion (9-7-2), answered by a [Counter: Counter] window before it resolves. Additive: older states never carry one. */
+  counterMotion?: import("./battle").CounterMotion;
   /** #729: a [Swap]'s printed action price, paid on the strict host after its energy and before the swap. Additive: older states never carry one. */
   swapCost?: import("./swap-costs").SwapCost;
   /** #730: a 21-11 [Unique] choice (which same-named card stays) and its departures, on the rules engine. Additive: older states never carry one. */

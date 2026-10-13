@@ -44,8 +44,9 @@
  *             of each [Blocker] still to be asked (this engine opens the
  *             counter timing before the blocker window), each with its combo
  *             cover; any other counter,
- *             and every counter at a play's timing, is declined — its worth
- *             would be a guess.
+ *             every counter at a play's timing, and every [Counter: Counter]
+ *             answering a counter (#552), is declined — its worth would be a
+ *             guess.
  *   combo     the deficit at the current totals (offence: guard − attack;
  *             defence: attack − guard + 1) is covered by the cheapest set of
  *             the offered combos (and readable "+N power" battle activations)
@@ -375,6 +376,13 @@ function negatesAttack(card: CardFacts | null): boolean {
 function counterChoice(o: PolicyObservation, bt: Battle | null, open: MenuDecision[], work: Work): Option | null {
   const decline = open.find((d) => d.type === "counter" && d.action.card === null);
   if (!decline) return null;
+  // #552: a [Counter: Counter] window (9-7-3-3, 22-10-3-4) — every card offered
+  // answers the opponent's counter, not the attack, and what negating that
+  // counter is worth is not read here: declined explicitly (9-7-2-3).
+  const offered = open.filter((d) => d.type === "counter" && d.action.card !== null);
+  if (offered.length && offered.every((d) => linesOf(findCard(o, d.action.card)?.text ?? null, /\[Counter: Counter\]/i).length)) {
+    return { d: decline, loss: 0, how: "declines: a [Counter: Counter] answer is not weighed" };
+  }
   // A play's counter timing (no battle, or one past its declaration): what the play is worth is not read here.
   if (!bt || bt.attacking || o.battle?.step !== "declared") return { d: decline, loss: 0, how: "declines: a counter is only weighed against an attack" };
   const threat = withoutCounter(o, bt, work);

@@ -57,7 +57,7 @@ import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zon
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
 import { attrsNow, forbiddenForCard, forbids, hasKeyword, readingBoard, staticsNow, taxesOn } from "./program";
 import { attrsOf, playerAttributes } from "./cards";
-import { BATTLE_STEP_WORK, stepCounterCost } from "./battle";
+import { BATTLE_STEP_WORK, openCounterCounterWindow, stepCounterCost } from "./battle";
 import { leaveRoute, replacementChoices, replacementIdentity } from "./replace";
 import { asksAQuestion } from "./script-schema";
 import { expireSkips, takeSkip } from "./skips";
@@ -1183,6 +1183,14 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       const keywords = frame.afterSkillKeywords;
       delete frame.afterSkillKeywords;
       fireAfterSkill(ctx, game, state, source, "heroicExtraSkillActivated", frame.master, keywords);
+    }
+    // 9-7-3-3 (#552): a counter motion's [Counter: Counter] window, put once
+    // when the motion first reaches the front — after its activation (and any
+    // after-skill moment it raises) and before its effect resolves. A motion
+    // answered here waits at the front under the answer's own motion.
+    if (frame.counterMotion && !frame.counterMotion.opened && openCounterCounterWindow(ctx, game, state, frame)) {
+      state.programs.unshift(frame);
+      return "wait";
     }
     const substitute = state.battle?.endCombo?.stage === "departures" ? state.battle.endCombo.substituteDeparture : undefined;
     const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
