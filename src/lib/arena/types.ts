@@ -1,12 +1,12 @@
 /**
- * The arena's shared vocabulary — what the client contract, both engines, the
+ * The arena's shared vocabulary — what the client contract, the engine, the
  * compiler and the rules language all speak: actions, events, prompts, card
  * definitions, skills, areas, and the context an engine is handed
- * (`EngineContext`, at the end). Moved out of `engine/` by #118.
+ * (`EngineContext`, at the end). Moved out of `engine/` by #118, which then
+ * deleted the legacy engine and its state shape; the rules engine's is
+ * `VmState` (`vm/state.ts`).
  *
- * Pure data: no React, no database. `GameState` and its parts are the legacy
- * engine's state shape and leave with it; the rules engine's is `VmState`
- * (`vm/state.ts`). Section numbers in comments refer to the official Rule
+ * Pure data: no React, no database. Section numbers in comments refer to the official Rule
  * Manual v4.00 (`docs/rules/rulemanual.txt`).
  */
 
@@ -232,107 +232,6 @@ export interface ReplacementResult {
   optional?: boolean;
 }
 
-/** A physical card in the game. `id` is unique per game ("p1#17"); `cardId` is the catalog id. */
-export interface CardInstance {
-  id: string;
-  cardId: string;
-  owner: PlayerId;
-  /** 1-10: Active/Rest. Meaningful in leader/battle/energy/unison. */
-  mode: Mode;
-  /** 1-10-2 Hidden Mode: face-down in the Battle/Unison Area, no information (23-5). */
-  hidden: boolean;
-  /** Leader flipped to its back side (Awaken / Wish). */
-  flipped: boolean;
-  /**
-   * 3-9-2-1: a card in a closed area that a skill turned face up — most often
-   * a Life card, and the Z-Deck for the ≪Boujack Brigade≫ cards. It stays
-   * where it is and is still taken as damage in its turn, but both players can
-   * see it and skills can count it ("if you have 4 or more face-up ≪Boujack
-   * Brigade≫ cards in your Z-Deck"). Cleared when the card leaves the area
-   * (3-1-4), so a card *placed* face up is marked after it arrives.
-   */
-  faceUp?: boolean;
-  /** Unison markers (1-11). */
-  markers: number;
-  /** Cards placed under this one (23-2): Evolve/Union stacks, leader stacks. */
-  under: string[];
-  isToken: boolean;
-  /** Turn number this card entered its current open area (for "played this turn" checks). */
-  enteredTurn: number;
-  /** #683: persistent area-entry generation for standing keyword grants. */
-  zoneEpoch?: number;
-  /** [X Attack] activations left this turn (22-8). */
-  extraAttacks: number;
-  /** Skill indexes already resolved this turn under [Once per turn] / [Limit]. */
-  usedThisTurn: number[];
-  /** 13-4-2: once a marker skill resolves on a card, no marker skill on it can be used again this turn. */
-  usedMarkerSkill: boolean;
-  /**
-   * 8-1-2-1: this card has been an attack card or a guard card since the turn
-   * began. The roles themselves last only until the battle ends (8-1-2-2), and
-   * BT3-103 asks afterwards — “if this card participated in a battle during
-   * your opponent's turn … at the end of the battle” — so the card keeps the
-   * memory the battle no longer holds. Cleared with the rest of the turn's
-   * bookkeeping in `turn.next`, which is what makes it a claim about *this*
-   * turn; whose turn that was is a condition of its own.
-   */
-  battledThisTurn: boolean;
-  /**
-   * 22-15: the keyword whose own move played this card this turn ("Over
-   * Realm") — P-048's "during the turn you played it with [Over Realm]", the
-   * `playedUsing` condition. Set by `resolvePlay`, cleared in `turn.next` and
-   * when the card changes area (3-1-4); absent otherwise.
-   */
-  playedUsing?: string;
-  /**
-   * 5-5-4: this card arrived in a Battle Area this turn, played or placed by a
-   * skill (5-5-1) — BT15-118's "at the end of a turn in which this card was
-   * placed in a Battle Area", the `placedThisTurn` condition. Set by `move`,
-   * cleared in `turn.next` and when the card changes area (3-1-4).
-   */
-  placedThisTurn?: boolean;
-  /** Skills negated by effects (index list) or all skills. */
-  negated: number[] | "all";
-}
-
-export interface PlayerState {
-  id: PlayerId;
-  name: string;
-  deck: string[];
-  hand: string[];
-  drop: string[];
-  warp: string[];
-  life: string[];
-  leader: string;
-  battle: string[];
-  combo: string[];
-  energy: string[];
-  unison: string | null;
-  zDeck: string[];
-  zEnergy: string[];
-  removed: string[];
-  /** 1-14 energy markers, each worth one energy of the leader's colour. */
-  energyMarkers: number;
-  mulliganed: boolean;
-  /** [Over Realm]/[Dark Over Realm] activations this turn (22-15-7). */
-  overRealmsThisTurn: number;
-  /** [Z-Awaken] declared this turn (22-46-4). */
-  zAwakenedThisTurn: boolean;
-  /** Unison growth this turn (13-3-2). */
-  grewUnisonThisTurn: boolean;
-  /** Damage dealt to this player over the game, for the end screen. */
-  damageTaken: number;
-  /**
-   * 20-13: phases and steps of this player's that are not to be performed.
-   * One entry is spent by one occurrence — the flow runner takes it where the
-   * step would begin — and `turn` is the turn the skip was made on, which is
-   * what tells "this" from "next" apart. An unspent "this" entry is dropped
-   * when the turn passes, the way a delayed effect that missed its moment is.
-   * Absent on games saved before the field existed.
-   */
-  skips?: { what: SkipWhat; when: "this" | "next"; turn: number }[];
-}
-
 /**
  * What 20-13 can be told to skip here. The three phases the turn is made of
  * and the two steps of a battle that have a step of their own to refuse;
@@ -349,41 +248,6 @@ export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense" | "turn
 
 export type Phase = "setup" | "charge" | "main" | "mainEnd" | "end" | "over";
 export type BattleStep = "declared" | "offense" | "defense" | "damage" | "battleEnd";
-
-export interface Battle {
-  attacker: string;
-  guard: string;
-  /** Original target before any [Blocker]. */
-  target: string;
-  step: BattleStep;
-  negated: boolean;
-  /** Blocker was already offered for this attack. */
-  blockerOffered: boolean;
-  /** [Revenge] pending KO of the attacker at battle end. */
-  revenge: boolean;
-  /** [X Attack]: reactivate the attacker at battle end. */
-  reactivate: boolean;
-  /**
-   * The counter cards played into this battle, in play order, with who played
-   * each. A counter is only a card reaching the Drop, so without this record
-   * nothing downstream can tell one played into a battle from any other card
-   * discarded — which is why the board could never stamp one
-   * (`docs/arena-battle-staging-spec.md` §3.1). The list ends with the battle,
-   * as the roles do (8-1-2-2). Absent on games saved before the field existed.
-   */
-  counters?: {
-    card: string;
-    by: PlayerId;
-    /**
-     * How many combo cards that player had already added when this one was
-     * played. A side's chain is otherwise two lists with no shared order, and
-     * numbering it would be a guess — this makes the merge exact.
-     */
-    after: number;
-  }[];
-  /** Each combo card's actual entry area in this battle, retained through save/reload and 8-5 cleanup. */
-  comboOrigins?: Record<string, "hand" | "other">;
-}
 
 /**
  * Things a card can forbid (20-14). 0-2-5 settles every conflict between a
@@ -705,23 +569,6 @@ export interface DelayedEffect {
   createdTurn: number;
   /** What to call it in the log and on the board ("at the end of the turn"). */
   label: string;
-}
-
-/** An [Auto] skill whose trigger fired, waiting for a checkpoint (0-3-7, 9-6). */
-export interface PendingAuto {
-  card: string;
-  skillIndex: number;
-  master: PlayerId;
-  /** What fired it, for scripts that need it ("when this card attacks" → the attack). */
-  trigger: Trigger;
-  /** Trigger context: the card that moved / was KO'd / attacked, when relevant. */
-  subject?: string;
-  /** #683: the individual Heroic/Villainous keyword heard at activation time. */
-  afterSkillKeyword?: "Heroic" | "Villainous";
-  /** #683: persistent identity of a timed keyword grant captured at the event. */
-  grantEffectId?: number;
-  /** #683: source/skill/op/recipient identity of a standing keyword grant. */
-  standingGrantId?: string;
 }
 
 export type Trigger =
@@ -1064,115 +911,6 @@ export type GameEvent =
   | { type: "note"; text: string }
   | { type: "gameOver"; winner: PlayerId | null; reason: string };
 
-export interface GameState {
-  seed: number;
-  /** RNG state advances with every shuffle so replays are exact. */
-  rngState: number;
-  turn: number;
-  turnPlayer: PlayerId;
-  firstPlayer: PlayerId;
-  phase: Phase;
-  battle: Battle | null;
-  players: Record<PlayerId, PlayerState>;
-  cards: Record<string, CardInstance>;
-  effects: ContinuousEffect[];
-  nextEffectId: number;
-  /** Effects waiting for a later timing (1-7-2-1-1); drained by `fireDelayed`. */
-  delayed: DelayedEffect[];
-  nextDelayedId: number;
-  pending: PendingAuto[];
-  prompt: Prompt;
-  /** Counter timing bookkeeping: the action waiting behind the window. */
-  counterStack: CounterFrame[];
-  winner: PlayerId | null;
-  overReason: string | null;
-  /** The card that is in the middle of being played/activated, for [Counter: Play]. */
-  resolving: { card: string; skill?: number; player: PlayerId } | null;
-  /** Opaque continuation data for multi-step effects (choices). */
-  continuations: Record<string, unknown>;
-  /** Steps still to run before the next decision is needed. */
-  flow: FlowStep[];
-  /** Answer to the current chooseCards prompt, consumed by the next step. */
-  lastChoice: string[] | null;
-  /** Answer to the current chooseMode prompt, consumed by the next step. */
-  lastMode: number | null;
-}
-
-export interface CounterFrame {
-  window: CounterWindow;
-  /** Who may counter (the non-acting player). */
-  responder: PlayerId;
-  /** What to do after the window closes without a negation. */
-  then: string;
-  negated: boolean;
-}
-
-/**
- * The engine's program counter. Every step is data so a game can be stored
- * mid-prompt and resumed: `run()` executes steps from the front until one
- * needs a player's decision, the action handler then pushes the steps that
- * follow. Sub-flows are spliced in at the front.
- */
-export type FlowStep =
-  | { op: "checkpoint" }
-  | { op: "auto.resolve"; pending: PendingAuto }
-  | { op: "setup.afterFirst" }
-  | { op: "setup.mulligan"; player: PlayerId }
-  | { op: "setup.finish" }
-  | { op: "turn.start" }
-  | { op: "turn.activeAll" }
-  | { op: "turn.draw" }
-  | { op: "turn.promptCharge" }
-  | { op: "turn.mainStart" }
-  | { op: "turn.promptMain" }
-  | { op: "turn.mainEnd" }
-  | { op: "turn.endPhase" }
-  | { op: "turn.cleanup" }
-  | { op: "turn.next" }
-  | { op: "counter"; window: CounterWindow; responder: PlayerId }
-  /**
-   * A counter that has been paid for and is waiting to resolve (9-7-3). It
-   * sits under the window that offers the answer to it, so a counter played in
-   * response resolves first — and can mark this one negated on its way past.
-   */
-  | { op: "counter.resolve"; card: string; skill: number; player: PlayerId; negated?: boolean }
-  /** #683: action-price continuation; only a successful price reaches this hook boundary. */
-  | { op: "afterSkill.activate"; card: string; player: PlayerId; keywords: ("Heroic" | "Villainous")[] }
-  /**
-   * `empowerCarry` is the answer to an "empowerCarry" prompt (22-45-3): how
-   * many markers, up to the printed [Empower]'s cap, to carry from the
-   * outgoing Unison. Absent the first time a Unison with room to carry any
-   * is played — `resolvePlay` asks then and requeues this same step with the
-   * answer on it, so the step never asks twice.
-   */
-  | { op: "play.resolve"; card: string; player: PlayerId; markers?: number; mode?: "active" | "rest"; onto?: string; negated?: "turn" | "game"; empowerCarry?: number; using?: string }
-  | { op: "script.step"; frame: ScriptFrame }
-  | { op: "flipLeader"; card: string }
-  | { op: "skill.resolve"; card: string; skill: number; player: PlayerId; trigger?: Trigger; x?: number }
-  | { op: "extra.finish"; card: string }
-  | { op: "battle.afterDeclare" }
-  | { op: "battle.blocker" }
-  | { op: "battle.offense" }
-  | { op: "battle.promptCombo"; side: "offense" | "defense" }
-  | { op: "battle.defense" }
-  /**
-   * #272: `resume` carries a paused damage-application loop across a
-   * `replaceMove` wait — one card's [Strike]-raised `amount` is handled one
-   * life card at a time, since each can carry its own optional "reveal it and
-   * add it to your hand instead" (BT10-031, SD18-01). `awaiting` marks the
-   * one re-entry that reads the player's just-given answer off `s.lastMode`
-   * rather than asking about the next card.
-   */
-  | { op: "battle.damage"; resume?: { taken: string[]; remaining: number; critical: boolean; awaiting?: true } }
-  /** 13-5-2 / 5-13-4-2: a Unison guard's markers coming off one at a time, each one's `marker` replacement asked (SD13-02); `lost` is how many have actually come off so far. */
-  | { op: "battle.markers"; resume: { remaining: number; lost: number; awaiting?: true } }
-  | { op: "battle.end" }
-  | { op: "battle.zEnergy"; player: PlayerId }
-  | { op: "battle.cleanup" }
-  | { op: "prompt"; prompt: Prompt }
-  | { op: "zstack.place"; card: string; player: PlayerId }
-  | { op: "choose.apply"; what: "zstack" | "evolve" | "union" | "swap" | "successor" | "aegis" | "aegisEnergy" | "revive" | "alliance"; card: string; player: PlayerId };
-
 /**
  * Why a move the player might expect is not on the menu
  * (`docs/arena-workflow-spec.md` §3.1).
@@ -1254,12 +992,6 @@ export interface AbilityAvailability extends AbilityIdentity {
   why?: Requirement[];
   /** Exact current engine offers, including distinct alternative/X choices. */
   offers?: LegalAction[];
-}
-
-/** Output of `apply`. */
-export interface Applied {
-  state: GameState;
-  events: GameEvent[];
 }
 
 /** Human-readable card face, used by the UI and by Claude's view builder. */

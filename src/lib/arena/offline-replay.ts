@@ -1,12 +1,10 @@
 import type { Action, GameEvent } from "./types";
-import type { EngineId, EngineState } from "./engines";
-import { engineFor } from "./engines";
+import type { EngineState } from "./engines";
 import type { ReplayBundleRecord } from "./replay-core";
-import { replayWith } from "./browser";
+import { RULES_ENGINE, replayWith, type PinnedReplayResult } from "./browser";
 
 export interface OfflineReplayInput {
   bundle: ReplayBundleRecord;
-  engine: EngineId;
   seed: number;
   actions: Action[];
   /**
@@ -20,15 +18,14 @@ export interface OfflineReplayInput {
 export interface OfflineReplayResult {
   state: EngineState;
   events: GameEvent[];
-  legalActions: ReturnType<ReturnType<typeof engineFor>["legalActions"]>;
+  legalActions: PinnedReplayResult["legalActions"];
 }
 
 /**
  * Pure replay: this module performs no database, filesystem, environment or network reads.
- * It resolves the saved game's engine (either one) through `engineFor` and hands it to the
- * portable `replayWith` (#641); a browser calls `replayWith` with the rules engine directly,
- * without this module's legacy-engine import.
+ * It hands the saved game to the portable `replayWith` (#641) on the rules engine, the only
+ * engine since #118.
  */
 export async function replayOffline(input: OfflineReplayInput): Promise<OfflineReplayResult> {
-  return replayWith(engineFor(input.engine), input);
+  return replayWith(RULES_ENGINE, input);
 }

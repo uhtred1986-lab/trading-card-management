@@ -14,8 +14,8 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaMatches, cards as cardsTable, deckCards, decks as decksTable } from "@/db/schema";
-import { engineOr, FALLBACK_ENGINE, playableEngine, type EngineId } from "./engines";
-import { modeRefusal, startGame } from "./games";
+import { DEFAULT_ENGINE } from "./engine-ids";
+import { startGame } from "./games";
 import { assertDecksPlayable } from "./readiness";
 
 export interface OpenMatch {
@@ -24,7 +24,6 @@ export interface OpenMatch {
   hostDeckId: number | null;
   hostDeckName: string | null;
   debug: boolean;
-  engine: EngineId;
   createdAt: Date;
 }
 
@@ -35,24 +34,13 @@ export interface OpenMatch {
  * people, and with the app running open (no `BASIC_AUTH_*`, no `app_users`)
  * there is nobody to be the second. Hot-seat is what that machine wants.
  */
-export async function openMatch(db: Db, hostUser: string | null, hostDeckId: number, debug: boolean, engine: EngineId = FALLBACK_ENGINE): Promise<number> {
+export async function openMatch(db: Db, hostUser: string | null, hostDeckId: number, debug: boolean): Promise<number> {
   if (!hostUser) throw new Error("a 1 v 1 needs two logins — add one at Settings → Users, or play hot-seat");
-  // Refused now rather than when the other player joins, which is the wrong moment to learn it.
-  playableEngine(engine);
-  // Whether this engine plays a 1 v 1 is `games.ts`'s `modeRefusal`, asked here
-  // once rather than written out a second time — and asked at the invitation
-  // rather than when the second player already has a deck picked. Both engines
-  // do since #458 (the rules engine's hidden-hand masking is `vm/view.ts`'s
-  // `vmRevealedTo`); the question stays so a mode refused again is refused here
-  // too. Since #166 a caller with no engine of its own resolves through
-  // `engineForMode` before it gets here.
-  const why = modeRefusal(engine, "versus");
-  if (why) throw new Error(why);
   // The host's deck is refused now too: nobody should wait on an invitation to a game that cannot start.
   const host = await db.query.decks.findFirst({ where: eq(decksTable.id, hostDeckId) });
   if (!host) throw new Error("that deck is gone");
   await assertDecksPlayable(db, [{ id: hostDeckId, name: host.name }]);
-  const [row] = await db.insert(arenaMatches).values({ hostUser, hostDeckId, debug, engine }).returning({ id: arenaMatches.id });
+  const [row] = await db.insert(arenaMatches).values({ hostUser, hostDeckId, debug, engine: DEFAULT_ENGINE }).returning({ id: arenaMatches.id });
   return row.id;
 }
 
@@ -65,15 +53,13 @@ export async function listOpenMatches(db: Db): Promise<OpenMatch[]> {
       hostDeckId: arenaMatches.hostDeckId,
       hostDeckName: decksTable.name,
       debug: arenaMatches.debug,
-      engine: arenaMatches.engine,
       createdAt: arenaMatches.createdAt,
     })
     .from(arenaMatches)
     .leftJoin(decksTable, eq(decksTable.id, arenaMatches.hostDeckId))
     .where(eq(arenaMatches.status, "open"))
     .orderBy(desc(arenaMatches.createdAt))
-    .limit(20)
-    .then((rows) => rows.map((r) => ({ ...r, engine: engineOr(r.engine) })));
+    .limit(20);
 }
 
 /** One match, for the host's waiting screen. */
@@ -143,7 +129,7 @@ export async function joinMatch(db: Db, id: number, guestUser: string | null, gu
   if (!claimed.length) throw new Error("that match has already started");
 
   try {
-    const gameId = await startGame(db, match.hostDeckId, guestDeckId, "versus", match.debug, { p1User: match.hostUser, p2User: guestUser }, engineOr(match.engine));
+    const gameId = await startGame(db, match.hostDeckId, guestDeckId, "versus", match.debug, { p1User: match.hostUser, p2User: guestUser });
     await db.update(arenaMatches).set({ gameId, status: "started", updatedAt: new Date() }).where(eq(arenaMatches.id, id));
     return gameId;
   } catch (err) {

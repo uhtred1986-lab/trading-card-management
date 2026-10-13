@@ -1,9 +1,8 @@
 /**
- * The engine-neutral half of `view.ts` (#641): the pieces of a board view that
- * either engine's projection and `snapshot.ts` share, with no import of the
- * legacy engine (`./engine`). `view.ts` re-exports every name here, so existing
- * callers are unchanged; the rules engine (`vm/view.ts`) and the browser-safe
- * entry (`browser.ts`) import from here so their graphs stay free of `./engine`.
+ * The viewer-side half of `view.ts` (#641): the pieces of a board view that the
+ * rules engine's projection (`vm/view.ts`) and `snapshot.ts` share. `view.ts`
+ * re-exports every name here, so existing callers are unchanged; the
+ * browser-safe entry (`browser.ts`) imports from here.
  *
  * Checked by `scripts/verify/arena-browser-boundary.mts`.
  */
@@ -11,7 +10,6 @@ import type { AbilityAvailability, ActionCost, LegalAction, PlayerId, RejectedAc
 import type { AbilityView, PermanentView, Tappable } from "./view";
 import type { EngineState } from "./engines";
 import type { GameDefinition } from "./rulesets/types";
-import { isVmState } from "./vm/state";
 import { vmRevealedTo } from "./vm/view";
 import { rulesetFor } from "./rulesets";
 
@@ -134,49 +132,18 @@ export function tappable(legal: LegalAction[], rejected: RejectedAction[] = []):
  * this one. See `maskBeats`. The board draws only the top of a Drop, but the
  * area is open, so a card KO'd under another stays named in its beat (#458).
  *
- * The rules engine's reading is `vmRevealedTo` (`vm/view.ts`): the same rule,
- * read off its zone declarations' `visibility` (#458). The legacy branch reads
- * only fields of the legacy `GameState`, never an engine function, which is
- * why it can live here outside `./engine`'s graph (#641).
+ * The reading is `vmRevealedTo` (`vm/view.ts`): the same rule, read off the
+ * zone declarations' `visibility` (#458).
  */
 export function revealedTo(s: EngineState, viewer: PlayerId, pinnedDefinition?: GameDefinition): Set<string> {
-  if (isVmState(s)) {
-    const loaded = pinnedDefinition ? null : rulesetFor(s.game);
-    const definition = pinnedDefinition ?? (loaded?.ok ? loaded.definition : null);
-    if (!definition) throw new Error(`the ${s.game} ruleset did not load, so no board can say what is hidden: ${loaded && !loaded.ok ? loaded.errors[0]?.message ?? "no reason given" : "no pinned definition"}`);
-    return vmRevealedTo(definition, s, viewer);
-  }
-  const out = new Set<string>();
-  const add = (id: string | null | undefined) => {
-    const inst = id ? s.cards[id] : null;
-    if (!id || !inst || inst.hidden || out.has(id)) return;
-    out.add(id);
-    for (const u of inst.under ?? []) add(u);
-  };
-  for (const p of ["p1", "p2"] as PlayerId[]) {
-    const ps = s.players[p];
-    add(ps.leader);
-    add(ps.unison);
-    for (const id of [...ps.battle, ...ps.combo, ...ps.energy, ...ps.zEnergy, ...ps.drop, ...ps.warp, ...(ps.removed ?? [])]) add(id);
-    // #272: a life card revealed on its way into a hand (BT10-031/SD18-01,
-    // "you may reveal it and add it to your hand instead") is `faceUp` the
-    // same way a life or Z-Deck card left face up is — public knowledge
-    // wherever it sits, not only to its own owner.
-    for (const id of [...ps.hand, ...ps.zDeck]) if (p === viewer || s.cards[id]?.faceUp) add(id);
-    for (const id of [...ps.life, ...ps.deck]) if (s.cards[id]?.faceUp) add(id);
-  }
-  // What a search shows you is yours to see, exactly as `hiddenChoices` has it.
-  const pr = s.prompt;
-  if (pr.kind === "chooseCards" && pr.player === viewer) for (const id of pr.choice.candidates) add(id);
-  return out;
+  const loaded = pinnedDefinition ? null : rulesetFor(s.game);
+  const definition = pinnedDefinition ?? (loaded?.ok ? loaded.definition : null);
+  if (!definition) throw new Error(`the ${s.game} ruleset did not load, so no board can say what is hidden: ${loaded && !loaded.ok ? loaded.errors[0]?.message ?? "no reason given" : "no pinned definition"}`);
+  return vmRevealedTo(definition, s, viewer);
 }
 
 /**
  * Whose turn it is to answer — the board is drawn from this player's side.
- *
- * Reads only `prompt`/`turnPlayer`, which both engines' states carry under
- * the same names, so it takes `EngineState` rather than the legacy shape —
- * `snapshot.ts` calls it for either engine's game.
  */
 export function viewerOf(s: EngineState): PlayerId {
   const pr = s.prompt;

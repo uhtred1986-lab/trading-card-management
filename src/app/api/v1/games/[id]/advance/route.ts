@@ -1,6 +1,7 @@
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { canOpenGame } from "@/lib/auth/ownership";
-import { fail, ok, seatFor } from "@/lib/arena/api";
+import { fail, ok, retiredGame, seatFor } from "@/lib/arena/api";
 import { isVersus, loadGame } from "@/lib/arena/games";
 import { advanceSession } from "@/lib/arena/session";
 import { routeViewer } from "@/lib/auth";
@@ -25,7 +26,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   // A player opens only their own games; a game they may not open does not exist for them.
   if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
 
-  const game = await loadGame(db, id);
+  const game = await loadGame(db, id).catch(retiredGame);
+  if (game instanceof NextResponse) return game;
   if (!game) return fail("not_found", `no game ${id}`);
   const seat = await seatFor(game);
   if (isVersus(game.mode) && !seat) return fail("not_found", `no game ${id}`);

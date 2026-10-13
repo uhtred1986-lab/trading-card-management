@@ -1,6 +1,7 @@
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { canOpenGame } from "@/lib/auth/ownership";
-import { chooseSchema, fail, ok, readJson, seatFor } from "@/lib/arena/api";
+import { chooseSchema, fail, ok, readJson, retiredGame, seatFor } from "@/lib/arena/api";
 import { IllegalAction } from "@/lib/arena/vm/common";
 import { GameAlreadyFinished, isVersus, loadGame, mutationFingerprint, replayMutation, RequestIdentityConflict, StaleGame } from "@/lib/arena/games";
 import { applyAction, snapshotOfGame } from "@/lib/arena/session";
@@ -34,7 +35,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
   const { index, basedOn, requestId } = parsed.data;
 
-  const game = await loadGame(db, id);
+  const game = await loadGame(db, id).catch(retiredGame);
+  if (game instanceof NextResponse) return game;
   if (!game) return fail("not_found", `no game ${id}`);
   const seat = await seatFor(game);
   if (isVersus(game.mode) && !seat) return fail("not_found", `no game ${id}`);
@@ -93,7 +95,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!Number.isInteger(id)) return fail("bad_request", "game id must be a number");
   // A player opens only their own games; a game they may not open does not exist for them.
   if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
-  const game = await loadGame(db, id);
+  const game = await loadGame(db, id).catch(retiredGame);
+  if (game instanceof NextResponse) return game;
   if (!game) return fail("not_found", `no game ${id}`);
   const seat = await seatFor(game);
   if (isVersus(game.mode) && !seat) return fail("not_found", `no game ${id}`);

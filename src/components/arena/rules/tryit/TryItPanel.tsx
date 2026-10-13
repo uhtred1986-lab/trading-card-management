@@ -15,8 +15,7 @@ import { BoardSheet, WrongSheet } from "./sheets";
  * Mounted by the block builder (#469) under the rule, through its `tryIt`
  * prop, and handed the rule as it stands — unsaved. Every change re-runs the
  * boards (debounced), so the rows are always the current rule's. The engine
- * is the one games use; the legacy engine runs beside it and a row where the
- * two disagree says so, because that is an engine bug and not the owner's.
+ * is the one games use.
  *
  * ✓ keeps what happened as what should; ✗ asks what should have happened.
  * A judged row keeps its judgement while the rule is edited and goes red on
@@ -162,7 +161,7 @@ export function TryItBoards({ ruleId, rule, onFix, api }: { ruleId: number; rule
         </span>
       </div>
       <p className="mt-1 text-[11px] text-space-500">
-        On the {result?.engines.main ?? "rules"} engine games use, with the {result?.engines.other ?? "legacy"} one beside it. Mark each board ✓ or ✗; a judged board goes red by itself when the rule stops doing what you said.
+        On the engine games use. Mark each board ✓ or ✗; a judged board goes red by itself when the rule stops doing what you said.
       </p>
       {error && <p className="mt-2 rounded-lg bg-loss/10 px-2 py-1.5 text-[12px] text-loss">{error}</p>}
       {result?.notes.map((n) => (
@@ -263,12 +262,6 @@ function BoardRow({
         <p className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-space-100">{row.title.charAt(0).toUpperCase() + row.title.slice(1)}</p>
         <span className={`shrink-0 rounded-md px-2 py-1 text-[12px] font-bold ${pill}`}>{run.headline}</span>
       </div>
-
-      {row.disagree && (
-        <p className="mt-1.5 rounded-md bg-dbs-yellow/10 px-2 py-1 text-[11px] text-dbs-yellow">
-          <span className="font-semibold">engines disagree</span> — {row.rules.engine}: {row.rules.headline} · {row.legacy.engine}: {row.legacy.headline}. An engine bug, not the rule&apos;s.
-        </p>
-      )}
 
       {said && look && (
         <p className={`mt-1.5 text-[12px] ${look.tone}`}>

@@ -11,16 +11,14 @@
  * lets `npm test` build snapshots and compare them against golden fixtures.
  * `session.ts` is the half that reaches the database.
  *
- * #641: this file is the engine-neutral core. The two calls that need an
- * engine take it as a resolver (`buildSnapshotWith`, `rejectedForWith`), so
- * nothing here imports `engines.ts` and with it the legacy engine. `snapshot.ts`
- * binds them to `engineFor` and re-exports everything else, which is what every
- * online caller imports; the browser-safe `browser.ts` binds the rules engine.
+ * #118: there is one engine, so this file calls it directly (`RULES`); the
+ * resolver seam that kept the legacy engine out of the browser graph (#641) went
+ * with the legacy engine. `snapshot.ts` re-exports this file for the server.
  */
 import type { EngineContext, LegalAction, PlayerId, RejectedAction } from "./types";
-import type { Engine, EngineState } from "./engines";
-import { FALLBACK_ENGINE, type EngineId } from "./engine-ids";
-import { isVmState } from "./vm/state";
+import type { EngineState } from "./engines";
+import { DEFAULT_ENGINE, type EngineId } from "./engine-ids";
+import { RULES } from "./vm";
 import type { BoardView, CardArt, Tappable } from "./view";
 import { tappable, viewerOf } from "./view-core";
 import type { Beats } from "./beats";
@@ -63,16 +61,6 @@ export interface Snapshot {
     /** The login in each seat, for the names on the board. Null outside a 1 v 1. */
     p1User?: string | null;
     p2User?: string | null;
-    /**
-     * True only for a legacy row read off its stored snapshot (issue #335)
-     * rather than computed live. A client shows the banner this implies —
-     * "archived, cannot be continued" — and nothing else: `legal` is already
-     * empty and `waiting` already null, exactly as a finished game's are, so
-     * no other field needs a client to treat it differently. Absent (never
-     * `false`) on every live snapshot, so the field changes no existing
-     * fixture.
-     */
-    archived?: true;
   };
   view: BoardView;
   /** The actor and exact engine prompt/phase that currently owns the decision. */
@@ -105,14 +93,6 @@ export interface SnapshotInput {
   /** Missing only in hand-built historical fixtures. */
   revision?: number;
   mode: ArenaMode;
-  /**
-   * Left off by tests built by hand, which are all on the legacy engine and
-   * the original game — so what fills it in is `FALLBACK_ENGINE`, not
-   * `DEFAULT_ENGINE`. The two diverged at #166 and an input with no engine
-   * still means a legacy-shaped state, which is also what keeps the contract
-   * fixtures still saying `legacy` after the flip.
-   */
-  engine?: EngineId;
   game?: Game;
   status: string;
   p1Name: string;
@@ -178,20 +158,13 @@ export function waitingFor(input: Pick<SnapshotInput, "ai" | "state" | "status" 
  * can ask: they are computed for the viewer when the prompt is theirs, and
  * never for Claude, who cannot read them and whose turns would pay for them.
  */
-export function rejectedForWith(resolve: EngineResolver, input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal" | "viewer" | "engine"> & { status?: string }): RejectedAction[] {
+export function rejectedFor(input: Pick<SnapshotInput, "ai" | "state" | "ctx" | "legal" | "viewer"> & { status?: string }): RejectedAction[] {
   if (input.status !== undefined && input.status !== "playing") return [];
   const prompt = input.state.prompt;
   if (!("player" in prompt) || !prompt.player) return [];
   if (prompt.player !== viewerFor(input) || prompt.player === input.ai) return [];
-  return resolve(input.engine ?? FALLBACK_ENGINE).rejectedActions(input.ctx, input.state, input.legal);
+  return RULES.rejectedActions(input.ctx, input.state, input.legal);
 }
-
-/**
- * The engine that reads a state written by engine `id`. Online, `engineFor`
- * (`snapshot.ts`); in a browser worker, a resolver that knows only the rules
- * engine and refuses the legacy one by name (`browser.ts`).
- */
-export type EngineResolver = (id: EngineId) => Engine;
 
 /**
  * The moves this board may list: none of the other side's. Their labels name
@@ -217,8 +190,7 @@ function legalFor(input: Pick<SnapshotInput, "ai" | "state" | "status" | "legal"
  * The rules engine wraps contexts with `withTokens` at every entry point, so
  * this must use the same wrapper and the exact pinned definition when present.
  */
-export function withSnapshotReading<T>(input: Pick<SnapshotInput, "engine" | "ctx" | "state">, read: () => T): T {
-  if ((input.engine ?? FALLBACK_ENGINE) !== "rules" || !isVmState(input.state)) return read();
+export function withSnapshotReading<T>(input: Pick<SnapshotInput, "ctx" | "state">, read: () => T): T {
   const pinned = (input.ctx as EngineContext & { rulesetDefinition?: GameDefinition }).rulesetDefinition;
   const loaded = pinned?.id === input.state.game ? null : rulesetFor(input.state.game);
   const definition = pinned?.id === input.state.game ? pinned : loaded?.ok ? loaded.definition : null;
@@ -226,8 +198,8 @@ export function withSnapshotReading<T>(input: Pick<SnapshotInput, "engine" | "ct
   return readingBoard(withTokens(input.ctx), definition, input.state, read);
 }
 
-export function buildSnapshotWith(resolve: EngineResolver, input: SnapshotInput): Snapshot {
-  return withSnapshotReading(input, () => concealFor(input, buildSnapshotInRead(resolve, input)));
+export function buildSnapshot(input: SnapshotInput): Snapshot {
+  return withSnapshotReading(input, () => concealFor(input, buildSnapshotInRead(input)));
 }
 
 /**
@@ -251,18 +223,17 @@ function concealFor(input: SnapshotInput, snapshot: Snapshot): Snapshot {
  * that must show the concealment is what makes a hidden permutation
  * invisible (`scripts/verify/arena-snapshot-conceal.mts`); never sent.
  */
-export function buildUnconcealedSnapshotForProof(resolve: EngineResolver, input: SnapshotInput): Snapshot {
-  return withSnapshotReading(input, () => buildSnapshotInRead(resolve, input));
+export function buildUnconcealedSnapshotForProof(input: SnapshotInput): Snapshot {
+  return withSnapshotReading(input, () => buildSnapshotInRead(input));
 }
 
-function buildSnapshotInRead(resolve: EngineResolver, input: SnapshotInput): Snapshot {
+function buildSnapshotInRead(input: SnapshotInput): Snapshot {
   const viewer = viewerFor(input);
-  const rejected = rejectedForWith(resolve, input);
+  const rejected = rejectedFor(input);
   const legal = legalFor(input);
   const outcome = resolveOutcome(input.state as EngineState & { outcome?: import("./outcome").StoredOutcome | null }, input.status);
-  const engine = resolve(input.engine ?? FALLBACK_ENGINE);
-  const abilityAvailability = engine.abilityAvailability(input.ctx, input.state, viewer, legal, rejected);
-  const boardView = engine.boardView(input.ctx, input.state, viewer, input.images, abilityAvailability);
+  const abilityAvailability = RULES.abilityAvailability(input.ctx, input.state, viewer, legal, rejected);
+  const boardView = RULES.boardView(input.ctx, input.state, viewer, input.images, abilityAvailability);
   if (outcome) boardView.over = { winner: outcome.winner, reason: outcome.reason };
   return {
     contract: CONTRACT_VERSION,
@@ -270,7 +241,7 @@ function buildSnapshotInRead(resolve: EngineResolver, input: SnapshotInput): Sna
       id: input.id,
       revision: input.revision ?? 0,
       mode: input.mode,
-      engine: input.engine ?? FALLBACK_ENGINE,
+      engine: DEFAULT_ENGINE,
       game: input.game ?? DEFAULT_GAME,
       status: input.status,
       turn: input.state.turn,
@@ -296,74 +267,6 @@ function buildSnapshotInRead(resolve: EngineResolver, input: SnapshotInput): Sna
   };
 }
 
-/**
- * What a legacy row keeps forever once it is archived (issue #335, `games.ts`'s
- * `loadArchivedGame`) — the last `Snapshot`(s) `buildSnapshot` produced for it,
- * computed once while `engine/` still exists and never recomputed after.
- *
- * `versus` is the one mode with a real hidden-hand boundary between two
- * logins (§3.3 of the client contract), and archiving must not flatten it
- * into a single board that leaks one seat's hand to the other — so it keeps
- * one masked `Snapshot` per seat. Every other mode has no second viewer to
- * protect against (hot-seat is one device; against Claude the human is
- * always `p1`), so `shared` is the only key a non-`versus` row ever sets.
- */
-export interface StoredSnapshot {
-  shared?: Snapshot;
-  p1?: Snapshot;
-  p2?: Snapshot;
-}
-
-const ARCHIVED_TAPS: Tappable = { byCard: {}, bare: [], attackTargets: {} };
-
-/**
- * The archived reading of a stored snapshot, for the seat asking (`null`
- * outside `versus`) — never recomputed from `state`, since an archived row
- * is read after `engine/` may already be gone. `legal`/`taps`/`waiting` are
- * overridden here rather than trusted from storage, so a row archived
- * mid-game (still `"playing"`) reads exactly like a finished one: nothing to
- * tap, nothing to wait on. Everything else — `view`, `log`, `beats`,
- * `spotlight`, `spend`, `over` — is the frozen board as it last stood.
- *
- * Null when the seat asking has no stored board at all (a `versus` row
- * archived before both seats' snapshots existed), which the caller treats
- * the same as "no such game".
- */
-export function archivedSnapshotFor(store: StoredSnapshot, seat: PlayerId | null, revision?: number): Snapshot | null {
-  const picked = seat ? store[seat] : store.shared;
-  if (!picked) return null;
-  const rest: Snapshot = { ...picked };
-  delete rest.rejected;
-  const storedKind = picked.over && isOutcomeKind((picked.over as PublicOutcome).kind) ? (picked.over as PublicOutcome).kind : null;
-  const storedOutcome: PublicOutcome | null = picked.over && storedKind
-    ? {
-        kind: storedKind,
-        winner: picked.over.winner,
-        reason: picked.over.reason,
-        ...((picked.over as PublicOutcome).concededBy ? { concededBy: (picked.over as PublicOutcome).concededBy } : {}),
-      }
-    : null;
-  const over = picked.over
-    ? resolveOutcome({ winner: picked.over.winner, overReason: picked.over.reason, outcome: storedOutcome }, picked.game.status) ?? picked.over
-    : picked.game.status === "abandoned"
-      ? resolveOutcome({ winner: picked.view.over?.winner, overReason: picked.view.over?.reason }, "abandoned")
-      : picked.over;
-  const view = { ...picked.view, over: over ? { winner: over.winner, reason: over.reason } : null };
-  return {
-    ...rest,
-    contract: CONTRACT_VERSION,
-    game: { ...picked.game, revision: revision ?? picked.game.revision ?? 0, archived: true },
-    view,
-    decision: { actor: null, window: "archived", phase: picked.view.phase, battleStep: null },
-    over,
-    beats: publicBeats(picked.beats, over),
-    log: publicLog(picked.log, over),
-    legal: [],
-    taps: ARCHIVED_TAPS,
-    waiting: null,
-  };
-}
-
 function publicLog(lines: string[], outcome: PublicOutcome | null): string[] {
   if (outcome?.kind !== "interrupted") return lines;
   return lines.map((line) => line.includes(NOT_YET_REASON_PREFIX)
@@ -371,10 +274,6 @@ function publicLog(lines: string[], outcome: PublicOutcome | null): string[] {
     || line.includes("charging an action price or an X price is #149's")
     ? outcome.reason
     : line);
-}
-
-function isOutcomeKind(value: unknown): value is PublicOutcome["kind"] {
-  return value === "win" || value === "draw" || value === "concession" || value === "abandoned" || value === "interrupted";
 }
 
 function publicBeats(beats: Beats | null, outcome: PublicOutcome | null): Beats | null {

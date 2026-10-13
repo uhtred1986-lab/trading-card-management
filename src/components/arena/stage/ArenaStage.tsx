@@ -290,10 +290,7 @@ export function ArenaStage({
   // referee ruling is the server's, and either side may trigger that.
   const serverDecides = live.game.mode !== "versus" ? waitingOnServer : live.waiting === "referee";
   const rejected = live.rejected ?? [];
-  // An archived game (issue #335) may still read `"playing"` — it is the
-  // status it was archived at, kept for the record — but `legal` is already
-  // empty and `waiting` already null, so nothing here is actually pending.
-  const playable = live.game.status === "playing" && !live.game.archived;
+  const playable = live.game.status === "playing";
 
   const launchAdvance = useCallback(() => {
     if (asked.current) return;
@@ -1458,7 +1455,7 @@ export function ArenaStage({
             you={view.you.player}
             them={view.them.name}
             turn={view.turn}
-            canRematch={!live.game.archived && session.capabilities.rematch}
+            canRematch={session.capabilities.rematch}
             versus={live.game.mode === "versus"}
             onRematch={() => session.rematch!()}
             onDismiss={() => setEndDismissed(true)}

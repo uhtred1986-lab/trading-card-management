@@ -73,8 +73,7 @@ function cardsOnBoard(snapshot: Snapshot): CardView[] {
  * a right-hand panel on desktop, a full-screen sheet on a phone, a dark log table
  * in both skins. It holds what a player's board no longer shows — seed, the
  * opponent's hidden hand, the beat log with Claude's reasons, and how the engine
- * reads the cards in play. The legacy engine's own fields (its name, the raw log)
- * appear only for a game that is still on it.
+ * reads the cards in play.
  */
 export function AdminDrawer({
   snapshot,
@@ -135,7 +134,6 @@ export function AdminDrawer({
     }
   };
   const versus = game.mode === "versus";
-  const legacy = game.engine === "legacy";
   const youIs = view.you.player;
   const them = versus ? "THEM" : "CL";
   const youTurn = view.turnPlayer === youIs;
@@ -191,7 +189,6 @@ export function AdminDrawer({
           <Cell label="deck (you / them)">
             {view.you.deck} / {view.them.deck}
           </Cell>
-          {legacy && <Cell label="engine · prompt">legacy · {view.prompt.kind}</Cell>}
           <Cell label="flagged">{flags.length ? flags.map((f) => `T${f.turn}`).join(" ") : "none"}</Cell>
           <Cell label={`${view.them.name}'s hand (hidden info)`} wide>
             {debug?.theirHand ? (debug.theirHand.length ? debug.theirHand.join(", ") : "empty") : "not available"}
@@ -295,20 +292,6 @@ export function AdminDrawer({
               </li>
             ))}
           </ul>
-        )}
-
-        {legacy && (
-          <>
-            <h3 className="arena-admin-h">Raw engine log (legacy)</h3>
-            <ol className="arena-admin-raw">
-              {log.slice(-200).map((line, i) => (
-                <li key={i} className={line.startsWith("—") ? "arena-admin-raw-turn" : ""}>
-                  {line}
-                </li>
-              ))}
-              {log.length === 0 && <li>nothing has happened yet</li>}
-            </ol>
-          </>
         )}
       </div>
     </div>
