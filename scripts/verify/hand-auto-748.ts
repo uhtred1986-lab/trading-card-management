@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
 import { cardDefFrom } from "../../src/lib/arena/load";
@@ -17,7 +17,7 @@ import { UNIQUE_CONTINUATION } from "../../src/lib/arena/vm/unique";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const game = loaded.definition;
