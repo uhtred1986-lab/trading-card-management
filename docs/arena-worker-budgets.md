@@ -298,6 +298,17 @@ session: IndexedDB 404, 420, 464, 466, 471, 497, 573 and 580 ms; the in-memory s
 ceiling stays 450 ms: **matchStartMs fails it on some runs now**, as it did once in five before; the
 other gated metrics passed on every run. Re-deriving that budget from a quiet machine is #643's table.
 
+**Liveness limits of the page's supervisor (#654, `src/lib/arena/local/recovery.ts`)** are not budgets
+of the worker's work but how long the page waits before it calls a worker dead: `hungMs` 15 s of
+silence while a request waits (an AI batch posts a snapshot per commit, so a live advance is never
+silent that long), `openMs` 120 s for a `start`/`resume` (which validates the pack and replays the whole
+journal), an idle ping every 5 s, and `maxRestarts` 3 deaths in a row before `failed`. Writer leases:
+`HEARTBEAT_MS` 2 s, `LEASE_TTL_MS` 8 s (used only where Web Locks are missing). They are defaults,
+chosen above every recording on this page with a wide margin, not measured on a phone. In
+`npm run arena:local-ownership-browser` (13 Oct 2026, this machine) a closed holder's tab was replaced
+by the waiting tab in about 2 s, which is the resume (pack validation and replay of 33 decisions), and
+a frozen holder in lease-only mode in about 2.5 s (the 1.5 s TTL the proof sets, plus the resume).
+
 Not gated, because #643 set them on its 8-card fixture's content and its procedure (step 5) re-derives
 them from a real card pool — a change to this table that belongs with that re-recording, not here:
 `snapshotBytes.max` is **81.1 KB against 80 KB** on the real cards (p50 37.8 KB against 60 KB), and the

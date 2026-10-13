@@ -12,11 +12,15 @@
  *    the transaction and fires `abort`.
  *  - `get` / `put` with a key path (string or array); values are structured-cloned both ways.
  *  - a quota (`quotaBytes`): a `put` that would exceed it fails with `QuotaExceededError`.
+ *  - transactions are serialised as IndexedDB serialises them (#654): a transaction does not start
+ *    while an earlier, unfinished one on the same database overlaps its scope and either is
+ *    `readwrite` — so two connections (two "tabs") racing a read-then-write each see the other's
+ *    completed write, never interleave.
  *  - `crash()`: the process dies — nothing in flight commits, nothing more runs; `revive()` is a new
  *    process over the same persisted data.
  *
  * Not implemented (the store does not use them): indexes, cursors, key ranges, `add`, `delete`,
- * `count`, blocked/versionchange between connections, durability hints. The real-browser half
+ * `count`, blocked/versionchange between connections, durability hints, `objectStoreNames` beyond `contains`. The real-browser half
  * (`npm run arena:local-storage-browser`) proves the store against Chrome's IndexedDB.
  */
 
@@ -44,6 +48,8 @@ class FakeRequest {
 export class FakeIndexedDb {
   /** The persisted databases (shared with `revive()`d instances). Proofs may edit rows directly. */
   readonly databases: Map<string, DbData>;
+  /** Unfinished transactions per database, in creation order (the scheduler of #654). */
+  readonly running = new Map<string, FakeTransaction[]>();
   quotaBytes: number | null = null;
   dead = false;
 
@@ -73,10 +79,14 @@ export class FakeIndexedDb {
   crash(): void { this.dead = true; }
   revive(): FakeIndexedDb { return new FakeIndexedDb(this.databases); }
 
+  /** Databases with a version change in progress: another open waits for it, as IndexedDB queues opens (#654). */
+  private readonly upgrading = new Set<string>();
+
   open(name: string, version?: number): FakeRequest {
     const req = new FakeRequest();
-    later(() => {
+    const attempt = () => {
       if (this.dead) return;
+      if (this.upgrading.has(name)) { later(attempt); return; }
       const existing = this.databases.get(name);
       const current = existing?.version ?? 0;
       const target = version ?? Math.max(current, 1);
@@ -97,13 +107,16 @@ export class FakeIndexedDb {
       const tx = new FakeTransaction(this, conn, name, [...schema.stores.keys()], "versionchange");
       req.result = conn;
       req.transaction = tx;
+      this.upgrading.add(name);
       tx.onComplete = () => {
+        this.upgrading.delete(name);
         conn.upgrading = false;
         this.databases.set(name, schema);
         req.transaction = null;
         req.onsuccess?.({ target: req, type: "success", preventDefault() {} });
       };
       tx.onAbort = () => {
+        this.upgrading.delete(name);
         req.result = undefined;
         req.error = named("AbortError", "The version change transaction was aborted.");
         req.onerror?.({ target: req, type: "error", preventDefault() {} });
@@ -114,7 +127,8 @@ export class FakeIndexedDb {
         if (!tx.finished) tx.abort(e as Error);
       }
       tx.settle();
-    });
+    };
+    later(attempt);
     return req;
   }
 }
@@ -137,6 +151,7 @@ class FakeDatabase {
     const names = Array.isArray(scope) ? scope : [scope];
     for (const n of names) if (!this.data.stores.has(n)) throw named("NotFoundError", `no store ${n}`);
     const tx = new FakeTransaction(this.idb, this, this.name, names, mode);
+    tx.schedule();
     tx.settle();
     return tx;
   }
@@ -154,8 +169,12 @@ class FakeTransaction {
   onAbort: (() => void) | null = null;
   private pending = 0;
   private readonly overlay = new Map<string, Map<string, unknown>>();
+  /** Started: no earlier overlapping transaction it must wait for is unfinished. A version change is never queued. */
+  private started = true;
+  private readonly queued: (() => void)[] = [];
+  private blockers: FakeTransaction[] = [];
 
-  constructor(private readonly idb: FakeIndexedDb, readonly db: FakeDatabase, private readonly dbName: string, private readonly scope: string[], readonly mode: string) {}
+  constructor(private readonly idb: FakeIndexedDb, readonly db: FakeDatabase, private readonly dbName: string, readonly scope: string[], readonly mode: string) {}
 
   objectStore(name: string) {
     if (!this.scope.includes(name) && this.mode !== "versionchange") throw named("NotFoundError", `store ${name} not in this transaction`);
@@ -188,6 +207,33 @@ class FakeTransaction {
     };
   }
 
+  /** Wait for every earlier unfinished transaction on this database that overlaps and either side writes. */
+  schedule() {
+    const list = this.idb.running.get(this.dbName) ?? [];
+    this.blockers = list.filter((t) => !t.finished && (t.mode !== "readonly" || this.mode !== "readonly") && t.scope.some((n) => this.scope.includes(n)));
+    list.push(this);
+    this.idb.running.set(this.dbName, list);
+    this.started = this.blockers.length === 0;
+  }
+
+  private whenStarted(fn: () => void) {
+    if (this.started) fn();
+    else this.queued.push(fn);
+  }
+
+  /** A transaction finished: start the ones that waited only on finished ones. */
+  private release() {
+    const list = this.idb.running.get(this.dbName);
+    if (!list) return;
+    const i = list.indexOf(this);
+    if (i >= 0) list.splice(i, 1);
+    for (const t of [...list]) {
+      if (t.started || t.blockers.some((b) => !b.finished)) continue;
+      t.started = true;
+      for (const fn of t.queued.splice(0)) fn();
+    }
+  }
+
   abort(reason?: Error) {
     if (this.finished) throw named("InvalidStateError", "The transaction has finished.");
     this.finish(false, reason ?? named("AbortError", "The transaction was aborted."));
@@ -197,7 +243,7 @@ class FakeTransaction {
     if (this.finished) throw named("TransactionInactiveError", "The transaction has finished.");
     const req = new FakeRequest();
     this.pending++;
-    later(() => {
+    this.whenStarted(() => later(() => {
       if (this.idb.dead || this.finished) return;
       this.pending--;
       let value: unknown;
@@ -219,16 +265,16 @@ class FakeTransaction {
         if (!this.finished) this.finish(false, e as Error);
       }
       this.settle();
-    });
+    }));
     return req;
   }
 
   /** Commit once nothing is pending (after the current task, as IndexedDB auto-commits). */
   settle() {
-    later(() => {
+    this.whenStarted(() => later(() => {
       if (this.idb.dead || this.finished || this.pending > 0) return;
       this.finish(true, null);
-    });
+    }));
   }
 
   private finish(commit: boolean, error: Error | null) {
@@ -239,6 +285,7 @@ class FakeTransaction {
     }
     this.overlay.clear();
     this.error = error;
+    this.release();
     later(() => {
       if (this.idb.dead) return;
       if (commit) { this.onComplete?.(); this.oncomplete?.({ target: this, type: "complete", preventDefault() {} }); }
