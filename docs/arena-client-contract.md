@@ -791,8 +791,9 @@ because it survives a phone changing networks mid-turn and needs nothing from th
 Cost note: a long-poll holds a Vercel function for up to `wait` seconds. For one user this is
 irrelevant; if it ever is not, the knob is `wait`.
 
-**The web board uses this too**, through `stage/useLiveGame.ts` — the one place either client
-reaches `/api/v1` rather than the functions behind it. `act()` returns after the human action is
+**The web board uses this too**, through `stage/useLiveGame.ts` and the online session
+(`session/online.ts`, #648) — the one place either client reaches `/api/v1` rather than the
+functions behind it. `act()` returns after the human action is
 persisted; the browser starts `advance` as a separate background request and polls the row, so the
 move is acknowledged before Claude finishes thinking and each of Claude's moves can be animated as
 soon as it arrives. Web and HTTP advances share one per-game-revision lease and durable decision

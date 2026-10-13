@@ -2,8 +2,7 @@
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { abandon, act, advanceGame, flagThisTurn, previewGameplanAction, rematch } from "@/app/arena/actions";
-import { useRouter } from "next/navigation";
+import type { ArenaSession } from "../session/contract";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/types";
 import type { NumberedBeat } from "@/lib/arena/beats";
@@ -87,8 +86,6 @@ import { SpeedButton } from "./SpeedButton";
  * cards out of their rows so each card is drawn once — a card's `layoutId` is
  * what flies it there and back, so it may exist in exactly one place.
  */
-const REAL_SERVER = { act, advance: advanceGame, flag: flagThisTurn, rematch, preview: previewGameplanAction };
-
 /**
  * Whether the board is wide enough for the docked inspector (Tailwind `lg`).
  * Behaviour only — the column itself is shown by CSS, so there is nothing to
@@ -108,29 +105,28 @@ function useWide(): boolean {
 }
 
 export function ArenaStage({
-  gameId,
+  session,
   snapshot,
   skin = "night",
   staging = DEFAULT_STAGING,
   lighting = DEFAULT_LIGHTING,
-  server = REAL_SERVER,
   announceTurn = false,
   admin = false,
   adminDebug = null,
   menu = null,
-  abandonAction,
 }: {
-  gameId: number;
+  /**
+   * The transport (#648): snapshots in, actions out, connection status, and the
+   * capabilities it has. The board imports no server action and no router —
+   * the game page passes the online session (`OnlineArenaStage`), the fixture
+   * preview (`/arena/preview`, dev-only) passes stubs, and a local worker will
+   * pass its own.
+   */
+  session: ArenaSession;
   snapshot: Snapshot;
   skin?: ArenaSkin;
   staging?: ArenaStaging;
   lighting?: TurnLighting;
-  /**
-   * The two server actions the board calls. Defaults to the real ones; only
-   * the fixture preview (`/arena/preview`, dev-only) injects stubs, so a tap
-   * there goes nowhere instead of to a database that is not there.
-   */
-  server?: { act: typeof act; advance: typeof advanceGame; flag: typeof flagThisTurn; rematch: typeof rematch; preview?: typeof previewGameplanAction };
   /** Fixture preview only: open with the turn banner up, so a shot can catch a turn boundary (#344). */
   announceTurn?: boolean;
   /**
@@ -147,15 +143,12 @@ export function ArenaStage({
    * debug view), drawn in the menu sheet's Game section.
    */
   menu?: React.ReactNode;
-  /** The game page's server action, called with the current polled revision. */
-  abandonAction?: typeof abandon;
 }) {
   const [pending, startTransition] = useTransition();
   const [advancing, setAdvancing] = useState(false);
   const [advanceFailed, setAdvanceFailed] = useState(false);
   const [abandonPending, startAbandon] = useTransition();
   const [abandonError, setAbandonError] = useState<string | null>(null);
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   /** The card whose action sheet is open — from a tap, a long press or a right-click. */
@@ -229,7 +222,7 @@ export function ArenaStage({
   // While the server is deciding, watch the row rather than the clock: Claude's
   // moves are committed as they are made, so they can be shown as they happen
   // instead of all at once when the request finally returns.
-  const liveGame = useLiveGame(gameId, snapshot, pending || advancing || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
+  const liveGame = useLiveGame(session, snapshot, pending || advancing || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
   const live = liveGame.snapshot;
   const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
   const { view, legal, taps, log, beats } = live;
@@ -246,7 +239,7 @@ export function ArenaStage({
   const planCurrent = planRevision === live.game.revision;
   const planChoices = planMoves(legal, view.you.player);
   const requestPlan = (actions: Action[]) => {
-    if (!server.preview) return;
+    if (!session.preview) return;
     const revision = live.game.revision;
     setPlanRevision(revision);
     const request = ++planRequest.current;
@@ -255,11 +248,11 @@ export function ArenaStage({
     setPlanError(null);
     startPlan(async () => {
       try {
-        const result = await server.preview!(gameId, actions, revision);
+        const result = await session.preview!(actions, revision);
         if (request !== planRequest.current || liveRevision.current !== revision) return;
         setPlanError(result.error);
         setPlan(result.preview);
-        if (result.error) router.refresh();
+        if (result.error) session.refresh();
       } catch {
         if (request !== planRequest.current || liveRevision.current !== revision) return;
         setPlan(null);
@@ -273,17 +266,17 @@ export function ArenaStage({
   };
 
   const giveUp = () => {
-    if (!abandonAction) return;
+    if (!session.abandon) return;
     setAbandonError(null);
     const basedOn = live.game.revision;
     const requestId = crypto.randomUUID();
     startAbandon(async () => {
-      const result = await abandonAction(gameId, basedOn, requestId);
+      const result = await session.abandon!(basedOn, requestId);
       if (result.error) {
         setAbandonError(result.error);
         // A stale rejection means a concurrent write won. Refresh the server
         // render while keeping the rejection visible in this client shell.
-        router.refresh();
+        session.refresh();
       }
     });
   };
@@ -307,8 +300,12 @@ export function ArenaStage({
     asked.current = true;
     setAdvanceFailed(false);
     setError(null);
+    if (!session.advance) {
+      asked.current = false;
+      return;
+    }
     setAdvancing(true);
-    void server.advance(gameId)
+    void session.advance()
       .then((result) => {
         if (result.error) {
           setError(result.error);
@@ -320,7 +317,7 @@ export function ArenaStage({
         setAdvanceFailed(true);
       })
       .finally(() => setAdvancing(false));
-  }, [gameId, server]);
+  }, [session]);
 
   // Reduced motion is not a second code path: it simply never queues anything,
   // which is the same state the board reaches the instant you press Skip.
@@ -474,7 +471,7 @@ export function ArenaStage({
       gainTimer.current = setTimeout(() => setGain(null), ms);
     }
     startTransition(async () => {
-      const r = await server.act(gameId, action, live.game.revision, crypto.randomUUID());
+      const r = await session.act(action, live.game.revision, crypto.randomUUID());
       if (r.error) {
         setError(r.error);
         feel("illegal");
@@ -1300,7 +1297,7 @@ export function ArenaStage({
               inlineBare={inlineBare}
               primaryBare={primaryBare}
               onSend={send}
-              planEnabled={!!server.preview && playable && yourTurn && view.prompt.kind === "main" && !busy && !waitingOnServer}
+              planEnabled={session.capabilities.plan && playable && yourTurn && view.prompt.kind === "main" && !busy && !waitingOnServer}
               planOpen={planCurrent && planOpen}
               onPlanToggle={() => { setPlanRevision(live.game.revision); setPlanOpen((open) => planCurrent ? !open : true); }}
               planChoices={planChoices}
@@ -1386,10 +1383,10 @@ export function ArenaStage({
         {moreOpen && (
           <Sheet title="Board controls" onClose={() => setMoreOpen(false)}>
             {/* The game page's links live here; give-up reads this live snapshot. */}
-            {(menu || abandonAction) && (
+            {(menu || session.capabilities.abandon) && (
               <MenuSection title="Game">
                 {menu}
-                {abandonAction && live.game.status === "playing" && (
+                {session.capabilities.abandon && live.game.status === "playing" && (
                   <div className="mt-2 space-y-1">
                     <button
                       type="button"
@@ -1428,8 +1425,8 @@ export function ArenaStage({
             <MenuSection title="Board">
               <button type="button" className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden" aria-pressed={phoneCinema} onClick={() => setPhoneCinema(!phoneCinema)}>{phoneCinema ? "Use compact phone board" : "Enable cinematic battle staging"}</button>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
-                <StagingToggle gameId={gameId} staging={staging} />
-                <SkinToggle gameId={gameId} skin={skin} />
+                {session.chooseStaging && <StagingToggle staging={staging} onChoose={session.chooseStaging} />}
+                {session.chooseSkin && <SkinToggle skin={skin} onChoose={session.chooseSkin} />}
               </div>
             </MenuSection>
             <MenuSection title="Reference">
@@ -1438,15 +1435,17 @@ export function ArenaStage({
                 <ReferenceCounts side={view.them} />
               </div>
             </MenuSection>
-            <MenuSection title="Help">
-              <div className="text-[11px] text-space-300 sm:text-xs">
-                <ReportBug gameId={gameId} cards={cardsOnTable(view)} />
-              </div>
-            </MenuSection>
+            {session.reportBug && (
+              <MenuSection title="Help">
+                <div className="text-[11px] text-space-300 sm:text-xs">
+                  <ReportBug cards={cardsOnTable(view)} onReport={session.reportBug} />
+                </div>
+              </MenuSection>
+            )}
           </Sheet>
         )}
 
-        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={(note) => server.flag(gameId, note)} onClose={() => setAdminOpen(false)} />}
+        {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} log={log} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
         <ClashBeam beat={beat} hostRef={boardRef} />
@@ -1459,9 +1458,9 @@ export function ArenaStage({
             you={view.you.player}
             them={view.them.name}
             turn={view.turn}
-            canRematch={!live.game.archived}
+            canRematch={!live.game.archived && session.capabilities.rematch}
             versus={live.game.mode === "versus"}
-            onRematch={() => server.rematch(gameId)}
+            onRematch={() => session.rematch!()}
             onDismiss={() => setEndDismissed(true)}
           />
         )}

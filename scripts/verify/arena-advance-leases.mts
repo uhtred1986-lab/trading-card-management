@@ -370,7 +370,9 @@ export async function verifyArenaAdvanceLeases(db: Db): Promise<void> {
   const actBody = actionSource.slice(actionSource.indexOf("export async function act("), actionSource.indexOf("async function refuse("));
   assert.doesNotMatch(actBody, /await\s+advance\s*\(/, "the action acknowledgement does not await AI work");
   const stageSource = readFileSync("src/components/arena/stage/ArenaStage.tsx", "utf8");
-  assert.match(stageSource, /void server\.advance\(gameId\)/, "the web client launches the AI advance without holding the action transition open");
+  assert.match(stageSource, /void session\.advance\(\)/, "the web client launches the AI advance without holding the action transition open");
+  // #648: and the session it calls is the online one, which is `advanceGame` — not an awaited provider response.
+  assert.match(readFileSync("src/components/arena/session/online.ts", "utf8"), /advance: \(\) => advanceGame\(gameId\)/, "the online session's advance is the server action");
 
   await db.delete(arenaGames).where(eq(arenaGames.id, normal.id));
   await db.delete(arenaGames).where(eq(arenaGames.id, recover.id));

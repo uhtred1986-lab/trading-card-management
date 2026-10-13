@@ -1,7 +1,6 @@
 "use client";
 
 import { useTransition } from "react";
-import { chooseStaging } from "@/app/arena/actions";
 import { ARENA_STAGINGS, STAGING_LABEL, type ArenaStaging } from "@/lib/arena/staging";
 
 /**
@@ -14,7 +13,7 @@ import { ARENA_STAGINGS, STAGING_LABEL, type ArenaStaging } from "@/lib/arena/st
  * the board looks like the moment a battle opens, so it is read on the server
  * and nothing flashes.
  */
-export function StagingToggle({ gameId, staging }: { gameId?: number; staging: ArenaStaging }) {
+export function StagingToggle({ staging, onChoose }: { staging: ArenaStaging; onChoose: (staging: ArenaStaging) => Promise<void> }) {
   const [pending, start] = useTransition();
   return (
     <span className="inline-flex items-center gap-1" role="group" aria-label="battle staging">
@@ -23,7 +22,7 @@ export function StagingToggle({ gameId, staging }: { gameId?: number; staging: A
           key={s}
           type="button"
           disabled={pending || s === staging}
-          onClick={() => start(() => chooseStaging(gameId, s))}
+          onClick={() => start(() => onChoose(s))}
           aria-pressed={s === staging}
           className={`tap whitespace-nowrap uppercase tracking-widest disabled:opacity-100 ${s === staging ? "text-ki-300" : "text-space-600 hover:text-ki-400"}`}
           title={`Stage a battle: ${STAGING_LABEL[s]}`}

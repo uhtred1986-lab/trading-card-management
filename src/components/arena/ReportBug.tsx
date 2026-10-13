@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { reportBug } from "@/app/arena/actions";
 
 /**
  * "That's not right" — from inside the game, in two taps.
@@ -12,7 +11,7 @@ import { reportBug } from "@/app/arena/actions";
  * optional but is usually the whole answer, so the cards on the table are
  * offered as a list.
  */
-export function ReportBug({ gameId, cards }: { gameId: number; cards: { cardId: string; name: string }[] }) {
+export function ReportBug({ cards, onReport }: { cards: { cardId: string; name: string }[]; onReport: (note: string, cardId: string | null) => Promise<{ error: string | null }> }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [cardId, setCardId] = useState("");
@@ -23,7 +22,7 @@ export function ReportBug({ gameId, cards }: { gameId: number; cards: { cardId: 
   const submit = () => {
     setError(null);
     start(async () => {
-      const r = await reportBug(gameId, note, cardId || null);
+      const r = await onReport(note, cardId || null);
       if (r.error) {
         setError(r.error);
         return;
