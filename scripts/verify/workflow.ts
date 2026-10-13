@@ -502,7 +502,11 @@ function assertLabelOnLegacy(actual: string, expected: string, msg?: string): vo
     const bare = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["V-BLUE"] });
     const swapper = findG(bare, "p1", "battle", "SWAPPER");
     assert.ok(!labelsG(bare).some((x) => x.startsWith("Swap")), "no cost-3 card in hand, so no [Swap] on the menu");
-    assert.deepEqual(first(ofCard(rejectedActionsG(bare), "activate", swapper)), { kind: "target", reason: "no cost-3 Battle Card in your hand" });
+    assert.deepEqual(first(ofCard(rejectedActionsG(bare), "activate", swapper)), { kind: "target", reason: "no specified cost-3 Battle Card in your hand" });
+    // #731: a cost-3 Battle Card that is not the printed <COST3> is not one either.
+    const offTrait = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["CRIT", "DUAL"] });
+    assert.ok(!labelsG(offTrait).some((x) => x.startsWith("Swap")), "two red cost-3 cards of other characters: no [Swap] on the menu");
+    assert.deepEqual(first(ofCard(rejectedActionsG(offTrait), "activate", findG(offTrait, "p1", "battle", "SWAPPER"))), { kind: "target", reason: "no specified cost-3 Battle Card in your hand" });
 
     const armed = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3"] });
     assert.ok(

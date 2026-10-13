@@ -154,9 +154,10 @@ const DEFS: Record<string, CardDef> = defsFrom([
   // did nothing on the board (`state.ts:653`).
   card("ZCHEAP", { type: "Z-BATTLE", energyCost: 2, zEnergyCost: 2, power: 20000, comboCost: null, comboPower: null, skill: "[Permanent] Reduce the Z-Energy cost of this card in your Z-Deck by 1." }),
   card("EVO", { energyCost: 3, power: 20000, skill: "[Evolve]{1}: <V1>" }),
-  // 22-22: swaps itself for a cost-3 Battle Card in hand. "BIG" is the only
-  // cost-3 card in DEFS, so a hand without one has nothing to reveal.
-  card("SWAPPER", { energyCost: 2, power: 15000, skill: "[Swap 3]{1}: Red <V1> with an energy cost of 3." }),
+  // 22-22: swaps itself for the specified cost-3 Battle Card in hand — a red
+  // <COST3> (#731). CRIT and DUAL are red cost-3 Battle Cards of other
+  // characters, so a hand holding only those has nothing to reveal.
+  card("SWAPPER", { energyCost: 2, power: 15000, skill: "[Swap 3]{1}: Red <COST3> with an energy cost of 3." }),
   card("COST3", { energyCost: 3, power: 15000 }),
   card("DRAWER", { energyCost: 1, skill: "[Auto] When you play this card, draw 1 card." }),
   card("KILLER", { energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and KO it." }),

@@ -314,17 +314,25 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     return { s: r.state, beats: beats(r.state, r.events) };
   };
 
-  // [Swap X] (22-22): from the Battle Area, while a cost-X Battle Card is in
-  // hand (22-22-3). The orbs are paid, the cost-X card is chosen, this card
-  // returns to the hand as the cost, and the chosen one is played (22-22-4).
-  let s = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3", "V-BLUE"] });
+  // [Swap X] (22-22): from the Battle Area, while a specified cost-X Battle
+  // Card is in hand (22-22-3). The orbs are paid, the specified card is
+  // chosen, this card returns to the hand as the cost, and the chosen one is
+  // played (22-22-4). "Specified" is the printed description (#731): CRIT is a
+  // red cost-3 Battle Card too, but not a <COST3>, so it is never offered.
+  let s = arenaG({ battle: ["SWAPPER"], energy: ["V1", "V1"], hand: ["COST3", "V-BLUE", "CRIT"] });
   const swapper = findG(s, "p1", "battle", "SWAPPER");
   const in3 = findG(s, "p1", "hand", "COST3");
   assert.ok(labelsG(s).includes("Swap SWAPPER for a cost-3 card from hand"), "the menu wears the keyword's own words");
   let r = step(s, { type: "activate", player: "p1", card: swapper, skill: 0 });
   assert.deepEqual(r.beats, ["skill SWAPPER", "mode V1 rest"], "announced, then the orbs paid");
   assert.equal(r.s.prompt.kind, "chooseCards");
-  assert.deepEqual((r.s.prompt as { choice: { candidates: string[]; min: number } }).choice.candidates, [in3], "only a cost-3 Battle Card");
+  assert.deepEqual((r.s.prompt as { choice: { candidates: string[]; min: number } }).choice.candidates, [in3], "only the specified cost-3 Battle Card, not CRIT");
+  {
+    // The resolution re-reads the description: a forged answer naming CRIT is refused, unchanged.
+    const before = JSON.stringify(r.s);
+    assert.throws(() => IMPL.apply(CTX, r.s, { type: "choose", player: "p1", cards: [findG(r.s, "p1", "hand", "CRIT")] }));
+    assert.equal(JSON.stringify(r.s), before, "the forged swap changed nothing");
+  }
   assert.equal((r.s.prompt as { choice: { min: number } }).choice.min, 0);
   r = step(r.s, { type: "choose", player: "p1", cards: [in3] });
   assert.deepEqual(r.beats, ["move SWAPPER battle>hand", "move COST3 hand>battle"], "22-22-4: back to the hand, then the swap is played");

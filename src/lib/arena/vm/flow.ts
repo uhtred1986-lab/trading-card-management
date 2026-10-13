@@ -64,6 +64,7 @@ import { expireSkips, takeSkip } from "./skips";
 import type { VmFrame, VmState } from "./state";
 import { interruptedOutcome, type StoredOutcome } from "../outcome";
 import { stepAegisCost } from "./aegis-costs";
+import { stepSwapCost } from "./swap-costs";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { IllegalAction } from "./common";
@@ -1080,6 +1081,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.reviveCost) return stepReviveCost(ctx, game, state, ev, frame);
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
+    if (frame.swapCost) return stepSwapCost(ctx, game, state, ev, frame);
     if (frame.autoCost) {
       const cost = frame.autoCost;
       if (cost.stage === "offer") {

@@ -146,6 +146,18 @@ assert.equal(pack.qualification.playable, false, "the audited pair is not playab
     for (const i of b.issues) assert.ok(pack.qualification.reasons.some((r) => r.includes(`#${i.issue}`)), `${b.id}'s issue #${i.issue} is visible`);
   }
   assert.equal(pack.blockers.find((b) => b.id === "U5")?.status, "resolved", "U5 (resolved by #716) stays listed as resolved");
+  assert.equal(pack.blockers.find((b) => b.id === "U4")?.status, "resolved", "U4 (resolved by #729: BT4-079's [Swap] price) stays listed as resolved");
+  assert.equal(pack.blockers.find((b) => b.id === "U6")?.status, "resolved", "U6 (resolved by #731: [Swap] reads its printed description) stays listed as resolved");
+  // After #728, #729 and #731 the only open blockers are the scenario gate (U1) and [Unique] (U8).
+  assert.deepEqual(pack.blockers.filter((b) => b.status !== "resolved").map((b) => b.id), ["U1", "U8"], "U1 and U8 are the only open blockers");
+  assert.deepEqual(pack.qualification.reasons.map((r) => r.split(" (")[0]), ["blocker U1", "blocker U8"], "the pack's reasons are exactly those two");
+  {
+    // #729/#731 in the pinned programs: BT4-079's price record, and the
+    // ruleset text whose [Swap] reads the printed description.
+    const price = pack.bundle.payload.scripts["BT4-079"]?.bySkill[0]?.price;
+    assert.deepEqual(price?.ops?.map((o) => o.op), ["choose", "moveTo"], "the pack pins BT4-079's [Swap] action price");
+    assert.match(pack.bundle.payload.rulesetFiles["keywords.rules"] ?? "", /IN you\.hand asPrinted, as: "swapIn"/, "the pinned [Swap] reads its printed description");
+  }
   assert.deepEqual(pack.missingInputs, [], "U7: the owner's ruling (migration 0049, #733) supplies both Unison costs");
   assert.equal(pack.blockers.find((b) => b.id === "U7")?.status, "resolved", "U7 is resolved in the pack");
   for (const c of ["SD15-02", "DB3-001"]) assert.deepEqual(pack.bundle.payload.defs[c].specifiedCost, { Red: 2 }, `${c} carries the owner-ruled specified cost`);

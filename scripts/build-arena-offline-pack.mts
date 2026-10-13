@@ -66,9 +66,9 @@ export const BLOCKERS: BlockerSpec[] = [
   { id: "U1", decks: ["A", "B"], cards: [], issues: [650, 651, 661, 655], status: "open" },
   { id: "U2", decks: ["A"], cards: ["SD15-01"], issues: [728], status: "resolved" },
   { id: "U3", decks: ["A"], cards: ["SD15-01", "SD15-03"], issues: [728, 549], status: "resolved" },
-  { id: "U4", decks: ["B"], cards: ["BT4-079"], issues: [729], status: "open" },
+  { id: "U4", decks: ["B"], cards: ["BT4-079"], issues: [729], status: "resolved" },
   { id: "U5", decks: ["A"], cards: ["BT5-023", "BT6-026", "BT10-008"], issues: [716], status: "resolved" },
-  { id: "U6", decks: ["B"], cards: (cards) => cards.filter((c) => /\[Swap/i.test(c.skill ?? "")).map((c) => c.id), issues: [731], status: "open" },
+  { id: "U6", decks: ["B"], cards: (cards) => cards.filter((c) => /\[Swap/i.test(c.skill ?? "")).map((c) => c.id), issues: [731], status: "resolved" },
   { id: "U7", decks: ["A"], cards: ["SD15-02", "DB3-001"], issues: [655], status: "missing-input" },
   { id: "U8", decks: ["A"], cards: ["SD15-05"], issues: [730], status: "open" },
 ];
