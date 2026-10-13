@@ -215,18 +215,18 @@ async function main(): Promise<void> {
       const b = stage(s, "p1", "R741-ACT-LIMIT", "battle");
       const two = [stage(s, "p1", "R741-ACT-LIMIT2", "battle"), stage(s, "p1", "R741-ACT-LIMIT2", "battle"), stage(s, "p1", "R741-ACT-LIMIT2", "battle")];
       const once = [stage(s, "p1", "R741-ACT-ONCE", "battle"), stage(s, "p1", "R741-ACT-ONCE", "battle")];
-      const use = (id: string) => { g.apply(offered(g.get(), id)!.action); settle(g, "p1"); };
+      const activateLine = (id: string) => { g.apply(offered(g.get(), id)!.action); settle(g, "p1"); };
       assert.ok(offered(g.get(), a) && offered(g.get(), b), "both copies offered before any use");
-      use(a);
+      activateLine(a);
       assert.equal(offered(g.get(), b), undefined, "[Limit 1]: the other copy is not offered");
       assert.deepEqual(refused(g.get(), b), { kind: "oncePerTurn", what: "skill", limit: 1 }, "and its refusal names the [Limit 1]");
-      use(two[0]);
-      use(two[1]);
+      activateLine(two[0]);
+      activateLine(two[1]);
       assert.equal(offered(g.get(), two[2]), undefined, "[Limit 2]: two uses across three copies");
-      use(once[0]);
+      activateLine(once[0]);
       assert.ok(offered(g.get(), once[1]), "[Once per turn]: the other copy keeps its own use");
       assert.equal(offered(g.get(), once[0]), undefined, "and the used copy is spent");
-      use(once[1]);
+      activateLine(once[1]);
       // Reloaded, then the next turn: all of it is back.
       g.set(JSON.parse(JSON.stringify(g.get())) as VmState);
       assert.equal(offered(g.get(), b), undefined, "still refused after a reload");
@@ -276,10 +276,10 @@ async function main(): Promise<void> {
           if (g.get().prompt.kind === "counter" && (g.get().prompt as { player: PlayerId }).player === "p1") {
             const cards = options.flatMap(({ action }) => (action.type === "counter" && action.card ? [action.card] : []));
             counterOffers.push(cards);
-            const use = options.find(({ action }) => action.type === "counter" && action.card && !countered);
-            if (use) {
+            const answer = options.find(({ action }) => action.type === "counter" && action.card && !countered);
+            if (answer) {
               countered = true;
-              g.apply(use.action);
+              g.apply(answer.action);
               continue;
             }
           }
