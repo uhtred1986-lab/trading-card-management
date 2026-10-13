@@ -140,6 +140,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   specifiedCostMax: { reads: ["specifiedCost", "energyCost"] },
   faceUp: { instance: "which copy of the card is face up is about the instance in its area (3-9-2-1), not about the card" },
   powerRel: { instance: "a bound read off another card the skill has chosen, so it is applied where that card is known" },
+  nameInSkillTextOf: { instance: "a name looked up in the skill text of another card the skill has chosen (2-3-2), so it is applied where that card is known" },
   unreadable: { instance: "the compiler refused the phrase: the selector offers nothing rather than a card failing to match" },
 };
 

@@ -78,6 +78,16 @@ export interface CardFilter {
    */
   namesIncluding: string[];
   notNamesIncluding: string[];
+  /**
+   * "Play up to 1 Battle Card **whose card name is in the text of a skill on the
+   * chosen card**" (BT30-084, #542): the variable (bound by an earlier
+   * `choose … as`, #550) whose printed skill text the candidate's name must
+   * appear in. A measure against another card the skill holds, like `powerRel`,
+   * so it is applied where that card is known (`resolveSelector`), not by
+   * `matches`. A name is "in the text" when it is written in `{}` brackets there
+   * (2-3-2) and equals the card's name as a whole (2-3-1-1).
+   */
+  nameInSkillTextOf: string | null;
   type: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /** "Non-Leader card under this card" — the type it must *not* be. */
   notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
@@ -258,7 +268,7 @@ export function expandSharedCardDescription(text: string): string {
  * predicate form (`lang/ast.ts` re-exports it) and the list `filterProblem`
  * (`vm/script-schema.ts`) checks a stored filter's keys and values against.
  */
-export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel" | "filters";
+export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel" | "variable" | "filters";
 
 export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   colors: "colors",
@@ -304,6 +314,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   originallySkillLess: "boolean",
   skillLess: "boolean",
   powerRel: "powerRel",
+  nameInSkillTextOf: "variable",
   z: "tri",
 };
 type FilterFieldMissing = Exclude<keyof CardFilter, keyof typeof FILTER_FIELDS>;
@@ -371,6 +382,7 @@ export function emptyFilter(): CardFilter {
     originallySkillLess: false,
     skillLess: false,
     powerRel: null,
+    nameInSkillTextOf: null,
     z: null,
   };;
 }
@@ -795,6 +807,27 @@ function parseOneFilter(text: string): CardFilter {
     f.powerRel = { of: /the chosen card/.test(m[0]) ? "chosen" : "self", cmp };
   }
   return f;
+}
+
+/**
+ * "A card whose card name is in the text of a skill on the chosen card"
+ * (BT30-084, #542). Rule Manual 2-3-2: text in `{}` brackets with no noun after
+ * it refers to the card with that card name, so a name is "in the text" when it
+ * is written as `{Name}`; a bare occurrence of the words is not a reference.
+ * 2-3-1-1: names are equal only when all of the text is the same, so
+ * `{Son Goku, The Awakened Power}` names that card and not `Son Goku`, and
+ * `{Dark Dragon Ball}` does not name `Super Dragon Balls`. 2-3-2-1: singular
+ * and plural of a name are the same reference. Case is ignored, as for names.
+ */
+export function nameInSkillText(names: readonly string[], skill: string | null | undefined): boolean {
+  if (!skill) return false;
+  const norm = (x: string) => x.trim().toLowerCase().replace(/\s+/g, " ");
+  const singular = (x: string) => (x.endsWith("s") && x.length > 1 ? x.slice(0, -1) : x);
+  const named = [...skill.matchAll(/\{([^{}]+)\}/g)].map((m) => norm(m[1]));
+  return names.some((n) => {
+    const own = norm(n);
+    return named.some((w) => w === own || singular(w) === singular(own));
+  });
 }
 
 /** The relative power bound, given the power of the card the skill is on. */

@@ -775,6 +775,8 @@ class Parser {
         return this.eatKw("null") ? null : this.number();
       case "tri":
         return this.eatKw("null") ? null : this.bool();
+      case "variable":
+        return this.eatKw("null") ? null : this.text();
       case "powerRel": {
         if (this.eatKw("null")) return null;
         const of = this.word("self");
