@@ -6,16 +6,20 @@ import { aiRuns, aiSettings, arenaAdvanceCalls, arenaAiUsage, arenaDecisions, ar
 import { claimAdvance, failAdvance, finishAdvance, markProviderAttempt, saveAdvanceCheckpoint } from "../../src/lib/arena/ai/advance-lease.ts";
 import { recordedMove } from "../../src/lib/arena/ai/opponent.ts";
 import { createFakeProvider } from "../../src/lib/ai/providers/fake.ts";
-import { registerProvider, resetProviders } from "../../src/lib/ai/providers/index.ts";
-import { forgetAvailability } from "../../src/lib/ai/router.ts";
-import { loadSettings, readSettingsFromDatabase, saveSettings } from "../../src/lib/ai/settings-db.ts";
-import { setSettingsLoader, type AiSettings } from "../../src/lib/ai/settings.ts";
 import { recordDecision } from "../../src/lib/arena/ai/debug.ts";
 import { accountArenaUsage, advance } from "../../src/lib/arena/ai/run.ts";
 import { applyToGame, loadGame, startGame } from "../../src/lib/arena/games.ts";
 import { readFileSync } from "node:fs";
+import type { AiSettings } from "../../src/lib/ai/settings.ts";
 
 export async function verifyArenaAdvanceLeases(db: Db): Promise<void> {
+  // Loaded dynamically, the way the feature code and the other DB fixtures load them: a static import from
+  // this .mts can resolve to a second copy of the provider registry/settings loader (tsx 4.23, Node 22), so
+  // registerProvider() would never reach the router that advance() uses.
+  const { registerProvider, resetProviders } = await import("../../src/lib/ai/providers/index.ts");
+  const { forgetAvailability } = await import("../../src/lib/ai/router.ts");
+  const { loadSettings, readSettingsFromDatabase, saveSettings } = await import("../../src/lib/ai/settings-db.ts");
+  const { setSettingsLoader } = await import("../../src/lib/ai/settings.ts");
   const [normal] = await db.insert(arenaGames).values({ p1Name: "Lease P1", p2Name: "Lease AI", seed: 566, mode: "sparring", state: { prompt: { kind: "main", player: "p2" } } }).returning({ id: arenaGames.id });
   let providerCalls = 0;
   const fake = createFakeProvider({ id: "arena-advance-test", script: [{ json: { move: 0, say: "Recovered." }, usage: { input: 11, output: 3 } }] });
