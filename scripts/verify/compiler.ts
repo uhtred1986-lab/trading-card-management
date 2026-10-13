@@ -1799,6 +1799,8 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
     assert.equal(zoneOf(s, "p1", "hand").length, before + 2, "X was what the price chose: two chosen, two drawn");
     assertConsistentG(s);
   }
+  // Later suites (the probe's contract fixture) walk the shared DEFS.
+  delete DEFS.XCHOOSE550;
 }
 
 // ── the second half of a sentence, left in the third person ────────────────
