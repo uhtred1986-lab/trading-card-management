@@ -13,7 +13,7 @@ import { rulesFromCompiler } from "../../src/lib/arena/draft";
 import { cardDefFrom } from "../../src/lib/arena/load";
 import { parseSpecifiedCost } from "../../src/lib/arena/specified-cost";
 import { moveCard } from "../../src/lib/arena/vm/zones";
-import { attrsNow, hasKeyword } from "../../src/lib/arena/vm/program";
+import { attrsNow, hasKeyword, keywordsInForce } from "../../src/lib/arena/vm/program";
 import { withTokens } from "../../src/lib/arena/vm/cards";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
@@ -49,6 +49,8 @@ export const apply = (s: VmState, action: Action): Out => rules.apply(ctx, reloa
 export const legal = (s: VmState) => rules.legalActions(ctx, s);
 export const zone = (s: VmState, p: PlayerId, z: string): string[] => (s.sides[p].zones as Record<string, string[]>)[z] ?? [];
 export const kw = (s: VmState, id: string, name: string): boolean => hasKeyword(ctx, game, s, id, name as never);
+/** Damage a [Strike] keyword in force would inflict: 1 without one, X with the largest [Strike X]. */
+export const strikeX = (s: VmState, id: string): number => Math.max(1, ...keywordsInForce(ctx, game, s, id).filter((k) => k.name === "Strike").map((k) => (k as { x?: number }).x ?? 1));
 export const cardOf = (s: VmState, id: string) => s.cards[id].cardId;
 export const power = (s: VmState, id: string): number => Number(attrsNow(withTokens(ctx), game, s, id).power);
 
