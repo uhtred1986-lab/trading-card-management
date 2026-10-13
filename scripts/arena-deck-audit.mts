@@ -16,6 +16,7 @@
  *                                                     # and compare the deck cards with the snapshot
  *   npx tsx scripts/arena-deck-audit.mts --write-snapshot   # (with --live) rewrite the snapshot subset
  *
+ * Deck A is an owner-amended variant of the printed starter (13 Oct 2026: BT10-008 x1, BT5-023 x3; see `DeckSpec.amended`).
  * The deck lists are copied from `scripts/import-starter-decks.mts` (that file
  * opens a database connection at import time, so it cannot be imported); the
  * `--check` run proves the copies still equal the importer's source text.
@@ -47,6 +48,12 @@ export interface DeckSpec {
   /** Where the quantities come from, as the importer's own comment states it. */
   source: string;
   entries: Entry[];
+  /**
+   * Owner-decided departures from the importer's printed list (`entries` holds
+   * the amended quantities; `printed` is what the importer carries, which
+   * `--check` still requires to be there).
+   */
+  amended?: { decision: string; changes: { number: string; printed: number; amended: number }[] };
 }
 const n = (quantity: number, name: string): Entry => ({ quantity, name });
 const id = (quantity: number, number: string): Entry => ({ quantity, number });
@@ -57,12 +64,20 @@ export const DECKS: DeckSpec[] = [
     name: "[Starter] Pride of the Saiyans",
     setCode: "SD15",
     source: "athenagames.com reproduction of Bandai's official SD15 Pieces table; main deck sums to 50.",
+    // Owner-amended variant (decision of 13 Oct 2026, #649/#655): the printed
+    // starter has BT10-008 x2 (restricted to 1, illegal) and BT5-023 x2; the
+    // owner drops one BT10-008 and adds a third BT5-023 (still 50 cards). The
+    // importer is NOT changed - it reflects the printed starter.
+    amended: {
+      decision: "Owner decision of 13 Oct 2026: BT10-008 x2 -> x1 (limit 1) and BT5-023 x2 -> x3.",
+      changes: [{ number: "BT10-008", printed: 2, amended: 1 }, { number: "BT5-023", printed: 2, amended: 3 }],
+    },
     entries: [
       { quantity: 1, leader: true },
       id(2, "SD15-02"), id(2, "SD15-03"), id(2, "SD15-04"), id(2, "SD15-05"),
-      id(2, "BT1-014"), id(2, "BT1-027"), id(2, "BT3-027"), id(2, "BT4-012"), id(2, "BT5-023"),
+      id(2, "BT1-014"), id(2, "BT1-027"), id(2, "BT3-027"), id(2, "BT4-012"), id(3, "BT5-023"),
       id(2, "BT6-010"), id(2, "BT6-011"), id(2, "BT6-025"), id(2, "BT6-026"), id(2, "BT9-031"),
-      id(2, "BT10-008"), id(2, "BT11-008"), id(2, "BT11-011"), id(2, "BT14-006"), id(4, "BT14-010"),
+      id(1, "BT10-008"), id(2, "BT11-008"), id(2, "BT11-011"), id(2, "BT14-006"), id(4, "BT14-010"),
       id(2, "TB1-023"), id(2, "TB1-055"), id(2, "DB1-019"), id(2, "DB2-004"), id(2, "DB3-001"),
     ],
   },
@@ -432,8 +447,8 @@ export const UNOWNED: Record<string, string> = {
   U3: "Unread clauses with a specified-cost filter or a mid-line [Spirit Boost 1]: SD15-01 awakened [Auto] #0 and SD15-03 #10/#20.",
   U4: "BT4-079 [Swap] with an action price (\"{y}, choose 1 card from your hand and place it in your Drop Area\") is refused as `unread`.",
   U5: "Resolved by #716: a [Counter] whose printed price is more than orbs was never offered (refused as `unread`). The rules engine now reads BT5-023's and BT6-026's \"Your Leader Card is red:\" condition and BT10-008's restriction price and offers each when the whole price can be paid (`arena-counter-action-price`).",
-  U6: "[Swap] names a trait (<<Goku's Lineage>>) but the engine filters by energy cost only (glossary: partial), so it offers off-trait Battle Cards.",
-  U7: "Unison cards carry no energy cost or specified cost in the public feed; the owner's hand-entered `cards.specified_cost` (database) is an input the offline pack must carry, and this audit cannot see it.",
+  U6: "[Swap] names a trait (<<Goku's Lineage>>) but the engine filters by energy cost only (glossary: partial), so it offers off-trait Battle Cards. The owner decided on 13 Oct 2026 that this is NOT accepted: fix first (#731).",
+  U7: "Unison cards carry no energy cost or specified cost in the public feed; the owner's hand-entered `cards.specified_cost` (database) is an input the offline pack must carry, and this audit cannot see it. Resolved: the owner ruled SD15-02 and DB3-001 `{r}{r}` on 13 Oct 2026 (migration 0049, #733); the pack builder carries them from a committed data file.",
   U8: "[Unique] rule processing (21-11, keep the newest when two end up in play) is not built on the rules engine (glossary: partial).",
 };
 
@@ -460,8 +475,8 @@ export const FAMILIES: Family[] = [
   { key: "kw-strike", label: "[Strike] / [Double Strike]", match: /^kw:Strike$/, tier: "K", refs: ["scripts/verify/battles.ts:244,309 - 2 damage, markers off a Unison"], note: "" },
   { key: "kw-attack", label: "[Attack X]", match: /^kw:Attack$/, tier: "C", owners: ["U1"], note: "Glossary says the engine plays it; no scenario located (grep of scripts/verify)." },
   { key: "kw-awaken", label: "[Awaken]", match: /^kw:Awaken$/, tier: "K", refs: ["scripts/verify/battles.ts:380 - offered only when the printed condition holds, flips the Leader"], windows: ["main"], note: "SD5-01's Awaken is offered in the audit play-through; SD15-01's is refused `unread` (U2), so the keyword scenario does not transfer to it." },
-  { key: "kw-swap", label: "[Swap X]", match: /^kw:Swap$/, tier: "P", refs: ["scripts/verify/keywords.ts:317 - cost-X Battle Card in hand", "scripts/verify/workflow.ts:498-509"], owners: ["U6", "U4"], windows: ["chooseCards"], note: "Offers every cost-X Battle Card, not just the named trait; BT4-079's priced Swap is refused unread." },
-  { key: "kw-unique", label: "[Unique]", match: /^kw:Unique$/, tier: "P", refs: ["scripts/verify/battles.ts:361 - second copy cannot be played"], owners: ["U8"], note: "The 21-11 keep-newest half is not built." },
+  { key: "kw-swap", label: "[Swap X]", match: /^kw:Swap$/, tier: "P", refs: ["scripts/verify/keywords.ts:317 - cost-X Battle Card in hand", "scripts/verify/workflow.ts:498-509"], owners: ["U6", 731, "U4", 729], windows: ["chooseCards"], note: "Offers every cost-X Battle Card, not just the named trait; BT4-079's priced Swap is refused unread." },
+  { key: "kw-unique", label: "[Unique]", match: /^kw:Unique$/, tier: "P", refs: ["scripts/verify/battles.ts:361 - second copy cannot be played"], owners: ["U8", 730], note: "The 21-11 keep-newest half is not built." },
   { key: "kw-supercombo", label: "[Super Combo] (deck limit 4)", match: /^kw:Super Combo$/, tier: "D", note: "legality() counts it (see the legality block)." },
 
   { key: "tag-spirit", label: "[Spirit Boost X] marker price", match: /^tag:Spirit Boost$/, tier: "C", evidence: ["arena-auto-own-cost"], owners: [549, "U1"], note: "Glossary: the supported Auto continuation charges it after the payable decision (#549); no scenario names SD15-01's back Auto." },
@@ -479,7 +494,7 @@ export const FAMILIES: Family[] = [
   { key: "op-if", label: "Conditional (\"if ...\")", match: /^op:if$/, tier: "C", owners: ["U1"], note: "" },
   { key: "cond", label: "Conditions: Leader match, life, counts, did/chose, battle, turn", match: /^cond:/, tier: "C", owners: ["U1"], note: "Condition readings are covered at parse level in readings.ts; no played scenario." },
 
-  { key: "unread", label: "Clause the compiler cannot read", match: /^unread:/, tier: "B", owners: ["U3"], note: "The referee path is outside the offline MVP; an unread due skill interrupts the game (arena-skill-unread-referee)." },
+  { key: "unread", label: "Clause the compiler cannot read", match: /^unread:/, tier: "B", owners: ["U3", 728, "U4", 729], note: "The referee path is outside the offline MVP; an unread due skill interrupts the game (arena-skill-unread-referee)." },
 ];
 
 /** Existing issues cited as owners, as read with `gh` on the audit date. */
@@ -497,6 +512,10 @@ export const OWNER_ISSUES: Record<number, { state: "open" | "closed"; title: str
   655: { state: "open", title: "[P1] Arena O4-02: Build complete versioned offline deck packs" },
   661: { state: "open", title: "[P1] Arena O4-06: Verify the airplane-mode MVP and publish the support matrix" },
   672: { state: "closed", title: "[P0] Resolve card-specific combo Autos at the combo-entry checkpoint" },
+  728: { state: "open", title: "[P1] Arena: read the SD15 Unison filters, the [Awaken] OR condition and the Spirit Boost note (#539 child)" },
+  729: { state: "open", title: "[P1] Arena: pay [Swap] action prices through the strict price host (BT4-079)" },
+  730: { state: "open", title: "[P2] Arena: let the master choose which [Unique] copy stays (rule 21-11)" },
+  731: { state: "open", title: "[P1] Arena: [Swap] must honour the printed trait filter, not energy cost only" },
   716: { state: "open", title: "[P1] Arena: pay [Counter] action prices through the strict price host" },
 };
 
@@ -547,7 +566,7 @@ export function renderDecks(audits: DeckAudit[], snap: Snapshot): string {
   for (const a of audits) {
     const leader = a.rows.find((r) => r.zone === "leader")!.card;
     out.push(`#### Deck ${a.spec.key}: ${a.spec.name} (${a.spec.setCode})`, "");
-    out.push(`Source: ${a.spec.source} Quantities are the importer's \`scripts/import-starter-decks.mts\` entries (checked by \`--check\`); the Leader is the set's only LEADER card.`, "");
+    out.push(`Source: ${a.spec.source} Quantities are the importer's \`scripts/import-starter-decks.mts\` entries (checked by \`--check\`)${a.spec.amended ? `, except the owner-amended ones: ${a.spec.amended.decision} (printed ${a.spec.amended.changes.map((c) => `${c.number} x${c.printed}`).join(", ")})` : ""}; the Leader is the set's only LEADER card.`, "");
     out.push(`Leader: **${leader.id} ${leader.name}** (${leader.colors.join("/")}, ${leader.power} power) | back face: **${leader.backName}** (${leader.backPower} power). Z-Deck: none in the source (0 cards, limit 10). Main: ${a.legality.mainCount} cards in ${a.rows.filter((r) => r.zone === "main").length} distinct numbers.`, "");
     const body = a.rows.map((r) => {
       const c = r.card;
@@ -743,8 +762,9 @@ function check(catalog: CatalogCard[], snap: Snapshot, play: PlayStats[] | null)
     if (a.legality.mainCount !== 50 || a.legality.leaderCount !== 1 || a.legality.zCount !== 0) fail(`deck ${a.spec.key}: shape ${a.legality.leaderCount}/${a.legality.mainCount}/${a.legality.zCount}`);
   }
   const [A, B] = audits;
-  if (A.legality.status !== "illegal" || !A.legality.issues.some((i) => i.severity === "illegal" && i.cardId === "BT10-008")) fail("deck A: expected the BT10-008 copy-limit finding");
-  if (A.legality.issues.filter((i) => i.severity === "illegal").length !== 1) fail("deck A: expected exactly one illegal finding");
+  // Deck A is the owner-amended variant (BT10-008 x1, BT5-023 x3): no illegal finding remains, only the two off-colour warnings.
+  if (A.legality.status === "illegal" || A.legality.issues.some((i) => i.severity === "illegal")) fail("deck A: the owner-amended list should have no illegal finding");
+  if (A.legality.issues.filter((i) => i.severity === "warning").map((i) => i.cardId).sort().join(",") !== "BT9-031,TB1-055") fail("deck A: expected exactly the BT9-031 and TB1-055 off-colour warnings");
   if (B.legality.status !== "legal" || B.legality.issues.length) fail("deck B: expected legal with no findings");
 
   // 2. The copied lists still equal the importer's source text.
@@ -753,7 +773,9 @@ function check(catalog: CatalogCard[], snap: Snapshot, play: PlayStats[] | null)
     if (!importer.includes(`name: "${spec.name}"`) || !importer.includes(`source: "${spec.source}"`)) fail(`${spec.key}: importer name/source differ`);
     for (const e of spec.entries) {
       if (e.leader) continue;
-      const needle = e.number ? `id(${e.quantity}, "${e.number}")` : `n(${e.quantity}, "${e.name}")`;
+      const printed = spec.amended?.changes.find((c) => c.number === e.number);
+      if (printed && printed.amended !== e.quantity) fail(`${spec.key}: ${e.number} amended to ${printed.amended} but the entry says ${e.quantity}`);
+      const needle = e.number ? `id(${printed?.printed ?? e.quantity}, "${e.number}")` : `n(${e.quantity}, "${e.name}")`;
       if (!importer.includes(needle)) fail(`${spec.key}: importer has no ${needle}`);
     }
   }

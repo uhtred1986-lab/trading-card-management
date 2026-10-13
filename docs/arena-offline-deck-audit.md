@@ -15,7 +15,7 @@ its blockers are resolved and its scenario gates pass (plan, "Delivery and picku
 | Source | Bandai's official SD15 piece table, as reproduced by athenagames.com | poggers.com reproduction of SD05 |
 | Leader | SD15-01 Vegeta (red) / SSB Vegeta, Spirit Boost Elite | SD5-01 Golden Great Ape Son Goku (yellow) / Long Odds SS4 Son Goku |
 | Main / Z | 50 in 24 numbers / none | 50 in 15 numbers / none |
-| `legality()` | **illegal** (BT10-008 x2, restricted to 1) + 2 off-colour warnings | legal |
+| `legality()` | legal + 2 off-colour warnings (owner-amended list: BT10-008 x1, BT5-023 x3; the printed list is illegal, BT10-008 x2) | legal |
 | Skill lines on 25 / 17 card faces | 42 | 33 |
 | Compiler reads | 39 of 42 (3 lines unread: SD15-01 back #0, SD15-03 #10 and #20) | 33 of 33 |
 | Blocked at runtime (tier B) | 4 lines on 2 cards (3 of 51 copies): SD15-01 Awaken and back Auto, SD15-03 x2 (BT5-023, BT6-026 and BT10-008 left tier B with #716) | 1 line on 1 card (BT4-079, 2 copies) |
@@ -31,8 +31,9 @@ its blockers are resolved and its scenario gates pass (plan, "Delivery and picku
   offered, so the games simply play without them (section 6). The play-through was re-run after #716 with the same
   seeds; all 80 games still finish.
 - **Qualification is blocked** for both decks. Deck B needs BT4-079's priced [Swap] fixed (U4) and an owner decision on
-  the [Swap] trait approximation (U6). Deck A needs the Leader's Awaken (U2) and the unread clauses (U3) fixed, the
-  Unison cost input supplied (U7), and an owner decision on the illegal copy count. Its non-orb [Counter] prices (U5)
+  the [Swap] trait fix (U6, owner: fix first, not accepted). Deck A needs the Leader's Awaken (U2) and the unread clauses
+  (U3) fixed. The Unison costs (U7) were supplied by the owner on 13 Oct 2026 (`{r}{r}`, migration 0049, #733). The illegal copy count is decided: the owner amended deck A on
+  13 Oct 2026 (BT10-008 x2 -> x1, plus a third BT5-023). Its non-orb [Counter] prices (U5)
   were resolved by #716 (13 Oct 2026): BT5-023, BT6-026 and BT10-008 are now offered in play (section 6).
 - **Owner's own decks are not in this audit.** They live in the database, which agents do not read. The two lists here
   are repository evidence; if the owner wants their tuned decks audited, `scripts/arena-deck-audit.mts` only needs a
@@ -82,7 +83,7 @@ The importer carries four Masters lists. All four were resolved against the live
 
 | Deck | Resolves | Main | `legality()` | Cards with an unread skill (copies) | Decision |
 |---|---|---|---|---|---|
-| A SD15 Pride of the Saiyans | yes, by card numbers only | 50 | illegal (1) + 2 warnings | 2 (3) | **chosen** |
+| A SD15 Pride of the Saiyans | yes, by card numbers only | 50 | as printed: illegal (1) + 2 warnings; owner-amended: legal + 2 warnings | 2 (3) | **chosen** (owner-amended) |
 | B SD5 The Crimson Saiyan | yes, every name unique | 50 | legal | 0 | **chosen** |
 | C SD13 Clan Collusion | yes | 50 | legal + 3 warnings | 4 (7): SD13-02, SD13-04, BT10-080, BT1-107 | first reserve |
 | D SD2 The Extreme Evolution | **no**: "Pan" matches 7 cards | 48 | incomplete | 3 (7) | rejected, cannot be resolved without a guess |
@@ -99,9 +100,10 @@ Why A and B:
   (red, with a blue and a green off-colour card).
 - Together they cover both colours, both Leader shapes, and the two largest mechanic families in the pool. Both are
   mono-colour Saiyan decks, so diversity is low; C is the next pair member if a legal list is required.
-- **Judgement call:** A is not legal as printed. The starter list predates the restriction of BT10-008 to one copy.
-  `legality()` flags and never blocks (CLAUDE.md), so the arena can play it, but the owner should decide whether the
-  offline pack carries the as-printed list or a one-copy variant. No variant is invented here.
+- **Owner decision (13 Oct 2026):** A is not legal as printed; the starter list predates the restriction of BT10-008 to
+  one copy. The owner amended it: one BT10-008 is dropped (x2 -> x1, limit 1) and a third BT5-023 is added (still 50
+  cards). The audit and the pack carry this variant (`DeckSpec.amended` in `scripts/arena-deck-audit.mts`); the importer
+  keeps the printed starter and `--check` still requires the printed quantities there.
 - The comparison used compile and legality only; C and D were not played.
 
 ## 4. The decks
@@ -109,7 +111,7 @@ Why A and B:
 <!-- GENERATED:decks -->
 #### Deck A: [Starter] Pride of the Saiyans (SD15)
 
-Source: athenagames.com reproduction of Bandai's official SD15 Pieces table; main deck sums to 50. Quantities are the importer's `scripts/import-starter-decks.mts` entries (checked by `--check`); the Leader is the set's only LEADER card.
+Source: athenagames.com reproduction of Bandai's official SD15 Pieces table; main deck sums to 50. Quantities are the importer's `scripts/import-starter-decks.mts` entries (checked by `--check`), except the owner-amended ones: Owner decision of 13 Oct 2026: BT10-008 x2 -> x1 (limit 1) and BT5-023 x2 -> x3. (printed BT10-008 x2, BT5-023 x2); the Leader is the set's only LEADER card.
 
 Leader: **SD15-01 Vegeta** (Red, 10000 power) | back face: **SSB Vegeta, Spirit Boost Elite** (15000 power). Z-Deck: none in the source (0 cards, limit 10). Main: 50 cards in 24 distinct numbers.
 
@@ -124,13 +126,13 @@ Leader: **SD15-01 Vegeta** (Red, 10000 power) | back face: **SSB Vegeta, Spirit 
 | 2 | BT1-027 | Cabba's Awakening | EXTRA | Red | 0 | - | - | 4 |
 | 2 | BT3-027 | Unending Awakening | EXTRA | Red | 1 | - | - | 4 |
 | 2 | BT4-012 | Intensifying Power Trunks | BATTLE | Red | 1 | 5000 | 0/5000 | 4 |
-| 2 | BT5-023 | Afterimage Technique | EXTRA | Red | 1 | - | - | 4 |
+| 3 | BT5-023 | Afterimage Technique | EXTRA | Red | 1 | - | - | 4 |
 | 2 | BT6-010 | Support Attack Trunks | BATTLE | Red | 3 | 10000 | 1/5000 | 4 |
 | 2 | BT6-011 | Bulma, from the Sidelines | BATTLE | Red | 1 | 1000 | 0/5000 | 4 |
 | 2 | BT6-025 | Transcendent Strike | EXTRA | Red | 1 | - | - | 4 |
 | 2 | BT6-026 | Is That All You've Got? | EXTRA | Red | 1 | - | - | 4 |
 | 2 | BT9-031 | Android 18, Steadfast Technique | BATTLE | Blue | 2 | 15000 | 0/5000 | 4 |
-| 2 | BT10-008 | Yamcha, Merciless Barrage | BATTLE | Red | 3 | 15000 | 0/5000 | 1 (restricted) |
+| 1 | BT10-008 | Yamcha, Merciless Barrage | BATTLE | Red | 3 | 15000 | 0/5000 | 1 (restricted) |
 | 2 | BT11-008 | Son Goku, Saiyan Youth | BATTLE | Red | 1 | 4000 | 0/5000 | 4 |
 | 2 | BT11-011 | Vegeta, Saiyan Youth | BATTLE | Red | 2 | 10000 | 0/5000 | 4 |
 | 2 | BT14-006 | Super Saiyan Son Goku | BATTLE | Red | 2 | 20000 | 0/5000 | 7 |
@@ -182,14 +184,14 @@ Snapshot: `docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json` - 41 
 <!-- GENERATED:legality -->
 | Deck | legality() | Leader / main / Z | Illegal | Warnings | Pooled keyword limits |
 |---|---|---|---|---|---|
-| A | illegal | 1 / 50 / 0 | Yamcha, Merciless Barrage (BT10-008): 2 copies, limit 1. | Android 18, Steadfast Technique (BT9-031): off-colour for a Red leader. Infinite Energy Android 18 (TB1-055): off-colour for a Red leader. | [Super Combo] 4/4 |
+| A | legal | 1 / 50 / 0 | none | Android 18, Steadfast Technique (BT9-031): off-colour for a Red leader. Infinite Energy Android 18 (TB1-055): off-colour for a Red leader. | [Super Combo] 4/4 |
 | B | legal | 1 / 50 / 0 | none | none | [Super Combo] 4/4 |
 <!-- /GENERATED:legality -->
 
 Missing inputs for legality: the feed's `limitedTo`/`isBanned`/`isLimited` flags are the only ban data (retrieved 13 Oct
 2026, not compared with Bandai's current published list); the database's own flags for these cards were not read; the
-owner's tuned decks are not in the audit. Deck A's three findings stay as printed: BT10-008 x2 (limit 1, illegal) and the
-off-colour BT9-031 and TB1-055 (warning only in the original game). Both decks sit exactly at the [Super Combo] limit of 4.
+owner's tuned decks are not in the audit. Deck A is the owner-amended list (BT10-008 x1, BT5-023 x3), so its only findings
+are the off-colour BT9-031 and TB1-055 (warning only in the original game); as printed it also had BT10-008 x2 (limit 1, illegal). Both decks sit exactly at the [Super Combo] limit of 4.
 
 ### Generated and token dependencies
 
@@ -216,39 +218,39 @@ Results of the audit play-through are in section 6. A matchup is "supported" onl
 <!-- GENERATED:play -->
 | Matchup | Games | Finished | p1 / p2 wins | End reason | Stopped |
 |---|---|---|---|---|---|
-| A (p1) vs A (p2) | 20 | 20 | 9 / 11 | all by empty Life Area (0-1-3-2) | none |
-| A (p1) vs B (p2) | 20 | 20 | 12 / 8 | all by empty Life Area (0-1-3-2) | none |
-| B (p1) vs A (p2) | 20 | 20 | 8 / 12 | all by empty Life Area (0-1-3-2) | none |
+| A (p1) vs A (p2) | 20 | 20 | 10 / 10 | all by empty Life Area (0-1-3-2) | none |
+| A (p1) vs B (p2) | 20 | 20 | 16 / 4 | all by empty Life Area (0-1-3-2) | none |
+| B (p1) vs A (p2) | 20 | 20 | 7 / 13 | all by empty Life Area (0-1-3-2) | none |
 | B (p1) vs B (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
 
 Games: 80 (20 per ordered matchup, seeds 649.., policy seeds 1000.., `localPolicy()` (#650: every window handled, an unreadable one interrupts) on both seats, 3000-move cap).
 
-- Prompt kinds the policy was asked (decisions, all games): blocker 534, charge 1139, chooseCards 693, chooseFirst 80, chooseMode 111, combo 5935, counter 1056, main 6083, mulligan 160, orderPending 8, payCost 210, zEnergyFromCombo 963.
-- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 46, BT10-008#counter 10, BT11-008#blocker 34, BT3-027#counter 46, BT4-077#0 18, BT4-078#0 43, BT4-081#0 6, BT4-084#0 32, BT4-085#0 10, BT4-086#0 6, BT4-091#0 37, BT4-091#blocker 47, BT4-096#0 50, BT4-097#counter 56, BT5-023#counter 43, BT6-025#0 51, BT6-026#counter 45, DB1-019#0 36, DB3-001#10 31, DB3-001#20 10, SD15-02#10 19, SD5-01#10 57, SD5-04#10 10, SD5-05#0 3, TB1-023#0 44.
-- Games in which the engine refused a manual skill as `unread`: BT4-079#0 21, SD15-01#10 60.
-- Games in which a Leader awakened: SD5-01 55.
-- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 49, BT10-008 41, BT11-008 44, BT11-011 43, BT14-006 45, BT14-010 54, BT4-012 51, BT4-077 57, BT4-078 53, BT4-079 51, BT4-081 54, BT4-084 56, BT4-085 52, BT4-086 34, BT4-089 56, BT4-091 58, BT6-010 26, BT6-011 49, BT9-031 20, DB2-004 52, DB3-001 31, SD15-02 19, SD15-03 34, SD15-04 35, SD15-05 36, SD5-02 44, SD5-03 20, SD5-04 35, SD5-05 43, TB1-055 10.
+- Prompt kinds the policy was asked (decisions, all games): blocker 561, charge 1129, chooseCards 700, chooseFirst 80, chooseMode 90, combo 5808, counter 1124, main 6094, mulligan 160, orderPending 12, payCost 236, zEnergyFromCombo 911.
+- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 46, BT10-008#counter 10, BT11-008#blocker 37, BT3-027#counter 44, BT4-077#0 17, BT4-078#0 40, BT4-081#0 7, BT4-084#0 35, BT4-085#0 11, BT4-086#0 5, BT4-091#0 41, BT4-091#blocker 46, BT4-096#0 48, BT4-097#counter 57, BT5-023#counter 49, BT6-025#0 52, BT6-026#counter 39, DB1-019#0 37, DB3-001#10 32, DB3-001#20 7, SD15-02#10 27, SD5-01#10 57, SD5-04#10 10, SD5-05#0 4, TB1-023#0 46.
+- Games in which the engine refused a manual skill as `unread`: BT4-079#0 19, SD15-01#10 60.
+- Games in which a Leader awakened: SD5-01 56.
+- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 49, BT10-008 32, BT11-008 43, BT11-011 41, BT14-006 41, BT14-010 55, BT4-012 50, BT4-077 56, BT4-078 56, BT4-079 52, BT4-081 51, BT4-084 54, BT4-085 52, BT4-086 35, BT4-089 57, BT4-091 57, BT6-010 35, BT6-011 47, BT9-031 16, DB2-004 51, DB3-001 32, SD15-02 27, SD15-03 27, SD15-04 38, SD15-05 27, SD5-02 46, SD5-03 24, SD5-04 36, SD5-05 45, TB1-055 9.
 
 `chooseCards` questions asked (the engine's own reason text, decisions across all games):
 
-- 105x choose up to 1 ≪Goku's Lineage≫ from among them
-- 98x Choose up to 1 of your opponent's Battle Cards or Unison Cards
-- 80x [Swap]: the Battle Card to play in its place, or none
-- 72x You may choose up to 2 of your energy (2 more)
-- 70x choose up to 1 of your red ≪Saiyan≫ Leader Cards
-- 62x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
-- 57x you may choose 1 red card from your hand
-- 35x choose up to 1 of your opponent's Battle Cards
-- 21x choose 2 cards from your hand (2 more)
-- 19x choose up to 1 of your red Unison Cards
-- 16x you may choose 1 card from your life
-- 13x choose up to 1 of your opponent's Rest Mode Battle Cards
-- 12x Choose 1 card from your life
-- 10x choose up to 1 of your red energy
-- 9x Choose 1 Extra Card in your hand
-- 7x you may choose 1 card in your life
-- 4x choose up to 1 of your mono-red Leader Cards
-- 3x Choose 1 card in your life
+- 127x Choose up to 1 of your opponent's Battle Cards or Unison Cards
+- 109x choose up to 1 ≪Goku's Lineage≫ from among them
+- 79x [Swap]: the Battle Card to play in its place, or none
+- 73x You may choose up to 2 of your energy (2 more)
+- 72x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
+- 52x choose up to 1 of your red ≪Saiyan≫ Leader Cards
+- 38x choose up to 1 of your opponent's Battle Cards
+- 37x you may choose 1 red card from your hand
+- 24x choose 2 cards from your hand (2 more)
+- 15x choose up to 1 of your opponent's Rest Mode Battle Cards
+- 14x you may choose 1 card from your life
+- 13x choose up to 1 of your red Unison Cards
+- 9x Choose 1 card from your life
+- 9x choose up to 1 of your red energy
+- 9x you may choose 1 card in your life
+- 7x Choose 1 card in your life
+- 7x Choose 1 Extra Card in your hand
+- 6x choose up to 1 of your mono-red Leader Cards
 <!-- /GENERATED:play -->
 
 Reading it:
@@ -306,16 +308,16 @@ has an op the static layer applies. Until #716, Counter lines that printed a non
 | BT1-027 | 2 | #0 | activate:battle | Choose up to 1 of your red cards. It gains +6000 power for the durati... | read | - | - | - | C |
 | BT3-027 | 2 | #0 | counter:attack | Negate the attack. Then, choose up to 1 of your red ≪Saiyan≫ Leader C... | read | - | - | - | C |
 | BT4-012 | 2 | #0 | auto | When this card attacks, you may choose 1 card in your life and add it... | read | attacks | - | - | C |
-| BT5-023 | 2 | #0 | counter:attack | Your Leader Card is red : Choose up to 1 of your cards and it gets +4... | read | - | read | - | C |
-| BT5-023 | 2 | #10 | permanent | (This skill takes effect when you have 5 or more cards in your Drop A... | read | - | - | applies | C |
+| BT5-023 | 3 | #0 | counter:attack | Your Leader Card is red : Choose up to 1 of your cards and it gets +4... | read | - | read | - | C |
+| BT5-023 | 3 | #10 | permanent | (This skill takes effect when you have 5 or more cards in your Drop A... | read | - | - | applies | C |
 | BT6-010 | 2 | #0 | auto | At the end of a battle in which you combo with this card from your ha... | read | comboed | - | - | C |
 | BT6-010 | 2 | #10 | auto | When you play this card, choose up to 1 of your opponent's Battle Car... | read | played | - | - | C |
 | BT6-011 | 2 | #0 | auto | When you play this card, if there is a ≪Saiyan≫ card in play in your... | read | played | - | - | C |
 | BT6-025 | 2 | #0 | activate:main | If your Leader Card is red : Choose up to 1 of your opponent's Battle... | read | - | read | - | C |
 | BT6-026 | 2 | #0 | counter:attack | If your Leader Card is red : Negate the attack, then you may choose 1... | read | - | read | - | C |
 | BT9-031 | 2 | #0 | auto | Choose 1 Extra Card in your hand and place it in your Drop Area : Whe... | read | comboed,comboUsed | read | - | C |
-| BT10-008 | 2 | #0 | counter:play | You can't activate the [Counter: Play] skills of other cards for the... | read | - | read | - | C |
-| BT10-008 | 2 | #10 | permanent | If you have a red Unison Card with 2 or more markers in play, you can... | read | - | - | applies | C |
+| BT10-008 | 1 | #0 | counter:play | You can't activate the [Counter: Play] skills of other cards for the... | read | - | read | - | C |
+| BT10-008 | 1 | #10 | permanent | If you have a red Unison Card with 2 or more markers in play, you can... | read | - | - | applies | C |
 | BT11-008 | 2 | #0 | keyword:Blocker | (keyword line) | read | - | - | - | evidence |
 | BT11-008 | 2 | #10 | auto | If you have a red Unison Card in play : When this card is played, dra... | read | played | read | - | C |
 | BT11-011 | 2 | #0 | auto | If your Leader Card is red : When this card is played from your hand,... | read | played | read | - | C |
@@ -391,8 +393,8 @@ has an op the static layer applies. Until #716, Counter lines that printed a non
 | [Strike] / [Double Strike] | K | 2 | scripts/verify/battles.ts:244,309 - 2 damage, markers off a Unison | - | - | - |
 | [Attack X] | C | 1 | - | U1 | - | Glossary says the engine plays it; no scenario located (grep of scripts/verify). |
 | [Awaken] | K | 2 | scripts/verify/battles.ts:380 - offered only when the printed condition holds, flips the Leader | - | main | SD5-01's Awaken is offered in the audit play-through; SD15-01's is refused `unread` (U2), so the keyword scenario does not transfer to it. |
-| [Swap X] | P | 11 | scripts/verify/keywords.ts:317 - cost-X Battle Card in hand; scripts/verify/workflow.ts:498-509 | U6, U4 | chooseCards | Offers every cost-X Battle Card, not just the named trait; BT4-079's priced Swap is refused unread. |
-| [Unique] | P | 1 | scripts/verify/battles.ts:361 - second copy cannot be played | U8 | - | The 21-11 keep-newest half is not built. |
+| [Swap X] | P | 11 | scripts/verify/keywords.ts:317 - cost-X Battle Card in hand; scripts/verify/workflow.ts:498-509 | U6, #731, U4, #729 | chooseCards | Offers every cost-X Battle Card, not just the named trait; BT4-079's priced Swap is refused unread. |
+| [Unique] | P | 1 | scripts/verify/battles.ts:361 - second copy cannot be played | U8, #730 | - | The 21-11 keep-newest half is not built. |
 | [Super Combo] (deck limit 4) | D | 2 | - | - | - | legality() counts it (see the legality block). |
 | [Spirit Boost X] marker price | C | 1 | `arena-auto-own-cost` | #549, U1 | - | Glossary: the supported Auto continuation charges it after the payable decision (#549); no scenario names SD15-01's back Auto. |
 | [Once per turn] | C | 2 | - | U1 | - | - |
@@ -406,10 +408,10 @@ has an op the static layer applies. Until #716, Counter lines that printed a non
 | Card movement and state: moveTo, play, look, shuffle, switchMode, addMarker, lifeDownTo | C | 18 | - | U1 | - | - |
 | Conditional ("if ...") | C | 27 | - | U1 | - | - |
 | Conditions: Leader match, life, counts, did/chose, battle, turn | C | 27 | - | U1 | - | Condition readings are covered at parse level in readings.ts; no played scenario. |
-| Clause the compiler cannot read | B | 3 | - | U3 | - | The referee path is outside the offline MVP; an unread due skill interrupts the game (arena-skill-unread-referee). |
+| Clause the compiler cannot read | B | 3 | - | U3, #728, U4, #729 | - | The referee path is outside the offline MVP; an unread due skill interrupts the game (arena-skill-unread-referee). |
 <!-- /GENERATED:mechanics -->
 
-`U1`..`U8` are unowned blockers defined below. `#n` links are existing issues; "(closed)" ones delivered the narrow
+`U1`..`U8` are the blockers defined below (U2-U4, U6 and U8 gained owner issues on 13 Oct 2026). `#n` links are existing issues; "(closed)" ones delivered the narrow
 evidence cited and are not blockers. The capability rows cited are `arena-combo-entry-auto-timing` (#672),
 `arena-combo-from-hand-battle-end` (#572), `arena-combo-cleanup-checkpoints` (#609), `arena-auto-own-cost` (#549),
 `arena-counter-alternative-action-price`.
@@ -418,15 +420,14 @@ evidence cited and are not blockers. The capability rows cited are `arena-combo-
 
 | ID | Blocker | Deck / cards | Existing owner | Status |
 |---|---|---|---|---|
-| U2 | [Awaken] on SD15-01 refused `unread`: the printed OR condition (life <= 4, or a red Unison with specified cost 2) is not in the compiled price; the Leader never awakens | A: SD15-01 (Leader) | none open. Nearest: **#539** (parent of card-review misreadings; `docs/arena-backlog/s2-99-target-disjunctions.md` already lists "SD15-01 #0 and #10: 'with a specified cost of 2' dropped"), whose child #573 is closed | **unowned**; needs a #539 child |
-| U3 | Unread clauses: SD15-01 back #0 ("a red Unison Card with a specified cost of 2 and no keyword skills", "it gains [Double Strike]"); SD15-03 #10 (Permanent) and #20 ("[Spirit Boost 1]" after a once-per-turn note) | A: SD15-01 back, SD15-03 x2 | nearest **#539**; the Spirit Boost Auto continuation is **#549** | **unowned**; unread skills interrupt the game (`arena-skill-unread-referee`, #544) |
+| U2 | [Awaken] on SD15-01 refused `unread`: the printed OR condition (life <= 4, or a red Unison with specified cost 2) is not in the compiled price; the Leader never awakens | A: SD15-01 (Leader) | **#728** (a #539 child, created 13 Oct 2026; `docs/arena-backlog/s2-99-target-disjunctions.md` already lists "SD15-01 #0 and #10: 'with a specified cost of 2' dropped") | open, owned by **#728** |
+| U3 | Unread clauses: SD15-01 back #0 ("a red Unison Card with a specified cost of 2 and no keyword skills", "it gains [Double Strike]"); SD15-03 #10 (Permanent) and #20 ("[Spirit Boost 1]" after a once-per-turn note) | A: SD15-01 back, SD15-03 x2 | **#728**; the Spirit Boost Auto continuation is **#549** | open, owned by **#728**; unread skills interrupt the game (`arena-skill-unread-referee`, #544) |
 | U5 | [Counter] with a non-orb printed price was never offered (`counterCandidates`/`counterWhy`): BT5-023, BT6-026 (leading Leader condition), BT10-008 (restriction price, was unreadable) | A: 6 copies | **#716**: condition and action/restriction prices paid on the strict action-price host before the skill activates (`arena-counter-action-price`, `scripts/verify/counter-action-price-716.ts`); all three are now offered in the play-through (section 6). Their effects stay compiled-only (U1) | **resolved by #716** |
-| U4 | BT4-079 [Swap] with an action price refused `unread` | B: 2 copies | none (**#549** is Auto prices, not [Swap]) | **unowned** |
-| U6 | [Swap] names <<Goku's Lineage>> but filters by energy cost only (glossary: partial) | B: 11 numbers carry a [Swap] line, 38 copies | none | **unowned**; owner may accept the approximation |
-| U7 | Unison cards have no energy cost / specified cost in the feed; the owner's database column `cards.specified_cost` is not visible to agents. The pack builder must carry it. | A: SD15-02, DB3-001 (and every "specified cost of 2" wording) | **#655** pins it when given: the pack records both as `missingInputs` and stays unplayable; `scripts/build-arena-offline-pack.mts --specified-costs` takes the owner's values. The data is the owner's | **missing input** |
-| U8 | [Unique] 21-11 keep-newest half unbuilt | A: SD15-05 x2 | none | **unowned**, low impact |
+| U4 | BT4-079 [Swap] with an action price refused `unread` | B: 2 copies | **#729** (created 13 Oct 2026; #549 is Auto prices, not [Swap]) | open, owned by **#729** |
+| U6 | [Swap] names <<Goku's Lineage>> but filters by energy cost only (glossary: partial) | B: 11 numbers carry a [Swap] line, 38 copies | **#731** (created 13 Oct 2026) | open, owned by **#731**; owner decision 13 Oct 2026: the approximation is NOT accepted, fix it first |
+| U7 | Unison cards have no energy cost / specified cost in the feed; the owner's database column `cards.specified_cost` is not visible to agents. The pack builder must carry it. | A: SD15-02, DB3-001 (and every "specified cost of 2" wording) | **#655**; the owner ruled both `{r}{r}` on 13 Oct 2026 (both print "Energy (Color Cost): X(RR)"), entered by migration 0049 (PR #733). The pack builder carries them from `docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json` by default (`--specified-costs` overrides) and records no missing input | **resolved** (owner ruling 13 Oct, #733) |
+| U8 | [Unique] 21-11 keep-newest half unbuilt | A: SD15-05 x2 | **#730** (created 13 Oct 2026) | open, owned by **#730**; low impact |
 | U1 | Card-level scenario gates for every compiled-only mechanic | both | belongs with the policy and qualification work: **#650** (decision fixtures), **#651** (evaluation), **#661** (support matrix), **#655** (pack qualifies only when blockers resolve) | **unowned as a task**; no issue creates these scenarios today |
-| - | Deck A illegal as printed (BT10-008 x2) | A | owner decision | **decision** |
 
 Existing issues checked and **not** blocking these decks: **#552** (no skill in either deck is `counter:counter`;
 `--check` fails if one appears), **#550** (no price binds X; `arena-priced-choice-binds-x` is X-only), **#595**
@@ -444,18 +445,18 @@ until a scenario plays them. **#577** is the delivery epic for all of these.
 |---|---|---|---|
 | chooseFirst | every match | - | 80 |
 | mulligan | every match | - | 160 |
-| charge | every match | - | 1139 |
-| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 6083 |
-| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5935 |
-| blocker | every match | BT11-008#0, BT4-091#10 | 534 |
-| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 1056 |
-| orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 8 |
-| chooseCards | by card | SD15-01#10, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20, SD15-04#0 | 693 |
-| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 111 |
+| charge | every match | - | 1129 |
+| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 6094 |
+| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5808 |
+| blocker | every match | BT11-008#0, BT4-091#10 | 561 |
+| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 1124 |
+| orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 12 |
+| chooseCards | by card | SD15-01#10, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20, SD15-04#0 | 700 |
+| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 90 |
 | replaceMove | no audited card needs it | - | 0 |
-| zEnergyFromCombo | every match | - | 963 |
+| zEnergyFromCombo | every match | - | 911 |
 | optionalCost | no audited card needs it | - | 0 |
-| payCost | every match | - | 210 |
+| payCost | every match | - | 236 |
 | offering | no audited card needs it | - | 0 |
 | empowerCarry | no audited card needs it | - | 0 |
 <!-- /GENERATED:windows -->
@@ -509,7 +510,7 @@ that makes it. Playing needs no database; it was run on Windows with Node 24.
 | Acceptance | Evidence | Open |
 |---|---|---|
 | Exact IDs/counts, source/revision, matchups, main/Z/Leader faces, generated dependencies, legality and missing inputs | sections 3-5, `catalog-subset-2026-10-13.json`, `--check` | Source revisions are the importer's descriptions of two third-party pages (athenagames.com, poggers.com), not re-fetched; the owner's decks are absent |
-| Every mechanic has a scenario or a linked blocker with an owner; compile never counts | sections 7-8: every mechanic is in a tier; B/C/P rows carry an owner or a `U` id | Scenarios for the compiled-only mechanics do not exist (U1), and five blockers have no issue (U2-U4, U6, U8); U5 was resolved by #716 |
+| Every mechanic has a scenario or a linked blocker with an owner; compile never counts | sections 7-8: every mechanic is in a tier; B/C/P rows carry an owner or a `U` id | Scenarios for the compiled-only mechanics do not exist (U1), and every other blocker now has an owner issue (U2/U3 #728, U4 #729, U8 #730, U6 #731; U7 is the owner's input); U5 was resolved by #716 |
 | Useful during O1 without the local runtime | the audit runs on the current engine and policy | Fixed by the next audit run, not by this one |
 | Verification | script `--check`, typecheck, lint, `scripts/verify/backlog.ts` | `npm test`/`npm run build`/`arena:fuzz`: unaffected (no `src/` change); database-backed checks not run |
 | Scenario-specific evidence, no relabelling | each K/E row cites its file or capability id | Issue stays **open** |

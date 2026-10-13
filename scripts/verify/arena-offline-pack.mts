@@ -115,10 +115,14 @@ assert.equal(pack.qualification.playable, false, "the audited pair is not playab
   assert.ok(unknown.reasons.some((r) => /runtime unknown/.test(r)), "an unknown interpreter revision is a reason");
 }
 {
-  // Every audited blocker cleared and U7's input supplied: the unread clauses alone still block.
-  const input = await mastersPackInput({ runtimeRevision: REV, specifiedCosts: { "SD15-02": "{r}{r}", "DB3-001": "{r}{r}" } });
-  assert.deepEqual(input.missingInputs, [], "supplying the owner's specified costs clears the missing inputs");
-  assert.equal(input.blockers.find((b) => b.id === "U7")?.status, "resolved", "and resolves U7");
+  // An explicit empty override brings the missing-input path back; the default carries the owner's values.
+  const bare = await mastersPackInput({ runtimeRevision: REV, specifiedCosts: {} });
+  assert.deepEqual(bare.missingInputs.map((m) => m.card).sort(), ["DB3-001", "SD15-02"], "without the owner's costs both Unison cards are missing inputs");
+  assert.equal(bare.blockers.find((b) => b.id === "U7")?.status, "missing-input", "and U7 is open");
+  // Every audited blocker cleared (U7's input comes by default): the unread clauses alone still block.
+  const input = await mastersPackInput({ runtimeRevision: REV });
+  assert.deepEqual(input.missingInputs, [], "the owner's specified costs clear the missing inputs");
+  assert.equal(input.blockers.find((b) => b.id === "U7")?.status, "resolved", "and resolve U7");
   input.blockers = input.blockers.map((b) => ({ ...b, status: "resolved" as const }));
   const cleared = await makeOfflinePack(input);
   assert.equal(cleared.qualification.playable, false, "an unresolved mechanic alone keeps a pack unplayable");
@@ -132,22 +136,23 @@ assert.equal(pack.qualification.playable, false, "the audited pair is not playab
 }
 {
   const ids = pack.blockers.map((b) => b.id);
-  for (const id of ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "A-LEGALITY"]) assert.ok(ids.includes(id), `blocker ${id} is in the pack`);
+  for (const id of ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8"]) assert.ok(ids.includes(id), `blocker ${id} is in the pack`);
   for (const b of pack.blockers) {
     if (b.status === "resolved") continue;
     assert.ok(pack.qualification.reasons.some((r) => r.startsWith(`blocker ${b.id} (`)), `open blocker ${b.id} is a visible reason`);
     for (const i of b.issues) assert.ok(pack.qualification.reasons.some((r) => r.includes(`#${i.issue}`)), `${b.id}'s issue #${i.issue} is visible`);
   }
   assert.equal(pack.blockers.find((b) => b.id === "U5")?.status, "resolved", "U5 (resolved by #716) stays listed as resolved");
-  assert.deepEqual(pack.missingInputs.map((m) => m.card), ["DB3-001", "SD15-02"], "U7: both Unison cards' specified costs are recorded as missing, not invented");
-  assert.ok(pack.missingInputs.every((m) => !pack.bundle.payload.defs[m.card].specifiedCost), "and no value was made up");
+  assert.deepEqual(pack.missingInputs, [], "U7: the owner's ruling (migration 0049, #733) supplies both Unison costs");
+  assert.equal(pack.blockers.find((b) => b.id === "U7")?.status, "resolved", "U7 is resolved in the pack");
+  for (const c of ["SD15-02", "DB3-001"]) assert.deepEqual(pack.bundle.payload.defs[c].specifiedCost, { Red: 2 }, `${c} carries the owner-ruled specified cost`);
   // The register equals the audit document's (§8): the same ids, the same resolved ones.
   const doc = fs.readFileSync(AUDIT_PATH, "utf8");
   const rows = [...doc.matchAll(/^\| (U\d) \|.*\| ([^|]*) \|$/gm)].map((m) => ({ id: m[1], resolved: /\bresolved\b/i.test(m[2]) }));
   assert.ok(rows.length >= 8, `the audit register was read (${rows.length} rows)`);
   assert.deepEqual(rows.map((r) => r.id).sort(), ids.filter((i) => /^U\d$/.test(i)).sort(), "the pack's U blockers are the audit's");
   for (const r of rows) assert.equal(pack.blockers.find((b) => b.id === r.id)!.status === "resolved", r.resolved, `${r.id}: resolved in the pack iff in the audit`);
-  assert.ok(/Deck A illegal as printed/.test(doc), "the audit's legality decision row exists");
+  assert.ok(!ids.includes("A-LEGALITY") && !/Deck A illegal as printed/.test(doc), "deck A is the owner-amended legal list: no legality-decision blocker in the pack or the audit");
 }
 
 // ── 4. instantiation and private data ───────────────────────────────────────
