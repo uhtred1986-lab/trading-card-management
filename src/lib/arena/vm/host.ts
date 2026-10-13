@@ -35,13 +35,13 @@
  *                                     `replaceResolvingPlay` read and write
  *                                     `state.resolving`, which `vm/play.ts`
  *                                     reads as the card lands.
- *   `negateCounterInFlight`           9-8: a [Counter] negating the [Counter]
- *                                     it is answering, inside the *same*
- *                                     window (9-7-4) — #150 opens the
- *                                     attack window (`vm/battle.ts`) but does
- *                                     not recurse it over its own resolution,
- *                                     so there is truthfully never one in
- *                                     flight to negate. `battle`, `setGuard`
+ *   `negateCounterInFlight`           22-10-8: a [Counter] negating the
+ *                                     [Counter] it is answering — real since
+ *                                     #552 opened the [Counter: Counter]
+ *                                     window over each counter motion
+ *                                     (`vm/battle.ts`): the motion under the
+ *                                     running one leaves the queue unrun.
+ *                                     `battle`, `setGuard`
  *                                     and `negateAttack` are real now
  *                                     (#150) — a card whose program reads or
  *                                     changes the battle in progress does,
@@ -407,11 +407,19 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       state.battle.negated = true;
       log(ev, { type: "attackNegated" });
     },
-    // 9-7-4: a [Counter] negating the [Counter] it answers, inside the same
-    // recursive window — this engine opens the attack window once and does
-    // not recurse it over its own resolution (`vm/battle.ts`'s header), so
-    // there is truthfully never one in flight for a program to negate.
-    negateCounterInFlight: () => null,
+    // 22-10-8 (#552): "negate [Counter]" eliminates the counter motion that
+    // would have resolved the [Counter] this one answers, and its effects fail
+    // to resolve (22-10-8-1). The running motion is off the queue while it
+    // steps, and every motion activated over another sits in front of it
+    // (`vm/battle.ts`'s `activateCounterSkill`), so the first motion still
+    // queued is the one directly under this — the opponent's, 22-10-3-4. Its
+    // card stays in the Drop (22-10-7-1); its costs stay paid.
+    negateCounterInFlight: () => {
+      const at = state.programs.findIndex((f) => f.counterMotion);
+      if (at < 0) return null;
+      const [countered] = state.programs.splice(at, 1);
+      return countered.card;
+    },
 
     // ── the questions, and the flow that carries them ────────────────────
     ask: (prompt: Prompt) => {

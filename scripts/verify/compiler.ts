@@ -35,7 +35,6 @@ import {
   playG,
   powerIn,
   priceX,
-  rulesGap,
   sideG,
   skillNegatedG,
   splitClauses,
@@ -1430,20 +1429,18 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   assert.equal(s.prompt.kind, "counter");
   assert.equal((s.prompt as { player: PlayerId }).player, "p2");
 
-  if (!rulesGap("compiler: E-STOP counters E-NEGATE (9-7-3)", "the rules engine opens no [Counter: Counter] window over a counter's own resolution — vm/battle.ts's 9-7-3 recursion", "no issue filed yet")) {
-    s = playG(s, { type: "counter", player: "p2", card: neg });
-    // 9-7: their counter is now itself open to an answer.
-    assert.equal(s.prompt.kind, "counter", "the counter can be countered");
-    assert.equal((s.prompt as { player: PlayerId }).player, "p1");
-    assert.deepEqual((s.prompt as { candidates: string[] }).candidates, [stop]);
+  s = playG(s, { type: "counter", player: "p2", card: neg });
+  // 9-7-3-3, 22-10-3-4: their counter is now itself open to an answer.
+  assert.equal(s.prompt.kind, "counter", "the counter can be countered");
+  assert.equal((s.prompt as { player: PlayerId }).player, "p1");
+  assert.deepEqual((s.prompt as { candidates: string[] }).candidates, [stop]);
 
-    s = playG(s, { type: "counter", player: "p1", card: stop });
-    // 9-7-3: the last one played resolves first, and it negates the one under it,
-    // so the attack was never negated after all.
-    assert.equal(s.battle?.negated ?? false, false, "9-7-4: the countered counter did nothing");
-    assert.ok(zoneOf(s, "p2", "drop").includes(neg), "22-10-7: it was still paid for and still in the Drop");
-    assert.ok(zoneOf(s, "p1", "drop").includes(stop));
-  }
+  s = playG(s, { type: "counter", player: "p1", card: stop });
+  // 9-7-3-5: the last one played resolves first, and it negates the one under it,
+  // so the attack was never negated after all.
+  assert.equal(s.battle?.negated ?? false, false, "22-10-8-1: the countered counter did nothing");
+  assert.ok(zoneOf(s, "p2", "drop").includes(neg), "22-10-7-1: it was still paid for and still in the Drop");
+  assert.ok(zoneOf(s, "p1", "drop").includes(stop));
   assertConsistentG(s);
 }
 
@@ -1453,9 +1450,7 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   const neg = findG(s, "p2", "hand", "E-NEGATE");
   s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
   s = playG(s, { type: "counter", player: "p2", card: neg });
-  if (!rulesGap("compiler: declining to answer a counter (9-7)", "the rules engine opens no [Counter: Counter] window over a counter's own resolution — vm/battle.ts's 9-7-3 recursion", "no issue filed yet")) {
-    s = playG(s, { type: "counter", player: "p1", card: null });
-  }
+  s = playG(s, { type: "counter", player: "p1", card: null });
   assert.equal(s.battle, null, "the attack was negated and the battle ended");
   assert.equal(zoneOf(s, "p2", "life").length, 8);
   assertConsistentG(s);

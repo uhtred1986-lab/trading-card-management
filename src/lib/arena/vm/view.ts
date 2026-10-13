@@ -188,7 +188,7 @@ export function promptView(state: VmState, game?: GameDefinition, viewer?: Playe
     ? state.battle && (state.battle.negated || !battleIntact(state) || !["declared", "offense", "defense"].includes(state.battle.step))
       ? "Pass ends this response window; the battle continues to its end."
       : pr.side === "offense" ? "Pass ends your offense responses; the defender can respond next." : "Pass ends your defense responses and advances to damage. Pending skills and replacements still resolve."
-    : pr.kind === "counter" ? `No counter closes this Counter: ${pr.window === "attack" ? "Attack" : pr.window === "play" ? "Play" : pr.window} window; the pending ${pr.window === "attack" ? "attack" : pr.window === "play" ? "play" : "counter skill"} continues.`
+    : pr.kind === "counter" ? `No counter closes this Counter: ${pr.window === "attack" ? "Attack" : pr.window === "play" ? "Play" : pr.window === "counter" ? "Counter" : pr.window} window; the pending ${pr.window === "attack" ? "attack" : pr.window === "play" ? "play" : "counter skill"} ${pr.window === "counter" ? "resolves" : "continues"}.`
       : pr.kind === "blocker" ? "Do not block keeps the current attack target; offense responses follow."
         : pr.kind === "charge" ? "Skip charge declines charging; Main Phase follows after pending skills."
           : pr.kind === "main" ? "End turn ends Main Phase; end-of-turn skills resolve before the next turn." : undefined;
