@@ -1,7 +1,7 @@
 /** Independent 22-30-3 / 5-8-4 expectations; never derived from the legacy oracle. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
@@ -12,7 +12,7 @@ import oldAdditional from "./fixtures/aegis-595-old-additional.json";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
-const engine = engineFor("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 const defs = { ...DEFS,

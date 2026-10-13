@@ -94,30 +94,22 @@ the change working.
 
 ## 2. `npm test` — what it actually runs
 
-In order. All must pass; none needs the network. `verify-arena.ts` runs **twice** — once on the
-legacy engine (default) and, since #459, once with `--rules-only`: every suite on the rules engine,
-with any call into `src/lib/arena/engine/` failing the suite that made it (`verify/legacy-guard.ts`).
-`--engine rules` (#165) is the same run without the guard, and `npm run test:rules` still runs it.
-
-**Both runs stay until Stage 10 finishes (#118).** Its first step (#456) moved the shared parts out
-of `engine/` (vocabulary `types.ts`, card text `text/`, compiler `compile/`, interpreter and schema
-`vm/script*.ts`, RNG `vm/rng.ts`, helpers `vm/common.ts`). #459 moved the seven suites that staged
-legacy `GameState` fixtures (`setup`, `compiler`, `readings`, `wordings`, `contract`, `language`,
-`lang`) onto the generic harness, so they assert on the rules engine; the contract fixtures are
-emitted from the rules engine (`versus.json` too since #461 played a 1 v 1 there); `probe`'s digest check runs on the
-rules engine against `probe-digests.json` and `probe-rules-parity.json` as fixed records. What still
-needs the legacy run: **`vm.ts`**, which holds the rules engine to the legacy one call for call and
-is listed, not run, under `--rules-only`; **`ai-vm`** (#460), which holds the rules engine's text for Claude to the legacy engine's and is listed the same way; and `engine-default`'s "a saved legacy game opens unchanged", which #118 decides. Every
-case a suite cannot assert on the rules engine is a named `rulesGap`, listed at the end of the run.
+In order. All must pass; none needs the network. `verify-arena.ts` runs **once**, on the rules
+engine, the only engine there is: #118 (13 Oct 2026) deleted the legacy engine (`src/lib/arena/engine/`),
+its adapter and `engineFor`, the `--engine`, `--rules-only` and `test:rules*` lanes, the legacy-call
+guard and `probe-rules-parity.json`. Passages below that say "on both engines", "the legacy run" or
+`--engine` describe the history; the suites themselves now assert on the rules engine only, and a case
+the rules engine cannot yet prove is still a named `rulesGap`, listed at the end of the run.
+The probe digests in `contract/probe-digests.json` are now the rules engine's own record (they were
+the legacy engine's).
 
 | script | needs | proves |
 |---|---|---|
 | `scripts/verify-rules.ts` | nothing | the pure rules helpers (deck legality, reservations, scan matching) |
-| `scripts/verify-arena.ts` | nothing | the arena — the suites below — on the legacy engine |
-| `scripts/verify-arena.ts --rules-only` | nothing | the same suites on the rules engine with no legacy call anywhere, `vm` listed as not run, and every case a suite could not assert listed by name |
+| `scripts/verify-arena.ts` | nothing | the arena — the suites below — on the rules engine, with every case a suite could not assert listed by name |
 | `scripts/verify-db.mts` | nothing (PGlite in memory) | the migrations apply, and the reservation rules hold against real SQL |
 | `scripts/verify/arena-scenario-runner.mts` | nothing | the focused scenario runner (`npm run arena:scenario`, §5b): setup, battle and pending-choice scenarios are deterministic, and a mismatch exits non-zero |
-| `scripts/verify/arena-policy-shortcuts.mts --engine rules` | nothing | the online opponent's free choices (#645, `policy/shortcuts.ts` via `ai/shortcut-input.ts`): at 3,153 positions (#641's game, every #642 scenario, #644's fixture over 8 seeds, a mixed-cost deck on both engines over 16 seeds, three [Empower] carries) the adapter picks the menu index and words origin/main's `freeChoice` picked (`fixtures/arena-policy-shortcuts/before.json`, recorded before the move) and declines wherever it declined; through `policyTurn` the same rule picks the same engine move; swapping hidden cards and moving the game's seed/RNG changes no choice; golden cases per rule (empty menu, no match, ties, thresholds); a shortcut needs no provider and makes no request, anything else still reaches it once |
+| `scripts/verify/arena-policy-shortcuts.mts` | nothing | the online opponent's free choices (#645, `policy/shortcuts.ts` via `ai/shortcut-input.ts`): at 2,017 positions (#641's game, every #642 scenario, #644's fixture over 8 seeds, a mixed-cost deck over 16 seeds, three [Empower] carries) the adapter picks the menu index and words origin/main's `freeChoice` picked (`fixtures/arena-policy-shortcuts/before.json`, recorded before the move) and declines wherever it declined; through `policyTurn` the same rule picks the same engine move; swapping hidden cards and moving the game's seed/RNG changes no choice; golden cases per rule (empty menu, no match, ties, thresholds); a shortcut needs no provider and makes no request, anything else still reaches it once |
 | `scripts/verify/arena-policy-contract.mts` | nothing | the local policy boundary (#644, `src/lib/arena/policy/`): the policy layer imports nothing outside `policy/`; at every position of #641's game, #642's scenarios and two policy-played games on `arena-policy-fixture.ts`, for both seats, no hidden id or reveal epoch reaches the policy, permuting hidden identities/order/ids changes nothing it sees or answers, every legal move is one decision that plays identically, compound picks play as the engine's one-card answers, and stale/foreign/malformed answers are refused |
 | `scripts/verify/arena-policy-main.mts` | nothing | the local Main-Phase policy (#646, `policy/main.ts`, wired as `boundary.ts`'s `localStep`): a pure policy-layer module; named scenarios staged on real engine states (`arena-policy-main-fixture.ts`) — the dearest affordable development play, plays and a payment that keep the colour another card needs, a favourable attack and none that loses, `endMain` when nothing is worth doing, an unlimited free activation used once; the cycle guard ends a looping policy's turn and interrupts when it cannot; at every Main-Phase/payment position of #641's game, the #642 scenarios and 18 strength games the choice plays, is deterministic, draws no RNG, stays in the work bound and survives two permuted hidden states; Node cost against the #643 budgets; the 18 games won more than lost against shortcuts + uniform. The larger strength run is `npm run arena:policy-eval` (not in `npm test`) |
 | `scripts/verify/arena-policy-combat.mts` | nothing | the local battle policy (#647, `policy/combat.ts`, the third layer of `localPolicy`): a pure policy-layer module the online opponent does not load; named battles staged on real engine states (`arena-policy-combat-fixture.ts`) and fought to their end through `localStep`, each checking the cards, energy and life actually spent — a lethal attack blocked, no chump block while life allows, a surviving blocker used, a tied attacker passing (8-4-6) while the defender combos the cheapest card that is enough, an offensive combo exactly enough, no combo on a lost battle on either side, [Critical]/[Double Strike] turning a taken hit into a defended one, a negating counter taken only when it is worth it (and not when a blocker will do), a "+5000 power" battle activation used instead of a card, the same from p1's chair; the cycle guard's battle exits; at every blocker/counter/combo position of the staged battles, the #642 scenarios and 16 strength games the choice plays, is deterministic, draws no RNG, stays in the work bound and survives two permuted hidden states; Node cost; strength against the #646 policy (reported) and shortcuts + uniform (asserted to win more than it loses). `npm run arena:policy-eval` adds the #646 policy (`main646`) as a baseline and the #647 fixture |
@@ -286,73 +278,12 @@ skipped) tells you what you broke:
   to the same events and the same rules in force. Runs the same regardless of
   `--engine`, on purpose (below).
 
-### `--engine legacy|rules`, `npm run test:rules` and `--rules-only`
+### One engine (#118)
 
-`scripts/verify/harness.ts` reads `--engine` off the command line (default
-`legacy`) and exports the resolved `ENGINE`. `npm run test:rules` is
-`verify-arena.ts --engine rules`. **`--rules-only` (#459, `npm run
-test:rules-only`, and the second half of `npm test`)** is `--engine rules`
-plus two promises: `verify/legacy-guard.ts` wraps every module under
-`src/lib/arena/engine/` as it loads, so *calling* any legacy function records
-it and throws, and a suite that does is failed (importing is fine —
-`engines.ts` builds its adapter at import time); and nothing is skipped as a
-whole — a `NotYet` or `EngineMismatch` fails the suite. The suites in
-`STILL_ON_THE_ORACLE` (`verify-arena.ts`; `vm` today) are listed as not run.
-The run ends by listing every `rulesGap` and `legacyOnly` case (harness) and
-the legacy calls it saw, which must be none. Once #118 deletes the legacy
-engine this is what `npm test` is, and the guard goes with it.
-
-`vm.ts` and `rulesets.ts` name `legacy` and `rules` explicitly rather than
-reading `ENGINE` (it is the suite proving the switch, so it cannot depend on
-which side of the switch happens to be selected; `rulesets.ts` touches no game
-at all) and both run the same, and are expected to pass, whichever engine
-`--engine` names.
-
-**Two suites, `battles.ts` and `workflow.ts`, run for real on `rules` since
-#152** — see their own entries above — through `harness.ts`'s state-interface
-half (`arenaG`/`playG`/… ). What a case in either of them cannot yet prove on
-`rules` is a `skipped case`, printed by name with why, rather than a whole
-suite reading `skipped`; the suite itself still reports `ok` as long as
-nothing it *can* prove fails.
-
-**#459 moved the remaining seven** — `setup`, `compiler`, `readings`,
-`wordings`, `contract`, `language`, `lang` — onto the same half, through
-`stagedG`: `arena()`'s own board on either engine, including its last step
-(the dealt filler goes to the bottom of the deck), so hand counts and
-`hand[0]` mean what they meant. Their legacy-only readers have generic twins
-(`powerIn`, `cardNowG`, `matchesG`, `playCostG`, `forbidsG`, `locateG`,
-`koCardG`, `moveG`, `pendedG`, …), and a case the rules engine cannot pass is
-a `rulesGap(where, what, issue)`. The paragraph below is how every suite
-behaved before that, and how a new suite that reaches for `game()`/`arena()`
-still would:
-
-Every other suite still builds its board through the legacy-only
-`game()`/`arena()`, so on `--engine rules` it hits one of two named errors
-immediately rather than crashing partway through an assertion: `NotYet` (a
-call the rules engine does not implement yet, e.g. `apply`, per
-`src/lib/arena/vm/index.ts`) or `EngineMismatch` (`game()`/`arena()`/`play()`
-narrow every state through `legacyState`, so a state the rules engine dealt is
-named rather than read as `undefined`). `verify-arena.ts` prints either as
-`skipped`, with the reason, and keeps going. What "green on rules" means
-therefore changes stage by stage — there is nothing to fix by making a suite
-"pass" before its dependency lands, and porting a suite past `EngineMismatch`
-is each suite's own issue to take up, the way #152 took up these two:
-
-| stage | what's built | `test:rules` today |
-|---|---|---|
-| through #151 (Stage 6, the rules engine plays a battle) | zones/attributes, the turn, costs, the play family, the battle sub-flow, damage/life/Z-Energy/WIN | `vm`, `rulesets`, `text`, `deck-api` pass; `probe`'s fixture digest is skipped under `--engine rules` (needs every suite's cards; the legacy pass also writes the cross-engine parity file); everything else is `skipped` with `EngineMismatch` |
-| #152 (this doc's own build item) | the state-interface half of `harness.ts`, and the battle prompts' rejections, the board's choices and a counted prohibition's spending on `rules` | `battles`, `workflow` pass too, real assertions with named `skipped case`s for what Stage 7's keywords still own (plus `workflow.ts`'s one action-price case, #149) |
-| #158 | `keywords` ported onto the same state interface | `keywords` passes too, real assertions with named `skipped case`s — most of them Stage 7 keyword gaps, the rest real gaps this porting pass found and diagnosed on its own (`keywords.ts`'s own entry above names each) |
-| Stage 7 (`docs/arena-backlog/s7-*.md`) | keyword bodies over four hook groups | the `keywordGap` cases in `battles`/`workflow`/`keywords` close one by one; `readings`/`wordings` are the suites most of Stage 7's own remaining value lands in, and are candidates to port next |
-| Stage 8 | words from config, `primer`/`prompts`/`view` | `workflow.ts`'s `assertLabelOnLegacy` cases close; `contract` becomes portable |
-| #165 (done) | `verify-arena` on both engines folded into `npm test`; `arena:fuzz 200 --engine rules` clean | `npm test` runs both engines every time — `test:rules` remains as a standalone alias, no longer the only way to see the rules-engine run |
-| Stage 9, remainder (#164, #165's own `arena:reprobe` bullet, #163's own flip) | every saved game replays on `rules`, `arena:reprobe --engine rules` at 0 moved, the `arena.engine` default flips | the table above still applies suite by suite until every row reads "pass" |
-| #459 | the seven legacy-fixture suites on the generic harness; contract fixtures from the rules engine; `probe`'s digests checked on `rules` against the two fixed files; `--rules-only` | every suite but `vm` passes under `--rules-only` with no legacy call; what each could not assert is a named `rulesGap` |
-
-Making a suite actually pass on `rules` before its stage lands is out of
-scope for the tooling itself — `test:rules` (now folded into `npm test`, and
-still runnable alone) exists to say honestly which suites do and which do
-not, not to make them.
+`scripts/verify/harness.ts` exports the rules engine's vocabulary (`arenaG`, `playG`, `stagedG`,
+`zoneOf`, …); there is no `ENGINE`, no `--engine` and no `--rules-only` any more. `npm test` runs
+`verify-arena.ts` once. `vm.ts` no longer compares against a second engine: it asserts the rules
+engine's six calls, the opening board, and the fixed records under `scripts/verify/vm-*-459.*`.
 
 ### Two things that will bite you
 
@@ -376,13 +307,10 @@ has never been printed or parsed once.
 `contract/probe-digests.json`. These are the contract the planned Android client
 reads, and the probe digests are a regression corpus for card rules.
 
-It runs `verify-arena.ts --emit` twice since #459, once per engine, and each
-file is written by the pass it belongs to: the snapshot fixtures by the rules
-pass (`versus.json` included since #461), the two probe files by the legacy
-pass (it alone can still run both engines for the parity file;
-`probe-digests.json` is the legacy engine's golden record), and `state-text.txt`
-(which reads either engine's state since #460, #457) and the deck and language
-fixtures by both.
+It runs `verify-arena.ts --emit` once, on the rules engine, and writes every fixture: the snapshot
+fixtures (`versus.json` included), `probe-digests.json` (the rules engine's own record since #118;
+it was the legacy engine's golden record, and `probe-rules-parity.json` is gone), `state-text.txt`
+and the deck and language fixtures.
 
 Run it when you change a harness card, an `OP_SCHEMA` row, or what the referee
 is told. **Review the diff** — expect exactly the cards you touched. One digest
@@ -405,12 +333,11 @@ npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40
 
 Plays N random complete games and reports crashes. **40 is the standing gate**;
 use 200 for anything touching the movement, payment or flow machinery, and
-**200 on `--engine rules` is #165's own gate** (0 crashes, checked into the
+**200 is #165's own gate** (0 crashes, checked into the
 history archive). It proves only that nothing threw — it says nothing about
 correctness — but it is the cheapest possible check that the engine still
-runs to completion, and it has caught real breakage. Takes `--engine
-legacy|rules` (default `legacy`). On `rules` it plays whole games through
-that engine's own menu (`charge`, `play`/`playUnison`/`playZ`, `activate`,
+runs to completion, and it has caught real breakage. It plays whole games through
+the rules engine's own menu (`charge`, `play`/`playUnison`/`playZ`, `activate`,
 the native `attack`/`block`/`counter`/`combo`, `pass`, `endMain`, `concede`)
 and checks the same invariant after every move (every card in exactly one
 place, 3-1); a card whose skill needs a mechanism the rules engine does not
@@ -424,9 +351,8 @@ Replays a saved game's action log from its seed and compares with the stored
 row. This is the strongest correctness check available, because a game is
 reproducible from seed plus actions: if a replay diverges, behaviour changed.
 Use it for **any engine change**. It is not part of `npm test` because it needs
-a database and real saved games. Takes `--engine legacy|rules` to replay on an
-engine other than the one the game row was played on — the oracle check between
-the two engines (`npm run arena:diff -- <gameId> [--engine legacy|rules] | --all`).
+a database and real saved games (`npm run arena:diff -- <gameId> | --all`). A row a
+legacy engine wrote no longer exists (migration 0050) and is reported, not replayed.
 
 **Reading the `--all` report (#164).** A single `<gameId>` still prints one line, its own
 verdict. `--all` does not: dumping one line per game buried the signal in fifty lines that mostly
@@ -462,15 +388,10 @@ A probe builds a game around one card's rule, stages the board its moment needs,
 plays the move, and reports Input / Applied rule / Result / Assumptions with a
 digest over the conclusion. `arena:reprobe` re-runs every stored probe and lists
 the rules whose answer *moved* — the regression suite the rules never had.
-Both take `--engine legacy|rules` (default `legacy`), threaded into
-`src/lib/arena/probe.ts`'s own `engineFor` switch. Since #161 the staged board is built on either
-engine (the rules board from the loaded definition, through `engine-state.ts`'s zone seam), so a
-rules-engine probe plays the rule rather than refusing it. `probe()` never throws: a rule the
-rules engine cannot play yet comes back as outcome `error` (a `NotYet`) or as a different
-conclusion, and `arena:reprobe --engine rules` lists those as moved. The same comparison without a
-database is `contract/probe-rules-parity.json`, written by `verify/probe.ts` beside
-`probe-digests.json`: one row per harness card, both digests, and a named cause for each
-difference (`npx tsx scripts/verify-arena.ts --explain` prints them).
+Since #118 the board is always the rules engine's (built from the loaded definition, through
+`engine-state.ts`'s zone seam). `probe()` never throws: a rule the rules engine cannot play yet comes
+back as outcome `error` (a `NotYet`) or as a different conclusion, and `arena:reprobe` lists those as
+moved. Stored probe rows from before #118 may still say `engine: "legacy"`; re-run `arena:reprobe` (needs the database; the owner's) to refresh them.difference (`npx tsx scripts/verify-arena.ts --explain` prints them).
 
 **Try it and the owner's judgements (#470).** `scenariosFor` now ends with a met / not-met pair
 of boards for every condition a rule carries (`probe-edges.ts`: a count's n and n − 1, a life
@@ -495,20 +416,10 @@ knows how to set it up.
 ### `arena:playthrough`, `arena:coverage`, `arena:draft`, `arena:vs`
 
 `playthrough` plays a whole game through the database (integration, needs a DB)
-and, like `arena-fuzz.mts` and `arena-diff.mts`, takes `--engine legacy|rules`
-(default `legacy`) to choose which engine plays the game — through
-`startGame`, so since #149 `--engine rules` plays a **hot-seat** game rather
-than refusing outright; `arena:vs`'s default `sparring` tier still refuses
-(`assertEngineForMode`, `games.ts`) because Claude's side is not built for the
-rules engine yet — pass `hotseat` as its tier to run it there. Both scripts'
-own board-inspection helpers (`boardView`, the audits) still read the legacy
-`GameState` directly rather than through `engineFor`, narrowed with
-`legacyState` for exactly that reason — a rules-engine game past what
-`startGame` allows is a clear `EngineMismatch`, not a crash inside `boardView`.
-`coverage` reports how much card text the compiler reads; it accepts and
-validates `--engine` for consistency with the rest of the tooling, but it
-never creates a game, so the flag changes nothing about its output — the
-compiler it measures is the one either engine's rows come from (`draft.ts`).
+and plays through `startGame` on the rules engine; `arena:vs`'s `sparring` tier still refuses
+(`assertEngineForMode`, `games.ts`) because Claude's side is not built for the rules engine yet —
+pass `hotseat` as its tier. `coverage` reports how much card text the compiler reads; it never
+creates a game.
 `draft` compiles the catalog offline into `card_rules` drafts — **the only
 module that calls the compiler in production is `draft.ts`**; the engine
 reads rows.
@@ -747,7 +658,7 @@ exceeded. It needs Chrome, so it is not in `npm test`; its budget logic and the 
 limits: `docs/arena-worker-budgets.md`.
 
 Not covered: scenarios on real catalog cards (the fixture is synthetic; a real bundle comes from an
-admin replay export), the legacy engine (server-only; `browser.ts` refuses it by name) and any
+admin replay export), and any
 scenario needing the database. Run them on real data only when the owner asks.
 
 ---

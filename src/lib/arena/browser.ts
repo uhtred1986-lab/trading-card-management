@@ -7,43 +7,26 @@
  * worker.
  *
  * Boundary, checked by `scripts/verify/arena-browser-boundary.mts` over the
- * whole transitive value-import graph: no legacy engine (`./engine/*`, nor
- * `engines.ts`, whose switch imports it), no database, Drizzle, auth, AI,
+ * whole transitive value-import graph: no database, Drizzle, auth, AI,
  * cache, CardTrader or `@/app` module, no Node builtin or package, no
  * `process.env`. Nothing here performs I/O: the bundle and the interpreter
  * revision are handed in by the caller (a worker message, a CLI flag).
  *
- * Only the rules engine plays here. A legacy state is refused by name rather
- * than read: the legacy engine is server-only until it is retired.
+ * Only the rules engine plays here (it is the only engine, #118).
  */
 import type { Action, EngineContext, GameEvent, LegalAction, PlayerId } from "./types";
 import type { Engine, EngineState } from "./engines";
-import type { EngineId } from "./engine-ids";
 import type { CardArt } from "./view";
 import type { ArenaMode } from "./games";
 import { RULES } from "./vm";
-import { isVmState, type VmState } from "./vm/state";
+import type { VmState } from "./vm/state";
 import { appendBeats } from "./beats-core";
 import type { Beats } from "./beats";
-import { buildSnapshotWith, buildUnconcealedSnapshotForProof, type EngineResolver, type Snapshot } from "./snapshot-core";
+import { buildSnapshot, buildUnconcealedSnapshotForProof, type Snapshot } from "./snapshot-core";
 import { assertInterpreterRevision, pinnedContext, validateReplayBundle, type PinnedContext, type ReplayBundleRecord } from "./replay-core";
 
 /** The rules engine, typed as the switch's `Engine` (what `engines.ts` does for the server). */
 export const RULES_ENGINE: Engine = RULES;
-
-/** Raised when a portable caller asks for the legacy engine, which never ships to a browser. */
-export class LegacyEngineUnavailable extends Error {
-  constructor() {
-    super("the legacy engine is server-only; a browser-safe match plays on the rules engine");
-    this.name = "LegacyEngineUnavailable";
-  }
-}
-
-/** The snapshot core's engine seam, bound to the rules engine alone. */
-export const rulesOnly: EngineResolver = (id: EngineId) => {
-  if (id !== "rules") throw new LegacyEngineUnavailable();
-  return RULES_ENGINE;
-};
 
 /** A pinned rules-engine match: everything needed to continue it, and nothing server-side. */
 export interface PinnedMatch {
@@ -67,11 +50,6 @@ export interface CreatePinnedMatchInput {
   interpreterRevision: string | null;
 }
 
-function vmState(state: EngineState): VmState {
-  if (!isVmState(state)) throw new LegacyEngineUnavailable();
-  return state;
-}
-
 /** Validate the bundle's content hashes and provenance, and build its pinned context. */
 export async function openPinnedBundle(bundle: ReplayBundleRecord, interpreterRevision: string | null): Promise<PinnedContext> {
   if (!(await validateReplayBundle(bundle))) throw new Error("replay bundle failed content hash validation");
@@ -84,7 +62,7 @@ export async function openPinnedBundle(bundle: ReplayBundleRecord, interpreterRe
 export async function createPinnedMatch(input: CreatePinnedMatchInput): Promise<{ match: PinnedMatch; events: GameEvent[] }> {
   const ctx = await openPinnedBundle(input.bundle, input.interpreterRevision);
   const made = RULES_ENGINE.createGame(ctx, { seed: input.seed, ...input.bundle.decks });
-  const state = vmState(made.state);
+  const state = made.state;
   const match: PinnedMatch = {
     ctx,
     state,
@@ -106,7 +84,7 @@ export function legalMoves(match: PinnedMatch): LegalAction[] {
  */
 export function applyMove(match: PinnedMatch, action: Action): { match: PinnedMatch; events: GameEvent[] } {
   const next = RULES_ENGINE.apply(match.ctx, match.state, action);
-  const state = vmState(next.state);
+  const state = next.state;
   const beats = appendBeats(match.beats, RULES_ENGINE.toBeats(match.ctx, state, next.events, match.beats?.seq ?? 0));
   return { match: { ...match, state, beats }, events: next.events };
 }
@@ -121,11 +99,10 @@ export function applyMove(match: PinnedMatch, action: Action): { match: PinnedMa
  */
 export function projectSnapshot(match: PinnedMatch, viewer: PlayerId, options: { id?: number; revision?: number; mode?: ArenaMode; unconcealedForProof?: true } = {}): Snapshot {
   const over = match.state.phase === "over";
-  return (options.unconcealedForProof ? buildUnconcealedSnapshotForProof : buildSnapshotWith)(rulesOnly, {
+  return (options.unconcealedForProof ? buildUnconcealedSnapshotForProof : buildSnapshot)({
     id: options.id ?? 0,
     revision: options.revision ?? 0,
     mode: options.mode ?? "versus",
-    engine: "rules",
     game: match.state.game,
     status: over ? "over" : "playing",
     p1Name: match.names.p1,
@@ -152,8 +129,7 @@ export interface PinnedReplayResult {
 
 /**
  * Replay a pinned bundle's game on the engine the caller supplies. This is the
- * injectable seam: `offline-replay.ts` passes `engineFor(row.engine)` (either
- * engine, server/CLI), a browser passes `RULES_ENGINE`.
+ * injectable seam: `offline-replay.ts` and a browser both pass `RULES_ENGINE`.
  */
 export async function replayWith(engine: Engine, input: { bundle: ReplayBundleRecord; seed: number; actions: Action[]; interpreterRevision: string | null }): Promise<PinnedReplayResult> {
   const ctx: EngineContext = await openPinnedBundle(input.bundle, input.interpreterRevision);

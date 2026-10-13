@@ -15,7 +15,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
 import { cardDefFrom } from "../../src/lib/arena/load";
@@ -32,7 +32,7 @@ import { localMemory } from "../../src/lib/arena/policy/main";
 import { policyRng } from "../../src/lib/arena/policy/rng";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const game = loaded.definition;
@@ -145,8 +145,8 @@ async function main(): Promise<void> {
     assert.equal(zone(s, "p1", "hand").length, 0, "PLAYER730's draw has not happened yet: 21-11 interrupts the effect");
     assert.ok(!events.some((e) => e.type === "draw"), "no draw before the question");
     // Both viewer projections: the master is offered one answer per copy, the other seat none.
-    const v1 = buildSnapshot({ id: 730, revision: 1, mode: "versus", engine: "rules", status: "playing", p1Name: "Player 1", p2Name: "Player 2", ctx, state: s, legal: legal(s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p1", images: {} });
-    const v2 = buildSnapshot({ id: 730, revision: 1, mode: "versus", engine: "rules", status: "playing", p1Name: "Player 1", p2Name: "Player 2", ctx, state: s, legal: legal(s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p2", images: {} });
+    const v1 = buildSnapshot({ id: 730, revision: 1, mode: "versus", status: "playing", p1Name: "Player 1", p2Name: "Player 2", ctx, state: s, legal: legal(s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p1", images: {} });
+    const v2 = buildSnapshot({ id: 730, revision: 1, mode: "versus", status: "playing", p1Name: "Player 1", p2Name: "Player 2", ctx, state: s, legal: legal(s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p2", images: {} });
     assert.equal(v1.view.prompt?.kind, "chooseCards");
     assert.equal(v1.waiting, "you", "p1's view: p1 is being asked");
     assert.equal(v2.waiting, "opponent", "p2's view: waiting on the opponent");

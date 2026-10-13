@@ -1,7 +1,7 @@
 /** Independent #609 gap proof on the rules VM. All card text below is synthetic. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
@@ -12,7 +12,7 @@ import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/typ
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Op } from "../../src/lib/arena/vm/script";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
@@ -240,7 +240,7 @@ for (const warp of [true, false]) {
   const answers = legal.map((a) => a.action).filter((a) => a.type === "chooseMode");
   assert.ok(answers.length === 2 && answers.every((a) => a.player === "p1"), "only the affected player answers the 8-5-8 question");
   for (const viewer of ["p1", "p2"] as const) {
-    const shown = JSON.stringify(buildSnapshot({ id: 609, engine: "rules", mode: "versus", status: "playing", p1Name: "Turn", p2Name: "Other", ctx,
+    const shown = JSON.stringify(buildSnapshot({ id: 609, mode: "versus", status: "playing", p1Name: "Turn", p2Name: "Other", ctx,
       state: reload(offered.state), legal, log: [], beats: null, spotlight: null,
       spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} }));
     assert.ok(!shown.includes("awaitingDeparture") && !shown.includes("preDropTriggeredSubjects") && !shown.includes("subjectInfo")

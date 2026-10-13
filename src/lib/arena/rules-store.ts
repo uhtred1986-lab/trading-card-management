@@ -836,13 +836,11 @@ export interface StoredProbe {
   /** ISO day, so the record can say when the answer was taken. */
   at: string;
   /**
-   * Which engine this probe was run on (#161: "one digest per engine, or the
-   * digest records the engine" — the latter, since a rule keeps one probe at
-   * a time). `npm run arena:reprobe` re-probes on this same engine unless
-   * told otherwise, so a legacy-probed rule is not silently compared against
-   * a rules-engine run of a different board.
+   * Which engine this probe was run on. Always `rules` since #118; a probe
+   * stored before that may say `legacy`, and `npm run arena:reprobe` (the
+   * owner runs it) re-answers it on the rules engine.
    */
-  engine: EngineId;
+  engine: EngineId | "legacy";
 }
 
 export async function setProbe(db: Db, id: number, probe: StoredProbe): Promise<void> {

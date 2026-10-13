@@ -1,7 +1,7 @@
 /** Staged public fixtures; windows, legal actions, costs and snapshots come from EngineAPI. */
 import { CTX, DEFS, card, rulesFromCompiler } from './harness';
 import { makeSenzuFixture } from './ability-engine-fixture-561';
-import { engineFor } from '../../src/lib/arena/engines';
+import { RULES } from '../../src/lib/arena/vm';
 import { buildSnapshot } from '../../src/lib/arena/snapshot';
 import type { Action, PlayerId } from '../../src/lib/arena/types';
 import type { VmState } from '../../src/lib/arena/vm/state';
@@ -47,11 +47,11 @@ export function battleFixture(kind:'tie'|'double'|'critical'|'lethal'|'victory'=
  return {state,card:made.card,energy:made.energy};
 }
 export function fixtureContext(){return {...CTX,defs:DEFS,scripts:rulesFromCompiler(DEFS)};}
-export const engine562=engineFor('rules');
+export const engine562=RULES;
 export function apply562(state:VmState,action:Action){return engine562.apply(fixtureContext(),state,action);}
 export function snapshot562(state:VmState,revision=1,viewer:PlayerId='p1',id=562) {
  assertFixtureAreas(state);
- const ctx=fixtureContext();return buildSnapshot({id,revision,engine:'rules',mode:'versus',status:'playing',p1Name:'You',p2Name:'Opponent',ctx,state,legal:engine562.legalActions(ctx,state),log:[],beats:null,spotlight:null,spend:{calls:0,input:0,output:0,cached:0,micros:0},ai:null,viewer,images:{'BT11-053':{front:'http://arena-561-art.local/BT11-053.jpg',back:null},'BT1-055':{front:'http://arena-561-art.local/BT1-055.webp',back:null}}});
+ const ctx=fixtureContext();return buildSnapshot({id,revision,mode:'versus',status:'playing',p1Name:'You',p2Name:'Opponent',ctx,state,legal:engine562.legalActions(ctx,state),log:[],beats:null,spotlight:null,spend:{calls:0,input:0,output:0,cached:0,micros:0},ai:null,viewer,images:{'BT11-053':{front:'http://arena-561-art.local/BT11-053.jpg',back:null},'BT1-055':{front:'http://arena-561-art.local/BT1-055.webp',back:null}}});
 }
 export function paymentFixture(){
  const {state}=battleFixture();const loaded=rulesetFor('dbs');if(!loaded.ok)throw Error('DBS unavailable');

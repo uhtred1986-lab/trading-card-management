@@ -11,14 +11,13 @@ import assert from "node:assert/strict";
 import { db } from "../src/db";
 import { arenaGames, decks } from "../src/db/schema";
 import { eq } from "drizzle-orm";
-import { legalActions, rejectedActions } from "../src/lib/arena/engine";
+import { RULES } from "../src/lib/arena/vm";
 import { nextRandom } from "../src/lib/arena/vm/rng";
 import { type Action, type LegalAction } from "../src/lib/arena/types";
 import { BEAT_CAP, type Beat, type Beats } from "../src/lib/arena/beats";
-import { isEngineId, legacyState } from "../src/lib/arena/engines";
 import { applyToGame, loadGame, startGame } from "../src/lib/arena/games";
 import { deckInputFor } from "../src/lib/arena/load";
-import { boardView, tappable, viewerOf, type BoardView } from "../src/lib/arena/view";
+import { tappable, viewerOf, type BoardView } from "../src/lib/arena/view";
 import { waitingFor } from "../src/lib/arena/snapshot";
 
 /**
@@ -141,12 +140,12 @@ function cardKeyOf(a: Action): string {
  * counted — a growing number of them means the vocabulary is missing a kind.
  * The real card pool is the only place the long tail of `activatable` runs.
  */
-function auditRejections(game: { ctx: Parameters<typeof rejectedActions>[0]; state: Parameters<typeof rejectedActions>[1]; legal: LegalAction[] }, move: number): void {
+function auditRejections(game: { ctx: Parameters<typeof RULES.rejectedActions>[0]; state: Parameters<typeof RULES.rejectedActions>[1]; legal: LegalAction[] }, move: number): void {
   // What the menu costs against what the rejections cost, on the same state.
   const t0 = performance.now();
-  legalActions(game.ctx, game.state);
+  RULES.legalActions(game.ctx, game.state);
   const t1 = performance.now();
-  const rejected = rejectedActions(game.ctx, game.state, game.legal);
+  const rejected = RULES.rejectedActions(game.ctx, game.state, game.legal);
   rejections.ms += performance.now() - t1;
   rejections.legalMs += t1 - t0;
   rejections.prompts++;
@@ -209,15 +208,7 @@ function auditBeats(before: Beats | null, after: Beats | null, move: number): vo
 }
 
 const argv = process.argv.slice(2);
-const engineArg = argv.indexOf("--engine");
-const engine = engineArg >= 0 ? argv[engineArg + 1] : undefined;
-if (engine !== undefined && !isEngineId(engine)) throw new Error(`--engine must be one of legacy, rules; got ${engine}`);
-// Same guard as the fuzzer: with no `--engine`, `engineArg + 1` is 0 and the
-// first deck id would be dropped.
-const wanted = argv
-  .filter((a, i) => engineArg < 0 || (i !== engineArg && i !== engineArg + 1))
-  .map(Number)
-  .filter(Number.isInteger);
+const wanted = argv.map(Number).filter(Number.isInteger);
 
 const all = await db.select({ id: decks.id, name: decks.name }).from(decks);
 const usable: number[] = [];
@@ -228,7 +219,7 @@ for (const d of all) {
 const [a, b] = wanted.length === 2 ? wanted : [usable[0], usable[1] ?? usable[0]];
 if (!a || !b) throw new Error("need two playable decks");
 
-const id = await startGame(db, a, b, "hotseat", true, undefined, engine ?? "legacy");
+const id = await startGame(db, a, b, "hotseat", true, undefined);
 console.log(`game ${id}: deck ${a} vs deck ${b}`);
 
 let rng = 20260904;
@@ -242,14 +233,9 @@ let steps = 0;
 for (;;) {
   const game = await loadGame(db, id);
   if (!game) throw new Error("the game vanished");
-  // This script's own audits (`auditBattle` and friends, below) read the
-  // legacy `BoardView`/`GameState` shape directly rather than through
-  // `engineFor`'s generic switch — narrowed here rather than left to a
-  // confusing crash inside `boardView` the first time `--engine rules` plays
-  // a game past what `startGame` refuses at (#149, hot-seat only).
-  const state = legacyState(game.state);
+  const state = game.state;
   // The board must build on every state, or a page would crash mid-game.
-  const view = boardView(game.ctx, state, viewerOf(state), {});
+  const view = RULES.boardView(game.ctx, state, viewerOf(state), {});
   const taps = tappable(game.legal);
   auditBattle(view, steps + 1);
   auditWhoseMove(game, steps + 1);

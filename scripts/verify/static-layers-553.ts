@@ -1,7 +1,7 @@
 /** Fixed rules-engine assertions for #553's continuous identity and keyword layers. */
 import assert from "node:assert/strict";
 import type { CardDef, EngineContext, GameEvent, GameOptions, KeywordSkill } from "../../src/lib/arena/types";
-import { playableEngine } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { attrsNow, hasKeyword, keywordsInForce, staticsNow } from "../../src/lib/arena/vm/program";
 import { addEffect, endEffects } from "../../src/lib/arena/vm/effects";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -15,7 +15,7 @@ import { CTX } from "./harness";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const rules = playableEngine("rules");
+const rules = RULES;
 const dbs = rulesetFor("dbs");
 if (!dbs.ok) throw new Error(`could not load DBS rules for #553: ${JSON.stringify(dbs.errors)}`);
 const DBS = dbs.definition;

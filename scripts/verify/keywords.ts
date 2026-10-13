@@ -9,7 +9,6 @@ import { validateProgram } from "../../src/lib/arena/vm/script";
 import {
   CTX,
   DEFS,
-  ENGINE,
   IMPL,
   actsG,
   arenaG,
@@ -30,7 +29,6 @@ import {
   parseConditionClause,
   parseSkills,
   placeUnderG,
-  planPayment,
   playG,
   powerOfG,
   priceOf,
@@ -43,7 +41,7 @@ import {
   unisonOf,
   zoneOf,
 } from "./harness";
-import { legacyState, type EngineState } from "../../src/lib/arena/engines";
+import type { EngineState } from "../../src/lib/arena/engines";
 import { compileCard } from "../../src/lib/arena/compile";
 import { triggersOf } from "../../src/lib/arena/gaps";
 import { parseFilter } from "../../src/lib/arena/text/filters";
@@ -153,14 +151,12 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   const absorbWithWatcher = actsG(s).find((a) => a.type === "activate" && a.card === zoneOf(s, "p1", "battle")[0] && !a.alt);
   assert.ok(absorbWithWatcher, "the [Union-Absorb] activation is still offered with a [Union] watcher in play");
   s = playG(s, absorbWithWatcher);
-  if (ENGINE === "rules") {
-    assert.equal(s.prompt.kind, "orderPending", "the two [Union] timing Autos await their master's order");
-    const source = zoneOf(s, "p1", "battle")[0];
-    const index = s.prompt.kind === "orderPending" ? s.prompt.candidates.find((candidate) => s.pending[candidate]?.card === source) : undefined;
-    assert.notEqual(index, undefined, "the activating [Union-Absorb] has its own pending choice");
-    assert.ok(actsG(s).some((action) => action.type === "orderPending" && action.index === index));
-    s = playG(s, { type: "orderPending", player: "p1", index: index! });
-  }
+  assert.equal(s.prompt.kind, "orderPending", "the two [Union] timing Autos await their master's order");
+  const source = zoneOf(s, "p1", "battle")[0];
+  const index = s.prompt.kind === "orderPending" ? s.prompt.candidates.find((candidate) => s.pending[candidate]?.card === source) : undefined;
+  assert.notEqual(index, undefined, "the activating [Union-Absorb] has its own pending choice");
+  assert.ok(actsG(s).some((action) => action.type === "orderPending" && action.index === index));
+  s = playG(s, { type: "orderPending", player: "p1", index: index! });
   assert.equal(zoneOf(s, "p1", "hand").length, handBeforeUnionWatch + 3, "[Union-Absorb] activation also fires [Union] timing [Auto]s");
   assertConsistentG(s);
   delete DEFS.EVOTRIG;
@@ -592,7 +588,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     assert.deepEqual(rejectedActionsG(g).find((x) => x.action.type === "activate" && x.action.card === w)?.why[0], { kind: "oncePerTurn", what: "Over Realm" });
     assertConsistentG(g);
   }
-  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  // Not probe fixtures: `contract/probe-digests.json` is not to grow rows for them.
   for (const id of ["ORX", "ORWATCH", "ORHOLE", "ORDARK", "ORBLACK", "ORSELF", "ORTURN", "P048T", "ORWARP"]) delete DEFS[id];
 }
 
@@ -657,7 +653,6 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   assert.equal(invokerCounter.cost?.energy, 1, "the [Invoker] counter metadata says it rests 1 energy");
   // The legacy engine's own wording for the price; the rules engine's is its
   // generic price sentence (Stage 8's, as every exact label is).
-  if (ENGINE === "legacy") assert.equal(invokerCounter.cost?.describe, "[Invoker]");
   delete DEFS.CINVK;
   delete DEFS.INVK;
   delete DEFS.RB;
@@ -749,15 +744,13 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   s = playG(s, { type: "playUnison", player: "p1", card: findG(s, "p1", "hand", "UWATCH"), x: 3 });
   const hand = zoneOf(s, "p1", "hand").length;
   s = playG(s, { type: "activate", player: "p1", card: zoneOf(s, "p1", "battle")[0], skill: 0 });
-  if (ENGINE === "rules") {
-    assert.equal(s.prompt.kind, "orderPending", "both Spirit Boost payment watchers await their master's choice");
-    const unison = unisonOf(s, "p1")!;
-    const index = s.prompt.candidates.find((i) => s.pending[i]?.card === unison);
-    assert.notEqual(index, undefined, "Unison payment watcher is one offered Auto");
-    const choice = { type: "orderPending" as const, player: "p1" as const, index: index! };
-    assert.ok(actsG(s).some((a) => a.type === choice.type && a.index === choice.index));
-    s = playG(s, choice);
-  }
+  assert.equal(s.prompt.kind, "orderPending", "both Spirit Boost payment watchers await their master's choice");
+  const unison = unisonOf(s, "p1")!;
+  const index = s.prompt.candidates.find((i) => s.pending[i]?.card === unison);
+  assert.notEqual(index, undefined, "Unison payment watcher is one offered Auto");
+  const choice = { type: "orderPending" as const, player: "p1" as const, index: index! };
+  assert.ok(actsG(s).some((a) => a.type === choice.type && a.index === choice.index));
+  s = playG(s, choice);
   // The skill itself draws one, the Unison's own [Auto] one, the watcher one.
   assert.equal(zoneOf(s, "p1", "hand").length, hand + 3, "22-43-3: both ends of the payment fire");
   assertConsistentG(s);
@@ -796,7 +789,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   assert.equal(zoneOf(t, "p1", "hand").length, mine - 1 + 1, "the watcher of your skill draws");
   assert.equal(zoneOf(t, "p2", "hand").length, oppHand, "the rested card's own 'by one of your skills' does not fire: the skill is not its master's");
   assertConsistentG(t);
-  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  // Not probe fixtures: `contract/probe-digests.json` is not to grow rows for them.
   delete DEFS.THEIRWATCH;
   delete DEFS.THEIRRESTER;
 }
@@ -889,7 +882,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     assert.equal(g.cards[unisonOf(g, "p1")!].markers, asked ? 2 : 1);
     assertConsistentG(g);
   }
-  // Not probe fixtures: `contract/probe-digests.json` stays the legacy record.
+  // Not probe fixtures: `contract/probe-digests.json` is not to grow rows for them.
   delete DEFS.EMPANY;
   delete DEFS.EMPBLUE;
 }
@@ -949,7 +942,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   // `playUnison` (`actions.rules`), with the same reason (#439: the skip
   // this replaced looked for "play" only, and so found nothing there).
   {
-    const unisonMove = ENGINE === "legacy" ? "play" : "playUnison";
+    const unisonMove = "playUnison";
     const refused = rejectedActionsG(s).find((r) => r.action.type === unisonMove && r.action.card === cold);
     assert.ok(refused, "and the move is refused rather than silently absent");
     const colour = refused.why.find((r) => r.kind === "energyColour");
@@ -1062,7 +1055,6 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   // `vm/costs.ts`'s own planner carries the same guard (`verify/vm.ts` §17
   // asserts it board for board against this one), so this direct call stays
   // on the engine it names rather than gaining a `G` twin for one assertion.
-  if (ENGINE === "legacy") assert.equal(planPayment(CTX, legacyState(s), "p1", 1, { Blue: 2 }), null, "a price demanding more orbs than it charges is unpayable, not cheap");
 }
 
 {
@@ -1121,21 +1113,12 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     "22-30-4: the Defense Step of the opponent's turn",
   );
   s = playG(s, { type: "activate", player: "p1", card: aeg, skill: 0 });
-  assert.equal(s.cards[e3].mode, ENGINE === "rules" ? "active" : "rest", ENGINE === "rules" ? "22-30-3: the additional {r} waits for the hand cost" : "the {r} was paid");
+  assert.equal(s.cards[e3].mode, "active", "22-30-3: the additional {r} waits for the hand cost");
   const v1 = findG(s, "p1", "hand", "V1");
   const vb = findG(s, "p1", "hand", "V-BLUE");
-  if (ENGINE === "rules") {
-    s = playG(s, { type: "choose", player: "p1", cards: [v1] });
-    assert.ok(zoneOf(s, "p1", "drop").includes(v1) && zoneOf(s, "p1", "drop").includes(vb), "the sole forced Blue completes the required cost");
-    assert.equal(s.cards[e3].mode, "rest", "22-30-3: the additional {r} is paid after both hand cards");
-  } else {
-    assert.equal(s.prompt.kind, "chooseCards");
-    s = playG(s, { type: "choose", player: "p1", cards: [v1] });
-    assert.equal(s.prompt.kind, "chooseCards", "one colour down, one to go");
-    const rest = (s.prompt as { choice: { candidates: string[] } }).choice.candidates;
-    assert.ok(rest.includes(vb) && !rest.includes(v1), "the picked card is off the menu");
-    s = playG(s, { type: "choose", player: "p1", cards: [vb] });
-  }
+  s = playG(s, { type: "choose", player: "p1", cards: [v1] });
+  assert.ok(zoneOf(s, "p1", "drop").includes(v1) && zoneOf(s, "p1", "drop").includes(vb), "the sole forced Blue completes the required cost");
+  assert.equal(s.cards[e3].mode, "rest", "22-30-3: the additional {r} is paid after both hand cards");
   assert.ok(zoneOf(s, "p1", "drop").includes(v1) && zoneOf(s, "p1", "drop").includes(vb), "22-30-3: both dropped as the cost");
   assert.equal(s.prompt.kind, "chooseCards", "22-30-5: which energy to stand");
   s = playG(s, { type: "choose", player: "p1", cards: [e1] }, { type: "choose", player: "p1", cards: [e2] });
@@ -1267,7 +1250,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   const leader = leaderOf(s, "p1")!;
   const zl = findG(s, "p1", "zDeck", "ZL");
   const spent = zoneOf(s, "p1", "zEnergy")[0];
-  if (ENGINE === "rules") assert.ok(canActivateG(s, zl), "awakened, matching, with the Z-Energy and the orb");
+  assert.ok(canActivateG(s, zl), "awakened, matching, with the Z-Energy and the orb");
   s = playG(s, { type: "activate", player: "p1", card: zl, skill: 0 });
   assert.equal(leaderOf(s, "p1"), zl, "22-46-6: the Z-Leader is the Leader");
   assert.deepEqual(s.cards[zl].under, [leader], "with the old Leader under it");
@@ -1688,7 +1671,6 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   const l = labelsG(s);
   assert.ok(!l.includes("Activate E-RB (2)"), "one energy cannot pay 2");
   assert.ok(altOffered(s, e), "22-37: [Invoker] in play and a Red/Blue energy active");
-  if (ENGINE === "legacy") assert.ok(l.some((x) => x.startsWith("Activate E-RB by resting a Red/Blue energy")), "in the legacy engine's own words");
   const hand = zoneOf(s, "p1", "hand").length;
   s = playG(s, { type: "activate", player: "p1", card: e, skill: 0, alt: true });
   assert.equal(s.cards[zoneOf(s, "p1", "energy")[0]].mode, "rest", "the Red/Blue energy was rested");
@@ -1911,7 +1893,6 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MUTER") });
   if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [blocker] });
   assert.ok(!hasG(s, blocker, "Blocker"), "negated for the turn");
-  if (ENGINE === "legacy") assert.deepEqual(legacyState(s).cards[blocker].negated, [], "but not marked for the game");
   s = playG(s, { type: "attack", player: "p1", attacker: leaderOf(s, "p1"), target: leaderOf(s, "p2") });
   assert.equal(s.prompt.kind, "combo", "no [Blocker] to offer");
   s = playG(s, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
@@ -1933,7 +1914,6 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   t = playG(t, { type: "attack", player: "p1", attacker: sm, target: leaderOf(t, "p2") }, { type: "pass", player: "p1" }, { type: "pass", player: "p2" });
   assert.equal(zoneOf(t, "p1", "hand").length, hand + 1);
   assert.ok(skillNegatedG(t, sm, 0), "off for the rest of the turn");
-  if (ENGINE === "legacy") assert.deepEqual(legacyState(t).cards[sm].negated, []);
   t = playG(t, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
   assert.ok(!skillNegatedG(t, sm, 0), "and back next turn");
 }
@@ -2269,7 +2249,6 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     s = playG(s, { type: "activate", player: "p1", card: grave, skill: 0 });
     if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [dropped] });
     assert.ok(zoneOf(s, "p1", "combo").includes(dropped), "5-7: in the Combo Area");
-    if (ENGINE === "legacy") assert.equal(legacyState(s).cards[dropped].negated, "all", "with its skills negated");
     assert.equal(s.prompt.kind, "combo");
     assertConsistentG(s);
   }
@@ -2485,17 +2464,9 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   const handBefore = zoneOf(s, "p1", "hand").length;
   const attacked = IMPL.apply(CTX, s, { type: "attack", player: "p1", attacker: cat, target: leaderOf(s, "p2") });
   s = attacked.state;
-  // When it resolves is the engines' own ordering, not the copy's: the legacy
-  // engine asks the [Blocker] question before the checkpoint, so the [Auto]
-  // is still pending there; the rules engine runs the checkpoint after the
-  // declaration step (`vm/flow.ts`), so it has already resolved.
-  if (ENGINE === "legacy")
-    assert.deepEqual(
-      s.pending.map((p) => [p.card, p.trigger]),
-      [[cat, "attacks"]],
-      "the copied [Auto] pended on the target's own attack, under the target's own id",
-    );
-  else assert.ok(attacked.events.some((e) => e.type === "skill" && e.card === cat), "the copied [Auto] answered the target's own attack, under the target's own id");
+  // When it resolves is the engine's own ordering, not the copy's: it runs the
+  // checkpoint after the declaration step (`vm/flow.ts`), so it has already resolved.
+  assert.ok(attacked.events.some((e) => e.type === "skill" && e.card === cat), "the copied [Auto] answered the target's own attack, under the target's own id");
   // The defence answers first (8-3); the pended [Auto] resolves after it.
   s = playG(s, { type: "block", player: "p2", card: null });
   assert.equal(zoneOf(s, "p1", "hand").length, handBefore + 1, "…and drew the card the copied [Auto] says to draw");
@@ -2758,7 +2729,6 @@ function opponentSkill(s: EngineState, killer: string, target: string): EngineSt
   const taker = findG(s, "p1", "battle", "TAKER");
   const theirs = findG(s, "p2", "battle", "LOANED");
   s.cards[theirs].markers = 2;
-  const entered = ENGINE === "legacy" ? legacyState(s).cards[theirs].enteredTurn : undefined;
 
   s = playG(s, { type: "activate", player: "p1", card: taker, skill: 0 });
   assert.equal(s.prompt.kind, "chooseCards");
@@ -2769,7 +2739,6 @@ function opponentSkill(s: EngineState, killer: string, target: string): EngineSt
   assert.equal(masterOfG(s, theirs), "p1", "0-3-4-1: and you are its master");
   assert.equal(s.cards[theirs].owner, "p2", "0-3-3-1: its owner is not something a skill can change");
   assert.equal(s.cards[theirs].markers, 2, "20-9-2: it keeps its markers");
-  if (ENGINE === "legacy") assert.equal(legacyState(s).cards[theirs].enteredTurn, entered, "changing hands is not being played again");
   assert.equal(
     s.effects.filter((e) => e.kind === "control").length,
     1,
@@ -2864,9 +2833,9 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   } as typeof CTX;
 }
 
-/** 20-13's skip list, on either engine: the legacy `PlayerState.skips`, or the rules engine's `VmSide.skips` (#439). */
+/** 20-13's skip list: the rules engine's `VmSide.skips` (#439). */
 function skipsOf(s: EngineState, p: PlayerId): string[] {
-  const list = "sides" in s ? s.sides[p].skips : s.players[p].skips;
+  const list = s.sides[p].skips;
   return (list ?? []).map((e) => `${e.what}:${e.when}`);
 }
 
@@ -3131,7 +3100,6 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   const skillCard = findG(s, "p1", "battle", "ORBSKILL");
   const payer = findG(s, "p1", "battle", "PAYER");
   assert.ok(canActivateG(s, skillCard), "the Battle Card standing in for energy makes the skill payable");
-  if (ENGINE === "legacy") assert.deepEqual(planPayment(CTX, legacyState(s), "p1", 1, {}), { rest: [payer], markers: 0 }, "the plan rests the payer and nothing else");
   const before = powerOfG(s, skillCard);
   s = playG(s, { type: "activate", player: "p1", card: skillCard, skill: 0 });
   assert.equal(s.cards[payer].mode, "rest", "the payer is switched to Rest Mode, exactly as energy is");
@@ -3146,7 +3114,6 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   let withEnergy = arenaG({ battle: ["ORBSKILL", "PAYER"], energy: ["V1"] });
   const payer2 = findG(withEnergy, "p1", "battle", "PAYER");
   const energyCard = findG(withEnergy, "p1", "energy", "V1");
-  if (ENGINE === "legacy") assert.deepEqual(planPayment(CTX, legacyState(withEnergy), "p1", 1, {}), { rest: [energyCard], markers: 0 }, "energy is tried before a card that may stand in for it");
   withEnergy = playG(withEnergy, { type: "activate", player: "p1", card: findG(withEnergy, "p1", "battle", "ORBSKILL"), skill: 0 });
   // 3-8-2 on the rules engine: a price with two genuinely different answers is
   // asked about before it is taken (`vm/actions.ts`), an activation's included,

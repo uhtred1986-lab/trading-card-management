@@ -1,14 +1,14 @@
 /** 22-35: [Heroic] has one real negated-skill use per owner per turn. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { Action, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "DBS rules failed to load");
 const dbs = loaded.definition;

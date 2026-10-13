@@ -28,7 +28,7 @@ import path from "node:path";
 import { defsFrom } from "../../src/lib/arena/vm/common";
 import { seedFrom } from "../../src/lib/arena/vm/rng";
 import { type Action, type CardDef, type EngineContext, type PlayerId } from "../../src/lib/arena/types";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { zoneOf, type ZoneArea } from "../../src/lib/arena/engine-state";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { chooseMove } from "../../src/lib/arena/ai/opponent";
@@ -71,7 +71,7 @@ const DEFS = defsFrom([
 ]);
 const CTX: EngineContext = { defs: DEFS, scripts: {} };
 const fifty = (id: string) => Array.from({ length: 50 }, () => id);
-const rules = engineFor("rules");
+const rules = RULES;
 const fakeDb = {} as Parameters<typeof chooseMove>[0];
 const FIXTURE_DIR = path.join(__dirname, "fixtures", "ai-vm");
 const readFixture = (name: string): string => readFileSync(path.join(FIXTURE_DIR, name), "utf8").replace(/\r\n/g, "\n").replace(/\n$/, "");

@@ -1,7 +1,7 @@
 /** Independent manual 22-34-3 / 5-8-4 expectations; synthetic rules, no catalog claim. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect, skillNegated } from "../../src/lib/arena/vm/effects";
@@ -17,7 +17,7 @@ import type { Action, EngineContext, GameEvent, PlayerId } from "../../src/lib/a
 import type { ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const engine = engineFor("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 const defs = { ...DEFS,
@@ -115,7 +115,7 @@ function noActivation(s: VmState, ev: GameEvent[], rev: string): void {
 }
 function privacy(s: VmState): void {
   for (const viewer of ["p1", "p2"] as const) {
-    const snap = buildSnapshot({ id: 624, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: s, legal: engine.legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+    const snap = buildSnapshot({ id: 624, mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: s, legal: engine.legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
     assert.equal(snap.view.them.hand, null);
     const wire = JSON.stringify(snap);
     assert.ok(!wire.includes("PRIVATE_624_FRAME_BINDING"));

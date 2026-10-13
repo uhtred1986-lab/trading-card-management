@@ -1,11 +1,9 @@
 /** #680: BT31-116's optional, cost-waived hand Extra skill activation. */
 import assert from "node:assert/strict";
 import { compileCostProgram, compileSkill } from "../../src/lib/arena/compile";
-import { move as legacyMove, playCost as legacyPlayCost } from "../../src/lib/arena/engine/state";
-import { pendTriggers } from "../../src/lib/arena/engine/triggers";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { whiteCellPlayedSubjectFilter } from "../../src/lib/arena/text/triggers";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { attrsNow } from "../../src/lib/arena/vm/program";
@@ -13,9 +11,8 @@ import { pendAutos } from "../../src/lib/arena/vm/triggers";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import type { VmState } from "../../src/lib/arena/vm/state";
-import type { Action, GameEvent, GameState, PlayerId } from "../../src/lib/arena/types";
+import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { RULES_ONLY } from "./rules-only";
 
 const AUTO = "[Auto] Switch 1 of your energy to Hidden Mode: When your <Cell> or <Cell Jr.> card—both white and with an energy cost of 3 or more—is played, activate an [Activate: Main/Battle] skill of up to 1 mono-white Extra with an energy cost of 2 in your hand.";
 const EXTRA = "[Activate: Main/Battle] {r}{1}: Draw 1 card.";
@@ -54,7 +51,7 @@ const defs = { ...DEFS,
   "C680-GENERIC": card("C680-GENERIC", { colors: ["White"], energyCost: 0, skill: null }),
 };
 const ctx = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
@@ -96,7 +93,7 @@ function take(state: VmState, action: Action): { state: VmState; events: GameEve
 const reload = (state: VmState): VmState => JSON.parse(JSON.stringify(state)) as VmState;
 const draws = (events: GameEvent[]) => events.filter((event) => event.type === "draw").length;
 function snapshot(state: VmState, viewer: PlayerId) {
-  return buildSnapshot({ id: 680, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state, legal: rules.legalActions(ctx, state), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+  return buildSnapshot({ id: 680, mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state, legal: rules.legalActions(ctx, state), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }
 function prepared(extraIds: (keyof typeof defs)[] = ["C680-EXTRA"], playedId: keyof typeof defs = "C680-CELL"): { state: VmState; cell: string; energy: string[]; extras: string[] } {
   const state = main();
@@ -348,83 +345,4 @@ for (const wrong of ["C680-RED", "C680-MULTI", "C680-ONE", "C680-MAIN", "C680-CO
   assert.ok(lineChosen.state.sides.p1.zones.hand.includes(first));
 }
 
-function legacyReady(): { legacy: ReturnType<typeof engineFor>; state: GameState; stageLegacy: (id: keyof typeof defs, area: "hand" | "energy" | "battle") => string } {
-  const legacy = engineFor("legacy");
-  let state = legacy.createGame(ctx, { seed: 681, p1: { name: "You", leader: "C680-LEADER", main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as GameState;
-  state = legacy.apply(ctx, state, { type: "chooseFirst", player: (state.prompt as { player: PlayerId }).player, first: "p1" }).state as GameState;
-  for (const player of ["p1", "p2"] as const) state = legacy.apply(ctx, state, { type: "mulligan", player, redraw: false }).state as GameState;
-  state = legacy.apply(ctx, state, { type: "charge", player: "p1", card: null }).state as GameState;
-  state = legacy.apply(ctx, state, { type: "endMain", player: "p1" }).state as GameState;
-  state = legacy.apply(ctx, state, { type: "charge", player: "p2", card: null }).state as GameState;
-  state = legacy.apply(ctx, state, { type: "endMain", player: "p2" }).state as GameState;
-  state = legacy.apply(ctx, state, { type: "charge", player: "p1", card: null }).state as GameState;
-  assert.equal(state.prompt.kind, "main");
-  const stageLegacy = (id: keyof typeof defs, area: "hand" | "energy" | "battle") => {
-    const physical = state.players.p1.deck[0];
-    assert.ok(physical);
-    state.cards[physical].cardId = id;
-    legacyMove(ctx, state, [], physical, area, "p1");
-    return physical;
-  };
-  return { legacy, state, stageLegacy };
-}
-if (!RULES_ONLY) {
-for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
-  const { legacy, state, stageLegacy } = legacyReady();
-  Array.from({ length: 4 }, () => stageLegacy(wrong === "C680-REDCELL" ? "C680-REDENERGY" : "C680-ENERGY", "energy"));
-  const cell = stageLegacy(wrong, "hand");
-  const played = legacy.apply(ctx, state, { type: "play", player: "p1", card: cell });
-  assert.equal(played.state.prompt.kind, "main", `legacy: ${wrong} does not qualify at the play moment`);
-  assert.equal(played.state.pending.length, 0);
-}
-{
-  const { legacy, state, stageLegacy } = legacyReady();
-  const leader = state.players.p1.leader;
-  pendTriggers(ctx, state, "youPlayed", leader);
-  assert.equal(state.pending.length, 0, "legacy: a missing play subject is not qualified");
-  Array.from({ length: 4 }, () => stageLegacy("C680-ENERGY", "energy"));
-  const cell = stageLegacy("C680-CELL", "hand");
-  state.effects.push({ id: 6802, target: cell, kind: "cost", value: 1, until: "turn",
-    source: leader, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
-  assert.equal(legacyPlayCost(ctx, state, cell).total, 2);
-  const played = legacy.apply(ctx, state, { type: "play", player: "p1", card: cell });
-  assert.equal(played.state.prompt.kind, "main", "legacy: current cost 2 fails the at-least-3 trigger");
-  assert.equal(played.state.pending.length, 0);
-}
-{
-  const { legacy, state, stageLegacy } = legacyReady();
-  const cell = stageLegacy("C680-FREECELL", "hand");
-  assert.equal(legacyPlayCost(ctx, state, cell).total, 3);
-  const played = legacy.apply(ctx, state, { type: "play", player: "p1", card: cell, alt: true });
-  assert.equal(played.state.prompt.kind, "main", "legacy: its payment gap still omits the Auto price");
-  assert.equal(played.state.pending.length, 0);
-  // The Auto can have no eligible Extra here, so use its activation event as
-  // the proof that alternative play payment did not lower the card's cost.
-  assert.ok(played.events.some((event) => event.type === "skill" && event.card === state.players.p1.leader));
-}
-// The legacy engine shares the compiled nested invocation and its exact
-// selector, but #549 still owns its separate action-price omission. Pin both
-// facts on an actual play without treating the absent Hidden payment as legal.
-{
-  const { legacy, state: starting, stageLegacy } = legacyReady();
-  let state = starting;
-  const energy = Array.from({ length: 4 }, () => stageLegacy("C680-ENERGY", "energy"));
-  const watcher = stageLegacy("C680-WATCH", "battle");
-  const cell = stageLegacy("C680-CELL", "hand");
-  const extra = stageLegacy("C680-EXTRA", "hand");
-  const played = legacy.apply(ctx, state, { type: "play", player: "p1", card: cell });
-  state = played.state as GameState;
-  assert.equal(state.prompt.kind, "chooseCards", "legacy reaches the same optional nested Extra choice");
-  assert.equal(energy.filter((id) => state.cards[id].hidden).length, 0, "#549 legacy gap: the Auto's Hidden price was omitted");
-  const chosen = legacy.apply(ctx, state, { type: "choose", player: "p1", cards: [extra] });
-  state = chosen.state as GameState;
-  assert.ok(state.players.p1.drop.includes(extra));
-  assert.ok(!state.players.p1.battle.includes(extra));
-  assert.equal(chosen.events.filter((event) => event.type === "skill" && event.card === extra).length, 1);
-  assert.equal(draws(chosen.events), 2, "legacy: waived hand Extra still causes the ordinary activation watcher");
-  assert.equal(chosen.events.filter((event) => event.type === "skill" && event.card === watcher).length, 1);
-  assert.equal(energy.filter((id) => state.cards[id].hidden).length, 0, "#549 legacy gap remains an active unsupported payment boundary");
-}
-}
-
-console.log(`free-extra-680: VM paid/declined activation, eligibility, stale/reload/privacy${RULES_ONLY ? "" : " and legacy invocation boundary"} passed`);
+console.log("free-extra-680: VM paid/declined activation, eligibility, stale/reload/privacy passed");

@@ -1,7 +1,7 @@
 /** Standalone focused proof of Extra Auto Heroic/Villainous hook timing (#683). */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
@@ -10,7 +10,7 @@ import { hasKeyword } from "../../src/lib/arena/vm/program";
 import type { EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;

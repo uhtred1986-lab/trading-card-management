@@ -14,7 +14,7 @@ import { parseSkills } from "../../src/lib/arena/text/cards";
 import { describeScript } from "../../src/lib/arena/vm/script";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { EngineState } from "../../src/lib/arena/engines";
-import { CTX, DEFS, ENGINE, IMPL, arenaG, card, leaderOf, moveG, powerOfG, unisonOf, zoneOf } from "./harness";
+import { CTX, DEFS, IMPL, arenaG, card, leaderOf, moveG, powerOfG, unisonOf, zoneOf } from "./harness";
 
 // ── readings ────────────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ void ctx;
 type Rows = ReturnType<typeof IMPL.legalActions>;
 const rows = (s: EngineState): Rows => IMPL.legalActions(CTX, s);
 const take = (s: EngineState, action: Action): { state: EngineState; events: GameEvent[] } => {
-  assert.ok(rows(s).some((r) => JSON.stringify(r.action) === JSON.stringify(action)), `${ENGINE}: ${JSON.stringify(action)} is not offered at ${s.prompt.kind}: ${JSON.stringify(rows(s).map((r) => r.label))}`);
+  assert.ok(rows(s).some((r) => JSON.stringify(r.action) === JSON.stringify(action)), `rules: ${JSON.stringify(action)} is not offered at ${s.prompt.kind}: ${JSON.stringify(rows(s).map((r) => r.label))}`);
   return IMPL.apply(CTX, JSON.parse(JSON.stringify(s)) as EngineState, action);
 };
 const reload = (s: EngineState): EngineState => JSON.parse(JSON.stringify(s)) as EngineState;
@@ -113,10 +113,10 @@ function toCombo(s: EngineState): EngineState {
     const p = s.prompt as { kind: string; player?: PlayerId };
     if (p.kind === "combo" && p.player === "p1") return s;
     const pass = rows(s).find((r) => "player" in r.action && r.action.player === "p2" && (r.action.type === "pass" || (r.action.type === "block" && r.action.card === null)));
-    assert.ok(pass, `${ENGINE}: the battle stopped at ${p.kind} (${p.player}) with no pass for p2: ${JSON.stringify(rows(s).map((r) => r.action))}`);
+    assert.ok(pass, `rules: the battle stopped at ${p.kind} (${p.player}) with no pass for p2: ${JSON.stringify(rows(s).map((r) => r.action))}`);
     s = IMPL.apply(CTX, s, pass.action).state;
   }
-  throw new Error(`${ENGINE}: never reached p1's combo prompt`);
+  throw new Error(`rules: never reached p1's combo prompt`);
 }
 
 const battleRows = (s: EngineState, id: string): Rows => rows(s).filter((r) => r.action.type === "activate" && r.action.card === id);
@@ -130,7 +130,7 @@ const isAlt = (r: Rows[number]): boolean => (r.action as { alt?: boolean }).alt 
   assert.equal(battleRows(main, bt14).length, 0, "[Activate: Battle] is not a Main Phase skill (9-1-2): the waiver does not change the line's timing");
   const combo = toCombo(main);
   const offered = battleRows(combo, bt14);
-  assert.equal(offered.length, 1, `${ENGINE}: one row, the waived one: ${JSON.stringify(offered.map((r) => r.label))}`);
+  assert.equal(offered.length, 1, `rules: one row, the waived one: ${JSON.stringify(offered.map((r) => r.label))}`);
   assert.ok(isAlt(offered[0]!), "the row is the alternative price");
   assert.match(offered[0]!.label, /for no energy/, "and it says so");
 
@@ -152,7 +152,7 @@ const isAlt = (r: Rows[number]): boolean => (r.action as { alt?: boolean }).alt 
       const a = rows(s)[0]!.action;
       const here = IMPL.apply(CTX, reload(s), a);
       const there = IMPL.apply(CTX, reload(reload(s)), a);
-      assert.deepEqual(there.state, here.state, `${ENGINE}: the ${p.kind} question resolves identically after a reload`);
+      assert.deepEqual(there.state, here.state, `rules: the ${p.kind} question resolves identically after a reload`);
       reloaded = true;
     }
     const mine = rows(s).filter((r) => "player" in r.action && r.action.player === p.player);
@@ -161,48 +161,48 @@ const isAlt = (r: Rows[number]): boolean => (r.action as { alt?: boolean }).alt 
       mine.find((r) => r.action.type === "choose" && (r.action as { cards: string[] }).cards.includes(leaderOf(s, "p1"))) ??
       mine.find((r) => r.action.type === "pass") ??
       mine[0];
-    assert.ok(pick, `${ENGINE}: stopped at ${p.kind}`);
+    assert.ok(pick, `rules: stopped at ${p.kind}`);
     const next = IMPL.apply(CTX, s, pick.action);
     s = next.state;
     events.push(...next.events);
   }
-  assert.equal(s.prompt.kind, "combo", `${ENGINE}: back at p1's combo prompt once the skill resolved`);
+  assert.equal(s.prompt.kind, "combo", `rules: back at p1's combo prompt once the skill resolved`);
   assert.equal(zoneOf(s, "p1", "hand").length, handBefore - 1 + 1, "the Extra left the hand and the skill drew 1");
   assert.equal(events.filter((e) => e.type === "draw").length >= 1, true, "Draw 1 card");
   assert.equal(powerOfG(s, leaderOf(s, "p1")), 20000, "the Leader gets +10000 for the battle");
-  assert.ok(ENGINE !== "rules" || reloaded, "the rules engine asked p1 something to reload at");
+  assert.ok(reloaded, "the rules engine asked p1 something to reload at");
 }
 
 // 2. The condition gates the waiver: no Unison, or a {u}{u} one — only the
 //    full price is offered, and with no energy nothing is.
 for (const unison of [null, "C742-UNI2"] as const) {
   const { s, hand: [bt14] } = board({ unison, energy: 0 });
-  assert.equal(battleRows(toCombo(s), bt14).filter(isAlt).length, 0, `${ENGINE}: ${unison ?? "no Unison"}: no waiver`);
+  assert.equal(battleRows(toCombo(s), bt14).filter(isAlt).length, 0, `rules: ${unison ?? "no Unison"}: no waiver`);
 }
 {
   const { s, hand: [bt14] } = board({ unison: "C742-UNI2", energy: 1 });
   const offered = battleRows(toCombo(s), bt14);
-  assert.deepEqual(offered.map(isAlt), [false], `${ENGINE}: without the condition the line is still offered at its full price`);
+  assert.deepEqual(offered.map(isAlt), [false], `rules: without the condition the line is still offered at its full price`);
 }
 
 // 3. The waiver is not the line's whole price: with no marker on the Unison,
 //    [Spirit Boost 1] cannot be paid and the waived row is not offered.
 {
   const { s, hand: [bt14] } = board({ markers: 0, energy: 0 });
-  assert.equal(battleRows(toCombo(s), bt14).length, 0, `${ENGINE}: no marker, no activation`);
+  assert.equal(battleRows(toCombo(s), bt14).length, 0, `rules: no marker, no activation`);
 }
 
 // 4. With energy to pay, both rows are offered side by side.
 {
   const { s, hand: [bt14] } = board({ energy: 1 });
-  assert.deepEqual(battleRows(toCombo(s), bt14).map(isAlt).sort(), [false, true], `${ENGINE}: full price and the waiver`);
+  assert.deepEqual(battleRows(toCombo(s), bt14).map(isAlt).sort(), [false, true], `rules: full price and the waiver`);
 }
 
 // 5. BT9-017: only the [Activate: Battle] is waived. Its [Activate: Main]
 //    keeps its price (3 energy), so with none it is not offered at all.
 {
   const { s, hand: [bt9] } = board({ unison: null, energy: 0, hand: ["C742-BT9"] });
-  assert.equal(battleRows(s, bt9).length, 0, `${ENGINE}: [Activate: Main] is not waived`);
+  assert.equal(battleRows(s, bt9).length, 0, `rules: [Activate: Main] is not waived`);
   const combo = toCombo(s);
   const offered = battleRows(combo, bt9);
   assert.equal(offered.length, 1);
@@ -212,4 +212,4 @@ for (const unison of [null, "C742-UNI2"] as const) {
 }
 
 for (const id of Object.keys(DEFS).filter((k) => k.startsWith("C742-"))) delete DEFS[id];
-console.log(`  #742: [Activate: Battle] cost waiver readings (11 catalog cards) and ${ENGINE}-engine scenarios passed`);
+console.log(`  #742: [Activate: Battle] cost waiver readings (11 catalog cards) and rules-engine scenarios passed`);

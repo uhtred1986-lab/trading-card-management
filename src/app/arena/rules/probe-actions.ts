@@ -30,7 +30,7 @@ const MAX_EXTRA = 24;
 /**
  * Try a rule that has not been saved: every board its trigger and condition
  * call for, plus `boards` (the keys of judged and changed boards), on the
- * engine games use and on the legacy one beside it.
+ * engine games use.
  */
 export async function tryRuleAction(cardId: string, side: "front" | "back", skillIndex: number, rule: unknown, boards: string[] = []): Promise<{ error: string | null; result: TryResult | null }> {
   await requireSl();

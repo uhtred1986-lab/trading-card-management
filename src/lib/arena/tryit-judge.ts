@@ -41,11 +41,7 @@ export interface TryRow {
   generated: boolean;
   /** On the engine games use (`DEFAULT_ENGINE`). */
   rules: TryRun;
-  /** On the legacy engine, beside it. */
-  legacy: TryRun;
-  /** The two engines concluded differently: an engine bug, shown as such. */
-  disagree: boolean;
-  /** When the rule did not fire on the engine games use: what stopped it. */
+  /** When the rule did not fire: what stopped it. */
   gate: Gate | null;
   /** The block behind the rule's own announcement — `cond`, or `trigger` with no IF. */
   announcedBy: RulePath;
@@ -57,7 +53,6 @@ export interface TryResult {
   knobs: KnobSpec[];
   /** "no edge board for leaderColor yet". */
   notes: string[];
-  engines: { main: EngineId; other: EngineId };
 }
 
 /**
@@ -145,7 +140,7 @@ export function readExpectations(raw: unknown): Expectation[] {
       ...(headline !== undefined ? { headline } : {}),
       ...(applied ? { applied } : {}),
       ...(note ? { note } : {}),
-      engine: o.engine === "legacy" ? "legacy" : "rules",
+      engine: "rules",
       at: str(o.at, 40) ?? new Date().toISOString(),
     });
   }

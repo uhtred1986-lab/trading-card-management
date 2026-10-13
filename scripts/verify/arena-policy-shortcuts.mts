@@ -34,8 +34,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { checkImportGraph, diskRead, policyLayerRule, policyLayerSourceViolations } from "../lib/import-graph.ts";
 import { collectPositions, type Position } from "./arena-policy-shortcuts-positions.mts";
-import { engineFor } from "../../src/lib/arena/engines";
-import { isVmState } from "../../src/lib/arena/vm/state";
+import { RULES } from "../../src/lib/arena/vm";
 import { canonicalJson } from "../../src/lib/arena/replay-core.ts";
 import { policyTurn } from "../../src/lib/arena/policy/boundary.ts";
 import { uniformPolicy } from "../../src/lib/arena/policy/contract.ts";
@@ -118,7 +117,6 @@ const online = new Map<string, { index: number; how: string } | null>();
 const how: Record<string, number> = {};
 for (const r of online.values()) if (r) how[r.how.replace(/\d+/, "N")] = (how[r.how.replace(/\d+/, "N")] ?? 0) + 1;
 for (const h of ["only one legal move", "takes the first turn", "opening hand rule", "charge rule", "keeps the Z-Energy", "carries maximum N Empower markers"]) assert.ok((how[h] ?? 0) > 0, `the walk takes a "${h}" decision (${JSON.stringify(how)})`);
-assert.ok(positions.some((p) => p.label.startsWith("legacy/") && online.get(p.label)), "the legacy engine's positions are covered");
 {
   const redraws = new Set<unknown>();
   for (const p of positions) {
@@ -180,7 +178,7 @@ function twinOf(p: Position): Position {
   const state = clone(p.state);
   const seat = p.seat;
   const owners = ["p1", "p2"] as const;
-  const area = (who: (typeof owners)[number], z: "hand" | "deck" | "life") => (isVmState(state) ? (state.sides[who].zones[z] ??= []) : state.players[who][z]);
+  const area = (who: (typeof owners)[number], z: "hand" | "deck" | "life") => (state.sides[who].zones[z] ??= []);
   for (const who of owners) {
     const ids = [...(who === seat ? [] : area(who, "hand")), ...area(who, "deck"), ...area(who, "life")].filter((id) => !state.cards[id].faceUp && !state.cards[id].hidden);
     const faces = ids.map((id) => state.cards[id].cardId);
@@ -191,7 +189,7 @@ function twinOf(p: Position): Position {
   const bag = state as unknown as Record<string, unknown>;
   if (typeof bag.rngState === "number") bag.rngState = (bag.rngState + 0x9e3779b9) >>> 0;
   if (typeof bag.seed === "number") bag.seed = bag.seed + 12345;
-  const engine = engineFor(isVmState(state) ? "rules" : "legacy");
+  const engine = RULES;
   const legal = state.phase === "over" ? [] : engine.legalActions(p.ctx, state);
   return { ...p, state, legal, match: p.match ? { ...p.match, state: state as NonNullable<Position["match"]>["state"] } : undefined };
 }
@@ -344,7 +342,7 @@ function twinOf(p: Position): Position {
       assert.deepEqual({ index: choice.index, how: choice.how }, online.get(p.label), `${p.label}: chooseMove returns the shortcut`);
       answered++;
     }
-    assert.ok(answered > 1000, `${answered} shortcut decisions answered with no provider configured`);
+    assert.ok(answered > 700, `${answered} shortcut decisions answered with no provider configured`);
 
     // With one configured, a shortcut makes no request and a non-shortcut makes exactly one.
     process.env.ANTHROPIC_API_KEY = "sk-test-not-a-real-key";

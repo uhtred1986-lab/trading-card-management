@@ -4,7 +4,7 @@ import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { describeEvents } from "../../src/lib/arena/games";
 import { narrate } from "../../src/lib/arena/narration";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { vmToBeats } from "../../src/lib/arena/vm/beats";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
@@ -15,7 +15,7 @@ import { battleLink, msFor } from "../../src/components/arena/stage/motion";
 import type { Beat, Beats } from "../../src/lib/arena/beats";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
@@ -73,7 +73,7 @@ function beats(state: VmState, events: GameEvent[], before: Beats | null = null)
   return before ? { seq: next.seq, list: [...before.list, ...next.list], art: { ...before.art, ...next.art } } : next;
 }
 function snapshot(state: VmState, viewer: PlayerId, history: Beats | null = null) {
-  return buildSnapshot({ id: 5493, engine: "rules", mode: "versus", status: "playing", p1Name: "First", p2Name: "Second", ctx, state, legal: rules.legalActions(ctx, state), log: [], beats: history, spotlight: null,
+  return buildSnapshot({ id: 5493, mode: "versus", status: "playing", p1Name: "First", p2Name: "Second", ctx, state, legal: rules.legalActions(ctx, state), log: [], beats: history, spotlight: null,
     spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }
 function skillCount(events: GameEvent[], card: string): number { return events.filter((event) => event.type === "skill" && event.card === card).length; }

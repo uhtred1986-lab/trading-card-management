@@ -3,13 +3,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import inspector from "node:inspector";
-import { arenaG, CTX, ENGINE, IMPL } from "./verify/harness";
+import { arenaG, CTX, IMPL } from "./verify/harness";
 import { snapshotOfGame } from "../src/lib/arena/session";
 import type { LoadedGame } from "../src/lib/arena/games";
 import type { VmState } from "../src/lib/arena/vm/state";
 import type { Db } from "../src/db";
 
-assert.equal(ENGINE, "rules", "run with --engine rules");
 assert.equal(process.env.DATABASE_URL ?? "", "", "do not connect this counter to a database");
 const state = arenaG({ hand: ["V1", "V1"], energy: ["V1", "V1"], battle: ["AURA", "AURA", "V1"], oppHand: ["V-BLUE"], oppBattle: ["V-BLUE"] }) as VmState;
 const row = {

@@ -17,7 +17,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { checkImportGraph, diskRead, legacyEngineRule } from "../lib/import-graph.ts";
+import { checkImportGraph, diskRead } from "../lib/import-graph.ts";
 import { fixtureBundle, FIXTURE_REVISION } from "./arena-browser-fixture.ts";
 import { MAX_DIFFS, SCENARIOS, runScenario, runScenarios, scenarioIds, type Evidence } from "./arena-scenarios.ts";
 
@@ -25,7 +25,7 @@ const ROOT = process.cwd();
 
 // 1. Portable graph.
 for (const entry of ["scripts/verify/arena-scenarios.ts", "scripts/verify/arena-scenario-worker.ts"]) {
-  const graph = checkImportGraph(path.join(ROOT, entry), ROOT, diskRead, { forbidFile: legacyEngineRule });
+  const graph = checkImportGraph(path.join(ROOT, entry), ROOT, diskRead);
   assert.deepEqual(graph.violations, [], `${entry} reaches no forbidden import`);
   assert.ok(graph.files.includes("src/lib/arena/browser.ts"), `${entry} runs on browser.ts`);
 }

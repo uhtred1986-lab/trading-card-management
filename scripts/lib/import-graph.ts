@@ -6,8 +6,8 @@
  * are not followed. Every bare package and Node builtin is a violation (the
  * portable modules have no runtime dependencies), so are the server-only `@/`
  * aliases, `process.env`, `require` and an unanalysable dynamic `import()`.
- * `forbidFile` adds rules on resolved repo files — #641 uses it to keep the
- * legacy engine out of the browser-safe entry's graph.
+ * `forbidFile` adds rules on resolved repo files (#655's offline pack, #644's
+ * policy layer).
  *
  * Used by `scripts/verify/arena-replay-core.ts` and
  * `scripts/verify/arena-browser-boundary.mts`.
@@ -115,18 +115,7 @@ export function checkImportGraph(entry: string, root: string, read: (file: strin
 }
 
 /**
- * #641's `forbidFile` rule for the browser-safe arena entry: no file of the legacy engine, nor
- * `engines.ts`, whose switch imports it.
- */
-export function legacyEngineRule(rel: string): string | null {
-  if (/^src\/lib\/arena\/engine\//.test(rel)) return "legacy engine import";
-  if (rel === "src/lib/arena/engines.ts") return "engine switch import (loads the legacy engine)";
-  return null;
-}
-
-/**
- * #655's `forbidFile` rule for the offline pack runtime (`src/lib/arena/local/`): everything
- * `legacyEngineRule` refuses, plus every place a card definition or program could be fetched
+ * #655's `forbidFile` rule for the offline pack runtime (`src/lib/arena/local/`): every place a card definition or program could be fetched
  * from instead of the pack — the catalog sources (all of `src/lib/catalog/` but the game ids),
  * the database loader, the rule drafter/store, the server's replay bundle and the review store.
  * The compiler itself is not refused here because the rules engine already reads printed costs
@@ -134,8 +123,6 @@ export function legacyEngineRule(rel: string): string | null {
  * module's own imports name no compiler or card-text reader.
  */
 export function offlinePackRule(rel: string): string | null {
-  const legacy = legacyEngineRule(rel);
-  if (legacy) return legacy;
   if (/^src\/lib\/catalog\//.test(rel) && rel !== "src/lib/catalog/games.ts") return "catalog source import";
   if (/^src\/lib\/arena\/(load|draft|rules-store|replay-bundle|review|review-load|review-store|rule-review|rule-review-store|offline-replay)\.ts$/.test(rel)) return "server-side card source import";
   return null;

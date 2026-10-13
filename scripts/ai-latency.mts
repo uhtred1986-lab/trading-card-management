@@ -25,7 +25,7 @@ nextEnv.loadEnvConfig(process.cwd());
 
 const { defsFrom } = await import("../src/lib/arena/vm/common.ts");
 const { seedFrom } = await import("../src/lib/arena/vm/rng.ts");
-const { engineFor } = await import("../src/lib/arena/engines.ts");
+const { RULES } = await import("../src/lib/arena/vm/index.ts");
 const { chooseMove } = await import("../src/lib/arena/ai/opponent.ts");
 const { createFakeProvider } = await import("../src/lib/ai/providers/fake.ts");
 const { registerProvider, getProvider } = await import("../src/lib/ai/providers/index.ts");
@@ -116,7 +116,7 @@ setSettingsLoader(async () => ({ ...NO_SETTINGS, arena: { sparring: { provider: 
 // `recordRun` writes an `ai_runs` row; this script has no database, so the row goes nowhere.
 const nullDb = { insert: () => ({ values: () => ({ returning: async () => [{ id: 1 }] }) }) } as unknown as Parameters<typeof chooseMove>[0];
 
-const rules = engineFor("rules");
+const rules = RULES;
 let s = rules.createGame(CTX, { seed: seedFrom("ai-latency"), p1: { name: "You", leader: "L-RED", main: deck("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: deck("V-BLUE") } }).state;
 
 const samples: number[] = [];

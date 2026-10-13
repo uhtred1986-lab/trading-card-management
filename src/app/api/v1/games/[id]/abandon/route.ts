@@ -1,6 +1,7 @@
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { canOpenGame } from "@/lib/auth/ownership";
-import { abandonSchema, fail, ok, readJson, seatFor } from "@/lib/arena/api";
+import { abandonSchema, fail, ok, readJson, retiredGame, seatFor } from "@/lib/arena/api";
 import { abandonGame, GameAlreadyFinished, isVersus, loadGame, mutationFingerprint, RequestIdentityConflict, StaleGame } from "@/lib/arena/games";
 import { snapshotOfGame } from "@/lib/arena/session";
 import { routeViewer } from "@/lib/auth";
@@ -16,7 +17,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!Number.isInteger(id)) return fail("bad_request", "game id must be a number");
   // A player opens only their own games; a game they may not open does not exist for them.
   if (!(await canOpenGame(auth.viewer, id))) return fail("not_found", `no game ${id}`);
-  const game = await loadGame(db, id);
+  const game = await loadGame(db, id).catch(retiredGame);
+  if (game instanceof NextResponse) return game;
   if (!game) return fail("not_found", `no game ${id}`);
   // Either seat may give up, and it ends the game for both.
   const seat = await seatFor(game);

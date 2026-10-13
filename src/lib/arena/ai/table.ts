@@ -1,31 +1,24 @@
 /**
- * The table as Claude reads it, off whichever engine dealt the game (#457).
+ * The table as Claude reads it (#457).
  *
  * `ai/view.ts` turns a position into the text Claude is sent, and
- * `ai/opponent.ts` works out the combo question from the same numbers. Both
- * used to read the legacy `GameState` field by field, so a rules-engine game
- * could not be put to Claude at all. They now read this instead: one small set
- * of questions about the table — what is in an area, what a card is called and
- * how strong it is right now, which keywords it has — answered by each engine
- * from its own state, so the same position renders the same text on both.
+ * `ai/opponent.ts` works out the combo question from the same numbers. They
+ * read this: one small set of questions about the table — what is in an area,
+ * what a card is called and how strong it is right now, which keywords it has.
  *
  * Every answer is the engine's *own* reading, never a second computation of
- * it: the legacy engine's `powerOf`/`comboPowerOf`/`keywordsInForce`, and the
- * rules engine's `attrsNow`/`keywordsInForce` (`vm/program.ts`), the same
- * calls its battle and its board read. Where the two engines read a card
- * differently, Claude is told what the engine it is playing on will do.
+ * it: the rules engine's `attrsNow`/`keywordsInForce` (`vm/program.ts`), the
+ * same calls its battle and its board read.
  *
  * Pure and client-safe: no database, no network.
  */
-import { areaOf, comboPowerOf, face, keywordsInForce, powerOf } from "../engine";
-import { def } from "../engine/state";
 import type { EngineState } from "../engines";
 import { energyMarkersOf, leaderOf, nameOf, unisonOf, zoneOf, type ZoneArea } from "../engine-state";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import type { BattleStep, CardDef, EngineContext, PlayerId } from "../types";
 import { withTokens } from "../vm/cards";
 import { attrsNow, keywordsInForce as vmKeywordsInForce, zoneOf as vmZoneOf } from "../vm/program";
-import { isVmState, type VmState } from "../vm/state";
+import type { VmState } from "../vm/state";
 
 /** One card's face as it shows now: hidden, or a name, a power and a skill text. */
 export interface ShownFace {
@@ -40,9 +33,9 @@ export interface Table {
   turnPlayer: PlayerId;
   /**
    * The turn's phase. A battle is fought inside the Main Phase (8-1): the
-   * legacy engine keeps `main` through it, and the rules engine's `battle`
-   * phase frame sits on top of the Main Phase's, so this reports the phase
-   * beneath it — the battle itself is described separately (`battle`).
+   * rules engine's `battle` phase frame sits on top of the Main Phase's, so
+   * this reports the phase beneath it — the battle itself is described
+   * separately (`battle`).
    */
   phase: string;
   battle: { attacker: string; guard: string; step: BattleStep } | null;
@@ -69,9 +62,9 @@ export interface Table {
   faceUp(id: string): boolean;
 }
 
-/** The engine-neutral reading of `s`, for `ai/view.ts` and `ai/opponent.ts`. */
+/** The reading of `s`, for `ai/view.ts` and `ai/opponent.ts`. */
 export function tableOf(ctx: EngineContext, s: EngineState): Table {
-  return isVmState(s) ? rulesTable(ctx, s) : legacyTable(ctx, s);
+  return rulesTable(ctx, s);
 }
 
 function shared(s: EngineState) {
@@ -87,20 +80,6 @@ function shared(s: EngineState) {
     markers: (id: string) => s.cards[id].markers,
     hidden: (id: string) => s.cards[id].hidden,
     faceUp: (id: string) => !!s.cards[id].faceUp,
-  };
-}
-
-function legacyTable(ctx: EngineContext, s: Exclude<EngineState, VmState>): Table {
-  return {
-    ...shared(s),
-    phase: s.phase,
-    def: (id) => def(ctx, s, id),
-    face: (id) => (s.cards[id].hidden ? null : face(ctx, s, id)),
-    area: (id) => areaOf(s, id),
-    power: (id) => powerOf(ctx, s, id),
-    comboPower: (id) => comboPowerOf(ctx, s, id),
-    keywords: (id) => keywordsInForce(ctx, s, id).map((k) => k.name),
-    mode: (id) => s.cards[id].mode,
   };
 }
 
@@ -133,8 +112,7 @@ function rulesTable(raw: EngineContext, s: VmState): Table {
     ...shared(s),
     phase: turnPhase(s),
     def: defOf,
-    // The legacy `face()` reading exactly, and `vm/program.ts`'s `faceOf`:
-    // a flipped card shows its back's name, power and text when it has one.
+    // `vm/program.ts`'s `faceOf`: a flipped card shows its back's name, power and text when it has one.
     face: (id) => {
       const card = s.cards[id];
       if (card.hidden) return null;

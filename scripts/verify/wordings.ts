@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
 import {
   CTX,
   DEFS,
-  ENGINE,
   IMPL,
   actsG,
   addEffectG,
@@ -1967,25 +1966,21 @@ import type { EngineState, Trigger } from "./harness";
   moveG(t, sleeping, "drop", "p1");
   const before = zoneOf(t, "p1", "hand").length;
   t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "SUMMONB") });
-  if (ENGINE === "rules") {
-    assert.equal(t.prompt.kind, "orderPending", "SUMMONB and the arrival watcher are offered together");
-    const source = findG(t, "p1", "battle", "SUMMONB");
-    const choices = t.prompt.candidates.filter((i) => t.pending[i]?.card === source);
-    assert.equal(choices.length, 1, "SUMMONB's placement Auto is a unique offered choice");
-    const action = { type: "orderPending" as const, player: "p1" as const, index: choices[0] };
-    assert.ok(actsG(t).some((a) => a.type === action.type && a.index === action.index));
-    t = playG(t, action);
-  }
+  assert.equal(t.prompt.kind, "orderPending", "SUMMONB and the arrival watcher are offered together");
+  const source = findG(t, "p1", "battle", "SUMMONB");
+  const choices = t.prompt.candidates.filter((i) => t.pending[i]?.card === source);
+  assert.equal(choices.length, 1, "SUMMONB's placement Auto is a unique offered choice");
+  const action = { type: "orderPending" as const, player: "p1" as const, index: choices[0] };
+  assert.ok(actsG(t).some((a) => a.type === action.type && a.index === action.index));
+  t = playG(t, action);
   if (t.prompt.kind === "chooseCards") t = playG(t, { type: "choose", player: "p1", cards: [sleeping] });
-  if (ENGINE === "rules") {
-    assert.equal(t.prompt.kind, "orderPending", "the watcher has both red and blue placement moments pending");
-    const watcher = findG(t, "p1", "battle", "PLACEWATCH");
-    const choices = t.prompt.candidates.filter((i) => t.pending[i]?.card === watcher && t.pending[i]?.trigger === "yourCardPlaced");
-    assert.equal(choices.length, 2, "both placement moments belong to the same watcher");
-    const action = { type: "orderPending" as const, player: "p1" as const, index: choices[0] };
-    assert.ok(actsG(t).some((a) => a.type === action.type && a.index === action.index));
-    t = playG(t, action);
-  }
+  assert.equal(t.prompt.kind, "orderPending", "the watcher has both red and blue placement moments pending");
+  const watcher = findG(t, "p1", "battle", "PLACEWATCH");
+  const watcherChoices = t.prompt.candidates.filter((i) => t.pending[i]?.card === watcher && t.pending[i]?.trigger === "yourCardPlaced");
+  assert.equal(watcherChoices.length, 2, "both placement moments belong to the same watcher");
+  const watcherAction = { type: "orderPending" as const, player: "p1" as const, index: watcherChoices[0] };
+  assert.ok(actsG(t).some((a) => a.type === watcherAction.type && a.index === watcherAction.index));
+  t = playG(t, watcherAction);
   assert.ok(zoneOf(t, "p1", "battle").includes(sleeping), "it was placed");
   assert.equal(zoneOf(t, "p1", "hand").length, before - 1 + 1, "placed by a skill: the watcher draws once (and not for the red card that placed it)");
   assertConsistentG(t);

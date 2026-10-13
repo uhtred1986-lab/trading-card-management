@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
 import {
   CTX,
   DEFS,
-  ENGINE,
   IMPL,
   actsG,
   addEffectG,
@@ -36,7 +35,6 @@ import {
   powerIn,
   priceX,
   rulesGap,
-  sideG,
   skillNegatedG,
   splitClauses,
   stagedG,
@@ -200,54 +198,26 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
 }
 
 // An unread automatic skill ends the rules-engine game as an interruption.
-// The legacy lane retains its existing note-and-continue behavior.
 {
   let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
-  const before = JSON.stringify(sideG(s, "p2"));
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") });
-  if (ENGINE === "rules") {
-    const vm = s as VmState;
-    assert.equal(vm.outcome?.kind, "interrupted", "an unread automatic effect is not treated as a successful no-op");
-    assert.equal(vm.winner, null, "an interruption is not a win or a draw");
-    assert.ok(!vm.outcome?.reason.includes("MYSTERY"), "the public reason does not name the source card");
-  } else {
-    assert.equal(s.prompt.kind, "main", "the legacy game carries on");
-    assert.equal(JSON.stringify(sideG(s, "p2")), before, "the legacy engine records no opponent effect");
-  }
+  const vm = s as VmState;
+  assert.equal(vm.outcome?.kind, "interrupted", "an unread automatic effect is not treated as a successful no-op");
+  assert.equal(vm.winner, null, "an interruption is not a win or a draw");
+  assert.ok(!vm.outcome?.reason.includes("MYSTERY"), "the public reason does not name the source card");
 }
 
 // …and put to the referee when one is, whose ruling is a program in this same language.
 {
   const refCtx = { ...CTX, referee: true };
-  if (ENGINE === "rules") {
-    let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
-    const before = zoneOf(s, "p1", "hand").length;
-    s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
-    const vm = s as VmState;
-    assert.equal(vm.outcome?.kind, "interrupted", "an unread effect interrupts even when the context has a legacy referee");
-    assert.equal(vm.winner, null, "a rules interruption is not a draw or win");
-    assert.equal(vm.prompt.kind, "gameOver", "the rules engine does not pause for or request a referee ruling");
-    assert.equal(zoneOf(s, "p1", "hand").length, before - 1, "only the play happened; no unsupported effect was paid or applied");
-  } else {
-    let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
-    s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
-    assert.equal(s.prompt.kind, "referee");
-    const req = (s.prompt as { request: { cardId: string; unsupported: string[] } }).request;
-    assert.equal(req.cardId, "MYSTERY");
-    assert.deepEqual(req.unsupported, ["bend the fabric of reality to your will"]);
-    assert.deepEqual(IMPL.legalActions(refCtx, s), [], "no player action is legal while the referee is being asked");
-    const before = zoneOf(s, "p1", "hand").length;
-    s = IMPL.apply(refCtx, s, { type: "refereeRuling", player: "p1", ops: [{ op: "draw", n: 2 }] }).state;
-    assert.equal(zoneOf(s, "p1", "hand").length, before + 2, "the ruling ran");
-    assert.equal(s.prompt.kind, "main");
-    // A malformed ruling is refused rather than trusted.
-    let t = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
-    t = IMPL.apply(refCtx, t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "MYSTERY") }).state;
-    assert.throws(() => IMPL.apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [{ op: "delete-the-database" }] as never }), /valid effect program/);
-    // An empty ruling means "nothing happens".
-    t = IMPL.apply(refCtx, t, { type: "refereeRuling", player: "p1", ops: [] }).state;
-    assert.equal(t.prompt.kind, "main");
-  }
+  let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
+  const before = zoneOf(s, "p1", "hand").length;
+  s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;
+  const vm = s as VmState;
+  assert.equal(vm.outcome?.kind, "interrupted", "an unread effect interrupts even when the context has a legacy referee");
+  assert.equal(vm.winner, null, "a rules interruption is not a draw or win");
+  assert.equal(vm.prompt.kind, "gameOver", "the rules engine does not pause for or request a referee ruling");
+  assert.equal(zoneOf(s, "p1", "hand").length, before - 1, "only the play happened; no unsupported effect was paid or applied");
 }
 
 // ── costs the rules make optional or a matter of choice ────────────────────
@@ -281,42 +251,21 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
 
 // 9-6-4: an [Auto] skill's cost may be declined, and then it does not resolve.
 {
-  if (ENGINE === "rules") {
-    let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
-    const handBefore = zoneOf(s, "p1", "hand").length;
-    s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "AUTOCOST") });
-    const vm = s as VmState;
-    assert.equal(vm.prompt.kind, "chooseMode", "a priced Auto asks whether to pay");
-    assert.equal(zoneOf(s, "p1", "hand").length, handBefore - 1, "the played Auto has not drawn before payment");
-    assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play cost was paid before the decision");
-    const paid = playG(s, { type: "chooseMode", player: "p1", index: 0 });
-    assert.equal(zoneOf(paid, "p1", "hand").length, handBefore + 1, "paid Auto draws two cards");
-    assert.equal(zoneOf(paid, "p1", "energy").filter((id) => paid.cards[id].mode === "rest").length, 2, "Auto rests exactly one additional energy");
-    assert.equal(s.prompt.kind, "chooseMode");
-    if (s.prompt.kind === "chooseMode") {
-      const declined = playG(s, { type: "chooseMode", player: "p1", index: s.prompt.options.length - 1 });
-      assert.equal(zoneOf(declined, "p1", "hand").length, handBefore - 1);
-      assert.equal(zoneOf(declined, "p1", "energy").filter((id) => declined.cards[id].mode === "rest").length, 1);
-    }
-  } else {
-    let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
-    const c = findG(s, "p1", "hand", "AUTOCOST");
-    const before = zoneOf(s, "p1", "hand").length;
-    s = playG(s, { type: "play", player: "p1", card: c });
-    assert.equal(s.prompt.kind, "optionalCost");
-    assert.equal((s.prompt as { describe: string }).describe, "1 Red energy");
-    s = playG(s, { type: "optionalCost", player: "p1", pay: false });
-    assert.equal(zoneOf(s, "p1", "hand").length, before - 1, "declined, so no cards were drawn");
-    assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play itself was paid for");
-    assert.equal(s.prompt.kind, "main");
-
-    // Paying resolves it.
-    let t = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
-    const handBefore = zoneOf(t, "p1", "hand").length;
-    t = playG(t, { type: "play", player: "p1", card: findG(t, "p1", "hand", "AUTOCOST") }, { type: "optionalCost", player: "p1", pay: true });
-    assert.equal(zoneOf(t, "p1", "hand").length, handBefore - 1 + 2, "paid, so two cards were drawn");
-    assert.equal(zoneOf(t, "p1", "energy").filter((id) => t.cards[id].mode === "rest").length, 2, "the skill cost was rested too");
-    assertConsistentG(t);
+  let s = stagedG({ hand: ["AUTOCOST"], energy: ["V1", "V1"] });
+  const handBefore = zoneOf(s, "p1", "hand").length;
+  s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "AUTOCOST") });
+  const vm = s as VmState;
+  assert.equal(vm.prompt.kind, "chooseMode", "a priced Auto asks whether to pay");
+  assert.equal(zoneOf(s, "p1", "hand").length, handBefore - 1, "the played Auto has not drawn before payment");
+  assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "only the play cost was paid before the decision");
+  const paid = playG(s, { type: "chooseMode", player: "p1", index: 0 });
+  assert.equal(zoneOf(paid, "p1", "hand").length, handBefore + 1, "paid Auto draws two cards");
+  assert.equal(zoneOf(paid, "p1", "energy").filter((id) => paid.cards[id].mode === "rest").length, 2, "Auto rests exactly one additional energy");
+  assert.equal(s.prompt.kind, "chooseMode");
+  if (s.prompt.kind === "chooseMode") {
+    const declined = playG(s, { type: "chooseMode", player: "p1", index: s.prompt.options.length - 1 });
+    assert.equal(zoneOf(declined, "p1", "hand").length, handBefore - 1);
+    assert.equal(zoneOf(declined, "p1", "energy").filter((id) => declined.cards[id].mode === "rest").length, 1);
   }
 }
 

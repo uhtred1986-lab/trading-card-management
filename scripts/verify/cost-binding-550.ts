@@ -34,7 +34,7 @@
  */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { compileCard } from "../../src/lib/arena/compile";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
@@ -46,7 +46,7 @@ import type { CardScripts, Script } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
-const engine = engineFor("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 
@@ -104,7 +104,7 @@ const power = (s: VmState, id: string) => Number(attrsNow(ctx, game, s, id).powe
 const legal = (s: VmState) => engine.legalActions(ctx, s);
 const choose = (s: VmState, ids: string[], player: PlayerId) => apply(s, { type: "choose", player, cards: ids });
 const candidates = (s: VmState): string[] => (s.prompt.kind === "chooseCards" ? s.prompt.choice.candidates : []);
-const view = (s: VmState, viewer: PlayerId) => JSON.stringify(buildSnapshot({ id: 550, revision: 1, mode: "versus", engine: "rules", status: "playing",
+const view = (s: VmState, viewer: PlayerId) => JSON.stringify(buildSnapshot({ id: 550, revision: 1, mode: "versus", status: "playing",
   p1Name: "Player 1", p2Name: "Player 2", ctx, state: s, legal: [], log: [], beats: null, spotlight: null,
   spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} }));
 

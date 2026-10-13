@@ -7,7 +7,7 @@
  * implemented.
  */
 export type RuntimeStatus = "supported" | "unsupported" | "untested";
-export type EvidenceKind = "runtime-scenario" | "runtime-gap" | "declaration-only" | "suite-migration" | "legacy-only";
+export type EvidenceKind = "runtime-scenario" | "runtime-gap" | "declaration-only";
 
 export interface CapabilityEvidence {
   id: string;
@@ -21,10 +21,6 @@ export interface CapabilityEvidence {
   delivery?: { state: "pending"; reference: string };
   /** The exact `rulesGap` callsite label, if this is a named skipped scenario. */
   skipWhere?: string;
-  /** Test suite when the row records an unported oracle lane, not a gameplay rule. */
-  suite?: string;
-  /** The exact legacyOnly callsite label, for the legacy-only saved-game lane. */
-  legacyWhere?: string;
   /** Test suite/file and the particular assertion represented by this row. */
   proof: string;
   detail: string;
@@ -56,7 +52,7 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     label: "A Battle Card at zero or less power is processed",
     status: "supported",
     evidence: "runtime-scenario",
-    citation: "21-6; `contract/probe-rules-parity.json` rule-processing cause",
+    citation: "21-6",
     ownerIssue: 548,
     proof: "scripts/verify/compiler.ts — active TOUGH assertion; scripts/verify/rule-processing.ts — simultaneous processing, replacement choices and reload",
     detail: "The combined implementation processes zero-power Battle Cards before Autos, retaining simultaneous causes and replacement continuation across reload.",
@@ -240,18 +236,8 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     evidence: "runtime-scenario",
     citation: "12-2-3; 22-35-2/3; 22-36-2/3",
     ownerIssue: 683,
-    proof: "scripts/verify/villainous-683-auto-audit.ts and villainous-683-legacy-auto-audit.ts — legal Field arrival, free/paid/declined/unaffordable Auto, own in-play source, independent keyword spend and Battle source exclusion; scripts/verify/arena-extra-auto-db.mts and arena-extra-auto-rules-db.mts — isolated PGlite persisted payments/choices, request receipts, stale CAS and both viewers",
+    proof: "scripts/verify/villainous-683-auto-audit.ts — legal Field arrival, free/paid/declined/unaffordable Auto, own in-play source, independent keyword spend and Battle source exclusion; scripts/verify/arena-extra-auto-rules-db.mts — isolated PGlite persisted payments/choices, request receipts, stale CAS and both viewers",
     detail: "Successful Auto activation snapshots source qualification before effect changes and retains individual watcher identity. Failed or declined payment fires no hook. An in-play Extra can watch its own skill; another-card exclusion applies to Battle play. villainous-683-parent-continuation.ts also proves child effect, parent continuation, then keyword choice across saved prompts on both engines. This bounded evidence does not establish catalog-wide coverage or live deployment behavior.",
-  },
-  {
-    id: "arena-legacy-keyword-grant-identity",
-    label: "Legacy timed and standing Villainous grants retain independent spend identities",
-    status: "supported",
-    evidence: "runtime-scenario",
-    citation: "22-36-2/3; 9-1-5; 9-6-11; 3-1-4",
-    ownerIssue: 683,
-    proof: "scripts/verify/villainous-683-legacy-timed.ts and villainous-683-legacy-standing.ts — multiple grants, printed coexistence, saved pending choices, regrant, source/bearer reentry, condition toggle, copied Permanent refresh, legal Awaken/token flows and both viewer board projections",
-    detail: "Timed grants use persistent effect IDs; standing grants use source entry/face, skill/op path and recipient entry. Each resolving grant spends only itself. An older saved pending -1 record is preserved without invented provenance; this is bounded new-event evidence, not exhaustive legacy-save migration, catalog or live-database proof.",
   },
   {
     id: "arena-fill-under-named-host",
@@ -428,8 +414,8 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     evidence: "runtime-scenario",
     citation: "#459 fixed expected-state migration (test-lane status; no gameplay rule citation)",
     ownerIssue: 459,
-    proof: "scripts/verify/vm.ts; scripts/verify/vm-*-459.ts; docs/arena-backlog/evidence/459/README.md — reviewed fixed gameplay expectations; full rules-only suite 56/56 and zero legacy calls",
-    detail: "The VM rules-only lane checks fixed openings, complete turn/action/event traces, filter and price corpora, script outcomes, views and focused gameplay facts. Legacy adapter and host compatibility remains explicitly guarded in the normal lane for #118; this row is a test-migration result, not gameplay-rule support.",
+    proof: "scripts/verify/vm.ts; scripts/verify/vm-*-459.ts; docs/arena-backlog/evidence/459/README.md — reviewed fixed gameplay expectations; full verify-arena suite on the rules engine",
+    detail: "The VM rules-only lane checks fixed openings, complete turn/action/event traces, filter and price corpora, script outcomes, views and focused gameplay facts. This row is a test-migration result, not gameplay-rule support.",
   },
   {
     id: "arena-ai-vm-fixed-expectations",
@@ -439,18 +425,7 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     citation: "#459 fixed expected-state migration (test-lane status; no gameplay rule citation)",
     ownerIssue: 601,
     proof: "scripts/verify/ai-vm.ts; scripts/verify/fixtures/ai-vm \u2014 21 migrated parity checks, two extra Leader facts and negative fixture controls",
-    detail: "The rules-only lane pins zones, both-viewer text, decklists, question, system and legal moves without invoking the legacy engine. Larger VM oracle migration remains #459.",
-  },
-  {
-    id: "arena-legacy-saved-game",
-    label: "Saved legacy game opens unchanged on the rules-only lane",
-    status: "untested",
-    evidence: "legacy-only",
-    citation: "#118 save/replay decision (test-lane status; no gameplay rule citation)",
-    ownerIssue: 118,
-    legacyWhere: "engine-default: a saved legacy game opens unchanged",
-    proof: "scripts/verify/engine-default.ts — deliberately runs a saved/played game through the legacy engine",
-    detail: "This legacy-only fixture is not asserted by `--rules-only`; it is an independent save/replay retirement gate, not a rules mechanic.",
+    detail: "The rules-only lane pins zones, both-viewer text, decklists, question, system and legal moves on the rules engine.",
   },
 ] as const;
 
@@ -459,7 +434,6 @@ export const NAMED_RUNTIME_GAPS = CAPABILITY_EVIDENCE.filter((row) => row.skipWh
 export const DEFERRED_STATIC_EVIDENCE: readonly { operation: string; capabilityIds: readonly string[]; ownerIssue: number; citation: string }[] = [];
 
 /** Test-lane evidence not yet converted to fixed expectations under #459. */
-export const ORACLE_MIGRATION_GAPS = CAPABILITY_EVIDENCE.filter((row) => row.evidence === "suite-migration");
 
 /**
  * Source-level exits that can refuse or omit an Arena mechanic. `ordinal` is
@@ -571,11 +545,5 @@ export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
 export function capabilityForSkip(where: string): CapabilityEvidence {
   const row = NAMED_RUNTIME_GAPS.find((item) => item.skipWhere === where);
   if (!row) throw new Error(`rulesGap has no capability inventory row: ${where}`);
-  return row;
-}
-
-export function capabilityForLegacySkip(where: string): CapabilityEvidence {
-  const row = CAPABILITY_EVIDENCE.find((item) => item.legacyWhere === where);
-  if (!row) throw new Error(`legacyOnly has no capability inventory row: ${where}`);
   return row;
 }

@@ -96,9 +96,6 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "ot
                     <span className="sm:hidden">Report a problem</span>
                     <span className="hidden sm:inline">What you told the arena</span>
                   </Link>
-                  <Link href="/settings#arena-engine" className={`${item} hidden sm:flex`}>
-                    Settings → Arena engine
-                  </Link>
                 </>
               ) : null}
               {/* The admin entry joins here once #350's admin check exists. */}

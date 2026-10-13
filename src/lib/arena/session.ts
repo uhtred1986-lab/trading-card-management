@@ -13,10 +13,10 @@ import { eq, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaGames } from "@/db/schema";
 import type { Action, PlayerId } from "./types";
-import { applyToGame, loadArchivedGame, loadGame, type LoadedGame, type MutationIdentity } from "./games";
+import { applyToGame, loadGame, type LoadedGame, type MutationIdentity } from "./games";
 import { advance, aiPlayerOf } from "./ai/run";
 import { longPollStepMs } from "./poll-schedule";
-import { archivedSnapshotFor, buildSnapshot, viewerFor, withSnapshotReading, type Snapshot } from "./snapshot";
+import { buildSnapshot, viewerFor, withSnapshotReading, type Snapshot } from "./snapshot";
 import { conceal, hiddenAliases, resolveAliased, type Resolved } from "./conceal";
 import type { GameDefinition } from "./rulesets/types";
 import type { CardArt } from "./view";
@@ -68,18 +68,8 @@ export function concealForViewer<T>(game: LoadedGame, value: T, seat: PlayerId |
   return conceal(value, hiddenAliases(game.state, viewer, pinned));
 }
 
-/**
- * The board as it stands. Null when there is no such game.
- *
- * Checked archived first, and never through `loadGame` for one: an archived
- * row (issue #335) answers from its stored snapshot alone, chosen by
- * `viewer` exactly as a live 1 v 1 chooses a seat (`null` everywhere else) —
- * `legalActions`/`apply` are never reached for it, because `loadGame` is
- * never called for it.
- */
+/** The board as it stands. Null when there is no such game. */
 export async function snapshotOf(db: Db, gameId: number, viewer: PlayerId | null = null): Promise<Snapshot | null> {
-  const archived = await loadArchivedGame(db, gameId);
-  if (archived) return archivedSnapshotFor(archived.store, viewer, archived.version);
   const game = await loadGame(db, gameId);
   return game ? snapshotOfGame(db, game, viewer) : null;
 }

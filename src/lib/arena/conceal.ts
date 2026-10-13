@@ -38,22 +38,15 @@ import type { PlayerId } from "./types";
 import type { EngineState } from "./engines";
 import type { Beats, NumberedBeat } from "./beats";
 import type { GameDefinition } from "./rulesets/types";
-import { isVmState } from "./vm/state";
 import { revealedTo } from "./view-core";
 import { rulesetFor } from "./rulesets";
 import { BEAT_ALIAS, historicalMask, type AliasTable, type SecretAreas } from "./policy/observation";
 
 const SEATS: PlayerId[] = ["p1", "p2"];
 
-/** Every placed zone of one side, by name: the rules engine's declared zones, or the legacy state's fields. */
+/** Every placed zone of one side, by name: the rules engine's declared zones. */
 function zonesOf(state: EngineState, p: PlayerId): Record<string, string[]> {
-  if (isVmState(state)) return state.sides[p].zones as Record<string, string[]>;
-  const s = state.players[p];
-  return {
-    battle: s.battle, combo: s.combo, deck: s.deck, drop: s.drop, energy: s.energy, hand: s.hand,
-    leader: s.leader ? [s.leader] : [], life: s.life, removed: s.removed ?? [], unison: s.unison ? [s.unison] : [],
-    warp: s.warp, zDeck: s.zDeck, zEnergy: s.zEnergy,
-  };
+  return state.sides[p].zones as Record<string, string[]>;
 }
 
 /**
@@ -95,14 +88,8 @@ export function hiddenAliases(state: EngineState, viewer: PlayerId, pinned?: Gam
   return out;
 }
 
-const LEGACY_SECRET = { none: ["deck", "life"], owner: ["hand", "zDeck"] };
-
 /** The areas of each side `viewer` may not look into, by area name as beats say them (3-1-3). */
 export function secretAreasFor(state: EngineState, viewer: PlayerId, pinned?: GameDefinition): SecretAreas {
-  if (!isVmState(state)) {
-    const of = (p: PlayerId) => [...LEGACY_SECRET.none, ...(p === viewer ? [] : LEGACY_SECRET.owner)].sort();
-    return { p1: of("p1"), p2: of("p2") };
-  }
   const loaded = pinned?.id === state.game ? null : rulesetFor(state.game);
   const game = pinned?.id === state.game ? pinned : loaded?.ok ? loaded.definition : null;
   if (!game) throw new Error(`the ${state.game} ruleset did not load, so no board can say what is secret`);

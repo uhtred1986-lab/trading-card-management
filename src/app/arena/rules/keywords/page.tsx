@@ -42,8 +42,8 @@ export default async function KeywordsPage() {
         </Link>
       </div>
       <p className="text-sm text-space-300">
-        All {total} keyword skills the arena&rsquo;s parser reads, with what the Rule Manual says and what each engine actually does with it. The engine lines are the ones worth reading: {approximate}{" "}
-        of the legacy engine&rsquo;s are played to an approximation, and each says where it differs; the rules engine&rsquo;s own line is never blank — where it has no <span className="font-mono text-[11px]">HOOK</span> body yet it says
+        All {total} keyword skills the arena&rsquo;s parser reads, with what the Rule Manual says and what the engine actually does with it. The engine lines are the ones worth reading: {approximate}{" "}
+        are played to an approximation, and each says where it differs; the line is never blank — where a keyword has no <span className="font-mono text-[11px]">HOOK</span> body yet it says
         so and names the doc that builds it. Section numbers are <span className="font-mono text-[11px]">docs/rules/rulemanual.txt</span>.
       </p>
 
@@ -87,11 +87,7 @@ export default async function KeywordsPage() {
                   </Link>
                 </p>
                 <p className="mt-1 text-[12px] leading-relaxed text-space-400">
-                  <span className="text-space-500">legacy engine: </span>
-                  {k.engine}
-                </p>
-                <p className="mt-1 text-[12px] leading-relaxed text-space-400">
-                  <span className="text-space-500">rules engine: </span>
+                  <span className="text-space-500">engine: </span>
                   {k.engineRules}
                 </p>
                 <p className="mt-1 font-mono text-[10px] text-space-600">Rule Manual {k.section}</p>

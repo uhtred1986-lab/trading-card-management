@@ -31,7 +31,7 @@ export async function verifyInvite(db: Db): Promise<void> {
   assert.deepEqual(view, { hostDeckName: "Invite Host Deck", leaderName: "Invite Leader", leaderImage: null }, "the guest sees the deck name and leader, nothing else");
   assert.deepEqual(await inviteView(db, null), { hostDeckName: null, leaderName: null, leaderImage: null });
 
-  const matchId = await openMatch(db, "alice", hostDeck, true, "legacy");
+  const matchId = await openMatch(db, "alice", hostDeck, true);
   await assert.rejects(joinMatch(db, matchId, "bob", carolDeck, "bob"), /not yours/, "a guest cannot join with another login's deck");
   const [after] = await db.select().from(schema.arenaMatches).where(eq(schema.arenaMatches.id, matchId));
   assert.equal(after.status, "open", "the refused join left the match open");

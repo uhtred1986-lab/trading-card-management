@@ -12,15 +12,14 @@ import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import type { Db } from "../../src/db/index.ts";
 import { arenaGames } from "../../src/db/schema.ts";
-import { engineFor } from "../../src/lib/arena/engines.ts";
+import { RULES } from "../../src/lib/arena/vm/index.ts";
 import { applyToGame, loadGame, mutationFingerprint, RequestIdentityConflict, StaleGame, type LoadedGame } from "../../src/lib/arena/games.ts";
 import { snapshotOfGame } from "../../src/lib/arena/session.ts";
 import { rulesetFor } from "../../src/lib/arena/rulesets/index.ts";
 import { moveCard } from "../../src/lib/arena/vm/zones.ts";
 import { addEffect as vmAddEffect } from "../../src/lib/arena/vm/effects.ts";
-import { addEffect as legacyAddEffect, move as legacyMove } from "../../src/lib/arena/engine/state.ts";
 import type { VmState } from "../../src/lib/arena/vm/state.ts";
-import type { Action, EngineContext, GameState, PlayerId } from "../../src/lib/arena/types.ts";
+import type { Action, EngineContext, PlayerId } from "../../src/lib/arena/types.ts";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness.ts";
 
 const defs = { ...DEFS,
@@ -45,28 +44,6 @@ interface Adapter {
   start(): unknown;
 }
 
-const legacyAdapter: Adapter = {
-  hand: (s, p) => (s as GameState).players[p].hand,
-  cards: (s) => (s as GameState).cards,
-  toBattle: (s, id) => legacyMove(ctx, s as GameState, [], id, "battle", "p1", { reason: "effect" }),
-  grantTimed: (s, w) => legacyAddEffect(s as GameState, [], { master: "p1", source: w, target: w, kind: "keyword", value: { name: "Villainous" }, until: "turn" }).id,
-  effects: (s) => (s as GameState).effects as unknown as Effect[],
-  start() {
-    const engine = engineFor("legacy");
-    let state = engine.createGame(ctx, { seed: 68303,
-      p1: { name: "Alice", leader: "L-RED", main: fifty("V1") },
-      p2: { name: "Bob", leader: "L-BLUE", main: fifty("V-BLUE") },
-    }).state as GameState;
-    state = engine.apply(ctx, state, { type: "chooseFirst", player: (state.prompt as { player: PlayerId }).player, first: "p1" }).state as GameState;
-    for (let i = 0; i < 24 && state.prompt.kind !== "main"; i++) {
-      const action = engine.legalActions(ctx, state)[0]?.action;
-      assert.ok(action);
-      state = engine.apply(ctx, state, action).state as GameState;
-    }
-    return state;
-  },
-};
-
 const rulesLoaded = rulesetFor("dbs");
 const rulesAdapter: Adapter = {
   hand: (s, p) => (s as VmState).sides[p].zones.hand,
@@ -78,7 +55,7 @@ const rulesAdapter: Adapter = {
   grantTimed: (s, w) => vmAddEffect(s as VmState, [], { master: "p1", source: w, target: w, kind: "keyword", value: { name: "Villainous" }, until: "turn" }).id,
   effects: (s) => (s as VmState).effects as unknown as Effect[],
   start() {
-    const engine = engineFor("rules");
+    const engine = RULES;
     let state = engine.createGame(ctx, { seed: 68303,
       p1: { name: "Alice", leader: "L-RED", main: fifty("V1") },
       p2: { name: "Bob", leader: "L-BLUE", main: fifty("V-BLUE") },
@@ -93,8 +70,8 @@ const rulesAdapter: Adapter = {
   },
 };
 
-async function scenario(db: Db, engineId: "legacy" | "rules", a: Adapter, base: number): Promise<void> {
-  const state = a.start() as GameState | VmState;
+async function scenario(db: Db, a: Adapter, base: number): Promise<void> {
+  const state = a.start() as VmState;
   assert.equal(state.prompt.kind, "main");
   const stage = (player: PlayerId, cardId: string): string => {
     const id = a.hand(state, player).find((c) => !OWN.includes(a.cards(state)[c].cardId));
@@ -109,7 +86,7 @@ async function scenario(db: Db, engineId: "legacy" | "rules", a: Adapter, base: 
   const timedId = a.grantTimed(state, watcher);
   const [created] = await db.insert(arenaGames).values({
     p1Name: "Alice", p2Name: "Bob", p1User: "alice", p2User: "bob",
-    seed: 68303, mode: "versus", engine: engineId, state, version: 7,
+    seed: 68303, mode: "versus", engine: "rules", state, version: 7,
   }).returning({ id: arenaGames.id });
   const id = created.id;
   let seq = 0;
@@ -232,7 +209,7 @@ async function scenario(db: Db, engineId: "legacy" | "rules", a: Adapter, base: 
 
     // --- Regrant: a fresh timed identity (an effect resolved between turns of
     // play is simulated by writing the grant into the saved row, version + 1). ---
-    const regrantState = structuredClone(game.state) as GameState | VmState;
+    const regrantState = structuredClone(game.state) as VmState;
     const regrantId = a.grantTimed(regrantState, watcher);
     assert.notEqual(regrantId, timedId);
     const bumped = await db.update(arenaGames).set({ state: regrantState, version: game.version + 1 }).where(eq(arenaGames.id, id)).returning({ version: arenaGames.version });
@@ -266,8 +243,6 @@ async function scenario(db: Db, engineId: "legacy" | "rules", a: Adapter, base: 
 }
 
 export async function verifyArenaGrantIdentity(db: Db): Promise<void> {
-  await scenario(db, "legacy", legacyAdapter, 683200);
-  console.log("#683 persisted legacy grant identity: timed + standing payouts, CAS, receipts, regrant and both seat projections passed");
-  await scenario(db, "rules", rulesAdapter, 683300);
+  await scenario(db, rulesAdapter, 683300);
   console.log("#683 persisted rules grant identity: timed + standing payouts, CAS, receipts, regrant and both seat projections passed");
 }

@@ -5,13 +5,7 @@
  * decks (which is what actually matters for a game), and the clauses that most
  * often defeat the parser — that list is the to-do list for the next pass.
  *
- * `npm run arena:coverage [-- deckId ...] [--engine legacy|rules]`
- *
- * `--engine` (default `legacy`) is accepted and refused if unknown, for
- * consistency with the rest of the arena tooling, but changes nothing here:
- * `compileSkill` is the one compiler either engine's rows come from
- * (`draft.ts`), so what this script measures does not vary by which engine
- * will eventually play the result.
+ * `npm run arena:coverage [-- deckId ...]`
  */
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
@@ -20,18 +14,11 @@ import { cards, decks } from "../src/db/schema";
 import { compileSkill } from "../src/lib/arena/compile";
 import { parseSkills } from "../src/lib/arena/text/cards";
 import { type CardDef } from "../src/lib/arena/types";
-import { emitsStatic } from "../src/lib/arena/engine/state";
-import { isEngineId } from "../src/lib/arena/engines";
+import { emitsStatic } from "./lib/emits-static";
 import { cardDefFrom, deckInputFor } from "../src/lib/arena/load";
 
 const argv = process.argv.slice(2);
-const engineArg = argv.indexOf("--engine");
-const engineId = engineArg >= 0 ? argv[engineArg + 1] : "legacy";
-if (!isEngineId(engineId)) throw new Error(`--engine must be one of legacy, rules; got ${engineId}`);
-const wanted = argv
-  .filter((a, i) => engineArg < 0 || (i !== engineArg && i !== engineArg + 1))
-  .map(Number)
-  .filter(Number.isInteger);
+const wanted = argv.map(Number).filter(Number.isInteger);
 
 interface Tally {
   /** Skills the engine resolves when they fire: [Auto], [Activate], [Counter]. */

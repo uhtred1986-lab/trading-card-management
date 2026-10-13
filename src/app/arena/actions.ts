@@ -11,11 +11,9 @@ import { describeAiError } from "@/lib/ai/client";
 import { IllegalAction } from "@/lib/arena/vm/common";
 import { previewLoadedGame } from "@/lib/arena/gameplan-preview";
 import { validPlanActions, type GameplanPreview } from "@/lib/arena/gameplan-types";
-import { type Action, type GameState } from "@/lib/arena/types";
+import { type Action, type Prompt } from "@/lib/arena/types";
 import { printRule, readRule } from "@/lib/arena/lang";
-import { defaultEngine } from "@/lib/arena/engine-setting";
-import { engineOr } from "@/lib/arena/engines";
-import { abandonGame, applyToGame, engineForMode, GameAlreadyFinished, isVersus, loadGame, mutationFingerprint, replayMutation, RequestIdentityConflict, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
+import { abandonGame, applyToGame, GameAlreadyFinished, isVersus, loadGame, mutationFingerprint, replayMutation, RequestIdentityConflict, seatOf, StaleGame, startGame, type ArenaMode } from "@/lib/arena/games";
 import { cancelMatch, joinMatch, matchById, openMatch } from "@/lib/arena/matches";
 import { currentOwner, currentUser, isArenaAdmin, requireSignedIn, requireSl } from "@/lib/auth";
 import { assertOwnDeck, canOpenGame } from "@/lib/auth/ownership";
@@ -202,12 +200,7 @@ export async function confirmRuleAction(id: number): Promise<{ error: string | n
   const found = await probeRuleFor(id);
   if (found) {
     const run = probe(found.rule, found.scenarios[0]);
-    // Always probed on `legacy`: it is the only engine `probe()` can stage a
-    // board on today (#161), regardless of the workbench's own `arena.engine`
-    // setting — probing on an engine that cannot build the board would store
-    // an "error" result for every confirmation once the owner flips the
-    // default, which is worse than the fixed choice this makes instead.
-    await setProbe(db, id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString(), engine: "legacy" });
+    await setProbe(db, id, { scenario: run.scenario.key, outcome: run.outcome, digest: run.digest, applied: run.applied, result: run.result, assumptions: run.assumptions, at: new Date().toISOString(), engine: "rules" });
   }
   await noteRule(id, `confirmed: ${row.printed}`, row.reads);
   return { error: null };
@@ -429,11 +422,6 @@ export async function startGameForm(formData: FormData) {
   const opponent = String(formData.get("opponent") ?? "sparring");
   if (!(["sparring", "tournament", "versus", "hotseat"] as string[]).includes(opponent)) throw new Error("pick an opponent");
   const mode = opponent as ArenaMode;
-  // The engine is not a question the player is asked (owner's decision, 30 Sep
-  // 2026): the setting's default (the rules engine since #166) and then the
-  // mode's say. A 1 v 1 is not built on it (#162), so it resolves to legacy
-  // instead of throwing.
-  const { engine } = engineForMode(await defaultEngine(db), mode);
   if (!Number.isInteger(deck)) throw new Error("pick a deck");
   // A player plays their own decks only (both sides, outside a 1 v 1).
   const viewer = await requireSignedIn();
@@ -445,7 +433,7 @@ export async function startGameForm(formData: FormData) {
   // A 1 v 1 cannot be created here: the other player picks their own deck, and
   // they are not at this keyboard. This opens the invitation and waits.
   if (isVersus(mode)) {
-    const matchId = await openMatch(db, await currentUser(), deck, debug, engine);
+    const matchId = await openMatch(db, await currentUser(), deck, debug);
     revalidatePath("/arena");
     redirect(`/arena/match/${matchId}`);
   }
@@ -455,18 +443,16 @@ export async function startGameForm(formData: FormData) {
   const other = Number(formData.get("claudeDeck"));
   if (!Number.isInteger(other)) throw new Error("pick the deck the other side plays");
   await assertOwnDeck(viewer, other);
-  const id = await startGame(db, deck, other, mode, debug, undefined, engine);
+  const id = await startGame(db, deck, other, mode, debug);
   revalidatePath("/arena");
   redirect(`/arena/${id}`);
 }
 
 /**
- * REMATCH (#358): the same two decks, mode and engine, a new seed.
+ * REMATCH (#358): the same two decks and mode, a new seed.
  *
  * `startGame` seeds from the clock, so the coin flip is a fresh one (it can
- * land the same way: the flip is fair). The engine is the one the game was
- * made on (`engineOr(row.engine)`, never the setting), so a rematch plays
- * exactly like the game it follows. The open-rule block (#357) is asked again
+ * land the same way: the flip is fair). The open-rule block (#357) is asked again
  * by `startGame`/`openMatch`, because a deck may have gained an open rule since,
  * and comes back as an error the button shows rather than a thrown page.
  *
@@ -477,7 +463,7 @@ export async function rematch(gameId: number): Promise<{ error: string | null }>
   await requireSignedIn();
   if (!(await canOpenGame(await requireSignedIn(), gameId))) return { error: "no such game" };
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, gameId) });
-  if (!row || row.snapshot) return { error: "no such game" };
+  if (!row) return { error: "no such game" };
   if (row.status === "playing") return { error: "the game is not over yet" };
   const mode = row.mode as ArenaMode;
   const me = await currentUser();
@@ -488,10 +474,10 @@ export async function rematch(gameId: number): Promise<{ error: string | null }>
       if (!seat) return { error: "no such game" };
       const deck = seat === "p1" ? row.p1DeckId : row.p2DeckId;
       if (deck == null) return { error: "your deck from that game is gone" };
-      next = `/arena/match/${await openMatch(db, me, deck, true, engineOr(row.engine))}`;
+      next = `/arena/match/${await openMatch(db, me, deck, true)}`;
     } else {
       if (row.p1DeckId == null || row.p2DeckId == null) return { error: "a deck from that game is gone" };
-      next = `/arena/${await startGame(db, row.p1DeckId, row.p2DeckId, mode, true, undefined, engineOr(row.engine))}`;
+      next = `/arena/${await startGame(db, row.p1DeckId, row.p2DeckId, mode, true)}`;
     }
   } catch (err) {
     return { error: err instanceof Error ? err.message : "could not start the rematch" };
@@ -637,7 +623,7 @@ async function refuse(gameId: number, needTurn: boolean): Promise<string | null>
   // `state->'prompt'`, not `state`: the whole board is the largest column on
   // the row, and the one thing asked of it here is whose question is open.
   const [row] = await db
-    .select({ mode: arenaGames.mode, p1User: arenaGames.p1User, p2User: arenaGames.p2User, prompt: sql<GameState["prompt"]>`${arenaGames.state}->'prompt'` })
+    .select({ mode: arenaGames.mode, p1User: arenaGames.p1User, p2User: arenaGames.p2User, prompt: sql<Prompt>`${arenaGames.state}->'prompt'` })
     .from(arenaGames)
     .where(eq(arenaGames.id, gameId))
     .limit(1);

@@ -4,10 +4,9 @@
  * The engine stays pure — it knows nothing about the database. This is the
  * only place the two meet. A row keeps the seed, the action log (which is what
  * makes a game reproducible) and a snapshot of the state so a page load does
- * not have to replay from the beginning. A game keeps the engine it was made
- * on (`arenaGames.engine`); `engineFor` is the one switch that resolves that
- * id to the engine this module calls, so this file never imports `./engine`
- * directly to play a saved game.
+ * not have to replay from the beginning. There is one engine (the rules
+ * engine, `RULES`); a stored state it did not write is refused by name
+ * (`rulesState`, `LegacyGameRetired`), never read.
  */
 import { and, desc, eq, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
@@ -17,15 +16,16 @@ import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { seedFrom } from "./vm/rng";
 import { type Action, type CardDef, type EngineContext, type GameEvent, type LegalAction, type PlayerId } from "./types";
-import { appendBeats, describeSkillEvent, type Beats, type NumberedBeat } from "./beats";
-import { ENGINE_INFO, engineFor, engineOr, FALLBACK_ENGINE, isVmState, playableEngine, sideName, type EngineId, type EngineState } from "./engines";
+import { appendBeats, type Beats, type NumberedBeat } from "./beats";
+import { rulesState, sideName, type EngineState } from "./engines";
+import { DEFAULT_ENGINE, type EngineId } from "./engine-ids";
+import { RULES } from "./vm";
 import { NOT_YET_REASON_PREFIX, resolveOutcome } from "./outcome";
 import { recordDecision } from "./ai/debug";
 import { tableTalk } from "./ai/table-talk";
 import { cardDefFrom, deckInputFor } from "./load";
 import { assertDecksPlayable } from "./readiness";
 import { loadRules, rulesFor, rulesFromRows } from "./rules-store";
-import type { StoredSnapshot } from "./snapshot";
 import type { CardArt } from "./view";
 import { gameOr, type Game } from "@/lib/catalog/games";
 import { makeReplayBundle, persistReplayBundle, pinnedContext, readReplayBundle, type PinnedContext, type ReplayBundle } from "./replay-bundle";
@@ -88,32 +88,10 @@ export interface Spotlight {
   unread: boolean;
 }
 
-/**
- * The last skill to resolve in this batch of events, or null if none did.
- * The reading itself is `describeSkillEvent` in `beats.ts`, so the banner and
- * the `skill` beat can never end up describing the same card differently.
- *
- * Legacy only: `describeSkillEvent` reads a card's printed skills and its
- * copied ones off the legacy `GameState` (`engine/state.ts`'s `def`,
- * `skillsOf`, `copiedSkillsOn`), which the rules engine has no equivalent of
- * yet. No banner rather than a wrong one for a rules-engine game.
- */
-function spotlightFrom(ctx: EngineContext, state: EngineState, events: GameEvent[], seq: number): Spotlight | null {
-  if (isVmState(state)) return null;
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i];
-    if (e.type !== "skill") continue;
-    if (!state.cards[e.card]) continue;
-    const d = describeSkillEvent(ctx, state, e);
-    return d ? { seq, ...d } : null;
-  }
-  return null;
-}
-
 export interface LoadedGame {
   id: number;
   mode: ArenaMode;
-  /** Which engine wrote `state` and replays `actions` (`engines.ts`). */
+  /** Which engine wrote `state` and replays `actions`: always `rules` (`engine-ids.ts`). */
   engine: EngineId;
   /** The card game the decks belong to. */
   game: Game;
@@ -134,13 +112,12 @@ export interface LoadedGame {
   version: number;
   /** Durable mutation acknowledgements, scoped by actor and request id. */
   actionReceipts: ActionReceipt[];
-  /** Null means historical/unpinned; these matches continue with legacy live inputs. */
+  /** Null means historical/unpinned; these matches continue with the live catalogue and rules. */
   rulesBundleHash: string | null;
   replayDecks: { p1: import("./types").DeckInput; p2: import("./types").DeckInput } | null;
   /** Set only on a request replay; never persisted or projected to a client. */
   duplicateRequest?: boolean;
   ctx: EngineContext;
-  /** The shape `engine` wrote. `legacyState` narrows it for the code that still needs `GameState` field for field (`ai/run.ts`'s Claude side). */
   state: EngineState;
   /** Every action applied so far, in order. */
   actions: Action[];
@@ -268,62 +245,6 @@ function withoutLegal(game: LoadedGame): Omit<LoadedGame, "legal"> {
   return Object.defineProperties({}, fields as PropertyDescriptorMap) as Omit<LoadedGame, "legal">;
 }
 
-/**
- * Why this engine is not built for this mode, or null. (#149, narrowed by
- * #162, turned from a refusal into a resolution by #166.)
- *
- * The rules engine plays the actions of Stage 5 the same as the legacy one.
- * Two things past those six calls used to still read the legacy `GameState`
- * field for field rather than either engine's shape generically: Claude's
- * side of Sparring and Tournament, and a 1 v 1's hidden-hand masking. #162
- * closed the first one as far as it goes without a live API call, and #458
- * the second: `view.ts`'s `revealedTo` reads the rules engine's own state
- * (`vm/view.ts`'s `vmRevealedTo`, off the zones' declared visibility), so
- * `maskBeats` hides the opponent's hand and deck from each seat on either
- * engine, and a 1 v 1 is let through too. No mode is refused on either engine
- * today; `REFUSED` below is where one would be named again.
- *
- * Returning the reason instead of throwing it is what #166 needed: with
- * `DEFAULT_ENGINE` flipped to `rules`, "a 1 v 1, engine unspecified" is the
- * ordinary path and must not be a refusal. `engineForMode` resolves it, and
- * `assertEngineForMode` still throws for a caller that *named* an engine —
- * saying no to what was asked for, never to what was merely defaulted.
- */
-export function modeRefusal(engine: EngineId, mode: ArenaMode): string | null {
-  const why = REFUSED[engine]?.[mode];
-  return why ? `the ${ENGINE_INFO[engine].label} ${why}, so a ${modeLabel(mode)} game is played on the ${ENGINE_INFO[FALLBACK_ENGINE].label}` : null;
-}
-
-/** The modes an engine is not built for, each with the reason in a few words. Empty since #458 let a 1 v 1 onto the rules engine. */
-const REFUSED: Partial<Record<EngineId, Partial<Record<ArenaMode, string>>>> = {};
-
-/** An engine a caller asked for by name, refused if this mode is not built on it. */
-function assertEngineForMode(engine: EngineId, mode: ArenaMode): void {
-  const why = modeRefusal(engine, mode);
-  if (why) throw new Error(why);
-}
-
-/** An engine resolved for a mode: which one it will be, and why it is not the preferred one. */
-export interface ResolvedEngine {
-  engine: EngineId;
-  /** Null unless `preferred` was sent to `FALLBACK_ENGINE`; a sentence for the form and the API. */
-  note: string | null;
-}
-
-/**
- * The engine a new game of this mode is made on when nobody named one.
- *
- * `preferred` is the setting's answer (`defaultEngine`), which since #166 is
- * the rules engine unless the owner has put it back. A mode that engine is not
- * built for resolves to `FALLBACK_ENGINE` and carries the reason out with it,
- * so the page that opens the game can say so; the fallback plays every mode,
- * which is why this cannot recurse into a second refusal.
- */
-export function engineForMode(preferred: EngineId, mode: ArenaMode): ResolvedEngine {
-  const note = modeRefusal(preferred, mode);
-  return note ? { engine: FALLBACK_ENGINE, note } : { engine: preferred, note: null };
-}
-
 export async function startGame(
   db: Db,
   p1DeckId: number,
@@ -331,16 +252,7 @@ export async function startGame(
   mode: ArenaMode = "hotseat",
   debug = true,
   seats: Seats = { p1User: null, p2User: null },
-  // Named, never defaulted from the setting here: this is pure enough to have
-  // no database of its own to read it from, and every caller that has one
-  // (`startGameForm`, `POST /api/v1/games`, `joinMatch`) resolves it first.
-  // `FALLBACK_ENGINE` is the engine that plays every mode, so a caller that
-  // says nothing gets the one that cannot be wrong.
-  engineId: EngineId = FALLBACK_ENGINE,
 ): Promise<number> {
-  // Resolved first: an engine that cannot play refuses before any deck is read.
-  const engine = playableEngine(engineId);
-  assertEngineForMode(engineId, mode);
   const a = await deckInputFor(db, p1DeckId);
   const b = await deckInputFor(db, p2DeckId);
   // `deckInputFor` also returns null for a Fusion World deck, which the engine
@@ -368,7 +280,7 @@ export async function startGame(
   const ctx = await pinnedContext(bundle);
   ctx.referee = hasAnthropic() && mode !== "hotseat";
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
-  const { state, events } = engine.createGame(ctx, { seed, p1: a.input, p2: b.input });
+  const { state, events } = RULES.createGame(ctx, { seed, p1: a.input, p2: b.input });
   const [row] = await db
     .insert(arenaGames)
     .values({
@@ -380,12 +292,12 @@ export async function startGame(
       p2User: seats.p2User,
       seed,
       mode,
-      engine: engine.id,
+      engine: DEFAULT_ENGINE,
       game: a.game,
       state,
       actions: [],
       log: describeEvents(ctx, state, events),
-      beats: engine.toBeats(ctx, state, events, 0),
+      beats: RULES.toBeats(ctx, state, events, 0),
       turn: state.turn,
       debug,
       rulesBundleHash: bundle.hash,
@@ -396,97 +308,20 @@ export async function startGame(
   return row.id;
 }
 
-/**
- * A legacy game archived under issue #335: its identity, and the stored
- * snapshot(s) it was last rendered as (`snapshot.ts`'s `StoredSnapshot`) —
- * never its `state`, never a compiled rule, never an engine. `store` is read
- * exactly as written; picking the right seat out of it is `archivedSnapshotFor`'s
- * job, not this one.
- */
-export interface ArchivedGame {
-  id: number;
-  version: number;
-  mode: ArenaMode;
-  engine: EngineId;
-  game: Game;
-  p1Name: string;
-  p2Name: string;
-  p1User: string | null;
-  p2User: string | null;
-  p1DeckId: number | null;
-  p2DeckId: number | null;
-  store: StoredSnapshot;
-}
-
-/**
- * The one query every caller must run before `loadGame`, whose
- * `legalActions` an archived row must never reach — not merely have the
- * result thrown away. Selects only the columns a read-only board needs, so
- * an archived row's (possibly stale, possibly enormous) `state`/`actions`/`log`
- * are never fetched either.
- *
- * Null for a row with no stored snapshot — not archived, `loadGame` is the
- * path — or no such row at all; the two are indistinguishable on purpose,
- * the same as `loadGame`'s own null.
- */
-export async function loadArchivedGame(db: Db, id: number): Promise<ArchivedGame | null> {
-  const [row] = await db
-    .select({
-      id: arenaGames.id,
-      mode: arenaGames.mode,
-      engine: arenaGames.engine,
-      game: arenaGames.game,
-      p1Name: arenaGames.p1Name,
-      p2Name: arenaGames.p2Name,
-      p1User: arenaGames.p1User,
-      p2User: arenaGames.p2User,
-      p1DeckId: arenaGames.p1DeckId,
-      p2DeckId: arenaGames.p2DeckId,
-      snapshot: arenaGames.snapshot,
-      version: arenaGames.version,
-    })
-    .from(arenaGames)
-    .where(eq(arenaGames.id, id))
-    .limit(1);
-  if (!row || !row.snapshot) return null;
-  return {
-    id: row.id,
-    version: row.version,
-    mode: row.mode as ArenaMode,
-    engine: engineOr(row.engine),
-    game: gameOr(row.game),
-    p1Name: row.p1Name,
-    p2Name: row.p2Name,
-    p1User: row.p1User,
-    p2User: row.p2User,
-    p1DeckId: row.p1DeckId,
-    p2DeckId: row.p2DeckId,
-    store: row.snapshot as StoredSnapshot,
-  };
-}
-
 export async function loadGame(db: Db, id: number, reuse?: Pick<LoadedGame, "ctx" | "art">): Promise<LoadedGame | null> {
   const row = await db.query.arenaGames.findFirst({ where: eq(arenaGames.id, id) });
   if (!row) return null;
-  // An archived row (`loadArchivedGame`) answers to nothing this function
-  // builds — `legalActions` must never be called for it, not merely have the
-  // result thrown away — so it is null here exactly as a missing row is. A
-  // caller that means to show the board checks `loadArchivedGame` first and
-  // never reaches this; every other caller (a move, a bug report, Claude's
-  // turn, the debug page) already treats null as "no such game", which reads
-  // right for an archived one too: nothing here can be continued.
-  if (row.snapshot) return null;
-  const state = row.state as EngineState;
+  // A row the rules engine did not write (the retired legacy engine, 0050) fails closed by name.
+  const state = rulesState(row.state);
   const bundle = row.rulesBundleHash ? await readReplayBundle(db, row.rulesBundleHash) : null;
   if (row.rulesBundleHash && !bundle) throw new Error("this match's pinned replay bundle is missing; refusing to load it with current rules");
   if (row.rulesBundleHash && !row.replayDecks) throw new Error("this match's pinned replay deck inputs are missing");
   const { ctx, art } = await contextFor(db, state, row.mode, id, bundle, reuse);
-  const engine = engineFor(engineOr(row.engine));
   return withLegal(
     {
     id: row.id,
     mode: row.mode as ArenaMode,
-    engine: engine.id,
+    engine: DEFAULT_ENGINE,
     game: gameOr(row.game),
     status: row.status,
     p1Name: row.p1Name,
@@ -510,7 +345,7 @@ export async function loadGame(db: Db, id: number, reuse?: Pick<LoadedGame, "ctx
     review: row.review,
     debug: row.debug,
     },
-    engine,
+    RULES,
   );
 }
 
@@ -550,8 +385,7 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   }
   if (opts.expectedRevision != null && game.version !== opts.expectedRevision) throw new StaleGame();
   if (game.status !== "playing") throw new GameAlreadyFinished();
-  const engine = engineFor(game.engine);
-  const { state, events } = engine.apply(game.ctx, game.state, action);
+  const { state, events } = RULES.apply(game.ctx, game.state, action);
   // What Claude said about *this* move goes in ahead of it, because it is the
   // reason for the move that follows. Collecting the whole batch and appending
   // it at the end put a line said on turn 1 under the turn 2 header, which
@@ -569,13 +403,13 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   // owner, not something the opponent said, and only a `debug` game has any.
   const spoken = [...(say ? [say] : []), ...(!withheldSecretAuto && told?.aside ? [told.aside] : [])];
   const lines = [...game.log, ...spoken, ...describeEvents(game.ctx, state, events)].slice(-400);
-  // Null when this action fired no skill, so the banner does not show again.
-  const spotlight = spotlightFrom(game.ctx, state, events, lines.length);
+  // The rules engine names no skill banner, so there is none to carry over.
+  const spotlight: Spotlight | null = null;
   // One opponent turn is several applies, so beats climb from where the queue
   // already is; `act()` is what empties it, once, when you take your turn.
   const from = game.beats?.seq ?? 0;
   const said: NumberedBeat[] = say ? [{ t: "say", text: say, n: from + 1 }] : [];
-  const moved = engine.toBeats(game.ctx, state, events, from + said.length);
+  const moved = RULES.toBeats(game.ctx, state, events, from + said.length);
   // `clearBeatsForTurn`'s emptying, written in this same update rather than
   // in queries of its own before it: the counter carries on, the list starts
   // again — and never in a 1 v 1, for the reason given there.
@@ -621,7 +455,7 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
   // — but it is also a fact no AI decided, so the debug page would otherwise
   // never say why a hot-seat game with no Claude in it stopped. One row,
   // shaped like every other decision, is what puts it there.
-  const typedOutcome = isVmState(state) ? state.outcome : null;
+  const typedOutcome = state.outcome ?? null;
   if (typedOutcome?.kind === "interrupted" || state.overReason?.startsWith(NOT_YET_REASON_PREFIX)) {
     await recordDecision(db, {
       gameId: id,
@@ -648,7 +482,7 @@ export async function applyToGame(db: Db, id: number, action: Action, told?: { s
       beats,
       status: state.phase === "over" ? "over" : "playing",
     },
-    engine,
+    RULES,
   );
 }
 
@@ -746,10 +580,9 @@ export async function listPlayingGames(db: Db, limit = 10, user: string | null =
 }
 
 /**
- * The columns a games list shows. `archived` and `turnPlayer` are read as
- * scalars in SQL, so a list never carries a stored board or a full state over
- * the wire: presence of `snapshot` is a badge, and `state.turnPlayer` (both
- * engines write it at the top level) says whose move a game in progress is.
+ * The columns a games list shows. `turnPlayer` is read as a scalar in SQL, so
+ * a list never carries a full state over the wire: `state.turnPlayer` says
+ * whose move a game in progress is.
  */
 const GAME_LIST_COLUMNS = {
   id: arenaGames.id,
@@ -763,10 +596,8 @@ const GAME_LIST_COLUMNS = {
   outcomeKind: sql<string | null>`${arenaGames.state}->'outcome'->>'kind'`,
   turn: arenaGames.turn,
   mode: arenaGames.mode,
-  engine: arenaGames.engine,
   costMicros: arenaGames.aiCostMicros,
   updatedAt: arenaGames.updatedAt,
-  archived: sql<boolean>`${arenaGames.snapshot} is not null`,
   turnPlayer: sql<string | null>`${arenaGames.state}->>'turnPlayer'`,
 };
 
@@ -819,16 +650,7 @@ export async function abandonGame(db: Db, id: number, expectedRevision: number, 
 
 // ── the event log ──────────────────────────────────────────────────────────
 
-/**
- * A card's name as it would show right now — Hidden Mode, a flipped Leader's
- * back side, or its front — read off whichever state shape wrote it.
- *
- * The three fields it reads (`cardId`, `hidden`, `flipped`) are named the same
- * on both engines' card instances (`VmCard`/`CardInstance`), so this is one
- * reading rather than a legacy one and a second: only `face` in `engine/state.ts`
- * (deeper card-copy and skill-lookup logic this log has no use for) is
- * legacy-only, and this is everything `describeEvents` actually wants from it.
- */
+/** A card's name as it would show right now — Hidden Mode, a flipped Leader's back side, or its front. */
 function cardName(ctx: EngineContext, state: EngineState, id: string): string {
   const inst = state.cards[id];
   const def = inst && ctx.defs[inst.cardId];

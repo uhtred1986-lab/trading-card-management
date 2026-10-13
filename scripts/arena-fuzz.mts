@@ -1,34 +1,20 @@
 /**
  * Play random legal games between real decks to shake out engine crashes.
- * Needs DATABASE_URL: `npm run arena:fuzz -- [games] [deckA deckB] [--engine legacy|rules]` (uses --env-file=.env.local).
+ * Needs DATABASE_URL: `npm run arena:fuzz -- [games] [deckA deckB]` (uses --env-file=.env.local).
  */
 import { db } from "../src/db";
 import { decks } from "../src/db/schema";
 import { nextRandom } from "../src/lib/arena/vm/rng";
-import { type GameState, type PlayerId } from "../src/lib/arena/types";
-import { engineFor, isEngineId, legacyState } from "../src/lib/arena/engines";
-import { isVmState, type VmState } from "../src/lib/arena/vm";
+import { RULES, isVmState, type VmState } from "../src/lib/arena/vm";
 import { deckInputFor, defsForCards } from "../src/lib/arena/load";
 import { rulesFor } from "../src/lib/arena/rules-store";
 
 const argv = process.argv.slice(2);
-const engineArg = argv.indexOf("--engine");
-const engineId = engineArg >= 0 ? argv[engineArg + 1] : "legacy";
-if (!isEngineId(engineId)) throw new Error(`--engine must be one of legacy, rules; got ${engineId}`);
-const { createGame, apply, legalActions } = engineFor(engineId);
-// `engineArg` is -1 when `--engine` was not given, and `-1 + 1` is the index of
-// the *first* positional — which is how `arena:fuzz 40` quietly ran 20 games.
-const positional = argv.filter((a, i) => engineArg < 0 || (i !== engineArg && i !== engineArg + 1));
-const games = Number(positional[0] ?? 20);
-const fixed = positional.length >= 3 ? [Number(positional[1]), Number(positional[2])] : null;
+const { createGame, apply, legalActions } = RULES;
+const games = Number(argv[0] ?? 20);
+const fixed = argv.length >= 3 ? [Number(argv[1]), Number(argv[2])] : null;
 
-/**
- * The same invariant as `check` below, on the board the rules engine plays:
- * every card in exactly one place (3-1), checked after every move as it is on
- * the legacy engine. A run on `--engine rules` plays whole games — the moves
- * the engine has are `pass`, `endMain` and `concede` (#140), so a game ends
- * the way a game of nothing but passing ends: on a deck-out, around turn 70.
- */
+/** The invariant checked after every move: every card in exactly one place (3-1). */
 function checkRules(state: unknown): VmState {
   if (!isVmState(state)) throw new Error(`the rules engine returned a state it does not recognise: ${JSON.stringify(state).slice(0, 120)}`);
   const seen = new Map<string, number>();
@@ -45,22 +31,6 @@ function checkRules(state: unknown): VmState {
     if (seen.get(id) !== 1) throw new Error(`${id} (${state.cards[id].cardId}) is in ${seen.get(id) ?? 0} places, not 1`);
   }
   return state;
-}
-
-function check(s: GameState): void {
-  const seen = new Map<string, number>();
-  for (const p of ["p1", "p2"] as PlayerId[]) {
-    const ps = s.players[p];
-    const all = [ps.leader, ps.unison, ...ps.deck, ...ps.hand, ...ps.drop, ...ps.warp, ...ps.life, ...ps.battle, ...ps.combo, ...ps.energy, ...ps.zDeck, ...ps.zEnergy, ...ps.removed].filter(
-      Boolean,
-    ) as string[];
-    for (const id of all) {
-      seen.set(id, (seen.get(id) ?? 0) + 1);
-      for (const u of s.cards[id].under) seen.set(u, (seen.get(u) ?? 0) + 1);
-    }
-    if (ps.life.length > 8) throw new Error(`${p} has ${ps.life.length} life`);
-  }
-  for (const id of Object.keys(s.cards)) if (seen.get(id) !== 1) throw new Error(`${id} (${s.cards[id].cardId}) found ${seen.get(id) ?? 0} times`);
 }
 
 const all = await db.select({ id: decks.id, name: decks.name }).from(decks);
@@ -90,51 +60,25 @@ for (let g = 0; g < games; g++) {
   // Rows, not a compile: the same context a real game gets.
   const ctx = { defs, scripts: await rulesFor(db, defs) };
   const seed = Math.floor(rand() * 1e9);
-  let s: GameState;
   let steps = 0;
   let last = "";
   try {
-    if (engineId === "rules") {
-      // The rules engine's own shape, played through its own menu. The bias is
-      // the legacy loop's: end the turn less often than anything else, so a
-      // game has content — which on this engine means taking the mulligan and
-      // the charge skip rather than jumping straight to the next turn.
-      let v = checkRules(createGame(ctx, { seed, p1: da.input, p2: dbk.input }).state);
-      while (v.phase !== "over" && steps < 4000) {
-        const legal = legalActions(ctx, v);
-        if (!legal.length) throw new Error(`no legal actions at prompt ${JSON.stringify(v.prompt)}`);
-        const pool = legal.filter((l) => l.action.type !== "endMain" && l.action.type !== "concede");
-        const pick = pool.length && rand() < 0.85 ? pool[Math.floor(rand() * pool.length)] : legal[Math.floor(rand() * legal.length)];
-        last = pick.label;
-        const r = apply(ctx, v, pick.action);
-        for (const e of r.events) if (e.type === "note") notes.set(e.text.slice(0, 60), (notes.get(e.text.slice(0, 60)) ?? 0) + 1);
-        v = checkRules(r.state);
-        steps++;
-      }
-      results.push(`${a.name} vs ${b.name}: ${v.phase === "over" ? `${v.winner ? v.sides[v.winner].name + " won" : "draw"} (${v.overReason}) after turn ${v.turn}` : `still running after ${steps} actions, turn ${v.turn}`}`);
-      continue;
-    }
-    // Legacy-shaped: the fuzzer reads the board itself (`check`), so a state
-    // it cannot read is a crash it should report rather than misread. #143 is
-    // where the scripts learn the second engine's shape.
-    s = legacyState(createGame(ctx, { seed, p1: da.input, p2: dbk.input }).state);
-    check(s);
-    while (s.phase !== "over" && steps < 600) {
-      const legal = legalActions(ctx, s);
-      if (!legal.length) throw new Error(`no legal actions at prompt ${JSON.stringify(s.prompt)}`);
-      // Bias: end the turn less often than picking any other action, so games have content.
+    // Played through the engine's own menu. The bias: end the turn less often than
+    // anything else, so a game has content — which means taking the mulligan and
+    // the charge skip rather than jumping straight to the next turn.
+    let v = checkRules(createGame(ctx, { seed, p1: da.input, p2: dbk.input }).state);
+    while (v.phase !== "over" && steps < 4000) {
+      const legal = legalActions(ctx, v);
+      if (!legal.length) throw new Error(`no legal actions at prompt ${JSON.stringify(v.prompt)}`);
       const pool = legal.filter((l) => l.action.type !== "endMain" && l.action.type !== "concede");
       const pick = pool.length && rand() < 0.85 ? pool[Math.floor(rand() * pool.length)] : legal[Math.floor(rand() * legal.length)];
       last = pick.label;
-      const r = apply(ctx, s, pick.action);
-      s = legacyState(r.state);
-      for (const e of r.events) if (e.type === "note") notes.set(e.text.replace(/^[^:]+: /, "").slice(0, 60), (notes.get(e.text.replace(/^[^:]+: /, "").slice(0, 60)) ?? 0) + 1);
-      check(s);
+      const r = apply(ctx, v, pick.action);
+      for (const e of r.events) if (e.type === "note") notes.set(e.text.slice(0, 60), (notes.get(e.text.slice(0, 60)) ?? 0) + 1);
+      v = checkRules(r.state);
       steps++;
     }
-    results.push(
-      `${a.name} vs ${b.name}: ${s.phase === "over" ? `${s.winner ? s.players[s.winner].name + " won" : "draw"} (${s.overReason}) after turn ${s.turn}` : `still running after ${steps} actions, turn ${s.turn}`}`,
-    );
+    results.push(`${a.name} vs ${b.name}: ${v.phase === "over" ? `${v.winner ? v.sides[v.winner].name + " won" : "draw"} (${v.overReason}) after turn ${v.turn}` : `still running after ${steps} actions, turn ${v.turn}`}`);
   } catch (err) {
     crashes++;
     console.error(`CRASH in ${a.name} vs ${b.name} (seed ${seed}) after ${steps} actions, last action "${last}":`, err);

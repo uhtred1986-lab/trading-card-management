@@ -8,10 +8,9 @@
  * `app/arena/rules/probe-actions.ts` read the card and the stored judgements
  * and hand them here):
  *
- * - `tryRule` runs each board on `DEFAULT_ENGINE` *and* `FALLBACK_ENGINE`,
- *   traced (`probe-trace.ts`). Two engines disagreeing is an engine bug and
- *   not the owner's, so the row says so and shows both. `probe()`'s own
- *   default stays `FALLBACK_ENGINE`: nothing here is stored as a digest.
+ * - `tryRule` runs each board on the rules engine, traced (`probe-trace.ts`).
+ *   Before #118 it also ran the legacy engine beside it and flagged a row
+ *   where the two disagreed; there is one engine now.
  * - A run's **effect**: `probe()` calls a skill "fired" once it announced
  *   itself, which is what a stored digest has always meant — but an [Auto]
  *   whose IF is false announces itself and then does nothing, and to the
@@ -22,7 +21,7 @@
  *   then COST, then IF), or the block behind the first wrong beat of one that
  *   fired and should not have, or did the wrong thing.
  */
-import { DEFAULT_ENGINE, FALLBACK_ENGINE, type EngineId } from "./engines";
+import { DEFAULT_ENGINE } from "./engine-ids";
 import type { Rule } from "./lang/ast";
 import type { RulePath } from "./lang/path";
 import { familyOf, probe, scenarioFromKey, scenariosFor, type ProbeOutcome, type ProbeRule, type ProbeRun, type ProbeScenario } from "./probe";
@@ -51,7 +50,7 @@ export function probeRuleOf(rule: Rule, def: CardDef, side: "front" | "back", sk
   };
 }
 
-// ── one board, two engines ──────────────────────────────────────────────────
+// ── one board ──────────────────────────────────────────────────
 
 const FIRES: ProbeOutcome[] = ["fired", "inForce"];
 
@@ -96,13 +95,13 @@ function shorten(line: string): string {
   return line;
 }
 
-function tryOn(rule: ProbeRule, scenario: ProbeScenario, engine: EngineId): { run: ProbeRun; tried: TryRun } {
-  const run = probe(rule, scenario, engine, { trace: true });
+function tryOn(rule: ProbeRule, scenario: ProbeScenario): { run: ProbeRun; tried: TryRun } {
+  const run = probe(rule, scenario, { trace: true });
   const outcome = effective(run);
   return {
     run,
     tried: {
-      engine,
+      engine: DEFAULT_ENGINE,
       outcome,
       fires: FIRES.includes(outcome),
       // A fired rule is headlined by what its own steps did, not by the turn
@@ -139,24 +138,21 @@ export function boardsFor(rule: ProbeRule, extra: string[] = []): { scenario: Pr
   return out;
 }
 
-export function tryRule(rule: ProbeRule, extra: string[] = [], engines: { main: EngineId; other: EngineId } = { main: DEFAULT_ENGINE, other: FALLBACK_ENGINE }): TryResult {
+export function tryRule(rule: ProbeRule, extra: string[] = []): TryResult {
   const view = ruleViewOf(rule);
   const rows = boardsFor(rule, extra).map(({ scenario, generated }): TryRow => {
-    const main = tryOn(rule, scenario, engines.main);
-    const other = tryOn(rule, scenario, engines.other);
+    const main = tryOn(rule, scenario);
     return {
       key: scenario.key,
       title: scenario.title,
       knobs: scenario.knobs ?? {},
       generated,
       rules: main.tried,
-      legacy: other.tried,
-      disagree: main.tried.outcome !== other.tried.outcome || main.tried.headline !== other.tried.headline,
-      gate: main.tried.fires ? null : gateOf(rule, scenario, main.run, engines.main),
+      gate: main.tried.fires ? null : gateOf(rule, scenario, main.run),
       announcedBy: announcedBy(rule),
     };
   });
-  return { rows, knobs: knobSpecs(view), notes: edgeNotes(view), engines };
+  return { rows, knobs: knobSpecs(view), notes: edgeNotes(view) };
 }
 
 // ── what stopped it ─────────────────────────────────────────────────────────
@@ -167,7 +163,7 @@ export function tryRule(rule: ProbeRule, extra: string[] = [], engines: { main: 
  * (the price could not be paid — the same board with the price taken off
  * fires), IF (the skill answered and its condition did not hold).
  */
-export function gateOf(rule: ProbeRule, scenario: ProbeScenario, run: ProbeRun, engine: EngineId): Gate {
+export function gateOf(rule: ProbeRule, scenario: ProbeScenario, run: ProbeRun): Gate {
   const view = ruleViewOf(rule);
   const notes = run.trace?.notes ?? [];
   if (run.outcome === "blank") return { path: "ops", clause: "THEN", reasons: ["the rule has no steps, so there is nothing to do"] };
@@ -187,9 +183,9 @@ export function gateOf(rule: ProbeRule, scenario: ProbeScenario, run: ProbeRun, 
   }
   const hasPrice = !!(rule.price.condition || rule.price.ops?.length);
   if (hasPrice) {
-    const free = probe({ ...rule, price: { condition: null, ops: null } }, scenario, engine, { trace: true });
+    const free = probe({ ...rule, price: { condition: null, ops: null } }, scenario, { trace: true });
     if (FIRES.includes(effective(free))) {
-      const condOnly = rule.price.condition ? probe({ ...rule, price: { ...rule.price, condition: null } }, scenario, engine, { trace: true }) : null;
+      const condOnly = rule.price.condition ? probe({ ...rule, price: { ...rule.price, condition: null } }, scenario, { trace: true }) : null;
       const byCond = !!condOnly && FIRES.includes(effective(condOnly));
       return {
         path: byCond ? "cost.condition" : "cost",
@@ -215,7 +211,7 @@ function whenWords(rule: ProbeRule): string {
  * The stored judgements a rule no longer meets, as `arena:reprobe` prints
  * them: "expected fired, now didNotFire". Separate from a digest moving —
  * that says a result changed; this says it is now *wrong*, by the owner's
- * own word. Each is re-run on the engine it was judged on.
+ * own word. Each is re-run on the rules engine.
  */
 export function expectationMismatches(rule: ProbeRule, expectations: Expectation[]): { key: string; title: string; line: string }[] {
   const out: { key: string; title: string; line: string }[] = [];
@@ -225,7 +221,7 @@ export function expectationMismatches(rule: ProbeRule, expectations: Expectation
       out.push({ key: e.key, title: e.title, line: `the board "${e.key}" can no longer be staged` });
       continue;
     }
-    const { tried } = tryOn(rule, scenario, e.engine);
+    const { tried } = tryOn(rule, scenario);
     const status = judge(tried, e);
     if (status === "match") continue;
     const nowFires = tried.fires ? "fired" : tried.outcome;

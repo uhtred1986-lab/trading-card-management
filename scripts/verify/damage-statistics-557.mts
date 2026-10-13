@@ -8,9 +8,8 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { run } from "../../src/lib/arena/vm/flow";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, GameEvent, Prompt } from "../../src/lib/arena/types";
-import { CTX, ENGINE, IMPL, card, findG, leaderOf, rulesFromCompiler, stagedG, zoneOf } from "./harness";
+import { CTX, IMPL, card, findG, leaderOf, rulesFromCompiler, stagedG, zoneOf } from "./harness";
 
-assert.equal(ENGINE, "rules", "run with --engine rules");
 const rules = rulesetFor("dbs");
 assert.ok(rules.ok);
 const game = rules.definition;

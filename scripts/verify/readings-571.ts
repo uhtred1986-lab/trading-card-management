@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { compileSkill } from "../../src/lib/arena/compile";
 import { subjectFilterOf } from "../../src/lib/arena/compile/targets";
 import type { VmState } from "../../src/lib/arena/vm/state";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { matches } from "../../src/lib/arena/text/filters";
 import { autoTriggerMatches } from "../../src/lib/arena/text/triggers";
@@ -71,7 +71,7 @@ for (const [id, skill] of [
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok, "the DBS ruleset should load with #571 trigger declarations");
 const DBS = loaded.definition;
-const rules = engineFor("rules");
+const rules = RULES;
 const deck = {
   seed: 571,
   p1: { name: "P1", leader: "L-RED", main: fifty("V1") },

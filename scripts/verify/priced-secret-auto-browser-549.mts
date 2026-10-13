@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { Browser, requireServer, sleep, VIEWPORTS } from "../lib/cdp.mts";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness.ts";
 import { buildSnapshot, type Snapshot } from "../../src/lib/arena/snapshot.ts";
-import { engineFor } from "../../src/lib/arena/engines.ts";
+import { RULES } from "../../src/lib/arena/vm/index.ts";
 import { rulesetFor } from "../../src/lib/arena/rulesets/index.ts";
 import { vmToBeats } from "../../src/lib/arena/vm/beats.ts";
 import { run } from "../../src/lib/arena/vm/flow.ts";
@@ -33,7 +33,7 @@ const fixtureNames = ["arena-549-priced-declared", "arena-549-priced-activated",
 const fixturePaths = [initialFixtureName, ...fixtureNames].map((name) => join(fixtureDir, `${name}.json`));
 for (const path of fixturePaths) if (existsSync(path)) throw new Error(`Refusing to overwrite ${path}`);
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const defs = { ...DEFS,
@@ -71,7 +71,7 @@ const combined = { seq: declarationBeat.seq + activationBeat.seq, list: [
 const later = rules.apply(ctx, JSON.parse(JSON.stringify(paid.state)), { type: "pass", player: "p1" });
 const images = { SECRET549: { front: artUrl, back: null } };
 const snapshot = (s: VmState, beats: Snapshot["beats"]): Snapshot => {
-  return buildSnapshot({ id: 5495, engine: "rules", mode: "versus", status: "playing", p1Name: "Alice", p2Name: "Bob", ctx, state: s,
+  return buildSnapshot({ id: 5495, mode: "versus", status: "playing", p1Name: "Alice", p2Name: "Bob", ctx, state: s,
     legal: rules.legalActions(ctx, s), log: [], beats, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: "p2", images });
 };
 const initial = snapshot(state, { seq: 0, list: [], art: {} });

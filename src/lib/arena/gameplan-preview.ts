@@ -1,5 +1,6 @@
 /** A bounded, disposable Main Phase projection. No stored state or services enter this module. */
-import { engineFor, type EngineId, type EngineState } from "./engines";
+import type { EngineState } from "./engines";
+import { RULES } from "./vm";
 import type { Action, EngineContext, GameEvent, PlayerId } from "./types";
 import type { CardArt, SideView } from "./view";
 import { leaderOf, unisonOf, zoneOf } from "./engine-state";
@@ -98,13 +99,13 @@ function uncertain(events: GameEvent[], player: PlayerId): string | null {
 }
 
 export function previewGameplan(input: {
-  engine: EngineId; ctx: EngineContext; state: EngineState; art: Record<string, CardArt>;
+  ctx: EngineContext; state: EngineState; art: Record<string, CardArt>;
   player: PlayerId; actions: Action[];
 }): GameplanPreview {
   const { player } = input;
-  const engine = engineFor(input.engine);
-  // Both engines clone in apply today. Clone at this boundary too: future engine
-  // implementations cannot accidentally modify the loaded row's state.
+  const engine = RULES;
+  // The engine clones in apply today. Clone at this boundary too: a future
+  // implementation cannot accidentally modify the loaded row's state.
   let state = structuredClone(input.state);
   const ctx = { ...input.ctx, referee: false };
   const result: GameplanPreview = { steps: [], next: [], stopped: null };
@@ -179,5 +180,5 @@ export function previewLoadedGame(
   if (game.mode !== "hotseat" && game.mode !== "versus" && player !== "p1") return { error: "it is not your turn", preview: null };
   if (game.version !== basedOn) return { error: "the board changed; refresh the plan", preview: null };
   if (game.status !== "playing" || game.state.prompt.kind !== "main") return { error: "a plan is only available during Main Phase", preview: null };
-  return { error: null, preview: previewGameplan({ engine: game.engine, ctx: game.ctx, state: game.state, art: game.art, player, actions }) };
+  return { error: null, preview: previewGameplan({ ctx: game.ctx, state: game.state, art: game.art, player, actions }) };
 }

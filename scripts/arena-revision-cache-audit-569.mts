@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import inspector from "node:inspector";
-import { arenaG, addEffectG, CTX, ENGINE, IMPL } from "./verify/harness";
+import { arenaG, addEffectG, CTX, IMPL } from "./verify/harness";
 import { buildSnapshot, type SnapshotInput } from "../src/lib/arena/snapshot";
 import { rulesetFor } from "../src/lib/arena/rulesets";
 import { attrsNow } from "../src/lib/arena/vm/program";
@@ -79,7 +79,6 @@ function snapshotInput(state: VmState, revision: number, viewer: "p1" | "p2", le
     id: 569,
     revision,
     mode: "versus",
-    engine: "rules",
     status: "playing",
     p1Name: "You",
     p2Name: "Other",
@@ -129,7 +128,6 @@ async function profileCpu(fn: () => void) {
   return { iterations: PROFILE_ITERATIONS, sampling: "Inspector CPU samples; nodeHitCount is a profiler node field, not an exact call counter", topFunctionsBySampledSelfTime: top };
 }
 
-assert.equal(ENGINE, "rules", "run with --engine rules");
 assert.equal(process.env.DATABASE_URL ?? "", "", "refusing any configured database URL");
 
 const smallOptions: ArenaOpts = { hand: ["V1"], energy: ["V1"], battle: ["V1"], oppBattle: ["V-BLUE"] };

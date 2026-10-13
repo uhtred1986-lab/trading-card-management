@@ -3,7 +3,7 @@ import "./battle-cleanup-replacement-gap-609";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CTX, DEFS, card, fifty, rulesFromCompiler, skillRecords } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { autoTriggerMatches } from "../../src/lib/arena/text/triggers";
@@ -17,7 +17,7 @@ import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/typ
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Op } from "../../src/lib/arena/vm/script";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
@@ -67,7 +67,7 @@ const reload = (s: VmState): VmState => JSON.parse(JSON.stringify(s));
   assert.equal(resumed.events.filter((e) => e.type === "skill" && e.card === fixture.attacker).length, 0);
 }
 function snapshot(current: VmState, viewer: PlayerId) {
-  return buildSnapshot({ id: 609, engine: "rules", mode: "versus", status: "playing", p1Name: "Turn", p2Name: "Other", ctx, state: current,
+  return buildSnapshot({ id: 609, mode: "versus", status: "playing", p1Name: "Turn", p2Name: "Other", ctx, state: current,
     legal: rules.legalActions(ctx, current), log: [], beats: null, spotlight: null,
     spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }

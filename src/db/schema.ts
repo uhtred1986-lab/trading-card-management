@@ -649,12 +649,13 @@ export const arenaGames = pgTable(
     /** hotseat | sparring | tournament | versus */
     mode: text("mode").notNull().default("hotseat"),
     /**
-     * Which engine plays this game: `legacy` (the hand-written one in
-     * `src/lib/arena/engine/`) or `rules` (the configuration-driven one being
-     * built beside it). Chosen when the game is made and never changed, because
-     * `state` is the shape that engine writes and `actions` replay only on it.
+     * Which engine plays this game. Always `rules` since #118 deleted the
+     * legacy engine (owner, 13 Oct 2026): every new row writes it and nothing
+     * reads it — a saved game is recognised by the shape of its `state`
+     * (`isVmState`). The column stays so the migration is not destructive;
+     * migration 0050 deleted every game still saved as `legacy`.
      */
-    engine: text("engine").notNull().default("legacy"),
+    engine: text("engine").notNull().default("rules"),
     /** The card game the decks belong to (`src/lib/catalog/games.ts`), copied from the deck. */
     game: text("game").notNull().default("dbs"),
     /** playing | over | abandoned */
@@ -702,17 +703,10 @@ export const arenaGames = pgTable(
     review: text("review"),
     reviewAt: timestamp("review_at", { withTimezone: true }),
     /**
-     * The last `Snapshot`(s) rendered for this game, stored once as JSON
-     * while `engine/` — the legacy engine — still exists to compute them
-     * (issue #335). Null until a legacy row is archived by
-     * `scripts/arena-snapshot-legacy.mts`; every other row stays null
-     * forever. Its *presence*, not `engine`'s value, is what makes a game
-     * archived: `games.ts`'s `loadArchivedGame` reads it instead of calling
-     * `legalActions`/`apply`, which a retired engine could no longer answer
-     * anyway. Shaped `StoredSnapshot` (`src/lib/arena/snapshot.ts`): one
-     * `shared` board for every mode but `versus`, and a `p1`/`p2` pair for
-     * it, since that is the one mode with a real hidden-hand boundary
-     * between two logins to preserve forever rather than re-derive.
+     * Unused since #118: it held the last `Snapshot`(s) of a legacy game
+     * archived by `scripts/arena-snapshot-legacy.mts` (issue #335). Those
+     * games are deleted by migration 0050, nothing writes or reads the column
+     * any more, and it stays only so the migration is not destructive.
      */
     snapshot: jsonb("snapshot"),
     /**
@@ -775,8 +769,8 @@ export const arenaMatches = pgTable(
     guestDeckId: integer("guest_deck_id").references(() => decks.id, { onDelete: "set null" }),
     /** Carried through to the game the join creates. */
     debug: boolean("debug").notNull().default(true),
-    /** Carried through the same way: the host chooses the engine, the joiner only a deck. */
-    engine: text("engine").notNull().default("legacy"),
+    /** Always `rules` since #118 (see `arenaGames.engine`); nothing reads it. */
+    engine: text("engine").notNull().default("rules"),
     gameId: integer("game_id").references(() => arenaGames.id, { onDelete: "set null" }),
     /** open | started | cancelled */
     status: text("status").notNull().default("open"),

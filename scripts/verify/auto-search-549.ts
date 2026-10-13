@@ -8,7 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { emptyFilter } from "../../src/lib/arena/text/filters";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -20,7 +20,7 @@ import { stepScript, type Op, type ScriptFrame } from "../../src/lib/arena/vm/sc
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
-const rules = engineFor("rules");
+const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;

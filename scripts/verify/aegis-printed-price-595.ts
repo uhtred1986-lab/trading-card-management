@@ -4,7 +4,7 @@
 // not claims about a catalogued Aegis card.
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
-import { engineFor } from "../../src/lib/arena/engines";
+import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { compileCard } from "../../src/lib/arena/compile";
 import { skillRecords } from "../../src/lib/arena/draft";
@@ -15,7 +15,7 @@ import { NotYet } from "../../src/lib/arena/vm/errors";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 
-const engine = engineFor("rules");
+const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 const defs = { ...DEFS,
@@ -95,7 +95,7 @@ function payColors(s: VmState, a: ReturnType<typeof defense>) {
   return paid;
 }
 const colors = (a: ReturnType<typeof defense>) => payColors(activate(a.s, a.card).state, a);
-const view = (s: VmState, viewer: PlayerId) => JSON.stringify(buildSnapshot({ id: 595, revision: 1, mode: "versus", engine: "rules", status: "playing",
+const view = (s: VmState, viewer: PlayerId) => JSON.stringify(buildSnapshot({ id: 595, revision: 1, mode: "versus", status: "playing",
   p1Name: "Player 1", p2Name: "Player 2", ctx, state: s, legal: [], log: [], beats: null, spotlight: null,
   spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} }));
 

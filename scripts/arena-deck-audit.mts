@@ -27,7 +27,7 @@ import { legality, type LegalityCard } from "../src/lib/decks/legality";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { compileCard, compileCostProgram, costIsOnlyOrbs, priceCondition } from "../src/lib/arena/compile";
 import { triggersOf } from "../src/lib/arena/gaps";
-import { emitsStatic } from "../src/lib/arena/engine/state";
+import { emitsStatic } from "./lib/emits-static";
 import { skillsOf } from "../src/lib/arena/text/cards";
 import { CAPABILITY_EVIDENCE } from "../src/lib/arena/capability-inventory";
 import { KEYWORDS } from "../src/lib/arena/glossary";

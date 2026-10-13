@@ -13,7 +13,8 @@
  * the rest of the game is walked only to learn which turns exist.
  */
 import type { Action, EngineContext, GameOptions, PlayerId } from "./types";
-import { engineFor, type EngineId, type EngineState } from "./engines";
+import type { EngineState } from "./engines";
+import { RULES } from "./vm";
 import { narrate, type Narrator } from "./narration";
 import type { NumberedBeat } from "./beats";
 import type { BoardView, CardArt } from "./view";
@@ -100,7 +101,6 @@ function subjectOf(a: Action): string | null {
  * label it chose, in order, so a human's moves — which record nothing — simply have none.
  */
 export function replayForReview(input: {
-  engine: EngineId;
   ctx: EngineContext;
   options: GameOptions;
   actions: Action[];
@@ -109,7 +109,7 @@ export function replayForReview(input: {
   names: Record<PlayerId, string>;
   turn?: number;
 }): Review {
-  const engine = engineFor(input.engine);
+  const engine = RULES;
   let { state } = engine.createGame(input.ctx, input.options);
   const turns: number[] = [];
   const pre: EngineState[] = [];

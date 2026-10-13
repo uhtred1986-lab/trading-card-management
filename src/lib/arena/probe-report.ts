@@ -1,9 +1,9 @@
-import { keywordsInForce as legacyKeywordsInForce, powerOf as legacyPowerOf } from "./engine";
 import { specifiedCostUnknown } from "./text/cards";
 import { type EngineContext, type GameEvent, type PlayerId } from "./types";
 import { type Op } from "./vm/script";
 import type { KeywordSkill } from "./types";
-import { engineFor, FALLBACK_ENGINE, isVmState, type EngineId, type EngineState } from "./engines";
+import type { EngineState } from "./engines";
+import { RULES } from "./vm";
 import { zoneOf } from "./engine-state";
 import { rulesetFor, type GameDefinition } from "./rulesets";
 import { attrsNow, keywordsInForce as vmKeywordsInForce } from "./vm/program";
@@ -12,7 +12,6 @@ import { describeEffect, untilWords } from "./effects";
 import { keywordPlays } from "./glossary";
 import { narrate } from "./narration";
 import type { ProbeOutcome, ProbeRule, ProbeScenario } from "./probe-types";
-import { questionFor } from "./view";
 import type { RulePath } from "./lang/path";
 import { isMarker, markerPath } from "./probe-trace";
 import { resolveOutcome } from "./outcome";
@@ -31,14 +30,14 @@ export function rulesDefinition(): GameDefinition {
   return (definition = loaded.definition);
 }
 
-/** A card's power on the board, on whichever engine wrote the state. */
+/** A card's power on the board. */
 export function powerOnBoard(ctx: EngineContext, s: EngineState, id: string): number {
-  return isVmState(s) ? Number(attrsNow(ctx, rulesDefinition(), s, id).power ?? 0) : legacyPowerOf(ctx, s, id);
+  return Number(attrsNow(ctx, rulesDefinition(), s, id).power ?? 0);
 }
 
-/** The keywords a card has in force, on whichever engine wrote the state. */
+/** The keywords a card has in force. */
 export function keywordsOnBoard(ctx: EngineContext, s: EngineState, id: string): KeywordSkill[] {
-  return isVmState(s) ? vmKeywordsInForce(ctx, rulesDefinition(), s, id) : legacyKeywordsInForce(ctx, s, id);
+  return vmKeywordsInForce(ctx, rulesDefinition(), s, id);
 }
 
 const YOU: PlayerId = "p1";
@@ -61,16 +60,15 @@ export interface ProbeStep {
 
 /** The question, said from the chair it is asked in — the probe watches from p1's. */
 export function askedQuestion(ctx: EngineContext, s: EngineState): string {
-  const q = isVmState(s) ? vmQuestion(ctx, s) : questionFor(ctx, s);
+  const q = vmQuestion(ctx, s);
   return q.player && q.player !== YOU ? `the opponent is asked: ${q.question}` : q.question;
 }
 
 /**
  * The rules engine's prompt view says the fixed questions; a choice names what
- * it is choosing in the prompt itself, which is what the legacy `questionFor`
- * reads too — so the probe's log reads the same on both.
+ * it is choosing in the prompt itself.
  */
-function vmQuestion(ctx: EngineContext, s: Extract<EngineState, { engine: "rules" }>): { player: PlayerId | null; question: string } {
+function vmQuestion(ctx: EngineContext, s: EngineState): { player: PlayerId | null; question: string } {
   const pr = s.prompt;
   const nameOf = (id: string) => ctx.defs[s.cards[id]?.cardId ?? ""]?.name ?? id;
   if (pr.kind === "chooseCards") return { player: pr.player, question: pr.choice.reason };
@@ -85,10 +83,10 @@ export function candidatesOf(s: EngineState): string[] | null {
 }
 
 /** The log, in the board's own words. */
-export function logLines(ctx: EngineContext, steps: ProbeStep[], from = 0, engine: EngineId = FALLBACK_ENGINE): string[] {
+export function logLines(ctx: EngineContext, steps: ProbeStep[], from = 0): string[] {
   const out: string[] = [];
   for (const step of steps.slice(from)) {
-    const beats = engineFor(engine).toBeats(ctx, step.state, step.events, 0);
+    const beats = RULES.toBeats(ctx, step.state, step.events, 0);
     for (const b of beats.list) {
       const said = narrate(b, { viewer: YOU, them: "Opponent", art: beats.art, ownerOf: (id) => step.state.cards[id]?.owner ?? null }, undefined, { full: true });
       if (said) out.push(said);
@@ -137,10 +135,10 @@ export function attributeSteps(steps: ProbeStep[], from: number, card: string, s
  * same beats as the batch (`toBeats` is one beat per event or none, in order);
  * a step where it does not is left unattributed rather than misattributed.
  */
-export function tracedLogLines(ctx: EngineContext, steps: ProbeStep[], from = 0, engine: EngineId = FALLBACK_ENGINE): { lines: string[]; paths: (RulePath | null)[] } {
+export function tracedLogLines(ctx: EngineContext, steps: ProbeStep[], from = 0): { lines: string[]; paths: (RulePath | null)[] } {
   const lines: string[] = [];
   const paths: (RulePath | null)[] = [];
-  const impl = engineFor(engine);
+  const impl = RULES;
   for (const step of steps.slice(from)) {
     const beats = impl.toBeats(ctx, step.state, step.events, 0);
     const owners: (RulePath | null)[] = [];

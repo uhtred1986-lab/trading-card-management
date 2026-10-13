@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import inspector from "node:inspector";
-import { arenaG, CTX, ENGINE, IMPL } from "./harness";
+import { arenaG, CTX, IMPL } from "./harness";
 import { buildSnapshot, withSnapshotReading, type SnapshotInput } from "../../src/lib/arena/snapshot";
 import { snapshotOfGame } from "../../src/lib/arena/session";
 import { withTokens } from "../../src/lib/arena/vm/cards";
@@ -12,18 +12,17 @@ import type { EngineContext, LegalAction } from "../../src/lib/arena/types";
 import type { LoadedGame } from "../../src/lib/arena/games";
 import type { Db } from "../../src/db";
 
-assert.equal(ENGINE, "rules", "run with --engine rules");
 assert.equal(process.env.DATABASE_URL ?? "", "", "do not connect this proof to a database");
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const state = arenaG({ hand: ["V1", "V1"], energy: ["V1", "V1"], battle: ["AURA", "AURA", "V1"], oppHand: ["V-BLUE"], oppBattle: ["V-BLUE"] }) as VmState;
 const beforeState = digest(state);
 const input = (ctx: EngineContext, board: VmState, revision: number, viewer: "p1" | "p2", legal: LegalAction[]): SnapshotInput => ({
-  id: 569, revision, mode: "versus", engine: "rules", status: "playing", p1Name: "One", p2Name: "Two",
+  id: 569, revision, mode: "versus", status: "playing", p1Name: "One", p2Name: "Two",
   ctx, state: board, legal, log: [], beats: null, spotlight: null,
   spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {},
 });
 const read = (ctx: EngineContext, board: VmState, revision: number, viewer: "p1" | "p2") => withSnapshotReading(
-  { engine: "rules", ctx, state: board },
+  { ctx, state: board },
   () => buildSnapshot(input(ctx, board, revision, viewer, IMPL.legalActions(ctx, board))),
 );
 
@@ -32,7 +31,7 @@ assert.equal(withTokens(CTX), withTokens(CTX));
 assert.equal(withTokens(withTokens(CTX)), withTokens(CTX));
 const one = read(CTX, state, 7, "p1");
 const two = read(CTX, state, 7, "p2");
-const together = withSnapshotReading({ engine: "rules", ctx: CTX, state }, () => {
+const together = withSnapshotReading({ ctx: CTX, state }, () => {
   const legal = IMPL.legalActions(CTX, state);
   return [buildSnapshot(input(CTX, state, 7, "p1", legal)), buildSnapshot(input(CTX, state, 7, "p2", legal))];
 });

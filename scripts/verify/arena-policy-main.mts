@@ -28,7 +28,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { checkImportGraph, diskRead, legacyEngineRule, policyLayerRule, policyLayerSourceViolations } from "../lib/import-graph.ts";
+import { checkImportGraph, diskRead, policyLayerRule, policyLayerSourceViolations } from "../lib/import-graph.ts";
 import { fixtureBundle, FIXTURE_REVISION, FIXTURE_SEED } from "./arena-browser-fixture.ts";
 import { pick } from "./arena-browser-scenario.ts";
 import { runScenario, scenarioIds } from "./arena-scenarios.ts";
@@ -84,7 +84,7 @@ const SCENARIO_POLICY = mainPolicy(DECLINE);
     [`export const r = () => Math.random();`, "ambient time or randomness: Math.random"],
     [`export const t = () => performance.now();`, "ambient time or randomness: performance"],
   ] as const) assert.ok(policyLayerSourceViolations(entry, `${base}\n${extra}\n`).includes(expected), `the source scan catches "${expected}"`);
-  const boundary = checkImportGraph(path.join(ROOT, "src/lib/arena/policy/boundary.ts"), ROOT, diskRead, { forbidFile: legacyEngineRule });
+  const boundary = checkImportGraph(path.join(ROOT, "src/lib/arena/policy/boundary.ts"), ROOT, diskRead);
   assert.deepEqual(boundary.violations, [], "the boundary, with main.ts wired in, is browser-safe (#641's rule)");
   assert.ok(boundary.files.includes(entry), "the boundary wires main.ts");
   // The online opponent's provider path does not load the local policy.

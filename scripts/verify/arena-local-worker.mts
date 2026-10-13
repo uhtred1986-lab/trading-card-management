@@ -27,7 +27,7 @@
  *      a changed AI decision). An AI that meets a question it cannot answer stops the session as
  *      `interrupted`, reports why, plays nothing and invents no outcome.
  *   5. Boundary: the worker entry's import graph is the offline pack runtime's (no database,
- *      catalog source, provider, Node builtin, package, legacy engine, `process.env`); the page
+ *      catalog source, provider, Node builtin, package, `process.env`); the page
  *      client reaches no engine at all; sabotaged copies prove both checks bite.
  *
  *   npx tsx scripts/verify/arena-local-worker.mts      (part of `npm test`; about 30 s)
@@ -320,7 +320,7 @@ await refused(startInput("x", { decks: { p1: "A", p2: "Z" } }), "unplayable", /n
   for (const [extra, expected] of [
     [`import { db } from "@/db";`, "server-only import @/db"],
     [`import { runAi } from "@/lib/ai/run";`, "server-only import @/lib/ai/run"],
-    [`import { engineFor } from "../engines";`, "engine switch import (loads the legacy engine) src/lib/arena/engines.ts"],
+    [`import { rulesFor } from "../rules-store";`, "server-side card source import src/lib/arena/rules-store.ts"],
     [`export const rev = process.env.VERCEL_GIT_COMMIT_SHA;`, "process.env lookup"],
     [`import { readFileSync } from "node:fs";`, "package or builtin import node:fs"],
   ] as const) {

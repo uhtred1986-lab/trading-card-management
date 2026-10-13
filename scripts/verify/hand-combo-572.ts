@@ -5,11 +5,10 @@ import { skillRecords } from "../../src/lib/arena/draft";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { comboBattleEndFromHand } from "../../src/lib/arena/text/triggers";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
-import { NotYet } from "../../src/lib/arena/vm/errors";
 import { isVmState } from "../../src/lib/arena/vm/state";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { EngineState } from "../../src/lib/arena/engines";
-import { CTX, DEFS, ENGINE, IMPL, arenaG, card, leaderOf, moveByRuleG, zoneOf } from "./harness";
+import { CTX, DEFS, IMPL, arenaG, card, leaderOf, moveByRuleG, zoneOf } from "./harness";
 
 const BT2 = "[Auto] At the end of the battle after you combo with this card from your hand, play this card in Rest Mode.";
 const BT6 = "[Auto] At the end of a battle in which you combo with this card from your hand during your opponent's turn, if your Leader Card is red, play this card in Rest Mode.";
@@ -38,7 +37,7 @@ assert.deepEqual((compileSkill(parseSkills("[Auto] At the end of a battle in whi
 
 function take(state: EngineState, action: Action): { state: EngineState; events: GameEvent[] } {
   assert.ok(IMPL.legalActions(CTX, state).some((row) => JSON.stringify(row.action) === JSON.stringify(action)),
-    `${ENGINE}: expected legal ${JSON.stringify(action)} at ${state.prompt.kind}; actual ${JSON.stringify(IMPL.legalActions(CTX, state).map((row) => row.action))}`);
+    `rules: expected legal ${JSON.stringify(action)} at ${state.prompt.kind}; actual ${JSON.stringify(IMPL.legalActions(CTX, state).map((row) => row.action))}`);
   return IMPL.apply(CTX, state, action);
 }
 
@@ -71,12 +70,12 @@ function finish(state: EngineState): { state: EngineState; events: GameEvent[] }
     let action: Action;
     if (p.kind === "combo") action = { type: "pass", player: p.player };
     else if (p.kind === "zEnergyFromCombo") action = { type: "zEnergyFromCombo", player: p.player, card: null };
-    else throw Error(`${ENGINE}: battle stopped at ${p.kind}`);
+    else throw Error(`rules: battle stopped at ${p.kind}`);
     const next = take(state, action);
     state = next.state;
     events.push(...next.events);
   }
-  assert.equal(state.prompt.kind, "main", `${ENGINE}: battle finished`);
+  assert.equal(state.prompt.kind, "main", `rules: battle finished`);
   return { state, events };
 }
 
@@ -152,8 +151,8 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
   const { state: opened, combo } = open({ card: "C572-BT2", area: "battle" });
   let state = opened;
   state = begin(state).state;
-  assert.ok(zoneOf(state, "p1", "battle").includes(combo), `${ENGINE}: staged card left battle ${JSON.stringify(state.cards[combo])}`);
-  assert.equal(state.cards[combo].mode, "active", `${ENGINE}: staged combo card rested unexpectedly`);
+  assert.ok(zoneOf(state, "p1", "battle").includes(combo), `rules: staged card left battle ${JSON.stringify(state.cards[combo])}`);
+  assert.equal(state.cards[combo].mode, "active", `rules: staged combo card rested unexpectedly`);
   const joined = take(state, { type: "combo", player: "p1", card: combo });
   assert.equal(joined.state.battle?.comboOrigins?.[combo], "other");
   const ended = finish(joined.state);
@@ -162,8 +161,7 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
 }
 
 // An old mid-battle save with no source record cannot be guessed from a card
-// now sitting in Combo Area. The rules engine records a typed interruption;
-// the legacy engine refuses the action without changing its prior state.
+// now sitting in Combo Area. The rules engine records a typed interruption.
 {
   const { state: opened, combo } = open({ card: "C572-BT2" });
   let state = opened;
@@ -179,19 +177,8 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
       ? { type: "pass", player: pr.player }
       : pr.kind === "zEnergyFromCombo"
         ? { type: "zEnergyFromCombo", player: pr.player, card: null }
-        : (() => { throw Error(`${ENGINE}: old battle reached ${pr.kind} without an interruption`); })();
-    const saved = JSON.stringify(state);
-    let next: { state: EngineState; events: GameEvent[] };
-    try {
-      next = take(state, action);
-    } catch (err) {
-      assert.equal(ENGINE, "legacy", "rules engine must save a typed outcome");
-      assert.ok(err instanceof NotYet && err.issue === "#572", "legacy gives a typed refusal rather than a false result");
-      assert.equal(JSON.stringify(state), saved, "legacy refusal does not mutate the saved battle");
-      assert.ok(zoneOf(state, "p1", "combo").includes(combo));
-      stopped = true;
-      continue;
-    }
+        : (() => { throw Error(`rules: old battle reached ${pr.kind} without an interruption`); })();
+    const next = take(state, action);
     state = next.state;
     if (!isVmState(state) || state.outcome?.kind !== "interrupted") continue;
     assert.equal(state.outcome.privateContext?.issue, "#572");
@@ -203,7 +190,7 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
     assert.ok(!next.events.some((event) => event.type === "note" && event.text.includes(combo)), "public event hides the source identity");
     for (const viewer of ["p1", "p2"] as const) {
       const publicView = buildSnapshot({
-        id: 572, revision: 1, mode: "versus", engine: "rules", status: "over",
+        id: 572, revision: 1, mode: "versus", status: "over",
         p1Name: "Player 1", p2Name: "Player 2", ctx: CTX, state,
         legal: [], log: [], beats: null, spotlight: null,
         spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
@@ -216,7 +203,7 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
     }
     stopped = true;
   }
-  assert.equal(stopped, true, `${ENGINE}: missing source did not stop the battle`);
+  assert.equal(stopped, true, `rules: missing source did not stop the battle`);
 }
 
 // 8-5-2 lets the player choose Z-Energy before Combo Area cleanup. That is
@@ -284,4 +271,4 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
 // exactly as it was before this suite ran.
 delete DEFS["C572-BT2"];
 delete DEFS["C572-BT6"];
-console.log(`#572 hand-combo source and battle-end scenarios passed on ${ENGINE}`);
+console.log(`#572 hand-combo source and battle-end scenarios passed on rules`);
