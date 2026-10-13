@@ -6,7 +6,8 @@
  * revision — and the requests it is waiting on.
  *
  * It is not wired to the board yet (O3-05 does that); `ArenaStage` can take it
- * as it takes the online session.
+ * as it takes the online session — or, with one writer per match and worker
+ * recovery, the supervisor that drives it (`src/lib/arena/local/recovery.ts`, #654).
  *
  * What it refuses, so a late or foreign message cannot change what the board
  * shows:
@@ -24,7 +25,7 @@ import type { Snapshot } from "@/lib/arena/snapshot";
 import type { Action, PlayerId } from "@/lib/arena/types";
 import {
   ERROR_SENTENCE, envelope, parseResponse,
-  type AdvanceStop, type ErrorMessage, type LocalErrorCode, type LocalRequest, type LocalResponse, type ResultMessage, type SessionStatus,
+  type AdvanceStop, type ErrorMessage, type WriterClaim, type LocalErrorCode, type LocalRequest, type LocalResponse, type ResultMessage, type SessionStatus,
 } from "../../../lib/arena/local/protocol";
 
 /** What a `Worker` offers, and what an in-process channel imitates. */
@@ -42,6 +43,13 @@ export interface LocalStartInput {
   interpreterRevision: string;
   policyVersion?: string;
   batch?: number;
+  /** #654: the writer lease the page holds (`src/lib/arena/local/ownership.ts`); every commit is fenced by it. */
+  writer?: WriterClaim;
+}
+
+/** #654: resume only to show the match; every move is refused as `busy-elsewhere`. */
+export interface LocalViewInput extends LocalStartInput {
+  readOnly?: true;
 }
 
 export interface LocalNewMatch extends LocalStartInput {
@@ -111,7 +119,7 @@ export class LocalWorkerSession implements ArenaSession {
   }
 
   /** Continue a journalled match (`matchId`) in the worker behind `port`. The human seat comes from the journal. */
-  static async resume(port: WorkerPort, input: LocalStartInput, options: LocalSessionOptions = {}): Promise<LocalWorkerSession> {
+  static async resume(port: WorkerPort, input: LocalViewInput, options: LocalSessionOptions = {}): Promise<LocalWorkerSession> {
     const s = new LocalWorkerSession(port, input.gameId, "p1", options);
     await s.open({ type: "resume", ...input });
     return s;
@@ -225,7 +233,12 @@ export class LocalWorkerSession implements ArenaSession {
   // ---- ArenaSession ------------------------------------------------------------------------
 
   async act(action: Action, basedOn: number, requestId: string): Promise<SessionResult> {
-    return this.sentence(await this.request({ type: "apply", actor: this.human, action, basedOn }, requestId));
+    return this.sentence(await this.actRaw(action, basedOn, requestId));
+  }
+
+  /** `act`, answering with the worker's message itself (#654: the supervisor reads its code). */
+  actRaw(action: Action, basedOn: number, requestId: string): Promise<Answer> {
+    return this.request({ type: "apply", actor: this.human, action, basedOn }, requestId);
   }
 
   /** Let the worker play the AI seat until the human is asked, the game ends or `maxDecisions` is reached. */
@@ -270,6 +283,18 @@ export class LocalWorkerSession implements ArenaSession {
   /** Read the worker's board now. */
   async read(): Promise<Answer> {
     return this.request({ type: "read" });
+  }
+
+  /**
+   * #654: the worker is gone (killed, crashed or hung, and terminated by the page). Every request
+   * still waiting is answered here with `code` (default `internal`), nothing more is sent, and
+   * nothing that port might still deliver reaches the board. The journal on the device is untouched.
+   */
+  detach(detail: string, code: LocalErrorCode = "internal"): void {
+    if (this.closed) return;
+    this.fail(detail, code);
+    this.closed = true;
+    this.watchers.clear();
   }
 
   /**

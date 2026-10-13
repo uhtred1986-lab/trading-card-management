@@ -211,7 +211,9 @@ export async function damagedResumes(pack: unknown, matchId: string) {
 export async function versions(matchId: string) {
   const name = "proof-653-versions";
   const journal = await saved(matchId);
-  const v2: Migration[] = [...MIGRATIONS, { version: 2, describe: "proof: an additive step", run(db) { db.createObjectStore("proof-notes", { keyPath: "id" }); } }];
+  // Version 1 is the #653 build; version 2 is this one (its additive step adds the owners store, #654).
+  const v1: Migration[] = MIGRATIONS.slice(0, 1);
+  const v2: Migration[] = [...MIGRATIONS];
   const broken: Migration[] = [...v2, { version: 3, describe: "proof: fails half-way", run(db) { db.createObjectStore("proof-half", { keyPath: "id" }); throw new Error("disk on fire"); } }];
   const versionOf = () => new Promise<{ version: number; stores: string[] }>((resolve) => { const r = indexedDB.open(name); r.onsuccess = () => { const v = { version: r.result.version, stores: [...r.result.objectStoreNames] }; r.result.close(); resolve(v); }; });
   const attempt = async (migrations: readonly Migration[], j?: typeof journal) => {
@@ -221,14 +223,14 @@ export async function versions(matchId: string) {
       return { ok: stableJson(await store.get(matchId)) === stableJson(journal), code: null as string | null };
     } catch (e) { return { ok: false, code: (e as { code?: string }).code ?? "thrown" }; } finally { store.close(); }
   };
-  const v1Write = await attempt(MIGRATIONS, journal!);
+  const v1Write = await attempt(v1, journal!);
   const atV1 = await versionOf();
   const upgraded = await attempt(v2);
   const atV2 = await versionOf();
   const failing = await attempt(broken);
   const afterFailing = await versionOf();
   const stillV2 = await attempt(v2);
-  const olderBuild = await attempt(MIGRATIONS);
+  const olderBuild = await attempt(v1);
   const afterOlder = await versionOf();
   const intact = await attempt(v2);
   return { v1Write, atV1, upgraded, atV2, failing, afterFailing, stillV2, olderBuild, afterOlder, intact };

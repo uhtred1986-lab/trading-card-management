@@ -27,7 +27,12 @@ import type { Action, PlayerId } from "../types";
 import type { Snapshot } from "../snapshot-core";
 
 export const LOCAL_PROTOCOL = "dbs-arena-local-match";
-/** Bumped on any incompatible change to a message below. Both ends refuse any other. */
+/**
+ * Bumped on any incompatible change to a message below. Both ends refuse any other.
+ * #654 added only optional fields (`writer`, `readOnly`) and one error code (`busy-elsewhere`):
+ * every message a version-1 page sent is still valid, so the version stays 1. The page and the
+ * worker ship in one build.
+ */
 export const LOCAL_PROTOCOL_VERSION = 1;
 
 /** The request id format of the online `act` (a UUID), so a client's ids work on either transport. */
@@ -73,6 +78,14 @@ export interface StartRequest {
   policyVersion?: string;
   /** AI decisions per committed batch (default `BATCH_DEFAULT`). */
   batch?: number;
+  /** #654: the writer lease the page holds for this match; every commit is fenced by it. Omitted: unfenced (refused while any writer holds the match). */
+  writer?: WriterClaim;
+}
+
+/** The page's writer lease for a match (`ownership.ts`): its tab id and the fencing epoch it was granted. */
+export interface WriterClaim {
+  holder: string;
+  epoch: number;
 }
 
 export interface ResumeRequest {
@@ -86,6 +99,12 @@ export interface ResumeRequest {
   interpreterRevision: string;
   policyVersion?: string;
   batch?: number;
+  writer?: WriterClaim;
+  /**
+   * #654: show the saved match without writing: replayed and readable, every mutation refused as
+   * `busy-elsewhere` (another tab holds the match). Never together with `writer`.
+   */
+  readOnly?: true;
 }
 
 export interface ReadRequest { type: "read"; requestId: string; sessionId: string }
@@ -166,6 +185,8 @@ export type LocalErrorCode =
   | "storage"
   /** The saved game was written by a newer build of the app; it is left untouched. */
   | "newer"
+  /** #654: another tab or window holds this match (or took it over): this one only shows it, and wrote nothing. */
+  | "busy-elsewhere"
   /** A bug in the worker. */
   | "internal";
 
@@ -189,6 +210,7 @@ export const ERROR_SENTENCE: Record<LocalErrorCode, string> = {
   journal: "this saved game cannot be continued",
   storage: "this game could not be saved on this device — it is still at its last saved move",
   newer: "this saved game was made by a newer version of the app — reload the page",
+  "busy-elsewhere": "this game is open in another tab or window — it can only be watched here",
   internal: "the local game engine failed",
 };
 
@@ -270,8 +292,8 @@ const optionalBound = (v: unknown, max: number) => v === undefined || (Number.is
 export type Parsed<T> = { ok: true; value: T } | { ok: false; code: "malformed" | "version"; message: string; requestId: string | null; sessionId: string | null };
 
 const REQUEST_FIELDS: Record<LocalRequestType, string[]> = {
-  start: ["sessionId", "matchId", "gameId", "pack", "decks", "human", "seed", "policySeed", "interpreterRevision", "policyVersion", "batch"],
-  resume: ["sessionId", "matchId", "gameId", "pack", "interpreterRevision", "policyVersion", "batch"],
+  start: ["sessionId", "matchId", "gameId", "pack", "decks", "human", "seed", "policySeed", "interpreterRevision", "policyVersion", "batch", "writer"],
+  resume: ["sessionId", "matchId", "gameId", "pack", "interpreterRevision", "policyVersion", "batch", "writer", "readOnly"],
   read: ["sessionId"],
   apply: ["sessionId", "actor", "action", "basedOn"],
   advance: ["sessionId", "basedOn", "maxDecisions"],
@@ -306,6 +328,12 @@ export function parseRequest(data: unknown): Parsed<LocalRequest> {
       if (typeof data.interpreterRevision !== "string" || !data.interpreterRevision) return bad("interpreterRevision is missing");
       if (data.policyVersion !== undefined && typeof data.policyVersion !== "string") return bad("policyVersion is not a string");
       if (!optionalBound(data.batch, BATCH_MAX)) return bad(`batch is not an integer from 1 to ${BATCH_MAX}`);
+      if (data.writer !== undefined) {
+        const w = data.writer;
+        if (!isRecord(w) || !isId(w.holder) || !Number.isInteger(w.epoch) || (w.epoch as number) < 1 || Object.keys(w).length !== 2) return bad("writer must be { holder, epoch } with an id and a positive integer epoch");
+      }
+      if (data.readOnly !== undefined && data.readOnly !== true) return bad("readOnly is only ever true");
+      if (data.readOnly && data.writer !== undefined) return bad("a read-only resume holds no writer lease");
       if (type === "start") {
         const decks = data.decks;
         if (!isRecord(decks) || typeof decks.p1 !== "string" || typeof decks.p2 !== "string" || Object.keys(decks).length !== 2) return bad("decks must name a deck key for p1 and p2");
