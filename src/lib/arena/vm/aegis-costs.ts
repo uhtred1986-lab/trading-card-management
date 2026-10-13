@@ -1,5 +1,7 @@
 /** 22-30-3: Aegis pays its hand cards before determining any additional cost. */
-import { other, type Area, type EngineContext, type GameEvent, type PlayerId } from "../types";
+import { other, type Area, type Color, type EngineContext, type GameEvent, type PlayerId } from "../types";
+import { emptyFilter } from "../text/filters";
+import { aegisAlternatives, type AegisAlt } from "./program";
 import type { GameDefinition } from "../rulesets";
 import { activationMoment, boundFor, keywordActivationMoments, resolveActivation, scopedPayersSpent, type ActivationLine } from "./activate";
 import { automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "./auto-costs";
@@ -16,11 +18,76 @@ export interface AegisCost {
   costs: string[];
   effect: Op[];
   stage: "colors" | "additional" | "native" | "action";
+  /** How the 22-30-3 hand-colour payment is made; unset until settled (BT22-035, BT22-140). It survives reload with the frame. */
+  method?: "hand" | AegisAlt["kind"];
+  /** The colours `aegisAltDrop` sends, one card each. */
+  altColors?: Color[];
   choices?: { price: Price; payment: VmPayment; label: string }[];
   /** Declared native cost and card within a pooled move; both survive reload. */
   nativeIndex?: number;
   poolIndex?: number;
   payment?: VmPayment;
+}
+
+const ALT_FIRST = "aegisAlt:first";
+const ALT_SECOND = "aegisAlt:second";
+
+/** The substitute payment of BT22-035 / BT22-140 as a program for the same strict host. */
+function altPayment(alt: AegisAlt): Op[] {
+  if (alt.kind === "aegisAltOpponentHand") {
+    return [
+      { op: "choose", sel: { side: "opponent", area: "hand", count: 1, upTo: false }, as: ALT_FIRST, blind: true, reason: "[Aegis]: choose 1 card from your opponent's hand to send to the bottom of their deck" },
+      { op: "moveTo", target: { var: ALT_FIRST }, to: "deck", position: "bottom", cause: "cost" },
+    ];
+  }
+  const pick = (color: Color, as: string): Op => ({ op: "choose", sel: { side: "you", area: "drop", filter: { ...emptyFilter(), colors: [color] }, count: 1, upTo: false }, as, reason: `[Aegis]: choose a ${color.toLowerCase()} card from your Drop to send to your Warp` });
+  return [
+    pick(alt.colors[0], ALT_FIRST), pick(alt.colors[1], ALT_SECOND),
+    { op: "moveTo", target: { var: ALT_FIRST }, to: "warp", cause: "cost" },
+    { op: "moveTo", target: { var: ALT_SECOND }, to: "warp", cause: "cost" },
+  ];
+}
+
+const altLabel = (alt: AegisAlt) => alt.kind === "aegisAltOpponentHand"
+  ? "Send 1 card from your opponent's hand to the bottom of their deck"
+  : `Send 1 ${alt.colors[0].toLowerCase()} card and 1 ${alt.colors[1].toLowerCase()} card from your Drop to your Warp`;
+
+/**
+ * 22-30-3, "instead of" (20-1-11): how the hand-colour payment is made. The
+ * hand payment stays whenever the hand covers the colours, beside each
+ * substitute a [Permanent] offers that the board can pay now; with more than
+ * one way the player picks, and only that way is paid. Settled once, before
+ * any card moves, and stored on the frame so a reload keeps it.
+ */
+function settleMethod(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
+  const cost = frame.aegisCost!;
+  const host = automaticPriceHost(ctx, game, state, ev);
+  const colors = cost.line.skill.keyword?.name === "Aegis" ? cost.line.skill.keyword.colors : [];
+  const alts = aegisAlternatives(ctx, game, state, frame);
+  const hand = host.condHolds(frame, { kind: "covers", sel: { side: "you", area: "hand" }, colors, original: true });
+  const ways: ("hand" | AegisAlt)[] = [...(hand ? ["hand" as const] : []), ...alts];
+  if (!alts.length && hand) { cost.method = "hand"; return "done"; }
+  if (!ways.length) { cost.method = "hand"; return "done"; }
+  let index = 0;
+  if (ways.length > 1) {
+    if (frame.awaiting !== "aegisMethod") {
+      frame.awaiting = "aegisMethod";
+      state.programs.unshift(frame);
+      state.prompt = { kind: "chooseMode", player: frame.master, reason: "Pay the Aegis skill cost", options: ways.map((w) => (w === "hand" ? "Discard cards from your hand" : altLabel(w))) };
+      return "wait";
+    }
+    if (state.lastMode === null || !ways[state.lastMode]) throw new IllegalAction("no such Aegis payment");
+    index = state.lastMode;
+    state.lastMode = null;
+    delete frame.awaiting;
+  }
+  const way = ways[index];
+  if (way === "hand") { cost.method = "hand"; return "done"; }
+  cost.method = way.kind;
+  if (way.kind === "aegisAltDrop") cost.altColors = way.colors;
+  frame.ops = altPayment(way);
+  frame.ip = 0;
+  return "done";
 }
 
 /** Declaring Aegis has not activated it: limits and events remain unspent. */
@@ -39,16 +106,27 @@ export function queueAegisCost(game: GameDefinition, state: VmState, player: Pla
  * refused before a card can be moved out of the wrong area. */
 function colorPayment(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const host = automaticPriceHost(ctx, game, state, ev);
+  const alt = frame.aegisCost?.method !== "hand";
   return stepScript({
     ...host,
     resolveSelector: (f, sel) => {
-      const ids = host.resolveSelector(f, sel);
+      let ids = host.resolveSelector(f, sel);
       const op = f.ops[f.ip];
+      // BT22-035: two different Drop cards, one of each colour. The first pick
+      // keeps a partner for the second; the second leaves the first alone.
+      if (alt && op?.op === "choose" && op.sel === sel && op.as === ALT_FIRST) {
+        const second = f.ops.find((o) => o.op === "choose" && o.as === ALT_SECOND);
+        if (second?.op === "choose") {
+          const partners = host.resolveSelector(f, second.sel);
+          ids = ids.filter((id) => partners.some((p) => p !== id));
+        }
+      }
+      if (alt && op?.op === "choose" && op.sel === sel && op.as === ALT_SECOND) ids = ids.filter((id) => !(f.vars[ALT_FIRST] ?? []).includes(id));
       if (op?.op === "choose" && op.sel === sel && f.awaiting === op.as && state.lastChoice?.some((id) => !ids.includes(id))) throw new IllegalAction("that Aegis color payment is no longer available");
       return ids;
     },
     move: (id, to, owner, opts) => {
-      if (host.areaOf(id) !== "hand") throw new IllegalAction("an Aegis color payment must still be in hand");
+      if (!alt && host.areaOf(id) !== "hand") throw new IllegalAction("an Aegis color payment must still be in hand");
       return host.move(id, to, owner, opts);
     },
   }, frame);
@@ -75,6 +153,7 @@ function fail(ev: GameEvent[]): "done" {
 export function stepAegisCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.aegisCost!;
   if (cost.stage === "colors") {
+    if (!cost.method && settleMethod(ctx, game, state, ev, frame) === "wait") return "wait";
     const paid = colorPayment(ctx, game, state, ev, frame);
     if (paid === "wait") return "wait";
     readableAutomaticPrice(cost.line.script?.price?.ops ?? [], "Aegis", "#595");

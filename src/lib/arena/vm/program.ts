@@ -46,7 +46,7 @@ import { backCharactersOf, baseType, coversColors, namedSetCandidates, keywordsI
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { CardIdentityGain, Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { counterKindOf, other } from "../types";
-import { nameInSkillText, parseFilter, powerRelOk, type CardFilter } from "../text/filters";
+import { emptyFilter, nameInSkillText, parseFilter, powerRelOk, type CardFilter } from "../text/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
@@ -1465,6 +1465,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // card using this line answers, under the same master.
     case "permits": {
       const card = frame.card;
+      // BT22-035 / BT22-140: another way to pay this card's [Aegis] that can be paid now.
+      if (c.what === "aegisAlt") return aegisAlternatives(ctx, game, state, frame).length > 0;
       return !!card && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && permitted(ctx, game, state, p.filter, card));
     }
     // #155: [Arrival]/[Revive]'s colours and [Successor]'s exact sum, read
@@ -1508,6 +1510,31 @@ export function namedCandidates(ctx: EngineContext, game: GameDefinition, state:
     return { id, characters: def?.characters ?? [], power: def?.power ?? 0 };
   });
   return namedSetCandidates(printedNames(sk), pool, picked, samePower);
+}
+
+/** An alternative way to pay an [Aegis] skill instead of its hand cards (22-30-3), already known to be payable. */
+export type AegisAlt = { kind: "aegisAltDrop"; colors: Color[] } | { kind: "aegisAltOpponentHand" };
+
+/**
+ * BT22-035 / BT22-140: the alternative [Aegis] payments a [Permanent] of the
+ * frame's master offers for the frame's card, each one only if the board can
+ * pay it now. "Instead of" (20-1-11: the substitute applies only when it is
+ * fulfilled) leaves the hand payment to the caller. `aegisAltDrop` is the
+ * master's own for any of their [Aegis] skills and needs two different Drop
+ * cards, one of each colour; `aegisAltOpponentHand` is the granting card's
+ * own [Aegis] only ("this card's") and needs a card in the opponent's hand.
+ */
+export function aegisAlternatives(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): AegisAlt[] {
+  const out: AegisAlt[] = [];
+  const mine = (what: Permission["what"]) => permissions(ctx, game, state, what).filter((p) => p.master === frame.master);
+  for (const p of mine("aegisAltDrop")) {
+    const colors = [...(p.filter?.colors ?? [])];
+    if (colors.length !== 2 || out.some((a) => a.kind === "aegisAltDrop" && a.colors.join() === colors.join())) continue;
+    const [first, second] = colors.map((color) => resolveSelector(ctx, game, state, frame, { side: "you", area: "drop", filter: { ...emptyFilter(), colors: [color] }, count: 1, upTo: false }));
+    if (first.some((a) => second.some((b) => a !== b))) out.push({ kind: "aegisAltDrop", colors });
+  }
+  if (mine("aegisAltOpponentHand").some((p) => p.target === frame.card) && (state.sides[other(frame.master)].zones.hand ?? []).length) out.push({ kind: "aegisAltOpponentHand" });
+  return out;
 }
 
 /** The name `sumsTo` binds one card to while it reads that card's measure through `amount`. */
