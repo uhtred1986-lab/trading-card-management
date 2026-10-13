@@ -10,7 +10,7 @@
  * declarations say (`./flow.ts`), draw the board and the beats for a
  * client (`./view.ts`, `./beats.ts`), read **a move and its refusal off one
  * declaration** (`./actions.ts`), **resolve a program** — a skill's or an
- * action's — on the interpreter the legacy engine runs (`./host.ts`,
+ * action's — on the interpreter (`./host.ts`,
  * `./program.ts`, `./effects.ts`, #142), and **play a card** (`./play.ts`,
  * #146).
  *
@@ -30,12 +30,11 @@
  * `ENGINE_INFO.rules.available` stays false, so the `/arena` form still greys
  * the engine out and no row can be created on it.
  *
- * The board the flow deals is the board the legacy engine deals from the same
- * seed, and the events it logs are the events the legacy engine logs, which is
- * what `verify/vm.ts` asserts and the reason the order of the RNG calls below
- * is the older engine's call for call.
+ * The board the flow deals and the events it logs match the deleted legacy
+ * engine's from the same seed (`verify/vm.ts` asserts it), and the order of the
+ * RNG calls below is that older engine's call for call.
  *
- * Pure and client-safe, like the legacy engine: no database, no network. The
+ * Pure and client-safe: no database, no network. The
  * definition arrives as a generated constant (`rulesets/dbs/files.ts`), so
  * nothing here reads a file at request time.
  */
@@ -688,10 +687,10 @@ function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, even
  * answered with (#144), and then the answers that are still the flow's own.
  *
  * The declared moves come first because they are the moves; the flow's are the
- * declines, which is where the legacy engine puts "End turn" too. Conceding is
+ * declines, which is where the deleted legacy engine put "End turn" too. Conceding is
  * on neither — a move declared `listed: false` is accepted and never
- * enumerated, because it is a button of its own, which is exactly what the
- * legacy engine does with it.
+ * enumerated, because it is a button of its own, which is what the
+ * deleted legacy engine did with it.
  */
 function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
   const game = definitionFor(state.game, ctx);
@@ -705,7 +704,7 @@ function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
  * Both are answers to the pre-game procedure rather than moves of a turn —
  * neither is about a card, and each carries a field no candidate could supply
  * (which player, whether to redraw), which is why `DECLARABLE_ACTIONS` has no
- * word for them. The labels are the legacy engine's word for word: a client
+ * word for them. The labels are the words the deleted legacy engine used (#118): a client
  * that showed "Go first" on one board and "Choose to go first" on the other
  * would be a client reading the engine rather than the contract.
  */
@@ -760,7 +759,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
         { action: { type: "mulligan", player: pr.player, redraw: true }, label: "Mulligan" },
       ];
     // 3-8-2: one answer per genuinely different way to pay, worded as the
-    // legacy engine words them, because a client reads the label and not the
+    // deleted legacy engine (#118) worded them, because a client reads the label and not the
     // engine.
     case "payCost":
       return pr.options.map((option, i) => ({
@@ -779,7 +778,7 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
         ...pr.choice.candidates.map((card) => ({ action: { type: "choose" as const, player: pr.player, cards: [card] }, label: `Choose ${shownName(ctx, state, card)}` })),
         ...(pr.choice.min === 0 ? [{ action: { type: "choose" as const, player: pr.player, cards: [] }, label: "Choose none" }] : []),
       ];
-    // 22-45-3: every amount from none to the cap, in the legacy engine's words.
+    // 22-45-3: every amount from none to the cap, in the words the deleted legacy engine used.
     case "empowerCarry":
       return Array.from({ length: pr.max + 1 }, (_, n) => ({ action: { type: "empowerCarry" as const, player: pr.player, amount: n }, label: n === 0 ? "Carry no markers" : `Carry ${n} marker${n === 1 ? "" : "s"}` }));
     // 20-2: the printed options, in the order they are printed — and 9-10's

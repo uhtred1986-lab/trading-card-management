@@ -1,7 +1,7 @@
 /**
  * A move, as a declaration — and the refusal that comes with it.
  *
- * In the legacy engine legality is a predicate per action (`canPlay`,
+ * In the deleted legacy engine legality was a predicate per action (`canPlay`,
  * `canCombo`, `activatable`, `planPayment`) with a hand-written `whyNot*` twin
  * beside each, running the same tests in the same order and collecting instead
  * of short-circuiting (`engine/rejections.ts`'s own header). Two functions per
@@ -22,7 +22,7 @@
  * a refusal no client can say is a greyed-out move with nothing behind it.
  *
  * **One rejection per card per action type** (`docs/arena-workflow-spec.md`
- * §3.2). In the legacy engine that is a `keyOf`/`seen` pair inside
+ * §3.2). In the deleted legacy engine that was a `keyOf`/`seen` pair inside
  * `rejections.ts`; here it is the shape rather than a pass — a candidate is a
  * card, an action is asked about it once, and a card already on the menu for
  * that action is never also refused for it. §3.2's exception is the same

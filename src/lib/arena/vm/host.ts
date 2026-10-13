@@ -82,7 +82,7 @@ import type { VmState } from "./state";
 /**
  * The host for one call.
  *
- * Made fresh per `apply`, like `legacyHost`, and holding the four things a
+ * Made fresh per `apply`, and holding the four things a
  * reading needs: the catalog, the definition, the state being changed and the
  * log being appended to.
  */
