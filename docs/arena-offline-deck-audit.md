@@ -18,10 +18,10 @@ its blockers are resolved and its scenario gates pass (plan, "Delivery and picku
 | `legality()` | legal + 2 off-colour warnings (owner-amended list: BT10-008 x1, BT5-023 x3; the printed list is illegal, BT10-008 x2) | legal |
 | Skill lines on 25 / 17 card faces | 42 | 33 |
 | Compiler reads | 39 of 42 (3 lines unread: SD15-01 back #0, SD15-03 #10 and #20) | 33 of 33 |
-| Blocked at runtime (tier B) | 4 lines on 2 cards (3 of 51 copies): SD15-01 Awaken and back Auto, SD15-03 x2 (BT5-023, BT6-026 and BT10-008 left tier B with #716) | 1 line on 1 card (BT4-079, 2 copies) |
-| Partial (tier P) | 1 ([Unique], SD15-05) | 10 (every [Swap] line, 4 numbers x copies) |
-| Compiled only (tier C) | 32 | 15 |
-| Runtime evidence (tier E/K/D) | 5 keyword-only lines | 7 keyword-only lines |
+| Blocked at runtime (tier B) | 4 lines on 2 cards (3 of 51 copies): SD15-01 Awaken and back Auto, SD15-03 x2 (BT5-023, BT6-026 and BT10-008 left tier B with #716) | none (BT4-079 left tier B with #729) |
+| Partial (tier P) | 1 ([Unique], SD15-05) | none (the 10 [Swap] lines are tier K since #731) |
+| Compiled only (tier C) | 32 | 16 (BT4-079 joined: its hand-to-Drop price falls in the shared tier-C price family) |
+| Runtime evidence (tier E/K/D) | 5 keyword-only lines | 17 lines (7 keyword-only, 10 [Swap]) |
 
 - **No card has a card-level scenario.** The only lines that count as supported are keyword-only lines whose keyword has
   a named verify scenario ([Blocker], [Barrier], [Deflect], [Critical], [Strike]) or is a deck rule ([Super Combo]).
