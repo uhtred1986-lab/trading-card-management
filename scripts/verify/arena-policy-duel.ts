@@ -43,8 +43,18 @@ export interface DuelResult {
   guards: { test: number; baseline: number };
   /** Why the match stopped short, when it did. */
   stopped: string | null;
+  /**
+   * What kind of stop (#651): "illegal" is a decision the engine or the contract refused (must be zero),
+   * "interrupted" a window no handler reads or a guard with no exit (counted apart from results),
+   * "notAsked" a seat with nothing to decide, "limit" the move cap, "noSeat" no seat asked.
+   */
+  stopKind: "illegal" | "interrupted" | "notAsked" | "limit" | "noSeat" | null;
   /** Wall time per `localStep`, ms. */
   stepMs: number[];
+  /** Per `localStep`: the window it answered ("main", "chooseCards", ...) and whose policy it was. */
+  steps: { ms: number; window: string; role: "test" | "baseline" }[];
+  /** FNV-1a (hex) over every decision played, in order: seat, decision id and the engine events it caused. Equal hashes mean equal games. */
+  trace: string;
 }
 
 const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
@@ -54,20 +64,28 @@ export async function playDuel(input: DuelInput): Promise<DuelResult> {
   const memory: Record<PlayerId, LocalMemory> = { p1: localMemory(policyRng(input.policySeed * 2 + 1)), p2: localMemory(policyRng(input.policySeed * 2 + 2)) };
   const guards = { test: 0, baseline: 0 };
   const stepMs: number[] = [];
+  const steps: DuelResult["steps"] = [];
+  let hash = 0x811c9dc5;
+  const mix = (text: string) => { for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0; };
   let stopped: string | null = null;
+  let stopKind: DuelResult["stopKind"] = null;
   let lifeDealt: Record<PlayerId, number> | null = null;
   let n = 0;
   for (; n < input.maxMoves && match.state.phase !== "over"; n++) {
     const seat = (match.state.prompt as { player?: PlayerId }).player;
-    if (!seat) { stopped = `no seat is asked (${match.state.prompt.kind})`; break; }
+    if (!seat) { stopped = `no seat is asked (${match.state.prompt.kind})`; stopKind = "noSeat"; break; }
     if (!lifeDealt && match.state.sides.p1.zones.life?.length && match.state.sides.p2.zones.life?.length) lifeDealt = { p1: match.state.sides.p1.zones.life.length, p2: match.state.sides.p2.zones.life.length };
     input.observe?.(match, seat, n);
     const role = seat === input.testSeat ? "test" : "baseline";
+    const window = match.state.prompt.kind;
     const t0 = performance.now();
     const step = localStep(match, seat, n, memory[seat], role === "test" ? input.test : input.baseline);
-    stepMs.push(performance.now() - t0);
+    const ms = performance.now() - t0;
+    stepMs.push(ms);
+    steps.push({ ms, window, role });
     memory[seat] = step.memory;
-    if (!step.ok) { stopped = `${seat}: ${step.reason}: ${step.detail}`; break; }
+    if (!step.ok) { stopped = `${seat}: ${step.reason}: ${step.detail}`; stopKind = step.reason === "interrupted" ? "interrupted" : step.reason === "notAsked" ? "notAsked" : "illegal"; break; }
+    mix(`${seat}:${step.id}:${JSON.stringify(step.events)};`);
     if (step.guard) guards[role]++;
     match = step.match;
   }
@@ -86,7 +104,10 @@ export async function playDuel(input: DuelInput): Promise<DuelResult> {
     damageTaken: Math.max(0, dealt[input.testSeat] - lifeNow(input.testSeat)),
     guards,
     stopped: over ? null : (stopped ?? `not over after ${input.maxMoves} moves`),
+    stopKind: over ? null : (stopKind ?? "limit"),
     stepMs,
+    steps,
+    trace: hash.toString(16).padStart(8, "0"),
   };
 }
 
