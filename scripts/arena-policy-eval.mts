@@ -1,15 +1,18 @@
 /**
- * #646, #647: how much the local policy is worth, measured.
+ * #646, #647, #650: how much the local policy is worth, measured.
  *
- * Seeded games on the four database-free fixtures (#641's, #644's, #646's, #647's), the local
- * policy (`combat.ts`'s `localPolicy(uniformPolicy)`: the #645 shortcuts, the #646 Main Phase and
- * its payments, the #647 battle windows, every other window uniform) against these baselines, in
- * both seats:
+ * Seeded games on the five database-free fixtures (#641's, #644's, #646's, #647's, #650's) — and,
+ * with `--audit`, the two audited Masters decks of #649 (SD15 / SD5, every ordered matchup) — the
+ * local policy (`combat.ts`'s `localPolicy()`: the #645 shortcuts, the #646 Main Phase and its
+ * payments, the #647 battle windows, the #650 constrained choices; a window none of them answers
+ * interrupts, and the game is reported unfinished) against these baselines, in both seats:
  *
  *   uniform    `uniformPolicy` everywhere — no shortcuts, no heuristic
  *   shortcuts  `shortcutThen(uniformPolicy)` — the same shortcuts, every other window uniform
  *   main646    `mainPolicy(uniformPolicy)` — the #646 policy: the same shortcuts and Main Phase,
- *              uniform battle windows, so the difference is the battle policy alone
+ *              uniform battle windows and choices
+ *   combat647  `combatPolicy(uniformPolicy)` — the #647 policy: everything but the constrained
+ *              choices, which are uniform, so the difference is #650's handlers alone
  *   control    the shortcuts baseline against itself (no local policy at all): each fixture's
  *              seat bias, which the rows above must be read against
  *
@@ -19,8 +22,10 @@
  *
  *   npm run arena:policy-eval                     # 20 games per fixture and baseline (10 per seat)
  *   npm run arena:policy-eval -- --games 40 --json
+ *   npm run arena:policy-eval -- --audit --baselines combat647 --games 20
  *
- * Flags: --games N (per fixture and baseline, even; default 20), --max-moves N (default 3000), --json.
+ * Flags: --games N (per fixture and baseline, even; default 20), --max-moves N (default 3000), --json,
+ * --audit (add the #649 decks), --baselines a,b (a subset of the baselines above, by name).
  */
 import { fixtureBundle, FIXTURE_REVISION, FIXTURE_SEED } from "./verify/arena-browser-fixture.ts";
 import { policyFixtureBundle, POLICY_FIXTURE_REVISION, POLICY_FIXTURE_SEED } from "./verify/arena-policy-fixture.ts";
@@ -31,13 +36,17 @@ import type { PlayerId } from "../src/lib/arena/types";
 import { uniformPolicy, type Policy } from "../src/lib/arena/policy/contract";
 import { shortcutThen } from "../src/lib/arena/policy/shortcuts";
 import { mainPolicy, MAIN_POLICY_VERSION } from "../src/lib/arena/policy/main";
-import { localPolicy, COMBAT_POLICY_VERSION } from "../src/lib/arena/policy/combat";
+import { combatPolicy, localPolicy, COMBAT_POLICY_VERSION } from "../src/lib/arena/policy/combat";
+import { CHOICE_POLICY_VERSION } from "../src/lib/arena/policy/choices";
+import { choicesFixtureBundle, CHOICES_FIXTURE_REVISION, CHOICES_FIXTURE_SEED } from "./verify/arena-policy-choices-fixture.ts";
+import { DECKS, deckBundle, loadSnapshot, resolveDeck, RUNTIME as AUDIT_RUNTIME } from "./arena-deck-audit.mts";
+import type { ReplayBundleRecord } from "../src/lib/arena/replay-core";
 
 function flag(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
-const known = new Set(["--games", "--max-moves", "--json"]);
+const known = new Set(["--games", "--max-moves", "--json", "--audit", "--baselines"]);
 for (const a of process.argv.slice(2)) {
   if (a.startsWith("--") && !known.has(a)) { console.error(`unknown flag ${a}`); process.exit(2); }
 }
@@ -46,20 +55,35 @@ const maxMoves = Number(flag("max-moves") ?? 3000);
 const json = process.argv.includes("--json");
 if (!Number.isInteger(games) || games < 2 || games % 2) { console.error("--games must be an even integer >= 2"); process.exit(2); }
 
-const fixtures = [
+const fixtures: { name: string; bundle: ReplayBundleRecord; revision: string; seed: number }[] = [
   { name: "641", bundle: await fixtureBundle(), revision: FIXTURE_REVISION, seed: FIXTURE_SEED },
   { name: "644", bundle: await policyFixtureBundle(), revision: POLICY_FIXTURE_REVISION, seed: POLICY_FIXTURE_SEED },
   { name: "646", bundle: await mainFixtureBundle(), revision: MAIN_FIXTURE_REVISION, seed: MAIN_FIXTURE_SEED },
   { name: "647", bundle: await combatFixtureBundle(), revision: COMBAT_FIXTURE_REVISION, seed: COMBAT_FIXTURE_SEED },
+  { name: "650", bundle: await choicesFixtureBundle(), revision: CHOICES_FIXTURE_REVISION, seed: CHOICES_FIXTURE_SEED },
 ];
-const local = localPolicy(uniformPolicy);
-const baselines: { name: string; policy: Policy; test?: Policy }[] = [
+if (process.argv.includes("--audit")) {
+  const catalog = loadSnapshot().cards;
+  const cards = [...new Map(DECKS.flatMap((d) => resolveDeck(d, catalog).rows.map((r) => [r.card.id, r.card] as const))).values()];
+  // One bundle (both decks' cards compiled once), its decklists swapped per ordered matchup.
+  const base = (await deckBundle(cards, { p1: DECKS[0], p2: DECKS[1] }, catalog)) as ReplayBundleRecord & { decks: Record<PlayerId, unknown> };
+  const deckOf = { [DECKS[0].key]: base.decks.p1, [DECKS[1].key]: base.decks.p2 };
+  for (const [i, [p1, p2]] of [[DECKS[0], DECKS[0]], [DECKS[0], DECKS[1]], [DECKS[1], DECKS[0]], [DECKS[1], DECKS[1]]].entries()) {
+    fixtures.push({ name: `${p1.key}v${p2.key}`, bundle: { ...base, decks: { p1: deckOf[p1.key], p2: deckOf[p2.key] } } as ReplayBundleRecord, revision: AUDIT_RUNTIME, seed: 649 + i });
+  }
+}
+const local = localPolicy();
+const allBaselines: { name: string; policy: Policy; test?: Policy }[] = [
   { name: "uniform", policy: uniformPolicy },
   { name: "shortcuts", policy: shortcutThen(uniformPolicy) },
   { name: "main646", policy: mainPolicy(uniformPolicy) },
+  { name: "combat647", policy: combatPolicy(uniformPolicy) },
   // The control: the baseline against itself, so a fixture's seat bias is visible beside the rows above.
   { name: "control", policy: shortcutThen(uniformPolicy), test: shortcutThen(uniformPolicy) },
 ];
+const wanted = flag("baselines")?.split(",").map((s) => s.trim());
+const baselines = wanted ? allBaselines.filter((b) => wanted.includes(b.name)) : allBaselines;
+if (wanted && baselines.length !== wanted.length) { console.error(`--baselines: unknown name in ${wanted.join(",")} (known: ${allBaselines.map((b) => b.name).join(", ")})`); process.exit(2); }
 
 interface Row extends Omit<DuelSummary, "finished"> {
   baseline: string;
@@ -99,10 +123,10 @@ for (const b of baselines) {
 }
 
 if (json) {
-  console.log(JSON.stringify({ policy: `main v${MAIN_POLICY_VERSION} + combat v${COMBAT_POLICY_VERSION}`, gamesPerFixture: games, maxMoves, rows, seconds: (Date.now() - started) / 1000 }, null, 2));
+  console.log(JSON.stringify({ policy: `main v${MAIN_POLICY_VERSION} + combat v${COMBAT_POLICY_VERSION} + choices v${CHOICE_POLICY_VERSION}`, gamesPerFixture: games, maxMoves, rows, seconds: (Date.now() - started) / 1000 }, null, 2));
 } else {
   const pct = (x: unknown) => (typeof x === "number" ? `${(x * 100).toFixed(0)} %` : "-");
-  console.log(`Local policy (main v${MAIN_POLICY_VERSION} + combat v${COMBAT_POLICY_VERSION}) vs baselines, ${games} games per fixture (half from each seat), max ${maxMoves} moves`);
+  console.log(`Local policy (main v${MAIN_POLICY_VERSION} + combat v${COMBAT_POLICY_VERSION} + choices v${CHOICE_POLICY_VERSION}) vs baselines, ${games} games per fixture (half from each seat), max ${maxMoves} moves`);
   console.log("baseline   fixture  W-L-D (unfinished)   win rate (95 % CI)     p1 W-L  p2 W-L  damage dealt/taken  guard trips  step p95 ms");
   for (const r of rows) {
     console.log(

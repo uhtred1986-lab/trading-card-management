@@ -50,8 +50,9 @@ its blockers are resolved and its scenario gates pass (plan, "Delivery and picku
    that `scripts/arena-gaps.mts` also measures, because compiling alone proves none of them: `triggersOf` for every
    [Auto] (a compiled Auto with no trigger never fires), the price readers (`costIsOnlyOrbs`, `compileCostProgram`,
    `priceCondition`) for every Activate/Counter/Auto price, and the static layer's `emitsStatic` for every [Permanent].
-5. **Runtime:** the same cards are compiled into a replay bundle and played by `localPolicy(uniformPolicy)` (#644-#647)
-   on the rules-only engine through `playDuel`, recording every prompt kind, every manual skill on the legal list, and
+5. **Runtime:** the same cards are compiled into a replay bundle and played by the local policy (#644-#647; since #650
+   `localPolicy()`, which answers every window and interrupts on a question it cannot read, where the #649 run used
+   `localPolicy(uniformPolicy)`, uniform for the constrained choices) on the rules-only engine through `playDuel`, recording every prompt kind, every manual skill on the legal list, and
    every skill the engine refuses as `unread` (`RULES_ENGINE.rejectedActions`). Fresh compile, not stored records.
 6. **Support tiers** (compilation alone is never support):
 
@@ -468,6 +469,13 @@ For #650:
   (red with blue and green cards), once in the Deck B mirror.
 - **Not reachable here, handlers still needed for the shared contract:** `replaceMove`, `optionalCost`, `offering`,
   `empowerCarry`. No audited card opens them.
+- **Delivered by #650** (`src/lib/arena/policy/choices.ts`, `WINDOW_HANDLERS`): every window above has a non-fallback
+  handler, `localPolicy()` interrupts instead of guessing, and `scripts/verify/arena-policy-choices.mts` plays one game
+  per ordered matchup of these decks with every decision answered by its declared layer. The four kinds no audited card
+  opens are staged on synthetic cards there: `replaceMove` (a Life card to the hand instead of the Drop; a KO
+  substitute), `empowerCarry` (an [Empower] Unison) on the rules engine, and `optionalCost`/`offering` as contract-built
+  inputs with the legacy engine's own answers — the rules engine never asks those two kinds (an Auto's price and
+  [Offering] arrive as `chooseMode`, which is staged on the rules engine too).
 - **Interruptions:** nothing in the reachable play is a referee question. The blocked cards above are not asked about
   at all (they are never offered), so a policy has no decision to make for them until U2/U4/U5 are fixed. Fixing them
   adds `chooseCards` (SD15-01 Awaken's energy and Cabba picks, BT6-026's discard and two targets) and `counter`

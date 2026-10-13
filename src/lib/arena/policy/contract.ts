@@ -297,6 +297,25 @@ export function answerFor(decisions: PolicyDecisions, id: string, cards?: string
 }
 
 /**
+ * A question the local policy cannot answer (#650): thrown by a policy, caught
+ * by the cycle guard (`main.ts`'s `guardedDecide`) and returned as an
+ * interruption, so the session stops with the reason instead of a guessed move.
+ * Never a model call and never a silent pass.
+ */
+export class PolicyInterruption extends Error {
+  readonly kind = "policyInterruption" as const;
+  constructor(readonly window: string, readonly reason: string) {
+    super(`${window}: ${reason}`);
+    this.name = "PolicyInterruption";
+  }
+}
+
+/** The fallback of a policy that guesses nothing: every question it reaches interrupts. */
+export const interruptingPolicy: Policy = (input) => {
+  throw new PolicyInterruption(input.decisions.window, `no local handler answers this ${input.decisions.window} question (${input.decisions.decisions.length} decision(s) open)`);
+};
+
+/**
  * The reference policy: every open decision equally likely, and for a pick a
  * uniformly random legal set size and set. No strength at all — it exists to
  * prove the contract end to end (and is the floor O2-06 measures against).
