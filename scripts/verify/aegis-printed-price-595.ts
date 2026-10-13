@@ -21,7 +21,9 @@ const game = loaded.definition;
 const defs = { ...DEFS,
   REST595P: card("REST595P", { skill: "[Aegis red/blue] Switch this card to Rest Mode" }),
   DISC595P: card("DISC595P", { skill: "[Aegis red/blue] Place 1 card from your hand in your Drop Area" }),
-  KO595P: card("KO595P", { skill: "[Aegis red/blue] KO 1 of your Battle Cards" }),
+  // KO is a strict-host price since #549's KO family (ko-marker-price-549.ts);
+  // a draw is still outside the host.
+  DRAW595P: card("DRAW595P", { skill: "[Aegis red/blue] Draw 1 card" }),
   UNREAD595P: card("UNREAD595P", { skill: "[Aegis red/blue] Sing the anthem of the Kai" }),
   MIXED595P: card("MIXED595P", { skill: "[Aegis red/blue] {1} Place 1 card from your hand in your Drop Area" }),
   ORBS595P: card("ORBS595P", { skill: "[Aegis red/blue] {1}" }),
@@ -170,8 +172,8 @@ const view = (s: VmState, viewer: PlayerId) => JSON.stringify(buildSnapshot({ id
 // A price outside the strict shared host is an explicit #595 gap, raised on
 // declaration — before any colour card is paid — rather than after.
 {
-  const a = defense("KO595P");
-  assert.throws(() => activate(a.s, a.card), (err: unknown) => err instanceof NotYet && err.issue === "#595" && /ko/.test(err.step));
+  const a = defense("DRAW595P");
+  assert.throws(() => activate(a.s, a.card), (err: unknown) => err instanceof NotYet && err.issue === "#595" && /draw/.test(err.step));
   assert.ok(a.cards.every((id) => a.s.sides.p1.zones.hand.includes(id)));
 }
 

@@ -1,5 +1,5 @@
 /** Auto payment planning and its stored checkpoint continuation (#549). */
-import type { EngineContext, GameEvent, Skill } from "../types";
+import type { EngineContext, GameEvent, PlayerId, Skill } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { selectedCount, stepScript, type Op, type Ref, type Script, type ScriptFrame } from "./script";
 import type { ScriptHost } from "./script-host";
@@ -31,6 +31,11 @@ export interface AutomaticCost {
 export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): ScriptHost {
   const host = vmHost(ctx, game, state, ev);
   const unpaid = () => { throw new IllegalAction("the Auto skill cost cannot be paid in its entirety"); };
+  /** The interpreter's KO skips these cards silently (`stepScript`'s `ko`,
+   * `koCard`'s 20-14 read); a skipped KO is no payment (5-8-2-2). */
+  const koablePrice = (id: string, master: PlayerId): boolean => !!state.cards[id] && host.areaOf(id) === "battle"
+    && !(host.hasKeyword(id, "Indestructible") && host.masterOf(id) !== master)
+    && !host.forbids("beKOd", { card: id }) && !host.forbids("beKOdBySkill", { player: master, card: id });
   return {
     ...host,
     forbids: (what, opts) => {
@@ -38,15 +43,20 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       return false;
     },
     // Paying is a cost, so a replacement limited to an effect or its actor
-    // does not answer this departure (5-8-2-2 / causeMatches).
-    replacementsFor: (id, _reason, opts) => host.replacementsFor(id, "cost", { ...opts, actor: undefined }),
+    // does not answer this departure (5-8-2-2 / causeMatches). A KO paid as
+    // a cost is still a KO (5-12-2: the instruction says "KO"), so a
+    // replacement of a KO answers it; one limited to an effect does not.
+    replacementsFor: (id, reason, opts) => host.replacementsFor(id, reason === "ko" ? "ko" : "cost", { ...opts, actor: undefined }),
     resolveSelector: (f, sel) => {
       let found = host.resolveSelector(f, sel);
       const op = f.ops[f.ip];
       if (op?.op === "choose" && op.sel === sel) {
-        const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden") && "var" in o.target && o.target.var === op.as);
+        const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden" || o.op === "ko") && "var" in o.target && o.target.var === op.as);
         if (following?.op === "switchMode") found = found.filter((id) => host.modeOf(id) !== following.mode);
         if (following?.op === "hidden") found = found.filter((id) => host.isHidden(id) !== following.hidden);
+        // 5-12-1: only a Battle Card in the Battle Area can be KO'd. "Your
+        // <Vegeta> cards" also reads the Leader, which no KO can move.
+        if (following?.op === "ko") found = found.filter((id) => koablePrice(id, f.master));
         const next = f.ops[f.ip + 1];
         if (next?.op === "faceUp" && "var" in next.target && next.target.var === op.as && sel.side === "you" && sel.area === "life")
           found = found.filter((id) => host.areaOf(id) === "life" && host.isFaceUp(id) !== (next.faceUp ?? true));
@@ -77,6 +87,12 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
           throw new NotYet("pay face-up action price outside the Life Area", "#549");
         if (found.length !== 1 || found.some((id) => !state.cards[id] || host.isFaceUp(id) === (op.faceUp ?? true))) unpaid();
       }
+      // A KO price names Battle Cards that can actually be KO'd now; the
+      // interpreter would otherwise skip the rest without moving anything.
+      if (op?.op === "ko" && ref === op.target && (!found.length || found.some((id) => !koablePrice(id, f.master)))) unpaid();
+      // "Add 1 marker to this card": only a card still in play can carry it.
+      if (op?.op === "addMarker" && ref === op.target
+        && (found.length !== 1 || found.some((id) => !state.cards[id] || !inPlayZones(game).includes(host.areaOf(id) ?? "")))) unpaid();
       if ("var" in ref) {
         const chosen = f.ops.slice(0, f.ip).findLast((o) => o.op === "choose" && o.as === ref.var);
         if (chosen?.op === "choose" && !chosen.sel.upTo && chosen.atMost === undefined && selectedCount(chosen.sel, f.vars[ref.var] ?? [], host.nameOf) < (chosen.sel.count ?? 1)) unpaid();
@@ -100,6 +116,20 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       }
       return actual;
     },
+    // 5-12-1 / 5-8-2-2-1-1: a KO price is paid only when the Battle Card
+    // actually reaches its owner's Drop Area. A prohibition is no payment;
+    // a replacement that keeps it or sends it elsewhere fails the attempt
+    // after it was made (5-8-4), exactly like a diverted cost move.
+    ko: (id, by, opts) => {
+      if (!state.cards[id] || host.areaOf(id) !== "battle" || host.forbids("beKOd", { card: id })) unpaid();
+      const owner = host.ownerOf(id);
+      host.ko(id, by, opts);
+      if (host.areaOf(id) !== "drop" || !state.sides[owner].zones.drop.includes(id)) {
+        const replaced = opts?.replaced;
+        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}) });
+        throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
+      }
+    },
     placeUnder: (id, top) => {
       if (id === top || !state.cards[id] || !state.cards[top] || state.cards[top].under.includes(id) || !host.placeUnder(id, top)
         || !state.cards[top].under.includes(id)) unpaid();
@@ -121,7 +151,11 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     },
     changeMarkers: (id, delta) => {
       if (delta < 0 && host.markersOf(id) < -delta) unpaid();
-      return host.changeMarkers(id, delta);
+      const before = host.markersOf(id);
+      const after = host.changeMarkers(id, delta);
+      // An added marker must actually be on the card afterwards (5-8-2-2).
+      if (delta > 0 && (after !== before + delta || host.markersOf(id) !== before + delta)) unpaid();
+      return after;
     },
   };
 }
@@ -440,6 +474,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
 export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"): void {
   const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
     || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal" || op.op === "faceUp"
+    || op.op === "ko" || op.op === "addMarker"
     || (op.op === "if" && !!op.else?.length && pays(op.then) && pays(op.else))
     || (op.op === "chooseMode" && op.modes.length > 0 && op.modes.every((mode) => pays(mode.ops))));
   /** A completed interpreter step of one of these shapes necessarily changed
@@ -460,6 +495,23 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
     if (op.op === "faceUp") return true; // The verified Life pair and strict face transition were checked below.
     return false;
   };
+  const isSelf = (target: Ref): boolean => "sel" in target && Object.keys(target).length === 1
+    && target.sel.special === "self" && Object.entries(target.sel).every(([key, value]) => key === "special" || value === undefined);
+  /** "KO this card", or a compulsory own Battle-Area/in-play choice KO'd at
+   * once ("Choose 1 of your <Vegeta> cards and KO it"). The strict host
+   * offers only cards that can actually be KO'd and verifies each arrival in
+   * its owner's Drop; any other KO shape stays typed unknown. */
+  const verifiedKo = (op: Extract<Op, { op: "ko" }>, prior: Op | undefined): boolean => {
+    if (isSelf(op.target)) return true;
+    if (prior?.op !== "choose" || !("var" in op.target) || op.target.var !== prior.as || Object.keys(op.target).some((key) => key !== "var")) return false;
+    const sel = prior.sel;
+    return sel.side === "you" && (sel.area === "battle" || sel.area === "play") && !sel.areas?.length && !sel.special && !sel.fromVar
+      && Number.isInteger(sel.count ?? 1) && (sel.count ?? 1) > 0 && !sel.upTo && prior.atMost === undefined
+      && (!prior.chooser || prior.chooser === "you");
+  };
+  /** "Add N markers to this card" with a printed positive N (BT31). */
+  const verifiedAddMarker = (op: Extract<Op, { op: "addMarker" }>): boolean =>
+    isSelf(op.target) && typeof op.n === "number" && Number.isInteger(op.n) && op.n > 0;
   /** `paid` means every path to this point completed an action, not just
    * that an opcode named an action. `terminal` follows all ancestor tails. */
   const check = (steps: Op[], paid = false, terminal = true, nested = false): boolean => {
@@ -495,6 +547,10 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
           || Object.entries(sel).some(([key, value]) => value !== undefined && !["side", "area", "count", "upTo"].includes(key))
           || (prior.chooser && prior.chooser !== "you") || prior.atMost !== undefined)
           throw new NotYet(`pay ${label} face-up action price outside the verified Life choice`, owner);
+        paid = true;
+        continue;
+      }
+      if ((op.op === "ko" && verifiedKo(op, steps[index - 1])) || (op.op === "addMarker" && verifiedAddMarker(op))) {
         paid = true;
         continue;
       }
