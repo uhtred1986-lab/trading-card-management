@@ -123,6 +123,14 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   matrix, named scenarios on synthetic cards, every position of the fixture games and the two #649
   audit decks); strength: `npm run arena:policy-eval` (`combat647` is the #647 baseline, `--audit`
   adds the #649 decks).
+- **Offline deck packs** (`src/lib/arena/local/pack.ts`, #655): one deck pair as a versioned,
+  content-hashed pack — a #640 replay bundle (both faces' definitions and programs, art references,
+  ruleset files, interpreter revision) plus decklists, token/generated dependencies, a transitive
+  completeness manifest, missing inputs and the audit's blockers with issue links. Validation
+  recomputes the manifest and `qualification`; `playable` is true only when no blocker for its
+  decks is open, nothing is missing and no required program has an unread clause. Built at build
+  time by `scripts/build-arena-offline-pack.mts`; a runtime never compiles or fetches. Proof:
+  `scripts/verify/arena-offline-pack.mts` (`npm test`).
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.
