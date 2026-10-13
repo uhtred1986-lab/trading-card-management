@@ -348,8 +348,8 @@ function stableJson(value: unknown): string {
  * Interchangeable candidates of one card prompt, each mapped to the first of
  * its class (#549). Two candidates are interchangeable when they stand in the
  * same zone of one side, their instances are identical apart from their id,
- * and nothing else in the state â€” saved variables, effects, pending records,
- * the lone answer, an occurrence key â€” names either of them. Renaming one to
+ * and nothing else in the state — saved variables, effects, pending records,
+ * the lone answer, an occurrence key — names either of them. Renaming one to
  * the other is then a symmetry of the state, and the interpreter treats ids
  * as opaque, so both answers have the same continuations except for the two
  * cards' positions in that zone. Position is unobservable only when the zone
