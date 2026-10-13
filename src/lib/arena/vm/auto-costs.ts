@@ -238,15 +238,165 @@ function directNamedTransfer(ctx: EngineContext, game: GameDefinition, state: Vm
   return { enough: fromDrop + fromSaved + Math.min(remaining, favored.size) >= (second.sel.count ?? 0), favored };
 }
 
+/** VM instance ids are `${player}#${n}` (`vm/index.ts`). A string holding one
+ * inside other text (an occurrence key) still refers to that card. */
+const INSTANCE_ID = /[A-Za-z0-9_]+#\d+/g;
+/** Areas whose order the interpreter reads directly (top of deck, top Life). */
+const ORDERED_ZONES = new Set(["deck", "life"]);
+
+type Positional = Set<string>;
+/** The areas some selector reads by position (`take`/`fromEnd`). A selector
+ * on a saved variable or a named card reads no area order. */
+function positionalAreas(value: unknown, out: Positional = new Set(), seen = new Set<object>()): Positional {
+  if (!value || typeof value !== "object" || seen.has(value)) return out;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    for (const item of value) positionalAreas(item, out, seen);
+    return out;
+  }
+  const o = value as Record<string, unknown>;
+  if ((o.take !== undefined && o.take !== null) || o.fromEnd) {
+    if (!o.fromVar && !o.special) {
+      const areas = Array.isArray(o.areas) && o.areas.length ? o.areas : [o.area ?? "battle"];
+      for (const area of areas) out.add(typeof area === "string" ? area : "*");
+    }
+  }
+  for (const field of Object.values(o)) positionalAreas(field, out, seen);
+  return out;
+}
+const POSITIONAL_GAME = new WeakMap<GameDefinition, Positional>();
+/** Every program a card in this game can show (both faces, copied skills) and
+ * every keyword body. Card programs are read again per search: a context's
+ * records are not frozen. */
+function staticPositionalAreas(ctx: EngineContext, game: GameDefinition, state: VmState): Positional {
+  const ids = new Set(Object.values(state.cards).map((card) => card.cardId));
+  for (const effect of state.effects) if (effect.copied?.cardId) ids.add(effect.copied.cardId);
+  const fromScripts: Positional = new Set();
+  for (const id of ids) {
+    positionalAreas(ctx.scripts?.[id], fromScripts);
+    positionalAreas(ctx.scripts?.[`${id}#back`], fromScripts);
+  }
+  let fromGame = POSITIONAL_GAME.get(game);
+  if (!fromGame) POSITIONAL_GAME.set(game, fromGame = positionalAreas(game.keywords));
+  return new Set([...fromScripts, ...fromGame]);
+}
+function areaReads(game: GameDefinition, area: string, zone: string): boolean {
+  if (area === "play") return inPlayZones(game).includes(zone);
+  return area === zone || !(area in game.zones);
+}
+function selReads(game: GameDefinition, sel: unknown, zone: string): boolean {
+  if (!sel || typeof sel !== "object") return false;
+  const s = sel as { special?: unknown; fromVar?: unknown; area?: string; areas?: string[] };
+  if (s.special || s.fromVar) return false;
+  return (s.areas?.length ? s.areas : [s.area ?? "battle"]).some((area) => areaReads(game, area, zone));
+}
+/** A remaining instruction which resolves an area itself, rather than asking
+ * for a choice, sees that area's order (a bulk move keeps it). Conditions and
+ * amounts only count, so they are not instructions here. */
+function bulkReads(game: GameDefinition, ops: unknown, zone: string): boolean {
+  if (!ops || typeof ops !== "object") return false;
+  if (Array.isArray(ops)) return ops.some((op) => bulkReads(game, op, zone));
+  const o = ops as Record<string, unknown>;
+  if (typeof o.op === "string" && o.op !== "choose") {
+    const target = o.target as { sel?: unknown } | undefined;
+    const under = o.under as { sel?: unknown } | undefined;
+    if (selReads(game, o.sel, zone) || selReads(game, target?.sel, zone) || selReads(game, under?.sel, zone)) return true;
+  }
+  return Object.values(o).some((field) => bulkReads(game, field, zone));
+}
+function stableJson(value: unknown): string {
+  if (!value || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`).join(",")}}`;
+}
+
+/**
+ * Interchangeable candidates of one card prompt, each mapped to the first of
+ * its class (#549). Two candidates are interchangeable when they stand in the
+ * same zone of one side, their instances are identical apart from their id,
+ * and nothing else in the state — saved variables, effects, pending records,
+ * the lone answer, an occurrence key — names either of them. Renaming one to
+ * the other is then a symmetry of the state, and the interpreter treats ids
+ * as opaque, so both answers have the same continuations except for the two
+ * cards' positions in that zone. Position is unobservable only when the zone
+ * is not one the interpreter reads by its top (deck, Life), no program in the
+ * game reads it by position, and no remaining price instruction resolves it
+ * in bulk; otherwise every candidate stays its own class.
+ */
+export function interchangeableCandidates(ctx: EngineContext, game: GameDefinition, s: VmState, f: ScriptFrame, candidates: string[], fixed: Positional): Map<string, string> {
+  const classes = new Map<string, string>();
+  if (s.programs[0] !== f || candidates.length < 2) return classes;
+  const referenced = new Set<string>();
+  const positional = new Set(fixed);
+  const note = (text: string) => {
+    for (const token of text.match(INSTANCE_ID) ?? []) referenced.add(token);
+  };
+  const walk = (value: unknown): void => {
+    if (typeof value === "string") return note(value);
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) return value.forEach(walk);
+    for (const [key, field] of Object.entries(value)) {
+      note(key);
+      walk(field);
+    }
+  };
+  for (const [key, field] of Object.entries(s)) {
+    if (key === "cards") {
+      for (const [id, card] of Object.entries(s.cards)) {
+        for (const [prop, v] of Object.entries(card)) if (!(prop === "id" && v === id)) { note(prop); walk(v); }
+      }
+    } else if (key === "sides") {
+      // Each id stands once in its own zone list; that is not a reference.
+      for (const side of Object.values(s.sides)) {
+        for (const [prop, v] of Object.entries(side)) if (prop !== "zones") { note(prop); walk(v); }
+      }
+    } else if (key === "prompt" && s.prompt.kind === "chooseCards") {
+      for (const [prop, v] of Object.entries(s.prompt)) {
+        if (prop !== "choice") { note(prop); walk(v); continue; }
+        for (const [cprop, cv] of Object.entries(s.prompt.choice)) if (cprop !== "candidates") { note(cprop); walk(cv); }
+      }
+    } else {
+      note(key);
+      walk(field);
+    }
+    if (key === "programs" || key === "effects" || key === "delayed" || key === "pending") positionalAreas(field, positional);
+  }
+  const remaining = f.ops.slice(f.ip);
+  positionalAreas(remaining, positional);
+  const where = new Map<string, string>();
+  for (const [p, side] of Object.entries(s.sides)) for (const [zone, ids] of Object.entries(side.zones)) for (const id of ids) where.set(id, `${p}\u0000${zone}`);
+  const zoneSafe = new Map<string, boolean>();
+  const representative = new Map<string, string>();
+  for (const id of candidates) {
+    const card = s.cards[id];
+    const at = where.get(id);
+    if (!card || !at || referenced.has(id) || id.match(INSTANCE_ID)?.[0] !== id) continue;
+    const zone = at.split("\u0000")[1];
+    let safe = zoneSafe.get(zone);
+    if (safe === undefined) {
+      safe = !ORDERED_ZONES.has(zone) && ![...positional].some((area) => areaReads(game, area, zone)) && !bulkReads(game, remaining, zone);
+      zoneSafe.set(zone, safe);
+    }
+    if (!safe) continue;
+    const signature = `${at}\u0000${stableJson({ ...card, id: undefined })}`;
+    const first = representative.get(signature);
+    if (first === undefined) representative.set(signature, id);
+    else classes.set(id, first);
+  }
+  return classes;
+}
+
 /** Preflight on an isolated board, including earlier instructions and all
  * source/event/X bindings. No cost, trigger or prompt escapes this simulation.
- * Choices are single-card interpreter answers, so every branch is replayable. */
-export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): boolean {
+ * Choices are single-card interpreter answers, so every branch is replayable;
+ * an interchangeable candidate is represented by the first of its class. */
+export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, { symmetry = true }: { symmetry?: boolean } = {}): boolean {
   // Other price grammars can have order-dependent choices and replacements.
   // Keep an explicit unknown when their search is too large; never equate an
   // unfinished proof with an unaffordable price.
   let budget = 2000;
   const failed = new Set<string>();
+  const fixedPositional = symmetry ? staticPositionalAreas(ctx, game, state) : null;
   const visit = (s: VmState, f: ScriptFrame): boolean => {
     if (--budget < 0) throw new NotYet("plan this Auto action price within the bounded choice search", "#549");
     if (cannotRestSourceAfterHandPrice(ctx, game, s, f)) return false;
@@ -260,7 +410,8 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
       if (result === "done") return true;
       if (s.programs[0] !== f) return false;
       const prompt = s.prompt;
-      const choices = prompt.kind === "chooseCards" ? [ ...(prompt.choice.min === 0 ? [[]] : []), ...prompt.choice.candidates.map((id) => [id]) ] : [];
+      const same = prompt.kind === "chooseCards" && fixedPositional ? interchangeableCandidates(ctx, game, s, f, prompt.choice.candidates, fixedPositional) : new Map<string, string>();
+      const choices = prompt.kind === "chooseCards" ? [ ...(prompt.choice.min === 0 ? [[]] : []), ...prompt.choice.candidates.filter((id) => !same.has(id)).map((id) => [id]) ] : [];
       const modes = prompt.kind === "replaceMove" || prompt.kind === "chooseMode" ? prompt.options.map((_, index) => index) : [];
       const transfer = prompt.kind === "chooseCards" ? directNamedTransfer(ctx, game, s, f, prompt.choice.candidates) : null;
       if (transfer && !transfer.enough) return false;
