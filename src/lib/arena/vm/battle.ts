@@ -410,14 +410,17 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
                 replaced = choices[0] ? routeOf(choices[0]) : null;
                 substituteVars = (choices[0] as typeof choices[number] & { vars?: Record<string, string[]> } | undefined)?.vars ?? {};
               }
-              const triggered = end.preDropTriggeredSubjects?.includes(id);
-              if (triggered) {
-                if (replaced?.ops?.length || (replaced?.to && replaced.to !== "drop") || replaced?.mode || replaced?.position)
-                  throw new NotYet("resolve a changed 8-5-8 destination after its Combo-to-Drop Auto already answered", "#609");
-                const projected = structuredClone(state);
-                const route = leaveRoute(ctx, game, projected, [], id, "combo", "drop", { replaced, event: eventKey });
-                if (route.stays || route.to !== "drop") throw new NotYet("resolve a changed 8-5-8 destination after its Combo-to-Drop Auto already answered", "#609");
-              }
+              // A subject whose generic 8-5-6 Auto was announced may meet a
+              // replacement installed during 8-5-7 (no route but Drop existed
+              // at 8-5-6, or the announcement would have stopped above). That
+              // Auto has already activated and resolved at 8-5-7, and no rule
+              // reverses a resolved effect. 8-5-8 is a separate, later event:
+              // 9-10-1 processes the replacement's event instead, chosen by
+              // 9-10-2's master, exactly as for a subject with no watcher. The
+              // generic Auto is not announced again (its watcher only hears
+              // Combo-to-Drop, and a substitute's own Drop move is tagged as
+              // cleanup); a subject that does not reach Drop supplies no
+              // 8-5-10-1 special occurrence.
               end.departureCursor = (end.departureCursor ?? 0) + 1;
               const origin = b.comboOrigins?.[id];
               const hidden = state.cards[id]?.hidden;
@@ -428,8 +431,6 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
               moved(ctx, game, state, ev, id, "drop", { owner: state.cards[id].owner, cleanupDeparture: true,
                 replaced: chosen, replacementEvent: eventKey });
               const after = findCard(state, id);
-              if (after?.zone !== "drop" && end.preDropTriggeredSubjects?.includes(id))
-                throw new NotYet("resolve a changed 8-5-8 destination after its Combo-to-Drop Auto already answered", "#609");
               if (after?.zone === "drop") end.specialSubjects!.push({ card: id, to: after.zone, controller: after.owner,
                 ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) });
               if (deferred && replaced?.ops?.length) {

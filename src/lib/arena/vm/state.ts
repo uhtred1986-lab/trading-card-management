@@ -120,7 +120,7 @@ export interface VmBattle {
     retainedComboPower: Partial<Record<PlayerId, Record<string, number>>>;
     preDropSubjects?: string[];
     captureCursor?: number;
-    /** Subjects with an actual generic 8-5-6 pending occurrence. */
+    /** Subjects with an actual generic 8-5-6 pending occurrence (a record; 8-5-8 no longer reads it). */
     preDropTriggeredSubjects?: string[];
     departureSubjects?: string[];
     departureCursor?: number;
