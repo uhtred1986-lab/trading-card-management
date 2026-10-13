@@ -108,6 +108,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   removedFromBattle: "when this card is removed from a Battle Area by a skill",
   removedByOpponent: "when this card is removed from a Battle Area by an opponent's skill",
   droppedFromBattle: "when a skill sends this card from a Battle Area to the Drop",
+  droppedByOpponent: "when an opponent's skill sends this card from a Battle Area to the Drop",
   leftBattleToDrop: "when this card goes from a Battle Area to the Drop",
   droppedFromHand: "when a skill sends this card from your hand to the Drop",
   yourLeaderAttacked: "when your Leader is attacked",

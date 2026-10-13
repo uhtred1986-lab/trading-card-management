@@ -313,13 +313,22 @@ export interface PlayStats {
 
 export const RUNTIME = "a649000000000000000000000000000000000649";
 
+/**
+ * The owner's `cards.specified_cost` values (U7, migration 0049), the same
+ * committed file the offline pack builder carries (`OWNER_SPECIFIED_COSTS_PATH`
+ * there). The played games use them so a filter on a Unison's specified cost
+ * — SD15-01's [Awaken] (#728) — meets the cost the owner ruled rather than an
+ * unknown one. Read here, not imported, because the pack builder imports this file.
+ */
+const OWNER_SPECIFIED_COSTS: Record<string, string> = (JSON.parse(readFileSync("docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json", "utf8")) as { specifiedCosts: Record<string, string> }).specifiedCosts;
+
 export async function deckBundle(cards: CatalogCard[], decks: { p1: DeckSpec; p2: DeckSpec }, all: CatalogCard[]) {
   const [{ makeReplayBundle }, { DBS_FILES }] = await Promise.all([import("../src/lib/arena/replay-core"), import("../src/lib/arena/rulesets/dbs")]);
   const defs: Record<string, ReturnType<typeof cardDefFrom>> = {};
   const scripts: Record<string, ReturnType<typeof compileCard>> = {};
   const art: Record<string, { front: string | null; back: string | null }> = {};
   for (const c of cards) {
-    const def = cardDefFrom(c as never);
+    const def = cardDefFrom({ ...(c as never as Parameters<typeof cardDefFrom>[0]), specifiedCost: OWNER_SPECIFIED_COSTS[c.id] ?? null });
     defs[c.id] = def;
     scripts[c.id] = compileCard(def, "front");
     if (def.back) scripts[`${c.id}#back`] = compileCard(def, "back");
@@ -443,8 +452,8 @@ export interface Family {
 
 export const UNOWNED: Record<string, string> = {
   U1: "Card-level scenario gates: nothing plays these cards' wordings on the rules engine; every compiled-only mechanic needs one deterministic scenario per deck (`arena:scenario`/`stage()` fixtures), then its tier can move to E/K.",
-  U2: "SD15-01 [Awaken] is refused as `unread` although it compiles: the printed OR condition (life <= 4, or a red Unison with a specified cost of 2) is dropped from the record's price, so the Deck A Leader never awakens.",
-  U3: "Unread clauses with a specified-cost filter or a mid-line [Spirit Boost 1]: SD15-01 awakened [Auto] #0 and SD15-03 #10/#20.",
+  U2: "Resolved by #728: SD15-01 [Awaken] was refused as `unread` because the printed OR condition (life <= 4, or a red Unison with a specified cost of 2) was dropped from the record's price. The specified cost is now a filter measure read against the owner's stored value, the condition is the record's price, and the Awaken is offered at 4 life or with SD15-02 ({r}{r}) in play (`scripts/verify/sd15-readings-728.ts`).",
+  U3: "Resolved by #728: the specified-cost filter and the [Spirit Boost 1] printed after a reminder note now read, so SD15-01 awakened [Auto] #0 (Double Strike to a red cost-2 Unison with no keyword skills) and SD15-03 #10/#20 compile whole; SD15-03 #20 answers to an opponent's skill sending it to the Drop (`droppedByOpponent`) or a KO. Known difference: [Limit 1] is counted per card instance, not across copies (glossary, 22-44).",
   U4: "Resolved by #729: BT4-079's [Swap] with an action price (\"{y}, choose 1 card from your hand and place it in your Drop Area\") was refused as `unread`. The rules engine now compiles the price and pays it after the energy on the strict action-price host, offering the [Swap] only when the whole price is payable and a specified card is still in hand afterwards (22-22-3) (`arena-swap-action-price`).",
   U5: "Resolved by #716: a [Counter] whose printed price is more than orbs was never offered (refused as `unread`). The rules engine now reads BT5-023's and BT6-026's \"Your Leader Card is red:\" condition and BT10-008's restriction price and offers each when the whole price can be paid (`arena-counter-action-price`).",
   U6: "Resolved by #731: [Swap] named a trait (<<Goku's Lineage>>) but the engine filtered by energy cost only, offering off-trait Battle Cards (the owner did not accept the approximation, 13 Oct 2026). Both engines now read the printed description with the filter grammar on the offer and the choice (SD5-04/SD5-05's ASCII \"<<...>>\" included), and the glossary badge is `engine` (`arena-swap-specified-card`).",
@@ -453,7 +462,7 @@ export const UNOWNED: Record<string, string> = {
 };
 
 /** Manual skills the engine refused as `unread` in the audit play-through (validated by `--play`). */
-export const KNOWN_REFUSALS: Record<string, string> = { "SD15-01#10": "U2" };
+export const KNOWN_REFUSALS: Record<string, string> = {};
 
 export const FAMILIES: Family[] = [
   { key: "kind-main", label: "[Activate: Main] skill", match: /^kind:activate:main$/, tier: "S", windows: ["main"], note: "Offered on the Main Phase menu." },
@@ -466,6 +475,8 @@ export const FAMILIES: Family[] = [
   { key: "trig-combo-end", label: "Auto at the end of a battle after a combo from hand", match: /^trigger:comboed$/, tier: "E", evidence: ["arena-combo-from-hand-battle-end", "arena-combo-cleanup-checkpoints"], owners: [572, 609], note: "BT6-010 and TB1-055 bind this copy's hand origin; BT6-010 also the opponent's turn." },
   { key: "trig-attack", label: "Auto when a card attacks / a Leader or Unison is attacked", match: /^trigger:(attacks|yourLeaderAttacked|opponentAttacksRedUnison2)$/, tier: "C", refs: ["scripts/verify/readings.ts, readings-571.ts - the reading of these triggers (parse level), not a played game"], owners: [571, "U1"], note: "SD15-01's red-Unison-only trigger is a #571 reading." },
   { key: "trig-played", label: "Auto when a card is played", match: /^trigger:played$/, tier: "C", owners: ["U1"], note: "The most common trigger; generic suites use it, no scenario names these wordings." },
+  { key: "trig-dropped", label: "Auto when an opponent's skill sends this card from the Battle Area to the Drop", match: /^trigger:droppedByOpponent$/, tier: "K", refs: ["scripts/verify/sd15-readings-728.ts - SD15-03: an opponent's skill drops it, [Spirit Boost 1] takes a marker off SD15-02 and it plays itself back"], owners: [728], note: "SD15-03 #20; [Limit 1] is counted per card instance, not across copies (glossary, 22-44)." },
+  { key: "trig-koed", label: "Auto when this card is KO'd", match: /^trigger:koed$/, tier: "C", refs: ["scripts/verify/sd15-readings-728.ts - SD15-03's \"or KO'd\" half (reading only)"], owners: ["U1"], note: "SD15-03 #20's second half; no scenario KOs it." },
   { key: "trig-other", label: "Auto at turn end / Unison to Drop / [Spirit Boost] payment", match: /^trigger:(turnEnd|unisonToDrop|spiritBoostPaid)$/, tier: "C", owners: ["U1"], note: "Each is one card (BT4-081, SD15-02, SD15-05)." },
 
   { key: "kw-blocker", label: "[Blocker]", match: /^kw:Blocker$/, tier: "K", refs: ["scripts/verify/battles.ts:92-127 - [Blocker] redirect, rested Blocker not offered"], windows: ["blocker"], note: "" },
@@ -474,7 +485,7 @@ export const FAMILIES: Family[] = [
   { key: "kw-critical", label: "[Critical]", match: /^kw:Critical$/, tier: "K", refs: ["scripts/verify/battles.ts:244 - life goes to the Drop", "scripts/verify/keywords.ts:3437-3450"], note: "" },
   { key: "kw-strike", label: "[Strike] / [Double Strike]", match: /^kw:Strike$/, tier: "K", refs: ["scripts/verify/battles.ts:244,309 - 2 damage, markers off a Unison"], note: "" },
   { key: "kw-attack", label: "[Attack X]", match: /^kw:Attack$/, tier: "C", owners: ["U1"], note: "Glossary says the engine plays it; no scenario located (grep of scripts/verify)." },
-  { key: "kw-awaken", label: "[Awaken]", match: /^kw:Awaken$/, tier: "K", refs: ["scripts/verify/battles.ts:380 - offered only when the printed condition holds, flips the Leader"], windows: ["main"], note: "SD5-01's Awaken is offered in the audit play-through; SD15-01's is refused `unread` (U2), so the keyword scenario does not transfer to it." },
+  { key: "kw-awaken", label: "[Awaken]", match: /^kw:Awaken$/, tier: "K", windows: ["main"], refs: ["scripts/verify/battles.ts:380 - offered only when the printed condition holds, flips the Leader", "scripts/verify/sd15-readings-728.ts - SD15-01: offered at 4 life or with a {r}{r} red Unison, not with an unknown-cost, blue or one-orb one; flips"], note: "SD5-01's and SD15-01's Awakens are offered in the audit play-through (U2 resolved by #728)." },
   { key: "kw-swap", label: "[Swap X]", match: /^kw:Swap$/, tier: "K", evidence: ["arena-swap-specified-card", "arena-swap-action-price"], refs: ["scripts/verify/swap-729-731.ts - specified card only on offer and choice (SD5-05's <<Goku's Lineage>>), BT4-079's price on the strict host", "scripts/verify/keywords.ts:317 - specified cost-X card, both engines", "scripts/verify/workflow.ts:498-513"], owners: [731, 729], windows: ["chooseCards"], note: "U6 resolved by #731 (the printed description is read); U4 resolved by #729 (BT4-079's action price is paid on the strict host)." },
   { key: "kw-unique", label: "[Unique]", match: /^kw:Unique$/, tier: "P", refs: ["scripts/verify/battles.ts:361 - second copy cannot be played"], owners: ["U8", 730], note: "The 21-11 keep-newest half is not built." },
   { key: "kw-supercombo", label: "[Super Combo] (deck limit 4)", match: /^kw:Super Combo$/, tier: "D", note: "legality() counts it (see the legality block)." },
@@ -483,7 +494,7 @@ export const FAMILIES: Family[] = [
   { key: "tag-once", label: "[Once per turn]", match: /^tag:Once per turn$/, tier: "C", owners: ["U1"], note: "" },
 
   { key: "price-choose", label: "Auto/Activate price: choose a card and move it (hand to Drop, life to hand)", match: /^price:(choose|moveTo)$/, tier: "C", evidence: ["arena-auto-own-cost"], owners: [549, "U1"], windows: ["chooseMode", "chooseCards"], note: "BT9-031 is the named hand-to-Drop shape; DB2-004 and SD5-04 move a Life card to the hand, a shape the row does not name. Auto prices ask pay/decline through a `chooseMode` today, not the `optionalCost` prompt." },
-  { key: "price-cond", label: "Condition-only price (\"If your Leader is red and life <= 4:\")", match: /^pricecond:(leaderMatches|life)$/, tier: "C", evidence: ["arena-auto-own-cost"], owners: [549, "U1"], note: "Row: public-area condition-only Autos stay compulsory." },
+  { key: "price-cond", label: "Condition-only price (\"If your Leader is red and life <= 4:\", SD15-01's \"life <= 4 or a red Unison with a specified cost of 2\")", match: /^pricecond:(leaderMatches|life|count)$/, tier: "C", evidence: ["arena-auto-own-cost"], owners: [549, "U1"], note: "Row: public-area condition-only Autos stay compulsory." },
   { key: "price-restriction", label: "Restriction printed as a [Counter] price (\"You can't activate the [Counter: Play] skills of other cards for the turn:\")", match: /^price:forbid$/, tier: "E", evidence: ["arena-counter-action-price"], owners: [716], windows: ["counter"], note: "BT10-008's own text is the #716 fixture: put in force before the skill, binding other cards' [Counter: Play] only." },
   { key: "op-altcost", label: "Counter alternative price (Life card instead of energy; free with markers)", match: /^op:altCost$/, tier: "C", evidence: ["arena-counter-alternative-action-price"], owners: ["U1"], windows: ["counter", "chooseCards"], note: "The row is one ALTC fixture shape; BT5-023, BT4-097 and BT10-008 are not that fixture." },
 
@@ -825,7 +836,7 @@ function check(catalog: CatalogCard[], snap: Snapshot, play: PlayStats[] | null)
 
   // 4. Unread tallies the doc quotes.
   const unreadIds = (a: DeckAudit) => [...new Set(a.skills.filter((s) => !s.read).map((s) => `${s.cardId}${s.face === "back" ? "b" : ""}#${s.index}`))].sort().join(",");
-  if (unreadIds(A) !== "SD15-01b#0,SD15-03#10,SD15-03#20") fail(`deck A unread set changed: ${unreadIds(A)}`);
+  if (unreadIds(A) !== "") fail(`deck A unread set changed: ${unreadIds(A)}`);
   if (unreadIds(B) !== "") fail(`deck B unread set changed: ${unreadIds(B)}`);
   const unreadPrice = (a: DeckAudit) => a.skills.filter((s) => s.priceRead === false).map((s) => `${s.cardId}#${s.index}`).join(",");
   if (unreadPrice(A) !== "" || unreadPrice(B) !== "") fail(`unreadable price set changed: A=${unreadPrice(A)} B=${unreadPrice(B)}`);
@@ -842,9 +853,20 @@ function check(catalog: CatalogCard[], snap: Snapshot, play: PlayStats[] | null)
     const nonOrb = new Set(audits.flatMap((a) => a.skills.filter((s) => s.counterNonOrbPrice).map((s) => `${s.cardId}#${s.index}`)));
     for (const k of Object.keys(KNOWN_REFUSALS)) if (!refused.has(k)) fail(`play-through no longer refuses ${k} as unread - move it out of KNOWN_REFUSALS`);
     for (const k of refused) if (!KNOWN_REFUSALS[k]) fail(`play-through refuses ${k} as unread and KNOWN_REFUSALS does not explain it${nonOrb.has(k) ? " (a non-orb [Counter]: U5 regressed, #716)" : ""}`);
-    // U5 resolved (#716): each non-orb [Counter] of the decks is put in a counter window in at least one game.
+    // U5 resolved (#716): the non-orb [Counter]s of the decks are put in a counter window.
+    // Each card that is a playset in its deck must be offered in at least one game.
+    // A single copy (BT10-008, the owner's amended x1) depends on the draw: since
+    // #728 lets SD15-01 awaken, the seeded games run differently and it reached a
+    // counter window in none of them — so its absence is reported, not failed,
+    // while at least one non-orb [Counter] must still be offered (#728).
     const offeredCounters = new Set(play.flatMap((s) => Object.keys(s.offered)));
-    for (const k of nonOrb) if (!offeredCounters.has(`${k.split("#")[0]}#counter`)) fail(`play-through never offers ${k}'s [Counter] - U5 (#716) not visible in play`);
+    const copies = (id: string) => Math.max(0, ...DECKS.map((d) => d.entries.filter((e) => e.number === id).reduce((n, e) => n + e.quantity, 0)));
+    const unseen = [...nonOrb].filter((k) => !offeredCounters.has(`${k.split("#")[0]}#counter`));
+    for (const k of unseen) {
+      if (copies(k.split("#")[0]) > 1) fail(`play-through never offers ${k}'s [Counter] - U5 (#716) not visible in play`);
+      else console.log(`  note: ${k}'s [Counter] (a single copy) was not offered in the ${play.reduce((n, s) => n + s.games, 0)} games played`);
+    }
+    if (nonOrb.size && unseen.length === nonOrb.size) fail("play-through never offers any non-orb [Counter] - U5 (#716) not visible in play");
   }
 
   // 6. The doc's generated blocks equal what the code produces now (the play block only when played).

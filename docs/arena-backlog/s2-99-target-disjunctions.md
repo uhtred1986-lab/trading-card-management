@@ -22,7 +22,7 @@ touches: src/lib/arena/text/filters.ts, src/lib/arena/compile/targets.ts, src/li
    - BT29-036 #10 and BT29-029 #10: "that's not in a battle" dropped.
    - BT4-095 #0: "and [Swap]" dropped.
    - BT5-119 #10: "with an energy cost less than or equal to your current energy" dropped.
-   - SD15-01 #0 and #10: "with a specified cost of 2" dropped (#10 also has no target on its trigger; see s2-101).
+   - SD15-01 #0 and #10: "with a specified cost of 2" dropped (#10 also has no target on its trigger; see s2-101). **Done in #728** (13 Oct 2026): the specified cost is a filter measure (`specifiedCostMin`/`Max`), SD13-04 #0's two alternatives now read with it, and SD15-01's [Awaken] OR condition is the record's price.
 5. **Condition grouping.** "if your Leader is A or B and C" is (A or B) and C, not A or (B and C): BT30-096 #10, BT31-128 #30.
 
 **Build.** Read each alternative as its own selector (`choose` takes a list of selectors, or a union filter if the language already has one; check `s2-95` first). A qualifier binds to the noun it is printed with. For case 5, fix the `and`/`or` precedence in the condition reader. Glossary entry.

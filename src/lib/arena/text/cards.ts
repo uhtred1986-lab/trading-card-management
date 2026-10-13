@@ -275,6 +275,18 @@ function splitTags(line: string): { tags: string[]; body: string } {
     if (!m) break;
     tags.push(m[1].trim());
     rest = rest.slice(m[0].length);
+    // A reminder note (1-5-8) may sit between two tags: SD15-03 prints
+    // "[Auto][Limit 1] (You can only activate this skill once per turn across
+    // all copies of this card.) [Spirit Boost 1] (…) When …" (#728). The note
+    // explains the tag before it and is never part of the line, so it is
+    // stepped over — but only when the tag that follows is a price tag
+    // ([Spirit Boost N], [Burst N]) that belongs to the same line. A note
+    // after the last tag stays in the body, where the readers already strip
+    // it, and a [Field]'s note followed by "[Permanent]" or "[Activate: Main]"
+    // (BT1-081, BT4-069) is left as it was: that tag starts the Field's own
+    // skill text, which this reading does not decide.
+    const note = /^\s*\([^)]*\)\s*(?=\[(?:spirit boost|burst) \d+\])/i.exec(rest);
+    if (note && tags.length) rest = rest.slice(note[0].length);
   }
   return { tags, body: rest.trim() };
 }

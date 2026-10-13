@@ -73,6 +73,12 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   // one matches nothing and a ceiling matches every card. The board-level checks are in readings.ts.
   markersMin: { only: [] },
   markersMax: { except: [] },
+  // 1-2-3 (#728): the specified cost's orbs where known. A fixed energy cost is
+  // filled one orb per colour, so only the red/blue RAINBOW reaches 2; the
+  // Leaders, the Unisons (no stored cost) and the X-cost XBAT are unknown and
+  // match no bound, not even "1 or less".
+  specifiedCostMin: { only: ["RAINBOW"] },
+  specifiedCostMax: { except: ["L-RED", "L-BLUE", "U1", "UNI2", "XBAT", "RAINBOW"] },
   originallySkillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   skillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   powerRel: { except: [] },

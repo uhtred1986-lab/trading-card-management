@@ -2070,6 +2070,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             // and the one that names no cause, which covers this too.
             if (h.areaOf(id) === "drop") {
               h.pend("droppedFromBattle", id);
+              // …and by an opponent's skill (SD15-03, #728).
+              if (h.masterOf(id) !== master) h.pend("droppedByOpponent", id);
               h.pend("leftBattleToDrop", id);
             }
           }

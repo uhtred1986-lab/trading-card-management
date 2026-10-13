@@ -3661,6 +3661,22 @@
       ]
     },
     {
+      "field": "specifiedCostMin",
+      "type": "number",
+      "printed": "card with a specified cost of 3 or more",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
+      "field": "specifiedCostMax",
+      "type": "number",
+      "printed": "card with a specified cost of 3 or less",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
       "field": "originallySkillLess",
       "type": "boolean",
       "printed": "originally skill-less",
@@ -3924,6 +3940,10 @@
     {
       "name": "droppedFromBattle",
       "words": "when a skill sends this card from a Battle Area to the Drop"
+    },
+    {
+      "name": "droppedByOpponent",
+      "words": "when an opponent's skill sends this card from a Battle Area to the Drop"
     },
     {
       "name": "droppedFromHand",

@@ -1122,6 +1122,16 @@ THEN
   play(target: [self])
 ```
 
+### The specified cost as a filter measure (13 Oct 2026)
+
+1-2-3: the specified cost's orb count is a filter measure, `specifiedCostMin`/`specifiedCostMax`,
+printed "with a specified cost of 2" / "… of 2 or less" / "… of 3 or more" and read from the same words
+(#728). It is answered only where the cost is known — the owner's stored `cards.specified_cost`, or
+a fixed energy cost filled one orb per colour — so a Unison with nothing stored matches no bound. A
+`count` over "red Unison Card with a specified cost of 2" in the Unison Area is SD15-01's [Awaken]
+alternative. The new trigger `droppedByOpponent` (`moved(by: skill, byOpponent: true, from: battle,
+to: drop)`) is SD15-03's "placed in your Drop Area from your Battle Area by an opponent's skill".
+
 ### Markers as a filter measure (13 Oct 2026)
 
 13-2: markers are a filter measure, `markersMin`/`markersMax`, printed "with 2 or more markers" /
