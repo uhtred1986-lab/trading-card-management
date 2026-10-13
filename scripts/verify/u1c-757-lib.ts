@@ -41,6 +41,7 @@ defs.BLUEBIG757 = card("BLUEBIG757", { colors: ["Blue"], skill: null, energyCost
 defs.YEL757 = card("YEL757", { colors: ["Yellow"], skill: null, energyCost: 1, power: 10000, traits: ["Goku's Lineage"] });
 defs.EXTRA757 = card("EXTRA757", { type: "EXTRA", colors: ["Red"], skill: null, energyCost: 1, power: null, comboCost: null, comboPower: null });
 defs.REMOVER757 = card("REMOVER757", { colors: ["Blue"], energyCost: 0, skill: "[Activate: Main] Choose up to 1 of your opponent's Unison Cards and place it in its owner's Drop Area." });
+defs.REMOVER757B = card("REMOVER757B", { colors: ["Blue"], energyCost: 0, skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and place it in its owner's Drop Area." });
 export const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
 
 export const reload = (s: VmState): VmState => JSON.parse(JSON.stringify(s));
@@ -107,6 +108,7 @@ export function drive(from: VmState, stop: (s: VmState) => boolean, pick?: Pick,
     let a = pick?.(s, options);
     if (a === "stop") break;
     a ??=
+      options.find((o) => o.type === "zEnergyFromCombo" && o.card === null) ?? // 8-5-2: leave the combo cards for the Drop Area
       options.find((o) => o.type === "optionalCost" && o.pay) ??
       options.find((o) => o.type === "chooseMode" && o.index === 0) ??
       options.find((o) => o.type === "choose") ??
