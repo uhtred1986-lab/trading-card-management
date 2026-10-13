@@ -19,9 +19,9 @@ its blockers are resolved and its scenario gates pass (plan, "Delivery and picku
 | Skill lines on 25 / 17 card faces | 42 | 33 |
 | Compiler reads | 42 of 42 (SD15-01 back #0, SD15-03 #10 and #20 read since #728) | 33 of 33 |
 | Blocked at runtime (tier B) | none (SD15-01 Awaken and back Auto, SD15-03 x2 left tier B with #728; BT5-023, BT6-026 and BT10-008 with #716) | none (BT4-079 left tier B with #729) |
-| Partial (tier P) | 1 ([Unique], SD15-05) | none (the 10 [Swap] lines are tier K since #731) |
+| Partial (tier P) | none ([Unique], SD15-05, is tier K since #730) | none (the 10 [Swap] lines are tier K since #731) |
 | Compiled only (tier C) | 36 | 16 (BT4-079 joined: its hand-to-Drop price falls in the shared tier-C price family) |
-| Runtime evidence (tier E/K/D) | 5 keyword-only lines | 17 lines (7 keyword-only, 10 [Swap]) |
+| Runtime evidence (tier E/K/D) | 6 keyword-only lines ([Unique] since #730) | 17 lines (7 keyword-only, 10 [Swap]) |
 
 - **No card has a card-level scenario.** The only lines that count as supported are keyword-only lines whose keyword has
   a named verify scenario ([Blocker], [Barrier], [Deflect], [Critical], [Strike]) or is a deck rule ([Super Combo]).
@@ -309,7 +309,7 @@ has an op the static layer applies. Until #716, Counter lines that printed a non
 | SD15-03 | 2 | #10 | permanent | If this card is in Rest Mode and you have a red Unison Card with a sp... | read | - | - | applies | C |
 | SD15-03 | 2 | #20 | auto | (You must remove a marker from your Unison Card to activate this skil... | read | koed,droppedByOpponent | - | - | C |
 | SD15-04 | 2 | #0 | activate:battle | {r}, if you have 2 or more mono-red Battle Cards in your Combo Area :... | read | - | read | - | C |
-| SD15-05 | 2 | #0 | keyword:Unique | (keyword line) | read | - | - | - | P |
+| SD15-05 | 2 | #0 | keyword:Unique | (keyword line) | read | - | - | - | evidence |
 | SD15-05 | 2 | #1 | keyword:Critical | (keyword line) | read | - | - | - | evidence |
 | SD15-05 | 2 | #10 | auto | If your opponent has 2 or more energy : When you remove a marker from... | read | spiritBoostPaid | read | - | C |
 | BT1-014 | 2 | #0 | auto | When this card attacks, you may choose 1 card from your life and add... | read | attacks | - | - | C |
@@ -404,7 +404,7 @@ has an op the static layer applies. Until #716, Counter lines that printed a non
 | [Attack X] | C | 1 | - | U1 | - | Glossary says the engine plays it; no scenario located (grep of scripts/verify). |
 | [Awaken] | K | 2 | scripts/verify/battles.ts:380 - offered only when the printed condition holds, flips the Leader; scripts/verify/sd15-readings-728.ts - SD15-01: offered at 4 life or with a {r}{r} red Unison, not with an unknown-cost, blue or one-orb one; flips | - | main | SD5-01's and SD15-01's Awakens are offered in the audit play-through (U2 resolved by #728). |
 | [Swap X] | K | 11 | `arena-swap-specified-card`; `arena-swap-action-price`; scripts/verify/swap-729-731.ts - specified card only on offer and choice (SD5-05's <<Goku's Lineage>>), BT4-079's price on the strict host; scripts/verify/keywords.ts:317 - specified cost-X card, both engines; scripts/verify/workflow.ts:498-513 | #731, #729 | chooseCards | U6 resolved by #731 (the printed description is read); U4 resolved by #729 (BT4-079's action price is paid on the strict host). |
-| [Unique] | P | 1 | scripts/verify/battles.ts:361 - second copy cannot be played | U8, #730 | - | The 21-11 keep-newest half is not built. |
+| [Unique] | K | 1 | `arena-unique-master-choice`; scripts/verify/battles.ts:361 - second copy cannot be played; scripts/verify/unique-730.ts - SD15-05 played beside itself by a skill: the master chooses the copy that stays before the skill continues, the rest go to the Drop Area | #730 | chooseCards | U8 resolved by #730 (21-11: the master chooses; legacy engine still keeps the newest). |
 | [Super Combo] (deck limit 4) | D | 2 | - | - | - | legality() counts it (see the legality block). |
 | [Spirit Boost X] marker price | C | 2 | `arena-auto-own-cost` | #549, U1 | - | Glossary: the supported Auto continuation charges it after the payable decision (#549); no scenario names SD15-01's back Auto. |
 | [Once per turn] | C | 2 | - | U1 | - | - |
@@ -435,7 +435,7 @@ evidence cited and are not blockers. The capability rows cited are `arena-combo-
 | U4 | BT4-079 [Swap] with an action price was refused `unread` | B: 2 copies | **#729**: the price is compiled and paid after the energy on the strict action-price host, offered only when the whole price is payable and a specified card is still in hand afterwards (22-22-3) (`arena-swap-action-price`, `scripts/verify/swap-729-731.ts`); BT4-079 is no longer refused in the play-through (section 6) | **resolved by #729** |
 | U6 | [Swap] named <<Goku's Lineage>> but filtered by energy cost only (glossary was `partial`) | B: 11 numbers carry a [Swap] line, 38 copies | **#731** (owner decision 13 Oct 2026: the approximation is NOT accepted): both engines read the printed description with the filter grammar on the offer and the choice, SD5-04/SD5-05's ASCII "<<...>>" included; glossary `engine` (`arena-swap-specified-card`) | **resolved by #731** |
 | U7 | Unison cards have no energy cost / specified cost in the feed; the owner's database column `cards.specified_cost` is not visible to agents. The pack builder must carry it. | A: SD15-02, DB3-001 (and every "specified cost of 2" wording) | **#655**; the owner ruled both `{r}{r}` on 13 Oct 2026 (both print "Energy (Color Cost): X(RR)"), entered by migration 0049 (PR #733). The pack builder carries them from `docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json` by default (`--specified-costs` overrides) and records no missing input | **resolved** (owner ruling 13 Oct, #733) |
-| U8 | [Unique] 21-11 keep-newest half unbuilt | A: SD15-05 x2 | **#730** (created 13 Oct 2026) | open, owned by **#730**; low impact |
+| U8 | [Unique] 21-11 half unbuilt (the legacy engine keeps the newest; the rules engine did nothing) | A: SD15-05 x2 | **#730**: the rules engine processes 21-11 as interruptive rule processing; the master chooses the copy that stays (`chooseCards`, reloadable, answered by the local policy), the rest go to the Drop Area through 9-10 (`arena-unique-master-choice`, `scripts/verify/unique-730.ts`); glossary `engine` | **resolved by #730** |
 | U1 | Card-level scenario gates for every compiled-only mechanic | both | belongs with the policy and qualification work: **#650** (decision fixtures), **#651** (evaluation), **#661** (support matrix), **#655** (pack qualifies only when blockers resolve) | **unowned as a task**; no issue creates these scenarios today |
 
 Existing issues checked and **not** blocking these decks: **#552** (no skill in either deck is `counter:counter`;
@@ -511,8 +511,8 @@ npx tsx scripts/arena-deck-audit.mts --live --candidates   # the four-list compa
 ```
 
 `--check` fails when a deck stops resolving, the importer's lists change, a mechanic has no family, a cited capability
-row stops being `supported`, a glossary badge the tiers rely on changes (Unique `partial`, the K keywords — [Swap]
-since #729/#731 — `engine`), the unread/price/Counter sets move, the `counterWhy` rule is edited, [Swap] stops reading
+row stops being `supported`, a glossary badge the tiers rely on changes (the K keywords — [Swap]
+since #729/#731, [Unique] since #730 — `engine`), the unread/price/Counter sets move, the `counterWhy` rule is edited, [Swap] stops reading
 its printed description or its action price leaves the strict host, or a GENERATED block is stale. It is not
 wired into `npm test`: a compiler improvement should be followed by `--write-doc`, and the tiers re-read, in the PR
 that makes it. Playing needs no database; it was run on Windows with Node 24.
@@ -522,7 +522,7 @@ that makes it. Playing needs no database; it was run on Windows with Node 24.
 | Acceptance | Evidence | Open |
 |---|---|---|
 | Exact IDs/counts, source/revision, matchups, main/Z/Leader faces, generated dependencies, legality and missing inputs | sections 3-5, `catalog-subset-2026-10-13.json`, `--check` | Source revisions are the importer's descriptions of two third-party pages (athenagames.com, poggers.com), not re-fetched; the owner's decks are absent |
-| Every mechanic has a scenario or a linked blocker with an owner; compile never counts | sections 7-8: every mechanic is in a tier; B/C/P rows carry an owner or a `U` id | Scenarios for the compiled-only mechanics do not exist (U1), and every other blocker now has an owner issue (U8 #730); U5 was resolved by #716, U2/U3 by #728, U4 by #729, U6 by #731 and U7 by the owner's input (#733) |
+| Every mechanic has a scenario or a linked blocker with an owner; compile never counts | sections 7-8: every mechanic is in a tier; B/C/P rows carry an owner or a `U` id | Scenarios for the compiled-only mechanics do not exist (U1), and every other blocker is resolved: U5 by #716, U2/U3 by #728, U4 by #729, U6 by #731, U8 by #730 and U7 by the owner's input (#733) |
 | Useful during O1 without the local runtime | the audit runs on the current engine and policy | Fixed by the next audit run, not by this one |
 | Verification | script `--check`, typecheck, lint, `scripts/verify/backlog.ts` | `npm test`/`npm run build`/`arena:fuzz`: unaffected (no `src/` change); database-backed checks not run |
 | Scenario-specific evidence, no relabelling | each K/E row cites its file or capability id | Issue stays **open** |
