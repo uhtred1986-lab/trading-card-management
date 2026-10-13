@@ -5,7 +5,8 @@
  *
  * Independent expectations, never derived from the legacy oracle; the rules
  * engine only (the legacy engine keeps the newest copy without asking — its
- * stated boundary, asserted at the end). SD15-02, SD15-03 and SD15-05 are the
+ * stated boundary, `engine/engine.ts`'s `ruleProcessing`, not exercised
+ * here). SD15-02, SD15-03 and SD15-05 are the
  * catalog's own text (the #649 audit snapshot,
  * `docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json`); SD15-02's
  * specified cost is the owner's ruling of 13 Oct 2026 (`{r}{r}`, migration
