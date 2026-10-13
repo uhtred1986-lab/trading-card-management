@@ -53,6 +53,19 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   import into that graph must stay portable**: `scripts/verify/arena-browser-boundary.mts`
   (`npm test`) fails on any legacy-engine, server, package, Node-builtin or `process.env` import
   reached from it; `arena-browser-engine-browser.mts` plays the scenario in a real worker.
+- **The local policy boundary** (`src/lib/arena/policy/`, #644): a local opponent sees one seat's
+  `PolicyObservation` (`observation.ts`, a restriction of that seat's masked `Snapshot` — own hand
+  and decklist counts, the public boards, counts of hidden zones, the beat history, its own prompt)
+  and its `PolicyDecisions` (`contract.ts`: each engine legal move as a **menu** decision with a
+  stable id, plus one **compound `pick`** for a "choose (up to) N" question, played as the engine's
+  one-card answers), and draws on its own `PolicyRng` (`rng.ts`). **Instance ids of cards the seat
+  cannot read never reach a policy** — an id is a decklist position — they are positional aliases
+  (`?p2:hand:3`) on the board and in decisions and `?` in beats. Only `boundary.ts` reads a
+  `PinnedMatch`; it keeps the `DecisionKey`, and `applyDecision` refuses malformed, foreign, stale
+  and unknown answers. **The policy layer imports nothing outside `policy/`** and names no engine
+  state, seed or ambient randomness: `scripts/verify/arena-policy-contract.mts` (`npm test`) fails
+  otherwise, and proves no leak, permutation invariance and round trips on the #641/#642 fixtures.
+  The online Claude opponent (`ai/`) does not use it.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

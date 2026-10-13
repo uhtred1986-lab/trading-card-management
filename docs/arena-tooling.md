@@ -117,6 +117,7 @@ case a suite cannot assert on the rules engine is a named `rulesGap`, listed at 
 | `scripts/verify-arena.ts --rules-only` | nothing | the same suites on the rules engine with no legacy call anywhere, `vm` listed as not run, and every case a suite could not assert listed by name |
 | `scripts/verify-db.mts` | nothing (PGlite in memory) | the migrations apply, and the reservation rules hold against real SQL |
 | `scripts/verify/arena-scenario-runner.mts` | nothing | the focused scenario runner (`npm run arena:scenario`, §5b): setup, battle and pending-choice scenarios are deterministic, and a mismatch exits non-zero |
+| `scripts/verify/arena-policy-contract.mts` | nothing | the local policy boundary (#644, `src/lib/arena/policy/`): the policy layer imports nothing outside `policy/`; at every position of #641's game, #642's scenarios and two policy-played games on `arena-policy-fixture.ts`, for both seats, no hidden id or reveal epoch reaches the policy, permuting hidden identities/order/ids changes nothing it sees or answers, every legal move is one decision that plays identically, compound picks play as the engine's one-card answers, and stale/foreign/malformed answers are refused |
 
 `verify-arena.ts` imports fourteen suites from `scripts/verify/`, each on its
 own, and reports **pass / skipped / failed per suite** rather than stopping at

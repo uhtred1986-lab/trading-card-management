@@ -27,7 +27,8 @@ import { buildSnapshot } from "../../src/lib/arena/snapshot.ts";
 import { replayHash } from "../../src/lib/arena/replay-core.ts";
 
 const ROOT = process.cwd();
-const ENTRIES = ["src/lib/arena/browser.ts", "src/lib/arena/snapshot-core.ts", "src/lib/arena/view-core.ts", "src/lib/arena/beats-core.ts", "src/lib/arena/engine-ids.ts", "src/lib/arena/vm/index.ts"];
+// #644: the policy boundary (and through it the policy layer) is browser-safe too.
+const ENTRIES = ["src/lib/arena/browser.ts", "src/lib/arena/snapshot-core.ts", "src/lib/arena/view-core.ts", "src/lib/arena/beats-core.ts", "src/lib/arena/engine-ids.ts", "src/lib/arena/vm/index.ts", "src/lib/arena/policy/boundary.ts"];
 
 /** The rule #641 adds on top of #640's: no file of the legacy engine, nor the switch that loads it. */
 const legacyRule = legacyEngineRule;
@@ -76,7 +77,7 @@ for (const entry of ENTRIES) {
   assert.equal(real.violations.length, 0, `${entry} reaches ${real.violations.length} forbidden import(s)`);
   for (const f of real.files) walked.add(f);
 }
-for (const needed of ["src/lib/arena/vm/index.ts", "src/lib/arena/replay-core.ts", "src/lib/arena/snapshot-core.ts", "src/lib/arena/rulesets/load.ts"]) {
+for (const needed of ["src/lib/arena/vm/index.ts", "src/lib/arena/replay-core.ts", "src/lib/arena/snapshot-core.ts", "src/lib/arena/rulesets/load.ts", "src/lib/arena/policy/contract.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts"]) {
   assert.ok(walked.has(needed), `the walker followed browser.ts into ${needed}`);
 }
 // The online modules are unchanged in what they reach: the switch still loads the legacy engine.
