@@ -7,9 +7,10 @@
  * Every request is answered by the host. An exception that escapes it anyway,
  * or an unhandled rejection, is reported as an `internal` error with no request
  * id, so the page learns the worker is unwell instead of waiting forever.
- * Nothing here exposes the host's state.
+ * Nothing here exposes the host's state. Journals go to IndexedDB (`./storage.ts`).
  */
 import { createLocalMatchHost } from "./worker";
+import { indexedDbJournalStore } from "./storage";
 import { ERROR_SENTENCE, envelope, type LocalResponse } from "./protocol";
 
 interface WorkerScope {
@@ -20,7 +21,9 @@ interface WorkerScope {
 const scope = globalThis as unknown as WorkerScope;
 const post = (message: LocalResponse) => scope.postMessage(message);
 
-const host = createLocalMatchHost({ post });
+// The match is journalled in IndexedDB (#653), one transaction per commit, so it survives a reload or a killed worker.
+const store = indexedDbJournalStore();
+const host = createLocalMatchHost({ post, store });
 const failed = (detail: string) => post({ ...envelope(), type: "error", requestId: null, sessionId: null, ok: false, code: "internal", message: `${ERROR_SENTENCE.internal}: ${detail}` });
 
 scope.addEventListener("message", (event) => { void host.handle(event.data); });
@@ -30,3 +33,5 @@ scope.addEventListener("unhandledrejection", (event) => {
   failed(event.reason instanceof Error ? event.reason.message : String(event.reason));
 });
 host.hello();
+// Open the database while the page prepares its first request: a first start then does not wait for it.
+store.warm();

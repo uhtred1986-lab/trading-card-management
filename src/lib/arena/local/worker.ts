@@ -40,6 +40,7 @@ import { localMemory, MAIN_POLICY_VERSION, type LocalMemory } from "../policy/ma
 import { CHOICE_POLICY_VERSION } from "../policy/choices";
 import { policyRng } from "../policy/rng";
 import { fingerprint, stableJson, type Policy } from "../policy/contract";
+import { STORAGE_PROTOCOL_CODE, StorageError } from "./storage";
 import {
   ADVANCE_DEFAULT, BATCH_DEFAULT, ERROR_SENTENCE, envelope, parseRequest,
   type AdvanceRequest, type AdvanceStop, type ApplyRequest, type CancelRequest, type DisposeRequest, type ErrorMessage,
@@ -61,8 +62,8 @@ export interface Receipt { requestId: string; fingerprint: string; revision: num
  * Everything needed to continue a match exactly: the pack it came from (by
  * hash), the seats, both seeds, the decisions in order, the AI's memory, the
  * receipts and a trace of every decision and the engine events it caused.
- * It stays in the worker (O3-03 will keep it in IndexedDB from there); it names
- * hidden cards by instance id and is never posted to the page.
+ * It stays in the worker, which keeps it in IndexedDB (`./storage.ts`, #653); it
+ * names hidden cards by instance id and is never posted to the page.
  */
 export interface MatchJournal {
   format: typeof JOURNAL_FORMAT;
@@ -83,7 +84,11 @@ export interface MatchJournal {
   interruption: string | null;
 }
 
-/** Where journals are kept. In memory by default; O3-03 supplies a transactional IndexedDB one. */
+/**
+ * Where journals are kept. In memory by default (proofs); the worker entry uses the transactional
+ * IndexedDB one (`./storage.ts`). `put` stores the whole journal atomically or throws and stores
+ * nothing (a `StorageError` names why); `get` throws a `StorageError` for a save it cannot trust.
+ */
 export interface JournalStore {
   get(matchId: string): MatchJournal | null | Promise<MatchJournal | null>;
   put(journal: MatchJournal): void | Promise<void>;
@@ -264,9 +269,13 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
     try {
       let s: Session;
       if (req.type === "start") {
+        // The device read and the pack's validation overlap; the saved-match check still answers first.
+        const saved = Promise.resolve(store.get(req.matchId));
+        const opened = openPack(req.pack, req.decks, req.seed, req.interpreterRevision);
+        opened.catch(() => {}); // awaited below, after the saved-match check
         // A new match never overwrites a journalled one: that one is resumed, not restarted.
-        if (await store.get(req.matchId)) throw new Refusal("journal", `a match ${req.matchId} is already saved; resume it or choose another id`);
-        const { pack, match } = await openPack(req.pack, req.decks, req.seed, req.interpreterRevision);
+        if (await saved) throw new Refusal("journal", `a match ${req.matchId} is already saved; resume it or choose another id`);
+        const { pack, match } = await opened;
         s = {
           id: req.sessionId, matchId: req.matchId, gameId: req.gameId, packHash: pack.hash, decks: { ...req.decks }, human: req.human, ai: other(req.human),
           seed: req.seed, policySeed: req.policySeed, interpreterRevision: req.interpreterRevision, batch: req.batch ?? BATCH_DEFAULT,
@@ -478,6 +487,8 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
         }
       } catch (e) {
         if (e instanceof Refusal) return error(req.requestId, req.sessionId, e.code, e.message, e.reasons);
+        // Nothing was committed: the match stays at its last saved revision, in memory and on the device.
+        if (e instanceof StorageError) return error(req.requestId, req.sessionId, STORAGE_PROTOCOL_CODE[e.code], e.message, [`${e.code}: ${e.message}`]);
         return error(req.requestId, req.sessionId, "internal", describe(e));
       }
     },
