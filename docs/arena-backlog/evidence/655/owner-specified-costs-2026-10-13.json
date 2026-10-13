@@ -1,0 +1,7 @@
+{
+  "source": "Owner ruling of 13 Oct 2026 (offline deck audit U7, #649/#655), entered in the database by drizzle/0049_owner_unison_specified_costs.sql (PR #733). Both cards print \"Energy (Color Cost): X(RR)\".",
+  "specifiedCosts": {
+    "SD15-02": "{r}{r}",
+    "DB3-001": "{r}{r}"
+  }
+}

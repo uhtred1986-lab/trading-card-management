@@ -46,7 +46,7 @@ import { canonicalJson, replayHash } from "../../src/lib/arena/replay-core.ts";
 import { hiddenFrom, permutedFor, strings } from "./arena-policy-permute.ts";
 import { humanPick, rawChannel, requestIds, runScripted, scriptedStart } from "./arena-local-worker-driver.ts";
 import { inProcessChannel } from "./arena-local-worker-channel.ts";
-import { auditPack, GAME_ID, LOCAL_REVISION, OTHER_REVISION, stagedPack } from "./arena-local-worker-fixture.mts";
+import { auditPack, GAME_ID, LOCAL_REVISION, OTHER_REVISION, stagedPack, withheldCostsPack } from "./arena-local-worker-fixture.mts";
 import type { Snapshot } from "../../src/lib/arena/snapshot-core.ts";
 
 const ROOT = process.cwd();
@@ -196,7 +196,10 @@ async function refused(input: LocalNewMatch, code: string, reason: RegExp, what:
 const audited = await auditPack();
 const unplayable = await refused(startInput("x", { pack: audited }), "unplayable", /blocker U1 .*#651/, "the audited pack as it is today");
 assert.ok(unplayable.reasons.some((r) => /unresolved mechanic: SD15-03 has 2 unread clause/.test(r)), "an unread mechanic is a named reason");
-assert.ok(unplayable.reasons.some((r) => /missing input: DB3-001 specifiedCost/.test(r)), "a missing input is a named reason");
+// The owner supplied the Unison costs (migration 0049, #733): the real pack lacks no input now.
+assert.ok(!unplayable.reasons.some((r) => /missing input/.test(r)), "the audited pack has no missing input");
+const withheld = await refused(startInput("x", { pack: await withheldCostsPack() }), "unplayable", /missing input/, "the pack without the owner's Unison costs");
+assert.ok(withheld.reasons.some((r) => /missing input: DB3-001 specifiedCost/.test(r)), "a missing input is a named reason");
 await refused(startInput("x", { interpreterRevision: OTHER_REVISION }), "runtime", /interpreter/, "another interpreter revision");
 await refused(startInput("x", { pack: { ...clone(pack), format: 99 } }), "unplayable", /unsupported pack format 99/, "an unknown pack format");
 {

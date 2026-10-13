@@ -1,7 +1,7 @@
 ---
 title: [P1] Arena: Acknowledge human actions before resumable AI advance
 milestone: Arena M2 — Gameplay UX/HUD completion
-labels: backlog, blocked, enhancement, area:arena-contract, phase:hud-workflow, model:sonnet-5, performance
+labels: backlog, ready-for-agent, enhancement, area:arena-contract, phase:hud-workflow, model:sonnet-5, performance
 stage: ui
 issue: 566
 priority: P1
