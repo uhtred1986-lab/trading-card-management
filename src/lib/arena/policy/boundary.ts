@@ -18,6 +18,7 @@ import type { GameDefinition } from "../rulesets/types";
 import { applyMove, legalMoves, projectSnapshot, type PinnedMatch } from "../browser";
 import { rulesetFor } from "../rulesets";
 import { IllegalAction } from "../vm/common";
+import { owedInFull } from "../vm/script";
 import { hiddenAliases, secretAreasOf } from "../conceal";
 import { isTokenCard } from "../vm/zones";
 import { buildObservation, type AliasTable, type DeckEntry, type PolicyObservation, type SecretAreas } from "./observation";
@@ -85,7 +86,8 @@ function cardQuestion(match: PinnedMatch): NonNullable<Parameters<typeof buildDe
   return {
     reason: pr.choice.reason,
     candidates: [...pr.choice.candidates],
-    upTo: plain ? !!op.sel.upTo || op.atMost !== undefined : pr.choice.min === 0,
+    // #720: a choice a taken voluntary substitute owes in full is exact.
+    upTo: plain ? (!!op.sel.upTo && !owedInFull(frame, op)) || op.atMost !== undefined : pr.choice.min === 0,
     remaining,
     question: questionOf(match)!,
     ...(pr.choice.cover?.length ? { cover: [...pr.choice.cover] } : {}),
