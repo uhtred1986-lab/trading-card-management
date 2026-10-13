@@ -1017,7 +1017,7 @@ neither is a hook.
 | [Deflect] | `engine.ts:2152` / `rejections.ts` (`whyNotCounter`) | refusal twin | names the Deflect card |
 | [Indestructible] | `engine.ts:1461` (`battleDamage`) | a battle KO | blocks it regardless of who controls the attacker |
 | [Indestructible] | `script.ts:1267-1280` (interpreted `ko`) | a skill KO | blocks it only when the skill is an opponent's (`masterOf(id) !== master`) — two moments, not one |
-| [Unique] | `engine.ts:598-609` (state-based cleanup) | ongoing, after any change | a second same-named card in a Battle Area is moved to Drop; the engine keeps the newest (stated approximation of 21-11, a master's choice) |
+| [Unique] | `engine.ts` `ruleProcessing` (legacy); `vm/unique.ts` (rules engine, #730) | 21-11 interruptive rule processing: two or more same-named [Unique] cards in one Battle Area | rules engine: the master chooses the one that stays (`chooseCards`, exactly one; reloadable; the local policy answers), checked after every program instruction and whenever the runner regains control, the rest moved to the Drop by the rule through 9-10; legacy engine: drops all but the newest without asking (its stated boundary) |
 | [Unique] | `engine.ts:2273-2278`/`2284-2292` (`canPlay`/`whyNotPlay`) | before a play | blocks playing a second copy outright |
 | [Critical] | `engine.ts:1450-1451`, `1480` (`battleDamage`/`damageLife`) | leader-hit life damage | destination `drop` instead of `hand`, face up |
 | [Strike] | `engine.ts:1448-1449`, `1454-1456` | leader- and Unison-hit damage | raises the amount / marker count to `max(1, x)` |

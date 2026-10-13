@@ -65,6 +65,7 @@ import type { VmFrame, VmState } from "./state";
 import { interruptedOutcome, type StoredOutcome } from "../outcome";
 import { stepAegisCost } from "./aegis-costs";
 import { stepSwapCost } from "./swap-costs";
+import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { IllegalAction } from "./common";
@@ -505,6 +506,12 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // reads plausibly, does nothing" failure mode the programme has paid for
     // before. Checked again here, so a program that ends the game is caught
     // in the same pass that ran it rather than the next action's own.
+    // 21-1-2-1 / 21-11 (#730): interruptive rule processing first — two
+    // same-named [Unique] cards a step's work, a finished program or a native
+    // move left in one Battle Area are processed before anything else runs
+    // (`vm/unique.ts`). Mid-program, `stepScript` asks the same question after
+    // each instruction (`ScriptHost.ruleInterrupt`).
+    queueUniqueChoice(ctx, game, state);
     if (state.programs.length) {
       if (stepProgram(ctx, game, state, ev) === "wait") return;
       checkWins(ctx, game, state, ev);
@@ -1119,6 +1126,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
     if (frame.swapCost) return stepSwapCost(ctx, game, state, ev, frame);
+    if (frame.uniqueKeep) return stepUniqueKeep(ctx, game, state, ev, frame, (id, opts) => moved(ctx, game, state, ev, id, "drop", opts));
     if (frame.autoCost) {
       const cost = frame.autoCost;
       if (cost.stage === "offer") {

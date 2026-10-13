@@ -70,7 +70,7 @@ export const BLOCKERS: BlockerSpec[] = [
   { id: "U5", decks: ["A"], cards: ["BT5-023", "BT6-026", "BT10-008"], issues: [716], status: "resolved" },
   { id: "U6", decks: ["B"], cards: (cards) => cards.filter((c) => /\[Swap/i.test(c.skill ?? "")).map((c) => c.id), issues: [731], status: "resolved" },
   { id: "U7", decks: ["A"], cards: ["SD15-02", "DB3-001"], issues: [655], status: "missing-input" },
-  { id: "U8", decks: ["A"], cards: ["SD15-05"], issues: [730], status: "open" },
+  { id: "U8", decks: ["A"], cards: ["SD15-05"], issues: [730], status: "resolved" },
 ];
 
 export interface BuildOptions {

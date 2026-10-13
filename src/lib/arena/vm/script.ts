@@ -1214,6 +1214,8 @@ export interface ScriptFrame {
   counterCost?: import("./battle").CounterCost;
   /** #729: a [Swap]'s printed action price, paid on the strict host after its energy and before the swap. Additive: older states never carry one. */
   swapCost?: import("./swap-costs").SwapCost;
+  /** #730: a 21-11 [Unique] choice (which same-named card stays) and its departures, on the rules engine. Additive: older states never carry one. */
+  uniqueKeep?: import("./unique").UniqueKeep;
   ops: Op[];
   ip: number;
   vars: Record<string, string[]>;
@@ -2842,6 +2844,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
     }
     frame.ip++;
+    // 21-1-2-1 (#730): interruptive rule processing the instruction just
+    // caused (21-11's [Unique] choice) is resolved now, before the next
+    // instruction — this program resumes behind it. A host with no such
+    // processing (the legacy engine's, the strict price host) has no hook.
+    const rule = h.ruleInterrupt?.(frame);
+    if (rule) {
+      h.interrupt(rule, frame);
+      return "done";
+    }
   }
   h.note("effect did not finish: too many steps");
   return "done";

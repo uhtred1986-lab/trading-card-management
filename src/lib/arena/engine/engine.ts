@@ -571,6 +571,8 @@ function ruleProcessing(ctx: EngineContext, s: GameState, ev: GameEvent[]): void
         changed = true;
       }
       // 21-11 / 22-39: two [Unique] cards with the same name — keep the newest.
+      // The legacy engine's stated boundary: 21-11 gives the choice to the
+      // master, which only the rules engine asks (`vm/unique.ts`, #730).
       const seen = new Map<string, string>();
       for (const id of ps.battle.slice()) {
         if (!has(ctx, s, id, "Unique")) continue;
