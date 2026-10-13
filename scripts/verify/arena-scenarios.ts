@@ -393,6 +393,11 @@ export interface RunInput {
   /** Defaults to the scenario's own seed. */
   seed?: number;
   interpreterRevision: string | null;
+  /**
+   * Called with the match as created and after every move applied (#644 walks each scenario's
+   * positions with it). Not part of the evidence record, so a run with or without it is the same.
+   */
+  observe?: (match: PinnedMatch, action: Action | null) => void;
 }
 
 export function scenarioIds(includeDemos = false): string[] {
@@ -410,6 +415,7 @@ export async function runScenario(id: string, input: RunInput): Promise<Evidence
   let lastEvents: GameEvent[] = created.events;
   const actions: Action[] = [];
   let checked = 0;
+  input.observe?.(match, null);
   const stop = (label: string, field: string, expected: string, actual: string) => diffs.push({ step: label, field, expected, actual });
 
   if (scenario.initial) {
@@ -421,6 +427,7 @@ export async function runScenario(id: string, input: RunInput): Promise<Evidence
     match = next.match;
     actions.push(action);
     legal = match.state.phase === "over" ? [] : legalMoves(match);
+    input.observe?.(match, action);
     return next.events;
   };
 

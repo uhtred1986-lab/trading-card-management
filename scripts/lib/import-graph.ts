@@ -124,6 +124,43 @@ export function legacyEngineRule(rel: string): string | null {
   return null;
 }
 
+/**
+ * #644's `forbidFile` rule for the policy layer (`src/lib/arena/policy/` but its
+ * `boundary.ts`): a policy may load nothing but other policy-layer modules — no
+ * engine, no snapshot builder, no RNG of the game's, no provider, no database.
+ * Its types may name the engine's vocabulary (an `Action`, a `Snapshot`), which
+ * is erased; `policyLayerSourceViolations` keeps the engine's *state* out of it.
+ */
+export function policyLayerRule(rel: string): string | null {
+  if (rel.startsWith("src/lib/arena/policy/") && rel !== "src/lib/arena/policy/boundary.ts") return null;
+  return "policy layer reaches outside the policy layer";
+}
+
+/** Names a policy-layer source may not mention: engine state and contexts, the game's RNG, and ambient randomness or time. */
+export const POLICY_FORBIDDEN_NAMES = ["EngineState", "VmState", "GameState", "EngineContext", "PinnedContext", "PinnedMatch", "rngState", "seed"] as const;
+
+/**
+ * Engine-state access and nondeterminism in a policy-layer source: an identifier or
+ * property named in `POLICY_FORBIDDEN_NAMES` — except `seed` as the policy RNG's own field
+ * (`rng.ts`) — and `Math.random`, `Date`, `performance` or `crypto` anywhere.
+ */
+export function policyLayerSourceViolations(fileName: string, text: string): string[] {
+  const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const out = new Set<string>();
+  const allowSeed = fileName.replace(/\\/g, "/").endsWith("src/lib/arena/policy/rng.ts");
+  const visit = (node: ts.Node) => {
+    if (ts.isIdentifier(node)) {
+      const name = node.text;
+      if ((POLICY_FORBIDDEN_NAMES as readonly string[]).includes(name) && !(name === "seed" && allowSeed)) out.add(`engine state or seed named: ${name}`);
+      if (name === "Date" || name === "performance" || name === "crypto") out.add(`ambient time or randomness: ${name}`);
+    }
+    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "Math" && node.name.text === "random") out.add("ambient time or randomness: Math.random");
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return [...out];
+}
+
 /** `read` for the real repo. */
 export const diskRead = (file: string): string | null => {
   try {
