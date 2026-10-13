@@ -1,7 +1,7 @@
 ---
 title: Arena: implement Android Stage 1 app shell and snapshot polling
 milestone: Arena M4 — Android client enablement
-labels: enhancement, backlog, area:arena-android, phase:android-client, model:sonnet-5, blocked
+labels: enhancement, backlog, area:arena-android, phase:android-client, model:sonnet-5, ready-for-agent
 stage: ui
 issue: 105
 priority: P2

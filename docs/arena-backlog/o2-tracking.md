@@ -3,6 +3,7 @@ title: [Tracking] Arena O2 — Local heuristic opponent
 issue: 634
 milestone: Arena O2 — Local heuristic opponent
 labels: backlog, epic, area:arena-contract, phase:arena-home, model:opus-5
+status: closed
 stage: offline-o2
 tracking: true
 ---
