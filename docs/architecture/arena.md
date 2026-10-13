@@ -148,11 +148,27 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   game, the RNG and the journal untouched. A pack is validated and qualified by the worker itself;
   another interpreter or policy version, an unqualified pack and an AI question the policy cannot
   answer (`interrupted`) fail by name — no network, provider or invented outcome. The journal stays
-  in the worker (in memory for now; O3-03 persists it); `resume` replays it, asking the policy again
+  in the worker, which keeps it in IndexedDB (next bullet); `resume` replays it, asking the policy again
   for every AI decision, and refuses one that does not reproduce. The page side is
   `src/components/arena/session/local.ts`, an `ArenaSession` with `advance` (not wired to the board
   until O3-05); its value graph reaches no engine. Proof: `scripts/verify/arena-local-worker.mts`
   (`npm test`), and in Chrome `npm run arena:local-worker-browser`.
+- **Local matches on the device** (#653, `src/lib/arena/local/storage.ts`): the worker entry journals
+  into IndexedDB (`dbs-arena-local`, per origin, browser-only): a `matches` header per match (pack
+  hash, decks, seat, game and AI seeds, interpreter revision, policy version, revision, AI memory with
+  its RNG, receipts, trace, status, two digests) and a `decisions` record per committed decision,
+  chained. One commit (a human move, an AI batch, a status change) is one transaction over both
+  stores, and the worker only advances its in-memory match after it completed, so an abort, exhausted
+  quota or a killed worker leaves the last commit intact and the page hears `storage`. Reads check
+  record schema (`newer`), shape (`corrupt`), digests and chain (`tampered`) and completeness
+  (`truncated`), refused as `journal`/`newer`; a commit never rewrites history (`rewrite`); a resume
+  re-saving what it read writes nothing. Schema steps are `MIGRATIONS`, additive, run in the
+  version-change transaction (a failing one leaves the old version and data); a newer database is
+  refused untouched. Nothing but the journal is stored — no board, engine state, pack content,
+  account or collection data; a local match id may not be all digits (a server `games` id). Proofs:
+  `scripts/verify/arena-local-storage.mts` (`npm test`, on a labelled fake IndexedDB) and in Chrome's
+  real one `npm run arena:local-storage-browser` (reloads, kills inside an open transaction, real
+  quota exhaustion, damage, upgrade). One writer per match across tabs is #654.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

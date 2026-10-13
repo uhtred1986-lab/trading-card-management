@@ -34,6 +34,8 @@ export const LOCAL_PROTOCOL_VERSION = 1;
 export const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 /** Session and match ids: chosen by the page, opaque to the worker. */
 export const SESSION_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+/** A server match is a `games` row named by its integer id; a local match id is never all digits, so the two can never be taken for one another (#653). */
+export const SERVER_MATCH_ID_PATTERN = /^[0-9]+$/;
 
 /** AI decisions per committed batch, and per `advance` request. */
 export const BATCH_DEFAULT = 4;
@@ -158,8 +160,12 @@ export type LocalErrorCode =
   | "interrupted"
   /** The advance was cancelled, or its session disposed, before its batch was committed. */
   | "cancelled"
-  /** The journal is missing, or replaying it did not reproduce the recorded game. */
+  /** The journal is missing, damaged (corrupt, truncated, tampered), or replaying it did not reproduce the recorded game. */
   | "journal"
+  /** The device's storage refused a read or write (quota, an aborted transaction, no IndexedDB); nothing was committed. */
+  | "storage"
+  /** The saved game was written by a newer build of the app; it is left untouched. */
+  | "newer"
   /** A bug in the worker. */
   | "internal";
 
@@ -181,6 +187,8 @@ export const ERROR_SENTENCE: Record<LocalErrorCode, string> = {
   interrupted: "the computer opponent cannot continue this game",
   cancelled: "stopped",
   journal: "this saved game cannot be continued",
+  storage: "this game could not be saved on this device — it is still at its last saved move",
+  newer: "this saved game was made by a newer version of the app — reload the page",
   internal: "the local game engine failed",
 };
 
@@ -292,6 +300,7 @@ export function parseRequest(data: unknown): Parsed<LocalRequest> {
     case "start":
     case "resume": {
       if (!isId(data.matchId)) return bad("matchId is missing or malformed");
+      if (SERVER_MATCH_ID_PATTERN.test(data.matchId)) return bad("matchId is all digits, which is a server match's id; a local match id must not be");
       if (!isInt(data.gameId)) return bad("gameId is not an integer");
       if (!isRecord(data.pack)) return bad("pack is not an object");
       if (typeof data.interpreterRevision !== "string" || !data.interpreterRevision) return bad("interpreterRevision is missing");

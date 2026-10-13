@@ -289,6 +289,15 @@ start sits at its ceiling on the real pack**: one recording of five went over (4
 regression procedure's rerun passed. It validates the 282 KB pack (hashing it and its card bundle) and
 the bundle again in `createPinnedMatch`; the 450 ms ceiling was set for the 195 KB 8-card fixture.
 
+**With the journal in IndexedDB (#653)** the worker entry also opens the database (warmed at boot) and
+writes the match header before answering `start`, overlapped with the pack's validation. Recorded
+13 Oct 2026 on the same machine, busy with other sessions, alternating the two stores in the same
+session: IndexedDB 404, 420, 464, 466, 471, 497, 573 and 580 ms; the in-memory store 300, 323, 347,
+382 and 607 ms. The database itself costs about 50 ms to create and open on a fresh profile and 1 to
+3 ms per commit (measured in the page); the rest is the machine's noise on a one-sample metric. The
+ceiling stays 450 ms: **matchStartMs fails it on some runs now**, as it did once in five before; the
+other gated metrics passed on every run. Re-deriving that budget from a quiet machine is #643's table.
+
 Not gated, because #643 set them on its 8-card fixture's content and its procedure (step 5) re-derives
 them from a real card pool — a change to this table that belongs with that re-recording, not here:
 `snapshotBytes.max` is **81.1 KB against 80 KB** on the real cards (p50 37.8 KB against 60 KB), and the
