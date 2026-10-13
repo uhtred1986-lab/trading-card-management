@@ -5,8 +5,9 @@
  * (`docs/rules/rulemanual.txt`) and are never derived from engine output.
  */
 import assert from "node:assert/strict";
-import { activate, apply, attack, atMain, cardOf, drive, energy, had, kw, legal, mainPhase, mark, power, setLife, stage, strikeX, zone } from "./u1c-757-lib";
+import { activate, apply, attack, atMain, drive, energy, had, kw, legal, mainPhase, mark, power, setLife, stage, strikeX, zone } from "./u1c-757-lib";
 import type { VmState } from "../../src/lib/arena/vm/state";
+import type { GameEvent } from "../../src/lib/arena/types";
 
 async function main(): Promise<void> {
   // ── SD15-01 #0: "When this card attacks, draw 1 card, then it gets +5000 power for the turn." (draw, power) ──
@@ -188,7 +189,6 @@ async function main(): Promise<void> {
   //    the turn." (power)
   {
     const s = mainPhase({ turn: 2 });
-    const leader = s.sides.p1.zones.leader[0];
     const ctr = stage(s, "p1", "BT5-023", "hand");
     energy(s, "p1", 1);
     const atk = stage(s, "p2", "BLUEBIG757", "battle");
