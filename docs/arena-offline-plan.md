@@ -69,7 +69,7 @@ Audit two curated Masters decks early and package all required definitions, exec
 
 | Issue | Work | Prerequisites |
 |---|---|---|
-| #649 (O4-01) | Audit two curated Masters decks and map offline blockers | Ready now |
+| #649 (O4-01) | Audit two curated Masters decks and map offline blockers (delivered as [`arena-offline-deck-audit.md`](arena-offline-deck-audit.md): decks, blocker register and the decision kinds #650 needs; qualification stays blocked) | Ready now |
 | #655 (O4-02) | Build complete versioned offline deck packs | #649, #640 |
 | #658 (O4-03) | Install, verify and update offline packs atomically | #655, #653 |
 | #659 (O4-04) | Deliver a dedicated offline shell with safe service-worker updates | #648, #658 |
