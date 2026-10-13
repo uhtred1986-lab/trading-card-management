@@ -163,6 +163,19 @@ export interface CardFilter {
   comboPowerMin: number | null;
   comboPowerMax: number | null;
   /**
+   * "A red Unison Card **with 2 or more markers**" (BT10-008, BT10-044,
+   * BT15-086), "Battle Cards and Unison Cards with 3 or fewer markers"
+   * (BT14-116): how many markers (13-2) the card carries now, inclusive
+   * bounds. A fact about the copy in play, not the printed card, so the
+   * definition-level `matches` cannot see it (it is applied where the
+   * instance is known, the way `faceUp` is). Until 13 Oct 2026 the measure was
+   * dropped, so BT10-008's [Permanent] was met by any red Unison (#721).
+   * Only the bounded forms are read: an exact "with 2 markers on it" is what
+   * a *play* arrives with (BT16-023), not something a card in play is asked.
+   */
+  markersMin: number | null;
+  markersMax: number | null;
+  /**
    * "An originally skill-less Battle Card" (20-3-1, 1-5-9): the card printed
    * with no text at all, whether or not a later effect granted it a skill —
    * narrower than "skill-less" on its own, which would also ask about a skill
@@ -270,6 +283,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   originalPowerMax: "number",
   comboPowerMin: "number",
   comboPowerMax: "number",
+  markersMin: "number",
+  markersMax: "number",
   originallySkillLess: "boolean",
   skillLess: "boolean",
   powerRel: "powerRel",
@@ -333,6 +348,8 @@ export function emptyFilter(): CardFilter {
     originalPowerMax: null,
     comboPowerMin: null,
     comboPowerMax: null,
+    markersMin: null,
+    markersMax: null,
     originallySkillLess: false,
     skillLess: false,
     powerRel: null,
@@ -683,6 +700,15 @@ function parseOneFilter(text: string): CardFilter {
   } else if ((m = /\b(?:with|and|of) ([\d,]+) combo powers?\b/.exec(lower) ?? /combo powers? of ([\d,]+)\b/.exec(lower))) {
     f.comboPowerMin = f.comboPowerMax = num(m[1]);
     comboSaid = m[0];
+  }
+  // "A red Unison Card with 2 or more markers" (BT10-008), "Unison Cards with
+  // 3 or fewer markers" (BT14-116), "2 markers or less" (EX19-01): a bound on
+  // the markers the card carries (#721). Only a bound is read — see the field.
+  for (const re of [/\b(\d+) or (more|fewer|less) markers?\b/g, /\b(\d+) markers? or (more|fewer|less)\b/g]) {
+    for (const [, n, dir] of lower.matchAll(re)) {
+      if (dir === "more") f.markersMin = num(n);
+      else f.markersMax = num(n);
+    }
   }
   const pw = comboSaid ? lower.replace(comboSaid, " ") : lower;
   if ((m = /powers? between ([\d,]+) and ([\d,]+)/.exec(pw))) {

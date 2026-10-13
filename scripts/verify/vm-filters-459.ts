@@ -69,6 +69,10 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   originalPowerMax: { except: ["BERGAMO", "CRIT", "DOUBLE", "DUAL", "BIG", "E-NEGATE", "E-DRAW", "ZB", "ZCHEAP", "EVO", "SWAPPER", "COST3", "E-STOP", "E-LIFE", "E-CC", "E-MYSTERY", "RAINBOW"] },
   comboPowerMin: { except: ["L-RED", "L-BLUE", "E-NEGATE", "E-DRAW", "U1", "ZB", "ZCHEAP", "UNI2", "E-STOP", "E-LIFE", "E-CC", "E-MYSTERY", "NOCOMBO"] },
   comboPowerMax: { except: ["L-RED", "L-BLUE", "BLOCKER", "E-NEGATE", "E-DRAW", "U1", "ZB", "ZCHEAP", "UNI2", "E-STOP", "E-LIFE", "E-CC", "E-MYSTERY", "COMBO10K", "NOCOMBO"] },
+  // Markers (13-2, #721) sit on a copy in play; the sampled definitions carry none, so a floor of
+  // one matches nothing and a ceiling matches every card. The board-level checks are in readings.ts.
+  markersMin: { only: [] },
+  markersMax: { except: [] },
   originallySkillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   skillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   powerRel: { except: [] },

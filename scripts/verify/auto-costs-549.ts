@@ -1302,6 +1302,22 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
   assert.equal(view.view.you.battle.find((c) => c.id === next)?.abilities?.[0]?.pending, true);
   scripts.MIX549.bySkill[0] = old;
 }
+// #721: an Auto price that is a program (a hand or Life-card price) is named in the option, never "Pay: nothing".
+{
+  const labels = (id: keyof typeof defs, energy = 0): string[] => {
+    const a = mainWith(id);
+    for (let i = 0; i < energy; i++) stage(a.state, "ENERGY549", "energy");
+    pend(a.state, a.source);
+    assert.equal(a.state.prompt.kind, "chooseMode", `${id} asks whether to pay`);
+    return a.state.prompt.kind === "chooseMode" ? a.state.prompt.options : [];
+  };
+  assert.deepEqual(labels("ACTION549"), ["Pay: choose 1 card in your hand, move the chosen cards to drop", "Don't pay"], "a hand price names itself");
+  assert.deepEqual(labels("FACEUP549"), ["Pay: choose 1 card in your Life Area, turn the chosen cards face up", "Don't pay"], "a Life-card price names itself");
+  assert.deepEqual(labels("MIX549", 1), ["Pay: 1 Red; choose 1 card in your hand, move the chosen cards to drop", "Don't pay"], "orbs and a program are both said");
+  assert.deepEqual(labels("A549", 1), ["Pay: 1 Red", "Don't pay"], "an orb-only price reads as before");
+  for (const id of ["ACTION549", "MIX549", "FACEUP549"] as const) assert.ok(!labels(id, 1).some((o) => /nothing/.test(o)), `${id}: a real price is never labelled "nothing"`);
+}
+
 console.log("auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed");
 
 // Ordinary effects skip Leader departures under 3-1-2. That skip must never

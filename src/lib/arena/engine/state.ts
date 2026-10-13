@@ -653,6 +653,9 @@ export function resolveSelector(ctx: GameContext, s: GameState, frame: ScriptFra
     // 3-9-2-1: whether a life card has been turned face up is a fact about
     // this copy, not about the card, so `matches` cannot see it.
     if (sel.filter?.faceUp && !inst.faceUp) return false;
+    // 13-2: the markers on this copy ("a red Unison Card with 2 or more markers", BT10-008, #721).
+    if (sel.filter?.markersMin != null && inst.markers < sel.filter.markersMin) return false;
+    if (sel.filter?.markersMax != null && inst.markers > sel.filter.markersMax) return false;
     // "with power less than or equal to this card's power": measured against
     // the card the skill is on, as it stands now. "…**the chosen card's**
     // power" (BT19-096) measures against a card an earlier clause in the same
