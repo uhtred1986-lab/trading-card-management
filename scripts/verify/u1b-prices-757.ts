@@ -314,6 +314,8 @@ const passUntil = (s: VmState, until: (t: VmState) => boolean): VmState =>
   }
   {
     const f = fresh(8, true);
+    const markersBefore = f.s.cards[f.u!].markers ?? 0;
+    const askedFrom = asked.length;
     let s = play(f.s, awaken(f.s, f.leader)!);
     s = drive(s, (t, o) => o.find((l) => l.action.type === "chooseMode" && l.action.index === 0)?.action ?? o.find((l) => l.action.type === "choose")?.action);
     assert.equal(s.cards[f.leader].flipped, true);
@@ -322,7 +324,10 @@ const passUntil = (s: VmState, until: (t: VmState) => boolean): VmState =>
     assert.equal(energyAsks.length, 2, "\"switch up to 2 of your energy\" is asked one card at a time, twice");
     assert.ok(energyAsks.every((q) => q.min === 0 && q.max === 1), "each pick may be declined (5-2-4, \"up to\")");
     assert.equal(f.rest.filter((id) => s.cards[id].mode === "active").length, 2, "two of the three rested energy are Active again");
-    // The marker step ("{Cabba} in its name") is not asserted: it is read as an exact name, defect #758.
+    // The marker step: "{Cabba} in its name" means the name contains Cabba (#758), so SD15-02
+    // "SS Cabba, Spirit Resonance" is offered and gains the marker (5-13; measured as a delta).
+    assert.ok(asked.slice(askedFrom).some((q) => q.candidates.includes(f.u!)), "the red Unison with {Cabba} in its name is offered for the marker (#758)");
+    assert.equal(s.cards[f.u!].markers ?? 0, markersBefore + 1, "SD15-02 gains 1 marker from [Awaken]");
   }
 }
 
