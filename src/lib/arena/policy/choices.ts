@@ -38,7 +38,7 @@
  *   payCost       `main.ts`'s rule; the first offered payment only when that
  *                 rule reads none.
  *
- * `optionalCost` and `offering` are prompt kinds of the legacy engine only:
+ * `optionalCost` and `offering` were prompt kinds of the legacy engine only:
  * the rules engine the local runtime pins (`browser.ts`) asks an Auto's price
  * and [Offering] as `chooseMode` (glossary: [Offering]; `vm/flow.ts`'s
  * "Pay this Auto skill's cost?"), which the same scorer answers. Their
@@ -270,7 +270,7 @@ interface Scored {
 /** One option of a mode, replacement, price or [Offering] question, scored for the seat. */
 function scoreOption(o: PolicyObservation, window: string, question: string, d: MenuDecision, label: string, skill: { owner: PlayerId } | null): Scored {
   const l = label.trim();
-  // The legacy engine's own kinds (never asked by the rules engine).
+  // Kinds the deleted legacy engine asked; the rules engine never does.
   if (d.type === "offering") {
     const drop = d.action.dropLife === true;
     const cost = lifeLoss(o.you.life, 1, true, false);

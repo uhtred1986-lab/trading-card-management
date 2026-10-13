@@ -4,8 +4,8 @@
  * Playing is the one move with more to it than a price and a program: the card
  * arrives somewhere, something already there may have to leave, markers are put
  * on it, its [Permanent]s come into force, and every [Auto] watching for an
- * arrival answers. The legacy engine does all of that in `resolvePlay`
- * (`engine/engine.ts`), reached from four action handlers and from the `play`
+ * arrival answers. The deleted legacy engine did all of that in `resolvePlay`
+ * (`engine/engine.ts`, #118), reached from four action handlers and from the `play`
  * op; here it is reached from **one** place — `host.playThen`, the method
  * `stepScript` calls for the `play` op — so a play a player declares and a play
  * a skill makes (5-5-3) are the same act rather than two copies of it. An
