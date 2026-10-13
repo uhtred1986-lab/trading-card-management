@@ -116,6 +116,7 @@ case a suite cannot assert on the rules engine is a named `rulesGap`, listed at 
 | `scripts/verify-arena.ts` | nothing | the arena — the suites below — on the legacy engine |
 | `scripts/verify-arena.ts --rules-only` | nothing | the same suites on the rules engine with no legacy call anywhere, `vm` listed as not run, and every case a suite could not assert listed by name |
 | `scripts/verify-db.mts` | nothing (PGlite in memory) | the migrations apply, and the reservation rules hold against real SQL |
+| `scripts/verify/arena-scenario-runner.mts` | nothing | the focused scenario runner (`npm run arena:scenario`, §5b): setup, battle and pending-choice scenarios are deterministic, and a mismatch exits non-zero |
 
 `verify-arena.ts` imports fourteen suites from `scripts/verify/`, each on its
 own, and reports **pass / skipped / failed per suite** rather than stopping at
@@ -676,6 +677,63 @@ colour. Dimmed states (a card that is not a legal target, a disabled control)
 are measured at their dimmed opacity and do show up; decide per finding whether
 WCAG's inactive-component exemption applies. Animations are finished before the
 measurement so an entrance fade is not read as low contrast.
+
+## 5b. Focused scenarios — `arena:scenario`
+
+One command plays a named scenario on the pinned rules engine, asserts state, events and legal
+actions, and prints a compact record. No database, no network, no full suite (#642):
+
+```powershell
+$env:DATABASE_URL=''; npm run arena:scenario                         # setup, battle, pending-choice
+$env:DATABASE_URL=''; npm run arena:scenario -- battle               # one scenario
+$env:DATABASE_URL=''; npm run arena:scenario -- pending-choice --seed 641 --revision a641000000000000000000000000000000000641
+$env:DATABASE_URL=''; npm run arena:scenario -- --browser            # also in a headless-Chrome module worker, offline
+$env:DATABASE_URL=''; npm run arena:scenario -- --bundle bundle.json # a replay bundle with decks (see --write-bundle)
+npm run arena:scenario -- --list                                     # ids, seeds, descriptions
+```
+
+- **Scenarios** live in `scripts/verify/arena-scenarios.ts` as data: `setup` (first player, both
+  mulligans, the opening charge prompt), `battle` (a leader attack, both combo steps passed, the hit
+  resolved, back to the main step) and `pending-choice` (a combo card's `payCost` question, then the
+  attacker's `zEnergyFromCombo` choice: only the listed cards are legal, wrong answers are refused).
+  `mismatch-demo` is deliberately wrong and runs only when named; it proves the failure path.
+  A step picks a move from the engine's own legal list (type and field match, never a fixed
+  instance id) or advances with a preference list until a prompt/legal condition holds, then
+  asserts `phase`, `turn`, a subset of `prompt`, the legal types/count, zone sizes by seat
+  (`$turn`/`$other` resolve against the turn player), the step's events (in order) and actions
+  the engine must refuse. To add one, add an entry to `SCENARIOS`.
+- **Inputs are explicit.** `--seed` (default: the scenario's own, 641), `--revision` (default: the
+  fixture's pinned revision; it must equal the bundle's, or the run is refused), `--bundle`. Without
+  `--bundle` it uses the synthetic fixture of `scripts/verify/arena-browser-fixture.ts` (the
+  compiler's own rules for eight made-up cards and the shipped DBS ruleset). The scenarios are
+  pinned to that fixture and seed: another seed or bundle may legitimately reach other prompts, and
+  then fails with a diagnostic naming the step rather than skipping it.
+- **Output** (stdout) is one JSON object per scenario: `scenario`, `seed`, `engine`,
+  `interpreterRevision`, `bundleHash`/`rulesetHash`/`catalogHash`/`programsHash`, `pass`, `moves`,
+  `checked`/`steps`, `final` (phase, turn, prompt), `hashes` (state, last step's events, legal moves,
+  each seat's projected snapshot, the action list), `diffs` and `omitted`; then
+  `{"summary":{scenarios,passed,failed,browser}}`. Nothing in a record varies between runs or
+  machines. A failing run stops at the first failing step and lists at most six differences
+  (`step`, `field`, `expected`, `actual`, values cut at 100 characters), repeated on stderr as
+  `FAIL <id> (seed N): …`.
+- **Exit codes:** 0 all pass; 1 any expectation, engine/bundle refusal (wrong revision, hash) or
+  Node/browser disagreement; 2 usage error.
+- **`--browser`** launches Chrome via `scripts/lib/cdp.mts` (`CHROME_PATH` to pick a binary), serves
+  the repo's TypeScript as native ES modules (`scripts/lib/module-server.mts`), loads
+  `scripts/verify/arena-scenario-worker.ts` in a module worker, takes the page offline, sends the
+  bundle in a message and requires each scenario's *whole* record to equal Node's; the record gains
+  `browser: {userAgent, agrees, differs}`. It needs Chrome, so it is not in `npm test` (the engine
+  itself is covered in a browser by `scripts/verify/arena-browser-engine-browser.mts`).
+- **In `npm test`:** `scripts/verify/arena-scenario-runner.mts` (before `ai-agent-sdk.ts`) runs the
+  three scenarios twice, in reverse order and alone (identical records), checks the import graph is
+  browser-safe, edits one expectation to prove it bites, and drives the CLI for exit 0 (all),
+  exit 1 (`mismatch-demo`, a wrong revision) and exit 2 (unknown id/flag).
+
+Not covered: scenarios on real catalog cards (the fixture is synthetic; a real bundle comes from an
+admin replay export), the legacy engine (server-only; `browser.ts` refuses it by name) and any
+scenario needing the database. Run them on real data only when the owner asks.
+
+---
 
 ## 5. Recording a ruling
 
