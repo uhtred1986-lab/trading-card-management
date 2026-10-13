@@ -139,6 +139,11 @@ export class Page {
     await this.call("Emulation.setTouchEmulationEnabled", { enabled: this.vp.mobile });
   }
 
+  /** Send any raw protocol command to this page's session (e.g. `Emulation.setCPUThrottlingRate`). */
+  async cdp<T = any>(method: string, params: object = {}): Promise<T> {
+    return this.call<T>(method, params);
+  }
+
   /** Run `source` in every document before its own scripts — used to pin localStorage. */
   async beforeLoad(source: string) {
     await this.call("Page.addScriptToEvaluateOnNewDocument", { source });

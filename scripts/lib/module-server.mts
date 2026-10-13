@@ -33,7 +33,15 @@ function fileFor(root: string, urlPath: string): string | null {
   return null;
 }
 
-export async function serveRepoModules(root: string, page: string): Promise<ModuleServer> {
+export interface ModuleServerOptions {
+  /** Headers added to every response (e.g. COOP/COEP, so `crossOriginIsolated` memory APIs exist). */
+  headers?: Record<string, string>;
+}
+
+export async function serveRepoModules(root: string, page: string, options: ModuleServerOptions = {}): Promise<ModuleServer> {
+  const extra = options.headers ?? {};
+  // Transpiling is the server's cost, not the browser's: remember it per file and mtime.
+  const transpiled = new Map<string, { mtime: number; out: string }>();
   const served: string[] = [];
   const refused: string[] = [];
   const requests: string[] = [];
@@ -41,31 +49,41 @@ export async function serveRepoModules(root: string, page: string): Promise<Modu
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
     requests.push(url.pathname);
     if (url.pathname === "/") {
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", ...extra });
       res.end(page);
       return;
     }
     const file = fileFor(root, url.pathname);
     if (!file) {
       if (url.pathname !== "/favicon.ico") refused.push(url.pathname);
-      res.writeHead(404);
+      res.writeHead(404, extra);
       res.end();
       return;
     }
     const canonical = "/" + path.relative(root, file).split(path.sep).join("/");
     if (canonical !== url.pathname) {
       // Redirect so the module's own URL is its real path and its relative imports resolve.
-      res.writeHead(302, { location: canonical });
+      res.writeHead(302, { location: canonical, ...extra });
       res.end();
       return;
     }
     served.push(canonical);
-    const out = ts.transpileModule(fs.readFileSync(file, "utf8"), {
-      fileName: file,
-      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, isolatedModules: true },
-    }).outputText.replace(/(from\s+|import\s*\(\s*|import\s+)(["'])@\//g, "$1$2/src/");
-    res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
-    res.end(out);
+    const mtime = fs.statSync(file).mtimeMs;
+    let hit = transpiled.get(file);
+    if (!hit || hit.mtime !== mtime) {
+      hit = {
+        mtime,
+        out: ts
+          .transpileModule(fs.readFileSync(file, "utf8"), {
+            fileName: file,
+            compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, isolatedModules: true },
+          })
+          .outputText.replace(/(from\s+|import\s*\(\s*|import\s+)(["'])@\//g, "$1$2/src/"),
+      };
+      transpiled.set(file, hit);
+    }
+    res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", ...extra });
+    res.end(hit.out);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as { port: number }).port;
