@@ -99,29 +99,34 @@ const skillEvents = (events: GameEvent[], card: string): Extract<GameEvent, { ty
   assert.equal(declared.events.filter((event) => event.type === "draw").length, 1);
   const beats = vmToBeats(ctx, declared.state, declared.events);
   const now = snapshot(declared.state, "p2", beats);
-  assert.equal(now.beats?.art[hidden]?.cardId, "H549");
+  // Shown to p2 under an opaque name, never its instance id, which is a hidden decklist position (`conceal.ts`).
+  assert.equal(now.beats?.art["?shown:0"]?.cardId, "H549");
+  assert.equal(now.beats?.art[hidden], undefined);
+  assert.ok(!JSON.stringify(now).includes(`"${hidden}"`), "the declared card's instance id is not on p2's board");
   assert.equal(now.beats?.art[other], undefined);
   assert.ok(!JSON.stringify(now).includes("OTHER549"));
   const persisted = snapshot(reload(declared.state), "p2", beats);
-  assert.equal(persisted.beats?.art[hidden]?.cardId, "H549");
+  assert.equal(persisted.beats?.art["?shown:0"]?.cardId, "H549");
   assert.ok(!JSON.stringify(now).includes("revealEpoch") && !JSON.stringify(persisted).includes("revealEpoch"));
   const later = rules.apply(ctx, reload(declared.state), { type: "pass", player: "p1" });
-  assert.equal(snapshot(later.state as VmState, "p2", beats).beats?.art[hidden], undefined, "a later unrelated action re-masks retained history");
+  assert.deepEqual(Object.keys(snapshot(later.state as VmState, "p2", beats).beats?.art ?? {}).filter((id) => id === hidden || id.startsWith("?shown:")), [], "a later unrelated action re-masks retained history");
   const reentered = reload(declared.state);
   const moveEvents: GameEvent[] = [];
   moved(ctx, dbs, reentered, moveEvents, hidden, "battle", { owner: "p1" });
   moved(ctx, dbs, reentered, moveEvents, hidden, "hand", { owner: "p1" });
-  assert.equal(snapshot(reentered, "p2", beats).beats?.art[hidden], undefined, "source departure and re-entry end the old reveal");
+  assert.deepEqual(Object.keys(snapshot(reentered, "p2", beats).beats?.art ?? {}).filter((id) => id === hidden || id.startsWith("?shown:")), [], "source departure and re-entry end the old reveal");
   reentered.pending.push({ card: hidden, master: "p1", skillIndex: 0, trigger: "played" });
   run(ctx, dbs, reentered, []);
   const redeclared = order(reentered, 0, "p1");
   const newBeats = vmToBeats(ctx, redeclared.state, redeclared.events, beats.seq);
   const history = { seq: newBeats.seq, list: [...beats.list, ...newBeats.list], art: { ...beats.art, ...newBeats.art } };
   const remembered = snapshot(redeclared.state, "p2", history);
-  const skills = remembered.beats?.list.filter((beat) => beat.t === "skill" && beat.card === hidden) ?? [];
+  const skills = remembered.beats?.list.filter((beat) => beat.t === "skill") ?? [];
   assert.equal(skills.length, 2);
   assert.equal(skills[0].t === "skill" && skills[0].text, "", "the older activation does not inherit a later epoch");
   assert.ok(skills[1].t === "skill" && skills[1].text.includes("draw 1"));
+  // Nor is it linked to the shown one: only the live declaration names its card.
+  assert.deepEqual(skills.map((beat) => beat.t === "skill" && beat.card), ["?", "?shown:0"]);
 }
 
 // A cost-free effect can suspend at a choice. Its exact declared frame keeps
@@ -141,11 +146,12 @@ const skillEvents = (events: GameEvent[], card: string): Extract<GameEvent, { ty
   const declared = order(state, 0, "p1");
   assert.equal(declared.state.prompt.kind, "chooseCards");
   const beats = vmToBeats(ctx, declared.state, declared.events);
-  assert.equal(snapshot(reload(declared.state), "p2", beats).beats?.art[secret]?.cardId, "H549");
+  assert.equal(snapshot(reload(declared.state), "p2", beats).beats?.art["?shown:0"]?.cardId, "H549");
+  assert.equal(snapshot(reload(declared.state), "p2", beats).beats?.art[secret], undefined, "shown under an opaque name, not its instance id");
   assert.equal(snapshot(reload(declared.state), "p2", beats).beats?.art[other], undefined);
   const answered = rules.apply(ctx, reload(declared.state), { type: "choose", player: "p1", cards: [other] });
   assert.equal((answered.state as VmState).prompt.kind, "main");
-  assert.equal(snapshot(answered.state as VmState, "p2", beats).beats?.art[secret]?.cardId, "H549");
+  assert.equal(snapshot(answered.state as VmState, "p2", beats).beats?.art["?shown:0"]?.cardId, "H549");
   const later = rules.apply(ctx, answered.state, { type: "pass", player: "p1" });
   assert.equal(snapshot(later.state as VmState, "p2", beats).beats?.art[secret], undefined);
   scripts.H549.bySkill[0] = original;
@@ -205,7 +211,7 @@ const skillEvents = (events: GameEvent[], card: string): Extract<GameEvent, { ty
   assert.ok(offered.legal.every((move) => !move.label.includes("H549")), "even the master cannot inspect a face-down deck source");
   const declared = order(state, 0, "p1");
   const beats = vmToBeats(ctx, declared.state, declared.events);
-  assert.equal(snapshot(declared.state, "p2", beats).beats?.art[source]?.cardId, "H549");
+  assert.equal(snapshot(declared.state, "p2", beats).beats?.art["?shown:0"]?.cardId, "H549");
   shuffleDeck(declared.state, "p1");
   assert.deepEqual(declared.state.sides.p1.zones.deck, [source]);
   assert.equal(snapshot(declared.state, "p2", beats).beats?.art[source], undefined);
@@ -248,8 +254,9 @@ const skillEvents = (events: GameEvent[], card: string): Extract<GameEvent, { ty
   for (const viewer of ["p1", "p2"] as const) {
     const projected = snapshot(reload(declared.state), viewer, beats);
     assert.equal(projected.beats?.art[source], undefined);
-    const oldSkill = projected.beats?.list.find((beat) => beat.t === "skill" && beat.card === source);
+    const oldSkill = projected.beats?.list.find((beat) => beat.t === "skill");
     assert.equal(oldSkill?.t === "skill" ? oldSkill.text : undefined, "");
+    assert.equal(oldSkill?.t === "skill" ? oldSkill.card : undefined, "?", "a shuffled Life source is not named, by face or by id (`conceal.ts`)");
     assert.equal(projected.spotlight, null);
     assert.deepEqual(projected.log, []);
     assert.ok(!JSON.stringify(projected).includes("H549"), "neither saved viewer snapshot identifies a shuffled Life source");

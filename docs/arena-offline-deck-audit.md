@@ -216,39 +216,39 @@ Results of the audit play-through are in section 6. A matchup is "supported" onl
 <!-- GENERATED:play -->
 | Matchup | Games | Finished | p1 / p2 wins | End reason | Stopped |
 |---|---|---|---|---|---|
-| A (p1) vs A (p2) | 20 | 20 | 10 / 10 | all by empty Life Area (0-1-3-2) | none |
+| A (p1) vs A (p2) | 20 | 20 | 9 / 11 | all by empty Life Area (0-1-3-2) | none |
 | A (p1) vs B (p2) | 20 | 20 | 12 / 8 | all by empty Life Area (0-1-3-2) | none |
 | B (p1) vs A (p2) | 20 | 20 | 8 / 12 | all by empty Life Area (0-1-3-2) | none |
 | B (p1) vs B (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
 
 Games: 80 (20 per ordered matchup, seeds 649.., policy seeds 1000.., `localPolicy()` (#650: every window handled, an unreadable one interrupts) on both seats, 3000-move cap).
 
-- Prompt kinds the policy was asked (decisions, all games): blocker 489, charge 1108, chooseCards 649, chooseFirst 80, chooseMode 100, combo 5807, counter 1018, main 5872, mulligan 160, orderPending 6, payCost 193, zEnergyFromCombo 957.
-- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 46, BT10-008#counter 10, BT11-008#blocker 34, BT3-027#counter 45, BT4-077#0 18, BT4-078#0 43, BT4-081#0 6, BT4-084#0 32, BT4-085#0 10, BT4-086#0 6, BT4-091#0 37, BT4-091#blocker 47, BT4-096#0 50, BT4-097#counter 56, BT5-023#counter 43, BT6-025#0 51, BT6-026#counter 44, DB1-019#0 36, DB3-001#10 30, DB3-001#20 9, SD15-02#10 19, SD5-01#10 57, SD5-04#10 10, SD5-05#0 3, TB1-023#0 44.
+- Prompt kinds the policy was asked (decisions, all games): blocker 534, charge 1139, chooseCards 693, chooseFirst 80, chooseMode 111, combo 5935, counter 1056, main 6083, mulligan 160, orderPending 8, payCost 210, zEnergyFromCombo 963.
+- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 46, BT10-008#counter 10, BT11-008#blocker 34, BT3-027#counter 46, BT4-077#0 18, BT4-078#0 43, BT4-081#0 6, BT4-084#0 32, BT4-085#0 10, BT4-086#0 6, BT4-091#0 37, BT4-091#blocker 47, BT4-096#0 50, BT4-097#counter 56, BT5-023#counter 43, BT6-025#0 51, BT6-026#counter 45, DB1-019#0 36, DB3-001#10 31, DB3-001#20 10, SD15-02#10 19, SD5-01#10 57, SD5-04#10 10, SD5-05#0 3, TB1-023#0 44.
 - Games in which the engine refused a manual skill as `unread`: BT4-079#0 21, SD15-01#10 60.
 - Games in which a Leader awakened: SD5-01 55.
-- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 48, BT10-008 41, BT11-008 44, BT11-011 43, BT14-006 45, BT14-010 54, BT4-012 51, BT4-077 57, BT4-078 53, BT4-079 51, BT4-081 54, BT4-084 56, BT4-085 52, BT4-086 34, BT4-089 56, BT4-091 58, BT6-010 25, BT6-011 49, BT9-031 20, DB2-004 52, DB3-001 30, SD15-02 19, SD15-03 32, SD15-04 35, SD15-05 35, SD5-02 44, SD5-03 20, SD5-04 35, SD5-05 43, TB1-055 10.
+- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 49, BT10-008 41, BT11-008 44, BT11-011 43, BT14-006 45, BT14-010 54, BT4-012 51, BT4-077 57, BT4-078 53, BT4-079 51, BT4-081 54, BT4-084 56, BT4-085 52, BT4-086 34, BT4-089 56, BT4-091 58, BT6-010 26, BT6-011 49, BT9-031 20, DB2-004 52, DB3-001 31, SD15-02 19, SD15-03 34, SD15-04 35, SD15-05 36, SD5-02 44, SD5-03 20, SD5-04 35, SD5-05 43, TB1-055 10.
 
 `chooseCards` questions asked (the engine's own reason text, decisions across all games):
 
 - 105x choose up to 1 ≪Goku's Lineage≫ from among them
+- 98x Choose up to 1 of your opponent's Battle Cards or Unison Cards
 - 80x [Swap]: the Battle Card to play in its place, or none
-- 74x Choose up to 1 of your opponent's Battle Cards or Unison Cards
 - 72x You may choose up to 2 of your energy (2 more)
-- 67x choose up to 1 of your red ≪Saiyan≫ Leader Cards
-- 61x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
-- 55x you may choose 1 red card from your hand
-- 33x choose up to 1 of your opponent's Battle Cards
-- 20x choose 2 cards from your hand (2 more)
-- 17x choose up to 1 of your red Unison Cards
+- 70x choose up to 1 of your red ≪Saiyan≫ Leader Cards
+- 62x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
+- 57x you may choose 1 red card from your hand
+- 35x choose up to 1 of your opponent's Battle Cards
+- 21x choose 2 cards from your hand (2 more)
+- 19x choose up to 1 of your red Unison Cards
+- 16x you may choose 1 card from your life
 - 13x choose up to 1 of your opponent's Rest Mode Battle Cards
 - 12x Choose 1 card from your life
-- 12x choose up to 1 of your red energy
+- 10x choose up to 1 of your red energy
 - 9x Choose 1 Extra Card in your hand
-- 6x Choose 1 card in your life
-- 6x you may choose 1 card from your life
-- 5x you may choose 1 card in your life
-- 2x choose up to 1 of your mono-red Leader Cards
+- 7x you may choose 1 card in your life
+- 4x choose up to 1 of your mono-red Leader Cards
+- 3x Choose 1 card in your life
 <!-- /GENERATED:play -->
 
 Reading it:
@@ -423,7 +423,7 @@ evidence cited and are not blockers. The capability rows cited are `arena-combo-
 | U5 | [Counter] with a non-orb printed price was never offered (`counterCandidates`/`counterWhy`): BT5-023, BT6-026 (leading Leader condition), BT10-008 (restriction price, was unreadable) | A: 6 copies | **#716**: condition and action/restriction prices paid on the strict action-price host before the skill activates (`arena-counter-action-price`, `scripts/verify/counter-action-price-716.ts`); all three are now offered in the play-through (section 6). Their effects stay compiled-only (U1) | **resolved by #716** |
 | U4 | BT4-079 [Swap] with an action price refused `unread` | B: 2 copies | none (**#549** is Auto prices, not [Swap]) | **unowned** |
 | U6 | [Swap] names <<Goku's Lineage>> but filters by energy cost only (glossary: partial) | B: 11 numbers carry a [Swap] line, 38 copies | none | **unowned**; owner may accept the approximation |
-| U7 | Unison cards have no energy cost / specified cost in the feed; the owner's database column `cards.specified_cost` is not visible to agents. The pack builder must carry it. | A: SD15-02, DB3-001 (and every "specified cost of 2" wording) | **#655** must pin it; the data is the owner's | **missing input** |
+| U7 | Unison cards have no energy cost / specified cost in the feed; the owner's database column `cards.specified_cost` is not visible to agents. The pack builder must carry it. | A: SD15-02, DB3-001 (and every "specified cost of 2" wording) | **#655** pins it when given: the pack records both as `missingInputs` and stays unplayable; `scripts/build-arena-offline-pack.mts --specified-costs` takes the owner's values. The data is the owner's | **missing input** |
 | U8 | [Unique] 21-11 keep-newest half unbuilt | A: SD15-05 x2 | none | **unowned**, low impact |
 | U1 | Card-level scenario gates for every compiled-only mechanic | both | belongs with the policy and qualification work: **#650** (decision fixtures), **#651** (evaluation), **#661** (support matrix), **#655** (pack qualifies only when blockers resolve) | **unowned as a task**; no issue creates these scenarios today |
 | - | Deck A illegal as printed (BT10-008 x2) | A | owner decision | **decision** |
@@ -444,18 +444,18 @@ until a scenario plays them. **#577** is the delivery epic for all of these.
 |---|---|---|---|
 | chooseFirst | every match | - | 80 |
 | mulligan | every match | - | 160 |
-| charge | every match | - | 1108 |
-| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 5872 |
-| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5807 |
-| blocker | every match | BT11-008#0, BT4-091#10 | 489 |
-| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 1018 |
-| orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 6 |
-| chooseCards | by card | SD15-01#10, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20, SD15-04#0 | 649 |
-| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 100 |
+| charge | every match | - | 1139 |
+| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 6083 |
+| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5935 |
+| blocker | every match | BT11-008#0, BT4-091#10 | 534 |
+| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 1056 |
+| orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 8 |
+| chooseCards | by card | SD15-01#10, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20, SD15-04#0 | 693 |
+| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 111 |
 | replaceMove | no audited card needs it | - | 0 |
-| zEnergyFromCombo | every match | - | 957 |
+| zEnergyFromCombo | every match | - | 963 |
 | optionalCost | no audited card needs it | - | 0 |
-| payCost | every match | - | 193 |
+| payCost | every match | - | 210 |
 | offering | no audited card needs it | - | 0 |
 | empowerCarry | no audited card needs it | - | 0 |
 <!-- /GENERATED:windows -->

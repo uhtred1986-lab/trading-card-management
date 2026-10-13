@@ -1,60 +1,48 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { reconcileSnapshot, type Snapshot } from "@/lib/arena/snapshot";
-import { startLiveGamePolling, type LiveConnection } from "./liveGamePolling";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Snapshot } from "@/lib/arena/snapshot";
+import { LiveGameCore, type ArenaSession, type SessionConnection } from "../session/contract";
 
 export type LiveGameState = {
   snapshot: Snapshot;
-  connection: LiveConnection;
+  connection: SessionConnection;
   retry(): void;
 };
 
-export function useLiveGame(gameId: number, fromServer: Snapshot, active: boolean): LiveGameState {
-  const [live, setLive] = useState(fromServer);
-  const [connection, setConnection] = useState<LiveConnection>("connected");
-  const latest = useRef(fromServer);
-  const poller = useRef<ReturnType<typeof startLiveGamePolling> | null>(null);
+/**
+ * The board's snapshot, kept current by the session's `watch` (#648). All of
+ * the reconcile/stale/cross-game logic is `LiveGameCore`; this is the React
+ * binding. `session` must be stable for the life of the game.
+ */
+export function useLiveGame(session: ArenaSession, fromServer: Snapshot, active: boolean): LiveGameState {
+  // Tagged with the session that produced it: a new session is a new game, and
+  // what the last one left on screen is not shown for it.
+  const [held, setHeld] = useState<{ session: ArenaSession; snapshot: Snapshot }>({ session, snapshot: fromServer });
+  const [connection, setConnection] = useState<SessionConnection>("connected");
+  // One core per session.
+  const core = useMemo(
+    () => new LiveGameCore(session, fromServer, { onSnapshot: (snapshot) => setHeld({ session, snapshot }), onConnection: setConnection }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session],
+  );
 
   useEffect(() => {
-    const newest = reconcileSnapshot(latest.current, fromServer);
-    if (newest === fromServer) {
-      latest.current = newest;
-      setLive(newest);
-    }
-  }, [fromServer]);
+    core.adopt(fromServer);
+  }, [core, fromServer]);
 
   const startRevision = fromServer.game.revision;
   const startSeq = fromServer.beats?.seq ?? 0;
 
   useEffect(() => {
     if (!active) return;
-    const sameGame = latest.current.game.id === gameId;
-    poller.current = startLiveGamePolling({
-      gameId,
-      revision: sameGame ? Math.max(startRevision, latest.current.game.revision) : startRevision,
-      beat: sameGame ? Math.max(startSeq, latest.current.beats?.seq ?? 0) : startSeq,
-      onConnection: setConnection,
-      onSnapshot(next) {
-        const current = latest.current;
-        const newest = reconcileSnapshot(current, next);
-        if (newest !== current) {
-          latest.current = newest;
-          setLive(newest);
-        } else if (next.game.id === current.game.id && next.game.revision === current.game.revision && (next.beats?.seq ?? 0) > (current.beats?.seq ?? 0)) {
-          // Animation sequences may advance independently of the row revision.
-          const beatUpdate = { ...current, beats: next.beats };
-          latest.current = beatUpdate;
-          setLive(beatUpdate);
-        }
-      },
-    });
-    return () => {
-      poller.current?.stop();
-      poller.current = null;
-    };
-  }, [active, gameId, startRevision, startSeq]);
+    core.start(fromServer);
+    return () => core.stop();
+    // The watch restarts on the same keys as before the adapter existed: only
+    // the revision and beat of the server render, never the whole snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, core, startRevision, startSeq]);
 
-  const retry = useCallback(() => poller.current?.retry(), []);
-  return { snapshot: live, connection: active ? connection : "connected", retry };
+  const retry = useCallback(() => core.retry(), [core]);
+  return { snapshot: held.session === session ? held.snapshot : fromServer, connection: active ? connection : "connected", retry };
 }

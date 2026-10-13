@@ -1034,6 +1034,7 @@ function resolveZeroPower(ctx: EngineContext, game: GameDefinition, state: VmSta
         subject: item.id,
         replacing: item.id,
         ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}),
+        ...(replaced.optional ? { offered: true as const } : {}),
       });
       // The interpreter drains the saved substitute frame before its next
       // checkpoint or Auto; any question it asks therefore suspends this
@@ -1044,7 +1045,7 @@ function resolveZeroPower(ctx: EngineContext, game: GameDefinition, state: VmSta
 }
 
 function replacementRoute(choice: import("../types").ReplacementChoice): ReplacementResult {
-  return { source: choice.source, master: choice.master, skillIndex: choice.skillIndex, ...(choice.to ? { to: choice.to } : {}), ...(choice.mode ? { mode: choice.mode } : {}), ...(choice.ops ? { ops: choice.ops, ...(asksAQuestion(choice.ops) ? { deferred: true } : {}) } : {}) };
+  return { source: choice.source, master: choice.master, skillIndex: choice.skillIndex, ...(choice.to ? { to: choice.to } : {}), ...(choice.mode ? { mode: choice.mode } : {}), ...(choice.ops ? { ops: choice.ops, ...(asksAQuestion(choice.ops) ? { deferred: true } : {}), ...(choice.optional ? { optional: true } : {}) } : {}) };
 }
 
 function zoneOfCard(state: VmState, id: string): string | null {

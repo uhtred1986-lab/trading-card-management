@@ -53,6 +53,17 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   import into that graph must stay portable**: `scripts/verify/arena-browser-boundary.mts`
   (`npm test`) fails on any legacy-engine, server, package, Node-builtin or `process.env` import
   reached from it; `arena-browser-engine-browser.mts` plays the scenario in a real worker.
+- **Hidden instance ids** (`src/lib/arena/conceal.ts`, 13 Oct 2026): an instance id is a decklist
+  position, so **no `Snapshot` carries the id of a card its viewer may not read** — on either
+  engine, for every viewer. `buildSnapshotWith` conceals last, over the whole snapshot: a
+  positional alias (`?p2:hand:3`, valid on that revision's board only) everywhere but the beats,
+  `?` in the beats (an unwatchable move loses its card even when the card is public now), and
+  `?shown:<k>` for a secret [Auto] declared from a hidden area (#549). The REST client acts by
+  index; a whole `Action` from the web board (`act`) or the gameplan preview is resolved back by
+  `session.ts`'s `resolveForViewer`, refusing a foreign or stale alias and a raw hidden id. A test
+  that looks a hidden card up on a board looks it up by `hiddenAliases(state, viewer)[id]`.
+  `scripts/verify/arena-snapshot-conceal.mts` (`npm test`) proves no leak and permutation
+  invariance for both seats on both engines. Contract: `docs/arena-client-contract.md` §3.7.
 - **The local policy boundary** (`src/lib/arena/policy/`, #644): a local opponent sees one seat's
   `PolicyObservation` (`observation.ts`, a restriction of that seat's masked `Snapshot` — own hand
   and decklist counts, the public boards, counts of hidden zones, the beat history, its own prompt)
@@ -60,7 +71,8 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   stable id, plus one **compound `pick`** for a "choose (up to) N" question, played as the engine's
   one-card answers), and draws on its own `PolicyRng` (`rng.ts`). **Instance ids of cards the seat
   cannot read never reach a policy** — an id is a decklist position — they are positional aliases
-  (`?p2:hand:3`) on the board and in decisions and `?` in beats. Only `boundary.ts` reads a
+  (`?p2:hand:3`, the table `conceal.ts` builds for the online board too) on the board and in
+  decisions and `?` in beats. Only `boundary.ts` reads a
   `PinnedMatch`; it keeps the `DecisionKey`, and `applyDecision` refuses malformed, foreign, stale
   and unknown answers. **The policy layer imports nothing outside `policy/`** and names no engine
   state, seed or ambient randomness: `scripts/verify/arena-policy-contract.mts` (`npm test`) fails
@@ -115,6 +127,14 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   baseline with intervals, seat bias against a control, hidden-state variants, determinism, latency in
   Node and Chrome; `npm run arena:policy-eval -- --check` is the gate in `npm test`;
   `npm run arena:policy-browser` needs Chrome. The `holdout` seed set is reserved for O5.
+- **Offline deck packs** (`src/lib/arena/local/pack.ts`, #655): one deck pair as a versioned,
+  content-hashed pack — a #640 replay bundle (both faces' definitions and programs, art references,
+  ruleset files, interpreter revision) plus decklists, token/generated dependencies, a transitive
+  completeness manifest, missing inputs and the audit's blockers with issue links. Validation
+  recomputes the manifest and `qualification`; `playable` is true only when no blocker for its
+  decks is open, nothing is missing and no required program has an unread clause. Built at build
+  time by `scripts/build-arena-offline-pack.mts`; a runtime never compiles or fetches. Proof:
+  `scripts/verify/arena-offline-pack.mts` (`npm test`).
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.
@@ -159,6 +179,20 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `readRule` and `saveRule`), and `describeFilter`/`printFilter` read one without crashing.
   `saveRule` re-validates every write, so no writer — workbench, Explain to Claude, the
   referee's drafts — can skip the gate.
+- **The board talks to a session, not to the server** (`src/components/arena/session/`, #648 / O3-01):
+  `ArenaStage` takes an `ArenaSession` (`contract.ts`) — `act`, `watch` (snapshots in, connection
+  status), `refresh`, and optional `advance`/`abandon`/`rematch`/`flag`/`preview`/`chooseSkin`/
+  `chooseStaging`/`reportBug`, whose presence is the `capabilities` the board hides controls by. The
+  online transport (server actions, the revision/beat long poll, `router.refresh` on a stale
+  rejection) is `online.ts`, wrapped for the server-rendered game page as `OnlineArenaStage`; the
+  fixture preview builds its own session from stubs. **The board's value-import graph reaches no
+  `@/app` action and no `next/navigation`** — a local worker session (O3-02/O3-05) is another
+  implementation of the same interface. `LiveGameCore` (also in `contract.ts`, wrapped by
+  `useLiveGame`) is the reconcile logic: it adopts only a newer revision of *its own* game, takes a
+  beats-only advance at the same revision, and refuses stale and cross-session snapshots.
+  Proved by `scripts/verify/arena-session-648.mts` (graph, conformance on an in-memory session,
+  server-render of the board over it); the click-through half is browser-driven
+  (`arena-advance-browser-evidence.mts`, `npm run arena:shots`).
 - **The block builder** (`src/lib/arena/lang/blocks.ts`, `components/arena/rules/Blocks.tsx`,
   `/arena/rules/build/[id]`, #469): a rule spelled out as WHEN · COST · IF · THEN blocks, **generated
   from the schema** — what a clause may hold comes off `OP_SCHEMA`/`COND_SCHEMA`/`whenMoments()`/

@@ -228,6 +228,8 @@ export interface ReplacementResult {
   deferred?: boolean;
   /** The line the substitute's program belongs to (`ReplacementChoice.skillIndex`). */
   skillIndex?: number;
+  /** A voluntary replacement (9-10-3) the affected player took: its substitute is owed in full (#720). */
+  optional?: boolean;
 }
 
 /** A physical card in the game. `id` is unique per game ("p1#17"); `cardId` is the catalog id. */

@@ -316,8 +316,9 @@ Four properties, all the server's job:
 - **`beats` are masked per viewer** (`maskBeats`). This was a real leak, not a
   precaution: `Beats.art` carries the true name and picture of every card a beat
   names, drawn cards included, and `damage` names the Life cards taken — which go
-  to hand unrevealed. Only the *face* is removed; the beat and its instance id
-  stay, so the card still flies, face-down. The rule is `revealedTo`'s in
+  to hand unrevealed. Only the *face* is removed; the beat stays, so the card
+  still flies, face-down — its card named `?` since 13 Oct 2026 (§3.7): an
+  instance id is a decklist position and named the card as surely as its face. The rule is `revealedTo`'s in
   `view.ts`, the same one `sideView`/`cardView` draw by, asked of the board as it
   stands — a card drawn and then played is public, so its beat is not masked.
   **A client must never reconstruct a masked face**, from a previous snapshot or
@@ -457,6 +458,51 @@ These fields are optional additions to `Snapshot` and `CardView`; old archived J
 still decodes. The contract version remains unchanged. Hidden opponent hands, face-down life, and
 other closed zones do not gain ability text, identity, or cost details through this projection.
 
+### 3.7 Hidden cards are named by position (added 13 Oct 2026)
+
+Both engines make every card before the shuffle as `${player}#${n}`, leader first, then the main
+deck in decklist order, then the Z-Deck. A decklist lists copies together, so an instance id **is**
+a decklist position: once one copy is seen its neighbours are named, and anyone who knows or guesses
+the other decklist reads a hidden card off its id. Masking faces (§3.3) left that channel open.
+
+So a snapshot never carries the instance id of a card its viewer may not read (`revealedTo`'s rule,
+§3.3: the other hand and Z-Deck, both decks, face-down life, a closed pile under a card, Hidden Mode
+anywhere). `src/lib/arena/conceal.ts`, applied last over the whole snapshot in `buildSnapshotWith`
+(both engines, the server and the browser entry alike), writes instead:
+
+- **on the board and in every other field** — `view`, `legal`, `taps` (keys included), `rejected`,
+  `prompt.payments`, an effect's `source` — a **positional alias**: `?<owner>:<zone>:<index>`
+  (`?p2:hand:3`, `?p1:energy:0`), `?<owner>:under:<n>` for a closed pile, `?<owner>:elsewhere:<n>`
+  for anything else. Positions are public, so two boards that differ only in hidden cards are
+  byte-identical. An alias is valid for **one revision of one viewer's board**: it is not stable
+  across revisions and must not be used as a long-lived key. An `EffectView` whose source is hidden
+  has `sourceName: null`.
+- **in `beats`**, `?` for every such card: a beat's position is a past one, and following an alias
+  across beats would follow the card. A beat about a move the viewer could not watch (an opponent's
+  draw, a deck-to-hand search, life taken into the other hand) is `?` even if the card is public
+  now; a card drawn and later played is still named in its play.
+
+Every card the viewer may read keeps its instance id, so a public card's identity and every
+animation aimed at it are unchanged. The same table is #644's policy observation's
+(`policy/boundary.ts`'s `aliasTable` now delegates to `conceal.ts`).
+
+**Acting on an aliased card.** `POST .../actions` picks a move by index, so it never sends an id and
+needed no change. The web board's `act` and the gameplan preview send whole `Action`s; the server
+resolves them back (`session.ts`'s `resolveForViewer`, `conceal.ts`'s `resolveAliased`) against the
+same table for the same viewer, after refusing a `basedOn` that is not the game's revision. An alias
+that is not this viewer's at this revision, and a raw id of a card the viewer may not read, are
+refused. The gameplan preview's output is concealed the same way.
+
+**Against Claude**, the human's board no longer lists Claude's moves while Claude decides
+(`legalFor` reads the derived viewer, not only a stated one): their labels named Claude's hand
+cards beside the aliases. Hot-seat is unchanged — its viewer is always the asked player.
+
+Proved by `scripts/verify/arena-snapshot-conceal.mts` (in `npm test`): on both engines, both seats
+of a 1 v 1 and the human against Claude, no hidden id appears in the snapshot; permuting every card
+the viewer cannot see (identity, order and instance id) leaves the snapshot byte-identical; an
+unconcealed board does tell the twin apart (negative control, per engine and seat); every legal move
+resolves to the engine's own; foreign, stale and raw hidden references are refused.
+
 ## 4. `Beats` — the animation stream
 
 The engine's own comment on `GameEvent` says *"Append-only log; the UI animates from these"*. Today
@@ -557,9 +603,11 @@ Four things the build settled that the first draft of this section had wrong:
 
 Three properties the clients depend on, all of which are the server's job:
 
-- **A beat names an instance id**, the same id `view` uses. The web board already writes
-  `data-arena-card={id}` into the DOM and Android will key its composables the same way, so a beat
-  can always be aimed at a real rectangle.
+- **A beat names an instance id**, the same id `view` uses, for every card the viewer may read. The
+  web board already writes `data-arena-card={id}` into the DOM and Android will key its composables
+  the same way, so a beat can always be aimed at a real rectangle. A card the viewer may not read
+  is `?` in a beat (§3.7) — it has no rectangle anyway, and the beat's `from`/`to`/`owner` still
+  say which pile it flies between.
 - **Beats carry their own faces.** A card KO'd during Claude's turn is gone from the `view` the
   server renders, so a client cannot look it up. `art` is resolved server-side from the same query
   the page already runs.
@@ -743,8 +791,9 @@ because it survives a phone changing networks mid-turn and needs nothing from th
 Cost note: a long-poll holds a Vercel function for up to `wait` seconds. For one user this is
 irrelevant; if it ever is not, the knob is `wait`.
 
-**The web board uses this too**, through `stage/useLiveGame.ts` — the one place either client
-reaches `/api/v1` rather than the functions behind it. `act()` returns after the human action is
+**The web board uses this too**, through `stage/useLiveGame.ts` and the online session
+(`session/online.ts`, #648) — the one place either client reaches `/api/v1` rather than the
+functions behind it. `act()` returns after the human action is
 persisted; the browser starts `advance` as a separate background request and polls the row, so the
 move is acknowledged before Claude finishes thinking and each of Claude's moves can be animated as
 soon as it arrives. Web and HTTP advances share one per-game-revision lease and durable decision
@@ -794,6 +843,15 @@ meaning changes; adding an optional field is not a bump.
   `legal: []` and empty `taps` (§3.3, #458) — the same narrowing of what a payload carries as the
   7 Sep `beats.art` filter, and the same shape a finished game already sends. `versus.json` was
   re-emitted: p2's board on p1's turn, with no moves. A 1 v 1 may now be made on the rules engine.
+
+- **13 Oct 2026 — narrowing, no bump.** Hidden cards are named by position (§3.7). No field was
+  added or removed and every id is still a `String`, so an older client decodes every payload as
+  before; what narrowed is what an id may be: for a card the viewer may not read it is an alias
+  (`?p2:hand:3`, or `?` in a beat) valid on that revision's board only. The Kotlin classes need no
+  change. A client that keyed state on an id across revisions keeps working for every public card;
+  for a hidden one it sees a new key when the card moves, which is the point. Against Claude, the
+  human's board is sent `legal: []` while Claude decides. `versus.json` and the other fixtures were
+  re-emitted.
 
 - `GET /api/v1/health` returns `minClient`, the oldest Android `versionCode` the server will still
   talk to. Below it the app refuses to play and offers the update (`docs/arena-android-spec.md` §8).
@@ -901,6 +959,7 @@ payment rows and never reconstructs legality from card artwork or printed colour
 
 Both engines withhold a Hidden Mode card's catalogue identity with an empty
 `CardView.cardId` string and omit its front-side text, reading, ability and Permanent
-information. The instance id, position, count and mode remain usable for public
-resource selection. Revealed cards retain their normal catalogue identity. This is
+information. The position, count and mode remain usable for public resource selection; the card is
+named by a positional alias (`?p1:energy:2`, §3.7) rather than its instance id, which is a decklist
+position and would name it. Revealed cards retain their normal catalogue identity. This is
 a projection correction; it does not reveal additional areas or change cost timing.

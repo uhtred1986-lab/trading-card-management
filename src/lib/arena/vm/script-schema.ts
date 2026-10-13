@@ -2238,6 +2238,9 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   else if (f.comboPowerMin != null && f.comboPowerMax != null) bits.push(`with combo power between ${f.comboPowerMin} and ${f.comboPowerMax}`);
   else if (f.comboPowerMax != null) bits.push(`with ${f.comboPowerMax} combo power or less`);
   else if (f.comboPowerMin != null) bits.push(`with ${f.comboPowerMin} combo power or more`);
+  // 13-2: "a red Unison Card with 2 or more markers" (BT10-008, #721), in the words `parseFilter` reads back.
+  if (f.markersMin != null) bits.push(`with ${f.markersMin} or more markers`);
+  if (f.markersMax != null) bits.push(`with ${f.markersMax} or fewer markers`);
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");

@@ -1,5 +1,6 @@
 /** #626: fixed rules-engine payment expectations; no legacy oracle or live data. */
 import assert from "node:assert/strict";
+import { hiddenAliases } from "../../src/lib/arena/conceal";
 import { compileCard } from "../../src/lib/arena/compile";
 import { playableEngine } from "../../src/lib/arena/engines";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
@@ -63,7 +64,8 @@ const activate = (s: VmState, card: string, pay?: string[]) => apply(s, { type: 
 function snap(s: VmState, viewer: PlayerId = "p1", revision = 1) {
   return buildSnapshot({ id: 626, revision, engine: "rules", mode: "versus", status: "playing", p1Name: "You", p2Name: "Other", ctx, state: s, legal: engine.legalActions(ctx, s), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 }
-const colors = (s: VmState, id: string) => snap(s).view.you.energyColors!.find((r) => r.card === id)!.paymentColors;
+// A Hidden Mode card is named by its position on the board, not its instance id (`conceal.ts`).
+const colors = (s: VmState, id: string) => snap(s).view.you.energyColors!.find((r) => r.card === (hiddenAliases(s, "p1")[id] ?? id))!.paymentColors;
 function refusal(s: VmState, card: string) {
   assert.ok(!offered(s, card));
   const row = engine.rejectedActions(ctx, s, engine.legalActions(ctx, s)).find((r) => r.action.type === "activate" && r.action.card === card);
@@ -111,9 +113,11 @@ for (const mode of ["standing", "resolved"] as const) {
   assert.equal(paid.state.cards[a.resources[0]].mode, "rest"); assert.ok(paid.state.sides.p1.zones.combo.includes(a.combo));
   for (const viewer of ["p1", "p2"] as const) {
     const view = snap(a.s, viewer).view; const side = viewer === "p1" ? view.you : view.them;
-    assert.deepEqual(side.energy.find((c) => c.id === a.resources[0])!.colors, []);
-    assert.equal(side.energy.find((c) => c.id === a.resources[0])!.name, "Face-down card");
-    assert.notEqual(side.energy.find((c) => c.id === a.resources[0])!.cardId, "R626", "Hidden Mode withholds the printed identity from both viewers");
+    const as = hiddenAliases(a.s, viewer)[a.resources[0]];
+    assert.ok(as && !side.energy.some((c) => c.id === a.resources[0]), "named by its position, never its instance id");
+    assert.deepEqual(side.energy.find((c) => c.id === as)!.colors, []);
+    assert.equal(side.energy.find((c) => c.id === as)!.name, "Face-down card");
+    assert.notEqual(side.energy.find((c) => c.id === as)!.cardId, "R626", "Hidden Mode withholds the printed identity from both viewers");
   }
 }
 // 1-14-2: markers follow the Leader's current colours, not another energy card.

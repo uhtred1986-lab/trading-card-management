@@ -88,10 +88,11 @@ export function appendBeats(prev: Beats | null, next: Beats): Beats {
  * you draw it; `damage` leaks the Life cards you take the same way, since
  * those go to hand unrevealed.
  *
- * **Only the face is removed, never the beat.** A masked card keeps its
- * instance id, so the card still flies from the deck to the hand and the story
- * still reads — it simply arrives face-down. An instance id says nothing about
- * which card it is, which is what makes that safe.
+ * **Only the face is removed, never the beat.** The card still flies from the
+ * deck to the hand and the story still reads — it simply arrives face-down.
+ * Its instance id is *not* safe to keep (an id is a decklist position), so
+ * the snapshot replaces it with `?` afterwards (`conceal.ts`, `concealBeats`);
+ * this function only decides which faces go.
  *
  * The rule is `revealedTo`'s, not a second copy of it, and it is asked of the
  * state *now*: a card drawn and then played is public by the time anyone looks,

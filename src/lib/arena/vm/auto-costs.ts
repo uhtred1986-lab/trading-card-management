@@ -7,6 +7,7 @@ import { vmHost } from "./host";
 import { boundFor, scopedPayersSpent } from "./activate";
 import { IllegalAction, sideOf } from "./common";
 import { NotYet, RulesetBroken } from "./errors";
+import { describeScript } from "./script-schema";
 import { activeEnergy, cardColors, chargeCost, payersFor, planCost, priceFor, spendSkillCostUses, type Price, type VmPayment } from "./costs";
 import { log } from "./events";
 import { hasPossibleReplacement, possibleAltPaymentReplacement, staticsNow } from "./program";
@@ -114,7 +115,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       const actual = host.move(id, to, owner, { ...opts, reason: "cost" });
       if (actual !== to || host.areaOf(id) !== to) {
         const replaced = opts?.replaced;
-        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}) });
+        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
       return actual;
@@ -129,7 +130,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       host.ko(id, by, opts);
       if (host.areaOf(id) !== "drop" || !state.sides[owner].zones.drop.includes(id)) {
         const replaced = opts?.replaced;
-        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}) });
+        if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
     },
@@ -588,6 +589,20 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
   check(ops);
 }
 
+/**
+ * The words on a "Pay: ..." option (#721). The planner describes only what the
+ * orb/marker/Life plan takes, and says "nothing" when the price is a program
+ * alone (a hand or Life-card price, a restriction); a real price must never be
+ * labelled "nothing", so the program is named in words after the plan's part.
+ */
+export function automaticPriceLabel(plan: string | undefined, ops: Op[]): string {
+  const parts: string[] = [];
+  if (plan && plan !== "nothing") parts.push(plan);
+  const program = ops.length ? describeScript(ops) : "";
+  if (program) parts.push(program);
+  return parts.join("; ") || "pay the skill cost";
+}
+
 /** Capture payment alternatives before asking; the Auto's master and source
  * stay on the frame even when its price moves the source (9-6 / 9-9). */
 export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, skill: Skill, script: Script): AutomaticCost {
@@ -629,7 +644,7 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
       }
       const paying = { ...frame, ops, ...(x ? { x: n } : {}) };
       if (!canFinishAutomaticPrice(ctx, game, clone, paying)) continue;
-      choices.push({ price, payment: paymentPlan.payment, label: `${x ? `X = ${n}; ` : ""}${paymentPlan.describe || "pay the skill cost"}`, ...(x ? { x: n } : {}) });
+      choices.push({ price, payment: paymentPlan.payment, label: `${x ? `X = ${n}; ` : ""}${automaticPriceLabel(paymentPlan.describe, ops)}`, ...(x ? { x: n } : {}) });
     }
   }
   return { skill, effect: frame.ops, costs, choices, stage: "offer" };

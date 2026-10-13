@@ -91,10 +91,11 @@ export async function verifyArenaPricedSecretAuto(db: Db): Promise<void> {
     const offered = await loadFixture(declarationId);
     for (const viewer of ["p1", "p2"] as const) {
       const shown = await snapshotOfGame(db, offered, viewer);
-      assert.equal(shown.beats?.art[source]?.cardId, "SECRET_PRICE549");
+      // p1 reads its own hand; p2 is shown the card under an opaque name, never its instance id (`conceal.ts`).
+      assert.equal(shown.beats?.art[viewer === "p1" ? source : "?shown:0"]?.cardId, "SECRET_PRICE549");
       assert.equal(shown.beats?.art[other], undefined);
       assert.equal(shown.spotlight, null);
-      const publicDeclared = shown.beats?.list.find((beat) => beat.t === "autoDeclared" && beat.card === source);
+      const publicDeclared = shown.beats?.list.find((beat) => beat.t === "autoDeclared" && beat.card === (viewer === "p1" ? source : "?shown:0"));
       assert.ok(publicDeclared && publicDeclared.t === "autoDeclared");
       assert.equal(Object.hasOwn(publicDeclared, "revealEpoch"), false, "saved-session declaration DTO omits the private epoch for either viewer");
       assert.ok(!JSON.stringify(shown).includes("revealEpoch"));
@@ -110,8 +111,9 @@ export async function verifyArenaPricedSecretAuto(db: Db): Promise<void> {
     assert.ok(!paid.log.join(" ").includes("SECRET_PRICE549") && !paid.log.join(" ").includes("When you play this card"));
     const reread = await loadFixture(declarationId);
     const shown = await snapshotOfGame(db, reread, "p2");
-    assert.equal(shown.beats?.art[source]?.cardId, "SECRET_PRICE549");
-    assert.equal(shown.beats?.list.filter((beat) => (beat.t === "autoDeclared" || beat.t === "skill") && beat.card === source).length, 2);
+    assert.equal(shown.beats?.art["?shown:0"]?.cardId, "SECRET_PRICE549");
+    assert.equal(shown.beats?.list.filter((beat) => (beat.t === "autoDeclared" || beat.t === "skill") && beat.card === "?shown:0").length, 2);
+    assert.ok(!JSON.stringify(shown).includes(`"${source}"`), "the declared card's instance id is not on p2's board");
     assert.ok(!JSON.stringify(shown).includes("revealEpoch"));
     const later = await applyToGame(db, declarationId, { type: "pass", player: "p1" }, undefined, { game: reread, expectedRevision: 22 });
     assert.equal(later.version, 23);

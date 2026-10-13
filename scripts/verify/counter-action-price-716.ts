@@ -43,6 +43,9 @@ const defs: Record<string, CardDef> = { ...DEFS,
   CNTATK716: card("CNTATK716", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Counter: Attack] Negate the attack." }),
   FODDER716: card("FODDER716", { colors: ["Green"], skill: null }),
   RED716: card("RED716", { colors: ["Red"], skill: null }),
+  // #721: Unisons for BT10-008's [Permanent] "a red Unison Card with 2 or more markers".
+  RUNI721: card("RUNI721", { type: "UNISON", colors: ["Red"], energyCost: 1, power: 5000, comboCost: null, comboPower: null, skill: null }),
+  BUNI721: card("BUNI721", { type: "UNISON", colors: ["Blue"], energyCost: 1, power: 5000, comboCost: null, comboPower: null, skill: null }),
 };
 
 // ── the reading: the three printed price shapes compile to a price record ──
@@ -295,4 +298,49 @@ function attack(s: VmState): VmState {
   const banned = refusal(t, other);
   assert.ok(!banned || banned[0].kind === "timing", "the [Counter: Play] card is only out of its window here");
 }
+// ── #721: BT10-008's free alternative needs a RED Unison with 2 or MORE markers ──
+{
+  /** p1 holds BT10-008 and no energy at all, so only the [Permanent]'s alternative can pay for it. */
+  const window = (setup: (s: VmState) => void): { s: VmState; yamcha: string } => {
+    let s = toSecondMain(7210);
+    for (const id of s.sides.p1.zones.hand.slice()) assert.ok(moveCard(s, game, id, "deck", { owner: "p1" }).ok);
+    for (const id of s.sides.p1.zones.energy.slice()) assert.ok(moveCard(s, game, id, "deck", { owner: "p1" }).ok);
+    for (const id of s.sides.p2.zones.hand.slice()) assert.ok(moveCard(s, game, id, "deck", { owner: "p2" }).ok);
+    const yamcha = stage(s, "p1", "BT10-008", "hand");
+    const played = stage(s, "p2", "V-BLUE", "hand");
+    stage(s, "p2", "V-BLUE", "energy"); stage(s, "p2", "V-BLUE", "energy");
+    setup(s);
+    s = play(s, { type: "play", player: "p2", card: played });
+    if (s.prompt.kind === "payCost") s = play(s, legal(s)[0].action);
+    return { s, yamcha };
+  };
+  const unison = (s: VmState, p: PlayerId, id: string, markers: number): string => {
+    const u = stage(s, p, id, "hand");
+    const moved = moveCard(s, game, u, "unison", { owner: p });
+    assert.ok(moved.ok, `the Unison is in the Unison Area: ${JSON.stringify(moved)}`);
+    s.cards[u].markers = markers;
+    return u;
+  };
+  const cases: [string, (s: VmState) => void, boolean][] = [
+    ["no Unison at all", () => undefined, false],
+    ["a red Unison with no marker", (s) => { unison(s, "p1", "RUNI721", 0); }, false],
+    ["a red Unison with 1 marker", (s) => { unison(s, "p1", "RUNI721", 1); }, false],
+    ["a red Unison with 2 markers", (s) => { unison(s, "p1", "RUNI721", 2); }, true],
+    ["a red Unison with 5 markers (2 or MORE)", (s) => { unison(s, "p1", "RUNI721", 5); }, true],
+    ["a blue Unison with 2 markers", (s) => { unison(s, "p1", "BUNI721", 2); }, false],
+    ["only the opponent's red Unison with 3 markers", (s) => { unison(s, "p2", "RUNI721", 3); }, false],
+  ];
+  for (const [name, setup, expected] of cases) {
+    const { s, yamcha } = window(setup);
+    assert.equal(s.prompt.kind, expected ? "counter" : s.prompt.kind, name);
+    assert.equal(offered(s, yamcha), expected, `BT10-008 with no energy, ${name}: ${expected ? "offered" : "not offered"}`);
+  }
+  // The filter itself, through both ends of the reading: compile, then the rules engine's matcher.
+  const gate = compileCard(defs["BT10-008"]).bySkill[10];
+  assert.deepEqual(gate.unsupported, []);
+  const cond = (gate.ops[0] as { cond: { kind: string; sel: { filter: { colors: string[]; markersMin: number | null; markersMax: number | null } } } }).cond;
+  assert.equal(cond.kind, "count");
+  assert.deepEqual([cond.sel.filter.colors, cond.sel.filter.markersMin, cond.sel.filter.markersMax], [["Red"], 2, null], "BT10-008's [Permanent] reads \"a red Unison Card with 2 or more markers\"");
+}
+
 console.log("#716: [Counter] condition, action and restriction prices paid on the strict host before activation");

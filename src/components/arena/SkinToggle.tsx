@@ -1,7 +1,6 @@
 "use client";
 
 import { useTransition } from "react";
-import { chooseSkin } from "@/app/arena/actions";
 import type { ArenaSkin } from "@/lib/arena/skin";
 
 /**
@@ -12,14 +11,14 @@ import type { ArenaSkin } from "@/lib/arena/skin";
  * every load, so the server reads the cookie and sends the right markup.
  * The button names the skin you would switch *to*, as the old board toggle did.
  */
-export function SkinToggle({ gameId, skin }: { gameId?: number; skin: ArenaSkin }) {
+export function SkinToggle({ skin, onChoose }: { skin: ArenaSkin; onChoose: (skin: ArenaSkin) => Promise<void> }) {
   const [pending, start] = useTransition();
   const next: ArenaSkin = skin === "anime" ? "night" : "anime";
   return (
     <button
       type="button"
       disabled={pending}
-      onClick={() => start(() => chooseSkin(gameId, next))}
+      onClick={() => start(() => onChoose(next))}
       className="tap whitespace-nowrap uppercase tracking-widest text-space-600 hover:text-ki-400 disabled:opacity-50"
       title={`Switch to the ${next === "anime" ? "anime sky" : "night table"}`}
     >

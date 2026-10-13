@@ -6,7 +6,7 @@ import { addEffect, addSkip, amount, areaOf, canPayCostProgram, cardNow, cardsIn
 import { tokenCardId } from "../vm/common";
 import type { GameContext } from "../types";
 import { koCard, masterOf, pendPlacedWatchers, pendTriggers } from "./triggers";
-import type { Op } from "../vm/script";
+import { canMakeOffer, type Op } from "../vm/script";
 import type { Area, Color, FlowStep, GameEvent, GameState, PlayerId } from "../types";
 import type { ScriptHost } from "../vm/script-host";
 import { IllegalAction } from "../vm/common";
@@ -174,7 +174,8 @@ export function legacyHost(ctx: GameContext, s: GameState, ev: GameEvent[], invo
       });
     },
 
-    replacementsFor: (id, reason, opts) => replacementChoicesFor(ctx, s, id, reason, opts ?? {}),
+    // 9-10-3 (#720): a voluntary substitute that could not be paid in full is not offered.
+    replacementsFor: (id, reason, opts) => replacementChoicesFor(ctx, s, id, reason, opts ?? {}).filter((c) => canMakeOffer(c, id, masterOf(s, id), (frame, sel) => resolveSelector(ctx, s, frame, sel))),
     resolvingCard: () => s.resolving?.card ?? null,
     setPlayRest: (card) => {
       s.continuations.playRest = card;

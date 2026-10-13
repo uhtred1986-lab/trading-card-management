@@ -440,7 +440,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
                   ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) };
                 state.programs.unshift({ ops: replaced.ops, ip: 0, vars: structuredClone(substituteVars), card: replaced.source ?? id,
                   master: replaced.master ?? masterOf(game, state, id), subject: id, replacing: id,
-                  ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}) });
+                  ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
                 if (top) top.reask = true;
                 return;
               }

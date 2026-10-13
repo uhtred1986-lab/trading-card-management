@@ -18,13 +18,13 @@ import type { GameDefinition } from "../rulesets/types";
 import { applyMove, legalMoves, projectSnapshot, type PinnedMatch } from "../browser";
 import { rulesetFor } from "../rulesets";
 import { IllegalAction } from "../vm/common";
-import { vmRevealedTo } from "../vm/view";
+import { owedInFull } from "../vm/script";
+import { hiddenAliases, secretAreasOf } from "../conceal";
 import { isTokenCard } from "../vm/zones";
 import { buildObservation, type AliasTable, type DeckEntry, type PolicyObservation, type SecretAreas } from "./observation";
 import { buildDecisions, resolveAnswer, type DecisionKey, type Policy, type PolicyInput, type RefusalReason } from "./contract";
 import { guardedDecide, type LocalMemory } from "./main";
 
-const SEATS: PlayerId[] = ["p1", "p2"];
 
 function definitionOf(match: PinnedMatch): GameDefinition {
   const pinned = match.ctx.rulesetDefinition;
@@ -36,49 +36,16 @@ function definitionOf(match: PinnedMatch): GameDefinition {
 
 /** The areas of each side `seat` may not read, by the ruleset's own visibility declarations (3-1-3). */
 export function secretAreas(game: GameDefinition, seat: PlayerId): SecretAreas {
-  const of = (p: PlayerId) => Object.entries(game.zones)
-    .filter(([, z]) => { const v = z.visibility ?? "none"; return !(v === "all" || (v === "owner" && p === seat) || (v === "opponent" && p !== seat)); })
-    .map(([name]) => name)
-    .sort();
-  return { p1: of("p1"), p2: of("p2") };
+  return secretAreasOf(game, seat);
 }
 
 /**
  * Every card instance `seat` may not read, aliased by where it lies: its
- * owner, its zone and its index there (`?p2:hand:3`, `?p1:deck:0`). A card in
- * no zone (one under another, when that pile is closed) is `?p2:under:<n>`,
- * numbered in its host's order. Positions are public; which card holds one is
- * not, so two positions that differ only in hidden cards alias the same.
+ * owner, its zone and its index there (`?p2:hand:3`, `?p1:deck:0`). The
+ * online board uses the very same table (`conceal.ts`, where it is built).
  */
 export function aliasTable(match: PinnedMatch, seat: PlayerId): AliasTable {
-  const game = definitionOf(match);
-  const visible = vmRevealedTo(game, match.state, seat);
-  const out: Record<string, string> = {};
-  const placed = new Set<string>();
-  for (const p of SEATS) {
-    const zones = match.state.sides[p].zones;
-    for (const zone of Object.keys(zones).sort()) {
-      (zones[zone] ?? []).forEach((id, i) => {
-        placed.add(id);
-        if (!visible.has(id)) out[id] = `?${p}:${zone}:${i}`;
-      });
-    }
-  }
-  const under: Record<PlayerId, number> = { p1: 0, p2: 0 };
-  for (const p of SEATS) {
-    for (const zone of Object.keys(match.state.sides[p].zones).sort()) {
-      for (const host of match.state.sides[p].zones[zone] ?? []) {
-        for (const id of match.state.cards[host]?.under ?? []) {
-          placed.add(id);
-          if (!visible.has(id)) out[id] = `?${p}:under:${under[p]++}`;
-        }
-      }
-    }
-  }
-  // Anything left (a card the engine keeps outside every zone) is hidden unless shown; never named by its id.
-  const rest = Object.keys(match.state.cards).filter((id) => !placed.has(id) && !visible.has(id)).sort();
-  rest.forEach((id, i) => (out[id] = `?${match.state.cards[id].owner}:elsewhere:${i}`));
-  return out;
+  return hiddenAliases(match.state, seat, definitionOf(match));
 }
 
 /** The seat's own decklist as counts — leader, main deck and Z-Deck as dealt; tokens are not in a decklist. */
@@ -119,7 +86,8 @@ function cardQuestion(match: PinnedMatch): NonNullable<Parameters<typeof buildDe
   return {
     reason: pr.choice.reason,
     candidates: [...pr.choice.candidates],
-    upTo: plain ? !!op.sel.upTo || op.atMost !== undefined : pr.choice.min === 0,
+    // #720: a choice a taken voluntary substitute owes in full is exact.
+    upTo: plain ? (!!op.sel.upTo && !owedInFull(frame, op)) || op.atMost !== undefined : pr.choice.min === 0,
     remaining,
     question: questionOf(match)!,
     ...(pr.choice.cover?.length ? { cover: [...pr.choice.cover] } : {}),

@@ -1282,6 +1282,13 @@ export interface ScriptFrame {
    * said on the frame instead because this one survives a suspension.
    */
   replacing?: string;
+  /**
+   * The substitute of a *voluntary* replacement (9-10-3, "you may … instead"),
+   * taken by the affected player. Its action counts only when performed
+   * completely (9-10-3-1, 20-1-11), so a choice inside it that the offer's
+   * "you may" also made "up to" is owed in full (`owedInFull`, #720).
+   */
+  offered?: true;
   /** A `moveTo`/`ko` loop suspended for a replacement choice. */
   moveLoop?: {
     kind: "moveTo" | "ko";
@@ -1371,7 +1378,44 @@ export function markerReplacementPrompt(card: string, choices: ReplacementChoice
  * `subject`, and `replacing` keeps the program from replacing its own moves.
  */
 export function markerSubstituteFrame(id: string, c: ReplacementChoice, master: PlayerId): ScriptFrame {
-  return { ops: c.ops ?? [], ip: 0, vars: {}, card: c.source, master: c.master ?? master, subject: id, replacing: id, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}) };
+  return { ops: c.ops ?? [], ip: 0, vars: {}, card: c.source, master: c.master ?? master, subject: id, replacing: id, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}), ...(c.optional ? { offered: true as const } : {}) };
+}
+
+/**
+ * Is this `choose`, inside a voluntary replacement's substitute, owed in full
+ * (#720)? 9-10-3-1 counts the offered action as done only when it is performed
+ * completely, and 20-1-11 says the replacement does not apply otherwise. The
+ * compiler reads "you may choose 1 card … and discard it instead" twice: as
+ * the offer (`optional`) and as "up to" on the choice inside it. Once the offer
+ * is taken that second "may" has been spent, so the choice is exact. A choice
+ * whose own words print "up to" keeps that reading, and a bound read off the
+ * board (`atMost`) or a sum is left as it is.
+ */
+export function owedInFull(frame: Pick<ScriptFrame, "offered">, op: Extract<Op, { op: "choose" }>): boolean {
+  return !!frame.offered && !!op.sel.upTo && op.atMost === undefined && op.sumTo === undefined && !/\bup to\b/i.test(op.reason ?? "");
+}
+
+/**
+ * 9-10-3: "if a player is unable to make that choice, they cannot apply the
+ * replacement effect". A voluntary substitute is offered only when each of its
+ * choices that is owed in full — an exact one, or one `owedInFull` makes exact
+ * — has as many cards to choose from as it names, read against the board as it
+ * stands when the offer would be put. A choice drawing on an earlier step's
+ * cards (`fromVar`) cannot be read ahead and is not checked. A mandatory
+ * replacement is not an offer, and every choice of it is left to the program.
+ */
+export function canMakeOffer(c: ReplacementChoice, id: string, master: PlayerId, resolve: (frame: ScriptFrame, sel: Extract<Op, { op: "choose" }>["sel"]) => string[]): boolean {
+  if (!c.optional || !c.ops?.length) return true;
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: c.source, master: c.master ?? master, subject: id, replacing: id, offered: true };
+  for (const op of c.ops) {
+    if (op.op !== "choose" || op.sel.fromVar || op.atMost !== undefined || op.sumTo !== undefined) continue;
+    const want = op.sel.count ?? 1;
+    if (op.sel.upTo && !owedInFull(frame, op)) continue;
+    // "All" is spelled as a large count; it takes what there is (5-2-5).
+    if (want >= 99) continue;
+    if (resolve(frame, op.sel).length < want) return false;
+  }
+  return true;
 }
 
 function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: number | null): ReplacementResult | null | undefined {
@@ -1383,7 +1427,7 @@ function pickedReplacement(loop: NonNullable<ScriptFrame["moveLoop"]>, index: nu
 
 /** One applicable replacement as `move()` takes it: a destination, or a program to run in the departure's place. */
 export function routeOf(c: ReplacementChoice): ReplacementResult {
-  return { ...(c.to ? { to: c.to } : {}), ...(c.position ? { position: c.position } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}) } : {}) };
+  return { ...(c.to ? { to: c.to } : {}), ...(c.position ? { position: c.position } : {}), mode: c.mode, ...(c.ops ? { ops: c.ops, source: c.source, master: c.master, ...(c.skillIndex !== undefined ? { skillIndex: c.skillIndex } : {}), ...(c.optional ? { optional: true } : {}) } : {}) };
 }
 
 /**
@@ -1399,7 +1443,7 @@ function defers(r: ReplacementResult | null | undefined): boolean {
 
 /** The substitute as a program of its own: the card whose departure it replaced is its `subject` (9-10-1-1). */
 function substituteFrame(h: ScriptHost, id: string, r: ReplacementResult): ScriptFrame {
-  return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? h.masterOf(id), subject: id, replacing: id, ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) };
+  return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? h.masterOf(id), subject: id, replacing: id, ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}), ...(r.optional ? { offered: true as const } : {}) };
 }
 
 /** The name a `choose … sumTo` binds one card to while it reads that card's measure through `amount`. */
@@ -1740,7 +1784,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // a bound read off the board, and the choice may stop short of it.
         const bounded = op.atMost !== undefined;
         const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : (op.sel.count ?? 1);
-        const upTo = bounded || !!op.sel.upTo;
+        // #720: inside a voluntary replacement's substitute the offer's "you
+        // may" is already spent, so a choice it also made "up to" is exact.
+        const upTo = bounded || (!!op.sel.upTo && !owedInFull(frame, op));
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
           frame.vars[op.as] = picked;
