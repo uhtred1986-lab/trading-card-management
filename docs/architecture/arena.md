@@ -135,6 +135,24 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   decks is open, nothing is missing and no required program has an unread clause. Built at build
   time by `scripts/build-arena-offline-pack.mts`; a runtime never compiles or fetches. Proof:
   `scripts/verify/arena-offline-pack.mts` (`npm test`).
+- **The local match worker** (`src/lib/arena/local/protocol.ts`, `worker.ts`, `worker-entry.ts`,
+  #652 / O3-02): one dedicated module Web Worker owns one local match — the pinned game, the AI
+  seat's memory and RNG, the journal of decisions and the request receipts — and sends the page only
+  the human seat's projected `Snapshot`. Messages are typed and versioned (`dbs-arena-local-match`
+  v1): `start`/`resume`/`read`/`apply`/`advance`/`cancel`/`dispose` with a request id and the
+  page's session id, answered by `result`/`error`, plus `snapshot` and `interrupted` events.
+  Mutations follow the online rules: receipt first (a duplicate replays, another payload is a
+  conflict), then `basedOn` against the revision, then the seat, then the move (aliases resolved
+  against that revision). `advance` plays the local policy in bounded batches, yields between them
+  and commits a batch only if no `cancel`/`dispose` arrived meanwhile, so a dropped batch leaves the
+  game, the RNG and the journal untouched. A pack is validated and qualified by the worker itself;
+  another interpreter or policy version, an unqualified pack and an AI question the policy cannot
+  answer (`interrupted`) fail by name — no network, provider or invented outcome. The journal stays
+  in the worker (in memory for now; O3-03 persists it); `resume` replays it, asking the policy again
+  for every AI decision, and refuses one that does not reproduce. The page side is
+  `src/components/arena/session/local.ts`, an `ArenaSession` with `advance` (not wired to the board
+  until O3-05); its value graph reaches no engine. Proof: `scripts/verify/arena-local-worker.mts`
+  (`npm test`), and in Chrome `npm run arena:local-worker-browser`.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.
@@ -186,8 +204,8 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   online transport (server actions, the revision/beat long poll, `router.refresh` on a stale
   rejection) is `online.ts`, wrapped for the server-rendered game page as `OnlineArenaStage`; the
   fixture preview builds its own session from stubs. **The board's value-import graph reaches no
-  `@/app` action and no `next/navigation`** — a local worker session (O3-02/O3-05) is another
-  implementation of the same interface. `LiveGameCore` (also in `contract.ts`, wrapped by
+  `@/app` action and no `next/navigation`** — the local worker session (`local.ts`, O3-02; wired in
+  O3-05) is another implementation of the same interface. `LiveGameCore` (also in `contract.ts`, wrapped by
   `useLiveGame`) is the reconcile logic: it adopts only a newer revision of *its own* game, takes a
   beats-only advance at the same revision, and refuses stale and cross-session snapshots.
   Proved by `scripts/verify/arena-session-648.mts` (graph, conformance on an in-memory session,

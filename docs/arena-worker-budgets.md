@@ -263,6 +263,38 @@ page.
   real noise findings and are why the table gates tails loosely: `decisionMs.max` (127 ms on a busy
   machine, ceiling was 100) and the 5-sample cold-start p95 (3.17 s outlier).
 
+## The local match worker (#652)
+
+`npm run arena:local-worker-browser` (`scripts/arena-local-worker-browser.mts`; Chrome, no database,
+about 1 to 2 minutes, not in `npm test`) plays the #652 protocol's scripted match against the real module
+Worker (`src/lib/arena/local/worker-entry.ts`) through the page client
+(`src/components/arena/session/local.ts`): the audited SD15/SD5 pack of #655, **staged to qualify for the
+test only** (282 KB, 41 real cards), the local policy for the AI seat, every human move a round trip. It
+checks behaviour first (the Worker's 136 messages are byte-identical to the Node host's, and a second
+cold page that cancels, disposes and resumes ends on the identical board) and then gates the budgets
+above that measure the transport, `desktop-1x`, unthrottled. Recorded 13 Oct 2026 on the machine above
+while other sessions were using it (p50 / p95 / max, ms):
+
+| Metric | Recording 1 | Recording 2 | Budget |
+|---|---|---|---|
+| `coldWorkerStartMs` (Worker to `ready`, cache off, one sample) | 907 | 702 | p50 at most 1500 |
+| `matchStartMs` (`start` to its result: pack validated, game created, first board) | 458 (the larger of 2) | 327 | p95 at most 450 |
+| `roundTripMs` (a human move to its result, snapshot included; n=42) | 21.7 / 43.8 / 52.7 | 16.2 / 27.5 / 79.3 | p95 at most 50, max at most 250 |
+| AI decision, page-measured (an advance's round trip over the decisions it committed; n=20) | 45.2 / 80.9 / 110.6 | 37.6 / 62.6 / 71.6 | max at most 300 (`decisionMs.max`) |
+| main-thread long tasks while the match plays (observer proved alive) | 0 | 0 | count at most 3, longest at most 150 |
+| one snapshot as JSON | 37.8 KB p50, 81.1 KB max | the same | (fixture budget, below) |
+
+Three earlier recordings during development gave a match start of 353, 434 and 382 ms. **The match
+start sits at its ceiling on the real pack**: one recording of five went over (458 ms), and the
+regression procedure's rerun passed. It validates the 282 KB pack (hashing it and its card bundle) and
+the bundle again in `createPinnedMatch`; the 450 ms ceiling was set for the 195 KB 8-card fixture.
+
+Not gated, because #643 set them on its 8-card fixture's content and its procedure (step 5) re-derives
+them from a real card pool — a change to this table that belongs with that re-recording, not here:
+`snapshotBytes.max` is **81.1 KB against 80 KB** on the real cards (p50 37.8 KB against 60 KB), and the
+AI's whole local step (observation, policy, guard, move, on real cards) is **p95 62.6 to 80.9 ms
+against the engine-only `decisionMs.p95` of 30 ms**. The tool prints both as `info`.
+
 ## What this does not show (unverified, and why)
 
 - **Physical devices.** No phone, tablet or low-end laptop was measured. The only phone evidence is
@@ -290,7 +322,7 @@ page.
   alone at well under a millisecond p95 (asserted at most 5 ms, a sixth of `decisionMs.p95`), and the
   whole local step — `policyTurn` (alias table, snapshot, legal list), policy, guard and move — at
   about a third of the 30 ms `decisionMs.p95` budget on an unthrottled laptop. Its deterministic
-  bound is the work counter (`MAIN_LIMITS.work`), not a clock. Running it in the worker bench is left
-  to O3's worker session. The battle policy (#647, `policy/combat.ts`) is measured the same way by
+  bound is the work counter (`MAIN_LIMITS.work`), not a clock. The whole local policy in a real
+  Worker, on real cards, is measured by `npm run arena:local-worker-browser` (#652, section above). The battle policy (#647, `policy/combat.ts`) is measured the same way by
   `scripts/verify/arena-policy-combat.mts` (asserted at most 5 ms p95 and 100 ms max per decision in
   Node), with its own deterministic bound (`COMBAT_LIMITS.work`).

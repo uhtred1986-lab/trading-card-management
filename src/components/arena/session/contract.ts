@@ -7,7 +7,7 @@
  * `flag`, `preview`), a connection status, and `capabilities` saying which of
  * the optional affordances exist. The online session (server actions, long
  * polling by revision, request-id receipts) is one implementation, in
- * `./online.ts`; a local worker session (O3-02/O3-05) will be another.
+ * `./online.ts`; the local worker session (`./local.ts`, #652; wired in O3-05) is another.
  *
  * Rules for this file, kept by `scripts/verify/arena-session-648.mts`:
  *  - no React, no `next/*`, no `@/app` or other server module in its value graph —
