@@ -45,6 +45,7 @@ Object.assign(defs, {
   RED757: card("RED757", { colors: ["Red"], skill: null }),
   BLUE757: card("BLUE757", { colors: ["Blue"], skill: null }),
   EXTRA757: card("EXTRA757", { type: "EXTRA", colors: ["Red"], energyCost: 1, power: null, comboCost: null, comboPower: null, skill: null }),
+  BUNI757: card("BUNI757", { type: "UNISON", colors: ["Blue"], energyCost: 1, power: 5000, comboCost: null, comboPower: null, skill: null }),
   RUNI757: card("RUNI757", { type: "UNISON", colors: ["Red"], energyCost: 1, power: 5000, comboCost: null, comboPower: null, skill: null }),
 });
 
@@ -437,6 +438,171 @@ const counterPaid = (s: VmState, card: string) => legal(s).find((l) => l.action.
   assert.equal(attrs(s, w.foes[1]).power, 10000 - 15000);
   assert.equal(attrs(s, w.foes[2]).power, 10000, "the third was not chosen");
   assert.ok(zone(s, "p1", "battle").includes(w.y), "...then play this card");
+}
+
+
+// ── Choose cards / targets ─────────────────────────────────────────────────
+// 5-2-3: a stated number must be chosen as far as possible; 5-2-4: "up to N" may be any number 0..N;
+// 5-2-5/6: with fewer (or no) legal targets, as many as possible (or none) are chosen and the rest of
+// the effect on them is ignored. The prompt carries min/max and the candidate list, so each scenario
+// reads both: what may be picked, and that the wrong cards are not on offer.
+/** Plays a card from hand with energy paid (colour picks answered with the first option). */
+function cast(s: VmState, who: PlayerId, id: string): VmState {
+  s = play(s, { type: "play", player: who, card: id });
+  while (s.prompt.kind === "payCost") s = play(s, legal(s)[0].action);
+  return s;
+}
+const energyFor = (s: VmState, p: PlayerId, n: number, id = "RED757"): void => { for (let i = 0; i < n; i++) stage(s, p, id, "energy"); };
+const ask = (s: VmState) => {
+  assert.equal(s.prompt.kind, "chooseCards", `a card question is open (at ${s.prompt.kind})`);
+  return promptOf(s).choice;
+};
+const sorted = (ids: string[]) => [...ids].sort();
+{
+  // BT6-010 [Auto] "When you play this card, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the duration of the turn."
+  const s0 = mainOf("p1", 7580);
+  const c = stage(s0, "p1", "BT6-010", "hand");
+  energyFor(s0, "p1", 3);
+  const mine = stage(s0, "p1", "RED757", "battle");
+  const foeA = stage(s0, "p2", "V-BLUE", "battle");
+  const foeB = stage(s0, "p2", "V-BLUE", "battle");
+  let s = cast(s0, "p1", c);
+  let q = ask(s);
+  assert.deepEqual([q.min, q.max], [0, 1], "\"up to 1\" (5-2-4)");
+  assert.deepEqual(sorted(q.candidates), sorted([foeA, foeB]), "only the opponent's Battle Cards, not mine and not BT6-010 itself");
+  assert.ok(!q.candidates.includes(mine) && !q.candidates.includes(c));
+  s = choose(s, "p1", [foeA]);
+  assert.equal(attrs(s, foeA).power, 10000 - 5000, "-5000 for the turn");
+  assert.equal(attrs(s, foeB).power, 10000);
+  // Choosing nobody is allowed (5-2-4).
+  const none = choose(cast(s0, "p1", c), "p1", []);
+  assert.equal(attrs(none, foeA).power, 10000);
+  // No opposing Battle Card: no target can be chosen, the effect is ignored (5-2-6).
+  const empty0 = mainOf("p1", 7580);
+  const c2 = stage(empty0, "p1", "BT6-010", "hand");
+  energyFor(empty0, "p1", 3);
+  empty(empty0, "p2", "battle");
+  assert.notEqual(cast(empty0, "p1", c2).prompt.kind, "chooseCards", "no opposing Battle Card: nothing to choose (5-2-6)");
+}
+{
+  // BT6-011 [Auto] "When you play this card, if there is a <<Saiyan>> card in play in your Battle Area, draw 2 cards, then choose 2 cards from your hand and place them in your Drop Area."
+  const run = (saiyan: boolean) => {
+    const s = mainOf("p1", 7581);
+    const c = stage(s, "p1", "BT6-011", "hand");
+    energyFor(s, "p1", 1);
+    if (saiyan) stage(s, "p1", "BT11-011", "battle");
+    const keep = stage(s, "p1", "RED757", "hand");
+    return { s, c, keep };
+  };
+  const yes = run(true);
+  const handBefore = zone(yes.s, "p1", "hand").length;
+  let s = cast(yes.s, "p1", yes.c);
+  assert.equal(zone(s, "p1", "hand").length, handBefore - 1 + 2, "BT6-011 left the hand, 2 cards were drawn");
+  // "Choose 2" is asked a card at a time, each a mandatory pick (5-2-3): two questions of exactly 1.
+  const q = ask(s);
+  assert.deepEqual([q.min, q.max], [1, 1], "no \"up to\": each pick is mandatory (5-2-3)");
+  assert.equal(q.candidates.length, zone(s, "p1", "hand").length, "any card in hand");
+  assert.throws(() => choose(s, "p1", []), IllegalAction, "declining a mandatory pick is refused");
+  const dropBefore = zone(s, "p1", "drop").length;
+  const first = q.candidates[0];
+  s = choose(s, "p1", [first]);
+  const q2 = ask(s);
+  assert.deepEqual([q2.min, q2.max], [1, 1]);
+  assert.ok(!q2.candidates.includes(first), "the first pick is not offered again");
+  s = choose(s, "p1", [q2.candidates[0]]);
+  assert.equal(zone(s, "p1", "drop").length, dropBefore + 2, "both went to the Drop Area");
+  assert.ok(zone(s, "p1", "drop").includes(first) && zone(s, "p1", "drop").includes(q2.candidates[0]));
+  const no = run(false);
+  const hb = zone(no.s, "p1", "hand").length;
+  const t = cast(no.s, "p1", no.c);
+  assert.equal(zone(t, "p1", "hand").length, hb - 1, "no <<Saiyan>> in play: nothing is drawn");
+  assert.notEqual(t.prompt.kind, "chooseCards");
+}
+{
+  // BT11-011 [Auto] "If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards and add a marker to it."
+  const run = (leader: string, unison = "RUNI757") => {
+    const s = mainOf("p1", 7582, { p1: leader, p2: "L-BLUE" });
+    const c = stage(s, "p1", "BT11-011", "hand");
+    energyFor(s, "p1", 2);
+    const red = stage(s, "p1", unison, "unison");
+    return { s, c, red };
+  };
+  const r = run("L-RED");
+  let s = cast(r.s, "p1", r.c);
+  const q = ask(s);
+  assert.deepEqual([q.min, q.max], [0, 1], "\"up to 1\"");
+  assert.ok(q.candidates.includes(r.red), "a red Unison is on offer");
+  assert.ok(q.candidates.every((id) => zone(s, "p1", "unison").includes(id)), "Unison Cards only");
+  s = choose(s, "p1", [r.red]);
+  assert.equal(s.cards[r.red].markers, 1, "a marker was added to the chosen Unison");
+  const b = run("L-BLUE");
+  assert.notEqual(cast(b.s, "p1", b.c).prompt.kind, "chooseCards", "a blue Leader: the condition fails, nothing to choose");
+  // A blue Unison is not a red one: no candidate, so no target is chosen (5-2-6) and no marker is added.
+  const u = run("L-RED", "BUNI757");
+  const after = cast(u.s, "p1", u.c);
+  assert.notEqual(after.prompt.kind, "chooseCards", "only a blue Unison in play: nothing to choose");
+  assert.equal(after.cards[u.red].markers, 0);
+}
+{
+  // SD5-03 [Auto] "When you play this card, if your Leader Card is <<Goku's Lineage>>, choose up to 1 of your opponent's Battle Cards and KO it."
+  const run = (leader: string) => {
+    const s = mainOf("p1", 7583, { p1: leader, p2: "L-BLUE" });
+    const c = stage(s, "p1", "SD5-03", "hand");
+    energyFor(s, "p1", 5, "BT4-084");
+    const mine = stage(s, "p1", "RED757", "battle");
+    const foe = stage(s, "p2", "V-BLUE", "battle");
+    const foe2 = stage(s, "p2", "V-BLUE", "battle");
+    return { s, c, mine, foe, foe2 };
+  };
+  const r = run("SD5-01");
+  let s = cast(r.s, "p1", r.c);
+  const q = ask(s);
+  assert.deepEqual([q.min, q.max], [0, 1]);
+  assert.deepEqual(sorted(q.candidates), sorted([r.foe, r.foe2]), "only the opponent's Battle Cards");
+  s = choose(s, "p1", [r.foe]);
+  assert.ok(zone(s, "p2", "drop").includes(r.foe) && !zone(s, "p2", "battle").includes(r.foe), "KO'd: in the Drop Area (5-12)");
+  assert.ok(zone(s, "p2", "battle").includes(r.foe2), "the other stays");
+  const w = run("L-RED");
+  assert.notEqual(cast(w.s, "p1", w.c).prompt.kind, "chooseCards", "a Leader that is not <<Goku's Lineage>>: no KO");
+}
+{
+  // SD5-05 [Auto] "When you play this card, choose up to 1 of your opponent's Rest Mode Battle Cards and KO it."
+  const s0 = mainOf("p1", 7584, { p1: "SD5-01", p2: "L-BLUE" });
+  const c = stage(s0, "p1", "SD5-05", "hand");
+  energyFor(s0, "p1", 3, "BT4-084");
+  const resting = stage(s0, "p2", "V-BLUE", "battle");
+  s0.cards[resting].mode = "rest";
+  const active = stage(s0, "p2", "V-BLUE", "battle");
+  let s = cast(s0, "p1", c);
+  const q = ask(s);
+  assert.deepEqual([q.min, q.max], [0, 1]);
+  assert.deepEqual(q.candidates, [resting], "only the Rest Mode Battle Card; the Active one is not on offer");
+  s = choose(s, "p1", [resting]);
+  assert.ok(zone(s, "p2", "drop").includes(resting) && zone(s, "p2", "battle").includes(active));
+  // Only Active Mode Battle Cards: no legal target, nothing is chosen (5-2-6).
+  const t0 = mainOf("p1", 7584, { p1: "SD5-01", p2: "L-BLUE" });
+  const c2 = stage(t0, "p1", "SD5-05", "hand");
+  energyFor(t0, "p1", 3, "BT4-084");
+  stage(t0, "p2", "V-BLUE", "battle");
+  assert.notEqual(cast(t0, "p1", c2).prompt.kind, "chooseCards");
+}
+{
+  // BT4-089 [Auto] "When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 <<Goku's Lineage>> from among them and add it to your hand, then shuffle your deck."
+  const s0 = mainOf("p1", 7585, { p1: "SD5-01", p2: "L-BLUE" });
+  const c = stage(s0, "p1", "BT4-089", "hand");
+  energyFor(s0, "p1", 1, "BT4-084");
+  const [t1, t2, t3] = zone(s0, "p1", "deck");
+  s0.cards[t1].cardId = "SD5-02"; s0.cards[t2].cardId = "RED757"; s0.cards[t3].cardId = "SD5-05";
+  const fourth = zone(s0, "p1", "deck")[3];
+  s0.cards[fourth].cardId = "BT4-097";
+  let s = cast(s0, "p1", c);
+  const q = ask(s);
+  assert.deepEqual([q.min, q.max], [0, 1], "\"up to 1\"");
+  assert.deepEqual(sorted(q.candidates), sorted([t1, t3]), "the two <<Goku's Lineage>> cards among the top 3; not the red one, not the 4th card");
+  s = choose(s, "p1", [t3]);
+  assert.ok(zone(s, "p1", "hand").includes(t3), "added to the hand");
+  assert.ok(zone(s, "p1", "deck").includes(t1) && zone(s, "p1", "deck").includes(t2), "the others went back to the deck, which was shuffled");
+  assert.equal(zone(s, "p1", "deck").length, zone(s0, "p1", "deck").length - 1);
 }
 
 console.log("#757 U1-b: played price and choice scenarios passed");
