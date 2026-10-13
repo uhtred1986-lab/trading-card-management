@@ -1146,7 +1146,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // here with "and discarding them" already gone, and reading it would offer
   // the [Counter] for a choice that costs nothing. Refusing leaves the skill
   // to the referee with its price whole in the text (ground rule 5).
-  if (/^activate this card's \[counter[^\]]*\](?: skill)? from your hand /.test(t)) {
+  //
+  // #742: the same offer for the card's [Activate: Battle] line. Matched here
+  // so that a wording `counterAltCost` cannot read stays unread rather than
+  // falling through to the "activate … → play" rule below, which read every
+  // one of the eleven as "choose this card, play the chosen cards".
+  if (/^activate this card's \[(?:counter[^\]]*|activate: ?battle)\](?: skill)? from your hand /.test(t)) {
     const alt = counterAltCost(t, c);
     return alt?.every((o) => o.op !== "altCost" || o.pay !== "program") ? alt : null;
   }

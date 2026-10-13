@@ -1366,8 +1366,12 @@ export interface AltCost {
   pay: "none" | "life" | "invoker" | "program" | "energy";
   /** Cards to add from your life to your hand, for `pay: "life"`. */
   n: number;
-  /** Which cost it replaces: the [Counter] skill's, or playing the card. */
-  for: "counter" | "play";
+  /**
+   * Which cost it replaces: the [Counter] skill's, playing the card, or — for
+   * an Extra — the energy cost of activating its [Activate: Battle] line from
+   * the hand (12-2-2-2, #742; that line's own price is still paid).
+   */
+  for: "counter" | "play" | "activate:battle";
   /** The price to run, for `pay: "program"`. */
   ops?: Op[];
   /** The orbs to rest, one entry per orb, for `pay: "energy"`. */

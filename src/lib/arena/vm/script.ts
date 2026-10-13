@@ -715,7 +715,7 @@ export type Op =
       skillKind?: SkillKindPrefix;
       pay?: "none" | "life" | "program" | "energy";
       n?: number;
-      for?: "counter" | "play";
+      for?: "counter" | "play" | "activate:battle";
       /** The price to run, for `pay: "program"` — `altCost`'s `ops`, renamed so the field says what it is at this level (spec §2.5-4's own name). */
       alt?: Op[];
       orbs?: (Color | "any")[];
@@ -858,7 +858,8 @@ export type Op =
       op: "altCost";
       pay: "none" | "life" | "program" | "energy";
       n?: number;
-      for?: "counter" | "play";
+      /** The move it prices: the [Counter] (default), a play, or an Extra's [Activate: Battle] line used from the hand (12-2-2-2, #742). */
+      for?: "counter" | "play" | "activate:battle";
       /** The price to run, for `pay: "program"` — an action the card asks for instead of the energy cost (5-3). */
       ops?: Op[];
       /** The reduced energy price, one entry per orb, for `pay: "energy"` — "by paying {1}" is `["any"]` (BT18-088). */

@@ -91,8 +91,11 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
   scripts/verify-arena.ts`). Before each push run the full set: `npm run typecheck && npm run
   lint && npm test && npm run build`. The orchestrator reviews the exact proposed commit and its
   local evidence; GitHub does not duplicate these tests or run automatic AI reviews (owner, 11 Oct 2026).
-  Snapshot changes also require contract emission review and local Kotlin decoding tests, when
-  available; report a missing toolchain rather than silently omitting the check.
+  Snapshot changes also require contract emission review (`npm run contract:emit`). **Skip Android:**
+  no native Android app is planned (owner, 13 Oct 2026), so don't run `android:test`, Kotlin decoding
+  or Docker checks, and don't list them as unverified.
+- **Commit and push early; never wait on a background job.** Push a WIP commit as soon as there is
+  work worth keeping. A session that sat waiting on its own background run has stalled more than once.
 
 ## Screens
 
@@ -129,8 +132,15 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
   the same hot file at once. Run at most three agents at a time, and give each its own worktree
   and branch.
 - **Use the cheapest model that can do the job.** The issue's `model:*` label is the ceiling, not
-  the default. Use Haiku for deletions, renames, docs and backlog bookkeeping. Use Sonnet for UI
-  and most features. Use Opus for engine, compiler and cross-cutting design.
+  the default. **Sonnet is the default** (owner, 13 Oct 2026): UI, features, tooling, tests, and
+  compiler readings that extend an existing pattern. Use Opus only for rule semantics with no
+  precedent, new engine mechanics and cross-cutting design. Haiku is on trial for well-bounded
+  fixes, docs and bookkeeping: record per PR how much extra review and fix-up it needed, and report
+  the comparison to the owner.
+- **Check the card text and the rules before writing an issue or a brief.** Read the printed text
+  (catalog/DB), then the rules manual and the official Q&A, and cite the basis, or say none exists.
+  A worker's one-line finding is not a reading: #742 was briefed as an invoked activation when every
+  card prints a [Permanent] alternative cost.
 - **Review before merge.** Check the diff against the issue's Acceptance, not against the
   agent's summary. Look for guessed links, ids or paths, scope creep into a sibling issue, and a
   `Closes` that the diff doesn't earn. Fix small things yourself on the branch.
@@ -138,6 +148,13 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
   every PR that is reviewed against its issue and passes its required local checks is merged, with no need to wait for
   the owner's go-ahead. An open owner decision on a *different* question never holds up a
   merge; a PR whose own acceptance depends on an unanswered ruling waits for the ruling.
+- **Gate the merged state, in full.** Before each merge, merge `origin/main` into the PR head
+  locally and run the whole `npm test` chain plus the build on that, not just the checks the PR
+  touched. A docs-and-scripts PR (#734) once broke another PR's proof on main (#737). Two PRs that
+  each add a line to `package.json`'s `test` chain will conflict: keep both entries, before
+  `ai-agent-sdk.ts`.
+- **If merging is blocked** (for example, auto mode refuses), gather the reviewed work into one PR
+  for the owner to merge the next morning, rather than stopping (owner, 12–13 Oct 2026).
 - **Merge one PR at a time**, after local validation and orchestrator review of the exact head commit.
   GitHub Actions testing, BugBot and acceptance-criteria workflows are removed (owner, 11 Oct 2026).
   Each merge to `main` is a production deploy that
@@ -147,6 +164,14 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
   - nothing for the backlog file: the PR that closes an issue sets `status: closed` in its own
     `docs/arena-backlog/<id>.md` (#389). Run the retained backlog drift check locally when authenticated
     API access is available; otherwise compare changed issue metadata with the connector and verify cited paths.
+- **The coordinator may run the database-backed checks itself** (owner, 13 Oct 2026): `arena:fuzz`,
+  `sync:catalog` (use `--no-review` unless Claude review was asked for), `db:check`, and paid AI
+  checks the owner names. Use `.env.local` from the main checkout in a dedicated worktree, and prove
+  it is this app's database first (`npm run db:check` lists `card_rules`). Workers still stay off
+  Neon. Data the owner gives in chat (e.g. a card's specified cost) goes in through a migration, as
+  in 0034 and 0049, never through an ad hoc `UPDATE`.
+- **Rulings given in chat** are recorded first with `npm run arena:rule`. The coordinator schedules
+  the code change when it judges the time is right; the owner doesn't need to ask for it.
 - **Review fixes go back to the agent that wrote the PR, or to a fresh agent on its branch.**
   Worker sessions don't wake on PR comments posted from the same account.
 - **Stop and ask the owner** (merging is not on this list) before:
