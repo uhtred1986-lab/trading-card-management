@@ -900,6 +900,7 @@ await (await import("./verify/arena-damage-statistics-db.mts")).verifyArenaDamag
 await (await import("./verify/arena-free-extra-db.mts")).verifyArenaFreeExtra(db);
 await (await import("./verify/arena-extra-auto-db.mts")).verifyArenaExtraAuto(db);
 await (await import("./verify/arena-extra-auto-rules-db.mts")).verifyArenaExtraAutoRules(db);
+await (await import("./verify/arena-grant-identity-db.mts")).verifyArenaGrantIdentity(db);
 
 await client.close();
 console.log("verify-db: all checks passed");
