@@ -24,10 +24,12 @@ assert.ok(loaded.ok);
 const game = loaded.definition;
 
 const snapshot = JSON.parse(readFileSync("docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json", "utf8")) as { cards: { id: string }[] };
+const OWNER_COSTS = (JSON.parse(readFileSync("docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json", "utf8")) as { specifiedCosts: Record<string, string> }).specifiedCosts;
 const printed = (id: string): CardDef => {
   const row = snapshot.cards.find((c) => c.id === id);
   assert.ok(row, `${id} is in the audit snapshot`);
-  return cardDefFrom(row as Parameters<typeof cardDefFrom>[0]);
+  // The owner's stored specified costs (U7, #733) are part of the audited catalog, as in the audit's own play-through.
+  return cardDefFrom({ ...row, specifiedCost: OWNER_COSTS[id] ?? null } as Parameters<typeof cardDefFrom>[0]);
 };
 
 const REAL = [
@@ -54,12 +56,15 @@ const apply = (s: VmState, action: Action): Out => engine.apply(ctx, reload(s), 
 const legal = (s: VmState) => engine.legalActions(ctx, s);
 
 let events: GameEvent[] = [];
+/** Every card question the engine asked during the play, in order (what was offered, how many). */
+let asked: { player: PlayerId; reason: string; candidates: string[]; min: number; max: number }[] = [];
 /** Applies actions in order, collecting the events of the whole play in `events`. */
 function play(s: VmState, ...actions: Action[]): VmState {
   for (const action of actions) {
     const out = apply(s, action);
     events.push(...out.events);
     s = out.state;
+    if (s.prompt.kind === "chooseCards") asked.push({ player: s.prompt.player, reason: s.prompt.choice.reason, candidates: [...s.prompt.choice.candidates], min: s.prompt.choice.min, max: s.prompt.choice.max });
   }
   return s;
 }
@@ -85,6 +90,7 @@ function mainOf(who: PlayerId, seed = 757, leaders: { p1: string; p2: string } =
   assert.equal(s.prompt.kind, "main");
   assert.equal(s.turnPlayer, who);
   events = [];
+  asked = [];
   for (const p of ["p1", "p2"] as const) { empty(s, p, "hand"); empty(s, p, "energy"); }
   return s;
 }
@@ -239,6 +245,78 @@ const passUntil = (s: VmState, until: (t: VmState) => boolean): VmState =>
   assert.deepEqual(promptOf(s).choice.candidates, [target]);
   s = choose(s, "p1", [target]);
   assert.ok(zone(s, "p1", "battle").includes(target) && zone(s, "p1", "hand").includes(c), "then the specified card is played and BT4-079 returns to the hand (22-22-4)");
+}
+
+// ── Condition-only price ───────────────────────────────────────────────────
+// 9-6-4-1-1: a skill-cost *condition* ("if your Leader is red") that holds can't be declined: an Auto
+// whose whole price is a condition is compulsory when it holds and never activates when it doesn't.
+{
+  // BT14-010: "If your Leader Card is red and your life is at 4 or less: When this card is used in a combo, draw 1 card."
+  const run = (leader: string, life: number): { hand: number; asked: boolean; drew: boolean } => {
+    const s0 = mainOf("p2", 7570, { p1: "L-BLUE", p2: leader });
+    const c = stage(s0, "p2", "BT14-010", "hand");
+    zone(s0, "p2", "life").splice(life);
+    let s = passUntil(attackTo(s0, "p2", leaderOf(s0, "p2")), (t) => t.prompt.kind === "combo");
+    const hand = zone(s, "p2", "hand").length;
+    s = play(s, { type: "combo", player: "p2", card: c });
+    return { hand: zone(s, "p2", "hand").length - (hand - 1), asked: s.prompt.kind === "chooseMode" || s.prompt.kind === "optionalCost", drew: skillsOf(c).length === 1 };
+  };
+  const yes = run("L-RED", 4);
+  assert.deepEqual([yes.drew, yes.asked, yes.hand], [true, false, 1], "red Leader, 4 life: it activates, is not asked about (9-6-4-1-1) and draws 1");
+  const edge = run("L-RED", 5);
+  assert.deepEqual([edge.drew, edge.hand], [false, 0], "5 life: the condition fails, nothing is drawn");
+  const blue = run("L-BLUE", 3);
+  assert.deepEqual([blue.drew, blue.hand], [false, 0], "a blue Leader: the condition fails at 3 life");
+}
+{
+  // DB3-001: "If your Leader Card is red and your opponent's life is at 5 or more: When this card is played, deal 1 damage to your opponent."
+  const run = (leader: string, oppLife: number): { life: number; asked: boolean } => {
+    const s0 = mainOf("p1", 7571, { p1: leader, p2: "L-BLUE" });
+    const u = stage(s0, "p1", "DB3-001", "hand");
+    for (let i = 0; i < 3; i++) stage(s0, "p1", "RED757", "energy");
+    zone(s0, "p2", "life").splice(oppLife);
+    const before = zone(s0, "p2", "life").length;
+    const s = play(s0, { type: "playUnison", player: "p1", card: u, x: 2 });
+    return { life: before - zone(s, "p2", "life").length, asked: s.prompt.kind === "chooseMode" || s.prompt.kind === "optionalCost" };
+  };
+  assert.deepEqual(run("L-RED", 5), { life: 1, asked: false }, "red Leader, opponent at 5: 1 damage, compulsory");
+  assert.deepEqual(run("L-RED", 4), { life: 0, asked: false }, "opponent at 4: the condition fails");
+  assert.deepEqual(run("L-BLUE", 7), { life: 0, asked: false }, "a blue Leader: the condition fails");
+}
+{
+  // SD15-01 [Awaken]: "When your life is at 4 or less or you have a red Unison Card with a specified cost of 2 in play: You may switch up to 2 of your energy to Active Mode, add cards from your life to your hand until you have 5 life left, choose up to 1 of your red Unison Cards with {Cabba} in its name and add a marker to it, then flip this card over."
+  const fresh = (life: number, unison: boolean) => {
+    const s = mainOf("p1", 7572, { p1: "SD15-01", p2: "L-BLUE" });
+    zone(s, "p1", "life").splice(life);
+    const u = unison ? stage(s, "p1", "SD15-02", "unison") : null;
+    const rest = [stage(s, "p1", "RED757", "energy"), stage(s, "p1", "RED757", "energy"), stage(s, "p1", "RED757", "energy")];
+    for (const e of rest) s.cards[e].mode = "rest";
+    return { s, leader: leaderOf(s, "p1"), u, rest };
+  };
+  const awaken = (s: VmState, leader: string) => legal(s).find((l) => l.action.type === "activate" && l.action.card === leader)?.action;
+  {
+    const f = fresh(5, false);
+    assert.equal(awaken(f.s, f.leader), undefined, "5 life and no Unison: the condition-only price fails, [Awaken] is not offered");
+  }
+  {
+    const f = fresh(4, false);
+    assert.ok(awaken(f.s, f.leader), "4 life: offered");
+    let s = play(f.s, awaken(f.s, f.leader)!);
+    s = drive(s, (t, o) => o.find((l) => l.action.type === "chooseMode" && l.action.index === 0)?.action ?? o.find((l) => l.action.type === "choose")?.action);
+    assert.equal(s.cards[f.leader].flipped, true, "flipped over");
+  }
+  {
+    const f = fresh(8, true);
+    let s = play(f.s, awaken(f.s, f.leader)!);
+    s = drive(s, (t, o) => o.find((l) => l.action.type === "chooseMode" && l.action.index === 0)?.action ?? o.find((l) => l.action.type === "choose")?.action);
+    assert.equal(s.cards[f.leader].flipped, true);
+    assert.equal(zone(s, "p1", "life").length, 5, "life added to the hand until 5 are left");
+    const energyAsks = asked.filter((q) => q.candidates.length && q.candidates.every((id) => f.rest.includes(id)));
+    assert.equal(energyAsks.length, 2, "\"switch up to 2 of your energy\" is asked one card at a time, twice");
+    assert.ok(energyAsks.every((q) => q.min === 0 && q.max === 1), "each pick may be declined (5-2-4, \"up to\")");
+    assert.equal(f.rest.filter((id) => s.cards[id].mode === "active").length, 2, "two of the three rested energy are Active again");
+    // The marker step ("{Cabba} in its name") is not asserted: it is read as an exact name, defect #758.
+  }
 }
 
 console.log("#757 U1-b: played price and choice scenarios passed");
