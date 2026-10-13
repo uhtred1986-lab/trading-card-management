@@ -1754,6 +1754,12 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   // in the catalog prints this shape in words the compiler reads, and the
   // binding is the engine's to get right either way. Without the handoff the
   // effect throws "this program reads X, but nothing bound it".
+  //
+  // #550: the card prints its price before the colon, as every action price
+  // does (1-6, 4-3-3). The earlier fixture borrowed ONCE, whose printed cost is
+  // empty, so the rules engine rightly never charged the supplied price and the
+  // effect ran with nothing bound — the gap this scenario was skipped for.
+  DEFS.XCHOOSE550 = { ...DEFS.ONCE, id: "XCHOOSE550", name: "XCHOOSE550", characters: ["XCHOOSE550"], skill: "[Activate: Main][Once per turn] Choose any number of cards in your hand: Draw X cards." };
   const xFromChoice: Script = {
     ops: [{ op: "draw", n: { x: true } }],
     unsupported: [],
@@ -1762,17 +1768,17 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   const ctx = {
     defs: DEFS,
     scripts: new Proxy({} as Record<string, CardScripts>, {
-      get: (_, key) => (key === "ONCE" ? { bySkill: { 0: xFromChoice }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+      get: (_, key) => (key === "XCHOOSE550" ? { bySkill: { 0: xFromChoice }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
     }),
   };
 
-  if (!rulesGap("compiler: X bound by a price that chooses (20-5)", "#461 charges an [Activate] action price on the rules engine, but the price program's bindX does not reach the effect (\"this program reads X, but nothing bound it\")", "#458")) {
-    let s = stagedG({ hand: ["ONCE", "V1", "V1"], energy: ["V1"] });
-    s = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "ONCE") }).state;
+  {
+    let s = stagedG({ hand: ["XCHOOSE550", "V1", "V1"], energy: ["V1"] });
+    s = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "XCHOOSE550") }).state;
     while (s.prompt.kind !== "main") s = IMPL.apply(ctx, s, IMPL.legalActions(ctx, s)[0].action).state;
 
     const before = zoneOf(s, "p1", "hand").length;
-    s = IMPL.apply(ctx, s, IMPL.legalActions(ctx, s).find((a) => a.label.startsWith("Activate ONCE"))!.action).state;
+    s = IMPL.apply(ctx, s, IMPL.legalActions(ctx, s).find((a) => a.label.startsWith("Activate XCHOOSE550"))!.action).state;
     // The price takes two of the cards in hand and then declines, which is how
     // an "up to" choice ends early (5-2-4). The price only *chooses* them — it
     // moves nothing — so the hand grows by exactly X and the assertion cannot be
@@ -1793,6 +1799,8 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
     assert.equal(zoneOf(s, "p1", "hand").length, before + 2, "X was what the price chose: two chosen, two drawn");
     assertConsistentG(s);
   }
+  // Later suites (the probe's contract fixture) walk the shared DEFS.
+  delete DEFS.XCHOOSE550;
 }
 
 // ── the second half of a sentence, left in the third person ────────────────
