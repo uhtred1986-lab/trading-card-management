@@ -445,8 +445,14 @@ assert.equal(guardTrips, 0, "the local policy never needed the cycle guard in th
 // Cost: the policy's own share of the #643 decision budget (p95 30 ms, max 300 ms) — generous ceilings so a busy
 // machine does not fail the suite; the deterministic bound is the work counter.
 const cost = { p50: quantile(choiceTimes, 0.5), p95: quantile(choiceTimes, 0.95), max: Math.max(...choiceTimes) };
-assert.ok(cost.p95 <= 5, `battle policy p95 ${cost.p95.toFixed(2)} ms is within 5 ms`);
-assert.ok(cost.max <= 100, `battle policy max ${cost.max.toFixed(1)} ms is within 100 ms`);
+if (process.argv.includes("--record-performance")) {
+  // Explicit observational run on a host whose timing is not an acceptance gate.
+  // The normal npm test command keeps both ceilings; no functional assertion is skipped.
+  console.log(`PERFORMANCE RECORDED ONLY: battle policy p95 ${cost.p95.toFixed(2)} ms (limit 5), max ${cost.max.toFixed(1)} ms (limit 100)`);
+} else {
+  assert.ok(cost.p95 <= 5, `battle policy p95 ${cost.p95.toFixed(2)} ms is within 5 ms`);
+  assert.ok(cost.max <= 100, `battle policy max ${cost.max.toFixed(1)} ms is within 100 ms`);
+}
 
 // ---------------------------------------------------------------------------------------------
 // 5. Strength.

@@ -4,7 +4,80 @@ The integration implements #796–#802 in the production board and current rules
 engine, using the approved #788 prototype as a behaviour reference. It does not
 restore the removed legacy engine or change database contents.
 
-## Browser evidence
+## Latest local validation — 14 October 2026
+
+This section supersedes the historical handoff below. Tested application revision:
+`f7831ce71961734033fe70336ac435964802881f`, branch
+`arena-m23-phone-ux-reviewed`, PR #808. Windows, Node 24.21.0, Chrome 155;
+lockfile dependencies verified. No production database or provider calls.
+
+- **Owner S21 approval: passed.** The owner confirmed "yes all happy, close the
+  requirements". The physical-device requirement is complete.
+- **Production build, typecheck and lint: passed.** Lint retains five existing
+  prototype warnings. [Build](local-2026-10-14/build.log),
+  [typecheck](local-2026-10-14/typecheck.log), [lint](local-2026-10-14/lint.log).
+- **All functional test-chain checks passed across the run and continuation.**
+  The original `npm test` stopped at combat policy's 119.1 ms maximum against a
+  100 ms ceiling. Per owner instruction, the continuation used the explicit
+  timing-recording option for that proof; it passed all functional assertions
+  and measured p95 0.34 ms/max 9.9 ms. All 28 commands from that point onward
+  ran. One SDK stub assertion assumed Linux path separators; after correcting
+  its expected paths for Windows, that entire proof passed on rerun. This does
+  not claim the original unmodified `npm test` exited zero.
+  [Original log](local-2026-10-14/test-original.log),
+  [continuation log](local-2026-10-14/test-remaining.log),
+  [per-command exit codes](local-2026-10-14/test-remaining-results.json),
+  [SDK proof rerun](local-2026-10-14/ai-agent-sdk-retry.log).
+- **Contract emission: passed, 85/85 engine suites.** The emitted fixtures
+  match the committed contract (no diff). The rules engine is the only engine
+  since #118; old "both engines" acceptance wording is obsolete.
+  [Emission log](local-2026-10-14/contract-emit.log).
+- **Phone checks: passed.** 28 layout cases, four interaction combinations,
+  16 feedback/motion cases and six real-card art cases. Both skins at 360×800
+  and 360×650; arrows/swipe and staged attack/cancel work. The art run loaded
+  live remote artwork, unlike the older cached-art evidence below.
+  [Layout](local-2026-10-14/layout.json), [interactions](local-2026-10-14/interactions.log),
+  [feedback](local-2026-10-14/feedback.log), [art](local-2026-10-14/art.log).
+- **Complete release matrix: functional pass.** All eight matchups completed;
+  recovery reproduced the reference journal and final board (106 decisions,
+  revision 107). All 16 offline artwork blobs loaded and there were no match or
+  provider requests. [Machine report](local-2026-10-14/release-matrix.json),
+  [log](local-2026-10-14/release-matrix.log). Run with `--record --total-timeout 1800`.
+- **Timing is informational on this machine, by owner instruction.** Nine
+  release timing budgets were exceeded; these are not app-defect findings or
+  evidence of a regression. Memory budgets passed; process RSS was unavailable
+  on Windows. This run does not establish comparative performance acceptance.
+- **Dedicated recovery harness: not a complete pass.** The first run finished
+  a reference-identical 164-decision match but exposed a race in its worker-kill
+  injection. Dispatch-time injection fixes that race and passed the mid-AI kill;
+  the later run did not settle the two-tab ownership scenario. Observed states
+  matched the reference and browser exceptions were empty. Keep this requirement
+  unverified rather than attributing timeouts to the app.
+  [Original](local-2026-10-14/recovery.json),
+  [retry](local-2026-10-14/recovery-retry.json),
+  [dispatch-time injection](local-2026-10-14/recovery-dispatch.json).
+- **Independent TinyFish review: partial.** The exact built branch was served
+  through a temporary tunnel. The run reached desktop mulligan but did not
+  exercise phone combat/payment, both skins, reduced motion or touch targets.
+  [Report and limits](tinyfish-local-2026-10-14.md). Slow artwork downloads are
+  an environment observation, not an app defect. Server and tunnel are stopped.
+
+Representative captures: [10-card hand](local-2026-10-14/hand-10-360x650-anime.jpg),
+[attack confirmation](local-2026-10-14/attack-confirm-360x650-anime.jpg),
+[Strike targets](local-2026-10-14/strike-target-decision-360x650.jpg),
+[Vegeta without a target](local-2026-10-14/vegeta-empty-360x650.jpg).
+
+Validation-only harness changes retain normal gates: Chrome profile cleanup
+cannot mask a release result; worker termination happens at dispatch; the combat
+proof has an explicit `--record-performance` option that skips only timing
+assertions. The SDK stub test normalizes expected paths for Windows, with no
+provider change. Application code and dependency manifests are unchanged.
+
+Passed acceptance items are checked on the issues and in their backlog copies.
+Unverified composite requirements remain open; this record does not claim the
+whole milestone is complete.
+
+## Historical browser evidence
 
 `arena-phone-ux.mts` checks 360×800 and 360×650 in both skins: visible phase
 track, no page scrolling, no dock covering the rows/hand, and no clipped target
@@ -38,7 +111,7 @@ dev board; the Next development indicator is absent from production.
 - KO: [motion](ko-normal-360x650-anime.jpg), [reduced](ko-reduced-360x650-anime.jpg)
 - Life loss: [motion](life-normal-360x650-anime.jpg), [reduced](life-reduced-360x650-anime.jpg)
 
-## Checks and remaining gates
+## Historical checks and handoff gates (superseded above)
 
 - Typecheck and targeted lint pass. Full lint has five pre-existing warnings
   in the old prototype assets.
@@ -78,7 +151,7 @@ dev board; the Next development indicator is absent from production.
   Do not test old production and report it as acceptance of this branch.
   [The regression checklist](tinyfish-retest.md) identifies both baseline runs
   and includes setup/navigation findings that Milestone 23 has not addressed.
-- Owner S21 retest remains required by tracker #795 before the milestone closes.
+- Owner S21 retest passed on 14 October 2026: Heyhey confirmed in the local validation chat, "yes all happy, close the requirements". The physical-device owner requirement in tracker #795 is satisfied. Automated release and independent browser gates are tracked separately.
 
 No milestone issue is closed by this evidence record.
 

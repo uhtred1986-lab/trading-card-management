@@ -1,0 +1,151 @@
+{
+  "build": "production (next start)",
+  "base": "http://localhost:57150",
+  "pack": {
+    "id": "masters-sd15-vs-sd5",
+    "hash": "e0f620ccbe20a9562f88a9553fad59b57aaefc379f5acac420d4dd0e6d2c0da7",
+    "playable": true
+  },
+  "checkpoints": [
+    {
+      "scenario": "reload-choice",
+      "revision": 11,
+      "entries": 10,
+      "hash": true,
+      "legal": true,
+      "detail": "reloaded while the human was asked"
+    },
+    {
+      "scenario": "inject",
+      "revision": 21,
+      "entries": 20,
+      "hash": true,
+      "legal": true,
+      "detail": "duplicate + stale apply to the Worker; stale (rev 11) + duplicate answers to the page"
+    },
+    {
+      "scenario": "kill-choice",
+      "revision": 28,
+      "entries": 27,
+      "hash": true,
+      "legal": true,
+      "detail": "Worker terminated, then the human moved"
+    },
+    {
+      "scenario": "kill-ai",
+      "revision": 36,
+      "entries": 35,
+      "hash": true,
+      "legal": true,
+      "detail": "Worker terminated mid AI advance (advance answered: ok)"
+    },
+    {
+      "scenario": "reload-ai-turn",
+      "revision": 45,
+      "entries": 44,
+      "hash": true,
+      "legal": true,
+      "detail": "reloaded with the computer to move, nothing in flight"
+    },
+    {
+      "scenario": "reload-ai-batch",
+      "revision": 56,
+      "entries": 55,
+      "hash": true,
+      "legal": true,
+      "detail": "reloaded mid AI advance (from revision 53)"
+    },
+    {
+      "scenario": "storage-quota",
+      "revision": 56,
+      "entries": 55,
+      "hash": true,
+      "legal": true,
+      "detail": "QuotaExceededError on every put, then Try again"
+    },
+    {
+      "scenario": "storage-abort",
+      "revision": 58,
+      "entries": 57,
+      "hash": true,
+      "legal": true,
+      "detail": "every read-write transaction aborted, then Try again"
+    },
+    {
+      "scenario": "race-owner",
+      "revision": 67,
+      "entries": 66,
+      "hash": true,
+      "legal": true,
+      "detail": "won the simultaneous Continue"
+    }
+  ],
+  "denied": [],
+  "allowedRequests": 37,
+  "failures": [
+    "kill-choice: the move is applied after the engine restarts (this game is open in another tab or window — it can only be watched here)",
+    "kill-choice: the move is on the device exactly once",
+    "run aborted: Error: the board did not settle\nThis match is open in another tab\n\nThis tab only shows it; moves are not accepted here. Play here instead to take it over — the other tab becomes read-only.\n\nPlay here instead\nBack to start\nArena\n[STARTER] THE CRIMSON SAIYAN'S TURN\nTurn 8\nDRAW\nCHARGE\nMAIN\nBATTLE\n· defense\nEND\nStep\n[\n[Starter] The Crimson Saiyan\nhand 6\ndeck 27\ndrop 0\nLife 7 · Energy 1/4 ready\nPayment colours: Yellow 1/4\nInspect energy\n15,000\n2\n+5k\n4,000\n1\nBLK\n+5k\n15,000\n2\n+5k\n5,000\n1\n+5k\n4,000\n1\nBLK\n+5k\n15,000\n3\nBAR\n+5k\n[Starter] The Crimson Saiyan uses 《Auto》 on Golden Great Ape Son Goku — [Auto] When this card attacks a Leade\nBrowser errors:\n\n    at quiet (C:\\Users\\patvo\\Code Repo\\arena-m23-validation\\scripts\\arena-local-browser.mts:151:9)\n    at async checkpoint (C:\\Users\\patvo\\Code Repo\\arena-m23-validation\\scripts\\arena-local-browser.mts:199:13)\n    at async <anonymous> (C:\\Users\\patvo\\Code Repo\\arena-m23-validation\\scripts\\arena-local-browser.mts:444:5)"
+  ],
+  "browserErrors": [],
+  "seconds": 201,
+  "evidence": "headless desktop Chrome (emulation); physical-device evidence: not collected (owner)",
+  "notes": [
+    "ok   the match was started offline (the tab had no network) in seat p1",
+    "ok   the first board equals the reference's",
+    "ok   reload-choice: replay hash at revision 11 equals the uninterrupted reference",
+    "ok   reload-choice: next legal actions at revision 11 equal the reference's (4)",
+    "ok   reload-choice: the tab is the match's writer again",
+    "ok   reload-choice: the device's journal is unchanged by the reload",
+    "note step at revision 14 refused (the computer is still thinking — try again in a moment); retrying",
+    "ok   inject: the human's move is accepted",
+    "ok   inject: the duplicate apply is answered from its receipt ({\"type\":\"result\",\"ok\":true,\"revision\":21})",
+    "ok   inject: the stale apply is refused (stale)",
+    "ok   inject: an older answer (revision 11) and a duplicate answer were handed to the page's Worker object",
+    "ok   inject: replay hash at revision 21 equals the uninterrupted reference",
+    "ok   inject: next legal actions at revision 21 equal the reference's (4)",
+    "ok   inject: the board did not move and is still the writer",
+    "ok   inject: the human's move is on the device exactly once",
+    "ok   kill-choice: replay hash at revision 28 equals the uninterrupted reference",
+    "ok   kill-choice: next legal actions at revision 28 equal the reference's (3)",
+    "FAIL kill-choice: the move is applied after the engine restarts (this game is open in another tab or window — it can only be watched here)",
+    "ok   kill-choice: the Worker was restarted (2)",
+    "ok   kill-choice: the page said the engine stopped and was restarting",
+    "FAIL kill-choice: the move is on the device exactly once",
+    "ok   kill-ai: the Worker was terminated while the advance was in flight",
+    "ok   kill-ai: replay hash at revision 36 equals the uninterrupted reference",
+    "ok   kill-ai: next legal actions at revision 36 equal the reference's (2)",
+    "ok   kill-ai: the Worker was restarted and the tab writes on (owner, 3)",
+    "ok   reload-ai-turn: replay hash at revision 45 equals the uninterrupted reference",
+    "ok   reload-ai-turn: next legal actions at revision 45 equal the reference's (2)",
+    "ok   reload-ai-batch: the advance was still in flight at the reload",
+    "ok   reload-ai-batch: replay hash at revision 56 equals the uninterrupted reference",
+    "ok   reload-ai-batch: next legal actions at revision 56 equal the reference's (4)",
+    "ok   reload-ai-batch: the tab is the writer again",
+    "ok   storage-quota: the fault reached the match Worker (1)",
+    "ok   storage-quota: the move is refused with the storage sentence (this game could not be saved on this device — it is still at its last saved move)",
+    "ok   storage-quota: the page shows the device-full notice with Try again (storage)",
+    "ok   storage-quota: the board stays at the last saved move",
+    "ok   storage-quota: nothing was written",
+    "ok   storage-quota: Try again pressed",
+    "ok   storage-quota: replay hash at revision 56 equals the uninterrupted reference",
+    "ok   storage-quota: next legal actions at revision 56 equal the reference's (4)",
+    "ok   storage-quota: the move is accepted once there is room",
+    "ok   storage-quota: and is on the device once",
+    "ok   storage-abort: the fault reached the match Worker",
+    "ok   storage-abort: the advance is refused (this game could not be saved on this device — it is still at its last saved move)",
+    "ok   storage-abort: the page shows an actionable notice (storage: Could not save on this device)",
+    "ok   storage-abort: the board stays at the last saved move",
+    "ok   storage-abort: nothing was written",
+    "ok   storage-abort: Try again pressed",
+    "ok   storage-abort: replay hash at revision 58 equals the uninterrupted reference",
+    "ok   storage-abort: next legal actions at revision 58 equal the reference's (0)",
+    "ok   race: exactly one tab writes (watching / owner)",
+    "ok   race: the other tab watches and says so",
+    "ok   race-owner: replay hash at revision 67 equals the uninterrupted reference",
+    "ok   race-owner: next legal actions at revision 67 equal the reference's (4)",
+    "ok   every board shown equals the reference at its revision (42 revisions seen)",
+    "ok   every board shown is a reference revision",
+    "ok   no match/provider request was attempted (0 denied: )"
+  ]
+}

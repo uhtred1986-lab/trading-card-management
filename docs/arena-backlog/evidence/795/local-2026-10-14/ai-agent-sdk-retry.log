@@ -1,0 +1,1 @@
+  ai-agent-sdk: contract (text, image, JSON valid / retry / bad_output, refusal, errors, usage, billed false) on a stubbed query(); SDK options; child env; timeout and abort; usage limits; ignored cache hints; availability; token expiry

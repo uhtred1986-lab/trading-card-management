@@ -324,11 +324,27 @@ try {
     for (let attempt = 0; attempt < 12 && !inFlight; attempt++) {
       await playUntil(a, (x) => x.game.revision >= 34 && aiToMove(x));
       restarts0 = (await view(a))!.restarts;
-      await a.eval(`void (window.__ka = ${BOARD_NOW}.advance().then((r) => r.error))`);
-      await sleep(5);
-      inFlight = await a.eval<boolean>(`${BOARD_NOW}.saving`);
-      if (inFlight) await a.eval(`window.__local.workers.forEach((w) => w.terminate())`);
+      // Terminate in the dispatch call itself. Separate CDP reads of `saving`
+      // and terminate calls can race a completed answer and claim a kill that
+      // never interrupted the Worker (especially on a busy Windows host).
+      await a.eval(`(() => {
+        window.__kaKilled = false;
+        for (const w of window.__local.workers) {
+          const post = w.postMessage;
+          w.postMessage = function(message, transfer) {
+            const result = transfer ? post.call(this, message, transfer) : post.call(this, message);
+            if (message?.type === "advance" && !window.__kaKilled) {
+              window.__kaKilled = true;
+              w.postMessage = post;
+              w.terminate();
+            }
+            return result;
+          };
+        }
+        window.__ka = ${BOARD_NOW}.advance().then((r) => r.error);
+      })()`);
       await a.eval(`window.__ka`);
+      inFlight = await a.eval<boolean>(`window.__kaKilled`);
     }
     check(inFlight, "kill-ai: the Worker was terminated while the advance was in flight");
     const err = await a.eval<string | null>(`window.__ka`);

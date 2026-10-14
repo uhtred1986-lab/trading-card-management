@@ -11,6 +11,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { z } from "zod";
 import { generate, generateJson } from "../../src/lib/ai/core";
 import { AiError, describeAiError, type AiErrorKind } from "../../src/lib/ai/errors";
@@ -293,8 +294,8 @@ async function options(): Promise<void> {
   assert.deepEqual(e, { PATH: "p", HOME: "h", CLAUDE_CODE_OAUTH_TOKEN: "tok", CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1" });
   // On Vercel the child's config directory moves under /tmp (the only writable place); locally it is left alone.
   assert.equal((e as Record<string, string>).CLAUDE_CONFIG_DIR, undefined);
-  assert.equal(buildChildEnv("tok", { VERCEL: "1" }).CLAUDE_CONFIG_DIR, "/tmp/claude-config");
-  assert.equal(buildChildEnv("tok", { VERCEL: "1", TMPDIR: "/var/tmp" }).CLAUDE_CONFIG_DIR, "/var/tmp/claude-config");
+  assert.equal(buildChildEnv("tok", { VERCEL: "1" }).CLAUDE_CONFIG_DIR, path.normalize("/tmp/claude-config"));
+  assert.equal(buildChildEnv("tok", { VERCEL: "1", TMPDIR: "/var/tmp" }).CLAUDE_CONFIG_DIR, path.normalize("/var/tmp/claude-config"));
   const viaApp = play([{ text: "ok" }], { env: { CLAUDE_CODE_OAUTH_TOKEN: undefined, APP_CLAUDE_CODE_OAUTH_TOKEN: "app-tok" } });
   await generate(ask());
   assert.equal((viaApp.calls[0].options.env as Record<string, string>).CLAUDE_CODE_OAUTH_TOKEN, "app-tok");
@@ -373,7 +374,7 @@ async function availability(): Promise<void> {
     const onS = stub([{ text: "hello" }]);
     const flagged = createAnthropicAgentSdkProvider({ query: onS.query, env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN, VERCEL: "1" }, remote: false });
     await flagged.generate(ask());
-    assert.equal((onS.calls[0].options.env as Record<string, string>).CLAUDE_CONFIG_DIR, "/tmp/claude-config");
+    assert.equal((onS.calls[0].options.env as Record<string, string>).CLAUDE_CONFIG_DIR, path.normalize("/tmp/claude-config"));
     delete process.env.AI_AGENT_SDK;
     const s = stub([{ text: "x" }]);
     await rejects(createAnthropicAgentSdkProvider({ query: s.query, env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN }, remote: false }).generate(ask()), "unavailable");
