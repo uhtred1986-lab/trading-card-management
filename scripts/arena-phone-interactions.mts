@@ -52,6 +52,7 @@ try {
     await shot("attack-pick");
     await page.tap(`[data-arena-card="${snap.view.them.leader.id}"]`);
     await page.waitFor("[data-attack-summary]");
+    assert.ok(await page.eval("document.querySelector('[data-attack-summary]').getBoundingClientRect().height >= 80"), "attack summary must have visible height");
     assert.equal(await page.eval("document.querySelectorAll('[data-attack-role]').length"), 2);
     const overlap = await page.eval(`(() => {const summary=document.querySelector('[data-attack-summary]').getBoundingClientRect();return [...document.querySelectorAll('.arena-row,.arena-pstrip')].some(e=>{const r=e.getBoundingClientRect();return r.top<summary.bottom && r.bottom>summary.top});})()`);
     assert.equal(overlap, false, "attack summary must stay between player rows");

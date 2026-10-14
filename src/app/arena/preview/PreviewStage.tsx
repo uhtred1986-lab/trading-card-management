@@ -276,12 +276,12 @@ export function PreviewStage({
     const art = snapshot.beats?.art ?? {};
     const clash = { t: "clash", attacker: b.attacker, guard: b.guard, attackPower: b.attackPower, guardPower: b.guardPower, hit: true, n: 1 } as NumberedBeat;
     const damage = { t: "damage", player: v.them.player, amount: 1, critical: false, cards: [], n: 2 } as NumberedBeat;
-    const t1 = setTimeout(() => setShown((s) => ({ ...s, beats: { seq: 1, list: [clash], art } })), 1200);
+    const t1 = setTimeout(() => setShown((s) => ({ ...s, game: { ...s.game, revision: s.game.revision + 1 }, beats: { seq: 1, list: [clash], art } })), 1200);
     const t2 = setTimeout(
       () =>
         setShown((s) => ({
           ...s,
-          game: { ...s.game, status: "over" },
+          game: { ...s.game, revision: s.game.revision + 1, status: "over" },
           over: { kind: "win", winner: v.you.player, reason: `${v.them.name} has no life left` },
           view: { ...s.view, battle: null, them: { ...s.view.them, life: 0 }, over: { winner: v.you.player, reason: `${v.them.name} has no life left` } },
           beats: { seq: 2, list: [clash, damage], art },
@@ -305,7 +305,7 @@ export function PreviewStage({
     // A no-target notice arrives on the computer's move (#783): the board must hold its next advance.
     // It is a new revision, as a move's result is: the live board adopts a prop by revision only.
     const noTarget = fx === "no-target" || fx === "no-target-battle";
-    const next = noTarget ? { ...snapshot, game: { ...snapshot.game, revision: snapshot.game.revision + 1 }, waiting: "opponent" as const } : snapshot;
+    const next = { ...snapshot, game: { ...snapshot.game, revision: snapshot.game.revision + 1 }, ...(noTarget ? { waiting: "opponent" as const } : {}) };
     const t = setTimeout(() => setShown({ ...next, view, beats }), 500);
     return () => clearTimeout(t);
   }, [fx, snapshot]);

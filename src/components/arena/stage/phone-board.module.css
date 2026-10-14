@@ -50,6 +50,7 @@
  .board[data-phone-cinema="true"] :global(.arena-lane) { min-height: 56px; }
  /* The lane takes the field's spare height (#783), so each row sits by its own strip. */
  .board :global(.arena-lane) { min-height: 0; flex: 1 1 auto; }
+ .board :global(.arena-lane:has([data-attack-summary])) { min-height: 112px; }
  /* One line per player (#783): the name gives way before the counts wrap. */
  .board :global(.arena-pstrip) { height: auto; min-height: 44px; flex-wrap: nowrap; padding: 0 8px; gap: 6px; }
  .board :global(.arena-pstrip[role="button"]:focus-visible) { outline: 2px solid var(--color-ki-400); outline-offset: 2px; }

@@ -1199,7 +1199,7 @@ export function ArenaStage({
   })();
   const targetLabel = (card: CardView): string | null => {
     if (!isTargeting || wide) return null;
-    if (attackPick?.target === card.id) return "TARGET";
+    if (attackConfirmation) return null;
     if (targetsOf(selected!)?.[card.id] != null) return locate(card.id)?.zone === "leader" ? "Tap to attack" : card.mode === "rest" ? "Rested · tap" : "Tap to attack";
     const reason = targetReasonOf(card.id);
     if (!reason || reason.kind !== "target") return null;
@@ -1208,7 +1208,7 @@ export function ArenaStage({
   };
   const defending = !!view.battle && view.turnPlayer !== view.you.player;
   const attackSummary = attackConfirmation ? (
-    <div className="arena-fight w-full max-w-sm rounded-xl p-2 text-xs leading-snug text-space-100" data-attack-summary>
+    <div className="arena-attack-summary w-full max-w-sm rounded-xl border border-space-600 bg-space-900/90 p-2 text-xs leading-snug text-space-100" data-attack-summary>
       {[view.them, view.you].map((side) => {
         const attacks = locate(attackConfirmation.attacker.id)?.side.player === side.player;
         const card = attacks ? attackConfirmation.attacker : attackConfirmation.target;
@@ -1531,7 +1531,7 @@ export function ArenaStage({
           )}
 
           {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="arena-hand-folded px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
-          {!(!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")) && <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
+          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
           {/* CSS places this single decision panel under the hand on phones and

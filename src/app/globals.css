@@ -3592,6 +3592,7 @@ html[data-skin="anime"] body::before {
   }
 
   [data-skin="anime"].arena .arena-fight,
+  [data-skin="anime"].arena .arena-attack-summary,
   [data-skin="anime"].arena .arena-notice,
   [data-skin="anime"].arena .arena-logpop {
     background: var(--arena-glass-strong);
