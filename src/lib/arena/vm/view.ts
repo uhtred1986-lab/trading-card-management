@@ -117,6 +117,14 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
   const attackPower = power(b.attacker) + combo(state.turnPlayer);
   const guardPower = power(b.guard) + combo(defender);
   const target = state.sides[defender].zones.leader?.includes(b.guard) ? "leader" : state.sides[defender].zones.unison?.includes(b.guard) ? "unison" : "battle";
+  // Empty hand-dependent offers are private to the player who could answer
+  // them. In particular, the attacker must not learn that the defender has no
+  // Counter or defensive Combo option. Blocker absence is public board state.
+  const emptyResponses = (b.emptyResponses ?? []).filter((window) => {
+    if (window === "counter" || window === "defenseCombo") return viewer === defender;
+    if (window === "offenseCombo") return viewer === state.turnPlayer;
+    return true;
+  });
   const how = damageRule(ctx, game, state, b.attacker);
   const hit = attackPower >= guardPower;
   const life = state.sides[defender].zones.life?.length ?? 0;
@@ -141,6 +149,7 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     step: b.step,
     attackPower,
     guardPower,
+    ...(emptyResponses.length ? { emptyResponses } : {}),
     ...(!b.negated && battleIntact(state) && ["declared", "offense", "defense"].includes(b.step) ? { stakes: {
       hit, tied: attackPower === guardPower, target, lifeDamage, strikeDamage: Math.max(1, how.atLeast ?? 1),
       markerLoss: target === "unison" && hit ? Math.min(markers, how.allMarkers ? markers : Math.max(1, how.atLeast ?? 1)) : 0,

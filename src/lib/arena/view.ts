@@ -5,7 +5,7 @@
  * what a player may tap. This turns one state plus the legal moves into a view
  * for one side of the table, hiding what that player may not see (3-1-3).
  */
-import { type ActionCost, type PlayerId, type Requirement, type SkillKind } from "./types";
+import { type ActionCost, type EmptyResponseWindow, type PlayerId, type Requirement, type SkillKind } from "./types";
 import { type EffectView } from "./effects";
 
 // The viewer-side helpers live in `view-core.ts`; every existing caller keeps importing them from here.
@@ -198,6 +198,8 @@ export interface BattleView {
   step: string;
   attackPower: number;
   guardPower: number;
+  /** Windows the engine advanced past with no legal offers, filtered to what this viewer may know. */
+  emptyResponses?: EmptyResponseWindow[];
   /** Conditional public projection, not a resolved result. Older engines omit it. */
   stakes?: {
     hit: boolean;
