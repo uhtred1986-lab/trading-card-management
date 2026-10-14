@@ -182,7 +182,9 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   restart; after `maxRestarts` (3) deaths in a row it stops as `failed`. `dispose()` releases the
   lease and lock and stops every worker, timer and channel. Proofs: `scripts/verify/arena-local-ownership.mts`
   (`npm test`; in-process killable workers, the fake IndexedDB, Node's Web Locks) and two real Chrome
-  tabs `npm run arena:local-ownership-browser`. Not yet wired to the board (O3-05).
+  tabs `npm run arena:local-ownership-browser`. Not yet wired to the board (O3-05). On the board (`/arena/local`, #656), the same failures — reload, a killed Worker, stale and
+  duplicate messages, a full or aborting IndexedDB, two tabs — are played against a production build in
+  real Chrome by `npm run arena:local-browser` (#657; browser emulation, not device evidence).
 - **Installed offline packs** (#658, `src/lib/arena/local/pack-store.ts`): IndexedDB `dbs-arena-packs`
   (`versions`, `bodies`, content-addressed `art`, `pointers` = the active version per pack id).
   `install` downloads the pack (byte progress), validates and qualifies it, stores it `staged`, then
