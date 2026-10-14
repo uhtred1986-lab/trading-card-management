@@ -27,6 +27,7 @@ import { CTX, DEFS, card, fifty } from "./harness";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { rulesFromCompiler } from "../../src/lib/arena/draft";
+import { rulesFromRows, runtimeSupportOfRow, type RuleRow } from "../../src/lib/arena/rules-store";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
@@ -53,6 +54,27 @@ const defs: Record<string, CardDef> = { ...DEFS,
   BC552: card("BC552", { energyCost: 1, skill: null }),
 };
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
+
+// #809: run every chain scenario below through hand-authored stored Counter:
+// Counter records. The compiler-only route bypasses the readiness gate and
+// therefore could not detect its obsolete blanket refusal.
+for (const id of ["STOPA552", "STOPB552", "STOPX552", "STOP2552"]) {
+  const row = { cardId: id, side: "front", skillIndex: 0,
+    printed: defs[id].skill!, kind: "counter:counter", status: "confirmed",
+    source: "user", trigger: [], cost: null, cond: null,
+    ops: [{ op: "negate", what: "counter" }], unread: [],
+  } as unknown as RuleRow;
+  assert.deepEqual(runtimeSupportOfRow(row), { unsupported: [], unknown: [] });
+  const loaded = rulesFromRows([row], { [id]: defs[id] })[id];
+  assert.equal(loaded.complete, true, "stored counter is ready");
+  assert.deepEqual(loaded.bySkill[0].unsupported, []);
+  ctx.scripts![id] = loaded;
+  assert.deepEqual(runtimeSupportOfRow({ ...row, unread: ["unread clause"] }).unsupported,
+    ["unread clause"], "independent unread clauses still refuse readiness");
+  assert.equal(rulesFromRows([{ ...row, unread: ["unread clause"] }], { [id]: defs[id] })[id].complete, false);
+  assert.ok(runtimeSupportOfRow({ ...row, ops: [{ op: "play", target: { sel: { special: "self" } } }] }).unknown.length,
+    "a counter that plays a card keeps its board-dependent uncertainty");
+}
 
 const reload = (s: VmState): VmState => JSON.parse(JSON.stringify(s));
 function apply(s: VmState, action: Action) { return engine.apply(ctx, reload(s), action) as { state: VmState; events: GameEvent[] }; }

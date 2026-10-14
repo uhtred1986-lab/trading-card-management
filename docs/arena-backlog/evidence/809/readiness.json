@@ -1,0 +1,245 @@
+{
+  "summary": {
+    "rows": 21,
+    "newlyAdmitted": 2,
+    "stillRefused": 10,
+    "unknownOnly": 9
+  },
+  "items": [
+    {
+      "card": "BT11-044",
+      "side": "front",
+      "skill": 0,
+      "status": "draft",
+      "printed": "[Counter: Counter] If your Leader Card is mono-blue: Switch up to 1 of your mono-blue energy to Active Mode, then play this card.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "BT7-101",
+      "side": "front",
+      "skill": 0,
+      "status": "draft",
+      "printed": "[Counter: Counter] Choose 3 Battle Cards with an energy cost of 3 or more and power of 35000 or less in your Drop Area and place them at the bottom of your deck in any order: Play this card.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "BT30-098",
+      "side": "front",
+      "skill": 10,
+      "status": "corrected",
+      "printed": "[counter: counter] If your life is at 2 or less and your ≪Universe 2≫ card is in a battle: Play this card, switch your card that's in a battle with this card, then play up to 1 black ≪Maiden Squadron≫ card from your Warp on top of this card in Active Mode.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "EX06-27",
+      "side": "front",
+      "skill": 0,
+      "status": "draft",
+      "printed": "[Counter: Counter] If your Leader Card is yellow: Negate the [Counter] and play this card.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "BT16-030",
+      "side": "front",
+      "skill": 10,
+      "status": "draft",
+      "printed": "[Counter: Counter] If your Leader Card is blue: Play this card.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "BT13-020",
+      "side": "front",
+      "skill": 0,
+      "status": "open",
+      "printed": "[counter: counter] If your Leader Card and energy are all mono-red and your opponent has 3 or more energy: Negate the [counter] skill of an Extra Card with an original energy cost of 1 that was activated without paying its energy cost, then play this card.",
+      "unsupported": [
+        "If your Leader Card and energy are all mono-red and your opponent has 3 or more energy",
+        "Negate the [counter] skill of an Extra Card with an original energy cost of 1 that was activated without paying its energy cost"
+      ],
+      "unknown": []
+    },
+    {
+      "card": "BT11-043",
+      "side": "front",
+      "skill": 20,
+      "status": "draft",
+      "printed": "[Counter: Counter] Play this card.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "BT11-042",
+      "side": "front",
+      "skill": 20,
+      "status": "open",
+      "printed": "[Counter: Counter] Negate the [Counter] skill and play this card.",
+      "unsupported": [
+        "Negate the [Counter] skill"
+      ],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "BT28-069",
+      "side": "front",
+      "skill": 0,
+      "status": "draft",
+      "printed": "[Counter: Counter][Limit 1] Play this card.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "DB3-129",
+      "side": "front",
+      "skill": 10,
+      "status": "draft",
+      "printed": "[Counter: Counter] If your Leader Card is red and you choose 1 red card in your hand and discard it: Negate the Battle Card's [Counter: Attack] skill, then switch up to 1 of your blue energy to Active Mode at the end of the turn.",
+      "unsupported": [],
+      "unknown": []
+    },
+    {
+      "card": "P-418",
+      "side": "front",
+      "skill": 10,
+      "status": "open",
+      "printed": "[Counter: Counter] If your Leader is a black <Supreme Kai of Time> card: Negate the [Counter] skill and play this card.",
+      "unsupported": [
+        "Negate the [Counter] skill"
+      ],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "BT17-109",
+      "side": "front",
+      "skill": 0,
+      "status": "open",
+      "printed": "[Counter: Counter] If your Leader Card has <Son Goku> in its character name and is attacking: Switch 1 of your Leader Cards to Active Mode, and it gets +5000 power and has its skills negated for the turn.",
+      "unsupported": [
+        "has its skills negated for the turn"
+      ],
+      "unknown": []
+    },
+    {
+      "card": "EX17-04",
+      "side": "front",
+      "skill": 0,
+      "status": "open",
+      "printed": "[counter: counter] If your Leader Card and energy are all the same color and your opponent has 4 or more energy: Negate the [counter: attack] skill of an Extra Card with an original energy cost of 1 that was activated without paying its energy cost.",
+      "unsupported": [
+        "Negate the [counter: attack] skill of an Extra Card with an original energy cost of 1 that was activated without paying its energy cost"
+      ],
+      "unknown": []
+    },
+    {
+      "card": "BT30-150",
+      "side": "front",
+      "skill": 10,
+      "status": "open",
+      "printed": "[counter: counter] Negate the [counter] skill and remove this card from the game.",
+      "unsupported": [
+        "Negate the [counter] skill"
+      ],
+      "unknown": []
+    },
+    {
+      "card": "P-557",
+      "side": "front",
+      "skill": 0,
+      "status": "draft",
+      "printed": "[counter: counter][limit 1] If your Leader is a blue card with both <Son Goku> and <Piccolo>: Draw 1 card, play this card, and this card gets +5000 power until the end of your opponent's turn.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "BT16-043",
+      "side": "front",
+      "skill": 0,
+      "status": "open",
+      "printed": "[Counter: Counter] If one of your blue <Beerus> cards is attacking an opponent's Battle Card: Negate the [Counter: Attack] and switch up to 1 of your blue energy to Active Mode.",
+      "unsupported": [
+        "If one of your blue <Beerus> cards is attacking an opponent's Battle Card"
+      ],
+      "unknown": []
+    },
+    {
+      "card": "BT12-153",
+      "side": "front",
+      "skill": 10,
+      "status": "open",
+      "printed": "[Counter: Counter] If a card other than your Leader Card is in battle: Negate the [Counter: Attack] skill, then play this card.",
+      "unsupported": [
+        "If a card other than your Leader Card is in battle",
+        "Negate the [Counter: Attack] skill"
+      ],
+      "unknown": []
+    },
+    {
+      "card": "BT30-063",
+      "side": "front",
+      "skill": 0,
+      "status": "open",
+      "printed": "[counter: counter] If your Leader is mono-green, all of your energy is mono-green, and your opponent has 3 or more energy: Negate the [counter] skills on Battle Cards with original energy costs of 1, then play this card.",
+      "unsupported": [
+        "Negate the [counter] skills on Battle Cards with original energy costs of 1"
+      ],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    },
+    {
+      "card": "EX09-06",
+      "side": "front",
+      "skill": 10,
+      "status": "open",
+      "printed": "[Counter: Counter] If your Leader Card is red and you choose 1 yellow card in your hand and place it in your Drop Area: Negate the [Counter: Attack] skill.",
+      "unsupported": [
+        "Negate the [Counter: Attack] skill"
+      ],
+      "unknown": []
+    },
+    {
+      "card": "BT1-108",
+      "side": "front",
+      "skill": 0,
+      "status": "draft",
+      "printed": "[Counter: Counter] Place 1 yellow card from your hand in the Drop Area: Negate the [Counter].",
+      "unsupported": [],
+      "unknown": []
+    },
+    {
+      "card": "EX22-08",
+      "side": "front",
+      "skill": 10,
+      "status": "draft",
+      "printed": "[counter: counter][limit 1] Negate the [counter], choose up to 1 of your opponent's Battle Cards, ignoring [barrier], place it at the bottom of their deck, then play this card.",
+      "unsupported": [],
+      "unknown": [
+        "play target support depends on the card and board at resolution"
+      ]
+    }
+  ]
+}
