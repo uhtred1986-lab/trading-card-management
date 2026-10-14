@@ -9,14 +9,14 @@ blocker or still open. No budget was relabelled, and no emulation stands in for 
 
 | | Result |
 |---|---|
-| Desktop: both curated decks, both seats, each played to the END from a prepared app cold-launched with no network | **Plays: 8 of 8 matchups finish, each equal to the same match played in Node, decision for decision.** Card art does not show (blocker RB-1), so the bullet "no missing art" is **not met**. |
+| Desktop: both curated decks, both seats, each played to the END from a prepared app cold-launched with no network | **Plays: 8 of 8 matchups finish, each equal to the same match played in Node, decision for decision.** Card art shows from the installed pack (RB-1 resolved by #780: every image on every final board loads from a `blob:` URL, none addressed to a card CDN), so the bullet "no missing art" is **met on desktop**. |
 | Desktop: reload, Worker recovery, storage failure (in the prepared, offline app) | Pass (recovery case, section 5). |
 | Desktop: update | Partly. A failed shell update leaves the working shell; a pack update keeps a pinned pack (Node proof). A successful update to a NEWER build in a real browser was **not** run (open item OP-3). |
 | Desktop: latency, responsiveness and memory against the O1 budgets | **Budgets missed** (section 6): release blockers RB-2 to RB-5. Latency of the engine itself is inside every budget. |
 | Physical phone | **OPEN. Nothing was measured on a phone.** Steps and an empty results table: section 8. |
 | Emulated phone (390 px touch viewport, 4x CPU throttle on the page) | Plays 8 of 8 and the recovery case, with more budgets missed. **Emulation, not a phone**; the throttle does not reach the Worker. |
 
-Release blockers: RB-1 (art), RB-2 (match start), RB-3 (main-thread long tasks and frames while the board
+Release blockers: RB-1 (art) is **resolved** (#780, section 5.2); RB-2 (match start), RB-3 (main-thread long tasks and frames while the board
 plays), RB-4 (main-thread heap), RB-5 (memory budget unmeasurable). OP-1 to OP-5 are open items, not failures.
 
 ## 2. Versions and machine
@@ -104,7 +104,25 @@ Server/model requirement: none. Unresolved mechanics: no refusal and no interrup
 `interrupted` session would have stopped the case); this is the engine's finish, not a card-by-card claim (section 3).
 **Missing art: every card image on every final board failed to load** (RB-1 below).
 
-### 5.2 RB-1: the board shows no card art in airplane mode
+### 5.2 RB-1: the board showed no card art in airplane mode (RESOLVED by #780, 14 Oct 2026)
+
+**Resolution.** The local board now draws the installed pack's own images. `loadLocalArt`
+(`src/lib/arena/local/art-urls.ts`) reads the pack's images from the pack store (`PackStore.art`, each re-checksummed from
+the device) into object URLs keyed by the catalog URL; `LocalBoard` (`deps.art`) swaps those URLs into every
+snapshot it hands the board (`snapshot`, and each snapshot delivered through `watch`). The engine, the Worker, the
+journal, the Snapshot contract and every shared board component are untouched, and online `/arena/[id]` has no map,
+so its path is byte-identical. The object URLs live while the same pack is played ("Play again" reuses them) and are
+revoked when another pack is chosen or the page unmounts. A pack that cannot be read from the store plays as before
+(catalog URLs). `/arena/local` (a pack chosen from a file, no store) is unchanged.
+**Evidence** (`npm run arena:offline-release`, true airplane mode by host-resolver block, the build at the PR head):
+before the change `A-v-B first: 10 images on the final board, 0 loaded, 10 missing or broken (0 from blob: URLs, 10
+addressed to a card CDN)` and the run FAILED; after it, all 8 final boards load every image (16 to 26 each, all from
+`blob:` URLs, none addressed to a card CDN) and the recovery case's board after its failures loads 20 of 20. The script
+now also fails on any image addressed to a card CDN and checks the recovery case's board. The Node-equality checks
+compare the Worker's own snapshot (the page-side art swap is display only). `arena:offline-shell-browser` (47 checks) and
+`arena:local-browser` pass. The section 6 numbers were recorded before this change; the run with it is still over budget on RB-2 to RB-5 (not changed or addressed here).
+
+**History of the blocker (kept):**
 
 The preparation stores the 43 images in the pack store (verified, decoded: `arena:pack-store-browser`,
 `arena:offline-shell-browser`), but the board addresses each card by its catalog URL
@@ -117,8 +135,7 @@ load in all 8 cases and in the recovery case's board.
 still reach the network, the CDN answers, and the art appears. Three earlier desktop recordings of this matrix (the first had one image still loading at its check, which the script
 now waits for) showed art for exactly that reason; they are kept as "art through the network" in
 section 6 because they measure the cost of a board WITH art, and are not airplane-mode evidence.
-Fix is outside this issue (a board change); it needs an owner issue. Until it closes, the acceptance bullet
-"no missing art" is **not met**.
+
 
 ### 5.3 The recovery case, in the prepared offline app (same recording)
 
@@ -278,11 +295,11 @@ table, and keep the acceptance bullets about a phone open until every row has a 
 
 | Bullet | State |
 |---|---|
-| Prepared app cold-launches in airplane mode and finishes every supported matchup in both seats with no server/model requirement, missing art or unresolved required mechanics | **Open.** Finishes: yes, 8 of 8 (desktop). Server/model need: none. Unresolved mechanics: none refused. **Missing art: not met (RB-1).** |
+| Prepared app cold-launches in airplane mode and finishes every supported matchup in both seats with no server/model requirement, missing art or unresolved required mechanics | **Open (desktop bullet met; phone and budgets outstanding).** Finishes: yes, 8 of 8 (desktop). Server/model need: none. Unresolved mechanics: none refused. **Missing art: none** (RB-1 resolved by #780: 8 of 8 final boards and the recovery case's board load every image from the pack store). Still **Open** for the budget blockers RB-2 to RB-5 and the physical phone. |
 | Phone and desktop latency/responsiveness/memory meet the recorded budgets or remain explicit release blockers; emulator results do not substitute for a physical phone | **Open.** Desktop: blockers RB-2 to RB-5. Phone: not measured (section 8). |
 | Publish versions, devices, repeatable steps and evidence for normal/failure cases; missing hardware stays open; full catalog/Fusion World not claimed | Published here for the desktop; phone rows open; no full-catalog or Fusion World claim. |
 | Focused scenario checks plus typecheck, lint, test, build | See the PR. Database-backed fuzz and live-device checks are not run (unavailable to an agent) and are not claimed. |
-| Attach scenario-specific evidence and limitations; link an owning issue for a blocker | Evidence JSON: `docs/arena-backlog/evidence/661/`. No existing issue owns RB-1 to RB-5; the PR proposes them to the owner. |
+| Attach scenario-specific evidence and limitations; link an owning issue for a blocker | Evidence JSON: `docs/arena-backlog/evidence/661/`. RB-1 was owned by #780 (resolved); no existing issue owns RB-2 to RB-5, the PR proposes them to the owner. |
 
 Evidence files (`docs/arena-backlog/evidence/661/`): `desktop-offline-2026-10-14.json` (5.1, 5.3, the "Desktop,
 offline" column), `phone-emulated-offline-2026-10-14.json`, and for the "art through the network" columns

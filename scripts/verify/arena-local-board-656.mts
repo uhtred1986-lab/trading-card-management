@@ -420,7 +420,7 @@ console.log(`  questions answered through the local adapter: ${[...promptKinds].
   const g = checkImportGraph(entry, ROOT, diskRead);
   assert.deepEqual(g.violations, [], "the local board has no forbidden runtime dependency");
   const lib = g.files.filter((f) => f.startsWith("src/lib/"));
-  const allowed = new Set(["src/lib/arena/local/protocol.ts", "src/lib/arena/local/recovery.ts", "src/lib/arena/local/ownership.ts", "src/lib/arena/local/storage.ts", "src/lib/arena/policy/contract.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts"]); // the last three are the journal store's hashing helpers (#653), not the engine
+  const allowed = new Set(["src/lib/arena/local/protocol.ts", "src/lib/arena/local/recovery.ts", "src/lib/arena/local/ownership.ts", "src/lib/arena/local/storage.ts", "src/lib/arena/local/art-urls.ts", "src/lib/arena/policy/contract.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts"]); // the last three are the journal store's hashing helpers (#653), not the engine
   assert.deepEqual(lib.filter((f) => !allowed.has(f)), [], `its value graph reaches no engine, policy or pack module (${lib.join(", ")})`);
   const src = fs.readFileSync(entry, "utf8");
   assert.ok(!/\bfetch\(/.test(src), "the board module never calls fetch");
@@ -430,6 +430,28 @@ console.log(`  questions answered through the local adapter: ${[...promptKinds].
     assert.ok(!/\bfetch\(|@\/app\/arena\/actions|next\/navigation/.test(text), "the page component calls no network and no server action");
     assert.ok(/new Worker\(new URL\("\.\.\/\.\.\/\.\.\/lib\/arena\/local\/worker-entry\.ts"/.test(text), "it starts the real module Worker");
   }
+}
+
+// ── 9. Offline art (#780): the board is handed the pack store's object URLs, never a catalog URL ──────
+{
+  const w = world();
+  const plain = await LocalBoard.start(clone(pack), setupP1, depsOn(w));
+  const catalog = [...strings(plain.snapshot!).values].filter((v) => /^https?:\/\//.test(v));
+  assert.ok(catalog.length > 0, `the unlocalized board addresses catalog URLs (${catalog.length})`);
+  await plain.dispose();
+  const urls = new Map(catalog.map((u, i) => [u, `blob:local/${i}`] as const));
+  const w2 = world();
+  const board = await LocalBoard.start(clone(pack), setupP1, depsOn(w2, memoryPointerStore(), { art: urls }));
+  const got: Snapshot[] = [];
+  const h = board.watch({ revision: 0, beat: 0, onConnection: () => {}, onSnapshot: (s) => got.push(s) });
+  const shown = board.snapshot!;
+  assert.equal(board.snapshot, shown, "the localized snapshot is stable between reads");
+  assert.deepEqual([...strings(shown).values].filter((v) => urls.has(v)), [], "no catalog URL the pack store holds is left on the board");
+  assert.ok([...strings(shown).values].some((v) => v.startsWith("blob:local/")), "the pack store's URLs are on the board");
+  await stageLoop(board, w2, { stop: (sn) => sn.game.revision > 6 });
+  assert.ok(got.length > 0 && got.every((sn) => ![...strings(sn).values].some((v) => urls.has(v))), "watched snapshots are localized too");
+  h.stop();
+  await board.dispose();
 }
 
 console.log(`arena-local-board-656: ok — staged SD15/SD5 pack ${pack.hash.slice(0, 12)}…, ${audit.snapshots} snapshots audited (${audit.checked} against the host), ${fetchCalls.length} network calls, ${((performance.now() - t0) / 1000).toFixed(1)} s`);
