@@ -113,7 +113,18 @@ const missingRef = new Set<number>();
 
 const packObject = await auditPack();
 const packText = JSON.stringify(packObject);
-const browser = await Browser.launch();
+// Both tabs are driven by CDP during the ownership proof. Keep headless Chrome
+// from suspending the background tab's timers while the harness waits on it.
+const browser = await Browser.launch({ args: ["--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"] });
+// Preserve browser exceptions when a recovery lands on the framework's error
+// screen; the board text alone loses the cause of the failed render.
+const browserErrors: string[] = [];
+browser.on((method, params) => {
+  if (method === "Runtime.exceptionThrown") browserErrors.push(JSON.stringify(params.exceptionDetails));
+  if (method === "Runtime.consoleAPICalled" && params.type === "error") {
+    browserErrors.push(params.args.map((arg: { value?: unknown; description?: string }) => arg.description ?? arg.value ?? "").join(" "));
+  }
+});
 const taps = new WorkerTaps(browser, base);
 const desk = VIEWPORTS.find((v) => v.name === "desk")!;
 
@@ -131,7 +142,7 @@ async function newTab(): Promise<Page> {
   return page;
 }
 async function online(page: Page, on: boolean) { await page.setOffline(!on); }
-async function quiet(page: Page, ms = 20000) {
+async function quiet(page: Page, ms = 120000) {
   const t0 = Date.now();
   let calm = 0;
   while (Date.now() - t0 < ms) {
@@ -139,7 +150,8 @@ async function quiet(page: Page, ms = 20000) {
     if (v && !v.saving && (v.kind === "owner" || v.kind === "watching" || v.kind === "storage" || v.kind === "failed" || v.kind === "stopped")) { if (++calm >= 3) return v; } else calm = 0;
     await sleep(120);
   }
-  throw new Error(`the board did not settle\n${(await textOf(page)).slice(0, 600)}`);
+  const last = await view(page);
+  throw new Error(`the board did not settle (${JSON.stringify(last && { kind: last.kind, saving: last.saving, restarts: last.restarts, revision: last.snapshot?.game.revision })})\n${(await textOf(page)).slice(0, 600)}\nBrowser errors:\n${browserErrors.slice(-8).join("\n")}`);
 }
 async function journal(page: Page, matchId: string): Promise<{ header: { seed: number; policySeed: number; decks: { p1: string; p2: string }; human: "p1" | "p2"; revision: number; trace: string; decisions: number }; entries: JournalEntry[] }> {
   const j = await page.eval(readJournalExpr(matchId));
@@ -315,11 +327,27 @@ try {
     for (let attempt = 0; attempt < 12 && !inFlight; attempt++) {
       await playUntil(a, (x) => x.game.revision >= 34 && aiToMove(x));
       restarts0 = (await view(a))!.restarts;
-      await a.eval(`void (window.__ka = ${BOARD_NOW}.advance().then((r) => r.error))`);
-      await sleep(5);
-      inFlight = await a.eval<boolean>(`${BOARD_NOW}.saving`);
-      if (inFlight) await a.eval(`window.__local.workers.forEach((w) => w.terminate())`);
+      // Terminate in the dispatch call itself. Separate CDP reads of `saving`
+      // and terminate calls can race a completed answer and claim a kill that
+      // never interrupted the Worker (especially on a busy Windows host).
+      await a.eval(`(() => {
+        window.__kaKilled = false;
+        for (const w of window.__local.workers) {
+          const post = w.postMessage;
+          w.postMessage = function(message, transfer) {
+            const result = transfer ? post.call(this, message, transfer) : post.call(this, message);
+            if (message?.type === "advance" && !window.__kaKilled) {
+              window.__kaKilled = true;
+              w.postMessage = post;
+              w.terminate();
+            }
+            return result;
+          };
+        }
+        window.__ka = ${BOARD_NOW}.advance().then((r) => r.error);
+      })()`);
       await a.eval(`window.__ka`);
+      inFlight = await a.eval<boolean>(`window.__kaKilled`);
     }
     check(inFlight, "kill-ai: the Worker was terminated while the advance was in flight");
     const err = await a.eval<string | null>(`window.__ka`);
@@ -408,7 +436,15 @@ try {
     await Promise.all([reopen(b, false), reopen(c, false)]);
     await Promise.all([online(b, false), online(c, false)]);
     await Promise.all([clickText(b, "Continue"), clickText(c, "Continue")]);
-    const settled = async (p: Page) => { await until(p, `(() => { const x = ${BOARD_NOW}; return !!(x && x.snapshot && (x.state.kind === "owner" || x.state.kind === "watching")); })()`, 60000); return quiet(p); };
+    const settled = async (p: Page) => {
+      try {
+        await until(p, `(() => { const x = ${BOARD_NOW}; return !!(x && x.snapshot && (x.state.kind === "owner" || x.state.kind === "watching")); })()`, 180000);
+      } catch (error) {
+        const diagnostics = await p.eval(`(async () => ({ locks: await navigator.locks.query(), sent: window.__local?.sent.slice(-8), received: window.__local?.recv.slice(-8).map(m => ({type:m.type, ok:m.ok, code:m.code, revision:m.revision})) }))()`);
+        throw new Error(`${String(error)}\nTwo-tab diagnostics: ${JSON.stringify(diagnostics)}\nBrowser errors: ${browserErrors.join("\n")}`);
+      }
+      return quiet(p);
+    };
     const [vb, vc] = await Promise.all([settled(b), settled(c)]);
     const owners = [vb, vc].filter((x) => x.kind === "owner").length;
     check(owners === 1, `race: exactly one tab writes (${vb.kind} / ${vc.kind})`);
@@ -423,7 +459,7 @@ try {
     check((await journal(owner, matchId)).entries.length === j0.entries.length, "race: nothing was written by either tab");
     // "Play here instead" in the watcher: it becomes the writer, the other tab is fenced.
     check(await clickText(watcher, "Play here instead"), "race: Play here instead pressed in the watching tab");
-    await until(watcher, `(() => { const x = ${BOARD_NOW}; return x && x.state.kind === "owner"; })()`, 30000);
+    await until(watcher, `(() => { const x = ${BOARD_NOW}; return x && x.state.kind === "owner"; })()`, 120000);
     const tv = await checkpoint(watcher, "takeover", matchId, "took the match over");
     const os = (await view(owner))!.snapshot!;
     const lost = await owner.eval<string | null>(`${BOARD_NOW}.act(${JSON.stringify(humanPick(os))}, ${os.game.revision}, crypto.randomUUID()).then((r) => r.error)`);
@@ -469,7 +505,7 @@ check(missingRef.size === 0, `every board shown is a reference revision${missing
 check(taps.denied.length === 0, `no match/provider request was attempted (${taps.denied.length} denied: ${taps.denied.slice(0, 5).map((d) => `${d.method} ${d.url} — ${d.why}`).join("; ")})`);
 const summary = {
   build: "production (next start)", base, pack: { id: packObject.id, hash: packObject.hash, playable: packObject.qualification.playable },
-  checkpoints, denied: taps.denied, allowedRequests: taps.allowed.length, failures, seconds: Math.round((Date.now() - t0) / 1000),
+  checkpoints, denied: taps.denied, allowedRequests: taps.allowed.length, failures, browserErrors, seconds: Math.round((Date.now() - t0) / 1000),
   evidence: "headless desktop Chrome (emulation); physical-device evidence: not collected (owner)",
 };
 if (JSON_OUT) console.log(JSON.stringify({ ...summary, notes }, null, 2));

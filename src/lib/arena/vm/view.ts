@@ -34,7 +34,7 @@ import { abilityViews } from "../view-core";
 import { describeEffect, describeStatic, type EffectView, type StaticEffect } from "../effects";
 import { attrsOf, type Attrs } from "./cards";
 import { skillsOf } from "../text/cards";
-import { attrsNow, forbids, hasKeyword, keywordsInForce, permanentStaticsOf, staticsNow } from "./program";
+import { attrsNow, forbids, hasKeyword, keywordsInForce, permanentStaticsOf, readingBoard, staticsNow } from "./program";
 import { battleIntact, damageRule } from "./battle-damage";
 import { cardColors } from "./costs";
 import { DEFERRED_STATICS, STATIC_OPS } from "./effects";
@@ -117,6 +117,14 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
   const attackPower = power(b.attacker) + combo(state.turnPlayer);
   const guardPower = power(b.guard) + combo(defender);
   const target = state.sides[defender].zones.leader?.includes(b.guard) ? "leader" : state.sides[defender].zones.unison?.includes(b.guard) ? "unison" : "battle";
+  // Empty hand-dependent offers are private to the player who could answer
+  // them. In particular, the attacker must not learn that the defender has no
+  // Counter or defensive Combo option. Blocker absence is public board state.
+  const emptyResponses = (b.emptyResponses ?? []).filter((window) => {
+    if (window === "counter" || window === "defenseCombo") return viewer === defender;
+    if (window === "offenseCombo") return viewer === state.turnPlayer;
+    return true;
+  });
   const how = damageRule(ctx, game, state, b.attacker);
   const hit = attackPower >= guardPower;
   const life = state.sides[defender].zones.life?.length ?? 0;
@@ -141,6 +149,7 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     step: b.step,
     attackPower,
     guardPower,
+    ...(emptyResponses.length ? { emptyResponses } : {}),
     ...(!b.negated && battleIntact(state) && ["declared", "offense", "defense"].includes(b.step) ? { stakes: {
       hit, tied: attackPower === guardPower, target, lifeDamage, strikeDamage: Math.max(1, how.atLeast ?? 1),
       markerLoss: target === "unison" && hit ? Math.min(markers, how.allMarkers ? markers : Math.max(1, how.atLeast ?? 1)) : 0,
@@ -152,6 +161,11 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, game, state, c.card, images, availability, viewer), by: c.by, after: c.after })) } : {}),
     contributions,
   };
+}
+
+/** The same battle projection as `vmBoardView`, without drawing both whole sides for every hypothetical attack. */
+export function vmBattleView(ctx: EngineContext, game: GameDefinition, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BattleView | null {
+  return readingBoard(ctx, game, state, () => battleView(ctx, game, state, images, [], viewer));
 }
 
 /**

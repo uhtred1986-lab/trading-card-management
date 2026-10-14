@@ -561,7 +561,10 @@ try {
   clearTimeout(watchdog);
   await browser?.close().catch(() => {});
   await stopServer(server);
-  fs.rmSync(profile, { recursive: true, force: true });
+  // Windows can retain Chrome profile handles briefly after the process exits.
+  // Cleanup must not discard the match results or mask the original failure.
+  try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 }); }
+  catch (error) { notes.push(`NOTE temporary Chrome profile retained at ${profile}: ${(error as Error).message}`); }
 }
 
 // ── budgets ─────────────────────────────────────────────────────────────────────────────────────

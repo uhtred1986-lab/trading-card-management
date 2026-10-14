@@ -1,0 +1,137 @@
+{
+  "build": "production (next start)",
+  "base": "http://localhost:3770",
+  "pack": {
+    "id": "masters-sd15-vs-sd5",
+    "hash": "e0f620ccbe20a9562f88a9553fad59b57aaefc379f5acac420d4dd0e6d2c0da7",
+    "playable": true
+  },
+  "checkpoints": [
+    {
+      "scenario": "reload-choice",
+      "revision": 10,
+      "entries": 9,
+      "hash": true,
+      "legal": true,
+      "detail": "reloaded while the human was asked"
+    },
+    {
+      "scenario": "inject",
+      "revision": 21,
+      "entries": 20,
+      "hash": true,
+      "legal": true,
+      "detail": "duplicate + stale apply to the Worker; stale (rev 10) + duplicate answers to the page"
+    },
+    {
+      "scenario": "kill-choice",
+      "revision": 29,
+      "entries": 28,
+      "hash": true,
+      "legal": true,
+      "detail": "Worker terminated, then the human moved"
+    },
+    {
+      "scenario": "kill-ai",
+      "revision": 39,
+      "entries": 38,
+      "hash": true,
+      "legal": true,
+      "detail": "Worker terminated mid AI advance (advance answered: ok)"
+    },
+    {
+      "scenario": "reload-ai-turn",
+      "revision": 45,
+      "entries": 44,
+      "hash": true,
+      "legal": true,
+      "detail": "reloaded with the computer to move, nothing in flight"
+    },
+    {
+      "scenario": "reload-ai-batch",
+      "revision": 55,
+      "entries": 54,
+      "hash": true,
+      "legal": true,
+      "detail": "reloaded mid AI advance (from revision 49)"
+    },
+    {
+      "scenario": "storage-quota",
+      "revision": 55,
+      "entries": 54,
+      "hash": true,
+      "legal": true,
+      "detail": "QuotaExceededError on every put, then Try again"
+    },
+    {
+      "scenario": "storage-abort",
+      "revision": 60,
+      "entries": 59,
+      "hash": true,
+      "legal": true,
+      "detail": "every read-write transaction aborted, then Try again"
+    }
+  ],
+  "denied": [],
+  "allowedRequests": 37,
+  "failures": [
+    "run aborted: Error: timed out waiting for (() => { const x = ((window.__bc && !window.__bc.closed) ? window.__bc : (window.__bc = (() => {\n  const isBoard = (v) => v && typeof v === \"object\" && typeof v.act === \"function\" && v.supervisor && v.packFacts;\n  const roots = [document, document.documentElement, document.body];\n  let start = null;\n  for (const r of roots) { const k = r && Object.keys(r).find((x) => x.startsWith(\"__reactContainer$\")); if (k) { start = r[k]; break; } }\n  if (!start) return null;\n  const stack = [start];\n  let n = 0;\n  while (stack.length && n++ < 200000) {\n    const f = stack.pop();\n    const p = f.memoizedProps;\n    if (p && (isBoard(p.board) || isBoard(p.session))) return isBoard(p.board) ? p.board : p.session;\n    if (f.sibling) stack.push(f.sibling);\n    if (f.child) stack.push(f.child);\n  }\n  return null;\n})())); return !!(x && x.snapshot && (x.state.kind === \"owner\" || x.state.kind === \"watching\")); })()\n← Arena\nPlay on this device\n\nThe match runs in this browser and is saved on this device after every move. Nothing is sent to a server, and no account or connection is needed once the pack is here.\n\nDECK PACK\nChoose the pack file\n\nPack masters-sd15-vs-sd5 · 2 decks · ready\n\nSAVED MATCH\n\n[Starter] Pride of the Saiyans vs [Starter] The Crimson Saiyan · you play first\n\nContinue\nForget it\nNEW MATCH\nYour deck\n[Starter] Pride of the Saiyans\n[Starter] The Crimson Saiyan\nOpponent’s deck\n[Starter] Pride of the Saiyans\n[Starter] The Crimson Saiyan\nYour seat\nFirst\nSecond\nOpening your saved match…\n\nThe opp\n    at until (C:\\Users\\patvo\\Code Repo\\arena-m23-validation\\scripts\\lib\\local-arena-page.mts:41:9)\n    at async settled (C:\\Users\\patvo\\Code Repo\\arena-m23-validation\\scripts\\arena-local-browser.mts:436:42)\n    at async Promise.all (index 0)\n    at async <anonymous> (C:\\Users\\patvo\\Code Repo\\arena-m23-validation\\scripts\\arena-local-browser.mts:437:22)"
+  ],
+  "browserErrors": [],
+  "seconds": 215,
+  "evidence": "headless desktop Chrome (emulation); physical-device evidence: not collected (owner)",
+  "notes": [
+    "ok   the match was started offline (the tab had no network) in seat p1",
+    "ok   the first board equals the reference's",
+    "note step at revision 3 refused (the computer is still thinking — try again in a moment); retrying",
+    "ok   reload-choice: replay hash at revision 10 equals the uninterrupted reference",
+    "ok   reload-choice: next legal actions at revision 10 equal the reference's (5)",
+    "ok   reload-choice: the tab is the match's writer again",
+    "ok   reload-choice: the device's journal is unchanged by the reload",
+    "ok   inject: the human's move is accepted",
+    "ok   inject: the duplicate apply is answered from its receipt ({\"type\":\"result\",\"ok\":true,\"revision\":21})",
+    "ok   inject: the stale apply is refused (stale)",
+    "ok   inject: an older answer (revision 10) and a duplicate answer were handed to the page's Worker object",
+    "ok   inject: replay hash at revision 21 equals the uninterrupted reference",
+    "ok   inject: next legal actions at revision 21 equal the reference's (0)",
+    "ok   inject: the board did not move and is still the writer",
+    "ok   inject: the human's move is on the device exactly once",
+    "ok   kill-choice: replay hash at revision 29 equals the uninterrupted reference",
+    "ok   kill-choice: next legal actions at revision 29 equal the reference's (5)",
+    "ok   kill-choice: the move is applied after the engine restarts (null)",
+    "ok   kill-choice: the Worker was restarted (1)",
+    "ok   kill-choice: the page said the engine stopped and was restarting",
+    "ok   kill-choice: the move is on the device exactly once",
+    "ok   kill-ai: the Worker was terminated while the advance was in flight",
+    "ok   kill-ai: replay hash at revision 39 equals the uninterrupted reference",
+    "ok   kill-ai: next legal actions at revision 39 equal the reference's (2)",
+    "ok   kill-ai: the Worker was restarted and the tab writes on (owner, 2)",
+    "ok   reload-ai-turn: replay hash at revision 45 equals the uninterrupted reference",
+    "ok   reload-ai-turn: next legal actions at revision 45 equal the reference's (2)",
+    "ok   reload-ai-batch: the advance was still in flight at the reload",
+    "ok   reload-ai-batch: replay hash at revision 55 equals the uninterrupted reference",
+    "ok   reload-ai-batch: next legal actions at revision 55 equal the reference's (4)",
+    "ok   reload-ai-batch: the tab is the writer again",
+    "ok   storage-quota: the fault reached the match Worker (1)",
+    "ok   storage-quota: the move is refused with the storage sentence (this game could not be saved on this device — it is still at its last saved move)",
+    "ok   storage-quota: the page shows the device-full notice with Try again (storage)",
+    "ok   storage-quota: the board stays at the last saved move",
+    "ok   storage-quota: nothing was written",
+    "ok   storage-quota: Try again pressed",
+    "ok   storage-quota: replay hash at revision 55 equals the uninterrupted reference",
+    "ok   storage-quota: next legal actions at revision 55 equal the reference's (4)",
+    "ok   storage-quota: the move is accepted once there is room",
+    "ok   storage-quota: and is on the device once",
+    "ok   storage-abort: the fault reached the match Worker",
+    "ok   storage-abort: the advance is refused (this game could not be saved on this device — it is still at its last saved move)",
+    "ok   storage-abort: the page shows an actionable notice (storage: Could not save on this device)",
+    "ok   storage-abort: the board stays at the last saved move",
+    "ok   storage-abort: nothing was written",
+    "ok   storage-abort: Try again pressed",
+    "ok   storage-abort: replay hash at revision 60 equals the uninterrupted reference",
+    "ok   storage-abort: next legal actions at revision 60 equal the reference's (0)",
+    "ok   every board shown equals the reference at its revision (43 revisions seen)",
+    "ok   every board shown is a reference revision",
+    "ok   no match/provider request was attempted (0 denied: )"
+  ]
+}

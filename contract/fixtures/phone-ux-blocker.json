@@ -1,0 +1,1035 @@
+{
+  "contract": 2,
+  "game": {
+    "id": 23001,
+    "revision": 0,
+    "mode": "versus",
+    "engine": "rules",
+    "game": "dbs",
+    "status": "playing",
+    "turn": 4,
+    "p1Name": "Attacker",
+    "p2Name": "Defender",
+    "you": "p1"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "Attacker",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "C-L-RED",
+        "name": "C-L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": "/art/C-L-RED.png",
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#37",
+          "cardId": "C-CHUMP",
+          "name": "C-CHUMP",
+          "power": 5000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-CHUMP.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Blocker"
+          ],
+          "text": "[Blocker]",
+          "reading": "",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "keyword",
+              "text": "[Blocker]",
+              "tags": [
+                "Blocker"
+              ],
+              "zone": "battle",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              }
+            }
+          ]
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#10",
+          "cardId": "C-V5",
+          "name": "C-V5",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-V5.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#13",
+          "cardId": "C-V5",
+          "name": "C-V5",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-V5.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "energyColors": [
+        {
+          "card": "p1#10",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        },
+        {
+          "card": "p1#13",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
+      "hand": [
+        {
+          "id": "p1#23",
+          "cardId": "C-NEG",
+          "name": "C-NEG",
+          "power": null,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-NEG.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": null,
+          "comboPower": null,
+          "keywords": [],
+          "text": "[Counter: Attack] Negate the attack.",
+          "reading": "negate the attack",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "counter:attack",
+              "category": "counter",
+              "text": "[Counter: Attack] Negate the attack.",
+              "tags": [
+                "Counter: Attack"
+              ],
+              "zone": "hand",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "incomplete"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1#36",
+          "cardId": "C-V5",
+          "name": "C-V5",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-V5.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#30",
+          "cardId": "C-V10",
+          "name": "C-V10",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-V10.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 1,
+          "comboPower": 10000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "handCount": 3,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 36,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 2,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "them": {
+      "player": "p2",
+      "name": "Defender",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "C-L-RED",
+        "name": "C-L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": "/art/C-L-RED.png",
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p2#36",
+          "cardId": "C-BIG",
+          "name": "C-BIG",
+          "power": 25000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-BIG.png",
+          "mode": "rest",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "3",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p2#8",
+          "cardId": "C-V5",
+          "name": "C-V5",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-V5.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p2#18",
+          "cardId": "C-V10",
+          "name": "C-V10",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/C-V10.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 1,
+          "comboPower": 10000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "energyColors": [
+        {
+          "card": "p2#8",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        },
+        {
+          "card": "p2#18",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
+      "hand": null,
+      "handCount": 1,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 38,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 2,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "turn": 4,
+    "phase": "battle",
+    "turnPlayer": "p2",
+    "battle": {
+      "attacker": "p2#36",
+      "guard": "p1#0",
+      "step": "declared",
+      "attackPower": 25000,
+      "guardPower": 10000,
+      "stakes": {
+        "hit": true,
+        "tied": false,
+        "target": "leader",
+        "lifeDamage": 1,
+        "strikeDamage": 1,
+        "markerLoss": 0,
+        "critical": false,
+        "victoryStrike": false,
+        "potentialLethal": false,
+        "koPrevented": false,
+        "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+      },
+      "contributions": {
+        "p2#36": 25000,
+        "p1#0": 10000
+      }
+    },
+    "prompt": {
+      "kind": "blocker",
+      "player": "p1",
+      "question": "Block with one of these?",
+      "hint": "[Blocker] rests the card and makes it the guard instead.",
+      "passConsequence": "Do not block keeps the current attack target; offense responses follow."
+    },
+    "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "blocker",
+    "phase": "battle",
+    "battleStep": "declared"
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "block",
+        "player": "p1",
+        "card": "p1#37"
+      },
+      "label": "Block with C-CHUMP"
+    },
+    {
+      "action": {
+        "type": "block",
+        "player": "p1",
+        "card": null
+      },
+      "label": "Don't block"
+    }
+  ],
+  "blockPreviews": [
+    {
+      "action": 0,
+      "state": "known",
+      "battle": {
+        "attacker": "p2#36",
+        "guard": "p1#37",
+        "step": "declared",
+        "attackPower": 25000,
+        "guardPower": 5000,
+        "stakes": {
+          "hit": true,
+          "tied": false,
+          "target": "battle",
+          "lifeDamage": 0,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p2#36": 25000,
+          "p1#37": 5000
+        }
+      }
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#37": [
+        0
+      ]
+    },
+    "bare": [
+      1
+    ],
+    "attackTargets": {}
+  },
+  "beats": {
+    "seq": 63,
+    "list": [
+      {
+        "t": "move",
+        "card": "p1#10",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 1
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#10",
+        "n": 2
+      },
+      {
+        "t": "move",
+        "card": "p1#13",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 3
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#13",
+        "n": 4
+      },
+      {
+        "t": "move",
+        "card": "p1#23",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 5
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#23",
+        "n": 6
+      },
+      {
+        "t": "move",
+        "card": "p1#36",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 7
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#36",
+        "n": 8
+      },
+      {
+        "t": "move",
+        "card": "p1#30",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 9
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#30",
+        "n": 10
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 11
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "?",
+        "n": 12
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 13
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 14
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 15
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 16
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 17
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 18
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 19
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 20
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 21
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 22
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 23
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 24
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 25
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 26
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 27
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 28
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 29
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 30
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 31
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 32
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 33
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 34
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 35
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 36
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 37
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 38
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 39
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 40
+      },
+      {
+        "t": "phase",
+        "phase": "charge",
+        "player": "p1",
+        "turn": 1,
+        "n": 41
+      },
+      {
+        "t": "move",
+        "card": "p1#10",
+        "from": "hand",
+        "to": "energy",
+        "owner": "p1",
+        "reveal": true,
+        "n": 42
+      },
+      {
+        "t": "phase",
+        "phase": "main",
+        "player": "p1",
+        "turn": 1,
+        "n": 43
+      },
+      {
+        "t": "phase",
+        "phase": "end",
+        "player": "p1",
+        "turn": 1,
+        "n": 44
+      },
+      {
+        "t": "phase",
+        "phase": "charge",
+        "player": "p2",
+        "turn": 2,
+        "n": 45
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 46
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 47
+      },
+      {
+        "t": "move",
+        "card": "p2#8",
+        "from": "hand",
+        "to": "energy",
+        "owner": "p2",
+        "reveal": true,
+        "n": 48
+      },
+      {
+        "t": "phase",
+        "phase": "main",
+        "player": "p2",
+        "turn": 2,
+        "n": 49
+      },
+      {
+        "t": "phase",
+        "phase": "end",
+        "player": "p2",
+        "turn": 2,
+        "n": 50
+      },
+      {
+        "t": "phase",
+        "phase": "charge",
+        "player": "p1",
+        "turn": 3,
+        "n": 51
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 52
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "?",
+        "n": 53
+      },
+      {
+        "t": "move",
+        "card": "p1#13",
+        "from": "hand",
+        "to": "energy",
+        "owner": "p1",
+        "reveal": true,
+        "n": 54
+      },
+      {
+        "t": "phase",
+        "phase": "main",
+        "player": "p1",
+        "turn": 3,
+        "n": 55
+      },
+      {
+        "t": "phase",
+        "phase": "end",
+        "player": "p1",
+        "turn": 3,
+        "n": 56
+      },
+      {
+        "t": "phase",
+        "phase": "charge",
+        "player": "p2",
+        "turn": 4,
+        "n": 57
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 58
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 59
+      },
+      {
+        "t": "move",
+        "card": "p2#18",
+        "from": "hand",
+        "to": "energy",
+        "owner": "p2",
+        "reveal": true,
+        "n": 60
+      },
+      {
+        "t": "phase",
+        "phase": "main",
+        "player": "p2",
+        "turn": 4,
+        "n": 61
+      },
+      {
+        "t": "mode",
+        "card": "p2#36",
+        "mode": "rest",
+        "n": 62
+      },
+      {
+        "t": "attack",
+        "attacker": "p2#36",
+        "target": "p1#0",
+        "n": 63
+      }
+    ],
+    "art": {
+      "p1#10": {
+        "cardId": "C-V10",
+        "name": "C-V10",
+        "imageUrl": "/art/C-V10.png"
+      },
+      "p1#13": {
+        "cardId": "C-V10",
+        "name": "C-V10",
+        "imageUrl": "/art/C-V10.png"
+      },
+      "p1#23": {
+        "cardId": "C-BIG",
+        "name": "C-BIG",
+        "imageUrl": "/art/C-BIG.png"
+      },
+      "p1#36": {
+        "cardId": "C-DS",
+        "name": "C-DS",
+        "imageUrl": "/art/C-DS.png"
+      },
+      "p1#30": {
+        "cardId": "C-CRIT",
+        "name": "C-CRIT",
+        "imageUrl": "/art/C-CRIT.png"
+      },
+      "p2#8": {
+        "cardId": "C-V5",
+        "name": "C-V5",
+        "imageUrl": "/art/C-V5.png"
+      },
+      "p2#18": {
+        "cardId": "C-V10",
+        "name": "C-V10",
+        "imageUrl": "/art/C-V10.png"
+      },
+      "p2#36": {
+        "cardId": "C-BIG",
+        "name": "C-BIG",
+        "imageUrl": "/art/C-BIG.png"
+      },
+      "p1#0": {
+        "cardId": "C-L-RED",
+        "name": "C-L-RED",
+        "imageUrl": "/art/C-L-RED.png"
+      }
+    }
+  },
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}

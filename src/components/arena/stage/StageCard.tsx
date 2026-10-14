@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import type { CardView } from "@/lib/arena/view";
 import { ArenaCard, type CardState } from "../ArenaCard";
 import { SPRING } from "./motion";
+import type { FeedbackCardCue } from "./useFeedbackCues";
 
 /** A storyboard moment that happens *to* a card, rather than moving it. */
 export type Moment = "lungeUp" | "lungeDown" | "hit" | "awaken" | "arrive" | "reveal" | "refuse" | "surge" | "settle";
@@ -55,6 +56,9 @@ export function StageCard({
   outlined = false,
   holdLock = false,
   pulse = false,
+  unaffordable = false,
+  feedback = null,
+  layoutMotion = true,
 }: {
   card: CardView;
   state?: CardState;
@@ -83,11 +87,16 @@ export function StageCard({
   holdLock?: boolean;
   /** This energy would be rested by the card being dragged (rd-03). */
   pulse?: boolean;
+  unaffordable?: boolean;
+  /** A short public beat cue attached to this card's instance id. */
+  feedback?: FeedbackCardCue | null;
+  /** Phone feedback uses explicit beat flights/cues; avoid full-board FLIP measurements. */
+  layoutMotion?: boolean;
 }) {
   return (
     <motion.div
-      layoutId={card.id}
-      layout
+      layoutId={layoutMotion ? card.id : undefined}
+      layout={layoutMotion}
       transition={SPRING}
       // Hidden rather than unmounted: the layout animation needs both ends to
       // exist, and the row must not reflow when the card appears.
@@ -109,8 +118,9 @@ export function StageCard({
          */}
         {/* The lift reads the parent hover, not its own: an element that moves
             out from under the cursor un-hovers itself, drops back, and oscillates. */}
-        <div key={moment ?? "still"} className={`${MOMENT[moment ?? "none"]} ${lifts ? "transition-transform duration-200 group-hover:-translate-y-2" : ""}`}>
-          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onDoubleTap={onDoubleTap} onInspect={onInspect} onHover={onHover} outlined={outlined} holdLock={holdLock} />
+        <div key={`${moment ?? "still"}:${feedback?.beat ?? ""}:${feedback?.kind ?? ""}`} className={`relative ${MOMENT[moment ?? "none"]} ${feedback ? `arena-feedback-${feedback.kind}` : ""} ${lifts ? "transition-transform duration-200 group-hover:-translate-y-2" : ""}`} data-feedback-subject={feedback ? card.id : undefined}>
+          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onDoubleTap={onDoubleTap} onInspect={onInspect} onHover={onHover} outlined={outlined} holdLock={holdLock} unaffordable={unaffordable} />
+          {feedback && <span className="pointer-events-none absolute bottom-full left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded bg-space-950 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-space-50 shadow" aria-hidden>{feedback.text}</span>}
         </div>
       </div>
     </motion.div>

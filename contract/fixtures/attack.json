@@ -194,6 +194,10 @@
       "step": "defense",
       "attackPower": 25000,
       "guardPower": 10000,
+      "emptyResponses": [
+        "counter",
+        "blocker"
+      ],
       "stakes": {
         "hit": true,
         "tied": false,

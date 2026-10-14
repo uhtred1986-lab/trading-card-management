@@ -249,6 +249,9 @@ export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense" | "turn
 export type Phase = "setup" | "charge" | "main" | "mainEnd" | "end" | "over";
 export type BattleStep = "declared" | "offense" | "defense" | "damage" | "battleEnd";
 
+/** A battle response window the engine advanced past because it had no legal offers. */
+export type EmptyResponseWindow = "counter" | "blocker" | "offenseCombo" | "defenseCombo";
+
 /**
  * Things a card can forbid (20-14). 0-2-5 settles every conflict between a
  * prohibition and an instruction: the prohibition wins, so these are checked
@@ -1198,6 +1201,14 @@ export interface LegalAction {
    * price is its printed cost and a client reads that off the card.
    */
   cost?: ActionCost;
+  /** The engine's exact current resource projection for this legal choice.
+   * `energyRest` names the cards the payment plan will rest (including legal
+   * 20-19 payers); `markers` are Energy markers spent and `costMarkers` are
+   * markers added to or removed from the card named by the action. */
+  paymentPreview?: {
+    state: "known" | "choice";
+    options: { energyRest: string[]; markers: number; costMarkers: number }[];
+  };
 }
 
 export interface ActionCost {

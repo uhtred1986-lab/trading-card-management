@@ -30,6 +30,31 @@ const read = (ctx: EngineContext, board: VmState, revision: number, viewer: "p1"
 assert.equal(withTokens(CTX), withTokens(CTX));
 assert.equal(withTokens(withTokens(CTX)), withTokens(CTX));
 const one = read(CTX, state, 7, "p1");
+const attackActions = one.legal.filter((entry) => entry.action.type === "attack");
+assert.ok(attackActions.length > 2, "the fixture includes multiple attack targets and attackers");
+assert.equal(one.attackPreviews?.filter((entry) => entry.state === "known").length, attackActions.length,
+  "every ordinary legal attack gets an engine preview even with standing power rules");
+for (const preview of one.attackPreviews ?? []) {
+  const offered = one.legal[preview.action]?.action;
+  assert.ok(offered?.type === "attack");
+  assert.equal(preview.state, "known");
+  const applied = IMPL.previewLegalAttack(CTX, state, offered);
+  assert.deepEqual(preview.battle, IMPL.boardView(CTX, applied.state, "p1", {}).battle,
+    "each reused attack projection equals that target's independent pre-response engine transition");
+}
+const crowded = arenaG({ hand: ["V1"], energy: ["V1"], battle: Array(12).fill("AURA"), oppBattle: Array(6).fill("V-BLUE") }) as VmState;
+for (const id of crowded.sides.p2.zones.battle) crowded.cards[id].mode = "rest";
+const crowdedSnapshot = read(CTX, crowded, 7, "p1");
+assert.ok((crowdedSnapshot.attackPreviews?.length ?? 0) > 64, "the stress board exposes more than the bounded projection budget");
+assert.equal(crowdedSnapshot.attackPreviews?.filter((entry) => entry.state === "known").length, 64);
+assert.ok(crowdedSnapshot.attackPreviews?.slice(64).every((entry) => entry.state === "notEvaluated"));
+for (const preview of [crowdedSnapshot.attackPreviews![0], crowdedSnapshot.attackPreviews![7], crowdedSnapshot.attackPreviews![63]]) {
+  const offered = crowdedSnapshot.legal[preview.action]?.action;
+  assert.ok(offered?.type === "attack");
+  const applied = IMPL.previewLegalAttack(CTX, crowded, offered);
+  assert.deepEqual(preview.battle, IMPL.boardView(CTX, applied.state, "p1", {}).battle,
+    "a batched crowded-board preview is identical to the independent pre-response engine result");
+}
 const two = read(CTX, state, 7, "p2");
 const together = withSnapshotReading({ ctx: CTX, state }, () => {
   const legal = IMPL.legalActions(CTX, state);
@@ -85,19 +110,36 @@ assert.ok(changedTarget);
 assert.notEqual(changedTarget.power, auraTarget.power, "pinned attribute layers alter the actual board reading");
 assert.equal(digest(read(CTX, state, 7, "p1")), digest(current), "the pinned definition did not contaminate the live context");
 
-// Exact V8 function-call counts, separate from timing: one legal+snapshot
-// projection should read board statics only once, across all four consumers.
+// Exact V8 function-call counts, separate from timing: the ordinary legal+
+// snapshot projection shares one read across all four consumers. Attack
+// previews (#801) intentionally run bounded cloned engine transitions, so
+// this baseline isolates those optional future-state readings.
 const session = new inspector.Session();
 session.connect();
 const post = <T,>(method: string, params?: object) => new Promise<T>((resolve, reject) => session.post(method, params ?? {}, (error, result) => error ? reject(error) : resolve(result as T)));
 await post("Profiler.enable");
 await post("Profiler.startPreciseCoverage", { callCount: true, detailed: true });
-read(CTX, state, 7, "p1");
+withSnapshotReading({ ctx: CTX, state }, () => {
+  const legal = IMPL.legalActions(CTX, state).filter((entry) => entry.action.type !== "attack");
+  buildSnapshot(input(CTX, state, 7, "p1", legal));
+});
 const coverage = await post<{ result: Array<{ url: string; functions: Array<{ functionName: string; ranges: Array<{ count: number }> }> }> }>("Profiler.takePreciseCoverage");
 await post("Profiler.stopPreciseCoverage");
 session.disconnect();
 const counts = coverage.result.flatMap((script) => script.functions.filter((fn) => fn.functionName === "readStatics" && script.url.includes("program")).map((fn) => fn.ranges[0]?.count ?? 0));
 assert.ok(counts.length > 0, "V8 profiler identified readStatics by function and source");
 assert.deepEqual(counts, [1], "legal, rejected, abilities and view share one static read");
+const attackSession = new inspector.Session();
+attackSession.connect();
+const attackPost = <T,>(method: string, params?: object) => new Promise<T>((resolve, reject) => attackSession.post(method, params ?? {}, (error, result) => error ? reject(error) : resolve(result as T)));
+await attackPost("Profiler.enable");
+await attackPost("Profiler.startPreciseCoverage", { callCount: true, detailed: true });
+read(CTX, state, 7, "p1");
+const attackCoverage = await attackPost<typeof coverage>("Profiler.takePreciseCoverage");
+await attackPost("Profiler.stopPreciseCoverage");
+attackSession.disconnect();
+const attackCounts = attackCoverage.result.flatMap((script) => script.functions.filter((fn) => fn.functionName === "readStatics" && script.url.includes("program")).map((fn) => fn.ranges[0]?.count ?? 0));
+assert.ok(attackCounts.length > 0);
+assert.ok(attackCounts[0] <= 64, `the crowded fixture's four engine attack futures read statics at most 64 times (got ${attackCounts[0]})`);
 assert.equal(digest(state), beforeState);
-console.log("#569 immutable read session: real legal/action/events, both viewers, lazy load, stale/reload/pinned definition, one exact static read");
+console.log(`#569 immutable read session: one shared static read, ${attackCounts[0]} with bounded attack futures`);

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import type { GameplanPreview, PlanMove } from "@/lib/arena/gameplan-types";
 import type { Action, LegalAction, PlayerId } from "@/lib/arena/types";
-import type { BoardView } from "@/lib/arena/view";
+import type { AttackPreview, BoardView, CardView } from "@/lib/arena/view";
 import type { PublicOutcome } from "@/lib/arena/outcome";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { energySummary, stakesSummary } from "./stakes-model";
@@ -33,6 +33,8 @@ export function PromptPanel({
   yourPlayer,
   isTargeting,
   onCancelTargeting,
+  attackConfirmation,
+  onConfirmAttack,
   searching,
   searchOpen,
   choicesCount,
@@ -40,6 +42,7 @@ export function PromptPanel({
   inlineBare,
   primaryBare,
   onSend,
+  chargeSelection = null,
   planEnabled,
   planOpen,
   onPlanToggle,
@@ -53,7 +56,8 @@ export function PromptPanel({
   onPlanRetry,
   onPlanClear,
   onNext,
-  onSkip,
+  attacksRemaining = 0,
+  defendOptions = [],
 }: {
   view: BoardView;
   decision?: Snapshot["decision"];
@@ -76,6 +80,8 @@ export function PromptPanel({
   yourPlayer: PlayerId;
   isTargeting: boolean;
   onCancelTargeting: () => void;
+  attackConfirmation?: { attacker: CardView; target: CardView; attackerRole: string; targetRole: string; preview?: AttackPreview; result: string | null } | null;
+  onConfirmAttack?: () => void;
   searching: boolean;
   searchOpen: boolean;
   choicesCount: number;
@@ -83,6 +89,7 @@ export function PromptPanel({
   inlineBare: { i: number; l: LegalAction }[];
   primaryBare: number;
   onSend: (action: Action) => void;
+  chargeSelection?: { card: import("@/lib/arena/view").CardView; action: Action; passAction: Action | null; ready: number; total: number } | null;
   planEnabled: boolean;
   planOpen: boolean;
   onPlanToggle: () => void;
@@ -96,7 +103,8 @@ export function PromptPanel({
   onPlanRetry: () => void;
   onPlanClear: () => void;
   onNext: () => void;
-  onSkip: () => void;
+  attacksRemaining?: number;
+  defendOptions?: { card: CardView; action: Action | null; label: string; detail: string | null; cost: string | null; reason: string | null; impact: string | null }[];
 }) {
   // This board lets a card be dragged (rd-03), so the hint says so; the
   // engine's own hint is the classic board's and stays as written.
@@ -127,8 +135,13 @@ export function PromptPanel({
             {publicRules.map(({ name, rule }, i) => <p key={i}>{name}: {rule.label} · {untilWords(rule.until, { master: rule.by, viewer: view.you.player, them: view.them.name, sourceName: rule.sourceName })}</p>)}
             </div>
           </details> : null;
+  const phaseRaw = view.phase.replace(/([a-z])([A-Z])/g, "$1 $2");
+  const phaseWord = `${phaseRaw.slice(0, 1).toUpperCase()}${phaseRaw.slice(1)}`;
+  const ownsTurn = view.turnPlayer === view.you.player;
+  const defending = !!view.battle && !ownsTurn;
+  const responseQuestion = defending ? view.prompt.kind === "counter" ? "Cancel the attack with a Counter card?" : view.prompt.kind === "blocker" ? "Let a [Blocker] take the hit instead?" : view.prompt.kind === "combo" ? "Add combo power to your defender?" : null : null;
   const line: React.ReactNode = playing ? (
-    `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
+    `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${playingMine && pace === "step" ? " · tap Next" : ""}`
   ) : overOutcome ? (
     `${overOutcome.kind === "interrupted" ? "Game interrupted" : overOutcome.kind === "abandoned" ? "Game abandoned" : overOutcome.kind === "draw" ? "A draw" : `${overOutcome.winner === yourPlayer ? view.you.name : view.them.name} wins`}${overOutcome.reason ? ` — ${overOutcome.reason}` : ""}`
   ) : view.over ? (
@@ -138,16 +151,16 @@ export function PromptPanel({
   ) : waitingOnServer ? (
     `${view.them.name} is thinking…`
   ) : (refusalText ?? (isTargeting ? (
-    "Choose what to attack — tap a glowing card, or Cancel."
+    attackConfirmation ? `Review the attack: ${attackConfirmation.attacker.name} → ${attackConfirmation.target.name}.` : "Choose what to attack — tap a glowing target, or Pass to cancel."
   ) : chargeLine ? (
     <>
-      <span className="[@media(pointer:fine)]:hidden">Charge phase — tap a card to charge it (+1 energy), or drag one onto the board.</span>
+      <span className="[@media(pointer:fine)]:hidden">Choose a card, then Charge it or Pass below.</span>
       <span className="hidden [@media(pointer:fine)]:inline">Charge phase — double-click a hand card to charge it (+1 energy), or drag one onto the board.</span>
     </>
   ) : yourTurn && playable && moves > 0 && phaseLevel ? (
     `${moves} ${moves === 1 ? "move" : "moves"} available${boardHint ? ` — ${boardHint}` : ""}`
   ) : (
-    ask
+    responseQuestion ?? ask
   )));
   return (
     <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite" data-prompt-kind={view.prompt.kind}>
@@ -178,25 +191,31 @@ export function PromptPanel({
         </button>
       )}
       {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
-      {handDecision && !playing && !bad && !isTargeting ? null : (
+      {handDecision && !playing && !bad && !isTargeting ? (
+        <p className="min-w-0 flex-1 text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {ownsTurn ? "Your turn" : `${view.them.name}’s turn`}</p>
+      ) : (
         <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"} ${inlineBare.length > 1 ? "max-lg:basis-[calc(100%-3.25rem)]" : ""}`}>
+          {!playing && !view.over && !overOutcome && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {ownsTurn ? "Your turn" : `${view.them.name}’s turn`}</span>}
           <span className="line-clamp-3">{line}</span>
         </p>
       )}
 
-      {playing && pace === "step" && (
+      {attackConfirmation && !playing && (
+        <div className="flex w-full flex-wrap gap-2" data-attack-confirm>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" disabled={busy} onClick={onConfirmAttack} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50">Confirm attack</button>
+            <button type="button" data-pass-action disabled={busy} onClick={onCancelTargeting} className="arena-btn tap min-h-11 rounded-xl border border-space-600 bg-space-800 px-4 text-left text-sm font-semibold text-space-100 disabled:opacity-50"><span className="block">Pass</span><span className="block text-xs font-normal">Cancel the attack</span></button>
+          </div>
+        </div>
+      )}
+      {playing && playingMine && pace === "step" && (
         <button type="button" onClick={onNext} className="arena-btn tap h-12 shrink-0 rounded-xl bg-ki-500 px-4 text-base text-space-950 hover:bg-ki-400">
           Next ▸
         </button>
       )}
-      {playing && (
-        <button type="button" onClick={onSkip} className="arena-btn tap h-12 shrink-0 rounded-xl border border-space-600 bg-space-700 px-4 text-base text-space-50">
-          Skip
-        </button>
-      )}
-      {!playing && isTargeting && (
+      {!playing && isTargeting && !attackConfirmation && (
         <button type="button" onClick={onCancelTargeting} className="arena-btn tap h-12 shrink-0 rounded-xl border border-space-600 bg-space-800 px-4 text-base text-space-100">
-          Cancel
+          <span className="block">Pass<span className="block text-xs font-normal">Cancel the attack</span></span>
         </button>
       )}
       {!playing && onRetry && (
@@ -247,8 +266,49 @@ export function PromptPanel({
           Choose from {choicesCount}
         </button>
       )}
+      {defending && ["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing && (
+        <div className="w-full" data-defend-step={view.prompt.kind}>
+          <p className="mb-1 flex flex-wrap items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-space-300" aria-label="Counter, Block, Combo response steps">
+            <span className={view.prompt.kind === "counter" ? "text-ki-300" : ""}>1 Counter{view.battle?.emptyResponses?.includes("counter") ? " · none" : ""}</span><span>›</span>
+            <span className={view.prompt.kind === "blocker" ? "text-ki-300" : ""}>2 Block{view.battle?.emptyResponses?.includes("blocker") ? " · none" : ""}</span><span>›</span>
+            <span className={view.prompt.kind === "combo" ? "text-ki-300" : ""}>3 Combo{view.battle?.emptyResponses?.includes("defenseCombo") ? " · none" : ""}</span>
+          </p>
+          {view.prompt.kind === "combo" && view.battle && (() => {
+            const b = view.battle!;
+            const base = b.contributions?.[b.guard];
+            const combo = view.you.combo.reduce((sum, card) => sum + (b.contributions?.[card.id] ?? 0), 0);
+            return <p className="mb-1 text-xs leading-snug" data-combo-meter>
+              {base != null ? `${base.toLocaleString("en")} + ${combo.toLocaleString("en")} = ` : ""}{b.guardPower.toLocaleString("en")} vs {b.attackPower.toLocaleString("en")} · {stakesSummary(b)}
+            </p>;
+          })()}
+          {defendOptions.length > 0 && <div className="max-h-[24dvh] space-y-1.5 overflow-y-auto" aria-label={view.prompt.kind === "counter" ? "Counter options" : "Blocker options"}>
+            {defendOptions.map((option, i) => (
+              <div key={`${option.card.id}:${i}`} className={`rounded-xl border ${option.reason ? "border-loss/50 bg-loss/5" : "border-space-600 bg-space-900/90"} p-2`} data-defend-card={option.card.id}>
+                {option.action ? <button type="button" disabled={busy} onClick={() => onSend(option.action!)} className="tap flex min-h-11 w-full items-center gap-2 text-left" data-defend-action>
+                  {option.card.imageUrl && <Image src={option.card.imageUrl} alt="" width={32} height={44} unoptimized className="h-11 w-8 shrink-0 rounded object-cover" />}
+                  <span className="min-w-0 flex-1 text-xs font-bold text-space-50">{option.label}</span>
+                  {option.cost && <span className="shrink-0 rounded border border-space-600 px-2 py-0.5 text-[10px] text-ki-300">{option.cost}</span>}
+                </button> : <p className="text-xs font-semibold text-space-100">{option.label}</p>}
+                {option.detail && <p className="mt-1 text-[11px] leading-snug text-space-200">{option.detail}</p>}
+                {option.reason && <p className="mt-1 text-[11px] leading-snug text-loss">{option.reason}</p>}
+                {option.impact && <p className="mt-1 text-[11px] leading-snug text-space-100">{option.impact}</p>}
+              </div>
+            ))}
+          </div>}
+        </div>
+      )}
       {inlineBare.map(({ i, l }, index) => {
         const ghost = isGhostAction(l.action) || (primaryBare >= 0 && index !== primaryBare);
+        const pass = isGhostAction(l.action);
+        const passTitle = l.action.type === "endMain" ? "End turn" : pass ? "Pass" : null;
+        const passDetail = l.action.type === "endMain"
+          ? attacksRemaining > 0 ? `${attacksRemaining} ${attacksRemaining === 1 ? "attacker" : "attackers"} can still attack` : "No attackers left"
+          : l.action.type === "charge" && l.action.card == null ? "Don’t charge"
+            : l.action.type === "counter" && l.action.card == null ? "Don’t counter"
+              : l.action.type === "block" && l.action.card == null ? "Keep the current target"
+                : l.action.type === "pass" && view.prompt.kind === "combo" ? view.battle?.stakes ? view.battle.stakes.hit ? "If unchanged: take the hit" : "If unchanged: defend the hit" : "Finish adding combo power"
+                : l.action.type === "optionalCost" && !l.action.pay ? "Don’t pay the optional cost"
+                  : view.prompt.passConsequence ?? "Pass this decision";
         return (
           <button
             key={i}
@@ -259,8 +319,10 @@ export function PromptPanel({
             onClick={() => onSend(l.action)}
             className={`arena-btn tap min-h-12 max-w-full shrink-0 rounded-xl px-4 py-2 text-base disabled:opacity-50 sm:px-5 ${ghost ? "border border-space-600 bg-space-800 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}
           >
-            <span className="sm:hidden">{shortLabel(l.label)}</span>
-            <span className="hidden sm:inline">{l.label}</span>
+            {passTitle ? <span className="block text-left"><b className="block">{passTitle}</b><span className="block text-xs font-normal opacity-80">{passDetail}</span></span> : <>
+              <span className="sm:hidden">{shortLabel(l.label)}</span>
+              <span className="hidden sm:inline">{l.label}</span>
+            </>}
             {l.action.type === "payCost" && (() => {
               const option = l.action.type === "payCost" ? l.action.option : -1;
               const payment = view.prompt.payments?.find((p) => p.option === option);
@@ -269,6 +331,13 @@ export function PromptPanel({
           </button>
         );
       })}
+      {chargeSelection && view.prompt.kind === "charge" && (
+        <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-charge-confirm>
+          <p className="min-w-0 flex-1 text-sm font-bold text-space-50">Charge {chargeSelection.card.name}?<span className="block text-xs font-normal text-space-200">{chargeSelection.ready} → {chargeSelection.ready + 1} ready energy · {chargeSelection.total + 1} total</span></p>
+          <button type="button" disabled={busy} onClick={() => onSend(chargeSelection.action)} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50">Charge it</button>
+          {chargeSelection.passAction && <button type="button" data-pass-action disabled={busy} onClick={() => onSend(chargeSelection.passAction!)} className="arena-btn tap min-h-11 rounded-xl border border-space-600 bg-space-800 px-3 text-left text-sm text-space-100 disabled:opacity-50"><span className="block">Pass</span><span className="block text-xs font-normal">Don’t charge</span></button>}
+        </div>
+      )}
     </section>
   );
 }

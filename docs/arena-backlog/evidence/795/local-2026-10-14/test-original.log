@@ -1,0 +1,243 @@
+
+> dbs-card-companion@0.1.0 test
+> tsx scripts/verify-rules.ts && tsx scripts/verify-arena.ts && tsx scripts/verify/revision-polling-568.mts && tsx scripts/verify/arena-live-polling.mts && tsx scripts/verify/tryit.ts && tsx scripts/verify/arena-replay-core.ts && tsx scripts/verify/arena-browser-boundary.mts && tsx scripts/verify-cache.mts && tsx scripts/verify-db.mts && tsx scripts/verify/arena-admin.ts && tsx scripts/verify/auth.ts && tsx scripts/verify/guards.ts && tsx scripts/verify-access-db.mts && tsx scripts/verify/blocks.ts && tsx scripts/verify/rule-review.ts && tsx scripts/verify/backlog.ts && tsx scripts/verify/diff-report.ts && tsx scripts/verify/teach.ts && tsx scripts/verify/ai-contract.ts && tsx scripts/verify/ai-features.ts && tsx scripts/verify/ai-router.ts && tsx scripts/verify/arena-scenario-runner.mts && tsx scripts/verify/arena-worker-budgets.ts && tsx scripts/verify/arena-policy-contract.mts && tsx scripts/verify/arena-snapshot-conceal.mts && tsx scripts/verify/arena-policy-shortcuts.mts && tsx scripts/verify/arena-policy-main.mts && tsx scripts/verify/arena-policy-combat.mts && tsx scripts/verify/arena-policy-choices.mts && tsx scripts/verify/deckplanet-paging.mts && tsx scripts/verify/arena-offline-pack.mts && tsx scripts/verify/arena-session-648.mts && tsx scripts/arena-policy-eval.mts --check && tsx scripts/verify/arena-local-worker.mts && tsx scripts/verify/last-prints-price-549.ts && tsx scripts/verify/arena-local-storage.mts && tsx scripts/verify/arena-local-ownership.mts && tsx scripts/verify/swap-729-731.ts && tsx scripts/verify/arena-local-board-656.mts && tsx scripts/verify/ai-agent-sdk.ts && tsx scripts/verify/ai-agent-sdk-route.ts && tsx scripts/verify/ai-openrouter.ts && tsx scripts/verify/capabilities.mts --check && tsx scripts/verify/derived-read-569.mts && tsx scripts/verify/damage-statistics-557.mts && tsx scripts/verify/arena-pack-store.mts && tsx scripts/verify/arena-offline-shell.mts && tsx scripts/verify/arena-offline-prep.mts && tsx scripts/verify/quiet-skills-783.ts && tsx scripts/verify/arena-offline-decks-793.mts && tsx scripts/verify/play-choice-preview-798.ts && tsx scripts/verify/attack-preview-801.ts && tsx scripts/verify/block-preview-801.ts && tsx scripts/verify/arena-feedback-cues.mts && tsx scripts/verify/response-empty-windows-801.ts
+
+verify-rules: all checks passed
+  ok  typed, legacy, private, and abandoned game outcomes
+  ok       outcomes
+  ok       text
+  ok       setup
+verify/battles: every case ran on the rules engine — no keyword gap left (#156)
+  ok       battles
+  ok       compiler
+  ok       keywords
+  ok       hidden
+  ok       while-source
+verify/warp: sent from your deck to the Warp by your skill
+  ok       warp
+  ok       next-activation
+  ok       taxes
+  ok       readings
+  #571: five official Auto readings and fixed rules-engine trigger scenarios passed
+  ok       readings-571
+  #728: SD15 specified-cost, [Awaken] OR and Spirit Boost readings, and rules-engine scenarios passed
+  ok       sd15-readings-728
+  #741: [Limit X] counted across copies on every path; [Once per turn] per copy; catalog neighbours read
+  ok       limit-copies-741
+#572 hand-combo source and battle-end scenarios passed on rules
+  ok       hand-combo-572
+  ok       combo-entry-672
+#573 grouped readings and BT2-009 fill-under scenarios passed on rules
+  ok       grouped-readings-573
+  ok       duration-shuffle-574
+  ok       activate-tax-677
+free-extra-680: VM paid/declined activation, eligibility, stale/reload/privacy passed
+  ok       free-extra-680
+  #742: [Activate: Battle] cost waiver readings (11 catalog cards) and rules-engine scenarios passed
+  ok       activate-battle-alt-742
+  ok       wordings
+  ok       faceup-life-556
+  ok       workflow
+  ok       contract
+  ok       deck-api
+  ok       language
+verify/lang: the rules language round-trips
+  ok       lang
+  ok       describe
+verify/rulesets: ok
+  ok       rulesets
+  ok       static-layers-553
+  board-words: the board's words are read from words.rules and every table says what it said before
+  ok       board-words
+  primer: generatedPrimer names every declared zone; prompt questions come from prompts.rules
+  ok       primer
+  game-page: printedByFile accounts for every declaration once, matches printDefinitions, and hands out unique anchor ids
+  game-page: every keyword's meaning agrees between glossary.ts and keywords.rules
+  ok       game-page
+#570 rules: two coloured payments, forged action, immutable state, hidden-condition and Counter stops
+  ok       gameplan-570
+verify/probe: 207 fixture digests match
+  ok       probe
+  ai-vm: shortcuts run on the rules engine; fixed zone/text/decklist/question/system/menu fixtures pass; fake-provider request shapes remain pinned
+  ok       ai-vm
+verify/vm: ok
+  ok       vm
+  ok       rule-processing
+  ok       engine-default
+  ok       poll-schedule
+verify/narration: story 46 / full 232 lines for p1 over 232 beats, turn 5
+  ok       narration
+  observed  Heroic/21-6 interaction order ["move:p1#15:drop","move:p1#28:drop","move:p1#18:hand","draw:p1"]
+  ok       heroic-554 (22-35 once-per-turn, activation and reload)
+  ok       heroic-554
+  ok       z-energy-combo-551
+battle-cleanup-replacement-gap-609: current boundaries verified
+  ok       battle-cleanup-609
+  ok       aegis-555
+auto-costs-549 crowded 20-card price: 100.7 ms
+auto-costs-549 saved alias 20-card proven false: 2.8 ms, heap delta 0.1 MiB
+auto-costs-549 named transfer 30-card payable: 2131.1 ms
+auto-costs-549 named transfer 30-card impossible: 9.7 ms
+auto-costs-549 other chooser 30-card decided: 225.3 ms, heap delta 17.0 MiB
+auto-costs-549: fixed payment, decline, unaffordable, reload, source/order and X scenarios passed
+  ok       auto-costs-549
+auto-search-549 differential: 72 boards, reduced = exhaustive
+auto-search-549 dormant replacement, 20 copies, proven false: 26.6 ms
+auto-search-549: interchangeable-candidate price search passed
+  ok       auto-search-549
+#549 secret-area cost-free Auto declaration and decline: ok
+  ok       secret-auto-549
+#549 priced secret Auto declaration, payment, continuation and masking: ok
+  ok       priced-secret-auto-549
+  ✓ #558 query reports current, wrong-zone, wrong-window, limit, and not-decision-actor evidence without mutating state
+  ok       ability-snapshot-558
+Aegis #595: color-first cost, live fee, reload, failure, and delayed activation verified
+  ok       aegis-cost-order-595
+Aegis #595: printed action skill cost read as a price and paid after the colours
+  ok       aegis-printed-price-595
+ko-marker-price-549: KO and add-marker Auto/Aegis prices pay, decline, fail and reload on the strict host
+  ok       ko-marker-price-549
+#716: [Counter] condition, action and restriction prices paid on the strict host before activation
+  ok       counter-action-price-716
+#720 (rules): a voluntary KO substitute is owed in full — an empty answer is refused, an unpayable offer is not made
+  ok       substitute-unpaid-720
+Abilities now projection checks passed.
+  ok       abilities-now-561
+Battle stakes #562: resolver outcomes, replacement/pending uncertainty, privacy, effective energy colours/payment/source expiry and stale reload passed
+  ok       battle-stakes-562
+original-colors-597: declared language; Arrival/Aegis/Revive eligibility and payment; reload, identity interaction and both viewers' privacy pass
+  ok       original-colors-597
+Effective payment colours #626: real Senzu offers/rest/refusals, source/expiry, hidden colourless, markers, AS energy/explicit Blue, reduction, selected/reloaded/stale payment and privacy passed; unsupported alternative grammar remains unchanged
+  ok       effective-payment-colours-626
+Hidden Mode projection #626: rules fixed identity/face/ability privacy and revealed control passed for both viewers
+  ok       hidden-mode-projection-626
+public-zone-inspection-563: rules and both viewers, owner Z-Deck, hidden faces, serialization, revision and state purity passed
+  ok       public-zone-inspection-563
+Revive #624: colour-first live fee; declines/stale/reload/privacy; replacements, pending Autos, negation/counters and old-frame history verified
+  ok       revive-cost-order-624
+  ok       granted-heroic-602 (individual grants, timing, reload, expiry)
+  ok       granted-heroic-602
+#683 free Extra Auto: effect before persisted opponent choice, then one identified Villainous spend
+#683 paid Extra Auto: no hook on offer, cost before skill/effect, then one saved Villainous spend
+#683 declined/unaffordable Extra Auto: no activation, effect or keyword payout
+#683 source-moving Auto price: saved keyword identity reaches the opponent prompt after movement
+#683 legal replacement redirects Auto price: payment fails with no keyword hook or effect
+#683 Auto effect removes source keyword after event capture; Villainous still resolves once
+#683 Heroic Extra Auto: effect and matching draw, individual spend, opposite keyword excluded
+#683 battle-area Extra Main: source-self and other Villainous each discard/spend once
+#683 legal Field arrival: compiler Auto effect, source-self Heroic once, no recursive pending hook
+#683 Battle-play source remains excluded by 'another' while Extra-skill self-watching works
+#683 nested parent continuation on rules: child draw, parent draws, keyword choice
+#683 nested child target on rules: target choice, child effect, parent continuation, keyword choice
+  rules waived nested Extra: effect before keyword payout
+  rules Counter: opponent choice and individual negation
+  rules Battle: opponent choice and individual negation
+  rules Extra: opponent choice and individual negation
+  rules negative: unpaid and opposite keyword
+  rules action price: saved continuation pends after payment
+  rules empty opposing hand: self-negation still applies
+  rules dual keywords: independent pended identities
+  rules timed Villainous: persisted spend and independent regrant
+  rules standing Villainous: identified grant and viewer projection
+  rules copied Villainous: identified grant and viewer projection
+  rules source effect mutation: event qualification stays captured
+  rules turn reset: spent skill restores on next owner turn
+  ok       villainous-683
+  #730: [Unique] 21-11 master's choice — interruptive timing, projections, refusals, reload, policy, Drop Autos, replacements and neighbours passed
+  ok       unique-730
+  #748: a 'play this card from your hand' Auto is heard by the hand copies only — SD15-05 chain, [Unique] follow-up, refusal, reload, stale answer and neighbours passed
+  ok       hand-auto-748
+  #746: [Once per turn] resets on a change of area (3-1-4), carries on 3-1-4-1/2; [Limit X] unaffected
+  ok       once-per-turn-746
+  ok  #550 cost binding: chosen cards and X reach the effect across Activate, Counter and its alternative
+  ok       cost-binding-550
+  ok  #542 name in skill text: {}-written names only, whole-name equality, onto the chosen card
+  ok       name-in-skill-text-542
+  ok       union-areas-541
+  ok  #552 counter chains: [Counter: Counter] windows, decline, negation, costs once, reload, refusals, projections, policy
+  ok       counter-chain-552
+  #757 U1-a: trigger and keyword scenarios passed
+  ok       u1a-triggers-757
+  #757 U1-c effects: ok
+  ok       u1c-effects-757
+  #757 U1-c moves: ok
+  ok       u1c-moves-757
+  #757 U1-c coverage: op-effects 38, op-moves 18, op-if 27, cond 27 skills, all played or owned
+  ok       u1c-conditions-757
+#757 U1-b: played price and choice scenarios passed
+  ok       u1b-prices-757
+  #758: '{X} in its name' reads as includes; SD15-01 [Awaken] marks SD15-02
+  ok       name-includes-758
+aegis-alt-payment-762: ok
+  ok       aegis-alt-payment-762
+  #759: 21-9-2 a Unison with no markers goes to the Drop Area — battle loss, price payment, Auto on the move, reload, both viewers passed
+  ok       unison-zero-markers-759
+activation-taxes-677: five printed cards compiled; [Activate]/[Auto]/[Counter] taxes paid once, live, refused when unpayable, reloaded, private
+  ok       activation-taxes-677
+  #768: 'with both <A> and <B>' reads as all-of; 'or' and '/' stay any-of
+  ok       names-both-768
+  ok       arena-542-fuzz-crash
+auto-price-gate-804: BT9-031 and DB2-004 are supported by the gate and pay, decline or refuse their Auto prices in a game
+  ok       auto-price-gate-804
+
+verify-arena: 85/85 passed, 0 failed
+PGlite idle poll after authorization: 4 SELECTs/2263 snapshot bytes → 3 SELECTs/0 body bytes (50 ms deterministic window); avoided projection p50 2.265 ms
+revision polling #568: unchanged/no-store, changed status, old/future cursor, missing row and 204 client recovery PASS
+arena live polling lifecycle: offline/foreground refresh, abort/deadline/cleanup, capped recovery/Retry PASS
+tryit: OK
+arena-replay-core: 29 vectors, 14 portable modules, import graph clean
+arena-browser-boundary: 100 portable modules, no server/builtin import; scenario 121 steps to turn 18 (main), final 5b7ec9ec1686f444f518c3d5a7d6d545fb53529771684547f7003f5bfe4e5fec
+  checks: opponent hand withheld; hidden faces absent from view and beats; other seat's moves withheld; no private reveal epochs; applyMove leaves its input untouched; replayWith reproduces the played game; an illegal move is refused
+verify-cache: ok
+verify-db: deck summary, wizard and set review send their recorded request shapes (#513)
+verify-db: real Arena stale-CAS and abandonment writes preserve concurrent usage
+verify-db: saved-game round trip on the rules engine ok
+verify-db: concurrent Arena AI usage, stale decisions and idempotent receipts ok
+verify-db: Arena advance lease contention, recorded-result recovery and unknown-outcome fencing ok
+#680 saved free Extra: payment, choice, CAS, duplicate requests and both viewer projections passed
+#683 persisted rules Extra Auto: native price, own Villainous, CAS, receipts and both seat projections passed
+#683 persisted rules grant identity: timed + standing payouts, CAS, receipts, regrant and both seat projections passed
+#677 saved activation taxes: two prices live, CAS, duplicate requests and both viewer projections passed
+verify-db: all checks passed
+verify arena-admin: ok
+auth: ok
+guards: ok — 146 Server Functions, 41 pages, 23 routes
+verify-access-db: ok
+blocks: ok — 57 steps, 22 conditions, 10 price items; 108 rules round-tripped through blocks
+rule review: span logic, queue order and the Wrong verdict hold
+verify/backlog: all checks passed
+diff-report: grouping clusters by cause, sorts deterministically, and keeps deck-changed games apart
+verify/teach: ok
+  ai-contract: text, image, JSON (valid / retry / bad_output), refusal, errors, usage and billed on the fake and on the Anthropic adapter (recorded transport); request shapes; the cart explainer sends its recorded request
+  ai-features: scan image as Part with tier, fallback logic (unparseable/low-confidence→Opus, refusal/rate→no retry), deck tiers and cache hints
+  ai-router: provider and model precedence, capability and availability fallback, nothing configured = anthropic-api on today's models, pickers and forms, arena slot defaults, settings loader
+arena-scenario-runner: 3 scenarios pass (setup 3 moves, battle 10 moves, pending-choice 13 moves), deterministic and order-independent; CLI exits 0/1/2 as documented
+  bundle a00aa89ba9b9f5214728dcf654805ebbb408c4a84f9ad5239a39998143ac082a; setup state 2bd8d9316a3f; battle state 184992140b20; pending-choice state 99402c27e1ec
+arena-worker-budgets: 46 O1 budgets and 14 board budgets; evaluation logic and document agree
+arena-policy-contract: policy layer 7 modules, no engine/provider/database/game-RNG reach; 420 positions × 2 seats
+  1056 permuted hidden states (1056 differing from the real one) with identical inputs and answers; negative control caught; 1409 menu and 24 compound round trips (0 picks the engine refused, refused as such)
+  refusals: 241 stale, 840 foreign, 3352 malformed; windows: blocker, charge, chooseCards, chooseCards (compound pick), chooseFirst, chooseMode, combo, main, mulligan, payCost, zEnergyFromCombo
+  policy-played games: seed 1 128 moves to turn 22 (over); seed 2 140 moves to turn 18 (battle); 131.1 s
+arena-snapshot-conceal: 392 positions, 1141 boards on the rules engine; 1141 permuted hidden states (1141 differing) drawn byte-identically
+  negative control caught on rules:p1, rules:p2; 2130 legal moves resolved to the engine's own; refusals: 495 foreign, 535 stale, 535 raw hidden ids; 99.5 s
+arena-policy-shortcuts: 2017 positions (735 shortcuts: {"takes the first turn":28,"opening hand rule":56,"charge rule":317,"keeps the Z-Energy":212,"only one legal move":119,"carries maximum N Empower markers":3}), online choices equal origin/main's at every one; 878 through the contract (69 differ only on ties of 242); hidden-data twins unchanged; 175816 ms
+arena-policy-main: named scenarios ok — develop; colours: play order; colours: payment; favourable attack; pass; no loop (+ guard, + interruption); work bound (362 steps for a 20-card hand)
+  322 positions (319 main, 3 payment), all legal, deterministic and RNG-free; 644 permuted hidden states (644 differing) with identical choices; max work 63/4096 (0 bounded); chose activate, attack, endMain, payCost, play
+  cost (Node): policy p50 0.10 / p95 1.04 / max 13.6 ms; whole local step p50 32.7 / p95 113.0 / max 439.5 ms (worker budget: decision p95 30, max 300)
+  strength vs shortcuts+uniform, 18 seeded games: 16-2 (win rate 89 %, 95 % CI 67-97 %), p1 9-0, p2 7-2; 641: 4-2, life damage 44 dealt / 35 taken; 644: 6-0, life damage 48 dealt / 26 taken; 646: 6-0, life damage 48 dealt / 26 taken
+  201.1 s
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: battle policy max 119.1 ms is within 100 ms
+    at <anonymous> (C:\Users\patvo\Code Repo\arena-m23-validation\scripts\verify\arena-policy-combat.mts:449:8) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.21.0

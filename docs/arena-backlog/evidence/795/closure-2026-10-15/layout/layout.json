@@ -1,0 +1,678 @@
+{
+  "base": "http://localhost:3771",
+  "results": [
+    {
+      "label": "360x800-phone-ux-hand-6-anime",
+      "scroll": false,
+      "phase": true,
+      "cards": 8,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 800,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 48,
+          "bottom": 56
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 92,
+          "height": 44,
+          "bottom": 136
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 136,
+          "height": 103.1875,
+          "bottom": 239.1875
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 392.5625,
+          "height": 103.1875,
+          "bottom": 495.75
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 495.75,
+          "height": 44,
+          "bottom": 539.75
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 539.75,
+          "height": 153,
+          "bottom": 692.75
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 692.75,
+          "height": 99.25,
+          "bottom": 792
+        }
+      ]
+    },
+    {
+      "label": "360x800-phone-ux-hand-6-night",
+      "scroll": false,
+      "phase": true,
+      "cards": 8,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 800,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 48,
+          "bottom": 56
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 92,
+          "height": 44,
+          "bottom": 136
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 136,
+          "height": 103.1875,
+          "bottom": 239.1875
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 391.5625,
+          "height": 103.1875,
+          "bottom": 494.75
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 494.75,
+          "height": 44,
+          "bottom": 538.75
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 538.75,
+          "height": 153,
+          "bottom": 691.75
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 691.75,
+          "height": 100.25,
+          "bottom": 792
+        }
+      ]
+    },
+    {
+      "label": "360x800-phone-ux-hand-10-anime",
+      "scroll": false,
+      "phase": true,
+      "cards": 12,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 800,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 48,
+          "bottom": 56
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 92,
+          "height": 44,
+          "bottom": 136
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 136,
+          "height": 103.1875,
+          "bottom": 239.1875
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 403.0625,
+          "height": 103.1875,
+          "bottom": 506.25
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 506.25,
+          "height": 44,
+          "bottom": 550.25
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 550.25,
+          "height": 142.5,
+          "bottom": 692.75
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 692.75,
+          "height": 99.25,
+          "bottom": 792
+        }
+      ]
+    },
+    {
+      "label": "360x800-phone-ux-hand-10-night",
+      "scroll": false,
+      "phase": true,
+      "cards": 12,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 800,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 48,
+          "bottom": 56
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 92,
+          "height": 44,
+          "bottom": 136
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 136,
+          "height": 103.1875,
+          "bottom": 239.1875
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 402.0625,
+          "height": 103.1875,
+          "bottom": 505.25
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 505.25,
+          "height": 44,
+          "bottom": 549.25
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 549.25,
+          "height": 142.5,
+          "bottom": 691.75
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 691.75,
+          "height": 100.25,
+          "bottom": 792
+        }
+      ]
+    },
+    {
+      "label": "360x800-phone-ux-combo-anime",
+      "scroll": false,
+      "phase": true,
+      "cards": 7,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 800,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 48,
+          "bottom": 56
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 92,
+          "height": 44,
+          "bottom": 136
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 136,
+          "height": 103.1875,
+          "bottom": 239.1875
+        },
+        {
+          "class": "arena-field arena-lane-battle relative my-1 px-2 py-2 sm:my-2",
+          "y": 243.1875,
+          "height": 112.125,
+          "bottom": 355.3125
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 359.3125,
+          "height": 103.1875,
+          "bottom": 462.5
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 462.5,
+          "height": 44,
+          "bottom": 506.5
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 506.5,
+          "height": 128,
+          "bottom": 634.5
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 634.5,
+          "height": 157.5,
+          "bottom": 792
+        }
+      ]
+    },
+    {
+      "label": "360x800-phone-ux-combo-night",
+      "scroll": false,
+      "phase": true,
+      "cards": 7,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 800,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 48,
+          "bottom": 56
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 92,
+          "height": 44,
+          "bottom": 136
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 136,
+          "height": 103.1875,
+          "bottom": 239.1875
+        },
+        {
+          "class": "arena-field arena-lane-battle relative my-1 px-2 py-2 sm:my-2",
+          "y": 243.1875,
+          "height": 111.125,
+          "bottom": 354.3125
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 358.3125,
+          "height": 103.1875,
+          "bottom": 461.5
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 461.5,
+          "height": 44,
+          "bottom": 505.5
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 505.5,
+          "height": 128,
+          "bottom": 633.5
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 633.5,
+          "height": 158.5,
+          "bottom": 792
+        }
+      ]
+    },
+    {
+      "label": "360x650-phone-ux-hand-6-anime",
+      "scroll": false,
+      "phase": true,
+      "cards": 8,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 650,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 44,
+          "bottom": 52
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 88,
+          "height": 44,
+          "bottom": 132
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 132,
+          "height": 79.671875,
+          "bottom": 211.671875
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 266.078125,
+          "height": 79.671875,
+          "bottom": 345.75
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 345.75,
+          "height": 44,
+          "bottom": 389.75
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 389.75,
+          "height": 153,
+          "bottom": 542.75
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 542.75,
+          "height": 99.25,
+          "bottom": 642
+        }
+      ]
+    },
+    {
+      "label": "360x650-phone-ux-hand-6-night",
+      "scroll": false,
+      "phase": true,
+      "cards": 8,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 650,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 44,
+          "bottom": 52
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 88,
+          "height": 44,
+          "bottom": 132
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 132,
+          "height": 79.671875,
+          "bottom": 211.671875
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 265.078125,
+          "height": 79.671875,
+          "bottom": 344.75
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 344.75,
+          "height": 44,
+          "bottom": 388.75
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 388.75,
+          "height": 153,
+          "bottom": 541.75
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 541.75,
+          "height": 100.25,
+          "bottom": 642
+        }
+      ]
+    },
+    {
+      "label": "360x650-phone-ux-hand-10-anime",
+      "scroll": false,
+      "phase": true,
+      "cards": 12,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 650,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 44,
+          "bottom": 52
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 88,
+          "height": 44,
+          "bottom": 132
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 132,
+          "height": 79.671875,
+          "bottom": 211.671875
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 276.578125,
+          "height": 79.671875,
+          "bottom": 356.25
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 356.25,
+          "height": 44,
+          "bottom": 400.25
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 400.25,
+          "height": 142.5,
+          "bottom": 542.75
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 542.75,
+          "height": 99.25,
+          "bottom": 642
+        }
+      ]
+    },
+    {
+      "label": "360x650-phone-ux-hand-10-night",
+      "scroll": false,
+      "phase": true,
+      "cards": 12,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 650,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 44,
+          "bottom": 52
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 88,
+          "height": 44,
+          "bottom": 132
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 132,
+          "height": 79.671875,
+          "bottom": 211.671875
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 275.578125,
+          "height": 79.671875,
+          "bottom": 355.25
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 355.25,
+          "height": 44,
+          "bottom": 399.25
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 399.25,
+          "height": 142.5,
+          "bottom": 541.75
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 541.75,
+          "height": 100.25,
+          "bottom": 642
+        }
+      ]
+    },
+    {
+      "label": "360x650-phone-ux-combo-anime",
+      "scroll": false,
+      "phase": true,
+      "cards": 7,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 650,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 44,
+          "bottom": 52
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 88,
+          "height": 44,
+          "bottom": 132
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 132,
+          "height": 58.390625,
+          "bottom": 190.390625
+        },
+        {
+          "class": "arena-field arena-lane-battle relative my-1 px-2 py-2 sm:my-2",
+          "y": 194.390625,
+          "height": 55.71875,
+          "bottom": 250.109375
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 254.109375,
+          "height": 58.390625,
+          "bottom": 312.5
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 312.5,
+          "height": 44,
+          "bottom": 356.5
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 356.5,
+          "height": 128,
+          "bottom": 484.5
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 484.5,
+          "height": 157.5,
+          "bottom": 642
+        }
+      ]
+    },
+    {
+      "label": "360x650-phone-ux-combo-night",
+      "scroll": false,
+      "phase": true,
+      "cards": 7,
+      "clippedReasons": 0,
+      "obscuredChips": 0,
+      "obscuredRows": 0,
+      "height": 650,
+      "boxes": [
+        {
+          "class": "arena-topbar sticky top-0 z-30 flex h-[52px] sm:h-[52px] lg:h-auto min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]",
+          "y": 8,
+          "height": 44,
+          "bottom": 52
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 88,
+          "height": 44,
+          "bottom": 132
+        },
+        {
+          "class": "arena-row arena-row-on flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 132,
+          "height": 58.390625,
+          "bottom": 190.390625
+        },
+        {
+          "class": "arena-field arena-lane-battle relative my-1 px-2 py-2 sm:my-2",
+          "y": 194.390625,
+          "height": 54.71875,
+          "bottom": 249.109375
+        },
+        {
+          "class": "arena-row  flex items-center gap-[5px] px-1.5 py-2 sm:gap-2 sm:px-3 lg:gap-3 lg:[justify-content:safe_center] ",
+          "y": 253.109375,
+          "height": 58.390625,
+          "bottom": 311.5
+        },
+        {
+          "class": "arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] cursor-pointer",
+          "y": 311.5,
+          "height": 44,
+          "bottom": 355.5
+        },
+        {
+          "class": "arena-field arena-hand relative",
+          "y": 355.5,
+          "height": 128,
+          "bottom": 483.5
+        },
+        {
+          "class": "arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]",
+          "y": 483.5,
+          "height": 158.5,
+          "bottom": 642
+        }
+      ]
+    }
+  ],
+  "failures": []
+}

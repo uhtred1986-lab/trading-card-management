@@ -565,6 +565,176 @@
       "label": "Attack L-BLUE with V1 (15000 vs 10000)"
     }
   ],
+  "attackPreviews": [
+    {
+      "action": 1,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#0",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 10000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": true,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#0": 10000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 2,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#35",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 15000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": false,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#35": 15000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 3,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#18",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 20000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": false,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#18": 20000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 4,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#38",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 15000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": false,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#38": 15000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 5,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#13",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 15000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": false,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#13": 15000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 6,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#12",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 15000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": false,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#12": 15000,
+          "p2#0": 10000
+        }
+      }
+    }
+  ],
   "taps": {
     "byCard": {
       "p1#0": [

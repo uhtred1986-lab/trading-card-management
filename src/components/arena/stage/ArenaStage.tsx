@@ -9,10 +9,11 @@ import type { NumberedBeat } from "@/lib/arena/beats";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { planMoves, type GameplanPreview, type PlanMove } from "@/lib/arena/gameplan-types";
-import type { CardView } from "@/lib/arena/view";
+import type { AttackPreview, CardView, ChoicePreview } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
 import { isStructuralRequirement } from "../ability-panel-model";
 import { ArenaCard, type CardState } from "../ArenaCard";
+import { CardImage } from "@/components/CardImage";
 import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
@@ -27,7 +28,7 @@ import { foldStory, type StoryLine } from "@/lib/arena/story";
 import type { AdminDebug } from "@/lib/arena/admin-debug";
 import { AdminContext } from "../admin-context";
 import { AdminDrawer, AdminShield } from "./AdminDrawer";
-import { missingEnergyChips, pill } from "@/lib/arena/wording";
+import { missingEnergyChips, pill, priceOf } from "@/lib/arena/wording";
 import {
   ActionRows,
   AttackBeam,
@@ -65,6 +66,9 @@ import { useBeatPlayer } from "./useBeatPlayer";
 import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
 import { PromptPanel } from "./PromptPanel";
+import { stakesSummary } from "./stakes-model";
+import { feedbackFromBeats, useFeedbackCues } from "./useFeedbackCues";
+import { FeedbackOverlay } from "./FeedbackOverlay";
 import { StoryList } from "../shared-display";
 import { BattleRow, cardIdOf, Lane, MenuSection, PlayerStrip, ReferenceCounts } from "./StageZones";
 import { SpeedButton } from "./SpeedButton";
@@ -94,6 +98,12 @@ import { quietSkills } from "./quiet-skills";
  * mismatch on hydration. False on the server, which has no pointer to hover.
  */
 const WIDE = "(min-width: 1024px)";
+
+type ArenaDecklist = {
+  name: string;
+  cards: { cardId: string; name: string; count: number; imageUrl: string | null }[];
+};
+
 function useWide(): boolean {
   return useSyncExternalStore(
     (notify) => {
@@ -116,6 +126,7 @@ export function ArenaStage({
   admin = false,
   adminDebug = null,
   menu = null,
+  decklists,
 }: {
   /**
    * The transport (#648): snapshots in, actions out, connection status, and the
@@ -145,6 +156,8 @@ export function ArenaStage({
    * debug view), drawn in the menu sheet's Game section.
    */
   menu?: React.ReactNode;
+  /** Decklists supplied by the host only when that host is allowed to show them. */
+  decklists?: Partial<Record<PlayerId, ArenaDecklist>>;
 }) {
   const [pending, startTransition] = useTransition();
   const [advancing, setAdvancing] = useState(false);
@@ -153,8 +166,10 @@ export function ArenaStage({
   const [abandonError, setAbandonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [attackPick, setAttackPick] = useState<{ action: number; attacker: string; target: string } | null>(null);
   /** The card whose action sheet is open — from a tap, a long press or a right-click. */
   const [sheet, setSheet] = useState<CardView | null>(null);
+  const [paymentHighlight, setPaymentHighlight] = useState<{ card: string; ids: string[] } | null>(null);
   /** The last refused tap: which card, and the sentence the rules gave for it. */
   const [refusal, setRefusal] = useState<{ card: string; text: string } | null>(null);
   const [shaking, setShaking] = useState<string | null>(null);
@@ -493,6 +508,7 @@ export function ArenaStage({
 
   const select = (id: string | null) => {
     setSelected(id);
+    if (!id) setAttackPick(null);
     setRefusal(null);
   };
 
@@ -501,6 +517,7 @@ export function ArenaStage({
     setSheet(null);
     setPinned(null);
     setSelected(null);
+    setAttackPick(null);
     setHover(null);
     setError(null);
     setAdvanceFailed(false);
@@ -545,6 +562,7 @@ export function ArenaStage({
     return null;
   };
   const whyOf = (id: string): Requirement[] | undefined => taps.whyByCard?.[id];
+  const targetReasonOf = (id: string) => rejected.find((item) => item.action.type === "attack" && item.action.attacker === selected && item.action.target === id)?.why.find((why) => why.kind === "target");
   const reaching = (id: string) => rejected.find((r) => cardIdOf(r.action) === id)?.action.type ?? "play";
 
   // Missing energy chips beside the energy strip (ui-100-missing-energy-chips.md).
@@ -567,7 +585,7 @@ export function ArenaStage({
         out.push({ index: i, legal: l, targets: Object.keys(targets ?? {}).length });
         continue;
       }
-      out.push({ index: i, legal: l });
+      out.push({ index: i, legal: l, choicePreview: choicePreviewOf(i) });
     }
     return out;
   };
@@ -598,25 +616,48 @@ export function ArenaStage({
     if (!playable || busy) return;
     if (isTargeting) {
       const idx = targetsOf(selected!)?.[id];
-      if (idx != null) return send(legal[idx].action);
+      if (idx != null) {
+        const action = legal[idx].action;
+        if (action.type === "attack") {
+          if (wide) return send(action);
+          setAttackPick({ action: idx, attacker: action.attacker, target: action.target });
+          setSheet(null);
+          return;
+        }
+      }
+      const targetWhy = targetReasonOf(id);
+      if (targetWhy?.kind === "target") {
+        feel("illegal");
+        setRefusal({ card: id, text: targetWhy.reason });
+        return;
+      }
       select(null);
       return;
     }
-    // The Charge phase (rd-04): a touch tap charges, a mouse waits for its
-    // double-click (`doubleTapCard`). Both are read from the engine's prompt and
-    // `legal`; a keyboard Enter, a hold and a drag are not one.
+    // The phone Charge phase is a staged choice: select for the dock, then
+    // explicitly commit there. Tapping a second card changes the selection;
+    // tapping the selected card opens its review.
     if (chargeGesture(id)) {
+      if (!wide && selected === id) {
+        const card = cardOf(id);
+        if (card) setSheet(card);
+        return;
+      }
+      if (!wide) { select(id); return; }
       const p = press.current;
-      if (p.detail === 0 || sheet) {
-        // The keyboard cannot double-click: it keeps the sheet, below.
-      } else if (p.type === "mouse") return;
-      else if (p.held < 450) {
-        const list = chargesOf(id);
-        if (list.length === 1) return send(legal[list[0]].action);
-      } else return;
+      if (p.detail === 0 || sheet) { /* keyboard review stays available below */ }
+      else if (p.type === "mouse") return;
+      else if (p.held < 450) return;
     }
     const options = taps.byCard[id];
     const why = whyOf(id);
+    // On a phone, touching a hand card always opens its review. The action
+    // button inside that review is the deliberate commit; drags still work.
+    if (!wide && inHand(id)) {
+      const card = cardOf(id);
+      if (card) setSheet(card);
+      return;
+    }
     if (!options?.length) {
       if (!why?.length) return;
       // Below lg a card on the table that cannot act opens its review, with the
@@ -637,7 +678,13 @@ export function ArenaStage({
     // so it always goes through the sheet for an explicit second tap, even
     // when it is the card's only option — a misclick here is too costly.
     const targets = targetsOf(id);
-    if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) return select(id);
+    if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) {
+      if (!wide) {
+        const card = cardOf(id);
+        if (card) { setSheet(card); return; }
+      }
+      return select(id);
+    }
     if (options.length === 1 && !why?.length && legal[options[0]].action.type !== "charge") return send(legal[options[0]].action);
     const card = cardOf(id);
     if (card) setSheet(card);
@@ -655,6 +702,7 @@ export function ArenaStage({
   const pickMove = (m: SheetMove) => {
     if (m.targets) {
       setSheet(null);
+      setAttackPick(null);
       select(cardIdOf(m.legal.action)!);
       return;
     }
@@ -662,7 +710,9 @@ export function ArenaStage({
   };
 
   const stateOf = (id: string): CardState => {
+    if (attackPick?.target === id) return "selected";
     if (isTargeting) return targetsOf(selected!)?.[id] != null ? "legal" : selected === id ? "selected" : "dim";
+    if (selected === id) return "selected";
     if (view.battle?.attacker === id) return "attacker";
     if (view.battle?.guard === id) return "guard";
     if (!taps.byCard[id]?.length) return whyOf(id)?.length && !busy ? "dead" : "plain";
@@ -706,12 +756,29 @@ export function ArenaStage({
   const searching = choices.length > 0 && playable && !busy && view.prompt.player === view.you.player;
   const searchOpen = searching && closedSearch !== searchKey;
   const chooseNone = taps.bare.find((i) => legal[i].action.type === "choose" && (legal[i].action as { cards: string[] }).cards.length === 0) ?? null;
+  const refusedChoices = rejected.flatMap((r) => r.action.type === "choose" && r.action.cards.length === 1
+    ? [{ card: cardOf(r.action.cards[0]), reason: r.why.map((why) => why.kind === "target" ? why.reason : why.kind).join(" · "), label: locate(r.action.cards[0])?.zone === "leader" ? "Leader" : cardOf(r.action.cards[0])?.keywords.includes("Barrier") ? "Barrier" : "No" }]
+    : []).filter((item): item is { card: CardView; reason: string; label: string } => !!item.card);
   // The bar's buttons. While a search is on, "Choose none" lives in the sheet
   // and the bar keeps one button that reopens it, so the question has room.
-  const bare = taps.bare.filter((i) => !(searching && i === chooseNone)).map((i) => ({ i, l: legal[i] }));
-  const inlineBare = !playback.playing && !isTargeting && playable && !modal ? bare.slice(0, 3) : [];
+  const bare = taps.bare.filter((i) => !(searching && i === chooseNone)).map((i) => ({ i, l: legal[i] })).sort((a, b) => Number(isGhostAction(a.l.action)) - Number(isGhostAction(b.l.action)));
+  const inlineBare = !playback.playing && !isTargeting && playable && !modal
+    ? bare.length > 3 ? [...bare.slice(0, 2), bare[bare.length - 1]] : bare
+    : modal && !playback.playing && playable ? bare : [];
+  const overflowBare = bare.filter(({ i }) => !inlineBare.some((item) => item.i === i));
   const primaryBare = inlineBare.findIndex(({ l }) => !isGhostAction(l.action));
   const yourTurn = view.prompt.player === view.you.player;
+  const attacksRemaining = new Set(legal.flatMap((item) => item.action.type === "attack" ? [item.action.attacker] : [])).size;
+  const selectedChargeIndex = selected && view.prompt.kind === "charge" ? chargesOf(selected)[0] : undefined;
+  const selectedChargeCard = selectedChargeIndex == null ? null : cardOf(selected!);
+  const chargePassIndex = taps.bare.find((i) => legal[i].action.type === "charge" && legal[i].action.card == null);
+  const chargeSelection = !wide && selectedChargeCard && selectedChargeIndex != null ? {
+    card: selectedChargeCard,
+    action: legal[selectedChargeIndex].action,
+    passAction: chargePassIndex == null ? null : legal[chargePassIndex].action,
+    ready: view.you.activeEnergy,
+    total: view.you.energy.length,
+  } : null;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
   // Whose move the board states is the turn pill's and the prompt's business,
@@ -750,6 +817,8 @@ export function ArenaStage({
   // The storyboard, driven by the beat on screen rather than by whatever a
   // re-render happens to notice. `docs/arena-ui-motion-spec.md` §7.
   const beat = playback.current;
+  const passiveFeedback = useFeedbackCues(live.beats, !!still);
+  const feedback = still ? passiveFeedback : feedbackFromBeats(beat ? [beat] : []);
   const mine = (id: string) => view.you.battle.some((c) => c.id === id) || view.you.leader?.id === id || view.you.unison?.id === id;
   /**
    * Whose card this is, or null when the board cannot see it any more. The
@@ -813,6 +882,8 @@ export function ArenaStage({
   // Legality is the engine's: a drop sends an action that is already in
   // `legal`, or says why there is none. Nothing here evaluates a rule.
   const playsOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "play");
+  const choicePreviewOf = (index: number): ChoicePreview | undefined => live.choicePreviews?.find((preview) => preview.action === index);
+  const attackPreviewOf = (index: number): AttackPreview | undefined => live.attackPreviews?.find((preview) => preview.action === index);
   const rejectedFor1 = (id: string, type: "play" | "charge") => rejected.find((r) => cardIdOf(r.action) === id && r.action.type === type)?.why ?? [];
   const draggable = (id: string) => playable && !busy && yourTurn && !isTargeting && !searchOpen && !sheet && inHand(id) && (playsOf(id).length > 0 || chargesOf(id).length > 0 || !!whyOf(id)?.length);
 
@@ -878,6 +949,10 @@ export function ArenaStage({
       if (list.length === 1) {
         stopEdgeScroll();
         setDrag(null);
+        if (!wide) {
+          if (zone === "energy") { select(id); return; }
+          if (card && choicePreviewOf(list[0])?.state !== undefined && choicePreviewOf(list[0])?.state !== "notEvaluated") { setSheet(card); return; }
+        }
         return send(legal[list[0]].action);
       }
       if (list.length > 1 && card) {
@@ -990,7 +1065,11 @@ export function ArenaStage({
           label: dragCharges.length > 0 ? "Drop to charge · +1 energy" : whyWords(rejectedFor1(drag.id, "charge").length ? rejectedFor1(drag.id, "charge") : [{ kind: "oncePerTurn", what: "charge" }], "Can't charge now"),
         }
       : null;
-  const willRest = drag && !drag.back && dragPlays.length > 0 && dragPrice > 0 ? dragPrice : 0;
+  const defaultPayment = sheet ? movesFor(sheet.id).find((move) => move.legal.paymentPreview?.state === "known")?.legal.paymentPreview
+    : drag && !drag.back && dragPlays.length ? legal[dragPlays[0]].paymentPreview : undefined;
+  const restingIds = sheet && paymentHighlight?.card === sheet.id ? paymentHighlight.ids
+    : defaultPayment?.state === "known" ? defaultPayment.options[0]?.energyRest ?? [] : [];
+  const willRest = restingIds.filter((id) => view.you.energy.some((card) => card.id === id && card.mode === "active")).length;
   useEffect(
     () => () => {
       if (gainTimer.current) clearTimeout(gainTimer.current);
@@ -1001,6 +1080,8 @@ export function ArenaStage({
   );
 
   const cardProps = (c: CardView) => ({
+    layoutMotion: wide && !still,
+    feedback: feedback.cards[c.id] ?? null,
     card: c,
     state: stateOf(c.id),
     suppressed: playback.suppressed.has(c.id),
@@ -1013,13 +1094,70 @@ export function ArenaStage({
     outlined: rowHover === c.id,
   });
 
+  type HandActionStatus = "playable" | "targets" | "noTarget" | "skill" | "unaffordable" | "counter" | "charge";
+  const handStatus = (id: string): HandActionStatus | null => {
+    const indices = taps.byCard[id] ?? [];
+    const actions = indices.map((i) => legal[i].action);
+    if (view.prompt.kind === "combo" && actions.some((a) => a.type === "combo")) return "playable";
+    if (actions.some((a) => a.type === "counter" || a.type === "block") || rejected.some((r) => cardIdOf(r.action) === id && r.action.type === "counter") || cardOf(id)?.abilities?.some((ability) => ability.category === "counter")) return "counter";
+    const play = indices.find((i) => legal[i].action.type === "play");
+    if (play != null) {
+      const preview = choicePreviewOf(play);
+      if (preview?.state === "empty") return "noTarget";
+      if (preview?.state === "available" && (preview.candidates?.length ?? 0) > 0) return "targets";
+      return "playable";
+    }
+    if (actions.some((a) => a.type === "charge")) return "charge";
+    const activate = indices.find((i) => legal[i].action.type === "activate");
+    if (activate != null) {
+      const preview = choicePreviewOf(activate);
+      if (preview?.state === "empty") return "noTarget";
+      if (preview?.state === "available" && (preview.candidates?.length ?? 0) > 0) return "targets";
+      return "skill";
+    }
+    const failed = rejected.filter((r) => cardIdOf(r.action) === id);
+    if (failed.some((r) => (r.action.type === "play" || r.action.type === "activate") && r.why.some((w) => w.kind === "energy" || w.kind === "energyColour"))) return "unaffordable";
+    if (failed.some((r) => r.action.type === "activate")) return "skill";
+    return null;
+  };
+  const handAction = (id: string): string | null => {
+    const indices = taps.byCard[id] ?? [];
+    if (view.prompt.kind === "combo") {
+      if (!indices.some((i) => legal[i].action.type === "combo")) return null;
+      const power = cardOf(id)?.comboPower;
+      return power == null ? "Combo" : `+${power / 1000}k`;
+    }
+    const play = indices.find((i) => legal[i].action.type === "play");
+    if (play != null) {
+      const preview = choicePreviewOf(play);
+      if (preview?.state === "empty") return "⚠ Play · skill idle";
+      if (preview?.state === "available" && (preview.candidates?.length ?? 0) > 0) return `▲ Play · ${preview.candidates!.length} targets`;
+      return "▲ Play";
+    }
+    if (indices.some((i) => legal[i].action.type === "charge")) return "⚡ Charge";
+    const activate = indices.find((i) => legal[i].action.type === "activate");
+    if (activate != null) {
+      const preview = choicePreviewOf(activate);
+      if (preview?.state === "empty") return "⚠ Skill idle";
+      if (preview?.state === "available" && (preview.candidates?.length ?? 0) > 0) return `▲ Skill · ${preview.candidates!.length} targets`;
+      return "Skill";
+    }
+    const failed = rejected.find((r) => cardIdOf(r.action) === id && r.action.type === "play");
+    const need = failed?.why.find((w) => w.kind === "energy" || w.kind === "energyColour");
+    if (need?.kind === "energy") return `Need ${need.need} ⚡`;
+    if (need?.kind === "energyColour") return `Need ${need.need} ${need.colour} ⚡`;
+    const card = cardOf(id);
+    if (card?.abilities?.some((ability) => ability.category === "counter") || rejected.some((r) => cardIdOf(r.action) === id && r.action.type === "counter")) return "Counter";
+    return null;
+  };
+
   // --- The docked inspector's content ----------------------------------------
   // Never an empty box (#444): the last card hovered while it is still on the
   // table, else the first card of your hand, else a leader.
   const fallbackId = view.you.hand?.[0]?.id ?? view.you.leader?.id ?? view.them.leader?.id ?? null;
   const inspectId = pinned ?? (inspected && cardOf(inspected) ? inspected : null) ?? fallbackId;
-  const inspectCard = inspectId ? cardOf(inspectId) : null;
-  const locate = (id: string) => {
+  const inspectCard = wide && inspectId ? cardOf(inspectId) : null;
+  function locate(id: string) {
     for (const side of [view.you, view.them]) {
       const zones: [string, (CardView | null | undefined)[]][] = [
         ["leader", [side.leader]],
@@ -1040,15 +1178,87 @@ export function ArenaStage({
       for (const [zone, cards] of zones) if (cards.some((c) => c?.id === id)) return { side, zone };
     }
     return null;
+  }
+  const attackConfirmation = (() => {
+    if (!attackPick) return null;
+    const action = legal[attackPick.action]?.action;
+    const attacker = cardOf(attackPick.attacker);
+    const target = cardOf(attackPick.target);
+    if (action?.type !== "attack" || !attacker || !target || action.attacker !== attacker.id || action.target !== target.id) return null;
+    const place = (id: string) => {
+      const at = locate(id);
+      const area = at?.zone === "leader" ? "Leader" : at?.zone === "unison" ? "Unison" : "Battle Card";
+      return `${at?.side === view.you ? "Your" : `${at?.side.name ?? "Other player"}'s`} ${area}`;
+    };
+    const preview = attackPreviewOf(attackPick.action);
+    const battle = preview?.state === "known" ? preview.battle : undefined;
+    let result: string | null = null;
+    if (battle?.stakes) {
+      const stakes = battle.stakes;
+      const winner = stakes.tied ? "Tie → attacker wins ties" : stakes.hit ? "Attacker wins" : "Attack held";
+      const at = locate(target.id);
+      if (stakes.hit && stakes.target === "leader" && at) {
+        const after = Math.max(0, at.side.life - stakes.lifeDamage);
+        result = `${winner} · ${at.side.name} takes ${stakes.lifeDamage} life · life ${at.side.life} → ${after}`;
+      } else result = `${winner} · ${stakesSummary(battle)}`;
+    }
+    return { attacker, target, attackerRole: place(attacker.id), targetRole: place(target.id), preview, result };
+  })();
+  const targetLabel = (card: CardView): string | null => {
+    if (!isTargeting || wide) return null;
+    if (attackConfirmation) return null;
+    if (targetsOf(selected!)?.[card.id] != null) return locate(card.id)?.zone === "leader" ? "Tap to attack" : card.mode === "rest" ? "Rested · tap" : "Tap to attack";
+    const reason = targetReasonOf(card.id);
+    if (!reason || reason.kind !== "target") return null;
+    if (/active|standing|rested/i.test(reason.reason)) return "✕ Active";
+    return `✕ ${reason.reason}`;
   };
+  const defending = !!view.battle && view.turnPlayer !== view.you.player;
+  const attackSummary = attackConfirmation ? (
+    <div className="arena-attack-summary w-full max-w-sm rounded-xl border border-space-600 bg-space-900/90 p-2 text-xs leading-snug text-space-100" data-attack-summary>
+      {[view.them, view.you].map((side) => {
+        const attacks = locate(attackConfirmation.attacker.id)?.side.player === side.player;
+        const card = attacks ? attackConfirmation.attacker : attackConfirmation.target;
+        const role = attacks ? attackConfirmation.attackerRole : attackConfirmation.targetRole;
+        const battle = attackConfirmation.preview?.battle;
+        return <p key={side.player} className="flex items-start gap-2 py-0.5">
+          <span className="min-w-0 flex-1 break-words"><b>{card.name}</b><span className="block text-[10px]">{role} · {attacks ? "ATTACKER" : "TARGET"}</span></span>
+          {attackConfirmation.preview?.state === "known" && battle && <b className="shrink-0 font-mono tabular-nums">{(attacks ? battle.attackPower : battle.guardPower).toLocaleString("en")}</b>}
+        </p>;
+      })}
+      <p className="mt-1 break-words" data-attack-stakes>{attackConfirmation.preview?.state === "known" ? `If nothing else changes: ${attackConfirmation.result}` : attackConfirmation.preview?.reason ?? "A skill must resolve before this result can be shown."}</p>
+    </div>
+  ) : null;
+  const responseType = view.prompt.kind === "counter" ? "counter" : view.prompt.kind === "blocker" ? "block" : null;
+  const defendOptions = responseType && defending ? [
+    ...legal.flatMap((offer, index) => {
+      const action = offer.action;
+      if (action.type !== responseType || !("card" in action) || !action.card) return [];
+      const card = cardOf(action.card);
+      if (!card) return [];
+      const projected = live.blockPreviews?.find((entry) => entry.action === index);
+      const b = projected?.state === "known" ? projected.battle : null;
+      return [{ card, action, label: card.name, detail: card.text,
+        cost: priceOf(action, card, offer.label, offer.cost), reason: null,
+        impact: responseType === "block" ? b?.stakes ? `${b.guardPower.toLocaleString("en")} vs ${b.attackPower.toLocaleString("en")}: ${stakesSummary(b)} You lose ${b.stakes.lifeDamage} life.` : projected?.reason ?? "The exact outcome needs the next battle snapshot." : null }];
+    }),
+    ...rejected.flatMap((offer) => {
+      const action = offer.action;
+      if (action.type !== responseType || !("card" in action) || !action.card || legal.some((entry) => entry.action.type === responseType && "card" in entry.action && entry.action.card === action.card)) return [];
+      const card = cardOf(action.card);
+      if (!card) return [];
+      return [{ card, action: null, label: card.name, detail: card.text, cost: null,
+        reason: refusalLine(offer.why, { name: card.name, reaching: responseType, side: view.you, inHand: inHand(card.id) }) ?? "Unavailable now", impact: null }];
+    }),
+  ] : [];
   const whereOf = (id: string) => {
     const at = locate(id);
     return at ? `${at.side === view.you ? "Your" : `${at.side.name}'s`} ${at.zone}` : null;
   };
   const inspectAt = inspectCard && inspectId ? locate(inspectId) : null;
-  const inspectWhere = inspectId ? whereOf(inspectId) : null;
+  const inspectWhere = wide && inspectId ? whereOf(inspectId) : null;
   const rejectedFor = (id: string) => (playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === id) : []);
-  const inspectRejected = inspectId ? rejectedFor(inspectId) : [];
+  const inspectRejected = wide && inspectId ? rejectedFor(inspectId) : [];
   /**
    * The chips for one card: its state, and what it can do. The phone review
    * also says *why* a card cannot act (`reason`) — the desktop inspector has
@@ -1062,6 +1272,17 @@ export function ArenaStage({
     if (["leader", "unison", "battle area", "energy area"].includes(at.zone)) chips.push({ label: card.mode === "rest" ? "Rested" : "Standing", tone: "plain" });
     if (playable && !busy && targetsOf(id)) chips.push({ label: "Can attack", tone: "good" });
     if (isTargeting && targetsOf(selected!)?.[id] != null) chips.push({ label: "Valid target", tone: "good" });
+    const previews = live.choicePreviews ?? [];
+    for (const preview of previews) {
+      const action = legal[preview.action]?.action;
+      if (action?.type !== "activate" || action.card !== id || preview.state === "notEvaluated") continue;
+      if (preview.state === "available") chips.push({ label: `${preview.candidates?.length ?? 0} valid target${preview.candidates?.length === 1 ? "" : "s"}`, tone: "good" });
+      else chips.push({ label: "Skill idle", tone: "plain" });
+    }
+    for (const index of taps.byCard[id] ?? []) {
+      const move = legal[index];
+      if (move.action.type === "activate" && move.cost) chips.push({ label: `${move.cost.energy} energy skill`, tone: "plain" });
+    }
     const allWhy = rejectedFor(id).flatMap((r) => r.why);
     const why = card.abilities?.length ? allWhy.filter((item) => !isStructuralRequirement(item)) : allWhy;
     const short = why.find((w) => w.kind === "energy");
@@ -1073,9 +1294,9 @@ export function ArenaStage({
     }
     return chips;
   };
-  const inspectChips = inspectId ? chipsFor(inspectId) : [];
+  const inspectChips = wide && inspectId ? chipsFor(inspectId) : [];
   const inspectMoves: SheetMove[] = [];
-  if (inspectId && playable && !busy) {
+  if (wide && inspectId && playable && !busy) {
     if (isTargeting) {
       const at = targetsOf(selected!)?.[inspectId];
       if (at != null) inspectMoves.push({ index: at, legal: legal[at], label: "Attack it" });
@@ -1086,20 +1307,23 @@ export function ArenaStage({
    * opponent's leader first, or your hand when the card is in it. A card in
    * neither (an energy, a life card) is reviewed alone.
    */
-  const inPlayRun = [view.them, view.you].flatMap((side) => [side.leader, side.unison, ...side.battle].filter((c): c is CardView => !!c).map((card) => ({ card, yours: side === view.you })));
-  const handRun = (view.you.hand ?? []).map((card) => ({ card, yours: true }));
+  const inPlayRun = sheet ? [view.them, view.you].flatMap((side) => [side.leader, side.unison, ...side.battle].filter((c): c is CardView => !!c).map((card) => ({ card, yours: side === view.you }))) : [];
+  const handRun = sheet ? (view.you.hand ?? []).map((card) => ({ card, yours: true, status: handStatus(card.id),
+    playable: (taps.byCard[card.id] ?? []).some((i) => legal[i].action.type === "play" || legal[i].action.type === "activate"),
+    counter: card.abilities?.some((ability) => ability.category === "counter") || handStatus(card.id) === "counter",
+  })) : [];
   const zoneNames: Record<string, string> = { drop: "Drop", warp: "Warp", zEnergy: "Z-Energy", zDeck: "Z-Deck" };
-  const zoneRuns = [view.you, view.them].flatMap((side) => Object.entries(side.inspectableZones ?? {}).map(([zone, cards]) => ({ label: `${side.name} · ${zoneNames[zone] ?? zone}`, items: cards.map((card) => ({ card, yours: side === view.you })) })));
+  const zoneRuns = sheet ? [view.you, view.them].flatMap((side) => Object.entries(side.inspectableZones ?? {}).map(([zone, cards]) => ({ label: `${side.name} · ${zoneNames[zone] ?? zone}`, items: cards.map((card) => ({ card, yours: side === view.you })) }))) : [];
   const sequence = sheet ? (inPlayRun.some((i) => i.card.id === sheet.id) ? { label: "In play", items: inPlayRun } : handRun.some((i) => i.card.id === sheet.id) ? { label: "Your hand", items: handRun } : zoneRuns.find((run) => run.items.some((i) => i.card.id === sheet.id)) ?? null) : null;
   const sheetAt = sheet ? locate(sheet.id) : null;
-  const inPlaySides: InPlaySide[] = [view.them, view.you].map((side) => {
+  const inPlaySides: InPlaySide[] = wide ? [view.them, view.you].map((side) => {
     const word = (c: CardView) => (c.mode === "rest" ? "rested" : "standing");
     const rows: InPlaySide["rows"] = [];
     if (side.leader) rows.push({ card: side.leader, note: `Leader · ${side.life} life · ${word(side.leader)}` });
     if (side.unison) rows.push({ card: side.unison, note: `Unison · ${word(side.unison)}` });
     for (const c of side.battle) rows.push({ card: c, note: c.mode === "rest" ? "Rested" : "Standing" });
     return { name: side.name, rows, battleCount: side.battle.length, battlePower: side.battle.reduce((n, c) => n + (c.power ?? 0), 0) };
-  });
+  }) : [];
 
   return (
     <AdminContext.Provider value={admin}>
@@ -1113,6 +1337,7 @@ export function ArenaStage({
         className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
         data-skin={skin}
         data-phone-cinema={phoneCinema}
+        data-response-window={defending ? view.prompt.kind : undefined}
         style={{ ...turnStyle, ...fxVars(pace) }}
       >
         {/* Speed lines under an attack — a skin's moment, driven by the beat on
@@ -1147,7 +1372,7 @@ export function ArenaStage({
           <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-auto" : "h-[52px] sm:h-[52px] lg:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]`}>
             <span className="arena-title arena-num hidden text-[19px] leading-none lg:inline">Arena</span>
             <TurnPill view={view} />
-            <PhaseChips view={view} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
+            <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
             {showConnectionIssue && (
               <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
                 <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-950/45 px-2 py-0.5 text-[11px] leading-none text-amber-100 sm:gap-2 sm:px-2.5 sm:py-1 sm:text-xs" role="status" aria-live="polite" data-arena-connection={liveGame.connection}>
@@ -1195,7 +1420,9 @@ export function ArenaStage({
             </div>
           </div>
           {/* The phase words under the bar; from lg they are the left column's list. */}
-          <PhaseChips view={view} className="arena-phases-row h-8 shrink-0 overflow-hidden px-2 lg:hidden" />
+          <div className="h-[30px] shrink-0 lg:hidden" data-phase-step={view.battle ? 3 : view.phase === "charge" ? 1 : view.phase === "main" || view.phase === "mainEnd" ? 2 : view.phase === "end" ? 4 : 0}>
+            <PhaseChips view={view} cue={feedback.phase} className="arena-phases-row h-full overflow-hidden px-2" />
+          </div>
 
           {/* The shake is on this block and not on the board: a transform on the
               board would become the containing block of the takeover and the
@@ -1207,7 +1434,7 @@ export function ArenaStage({
             {/* The field is also what a takeover covers and what the verdict slams
                 over; the hand and the prompt are outside it and stay usable. */}
             <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 lg:min-h-0 lg:pb-1.5 ${takeoverOn ? "min-h-[440px] lg:min-h-0" : ""}`} aria-label="Battle Areas">
-              <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} narrator={narrator} className="mx-2" />
+              <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} lifeCue={feedback.life[view.them.player]} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
               <div className={`flex min-w-0 flex-1 flex-col ${bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}`}>
@@ -1223,8 +1450,10 @@ export function ArenaStage({
                   compactLifted={!wide && bandOn && asksForHand}
                   hurt={hurting === view.them.player}
                   hit={hitOf(view.them.player)}
+                  targetLabel={targetLabel}
+                  attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary} canFastForward={playback.playing} fastForward={playback.skip}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
@@ -1253,17 +1482,22 @@ export function ArenaStage({
                   compactLifted={!wide && bandOn && asksForHand}
                   hurt={hurting === view.you.player}
                   hit={hitOf(view.you.player)}
+                  targetLabel={targetLabel}
+                  attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
               </div>
               {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
               <PlayerStrip
+                lifeCue={feedback.life[view.you.player]}
                 side={view.you}
                 cardProps={cardProps}
+                onOpenInspection={wide ? undefined : () => setZonesOpen(true)}
                 hit={hitOf(view.you.player)}
                 narrator={narrator}
                 energyChips={energyChips}
                 drop={energyDrop}
                 willRest={willRest}
+                restingIds={restingIds}
                 gain={gain}
                 className="mx-2"
               />
@@ -1287,9 +1521,9 @@ export function ArenaStage({
 
           {/* The fan, and the moves that have no card, in the grid's hand row. */}
           <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-end lg:[grid-area:hand]">
-          {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
+          {playable && !playback.playing && !isTargeting && overflowBare.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-3 pt-2 sm:gap-2">
-              {(modal ? bare : bare.slice(3)).map(({ i, l }) => (
+              {overflowBare.map(({ i, l }) => (
                 <button
                   key={i}
                   type="button"
@@ -1303,7 +1537,8 @@ export function ArenaStage({
             </div>
           )}
 
-          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
+          {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="arena-hand-folded px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
+          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
           {/* CSS places this single decision panel under the hand on phones and
@@ -1314,7 +1549,7 @@ export function ArenaStage({
             <PromptPanel
               view={view}
               decision={live.decision}
-              handDecision={!wide && asksForHand && view.prompt.kind === "combo"}
+              handDecision={!wide && view.prompt.kind === "combo"}
               overOutcome={live.over}
               playable={playable}
               yourTurn={yourTurn}
@@ -1335,13 +1570,18 @@ export function ArenaStage({
               yourPlayer={view.you.player}
               isTargeting={isTargeting}
               onCancelTargeting={() => select(null)}
+              attackConfirmation={attackConfirmation}
+              onConfirmAttack={() => { if (attackPick && legal[attackPick.action]?.action.type === "attack") send(legal[attackPick.action].action); }}
               searching={searching}
               searchOpen={searchOpen}
               choicesCount={choices.length}
               onReopenSearch={() => setClosedSearch(null)}
-              inlineBare={inlineBare}
+              inlineBare={chargeSelection ? [] : inlineBare}
+              attacksRemaining={attacksRemaining}
+              defendOptions={defendOptions}
               primaryBare={primaryBare}
               onSend={send}
+              chargeSelection={chargeSelection}
               planEnabled={session.capabilities.plan && playable && yourTurn && view.prompt.kind === "main" && !busy && !waitingOnServer}
               planOpen={planCurrent && planOpen}
               onPlanToggle={() => { setPlanRevision(live.game.revision); setPlanOpen((open) => planCurrent ? !open : true); }}
@@ -1355,10 +1595,9 @@ export function ArenaStage({
               onPlanRetry={() => { if (planCurrent && planAttempt.length) requestPlan(planAttempt); }}
               onPlanClear={() => { planRequest.current++; setPlan(null); setPlanFirst(null); setPlanAttempt([]); setPlanError(null); setPlanOpen(false); }}
               onNext={playback.next}
-              onSkip={playback.skip}
             />
           </div>
-          <div className="hidden lg:block lg:min-h-0 lg:flex-1">
+          {wide && <div className="hidden lg:block lg:min-h-0 lg:flex-1">
           <InspectorColumn
             tab={deskTab}
             onTab={setDeskTab}
@@ -1395,33 +1634,60 @@ export function ArenaStage({
             }
             story={story}
           />
-          </div>
+          </div>}
           </div>
         </div>
 
         {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
+        {attackPick && <AttackBeam from={attackPick.attacker} to={attackPick.target} hostRef={boardRef} />}
 
         {beatNow?.t === "markers" && beatNow.from && (
           <MarkerFlight beat={{ ...beatNow, from: beatNow.from }} hostRef={boardRef} art={beats?.art ?? {}} ownerOfTo={ownerOf(beatNow.card) ?? view.turnPlayer} ms={msFor(beatNow, pace)} />
         )}
 
         {zonesOpen && (
-          <Sheet title="Zone inspection" onClose={() => setZonesOpen(false)}>
-            {[view.you, view.them].map((side) => <section key={side.player} className="space-y-3" aria-label={`${side.name} zones`}>
-              <h3 className="font-bold text-space-50">{side.name}</h3>
-              {([
-                ["Unison", side.unison ? 1 : 0, side.unison ? [side.unison] : []],
-                ["Z-Deck", side.zDeck, side.inspectableZones?.zDeck ?? side.zDeckFaceUp],
-                ["Z-Energy", side.zEnergy, side.inspectableZones?.zEnergy ?? []],
-                ["Drop", side.drop, side.inspectableZones?.drop ?? (side.dropTop ? [side.dropTop] : [])],
-                ["Warp", side.warp, side.inspectableZones?.warp ?? []],
-              ] as [string, number, CardView[]][]).map(([zone, count, cards]) => <div key={zone} data-inspect-zone={`${side.player}:${zone}`}>
-                <h4 className="text-sm font-semibold text-space-100">{zone} · {count}</h4>
-                {count > cards.length && <p className="text-xs text-space-300">{count - cards.length} card faces unavailable in this view.</p>}
-                {count === 0 && <p className="text-xs text-space-400">Empty</p>}
-                <div className="flex flex-wrap gap-2 pt-1">{cards.map((card) => <ArenaCard key={card.id} card={card} width={68} onTap={() => { setZonesOpen(false); setSheet(card); }} />)}</div>
-              </div>)}
-            </section>)}
+          <Sheet title="Deck and public zones" onClose={() => setZonesOpen(false)}>
+          {[view.you, view.them].map((side) => {
+            const decklist = decklists?.[side.player];
+            return (
+              <section key={side.player} className="space-y-3" aria-label={`${side.name} zones`}>
+                <h3 className="font-bold text-space-50">{side.name}</h3>
+                <div data-inspect-zone={`${side.player}:deck`}>
+                  <h4 className="text-sm font-semibold text-space-100">Deck · {side.deck} remaining</h4>
+                  {decklist ? (
+                    <>
+                      <p className="text-xs text-space-300">{decklist.name} · {decklist.cards.reduce((total, card) => total + card.count, 0)} cards</p>
+                      <ul className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-3">
+                        {decklist.cards.map((card) => (
+                          <li key={card.cardId} className="flex min-w-0 items-center gap-2 rounded border border-space-700 bg-space-900/60 p-1.5">
+                            <CardImage src={card.imageUrl} alt={card.name} sizes="40px" className="h-12 w-[34px] shrink-0" />
+                            <span className="min-w-0 text-xs leading-tight text-space-100">
+                              <span className="block truncate">{card.name}</span>
+                              <span className="text-space-400">{card.cardId} · {card.count}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : <p className="text-xs text-space-300">Decklist unavailable in this view.</p>}
+                </div>
+                {([
+                  ["Unison", side.unison ? 1 : 0, side.unison ? [side.unison] : []],
+                  ["Z-Deck", side.zDeck, side.inspectableZones?.zDeck ?? side.zDeckFaceUp],
+                  ["Z-Energy", side.zEnergy, side.inspectableZones?.zEnergy ?? []],
+                  ["Drop", side.drop, side.inspectableZones?.drop ?? (side.dropTop ? [side.dropTop] : [])],
+                  ["Warp", side.warp, side.inspectableZones?.warp ?? []],
+                ] as [string, number, CardView[]][]).map(([zone, count, cards]) => (
+                  <div key={zone} data-inspect-zone={`${side.player}:${zone}`}>
+                    <h4 className="text-sm font-semibold text-space-100">{zone} · {count}</h4>
+                    {count > cards.length && <p className="text-xs text-space-300">{count - cards.length} card faces unavailable in this view.</p>}
+                    {count === 0 && <p className="text-xs text-space-400">Empty</p>}
+                    <div className="flex flex-wrap gap-2 pt-1">{cards.map((card) => <ArenaCard key={card.id} card={card} width={68} onTap={() => { setZonesOpen(false); setSheet(card); }} />)}</div>
+                  </div>
+                ))}
+              </section>
+            );
+          })}
           </Sheet>
         )}
 
@@ -1506,6 +1772,7 @@ export function ArenaStage({
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
         <ClashBeam beat={beat} hostRef={boardRef} />
+        <FeedbackOverlay cues={feedback} art={beats?.art ?? {}} hostRef={boardRef} />
 
         {/* The end of the game, on the board (redesign frame 10): once the last
             beat has played, never over it. */}
@@ -1557,6 +1824,9 @@ export function ArenaStage({
             chips={chipsFor(sheet.id, true)}
             leader={sheetAt?.zone === "leader" ? { life: sheetAt.side.life, energy: `${sheetAt.side.activeEnergy}/${sheetAt.side.energy.length}` } : null}
             onJump={(c) => setSheet(cardOf(c.id) ?? c)}
+            reviewMode={isTargeting ? "targeting" : sheetAt?.side === view.them ? "opponent" : "own"}
+            resolveCard={cardOf}
+            onPreviewPayment={(ids) => setPaymentHighlight({ card: sheet.id, ids })}
           />
         )}
 
@@ -1564,6 +1834,7 @@ export function ArenaStage({
           <SearchSheet
             prompt={view.prompt}
             choices={choices}
+            refused={refusedChoices}
             indexOf={(id) => taps.byCard[id]?.[0]}
             none={chooseNone}
             onPick={(i) => send(legal[i].action)}

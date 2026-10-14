@@ -1,0 +1,207 @@
+RUN tsx scripts/verify/arena-policy-combat.mts --record-performance
+PERFORMANCE RECORDED ONLY: battle policy p95 0.34 ms (limit 5), max 9.9 ms (limit 100)
+arena-policy-combat: named scenarios ok — block a lethal attack; no chump block while life allows; a surviving blocker is used; attacker ties + minimum sufficient defence; offensive combo exactly enough; no combos on a lost battle; Critical and Double Strike change the defence; counter when legal and worth it; battle activation covers a deficit; p1 defends: block and keep the counter, or take the hit; work bound (295 steps at a 14-card hand's first question)
+  staged battles end in 1-4 decisions; 424 battle positions (blocker:p1 2, blocker:p2 23, combo:p1 159, combo:p2 226, counter:p1 10, counter:p2 4), all legal, deterministic and RNG-free; 848 permuted hidden states (848 differing) with identical choices; max work 295/4096 (0 bounded); chose blocker:block, blocker:block-decline, combo:activate, combo:combo, combo:pass, counter:counter, counter:counter-decline
+  cost (Node): battle policy p50 0.08 / p95 0.34 / max 9.9 ms per decision
+  strength, seeded games (synthetic fixtures; 4 per fixture and baseline): vs main646: 13-3 of 16 (win rate 81 %, 95 % CI 57-93 %), life damage 118 dealt / 45 taken; 641 2-2, 644 4-0, 646 4-0, 647 3-1
+  vs shortcuts: 14-2 of 16 (win rate 88 %, 95 % CI 64-97 %), life damage 121 dealt / 35 taken; 641 2-2, 644 4-0, 646 4-0, 647 4-0
+  177.0 s
+EXIT 0
+RUN tsx scripts/verify/arena-policy-choices.mts
+arena-policy-choices: named scenarios ok — optional pick takes the most valuable target; optional zero selection: no Life card at low life; required multi-selection: exactly two, the two most valuable; required discard: the two least valuable; priced Auto: the price is paid; printed mode: the KO over the draw; [Offering] as chooseMode: drop a life at 7, keep it at 3; Auto order: the earliest-triggered first; [Empower] carries the maximum; exact payment keeps the colour the hand needs; replaceMove: a Life card to the hand instead of the Drop; replaceMove: a KO substitute (discard instead), paying with the least valuable; typed interruptions (unreadable question, referee, refused pick)
+  coverage (window | layer | rule | decisions | fixtures):
+  | chooseFirst | shortcuts | takes the first turn | 14 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | mulligan | shortcuts | keeps two cards costing 2 or less, else redraws | 28 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | charge | shortcuts | charges the dearest / off-colour card | 171 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | main | main | scored plays, activations, attacks, endMain | 855 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | combo | combat | cheapest sufficient cover when the battle is worth it | 895 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | blocker | combat | least expected loss, ties to not blocking | 34 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvB (SD15/SD5), fixture 647 |
+  | counter | combat | a negating counter against a costlier threat | 59 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | orderPending | choices | earliest-triggered Auto first, never withheld | 1 | order |
+  | chooseCards | choices | compound pick by polarity, value, count, unique names and colour cover | 94 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | chooseMode | choices | best-scored option: prices, [Offering], may, printed modes | 37 | audit AvB (SD15/SD5), audit BvA (SD15/SD5), auto-price, fixture 644, … |
+  | replaceMove | choices | the destination worth most; a substitute is staying put less its price | 2 | replace-life, replace-substitute |
+  | zEnergyFromCombo | shortcuts | keeps the Z-Energy | 173 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | optionalCost | choices | pays when the price is below the skill's worth | 2 | contract:optionalCost-life7, contract:optionalCost-life7-dear |
+  | payCost | main | keeps the most of the hand payable (choices: first offered payment when unread) | 14 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), fixture 650, … |
+  | offering | choices | drops a life when it costs less than the two cards denied | 2 | contract:offering-life3, contract:offering-life7 |
+  | empowerCarry | shortcuts | carries the maximum | 1 | empower |
+  2378 positions, all answered without the fallback, legal, deterministic and RNG-free; 94 compound picks (20 multi-card, 3 empty); 726 permuted hidden states (726 differing) with identical answers; max choice work 9/4096
+  cost (Node): local policy p50 0.09 / p95 0.46 / max 8.8 ms per decision
+  strength vs the #647 policy (uniform constrained choices), seeded, both seats: synthetic fixtures 5-5 of 10 (95 % CI 24-76 %), life 62 dealt / 58 taken; audit decks 2-2 of 4 (95 % CI 15-85 %), life 25 dealt / 24 taken
+  142.0 s
+EXIT 0
+RUN tsx scripts/verify/deckplanet-paging.mts
+verify deckplanet-paging: ok
+EXIT 0
+RUN tsx scripts/verify/arena-offline-pack.mts
+arena-offline-pack: ok — pack 2932816bfb9c3e3e… (293657 bytes, 41 cards, 43 programs), playable true with 0 reason(s)
+EXIT 0
+RUN tsx scripts/verify/arena-session-648.mts
+arena session (#648): import graph, conformance and presentation over an in-memory session: ok
+EXIT 0
+RUN tsx scripts/arena-policy-eval.mts --check
+Local policy (main v1 + combat v1 + choices v1) vs baselines, 2 games per fixture (half from each seat), seed set dev, max 3000 moves
+baseline   fixture  W-L-D (unfinished)   win rate (95 % CI, n)        p1 W-L  p2 W-L  damage dealt/taken  guards  stops i/n/l  seed pairs W/S/L  step p95 ms
+uniform    646      2-0-0 (0)            100 % (34 %-100 %, n=2)      1-0     1-0     16/6                0/0     0/0/0        1/0/0             30.6
+uniform    647      2-0-0 (0)            100 % (34 %-100 %, n=2)      1-0     1-0     16/3                0/0     0/0/0        1/0/0             19.6
+uniform    650      2-0-0 (0)            100 % (34 %-100 %, n=2)      1-0     1-0     16/4                0/0     0/0/0        1/0/0             19.3
+uniform    all      6-0-0 (0)            100 % (61 %-100 %, n=6)      3-0     3-0     48/13               0/0     0/0/0        3/0/0             22.2
+Seat bias (share of decided games won by the FIRST seat, whoever plays the policy; 50 % = none):
+  uniform    all      p1 3 / p2 3  p1 share 50 % (19 %-81 %)  no bias detectable
+Hidden-state variants (every 10th decision of the local seat, 2 games per fixture):
+  646      positions 9, state changed in 9, observation mismatches 0, answer mismatches 0, unplayable 0
+  647      positions 14, state changed in 14, observation mismatches 0, answer mismatches 0, unplayable 0
+  650      positions 12, state changed in 12, observation mismatches 0, answer mismatches 0, unplayable 0
+Expectation vs uniform: win rate 95 % interval lower bound above 50 % (n=6, lower 61 %): met
+Replay uniform/646: identical (2 games)
+Latency of the local step, local policy's decisions only (ms):
+  all            n=319     p50 8.97  p90 18.50  p95 22.24  p99 32.42  max 43.0
+  charge         n=31      p50 6.29  p90 8.82  p95 11.60  p99 24.26  max 24.3
+  chooseCards    n=3       p50 4.51  p90 6.11  p95 6.11  p99 6.11  max 6.1
+  chooseFirst    n=3       p50 2.55  p90 18.59  p95 18.59  p99 18.59  max 18.6
+  chooseMode     n=4       p50 13.77  p90 16.57  p95 16.57  p99 16.57  max 16.6
+  combo          n=117     p50 7.89  p90 12.83  p95 14.09  p99 21.23  max 21.4
+  counter        n=4       p50 7.29  p90 15.62  p95 15.62  p99 15.62  max 15.6
+  main           n=144     p50 12.65  p90 23.72  p95 28.95  p99 35.25  max 43.0
+  mulligan       n=6       p50 3.31  p90 8.55  p95 8.55  p99 8.55  max 8.5
+  payCost        n=1       p50 13.32  p90 13.32  p95 13.32  p99 13.32  max 13.3
+  zEnergyFromCombo n=6       p50 5.48  p90 9.07  p95 9.07  p99 9.07  max 9.1
+16 s
+arena:policy-eval --check: ok
+EXIT 0
+RUN tsx scripts/verify/arena-local-worker.mts
+arena-local-worker: ok — staged SD15/SD5 pack e0f620ccbe20…, match of 108 decisions (49 human, 59 AI in 22 advances) to turn 9, trace 8beddc27
+  29 refusals checked with the journal unchanged; 374 messages audited, 311 snapshots, 104 permuted (104 nontrivial, control 101); message stream d34c9bc32439bb54…
+  Node, in-process: AI decision p50 26.5 / p95 77.8 / max 120.1 ms (n=59); human act round trip p50 36.4 / p95 85.6 ms; total 24.3 s
+EXIT 0
+RUN tsx scripts/verify/last-prints-price-549.ts
+last-prints-price-549: BT12-023, BT29-030 and DB2-011 prices offer, pay, decline, refuse and reload on the strict host
+EXIT 0
+RUN tsx scripts/verify/arena-local-storage.mts
+arena-local-storage: ok — reference match of 108 decisions on the FAKE IndexedDB (scripts/verify/fake-indexeddb.ts): identical to memory (messages byte for byte), reloaded during a human choice and an AI turn, abort/quota/crash leave the last commit, 13 damaged saves refused by name, schema 1→2 upgrade, nothing private stored; 64.2 s
+  the real-IndexedDB half: npm run arena:local-storage-browser
+EXIT 0
+RUN tsx scripts/verify/arena-local-ownership.mts
+  recovery: human move killed before persisting, human move killed after persisting, AI batch killed before persisting, AI batch killed after persisting, hung inside a commit, error event, full device; 6 restarts in all
+arena-local-ownership: ok — one writer per match (Web Locks and the lease fallback, races, watchers, takeovers, a frozen owner fenced), worker recovery (killed before/after persistence of a move and an AI batch, hung, error, idle; failed/stopped/storage recovered), 340 boards equal to the reference; 69.9 s
+  sections: reference 10.2 s, races 1.5 s, watch+vanish 19.8 s, frozen lease 14.8 s, steal 1.8 s, recovery 14.9 s, idle/failed/stop 4.2 s, reload 2.3 s
+  the real-browser half (two tabs): npm run arena:local-ownership-browser
+EXIT 0
+RUN tsx scripts/verify/swap-729-731.ts
+#729/#731: [Swap] reveals only the specified card, and BT4-079's action price is paid on the strict host
+EXIT 0
+RUN tsx scripts/verify/arena-local-board-656.mts
+  pack gate: ok
+  seat p1: reloaded at revision 40, ended at revision 121
+  seat p2: played to the end; rematch opened 00aa and played on to revision 31
+  stale, unknown card and duplicate: journal unchanged
+  second tab: watched, took over, old tab fenced
+  questions answered through the local adapter: chooseFirst×8, mulligan×9, charge×55, main×77, counter×11, chooseCards×36, combo×92, zEnergyFromCombo×24, chooseMode×6, gameOver×3, payCost×1, blocker×2
+arena-local-board-656: ok — staged SD15/SD5 pack e0f620ccbe20…, 85 snapshots audited (84 against the host), 0 network calls, 41.2 s
+EXIT 0
+RUN tsx scripts/verify/ai-agent-sdk.ts
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ '\\tmp\\claude-config'
+- '/tmp/claude-config'
+
+    at options (C:\Users\patvo\Code Repo\arena-m23-validation\scripts\verify\ai-agent-sdk.ts:296:10)
+    at async main (C:\Users\patvo\Code Repo\arena-m23-validation\scripts\verify\ai-agent-sdk.ts:429:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '\\tmp\\claude-config',
+  expected: '/tmp/claude-config',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+EXIT 1
+RUN tsx scripts/verify/ai-agent-sdk-route.ts
+  ai-agent-sdk-route: secret guard (401 / 503 / 400, no query), result and AiError round trip, caller forwarding (URL, header, body shape, timeout, transport errors), availability on Vercel, Basic Auth exemption of exactly this path, binary traced into one route
+EXIT 0
+RUN tsx scripts/verify/ai-openrouter.ts
+[ai] scan_identify: Fake provider cannot do it (Fake provider cannot read images.) — running on OpenRouter
+[ai] scan_identify: OpenRouter cannot do it (Meta: Plain text cannot read images.) — running on Fake provider
+[ai] cart_explain: OpenRouter is unavailable (OPENROUTER_API_KEY is not set.) — running on Anthropic API
+  ai-openrouter: the contract cases on a recorded OpenRouter transport (text, image, JSON with and without structured_outputs, refusal, errors, cached-token usage, billed); reasoning and cache hints only where a model lists them; the model list, prices per MTok and the 1 h cache; routing per task and globally, a text-only model on the scan; the arena's legal-move validation on an OpenRouter model; hardening (a provider without a tier table needs models in settings, an unreachable list does not block a save, cost at call time under the requested id, unpriced models unlisted, effort only where supported, the vendor-prefix guard)
+EXIT 0
+RUN tsx scripts/verify/capabilities.mts --check
+verify/capabilities: 41 narrow scenarios, 0 named runtime gaps, 41 VM source sites, deferred statics and macro exception agree
+EXIT 0
+RUN tsx scripts/verify/derived-read-569.mts
+#569 immutable read session: one shared static read, 11 with bounded attack futures
+EXIT 0
+RUN tsx scripts/verify/damage-statistics-557.mts
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+#557 damage statistics: cost, battle, skill, old save, reload, replay, refusal and end screen passed
+EXIT 0
+RUN tsx scripts/verify/arena-pack-store.mts
+ok   1. a cut-off, truncated, altered, wrong-version or unplayable pack is refused before anything is stored
+ok   1. art cut off at image 11/43: staged, never active or loadable; the retry fetched 33 images and became ready
+ok   1. 404 art: refused as missing-art, never ready
+ok   1. an opaque response: refused as opaque, never ready
+ok   1. a non-image: refused as decode, never ready
+ok   1. an image that does not decode: refused as decode, never ready
+ok   1. an empty image: refused as decode, never ready
+ok   1. a body shorter than its Content-Length: refused as network, never ready
+ok   1. a 503 that persists: refused as http, never ready
+ok   1. a transient 503 is retried and the install completes
+ok   1. an image altered on the device before readiness is caught by the verify phase; the retry re-fetches just it
+ok   1. an image deleted on the device before readiness is caught by the verify phase; the retry re-fetches just it
+ok   2. a corrupt update and an update whose art failed leave v1 active, loadable and its art readable
+ok   2. an update on a full device fails as quota (QuotaExceededError) and v1 stays active and loadable
+ok   2. an update activates v2 in one step with no art download; v1 stays for the saved match and cannot be removed
+ok   2. unreadable saves prune nothing; once the saved match is gone, v1 is pruned and the shared art kept
+ok   3. offline: the active pack loads and all 43 images read, re-checksum and decode from the device with no network call
+ok   4. sw.js activation deletes only its own old dbs-card-art-* cache; pack, shell and foreign caches survive
+arena-pack-store: 18 checks passed in 3.3 s
+EXIT 0
+RUN tsx scripts/verify/arena-offline-shell.mts
+ok   1. sw.js and shell.ts agree on names, paths and isShellAsset
+ok   2. a good install precaches exactly the shell page and the listed files, credential-less, meta last, no skipWaiting
+ok   2. activation never calls clients.claim
+ok   4. signed-in pages, API bodies, RSC, redirects, POSTs and shell.json pass through and enter no cache
+ok   5. offline: the shell and its files come from the cache; /, /arena and /arena/* redirect to it; other pages get the notice
+ok   3. a file that fails (500) fails the install; the previous shell stays
+ok   3. a shell page redirected to the sign-in is refused
+ok   3. a shell page that is not HTML is refused
+ok   3. a list naming a private path is refused before any file is fetched
+ok   3. a list of another version (a deploy in between) is refused
+ok   6. activation keeps the current and the newest previous shell, drops older and partial ones and old art, keeps pack caches
+ok   7. a worker registered without a version installs no shell and deletes none
+ok   8. the proxy exempts exactly /arena/offline, its shell.json and its pack.json; the rest of the arena keeps the sign-in
+ok   9. shellManifestProblems and shellRefusal
+arena-offline-shell: ok — 14 checks
+EXIT 0
+RUN tsx scripts/verify/arena-offline-prep.mts
+ok   1. assess: ready only when game files, finished pack and every image are here and the game can play the pack
+ok   2. updateAvailable: a ready device against the server's current build
+ok   3. friendlyError: plain words, no implementation vocabulary
+ok   4. a prepared pack reads as ready; removal waits for the saved match and takes its images
+ok   5. prepareShell: marks the device, reports progress, returns only when the shell is complete, fails when the worker does
+ok   6. clearOfflineData: the app's own caches, databases, pointer and worker; nothing else; the mark only when all went
+ok   7. an unprepared device downloads no shell; the curated pack id is the builder's
+arena-offline-prep: 7 checks passed
+EXIT 0
+RUN tsx scripts/verify/quiet-skills-783.ts
+quiet-skills (#783): no-target skills read from the beats: ok
+EXIT 0
+RUN tsx scripts/verify/arena-offline-decks-793.mts
+arena-offline-decks-793: ok — device pack 84b02f4e52fb (4 decks, 41 cards); deck-1 v A, human p1: over at revision 116; A v deck-1, human p2: over at revision 116; deck-1 v deck-3, human p1: over at revision 85; deck-3 v deck-1, human p2: over at revision 111; after removal deck-3 v B, human p2: over
+EXIT 0
+RUN tsx scripts/verify/play-choice-preview-798.ts
+#798 legal-play first-choice previews: real cards, optional empty, and privacy passed
+EXIT 0
+RUN tsx scripts/verify/attack-preview-801.ts
+#801 attack previews: engine Auto, passive stakes, hidden/variable guard, purity and concealment passed
+EXIT 0
+RUN tsx scripts/verify/block-preview-801.ts
+#801 block previews: 4k Blocker vs 25k Double Strike/Critical, Barrier, Indestructible, pre-combo engine equality, purity and hidden-hand invariance passed
+EXIT 0
+RUN tsx scripts/verify/arena-feedback-cues.mts
+arena-feedback-cues: ok
+EXIT 0
+RUN tsx scripts/verify/response-empty-windows-801.ts
+#801 empty response windows: engine evidence and viewer privacy passed
+EXIT 0
