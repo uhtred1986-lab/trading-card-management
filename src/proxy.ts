@@ -49,13 +49,16 @@ import { checkAddedSl, checkPlayerDevice } from "@/lib/auth/proxy-checks";
  * give away is the app's name, its icon and a list of public card-image hosts —
  * no data, and no way in.
  *
- * Exactly two more paths are not matched, the offline shell (#659): `/arena/offline` and
- * `/arena/offline/shell.json`. The service worker fetches both without credentials to keep them for
- * a launch with no network, which must not need a session. Both are prerendered at build and read
- * no cookie and no data: the first is the "Play on this device" page with the signed-out chrome
- * (its packs come from the browser's own storage after it loads), the second the list of this
- * build's public static files and the interpreter revision (a commit SHA). Every other `/arena/*`
- * path keeps the sign-in (`scripts/verify/arena-offline-shell.mts`).
+ * Exactly three more paths are not matched, the offline shell (#659) and its pack (#660):
+ * `/arena/offline`, `/arena/offline/shell.json` and `/arena/offline/pack.json`. The service worker
+ * fetches the first two without credentials to keep them for a launch with no network, which must
+ * not need a session. All three are prerendered at build and read no cookie and no data: the first
+ * is the "Play on this device" page with the signed-out chrome (its packs come from the browser's
+ * own storage after it loads), the second the list of this build's public static files and the
+ * interpreter revision (a commit SHA), the third the curated deck pack — the two starter decks'
+ * card text, compiled rules and public card-art URLs, built from the committed catalog snapshot.
+ * It holds nothing of anyone's collection, decks or account. Every other `/arena/*` path keeps the
+ * sign-in (`scripts/verify/arena-offline-shell.mts`).
  *
  * Next 16 runs this on the Node.js runtime, so the database is reachable here.
  */
@@ -105,7 +108,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/sync/|api/ai/agent-sdk$|arena/offline$|arena/offline/shell.json$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/sync/|api/ai/agent-sdk$|arena/offline$|arena/offline/shell.json$|arena/offline/pack.json$).*)",
     // A Server Function POST runs on whatever route it is posted to, so it always meets the proxy,
     // even on a path the entry above skips.
     { source: "/:path*", has: [{ type: "header", key: "next-action" }] },

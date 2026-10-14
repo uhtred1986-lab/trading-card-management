@@ -197,7 +197,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and re-verify. `public/sw.js` deletes only its own `dbs-card-art-*` caches (`CACHE_PREFIXES`).
   Proofs: `scripts/verify/arena-pack-store.mts` (`npm test`, fake IndexedDB) and
   `npm run arena:pack-store-browser` (Chrome's IndexedDB, decoder and Web Crypto). The offline shell
-  reads it; `/arena/local` keeps its file picker until #660.
+  reads it; `/arena/local` keeps its file picker (the offline shell's preparation flow, #660, replaces it there).
 - **The offline shell** (#659, `src/lib/arena/local/shell.ts`): `/arena/offline` is "Play on this
   device" over the installed packs, prerendered at build (no cookie, no viewer, no data) and exempt
   from sign-in with its list `/arena/offline/shell.json` (this build's `/_next/static/` files, the
@@ -211,6 +211,23 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `scripts/verify/arena-offline-shell.mts` (`npm test`: the worker on a fake Cache Storage, the
   proxy matcher) and `npm run arena:offline-shell-browser` (a production build, a cold Chrome with
   the server stopped). The board still shows art by its catalog URLs, not the pack store's images.
+- **Offline preparation** (#660, `src/lib/arena/local/prepare.ts`, `src/components/arena/OfflinePreparation.tsx`):
+  the panel on `/arena/offline` that puts the curated pack (the SD15/SD5 decks) on the device. The
+  pack is served by `/arena/offline/pack.json` (prerendered at build by `scripts/build-arena-offline-pack.mts`
+  at the build's interpreter revision; public, exempt from sign-in, card text, compiled rules and public
+  art URLs only). "Prepare for offline play" sets the device's mark (`PREPARED_KEY` in localStorage),
+  registers `/sw.js?v=<version>` and waits for a COMPLETE shell cache, then installs the pack with its
+  images through the pack store; **ready** is `assess()` over what is really on the device (complete shell
+  whose revision plays the active, finished pack, every image verified) and never the end of a download.
+  `ServiceWorker.tsx` downloads the shell only on a marked device (an unprepared one keeps the card-art
+  worker alone); a marked device gets each deploy's shell and keeps it current. The panel shows
+  `navigator.storage.estimate()`, an interrupted download (kept, resumed by "Try again"), removal of the
+  decks (`PackStore.remove(hash, { active: true })`; a pack a saved match pins is removed only together with
+  that match, which the page says first), deleting saved matches (`deleteSavedMatches`) and "Remove
+  everything" (`clearOfflineData`: the caches named by `CACHE_PREFIXES`, the two `dbs-arena-*` databases, the
+  pointer, the worker and the mark; any other cache of the origin is left alone). Player-facing text has no
+  storage vocabulary; the original message stays under "Details". Proofs: `scripts/verify/arena-offline-prep.mts`
+  (`npm test`) and the E/A0-A2 sections of `npm run arena:offline-shell-browser` (`--shots DIR`, `--real-art`).
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

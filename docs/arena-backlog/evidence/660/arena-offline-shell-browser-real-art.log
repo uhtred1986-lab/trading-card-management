@@ -1,0 +1,48 @@
+ok   A0. an unprepared device has no shell cache and no versioned worker after visiting the arena (/sw.js)
+ok   A0. the panel says it is not prepared and offers to prepare
+ok   A1. the Prepare button is reached with the keyboard alone (6 Tab presses)
+ok   A1. after the interruption the page is NOT ready
+ok   A1. it says what happened and that progress is kept, in plain words (The download was interrupted Check the connection and try again. What was already downloaded is kept, so it carries on w)
+ok   A1. a Try again button is offered
+ok   A1. the page reports what is kept: Still missing: deck pack and card artwork. An earlier download stopped after 12 of 43 card images; it carries on from there.
+ok   A1. the game files finished before the art stopped: the shell cache is complete, yet the page does not say ready
+ok   A2. the retry fetched only the images still missing (31 of 43, 12 were already kept)
+ok   A2. the page now says ready, with the number of card images on the device
+ok   A2. the storage use is shown (This app uses about 13 MB of the roughly 162.)
+ok   A2. every button of the panel is at least 44 px tall on the phone (all)
+ok   A2. preparing registered /sw.js?v=9535f5d6bb306ddb (installed; it waits for every window of the app to close, by design)
+ok   A2. dbs-arena-shell-9535f5d6bb306ddb holds the shell page, its meta record and all 80 listed files
+ok   A2. the device is marked prepared
+ok   A. a pack made for another interpreter revision is refused at install (The pack was not installed: the pack is not playable on this runtime: runtime 1605224ce6304f026e724783de7a39332ba8e7d8 is not the pack's int)
+ok   A. the pack this build serves at /arena/offline/pack.json is the pack the builder makes for this revision, and it is the one installed
+ok   A. an update whose install fails leaves the prepared shell's worker in place and its cache whole; no partial cache stays
+ok   A. … and every file of the working shell is still cached
+ok   B. the server is stopped: http://localhost:3759 refuses connections
+ok   C. a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   C. the service worker controls the page
+ok   C. the CSS loads from the cache (3 sheets, body rgb(234, 247, 255))
+ok   C. the JS loads from the cache (22 static responses)
+ok   C. the fonts load from the cache ("Kanit" loaded, "Barlow Semi Condensed" loaded)
+ok   C. every static response came from the service worker
+ok   C. the installed pack is listed offline (read from IndexedDB)
+ok   C. offline, the panel reads the device and says ready (it cannot check for updates)
+ok   C. a match starts on the board offline: the interpreter ran
+ok   C. the match Worker's script was served by the service worker (/_next/static/chunks/turbopack-worker-2gqdcwp7k90ea.js)
+ok   C. no shell file failed to load (11 expected offline failures — the shell list and link prefetches: /arena/offline/shell.json, /, /leaders, /meta, /settings, /arena)
+ok   D. the shell caches hold only the shell page, its meta record and public static files (82 keys)
+ok   D. no signed-in page, API body or online arena page is in any cache (unrelated-origin-cache, dbs-arena-shell-9535f5d6bb306ddb, dbs-card-art-v1)
+ok   E. the storage in use is shown (This app uses about 18 MB of the roughly 162.3 GB your browser allows.; the browser reports 18430825 of 162331904409 bytes)
+ok   E. the saved match from the offline game is listed
+ok   E. at 200% text (390 px wide screen, 195 px layout) the page's content (70 elements) does not run past the edge
+ok   E. at 200% text (1440 px wide screen, 720 px layout) the page's content (70 elements) does not run past the edge
+ok   E. "Remove the decks" is reached with the keyboard alone (7 Tab presses)
+ok   E. removing the decks says a saved match goes with them and that a connection is needed to prepare again (This takes the two starter decks and their card artwork off this device (3.0 MB). You need a connection to prepare again, and offline play stops until you do. A)
+ok   E. removing the decks removed the pack, every image, the saved match with its moves and its pointer
+ok   E. the game files stay when only the decks are removed
+ok   E. remove everything says what goes, that offline play stops, and that nothing else is removed
+ok   E. removing everything unregistered the worker and cleared the prepared mark and the saved-match pointer
+ok   E. every cache the app owns is gone (unrelated-origin-cache)
+ok   E. an unrelated cache of the same origin is untouched
+ok   E. the app's two databases hold nothing (dbs-arena-local, dbs-arena-packs)
+ok   E. after removal a reload downloads no shell again: the device is unprepared, with the card-art worker only
+arena:offline-shell-browser: 47 checks passed

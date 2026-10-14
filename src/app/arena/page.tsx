@@ -93,10 +93,10 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
         {/* A match that runs in the browser, saved on the device (#656): no Claude, no server, no connection once a pack is here. */}
         {!onGames && (
           <p className="text-xs text-space-400">
-            <Link href="/arena/local" className="tap inline-flex items-center text-ki-300 hover:underline">
+            <Link href="/arena/offline" className="tap inline-flex items-center text-ki-300 hover:underline">
               Play on this device
             </Link>{" "}
-            — against the built-in computer player, saved here, no connection needed.
+            — against the built-in computer player, saved here. Prepare the starter decks once and no connection is needed.
           </p>
         )}
         {playable.length < 1 ? (

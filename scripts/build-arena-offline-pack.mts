@@ -50,6 +50,17 @@ export const PACK_ID = "masters-sd15-vs-sd5";
  * naming one without an entry here.
  */
 export const DEPENDENCIES: PackDependency[] = [];
+/**
+ * Art URLs the committed snapshot has wrong (#660). The snapshot's front image for SD15-02 is
+ * `SD15-02_PR.png`, which answers 404 at the CDN (checked 14 Oct 2026, with `SD15-02_SPR.png` and
+ * `SD15-02_P.png`), so no device could ever finish preparing: the pack's art is verified image by
+ * image and readiness refuses a missing one. `SD15-02.png` answers 200 and is the same card face
+ * (SS Cabba, Spirit Resonance, SD15-02 printed bottom right). A correction to a URL only; the
+ * card's text, cost and rules still come from the snapshot.
+ */
+export const ART_OVERRIDES: Record<string, string> = {
+  "SD15-02": "https://storage.googleapis.com/deckplanet_card_images/SD15-02.png",
+};
 const TOKEN_WORDING = /\btokens?\b|\bgenerate[sd]?\b|\bZ-?Deck\b|\bZ-?(Card|Leader|Extra|Battle)s?\b/i;
 
 const link = (issue: number) => ({ issue, url: `${ISSUE_URL}${issue}` });
@@ -127,7 +138,7 @@ export async function mastersPackInput(options: BuildOptions): Promise<MakeOffli
     defs[id] = def;
     scripts[id] = compileCard(def, "front");
     if (def.back) scripts[`${id}#back`] = compileCard(def, "back");
-    art[id] = { front: c.imageUrl, back: def.back ? c.backImageUrl : null };
+    art[id] = { front: ART_OVERRIDES[id] ?? c.imageUrl, back: def.back ? c.backImageUrl : null };
   }
 
   const missingInputs: MissingInput[] = Object.values(defs)

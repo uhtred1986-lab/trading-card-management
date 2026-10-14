@@ -120,6 +120,7 @@ const ROUTE_EXEMPT: Record<string, string> = {
   "src/app/api/v1/health/route.ts": "the contract version a client checks on launch; no data",
   "src/app/password-login/route.ts": "the old Basic Auth popup on demand; checks the credentials itself",
   "src/app/arena/offline/shell.json/route.ts": "the offline shell's precache list (#659): prerendered at build, public static file names and the interpreter revision only",
+  "src/app/arena/offline/pack.json/route.ts": "the curated offline deck pack (#660): prerendered at build from the committed catalog snapshot; public card text, rules and art URLs only, nothing of anyone's collection",
 };
 
 let routes = 0;

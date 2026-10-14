@@ -9,6 +9,7 @@ import type { TurnLighting } from "@/lib/arena/lighting";
 import type { SpawnedWorker } from "../../../lib/arena/local/recovery";
 import { packStore, PackStoreError, type InstalledVersion, type InstallProgress, type PackStore } from "../../../lib/arena/local/pack-store";
 import { installedShells, shellRefusal, SHELL_PATH, type ShellMeta } from "../../../lib/arena/local/shell";
+import { OfflinePreparation } from "../OfflinePreparation";
 import { LocalBoard, LocalBoardError, POINTER_KEY, browserPointerStore, readPack, readPointer, type BoardAction, type BoardNotice, type LocalPointer, type PackFacts, type PointerStore } from "./local-board";
 
 /**
@@ -64,6 +65,8 @@ type Installed = {
   progress: InstallProgress | null;
   error: string | null;
   install(text: string): Promise<InstalledVersion>;
+  /** Re-read the device (something was installed or removed elsewhere). */
+  refresh(): void;
 };
 
 /** The device's pack store, for the offline shell; null on `/arena/local`. */
@@ -90,6 +93,7 @@ function useInstalledPacks(shell: ShellInfo | undefined): Installed | null {
   if (!store) return null;
   return {
     store, versions, shells, progress, error,
+    refresh: () => setReads((n) => n + 1),
     async install(text) {
       setProgress({ phase: "pack", done: 0, total: 0, resumed: 0 });
       try { return await store.install({ text }, { onProgress: setProgress }); } finally { setProgress(null); setReads((n) => n + 1); }
@@ -122,7 +126,7 @@ function InstalledPacks({ installed, revision, chosen, busy, onUse, onFile }: { 
         </ul>
       )}
       <label className="block text-sm text-space-200">
-        <span className="mb-1 block">Add a pack file to this device</span>
+        <span className="mb-1 block">Add a deck file to this device</span>
         <input type="file" accept="application/json,.json" disabled={busy} onChange={(e) => onFile(e.target.files?.[0])} className={fileInput} />
       </label>
       {progress && <p className="text-xs text-space-300" aria-live="polite">Installing · {progress.phase}{progress.total ? ` ${progress.done}/${progress.total}` : ""}</p>}
@@ -148,12 +152,12 @@ function UpdateNotice() {
     navigator.serviceWorker?.getRegistration().then((r) => { if (live) setWaiting(!!r?.waiting); }).catch(() => {});
     return () => { live = false; };
   }, []);
-  return waiting ? <p role="status" className="text-xs text-space-300">A new version of the app is on this device. It starts the next time the app is opened with every window of it closed; a match in progress keeps the version it started on.</p> : null;
+  return waiting ? <p role="status" className="text-xs text-space-300">The latest version of the app is on this device. It starts the next time the app is opened with every window of it closed; a match in progress keeps the version it started on.</p> : null;
 }
 
 export function LocalArena({ skin = "night", staging, lighting, shell }: StageProps & { shell?: ShellInfo }) {
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
-  const [facts, setFacts] = useState<PackFacts | null>(null);
+  const [chosen, setFacts] = useState<PackFacts | null>(null);
   const [problem, setProblem] = useState<{ message: string; reasons: string[] } | null>(null);
   const [mine, setMine] = useState("");
   const [theirs, setTheirs] = useState("");
@@ -166,6 +170,8 @@ export function LocalArena({ skin = "night", staging, lighting, shell }: StagePr
   const pointer = useMemo(() => readPointer(storedPointer), [storedPointer]);
   useEffect(() => () => { void boardRef.current?.dispose(); }, []);
   const installed = useInstalledPacks(shell);
+  // A pack that was removed from the device is no longer the chosen one.
+  const facts = chosen && installed?.versions && !installed.versions.some((v) => v.hash === chosen.hash) && !installed.progress ? null : chosen;
 
   const deps = { spawn, pointers };
   const show = (board: LocalBoard) => { boardRef.current = board; setPhase({ kind: "board", board }); };
@@ -211,8 +217,8 @@ export function LocalArena({ skin = "night", staging, lighting, shell }: StagePr
     return LocalBoard.resume(compatible(f).pack, pointer, deps);
   });
   /** Choose an installed pack (shell). */
-  async function chooseInstalled(hash: string) {
-    setProblem(null);
+  async function chooseInstalled(hash: string, keepProblem = false) {
+    if (!keepProblem) setProblem(null);
     setFacts(null);
     try { adopt(readPack(await installed!.store.load(hash))); } catch (e) { fail(e); }
   }
@@ -268,10 +274,26 @@ export function LocalArena({ skin = "night", staging, lighting, shell }: StagePr
 
         {installed && <UpdateNotice />}
 
+        {installed && (
+          <OfflinePreparation
+            store={installed.store}
+            revision={shell!.revision}
+            pointerPack={pointer?.packHash ?? null}
+            onChanged={installed.refresh}
+            onReady={(hash) => { if (!facts) void chooseInstalled(hash, true); }}
+            forgetPointer={discard}
+          />
+        )}
+
         <section aria-label="Deck pack" className={`${panel} space-y-2`}>
-          <h2 className="text-xs uppercase tracking-widest text-space-400">Deck pack</h2>
+          <h2 className="text-xs uppercase tracking-widest text-space-400">{installed ? "Decks on this device" : "Deck pack"}</h2>
           {installed ? (
-            <InstalledPacks installed={installed} revision={shell!.revision} chosen={facts?.hash ?? null} busy={busy} onUse={(h) => void chooseInstalled(h)} onFile={(f) => void installFile(f)} />
+            <details>
+              <summary className="tap inline-flex cursor-pointer items-center text-sm text-space-200">Choose a deck pack or add one from a file</summary>
+              <div className="mt-2">
+                <InstalledPacks installed={installed} revision={shell!.revision} chosen={facts?.hash ?? null} busy={busy} onUse={(h) => void chooseInstalled(h)} onFile={(f) => void installFile(f)} />
+              </div>
+            </details>
           ) : (
             <label className="block text-sm text-space-200">
               <span className="mb-1 block">Choose the pack file</span>
