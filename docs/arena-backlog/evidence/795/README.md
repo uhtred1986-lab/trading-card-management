@@ -4,6 +4,15 @@ The integration implements #796–#802 in the production board and current rules
 engine, using the approved #788 prototype as a behaviour reference. It does not
 restore the removed legacy engine or change database contents.
 
+## Final acceptance reconciliation — 15 October 2026
+
+The [closure evidence](closure-2026-10-15/README.md) supersedes the remaining-open
+statements below. It includes before/after comparisons, measured interactions,
+decklists, scoped contrast, final hand-chip fixes, a complete prompt-wording
+audit, and final merge gates. Earlier run results below remain historical records.
+Owner laptop/network timings are excluded; quantitative performance acceptance
+is explicitly waived rather than falsely reported as a measured pass.
+
 ## Recovery and independent phone follow-up — 14 October 2026
 
 The two previously incomplete checks have now produced passing evidence within

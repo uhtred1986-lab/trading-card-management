@@ -1,0 +1,92 @@
+{
+  "base": "http://localhost:3771",
+  "fixtures": [
+    "phone-ux-hand-6"
+  ],
+  "skins": [
+    "anime"
+  ],
+  "checked": 218,
+  "failures": [
+    {
+      "skin": "anime",
+      "ratio": 1.86,
+      "need": 4.5,
+      "text": "3",
+      "element": "div > div[card] > button.arena-card > span.arena-cost.arena-num",
+      "fg": "rgb(255,245,245)",
+      "bg": "rgb(255,157,157)",
+      "seen": "phone:phone-ux-hand-6 desk:phone-ux-hand-6"
+    },
+    {
+      "skin": "anime",
+      "ratio": 3.28,
+      "need": 4.5,
+      "text": "+",
+      "element": "div > div[card] > button.arena-card > span.arena-num",
+      "fg": "rgb(220,229,246)",
+      "bg": "rgb(57,122,227)",
+      "seen": "phone:phone-ux-hand-6 desk:phone-ux-hand-6"
+    },
+    {
+      "skin": "anime",
+      "ratio": 3.28,
+      "need": 4.5,
+      "text": "5",
+      "element": "div > div[card] > button.arena-card > span.arena-num",
+      "fg": "rgb(220,229,246)",
+      "bg": "rgb(57,122,227)",
+      "seen": "phone:phone-ux-hand-6 desk:phone-ux-hand-6"
+    },
+    {
+      "skin": "anime",
+      "ratio": 3.28,
+      "need": 4.5,
+      "text": "k",
+      "element": "div > div[card] > button.arena-card > span.arena-num",
+      "fg": "rgb(220,229,246)",
+      "bg": "rgb(57,122,227)",
+      "seen": "phone:phone-ux-hand-6 desk:phone-ux-hand-6"
+    },
+    {
+      "skin": "anime",
+      "ratio": 3.51,
+      "need": 4.5,
+      "text": "Leader",
+      "element": "div.arena-row > div > span.arena-leader.arena-leader-off > span.arena-leader-tag",
+      "fg": "rgb(59,54,109)",
+      "bg": "rgb(157,125,255)",
+      "seen": "phone:phone-ux-hand-6 desk:phone-ux-hand-6"
+    },
+    {
+      "skin": "anime",
+      "ratio": 3.78,
+      "need": 4.5,
+      "text": "+",
+      "element": "div > div[card] > button.arena-card.arena-ring-legal > span.arena-num",
+      "fg": "rgb(238,241,248)",
+      "bg": "rgb(55,119,225)",
+      "seen": "phone:phone-ux-hand-6 desk:phone-ux-hand-6"
+    },
+    {
+      "skin": "anime",
+      "ratio": 3.78,
+      "need": 4.5,
+      "text": "5",
+      "element": "div > div[card] > button.arena-card.arena-ring-legal > span.arena-num",
+      "fg": "rgb(238,241,248)",
+      "bg": "rgb(55,119,225)",
+      "seen": "phone:phone-ux-hand-6 desk:phone-ux-hand-6"
+    },
+    {
+      "skin": "anime",
+      "ratio": 3.78,
+      "need": 4.5,
+      "text": "k",
+      "element": "div > div[card] > button.arena-card.arena-ring-legal > span.arena-num",
+      "fg": "rgb(238,241,248)",
+      "bg": "rgb(55,119,225)",
+      "seen": "phone:phone-ux-hand-6 desk:phone-ux-hand-6"
+    }
+  ]
+}
