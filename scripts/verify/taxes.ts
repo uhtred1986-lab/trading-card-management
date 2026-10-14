@@ -14,10 +14,12 @@
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { DEFS, actsG, addEffectG, compileSkill, describeScript, findG, labelsG, leaderOf, moveG, parseFilter, parseSkills, playG, rejectedActionsG, stagedG, assertConsistentG, zoneOf } from "./harness";
 import type { Action, EngineState, PlayerId } from "./harness";
 import { deepEqual, parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import type { Op } from "../../src/lib/arena/vm/script";
+import { skillRecords } from "../../src/lib/arena/draft";
 
 const one = (text: string) => compileSkill(parseSkills(text)[0]);
 
@@ -84,6 +86,29 @@ const BT31_150 =
   "[Auto] When this card is played, choose up to 1 of your opponent's Battle Cards, send it to its owner's Warp, and until the end of your opponent's turn, when your opponent's card is played, they can't play it unless they send 1 card from their hand to its owner's Warp.";
 const BT8_051 =
   "[Auto] When you play this card, draw 1 card, then for the duration of the game, if the turn player would use the skill of a Battle Card or Extra Card to switch energy to Active Mode, they can't switch energy to Active Mode unless they choose 5 cards from their Drop Area and send them to their Warp.";
+
+// #812: inspect the actual drafted WHEN, not just the compiled effect ops.
+for (const [id, skill] of [["BT31-093", BT31_093], ["BT31-150", BT31_150]] as const) {
+  const records = skillRecords({ ...DEFS.V1, id, skill });
+  assert.equal(records.length, 1);
+  assert.deepEqual(records[0].trigger, ["played"], `${id}: the nested tax is not an opponent-play Auto`);
+}
+const printed812 = JSON.parse(readFileSync("docs/arena-backlog/evidence/812/printed-skills.json", "utf8")) as { id: string; skill: string }[];
+for (const printed of printed812) {
+  const index = printed.id === "BT31-093" ? 20 : 30;
+  const record = skillRecords({ ...DEFS.V1, ...printed }).find((r) => r.skillIndex === index);
+  assert.ok(record, `${printed.id}: the full catalog text retains its actual skill index`);
+  assert.deepEqual(record.trigger, ["played"]);
+}
+for (const skill of [
+  "[Auto] When your opponent's Battle Card is played, draw 1 card.",
+  "[Auto] When your opponent plays a Battle Card, draw 1 card.",
+  "[Auto] When this card is played or when your opponent's Battle Card is played, draw 1 card.",
+]) {
+  const [record] = skillRecords({ ...DEFS.V1, skill });
+  assert.deepEqual(record.trigger, skill.includes("this card") ? ["played", "opponentPlayed"] : ["opponentPlayed"],
+    "a genuine single or alternative opponent-play trigger survives");
+}
 type Forbid = Extract<Op, { op: "forbid" }>;
 const forbidIn = (ops: Op[]): Forbid => {
   const found: Forbid[] = [];
@@ -282,6 +307,40 @@ const taxPlays = (s: EngineState) => addEffectG(s, [], { master: "p2", source: l
 const plays = (s: EngineState, card: string) => actsG(s).filter((a) => a.type === "play" && a.card === card);
 def("TX-PLAY", {});
 def("TX-PLAY2", {});
+
+// #812: resolve each printed Auto once, reload, then let the opponent play.
+// The tax must be paid, without drawing again or reopening the removal choice.
+for (const [id, skill, price] of [["TX-093", BT31_093, 3], ["TX-150", BT31_150, 1]] as const) {
+  def(id, { skill, energyCost: 0 });
+  let s = stagedG({ hand: [id], energy: ["V1", "V1", "V1"],
+    oppHand: ["TX-PLAY", "TX-FODDER", "TX-FODDER", "TX-FODDER", "TX-FODDER"], oppEnergy: ["V1"] });
+  s = settle(playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", id) }));
+  const ownHand = handOf(s, "p1");
+  assert.equal(ownHand, id === "TX-093" ? 1 : 0, "the initial draw happens exactly once where printed");
+  s = playG(s, { type: "endMain", player: "p1" });
+  s = playG(s, { type: "charge", player: "p2", card: null });
+  if (price === 3) for (const physical of [...zoneOf(s, "p2", "hand")]) {
+    if (s.cards[physical].cardId === "TX-FODDER") moveG(s, physical, "drop", "p2");
+  }
+  s = JSON.parse(JSON.stringify(s)) as EngineState;
+  const played = findG(s, "p2", "hand", "TX-PLAY");
+  s = playG(s, { type: "play", player: "p2", card: played });
+  if (s.prompt.kind === "payCost") s = playG(s, actsG(s)[0]);
+  assert.equal(s.prompt.kind, "chooseCards", `${id}: the opponent owes the printed play tax`);
+  for (let i = 0; i < price && s.prompt.kind === "chooseCards"; i++) {
+    assert.equal(s.prompt.player, "p2", "only the payer is asked, not the original Auto's controller");
+    assert.equal(s.prompt.choice.min, 1, "the required price is selected one card at a time");
+    const physical = s.prompt.choice.candidates.find((candidate) => s.cards[candidate].cardId === "TX-FODDER");
+    assert.ok(physical);
+    s = playG(JSON.parse(JSON.stringify(s)) as EngineState, { type: "choose", player: "p2", cards: [physical] });
+  }
+  assert.equal(s.prompt.kind, "main", "the original removal Auto does not open again");
+  assert.equal(handOf(s, "p1"), ownHand, "the original draw does not repeat");
+  assert.ok(zoneOf(s, "p2", "battle").includes(played));
+  assert.equal(zoneOf(s, "p2", "warp").filter((physical) => s.cards[physical].cardId === "TX-FODDER").length, price,
+    "the complete tax is paid once to Warp");
+  assertConsistentG(s);
+}
 {
   // The card being played is the only card in hand: the price cannot be paid, so the play is refused, naming it.
   let s = stagedG({ hand: ["TX-PLAY"], energy: ["V1"] });

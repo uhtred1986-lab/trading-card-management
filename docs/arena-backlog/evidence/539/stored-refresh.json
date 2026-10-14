@@ -1,0 +1,535 @@
+{
+  "date": "2026-10-14",
+  "runtimeCommit": "526e55622e7f6c3da122f2c90b8e3c31eff88e85",
+  "approvedCards": 16,
+  "updatedDrafts": 29,
+  "verifiedRecords": 51,
+  "inserted": 0,
+  "deleted": 0,
+  "protectedFieldsPreserved": true,
+  "postRefreshDifferences": 0,
+  "changes": [
+    {
+      "card": "BT31-090",
+      "side": "front",
+      "skill": 20,
+      "changed": [
+        "ops",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT6-010",
+      "side": "front",
+      "skill": 0,
+      "changed": [
+        "trigger",
+        "cond",
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": [
+          "play target support depends on the card and board at resolution"
+        ]
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": [
+          "play target support depends on the card and board at resolution"
+        ]
+      }
+    },
+    {
+      "card": "BT6-010",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT31-116",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT31-116",
+      "side": "front",
+      "skill": 20,
+      "changed": [
+        "cost"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT31-116",
+      "side": "back",
+      "skill": 0,
+      "changed": [
+        "trigger",
+        "cond",
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [
+          "the Auto rule has no readable WHEN trigger"
+        ],
+        "unknown": [
+          "play target support depends on the card and board at resolution"
+        ]
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT31-116",
+      "side": "back",
+      "skill": 10,
+      "changed": [
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT3-084",
+      "side": "front",
+      "skill": 20,
+      "changed": [
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT2-001",
+      "side": "front",
+      "skill": 0,
+      "changed": [
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT2-001",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT2-001",
+      "side": "back",
+      "skill": 0,
+      "changed": [
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT2-001",
+      "side": "back",
+      "skill": 10,
+      "changed": [
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT7-003",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "trigger"
+      ],
+      "oldSupport": {
+        "unsupported": [
+          "the Auto rule has no readable WHEN trigger"
+        ],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "XD1-01",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "trigger",
+        "cond",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [
+          "the Auto rule has no readable WHEN trigger"
+        ],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "XD1-01",
+      "side": "front",
+      "skill": 20,
+      "changed": [
+        "ops",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "XD1-01",
+      "side": "back",
+      "skill": 20,
+      "changed": [
+        "cond",
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT2-010",
+      "side": "front",
+      "skill": 0,
+      "changed": [
+        "trigger",
+        "cond"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": [
+          "play target support depends on the card and board at resolution"
+        ]
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": [
+          "play target support depends on the card and board at resolution"
+        ]
+      }
+    },
+    {
+      "card": "BT2-009",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "cond",
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "SD8-09",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "trigger"
+      ],
+      "oldSupport": {
+        "unsupported": [
+          "the Auto rule has no readable WHEN trigger"
+        ],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT3-101",
+      "side": "front",
+      "skill": 0,
+      "changed": [
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT3-043",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "trigger",
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT3-085",
+      "side": "front",
+      "skill": 30,
+      "changed": [
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "SD15-01",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "cost",
+        "ops",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "SD15-01",
+      "side": "back",
+      "skill": 0,
+      "changed": [
+        "ops",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "SD15-01",
+      "side": "back",
+      "skill": 10,
+      "changed": [
+        "trigger",
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "BT2-012",
+      "side": "front",
+      "skill": 20,
+      "changed": [
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "SD7-01",
+      "side": "front",
+      "skill": 10,
+      "changed": [
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "SD7-01",
+      "side": "front",
+      "skill": 20,
+      "changed": [
+        "cost",
+        "ops"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    },
+    {
+      "card": "SD7-01",
+      "side": "back",
+      "skill": 10,
+      "changed": [
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "oldSupport": {
+        "unsupported": [],
+        "unknown": []
+      },
+      "newSupport": {
+        "unsupported": [],
+        "unknown": []
+      }
+    }
+  ]
+}

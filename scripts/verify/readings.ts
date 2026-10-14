@@ -7,6 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { comboBattleEndFromHand, comboBattleEndOpponentTurn } from "../../src/lib/arena/text/triggers";
+import { triggersOf } from "../../src/lib/arena/gaps";
 import {
   CTX,
   DEFS,
@@ -2325,6 +2326,42 @@ import type { VmState } from "../../src/lib/arena/vm/state";
     assert.deepEqual([step.cond?.atMost, step.cond?.sel.underHost.fromVar, step.then?.[0]?.target.sel.area, step.then?.[0]?.target.sel.take, step.then?.[0]?.under.var],
       [4, guarded.then[0].as, "deck", 1, guarded.then[0].as], "BT2-009 takes only the next top card while the chosen host is below five");
   }
+}
+
+// #539 central reading checks complement the boundary/gameplay cases in
+// readings-571, grouped-readings-573, duration-shuffle-574 and free-extra-680.
+{
+  const one = (text: string) => {
+    const result = compileSkill(parseSkills(text)[0]);
+    assert.deepEqual(result.unsupported, [], text);
+    return result;
+  };
+  const energy = "[Auto][Once per turn] When your opponent switches energy to Active Mode using a non-[Awaken] skill during their turn, choose up to 1 of your opponent's energy and place it in its owner's Drop Area.";
+  assert.deepEqual(triggersOf(parseSkills(energy)[0]), ["opponentEnergyActiveBySkill", "opponentOwnEnergyActiveBySkill"], "BT7-003: either owner's energy, switched by the opponent");
+  assert.deepEqual(triggersOf(parseSkills(energy.replace("switches energy", "switches their energy"))[0]), ["opponentOwnEnergyActiveBySkill"], "SD8-09: only the opponent's own energy");
+  const cell = "[Auto] Switch 1 of your energy to Hidden Mode: When your <Cell> or <Cell Jr.> card—both white and with an energy cost of 3 or more—is played, activate an [Activate: Main/Battle] skill of up to 1 mono-white Extra with an energy cost of 2 in your hand.";
+  assert.deepEqual(triggersOf(parseSkills(cell)[0]), ["youPlayed"], "BT31-116: the play event is heard");
+  const invoke = one(cell).ops[0];
+  assert.equal(invoke?.op, "invokeSkill");
+  if (invoke?.op === "invokeSkill" && "sel" in invoke) {
+    assert.equal(invoke.skillKind, "activate:main/battle");
+    assert.deepEqual([invoke.sel.area, invoke.sel.count, invoke.sel.upTo, invoke.sel.filter?.type, invoke.sel.filter?.monoColor, invoke.sel.filter?.colors, invoke.sel.filter?.costMin, invoke.sel.filter?.costMax],
+      ["hand", 1, true, "EXTRA", true, ["White"], 2, 2], "BT31-116: optional hand Extra invocation, not a play");
+  } else assert.fail("BT31-116 selected-Extra invocation missing");
+  const unison = "[Auto][Once per turn][Spirit Boost 1] (You must remove a marker from your Unison Card to activate this skill.) When your opponent attacks your red Unison Card with a specified cost of 2, negate the attack, then choose up to 1 of your Unison Cards and it gets +6000 power for the turn.";
+  assert.deepEqual(triggersOf(parseSkills(unison)[0]), ["opponentAttacksRedUnison2"], "SD15-01: restricted attack target, not every attack");
+  const each = one("[Auto] When this card attacks, this card gains +5000 power for each <Son Goku> and <Vegeta> in your Drop Area for the duration of the turn.");
+  const power = each.ops[0] as { op: string; amount: { count: { area: string; filter: { characters: string[] } }; times: number } };
+  assert.deepEqual([power.op, power.amount.count.area, power.amount.count.filter.characters, power.amount.times], ["power", "drop", ["son goku", "vegeta"], 5000], "BT2-012: only matching characters scale the bonus");
+  const charge = one("[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards, switch it to Rest Mode, and it can't switch to Active Mode during your opponent's next Charge Phase.");
+  const forbid = charge.ops.find(op => op.op === "forbid");
+  assert.deepEqual(forbid && [forbid.what, forbid.until], ["switchToActiveInCharge", "afterOpponentCharge"], "BT3-085/BT3-101: only next opposing Charge Phase");
+  const ownTurn = one("[Auto] When you play this card, this card gains +5000 power until the beginning of your next turn.");
+  assert.equal((ownTurn.ops[0] as { until: string }).until, "nextTurn", "BT2-004: beginning of your next turn");
+  const sum = one("[Auto] When this card is played, choose any number of your opponent's Battle Cards with a combined total energy cost of 8 or less, ignoring [Barrier], and send them to their owner's Warp.");
+  const select = sum.ops[0];
+  assert.equal(select?.op, "choose");
+  if (select?.op === "choose") assert.deepEqual([select.sel.upTo, select.sel.sumAtMost, select.sel.filter?.costMax], [true, { attr: "energyCost", total: 8 }, null], "BT31-090: combined sum, not an individual cost limit");
 }
 
 // #721: markers as a measure. "A red Unison Card with 2 or more markers" (BT10-008's [Permanent]) used to

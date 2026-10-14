@@ -81,6 +81,8 @@ export interface ShellMeta {
 /** A path the shell may cache: the build's public static files, the manifest and its icons. Never a page, an API or a query. */
 export function isShellAsset(path: string): boolean {
   if (typeof path !== "string" || !path.startsWith("/") || path.includes("?") || path.includes("#") || path.includes("..") || path.includes("//")) return false;
+  // Debug metadata is not needed to play; Vercel may deny it even when the JS is public (#810).
+  if (path.endsWith(".map")) return false;
   return path.startsWith("/_next/static/") || /^\/icons\/[\w.-]+$/.test(path) || path === "/manifest.webmanifest";
 }
 
