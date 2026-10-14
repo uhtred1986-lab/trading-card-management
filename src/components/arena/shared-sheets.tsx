@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
 import type { Action, LegalAction, RejectedAction, Requirement } from "@/lib/arena/types";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
@@ -384,6 +385,7 @@ export function ActionRows({
   narrator = DEFAULT_NARRATOR,
   docked = false,
   resolveCard,
+  onPreviewPayment,
 }: {
   card: CardView;
   side: SideView | null;
@@ -398,6 +400,7 @@ export function ActionRows({
    */
   docked?: boolean;
   resolveCard?: (id: string) => CardView | null;
+  onPreviewPayment?: (ids: string[]) => void;
 }) {
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
   const word = { side, inHand, them: narrator.them };
@@ -439,19 +442,19 @@ export function ActionRows({
     const afterReady = (ids: string[]) => Math.max(0, (side?.activeEnergy ?? 0) - ids.filter((id) => energyIds.has(id)).length);
     return <div className="space-y-1 rounded-lg border border-space-700 bg-space-950/70 p-2 text-xs" data-action-evidence={m.index}>
       {payment && <div className="space-y-1" data-payment-preview>
-        <p className="font-semibold text-space-100">{payment.state === "choice" ? "Choose a payment" : "Payment"}</p>
+        <p className="font-semibold text-space-100">{payment.state === "choice" ? "Preview a payment" : "Payment"}</p>
         {options.map((option, i) => {
           const ready = afterReady(option.energyRest);
           const paid = option.energyRest.filter((id) => energyIds.has(id)).length;
           const names = option.energyRest.map((id) => resolveCard?.(id)?.name ?? "Card");
-          return <p className="text-space-200" key={i} data-payment-option={i}>
+          return <button type="button" className="block w-full text-left text-space-200" key={i} data-payment-option={i} onPointerEnter={() => onPreviewPayment?.(option.energyRest)} onFocus={() => onPreviewPayment?.(option.energyRest)} onClick={() => onPreviewPayment?.(option.energyRest)} aria-label={`Preview payment ${i + 1}`}>
             {payment.state === "choice" ? `Option ${i + 1}: ` : ""}
             {option.energyRest.length ? `Rest ${names.join(", ")}` : "No energy cards rest"}
             {option.markers > 0 ? ` · ${option.markers} ⚡ marker${option.markers === 1 ? "" : "s"}` : ""}
             {option.costMarkers ? ` · ${option.costMarkers > 0 ? "+" : ""}${option.costMarkers} cost marker${Math.abs(option.costMarkers) === 1 ? "" : "s"}` : ""}
-            {` · ${paid} ⚡ of ${side?.energy.length ?? 0} ready → ${ready} left`}
+            {` · ${paid} ⚡ of ${side?.activeEnergy ?? 0} ready → ${ready} left`}
             {ready === 0 && hasCounter && <span className="block font-semibold text-dbs-yellow">This leaves no ready energy for a Counter in your hand.</span>}
-          </p>;
+          </button>;
         })}
       </div>}
       {preview && preview.state !== "notEvaluated" && <div data-choice-preview>
@@ -627,6 +630,7 @@ export function CardSheet({
   onJump,
   reviewMode = "own",
   resolveCard,
+  onPreviewPayment,
 }: {
   card: CardView;
   /** The player's own side, for the remedy in an energy refusal. */
@@ -648,6 +652,7 @@ export function CardSheet({
   onJump?: (card: CardView) => void;
   reviewMode?: "own" | "opponent" | "targeting";
   resolveCard?: (id: string) => CardView | null;
+  onPreviewPayment?: (ids: string[]) => void;
 }) {
   const [fullArt, setFullArt] = useState(false);
   const [opponentBig, setOpponentBig] = useState(false);
@@ -860,7 +865,7 @@ export function CardSheet({
               <StatTiles card={card} leader={leader} />
             </div>
           </div>
-          <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} />
+          <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
           <CardDetail card={card} narrator={narrator} battle={battle} figures={false} />
         </div>}
 
@@ -931,7 +936,7 @@ export function SearchSheet({
       })}
       {refused.filter((item) => !choices.some((choice) => choice.id === item.card.id)).map(({ card, reason, label }) => (
         <div key={`refused:${card.id}`} className="flex w-full items-center gap-3 rounded-lg border border-loss/40 bg-loss/5 px-2 py-2 text-left sm:px-3" data-refused-target={card.id}>
-          {card.imageUrl ? <img src={cardImage(card.imageUrl, "thumb")} alt="" className="card-aspect w-10 shrink-0 rounded object-cover opacity-50 sm:w-12" /> : <span className="card-aspect w-10 shrink-0 rounded bg-space-700 sm:w-12" />}
+          {card.imageUrl ? <Image src={cardImage(card.imageUrl, "thumb")} alt="" width={48} height={67} unoptimized className="card-aspect w-10 shrink-0 rounded object-cover opacity-50 sm:w-12" /> : <span className="card-aspect w-10 shrink-0 rounded bg-space-700 sm:w-12" />}
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-space-100">{card.name}</span>
             <span className="block whitespace-normal text-xs leading-snug text-loss">Cannot choose: {reason}</span>

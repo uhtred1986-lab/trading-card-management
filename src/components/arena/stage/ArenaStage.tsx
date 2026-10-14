@@ -169,6 +169,7 @@ export function ArenaStage({
   const [attackPick, setAttackPick] = useState<{ action: number; attacker: string; target: string } | null>(null);
   /** The card whose action sheet is open — from a tap, a long press or a right-click. */
   const [sheet, setSheet] = useState<CardView | null>(null);
+  const [paymentHighlight, setPaymentHighlight] = useState<{ card: string; ids: string[] } | null>(null);
   /** The last refused tap: which card, and the sentence the rules gave for it. */
   const [refusal, setRefusal] = useState<{ card: string; text: string } | null>(null);
   const [shaking, setShaking] = useState<string | null>(null);
@@ -1064,7 +1065,11 @@ export function ArenaStage({
           label: dragCharges.length > 0 ? "Drop to charge · +1 energy" : whyWords(rejectedFor1(drag.id, "charge").length ? rejectedFor1(drag.id, "charge") : [{ kind: "oncePerTurn", what: "charge" }], "Can't charge now"),
         }
       : null;
-  const willRest = drag && !drag.back && dragPlays.length > 0 && dragPrice > 0 ? dragPrice : 0;
+  const defaultPayment = sheet ? movesFor(sheet.id).find((move) => move.legal.paymentPreview?.state === "known")?.legal.paymentPreview
+    : drag && !drag.back && dragPlays.length ? legal[dragPlays[0]].paymentPreview : undefined;
+  const restingIds = sheet && paymentHighlight?.card === sheet.id ? paymentHighlight.ids
+    : defaultPayment?.state === "known" ? defaultPayment.options[0]?.energyRest ?? [] : [];
+  const willRest = restingIds.filter((id) => view.you.energy.some((card) => card.id === id && card.mode === "active")).length;
   useEffect(
     () => () => {
       if (gainTimer.current) clearTimeout(gainTimer.current);
@@ -1322,6 +1327,7 @@ export function ArenaStage({
         className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
         data-skin={skin}
         data-phone-cinema={phoneCinema}
+        data-response-window={defending ? view.prompt.kind : undefined}
         style={{ ...turnStyle, ...fxVars(pace) }}
       >
         {/* Speed lines under an attack — a skin's moment, driven by the beat on
@@ -1481,6 +1487,7 @@ export function ArenaStage({
                 energyChips={energyChips}
                 drop={energyDrop}
                 willRest={willRest}
+                restingIds={restingIds}
                 gain={gain}
                 className="mx-2"
               />
@@ -1521,7 +1528,7 @@ export function ArenaStage({
           )}
 
           {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
-          <Hand cards={!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") ? [] : view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
+          {!(!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")) && <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
           {/* CSS places this single decision panel under the hand on phones and
@@ -1532,7 +1539,7 @@ export function ArenaStage({
             <PromptPanel
               view={view}
               decision={live.decision}
-              handDecision={!wide && asksForHand && view.prompt.kind === "combo"}
+              handDecision={!wide && view.prompt.kind === "combo"}
               overOutcome={live.over}
               playable={playable}
               yourTurn={yourTurn}
@@ -1809,6 +1816,7 @@ export function ArenaStage({
             onJump={(c) => setSheet(cardOf(c.id) ?? c)}
             reviewMode={isTargeting ? "targeting" : sheetAt?.side === view.them ? "opponent" : "own"}
             resolveCard={cardOf}
+            onPreviewPayment={(ids) => setPaymentHighlight({ card: sheet.id, ids })}
           />
         )}
 

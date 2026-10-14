@@ -367,6 +367,7 @@ export function PlayerStrip({
   energyChips,
   drop = null,
   willRest = 0,
+  restingIds = [],
   gain = null,
   className = "",
 }: {
@@ -385,6 +386,8 @@ export function PlayerStrip({
   drop?: DropState | null;
   /** How many of the active energy the dragged card's play would rest. */
   willRest?: number;
+  /** Exact resource ids from a VM payment offer; never chosen by strip order. */
+  restingIds?: readonly string[];
   /** A charge was just sent: "+1 ENERGY" rises beside the energy for `ms` (rd-04). */
   gain?: { key: number; ms: number } | null;
   className?: string;
@@ -396,8 +399,7 @@ export function PlayerStrip({
   const nowIds = side.energy.map((c) => c.id);
   if (nowIds.join("|") !== seen.ids.join("|")) setSeen({ ids: nowIds, fresh: new Set(nowIds.filter((id) => !seen.ids.includes(id))) });
   const arrived = seen.fresh;
-  const activeIds = side.energy.filter((c) => c.mode === "active").map((c) => c.id);
-  const resting = new Set(willRest > 0 ? activeIds.slice(-willRest) : []);
+  const resting = new Set(restingIds);
   // Active energy first, then rested, as the chips read left to right.
   const energy = [...side.energy.filter((c) => c.mode === "active"), ...side.energy.filter((c) => c.mode !== "active")];
   const askable = (c: CardView) => {
