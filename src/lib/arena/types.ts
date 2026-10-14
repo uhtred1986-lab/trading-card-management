@@ -249,6 +249,9 @@ export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense" | "turn
 export type Phase = "setup" | "charge" | "main" | "mainEnd" | "end" | "over";
 export type BattleStep = "declared" | "offense" | "defense" | "damage" | "battleEnd";
 
+/** A battle response window the engine advanced past because it had no legal offers. */
+export type EmptyResponseWindow = "counter" | "blocker" | "offenseCombo" | "defenseCombo";
+
 /**
  * Things a card can forbid (20-14). 0-2-5 settles every conflict between a
  * prohibition and an instruction: the prohibition wins, so these are checked

@@ -1066,7 +1066,10 @@ function openCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (!b || b.negated || !battleIntact(state)) return;
   const responder = other(state.turnPlayer);
   const candidates = counterCandidates(ctx, game, state, responder);
-  if (!candidates.length) return;
+  if (!candidates.length) {
+    (b.emptyResponses ??= []).push("counter");
+    return;
+  }
   state.prompt = { kind: "counter", player: responder, window: "attack", candidates: candidates.map((c) => c.card) };
   return "wait";
 }
@@ -1315,7 +1318,10 @@ function openBlockerWindow(ctx: EngineContext, game: GameDefinition, state: VmSt
   b.blockerOffered = true;
   const defender = other(state.turnPlayer);
   const candidates = blockerCandidates(ctx, game, state, defender);
-  if (!candidates.length) return;
+  if (!candidates.length) {
+    (b.emptyResponses ??= []).push("blocker");
+    return;
+  }
   state.prompt = { kind: "blocker", player: defender, candidates };
   return "wait";
 }
@@ -1381,9 +1387,15 @@ function comboWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   if (side === "defense" && state.sides[other(state.turnPlayer)].zones.unison?.includes(b.guard)) return;
   // 20-13: the combo offer is part of the step it belongs to, so a skipped
   // step makes none.
-  if (b.skipped?.includes(side)) return;
+  if (b.skipped?.includes(side)) {
+    (b.emptyResponses ??= []).push(side === "offense" ? "offenseCombo" : "defenseCombo");
+    return;
+  }
   const player = comboSide(ctx, state, side);
-  if (!comboEligible(ctx, game, state, player).length && !battleActivations(ctx, game, state, player).length) return;
+  if (!comboEligible(ctx, game, state, player).length && !battleActivations(ctx, game, state, player).length) {
+    (b.emptyResponses ??= []).push(side === "offense" ? "offenseCombo" : "defenseCombo");
+    return;
+  }
   state.prompt = { kind: "combo", player, side };
   return "wait";
 }
