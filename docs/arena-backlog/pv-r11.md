@@ -6,6 +6,7 @@ stage: ui
 issue: 595
 priority: P1
 touches: src/lib/arena/vm/activate.ts, src/lib/arena/vm/actions.ts, src/lib/arena/vm/costs.ts, src/lib/arena/vm/keyword-do.ts, src/lib/arena/vm/aegis-costs.ts, src/lib/arena/vm/flow.ts, src/lib/arena/vm/script.ts, src/lib/arena/rulesets/dbs/keywords.rules
+status: closed
 ---
 **Source:** `docs/rules/rulemanual.txt` §22-30-3 (Rule Manual v4.00); `src/lib/arena/vm/activate.ts` payment-before-resolution path; #555's local priced-Aegis scenario.
 

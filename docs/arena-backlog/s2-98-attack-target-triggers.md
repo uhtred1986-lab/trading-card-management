@@ -5,6 +5,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-compiler, phase:rules-
 issue: 536
 stage: 2
 touches: src/lib/arena/text/triggers.ts, src/lib/arena/vm/triggers.ts, src/lib/arena/glossary.ts
+status: closed
 ---
 **Source:** owner's card review of 4 Oct 2026 (session rulings stored on each `card_rules` row, `explanation` starting `Wrong (phone review) · WHEN`). Rule manual: an [Auto] answers only to the event it names.
 

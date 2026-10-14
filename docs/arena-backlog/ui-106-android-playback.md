@@ -5,6 +5,7 @@ labels: enhancement, backlog, area:arena-android, phase:android-client, model:so
 stage: ui
 issue: 106
 priority: P3
+status: closed
 ---
 **Source:** `docs/arena-android-spec.md` §5 (the board), §6 (the storyboard in Compose), §11 steps 4–7; `docs/arena-client-contract.md` §6 (watching Claude think) and §3.2 (`Beats`); `src/components/arena/stage/useBeatPlayer.ts` and `motion.ts` as the reference semantics.
 
