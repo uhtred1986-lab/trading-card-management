@@ -3452,7 +3452,25 @@ html[data-skin="anime"] body::before {
   }
 
   [data-skin="anime"].arena .arena-phase {
-    color: rgba(18, 22, 31, 0.55);
+    color: var(--ink);
+  }
+
+  /* Earlier phases step back through their dots and text tone, rather than
+     fading the whole word into the sky. The labels remain readable. */
+  [data-skin="anime"].arena [data-phase-step="1"] .arena-phase:nth-child(1),
+  [data-skin="anime"].arena [data-phase-step="2"] .arena-phase:nth-child(-n + 2),
+  [data-skin="anime"].arena [data-phase-step="3"] .arena-phase:nth-child(-n + 3),
+  [data-skin="anime"].arena [data-phase-step="4"] .arena-phase:nth-child(-n + 4) {
+    opacity: 1;
+    color: #263145;
+  }
+
+  [data-skin="anime"].arena [data-phase-step] .arena-phase:not(.arena-phase-on) .arena-phase-dot {
+    opacity: .4;
+  }
+
+  [data-skin="anime"].arena .arena-hand > p {
+    color: var(--ink);
   }
 
   [data-skin="anime"].arena .arena-phase-on {
