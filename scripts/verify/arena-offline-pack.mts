@@ -94,15 +94,16 @@ await refused(await reseal(pack, (p) => { p.bundle.payload.defs["X-1"] = { ...p.
 await refused({ ...clone(pack), bundle: { ...clone(pack.bundle), payload: { ...clone(pack.bundle.payload), scripts: Object.fromEntries(Object.entries(pack.bundle.payload.scripts).filter(([k]) => k !== "SD5-01#back")) } } }, /content-hash/, "removing a program without resealing");
 
 // ── 3. qualification ────────────────────────────────────────────────────────
-assert.equal(pack.qualification.playable, false, "the audited pair is not playable today");
+assert.equal(pack.qualification.playable, true, "the audited pair qualifies: every blocker is resolved (U1 by #757)");
+assert.deepEqual(pack.qualification.reasons, [], "and no reason is left");
 {
   const tampered = clone(pack);
   tampered.bundle.payload.defs["SD15-03"].power = 99999;
   await refused(tampered, /content-hash/, "a tampered definition");
   const forged = clone(pack);
-  forged.qualification = { playable: true, reasons: [] };
+  forged.qualification = { playable: false, reasons: ["forged reason"] };
   forged.hash = await replayHash({ ...packContent(forged), qualification: forged.qualification });
-  await refused(forged, /recorded qualification/, "a forged playable flag, even rehashed");
+  await refused(forged, /recorded qualification/, "a forged qualification flag, even rehashed");
   const v2 = clone(pack);
   v2.format = OFFLINE_PACK_FORMAT + 1;
   await refused(v2, /unsupported pack format/, "an unsupported pack format");
@@ -149,9 +150,9 @@ assert.equal(pack.qualification.playable, false, "the audited pair is not playab
   assert.equal(pack.blockers.find((b) => b.id === "U4")?.status, "resolved", "U4 (resolved by #729: BT4-079's [Swap] price) stays listed as resolved");
   assert.equal(pack.blockers.find((b) => b.id === "U6")?.status, "resolved", "U6 (resolved by #731: [Swap] reads its printed description) stays listed as resolved");
   assert.equal(pack.blockers.find((b) => b.id === "U8")?.status, "resolved", "U8 (resolved by #730: the master chooses which [Unique] copy stays) stays listed as resolved");
-  // After #728, #729, #731 and #730 the only open blocker is the scenario gate (U1).
-  assert.deepEqual(pack.blockers.filter((b) => b.status !== "resolved").map((b) => b.id), ["U1"], "U1 is the only open blocker");
-  assert.deepEqual(pack.qualification.reasons.map((r) => r.split(" (")[0]), ["blocker U1"], "the pack's only reason is U1");
+  // After #728, #729, #731, #730 and #757 (U1: played scenarios for every compiled-only mechanic) no blocker is open.
+  assert.deepEqual(pack.blockers.filter((b) => b.status !== "resolved").map((b) => b.id), [], "no open blocker");
+  assert.equal(pack.blockers.find((b) => b.id === "U1")?.status, "resolved", "U1 (resolved by #757) stays listed as resolved");
   {
     // #729/#731 in the pinned programs: BT4-079's price record, and the
     // ruleset text whose [Swap] reads the printed description.
@@ -184,9 +185,11 @@ assert.equal(pack.qualification.playable, false, "the audited pair is not playab
   assert.ok(v.some((x) => /decks\[0\]\.owner/.test(x)) && v.some((x) => /BT1-014\.pricePaidCents/.test(x)), `an owner or price-paid field is caught (${JSON.stringify(v)})`);
 
   const stored = clone(pack); // as read back from storage
-  await assert.rejects(instantiateOfflinePack({ pack: stored, p1: "A", p2: "B", seed: 655, interpreterRevision: REV }), /not playable/, "an unqualified pack does not start a game by default");
+  // The pack qualifies on its own interpreter only: on another one it is unqualified and does not start by default.
+  await assert.rejects(instantiateOfflinePack({ pack: stored, p1: "A", p2: "B", seed: 655, interpreterRevision: "c655000000000000000000000000000000000655" }), /not playable/, "an unqualified pack does not start a game by default");
   for (const [p1, p2] of [["A", "B"], ["B", "A"]] as const) {
-    const made = await instantiateOfflinePack({ pack: stored, p1, p2, seed: 655, interpreterRevision: REV, allowUnqualified: true });
+    // Since #757 the audited pair qualifies, so both games start without allowUnqualified.
+    const made = await instantiateOfflinePack({ pack: stored, p1, p2, seed: 655, interpreterRevision: REV });
     let match = made.match;
     assert.deepEqual(Object.keys(match.ctx.scripts ?? {}).sort(), Object.keys(pack.bundle.payload.scripts).sort(), "the game's programs are the pack's, nothing compiled");
     assert.deepEqual(match.ctx.defs, pack.bundle.payload.defs, "the game's definitions are the pack's");
