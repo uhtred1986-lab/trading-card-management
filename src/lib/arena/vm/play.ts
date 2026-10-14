@@ -262,14 +262,24 @@ export function resolvePlay(
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
 function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string): void {
-  const list = state.sides[player].zones[to];
-  const slot = list.indexOf(host);
+  const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;
   moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, onto: host });
+  // 23-2-1, 23-2-2: the stack is a single card in the host's area — this
+  // player's, 3-1-1 — so the arrival must be standing in that very area before
+  // the host goes under it. Read where the move really put it rather than
+  // assume: a card missing from the list made the slot swap below splice at
+  // index -1, dropping the area's last card and adding this one a second time
+  // (#542's fuzz pair, "found 2 times" beside "found 0 times").
+  const arrived = findCard(state, card);
+  if (!arrived || arrived.zone !== to || arrived.owner !== player) {
+    throw new RulesetBroken(state.game, `${card} was played onto ${host} but is in ${arrived ? `${arrived.owner}'s ${arrived.zone}` : "no area"}, not ${player}'s ${to} (23-2-1)`);
+  }
   const under = moveCard(state, game, host, to, { under: card });
   if (!under.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${card}: ${under.refused}`);
+  const list = state.sides[player].zones[to];
   list.splice(list.indexOf(card), 1);
-  list.splice(Math.min(slot, list.length), 0, card);
+  list.splice(Math.min(Math.max(slot, 0), list.length), 0, card);
   if (mode !== undefined) state.cards[card].mode = mode;
   for (const e of state.effects) if (e.target === host && e.kind === "power") e.target = card;
   state.effects = state.effects.filter((e) => e.target !== host);
