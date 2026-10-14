@@ -1,0 +1,38 @@
+{
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+  "cases": {
+    "two-attacks": {
+      "n": 200,
+      "p95Ms": 0.39999999990686774,
+      "maxMs": 2.1999999997206032,
+      "nodes": 262,
+      "reservedBytes": 7360,
+      "statuses": {
+        "searched": 200
+      },
+      "cancellation": "cancelled",
+      "deadline": "deadline",
+      "fallbackId": "m:attack:{\"attacker\":\"p1#27\",\"target\":\"p2#41\",\"type\":\"attack\"}",
+      "deadlineId": "m:attack:{\"attacker\":\"p1#27\",\"target\":\"p2#41\",\"type\":\"attack\"}"
+    },
+    "wide-menu": {
+      "n": 200,
+      "p95Ms": 1.2000000001862645,
+      "maxMs": 4.300000000279397,
+      "nodes": 4096,
+      "reservedBytes": 18880,
+      "statuses": {
+        "nodes": 200
+      },
+      "cancellation": "cancelled",
+      "deadline": "deadline",
+      "fallbackId": "m:attack:{\"attacker\":\"p1#14\",\"target\":\"p2#14\",\"type\":\"attack\"}",
+      "deadlineId": "m:attack:{\"attacker\":\"p1#14\",\"target\":\"p2#14\",\"type\":\"attack\"}"
+    }
+  },
+  "workerHeap": {
+    "usedBytes": 1396716,
+    "retainedBytes": 482152
+  },
+  "measured": "pure policy in unthrottled Chrome Worker; no engine/board in the Worker"
+}

@@ -2,8 +2,8 @@
  * #644 (plan O2-01): the restricted policy observation and the legal-decision contract
  * (`src/lib/arena/policy/`), proved without a database.
  *
- *   1. Import guards. The policy layer (`contract.ts`, `observation.ts`, `rng.ts`, `shortcuts.ts`,
- *      `main.ts`) loads
+ *   1. Import guards. The policy layer (contract, observation, RNG, shortcuts,
+ *      main, combat, choices and optional search) loads
  *      nothing outside `policy/` — no engine, no game RNG, no provider, no database — and its
  *      source names no engine state, seed or ambient randomness. The boundary (`boundary.ts`)
  *      passes #641's browser rule. Each rule is first shown to catch a deliberately added import.
@@ -45,7 +45,7 @@ import { nextRandom, policyRng, type PolicyRng } from "../../src/lib/arena/polic
 
 const ROOT = process.cwd();
 const SEATS: PlayerId[] = ["p1", "p2"];
-const LAYER = ["src/lib/arena/policy/choices.ts", "src/lib/arena/policy/combat.ts", "src/lib/arena/policy/contract.ts", "src/lib/arena/policy/main.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts", "src/lib/arena/policy/shortcuts.ts"];
+const LAYER = ["src/lib/arena/policy/choices.ts", "src/lib/arena/policy/combat.ts", "src/lib/arena/policy/contract.ts", "src/lib/arena/policy/main.ts", "src/lib/arena/policy/observation.ts", "src/lib/arena/policy/rng.ts", "src/lib/arena/policy/search.ts", "src/lib/arena/policy/shortcuts.ts"];
 const BOUNDARY = "src/lib/arena/policy/boundary.ts";
 const started = Date.now();
 
@@ -63,7 +63,7 @@ const started = Date.now();
     const found = policyLayerSourceViolations(f, fs.readFileSync(path.join(ROOT, f), "utf8"));
     assert.deepEqual(found, [], `${f} names engine state or ambient randomness: ${found.join("; ")}`);
   }
-  assert.deepEqual([...walked].sort(), [...LAYER].sort(), "the policy layer is exactly its seven modules");
+  assert.deepEqual([...walked].sort(), [...LAYER].sort(), "the policy layer includes every declared module");
 
   const contractPath = path.join(ROOT, "src/lib/arena/policy/contract.ts");
   const sabotaged = (extra: string) => (file: string) => (file === contractPath ? `${fs.readFileSync(contractPath, "utf8")}\n${extra}\n` : diskRead(file));
