@@ -357,14 +357,14 @@ async function until(page: Page, predicate: string, ms = 30000, what = predicate
   throw new Error(`timed out (${ms / 1000} s) waiting for ${what}`);
 }
 
-interface TapResult { ok: boolean; why?: string; scrolled?: boolean }
+interface TapResult { ok: boolean; why?: string; scrolled?: boolean; dismissed?: string }
 /**
  * Touch the first candidate the finder returns that a finger can reach. A target off screen or under
  * something (a sticky bar, the tab bar, a pop-up) is first scrolled to the middle of the screen, as a
  * player would; `scrolled` says so. Still covered after that, the coverer is named in words.
  */
-async function tapFind(page: Page, finder: string): Promise<TapResult> {
-  const p = await page.eval<{ x: number; y: number; scrolled: boolean } | { why: string }>(`(() => {
+async function tapFind(page: Page, finder: string, clearPopups = true): Promise<TapResult> {
+  const p = await page.eval<{ x: number; y: number; scrolled: boolean } | { why: string; dismiss?: { x: number; y: number; what: string } }>(`(() => {
     const els = (${finder})().filter(Boolean);
     if (!els.length) return { why: "not on the page" };
     const name = (e) => { for (let x = e; x && x !== document.body; x = x.parentElement) { const t = (x.getAttribute("aria-label") || x.innerText || "").replace(/\s+/g, " ").trim(); if (t) return '"' + t.slice(0, 50) + '"'; } return e ? e.tagName.toLowerCase() : "nothing"; };
@@ -390,10 +390,23 @@ async function tapFind(page: Page, finder: string): Promise<TapResult> {
       const q = el.getBoundingClientRect();
       const hit = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, q.left + q.width / 2)), Math.min(innerHeight - 1, Math.max(0, q.top + q.height / 2)));
       why = "covered by " + name(hit);
+      // A skill pop-up (the spotlight) carries its own close button: a player closes it and taps again.
+      let box = hit;
+      while (box && box !== document.body && !box.querySelector('button[aria-label="Dismiss"]')) box = box.parentElement;
+      const close = box && box !== document.body ? box.querySelector('button[aria-label="Dismiss"]') : null;
+      if (close) { const c = close.getBoundingClientRect(); return { why, dismiss: { x: c.left + c.width / 2, y: c.top + c.height / 2, what: name(box) } }; }
     }
     return { why };
   })()`);
-  if ("why" in p) return { ok: false, why: p.why };
+  if ("why" in p) {
+    if (!p.dismiss || !clearPopups) return { ok: false, why: p.why };
+    await page.pointer("down", p.dismiss.x, p.dismiss.y);
+    await sleep(60);
+    await page.pointer("up", p.dismiss.x, p.dismiss.y);
+    await sleep(350);
+    const again = await tapFind(page, finder, false);
+    return again.ok ? { ...again, dismissed: p.dismiss.what } : { ok: false, why: `${again.why} (after closing the pop-up ${p.dismiss.what})` };
+  }
   if (p.scrolled) await sleep(250);
   await page.pointer("down", p.x, p.y);
   await sleep(60);
@@ -450,7 +463,7 @@ async function shoot(page: Page, caseId: string, kind: string, s: Snapshot | nul
 }
 
 // ── a human move, by touch ──────────────────────────────────────────────────────────────────────
-interface Attempt { revision: number; label: string; result: "tapped" | "tapped-other" | "unreachable"; taps: string[]; scrolled: boolean; tapToActMs: number | null; problem: string | null; shot: number | null }
+interface Attempt { revision: number; label: string; result: "tapped" | "tapped-other" | "unreachable"; taps: string[]; scrolled: boolean; dismissedPopup: boolean; tapToActMs: number | null; problem: string | null; shot: number | null }
 const cardIdOf = (a: Action): string | null => {
   const x = a as { card?: string | null; attacker?: string; cards?: string[] };
   if (typeof x.card === "string") return x.card;
@@ -482,9 +495,17 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
   const t0 = Date.now();
   let firstTap: number | null = null;
   let scrolled = false;
+  let dismissed = false;
   const acts = () => page.eval<Action[]>("window.__acts ?? []");
   const sentWithin = async (ms: number) => { const end = Date.now() + ms; do { if ((await acts()).length) return true; await sleep(80); } while (Date.now() < end); return false; };
-  const tap = async (what: string, finder: string) => { const r = await tapFind(page, finder); taps.push(r.ok ? `${what}${r.scrolled ? " (had to scroll to it)" : ""}` : `${what}: ${r.why}`); if (r.scrolled) scrolled = true; if (r.ok) firstTap ??= Date.now(); return r.ok; };
+  const tap = async (what: string, finder: string) => {
+    const r = await tapFind(page, finder);
+    taps.push(r.ok ? `${what}${r.dismissed ? ` (had to close the pop-up ${r.dismissed.slice(0, 40)} first)` : ""}${r.scrolled ? " (had to scroll to it)" : ""}` : `${what}: ${r.why}`);
+    if (r.scrolled) scrolled = true;
+    if (r.dismissed) dismissed = true;
+    if (r.ok) firstTap ??= Date.now();
+    return r.ok;
+  };
   const ui = () => page.eval<{ targeting: boolean; dialog: boolean }>(UI);
   let problem: string | null = null;
   try {
@@ -518,10 +539,10 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
     // A tap's `send` starts the computer's reply itself (ArenaStage `launchAdvance`); a move made past the
     // board does not, so the run asks for it, as arena:offline-release does after every human move.
     else await kickComputer(page);
-    return { revision: s.game.revision, label: l.label, result: "unreachable", taps, scrolled, tapToActMs: null, problem, shot: shot.n };
+    return { revision: s.game.revision, label: l.label, result: "unreachable", taps, scrolled, dismissedPopup: dismissed, tapToActMs: null, problem, shot: shot.n };
   }
   const same = stableJson(sent[0]) === key;
-  return { revision: s.game.revision, label: l.label, result: same ? "tapped" : "tapped-other", taps, scrolled, tapToActMs: firstTap ? Math.max(0, Date.now() - firstTap) : Date.now() - t0, problem: same ? problem : `tapping sent ${stableJson(sent[0]).slice(0, 160)}`, shot: null };
+  return { revision: s.game.revision, label: l.label, result: same ? "tapped" : "tapped-other", taps, scrolled, dismissedPopup: dismissed, tapToActMs: firstTap ? Math.max(0, Date.now() - firstTap) : Date.now() - t0, problem: same ? problem : `tapping sent ${stableJson(sent[0]).slice(0, 160)}`, shot: null };
 }
 
 /** The computer is to move and nothing asked it: ask (the board's own `advance`). */
@@ -692,7 +713,7 @@ async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Sn
 interface CaseResult {
   id: string; decks: string; seat: string; ok: boolean; error: string | null;
   coldLaunchToShellMs: number | null; landedOn: string | null; startTapToBoardMs: number | null;
-  decisions: number; tapped: number; tappedOther: number; unreachable: number; neededScroll: number; notices: Notice[]; tapToActMs: { p50: number; p95: number; max: number } | null;
+  decisions: number; tapped: number; tappedOther: number; unreachable: number; neededScroll: number; neededPopupClosed: number; notices: Notice[]; tapToActMs: { p50: number; p95: number; max: number } | null;
   playbackShots: number; reviews: Review[]; stalls: string[]; revision: number | null; winner: string | null; reason: string | null;
   imagesOnFinalBoard: number; brokenImages: number; remoteImages: number;
   longTasks: number; longTaskMaxMs: number; framesOver50: number; frames: number; mainHeapAfterGc: number | null; workerHeapAfterGc: number | null;
@@ -766,7 +787,7 @@ function summarise(id: string, c: { mine: string; theirs: string; seat: string }
   return {
     id, decks: `${c.mine} v ${c.theirs}`, seat: c.seat, ok: false, error: null, coldLaunchToShellMs: null, landedOn: null, startTapToBoardMs: null,
     decisions: play.decisions, tapped: play.attempts.filter((a) => a.result === "tapped").length, tappedOther: play.attempts.filter((a) => a.result === "tapped-other").length,
-    unreachable: play.attempts.filter((a) => a.result === "unreachable").length, neededScroll: play.attempts.filter((a) => a.scrolled).length, notices: play.notices, tapToActMs: ms.length ? { p50: pct(ms, 0.5), p95: pct(ms, 0.95), max: Math.max(...ms) } : null,
+    unreachable: play.attempts.filter((a) => a.result === "unreachable").length, neededScroll: play.attempts.filter((a) => a.scrolled).length, neededPopupClosed: play.attempts.filter((a) => a.dismissedPopup).length, notices: play.notices, tapToActMs: ms.length ? { p50: pct(ms, 0.5), p95: pct(ms, 0.95), max: Math.max(...ms) } : null,
     playbackShots: play.playbackShots, reviews: play.reviews, stalls: play.stalls, revision: null, winner: null, reason: null,
     imagesOnFinalBoard: 0, brokenImages: 0, remoteImages: 0, longTasks: 0, longTaskMaxMs: 0, framesOver50: 0, frames: 0, mainHeapAfterGc: null, workerHeapAfterGc: null,
     browserPssBytes: null, failedRequests: 0, seconds: 0, ...extra,
@@ -1040,8 +1061,8 @@ function findingsMd(all: Array<Finding & { shot: Shot }>): string {
     L.push(budgetRow("matchStartMs.p95", pct(starts, 0.95)), budgetRow("longTaskCount", Math.max(...results.map((r) => r.longTasks))), budgetRow("longTaskMaxMs", Math.max(...results.map((r) => r.longTaskMaxMs))));
     L.push(budgetRow("framesOver50Ms", Math.max(...results.map((r) => r.framesOver50))), budgetRow("mainHeapBytes", Math.max(...results.map((r) => r.mainHeapAfterGc ?? NaN))), budgetRow("workerHeapRetainedBytes", Math.max(...results.map((r) => r.workerHeapAfterGc ?? NaN))));
   }
-  L.push("", "## Playing by touch", "", "| Case | Decisions | By tap | Tap sent another move | Unreachable | Had to scroll to the control | Tap → move p50 / p95 / max | Beats shot | Stalls |", "|---|---|---|---|---|---|---|---|---|");
-  for (const r of [...results, ...(recovery ? [recovery.result] : [])]) L.push(`| ${r.id} | ${r.decisions} | ${r.tapped} | ${r.tappedOther} | ${r.unreachable} | ${r.neededScroll} | ${r.tapToActMs ? `${r.tapToActMs.p50} / ${r.tapToActMs.p95} / ${r.tapToActMs.max} ms` : "—"} | ${r.playbackShots} | ${r.stalls.length} |`);
+  L.push("", "## Playing by touch", "", "| Case | Decisions | By tap | Tap sent another move | Unreachable | Had to scroll to the control | Had to close a pop-up first | Tap → move p50 / p95 / max | Beats shot | Stalls |", "|---|---|---|---|---|---|---|---|---|---|");
+  for (const r of [...results, ...(recovery ? [recovery.result] : [])]) L.push(`| ${r.id} | ${r.decisions} | ${r.tapped} | ${r.tappedOther} | ${r.unreachable} | ${r.neededScroll} | ${r.neededPopupClosed} | ${r.tapToActMs ? `${r.tapToActMs.p50} / ${r.tapToActMs.p95} / ${r.tapToActMs.max} ms` : "—"} | ${r.playbackShots} | ${r.stalls.length} |`);
   const unreachable = shots.filter((s) => s.kind === "unreachable");
   if (unreachable.length) {
     L.push("", "### Moves no tap reached (each is a finding: a player could not have made it)", "");

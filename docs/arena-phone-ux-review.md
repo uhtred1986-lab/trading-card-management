@@ -87,7 +87,8 @@ At every shot (`checksOf` in `scripts/lib/ux-probe.mts`):
   under 3:1 is major).
 - **Reachability**: each scripted move is made by the tap a player would make. A control that is
   off screen or under something (the tab bar, a sticky strip, a skill pop-up) is first scrolled to
-  the middle of the screen, as a player would, and counted as **had to scroll**. `unreachable`
+  the middle of the screen, as a player would, and counted as **had to scroll**. A skill pop-up
+  covering the target is closed with its own close button first, counted as **had to close a pop-up**. `unreachable`
   means no tap found it even then, so a player would be stuck too; the log names what covered it.
   `tapped-other` means the tap sent a different move, so a label is ambiguous or the driver chose the
   wrong row; read the shot before calling it a bug. After an `unreachable` the move is made through
