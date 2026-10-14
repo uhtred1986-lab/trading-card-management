@@ -1,7 +1,8 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
 import { TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
-import type { CardDef, KeywordSkill, Skill } from "../types";
+import type { CardDef, Color, KeywordSkill, Skill } from "../types";
+import { emptyFilter } from "../text/filters";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
@@ -178,6 +179,36 @@ function unionFusionAreasPermit(text: string): Op | null {
   return { op: "permit", what: "unionFusionAreas", target: { sel: { special: "self" } }, until: "game", filter };
 }
 
+/**
+ * 22-30-3 with a substitute payment (BT22-035, BT22-140): "[Permanent] If your
+ * Leader is …, you can activate your [Aegis] skill by sending 1 yellow card and
+ * 1 blue card from your Drop to your Warp instead of discarding a card from
+ * your hand" and "…, and you can activate this card's [Aegis] skill by sending
+ * 1 card from your opponent's hand to the bottom of their deck instead of
+ * discarding a card from your hand". One standing permission each (20-1-11: a
+ * voluntary "instead of" applies only if its substitute is fulfilled, which the
+ * engine checks when the skill is offered). `head` is whatever the sentence
+ * says before ", and you can" and `opener` the leading "if" clause; the engine
+ * pays the substitute itself. Null for any other wording, including a scope
+ * ("your" / "this card's") the payment does not go with.
+ */
+function aegisAltPermit(text: string): { head: string | null; opener: string | null; permit: Op } | null {
+  const m = /^(?:(.+?),\s*and\s+)?(?:if (.+?),\s*)?you (?:can|may) activate (your|this card'?s) \[aegis(?: [^\]]*)?\](?: skill)? by sending (.+?) instead of discarding (?:a|1|one) cards? from your hand\.?$/i.exec(text.trim());
+  if (!m) return null;
+  const [, head, opener, scope, payment] = m;
+  const target = { sel: { special: "self" as const } };
+  const colors = /^1 (\w+) card and 1 (\w+) card from your drop(?: area)? to your warp(?: area)?$/i.exec(payment.trim());
+  if (colors && /^your$/i.test(scope)) {
+    const named = colors.slice(1, 3).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+    if (!named.every((w) => ["Red", "Blue", "Green", "Yellow", "Black", "White"].includes(w))) return null;
+    return { head: head ?? null, opener: opener ?? null, permit: { op: "permit", what: "aegisAltDrop", target, until: "game", filter: { ...emptyFilter(), colors: named as Color[] } } };
+  }
+  if (/^1 card from your opponent'?s hand to the bottom of their deck$/i.test(payment.trim()) && /^this/i.test(scope)) {
+    return { head: head ?? null, opener: opener ?? null, permit: { op: "permit", what: "aegisAltOpponentHand", target, until: "game" } };
+  }
+  return null;
+}
+
 function compileSkillText(skill: Skill): Script {
   // [Union-Fusion] and [Union-Potara] print two character names where an
   // effect would go, and the engine reads those itself. [Union-Absorb] is
@@ -242,6 +273,17 @@ function compileSkillText(skill: Skill): Script {
   if (scoped) return { ops: [scoped], unsupported: [] };
   const unionAreas = c.permanent ? unionFusionAreasPermit(text) : null;
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
+  const aegisAlt = c.permanent ? aegisAltPermit(text) : null;
+  if (aegisAlt) {
+    const rest = aegisAlt.head ? compileSkillText({ ...skill, effect: aegisAlt.head }) : { ops: [], unsupported: [] as string[] };
+    if (rest.unsupported.length) return { ops: [], unsupported: rest.unsupported };
+    // A condition that cannot be read refuses the permission (ground rule 5).
+    // "a Leader with both <A> and <B>" (BT22-035) is read by the card filter
+    // itself as all-of (`charactersAll`, #768).
+    const conds = aegisAlt.opener ? allConditions(aegisAlt.opener) : [];
+    if (!conds) return { ops: [], unsupported: [aegisAlt.opener!] };
+    return { ops: [...rest.ops, ...conds.reduceRight<Op[]>((then, { cond }) => [{ op: "if", cond, then }], [aegisAlt.permit])], unsupported: [] };
+  }
   const opener = /^if (.+?),\s*(?=you (?:can|may)\s)/.exec(said);
   const permission = counterAltCost(said.slice(opener?.[0].length ?? 0).replace(/^you (?:can|may)\s+/, ""), c);
   // Only a *program* price needs the opener taken off. A waiver and a price
