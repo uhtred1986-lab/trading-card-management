@@ -100,6 +100,16 @@ export interface ChoicePreview {
   reason?: string;
 }
 
+/** Engine projection of one currently legal attack, before any opponent response. */
+export interface AttackPreview {
+  /** Index in this same snapshot's `legal` array. */
+  action: number;
+  state: "known" | "notEvaluated";
+  /** Present only when the cloned engine reached a deterministic response boundary. */
+  battle?: BattleView;
+  reason?: string;
+}
+
 /** One [Permanent] skill of a card and its state now (review §3.5). */
 export interface PermanentView {
   /** Index of the skill in the card's text, the same `skillIndex` the engine uses. */
