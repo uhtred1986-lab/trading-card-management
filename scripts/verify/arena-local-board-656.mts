@@ -6,10 +6,10 @@
  * host (#652), the IndexedDB store (#653) on the fake IndexedDB, Node's Web Locks. The "board" is the
  * loop `ArenaStage` runs: watch the snapshots, answer the human's question with `act`, otherwise call
  * `advance`. The pack is the audited SD15/SD5 pair staged to qualify, as `arena-offline-pack.mts`
- * constructs it (test-only; the real pack is still `playable: false`).
+ * constructs it; since #757 resolved U1 the audited pack qualifies too and equals it.
  *
- *   1. The pack gate: the audited pack as built today is refused with its open blocker named, before a
- *      worker is spent; a non-pack, an unknown deck, and a resume with another pack are refused too.
+ *   1. The pack gate: the audited pack as built today qualifies; an unplayable one (the owner's Unison
+ *      costs withheld) is refused with its reason named, before a worker is spent; a non-pack, an unknown deck, and a resume with another pack are refused too.
  *   2. Either seat, start to finish: a match started as p1 and one as p2 each play to the end through
  *      the board's session; "no match API or provider": `fetch` is never called. The p1 match is
  *      reloaded half way (the supervisor and its worker are dropped, a new page resumes from the
@@ -44,7 +44,7 @@ import { canonicalJson } from "../../src/lib/arena/replay-core.ts";
 import { stableJson } from "../../src/lib/arena/policy/contract.ts";
 import { hiddenFrom, strings } from "./arena-policy-permute.ts";
 import { humanAsked, humanPick } from "./arena-local-storage-driver.ts";
-import { auditPack, stagedPack } from "./arena-local-worker-fixture.mts";
+import { auditPack, stagedPack, withheldCostsPack } from "./arena-local-worker-fixture.mts";
 import { FakeIndexedDb, asFactory } from "./fake-indexeddb.ts";
 
 const ROOT = process.cwd();
@@ -143,13 +143,14 @@ const setupP2 = { decks: { p1: "B", p2: "A" }, human: "p2" as const };
 // ── 1. The pack gate ───────────────────────────────────────────────────────────────────────────────
 {
   const w = world();
-  const real = await auditPack();
-  assert.equal(real.qualification.playable, false, "the audited pack is unplayable today (the orchestrator flips it after U1)");
+  assert.equal((await auditPack()).qualification.playable, true, "the audited pack qualifies since #757 resolved U1");
+  const real = await withheldCostsPack();
+  assert.equal(real.qualification.playable, false, "the pack without the owner's Unison costs is unplayable");
   const spawnedBefore = w.spawned.length;
   await assert.rejects(LocalBoard.start(real, setupP1, depsOn(w)), (e: unknown) => {
     assert.ok(e instanceof LocalBoardError && e.code === "unplayable", "refused as unplayable");
     assert.match(e.message, /not playable yet/, "with a plain sentence");
-    assert.ok(e.reasons.some((r) => /U1/.test(r)), "naming the open blocker U1");
+    assert.ok(e.reasons.some((r) => /missing input: DB3-001 specifiedCost/.test(r)), "naming the missing input");
     return true;
   });
   assert.equal(w.spawned.length, spawnedBefore, "no worker was spent on it");
@@ -265,7 +266,8 @@ const finals: Record<string, string> = {};
 }
 
 // ── 3. Privacy: counted over every board above ─────────────────────────────────────────────────
-assert.ok(audit.snapshots > 100 && audit.checked > 50, `the leak audit ran over ${audit.snapshots} snapshots (${audit.checked} against the host's hidden state)`);
+// Every 5th snapshot of every board above (84 in all on the engine of 14 Oct; the games got shorter with #759).
+assert.ok(audit.snapshots >= 50 && audit.checked >= 40, `the leak audit ran over ${audit.snapshots} snapshots (${audit.checked} against the host's hidden state)`);
 assert.ok(audit.hiddenIds > 1000, "and the hidden state it compared against was not empty");
 {
   // Negative control: the audit would catch a board that carried a hidden id.
