@@ -316,6 +316,18 @@
           "Red": 1
         },
         "describe": "1 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#18"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
       }
     },
     {
