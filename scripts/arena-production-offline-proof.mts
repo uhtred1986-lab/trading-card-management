@@ -34,7 +34,7 @@ const keys = deckIds.map((id) => `deck-${id}`);
 const report: Record<string, unknown> = {
   issue: 793, startedAt: new Date().toISOString(), origin: base.origin,
   productionOrigin: base.origin === "https://trading-card-management.vercel.app",
-  offline: { browserProxy: "closed loopback port, all hosts including loopback", pageEmulation: true },
+  offline: { browserProxy: "closed loopback port, all hosts including loopback", pageEmulation: true, reducedMotion: true },
   matches: [], success: false,
 };
 let browser: Browser | undefined;
@@ -90,6 +90,7 @@ try {
     }
   });
   const page = await browser.page({ name: "phone", width: 390, height: 844, mobile: true });
+  await page.cdp("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
   taps = new WorkerTaps(browser, base.origin);
   await taps.guard(page);
   await page.setOffline(true);
@@ -146,9 +147,12 @@ try {
     assert.equal(journal.header.decks[human === "p1" ? "p2" : "p1"], test.theirs);
     assert.equal(journal.header.revision, final.snapshot.game.revision);
     await clickText(page, "Skip");
+    await page.eval(`document.querySelector('button[aria-label="Dismiss"]')?.click()`);
     await until(page, `!!document.querySelector('.arena-end[role="dialog"]')`, 30_000);
     const endTitle = await page.eval<string>(`document.querySelector('.arena-end-title')?.textContent`);
     assert.equal(endTitle, final.snapshot.over.winner === human ? "VICTORY" : "DEFEAT");
+    await page.eval(`Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => {}))).then(() => true)`);
+    await until(page, `getComputedStyle(document.querySelector('.arena-end')).opacity === "1" && !document.querySelector('button[aria-label="Dismiss"]')`, 30_000);
     const filename = `match-${index + 1}-${test.mine}-${test.theirs}-${test.seat.toLowerCase()}.png`;
     await screenshot(page, filename);
     (report.matches as unknown[]).push({ ...test, matchId: final.matchId, header: journal.header, outcome: final.snapshot.over, endTitle, packFacts: final.packFacts, screenshot: filename });

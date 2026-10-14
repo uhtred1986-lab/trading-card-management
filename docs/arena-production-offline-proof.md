@@ -45,7 +45,10 @@ match/provider requests and are not allowed to reach the server. Every other API
 attempt fails the proof.
 
 `report.json` includes origin, service-worker URL, offline challenges, deck names, match journal
-headers/traces, pinned pack facts, and response observations. A screenshot shows the offline deck
+headers/traces, pinned pack facts, and response observations. Chrome uses the normal reduced-motion preference; after each match the driver presses Skip,
+dismisses the skill spotlight through its button, and waits for finite animations to finish and
+the result dialog to reach full opacity. It does not replace page styles or alter the result.
+A screenshot shows the offline deck
 list and each final board. Reports are written after each match and at failure, so an incomplete
 run remains visibly incomplete. Review evidence before posting it; the screenshots include deck
 names. The profile is retained. Use `--url http://localhost:<port>` only to validate the driver
