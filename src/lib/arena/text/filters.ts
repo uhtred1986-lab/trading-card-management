@@ -500,7 +500,8 @@ function parseOneFilter(text: string): CardFilter {
     return " other than ";
   });
   // "…with <Son Goku> in its character name", "…{SS4} in its card name",
-  // "…without <Turles> in their character names". Read before the exact loops
+  // "…without <Turles> in their character names", and the bare "{Cabba} in
+  // its name" (card name, #758). Read before the exact loops
   // below and taken out of the text, so a token the phrase governs cannot also
   // be claimed as a whole name. See `charactersIncluding`.
   // The negation is written three ways and only two were read: BT21-040 prints
@@ -509,9 +510,11 @@ function parseOneFilter(text: string): CardFilter {
   // sentence rules out. Until 9 Sep 2026 nothing noticed, because the measure
   // was thrown away before it reached a selector (see `narrows` in
   // `compile.ts`) — the filter was wrong and the selector had none at all.
-  t = t.replace(/(without\s+|non-|(?:that |which )?does\s?n'?o?t include\s+)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (character|card) names?/gi, (_whole, neg: string | undefined, token: string, which: string) => {
+  t = t.replace(/(without\s+|non-|(?:that |which )?does\s?n'?o?t include\s+)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (?:(character|card) )?names?/gi, (_whole, neg: string | undefined, token: string, which: string | undefined) => {
     const value = token.slice(1, -1).trim();
-    const character = which.toLowerCase() === "character";
+    // A bare "in its name" (SD15-01: "Unison Cards with {Cabba} in its name",
+    // #758) is the card name (2-3), looked inside, not matched whole.
+    const character = which?.toLowerCase() === "character";
     if (neg) (character ? f.notCharactersIncluding : f.notNamesIncluding).push(value);
     else (character ? f.charactersIncluding : f.namesIncluding).push(value);
     return " ";
