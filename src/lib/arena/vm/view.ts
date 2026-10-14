@@ -34,7 +34,7 @@ import { abilityViews } from "../view-core";
 import { describeEffect, describeStatic, type EffectView, type StaticEffect } from "../effects";
 import { attrsOf, type Attrs } from "./cards";
 import { skillsOf } from "../text/cards";
-import { attrsNow, forbids, hasKeyword, keywordsInForce, permanentStaticsOf, staticsNow } from "./program";
+import { attrsNow, forbids, hasKeyword, keywordsInForce, permanentStaticsOf, readingBoard, staticsNow } from "./program";
 import { battleIntact, damageRule } from "./battle-damage";
 import { cardColors } from "./costs";
 import { DEFERRED_STATICS, STATIC_OPS } from "./effects";
@@ -152,6 +152,11 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, game, state, c.card, images, availability, viewer), by: c.by, after: c.after })) } : {}),
     contributions,
   };
+}
+
+/** The same battle projection as `vmBoardView`, without drawing both whole sides for every hypothetical attack. */
+export function vmBattleView(ctx: EngineContext, game: GameDefinition, state: VmState, viewer: PlayerId, images: Record<string, CardArt>): BattleView | null {
+  return readingBoard(ctx, game, state, () => battleView(ctx, game, state, images, [], viewer));
 }
 
 /**

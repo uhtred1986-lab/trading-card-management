@@ -19,7 +19,7 @@ import type { EngineContext, LegalAction, PlayerId, RejectedAction } from "./typ
 import type { EngineState } from "./engines";
 import { DEFAULT_ENGINE, type EngineId } from "./engine-ids";
 import { RULES } from "./vm";
-import type { BoardView, CardArt, ChoicePreview, Tappable } from "./view";
+import type { AttackPreview, BoardView, CardArt, ChoicePreview, Tappable } from "./view";
 import { tappable, viewerOf } from "./view-core";
 import type { Beats } from "./beats";
 import { maskBeats } from "./beats-core";
@@ -30,6 +30,7 @@ import { rulesetFor, type GameDefinition } from "./rulesets";
 import { withTokens } from "./vm/cards";
 import { readingBoard } from "./vm/program";
 import { choicePreviews } from "./vm/choice-preview";
+import { attackPreviews } from "./vm/attack-preview";
 import { conceal, concealBeats, hiddenAliases, secretAreasFor } from "./conceal";
 
 /** Bumped only when a field is removed or its meaning changes. */
@@ -69,6 +70,8 @@ export interface Snapshot {
   legal: LegalAction[];
   /** Read-only first-choice evidence per legal action; absent when no choice can be inspected. */
   choicePreviews?: ChoicePreview[];
+  /** Engine-owned battle summary per legal attack, before the opponent responds. */
+  attackPreviews?: AttackPreview[];
   taps: Tappable;
   /**
    * The moves the asked player might reach for that are not in `legal`, each
@@ -238,6 +241,8 @@ function buildSnapshotInRead(input: SnapshotInput): Snapshot {
   const loaded = pinned?.id === input.state.game ? null : rulesetFor(input.state.game);
   const definition = pinned?.id === input.state.game ? pinned : loaded?.ok ? loaded.definition : null;
   const previews = definition && legal.length ? choicePreviews(withTokens(input.ctx), definition, input.state, legal) : [];
+  const attacks = definition && legal.some((entry) => entry.action.type === "attack")
+    ? attackPreviews(withTokens(input.ctx), definition, input.state, legal, viewer, input.images) : [];
   const outcome = resolveOutcome(input.state as EngineState & { outcome?: import("./outcome").StoredOutcome | null }, input.status);
   const abilityAvailability = RULES.abilityAvailability(input.ctx, input.state, viewer, legal, rejected);
   const boardView = RULES.boardView(input.ctx, input.state, viewer, input.images, abilityAvailability);
@@ -262,6 +267,7 @@ function buildSnapshotInRead(input: SnapshotInput): Snapshot {
     decision: { actor: boardView.prompt.player, window: boardView.prompt.kind, phase: boardView.phase, battleStep: boardView.battle?.step ?? null },
     legal,
     ...(previews.length ? { choicePreviews: previews } : {}),
+    ...(attacks.length ? { attackPreviews: attacks } : {}),
     taps: tappable(legal, rejected),
     ...(rejected.length ? { rejected } : {}),
     // Masked before the art goes on: a beat naming a card this viewer may not

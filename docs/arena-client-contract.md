@@ -978,3 +978,15 @@ The preview is advisory: responses and pending effects can change the board befo
 the choice resolves. All instance ids pass through the usual snapshot concealment,
 and a non-actor receives no private hand play preview. This addition does not
 change contract version 2.
+
+`Snapshot.attackPreviews?` (issue #801) is an optional array of
+`{ action: number, state: "known" | "notEvaluated", battle?: BattleView,
+reason?: string }`. `action` indexes the same viewer's `legal` array. For a
+`known` attack, `battle` is the rules engine's battle projection after that
+legal attack is declared and its deterministic immediate skills resolve, but
+before the defender responds. It includes current power and stakes, such as
+life damage and Critical. `notEvaluated` gives a reason instead of predicting
+through a cost, choice, hidden or variable event, or an excessive number of
+attack options. The client must use the actual next snapshot after declaration
+as the authoritative result. The preview is omitted when no attack is legal
+for that viewer. This additive field leaves contract version 2 unchanged.

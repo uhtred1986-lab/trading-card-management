@@ -118,12 +118,14 @@ export function attackRejectedActions(ctx: EngineContext, game: GameDefinition, 
 }
 
 /** Take the move: open the battle. Leaves the Main Phase's own question on the table, the way `play`/`activate`'s `again: true` does. */
-export function declareAttack(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): void {
+export function declareAttack(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action, offered = false): void {
   if (action.type !== "attack") throw new RulesetBroken(state.game, "declareAttack called on a non-attack action");
   requirePrompt(state, action, ["main"]);
-  const legal = attackLegalActions(ctx, game, state, action.player);
-  if (!legal.some((l) => l.action.type === "attack" && l.action.attacker === action.attacker && l.action.target === action.target)) {
-    throw new IllegalAction("that attack is not offered");
+  if (!offered) {
+    const legal = attackLegalActions(ctx, game, state, action.player);
+    if (!legal.some((l) => l.action.type === "attack" && l.action.attacker === action.attacker && l.action.target === action.target)) {
+      throw new IllegalAction("that attack is not offered");
+    }
   }
   const attacker = action.attacker;
   // 20-14-1: "can't attack unless … each time" — the price is paid first, by
