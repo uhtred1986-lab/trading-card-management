@@ -90,6 +90,15 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
         {/* The Continue strip is the first thing under the header (ah-05), then any open invitation. */}
         {playing[0] && <ContinueStrip game={playing[0]} me={me} />}
         {!onGames && invites}
+        {/* A match that runs in the browser, saved on the device (#656): no Claude, no server, no connection once a pack is here. */}
+        {!onGames && (
+          <p className="text-xs text-space-400">
+            <Link href="/arena/local" className="tap inline-flex items-center text-ki-300 hover:underline">
+              Play on this device
+            </Link>{" "}
+            — against the built-in computer player, saved here, no connection needed.
+          </p>
+        )}
         {playable.length < 1 ? (
           <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
             No deck is ready to play yet. A deck needs a leader, at least 50 cards, and the original game&rsquo;s rules — the arena does not play Fusion World.{" "}
