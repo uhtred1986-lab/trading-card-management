@@ -16,8 +16,8 @@ attack selection, visible summary, cancellation in all four phone/skin
 combinations. The generic CDP tap helper auto-scrolls first; the Open hand
 check touches the already visible control to avoid scrolling a sticky board.
 
-`arena-phone-feedback.mts` passes visible hit/held/life subject cues with both
-motion preferences and skins. Reduced cues have no animation. KO/phase cue
+`arena-phone-feedback.mts` passes visible hit/held/life/KO subject cues with both
+motion preferences and skins. Reduced cues have no animation. Phase cue
 folding, privacy and duration are covered by the retained engine/cue proofs.
 These screenshots do not prove physical-device rendering or timing budgets.
 
@@ -34,6 +34,9 @@ dev board; the Next development indicator is absent from production.
 - [Optional empty on-play effect](vegeta-play-anyway-360x650-anime.jpg)
 - [Transcendent Strike targets/rejections](strike-targets-360x650-anime.jpg)
 - [Reduced-motion held cue](held-reduced-360x650-anime.jpg)
+- Hit: [motion](hit-normal-360x650-anime.jpg), [reduced](hit-reduced-360x650-anime.jpg)
+- KO: [motion](ko-normal-360x650-anime.jpg), [reduced](ko-reduced-360x650-anime.jpg)
+- Life loss: [motion](life-normal-360x650-anime.jpg), [reduced](life-reduced-360x650-anime.jpg)
 
 ## Checks and remaining gates
 
@@ -47,11 +50,24 @@ dev board; the Next development indicator is absent from production.
   gain, folded-hand and action/cost-chip text. The broad contrast audit still
   reports pre-existing card badges, inactive cards and desktop animation text;
   it is not a blanket WCAG pass.
-- The final full suite, production build and required browser/release checks
-  are pending revalidation against current main.
+- Full suite and production builds pass; the suite is being repeated after
+  the browser-discovered target-choice crash fix. The production recovery
+  check passes reloads, worker termination, quota/abort and two-tab takeover,
+  ending with 172 journal decisions identical to the reference. Release matrix
+  budgets remain pending.
+- The browser recovery run found rejected-target rows calling a location helper
+  before initialization. The helper is now hoisted; browser exceptions are
+  retained in the proof output so a future render failure keeps its cause.
+- The production TinyFish report's hidden phone deck-inspection button is
+  now visible with a 44px tap target. Payment-preview controls also have 44px
+  targets. These are source/local fixes awaiting independent browser retest.
+- The complete delayed KO flight shares one sub-700ms visual budget; its burst
+  and flight remain distinct and narration dwell is unchanged.
 - TinyFish review has not run. Git/Vercel branch previews are disabled and the
   fixture route is dev-only, so review needs a reachable built-branch deployment.
   Do not test old production and report it as acceptance of this branch.
+  [The regression checklist](tinyfish-retest.md) identifies both baseline runs
+  and includes setup/navigation findings that Milestone 23 has not addressed.
 - Owner S21 retest remains required by tracker #795 before the milestone closes.
 
 No milestone issue is closed by this evidence record.
