@@ -11,6 +11,7 @@ import { loadLocalArt, type LocalArt } from "../../../lib/arena/local/art-urls";
 import { packStore, PackStoreError, type InstalledVersion, type InstallProgress, type PackStore } from "../../../lib/arena/local/pack-store";
 import { installedShells, shellRefusal, SHELL_PATH, type ShellMeta } from "../../../lib/arena/local/shell";
 import { OfflinePreparation } from "../OfflinePreparation";
+import { useMatchScreen } from "../../../lib/match-screen";
 import { LocalBoard, LocalBoardError, POINTER_KEY, browserPointerStore, readPack, readPointer, type BoardAction, type BoardNotice, type LocalPointer, type PackFacts, type PointerStore } from "./local-board";
 
 /**
@@ -398,6 +399,8 @@ function useBoardTick(board: LocalBoard): number {
 
 function BoardView({ board, stage, onSwitch, onLeave }: { board: LocalBoard; stage: StageProps; onSwitch: (next: LocalBoard) => void; onLeave: (forget: boolean) => Promise<void> }) {
   useBoardTick(board);
+  // The match takes the whole screen (#783): in the offline shell the route alone cannot say so.
+  useMatchScreen();
   useEffect(() => board.onSuccessor(onSwitch), [board, onSwitch]);
   const notice = board.notice;
   const snapshot = board.snapshot;

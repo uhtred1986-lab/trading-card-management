@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { BottomTabs } from "./BottomTabs";
 import { HeaderNav } from "./HeaderNav";
 import { isArenaShell, isFullBleed, secondaryItems } from "@/lib/navigation";
+import { useMatchOnScreen } from "@/lib/match-screen";
 
 /**
  * The app's chrome, and the one screen that does without it.
@@ -16,9 +17,14 @@ import { isArenaShell, isFullBleed, secondaryItems } from "@/lib/navigation";
  * `usePathname` is read during server rendering too, so the chrome is right on
  * the first paint and never flashes in and out.
  */
+/** The whole-screen board's frame: no chrome, the insets handled here. */
+const BLEED = "flex min-h-dvh w-full flex-col px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]";
+
 /** `isSl`: an SL (or local dev) gets Settings in the navigation; a player gets their own page instead. */
 export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: boolean }) {
   const pathname = usePathname();
+  // A board on a page that is not a game route (the offline shell, #783) claims the screen itself.
+  const matchOnScreen = useMatchOnScreen();
 
   // The sign-in and join pages have nowhere to go yet: no header, no tabs.
   if (pathname === "/login" || pathname === "/join") return <main className="flex min-h-dvh w-full flex-col px-4">{children}</main>;
@@ -26,7 +32,7 @@ export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: 
   if (isFullBleed(pathname)) {
     return (
       <main
-        className="flex min-h-dvh w-full flex-col px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]"
+        className={BLEED}
         // Pull-to-refresh firing mid-drag and reloading a game is the worst
         // thing that can happen on this screen.
         style={{ overscrollBehavior: "none" }}
@@ -39,9 +45,12 @@ export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: 
   // Below `sm` an Arena page is the whole app: no header, no tab bar, insets handled here.
   const shell = isArenaShell(pathname);
 
+  // The tree keeps its shape when a board claims the screen (`matchOnScreen`): the header and the tabs
+  // give way to null in their own slots, so the page under them — and the match it holds — is not
+  // remounted.
   return (
     <>
-      <header className={`sticky top-0 z-20 border-b border-space-700/70 bg-space-950/85 backdrop-blur${shell ? " max-sm:hidden" : ""}`}>
+      {matchOnScreen ? null : <header className={`sticky top-0 z-20 border-b border-space-700/70 bg-space-950/85 backdrop-blur${shell ? " max-sm:hidden" : ""}`}>
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
           <Link href="/" className="tap flex items-center gap-2">
             <span className="text-lg font-semibold tracking-tight text-ki-400">DBS</span>
@@ -57,18 +66,19 @@ export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: 
             ))}
           </div>
         </div>
-      </header>
+      </header>}
 
       {/* Extra bottom padding clears the phone tab bar; it collapses at `sm`. */}
       <main
-        className={`mx-auto w-full max-w-7xl flex-1 px-4 sm:pb-8 sm:pt-5 ${
+        className={matchOnScreen ? BLEED : `mx-auto w-full max-w-7xl flex-1 px-4 sm:pb-8 sm:pt-5 ${
           shell ? "pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]" : "pb-24 pt-5"
         }`}
+        style={matchOnScreen ? { overscrollBehavior: "none" } : undefined}
       >
         {children}
       </main>
 
-      {shell ? null : <BottomTabs />}
+      {shell || matchOnScreen ? null : <BottomTabs />}
     </>
   );
 }

@@ -9,11 +9,13 @@
  .board :global(.arena-topbar) { top: env(safe-area-inset-top); height: auto; min-height: 48px; }
  .board :global(.arena-phases-row) { display: none; }
  .board :global(.arena-slot:not(.arena-slot-lifted):not(.arena-slot-land)) { display: none; }
- .board :global(.arena-row) { --arena: .85; min-height: 0 !important; padding: 4px 32px; }
+ .board :global(.arena-row) { --arena: .85; min-height: 0 !important; padding: 4px 14px 4px 26px; }
  .board[data-phone-cinema="true"] :global(.arena-row) { min-height: 84px !important; }
  .board[data-phone-cinema="true"] :global(.arena-lane) { min-height: 56px; }
- .board :global(.arena-lane) { min-height: 0; flex: 0 0 auto; }
- .board :global(.arena-pstrip) { height: auto; min-height: 28px; flex-wrap: wrap; padding: 2px 6px; gap: 6px; }
+ /* The lane takes the field's spare height (#783), so each row sits by its own strip. */
+ .board :global(.arena-lane) { min-height: 0; flex: 1 1 auto; }
+ /* One line per player (#783): the name gives way before the counts wrap. */
+ .board :global(.arena-pstrip) { height: auto; min-height: 44px; flex-wrap: nowrap; padding: 0 8px; gap: 6px; }
  .board :global([data-player-resources]) { padding: 0 6px; }
  .board :global([data-player-resources] button) { margin-left: auto; }
  .handCards { justify-content: flex-start; padding-top: 4px; padding-bottom: 6px; min-height: 0 !important; }
@@ -23,10 +25,36 @@
  .handCard { touch-action: pan-x; }
  .dock { padding-bottom: env(safe-area-inset-bottom); }
  .dock :global(.arena-bar) { padding: 6px 10px; gap: 6px; }
- .dock :global(.arena-bar[data-prompt-kind="payCost"]) { max-height: 70dvh; overflow-y: auto; overscroll-behavior-y: contain; }
+ .dock :global(.arena-bar[data-prompt-kind="payCost"]) { max-height: 45dvh; overflow-y: auto; overscroll-behavior-y: contain; }
+ /* Payment options as compact rows (#783), so a choice of payment still fits the screen. */
+ .dock :global(.arena-bar[data-prompt-kind="payCost"] [data-payment-option]) { min-height: 44px; padding: 6px 12px; font-size: .9375rem; line-height: 1.2; }
+ .dock :global(.arena-bar[data-prompt-kind="payCost"] [data-payment-preview]) { font-size: .6875rem; }
  .decisionDetails { max-height: 20dvh; overflow-y: auto; overscroll-behavior-y: contain; }
  .dock :global([data-decision-summary]) { font-size: .75rem; }
  .dock :global([data-battle-assumptions] summary) { font-size: .75rem; }
  .dock :global([data-battle-assumptions]) { width: auto; }
  .dock :global([data-pass-action]) { margin-left: auto; }
+}
+
+/*
+ * #783: one screen on a phone. The board is at least the screen's height (`ArenaStage`), and the field
+ * — both rows and the lane between them — takes what is left after the bars and the hand, so the page
+ * does not scroll during a turn. On a short screen (a phone browser with its address bar shown is
+ * about 360 x 650) the cards step down; on a tall one they step up.
+ */
+@media (max-width: 1023px) {
+ /* The turn wash runs 14 % past the board's edges; below lg that scrolled the page by as much. */
+ .board { overflow-y: clip; }
+ .board :global(.arena-lane) { padding-top: 2px; padding-bottom: 2px; }
+ .board :global(.arena-lane-battle) { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
+ .board :global(.arena-lanepill) { padding-top: 4px; padding-bottom: 4px; font-size: .8125rem; }
+ .dock :global(.arena-bar) { min-height: 0; }
+}
+@media (max-width: 1023px) and (max-height: 760px) {
+ .board :global(.arena-row) { --arena: .72; }
+ .board :global(.arena-field.arena-hand) { --arena: .78; }
+ .board :global(.arena-topbar) { min-height: 44px; }
+}
+@media (min-width: 400px) and (max-width: 1023px) and (min-height: 860px) {
+ .board :global(.arena-row) { --arena: 1; }
 }

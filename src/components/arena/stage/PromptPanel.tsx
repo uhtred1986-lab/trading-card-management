@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import type { GameplanPreview, PlanMove } from "@/lib/arena/gameplan-types";
 import type { Action, LegalAction, PlayerId } from "@/lib/arena/types";
 import type { BoardView } from "@/lib/arena/view";
@@ -99,6 +100,8 @@ export function PromptPanel({
 }) {
   // This board lets a card be dragged (rd-03), so the hint says so; the
   // engine's own hint is the classic board's and stays as written.
+  /** Below lg the decision's detail (window, stakes, assumptions) is one tap away (#783); from lg it is always shown. */
+  const [detailOpen, setDetailOpen] = useState(false);
   const boardHint = view.prompt.kind === "main" ? "drag a glowing card up to play it, or tap a ready card to attack." : view.prompt.hint;
   // The Charge phase names its gesture (rd-04): a tap on a finger, a double-click on a mouse.
   const chargeLine = view.prompt.kind === "charge" && yourTurn && playable && moves > 0;
@@ -149,7 +152,7 @@ export function PromptPanel({
   return (
     <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite" data-prompt-kind={view.prompt.kind}>
       {!playing && !view.over && !overOutcome && (
-        <div className="w-full space-y-1 text-xs leading-snug text-space-100" data-decision-summary>
+        <div className={`w-full space-y-1 text-xs leading-snug text-space-100 ${detailOpen ? "" : "max-lg:hidden"}`} data-decision-summary id="arena-decision-detail">
           <p className="font-semibold">{(decision?.actor ?? view.prompt.player) === view.you.player ? "You" : (decision?.actor ?? view.prompt.player) === view.them.player ? view.them.name : "Referee"} · {(decision?.window ?? view.prompt.kind).replace(/([a-z])([A-Z])/g, "$1 $2")}{view.battle ? ` · ${view.battle.step} step` : ` · ${view.phase}`}</p>
           <div className={phoneStyles.decisionDetails}>
           {view.battle && <p data-battle-stakes>Attack {view.battle.attackPower.toLocaleString("en")} · Defense {view.battle.guardPower.toLocaleString("en")} — {view.battle.stakes ? "If nothing else changes: " : ""}{stakesSummary(view.battle)}</p>}
@@ -157,6 +160,22 @@ export function PromptPanel({
           {battleDetails}
           </div>
         </div>
+      )}
+      {!playing && !view.over && !overOutcome && (
+        <button
+          type="button"
+          className="arena-iconbtn tap -my-1 -ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full lg:hidden"
+          aria-expanded={detailOpen}
+          aria-controls="arena-decision-detail"
+          aria-label={detailOpen ? "Hide the details of this decision" : "Show the details of this decision: the step, the stakes and the public rules"}
+          data-decision-toggle
+          onClick={() => setDetailOpen((open) => !open)}
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v6M12 7.5v.01" />
+          </svg>
+        </button>
       )}
       {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
       {handDecision && !playing && !bad && !isTargeting ? null : (
