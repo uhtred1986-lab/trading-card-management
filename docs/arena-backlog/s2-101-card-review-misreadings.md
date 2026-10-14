@@ -7,6 +7,7 @@ stage: 2
 touches: src/lib/arena/text/triggers.ts, src/lib/arena/compile/targets.ts, src/lib/arena/glossary.ts
 priority: P1
 tracking: true
+status: closed
 ---
 **Source:** owner's card review of 4 Oct 2026. Each card's ruling is on its `card_rules` row (`explanation`, prefix `Wrong (phone review)`); `npm run arena:rule -- --list` prints them. The pattern families are tracked separately: attack-target triggers (s2-98), "A or B" targets (s2-99), exact-count "if you do" (s2-100).
 
@@ -50,3 +51,13 @@ Execution order and hot-file ownership: `docs/arena-delivery-plan.md`. Full revi
 - [x] #573 Fix grouped counts shared conditions and mixed target readings
 - [x] #574 Fix phase durations and Desire hand activation readings
 - [x] #680 Invoke BT31-116's free hand Extra [Activate: Main/Battle] skill instead of playing the Extra (new locally compiled record; stored catalog signoff remains above)
+
+## Completion review — 14 October 2026
+
+All original wording bullets now have assertions in `scripts/verify/readings.ts`. The focused registered suites retain the gameplay and negative controls: `readings-571` (energy actor/owner, non-Awaken timing, played subject and attack target); `hand-combo-572` (source and hand provenance); `grouped-readings-573` (shared conditions, total/each counts, mixed areas, combined cost and fill-to-five); `duration-shuffle-574` (exact turn/Charge expiry, inspected-area shuffle and hand Desire invocation); `free-extra-680` (cost-waived nested Extra activation and stored continuation); and `sd15-readings-728` (specified cost).
+
+The owner approved the stored reading refresh on 14 October. Before writing, the 29 changed records were compared with the reviewed audit; all remained compiler-owned drafts. The existing `arena:draft -- --card ID` script updated those 29 records across 16 cards, with no inserts/deletions or person-owned changes. Read-back of all 51 records on those cards found no difference from the current compiler; identities, review explanations and other protected metadata were preserved. BT2-004's two records were already current and were not written. See `evidence/539/stored-refresh.json` for the bounded diff manifest.
+
+Reading signoff: the changed triggers now match the named actor/owner, subject and target; combo provenance remains hand-specific; counts and power scaling retain the named characters; mixed targets cover both opposing areas; durations end at the named checkpoint; sum selection bounds the total; the named host fills only to five; Desire and mono-white Extra effects invoke a hand skill; only inspected closed areas are shuffled. Remaining changes add explicit filter defaults or update the compiler's prose/pattern metadata. This is signoff of these named readings, not a claim of catalog-wide correctness.
+
+The refreshed live records were used by `npm run arena:fuzz -- 40`: 40 games, zero crashes, eight typed interruptions. This random real-deck run proves its exercised invariants, not that every named skill fired. The focused suites supply the named-skill assertions. The old legacy limitations above are historical: the legacy engine was removed in #118. Three board-dependent play-target unknowns remain explicit; a static check cannot resolve the future board.
