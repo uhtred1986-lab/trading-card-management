@@ -1,5 +1,8 @@
 # Arena board redesign — reference frames
 
+> **Newer:** `prototype-788/` is a clickable phone prototype built on the *current* Arena (the app's own
+> CSS, the audited decks' real art) for the #788 playtest and TinyFish findings. See its README.
+
 Pictures of the destination for `docs/arena-board-redesign-spec.md` and the `docs/arena-backlog/rd-*.md`
 issues. Rendered on 30 Sep 2026 from the prototype (`prototype/`), not from the app: the cards are
 invented and drawn in CSS, and the rules are simplified. Judge layout, hierarchy, motion and colour
