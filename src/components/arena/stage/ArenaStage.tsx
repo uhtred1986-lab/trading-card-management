@@ -1149,7 +1149,7 @@ export function ArenaStage({
   // table, else the first card of your hand, else a leader.
   const fallbackId = view.you.hand?.[0]?.id ?? view.you.leader?.id ?? view.them.leader?.id ?? null;
   const inspectId = pinned ?? (inspected && cardOf(inspected) ? inspected : null) ?? fallbackId;
-  const inspectCard = inspectId ? cardOf(inspectId) : null;
+  const inspectCard = wide && inspectId ? cardOf(inspectId) : null;
   function locate(id: string) {
     for (const side of [view.you, view.them]) {
       const zones: [string, (CardView | null | undefined)[]][] = [
@@ -1590,7 +1590,7 @@ export function ArenaStage({
               onNext={playback.next}
             />
           </div>
-          <div className="hidden lg:block lg:min-h-0 lg:flex-1">
+          {wide && <div className="hidden lg:block lg:min-h-0 lg:flex-1">
           <InspectorColumn
             tab={deskTab}
             onTab={setDeskTab}
@@ -1627,7 +1627,7 @@ export function ArenaStage({
             }
             story={story}
           />
-          </div>
+          </div>}
           </div>
         </div>
 
