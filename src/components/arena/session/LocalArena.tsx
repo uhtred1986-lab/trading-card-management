@@ -157,7 +157,20 @@ function UpdateNotice() {
   return waiting ? <p role="status" className="text-xs text-space-300">The latest version of the app is on this device. It starts the next time the app is opened with every window of it closed; a match in progress keeps the version it started on.</p> : null;
 }
 
-export function LocalArena({ skin = "night", staging, lighting, shell }: StageProps & { shell?: ShellInfo }) {
+/**
+ * The page's own skin (`data-skin` on `<html>`). The offline shell is one static page that reads no
+ * cookie, so it passes no skin; its board then wears the page's, as every other surface on it does —
+ * a night board on an anime page paints night classes over anime tokens and its names fade (the
+ * owner's S21 shot, #783).
+ */
+const documentSkin = (): ArenaSkin | null => {
+  const s = document.documentElement.dataset.skin;
+  return s === "anime" || s === "night" ? s : null;
+};
+
+export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: StageProps & { shell?: ShellInfo }) {
+  const pageSkin = useSyncExternalStore(never, documentSkin, () => null);
+  const skin: ArenaSkin = chosenSkin ?? pageSkin ?? "night";
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
   const [chosen, setFacts] = useState<PackFacts | null>(null);
   const [problem, setProblem] = useState<{ message: string; reasons: string[] } | null>(null);
