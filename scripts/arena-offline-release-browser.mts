@@ -176,6 +176,9 @@ interface Timed { ms: number; err: string | null; revision: number }
 async function step(page: Page, v: View, stats: { human: number[]; ai: Timed[]; bytes: number[] }): Promise<void> {
   const s = v.snapshot!;
   stats.bytes.push(v.bytes);
+  // A no-target notice (#783) is acknowledged as a player does, before the next move: left standing it
+  // holds the board's story for the rest of the match while this driver plays on beneath it.
+  await page.eval(`document.querySelector("[data-arena-notice] button")?.click()`);
   for (let attempt = 0; attempt < 8; attempt++) {
     const r = humanAsked(s)
       ? await page.eval<{ ms: number; err: string | null }>(`(async () => { const t = performance.now(); const r = await ${BOARD_NOW}.act(${JSON.stringify(humanPick(s))}, ${s.game.revision}, crypto.randomUUID()); return { ms: performance.now() - t, err: r.error }; })()`)
