@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import type { GameplanPreview, PlanMove } from "@/lib/arena/gameplan-types";
 import type { Action, LegalAction, PlayerId } from "@/lib/arena/types";
-import type { BoardView } from "@/lib/arena/view";
+import type { AttackPreview, BoardView, CardView } from "@/lib/arena/view";
 import type { PublicOutcome } from "@/lib/arena/outcome";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { energySummary, stakesSummary } from "./stakes-model";
@@ -33,6 +33,8 @@ export function PromptPanel({
   yourPlayer,
   isTargeting,
   onCancelTargeting,
+  attackConfirmation,
+  onConfirmAttack,
   searching,
   searchOpen,
   choicesCount,
@@ -54,7 +56,8 @@ export function PromptPanel({
   onPlanRetry,
   onPlanClear,
   onNext,
-  onSkip,
+  attacksRemaining = 0,
+  defendOptions = [],
 }: {
   view: BoardView;
   decision?: Snapshot["decision"];
@@ -77,6 +80,8 @@ export function PromptPanel({
   yourPlayer: PlayerId;
   isTargeting: boolean;
   onCancelTargeting: () => void;
+  attackConfirmation?: { attacker: CardView; target: CardView; attackerRole: string; targetRole: string; preview?: AttackPreview; result: string | null } | null;
+  onConfirmAttack?: () => void;
   searching: boolean;
   searchOpen: boolean;
   choicesCount: number;
@@ -98,7 +103,8 @@ export function PromptPanel({
   onPlanRetry: () => void;
   onPlanClear: () => void;
   onNext: () => void;
-  onSkip: () => void;
+  attacksRemaining?: number;
+  defendOptions?: { card: CardView; action: Action | null; label: string; detail: string | null; cost: string | null; reason: string | null; impact: string | null }[];
 }) {
   // This board lets a card be dragged (rd-03), so the hint says so; the
   // engine's own hint is the classic board's and stays as written.
@@ -142,7 +148,7 @@ export function PromptPanel({
   ) : waitingOnServer ? (
     `${view.them.name} is thinking…`
   ) : (refusalText ?? (isTargeting ? (
-    "Choose what to attack — tap a glowing card, or Cancel."
+    attackConfirmation ? `Review the attack: ${attackConfirmation.attacker.name} → ${attackConfirmation.target.name}.` : "Choose what to attack — tap a glowing card, or Cancel. Only a Leader or rested Battle Card can be attacked."
   ) : chargeLine ? (
     <>
       <span className="[@media(pointer:fine)]:hidden">Choose a card, then Charge it or Pass below.</span>
@@ -191,17 +197,26 @@ export function PromptPanel({
         </p>
       )}
 
-      {playing && pace === "step" && (
+      {attackConfirmation && !playing && (
+        <div className="w-full rounded-xl border border-ki-500/60 bg-space-900/95 p-2.5 text-xs text-space-100" data-attack-confirm>
+          <p className="font-bold"><span className="text-ki-300">ATTACKER</span> {attackConfirmation.attacker.name} <span className="text-space-400">→</span> <span className="text-gain">TARGET</span> {attackConfirmation.target.name}</p>
+          <p className="mt-0.5 text-space-200">{attackConfirmation.attackerRole} · {attackConfirmation.targetRole}</p>
+          {attackConfirmation.preview?.state === "known" && attackConfirmation.preview.battle ? <>
+            <p className="mt-1 font-mono font-bold tabular-nums">{attackConfirmation.attacker.name} {attackConfirmation.preview.battle.attackPower.toLocaleString("en")} vs {attackConfirmation.target.name} {attackConfirmation.preview.battle.guardPower.toLocaleString("en")}</p>
+            <p className="mt-0.5 leading-snug" data-attack-stakes>{attackConfirmation.result ?? stakesSummary(attackConfirmation.preview.battle)}</p>
+          </> : <p className="mt-1 leading-snug text-dbs-yellow">{attackConfirmation.preview?.reason ?? "The result cannot be previewed before this attack."}</p>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" disabled={busy} onClick={onConfirmAttack} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50">Confirm attack</button>
+            <button type="button" disabled={busy} onClick={onCancelTargeting} className="arena-btn tap min-h-11 rounded-xl border border-space-600 bg-space-800 px-4 text-sm font-semibold text-space-100 disabled:opacity-50">Cancel attack</button>
+          </div>
+        </div>
+      )}
+      {playing && playingMine && pace === "step" && (
         <button type="button" onClick={onNext} className="arena-btn tap h-12 shrink-0 rounded-xl bg-ki-500 px-4 text-base text-space-950 hover:bg-ki-400">
           Next ▸
         </button>
       )}
-      {playing && (
-        <button type="button" onClick={onSkip} className="arena-btn tap h-12 shrink-0 rounded-xl border border-space-600 bg-space-700 px-4 text-base text-space-50">
-          Skip
-        </button>
-      )}
-      {!playing && isTargeting && (
+      {!playing && isTargeting && !attackConfirmation && (
         <button type="button" onClick={onCancelTargeting} className="arena-btn tap h-12 shrink-0 rounded-xl border border-space-600 bg-space-800 px-4 text-base text-space-100">
           Cancel
         </button>
@@ -254,8 +269,40 @@ export function PromptPanel({
           Choose from {choicesCount}
         </button>
       )}
+      {["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing && (
+        <div className="w-full" data-defend-step={view.prompt.kind}>
+          <p className="mb-1 flex flex-wrap items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-space-300" aria-label="Counter, Block, Combo response steps">
+            <span className={view.prompt.kind === "counter" ? "text-ki-300" : ""}>① Counter</span><span>›</span>
+            <span className={view.prompt.kind === "blocker" ? "text-ki-300" : ""}>② Block</span><span>›</span>
+            <span className={view.prompt.kind === "combo" ? "text-ki-300" : ""}>③ Combo</span>
+          </p>
+          {defendOptions.length > 0 && <div className="max-h-[24dvh] space-y-1.5 overflow-y-auto" aria-label={view.prompt.kind === "counter" ? "Counter options" : "Blocker options"}>
+            {defendOptions.map((option, i) => (
+              <div key={`${option.card.id}:${i}`} className={`rounded-xl border ${option.reason ? "border-loss/50 bg-loss/5" : "border-space-600 bg-space-900/90"} p-2`} data-defend-card={option.card.id}>
+                {option.action ? <button type="button" disabled={busy} onClick={() => onSend(option.action!)} className="tap flex min-h-11 w-full items-center gap-2 text-left" data-defend-action>
+                  {option.card.imageUrl && <Image src={option.card.imageUrl} alt="" width={32} height={44} unoptimized className="h-11 w-8 shrink-0 rounded object-cover" />}
+                  <span className="min-w-0 flex-1 text-xs font-bold text-space-50">{option.label}</span>
+                  {option.cost && <span className="shrink-0 rounded border border-space-600 px-2 py-0.5 text-[10px] text-ki-300">{option.cost}</span>}
+                </button> : <p className="text-xs font-semibold text-space-100">{option.label}</p>}
+                {option.detail && <p className="mt-1 text-[11px] leading-snug text-space-200">{option.detail}</p>}
+                {option.reason && <p className="mt-1 text-[11px] leading-snug text-loss">{option.reason}</p>}
+                {option.impact && <p className="mt-1 text-[11px] leading-snug text-space-100">{option.impact}</p>}
+              </div>
+            ))}
+          </div>}
+        </div>
+      )}
       {inlineBare.map(({ i, l }, index) => {
         const ghost = isGhostAction(l.action) || (primaryBare >= 0 && index !== primaryBare);
+        const pass = isGhostAction(l.action);
+        const passTitle = l.action.type === "endMain" ? "End turn" : pass ? "Pass" : null;
+        const passDetail = l.action.type === "endMain"
+          ? attacksRemaining > 0 ? `${attacksRemaining} ${attacksRemaining === 1 ? "attacker" : "attackers"} can still attack` : "No attackers left"
+          : l.action.type === "charge" && l.action.card == null ? "Don’t charge"
+            : l.action.type === "counter" && l.action.card == null ? "Don’t counter"
+              : l.action.type === "block" && l.action.card == null ? "Take the hit"
+                : l.action.type === "optionalCost" && !l.action.pay ? "Don’t pay the optional cost"
+                  : view.prompt.passConsequence ?? "Pass this decision";
         return (
           <button
             key={i}
@@ -266,8 +313,10 @@ export function PromptPanel({
             onClick={() => onSend(l.action)}
             className={`arena-btn tap min-h-12 max-w-full shrink-0 rounded-xl px-4 py-2 text-base disabled:opacity-50 sm:px-5 ${ghost ? "border border-space-600 bg-space-800 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}
           >
-            <span className="sm:hidden">{shortLabel(l.label)}</span>
-            <span className="hidden sm:inline">{l.label}</span>
+            {passTitle ? <span className="block text-left"><b className="block">{passTitle}</b><span className="block text-xs font-normal opacity-80">{passDetail}</span></span> : <>
+              <span className="sm:hidden">{shortLabel(l.label)}</span>
+              <span className="hidden sm:inline">{l.label}</span>
+            </>}
             {l.action.type === "payCost" && (() => {
               const option = l.action.type === "payCost" ? l.action.option : -1;
               const payment = view.prompt.payments?.find((p) => p.option === option);

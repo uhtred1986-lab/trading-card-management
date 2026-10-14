@@ -9,7 +9,7 @@ import type { NumberedBeat } from "@/lib/arena/beats";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { planMoves, type GameplanPreview, type PlanMove } from "@/lib/arena/gameplan-types";
-import type { CardView, ChoicePreview } from "@/lib/arena/view";
+import type { AttackPreview, CardView, ChoicePreview } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
 import { isStructuralRequirement } from "../ability-panel-model";
 import { ArenaCard, type CardState } from "../ArenaCard";
@@ -163,6 +163,7 @@ export function ArenaStage({
   const [abandonError, setAbandonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [attackPick, setAttackPick] = useState<{ action: number; attacker: string; target: string } | null>(null);
   /** The card whose action sheet is open — from a tap, a long press or a right-click. */
   const [sheet, setSheet] = useState<CardView | null>(null);
   /** The last refused tap: which card, and the sentence the rules gave for it. */
@@ -503,6 +504,7 @@ export function ArenaStage({
 
   const select = (id: string | null) => {
     setSelected(id);
+    if (!id) setAttackPick(null);
     setRefusal(null);
   };
 
@@ -511,6 +513,7 @@ export function ArenaStage({
     setSheet(null);
     setPinned(null);
     setSelected(null);
+    setAttackPick(null);
     setHover(null);
     setError(null);
     setAdvanceFailed(false);
@@ -555,6 +558,7 @@ export function ArenaStage({
     return null;
   };
   const whyOf = (id: string): Requirement[] | undefined => taps.whyByCard?.[id];
+  const targetReasonOf = (id: string) => rejected.find((item) => item.action.type === "attack" && item.action.target === id)?.why.find((why) => why.kind === "target");
   const reaching = (id: string) => rejected.find((r) => cardIdOf(r.action) === id)?.action.type ?? "play";
 
   // Missing energy chips beside the energy strip (ui-100-missing-energy-chips.md).
@@ -608,7 +612,20 @@ export function ArenaStage({
     if (!playable || busy) return;
     if (isTargeting) {
       const idx = targetsOf(selected!)?.[id];
-      if (idx != null) return send(legal[idx].action);
+      if (idx != null) {
+        const action = legal[idx].action;
+        if (action.type === "attack") {
+          setAttackPick({ action: idx, attacker: action.attacker, target: action.target });
+          setSheet(null);
+          return;
+        }
+      }
+      const targetWhy = targetReasonOf(id);
+      if (targetWhy?.kind === "target") {
+        feel("illegal");
+        setRefusal({ card: id, text: targetWhy.reason });
+        return;
+      }
       select(null);
       return;
     }
@@ -656,7 +673,13 @@ export function ArenaStage({
     // so it always goes through the sheet for an explicit second tap, even
     // when it is the card's only option — a misclick here is too costly.
     const targets = targetsOf(id);
-    if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) return select(id);
+    if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) {
+      if (!wide) {
+        const card = cardOf(id);
+        if (card) { setSheet(card); return; }
+      }
+      return select(id);
+    }
     if (options.length === 1 && !why?.length && legal[options[0]].action.type !== "charge") return send(legal[options[0]].action);
     const card = cardOf(id);
     if (card) setSheet(card);
@@ -674,6 +697,7 @@ export function ArenaStage({
   const pickMove = (m: SheetMove) => {
     if (m.targets) {
       setSheet(null);
+      setAttackPick(null);
       select(cardIdOf(m.legal.action)!);
       return;
     }
@@ -681,6 +705,7 @@ export function ArenaStage({
   };
 
   const stateOf = (id: string): CardState => {
+    if (attackPick?.target === id) return "selected";
     if (isTargeting) return targetsOf(selected!)?.[id] != null ? "legal" : selected === id ? "selected" : "dim";
     if (selected === id) return "selected";
     if (view.battle?.attacker === id) return "attacker";
@@ -731,10 +756,14 @@ export function ArenaStage({
     : []).filter((item): item is { card: CardView; reason: string; label: string } => !!item.card);
   // The bar's buttons. While a search is on, "Choose none" lives in the sheet
   // and the bar keeps one button that reopens it, so the question has room.
-  const bare = taps.bare.filter((i) => !(searching && i === chooseNone)).map((i) => ({ i, l: legal[i] }));
-  const inlineBare = !playback.playing && !isTargeting && playable && !modal ? bare.slice(0, 3) : [];
+  const bare = taps.bare.filter((i) => !(searching && i === chooseNone)).map((i) => ({ i, l: legal[i] })).sort((a, b) => Number(isGhostAction(a.l.action)) - Number(isGhostAction(b.l.action)));
+  const inlineBare = !playback.playing && !isTargeting && playable && !modal
+    ? bare.length > 3 ? [...bare.slice(0, 2), bare[bare.length - 1]] : bare
+    : modal && !playback.playing && playable ? bare : [];
+  const overflowBare = bare.filter(({ i }) => !inlineBare.some((item) => item.i === i));
   const primaryBare = inlineBare.findIndex(({ l }) => !isGhostAction(l.action));
   const yourTurn = view.prompt.player === view.you.player;
+  const attacksRemaining = new Set(legal.flatMap((item) => item.action.type === "attack" ? [item.action.attacker] : [])).size;
   const selectedChargeIndex = selected && view.prompt.kind === "charge" ? chargesOf(selected)[0] : undefined;
   const selectedChargeCard = selectedChargeIndex == null ? null : cardOf(selected!);
   const chargePassIndex = taps.bare.find((i) => legal[i].action.type === "charge" && legal[i].action.card == null);
@@ -846,7 +875,8 @@ export function ArenaStage({
   // Legality is the engine's: a drop sends an action that is already in
   // `legal`, or says why there is none. Nothing here evaluates a rule.
   const playsOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "play");
-  const choicePreviewOf = (index: number): ChoicePreview | undefined => snapshot.choicePreviews?.find((preview) => preview.action === index);
+  const choicePreviewOf = (index: number): ChoicePreview | undefined => live.choicePreviews?.find((preview) => preview.action === index);
+  const attackPreviewOf = (index: number): AttackPreview | undefined => live.attackPreviews?.find((preview) => preview.action === index);
   const rejectedFor1 = (id: string, type: "play" | "charge") => rejected.find((r) => cardIdOf(r.action) === id && r.action.type === type)?.why ?? [];
   const draggable = (id: string) => playable && !busy && yourTurn && !isTargeting && !searchOpen && !sheet && inHand(id) && (playsOf(id).length > 0 || chargesOf(id).length > 0 || !!whyOf(id)?.length);
 
@@ -1130,6 +1160,40 @@ export function ArenaStage({
     }
     return null;
   };
+  const attackConfirmation = (() => {
+    if (!attackPick) return null;
+    const action = legal[attackPick.action]?.action;
+    const attacker = cardOf(attackPick.attacker);
+    const target = cardOf(attackPick.target);
+    if (action?.type !== "attack" || !attacker || !target || action.attacker !== attacker.id || action.target !== target.id) return null;
+    const place = (id: string) => {
+      const at = locate(id);
+      const area = at?.zone === "leader" ? "Leader" : at?.zone === "unison" ? "Unison" : "Battle Card";
+      return `${at?.side.name ?? "Unknown player"}'s ${area}`;
+    };
+    const preview = attackPreviewOf(attackPick.action);
+    const battle = preview?.state === "known" ? preview.battle : undefined;
+    let result: string | null = null;
+    if (battle?.stakes) {
+      const stakes = battle.stakes;
+      const winner = stakes.tied ? "Tie → attacker wins ties" : stakes.hit ? "Attacker wins" : "Attack held";
+      const at = locate(target.id);
+      if (stakes.hit && stakes.target === "leader" && at) {
+        const after = Math.max(0, at.side.life - stakes.lifeDamage);
+        result = `${winner} · ${at.side.name} takes ${stakes.lifeDamage} life · life ${at.side.life} → ${after}`;
+      } else result = `${winner} · ${stakesSummary(battle)}`;
+    }
+    return { attacker, target, attackerRole: place(attacker.id), targetRole: place(target.id), preview, result };
+  })();
+  const targetLabel = (card: CardView): string | null => {
+    if (!isTargeting || wide) return null;
+    if (attackPick?.target === card.id) return "TARGET · tap to confirm";
+    if (targetsOf(selected!)?.[card.id] != null) return locate(card.id)?.zone === "leader" ? "Tap to attack" : card.mode === "rest" ? "Rested · tap" : "Tap to attack";
+    const reason = targetReasonOf(card.id);
+    if (!reason || reason.kind !== "target") return null;
+    if (/active|standing|rested/i.test(reason.reason)) return "✕ Active";
+    return `✕ ${reason.reason}`;
+  };
   const whereOf = (id: string) => {
     const at = locate(id);
     return at ? `${at.side === view.you ? "Your" : `${at.side.name}'s`} ${at.zone}` : null;
@@ -1325,8 +1389,10 @@ export function ArenaStage({
                   compactLifted={!wide && bandOn && asksForHand}
                   hurt={hurting === view.them.player}
                   hit={hitOf(view.them.player)}
+                  targetLabel={targetLabel}
+                  attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} canFastForward={playback.playing} fastForward={playback.skip}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
@@ -1355,6 +1421,8 @@ export function ArenaStage({
                   compactLifted={!wide && bandOn && asksForHand}
                   hurt={hurting === view.you.player}
                   hit={hitOf(view.you.player)}
+                  targetLabel={targetLabel}
+                  attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
               </div>
               {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
@@ -1390,9 +1458,9 @@ export function ArenaStage({
 
           {/* The fan, and the moves that have no card, in the grid's hand row. */}
           <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-end lg:[grid-area:hand]">
-          {playable && !playback.playing && !isTargeting && (modal || bare.length > 3) && (
+          {playable && !playback.playing && !isTargeting && overflowBare.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-3 pt-2 sm:gap-2">
-              {(modal ? bare : bare.slice(3)).map(({ i, l }) => (
+              {overflowBare.map(({ i, l }) => (
                 <button
                   key={i}
                   type="button"
@@ -1406,7 +1474,7 @@ export function ArenaStage({
             </div>
           )}
 
-          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "block" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
+          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
           </div>
 
           {/* CSS places this single decision panel under the hand on phones and
@@ -1438,11 +1506,14 @@ export function ArenaStage({
               yourPlayer={view.you.player}
               isTargeting={isTargeting}
               onCancelTargeting={() => select(null)}
+              attackConfirmation={attackConfirmation}
+              onConfirmAttack={() => { if (attackPick && legal[attackPick.action]?.action.type === "attack") send(legal[attackPick.action].action); }}
               searching={searching}
               searchOpen={searchOpen}
               choicesCount={choices.length}
               onReopenSearch={() => setClosedSearch(null)}
               inlineBare={chargeSelection ? [] : inlineBare}
+              attacksRemaining={attacksRemaining}
               primaryBare={primaryBare}
               onSend={send}
               chargeSelection={chargeSelection}
@@ -1459,7 +1530,6 @@ export function ArenaStage({
               onPlanRetry={() => { if (planCurrent && planAttempt.length) requestPlan(planAttempt); }}
               onPlanClear={() => { planRequest.current++; setPlan(null); setPlanFirst(null); setPlanAttempt([]); setPlanError(null); setPlanOpen(false); }}
               onNext={playback.next}
-              onSkip={playback.skip}
             />
           </div>
           <div className="hidden lg:block lg:min-h-0 lg:flex-1">
@@ -1504,6 +1574,7 @@ export function ArenaStage({
         </div>
 
         {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
+        {attackPick && <AttackBeam from={attackPick.attacker} to={attackPick.target} hostRef={boardRef} />}
 
         {beatNow?.t === "markers" && beatNow.from && (
           <MarkerFlight beat={{ ...beatNow, from: beatNow.from }} hostRef={boardRef} art={beats?.art ?? {}} ownerOfTo={ownerOf(beatNow.card) ?? view.turnPlayer} ms={msFor(beatNow, pace)} />
