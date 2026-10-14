@@ -83,6 +83,7 @@
       narration: { text: "Your turn 6 begins. You draw a card.", who: "you" },
       sheet: null, mode: null, banner: null, verdict: null, arrow: null, busy: false,
       fx: {}, recap: [],
+      cardLayout: (() => { try { const v = localStorage.getItem("proto788.cardLayout"); if (v === "full" || v === "half") return v; } catch { /* storage may be blocked */ } return "full"; })(),
     };
   }
 
@@ -324,6 +325,11 @@
 
   function handHTML() {
     const w = Math.round((S.mode?.kind === "defend" ? 66 : 84) * S.k2);
+    const n = S.you.hand.length;
+    // A big hand fans: every card stays on screen, overlapped, its cost and top edge showing.
+    const fan = n > 6;
+    const avail = (S.boardW || 360) - 24 - 64;
+    const overlap = fan ? Math.max(0, Math.ceil((n * w - avail) / (n - 1))) : 0;
     const items = S.you.hand.map((c, i) => {
       let chip = "", cls = "", act = "inspect", costClass = "bg-ki-500", combo = false;
       const m = S.mode;
@@ -345,15 +351,19 @@
         cls = "proto-hand-on"; chip = `<span class="proto-hchip proto-hchip-counter">Counter</span>`; act = "inspect";
       } else if (m || S.busy || S.turnOf !== "you") cls = "proto-hand-idle";
       const picked = S.sheet?.kind === "card" && S.sheet.uid === c.uid ? " proto-inspected" : "";
-      return `<div class="phone-board-module__86_vIW__handCard relative shrink-0 proto-handcard ${cls}${picked}" data-uid="${c.uid}" style="z-index:${i + 1}">
+      if (fan) chip = `<i class="proto-hdot proto-hdot-${handTag(c)} proto-hdot-fan" aria-hidden="true"></i>`;
+      return `<div class="phone-board-module__86_vIW__handCard relative shrink-0 proto-handcard ${cls}${picked}${fan ? " proto-fan" : ""}" data-uid="${c.uid}" style="z-index:${i + 1};${fan && i ? `margin-left:-${overlap}px` : ""}">
         ${cardHTML(c, { w, act, costClass, combo, ring: cls === "proto-hand-picked" ? "arena-ring-selected ring-2 ring-ki-300" : "" })}${chip}</div>`;
     }).join("");
     const tucked = S.mode?.kind === "defend" && (S.mode.step === "counter" || S.mode.step === "block");
     if (tucked) return `<section class="arena-field arena-hand relative proto-hand proto-hand-tucked" aria-label="Your hand"><button type="button" class="proto-tuck" data-act="inspect" data-uid="${S.you.hand[0]?.uid ?? ""}">Your hand · ${S.you.hand.length} cards — not needed for this answer</button></section>`;
     return `<section class="arena-field arena-hand relative proto-hand" aria-label="Your hand">
-      <div class="proto-handbar"><span>Your hand · ${S.you.hand.length}</span><span class="proto-handhint">${handHint()}</span></div>
-      <div class="phone-board-module__86_vIW__handViewport proto-handscroll" tabindex="0" aria-label="Scrollable hand cards">
-        <div class="phone-board-module__86_vIW__handCards flex items-end proto-handcards">${items}</div>
+      <div class="proto-handbar"><span>Your hand · ${n}${fan && S.phase === "Main" && S.turnOf === "you" && !S.mode ? ` · ${S.you.hand.filter((h) => playability(h).ok).length} playable` : ""}</span><span class="proto-handhint">${fan ? "Tap a card to browse the hand" : handHint()}</span></div>
+      <div class="proto-handrow">
+        <div class="phone-board-module__86_vIW__handViewport proto-handscroll${fan ? " proto-handfan" : ""}" tabindex="0" aria-label="Hand cards">
+          <div class="phone-board-module__86_vIW__handCards flex items-end proto-handcards">${items}</div>
+        </div>
+        ${fan ? `<button type="button" class="proto-handopen" data-act="inspect" data-uid="${S.you.hand[0].uid}" aria-label="Open the whole hand"><b class="arena-num">${n}</b><span>Open hand</span></button>` : ""}
       </div></section>`;
   }
   function handHint() {
@@ -482,7 +492,7 @@
     else if (sh.kind === "zones") body = zonesSheet(sh.side);
     else if (sh.kind === "inplay") body = inPlaySheet();
     else if (sh.kind === "menu") body = menuSheet();
-    return `<div class="proto-scrim${sh.kind === "card" ? " proto-scrim-light" : ""}" data-act="closeSheet" aria-hidden="true"></div>
+    return `<div class="proto-scrim" data-act="closeSheet" aria-hidden="true"></div>
       <div class="proto-sheet proto-sheet-${sh.kind}" role="dialog" aria-modal="true" aria-label="${sh.kind === "card" ? "Card" : sh.kind}">
         <div class="proto-grab" data-act="closeSheet" aria-hidden="true"></div>
         <button type="button" class="proto-x" data-act="closeSheet" aria-label="Close">×</button>
@@ -490,12 +500,28 @@
   }
 
   function zoneOf(c) {
-    if (S.you.hand.includes(c)) return { side: "Your hand", list: S.you.hand };
+    if (S.you.hand.includes(c)) {
+      const f = S.sheet?.filter ?? "all";
+      const list = f === "play" ? S.you.hand.filter((h) => playability(h).ok) : f === "counter" ? S.you.hand.filter((h) => C(h).counter) : S.you.hand;
+      return { side: "Your hand", list: list.includes(c) ? list : S.you.hand };
+    }
     const side = sideOf(c.uid);
     const who = side === S.you ? "Your" : `${OPP}'s`;
     return { side: isLeader(c) ? `${who} Leader` : `${who} Battle Area`, list: [...all(S.opp), ...all(S.you)] };
   }
 
+  /** The status of a hand card as a short tag (for the filmstrip dots and the fan). */
+  function handTag(c) {
+    if (S.turnOf === "you" && S.phase === "Charge" && !S.mode) return "charge";
+    if (S.turnOf === "you" && S.phase === "Main" && !S.mode) return playability(c).tag;
+    return "idle";
+  }
+
+  /**
+   * The card view: the card itself, big, with what you can do with it right under it, then its text.
+   * Two layouts to compare (#788 follow-up): the full card, or its top half (name and art) at full width.
+   * In the hand, a filmstrip of every card and filter chips make a 10-card hand browsable.
+   */
   function cardSheet(sh) {
     const c = find(sh.uid);
     if (!c) return "";
@@ -503,30 +529,48 @@
     const z = zoneOf(c);
     const i = z.list.indexOf(c);
     const side = sideOf(c.uid);
+    const inHand = S.you.hand.includes(c);
+    const layout = S.cardLayout;
     const chips = [`<span class="proto-chip proto-chip-role" data-role="${d.type}">${roleWord(c)}</span>`];
-    if (!S.you.hand.includes(c)) chips.push(`<span class="proto-chip">${c.mode === "rest" ? "Rested" : "Active"}</span>`);
+    if (!inHand) chips.push(`<span class="proto-chip">${c.mode === "rest" ? "Rested" : "Active"}</span>`);
     if (d.barrier) chips.push(`<span class="proto-chip">Barrier</span>`);
     if (d.blocker) chips.push(`<span class="proto-chip">Blocker</span>`);
     if (d.strike === 2) chips.push(`<span class="proto-chip">Double Strike</span>`);
-    const tiles = [d.cost != null ? ["Cost", `${d.cost} ⚡`] : null, d.power != null ? ["Power", fmt(power(c))] : null, d.combo ? ["Combo", `+${fmt(d.combo)}`] : null, isLeader(c) ? ["Life", side.life] : null].filter(Boolean);
+    const stats = [d.cost != null ? `<b>${d.cost} ⚡</b> cost` : null, d.power != null ? `<b>${fmt(power(c))}</b> power` : null, d.combo ? `<b>+${fmt(d.combo)}</b> combo` : null, isLeader(c) ? `<b>${side.life}</b> life` : null].filter(Boolean);
     const text = d.text ? d.text.split("\n").map((l) => `<p>${esc(l).replace(/\[([^\]]+)\]/g, '<span class="proto-kw">$1</span>')}</p>`).join("") : '<p class="proto-muted">No skill text.</p>';
-    return `<div class="proto-cs">
-      <div class="proto-cs-top">
-        <button type="button" class="proto-cs-art" data-act="zoom" data-uid="${c.uid}" aria-label="Enlarge the card art"><img src="${art(c.id)}" alt="${esc(d.name)}"></button>
-        <div class="proto-cs-head">
-          <p class="proto-cs-zone">${z.side} · ${i + 1} / ${z.list.length}</p>
-          <h3>${esc(d.name)}</h3>
-          <div class="proto-chips">${chips.join("")}</div>
-          <dl class="proto-tiles">${tiles.map(([k, v]) => `<div><dt>${k}</dt><dd class="arena-num">${v}</dd></div>`).join("")}</dl>
+    const strip = inHand && S.you.hand.length > 1 ? handStrip(c, z.list) : "";
+    return `<div class="proto-cv" data-layout="${layout}">
+      <div class="proto-cv-head">
+        <p class="proto-cs-zone">${z.side} · ${i + 1} / ${z.list.length}</p>
+        <div class="proto-seg" role="group" aria-label="Card view">
+          <button type="button" data-act="cardLayout" data-layout="full" aria-pressed="${layout === "full"}">Full card</button>
+          <button type="button" data-act="cardLayout" data-layout="half" aria-pressed="${layout === "half"}">Top half</button>
         </div>
       </div>
+      ${strip}
+      <div class="proto-cv-stage">
+        <button type="button" class="proto-cv-nav" data-act="sheetPrev" ${i <= 0 ? "disabled" : ""} aria-label="Previous card">‹</button>
+        <button type="button" class="proto-cv-card" data-act="zoom" data-uid="${c.uid}" aria-label="Enlarge ${esc(d.name)}"><img src="${art(c.id)}" alt="${esc(d.name)}" draggable="false"></button>
+        <button type="button" class="proto-cv-nav" data-act="sheetNext" ${i >= z.list.length - 1 ? "disabled" : ""} aria-label="Next card">›</button>
+      </div>
+      <div class="proto-cv-name"><h3>${esc(d.name)}</h3><div class="proto-chips">${chips.join("")}</div><p class="proto-cv-stats">${stats.join(" · ")}</p></div>
       ${cardActions(c)}
-      <div class="proto-cs-text">${text}</div>
-      <div class="proto-cs-nav">
-        <button type="button" class="proto-navbtn" data-act="sheetPrev" ${i <= 0 ? "disabled" : ""} aria-label="Previous card">‹ Prev</button>
-        <span>Swipe for the next card</span>
-        <button type="button" class="proto-navbtn" data-act="sheetNext" ${i >= z.list.length - 1 ? "disabled" : ""} aria-label="Next card">Next ›</button>
-      </div></div>`;
+      <details class="proto-cv-text"${layout === "half" || !cardActions(c) ? " open" : ""}><summary>Card text</summary><div class="proto-cs-text">${text}</div></details>
+    </div>`;
+  }
+
+  /** Every card in hand as a thumbnail with its status, plus filters once the hand is big. */
+  function handStrip(cur, list) {
+    const f = S.sheet?.filter ?? "all";
+    const n = S.you.hand.length;
+    const plays = S.you.hand.filter((h) => playability(h).ok).length;
+    const counters = S.you.hand.filter((h) => C(h).counter).length;
+    const filters = n > 6 && S.phase === "Main" && S.turnOf === "you" ? `<div class="proto-filters" role="group" aria-label="Show">
+        <button type="button" data-act="handFilter" data-filter="all" aria-pressed="${f === "all"}">All ${n}</button>
+        <button type="button" data-act="handFilter" data-filter="play" aria-pressed="${f === "play"}">Playable ${plays}</button>
+        <button type="button" data-act="handFilter" data-filter="counter" aria-pressed="${f === "counter"}">Counters ${counters}</button>
+      </div>` : "";
+    return `${filters}<div class="proto-film" aria-label="Your hand">${list.map((h) => `<button type="button" class="proto-film-card${h === cur ? " proto-film-on" : ""}" data-act="inspect" data-uid="${h.uid}" aria-label="${esc(C(h).name)}"${h === cur ? ' aria-current="true"' : ""}><img src="${art(h.id)}" alt=""><i class="proto-hdot proto-hdot-${handTag(h)}" aria-hidden="true"></i></button>`).join("")}</div>`;
   }
 
   /** What this card can do now — the action lives with the card, with its cost and its targets told before you commit. */
@@ -587,7 +631,7 @@
     ["setup", "Setup: decks and start"], ["mulligan", "Mulligan"], ["charge", "1 · Charge phase (turn start)"], ["main", "1 · Main phase overview"],
     ["inspect", "2 · Inspect a card"], ["play", "4 · Play sheet: cost and energy"], ["notarget", "6 · No valid target, before you commit"],
     ["target", "5 · Choose a target"], ["attack", "7 · Declare an attack"], ["attackConfirm", "7 · Attacker → target"],
-    ["oppturn", "9 · Claude's turn (replay)"], ["counter", "8 · Counter"], ["block", "8 · Block"], ["combo", "8 · Combo"],
+    ["oppturn", "9 · Claude's turn (replay)"], ["bighand", "Hand of 10: the fan"], ["bighandView", "Hand of 10: browse in the card view"], ["cardHalf", "Card view: top half"], ["counter", "8 · Counter"], ["block", "8 · Block"], ["combo", "8 · Combo"],
   ];
   function menuSheet() {
     return `<div class="proto-zs"><p class="proto-cs-zone">Arena</p><h3>Settings</h3>
@@ -725,13 +769,21 @@
     const uid = el?.dataset.uid;
     switch (name) {
       case "noop": return;
-      case "inspect": S.sheet = { kind: "card", uid }; S.zoom = null; return render();
+      case "inspect": S.sheet = { kind: "card", uid, filter: S.sheet?.kind === "card" ? S.sheet.filter : "all" }; S.zoom = null; return render();
       case "closeSheet": S.sheet = null; return render();
       case "zoom": S.zoom = uid; return render();
+      case "cardLayout": S.cardLayout = el.dataset.layout; try { localStorage.setItem("proto788.cardLayout", S.cardLayout); } catch { /* fine */ } return render();
+      case "handFilter": {
+        S.sheet.filter = el.dataset.filter;
+        const z = zoneOf(find(S.sheet.uid));
+        if (z.list[0] && !z.list.includes(find(S.sheet.uid))) S.sheet.uid = z.list[0].uid;
+        else if (z.list[0] && z.list !== S.you.hand) S.sheet.uid = z.list.includes(find(S.sheet.uid)) ? S.sheet.uid : z.list[0].uid;
+        return render();
+      }
       case "unzoom": S.zoom = null; return render();
       case "sheetPrev": case "sheetNext": {
         const c = find(S.sheet.uid); const z = zoneOf(c); const i = z.list.indexOf(c) + (name === "sheetNext" ? 1 : -1);
-        if (z.list[i]) S.sheet = { kind: "card", uid: z.list[i].uid };
+        if (z.list[i]) S.sheet = { ...S.sheet, uid: z.list[i].uid };
         return render();
       }
       case "zones": S.sheet = { kind: "zones", side: el.dataset.side }; return render();
@@ -1002,6 +1054,15 @@
       case "notarget": scene("main"); S.sheet = { kind: "card", uid: S.you.hand.find((c) => c.id === "BT11-011").uid }; break;
       case "target": { scene("main"); const s = strike(); S.you.hand = S.you.hand.filter((c) => c !== s); payEnergy(S.you, 1); S.you.drop.push("BT6-025"); const t = koTargets(); S.mode = { kind: "target", valid: t.valid, why: t.why, picked: null }; break; }
       case "attack": scene("main"); S.mode = { kind: "attack", attacker: S.you.leader.uid }; break;
+      case "bighand": case "bighandView": {
+        scene("main");
+        for (const id of ["BT11-008", "BT14-010", "BT6-025", "BT3-027", "BT14-006"]) S.you.hand.push(inst(id));
+        S.you.deck -= 5;
+        S.narration = { text: "A big hand: 10 cards. Tap any card to browse them all.", who: "you" };
+        if (name === "bighandView") S.sheet = { kind: "card", uid: S.you.hand[2].uid, filter: "all" };
+        break;
+      }
+      case "cardHalf": scene("main"); S.cardLayout = "half"; S.sheet = { kind: "card", uid: S.you.hand.find((c) => c.id === "BT6-025").uid, filter: "all" }; break;
       case "attackConfirm": scene("main"); S.mode = { kind: "attack", attacker: S.you.leader.uid, target: S.opp.leader.uid }; break;
       case "oppturn": scene("main"); render(); oppTurn(); return;
       case "counter": case "block": case "combo": {

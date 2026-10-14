@@ -47,13 +47,37 @@ your 8th turn begins. Nothing is saved; reload or ☰ → Restart.
 | Hand cards too small, costs hard to see | Hand cards are 84 px wide (66 in a defence), the cost disc is 22 px and turns red when you can't afford it; the hand scrolls sideways. |
 | Phase easy to overlook | The phase track is back on phones, one 30 px row, the current phase filled in the turn's colour; the dock's first line names the phase and whose turn it is; a banner marks each turn and phase change. |
 | Skip inconsistent | **Pass** is always the last button in the dock, always the same shape: the word *Pass* and, under it, what passing means here ("don't counter", "Leader stays target", "take the hit", "KO nothing", "cancel the attack"). **End turn** has the same shape. Replays use a different word in a different place: **⏩ Fast-forward** in the lane. While Claude plays, the dock says so and shows no button. |
-| Card and deck inspection not discoverable | Tap any card, yours or Claude's, on the board or in hand: a half-height sheet keeps the board in view, rings the card on the board, and pages through the zone (‹ ›, swipe). Tap a player's name, energy or counts for life, energy, deck, drop and the **decklist**. The eye button lists all cards in play. The setup screen offers both decklists before the match. |
+| Card and deck inspection not discoverable | Tap any card, yours or Claude's, on the board or in hand: the **card view** shows the card itself, big, with what you can do with it right under it (see below), and pages through the zone (‹ ›, swipe). Tap a player's name, energy or counts for life, energy, deck, drop and the **decklist**. The eye button lists all cards in play. The setup screen offers both decklists before the match. |
 | Kept from the original | Mulligan flow, card-play animation, phase transitions, verdict explanations (with the tie rule spelled out). |
+
+## The card view (owner's follow-up)
+
+Looking at the card is the point, so the card view leads with the card and puts its actions under it,
+then the card text (folded away in the full-card view, open in the half view). Two layouts to compare,
+switched in the view itself and remembered:
+
+- **Full card**: the whole card, about 262 px wide on a 360 px phone.
+- **Top half**: the card's header and art at full width, faded out where the text box starts.
+
+**Can you read the card from its art?** Only partly. Every source we have serves the same 260 × 362
+scan: deckplanet, Bandai's official card list (`dbs-cardgame.com/images/cardlist/cardimg/`) and
+TCGplayer's `_in_1000x1000` photo, checked 14 Oct 2026. At full size on a phone the name, cost, power
+and combo read well, and the keyword boxes are legible, but the skill sentences are soft. So the
+printed text stays as live text under the actions, and a tap on the card still opens it full screen.
+Sharper art would need another source (e.g. scans the owner makes), which is outside this prototype.
+
+## A big hand (owner's follow-up)
+
+With more than six cards the hand **fans**: every card stays on screen, overlapped, its cost disc
+and a status dot showing (green playable, amber no target, red too expensive, grey counter), and an
+**Open hand · 10** button sits at its end. Tapping any card opens the card view on the hand with a
+**filmstrip** of all cards (status dots, current one lifted), ‹ › and swipe, and filters **All ·
+Playable · Counters**. Scenes `bighand` and `bighandView`.
 
 ## Scenes (☰ → *Prototype · jump to a state*, or `index.html#<name>`)
 
 `setup` · `mulligan` · `charge` · `main` · `inspect` · `play` · `notarget` · `target` · `attack` ·
-`attackConfirm` · `oppturn` · `counter` · `block` · `combo`. They map to the issue's numbered states
+`attackConfirm` · `oppturn` · `counter` · `block` · `combo` · `bighand` · `bighandView` · `cardHalf`. They map to the issue's numbered states
 1–10 as the menu labels show.
 
 ## Brief for the next TinyFish run

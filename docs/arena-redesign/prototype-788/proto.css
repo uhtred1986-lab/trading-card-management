@@ -342,3 +342,65 @@ button.proto-opt:disabled .proto-opt-go { color: var(--color-space-300); }
 }
 /* The empty slots are hidden on phones in the app (#783); the prototype is a phone at every width. */
 .proto-board .arena-slot:not(.arena-slot-land) { display: none; }
+
+/* ── #788 follow-up: the card view — the card big, its actions right under it ─────────────────────── */
+.proto-sheet-card { max-height: 94%; padding-top: 8px; }
+.proto-sheet-card .proto-grab { margin-bottom: 4px; }
+.proto-cv { display: grid; gap: 8px; }
+.proto-cv-head { display: flex; align-items: center; gap: 8px; padding-right: 48px; min-height: 36px; }
+.proto-cv-head .proto-cs-zone { flex: 1 1 auto; min-width: 0; }
+.proto-seg { display: inline-flex; padding: 2px; border-radius: 999px; box-shadow: 0 0 0 1.5px var(--color-space-600); flex: none; }
+.proto-seg button { min-height: 32px; padding: 0 10px; border: 0; border-radius: 999px; background: none; color: var(--color-space-300); font: 700 12px/1 var(--font-arena); cursor: pointer; }
+.proto-seg button[aria-pressed="true"] { background: var(--color-space-50); color: var(--color-space-800); }
+.proto-cv-stage { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; gap: 4px; }
+.proto-cv-nav { width: 36px; height: 64px; border-radius: 12px; border: 1.5px solid var(--color-space-600); background: var(--color-space-800); color: var(--color-space-50); font-size: 26px; line-height: 1; cursor: pointer; }
+.proto-cv-nav:disabled { opacity: .25; }
+.proto-cv-card { padding: 0; border: 0; background: none; cursor: zoom-in; justify-self: center; width: 100%; display: grid; justify-items: center; }
+.proto-cv-card img { display: block; border-radius: 10px; box-shadow: 0 0 0 2px var(--ink, #12161f), 0 10px 24px rgb(0 0 0 / .25); }
+/* Full card: as big as the screen allows while the actions stay in reach below it. */
+.proto-cv[data-layout="full"] .proto-cv-card img { width: min(100%, 262px); aspect-ratio: 63 / 88; object-fit: cover; }
+/* Top half: the card's header and art at full width — the printed text sits below as live text. */
+.proto-cv[data-layout="half"] .proto-cv-stage { grid-template-columns: 30px 1fr 30px; }
+.proto-cv[data-layout="half"] .proto-cv-nav { width: 30px; }
+.proto-cv[data-layout="half"] .proto-cv-card img { width: 100%; aspect-ratio: 63 / 46; object-fit: cover; object-position: top; border-radius: 12px 12px 4px 4px; mask-image: linear-gradient(180deg, #000 82%, transparent); -webkit-mask-image: linear-gradient(180deg, #000 82%, transparent); }
+.proto-cv-name { display: grid; gap: 4px; justify-items: center; text-align: center; }
+.proto-cv-name h3 { margin: 0; font: italic 900 21px/1.1 var(--font-arena); text-wrap: balance; }
+.proto-cv-name .proto-chips { justify-content: center; }
+.proto-cv-stats { margin: 0; font-size: 13px; color: var(--color-space-300); }
+.proto-cv-stats b { font: italic 800 15px/1 var(--font-impact), "Kanit", sans-serif; color: var(--color-space-50); }
+.proto-cv-text summary { min-height: 40px; display: flex; align-items: center; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--color-space-300); cursor: pointer; }
+.proto-cv-text .proto-cs-text { padding-bottom: 4px; }
+
+/* The hand as a filmstrip in the card view: every card, its status dot, the current one lifted. */
+.proto-film { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 2px 4px; }
+.proto-film::-webkit-scrollbar { display: none; }
+.proto-film-card { position: relative; flex: none; width: 34px; padding: 0; border: 0; background: none; cursor: pointer; min-height: 48px; }
+.proto-film-card img { width: 34px; display: block; border-radius: 3px; opacity: .7; }
+.proto-film-on img { opacity: 1; outline: 2.5px solid var(--color-ki-400); outline-offset: 1px; transform: translateY(-3px); }
+.proto-filters { display: flex; gap: 6px; }
+.proto-filters button { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1.5px solid var(--color-space-600); background: none; color: var(--color-space-100); font: 700 12.5px/1 var(--font-arena); cursor: pointer; }
+.proto-filters button[aria-pressed="true"] { background: var(--color-space-50); color: var(--color-space-800); border-color: var(--color-space-50); }
+
+/* Status dots: one per card, the same colours as the hand chips. */
+.proto-hdot { position: absolute; top: -4px; right: -3px; width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 0 0 2px var(--color-space-800); background: var(--color-space-400); }
+.proto-hdot-play { background: var(--proto-go); }
+.proto-hdot-warn { background: #f59e0b; }
+.proto-hdot-short { background: var(--color-loss); }
+.proto-hdot-counter { background: var(--color-space-300); }
+.proto-hdot-charge { background: var(--color-ki-400); }
+.proto-hdot-fan { top: 4px; right: auto; left: 26px; width: 12px; height: 12px; box-shadow: 0 0 0 2px #fff; z-index: 3; }
+
+/* A big hand fans out: all cards on screen, overlapped, the cost and top edge of each showing. */
+.proto-handrow { display: flex; align-items: flex-end; }
+.proto-handrow .proto-handscroll { flex: 1 1 auto; min-width: 0; }
+.proto-handfan .proto-handcards { gap: 0; }
+.proto-fan { transition: transform .15s; }
+.proto-fan.proto-hand-on, .proto-fan.proto-hand-off { transform: none; }
+.proto-fan .arena-card { box-shadow: -3px 0 6px rgb(0 0 0 / .25) !important; }
+.proto-fan.proto-hand-off .arena-card { filter: saturate(.5) brightness(.9); opacity: 1; }
+.proto-handopen { flex: none; display: grid; justify-items: center; align-content: center; gap: 2px; width: 56px; min-height: 96px; margin: 0 8px 8px 0; border-radius: 12px; border: 2px solid var(--ink, #12161f); background: var(--color-space-800); color: var(--color-space-50); cursor: pointer; }
+.proto-handopen b { font-size: 22px; line-height: 1; }
+.proto-handopen span { font: 700 11px/1.1 var(--font-arena); text-align: center; }
+@media (max-height: 720px) {
+  .proto-cv[data-layout="full"] .proto-cv-card img { width: min(100%, 200px); }
+}
