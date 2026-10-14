@@ -27,7 +27,7 @@ export function QuietNotice({ quiet, viewer, them, onOk }: { quiet: QuietSkill; 
         aria-labelledby="arena-notice-title"
         aria-describedby="arena-notice-text"
         data-arena-notice={yours ? "yours" : "theirs"}
-        className="arena-notice w-full max-w-sm rounded-2xl p-4"
+        className="arena-notice max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-2xl p-4"
         onKeyDown={(e) => {
           // One control: focus stays on it.
           if (e.key === "Tab") {

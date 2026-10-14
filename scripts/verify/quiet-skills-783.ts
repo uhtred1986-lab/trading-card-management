@@ -39,7 +39,13 @@ assert.equal(quietSentence(mine, "p1", "Claude"), "Your Vegeta — Auto: no vali
 assert.equal(quietSentence(mine, "p2", "Claude"), "Claude's Vegeta — Auto: no valid target, so nothing happened.");
 const [bulma] = quietSkills([skill(1, { noEffect: true, card: "B", text: "When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 cards from your hand and place them in your Drop Area." })], art, "main");
 assert.equal(quietTitle(bulma), "Nothing happened", "a condition the beats cannot tell from a missing target is named as either");
-assert.match(quietSentence(bulma, "p1", "Claude"), /its condition was not met or it had no valid target/);
+assert.equal(quietSentence(bulma, "p1", "Claude"), "Your Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.");
+// A printed cost (a declined optional one leaves nothing behind either) is named too; "If …:" is a condition, not a cost.
+const [piccolo] = quietSkills([skill(1, { inBattle: true, text: "[Auto] Choose 1 card in your life and add it to your hand: When this card attacks, switch this card to Active Mode." }), clash(2)], art, "combo");
+assert.equal(quietTitle(piccolo), "Nothing happened");
+assert.match(quietSentence(piccolo, "p1", "Claude"), /it had no valid target, or its cost was not met/);
+const [red] = quietSkills([skill(1, { noEffect: true, text: "[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards." })], art, "main");
+assert.match(quietSentence(red, "p1", "Claude"), /or its condition was not met,/, "\"If …:\" reads as a condition");
 assert.ok(bulma.effect.endsWith("…") && !bulma.effect.endsWith(".…"), "a long effect is cut once, cleanly");
 
 console.log("quiet-skills (#783): no-target skills read from the beats: ok");

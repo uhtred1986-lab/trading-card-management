@@ -368,9 +368,12 @@ try {
   const perfWorker = await page.eval<string[]>(`performance.getEntriesByType("resource").map((e) => e.name).filter((n) => n.includes("/turbopack-worker"))`);
   report.workerScripts = { network: workerScripts, performance: perfWorker.map((u) => u.split("?")[0]) };
   check(workerScripts.some((l) => l.sw && l.status === 200) || perfWorker.length > 0, `C. the match Worker's script was served by the service worker (${[...new Set([...workerScripts.map((l) => l.url), ...perfWorker].map((u) => new URL(u).pathname))].join(", ") || "none seen"})`);
+  // #783: a match on the shell's page takes the whole screen — no app header, no tab bar.
+  const chrome = await page.eval<boolean>(`[...document.querySelectorAll("header, nav")].some((el) => el.getBoundingClientRect().height > 0 && getComputedStyle(el).display !== "none" && !el.closest(".arena"))`);
+  check(!chrome, "C. the offline board shows no app header or tab bar (#783)");
   if (shotDir) {
     // The board offline, with the artwork read from the device, on the phone and the desktop (the shell's board is the night skin).
-    for (const [w, h, mobile] of [[390, 844, true], [1440, 900, false]] as const) {
+    for (const [w, h, mobile] of [[360, 800, true], [390, 844, true], [1440, 900, false]] as const) {
       await page.cdp("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile });
       await sleep(1200);
       fs.writeFileSync(path.join(shotDir, `board-offline-${w}.png`), await page.screenshot(false));

@@ -54,6 +54,8 @@
  .board :global(.arena-row) { --arena: .72; }
  .board :global(.arena-field.arena-hand) { --arena: .78; }
  .board :global(.arena-topbar) { min-height: 44px; }
+ /* Choosing how to pay needs the dock's room more than the last line of narration. */
+ .board:has(:global(.arena-bar[data-prompt-kind="payCost"])) :global(.arena-lane) { display: none; }
 }
 @media (min-width: 400px) and (max-width: 1023px) and (min-height: 860px) {
  .board :global(.arena-row) { --arena: 1; }

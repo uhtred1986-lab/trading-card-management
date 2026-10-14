@@ -20,7 +20,7 @@
  * only records.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { arg, Browser, requireServer, sleep, type Page, type Viewport } from "./lib/cdp.mts";
 import { BOARD, choosePack } from "./lib/local-arena-page.mts";
 import { auditPack } from "./verify/arena-local-worker-fixture.mts";
@@ -30,6 +30,8 @@ import type { Action, LegalAction } from "../src/lib/arena/types.ts";
 const base = (arg("base") ?? "http://localhost:3783").replace(/\/$/, "");
 const out = arg("out") ?? join(process.cwd(), "docs", "arena-backlog", "evidence", "783");
 const tag = arg("tag") ?? "after";
+/** `--text 200`: the root font size, for the 200 % text check (rem-sized text grows; the layout must not overlap). */
+const TEXT = arg("text") ?? "";
 const ALL: Viewport[] = [
   { name: "s21", width: 360, height: 800, mobile: true },
   { name: "s21plus", width: 412, height: 915, mobile: true },
@@ -98,7 +100,7 @@ try {
       await page.setCookie("arenaSkin", skin, base);
       await page.beforeLoad(`try { localStorage.setItem("arena.pace", "normal"); localStorage.removeItem("dbs-arena-local-pointer"); } catch {}
         // The dev server's own badge is not the board's (absent from a production build).
-        addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = "nextjs-portal { display: none !important; }"; document.head.append(s); });`);
+        addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = "nextjs-portal { display: none !important; }" + (${JSON.stringify(TEXT)} ? " html { font-size: ${TEXT}% !important; }" : ""); document.head.append(s); });`);
       await page.goto(`${base}/arena/local?skin=${skin}`);
       await page.waitFor("input[type=file]");
       await choosePack(page, pack);
@@ -146,9 +148,9 @@ try {
           writeFileSync(file, Buffer.from(shot.data, "base64"));
           const m = await measure(page);
           seen.add(step);
-          report.push({ viewport: vp.name, skin, step, file, ...m });
+          report.push({ viewport: vp.name, skin, step, file: basename(file), ...m });
           console.log(`${vp.name} ${skin} ${step}: scroll ${m.pageScroll}px, chrome ${m.chrome}, leader labels ${m.leaders}`);
-          if (tag !== "before" && PHONES.has(vp.name)) {
+          if (tag !== "before" && !TEXT && PHONES.has(vp.name)) {
             if (m.pageScroll > 0 && step !== "end") { failed++; console.log(`  FAIL: the page scrolls ${m.pageScroll}px at ${step}`); }
             if (m.chrome) { failed++; console.log("  FAIL: app chrome on the board"); }
             if (step !== "end" && step !== "mulligan" && m.leaders < 2) { failed++; console.log(`  FAIL: ${m.leaders} Leader label(s)`); }
@@ -177,12 +179,14 @@ try {
       report.push({ viewport: vp.name, skin, moves, missing, notices });
       console.log(`${vp.name} ${skin}: ${moves} human moves; notices acknowledged ${notices.length}; not reached: ${missing.join(", ") || "none"}`);
       await page.close();
+      // Written as it goes, so a long run that is stopped keeps what it measured.
+      writeFileSync(join(out, `783-${tag}${TEXT ? `-text${TEXT}` : ""}.json`), JSON.stringify(report, null, 2));
     }
   }
 } finally {
   await browser.close();
 }
-writeFileSync(join(out, `783-${tag}.json`), JSON.stringify(report, null, 2));
+writeFileSync(join(out, `783-${tag}${TEXT ? `-text${TEXT}` : ""}.json`), JSON.stringify(report, null, 2));
 if (failed) {
   console.log(`\n${failed} check(s) failed`);
   process.exitCode = 1;

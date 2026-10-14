@@ -77,12 +77,24 @@ export function quietSkills(list: readonly NumberedBeat[], art: Beats["art"], pr
  */
 export const conditional = (q: QuietSkill) => /\bif\b|\bwhile\b|\bunless\b/i.test(q.effect);
 
+/**
+ * Whether the skill prints a cost before its effect ("Choose 1 card in your life and add it to your
+ * hand: When this card attacks…"). An optional cost that was declined also leaves nothing behind, and
+ * the beats cannot tell that from a missing target either.
+ */
+export const costed = (q: QuietSkill) => {
+  const head = /^([^.:]*):/.exec(q.effect.replace(/\[[^\]]*\]/g, " ").trim());
+  return !!head && !/^\s*(if|while|unless)\b/i.test(head[1]);
+};
+
+const uncertain = (q: QuietSkill) => conditional(q) || costed(q);
+
 /** The notice's heading. */
-export const quietTitle = (q: QuietSkill) => (conditional(q) ? "Nothing happened" : "No valid target");
+export const quietTitle = (q: QuietSkill) => (uncertain(q) ? "Nothing happened" : "No valid target");
 
 /** The notice's sentence, read from the viewer's chair. */
 export function quietSentence(q: QuietSkill, viewer: PlayerId, them: string): string {
   const whose = q.owner === viewer ? "Your" : `${them}'s`;
-  const why = conditional(q) ? "its condition was not met or it had no valid target" : "no valid target";
+  const why = uncertain(q) ? `it had no valid target, or its ${conditional(q) && costed(q) ? "condition or cost" : conditional(q) ? "condition" : "cost"} was not met` : "no valid target";
   return `${whose} ${q.name} — ${q.label}: ${why}, so nothing happened.`;
 }
