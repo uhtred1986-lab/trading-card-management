@@ -127,6 +127,7 @@ export function BattleRow({
   compactLifted = false,
   hurt = false,
   hit = null,
+  them = false,
 }: {
   side: SideView;
   /** The Battle Cards to draw (those a staging lifted are already left out). */
@@ -147,6 +148,8 @@ export function BattleRow({
    * leader. `n` is the beat's number, so a second hit in a row plays again.
    */
   hit?: { n: number; amount: number; critical: boolean } | null;
+  /** The opponent's row: its Leader tag wears their colour. */
+  them?: boolean;
 }) {
   const p = side.player;
   const leader = side.leader;
@@ -182,6 +185,11 @@ export function BattleRow({
               <span className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`} style={sized(LEADER_W)}>
                 <StageCard {...cardProps(leader)} width={LEADER_W} />
                 {active && <span className="arena-leader-ring" aria-hidden />}
+                {/* Named on both sides (#783): the leader is not a card anyone played, and on a
+                    phone the two look alike without a word on them. */}
+                <span className="arena-leader-tag" data-leader-label={p} data-them={them ? "" : undefined}>
+                  Leader
+                </span>
               </span>
             ))}
           {!leader && <span className="arena-slot block" style={sized(LEADER_W)} aria-hidden />}
@@ -196,7 +204,8 @@ export function BattleRow({
             </span>
           )}
         </div>
-        <div className="relative flex min-w-0 items-center gap-[5px] sm:gap-2 lg:gap-3">
+        {/* The Battle Area proper starts here, after a rule that sets the leader apart. */}
+        <div className="arena-battle-cards relative flex min-w-0 items-center gap-[5px] sm:gap-2 lg:gap-3">
           <ZoneAnchor zone={zone} />
           {unison && <StageCard {...cardProps(unison)} width={UNIT_W} />}
           {cards.map((c) => (
@@ -262,7 +271,7 @@ export function Lane({
   if (b) {
     const winning = b.attackPower >= b.guardPower;
     return (
-      <div className="arena-field relative my-1 px-2 py-2 sm:my-2">
+      <div className="arena-field arena-lane-battle relative my-1 px-2 py-2 sm:my-2">
         <div className="arena-clash relative flex items-center justify-center gap-3 sm:gap-6">
           <Count value={b.attackPower} className={`arena-impact relative text-2xl tabular-nums sm:text-4xl lg:text-5xl ${winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
           <span className="arena-impact relative text-[10px] tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
@@ -380,7 +389,7 @@ export function PlayerStrip({
         data-hot={drop?.hot ? "" : undefined}
       >
         <ZoneAnchor zone={`${p}:energy`} />
-        <span className="flex min-w-0 shrink items-center gap-1.5 font-bold text-space-50">
+        <span className="flex min-w-0 flex-1 shrink items-center gap-1.5 font-bold text-space-50 lg:flex-none">
           <span className="arena-avatar grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-xs lg:h-7 lg:w-7 lg:text-sm" data-them={flag} aria-hidden>
             {side.name.slice(0, 1).toUpperCase()}
           </span>
@@ -402,8 +411,15 @@ export function PlayerStrip({
           )}
         </span>
         {/* Energy: active chips upright, rested ones turned and grey. */}
+        {/* The chips open the energy detail (#783): one tap, where the eye already is. */}
         {!energyAsked && (
-          <span className="relative flex min-w-0 shrink items-center gap-[2px] sm:gap-[3px]" role="img" aria-label={energyWord}>
+          <button
+            type="button"
+            className="arena-energy-toggle relative flex min-h-11 min-w-0 shrink items-center gap-[2px] sm:gap-[3px]"
+            aria-label={`${energyWord} — ${inspectEnergy ? "hide" : "show"} energy detail`}
+            aria-expanded={inspectEnergy}
+            onClick={() => setInspectEnergy((open) => !open)}
+          >
             {energy.map((c) => (
               <i
                 key={c.id}
@@ -423,9 +439,9 @@ export function PlayerStrip({
                 +1 ENERGY
               </span>
             )}
-          </span>
+          </button>
         )}
-        <span className="ml-auto flex shrink-0 items-baseline gap-2.5 whitespace-nowrap tabular-nums">
+        <span className="ml-auto flex shrink-0 items-baseline gap-2 whitespace-nowrap tabular-nums sm:gap-2.5">
           {them && (
             <span className="relative">
               <ZoneAnchor zone={`${p}:hand`} />
@@ -457,7 +473,8 @@ export function PlayerStrip({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-2 px-3 text-xs leading-snug text-space-100" data-player-resources={side.player}>
+      {/* Below lg the line is behind the energy chips' one tap; from lg it is always there. */}
+      <div className={`flex-wrap items-center gap-x-2 px-3 text-xs leading-snug text-space-100 ${inspectEnergy ? "flex" : "hidden lg:flex"}`} data-player-resources={side.player}>
         <span className="font-semibold">Life {side.life} · Energy {side.activeEnergy}/{side.energy.length} ready</span>
         <span>{energySummary(side)}</span>
         <button type="button" className="tap min-h-11 rounded px-2 font-semibold underline underline-offset-2" aria-expanded={inspectEnergy} onClick={() => setInspectEnergy((open) => !open)}>Inspect energy</button>

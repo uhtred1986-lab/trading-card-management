@@ -11,6 +11,7 @@ import { loadLocalArt, type LocalArt } from "../../../lib/arena/local/art-urls";
 import { packStore, PackStoreError, type InstalledVersion, type InstallProgress, type PackStore } from "../../../lib/arena/local/pack-store";
 import { installedShells, shellRefusal, SHELL_PATH, type ShellMeta } from "../../../lib/arena/local/shell";
 import { OfflinePreparation } from "../OfflinePreparation";
+import { useMatchScreen } from "../../../lib/match-screen";
 import { LocalBoard, LocalBoardError, POINTER_KEY, browserPointerStore, readPack, readPointer, type BoardAction, type BoardNotice, type LocalPointer, type PackFacts, type PointerStore } from "./local-board";
 
 /**
@@ -156,7 +157,20 @@ function UpdateNotice() {
   return waiting ? <p role="status" className="text-xs text-space-300">The latest version of the app is on this device. It starts the next time the app is opened with every window of it closed; a match in progress keeps the version it started on.</p> : null;
 }
 
-export function LocalArena({ skin = "night", staging, lighting, shell }: StageProps & { shell?: ShellInfo }) {
+/**
+ * The page's own skin (`data-skin` on `<html>`). The offline shell is one static page that reads no
+ * cookie, so it passes no skin; its board then wears the page's, as every other surface on it does —
+ * a night board on an anime page paints night classes over anime tokens and its names fade (the
+ * owner's S21 shot, #783).
+ */
+const documentSkin = (): ArenaSkin | null => {
+  const s = document.documentElement.dataset.skin;
+  return s === "anime" || s === "night" ? s : null;
+};
+
+export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: StageProps & { shell?: ShellInfo }) {
+  const pageSkin = useSyncExternalStore(never, documentSkin, () => null);
+  const skin: ArenaSkin = chosenSkin ?? pageSkin ?? "night";
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
   const [chosen, setFacts] = useState<PackFacts | null>(null);
   const [problem, setProblem] = useState<{ message: string; reasons: string[] } | null>(null);
@@ -398,6 +412,8 @@ function useBoardTick(board: LocalBoard): number {
 
 function BoardView({ board, stage, onSwitch, onLeave }: { board: LocalBoard; stage: StageProps; onSwitch: (next: LocalBoard) => void; onLeave: (forget: boolean) => Promise<void> }) {
   useBoardTick(board);
+  // The match takes the whole screen (#783): in the offline shell the route alone cannot say so.
+  useMatchScreen();
   useEffect(() => board.onSuccessor(onSwitch), [board, onSwitch]);
   const notice = board.notice;
   const snapshot = board.snapshot;

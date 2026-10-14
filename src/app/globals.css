@@ -1273,6 +1273,81 @@ input[type="number"] {
     0 0 0 2px var(--ink),
     4px 6px 0 var(--ink);
 }
+/* #783: a skill that found no target, as a stop with one button. The scrim dims the board under it;
+   the card keeps the log pop-up's surface in both skins. */
+.arena-notice-scrim {
+  background: rgba(3, 8, 20, 0.55);
+}
+.arena-notice {
+  background: var(--color-space-900);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-space-300) 25%, transparent),
+    0 12px 30px rgba(0, 0, 0, 0.45);
+}
+[data-skin="anime"] .arena-notice {
+  background: #fff;
+  box-shadow:
+    0 0 0 2px var(--ink),
+    4px 6px 0 var(--ink);
+}
+.arena-notice .arena-btn {
+  font-family: var(--font-impact), "Kanit", sans-serif;
+  font-style: italic;
+  font-weight: 800;
+}
+/* #783: the Leader, named on both sides — gold for you, blue for them, as the avatars are. It sits on
+   the card's top edge, inside the row's padding, so a sideways-scrolling row cannot clip it. */
+.arena-leader-tag {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  color: #06101f;
+  background: linear-gradient(135deg, #ffd24a, #ff9a2e);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.arena-leader-tag[data-them] {
+  background: linear-gradient(135deg, #3fc6ff, #9d7dff);
+}
+@media (min-width: 1024px) {
+  .arena-leader-tag {
+    font-size: 11px;
+    line-height: 15px;
+    padding: 1px 8px;
+  }
+}
+/* The Battle Area proper, set apart from the leader by a rule. */
+.arena-battle-cards {
+  padding-left: 6px;
+  border-left: 1px dashed color-mix(in srgb, var(--color-space-300) 45%, transparent);
+}
+@media (min-width: 1024px) {
+  .arena-battle-cards {
+    padding-left: 12px;
+  }
+}
+/* The energy chips are the button that opens the energy detail: no button chrome of their own. */
+.arena-energy-toggle {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.arena-energy-toggle:focus-visible {
+  outline: 2px solid var(--color-ki-400);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 /* The bar's buttons (End turn, Next, Cancel): the impact face. */
 .arena-bar .arena-btn {
   font-family: var(--font-impact), "Kanit", sans-serif;

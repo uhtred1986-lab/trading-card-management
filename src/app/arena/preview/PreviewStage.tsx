@@ -138,6 +138,8 @@ function defendView(snap: Snapshot): Snapshot {
  *   victory               the same, won by you (frame 10)
  *   defend                the `attack` fixture turned round (`defendView`)
  *   finish                the clash and the damage that end the game, then the end screen
+ *   no-target             your leader's KO skill with nothing to KO (`noEffect`), on the computer's move (#783)
+ *   no-target-battle      the same inside a battle (`attack`), read off the clash that follows it
  */
 function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
   const own = snap.beats?.list ?? [];
@@ -151,6 +153,17 @@ function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
     // A K.O. needs a guard that is not a leader; the verdict's word follows it.
     const guard = fx === "clash-ko" ? (snap.view.them.battle[0]?.id ?? snap.view.battle?.guard ?? "") : (snap.view.battle?.guard ?? "");
     list = number([{ t: "clash", attacker, guard, attackPower: 25000, guardPower: fx === "clash-held" ? 30000 : 10000, hit: fx !== "clash-held" }]);
+  } else if (fx === "no-target" || fx === "no-target-battle") {
+    // #783: your leader's KO skill finds nothing to KO. `no-target` is the engine's own `noEffect`
+    // (outside a battle, back at a Main Phase prompt); `no-target-battle` is a skill in a battle
+    // followed straight by the clash, which the board reads as having done nothing.
+    const leader = snap.view.you.leader;
+    if (!leader) return { seq: 0, list: [], art };
+    const skill = { t: "skill", card: leader.id, label: "Auto", text: "When this card attacks, choose up to 1 of your opponent's Battle Cards with cost 2 or less and KO it.", unread: false, owner: snap.view.you.player, inBattle: fx === "no-target-battle" } as Beat;
+    const b = snap.view.battle;
+    const clash = b ? ({ t: "clash", attacker: b.attacker, guard: b.guard, attackPower: b.attackPower, guardPower: b.guardPower, hit: false } as Beat) : null;
+    list = number(fx === "no-target" ? [{ ...skill, noEffect: true } as Beat] : clash ? [skill, clash] : [skill]);
+    return { seq: list.length, list, art: { ...art, [leader.id]: { cardId: leader.cardId, name: leader.name, imageUrl: leader.imageUrl ?? null } } };
   }
   return { seq: fx === "replay" ? (snap.beats?.seq ?? list.length) : list.length, list, art };
 }
@@ -280,7 +293,11 @@ export function PreviewStage({
     const played = fx === "reveal" ? beats.list.find((b) => b.t === "move") : null;
     const card = played && played.t === "move" ? view.you.hand?.find((c) => c.id === played.card) : null;
     if (card) view = { ...view, you: { ...view.you, hand: (view.you.hand ?? []).filter((c) => c.id !== card.id), battle: [...view.you.battle, card] } };
-    const t = setTimeout(() => setShown({ ...snapshot, view, beats }), 500);
+    // A no-target notice arrives on the computer's move (#783): the board must hold its next advance.
+    // It is a new revision, as a move's result is: the live board adopts a prop by revision only.
+    const noTarget = fx === "no-target" || fx === "no-target-battle";
+    const next = noTarget ? { ...snapshot, game: { ...snapshot.game, revision: snapshot.game.revision + 1 }, waiting: "opponent" as const } : snapshot;
+    const t = setTimeout(() => setShown({ ...next, view, beats }), 500);
     return () => clearTimeout(t);
   }, [fx, snapshot]);
   return (
