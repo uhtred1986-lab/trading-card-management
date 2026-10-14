@@ -349,12 +349,16 @@ function tracing(): void {
     const out = execFileSync(process.execPath, [path.join("node_modules", "tsx", "dist", "cli.mjs"), "-e", 'import("./next.config.ts").then((m) => console.log(JSON.stringify(m.default.default ?? m.default)))'], { env, encoding: "utf8" });
     return JSON.parse(out.trim().split("\n").pop() as string) as { outputFileTracingIncludes?: Record<string, string[]>; serverExternalPackages?: string[] };
   };
+  // The device pack route (#793) carries its two snapshot files in every build; nothing else.
+  const DEVICE_PACK = "/api/arena/offline/pack";
+  const carriers = (inc: Record<string, string[]> | undefined) => Object.entries(inc ?? {}).filter(([, files]) => files.some((f) => f.includes("claude-agent-sdk"))).map(([route]) => route);
   const off = read(undefined);
-  assert.equal(off.outputFileTracingIncludes, undefined, "a default build carries no binary");
+  assert.deepEqual(carriers(off.outputFileTracingIncludes), [], "a default build carries no binary");
+  assert.deepEqual(Object.keys(off.outputFileTracingIncludes ?? {}), [DEVICE_PACK], "a default build adds files to the device pack route only");
   assert.equal(off.serverExternalPackages, undefined);
-  assert.equal(read("true").outputFileTracingIncludes, undefined, "only the exact value 1 switches it on");
+  assert.deepEqual(carriers(read("true").outputFileTracingIncludes), [], "only the exact value 1 switches it on");
   const on = read("1");
-  assert.deepEqual(Object.keys(on.outputFileTracingIncludes ?? {}), [ROUTE_PATH], "exactly one route carries the binary");
+  assert.deepEqual(carriers(on.outputFileTracingIncludes), [ROUTE_PATH], "exactly one route carries the binary");
   assert.deepEqual(on.outputFileTracingIncludes?.[ROUTE_PATH], ["./node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/**/*"]);
   assert.deepEqual(on.serverExternalPackages, ["@anthropic-ai/claude-agent-sdk"]);
 }
