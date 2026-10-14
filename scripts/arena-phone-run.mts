@@ -159,8 +159,11 @@ const F = {
     const want = ${JSON.stringify(label.toLowerCase())}, short = ${JSON.stringify(shortLabel(label).toLowerCase())};
     const words = want.split(/[^a-z0-9]+/).filter((w) => w.length > 2);
     const rows = [...d.querySelectorAll("button")].filter((b) => !b.disabled && !b.closest("[role=group]") && !${SKIP_IN_SHEET}.test((b.getAttribute("aria-label") || b.innerText || "").trim()));
-    const score = (b) => { const t = b.innerText.replace(/\\s+/g, " ").toLowerCase(); if (t.includes(want)) return 100; if (${attack} && t.startsWith("attack with")) return 90; if (t.includes(short)) return 80; return words.filter((w) => t.includes(w)).length; };
-    return rows.map((b) => [b, score(b)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([b]) => b);
+    // An ability's button may say only "Activate": its row's ability text (data-ability-index) names it.
+    const textOf = (b) => (b.innerText + " " + (b.closest("[data-ability-index]")?.innerText ?? "")).replace(/\\s+/g, " ").toLowerCase();
+    const score = (b) => { const t = textOf(b); if (b.innerText.toLowerCase().includes(want)) return 100; if (${attack} && b.innerText.toLowerCase().startsWith("attack with")) return 90; if (t.includes(short)) return 80; return words.filter((w) => t.includes(w)).length; };
+    const ranked = rows.map((b) => [b, score(b)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([b]) => b);
+    return ranked.length ? ranked : rows.length === 1 ? rows : [];
   }`,
 };
 
