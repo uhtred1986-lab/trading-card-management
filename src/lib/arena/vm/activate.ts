@@ -87,7 +87,7 @@ import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFr
 import { aegisPriceLine, costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
@@ -481,7 +481,7 @@ export function activationRefusals(
   if (banned) before.push({ kind: "forbidden", ...banned });
   // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
   // with the price — the legacy `whyNotActivate` asks it at the same place.
-  const unpaid = banned ? null : unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind));
+  const unpaid = banned ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind), boundFor(ctx, game, state, player, line).energy?.total ?? 0);
   if (unpaid) before.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
   const left = usesLeft(state, player, card, sk);
   if (left === 0) before.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
@@ -695,6 +695,22 @@ export function unpaidActivationTax(ctx: EngineContext, game: GameDefinition, st
     if (taxHandNeed(taxes.map((t) => t.ops)) > hand) return taxes[taxes.length - 1];
   }
   return null;
+}
+
+/**
+ * #677: the same question on the board the activation's printed energy will
+ * leave — `energy` of the player's Active Mode energy rested first, on a copy
+ * — since the prices are charged after it. "Unless they switch 1 of their
+ * energy to Rest Mode" (BT10-097) on an Extra that takes the last Active
+ * energy is a price that cannot be paid, so the Extra is not offered rather
+ * than failing once its energy is spent.
+ */
+export function unpaidActivationTaxAfter(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, taxes: TaxInForce[], energy: number): TaxInForce | null {
+  if (!taxes.length) return null;
+  if (energy <= 0) return unpaidActivationTax(ctx, game, state, player, card, taxes);
+  const copy = structuredClone(state);
+  for (const id of activeEnergy(game, copy, player).slice(0, energy)) copy.cards[id].mode = "rest";
+  return unpaidActivationTax(ctx, game, copy, player, card, taxes);
 }
 
 /**

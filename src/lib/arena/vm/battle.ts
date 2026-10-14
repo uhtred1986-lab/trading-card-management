@@ -82,7 +82,7 @@ import type { VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
-import { activationTaxGate, activationTaxes, canPayPriceProgram, queueTaxGate, unpaidActivationTax, type TaxGate } from "./activate";
+import { activationTaxGate, activationTaxes, canPayPriceProgram, queueTaxGate, unpaidActivationTaxAfter, type TaxGate } from "./activate";
 import { fireHook } from "./hooks";
 import { leaveRoute, lifeReplacementChoices, markerReplacementChoices, replacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
@@ -758,7 +758,7 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card, skillKind: sk.kind })) continue;
       // #677, 20-14-1: a [Counter] whose activation prices cannot be paid whole
       // can't be activated, so it is not offered.
-      if (unpaidActivationTax(ctx, game, state, responder, card, activationTaxes(ctx, game, state, responder, card, sk.kind))) continue;
+      if (unpaidActivationTaxAfter(ctx, game, state, responder, card, activationTaxes(ctx, game, state, responder, card, sk.kind), counterPrice(ctx, game, state, card, sk).energy?.total ?? 0)) continue;
       // 22-44-3 (#741): a [Limit X] [Counter] whose uses are spent this turn,
       // by this copy or another of the same card number, is not offered.
       if (usesLeft(state, responder, card, sk) === 0) continue;
@@ -1211,7 +1211,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // one that can is charged after the printed price, before the skill
   // activates, re-read live (`vm/activate.ts`'s `TaxGate`).
   const taxGate = activationTaxGate(ctx, game, state, action.player, card, sk.kind);
-  if (taxGate && unpaidActivationTax(ctx, game, state, action.player, card, activationTaxes(ctx, game, state, action.player, card, sk.kind))) throw new IllegalAction("can't activate that counter: a price a rule puts on it can't be paid");
+  if (taxGate && unpaidActivationTaxAfter(ctx, game, state, action.player, card, activationTaxes(ctx, game, state, action.player, card, sk.kind), action.alt ? 0 : (counterPrice(ctx, game, state, card, sk).energy?.total ?? 0))) throw new IllegalAction("can't activate that counter: a price a rule puts on it can't be paid");
   // 5-8-3 (#716): the printed price beyond orbs is read and checked before
   // anything is paid — a condition that no longer holds is refused, and an
   // action outside the strict host is a typed gap raised here, while the
@@ -1896,7 +1896,7 @@ function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   const banned = forbiddenBy(ctx, game, state, "activateCounter", { player, card, skillKind: sk.kind });
   if (banned) why.push({ kind: "forbidden", ...banned });
   // #677: refused naming the price, in the words an [Activate]'s refusal uses.
-  const unpaid = banned ? null : unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, sk.kind));
+  const unpaid = banned ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, sk.kind), counterPrice(ctx, game, state, card, sk).energy?.total ?? 0);
   if (unpaid) why.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
   why.push(...priceOf(sk));
   return why;
