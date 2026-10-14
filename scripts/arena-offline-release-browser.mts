@@ -152,7 +152,7 @@ const INSTRUMENT = `(() => {
 
 interface View { kind: string; restarts: number; saving: boolean; matchId: string; gameId: number; snapshot: Snapshot | null; bytes: number }
 async function view(page: Page): Promise<View | null> {
-  const raw = await page.eval<string | null>(`(() => { const b = ${BOARD_NOW}; if (!b) return null; const s = b.state; const snap = JSON.stringify(b.snapshot); return JSON.stringify({ kind: s.kind, restarts: s.totalRestarts, saving: b.saving, matchId: b.matchId, gameId: b.gameId, bytes: snap ? snap.length : 0, snapshot: b.snapshot }); })()`);
+  const raw = await page.eval<string | null>(`(() => { const b = ${BOARD_NOW}; if (!b) return null; const s = b.state; const raw = b.supervisor.snapshot; const snap = JSON.stringify(raw); return JSON.stringify({ kind: s.kind, restarts: s.totalRestarts, saving: b.saving, matchId: b.matchId, gameId: b.gameId, bytes: snap ? snap.length : 0, snapshot: raw }); })()`);
   return raw ? (JSON.parse(raw) as View) : null;
 }
 async function quiet(page: Page, ms = 30000): Promise<View> {
@@ -341,7 +341,7 @@ async function runCase(pack: unknown, revision: string, id: string, mine: string
     let facts = await pageFacts(l.page);
     for (let i = 0; i < 40 && facts.broken > 0; i++) { await sleep(250); facts = await pageFacts(l.page); }
     check(!facts.alert && end.kind === "owner", `${id}: no alert on the page and the tab is the writer at the end (${end.kind}${facts.alert ? `: ${facts.alert}` : ""})`);
-    check(facts.imgs > 0 && facts.broken === 0, `${id}: ${facts.imgs} images on the final board, ${facts.loaded} loaded, ${facts.broken} missing or broken (${facts.blob} from blob: URLs, ${facts.remote} addressed to a card CDN: ${facts.sample.slice(0, 2).join(' | ')})`);
+    check(facts.imgs > 0 && facts.broken === 0 && facts.remote === 0, `${id}: ${facts.imgs} images on the final board, ${facts.loaded} loaded, ${facts.broken} missing or broken (${facts.blob} from blob: URLs, ${facts.remote} addressed to a card CDN: ${facts.sample.slice(0, 2).join(' | ')})`);
     const attemptedApi = l.requests.filter((x) => { try { return new URL(x.url).pathname.startsWith("/api/"); } catch { return false; } });
     check(attemptedApi.length === 0 && l.taps.denied.length === 0, `${id}: no API route, server action or other host was asked (${l.taps.denied.length} denied, ${attemptedApi.length} API responses)`);
     const rel = await l.page.eval<{ long: { start: number; ms: number }[]; frames: { at: number; ms: number }[]; workerReady: number[]; marks: { click: number; board: number } }>(`window.__rel`);
@@ -470,6 +470,9 @@ async function recoveryCase(pack: unknown, revision: string) {
   check(end.snapshot!.game.status === "over", `${id}: the match reached its end after every failure (revision ${end.snapshot!.game.revision})`);
   check(sameJournal(j.entries, ref.entries) && uniqueIds(j.entries) && j.header.trace === ref.trace && (await replayHash(end.snapshot!)) === ref.final, `${id}: the device's journal (${j.entries.length} decisions) and the final board equal the uninterrupted Node match, decision for decision`);
   check(seenBad.size === 0, `${id}: every checkpoint board equalled the reference`);
+  let art = await pageFacts(l.page);
+  for (let i = 0; i < 40 && art.broken > 0; i++) { await sleep(250); art = await pageFacts(l.page); }
+  check(art.imgs > 0 && art.broken === 0 && art.remote === 0, `${id}: card art on the recovered board loads offline (${art.imgs} images, ${art.loaded} loaded, ${art.broken} missing, ${art.blob} from blob: URLs, ${art.remote} addressed to a card CDN)`);
   check(l.taps.denied.length === 0, `${id}: no match/provider request was made (${l.taps.denied.length} denied)`);
   await (browser as Browser | null)?.close().catch(() => {});
   browser = null;

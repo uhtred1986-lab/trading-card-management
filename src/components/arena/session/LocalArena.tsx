@@ -7,6 +7,7 @@ import type { ArenaSkin } from "@/lib/arena/skin";
 import type { ArenaStaging } from "@/lib/arena/staging";
 import type { TurnLighting } from "@/lib/arena/lighting";
 import type { SpawnedWorker } from "../../../lib/arena/local/recovery";
+import { loadLocalArt, type LocalArt } from "../../../lib/arena/local/art-urls";
 import { packStore, PackStoreError, type InstalledVersion, type InstallProgress, type PackStore } from "../../../lib/arena/local/pack-store";
 import { installedShells, shellRefusal, SHELL_PATH, type ShellMeta } from "../../../lib/arena/local/shell";
 import { OfflinePreparation } from "../OfflinePreparation";
@@ -168,12 +169,22 @@ export function LocalArena({ skin = "night", staging, lighting, shell }: StagePr
   const supported = useSyncExternalStore(never, supportedHere, () => true);
   const storedPointer = useSyncExternalStore(subscribePointer, rawPointer, () => null);
   const pointer = useMemo(() => readPointer(storedPointer), [storedPointer]);
-  useEffect(() => () => { void boardRef.current?.dispose(); }, []);
+  const artRef = useRef<LocalArt | null>(null);
+  useEffect(() => () => { void boardRef.current?.dispose(); artRef.current?.revoke(); artRef.current = null; }, []);
   const installed = useInstalledPacks(shell);
   // A pack that was removed from the device is no longer the chosen one.
   const facts = chosen && installed?.versions && !installed.versions.some((v) => v.hash === chosen.hash) && !installed.progress ? null : chosen;
 
-  const deps = { spawn, pointers };
+  /** The installed pack's images as object URLs (#780), kept while the same pack is played and freed when another is chosen. */
+  async function artFor(hash: string): Promise<ReadonlyMap<string, string> | undefined> {
+    if (!installed) return undefined;
+    if (artRef.current?.hash !== hash) {
+      artRef.current?.revoke();
+      artRef.current = null;
+      try { artRef.current = await loadLocalArt(installed.store, hash); } catch { return undefined; }
+    }
+    return artRef.current.urls;
+  }
   const show = (board: LocalBoard) => { boardRef.current = board; setPhase({ kind: "board", board }); };
   const fail = (e: unknown) => {
     if (e instanceof LocalBoardError) setProblem({ message: e.message, reasons: e.reasons });
@@ -210,11 +221,11 @@ export function LocalArena({ skin = "night", staging, lighting, shell }: StagePr
     if (why) throw new LocalBoardError("unplayable", why);
     return f;
   };
-  const start = () => facts && begin("Dealing…", async () => LocalBoard.start(compatible(facts).pack, { decks: seat === "p1" ? { p1: mine, p2: theirs } : { p1: theirs, p2: mine }, human: seat }, deps));
+  const start = () => facts && begin("Dealing…", async () => LocalBoard.start(compatible(facts).pack, { decks: seat === "p1" ? { p1: mine, p2: theirs } : { p1: theirs, p2: mine }, human: seat }, { spawn, pointers, art: await artFor(facts.hash) }));
   const resume = () => pointer && (facts || installed) && begin("Opening your saved match…", async () => {
     // In the shell the saved match's pack is read from the device, whichever pack is chosen.
     const f = installed && facts?.hash !== pointer.packHash ? readPack(await installed.store.load(pointer.packHash)) : facts!;
-    return LocalBoard.resume(compatible(f).pack, pointer, deps);
+    return LocalBoard.resume(compatible(f).pack, pointer, { spawn, pointers, art: await artFor(f.hash) });
   });
   /** Choose an installed pack (shell). */
   async function chooseInstalled(hash: string, keepProblem = false) {

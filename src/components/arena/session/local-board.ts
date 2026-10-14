@@ -26,6 +26,7 @@ import { ERROR_SENTENCE, type LocalErrorCode } from "../../../lib/arena/local/pr
 import type { OwnershipOptions } from "../../../lib/arena/local/ownership";
 import type { OfflinePack } from "../../../lib/arena/local/pack";
 import type { Snapshot } from "@/lib/arena/snapshot";
+import { localizeArt } from "@/lib/arena/local/art-urls";
 import type { Action, PlayerId } from "@/lib/arena/types";
 
 /** Why a board could not be opened at all (before any worker was started). */
@@ -128,6 +129,8 @@ export interface LocalBoardDeps {
   now?: () => number;
   /** AI decisions per committed batch. */
   batch?: number;
+  /** The installed pack's images as object URLs (#780); without it the board addresses catalog URLs. */
+  art?: ReadonlyMap<string, string>;
 }
 
 export interface LocalSetup {
@@ -270,7 +273,17 @@ export class LocalBoard implements ArenaSession {
   // ---- state for the page ----------------------------------------------------------------
 
   get state(): SupervisorState { return this.supervisor.state; }
-  get snapshot(): Snapshot | null { return this.supervisor.snapshot; }
+  get snapshot(): Snapshot | null { return this.localized(this.supervisor.snapshot); }
+
+  /** Offline art (#780): catalog URLs in a snapshot become the pack store's object URLs. Cached by snapshot identity. */
+  private readonly localizedOf = new WeakMap<Snapshot, Snapshot>();
+  private localized(s: Snapshot | null): Snapshot | null {
+    const urls = this.deps.art;
+    if (!s || !urls || urls.size === 0) return s;
+    let out = this.localizedOf.get(s);
+    if (!out) { out = localizeArt(s, urls); this.localizedOf.set(s, out); }
+    return out;
+  }
   /** A move or an AI turn is being committed to the device. */
   get saving(): boolean { return this.pendingCount > 0; }
   get notice(): BoardNotice | null { return describeBoard(this.state, !!this.snapshot?.over); }
@@ -311,7 +324,9 @@ export class LocalBoard implements ArenaSession {
     return { error: ERROR_SENTENCE[answer.code] };
   }
 
-  watch(options: WatchOptions): WatchHandle { return this.supervisor.watch(options); }
+  watch(options: WatchOptions): WatchHandle {
+    return this.supervisor.watch(this.deps.art ? { ...options, onSnapshot: (s) => options.onSnapshot(this.localized(s) ?? s) } : options);
+  }
   refresh(): void { this.supervisor.refresh(); }
 
   /** "Play again": a new match of the same pack, decks and seat; this one is closed once the new one is open. */

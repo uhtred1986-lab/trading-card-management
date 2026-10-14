@@ -210,7 +210,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   the shell's is refused at install and at start (`shellRefusal`). Proofs:
   `scripts/verify/arena-offline-shell.mts` (`npm test`: the worker on a fake Cache Storage, the
   proxy matcher) and `npm run arena:offline-shell-browser` (a production build, a cold Chrome with
-  the server stopped). The board still shows art by its catalog URLs, not the pack store's images.
+  the server stopped). The local board shows the pack store's images (#780: `src/lib/arena/local/art-urls.ts`, object URLs swapped into the snapshots by `LocalBoard` when the shell supplies `deps.art`); `/arena/local` from a file and online `/arena/[id]` still address catalog URLs.
 - **Offline preparation** (#660, `src/lib/arena/local/prepare.ts`, `src/components/arena/OfflinePreparation.tsx`):
   the panel on `/arena/offline` that puts the curated pack (the SD15/SD5 decks) on the device. The
   pack is served by `/arena/offline/pack.json` (prerendered at build by `scripts/build-arena-offline-pack.mts`
