@@ -33,7 +33,7 @@ save("blocker", defend);
 const noBlock = legalMoves(defend).find((row) => row.action.type === "block" && row.action.card === null);
 assert.ok(noBlock);
 defend = applyMove(defend, noBlock.action).match;
-for (let n = 0; n < 10 && defend.state.prompt.player !== "p1"; n++) {
+for (let n = 0; n < 10 && (!("player" in defend.state.prompt) || defend.state.prompt.player !== "p1"); n++) {
   const pass = legalMoves(defend).find((row) => row.action.type === "pass");
   assert.ok(pass, "opponent combo can be passed to stage the human response");
   defend = applyMove(defend, pass.action).match;
