@@ -24,6 +24,15 @@ const AGENT_SDK_UNUSED = ["./node_modules/@anthropic-ai/claude-agent-sdk/browser
 /** The spike is off unless AI_AGENT_SDK=1 is set when the app is built (Vercel exposes project variables at build time). */
 const AGENT_SDK_BUILD = process.env.AI_AGENT_SDK === "1";
 
+/**
+ * The device pack route (#793) builds the built-in starters at request time, as the public
+ * `/arena/offline/pack.json` does at build time, from the committed catalog snapshot and the owner's
+ * specified costs (`scripts/build-arena-offline-pack.mts`). Both are read with `readFileSync`, which
+ * the file tracer cannot follow, so the function is given them by name.
+ */
+const DEVICE_PACK_ROUTE = "/api/arena/offline/pack";
+const DEVICE_PACK_FILES = ["./docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json", "./docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json"];
+
 const nextConfig: NextConfig = {
   // Keep standalone output for self-hosted builds, but let Vercel package the
   // default build output so it can read the trace files its adapter expects.
@@ -48,7 +57,8 @@ const nextConfig: NextConfig = {
   // chunk; the binary itself is added to the one internal route. All of it is behind AI_AGENT_SDK=1 at BUILD time
   // (the same variable the adapter reads at run time): the binary is 246 MB, so adding it to a function is not free
   // (see ai:trace-sizes), and a default build must stay exactly what it was.
-  ...(AGENT_SDK_BUILD ? { outputFileTracingIncludes: { [AGENT_SDK_ROUTE]: AGENT_SDK_BINARY }, outputFileTracingExcludes: { [AGENT_SDK_ROUTE]: AGENT_SDK_UNUSED } } : {}),
+  outputFileTracingIncludes: { [DEVICE_PACK_ROUTE]: DEVICE_PACK_FILES, ...(AGENT_SDK_BUILD ? { [AGENT_SDK_ROUTE]: AGENT_SDK_BINARY } : {}) },
+  ...(AGENT_SDK_BUILD ? { outputFileTracingExcludes: { [AGENT_SDK_ROUTE]: AGENT_SDK_UNUSED } } : {}),
   ...(AGENT_SDK_BUILD ? { serverExternalPackages: ["@anthropic-ai/claude-agent-sdk"] } : {}),
   // Scan uploads are multi-megabyte phone photos; the default 1 MB body limit
   // would reject them before the server action ever sees the file.

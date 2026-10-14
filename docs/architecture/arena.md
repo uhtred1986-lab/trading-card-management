@@ -228,6 +228,25 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   pointer, the worker and the mark; any other cache of the origin is left alone). Player-facing text has no
   storage vocabulary; the original message stays under "Details". Proofs: `scripts/verify/arena-offline-prep.mts`
   (`npm test`) and the E/A0-A2 sections of `npm run arena:offline-shell-browser` (`--shots DIR`, `--real-art`).
+- **A player's own decks offline** (#793, `src/lib/arena/offline-decks.ts`): the server half. A deck is read
+  the online arena's way (`deckInputFor`, `cardDefFrom` over the catalog rows and their art, `rulesFromRows`
+  over the stored `card_rules` records — nothing compiled), so it plays offline by the rules it plays online.
+  The gate (owner's ruling: refuse until fixed) is `checkOfflineDecks`: a deck is ready only when every
+  skill has a current, non-open record that `runtimeSupportOfRow` finds nothing unsupported in, no Unison or
+  X-cost card lacks its specified cost, every face the pack carries has a picture, it has a leader and it is
+  a `dbs` deck; otherwise it names each blocking card in plain words. `buildDeviceOfflinePack` builds the
+  device's ONE pack — the starters exactly as the curated pack has them, plus the chosen decks (keys
+  `deck-<id>`, `src/lib/arena/local/device-decks.ts`), under the curated pack's id so installing it replaces
+  the device's pointer atomically — and refuses (`OfflineDeckRefused`) rather than build with a blocked or
+  foreign deck; nothing forces one, and the sealed pack's own `qualificationReasons` must agree or it throws.
+  A card both carry plays by the live records (the starter keeps its picture). Served signed in, behind the
+  proxy, scoped by `currentScope()`: `GET /api/arena/offline/pack?decks=1,2` (the pack, 404 for a deck that
+  is not the looker's, 409 with the blocking cards) and `GET /api/arena/offline/decks?ids=…` (each deck's
+  check and list fingerprint, `deckListHash`, so a device can say a deck changed online). The route builds
+  the starters at request time from the committed snapshot, which `next.config.ts` traces into its function.
+  Proof: `scripts/verify/arena-offline-decks-793.mts` (`npm test`, PGlite): the gate's refusals, scope, no
+  private data, programs equal to `rulesFor`, and full matches in the local Worker (a player's deck against a
+  starter and against another of their decks, both seats).
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.
