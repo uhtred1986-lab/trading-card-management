@@ -291,6 +291,10 @@ Not run. An emulated phone viewport is not a substitute and is labelled as emula
 target phone and browser (for example the phone you use at the table and its default browser), write them in the
 table, and keep the acceptance bullets about a phone open until every row has a result.
 
+**Automated (Android, overnight):** `npm run arena:phone` does steps 1 to 8 and 10 on a phone on USB, by touch, and
+fills this table in `findings.md` (`docs/arena-phone-ux-review.md`). Steps 9 (memory pressure) and the by-hand play
+stay manual. The manual steps below remain the procedure for an iPhone or a phone without USB debugging.
+
 **Set-up (a computer on the same network)**
 1. `export GITHUB_SHA=<commit>`; `npm run build` with that commit; `npm start` (no database needed:
    `env -u DATABASE_URL`). The service worker needs HTTPS, so expose it with a tunnel

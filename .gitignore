@@ -54,3 +54,6 @@ docs/arena-redesign/current/
 
 # Evidence clips from `npm run arena:record` (docs/arena-tooling.md)
 docs/arena-redesign/clips/
+
+# Phone runs from `npm run arena:phone` (docs/arena-phone-ux-review.md): screenshots, run.json, review.html
+/arena-phone-runs/

@@ -52,6 +52,8 @@ export class Browser {
   private listeners: Array<(method: string, params: any, sessionId?: string) => void> = [];
 
   private keepDir = false;
+  /** Attached with `connect`: nothing to spawn, kill or delete. */
+  private attached = false;
 
   /**
    * `userDataDir`: a profile that outlives this process (#659's cold launch: a second Chrome on the
@@ -79,24 +81,53 @@ export class Browser {
       });
       b.proc.on("exit", (code) => reject(new Error(`Chrome exited (${code}) before it was ready.`)));
     });
-    b.ws = new WebSocket(url);
+    await b.open(url);
+    return b;
+  }
+
+  /**
+   * Attach to a Chrome that is already running and was not started here — the phone's, through
+   * `adb forward tcp:9222 localabstract:chrome_devtools_remote` (`scripts/arena-phone-run.mts`).
+   * `endpoint` is its HTTP address (`http://localhost:9222`). `close()` then only drops the socket:
+   * the browser and its profile belong to the device.
+   */
+  static async connect(endpoint: string): Promise<Browser> {
+    const res = await fetch(`${endpoint.replace(/\/$/, "")}/json/version`);
+    if (!res.ok) throw new Error(`No DevTools endpoint at ${endpoint} (HTTP ${res.status}).`);
+    const { webSocketDebuggerUrl } = (await res.json()) as { webSocketDebuggerUrl?: string };
+    if (!webSocketDebuggerUrl) throw new Error(`${endpoint}/json/version names no browser socket.`);
+    const b = new Browser();
+    b.attached = true;
+    // Android Chrome answers with its own host (localhost, or the device's) — the forwarded port is the one to use.
+    const u = new URL(webSocketDebuggerUrl);
+    const e = new URL(endpoint);
+    u.host = e.host;
+    await b.open(u.toString());
+    return b;
+  }
+
+  private async open(url: string) {
+    this.ws = new WebSocket(url);
     await new Promise<void>((resolve, reject) => {
-      b.ws.addEventListener("open", () => resolve());
-      b.ws.addEventListener("error", () => reject(new Error("Could not connect to Chrome's DevTools socket.")));
+      this.ws.addEventListener("open", () => resolve());
+      this.ws.addEventListener("error", () => reject(new Error("Could not connect to Chrome's DevTools socket.")));
     });
-    b.ws.addEventListener("message", (ev) => {
+    this.ws.addEventListener("close", () => {
+      for (const p of this.pending.values()) p.reject(new Error("The DevTools socket closed."));
+      this.pending.clear();
+    });
+    this.ws.addEventListener("message", (ev) => {
       const msg = JSON.parse(String(ev.data));
       if (msg.id != null) {
-        const p = b.pending.get(msg.id);
+        const p = this.pending.get(msg.id);
         if (!p) return;
-        b.pending.delete(msg.id);
+        this.pending.delete(msg.id);
         if (msg.error) p.reject(new Error(`${msg.error.message} (${msg.error.code})`));
         else p.resolve(msg.result);
       } else if (msg.method) {
-        for (const l of b.listeners) l(msg.method, msg.params, msg.sessionId);
+        for (const l of this.listeners) l(msg.method, msg.params, msg.sessionId);
       }
     });
-    return b;
   }
 
   send<T = any>(method: string, params: object = {}, sessionId?: string): Promise<T> {
@@ -111,15 +142,51 @@ export class Browser {
     this.listeners.push(fn);
   }
 
-  async page(vp: Viewport): Promise<Page> {
+  /**
+   * A new tab. `emulate: false` keeps the device's own screen (a real phone): no metrics override
+   * and no touch emulation, while `vp.mobile` still makes `tap`/`pointer` send touch events.
+   */
+  async page(vp: Viewport, o: { emulate?: boolean } = {}): Promise<Page> {
     const { targetId } = await this.send("Target.createTarget", { url: "about:blank" });
+    return this.attach(targetId, vp, o);
+  }
+
+  /** A session on a tab that already exists (one the device opened itself, e.g. by an intent). */
+  async attach(targetId: string, vp: Viewport, o: { emulate?: boolean } = {}): Promise<Page> {
     const { sessionId } = await this.send("Target.attachToTarget", { targetId, flatten: true });
     const page = new Page(this, sessionId, targetId, vp);
-    await page.init();
+    await page.init(o.emulate ?? true);
     return page;
   }
 
+  /** Every target the browser has (pages, workers, service workers). */
+  async targets(): Promise<Array<{ targetId: string; type: string; url: string; attached: boolean }>> {
+    const { targetInfos } = await this.send<{ targetInfos: Array<{ targetId: string; type: string; url: string; attached: boolean }> }>("Target.getTargets");
+    return targetInfos;
+  }
+
+  /**
+   * End the browser the way the OS ends an app under memory pressure: the process is killed with no
+   * shutdown (a kept profile stays). Attached to a device's browser, only the socket is dropped —
+   * the caller kills the app on the device (`adb shell am force-stop`).
+   */
+  async kill() {
+    try {
+      this.ws.close();
+    } catch {}
+    if (this.attached || this.proc.exitCode !== null) return;
+    const exited = new Promise<void>((r) => this.proc.once("exit", () => r()));
+    this.proc.kill("SIGKILL");
+    await Promise.race([exited, sleep(5000)]);
+  }
+
   async close() {
+    if (this.attached) {
+      try {
+        this.ws.close();
+      } catch {}
+      return;
+    }
     const exited = this.proc.exitCode !== null ? Promise.resolve() : new Promise<void>((r) => this.proc.once("exit", () => r()));
     // A kept profile must be written out before another process opens it: ask Chrome to shut down
     // the way a user quitting would, and wait for it, before falling back to a kill.
@@ -149,12 +216,18 @@ export class Page {
     return this.b.send<T>(method, params, this.sid);
   }
 
-  async init() {
+  async init(emulate = true) {
     await this.call("Page.enable");
     await this.call("Runtime.enable");
     await this.call("Network.enable");
+    if (!emulate) return;
     await this.call("Emulation.setDeviceMetricsOverride", { width: this.vp.width, height: this.vp.height, deviceScaleFactor: this.vp.mobile ? 2 : 1, mobile: this.vp.mobile });
     await this.call("Emulation.setTouchEmulationEnabled", { enabled: this.vp.mobile });
+  }
+
+  /** The tab's target id (for `Target.closeTarget` or finding it again after a reconnect). */
+  get id() {
+    return this.targetId;
   }
 
   /** Send any raw protocol command to this page's session (e.g. `Emulation.setCPUThrottlingRate`). */
