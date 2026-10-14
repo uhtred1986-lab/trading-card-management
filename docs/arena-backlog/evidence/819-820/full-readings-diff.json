@@ -1,5 +1,5 @@
 {
-  "baseline": "e2a40e88",
+  "baseline": "5b22945a",
   "scope": "All 6552 dbs cards in the read-only production catalog snapshot; corrections applied independently on both heads.",
   "changed": [
     {
@@ -2022,5 +2022,6 @@
     "BT9-128#front#0": "Bounded action price becomes executable; attack trigger, once-per-turn guard and source switch remain unchanged.",
     "BT9-128#back#0": "Same bounded price correction as front; awakened-face effect unchanged.",
     "EX07-11#front#0": "Life choice and hand movement become readable; unsupported dual-character play remains unread, so partial compilation does not qualify the skill."
-  }
+  },
+  "baselineCompilerUnchangedFrom": "e2a40e88"
 }

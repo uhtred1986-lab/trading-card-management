@@ -9,7 +9,9 @@
     "current_live_recheck_required": true,
     "live_rechecked_date": "2026-10-15",
     "latest_recheck": "../819-820/live-rule-audit.json; repeat version/text checks at any future write",
-    "database_reads_or_writes_in_this_review": false
+    "database_reads_or_writes_in_historical_review": false,
+    "live_recheck_database_reads": true,
+    "live_recheck_database_writes": false
   },
   "review_counts": {
     "candidates": 27,

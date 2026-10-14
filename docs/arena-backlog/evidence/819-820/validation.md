@@ -33,7 +33,7 @@ unavailable; a named full BT8-025 Auto checks the power effect after either paym
 Evidence:
 
 - [Full catalog comparison](full-readings-diff.json): all 6,552 production-catalog DBS cards,
-  13,615 skill records, against main `e2a40e88`; eight changed records reviewed individually,
+  13,615 skill records, against main `5b22945a` (compiler records unchanged from `e2a40e88`); eight changed records reviewed individually,
   13,607 identical. Includes the four changed Auto payment records (both BT9-128 faces),
   BT7-127’s Life effect, and EX07-11’s remaining unread dual-character play.
 - [Live rule audit](live-rule-audit.json): all 27 historical candidates still compiler-owned
@@ -48,6 +48,14 @@ Evidence:
   [Bounded phone chip](editor-range-390.png) and [desktop chip](editor-range-1440.png) display
   “1 to 2”; a CDP interaction verifies changing to up-to removes MIN in the serialized rule.
 
-The complete final gate on `e4043742` is running. Its result will be recorded before merge.
+Final integrated code head: `2316e8abb8d7f41074ac381fe76044841b789c7a`, including
+main `5b22945a` (#808). All passed on that code: typecheck, lint (zero errors,
+five existing prototype warnings), the complete `npm test` chain (87/87 arena suites,
+108 builder round-trips, including the new phone/combat checks), production build,
+and `contract:emit` (87/87). Emission introduced no further fixture changes; this PR’s
+only contract diff is the reviewed four-line `minCount` language-reference addition.
+The authenticated 244-file backlog drift/path check is clean. Subsequent changes only
+record these results and update evidence; source, scripts, dependencies and contract
+are identical to this validated code head.
 Catalog/stored-rule refresh remains a separate reviewed operation and must recheck row versions
 at write time. The three historical partial-payment candidates remain held.
