@@ -481,6 +481,18 @@
       "label": "Attack L-BLUE with CONTRACTEMP (5000 vs 10000)"
     }
   ],
+  "attackPreviews": [
+    {
+      "action": 1,
+      "state": "notEvaluated",
+      "reason": "The attack reaches a hidden or variable outcome before the response."
+    },
+    {
+      "action": 2,
+      "state": "notEvaluated",
+      "reason": "A skill or choice is still resolving after the attack declaration."
+    }
+  ],
   "taps": {
     "byCard": {
       "p1#0": [
