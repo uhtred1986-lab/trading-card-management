@@ -154,6 +154,3 @@ printed texts match: 50 reviewed refresh candidates: 27 investigate: 2
 
 > dbs-card-companion@0.1.0 lint
 > eslint
-
-
-
