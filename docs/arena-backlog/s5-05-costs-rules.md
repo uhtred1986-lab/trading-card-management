@@ -6,7 +6,7 @@ stage: 5
 touches: src/lib/arena/rulesets/dbs/costs.rules, src/lib/arena/vm/costs.ts
 status: closed
 ---
-**Source:** plan Stage 5 ("`costs.rules` parameterises `planPayment`"); `planPayment`, `playCost`, `specifiedCostOf` in `src/lib/arena/engine/state.ts`; `orbTotals` in `engine.ts`; `CostRecord` in `script.ts`; the Stage 2 issues for X, `payWith` and cost modifiers; rule manual 8-3-2-3 (paying energy), 22-45 (Unison X), 22-30 ([Warrior of Universe 7]).
+**Source:** plan Stage 5 ("`costs.rules` parameterises `planPayment`"); `planPayment`, `playCost`, `specifiedCostOf` in [historical src/lib/arena/engine/state.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/state.ts); `orbTotals` in `engine.ts`; `CostRecord` in `script.ts`; the Stage 2 issues for X, `payWith` and cost modifiers; rule manual 8-3-2-3 (paying energy), 22-45 (Unison X), 22-30 ([Warrior of Universe 7]).
 
 **Problem.** Payment is a search over the Energy Area with special branches for colours, either-orbs, X and [Warrior of Universe 7]. The rules engine needs the same search driven by **declared** cost kinds so a second game with a different resource can declare its own, and so DBS's alternative payments (markers, life, a card used as energy, an alt cost) are cost items rather than branches.
 

@@ -6,7 +6,7 @@ stage: 5
 status: closed
 closed_at: 2026-09-13
 ---
-**Source:** plan Stage 5 (`ACTION play { WHEN prompt main AND turn(you); FOR card IN you.[hand] WHERE type = BATTLE; COST pay(energy(card)); DO move(card, [battle]); fire played; REFUSE … }`); `docs/arena-workflow-spec.md` §3.2 (one rejection per card per action type; per skill line for an activation) and the two places that assert it — `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`; `legalActions`/`rejectedActions` in `src/lib/arena/engine/engine.ts`.
+**Source:** plan Stage 5 (`ACTION play { WHEN prompt main AND turn(you); FOR card IN you.[hand] WHERE type = BATTLE; COST pay(energy(card)); DO move(card, [battle]); fire played; REFUSE … }`); `docs/arena-workflow-spec.md` §3.2 (one rejection per card per action type; per skill line for an activation) and the two places that assert it — `scripts/verify/harness.ts` and `scripts/arena-playthrough.mts`; `legalActions`/`rejectedActions` in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts).
 
 **Problem.** Legality is a predicate per action with a hand-written `whyNot*` twin per predicate. The rules engine must derive both from one declaration, so that adding an action to a game is a paragraph in `actions.rules` and the refusal comes for free.
 

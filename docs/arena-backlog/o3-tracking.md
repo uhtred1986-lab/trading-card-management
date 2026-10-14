@@ -5,6 +5,7 @@ milestone: Arena O3 — Offline match runtime
 labels: backlog, epic, area:arena-contract, phase:arena-home, model:opus-5
 stage: offline-o3
 tracking: true
+status: closed
 ---
 **Source:** `docs/arena-offline-plan.md` §O3; user-provided `create-offline-milestones.py`; `docs/agent-brief.md`.
 

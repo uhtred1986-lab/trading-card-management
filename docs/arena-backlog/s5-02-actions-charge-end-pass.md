@@ -6,7 +6,7 @@ stage: 5
 status: closed
 closed_at: 2026-09-13
 ---
-**Source:** plan Stage 5; the `charge`, `endMain`, `pass`, `concede` handlers in `src/lib/arena/engine/engine.ts` (`apply()`) and their `whyNot*` twins; rule manual 8-2 (Charge Phase), 8-3 (Main Phase end).
+**Source:** plan Stage 5; the `charge`, `endMain`, `pass`, `concede` handlers in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts) (`apply()`) and their `whyNot*` twins; rule manual 8-2 (Charge Phase), 8-3 (Main Phase end).
 
 **Problem.** The first four actions, chosen because they need no payment and no battle: they prove the `ACTION` machinery on the real turn.
 

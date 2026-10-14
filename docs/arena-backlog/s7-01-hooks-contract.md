@@ -7,7 +7,7 @@ status: closed
 closed_at: 2026-09-19
 touches: docs/arena-ruleset-spec.md, src/lib/arena/vm/hooks.ts, src/lib/arena/rulesets/dbs/keywords.rules, scripts/verify/rulesets.ts
 ---
-**Source:** plan Stage 7 (the fifteen hook names); the `has(` / `keyword(ctx, s, card, "…")` sites in `src/lib/arena/engine/engine.ts` and `state.ts`; `src/lib/arena/glossary.ts` (what each keyword does, and where the engine approximates); rule manual §22.
+**Source:** plan Stage 7 (the fifteen hook names); the `has(` / `keyword(ctx, s, card, "…")` sites in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts) and `state.ts`; `src/lib/arena/glossary.ts` (what each keyword does, and where the engine approximates); rule manual §22.
 
 **Problem.** The keywords are implemented where they are needed — 27+ inline sites, some per keyword, some per moment. Before a single body can be written the **moments** the interpreter must expose have to be named, and the only honest way to name them is to list every site, the keyword it serves and the moment it hooks.
 
