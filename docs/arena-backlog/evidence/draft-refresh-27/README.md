@@ -50,3 +50,17 @@ These two rows were not members of the 27 historical refresh candidates:
 - **BT6-063 #10:** historical fresh compilation leaves “choose 1 or 2” unread and has a partial downstream Leader target; do not replace it with the old exact-one draft. See [issue #820](https://github.com/uhtred1986-lab/trading-card-management/issues/820).
 
 Both are implemented separately on this branch and remain outside the 27; their live acceptance checks are pending. All 27 candidate rows still require current DB revalidation before any changes.
+
+## Live revalidation, 15 October 2026
+
+The app’s pooled database was retrieved through the permitted Vercel API and identified by
+`public.card_rules`. Read-only queries revalidated all 27 candidates as compiler-owned drafts,
+with unchanged printed text relative to current compilation. BT29-029 is the **back** face;
+its front #10 is a separate user-corrected Awaken record and must never be refreshed as this
+candidate. The candidate manifest now includes each face explicitly. All other candidates
+are front-face records. The reviewed disposition remains 24 approvals and 3 held.
+
+[Live evidence](../819-820/live-rule-audit.json) also records the two separate investigation
+rows. World Peace’s catalog/stored text still needs the official erratum at the separate
+refresh step; BT6-063’s stored draft still chooses exactly one. This source PR writes neither.
+Future refresh work must recheck each row’s version and printed text at the time of writing.

@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-15",
+  "games": 40,
+  "crashes": 0,
+  "completedWins": 32,
+  "unsupportedInterruptions": 8,
+  "unfinishedAtActionLimit": 0,
+  "baseline": "e2a40e88",
+  "baselineOutcomesIdentical": true,
+  "source": "Read-only production deck lists and stored rule records; no compilation or database writes during fuzz",
+  "finalLogSha256": "b7aa5a4d72c7e35402d6de6e6f239eb46082cfeed4f983b9369f91af701e30b2"
+}
