@@ -6,7 +6,7 @@ stage: 5
 touches: src/lib/arena/rulesets/dbs/actions.rules
 status: closed
 ---
-**Source:** plan Stage 5; the play handlers and `resolvePlay` in `src/lib/arena/engine/engine.ts`, `playCost`/`planPayment` in `state.ts`; rule manual 8-3-2 (playing cards), 8-3-3 (Unison), 23 (Z cards), 22-45 ([Empower] markers on arrival); `docs/arena-workflow-spec.md` §4 for the refusal register.
+**Source:** plan Stage 5; the play handlers and `resolvePlay` in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts), `playCost`/`planPayment` in `state.ts`; rule manual 8-3-2 (playing cards), 8-3-3 (Unison), 23 (Z cards), 22-45 ([Empower] markers on arrival); `docs/arena-workflow-spec.md` §4 for the refusal register.
 
 **Problem.** Playing a card is the action with the most refusals (energy short, colour short, wrong phase, Unison area full, Z-Energy short, a prohibition in force) and the most side effects (arrival triggers, markers, [Permanent]s coming into force). It is where the `REFUSE` list and the cost machinery earn their keep.
 

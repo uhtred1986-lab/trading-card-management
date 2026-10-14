@@ -6,7 +6,7 @@ stage: 6
 touches: src/lib/arena/rulesets/dbs/game.rules, src/lib/arena/rulesets/dbs/costs.rules
 status: closed
 ---
-**Source:** plan Stage 6; `damage`, life handling (face-up life cards, `docs/arena-history-lessons.md` (5 Sep 2026)), Z-Energy in `src/lib/arena/engine/engine.ts`/`state.ts`; rule manual 9-7-7 (damage), 3-4 (Life Area), 23 (Z-Energy).
+**Source:** plan Stage 6; `damage`, life handling (face-up life cards, `docs/arena-history-lessons.md` (5 Sep 2026)), Z-Energy in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts)/`state.ts`; rule manual 9-7-7 (damage), 3-4 (Life Area), 23 (Z-Energy).
 
 **Problem.** The consequences of a battle: combo power adding to a side, damage moving life cards to hand (face-up or not), the game ending at life 0, Z-Energy paid from the Z-Energy Area. Each is small and each is a place the two engines could quietly diverge.
 

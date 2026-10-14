@@ -5,7 +5,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-engine, area:arena-com
 stage: 2
 status: closed
 ---
-**Source:** `docs/arena-markers-stage-scope.md` §2 (item 3) and §4 (step A); `docs/arena-next-session-prompt.md` §4(c); the comment above `specifiedOps` in `src/lib/arena/engine/state.ts` (~line 1775); the owner's ruling of 9 Sep 2026 recorded with `npm run arena:rule -- --list`.
+**Source:** `docs/arena-markers-stage-scope.md` §2 (item 3) and §4 (step A); `docs/arena-next-session-prompt.md` §4(c); the comment above `specifiedOps` in [historical src/lib/arena/engine/state.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/state.ts) (~line 1775); the owner's ruling of 9 Sep 2026 recorded with `npm run arena:rule -- --list`.
 
 **Problem.** The reducer is wired but inert. Per the owner's ruling, "reduce the specified cost of this card in your hand by {u}" relaxes only the **colour requirement** (2 blue down to 1 blue); the total stays X and the player chooses it, and markers follow what was actually paid. The `costReduction … what: "specified"` op and the `playCost` branch exist, but `playCost` gives every X-cost card an **empty specified-cost baseline**, because nothing in the catalog feed says a Unison's "2 blue" is 2 rather than 1 or 3 — so six to eight cards (BT19-039, BT19-040, BT15-063, BT20-118 and four more) read correctly and change nothing on the board.
 

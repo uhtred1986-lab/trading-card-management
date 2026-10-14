@@ -6,7 +6,7 @@ stage: 6
 touches: src/lib/arena/rulesets/dbs/battle.rules, src/lib/arena/vm/view.ts
 status: closed
 ---
-**Source:** plan Stage 6; the battle sub-flow in `src/lib/arena/engine/engine.ts` (attack, block, counter, combo, resolve) and `state.flow`'s battle steps; rule manual §9-7 (battle), 9-8 (counter timing), 22 ([Blocker], [Barrier]); `docs/arena-battle-staging-spec.md` §3.1 for what a battle must expose.
+**Source:** plan Stage 6; the battle sub-flow in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts) (attack, block, counter, combo, resolve) and `state.flow`'s battle steps; rule manual §9-7 (battle), 9-8 (counter timing), 22 ([Blocker], [Barrier]); `docs/arena-battle-staging-spec.md` §3.1 for what a battle must expose.
 
 **Problem.** Battle is the most sequenced part of the game and the one the board stages most carefully. On the rules engine it must be a `STEP` program with the same windows, in the same order, producing the same events, so the beats and the duel band are unchanged.
 

@@ -6,7 +6,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-vm, phase:rules-stage4
 stage: 4
 status: closed
 ---
-**Source:** plan Stage 4 ("`pendTriggers` as event-pattern matching"); `triggers.rules` from Stage 3; `src/lib/arena/engine/triggers.ts` (`pendTriggers`, `skillAnswersTo`, `PendingAuto`, checkpoints); rule manual 9-6 and 9-6-9; `docs/arena-rules-language.md` §7.
+**Source:** plan Stage 4 ("`pendTriggers` as event-pattern matching"); `triggers.rules` from Stage 3; [historical src/lib/arena/engine/triggers.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/triggers.ts) (`pendTriggers`, `skillAnswersTo`, `PendingAuto`, checkpoints); rule manual 9-6 and 9-6-9; `docs/arena-rules-language.md` §7.
 
 **Problem.** The legacy engine matches an [Auto]'s moment by trigger *name*, and the names are fired from hand-placed calls inside the engine. The rules engine fires **events** from the generic operations (move, attack, mode change, damage…) and matches the definition's `TRIGGER` patterns against them — so a moment is declared once, and the record's WHEN (which already reads `card_rules.trigger`) means the same thing on both engines.
 

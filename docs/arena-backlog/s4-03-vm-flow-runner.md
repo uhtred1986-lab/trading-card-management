@@ -6,7 +6,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-vm, area:arena-ruleset
 stage: 4
 status: closed
 ---
-**Source:** plan Stage 4 ("the flow runner over `STEP` programs (`turn.rules`, the End-Phase repeat as a bounded loop)"); `exec()` in `src/lib/arena/engine/engine.ts` (~lines 219–443, the phase/step switch) and `state.flow` (the data step list the legacy engine already has); rule manual §7 (turn structure), §8 (phases).
+**Source:** plan Stage 4 ("the flow runner over `STEP` programs (`turn.rules`, the End-Phase repeat as a bounded loop)"); `exec()` in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts) (~lines 219–443, the phase/step switch) and `state.flow` (the data step list the legacy engine already has); rule manual §7 (turn structure), §8 (phases).
 
 **Problem.** The turn is a TypeScript `switch` over `Phase`. In the rules engine it is a program: `DEFINE PHASE`/`DEFINE STEP` in `rulesets/dbs/turn.rules`, run by an interpreter that knows only *steps*, *prompts* and *events*. Getting this right is what makes a second game a set of files.
 
