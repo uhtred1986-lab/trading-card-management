@@ -99,11 +99,11 @@ const zone = (s: VmState, p: PlayerId, area: string) => s.sides[p].zones[area];
 {
   const a = compileCard(defs.GRANT762, "front");
   assert.ok(a.complete && a.bySkill[0].unsupported.length === 0, "BT22-035 reads whole");
-  // "both <Son Goku> and <Vegeta>" is two conditions that hold together, each with the "or a blue <Gogeta> Z-Leader" beside it.
+  // "both <Son Goku> and <Vegeta>" is one all-of Leader filter (#768), with the "or a blue <Gogeta> Z-Leader" beside it.
   type Node = { op: string; cond?: { kind: string }; then?: Node[]; what?: string; filter?: { colors: string[] } };
   let node = a.bySkill[0].ops[0] as Node; let gates = 0;
   while (node.op === "if") { gates++; assert.equal(node.cond?.kind, "any"); node = node.then![0]; }
-  assert.equal(gates, 2, "under both readings of the Leader condition");
+  assert.equal(gates, 1, "one condition: the Leader filter reads \"both\" as all-of itself (#768)");
   const permit = node;
   assert.equal(permit.op, "permit"); assert.equal(permit.what, "aegisAltDrop"); assert.deepEqual(permit.filter?.colors, ["Yellow", "Blue"]);
 

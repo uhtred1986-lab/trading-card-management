@@ -43,6 +43,8 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   notNames: { except: ["BIG"] },
   namesIncluding: { only: ["CRIT", "PUMPCRIT"] },
   notNamesIncluding: { except: ["CRIT", "PUMPCRIT"] },
+  charactersAll: { only: ["V1"] },
+  namesAll: { only: ["BIG"] },
   // BLOCKER is the sampled keyword; noKeywords excludes every printed tag.
   keywords: { only: ["BLOCKER", "BERGAMO", "U1", "SELFMUTE"] },
   notKeywords: { except: ["BLOCKER", "BERGAMO", "U1", "SELFMUTE"] },
