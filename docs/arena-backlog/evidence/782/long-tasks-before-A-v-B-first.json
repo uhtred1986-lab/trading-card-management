@@ -1,0 +1,469 @@
+[
+  {
+    "startMs": 0,
+    "ms": 139.4,
+    "byEvent": [
+      [
+        "FunctionCall chunks/223dg2h-z508j.js O",
+        77.9
+      ],
+      [
+        "Layout",
+        38.7
+      ],
+      [
+        "UpdateLayoutTree",
+        9.3
+      ],
+      [
+        "V8.HandleInterrupts",
+        4.1
+      ],
+      [
+        "FunctionCall chunks/092ver8shwrli.js g",
+        2.8
+      ],
+      [
+        "V8.BytecodeBudgetInterrupt",
+        1.4
+      ],
+      [
+        "V8.GC_SCAVENGER_SCAVENGE_PARALLEL_PHASE",
+        1.2
+      ],
+      [
+        "RunMicrotasks",
+        1.2
+      ],
+      [
+        "V8.DeoptimizeCode",
+        0.5
+      ],
+      [
+        "V8.GC_SCAVENGER_SCAVENGE_PARALLEL",
+        0.5
+      ],
+      [
+        "v8.callFunction",
+        0.3
+      ],
+      [
+        "V8.StackGuard",
+        0.2
+      ]
+    ],
+    "byFunction": [
+      [
+        "n src/components/arena/stage/StageZones.tsx:101",
+        48.4
+      ],
+      [
+        "renderWithHooks node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:4593",
+        9.8
+      ],
+      [
+        "(anonymous) src/components/arena/ArenaCard.tsx:93",
+        9.5
+      ],
+      [
+        "N src/lib/arena/lang/tokens.ts:59",
+        5.3
+      ],
+      [
+        "(anonymous) src/components/arena/stage/ArenaStage.tsx:107",
+        4.1
+      ],
+      [
+        "commitLayoutEffectOnFiber node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:9931",
+        3.2
+      ],
+      [
+        "(anonymous) src/lib/arena/rulesets/load.ts:62",
+        3
+      ],
+      [
+        "(program) :0:0",
+        3
+      ],
+      [
+        "L src/lib/arena/text/filters.ts:484",
+        2.2
+      ],
+      [
+        "(garbage collector) :0:0",
+        2.2
+      ],
+      [
+        "setInitialProperties node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:14727",
+        1.3
+      ],
+      [
+        "e.s.inspector src/components/arena/shared-display.tsx:370",
+        1.3
+      ],
+      [
+        "definition src/lib/arena/lang/parse.ts:854",
+        1.2
+      ],
+      [
+        "C src/lib/arena/lang/parse.ts:1151",
+        1.2
+      ],
+      [
+        "(anonymous) node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:8328",
+        1
+      ]
+    ],
+    "bySource": [
+      [
+        "src/components/arena/stage/StageZones.tsx",
+        49.9
+      ],
+      [
+        "src/components/arena/stage/ArenaStage.tsx",
+        31.4
+      ],
+      [
+        "src/lib/arena/board-words.ts",
+        24.2
+      ],
+      [
+        "src/lib/arena/lighting.ts",
+        24.2
+      ],
+      [
+        "src/lib/arena/rulesets/dbs/index.ts",
+        23.6
+      ],
+      [
+        "src/lib/arena/rulesets/load.ts",
+        23.3
+      ],
+      [
+        "src/lib/arena/lang/parse.ts",
+        16.8
+      ],
+      [
+        "src/components/arena/ArenaCard.tsx",
+        9.9
+      ],
+      [
+        "src/lib/arena/lang/tokens.ts",
+        5.3
+      ],
+      [
+        "src/lib/arena/text/filters.ts",
+        3.1
+      ],
+      [
+        "src/components/arena/shared-model.ts",
+        2.9
+      ],
+      [
+        "src/components/arena/shared-display.tsx",
+        2.2
+      ]
+    ]
+  },
+  {
+    "startMs": 155.4,
+    "ms": 78.7,
+    "byEvent": [
+      [
+        "ThreadControllerImpl::RunTask",
+        78.5
+      ],
+      [
+        "Commit",
+        0.1
+      ],
+      [
+        "RunTask",
+        0.1
+      ],
+      [
+        "FunctionCall tick",
+        0
+      ],
+      [
+        "PrePaint",
+        0
+      ],
+      [
+        "v8.callFunction",
+        0
+      ],
+      [
+        "IntersectionObserverController::computeIntersections",
+        0
+      ],
+      [
+        "BlinkScheduler_PerformMicrotaskCheckpoint",
+        0
+      ],
+      [
+        "FireAnimationFrame",
+        0
+      ],
+      [
+        "Layerize",
+        0
+      ]
+    ],
+    "byFunction": [
+      [
+        "(program) :0:0",
+        78.2
+      ]
+    ],
+    "bySource": []
+  },
+  {
+    "startMs": 238,
+    "ms": 82.1,
+    "byEvent": [
+      [
+        "Layout",
+        42.4
+      ],
+      [
+        "FunctionCall chunks/223dg2h-z508j.js O",
+        15.9
+      ],
+      [
+        "UpdateLayoutTree",
+        10.5
+      ],
+      [
+        "FunctionCall chunks/092ver8shwrli.js g",
+        7
+      ],
+      [
+        "RunMicrotasks",
+        2.1
+      ],
+      [
+        "V8.HandleInterrupts",
+        1.7
+      ],
+      [
+        "V8.BytecodeBudgetInterrupt",
+        1.3
+      ],
+      [
+        "V8.DeoptimizeCode",
+        0.6
+      ],
+      [
+        "V8.StackGuard",
+        0.2
+      ],
+      [
+        "RunTask",
+        0.2
+      ],
+      [
+        "V8.BytecodeBudgetInterruptWithStackCheck",
+        0.1
+      ],
+      [
+        "v8.callFunction",
+        0.1
+      ]
+    ],
+    "byFunction": [
+      [
+        "measureScroll node_modules/motion-dom/src/projection/node/create-projection-node.ts:2458",
+        53
+      ],
+      [
+        "(program) :0:0",
+        5.2
+      ],
+      [
+        "commitMutationEffectsOnFiber node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:10463",
+        3.6
+      ],
+      [
+        "(anonymous) src/components/arena/stage/ArenaStage.tsx:107",
+        1.7
+      ],
+      [
+        "setTextContent node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:1387",
+        1.1
+      ],
+      [
+        "(anonymous) node_modules/motion-dom/src/projection/node/create-projection-node.ts:500",
+        0.9
+      ],
+      [
+        "setAttribute :0:0",
+        0.8
+      ],
+      [
+        "narrate src/lib/arena/narration.ts:62",
+        0.8
+      ],
+      [
+        "measurePageBox node_modules/motion-dom/src/projection/node/create-projection-node.ts:1023",
+        0.6
+      ],
+      [
+        "(anonymous) src/lib/arena/story.ts:24",
+        0.5
+      ],
+      [
+        "(anonymous) node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:8328",
+        0.4
+      ],
+      [
+        "createWorkInProgress node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:2634",
+        0.4
+      ],
+      [
+        "(anonymous) src/components/arena/stage/ArenaStage.tsx:1045",
+        0.4
+      ],
+      [
+        "co node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:14328",
+        0.4
+      ],
+      [
+        "setAnimationOrigin node_modules/motion-dom/src/projection/node/create-projection-node.ts:1589",
+        0.4
+      ]
+    ],
+    "bySource": [
+      [
+        "src/components/arena/shared-model.ts",
+        60
+      ],
+      [
+        "src/components/arena/stage/ArenaStage.tsx",
+        4.3
+      ],
+      [
+        "src/lib/arena/story.ts",
+        1.3
+      ],
+      [
+        "src/lib/arena/narration.ts",
+        0.8
+      ],
+      [
+        "src/components/arena/stage/Hand.tsx",
+        0.7
+      ],
+      [
+        "src/components/arena/stage/BattleParts.tsx",
+        0.3
+      ],
+      [
+        "src/components/arena/ArenaCard.tsx",
+        0.3
+      ],
+      [
+        "src/components/arena/shared-sheets.tsx",
+        0.3
+      ]
+    ]
+  },
+  {
+    "startMs": 3513.4,
+    "ms": 52.6,
+    "byEvent": [
+      [
+        "ThreadControllerImpl::RunTask",
+        48.5
+      ],
+      [
+        "Layerize",
+        1.7
+      ],
+      [
+        "FunctionCall chunks/092ver8shwrli.js g",
+        0.5
+      ],
+      [
+        "Layout",
+        0.4
+      ],
+      [
+        "Paint",
+        0.4
+      ],
+      [
+        "PrePaint",
+        0.4
+      ],
+      [
+        "UpdateLayoutTree",
+        0.4
+      ],
+      [
+        "Commit",
+        0.1
+      ],
+      [
+        "V8.HandleInterrupts",
+        0.1
+      ],
+      [
+        "FunctionCall tick",
+        0
+      ],
+      [
+        "RunTask",
+        0
+      ],
+      [
+        "IntersectionObserverController::computeIntersections",
+        0
+      ]
+    ],
+    "byFunction": [
+      [
+        "(program) :0:0",
+        52
+      ],
+      [
+        "applyProjectionStyles node_modules/motion-dom/src/projection/node/create-projection-node.ts:1987",
+        0.3
+      ],
+      [
+        "mixTargetDelta node_modules/motion-dom/src/projection/node/create-projection-node.ts:1630",
+        0.3
+      ]
+    ],
+    "bySource": [
+      [
+        "src/components/arena/shared-model.ts",
+        0.6
+      ]
+    ]
+  },
+  {
+    "startMs": 26136.2,
+    "ms": 62.2,
+    "byEvent": [
+      [
+        "Receive mojo message",
+        62.1
+      ],
+      [
+        "ThreadControllerImpl::RunTask",
+        0
+      ],
+      [
+        "RunTask",
+        0
+      ],
+      [
+        "BlinkScheduler_PerformMicrotaskCheckpoint",
+        0
+      ]
+    ],
+    "byFunction": [],
+    "bySource": []
+  }
+]

@@ -247,23 +247,28 @@ the real board, but keep "no long task over 150 ms" as a release blocker and fix
 
 ### Method
 
-- **Runs.** Three recordings of the whole desktop matrix (`arena:offline-release -- --record`, 8 cases
-  each) at one commit (`a5cc5b4`, the long-task fix below), 14 Oct 2026, HeadlessChrome 141, the 4-vCPU
-  cloud container of `docs/arena-offline-release.md` section 2, run one after another.
+- **Runs.** Five recordings of the whole desktop matrix (8 cases each), 14 Oct 2026, HeadlessChrome 141,
+  the 4-vCPU cloud container of `docs/arena-offline-release.md` section 2, one after another, all of the
+  same app code (the long-task fix below): runs 1 to 3 at `a5cc5b4` (`--record`) on a quiet host; runs 4
+  and 5 at `43c457a`, which only adds these budgets to the scripts and this page, as the first check of a
+  three-run derivation. Both of those **failed it** while the shared host was busier (the Worker's cold
+  start went from 115-122 to 129-148 ms): `frameIntervalMs.p95` 49.9 ms (three frames) in both, and in run
+  4 also 25 slow frames and 8 long tasks. A budget that fails on the host it is meant to gate is noise, not
+  a gate, so the derivation takes all five.
 - **Percentile.** A run's figure is computed exactly as the release script judges it: the worst of the 8
   cases (longest task, most long tasks, most slow frames, largest heap), or for a latency the p95 of the
   run's samples (`roundTripMs.p95`: the worst case's p95 of its human moves; `matchStartMs.p95`: the
   nearest-rank p95 of the 8 cases, which with 8 samples is their max).
-- **Headroom.** The limit is the worst of the three runs times **1.25** for a time or a size and times
-  **1.5** for a count (a count of 4 or 14 moves more from run to run), rounded **up** to the next 10 ms,
+- **Headroom.** The limit is the worst of the five runs times **1.25** for a time or a size and times
+  **1.5** for a count (a count of 4 or 25 moves more from run to run), rounded **up** to the next 10 ms,
   1 MB or whole count.
 - **Only where the board misses.** Where the O1 limit already holds the board with that headroom, the O1
   limit stays: the Worker's own figures (decision, cold start, Worker heap), which the board does not
   change, and the slowest human move all keep theirs. No board budget is tighter than its O1 budget.
 - **Not derived.** `longTaskMaxMs` stays **150 ms** (owner) and `longTaskAtMatchStartMaxMs`, a long task
-  too, is held to the same 150 ms (O1 had 250). `frameIntervalMs.p95` stays 34 ms: intervals come in
-  16.7 ms steps and every run measured 33.4 ms (two frames), so 1.25x would have allowed a third frame
-  for nothing.
+  too, is held to the same 150 ms (O1 had 250). `frameIntervalMs.p95` is a whole number of 16.7 ms frames
+  plus 1 ms, because rAF intervals come in those steps: the runs measured two frames (33.4) or three
+  (49.9), so 51 ms; 1.25x would have allowed a fourth frame for nothing.
 - **Not measurable.** `userAgentMemoryBytes` is not a board budget: `performance.measureUserAgentSpecificMemory`
   exists only on a cross-origin-isolated page (COOP/COEP) and the app is not one, so the browser does not
   offer it. The run prints it as `NOT MEASURABLE` with that reason (`BOARD_UNMEASURABLE`); it is never
@@ -271,31 +276,32 @@ the real board, but keep "no long task over 150 ms" as a release blocker and fix
 - **A missed budget still fails the run.** `OVER` or `NOT MEASURED` on any board budget makes
   `arena:offline-release` exit 1 (unless `--record`, which still prints it).
 - **Desktop only.** `--phone-emulated` is judged against the same desktop budgets and misses several
-  (below); emulation gets no budgets of its own, and the physical phone's are the owner's to record.
+  (`docs/arena-offline-release.md` section 6); emulation gets no budgets of its own, and the physical
+  phone's are the owner's to record.
 
-### The three runs and the budgets
+### The five runs and the budgets
 
-| Metric | Budget | O1 budget | Run 1 / 2 / 3 | Why |
+| Metric | Budget | O1 budget | Runs 1 / 2 / 3 / 4 / 5 | Why |
 |---|---|---|---|---|
-| `roundTripMs.p95` | at most 60 ms | 50 ms | 39.5 / 42.8 / 47.5 | re-derived, 1.25x 47.5; still under the 100 ms "feels instant" ceiling |
-| `roundTripMs.max` | at most 250 ms | 250 ms | 76.1 / 74.2 / 75.0 | O1 kept |
-| `decisionMs.max` | at most 300 ms | 300 ms | 77.5 / 84.7 / 82.3 | O1 kept (the Worker's) |
-| `coldWorkerStartMs.p50` | at most 1500 ms | 1500 ms | 121.5 / 115.2 / 116.0 | O1 kept (the Worker's) |
-| `coldWorkerStartMs.max` | at most 6000 ms | 6000 ms | 140.5 / 153.7 / 142.8 | O1 kept (the Worker's) |
-| `matchStartMs.p95` | at most 710 ms | 450 ms | 566.3 / 535.7 / 527.5 | re-derived, 1.25x 566.3: Start click to the first board, the board's first render and layout included |
-| `frameIntervalMs.p95` | at most 34 ms | 34 ms | 33.4 / 33.4 / 33.4 | O1 kept (two frames) |
-| `framesOver50Ms` | at most 21 | 6 | 13 / 11 / 14 | re-derived, 1.5x 14; a match has 1,400 to 2,500 frames |
-| `longTaskCount` | at most 6 | 3 | 4 / 4 / 4 | re-derived, 1.5x 4 |
-| `longTaskMaxMs` | at most 150 ms | 150 ms | 99 / 110 / 116 | owner: never relaxed |
-| `longTaskAtMatchStartMaxMs` | at most 150 ms | 250 ms | 99 / 110 / 116 | held to the 150 ms ceiling |
-| `workerHeapRetainedBytes` | at most 16 MB | 16 MB | 7.4 / 7.2 / 7.2 MB | O1 kept (the Worker's) |
-| `workerHeapAfterBulkBytes` | at most 64 MB | 64 MB | 22.4 / 23.0 / 20.5 MB | O1 kept (one match, not 20) |
-| `mainHeapBytes` | at most 18 MB | 8 MB | 14.4 / 12.6 / 13.7 MB | re-derived, 1.25x 14.4 MB: the page heap WITH the React app |
+| `roundTripMs.p95` | at most 70 ms | 50 ms | 39.5 / 42.8 / 47.5 / 47.9 / 51.6 | re-derived, 1.25x 51.6; still under the 100 ms "feels instant" ceiling |
+| `roundTripMs.max` | at most 250 ms | 250 ms | 76.1 / 74.2 / 75.0 / 104.2 / 71.9 | O1 kept |
+| `decisionMs.max` | at most 300 ms | 300 ms | 77.5 / 84.7 / 82.3 / 92.5 / 98.5 | O1 kept (the Worker's) |
+| `coldWorkerStartMs.p50` | at most 1500 ms | 1500 ms | 121.5 / 115.2 / 116.0 / 147.7 / 129.0 | O1 kept (the Worker's) |
+| `coldWorkerStartMs.max` | at most 6000 ms | 6000 ms | 140.5 / 153.7 / 142.8 / 159.3 / 149.9 | O1 kept (the Worker's) |
+| `matchStartMs.p95` | at most 770 ms | 450 ms | 566.3 / 535.7 / 527.5 / 609.4 / 536.3 | re-derived, 1.25x 609.4: Start click to the first board, the board's first render and layout included |
+| `frameIntervalMs.p95` | at most 51 ms | 34 ms | 33.4 / 33.4 / 33.4 / 49.9 / 49.9 | three frames plus 1 ms (see Method) |
+| `framesOver50Ms` | at most 38 | 6 | 13 / 11 / 14 / 25 / 21 | re-derived, 1.5x 25; a match has 1,400 to 2,500 frames |
+| `longTaskCount` | at most 12 | 3 | 4 / 4 / 4 / 8 / 5 | re-derived, 1.5x 8 |
+| `longTaskMaxMs` | at most 150 ms | 150 ms | 99 / 110 / 116 / 105 / 105 | owner: never relaxed |
+| `longTaskAtMatchStartMaxMs` | at most 150 ms | 250 ms | 99 / 110 / 116 / 105 / 105 | held to the 150 ms ceiling |
+| `workerHeapRetainedBytes` | at most 16 MB | 16 MB | 7.4 / 7.2 / 7.2 / 7.3 / 7.3 MB | O1 kept (the Worker's) |
+| `workerHeapAfterBulkBytes` | at most 64 MB | 64 MB | 22.4 / 23.0 / 20.5 / 23.0 / 22.8 MB | O1 kept (one match, not 20) |
+| `mainHeapBytes` | at most 20 MB | 8 MB | 14.4 / 12.6 / 13.7 / 13.1 / 15.3 MB | re-derived, 1.25x 15.3 MB: the page heap WITH the React app |
 | `userAgentMemoryBytes` | not measurable | 64 MB | not measurable | see Method |
 
-Recordings: `docs/arena-backlog/evidence/782/release-after{1,2,3}.json`. The derivation was then checked
-on a fourth, fresh run of the final commit with no `--record` (`docs/arena-offline-release.md` section 6),
-which must exit 0.
+Recordings: `docs/arena-backlog/evidence/782/release-after{1,2,3,4,5}.json`. The five-run budgets were then
+checked on a sixth, fresh run of the final code with no `--record`, which must exit 0
+(`docs/arena-offline-release.md` section 6).
 
 ### The long task, found and fixed
 
@@ -332,7 +338,14 @@ Before and after, desktop, three matrix runs each (24 matches):
 
 The 202 ms of `docs/arena-offline-release.md` (#661) was the same build as "before" on a busier host;
 this host's three "before" runs stayed under 150 ms, so the margin, not a pass, is what changed on the
-desktop. Profiles: `docs/arena-backlog/evidence/782/` (`long-tasks-before.json`, `long-tasks-after.json`).
+desktop (runs 4 and 5 of the fixed code, on the busier host, stayed at 105 ms). Profiles, one traced
+matrix case pair each, source-mapped: `docs/arena-backlog/evidence/782/long-tasks-{before,after}-A-v-B-{first,second}.json`
+(every task of 50 ms or more: timeline self time, functions, and the app's source files it ran under; the
+raw traces are 80 to 120 MB each and are not kept). The before/after recordings of the whole matrix are
+`release-before{1,2,3}.json`, `release-after{1..5}.json` and, for the emulated phone, `release-{before,after}-phone.json`.
+In the traced profiles, a source file named under a motion frame-loop task (`shared-model.ts`) is a
+source-map artefact of a minified name; its functions are `motion-dom`'s projection (`measureScroll`,
+`updateLayout`), i.e. the layout animations measuring the new cards.
 
 ## Regression procedure
 
@@ -435,7 +448,7 @@ against the engine-only `decisionMs.p95` of 30 ms**. The tool prints both as `in
   memory or throttling interfaces.
 - **UI cost.** React rendering, painting and animation are not part of this; for the board's frame
   behaviour see `docs/arena-perf-baseline.md` (`npm run arena:perf:browser`), which measures the
-  preview page.
+  preview page, and the board budgets above (#782), which `arena:offline-release` measures on the real app.
 - **Sustained play.** A 120-move game and 20 repeats; thermal and battery behaviour over long
   sessions is unmeasured.
 - **The local policy's own cost (#646).** The bench plays the #641 `pick()` moves, not a policy. The

@@ -164,16 +164,17 @@ export const BUDGETS: Budget[] = (() => {
  * from the O1 page above, which ran the engine in a Worker with no UI. `docs/arena-worker-budgets.md`
  * ("Board budgets") records the runs and the method:
  *
- *  - three recordings of the whole 8-case matrix at one commit; a run's figure is computed as the release
- *    script computes it (the worst case of the 8, or the p95 of the 8 cases, which with 8 samples is their max);
- *  - the derived limit is the worst of the three runs times 1.25 for a time or a size, times 1.5 for a count
+ *  - five recordings of the whole 8-case matrix, all of the same app code (three on a quiet host, two while
+ *    the shared host was busier); a run's figure is computed as the release script computes it (the worst
+ *    case of the 8, or the p95 of the 8 cases, which with 8 samples is their max);
+ *  - the derived limit is the worst of the five runs times 1.25 for a time or a size, times 1.5 for a count
  *    (small integers move more from run to run), rounded UP to a 10 ms, 1 MB or whole-count step;
  *  - the re-derivation only loosens a budget the board misses: where the O1 limit already holds the board
  *    with that headroom, the O1 limit stays (the Worker's own figures, which the board does not change,
  *    all keep theirs);
  *  - exceptions: `longTaskMaxMs` is 150 ms by the owner's decision of 14 Oct 2026 and is never relaxed, and
- *    `longTaskAtMatchStartMaxMs` (a long task too) is held to the same 150 ms; `frameIntervalMs.p95` stays
- *    34 ms because frame intervals come in 16.7 ms steps and every run measured 33.4 (two frames).
+ *    `longTaskAtMatchStartMaxMs` (a long task too) is held to the same 150 ms; `frameIntervalMs.p95` is a
+ *    whole number of 16.7 ms frames plus 1 ms (it measured two frames or three, so three: 51 ms).
  *
  * A budget the run cannot measure fails it like an exceeded one. `userAgentMemoryBytes` is not a board
  * budget: it cannot be measured on this page at all (`BOARD_UNMEASURABLE`), and is printed as such rather
@@ -181,23 +182,23 @@ export const BUDGETS: Budget[] = (() => {
  */
 export const BOARD_BUDGETS: Budget[] = (() => {
   const o1 = (metric: string) => BUDGETS.find((b) => b.metric === metric && !b.config)!;
-  const keep = (metric: string, measured: string): Budget => ({ ...o1(metric), why: `O1 limit kept: the board measured ${measured} in three runs` });
+  const keep = (metric: string, measured: string): Budget => ({ ...o1(metric), why: `O1 limit kept: the board measured ${measured} in five runs` });
   const derived = (metric: string, limit: number, unit: Budget["unit"], why: string): Budget => ({ metric, limit, unit, why });
   return [
-    derived("roundTripMs.p95", 60, "ms", "a human move, act to result, page-measured; worst case's p95 39.5, 42.8, 47.5 in three runs; 1.25x the worst (O1 50 was missed)"),
-    keep("roundTripMs.max", "74.2 to 76.1 ms"),
-    keep("decisionMs.max", "77.5 to 84.7 ms per decision"),
-    keep("coldWorkerStartMs.p50", "115 to 122 ms"),
-    keep("coldWorkerStartMs.max", "141 to 154 ms"),
-    derived("matchStartMs.p95", 710, "ms", "Start click to the first board, React render included; 566, 536, 528 in three runs; 1.25x the worst (O1 450 was set for the bare page)"),
-    { ...o1("frameIntervalMs.p95"), why: "two 60 Hz frames: every run measured 33.4 ms, and intervals come in 16.7 ms steps" },
-    derived("framesOver50Ms", 21, "count", "frames over 50 ms in one match (1,400 to 2,500 frames); 13, 11, 14 in three runs; 1.5x the worst (O1 6 counted a bare page)"),
-    derived("longTaskCount", 6, "count", "main-thread tasks >= 50 ms in one match; 4, 4, 4 in three runs; 1.5x the worst (O1 3 counted a bare page)"),
-    derived("longTaskMaxMs", 150, "ms", "owner, 14 Oct 2026: no long task over 150 ms is a release blocker, never relaxed; 99, 110, 116 in three runs"),
-    derived("longTaskAtMatchStartMaxMs", 150, "ms", "a long task at the match start is a long task: held to the same 150 ms; 99, 110, 116 in three runs"),
+    derived("roundTripMs.p95", 70, "ms", "a human move, act to result, page-measured; worst case's p95 39.5, 42.8, 47.5, 47.9, 51.6 in five runs; 1.25x the worst (O1 50 was missed)"),
+    keep("roundTripMs.max", "71.9 to 104.2 ms"),
+    keep("decisionMs.max", "77.5 to 98.5 ms per decision"),
+    keep("coldWorkerStartMs.p50", "115 to 148 ms"),
+    keep("coldWorkerStartMs.max", "141 to 159 ms"),
+    derived("matchStartMs.p95", 770, "ms", "Start click to the first board, React render included; 566, 536, 528, 609, 536 in five runs; 1.25x the worst (O1 450 was set for the bare page)"),
+    derived("frameIntervalMs.p95", 51, "ms", "three 60 Hz frames plus 1 ms: intervals come in 16.7 ms steps; 33.4 in three runs and 49.9 in two on a busier host (O1 34 was missed)"),
+    derived("framesOver50Ms", 38, "count", "frames over 50 ms in one match (1,400 to 2,500 frames); 13, 11, 14, 25, 21 in five runs; 1.5x the worst (O1 6 counted a bare page)"),
+    derived("longTaskCount", 12, "count", "main-thread tasks >= 50 ms in one match; 4, 4, 4, 8, 5 in five runs; 1.5x the worst (O1 3 counted a bare page)"),
+    derived("longTaskMaxMs", 150, "ms", "owner, 14 Oct 2026: no long task over 150 ms is a release blocker, never relaxed; 99, 110, 116, 105, 105 in five runs"),
+    derived("longTaskAtMatchStartMaxMs", 150, "ms", "a long task at the match start is a long task: held to the same 150 ms; 99, 110, 116, 105, 105 in five runs"),
     keep("workerHeapRetainedBytes", "7.2 to 7.4 MB"),
     keep("workerHeapAfterBulkBytes", "20.5 to 23.0 MB after one match"),
-    derived("mainHeapBytes", 18_000_000, "bytes", "page V8 heap after a forced GC at the end of a match, WITH the React app; 14.4, 12.6, 13.7 MB in three runs; 1.25x the worst (O1 8 MB was a page with no UI)"),
+    derived("mainHeapBytes", 20_000_000, "bytes", "page V8 heap after a forced GC at the end of a match, WITH the React app; 14.4, 12.6, 13.7, 13.1, 15.3 MB in five runs; 1.25x the worst (O1 8 MB was a page with no UI)"),
   ];
 })();
 
