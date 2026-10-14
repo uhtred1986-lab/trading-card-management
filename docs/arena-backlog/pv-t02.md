@@ -6,6 +6,7 @@ stage: closed
 issue: 544
 priority: P0
 touches: src/lib/arena/vm/flow.ts, src/lib/arena/engines.ts, src/components/arena/stage/GameEnd.tsx, src/components/arena/GameOver.tsx, src/app/arena/[id]/page.tsx
+status: closed
 ---
 **Source:** `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.
 

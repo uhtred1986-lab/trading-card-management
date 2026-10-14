@@ -5,6 +5,7 @@ labels: enhancement, backlog, area:arena-android, phase:android-client, model:so
 stage: ui
 issue: 105
 priority: P2
+status: closed
 ---
 **Source:** `docs/arena-android-spec.md` §3 (stack), §4 (screens), §11 (order of work, steps 2–3); `docs/arena-client-contract.md` §1, §5, §6; `android/` (only the Docker toolchain and the `contract` module exist — steps 0–1 are done).
 

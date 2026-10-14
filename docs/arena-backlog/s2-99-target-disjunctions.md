@@ -5,6 +5,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-compiler, phase:rules-
 issue: 537
 stage: 2
 touches: src/lib/arena/text/filters.ts, src/lib/arena/compile/targets.ts, src/lib/arena/glossary.ts
+status: closed
 ---
 **Source:** owner's card review of 4 Oct 2026 (rulings on each `card_rules` row, `Wrong (phone review) · DO · wrong target`). Related: `docs/arena-backlog/s2-95-or-disjunction.md`.
 

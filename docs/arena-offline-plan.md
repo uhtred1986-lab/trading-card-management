@@ -58,7 +58,7 @@ Separate board presentation from session transport while preserving online behav
 | #652 (O3-02) | Implement a revisioned local match worker protocol (delivered: `src/lib/arena/local/{protocol,worker,worker-entry}.ts` and the page client `src/components/arena/session/local.ts`; journal in memory until #653) | #641, #651 |
 | #653 (O3-03) | Persist versioned local matches transactionally in IndexedDB (delivered: `src/lib/arena/local/storage.ts`, used by the worker entry; proofs `scripts/verify/arena-local-storage.mts` and `npm run arena:local-storage-browser`) | #652 |
 | #654 (O3-04) | Recover interrupted workers and enforce one writer per local match | #653 |
-| #656 (O3-05) | Connect the existing board to local start, resume and finish flows | #648, #654, #655 |
+| #656 (O3-05) | Connect the existing board to local start, resume and finish flows (delivered: `src/components/arena/session/{local-board.ts,LocalArena.tsx}` and `/arena/local`; proof `scripts/verify/arena-local-board-656.mts`; it plays a qualified pack only, so the real SD15/SD5 pack stays closed until U1 resolves) | #648, #654, #655 |
 | #657 (O3-06) | Verify local session recovery across browser failure cases | #656 |
 
 ## O4
