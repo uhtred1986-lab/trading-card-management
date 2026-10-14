@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { canOpenGame } from "@/lib/auth/ownership";
 import { OnlineArenaStage } from "@/components/arena/session/OnlineArenaStage";
+import { arenaDecklistsFromInputs } from "@/components/arena/decklist-model";
 import { hasAnthropic } from "@/lib/ai/client";
 import { GameOver } from "@/components/arena/GameOver";
 import { cardsOnTable } from "@/components/arena/shared-display";
@@ -79,6 +80,12 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
   // what keeps each device in its own chair; every other mode passes null and
   // the viewer is derived exactly as it always was.
   const snap = await snapshotOfGame(db, game, isVersus(game.mode) ? seat : null);
+  const decklists = arenaDecklistsFromInputs(
+    game.replayDecks,
+    game.ctx.defs,
+    game.art,
+    isVersus(game.mode) ? [snap.game.you] : undefined,
+  );
   // The drawer's extras — seed, the opponent's hand, the decisions — only for an admin.
   const [decisions, flags] = admin ? await Promise.all([decisionsFor(db, id), flagsForGame(db, id)]) : [null, null];
   const adminDebug = admin && decisions && flags ? adminDebugOf({ ctx: game.ctx, state: game.state, viewer: snap.game.you, images: await artForGame(db, game), decisions, flags }) : null;
@@ -138,7 +145,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
       {/* The whole snapshot, because the board keeps watching the game while
           the server is deciding and replaces it with what it reads. */}
       <div id="board" className="scroll-mt-2">
-        <OnlineArenaStage gameId={id} snapshot={snap} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} menu={menu} />
+        <OnlineArenaStage gameId={id} snapshot={snap} decklists={decklists} skin={skin} staging={staging} lighting={lighting} admin={admin} adminDebug={adminDebug} menu={menu} />
       </div>
     </div>
   );
