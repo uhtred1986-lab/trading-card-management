@@ -293,6 +293,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   notNames: { notNames: ["BIG"] },
   namesIncluding: { namesIncluding: ["CRIT"] },
   notNamesIncluding: { notNamesIncluding: ["CRIT"] },
+  charactersAll: { charactersAll: ["V1"] },
+  namesAll: { namesAll: ["BIG"] },
   keywords: { keywords: ["Blocker"] },
   notKeywords: { notKeywords: ["Blocker"] },
   noKeywords: { noKeywords: true },

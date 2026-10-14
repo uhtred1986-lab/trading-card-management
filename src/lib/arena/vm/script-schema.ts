@@ -2148,6 +2148,13 @@ const once = (op: { oncePerTurn?: true }): string => (op.oncePerTurn ? "once per
 /** "BATTLE" → "Battle Card", the card type as the card prints it. */
 const typeNoun = (type: string, plural: boolean): string => `${type.charAt(0)}${type.slice(1).toLowerCase()} ${plural ? "Cards" : "Card"}`;
 
+function allOfPhrases(characters: string[], names: string[]): string[] {
+  const tokens = [...characters.map((x) => `<${x}>`), ...names.map((x) => `{${x}}`)];
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length; i += 2) out.push(`with both ${tokens[i]} and ${tokens[i + 1] ?? tokens[i]}`);
+  return out;
+}
+
 export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): string {
   // A stored filter may be partial (Claude writes only the measures it means),
   // and a missing list crashed the workbench and the printer on BT31-132.
@@ -2202,6 +2209,9 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   const partial = [
     ...f.charactersIncluding.map((x) => `with <${x}> in its character name`),
     ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
+    // "with both <A> and <B>" (#768): the parser reads exactly two tokens, so
+    // the names go out in pairs (an odd one is repeated, which says the same).
+    ...allOfPhrases(f.charactersAll ?? [], f.namesAll ?? []),
     ...f.notCharactersIncluding.map((x) => `without <${x}> in its character name`),
     ...f.notNamesIncluding.map((x) => `without {${x}} in its card name`),
     // A name the target must *not* have. Written the way the cards write it,
