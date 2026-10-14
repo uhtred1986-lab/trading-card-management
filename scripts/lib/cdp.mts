@@ -57,12 +57,15 @@ export class Browser {
    * `userDataDir`: a profile that outlives this process (#659's cold launch: a second Chrome on the
    * same profile finds the first one's service worker and caches). It is not deleted on close; the
    * caller owns it. Without it, a fresh temporary profile that `close()` deletes.
+   * `args`: extra Chrome switches (#661: `--host-resolver-rules` to make every host but localhost
+   * unresolvable for the whole browser, service workers included, which `Network.emulateNetworkConditions`
+   * on a page does not do).
    */
-  static async launch(o: { userDataDir?: string } = {}): Promise<Browser> {
+  static async launch(o: { userDataDir?: string; args?: string[] } = {}): Promise<Browser> {
     const b = new Browser();
     b.keepDir = !!o.userDataDir;
     b.dir = o.userDataDir ?? mkdtempSync(join(tmpdir(), "arena-cdp-"));
-    b.proc = spawn(findChrome(), ["--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", "--mute-audio", "--no-first-run", "--remote-debugging-port=0", `--user-data-dir=${b.dir}`, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+    b.proc = spawn(findChrome(), ["--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", "--mute-audio", "--no-first-run", "--remote-debugging-port=0", `--user-data-dir=${b.dir}`, ...(o.args ?? []), "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
     const url = await new Promise<string>((resolve, reject) => {
       let buf = "";
       const t = setTimeout(() => reject(new Error("Chrome did not announce a DevTools port in 20 s.")), 20000);

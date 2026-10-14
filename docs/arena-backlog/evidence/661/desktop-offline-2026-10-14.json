@@ -1,0 +1,804 @@
+{
+  "tool": "arena:offline-release",
+  "at": "2026-10-14T05:23:36.749Z",
+  "chrome": "Chrome/141.0.0.0",
+  "viewport": {
+    "name": "desk",
+    "width": 1440,
+    "height": 900,
+    "mobile": false
+  },
+  "cpuThrottle": "none",
+  "shell": {
+    "version": "91477027d219dc27",
+    "revision": "708b6fbf43ebdedfbddd16730fe69813d1f10bd0"
+  },
+  "cases": [
+    {
+      "id": "A-v-B first",
+      "mine": "A",
+      "theirs": "B",
+      "seat": "p1",
+      "decks": {
+        "p1": "A",
+        "p2": "B"
+      },
+      "launchMs": 350,
+      "shellMs": 242,
+      "startableMs": 483,
+      "workerReadyMs": 123.10000000149012,
+      "matchStartMs": 610.4000000059605,
+      "humanMoves": 45,
+      "aiAdvances": 20,
+      "aiDecisions": 47,
+      "humanRtt": {
+        "n": 45,
+        "min": 8.9,
+        "p50": 17.6,
+        "p95": 31.4,
+        "max": 40.9,
+        "mean": 18.851
+      },
+      "aiAdvanceRtt": {
+        "n": 20,
+        "min": 27.3,
+        "p50": 66.2,
+        "p95": 195.4,
+        "max": 213.5,
+        "mean": 82.81
+      },
+      "aiMsPerDecision": {
+        "n": 20,
+        "min": 22.72,
+        "p50": 38.625,
+        "p95": 59.6,
+        "max": 74.6,
+        "mean": 40.061
+      },
+      "revision": 93,
+      "winner": "p2",
+      "reason": "[Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)",
+      "journalEntries": 92,
+      "journalHumans": 45,
+      "longTasks": [
+        202,
+        94,
+        84
+      ],
+      "longTaskAtStartMax": 202,
+      "frames": 1619,
+      "frameP95": 33.399999999999636,
+      "framesOver50": 14,
+      "snapshotBytes": {
+        "n": 65,
+        "min": 17372,
+        "p50": 56641,
+        "p95": 86425,
+        "max": 86755,
+        "mean": 55370.2
+      },
+      "mainHeap": {
+        "before": 12927752,
+        "after": 12251704
+      },
+      "workerHeap": {
+        "before": 7675688,
+        "after": 7667248
+      },
+      "rssBytes": 1222418432,
+      "imgs": 7,
+      "brokenImgs": 7,
+      "blobImgs": 0,
+      "remoteImgs": 7,
+      "denied": 0,
+      "webRequestsOffSw": [],
+      "matchesNodeReference": true,
+      "seconds": 32
+    },
+    {
+      "id": "A-v-B second",
+      "mine": "A",
+      "theirs": "B",
+      "seat": "p2",
+      "decks": {
+        "p1": "B",
+        "p2": "A"
+      },
+      "launchMs": 326,
+      "shellMs": 218,
+      "startableMs": 435,
+      "workerReadyMs": 101.20000000298023,
+      "matchStartMs": 362.1000000014901,
+      "humanMoves": 59,
+      "aiAdvances": 25,
+      "aiDecisions": 65,
+      "humanRtt": {
+        "n": 59,
+        "min": 6.8,
+        "p50": 14.8,
+        "p95": 32.6,
+        "max": 65.7,
+        "mean": 17.617
+      },
+      "aiAdvanceRtt": {
+        "n": 25,
+        "min": 27.7,
+        "p50": 60.2,
+        "p95": 191.5,
+        "max": 345.6,
+        "mean": 81.108
+      },
+      "aiMsPerDecision": {
+        "n": 25,
+        "min": 19.35,
+        "p50": 32.85,
+        "p95": 58.4,
+        "max": 58.8,
+        "mean": 35.444
+      },
+      "revision": 125,
+      "winner": "p1",
+      "reason": "[Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)",
+      "journalEntries": 124,
+      "journalHumans": 59,
+      "longTasks": [
+        87,
+        57
+      ],
+      "longTaskAtStartMax": 87,
+      "frames": 1883,
+      "frameP95": 33.30000000000109,
+      "framesOver50": 6,
+      "snapshotBytes": {
+        "n": 84,
+        "min": 14264,
+        "p50": 64097,
+        "p95": 100616,
+        "max": 104207,
+        "mean": 62593.833
+      },
+      "mainHeap": {
+        "before": 14333604,
+        "after": 13261524
+      },
+      "workerHeap": {
+        "before": 9532488,
+        "after": 8048880
+      },
+      "rssBytes": 1217798144,
+      "imgs": 9,
+      "brokenImgs": 9,
+      "blobImgs": 0,
+      "remoteImgs": 9,
+      "denied": 0,
+      "webRequestsOffSw": [],
+      "matchesNodeReference": true,
+      "seconds": 36
+    },
+    {
+      "id": "B-v-A first",
+      "mine": "B",
+      "theirs": "A",
+      "seat": "p1",
+      "decks": {
+        "p1": "B",
+        "p2": "A"
+      },
+      "launchMs": 341,
+      "shellMs": 185,
+      "startableMs": 408,
+      "workerReadyMs": 110.09999999403954,
+      "matchStartMs": 461.70000000298023,
+      "humanMoves": 56,
+      "aiAdvances": 21,
+      "aiDecisions": 54,
+      "humanRtt": {
+        "n": 56,
+        "min": 7.6,
+        "p50": 12,
+        "p95": 37.6,
+        "max": 48.5,
+        "mean": 15.216
+      },
+      "aiAdvanceRtt": {
+        "n": 21,
+        "min": 26.5,
+        "p50": 51.9,
+        "p95": 116.4,
+        "max": 265.6,
+        "mean": 68.738
+      },
+      "aiMsPerDecision": {
+        "n": 21,
+        "min": 15.467,
+        "p50": 25.95,
+        "p95": 44.5,
+        "max": 53.12,
+        "mean": 28.874
+      },
+      "revision": 111,
+      "winner": "p2",
+      "reason": "[Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)",
+      "journalEntries": 110,
+      "journalHumans": 56,
+      "longTasks": [
+        89,
+        73,
+        73,
+        52
+      ],
+      "longTaskAtStartMax": 89,
+      "frames": 1757,
+      "frameP95": 33.30000000000109,
+      "framesOver50": 9,
+      "snapshotBytes": {
+        "n": 77,
+        "min": 5069,
+        "p50": 63400,
+        "p95": 94054,
+        "max": 96065,
+        "mean": 62582.896
+      },
+      "mainHeap": {
+        "before": 13452088,
+        "after": 12378404
+      },
+      "workerHeap": {
+        "before": 8557092,
+        "after": 7425776
+      },
+      "rssBytes": 1222750208,
+      "imgs": 8,
+      "brokenImgs": 8,
+      "blobImgs": 0,
+      "remoteImgs": 8,
+      "denied": 0,
+      "webRequestsOffSw": [],
+      "matchesNodeReference": true,
+      "seconds": 33
+    },
+    {
+      "id": "B-v-A second",
+      "mine": "B",
+      "theirs": "A",
+      "seat": "p2",
+      "decks": {
+        "p1": "A",
+        "p2": "B"
+      },
+      "launchMs": 349,
+      "shellMs": 206,
+      "startableMs": 411,
+      "workerReadyMs": 112,
+      "matchStartMs": 435.19999999552965,
+      "humanMoves": 89,
+      "aiAdvances": 39,
+      "aiDecisions": 83,
+      "humanRtt": {
+        "n": 89,
+        "min": 6.2,
+        "p50": 13.9,
+        "p95": 33.7,
+        "max": 64.7,
+        "mean": 16.962
+      },
+      "aiAdvanceRtt": {
+        "n": 39,
+        "min": 25.2,
+        "p50": 48.4,
+        "p95": 126,
+        "max": 129.5,
+        "mean": 58.644
+      },
+      "aiMsPerDecision": {
+        "n": 39,
+        "min": 12.95,
+        "p50": 31.5,
+        "p95": 69.7,
+        "max": 75.3,
+        "mean": 31.802
+      },
+      "revision": 173,
+      "winner": "p1",
+      "reason": "[Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)",
+      "journalEntries": 172,
+      "journalHumans": 89,
+      "longTasks": [
+        88,
+        65
+      ],
+      "longTaskAtStartMax": 88,
+      "frames": 2532,
+      "frameP95": 33.30000000000109,
+      "framesOver50": 5,
+      "snapshotBytes": {
+        "n": 128,
+        "min": 5069,
+        "p50": 82248,
+        "p95": 119313,
+        "max": 120787,
+        "mean": 74154.18
+      },
+      "mainHeap": {
+        "before": 17175904,
+        "after": 15415300
+      },
+      "workerHeap": {
+        "before": 8168096,
+        "after": 7803708
+      },
+      "rssBytes": 1257431040,
+      "imgs": 7,
+      "brokenImgs": 7,
+      "blobImgs": 0,
+      "remoteImgs": 7,
+      "denied": 0,
+      "webRequestsOffSw": [],
+      "matchesNodeReference": true,
+      "seconds": 48
+    },
+    {
+      "id": "A-v-A first",
+      "mine": "A",
+      "theirs": "A",
+      "seat": "p1",
+      "decks": {
+        "p1": "A",
+        "p2": "A"
+      },
+      "launchMs": 306,
+      "shellMs": 203,
+      "startableMs": 414,
+      "workerReadyMs": 95,
+      "matchStartMs": 374.09999999403954,
+      "humanMoves": 94,
+      "aiAdvances": 36,
+      "aiDecisions": 95,
+      "humanRtt": {
+        "n": 94,
+        "min": 7.3,
+        "p50": 14.5,
+        "p95": 33.7,
+        "max": 65.6,
+        "mean": 17.318
+      },
+      "aiAdvanceRtt": {
+        "n": 36,
+        "min": 23.6,
+        "p50": 55.5,
+        "p95": 186,
+        "max": 251.9,
+        "mean": 77.325
+      },
+      "aiMsPerDecision": {
+        "n": 36,
+        "min": 20.32,
+        "p50": 29.7,
+        "p95": 49.3,
+        "max": 68.8,
+        "mean": 33.094
+      },
+      "revision": 190,
+      "winner": "p2",
+      "reason": "[Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)",
+      "journalEntries": 189,
+      "journalHumans": 94,
+      "longTasks": [
+        86,
+        56,
+        52
+      ],
+      "longTaskAtStartMax": 86,
+      "frames": 2574,
+      "frameP95": 33.30000000000291,
+      "framesOver50": 9,
+      "snapshotBytes": {
+        "n": 130,
+        "min": 5622,
+        "p50": 67902,
+        "p95": 103781,
+        "max": 109892,
+        "mean": 68973.069
+      },
+      "mainHeap": {
+        "before": 15869240,
+        "after": 14998568
+      },
+      "workerHeap": {
+        "before": 8128324,
+        "after": 8120072
+      },
+      "rssBytes": 1240211456,
+      "imgs": 5,
+      "brokenImgs": 5,
+      "blobImgs": 0,
+      "remoteImgs": 5,
+      "denied": 0,
+      "webRequestsOffSw": [],
+      "matchesNodeReference": true,
+      "seconds": 49
+    },
+    {
+      "id": "A-v-A second",
+      "mine": "A",
+      "theirs": "A",
+      "seat": "p2",
+      "decks": {
+        "p1": "A",
+        "p2": "A"
+      },
+      "launchMs": 321,
+      "shellMs": 195,
+      "startableMs": 418,
+      "workerReadyMs": 109.60000000149012,
+      "matchStartMs": 375.80000000447035,
+      "humanMoves": 42,
+      "aiAdvances": 14,
+      "aiDecisions": 34,
+      "humanRtt": {
+        "n": 42,
+        "min": 6.6,
+        "p50": 14.2,
+        "p95": 30,
+        "max": 39.7,
+        "mean": 16.05
+      },
+      "aiAdvanceRtt": {
+        "n": 14,
+        "min": 26,
+        "p50": 42.9,
+        "p95": 174.6,
+        "max": 174.6,
+        "mean": 62.714
+      },
+      "aiMsPerDecision": {
+        "n": 14,
+        "min": 16.2,
+        "p50": 26.9,
+        "p95": 44.6,
+        "max": 44.6,
+        "mean": 29.536
+      },
+      "revision": 77,
+      "winner": "p1",
+      "reason": "[Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)",
+      "journalEntries": 76,
+      "journalHumans": 42,
+      "longTasks": [
+        113,
+        55
+      ],
+      "longTaskAtStartMax": 113,
+      "frames": 1443,
+      "frameP95": 33.30000000000018,
+      "framesOver50": 3,
+      "snapshotBytes": {
+        "n": 56,
+        "min": 17662,
+        "p50": 49255,
+        "p95": 83022,
+        "max": 83274,
+        "mean": 53107.411
+      },
+      "mainHeap": {
+        "before": 20575512,
+        "after": 11695916
+      },
+      "workerHeap": {
+        "before": 14618848,
+        "after": 7443128
+      },
+      "rssBytes": 1200914432,
+      "imgs": 5,
+      "brokenImgs": 5,
+      "blobImgs": 0,
+      "remoteImgs": 5,
+      "denied": 0,
+      "webRequestsOffSw": [],
+      "matchesNodeReference": true,
+      "seconds": 27
+    },
+    {
+      "id": "B-v-B first",
+      "mine": "B",
+      "theirs": "B",
+      "seat": "p1",
+      "decks": {
+        "p1": "B",
+        "p2": "B"
+      },
+      "launchMs": 311,
+      "shellMs": 192,
+      "startableMs": 406,
+      "workerReadyMs": 103,
+      "matchStartMs": 351.70000000298023,
+      "humanMoves": 49,
+      "aiAdvances": 17,
+      "aiDecisions": 48,
+      "humanRtt": {
+        "n": 49,
+        "min": 8.5,
+        "p50": 13.9,
+        "p95": 31.8,
+        "max": 60.3,
+        "mean": 16.598
+      },
+      "aiAdvanceRtt": {
+        "n": 17,
+        "min": 26.5,
+        "p50": 74,
+        "p95": 173.9,
+        "max": 173.9,
+        "mean": 84.412
+      },
+      "aiMsPerDecision": {
+        "n": 17,
+        "min": 17.675,
+        "p50": 31.2,
+        "p95": 74,
+        "max": 74,
+        "mean": 35.484
+      },
+      "revision": 98,
+      "winner": "p2",
+      "reason": "[Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)",
+      "journalEntries": 97,
+      "journalHumans": 49,
+      "longTasks": [
+        81,
+        53
+      ],
+      "longTaskAtStartMax": 81,
+      "frames": 1620,
+      "frameP95": 33.30000000000018,
+      "framesOver50": 3,
+      "snapshotBytes": {
+        "n": 66,
+        "min": 15693,
+        "p50": 51017,
+        "p95": 88061,
+        "max": 91431,
+        "mean": 54645.955
+      },
+      "mainHeap": {
+        "before": 13537984,
+        "after": 12692328
+      },
+      "workerHeap": {
+        "before": 21814124,
+        "after": 7572344
+      },
+      "rssBytes": 1216983040,
+      "imgs": 8,
+      "brokenImgs": 8,
+      "blobImgs": 0,
+      "remoteImgs": 8,
+      "denied": 0,
+      "webRequestsOffSw": [],
+      "matchesNodeReference": true,
+      "seconds": 31
+    },
+    {
+      "id": "B-v-B second",
+      "mine": "B",
+      "theirs": "B",
+      "seat": "p2",
+      "decks": {
+        "p1": "B",
+        "p2": "B"
+      },
+      "launchMs": 291,
+      "shellMs": 178,
+      "startableMs": 389,
+      "workerReadyMs": 102.69999999552965,
+      "matchStartMs": 356.1000000014901,
+      "humanMoves": 57,
+      "aiAdvances": 27,
+      "aiDecisions": 75,
+      "humanRtt": {
+        "n": 57,
+        "min": 6.9,
+        "p50": 13.8,
+        "p95": 35,
+        "max": 44.7,
+        "mean": 16.051
+      },
+      "aiAdvanceRtt": {
+        "n": 27,
+        "min": 24.5,
+        "p50": 69.3,
+        "p95": 196.8,
+        "max": 240.6,
+        "mean": 80.489
+      },
+      "aiMsPerDecision": {
+        "n": 27,
+        "min": 18.533,
+        "p50": 29.6,
+        "p95": 59,
+        "max": 78.6,
+        "mean": 34.569
+      },
+      "revision": 133,
+      "winner": "p1",
+      "reason": "[Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)",
+      "journalEntries": 132,
+      "journalHumans": 57,
+      "longTasks": [
+        91,
+        64
+      ],
+      "longTaskAtStartMax": 91,
+      "frames": 1844,
+      "frameP95": 33.30000000000291,
+      "framesOver50": 10,
+      "snapshotBytes": {
+        "n": 84,
+        "min": 4515,
+        "p50": 59926,
+        "p95": 95268,
+        "max": 95649,
+        "mean": 60068.071
+      },
+      "mainHeap": {
+        "before": 13895772,
+        "after": 13077932
+      },
+      "workerHeap": {
+        "before": 7749476,
+        "after": 7666188
+      },
+      "rssBytes": 1232547840,
+      "imgs": 11,
+      "brokenImgs": 11,
+      "blobImgs": 0,
+      "remoteImgs": 11,
+      "denied": 0,
+      "webRequestsOffSw": [],
+      "matchesNodeReference": true,
+      "seconds": 36
+    }
+  ],
+  "recovery": {
+    "revision": 121,
+    "entries": 120
+  },
+  "budgets": [
+    {
+      "budget": "roundTripMs.p95",
+      "limit": 50,
+      "unit": "ms",
+      "measured": 37.6,
+      "verdict": "ok",
+      "how": "worst case's p95 of the human move round trip (act to result), page-measured"
+    },
+    {
+      "budget": "roundTripMs.max",
+      "limit": 250,
+      "unit": "ms",
+      "measured": 65.7,
+      "verdict": "ok",
+      "how": "slowest human move of all cases"
+    },
+    {
+      "budget": "decisionMs.max",
+      "limit": 300,
+      "unit": "ms",
+      "measured": 78.6,
+      "verdict": "ok",
+      "how": "slowest computer advance divided by the decisions it committed, page-measured (as arena:local-worker-browser does)"
+    },
+    {
+      "budget": "coldWorkerStartMs.p50",
+      "limit": 1500,
+      "unit": "ms",
+      "measured": 103,
+      "verdict": "ok",
+      "how": "Worker construction to its first message, from the service-worker cache, page-measured"
+    },
+    {
+      "budget": "coldWorkerStartMs.max",
+      "limit": 6000,
+      "unit": "ms",
+      "measured": 123.1,
+      "verdict": "ok",
+      "how": "slowest of the cold starts"
+    },
+    {
+      "budget": "matchStartMs.p95",
+      "limit": 450,
+      "unit": "ms",
+      "measured": 610.4,
+      "verdict": "OVER",
+      "how": "Start-match click to the first board (includes the page's own render; nearest-rank p95 of the cases)"
+    },
+    {
+      "budget": "frameIntervalMs.p95",
+      "limit": 34,
+      "unit": "ms",
+      "measured": 33.4,
+      "verdict": "ok",
+      "how": "worst case's p95 requestAnimationFrame interval from the Start click to the end"
+    },
+    {
+      "budget": "framesOver50Ms",
+      "limit": 6,
+      "unit": "count",
+      "measured": 14,
+      "verdict": "OVER",
+      "how": "most frames over 50 ms in one case (the budget counts ~1,300 frames)"
+    },
+    {
+      "budget": "longTaskCount",
+      "limit": 3,
+      "unit": "count",
+      "measured": 4,
+      "verdict": "OVER",
+      "how": "most long tasks (>= 50 ms) in one case, Start click to the end"
+    },
+    {
+      "budget": "longTaskMaxMs",
+      "limit": 150,
+      "unit": "ms",
+      "measured": 202,
+      "verdict": "OVER",
+      "how": "longest long task of all cases (0 = none seen)"
+    },
+    {
+      "budget": "longTaskAtMatchStartMaxMs",
+      "limit": 250,
+      "unit": "ms",
+      "measured": 202,
+      "verdict": "ok",
+      "how": "longest long task overlapping the match start"
+    },
+    {
+      "budget": "workerHeapRetainedBytes",
+      "limit": 16000000,
+      "unit": "bytes",
+      "measured": 8120072,
+      "verdict": "ok",
+      "how": "match Worker V8 heap after a forced GC, end of one match"
+    },
+    {
+      "budget": "workerHeapAfterBulkBytes",
+      "limit": 64000000,
+      "unit": "bytes",
+      "measured": 21814124,
+      "verdict": "ok",
+      "how": "match Worker V8 heap at the end of one match before GC (the budget is after 20 games)"
+    },
+    {
+      "budget": "mainHeapBytes",
+      "limit": 8000000,
+      "unit": "bytes",
+      "measured": 15415300,
+      "verdict": "OVER",
+      "how": "page V8 heap after a forced GC, end of one match, WITH the React app (the budget's page had no UI)"
+    },
+    {
+      "budget": "userAgentMemoryBytes",
+      "limit": 64000000,
+      "unit": "bytes",
+      "measured": null,
+      "verdict": "NOT MEASURED",
+      "how": "performance.measureUserAgentSpecificMemory needs a cross-origin-isolated page; the app is not isolated, so it does not exist here"
+    }
+  ],
+  "chromeRssBytes": {
+    "max": 1257431040,
+    "min": 1200914432
+  },
+  "failures": [
+    "A-v-B first: 7 images on the final board, 0 loaded, 7 missing or broken (0 from blob: URLs, 7 addressed to a card CDN: https://storage.googleapis.com/deckplanet_card_images/SD15-01.png | https://storage.googleapis.com/deckplanet_card_images/BT6-010.png)",
+    "A-v-B second: 9 images on the final board, 0 loaded, 9 missing or broken (0 from blob: URLs, 9 addressed to a card CDN: https://storage.googleapis.com/deckplanet_card_images/BT1-014.png | https://storage.googleapis.com/deckplanet_card_images/SD5-01.png)",
+    "B-v-A first: 8 images on the final board, 0 loaded, 8 missing or broken (0 from blob: URLs, 8 addressed to a card CDN: https://storage.googleapis.com/deckplanet_card_images/SD5-03.png | https://storage.googleapis.com/deckplanet_card_images/SD15-01.png)",
+    "B-v-A second: 7 images on the final board, 0 loaded, 7 missing or broken (0 from blob: URLs, 7 addressed to a card CDN: https://storage.googleapis.com/deckplanet_card_images/SD5-01.png | https://storage.googleapis.com/deckplanet_card_images/BT4-091.png)",
+    "A-v-A first: 5 images on the final board, 0 loaded, 5 missing or broken (0 from blob: URLs, 5 addressed to a card CDN: https://storage.googleapis.com/deckplanet_card_images/SD15-01.png | https://storage.googleapis.com/deckplanet_card_images/BT6-025.png)",
+    "A-v-A second: 5 images on the final board, 0 loaded, 5 missing or broken (0 from blob: URLs, 5 addressed to a card CDN: https://storage.googleapis.com/deckplanet_card_images/SD15-02.png | https://storage.googleapis.com/deckplanet_card_images/SD15-01.png)",
+    "B-v-B first: 8 images on the final board, 0 loaded, 8 missing or broken (0 from blob: URLs, 8 addressed to a card CDN: https://storage.googleapis.com/deckplanet_card_images/BT4-077.png | https://storage.googleapis.com/deckplanet_card_images/SD5-01.png)",
+    "B-v-B second: 11 images on the final board, 0 loaded, 11 missing or broken (0 from blob: URLs, 11 addressed to a card CDN: https://storage.googleapis.com/deckplanet_card_images/BT4-089.png | https://storage.googleapis.com/deckplanet_card_images/SD5-01.png)"
+  ],
+  "seconds": 345,
+  "evidence": "headless desktop Chrome: not a phone"
+}
