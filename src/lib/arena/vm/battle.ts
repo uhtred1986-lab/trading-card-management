@@ -82,7 +82,7 @@ import type { VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
-import { canPayPriceProgram } from "./activate";
+import { activationTaxGate, activationTaxes, canPayPriceProgram, queueTaxGate, unpaidActivationTax, type TaxGate } from "./activate";
 import { fireHook } from "./hooks";
 import { leaveRoute, lifeReplacementChoices, markerReplacementChoices, replacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
@@ -756,6 +756,9 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
       if (!wantsLine(ctx, state, window, sk)) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card, skillKind: sk.kind })) continue;
+      // #677, 20-14-1: a [Counter] whose activation prices cannot be paid whole
+      // can't be activated, so it is not offered.
+      if (unpaidActivationTax(ctx, game, state, responder, card, activationTaxes(ctx, game, state, responder, card, sk.kind))) continue;
       // 22-44-3 (#741): a [Limit X] [Counter] whose uses are spent this turn,
       // by this copy or another of the same card number, is not offered.
       if (usesLeft(state, responder, card, sk) === 0) continue;
@@ -872,6 +875,8 @@ export interface CounterCost {
   /** Paid at "without paying its energy cost" (5-3) — what `skillActivated` reports. */
   free: boolean;
   afterSkillKeywords: ("Heroic" | "Villainous")[];
+  /** #677: the 20-14 prices on activating it, charged once its printed price is paid and before it activates. Additive. */
+  taxGate?: Omit<TaxGate, "guards">;
 }
 
 /**
@@ -905,6 +910,17 @@ export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state:
   } catch (err) {
     if (err instanceof AutoPaymentFailed) return failCounter(ctx, game, state, ev, frame);
     throw err;
+  }
+  // #677: the printed price is paid; the rule's prices come next (22-30-3's
+  // "then, if there is an additional skill cost, … pay it"), with the card
+  // still in the hand, and this frame — nothing left to pay — activates it
+  // once the gate lets it through.
+  if (cost.taxGate) {
+    const gate = cost.taxGate;
+    delete cost.taxGate;
+    state.programs.unshift({ ...frame, ops: [], ip: 0 });
+    queueTaxGate(state, gate, 1, true);
+    return "done";
   }
   // #550 (20-5-3): what the price chose — its names and, for a `bindX`
   // choice, X — is the effect's, exactly as `vm/activate.ts` hands an
@@ -1188,10 +1204,14 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const showing = skillsShowing(ctx, state, card);
   const sk = selectedCounterSkill(ctx, state, card, window, action.skill);
   if (!sk) throw new IllegalAction("no counter skill on that card");
-  // #677 boundary: a 20-14 price on activating skills covers a [Counter] too
-  // (9-7), which this window does not charge yet — stopped before anything is
-  // paid rather than resolved untaxed.
-  if (taxesOn(ctx, game, state, "activateSkill", { player: action.player, card }).length) throw new NotYet("charge a 20-14 activation tax on a [Counter] skill", "#677");
+  // #677, 20-14-1: a price a rule puts on activating this [Counter] —
+  // "your opponent can't activate skills unless …" (EX06-35), "…[Counter]
+  // skills unless …" (DB1-015), "…[Counter: Attack] skills …" (BT29-022). One
+  // that can't be paid whole refuses the activation before anything is paid;
+  // one that can is charged after the printed price, before the skill
+  // activates, re-read live (`vm/activate.ts`'s `TaxGate`).
+  const taxGate = activationTaxGate(ctx, game, state, action.player, card, sk.kind);
+  if (taxGate && unpaidActivationTax(ctx, game, state, action.player, card, activationTaxes(ctx, game, state, action.player, card, sk.kind))) throw new IllegalAction("can't activate that counter: a price a rule puts on it can't be paid");
   // 5-8-3 (#716): the printed price beyond orbs is read and checked before
   // anything is paid — a condition that no longer holds is refused, and an
   // action outside the strict host is a typed gap raised here, while the
@@ -1205,6 +1225,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const alt = action.alt ? counterAlt(ctx, game, state, card, action.player) : null;
   if (action.alt && !alt) throw new IllegalAction("that card has no other cost to pay");
   if (actionPrice && alt?.pay === "program") programAltBesideAction();
+  if (taxGate && alt?.pay === "program") throw new NotYet("charge a 20-14 activation tax beside a [Counter]'s action alternative", "#677");
   const afterSkillKeywords: ("Heroic" | "Villainous")[] = baseTypeOf(ctx, state, card) === "EXTRA"
     ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
     : [];
@@ -1244,8 +1265,8 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // once it is paid in full does the card go to the Drop and the skill
   // activate, with what the price chose handed to the effect ("the card that
   // was switched to Hidden Mode by this skill", BT28-121).
-  if (actionPrice) {
-    state.programs.unshift({ ops: actionPrice, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, counterCost: { skill: sk, effect: program, free: alt?.pay === "none", afterSkillKeywords } });
+  if (actionPrice || taxGate) {
+    state.programs.unshift({ ops: actionPrice ?? [], ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, counterCost: { skill: sk, effect: program, free: alt?.pay === "none", afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
     return "done";
   }
   // 4-3-3: an action alternative runs as its own program in front of the
@@ -1874,6 +1895,9 @@ function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   if (left === 0) why.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   const banned = forbiddenBy(ctx, game, state, "activateCounter", { player, card, skillKind: sk.kind });
   if (banned) why.push({ kind: "forbidden", ...banned });
+  // #677: refused naming the price, in the words an [Activate]'s refusal uses.
+  const unpaid = banned ? null : unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, sk.kind));
+  if (unpaid) why.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
   why.push(...priceOf(sk));
   return why;
 }

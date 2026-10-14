@@ -68,6 +68,8 @@ import { stepSwapCost } from "./swap-costs";
 import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
+import { activationTaxGate, activationTaxes, stepTaxGate, unpaidActivationTax, type TaxGate } from "./activate";
+import { describeScript } from "./script-schema";
 import { IllegalAction } from "./common";
 import { spendUse, usesLeft } from "./limits";
 
@@ -807,10 +809,14 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     skillIndex: next.skillIndex,
   };
+  // #677: a 20-14 price on activating this [Auto] (EX06-35's "your opponent
+  // can't activate skills unless …") makes it a priced one — read now, on the
+  // board it is chosen on, before anything is paid.
+  const taxGate = skill?.kind === "auto" ? activationTaxGate(ctx, game, state, next.master, next.card, skill.kind) : null;
   // 9-6-3-1 precedes the price decision in 9-6-4. A priced secret Auto is
   // shown when specified, but this declaration must never look like a fired
   // skill to event consumers or probes. The eventual skill event is separate.
-  const declaredSecret = skill?.kind === "auto" && automaticHasPrice(skill, program)
+  const declaredSecret = skill?.kind === "auto" && (automaticHasPrice(skill, program) || !!taxGate)
     && secretAutoSource(game, state, next);
   if (declaredSecret) {
     const epoch = (state.nextAutoRevealEpoch ?? 0) + 1;
@@ -835,11 +841,17 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate, so it does not resolve" : `${named} can't activate skills, so its skill does not resolve` });
     return true;
   }
-  // #677 boundary: a 20-14 price on activating skills covers an [Auto] too
-  // (9-6), and where it is paid among #549's optional Auto costs is not
-  // settled — so a due tax stops the game here rather than going unpaid.
-  if (skill?.kind === "auto" && taxesOn(ctx, game, state, "activateSkill", { player: next.master, card: next.card }).length) {
-    throw new NotYet("charge a 20-14 activation tax on an [Auto] skill", "#677");
+  // #677, 20-14-1 with 9-6-3-2: a price on activating it that cannot be paid
+  // whole means the [Auto] cannot be activated, so it is cancelled. One that
+  // can is part of its cost (9-6-4), offered below with any printed price.
+  if (skill && taxGate && unpaidActivationTax(ctx, game, state, next.master, next.card, activationTaxes(ctx, game, state, next.master, next.card, skill.kind))) {
+    log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate: a price a rule puts on it can't be paid" : `${named}'s skill can't be activated: a price a rule puts on it (20-14-1) can't be paid` });
+    return true;
+  }
+  // A keyword's own [Auto] ([Offering], [Revive], [Alliance] …) has no
+  // boundary the price is known to belong at yet: stopped, never untaxed.
+  if (skill?.kind === "keyword" && activationTaxes(ctx, game, state, next.master, next.card, skill.kind).length) {
+    throw new NotYet("charge a 20-14 activation tax on a keyword's own [Auto]", "#677");
   }
   // Stage 7: a keyword's own line that answered through its declaration's
   // `at:` ([Offering] at `played`) runs the keyword's `DO`, not the card's
@@ -893,7 +905,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     });
     return true;
   }
-  queueAutomatic(ctx, game, state, ev, frame, skill, program);
+  queueAutomatic(ctx, game, state, ev, frame, skill, program, taxGate);
   return true;
 }
 
@@ -910,7 +922,7 @@ function spentNote(state: VmState, card: string, sk: Skill): string {
 }
 
 /** 9-6-4: a satisfied condition alone is not an optional cost. */
-function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }, skill: Skill | undefined, program: Script): void {
+function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }, skill: Skill | undefined, program: Script, taxGate: Omit<TaxGate, "guards"> | null = null): void {
   // §§12-2-2/3 and 22-35/36: an Extra's [Auto] is a successful Extra skill
   // activation once its optional price has been paid. Carry source identity
   // through that price, which may move the card or suspend across a save. The
@@ -924,7 +936,8 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
       frame.afterSkillKeywords = keywords;
     }
   }
-  const priced = automaticHasPrice(skill, program);
+  const printed = automaticHasPrice(skill, program);
+  const priced = printed || !!taxGate;
   if (!priced || !skill) {
     // 22-11-2 / 22-44-3 (#741): activated here, with nothing to pay — one use
     // spent. A priced line spends it once its whole price is paid
@@ -945,6 +958,13 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
   }
   try {
     const autoCost = prepareAutomaticCost(ctx, game, state, frame, skill, program);
+    if (taxGate) {
+      // 9-6-4: one decision for the whole cost — the printed price and the
+      // rule's prices with it — so the option names both.
+      const words = activationTaxes(ctx, game, state, frame.master, frame.card, skill.kind).map((t) => describeScript(t.ops)).join("; ");
+      autoCost.choices = autoCost.choices.map((choice) => ({ ...choice, label: printed ? `${choice.label}; then ${words}` : words }));
+      autoCost.taxGate = taxGate;
+    }
     if (!autoCost.choices.length) {
       log(ev, { type: "note", text: "Auto skill canceled: its full cost is unaffordable" });
       return;
@@ -1122,6 +1142,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.taxGate) return stepTaxGate(ctx, game, state, ev, frame);
     if (frame.reviveCost) return stepReviveCost(ctx, game, state, ev, frame);
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
