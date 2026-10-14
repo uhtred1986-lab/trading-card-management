@@ -2236,6 +2236,14 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const offered = declaredLegalActions(CTX, priced, s).find((l) => l.action.type === "play");
     assert.ok(offered, "a cost-2 card with three energy active is not offered");
     assert.deepEqual(offered!.cost, { energy: 2, describe: "2 energy" }, "a colourless cost-2 card's row does not carry its price");
+    assert.equal(offered!.paymentPreview?.state, "choice", "a payment with several plans is not identified as a choice");
+    const exactPlan = planCost(CTX, priced, s, "p1", { ...freePrice(), energy: 2 }, hand[0]);
+    assert.ok(exactPlan.ok, "the engine could not plan the offered payment");
+    assert.deepEqual(
+      offered!.paymentPreview?.options,
+      exactPlan.options.map((option) => ({ energyRest: option.rest, markers: option.markers, costMarkers: 0 })),
+      "the menu payment preview does not match the engine's exact options",
+    );
 
     // The one reading: what the action asks of this candidate is the card's own
     // cost, and it is the very value the row above wears and the charge below
@@ -4492,6 +4500,7 @@ console.log("verify/vm: ok");
     const offer = (list: LegalAction[]) => list.find((a) => a.action.type === "activate" && (a.action as { card: string }).card === user);
     const action: Action = { type: "activate", player: "p1", card: user, skill: 10 };
     assert.deepEqual(offer(rulesEngine.legalActions(CTX, b.r))?.action, action, "a skill line a [Permanent] makes affordable was not offered");
+    assert.deepEqual(offer(rulesEngine.legalActions(CTX, b.r))?.paymentPreview, { state: "known", options: [{ energyRest: [b.r.sides.p1.zones.energy[0]], markers: 0, costMarkers: 0 }] }, "a cost adjusted by a [Permanent] does not project the exact resulting energy payment");
     const done = runAction(b, action);
     assert.deepEqual(done.rEv, [
       { type: "action", action },
@@ -4538,6 +4547,7 @@ console.log("verify/vm: ok");
     const hand = b.r.sides.p1.zones.hand[0];
     const plays = (list: LegalAction[]) => list.filter((a) => a.action.type === "play");
     assert.deepEqual(menu(plays(rulesEngine.legalActions(CTX, b.r))), b.r.sides.p1.zones.hand.map((card) => ({ type: "play", player: "p1", card })), "a whole-board payer did not make each hand card playable");
+    assert.deepEqual(plays(rulesEngine.legalActions(CTX, b.r)).find((a) => (a.action as { card: string }).card === hand)?.paymentPreview, { state: "known", options: [{ energyRest: [payer], markers: 0, costMarkers: 0 }] }, "a 20-19 payment preview does not name the exact Battle Area payer");
     const action: Action = { type: "play", player: "p1", card: hand };
     const done = runAction(b, action);
     assert.deepEqual(done.rEv, [
@@ -4557,6 +4567,7 @@ console.log("verify/vm: ok");
     assert.deepEqual(menu(plays(rulesEngine.legalActions(CTX, b.r))), [{ type: "play", player: "p1", card: hand, alt: true }], "the no-energy alternative is not the one offer for this card");
     const rows = plays(rulesEngine.legalActions(CTX, b.r));
     assert.deepEqual(json(rows.map((a) => ({ action: a.action, label: a.label }))), [{ action: { type: "play", player: "p1", card: hand, alt: true }, label: "Play C148-FREE (for no energy)" }], "the free play is not the one row offered, in the legacy engine's words");
+    assert.equal(rows[0].paymentPreview, undefined, "a free alternative invents a resource payment preview");
     assert.ok(
       !rulesEngine.rejectedActions(CTX, b.r, rulesEngine.legalActions(CTX, b.r)).some((x) => x.action.type === "play" && (x.action as { card: string }).card === hand),
       "a card offered at its alternative price is also refused for the printed one — §3.2 files one answer per card",
@@ -4568,6 +4579,21 @@ console.log("verify/vm: ok");
       { type: "move", card: hand, from: "hand", to: "battle", owner: "p1", reveal: true },
     ], "a play at no energy logged a payment or missed its move");
     assert.ok(done.r.sides.p1.zones.battle.includes(hand), "the card was not played");
+  }
+
+  // An energy alternative uses its own exact price plan, rather than the
+  // printed price (or the coarse display cost) of the candidate.
+  {
+    const b = staged([], ["C148-BLUE"], ["C148-FREE"]);
+    const hand = b.r.sides.p1.zones.hand[0];
+    const coin = b.r.sides.p1.zones.energy[0];
+    b.r.effects.push({
+      id: 999, master: "p1", source: hand, target: hand, kind: "altCost", value: 0,
+      altCost: { pay: "energy", n: 0, for: "play", orbs: ["Blue"] },
+      until: "turn", ownerTurn: "p1", createdTurn: b.r.turn,
+    });
+    const offer = rulesEngine.legalActions(CTX, b.r).find((a) => a.action.type === "play" && (a.action as { card: string }).card === hand && (a.action as { alt?: boolean }).alt);
+    assert.deepEqual(offer?.paymentPreview, { state: "known", options: [{ energyRest: [coin], markers: 0, costMarkers: 0 }] }, "an energy alternative does not preview its exact colored payment");
   }
 
   // …and "by adding a card from your life to your hand instead": the top
