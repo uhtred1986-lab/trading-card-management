@@ -52,10 +52,11 @@
   {
     "viewport": "s21",
     "skin": "anime",
-    "moves": 54,
+    "moves": 48,
     "missing": [],
     "notices": [
-      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
+      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK",
+      "Nothing happenedYour Piccolo, Namekian Fortification — Auto: it had no valid target, or its cost was not met, so nothing happened.[Auto] Choose 1 card in your life and add it to your hand: When this card attacks, switch this card to Active Mode, th…OK"
     ]
   },
   {
@@ -81,8 +82,8 @@
   {
     "viewport": "s21",
     "skin": "night",
-    "step": "choice",
-    "file": "s21-night-choice-after.jpg",
+    "step": "combo",
+    "file": "s21-night-combo-after.jpg",
     "pageScroll": 0,
     "chrome": false,
     "leaders": 2,
@@ -91,8 +92,8 @@
   {
     "viewport": "s21",
     "skin": "night",
-    "step": "combo",
-    "file": "s21-night-combo-after.jpg",
+    "step": "choice",
+    "file": "s21-night-choice-after.jpg",
     "pageScroll": 0,
     "chrome": false,
     "leaders": 2,
@@ -111,27 +112,15 @@
   {
     "viewport": "s21",
     "skin": "night",
-    "moves": 45,
+    "moves": 38,
     "missing": [],
-    "notices": [
-      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
-    ]
+    "notices": []
   },
   {
     "viewport": "s21plus",
     "skin": "anime",
     "step": "mulligan",
     "file": "s21plus-anime-mulligan-after.jpg",
-    "pageScroll": 0,
-    "chrome": false,
-    "leaders": 2,
-    "notice": null
-  },
-  {
-    "viewport": "s21plus",
-    "skin": "anime",
-    "step": "choice",
-    "file": "s21plus-anime-choice-after.jpg",
     "pageScroll": 0,
     "chrome": false,
     "leaders": 2,
@@ -160,6 +149,16 @@
   {
     "viewport": "s21plus",
     "skin": "anime",
+    "step": "choice",
+    "file": "s21plus-anime-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
     "step": "end",
     "file": "s21plus-anime-end-after.jpg",
     "pageScroll": 0,
@@ -170,9 +169,11 @@
   {
     "viewport": "s21plus",
     "skin": "anime",
-    "moves": 79,
+    "moves": 48,
     "missing": [],
-    "notices": []
+    "notices": [
+      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK"
+    ]
   },
   {
     "viewport": "s21plus",
@@ -227,11 +228,9 @@
   {
     "viewport": "s21plus",
     "skin": "night",
-    "moves": 51,
+    "moves": 34,
     "missing": [],
-    "notices": [
-      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
-    ]
+    "notices": []
   },
   {
     "viewport": "desk",
@@ -256,21 +255,21 @@
   {
     "viewport": "desk",
     "skin": "anime",
-    "step": "combo",
-    "file": "desk-anime-combo-after.jpg",
+    "step": "choice",
+    "file": "desk-anime-choice-after.jpg",
     "pageScroll": 0,
     "chrome": false,
-    "leaders": 0,
+    "leaders": 2,
     "notice": null
   },
   {
     "viewport": "desk",
     "skin": "anime",
-    "step": "choice",
-    "file": "desk-anime-choice-after.jpg",
+    "step": "combo",
+    "file": "desk-anime-combo-after.jpg",
     "pageScroll": 0,
     "chrome": false,
-    "leaders": 1,
+    "leaders": 0,
     "notice": null
   },
   {
@@ -286,10 +285,10 @@
   {
     "viewport": "desk",
     "skin": "anime",
-    "moves": 48,
+    "moves": 44,
     "missing": [],
     "notices": [
-      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
+      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK"
     ]
   },
   {
@@ -300,16 +299,6 @@
     "pageScroll": 0,
     "chrome": false,
     "leaders": 2,
-    "notice": null
-  },
-  {
-    "viewport": "desk",
-    "skin": "night",
-    "step": "combo",
-    "file": "desk-night-combo-after.jpg",
-    "pageScroll": 0,
-    "chrome": false,
-    "leaders": 0,
     "notice": null
   },
   {
@@ -335,6 +324,16 @@
   {
     "viewport": "desk",
     "skin": "night",
+    "step": "combo",
+    "file": "desk-night-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
     "step": "end",
     "file": "desk-night-end-after.jpg",
     "pageScroll": 0,
@@ -345,10 +344,11 @@
   {
     "viewport": "desk",
     "skin": "night",
-    "moves": 40,
+    "moves": 38,
     "missing": [],
     "notices": [
-      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
+      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK",
+      "Nothing happenedYour Piccolo, Namekian Fortification — Auto: it had no valid target, or its cost was not met, so nothing happened.[Auto] Choose 1 card in your life and add it to your hand: When this card attacks, switch this card to Active Mode, th…OK"
     ]
   },
   {
@@ -356,16 +356,6 @@
     "skin": "anime",
     "step": "mulligan",
     "file": "s21browser-anime-mulligan-after.jpg",
-    "pageScroll": 0,
-    "chrome": false,
-    "leaders": 2,
-    "notice": null
-  },
-  {
-    "viewport": "s21browser",
-    "skin": "anime",
-    "step": "combo",
-    "file": "s21browser-anime-combo-after.jpg",
     "pageScroll": 0,
     "chrome": false,
     "leaders": 2,
@@ -384,6 +374,26 @@
   {
     "viewport": "s21browser",
     "skin": "anime",
+    "step": "combo",
+    "file": "s21browser-anime-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "anime",
+    "step": "choice",
+    "file": "s21browser-anime-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "anime",
     "step": "end",
     "file": "s21browser-anime-end-after.jpg",
     "pageScroll": 0,
@@ -394,13 +404,11 @@
   {
     "viewport": "s21browser",
     "skin": "anime",
-    "moves": 32,
-    "missing": [
-      "choice"
-    ],
+    "moves": 42,
+    "missing": [],
     "notices": [
-      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK",
-      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK"
+      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK",
+      "Nothing happenedYour Afterimage Technique — Counter: Attack: it had no valid target, or its cost was not met, so nothing happened.[Counter: Attack] Your Leader Card is red: Choose up to 1 of your cards and it gets +40000 power for the duration of t…OK"
     ]
   },
   {
@@ -416,8 +424,8 @@
   {
     "viewport": "s21browser",
     "skin": "night",
-    "step": "combo",
-    "file": "s21browser-night-combo-after.jpg",
+    "step": "main",
+    "file": "s21browser-night-main-after.jpg",
     "pageScroll": 0,
     "chrome": false,
     "leaders": 2,
@@ -426,8 +434,8 @@
   {
     "viewport": "s21browser",
     "skin": "night",
-    "step": "main",
-    "file": "s21browser-night-main-after.jpg",
+    "step": "combo",
+    "file": "s21browser-night-combo-after.jpg",
     "pageScroll": 0,
     "chrome": false,
     "leaders": 2,
@@ -456,10 +464,8 @@
   {
     "viewport": "s21browser",
     "skin": "night",
-    "moves": 40,
+    "moves": 30,
     "missing": [],
-    "notices": [
-      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK"
-    ]
+    "notices": []
   }
 ]

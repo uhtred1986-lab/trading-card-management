@@ -21,7 +21,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { arg, Browser, requireServer, sleep, type Page, type Viewport } from "./lib/cdp.mts";
+import { arg, Browser, sleep, type Page, type Viewport } from "./lib/cdp.mts";
 import { BOARD, choosePack } from "./lib/local-arena-page.mts";
 import { auditPack } from "./verify/arena-local-worker-fixture.mts";
 import type { Snapshot } from "../src/lib/arena/snapshot-core.ts";
@@ -45,7 +45,9 @@ const skins = (arg("skins") ?? "anime,night").split(",");
 const STEPS = ["mulligan", "main", "combo", "choice", "end"] as const;
 type Step = (typeof STEPS)[number];
 mkdirSync(out, { recursive: true });
-await requireServer(base);
+// `/arena/local` works on a dev server and a production build alike (the fixture preview is dev-only).
+const up = await fetch(`${base}/arena/local`).then((r) => r.status, (e: Error) => e.message);
+if (up !== 200) throw new Error(`No app at ${base}/arena/local (${up}). Start \`npm run dev\` or \`next start\` first, or pass --base <url>.`);
 
 const pack = JSON.stringify(await auditPack());
 const BOARD_NOW = `((window.__bc && !window.__bc.closed && window.__bc.snapshot) ? window.__bc : (window.__bc = ${BOARD}))`;

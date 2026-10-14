@@ -8,7 +8,8 @@ computer's through the board's advance. Each key step is shot the first time it 
 
 Viewports: `s21` 360 × 800 (the issue's size), `s21plus` 412 × 915, `s21browser` 360 × 650 (the S21's
 Chrome with its address and navigation bars shown — what the owner's screenshot actually has), `desk`
-1440 × 900. Both skins. Before = `origin/main` at 03a5aa37; after = this branch. JPEG, DPR 1, quality 60.
+1440 × 900. Both skins. Before = `origin/main` at 03a5aa37 on `next dev` (its badge hidden); after = this
+branch on its production build (`GITHUB_SHA=… npm run build`, `next start`). JPEG, DPR 1, quality 60.
 
 ## Page scroll during a turn (px; 0 = one screen)
 
@@ -45,7 +46,19 @@ as the issue allows.
 ## No-target notice
 
 - In a real match: `*-notice-after.jpg` (e.g. [s21 anime](s21-anime-notice-after.jpg)) — the first
-  notice each run met, acknowledged with OK by the driver.
+  notice each run met (runs that met none have no file), acknowledged with OK by the driver. Here
+  Vegeta, Saiyan Youth's [Auto] ("If your Leader Card is red: … choose up to 1 of your red Unison
+  Cards …") found no Unison Card; its text has a condition, so the notice says "no valid target, or its
+  condition was not met" rather than guess which.
+
+## `arena:offline-release` (desktop matrix, production build)
+
+All match checks pass: 8 of 8 cases to the end, the recovery case to its end
+([branch run](offline-release-desktop-branch.json)). The budget table still fails, on `main` as on
+this branch ([same-machine `main` run](offline-release-desktop-main-baseline.json)); that is #782's.
+The driver now acknowledges a standing notice before each move, as a player does — left standing it
+held the board's story for the rest of the match while the driver played on, and the page heap after
+GC read 22.4 MB instead of 16.1 MB (`main`: 14.6 MB).
 - Scripted (`scripts/arena-no-target-783.mts`, dev server: the fixture preview is dev-only), 28 checks,
   both skins, two cases — the engine's `noEffect` ([anime](s21-anime-no-target-notice.jpg) ·
   [after OK](s21-anime-no-target-after-ok.jpg)) and a KO skill inside a battle followed straight by the
