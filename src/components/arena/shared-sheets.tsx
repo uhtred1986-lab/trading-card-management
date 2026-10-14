@@ -506,7 +506,7 @@ export function ChipRow({ chips }: { chips: InspectorChip[] }) {
 export interface ReviewSequence {
   /** "In play", "Your hand". */
   label: string;
-  items: { card: CardView; yours: boolean }[];
+  items: { card: CardView; yours: boolean; status?: "playable" | "skill" | "unaffordable" | "counter" | null }[];
 }
 
 /** A left or right swipe moves one card past this many px; a downward one closes past `CLOSE_PX`. */
@@ -523,7 +523,7 @@ export function swipeOf(dx: number, dy: number): "next" | "prev" | "close" | nul
   return null;
 }
 
-function Thumb({ card, yours, current, index, total, onJump }: { card: CardView; yours: boolean; current: boolean; index: number; total: number; onJump: () => void }) {
+function Thumb({ card, yours, current, index, total, onJump, status }: { card: CardView; yours: boolean; current: boolean; index: number; total: number; onJump: () => void; status?: string | null }) {
   const ref = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     // Scroll the strip itself, never the page: `scrollIntoView` would drag the board.
@@ -540,7 +540,7 @@ function Thumb({ card, yours, current, index, total, onJump }: { card: CardView;
       data-arena-thumb={card.id}
       aria-current={current ? "true" : undefined}
       aria-label={`${card.name}, ${index + 1} of ${total}`}
-      className="flex h-[56px] min-h-[44px] w-[44px] min-w-[44px] shrink-0 flex-col items-center justify-end gap-0.5 pb-0.5"
+      className="relative flex h-[56px] min-h-[44px] w-[44px] min-w-[44px] shrink-0 flex-col items-center justify-end gap-0.5 pb-0.5"
     >
       {card.imageUrl && !card.hidden ? (
         // eslint-disable-next-line @next/next/no-img-element -- a strip swatch; the board has already loaded this URL.
@@ -549,6 +549,7 @@ function Thumb({ card, yours, current, index, total, onJump }: { card: CardView;
         <span className={`${face} bg-space-700`} />
       )}
       <span className={`h-[3px] w-[30px] rounded-full ${yours ? "bg-ki-500" : "bg-[#7c5cd6]"}`} aria-hidden />
+      {status && <span className={`absolute mt-[-50px] ml-[28px] h-2.5 w-2.5 rounded-full border border-space-950 ${status === "playable" ? "bg-gain" : status === "skill" ? "bg-dbs-yellow" : status === "unaffordable" ? "bg-loss" : status === "counter" ? "bg-space-400" : "bg-space-600"}`} aria-hidden />}
     </button>
   );
 }
@@ -577,6 +578,7 @@ export function CardSheet({
   chips = [],
   leader = null,
   onJump,
+  reviewMode = "own",
 }: {
   card: CardView;
   /** The player's own side, for the remedy in an energy refusal. */
@@ -596,10 +598,18 @@ export function CardSheet({
   /** A leader's life and energy, for its stat tiles. */
   leader?: { life: number; energy: string } | null;
   onJump?: (card: CardView) => void;
+  reviewMode?: "own" | "opponent" | "targeting";
 }) {
   const [fullArt, setFullArt] = useState(false);
+  const [opponentBig, setOpponentBig] = useState(false);
+  const [ownSize, setOwnSize] = useState<"full" | "top">("full");
+  const [handFilter, setHandFilter] = useState<"All" | "Playable" | "Counters">("All");
   const currentManualCount = card.abilities ? abilityPanelRows(card.abilities).manual.length : 0;
-  const items = sequence?.items ?? [];
+  const sourceItems = sequence?.items ?? [];
+  const filteredItems = sequence?.label === "Your hand" && sourceItems.length > 6 && handFilter !== "All"
+    ? sourceItems.filter((item) => handFilter === "Playable" ? item.status === "playable" || item.status === "skill" : item.status === "counter")
+    : sourceItems;
+  const items = filteredItems.some((item) => item.card.id === card.id) || !sequence ? filteredItems : [...filteredItems, { card, yours: true }];
   const at = items.findIndex((i) => i.card.id === card.id);
   const pager = at >= 0 && !!onJump;
   const go = (to: number) => {
@@ -679,6 +689,8 @@ export function CardSheet({
     <SheetDialog label={`${card.name}${position ? `, ${position}` : ""}`} onClose={onClose} fullScreen={fullArt}>
       <div
         data-arena-review={card.id}
+        data-review-mode={reviewMode === "opponent" && !opponentBig ? "opponent-peek" : reviewMode}
+        data-review-size={ownSize}
         className={`relative flex min-h-0 w-full touch-none select-none flex-col overscroll-contain border border-space-700 bg-space-900 ${fullArt ? `${phoneStyles.fullscreenReview} h-[100dvh] max-h-[100dvh] max-w-none rounded-none` : "pt-2 max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
         // The button a swipe ends on must not also be pressed.
         onClickCapture={(e) => {
@@ -698,16 +710,21 @@ export function CardSheet({
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => setFullArt((value) => !value)}
-              aria-label={fullArt ? (currentManualCount ? `Show current abilities and details (${currentManualCount})` : "Show card details") : "Expand card to full screen"}
-              aria-pressed={fullArt}
+              onClick={() => reviewMode === "opponent" ? (opponentBig ? onClose() : setOpponentBig(true)) : setFullArt((value) => !value)}
+              aria-label={reviewMode === "opponent" ? opponentBig ? "Return to board" : "Make opponent card bigger" : fullArt ? (currentManualCount ? `Show current abilities and details (${currentManualCount})` : "Show card details") : "Show full card"}
+              aria-pressed={reviewMode === "opponent" ? opponentBig : fullArt}
               className="tap flex h-[44px] min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-space-600 bg-space-900 px-2 text-xs font-semibold text-space-100 hover:border-ki-400"
             >
-              {fullArt ? (currentManualCount ? `Abilities now (${currentManualCount})` : "Details") : "Expand"}
+              {reviewMode === "opponent" ? opponentBig ? "Board" : "Bigger" : fullArt ? (currentManualCount ? `Abilities now (${currentManualCount})` : "Details") : "Full card"}
             </button>
             <button type="button" data-sheet-initial-focus onClick={onClose} aria-label="Close card review" className="tap flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg leading-none text-space-100">×</button>
           </div>
         </div>
+
+        {pager && sequence?.label === "Your hand" && sourceItems.length > 6 && !fullArt && <div className="flex gap-2 px-4 pb-2" role="group" aria-label="Filter hand cards">
+          {(["All", "Playable", "Counters"] as const).map((filter) => <button key={filter} type="button" aria-pressed={handFilter === filter} onClick={() => { setHandFilter(filter); const matches = filter === "All" ? sourceItems : sourceItems.filter((item) => filter === "Playable" ? item.status === "playable" || item.status === "skill" : item.status === "counter"); if (matches[0]) onJump?.(matches[0].card); }} className={`tap min-h-11 rounded-full border px-3 text-xs font-bold ${handFilter === filter ? "border-ki-400 text-ki-300" : "border-space-600 text-space-100"}`}>{filter}</button>)}
+        </div>}
+        {reviewMode === "own" && !fullArt && <button type="button" onClick={() => setOwnSize((size) => size === "full" ? "top" : "full")} className="tap mx-4 mb-2 min-h-11 rounded-lg border border-space-500 text-sm font-bold text-space-100">{ownSize === "full" ? "Top half" : "Full card · 262px"}</button>}
 
         {pager && !fullArt && (
           <div className="mb-1 flex shrink-0 items-center gap-2 px-4">
@@ -719,7 +736,7 @@ export function CardSheet({
             </p>
             <div className="flex min-w-0 flex-1 touch-pan-x overflow-x-auto pt-1.5" role="group" aria-label={`${sequence!.label}, all cards`}>
               {items.map((it, i) => (
-                <Thumb key={it.card.id} card={it.card} yours={it.yours} current={i === at} index={i} total={items.length} onJump={() => go(i)} />
+                <Thumb key={it.card.id} card={it.card} yours={it.yours} current={i === at} index={i} total={items.length} onJump={() => go(i)} status={it.status} />
               ))}
             </div>
           </div>
@@ -744,10 +761,10 @@ export function CardSheet({
           </div>
         ) : <div ref={body} className={`min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 ${scrolls ? "touch-pan-y" : "touch-none"}`}>
           <div className="flex gap-3">
-            <div className="relative w-[128px] shrink-0 self-start">
+            <div className="arena-review-art-wrap relative w-[128px] shrink-0 self-start">
               {card.imageUrl && !card.hidden ? (
                 // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
-                <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect w-full rounded-lg object-cover" />
+                <img src={cardImage(card.imageUrl, "medium")} alt="" className="arena-review-art card-aspect w-full rounded-lg object-cover" />
               ) : (
                 <span className="card-aspect block w-full rounded-lg bg-space-700" />
               )}

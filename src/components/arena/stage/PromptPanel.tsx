@@ -40,6 +40,7 @@ export function PromptPanel({
   inlineBare,
   primaryBare,
   onSend,
+  chargeSelection = null,
   planEnabled,
   planOpen,
   onPlanToggle,
@@ -83,6 +84,7 @@ export function PromptPanel({
   inlineBare: { i: number; l: LegalAction }[];
   primaryBare: number;
   onSend: (action: Action) => void;
+  chargeSelection?: { card: import("@/lib/arena/view").CardView; action: Action; passAction: Action | null; ready: number; total: number } | null;
   planEnabled: boolean;
   planOpen: boolean;
   onPlanToggle: () => void;
@@ -127,6 +129,8 @@ export function PromptPanel({
             {publicRules.map(({ name, rule }, i) => <p key={i}>{name}: {rule.label} · {untilWords(rule.until, { master: rule.by, viewer: view.you.player, them: view.them.name, sourceName: rule.sourceName })}</p>)}
             </div>
           </details> : null;
+  const phaseRaw = view.phase.replace(/([a-z])([A-Z])/g, "$1 $2");
+  const phaseWord = `${phaseRaw.slice(0, 1).toUpperCase()}${phaseRaw.slice(1)}`;
   const line: React.ReactNode = playing ? (
     `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
   ) : overOutcome ? (
@@ -141,7 +145,7 @@ export function PromptPanel({
     "Choose what to attack — tap a glowing card, or Cancel."
   ) : chargeLine ? (
     <>
-      <span className="[@media(pointer:fine)]:hidden">Charge phase — tap a card to charge it (+1 energy), or drag one onto the board.</span>
+      <span className="[@media(pointer:fine)]:hidden">Choose a card, then Charge it or Pass below.</span>
       <span className="hidden [@media(pointer:fine)]:inline">Charge phase — double-click a hand card to charge it (+1 energy), or drag one onto the board.</span>
     </>
   ) : yourTurn && playable && moves > 0 && phaseLevel ? (
@@ -180,6 +184,7 @@ export function PromptPanel({
       {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
       {handDecision && !playing && !bad && !isTargeting ? null : (
         <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"} ${inlineBare.length > 1 ? "max-lg:basis-[calc(100%-3.25rem)]" : ""}`}>
+          {!playing && !view.over && !overOutcome && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {yourTurn ? "Your turn" : `${view.them.name}’s turn`}</span>}
           <span className="line-clamp-3">{line}</span>
         </p>
       )}
@@ -269,6 +274,13 @@ export function PromptPanel({
           </button>
         );
       })}
+      {chargeSelection && view.prompt.kind === "charge" && (
+        <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-charge-confirm>
+          <p className="min-w-0 flex-1 text-sm font-bold text-space-50">Charge {chargeSelection.card.name}?<span className="block text-xs font-normal text-space-200">{chargeSelection.ready} → {chargeSelection.ready + 1} ready energy · {chargeSelection.total + 1} total</span></p>
+          <button type="button" disabled={busy} onClick={() => onSend(chargeSelection.action)} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50">Charge it</button>
+          {chargeSelection.passAction && <button type="button" disabled={busy} onClick={() => onSend(chargeSelection.passAction!)} className="arena-btn tap min-h-11 rounded-xl border border-space-600 bg-space-800 px-3 text-sm text-space-100 disabled:opacity-50">Pass · don’t charge</button>}
+        </div>
+      )}
     </section>
   );
 }

@@ -18,6 +18,7 @@ export function Hand({
   chargeable,
   decisionHint,
   onZones,
+  handStatus,
 }: {
   cards: CardView[];
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
@@ -30,6 +31,7 @@ export function Hand({
   /** Current engine hand decision, placed beside its existing inspection control. */
   decisionHint?: string;
   onZones?: () => void;
+  handStatus?: (id: string) => "playable" | "skill" | "unaffordable" | "counter" | null;
 }) {
   // Measure the hand and card at the current board scale for overlap spacing.
   const fan = useRef<HTMLDivElement | null>(null);
@@ -84,6 +86,9 @@ export function Hand({
           {onZones && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 lg:block`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
         </div>
       )}
+      {n > 0 && firstProps?.onInspect && <button type="button" onClick={firstProps.onInspect} className="tap absolute right-2 top-1 z-[70] min-h-[44px] rounded-full border border-space-500 bg-space-950/95 px-3 text-xs font-bold text-space-50 shadow-lg lg:hidden" aria-label={`Open hand, ${n} cards`}>
+        Open hand {n}
+      </button>}
       <div ref={fan} className={styles.handViewport} tabIndex={0} aria-label="Scrollable hand cards">
       <div
         className={`${styles.handCards} flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
@@ -96,6 +101,7 @@ export function Hand({
           const tilt = wide && n <= 8 && !expanded ? off * 2.4 : 0;
           const dip = wide && n <= 8 && !expanded ? Math.abs(off) * 4 : 0;
           const props = cardProps(c);
+          const status = handStatus?.(c.id) ?? null;
           const up = props.state === "selected";
           return (
             <div
@@ -110,7 +116,8 @@ export function Hand({
                 ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null),
               }}
             >
-              <StageCard {...props} width={HAND_W} fan={up ? 0 : tilt} lift={dip} lifts holdLock={dragId === c.id} />
+              <StageCard {...props} width={HAND_W} fan={up ? 0 : tilt} lift={dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
+              {status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={{ playable: "Playable", skill: "Skill available", unaffordable: "Unaffordable", counter: "Counter" }[status]} title={{ playable: "Playable", skill: "Skill available", unaffordable: "Unaffordable", counter: "Counter" }[status]} />}
             </div>
           );
         })}

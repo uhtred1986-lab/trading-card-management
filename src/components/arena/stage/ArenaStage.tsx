@@ -612,21 +612,30 @@ export function ArenaStage({
       select(null);
       return;
     }
-    // The Charge phase (rd-04): a touch tap charges, a mouse waits for its
-    // double-click (`doubleTapCard`). Both are read from the engine's prompt and
-    // `legal`; a keyboard Enter, a hold and a drag are not one.
+    // The phone Charge phase is a staged choice: select for the dock, then
+    // explicitly commit there. Tapping a second card changes the selection;
+    // tapping the selected card opens its review.
     if (chargeGesture(id)) {
+      if (!wide && selected === id) {
+        const card = cardOf(id);
+        if (card) setSheet(card);
+        return;
+      }
+      if (!wide) { select(id); return; }
       const p = press.current;
-      if (p.detail === 0 || sheet) {
-        // The keyboard cannot double-click: it keeps the sheet, below.
-      } else if (p.type === "mouse") return;
-      else if (p.held < 450) {
-        const list = chargesOf(id);
-        if (list.length === 1) return send(legal[list[0]].action);
-      } else return;
+      if (p.detail === 0 || sheet) { /* keyboard review stays available below */ }
+      else if (p.type === "mouse") return;
+      else if (p.held < 450) return;
     }
     const options = taps.byCard[id];
     const why = whyOf(id);
+    // On a phone, touching a hand card always opens its review. The action
+    // button inside that review is the deliberate commit; drags still work.
+    if (!wide && inHand(id)) {
+      const card = cardOf(id);
+      if (card) setSheet(card);
+      return;
+    }
     if (!options?.length) {
       if (!why?.length) return;
       // Below lg a card on the table that cannot act opens its review, with the
@@ -673,6 +682,7 @@ export function ArenaStage({
 
   const stateOf = (id: string): CardState => {
     if (isTargeting) return targetsOf(selected!)?.[id] != null ? "legal" : selected === id ? "selected" : "dim";
+    if (selected === id) return "selected";
     if (view.battle?.attacker === id) return "attacker";
     if (view.battle?.guard === id) return "guard";
     if (!taps.byCard[id]?.length) return whyOf(id)?.length && !busy ? "dead" : "plain";
@@ -722,6 +732,16 @@ export function ArenaStage({
   const inlineBare = !playback.playing && !isTargeting && playable && !modal ? bare.slice(0, 3) : [];
   const primaryBare = inlineBare.findIndex(({ l }) => !isGhostAction(l.action));
   const yourTurn = view.prompt.player === view.you.player;
+  const selectedChargeIndex = selected && view.prompt.kind === "charge" ? chargesOf(selected)[0] : undefined;
+  const selectedChargeCard = selectedChargeIndex == null ? null : cardOf(selected!);
+  const chargePassIndex = taps.bare.find((i) => legal[i].action.type === "charge" && legal[i].action.card == null);
+  const chargeSelection = !wide && selectedChargeCard && selectedChargeIndex != null ? {
+    card: selectedChargeCard,
+    action: legal[selectedChargeIndex].action,
+    passAction: chargePassIndex == null ? null : legal[chargePassIndex].action,
+    ready: view.you.activeEnergy,
+    total: view.you.energy.length,
+  } : null;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
   // Whose move the board states is the turn pill's and the prompt's business,
@@ -888,6 +908,10 @@ export function ArenaStage({
       if (list.length === 1) {
         stopEdgeScroll();
         setDrag(null);
+        if (!wide) {
+          if (zone === "energy") { select(id); return; }
+          if (card) { setSheet(card); return; }
+        }
         return send(legal[list[0]].action);
       }
       if (list.length > 1 && card) {
@@ -1023,6 +1047,17 @@ export function ArenaStage({
     outlined: rowHover === c.id,
   });
 
+  const handStatus = (id: string): "playable" | "skill" | "unaffordable" | "counter" | null => {
+    const actions = (taps.byCard[id] ?? []).map((i) => legal[i].action);
+    if (actions.some((a) => a.type === "counter" || a.type === "block")) return "counter";
+    if (actions.some((a) => a.type === "play" || a.type === "charge")) return "playable";
+    if (actions.some((a) => a.type === "activate")) return "skill";
+    const failed = rejected.filter((r) => cardIdOf(r.action) === id);
+    if (failed.some((r) => r.why.some((w) => w.kind === "energy"))) return "unaffordable";
+    if (failed.some((r) => r.action.type === "activate")) return "skill";
+    return null;
+  };
+
   // --- The docked inspector's content ----------------------------------------
   // Never an empty box (#444): the last card hovered while it is still on the
   // table, else the first card of your hand, else a leader.
@@ -1072,6 +1107,17 @@ export function ArenaStage({
     if (["leader", "unison", "battle area", "energy area"].includes(at.zone)) chips.push({ label: card.mode === "rest" ? "Rested" : "Standing", tone: "plain" });
     if (playable && !busy && targetsOf(id)) chips.push({ label: "Can attack", tone: "good" });
     if (isTargeting && targetsOf(selected!)?.[id] != null) chips.push({ label: "Valid target", tone: "good" });
+    const previews = (snapshot as Snapshot & { choicePreviews?: { action: number; skillIndex: number; state: "available" | "empty" | "notEvaluated"; candidates?: string[]; rejected?: { card: string; reason: string }[]; reason?: string }[] }).choicePreviews ?? [];
+    for (const preview of previews) {
+      const action = legal[preview.action]?.action;
+      if (action?.type !== "activate" || action.card !== id || preview.state === "notEvaluated") continue;
+      if (preview.state === "available") chips.push({ label: `${preview.candidates?.length ?? 0} valid target${preview.candidates?.length === 1 ? "" : "s"}`, tone: "good" });
+      else chips.push({ label: "Skill idle", tone: "plain" });
+    }
+    for (const index of taps.byCard[id] ?? []) {
+      const move = legal[index];
+      if (move.action.type === "activate" && move.cost) chips.push({ label: `${move.cost.energy} energy skill`, tone: "plain" });
+    }
     const allWhy = rejectedFor(id).flatMap((r) => r.why);
     const why = card.abilities?.length ? allWhy.filter((item) => !isStructuralRequirement(item)) : allWhy;
     const short = why.find((w) => w.kind === "energy");
@@ -1097,7 +1143,7 @@ export function ArenaStage({
    * neither (an energy, a life card) is reviewed alone.
    */
   const inPlayRun = [view.them, view.you].flatMap((side) => [side.leader, side.unison, ...side.battle].filter((c): c is CardView => !!c).map((card) => ({ card, yours: side === view.you })));
-  const handRun = (view.you.hand ?? []).map((card) => ({ card, yours: true }));
+  const handRun = (view.you.hand ?? []).map((card) => ({ card, yours: true, status: handStatus(card.id) }));
   const zoneNames: Record<string, string> = { drop: "Drop", warp: "Warp", zEnergy: "Z-Energy", zDeck: "Z-Deck" };
   const zoneRuns = [view.you, view.them].flatMap((side) => Object.entries(side.inspectableZones ?? {}).map(([zone, cards]) => ({ label: `${side.name} · ${zoneNames[zone] ?? zone}`, items: cards.map((card) => ({ card, yours: side === view.you })) })));
   const sequence = sheet ? (inPlayRun.some((i) => i.card.id === sheet.id) ? { label: "In play", items: inPlayRun } : handRun.some((i) => i.card.id === sheet.id) ? { label: "Your hand", items: handRun } : zoneRuns.find((run) => run.items.some((i) => i.card.id === sheet.id)) ?? null) : null;
@@ -1316,7 +1362,7 @@ export function ArenaStage({
             </div>
           )}
 
-          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
+          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
           </div>
 
           {/* CSS places this single decision panel under the hand on phones and
@@ -1352,9 +1398,10 @@ export function ArenaStage({
               searchOpen={searchOpen}
               choicesCount={choices.length}
               onReopenSearch={() => setClosedSearch(null)}
-              inlineBare={inlineBare}
+              inlineBare={chargeSelection ? [] : inlineBare}
               primaryBare={primaryBare}
               onSend={send}
+              chargeSelection={chargeSelection}
               planEnabled={session.capabilities.plan && playable && yourTurn && view.prompt.kind === "main" && !busy && !waitingOnServer}
               planOpen={planCurrent && planOpen}
               onPlanToggle={() => { setPlanRevision(live.game.revision); setPlanOpen((open) => planCurrent ? !open : true); }}
@@ -1596,6 +1643,7 @@ export function ArenaStage({
             chips={chipsFor(sheet.id, true)}
             leader={sheetAt?.zone === "leader" ? { life: sheetAt.side.life, energy: `${sheetAt.side.activeEnergy}/${sheetAt.side.energy.length}` } : null}
             onJump={(c) => setSheet(cardOf(c.id) ?? c)}
+            reviewMode={isTargeting ? "targeting" : sheetAt?.side === view.them ? "opponent" : "own"}
           />
         )}
 
