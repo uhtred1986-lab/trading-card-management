@@ -26,12 +26,16 @@
  *      then "Try again", every write transaction aborts then "Try again"; the match plays to its end and
  *      equals the Node reference decision for decision.
  *
- * Measured per case and compared with the recorded #643 budgets (`scripts/lib/worker-budgets.ts`,
- * `docs/arena-worker-budgets.md`): cold launch to the shell, Worker start, click-to-board, every human
+ * Measured per case and compared with the BOARD budgets (#782: `BOARD_BUDGETS` in `scripts/lib/worker-budgets.ts`,
+ * derived from this script's own runs, `docs/arena-worker-budgets.md` "Board budgets"; the #643 O1 page's
+ * budgets are not applied here): cold launch to the shell, Worker start, click-to-board, every human
  * move's round trip, every computer advance, long tasks, frame intervals, V8 heap of page and Worker,
  * Chrome's resident memory. A budget that is exceeded is printed `OVER` and is a release blocker: this
  * script does not exit 0 for it unless `--record` is given (it still prints it). A budget it cannot
- * measure is printed `NOT MEASURED`.
+ * measure is printed `NOT MEASURED` and fails the run the same way. A metric that cannot be measured on
+ * this page at all (`BOARD_UNMEASURABLE`: `userAgentMemoryBytes`) is printed `NOT MEASURABLE` with the
+ * reason, and is neither a budget nor a pass. `--phone-emulated` is judged against the same desktop
+ * budgets: emulation is not a phone and gets no budgets of its own (the physical phone is the owner's).
  *
  * The board's card images must LOAD in that state (a missing image is a failed check); the art here is
  * the placeholder PNGs of step 1.
@@ -47,7 +51,7 @@
  * (`scripts/lib/long-task-trace.mts`). Build with `PROFILE_SOURCEMAPS=1` to see source files and lines
  * rather than minified names. Tracing slows the page: a traced run is for attribution, not for budgets.
  *
- * Needs Chrome and a build; not part of `npm test`. Exit 0 ok, 1 a check failed (or a budget is over and
+ * Needs Chrome and a build; not part of `npm test`. Exit 0 ok, 1 a check failed (or a budget is over or unmeasured and
  * `--record` is absent), 2 usage / no Chrome / no build.
  */
 import { spawn, execSync } from "node:child_process";
@@ -56,7 +60,7 @@ import os from "node:os";
 import path from "node:path";
 import { Browser, findChrome, sleep, VIEWPORTS, type Page } from "./lib/cdp.mts";
 import { BOARD, IDB_FAULT, WorkerTaps, clickText, readJournalExpr, textOf, until } from "./lib/local-arena-page.mts";
-import { BUDGETS, distribution, type Dist } from "./lib/worker-budgets.ts";
+import { BOARD_BUDGETS, BOARD_UNMEASURABLE, distribution, type Dist } from "./lib/worker-budgets.ts";
 import { chunkLabeler, longTasks, startTrace, type LongTaskBreakdown } from "./lib/long-task-trace.mts";
 import { buildMastersPack } from "./build-arena-offline-pack.mts";
 import { pngFor } from "./verify/arena-pack-store-fixture.mts";
@@ -558,8 +562,8 @@ try {
 }
 
 // ── budgets ─────────────────────────────────────────────────────────────────────────────────────
-interface Row { budget: string; limit: number; unit: string; measured: number | null; verdict: "ok" | "OVER" | "NOT MEASURED"; how: string }
-const budget = (metric: string) => { const b = BUDGETS.find((x) => x.metric === metric && !x.config); if (!b) throw new Error(`no #643 budget named ${metric}`); return b; };
+interface Row { budget: string; limit: number | null; unit: string; measured: number | null; verdict: "ok" | "OVER" | "NOT MEASURED" | "NOT MEASURABLE"; how: string }
+const budget = (metric: string) => { const b = BOARD_BUDGETS.find((x) => x.metric === metric && !x.config); if (!b) throw new Error(`no board budget named ${metric}`); return b; };
 const rows: Row[] = [];
 const judge = (metric: string, measured: number | null, how: string) => {
   const b = budget(metric);
@@ -580,8 +584,10 @@ if (results.length) {
   judge("longTaskAtMatchStartMaxMs", Math.max(...results.map((r) => r.longTaskAtStartMax)), "longest long task overlapping the match start");
   judge("workerHeapRetainedBytes", Math.max(...results.map((r) => r.workerHeap?.after ?? NaN)), "match Worker V8 heap after a forced GC, end of one match");
   judge("workerHeapAfterBulkBytes", Math.max(...results.map((r) => r.workerHeap?.before ?? NaN)), "match Worker V8 heap at the end of one match before GC (the budget is after 20 games)");
-  judge("mainHeapBytes", Math.max(...results.map((r) => r.mainHeap.after)), "page V8 heap after a forced GC, end of one match, WITH the React app (the budget's page had no UI)");
-  judge("userAgentMemoryBytes", null, "performance.measureUserAgentSpecificMemory needs a cross-origin-isolated page; the app is not isolated, so it does not exist here");
+  judge("mainHeapBytes", Math.max(...results.map((r) => r.mainHeap.after)), "page V8 heap after a forced GC, end of one match, WITH the React app");
+  // Every board budget is judged: one this script has no figure for is a failure, not a silent pass.
+  for (const b of BOARD_BUDGETS) if (!rows.some((r) => r.budget === b.metric)) judge(b.metric, null, "no figure for this budget in this run");
+  for (const u of BOARD_UNMEASURABLE) rows.push({ budget: u.metric, limit: null, unit: "", measured: null, verdict: "NOT MEASURABLE", how: u.why });
 }
 const rss = results.map((r) => r.rssBytes).filter((x): x is number => x !== null);
 
@@ -599,13 +605,13 @@ else {
   console.log(`\n${chromeVersion}, ${VIEWPORT.width}x${VIEWPORT.height}${PHONE ? " (EMULATED phone, 4x page CPU throttle)" : ""}, shell ${manifest?.version ?? "?"}`);
   console.log("\ncase           launch  shell  startable  worker  start→board  human rtt p95/max  AI ms/dec p95/max  revs  winner  heap main/worker (MB, after GC)  RSS MB");
   for (const r of results) console.log(`${r.id.padEnd(14)} ${String(r.launchMs).padStart(5)}  ${String(r.shellMs).padStart(5)}  ${String(r.startableMs).padStart(9)}  ${String(Math.round(r.workerReadyMs ?? -1)).padStart(6)}  ${String(Math.round(r.matchStartMs)).padStart(11)}  ${(r.humanRtt ? `${r.humanRtt.p95}/${r.humanRtt.max}` : "-").padStart(17)}  ${(r.aiMsPerDecision ? `${r.aiMsPerDecision.p95}/${r.aiMsPerDecision.max}` : "-").padStart(17)}  ${String(r.revision).padStart(4)}  ${String(r.winner).padEnd(6)}  ${(r.mainHeap.after / 1e6).toFixed(1)}/${r.workerHeap ? (r.workerHeap.after / 1e6).toFixed(1) : "-"}  ${r.rssBytes ? (r.rssBytes / 1e6).toFixed(0) : "-"}`);
-  console.log("\nbudget (docs/arena-worker-budgets.md)              limit        measured      verdict");
-  for (const r of rows) console.log(`${r.budget.padEnd(36)} ${String(r.limit).padStart(10)} ${r.unit.padEnd(5)} ${String(r.measured ?? "-").padStart(10)}  ${r.verdict}   ${r.how}`);
-  const over = rows.filter((r) => r.verdict !== "ok");
+  console.log("\nboard budget (docs/arena-worker-budgets.md)        limit        measured      verdict");
+  for (const r of rows) console.log(`${r.budget.padEnd(36)} ${String(r.limit ?? "-").padStart(10)} ${r.unit.padEnd(5)} ${String(r.measured ?? "-").padStart(10)}  ${r.verdict}   ${r.how}`);
+  const over = rows.filter((r) => r.verdict === "OVER" || r.verdict === "NOT MEASURED");
   console.log(`\n${results.length} of 8 matrix cases played to the end${recovery ? `; recovery case ended at revision ${recovery.revision} (${recovery.entries} decisions)` : "; recovery case did not finish"}; ${summary.seconds} s`);
   console.log(`${over.length} budget(s) not met: ${over.map((r) => `${r.budget} ${r.verdict}`).join(", ") || "none"}`);
   console.log(PHONE ? "EMULATION only: not a phone." : "Headless desktop Chrome: not a phone. Physical-phone evidence: the owner's, unverified.");
   console.log(failures.length ? `\narena:offline-release: ${failures.length} FAILED\n${failures.join("\n")}` : "\narena:offline-release: every check passed");
 }
-const overBudgets = rows.some((r) => r.verdict === "OVER");
+const overBudgets = rows.some((r) => r.verdict === "OVER" || r.verdict === "NOT MEASURED");
 process.exit(failures.length || (overBudgets && !RECORD) ? 1 : 0);
