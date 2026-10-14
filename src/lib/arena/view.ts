@@ -86,6 +86,20 @@ export interface AbilityView {
   permanentState?: PermanentView["state"];
 }
 
+/** A first target choice the engine can inspect before a legal action is committed. */
+export interface ChoicePreview {
+  /** Index in this same snapshot's `legal` array, including payment variants. */
+  action: number;
+  skillIndex: number;
+  state: "available" | "empty" | "notEvaluated";
+  /** Engine-filtered instance ids. `empty` does not make an "up to" play illegal. */
+  candidates?: string[];
+  /** Visible cards in the named area that the selector refused. */
+  rejected?: { card: string; reason: string }[];
+  /** A human explanation when the first choice currently has no target. */
+  reason?: string;
+}
+
 /** One [Permanent] skill of a card and its state now (review §3.5). */
 export interface PermanentView {
   /** Index of the skill in the card's text, the same `skillIndex` the engine uses. */
