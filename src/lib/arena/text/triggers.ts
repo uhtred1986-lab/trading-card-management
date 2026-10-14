@@ -413,7 +413,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // both this and `played` answers a play once (`vm/triggers.ts`,
     // `engine/triggers.ts`'s `pendPlacedOnArrival`).
     case "placed":
-      return /when this card is placed in (?:a|your|their|an opponent's) battle area/.test(t);
+      return /when this card is placed in (?:a|the|your|their|an opponent's) battle area/.test(t);
     // The same arrival, about another card: "when a {Scouter} is placed in
     // your Battle Area" (BT23-066), "when one of your blue Z-Extras is placed
     // in a Battle Area" (BT22-032b). Played or placed by a skill alike (5-5-1).

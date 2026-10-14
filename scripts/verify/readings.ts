@@ -1172,6 +1172,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   assert.ok(fires("[Auto] When one of your opponent's cards attacks, draw 1 card.", "opponentAttacks"));
   assert.ok(fires("[Auto] When your opponent combos, draw 1 card.", "opponentCombos"));
   assert.ok(fires("[Auto] When this card is placed in a Battle Area, draw 1 card.", "placed"));
+  assert.ok(fires("[Auto] When this card is placed in the Battle Area, if your Leader Card is <Dr. Myuu>, draw 1 card.", "placed"), "BT3-030 uses the definite article for the same 5-5-4 arrival");
   assert.ok(fires("[Auto] When this card is removed from your Battle Area by an opponent's skill, draw 1 card.", "removedByOpponent"));
   // "Or KO'd" is the KO half of the same sentence, and belongs to `koed`.
   assert.ok(fires("[Auto] When this card is removed from a Battle Area by a skill or KO'd, draw 1 card.", "koed"));
@@ -1221,7 +1222,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // 5-5-1: playing a card places it in the Battle Area, so "when this card is
   // placed in a Battle Area" answers a play from the hand as well (owner's
   // ruling, 2 Oct 2026) — once, not once as a play and again as a placing.
-  DEFS.ARRIVES2 = { ...DEFS.V1, id: "ARRIVES2", name: "ARRIVES2", energyCost: 1, skill: "[Auto] When this card is placed in a Battle Area, draw 1 card." };
+  DEFS.ARRIVES2 = { ...DEFS.V1, id: "ARRIVES2", name: "ARRIVES2", energyCost: 1, skill: "[Auto] When this card is placed in the Battle Area, draw 1 card." };
   let s = stagedG({ hand: ["ARRIVES2"], energy: ["V1"] });
   const hand = zoneOf(s, "p1", "hand").length;
   const card = findG(s, "p1", "hand", "ARRIVES2");
