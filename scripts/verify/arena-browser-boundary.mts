@@ -28,7 +28,7 @@ import { replayHash } from "../../src/lib/arena/replay-core.ts";
 const ROOT = process.cwd();
 // #644: the policy boundary (and through it the policy layer) is browser-safe too; #655: so is the offline pack runtime;
 // #652: and the local match worker (its entry, host and protocol); #654: its ownership and recovery.
-const ENTRIES = ["src/lib/arena/local/ownership.ts", "src/lib/arena/local/recovery.ts","src/lib/arena/browser.ts", "src/lib/arena/snapshot-core.ts", "src/lib/arena/view-core.ts", "src/lib/arena/beats-core.ts", "src/lib/arena/engine-ids.ts", "src/lib/arena/vm/index.ts", "src/lib/arena/policy/boundary.ts", "src/lib/arena/local/pack.ts", "src/lib/arena/local/worker-entry.ts", "src/lib/arena/local/worker.ts", "src/lib/arena/local/protocol.ts", "src/lib/arena/local/storage.ts"];
+const ENTRIES = ["src/lib/arena/local/ownership.ts", "src/lib/arena/local/pack-store.ts", "src/lib/arena/local/recovery.ts","src/lib/arena/browser.ts", "src/lib/arena/snapshot-core.ts", "src/lib/arena/view-core.ts", "src/lib/arena/beats-core.ts", "src/lib/arena/engine-ids.ts", "src/lib/arena/vm/index.ts", "src/lib/arena/policy/boundary.ts", "src/lib/arena/local/pack.ts", "src/lib/arena/local/worker-entry.ts", "src/lib/arena/local/worker.ts", "src/lib/arena/local/protocol.ts", "src/lib/arena/local/storage.ts"];
 
 // 1a. The rule catches each kind on a virtual graph.
 const fakeRoot = path.join(ROOT, "__virtual641__");

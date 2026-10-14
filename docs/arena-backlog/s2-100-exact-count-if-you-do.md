@@ -5,6 +5,7 @@ labels: backlog, ready-for-agent, enhancement, area:arena-compiler, phase:rules-
 issue: 538
 stage: 2
 touches: src/lib/arena/compile/targets.ts, src/lib/arena/glossary.ts
+status: closed
 ---
 **Source:** owner's card review of 4 Oct 2026 (BT3-109's ruling: "exactly 5 … with fewer the cost cannot be paid").
 

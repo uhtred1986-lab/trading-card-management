@@ -185,6 +185,19 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   tabs `npm run arena:local-ownership-browser`. Not yet wired to the board (O3-05). On the board (`/arena/local`, #656), the same failures — reload, a killed Worker, stale and
   duplicate messages, a full or aborting IndexedDB, two tabs — are played against a production build in
   real Chrome by `npm run arena:local-browser` (#657; browser emulation, not device evidence).
+- **Installed offline packs** (#658, `src/lib/arena/local/pack-store.ts`): IndexedDB `dbs-arena-packs`
+  (`versions`, `bodies`, content-addressed `art`, `pointers` = the active version per pack id).
+  `install` downloads the pack (byte progress), validates and qualifies it, stores it `staged`, then
+  fetches each required image through same-origin `/_next/image` (the art CDNs send no CORS), refuses
+  an opaque response, checks type and length, SHA-256s it and decodes it (`createImageBitmap`); a
+  verify pass re-checksums every stored image; ONE transaction marks the version ready and moves the
+  pointer. Failures (interruption, corrupt pack, bad art, quota) leave the active version untouched
+  and the staged progress for a resumed retry. Versions a saved match names (`packHash` in
+  `dbs-arena-local`) are never pruned or removed. Reads (`load`, `art`, `artUrls`) are network-free
+  and re-verify. `public/sw.js` deletes only its own `dbs-card-art-*` caches (`CACHE_PREFIXES`).
+  Proofs: `scripts/verify/arena-pack-store.mts` (`npm test`, fake IndexedDB) and
+  `npm run arena:pack-store-browser` (Chrome's IndexedDB, decoder and Web Crypto). Not yet wired to
+  the board: #659/#660 replace `/arena/local`'s file picker with it.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

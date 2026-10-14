@@ -17,6 +17,14 @@
  */
 
 const CACHE = "dbs-card-art-v1";
+/**
+ * Cache ownership (#658): this worker owns only the caches named `dbs-card-art-*`. Other names are
+ * reserved for others and must survive this worker's activation — `dbs-arena-pack-*` (the offline
+ * pack store, `src/lib/arena/local/pack-store.ts` `CACHE_PREFIXES`) and `dbs-arena-shell-*` (the
+ * offline shell, #659). Deleting every cache but the current one, as this worker used to, would
+ * erase an installed offline pack or shell on every update.
+ */
+const OWN_PREFIX = "dbs-card-art-";
 
 /** The hosts in `next.config.ts` — the only ones this worker will touch. */
 const ART_HOSTS = new Set(["storage.googleapis.com", "www.dbs-cardgame.com", "tcgplayer-cdn.tcgplayer.com", "www.cardtrader.com", "cardtrader.com"]);
@@ -38,7 +46,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys();
-      await Promise.all(names.filter((n) => n !== CACHE).map((n) => caches.delete(n)));
+      // Only this worker's own older art caches; never a cache it does not own (see OWN_PREFIX).
+      await Promise.all(names.filter((n) => n.startsWith(OWN_PREFIX) && n !== CACHE).map((n) => caches.delete(n)));
       await self.clients.claim();
     })(),
   );
