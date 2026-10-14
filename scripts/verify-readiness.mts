@@ -176,9 +176,10 @@ export async function verifyReadiness(db: Db): Promise<void> {
     runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: null, trigger: ["flippedFaceUp"] } as never).unsupported.some((reason) => reason.includes("does not emit flippedFaceUp")),
     "a readable Auto WHEN whose event is not emitted stays unsupported",
   );
-  assert.ok(
-    runtimeSupportOfRow({ kind: "counter:counter", unread: [], ops: [], cost: null, trigger: [] } as never).unsupported.some((reason) => reason.includes("does not open a Counter: Counter")),
-    "a Counter: Counter row stays unsupported even though Counter records need no Auto WHEN trigger",
+  assert.deepEqual(
+    runtimeSupportOfRow({ kind: "counter:counter", unread: [], ops: [{ op: "negate", what: "counter" }], cost: null, trigger: [] } as never),
+    { unsupported: [], unknown: [] },
+    "#809: a native Counter: Counter is supported and needs no Auto WHEN trigger",
   );
   assert.deepEqual(
     runtimeSupportOfRow({ kind: "counter:play", unread: [], ops: [], cost: null, trigger: [] } as never),

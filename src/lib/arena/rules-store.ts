@@ -87,9 +87,8 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   if (triggers.includes("flippedFaceUp")) {
     unsupported.push("the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)");
   }
-  if (kind === "counter:counter") {
-    unsupported.push("the rules engine does not open a Counter: Counter response window yet (vm/battle.ts)");
-  }
+  // Counter: Counter uses the native counter-motion chain (#552). Its
+  // affordability is checked on the live board, like the other Counters.
 
   if (kind === "permanent") {
     for (const op of row.ops as Op[]) {
