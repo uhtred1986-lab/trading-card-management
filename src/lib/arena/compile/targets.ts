@@ -905,6 +905,8 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     // Battle Area and is struck out above, which left nothing on this list at
     // all. `parseFilter` had read the name the whole time.
     f.charactersIncluding.length > 0 ||
+    (f.charactersAll?.length ?? 0) > 0 ||
+    (f.namesAll?.length ?? 0) > 0 ||
     f.notCharactersIncluding.length > 0 ||
     f.namesIncluding.length > 0 ||
     f.notNamesIncluding.length > 0 ||

@@ -63,7 +63,7 @@ interface BlockerSpec { id: string; decks: string[]; cards: string[] | ((cards: 
  * specified cost (it does by default since 13 Oct 2026).
  */
 export const BLOCKERS: BlockerSpec[] = [
-  { id: "U1", decks: ["A", "B"], cards: [], issues: [650, 651, 661, 655], status: "open" },
+  { id: "U1", decks: ["A", "B"], cards: [], issues: [757, 650, 651, 661, 655], status: "resolved" },
   { id: "U2", decks: ["A"], cards: ["SD15-01"], issues: [728], status: "resolved" },
   { id: "U3", decks: ["A"], cards: ["SD15-01", "SD15-03"], issues: [728, 549], status: "resolved" },
   { id: "U4", decks: ["B"], cards: ["BT4-079"], issues: [729], status: "resolved" },

@@ -42,7 +42,7 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationAlt, activationTaxes, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueActivationTaxes, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
+import { activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
 import { assertSwapPricePayable, queueSwapCost, swapPriceRefusals } from "./swap-costs";
 import { readableAutomaticPrice } from "./auto-costs";
@@ -695,7 +695,7 @@ function labelFor(ctx: EngineContext, game: GameDefinition, state: VmState, def:
   const player = askedPlayer(state);
   // #677: an activation's taxes are not a `REFUSE` line of its declaration
   // (`activationRefusals` reads them), so they are read here by name.
-  const taxes = (player: PlayerId, card: string) => (def.skills ? activationTaxes(ctx, game, state, player, card) : declaredTaxes(ctx, game, state, def, player, card));
+  const taxes = (player: PlayerId, card: string) => (def.skills ? activationTaxes(ctx, game, state, player, card, c.skill === undefined ? undefined : lineOf(ctx, game, state, def, card, c.skill)?.kind) : declaredTaxes(ctx, game, state, def, player, card));
   return offered && c.card !== null && player ? words + taxLabel(taxes(player, c.card).map((t) => t.ops)) : words;
 }
 
@@ -830,8 +830,8 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // on and before `spendUses` spends a counted rule's use. A keyword's own
   // move has no single boundary they are known to belong at yet, so one under
   // a tax stops here — before anything is paid — rather than going untaxed.
-  const taxes = line ? activationTaxes(ctx, game, state, player, line.card) : [];
-  if (line?.keyword && taxes.length) throw new NotYet(`charge a 20-14 activation tax on a keyword's own [${line.keyword.name}] move`, "#677");
+  const gate = line ? activationTaxGate(ctx, game, state, player, line.card, line.kind) : null;
+  if (line?.keyword && gate) throw new NotYet(`charge a 20-14 activation tax on a keyword's own [${line.keyword.name}] move`, "#677");
   // A keyword move that is the keyword's alone is announced as it is paid for
   // and ahead of the payment, the legacy order (`announcesBeforePrice`) — but
   // never before a `payCost` question below, which pays and announces nothing.
@@ -910,8 +910,11 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // A keyword's own move is a second moment as well — "when you activate an
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
     const keywordMoments = keywordActivationMoments(state, player, line);
+    const queued = state.programs.length;
     resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto);
-    queueActivationTaxes(state, player, line.card, taxes);
+    // #677: the prices are charged in front of everything the activation
+    // queued, re-read live after each one (`vm/activate.ts`'s `TaxGate`).
+    if (gate) queueTaxGate(state, gate, state.programs.length - queued);
     fire(ctx, game, state, moment);
     for (const m of keywordMoments) fire(ctx, game, state, m);
   } else {
