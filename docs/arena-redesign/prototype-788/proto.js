@@ -654,7 +654,7 @@
     if (all(S.you).includes(c) && S.turnOf === "you" && S.phase === "Main" && c.mode === "rest") return `<div class="proto-act proto-act-off"><div class="proto-act-line">Rested — it already attacked this turn.</div></div>`;
     if (all(S.opp).includes(c) && S.turnOf === "you" && S.phase === "Main") {
       const t = attackTargets();
-      return `<div class="proto-act proto-act-off"><div class="proto-act-line">${t.valid.includes(c.uid) ? "You can attack this card." : esc(t.why[c.uid])}.${C(c).barrier ? " [Barrier]: your skills can't choose it." : ""}</div></div>`;
+      return `<div class="proto-act proto-act-off"><div class="proto-act-line">${t.valid.includes(c.uid) ? "You can attack this card" : esc(t.why[c.uid])}.${C(c).barrier ? " [Barrier]: your skills can't choose it." : ""}</div></div>`;
     }
     return "";
   }
@@ -679,7 +679,7 @@
     ["setup", "Setup: decks and start"], ["mulligan", "Mulligan"], ["charge", "1 · Charge phase (turn start)"], ["main", "1 · Main phase overview"],
     ["inspect", "2 · Inspect a card"], ["play", "4 · Play sheet: cost and energy"], ["notarget", "6 · No valid target, before you commit"],
     ["target", "5 · Choose a target"], ["attack", "7 · Declare an attack"], ["attackConfirm", "7 · Attacker → target"],
-    ["oppturn", "9 · Claude's turn (replay)"], ["bighand", "Hand of 10: the fan"], ["bighandView", "Hand of 10: peek a card"], ["bighandBig", "Hand of 10: bigger card"], ["bighandCharge", "Hand of 10: charge"], ["bighandTarget", "Hand of 10: choose a target"], ["cardHalf", "Card view: top half"], ["counter", "8 · Counter"], ["block", "8 · Block"], ["combo", "8 · Combo"],
+    ["oppturn", "9 · Claude's turn (replay)"], ["bighand", "Hand of 10: the fan"], ["bighandBig", "Hand of 10: your card, big (default)"], ["bighandView", "Hand of 10: your card, small"], ["bighandCharge", "Hand of 10: charge"], ["bighandTarget", "Hand of 10: choose a target"], ["cardHalf", "Card view: top half"], ["counter", "8 · Counter"], ["block", "8 · Block"], ["combo", "8 · Combo"],
   ];
   function menuSheet() {
     return `<div class="proto-zs"><p class="proto-cs-zone">Arena</p><h3>Settings</h3>
@@ -820,15 +820,25 @@
 
   function payEnergy(side, n) { side.energyRested = Math.min(side.energy, side.energyRested + n); }
 
+  /**
+   * Your own cards open as the big card: reviewing your hand, the card is the focus. Claude's cards open as
+   * the peek, so the board stays in view. Within one sheet the size you chose for your own cards is kept.
+   */
+  const isMine = (uid) => S.you.hand.some((c) => c.uid === uid) || all(S.you).some((c) => c.uid === uid);
+  function cardSheetFor(uid) {
+    const prev = S.sheet?.kind === "card" ? S.sheet : null;
+    return { kind: "card", uid, filter: prev?.filter ?? "all", big: isMine(uid) ? S.ownBig !== false : false };
+  }
+
   async function act(name, el) {
     const uid = el?.dataset.uid;
     switch (name) {
       case "noop": return;
-      case "inspect": S.sheet = { kind: "card", uid, filter: S.sheet?.kind === "card" ? S.sheet.filter : "all", big: S.sheet?.kind === "card" ? S.sheet.big : false }; S.zoom = null; return render();
+      case "inspect": S.sheet = cardSheetFor(uid); S.zoom = null; return render();
       case "closeSheet": S.sheet = null; return render();
       case "zoom": S.zoom = uid; return render();
-      case "cardBig": S.sheet = { ...S.sheet, big: true }; return render();
-      case "cardSmall": S.sheet = { ...S.sheet, big: false }; return render();
+      case "cardBig": S.sheet = { ...S.sheet, big: true }; if (isMine(S.sheet.uid)) S.ownBig = true; return render();
+      case "cardSmall": S.sheet = { ...S.sheet, big: false }; if (isMine(S.sheet.uid)) S.ownBig = false; return render();
       case "motion": S.rm = !S.rm; return render();
       case "cardLayout": S.cardLayout = el.dataset.layout; try { localStorage.setItem("proto788.cardLayout", S.cardLayout); } catch { /* fine */ } return render();
       case "handFilter": {
@@ -1124,8 +1134,8 @@
       case "charge": break;
       case "main": S.phase = "Main"; S.you.energy = 6; S.narration = { text: "You charge Super Saiyan Son Goku as energy. 6 ⚡ this turn.", who: "you" }; S.you.hand = S.you.hand.filter((c) => c.id !== "BT14-006"); break;
       case "inspect": scene("main"); S.sheet = { kind: "card", uid: S.opp.battle[2].uid, big: false }; break;
-      case "play": scene("main"); S.sheet = { kind: "card", uid: S.you.hand.find((c) => c.id === "SD15-03").uid }; S.willPay = 0; break;
-      case "notarget": scene("main"); S.sheet = { kind: "card", uid: S.you.hand.find((c) => c.id === "BT11-011").uid }; break;
+      case "play": scene("main"); S.sheet = cardSheetFor(S.you.hand.find((c) => c.id === "SD15-03").uid); break;
+      case "notarget": scene("main"); S.sheet = cardSheetFor(S.you.hand.find((c) => c.id === "BT11-011").uid); break;
       case "target": { scene("main"); const s = strike(); S.you.hand = S.you.hand.filter((c) => c !== s); payEnergy(S.you, 1); S.you.drop.push("BT6-025"); const t = koTargets(); S.mode = { kind: "target", valid: t.valid, why: t.why, picked: null }; break; }
       case "attack": scene("main"); S.mode = { kind: "attack", attacker: S.you.leader.uid }; break;
       case "bighand": case "bighandView": case "bighandBig": case "bighandCharge": case "bighandTarget": {
@@ -1133,7 +1143,7 @@
         for (const id of name === "bighandCharge" ? ["BT11-008", "BT14-010", "BT6-025", "BT3-027"] : ["BT11-008", "BT14-010", "BT6-025", "BT3-027", "BT14-006"]) S.you.hand.push(inst(id));
         S.you.deck -= 5;
         S.narration = { text: "A big hand: 10 cards. Tap any card to browse them all.", who: "you" };
-        if (name === "bighandView" || name === "bighandBig") S.sheet = { kind: "card", uid: S.you.hand[2].uid, filter: "all", big: name === "bighandBig" };
+        if (name === "bighandView" || name === "bighandBig") { S.ownBig = name === "bighandBig"; S.sheet = cardSheetFor(S.you.hand[2].uid); }
         if (name === "bighandCharge") { S.narration = { text: "Your turn 6: 10 cards in hand. Choose one to charge.", who: "you" }; S.chargePick = S.you.hand[5].uid; }
         if (name === "bighandTarget") { const st = S.you.hand.find((c) => c.id === "BT6-025"); S.you.hand = S.you.hand.filter((c) => c !== st); payEnergy(S.you, 1); S.you.drop.push("BT6-025"); const t = koTargets(); S.mode = { kind: "target", valid: t.valid, why: t.why, picked: null }; }
         break;
@@ -1214,7 +1224,7 @@
     if (S.phase === "Charge") return act("charge", { dataset: { uid: d.uid } });
     const p = playability(c);
     // Anything that needs a second look — no target, or a target to choose — opens the card first.
-    if (!p.ok || p.tag === "warn" || C(c).onPlay) { S.sheet = { kind: "card", uid: d.uid }; return render(); }
+    if (!p.ok || p.tag === "warn" || C(c).onPlay) { S.sheet = cardSheetFor(d.uid); return render(); }
     play(c);
   });
   // Swipe the card sheet left/right for the next card; down to close.
