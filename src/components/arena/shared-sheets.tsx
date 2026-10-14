@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { Action, LegalAction, RejectedAction, Requirement } from "@/lib/arena/types";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
-import type { CardView, PermanentView, PromptView, SideView } from "@/lib/arena/view";
+import type { CardView, ChoicePreview, PermanentView, PromptView, SideView } from "@/lib/arena/view";
 import { abilityActionLabel, abilityCost, abilityPanelRows, abilityReasonType, isStructuralRefusal, matchesAbilityAction, offeredMoves, type AbilityLine } from "./ability-panel-model";
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { useArenaAdmin } from "./admin-context";
@@ -264,6 +264,7 @@ export interface SheetMove {
   targets?: number;
   /** Wording that replaces the engine's label, for a row the inspector words itself ("Attack it"). */
   label?: string;
+  choicePreview?: ChoicePreview;
 }
 
 function AbilityRows({
@@ -273,6 +274,7 @@ function AbilityRows({
   onPick,
   narrator,
   docked,
+  evidence,
 }: {
   card: CardView;
   side: SideView | null;
@@ -280,6 +282,7 @@ function AbilityRows({
   onPick: (move: SheetMove) => void;
   narrator: Narrator;
   docked: boolean;
+  evidence: (move: SheetMove) => React.ReactNode;
 }) {
   const admin = useArenaAdmin();
   const abilities = card.abilities;
@@ -323,16 +326,19 @@ function AbilityRows({
             {messages.length > 0 && <p className="text-xs leading-snug text-loss" role="status">{messages.join(" ")}</p>}
             {choices.map((move) => {
               const label = abilityActionLabel(line, move, choices);
+              const fullMove = moves.find((item) => item.index === move.index) ?? move;
               return (
-                <button
-                  key={`${move.index}:${move.legal.label}`}
-                  type="button"
-                  onClick={() => onPick(move)}
-                  className={`tap flex min-h-11 w-full min-w-0 flex-col items-stretch gap-2 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 sm:flex-row sm:items-center sm:gap-3 ${size}`}
-                >
-                  <span className="min-w-0 max-w-full flex-1 break-words">{label}</span>
-                  <span className="max-w-full self-start whitespace-normal break-words rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:shrink-0 sm:self-auto">{abilityCost(line, move)}</span>
-                </button>
+                <div key={`${move.index}:${move.legal.label}`} className="space-y-1">
+                  {evidence(fullMove)}
+                  <button
+                    type="button"
+                    onClick={() => onPick(move)}
+                    className={`tap flex min-h-11 w-full min-w-0 flex-col items-stretch gap-2 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 sm:flex-row sm:items-center sm:gap-3 ${size}`}
+                  >
+                    <span className="min-w-0 max-w-full flex-1 break-words">{(fullMove as SheetMove).choicePreview?.state === "empty" && move.legal.action.type === "play" ? "Play anyway" : label}</span>
+                    <span className="max-w-full self-start whitespace-normal break-words rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:shrink-0 sm:self-auto">{abilityCost(line, move)}</span>
+                  </button>
+                </div>
               );
             })}
             {line.availability === "offered" && choices.length === 0 && <p className="text-xs text-space-300" role="status">The legal action is temporarily unavailable while the board updates.</p>}
@@ -377,6 +383,7 @@ export function ActionRows({
   onPick,
   narrator = DEFAULT_NARRATOR,
   docked = false,
+  resolveCard,
 }: {
   card: CardView;
   side: SideView | null;
@@ -390,6 +397,7 @@ export function ActionRows({
    * the sheet's dimmed version fails contrast on both skins.
    */
   docked?: boolean;
+  resolveCard?: (id: string) => CardView | null;
 }) {
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
   const word = { side, inHand, them: narrator.them };
@@ -421,21 +429,60 @@ export function ActionRows({
       </div>
     );
   };
+  const evidence = (m: SheetMove) => {
+    const preview = m.choicePreview;
+    const payment = m.legal.paymentPreview;
+    if (!preview && !payment) return null;
+    const energyIds = new Set((side?.energy ?? []).filter((item) => item.mode === "active").map((item) => item.id));
+    const hasCounter = (side?.hand ?? []).some((item) => item.abilities?.some((ability) => ability.category === "counter"));
+    const options = payment?.options ?? [];
+    const afterReady = (ids: string[]) => Math.max(0, (side?.activeEnergy ?? 0) - ids.filter((id) => energyIds.has(id)).length);
+    return <div className="space-y-1 rounded-lg border border-space-700 bg-space-950/70 p-2 text-xs" data-action-evidence={m.index}>
+      {payment && <div className="space-y-1" data-payment-preview>
+        <p className="font-semibold text-space-100">{payment.state === "choice" ? "Choose a payment" : "Payment"}</p>
+        {options.map((option, i) => {
+          const ready = afterReady(option.energyRest);
+          const paid = option.energyRest.filter((id) => energyIds.has(id)).length;
+          const names = option.energyRest.map((id) => resolveCard?.(id)?.name ?? "Card");
+          return <p className="text-space-200" key={i} data-payment-option={i}>
+            {payment.state === "choice" ? `Option ${i + 1}: ` : ""}
+            {option.energyRest.length ? `Rest ${names.join(", ")}` : "No energy cards rest"}
+            {option.markers > 0 ? ` · ${option.markers} ⚡ marker${option.markers === 1 ? "" : "s"}` : ""}
+            {option.costMarkers ? ` · ${option.costMarkers > 0 ? "+" : ""}${option.costMarkers} cost marker${Math.abs(option.costMarkers) === 1 ? "" : "s"}` : ""}
+            {` · ${paid} ⚡ of ${side?.energy.length ?? 0} ready → ${ready} left`}
+            {ready === 0 && hasCounter && <span className="block font-semibold text-dbs-yellow">This leaves no ready energy for a Counter in your hand.</span>}
+          </p>;
+        })}
+      </div>}
+      {preview && preview.state !== "notEvaluated" && <div data-choice-preview>
+        {preview.state === "empty" ? <>
+          <p className="font-semibold text-dbs-yellow">{m.legal.action.type === "activate" ? "You can activate this skill — but it has no target." : "You can play this card — but its skill has no target."}</p>
+          {preview.reason && <p className="mt-0.5 leading-snug text-space-200">{preview.reason}</p>}
+        </> : <>
+          <p className="font-semibold text-space-100">Skill targets now</p>
+          {!!preview.candidates?.length && <p className="mt-0.5 text-gain">Available: {preview.candidates.map((id) => resolveCard?.(id)?.name ?? "Card").join(", ")}</p>}
+          {!!preview.rejected?.length && <div className="mt-1 space-y-0.5 text-loss">{preview.rejected.map((target) => <p key={`${target.card}:${target.reason}`}>Cannot choose {resolveCard?.(target.card)?.name ?? "that card"}: {target.reason}</p>)}</div>}
+        </>}
+      </div>}
+    </div>;
+  };
   return (
     <>
-      <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} />
+      <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} evidence={evidence} />
       {moves.filter((move) => !abilities.some((line) => offeredMoves(line, card, abilities, [move]).length > 0)).map((m) => {
         const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
         return (
+          <div key={`move:${m.index}`} className="space-y-1">
+          {evidence(m)}
           <button
-            key={m.index}
             type="button"
             onClick={() => onPick(m)}
             className={`tap flex min-h-11 w-full items-center gap-3 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 ${docked ? "" : "sm:px-4 sm:py-3 sm:text-base"}`}
           >
-            <span className="min-w-0 flex-1">{m.targets ? `Attack with ${card.name}…` : (m.label ?? m.legal.label)}</span>
+            <span className="min-w-0 flex-1">{m.choicePreview?.state === "empty" && m.legal.action.type === "play" ? "Play anyway" : m.targets ? `Attack with ${card.name}…` : (m.label ?? m.legal.label)}</span>
             {price && <span className="shrink-0 rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:text-xs">{price}</span>}
           </button>
+          </div>
         );
       })}
       {refusals.map(refusalRow)}
@@ -579,6 +626,7 @@ export function CardSheet({
   leader = null,
   onJump,
   reviewMode = "own",
+  resolveCard,
 }: {
   card: CardView;
   /** The player's own side, for the remedy in an energy refusal. */
@@ -599,6 +647,7 @@ export function CardSheet({
   leader?: { life: number; energy: string } | null;
   onJump?: (card: CardView) => void;
   reviewMode?: "own" | "opponent" | "targeting";
+  resolveCard?: (id: string) => CardView | null;
 }) {
   const [fullArt, setFullArt] = useState(false);
   const [opponentBig, setOpponentBig] = useState(false);
@@ -811,7 +860,7 @@ export function CardSheet({
               <StatTiles card={card} leader={leader} />
             </div>
           </div>
-          <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} docked />
+          <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} />
           <CardDetail card={card} narrator={narrator} battle={battle} figures={false} />
         </div>}
 
@@ -831,6 +880,7 @@ export function CardSheet({
 export function SearchSheet({
   prompt,
   choices,
+  refused = [],
   indexOf,
   none,
   onPick,
@@ -838,6 +888,7 @@ export function SearchSheet({
 }: {
   prompt: PromptView;
   choices: CardView[];
+  refused?: { card: CardView; reason: string; label?: string }[];
   /** The index into `legal` that chooses this card, if any. */
   indexOf: (id: string) => number | undefined;
   /** The index of "choose none", when the prompt allows it. */
@@ -859,7 +910,8 @@ export function SearchSheet({
             type="button"
             disabled={i == null}
             onClick={() => i != null && onPick(i)}
-            className="tap flex w-full items-center gap-3 rounded-lg border border-space-600 bg-space-800 px-2 py-2 text-left hover:border-ki-500/60 disabled:opacity-50 sm:px-3"
+            className="tap flex w-full items-center gap-3 rounded-lg border border-gain/60 bg-gain/10 px-2 py-2 text-left shadow-[0_0_14px_rgba(74,222,128,0.14)] hover:border-gain disabled:opacity-50 sm:px-3"
+            data-valid-target={i != null ? c.id : undefined}
           >
             {c.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- a list row; the board has already loaded this URL.
@@ -873,17 +925,27 @@ export function SearchSheet({
                 {[admin ? c.cardId : null, c.cost ? `cost ${c.cost}` : null, c.power != null ? c.power.toLocaleString("en") : null, c.keywords.length ? c.keywords.join(", ") : null].filter(Boolean).join(" · ")}
               </span>
             </span>
-            <span className="shrink-0 rounded-full border border-ki-500/60 px-2 py-px font-mono text-[10px] text-ki-300">choose</span>
+            <span className="shrink-0 rounded-full border border-gain/60 px-2 py-px font-mono text-[10px] text-gain">{prompt.question.toLowerCase().includes("ko") ? "Tap to KO" : "choose"}</span>
           </button>
         );
       })}
+      {refused.filter((item) => !choices.some((choice) => choice.id === item.card.id)).map(({ card, reason, label }) => (
+        <div key={`refused:${card.id}`} className="flex w-full items-center gap-3 rounded-lg border border-loss/40 bg-loss/5 px-2 py-2 text-left sm:px-3" data-refused-target={card.id}>
+          {card.imageUrl ? <img src={cardImage(card.imageUrl, "thumb")} alt="" className="card-aspect w-10 shrink-0 rounded object-cover opacity-50 sm:w-12" /> : <span className="card-aspect w-10 shrink-0 rounded bg-space-700 sm:w-12" />}
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-space-100">{card.name}</span>
+            <span className="block whitespace-normal text-xs leading-snug text-loss">Cannot choose: {reason}</span>
+          </span>
+          <span className="shrink-0 rounded-full border border-loss/60 px-2 py-px text-[10px] font-semibold text-loss">✕ {label ?? (card.keywords.includes("Barrier") ? "Barrier" : "No")}</span>
+        </div>
+      ))}
       {none != null && (
         <button
           type="button"
           onClick={() => onPick(none)}
           className="tap w-full rounded-lg border border-dashed border-space-500 bg-space-950 px-3 py-3 text-left text-sm font-semibold text-space-100 hover:border-ki-500/60"
         >
-          Choose none
+          Pass · KO nothing
           <span className="block text-[11px] font-normal text-space-400">The skill says “up to” — this is the way out.</span>
         </button>
       )}
