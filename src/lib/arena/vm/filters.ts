@@ -89,6 +89,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   notCharacters: { reads: ["characters"] },
   charactersIncluding: { reads: ["characters"] },
   notCharactersIncluding: { reads: ["characters"] },
+  charactersAll: { reads: ["characters"] },
   traits: { reads: ["traits"] },
   notTraits: { reads: ["traits"] },
   characterOrTrait: { reads: ["characters", "traits"] },
@@ -99,6 +100,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   notNames: { reads: ["name"], also: ["alsoNames"] },
   namesIncluding: { reads: ["name"], also: ["alsoNames"] },
   notNamesIncluding: { reads: ["name"], also: ["alsoNames"] },
+  namesAll: { reads: ["name"], also: ["alsoNames"] },
   keywords: { reads: ["skill"] },
   notKeywords: { reads: ["skill"] },
   noKeywords: { reads: ["skill"] },
@@ -257,6 +259,8 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   const traits = list(attrs.traits);
   const characterOk = !(f.characters.length || partChars.length) || f.characters.some((c) => same(characters, c)) || partChars.some((c) => part(characters, c));
   const traitOk = !f.traits.length || f.traits.some((t) => same(traits, t));
+  // "with both <A> and <B>" (#768): each one, where `characters` takes any.
+  if (!(f.charactersAll ?? []).every((c) => same(characters, c))) return false;
   // "<Baby> or ≪Brainwashed≫" (BT29-114): either one answers.
   if (f.characterOrTrait) {
     if (!f.characters.some((c) => same(characters, c)) && !f.traits.some((t) => same(traits, t))) return false;
@@ -273,6 +277,7 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   const names = [text(attrs.name) ?? "", ...list(attrs.alsoNames)].filter((n) => n !== "");
   const partNames = f.namesIncluding ?? [];
   if ((f.names.length || partNames.length) && !f.names.some((n) => same(names, n)) && !partNames.some((n) => part(names, n))) return false;
+  if (!(f.namesAll ?? []).every((n) => same(names, n))) return false;
   if (f.notNames.some((n) => same(names, n))) return false;
   if ((f.notNamesIncluding ?? []).some((n) => part(names, n))) return false;
 

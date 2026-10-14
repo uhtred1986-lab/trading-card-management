@@ -278,14 +278,9 @@ function compileSkillText(skill: Skill): Script {
     const rest = aegisAlt.head ? compileSkillText({ ...skill, effect: aegisAlt.head }) : { ops: [], unsupported: [] as string[] };
     if (rest.unsupported.length) return { ops: [], unsupported: rest.unsupported };
     // A condition that cannot be read refuses the permission (ground rule 5).
-    // "a Leader with both <A> and <B>" (BT22-035): a card filter lists the
-    // names it accepts as alternatives, so "both" is read as two conditions
-    // that must hold together — one naming <A>, one naming <B>. The "or"
-    // after it distributes (X∧Y ∨ Z = (X∨Z)∧(Y∨Z)), so each reading keeps it.
-    const both = aegisAlt.opener ? /\bwith both (<[^>]+>) and (<[^>]+>)/i.exec(aegisAlt.opener) : null;
-    const readings = aegisAlt.opener ? (both ? [both[1], both[2]].map((name) => aegisAlt.opener!.replace(both[0], `with ${name}`)) : [aegisAlt.opener]) : [];
-    const parts = readings.map((r) => allConditions(r));
-    const conds = parts.some((p) => !p) ? null : parts.flatMap((p) => p!);
+    // "a Leader with both <A> and <B>" (BT22-035) is read by the card filter
+    // itself as all-of (`charactersAll`, #768).
+    const conds = aegisAlt.opener ? allConditions(aegisAlt.opener) : [];
     if (!conds) return { ops: [], unsupported: [aegisAlt.opener!] };
     return { ops: [...rest.ops, ...conds.reduceRight<Op[]>((then, { cond }) => [{ op: "if", cond, then }], [aegisAlt.permit])], unsupported: [] };
   }

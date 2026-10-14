@@ -3473,6 +3473,22 @@
       ]
     },
     {
+      "field": "charactersAll",
+      "type": "strings",
+      "printed": "card with both <Saiyan> and <Saiyan>",
+      "openTo": [
+        "strings"
+      ]
+    },
+    {
+      "field": "namesAll",
+      "type": "strings",
+      "printed": "card with both {Saiyan} and {Saiyan}",
+      "openTo": [
+        "strings"
+      ]
+    },
+    {
       "field": "traits",
       "type": "strings",
       "printed": "≪Saiyan≫",
