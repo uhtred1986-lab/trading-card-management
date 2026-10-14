@@ -87,7 +87,12 @@ At every shot (`checksOf` in `scripts/lib/ux-probe.mts`):
   under 3:1 is major).
 - **Reachability**: each scripted move is made by the tap a player would make. A control that is
   off screen or under something (the tab bar, a sticky strip, a skill pop-up) is first scrolled to
-  the middle of the screen, as a player would, and counted as **had to scroll**. `unreachable`
+  the middle of the screen, as a player would, and counted as **had to scroll**. A control covered by
+  a skill pop-up is **obstructed**: a failure, shot before anything is touched, with the size of the
+  pop-up's close control. The harness then closes the pop-up only so the match can go on; the move is
+  never counted as a plain tap. "Directly by tap" counts only moves whose every control was reachable.
+  The tap-to-move time runs from the player's first required interaction (the pop-up's close included),
+  and the pop-up recovery time is reported on its own. `unreachable`
   means no tap found it even then, so a player would be stuck too; the log names what covered it.
   `tapped-other` means the tap sent a different move, so a label is ambiguous or the driver chose the
   wrong row; read the shot before calling it a bug. After an `unreachable` the move is made through
@@ -97,7 +102,7 @@ At every shot (`checksOf` in `scripts/lib/ux-probe.mts`):
   its OK, as a player must before the board goes on. `findings.md` lists them; a run that met none
   says the notice was **not exercised**. A notice that cannot be acknowledged by touch stops the case.
 - **Pass or fail**: a case passes only when it is played to the end **and every move was made by
-  touch** and every notice acknowledged. After an `unreachable` move the run makes it through the
+  touch** with no control obstructed, and every notice acknowledged. After an `unreachable` move the run makes it through the
   board only to keep collecting evidence; the case still fails, and so does the run (exit code 1).
 - **Card navigation** (a "no change" after the swipe is not yet a finding: the run's swipe is one
   synthetic 140 px stroke, so check it by hand before reporting it), every `--card-review-every` decisions: tap a card, the review opens (time),

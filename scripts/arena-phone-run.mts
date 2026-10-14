@@ -135,7 +135,7 @@ const UI = `(() => {
     line: (bar?.querySelector("p")?.innerText ?? "").trim().slice(0, 200), dialog: dlg,
     storage: document.body.innerText.includes("Could not save on this device"),
     targeting: (bar?.innerText ?? "").includes("Choose what to attack"),
-    notice: notice ? notice.innerText.replace(/\s+/g, " ").trim().slice(0, 300) : null,
+    notice: notice ? notice.innerText.replace(/\\s+/g, " ").trim().slice(0, 300) : null,
   };
 })()`;
 /** A blocking dialog or sheet: a card sheet, a search, or a no-target notice (`QuietNotice`, #783, `role=alertdialog`). */
@@ -357,17 +357,18 @@ async function until(page: Page, predicate: string, ms = 30000, what = predicate
   throw new Error(`timed out (${ms / 1000} s) waiting for ${what}`);
 }
 
-interface TapResult { ok: boolean; why?: string; scrolled?: boolean }
+interface Blocker { x: number; y: number; what: string; w: number; h: number }
+interface TapResult { ok: boolean; why?: string; scrolled?: boolean; dismissed?: string; blockedBy?: Blocker }
 /**
  * Touch the first candidate the finder returns that a finger can reach. A target off screen or under
  * something (a sticky bar, the tab bar, a pop-up) is first scrolled to the middle of the screen, as a
  * player would; `scrolled` says so. Still covered after that, the coverer is named in words.
  */
-async function tapFind(page: Page, finder: string): Promise<TapResult> {
-  const p = await page.eval<{ x: number; y: number; scrolled: boolean } | { why: string }>(`(() => {
+async function tapFind(page: Page, finder: string, clearPopups = true): Promise<TapResult> {
+  const p = await page.eval<{ x: number; y: number; scrolled: boolean } | { why: string; dismiss?: Blocker }>(`(() => {
     const els = (${finder})().filter(Boolean);
     if (!els.length) return { why: "not on the page" };
-    const name = (e) => { for (let x = e; x && x !== document.body; x = x.parentElement) { const t = (x.getAttribute("aria-label") || x.innerText || "").replace(/\s+/g, " ").trim(); if (t) return '"' + t.slice(0, 50) + '"'; } return e ? e.tagName.toLowerCase() : "nothing"; };
+    const name = (e) => { for (let x = e; x && x !== document.body; x = x.parentElement) { const t = (x.getAttribute("aria-label") || x.innerText || "").replace(/\\s+/g, " ").trim(); if (t) return '"' + t.slice(0, 50) + '"'; } return e ? e.tagName.toLowerCase() : "nothing"; };
     const reach = (el) => {
       const r = el.getBoundingClientRect();
       for (const [fx, fy] of [[0.5, 0.5], [0.5, 0.3], [0.5, 0.7], [0.3, 0.5], [0.7, 0.5], [0.2, 0.2], [0.8, 0.8]]) {
@@ -390,10 +391,24 @@ async function tapFind(page: Page, finder: string): Promise<TapResult> {
       const q = el.getBoundingClientRect();
       const hit = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, q.left + q.width / 2)), Math.min(innerHeight - 1, Math.max(0, q.top + q.height / 2)));
       why = "covered by " + name(hit);
+      // A skill pop-up (the spotlight) carries its own close button: a player closes it and taps again.
+      let box = hit;
+      while (box && box !== document.body && !box.querySelector('button[aria-label="Dismiss"]')) box = box.parentElement;
+      const close = box && box !== document.body ? box.querySelector('button[aria-label="Dismiss"]') : null;
+      if (close) { const c = close.getBoundingClientRect(); return { why, dismiss: { x: c.left + c.width / 2, y: c.top + c.height / 2, what: name(box), w: Math.round(c.width), h: Math.round(c.height) } }; }
     }
     return { why };
   })()`);
-  if ("why" in p) return { ok: false, why: p.why };
+  if ("why" in p) {
+    // Without clearPopups the caller is told what blocks the target and decides (a move's tap records it as a failure first).
+    if (!p.dismiss || !clearPopups) return { ok: false, why: p.why, blockedBy: p.dismiss };
+    await page.pointer("down", p.dismiss.x, p.dismiss.y);
+    await sleep(60);
+    await page.pointer("up", p.dismiss.x, p.dismiss.y);
+    await sleep(350);
+    const again = await tapFind(page, finder, false);
+    return again.ok ? { ...again, dismissed: p.dismiss.what } : { ok: false, why: `${again.why} (after closing the pop-up ${p.dismiss.what})` };
+  }
   if (p.scrolled) await sleep(250);
   await page.pointer("down", p.x, p.y);
   await sleep(60);
@@ -450,7 +465,14 @@ async function shoot(page: Page, caseId: string, kind: string, s: Snapshot | nul
 }
 
 // ── a human move, by touch ──────────────────────────────────────────────────────────────────────
-interface Attempt { revision: number; label: string; result: "tapped" | "tapped-other" | "unreachable"; taps: string[]; scrolled: boolean; tapToActMs: number | null; problem: string | null; shot: number | null }
+interface Obstruction { target: string; by: string; closeW: number; closeH: number; shot: number; recovered: boolean }
+/**
+ * `tapped`: every control the move needed was directly reachable. `obstructed`: the move went through
+ * only after the harness closed a pop-up covering it — a failure, not a tap. `tapToActMs` runs from the
+ * player's first required interaction (a pop-up's close included) to the move; `recoveryMs` is the
+ * part spent closing pop-ups and waiting for them to go.
+ */
+interface Attempt { revision: number; label: string; result: "tapped" | "obstructed" | "tapped-other" | "unreachable"; taps: string[]; scrolled: boolean; obstructions: Obstruction[]; recoveryMs: number; tapToActMs: number | null; problem: string | null; shot: number | null }
 const cardIdOf = (a: Action): string | null => {
   const x = a as { card?: string | null; attacker?: string; cards?: string[] };
   if (typeof x.card === "string") return x.card;
@@ -482,9 +504,35 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
   const t0 = Date.now();
   let firstTap: number | null = null;
   let scrolled = false;
+  const obstructions: Obstruction[] = [];
+  let recoveryMs = 0;
   const acts = () => page.eval<Action[]>("window.__acts ?? []");
   const sentWithin = async (ms: number) => { const end = Date.now() + ms; do { if ((await acts()).length) return true; await sleep(80); } while (Date.now() < end); return false; };
-  const tap = async (what: string, finder: string) => { const r = await tapFind(page, finder); taps.push(r.ok ? `${what}${r.scrolled ? " (had to scroll to it)" : ""}` : `${what}: ${r.why}`); if (r.scrolled) scrolled = true; if (r.ok) firstTap ??= Date.now(); return r.ok; };
+  const tap = async (what: string, finder: string) => {
+    let r = await tapFind(page, finder, false);
+    if (!r.ok && r.blockedBy) {
+      // The control the move needs is under a skill pop-up: a UX failure in its own right (owner, #787
+      // review), shot as the player sees it before anything is touched. The harness then closes the
+      // pop-up only so the match can go on; the move is reported as obstructed, never as a plain tap.
+      const b = r.blockedBy;
+      const shot = await shoot(page, caseId, "obstructed", s, { force: true, note: `${what} for "${l.label}" is covered by the pop-up ${b.what}; its close control is ${b.w}x${b.h} px` });
+      shot.findings.push({ kind: "obstructed-target", severity: "major", detail: `the move needs ${what}, covered by a skill pop-up; the way out is a ${b.w}x${b.h} px close control` });
+      firstTap ??= Date.now(); // the player's first required interaction is closing the pop-up
+      const tr = Date.now();
+      await page.pointer("down", b.x, b.y);
+      await sleep(60);
+      await page.pointer("up", b.x, b.y);
+      await sleep(350);
+      r = await tapFind(page, finder, false);
+      recoveryMs += Date.now() - tr;
+      obstructions.push({ target: what, by: b.what, closeW: b.w, closeH: b.h, shot: shot.n, recovered: r.ok });
+      taps.push(`${what}: covered by the pop-up ${b.what.slice(0, 40)}; the harness closed it (${b.w}x${b.h} px control)`);
+    }
+    taps.push(r.ok ? `${what}${r.scrolled ? " (had to scroll to it)" : ""}` : `${what}: ${r.why}`);
+    if (r.scrolled) scrolled = true;
+    if (r.ok) firstTap ??= Date.now();
+    return r.ok;
+  };
   const ui = () => page.eval<{ targeting: boolean; dialog: boolean }>(UI);
   let problem: string | null = null;
   try {
@@ -518,10 +566,10 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
     // A tap's `send` starts the computer's reply itself (ArenaStage `launchAdvance`); a move made past the
     // board does not, so the run asks for it, as arena:offline-release does after every human move.
     else await kickComputer(page);
-    return { revision: s.game.revision, label: l.label, result: "unreachable", taps, scrolled, tapToActMs: null, problem, shot: shot.n };
+    return { revision: s.game.revision, label: l.label, result: "unreachable", taps, scrolled, obstructions, recoveryMs, tapToActMs: null, problem, shot: shot.n };
   }
   const same = stableJson(sent[0]) === key;
-  return { revision: s.game.revision, label: l.label, result: same ? "tapped" : "tapped-other", taps, scrolled, tapToActMs: firstTap ? Math.max(0, Date.now() - firstTap) : Date.now() - t0, problem: same ? problem : `tapping sent ${stableJson(sent[0]).slice(0, 160)}`, shot: null };
+  return { revision: s.game.revision, label: l.label, result: !same ? "tapped-other" : obstructions.length ? "obstructed" : "tapped", taps, scrolled, obstructions, recoveryMs, tapToActMs: firstTap ? Math.max(0, Date.now() - firstTap) : Date.now() - t0, problem: same ? problem : `tapping sent ${stableJson(sent[0]).slice(0, 160)}`, shot: null };
 }
 
 /** The computer is to move and nothing asked it: ask (the board's own `advance`). */
@@ -534,7 +582,7 @@ async function kickComputer(page: Page): Promise<boolean> {
 }
 
 // ── card navigation ─────────────────────────────────────────────────────────────────────────────
-interface Review { revision: number; target: string; opened: boolean; openMs: number | null; nameShown: boolean; pager: boolean; nextChanges: boolean | null; swipeChanges: boolean | null; closed: boolean; hand: { opened: boolean; cards: string | null } | null; zones: boolean | null; shots: number[] }
+interface Review { revision: number; target: string; opened: boolean; openMs: number | null; nameShown: boolean; pager: boolean; nextChanges: boolean | null; swipeChanges: boolean | null; closed: boolean; hand: { opened: boolean; cards: string | null } | null; zones: boolean | null; shots: number[]; obstructedBy: string | null }
 const dialogName = (page: Page) => page.eval<string>(`(() => { const d = ${DIALOG}; return d ? (d.querySelector("h3")?.innerText ?? "").trim() : ""; })()`);
 const dialogOpen = (page: Page) => page.eval<boolean>(`!!${DIALOG}`);
 async function waitDialog(page: Page, open: boolean, ms = 2500) { const t = Date.now(); while (Date.now() - t < ms) { if ((await dialogOpen(page)) === open) return Date.now() - t; await sleep(60); } return null; }
@@ -548,8 +596,20 @@ async function cardReview(page: Page, caseId: string, s: Snapshot): Promise<Revi
   const quiet = (id: string) => !s.taps.byCard[id]?.length && !s.taps.whyByCard?.[id]?.length;
   const pick = [...v.them.battle, v.them.leader, v.you.leader, ...v.you.battle].find((c) => c && quiet(c.id));
   if (!pick) return null;
-  const out: Review = { revision: s.game.revision, target: pick.name, opened: false, openMs: null, nameShown: false, pager: false, nextChanges: null, swipeChanges: null, closed: false, hand: null, zones: null, shots: [] };
-  const r = await tapFind(page, F.card(pick.id));
+  const out: Review = { revision: s.game.revision, target: pick.name, opened: false, openMs: null, nameShown: false, pager: false, nextChanges: null, swipeChanges: null, closed: false, hand: null, zones: null, shots: [], obstructedBy: null };
+  let r = await tapFind(page, F.card(pick.id), false);
+  if (!r.ok && r.blockedBy) {
+    // The card is under a skill pop-up: recorded (shot first), then closed so the review can go on.
+    const b = r.blockedBy;
+    const shot = await shoot(page, caseId, "obstructed", s, { force: true, note: `card review: ${pick.name} is covered by the pop-up ${b.what}; its close control is ${b.w}x${b.h} px` });
+    shot.findings.push({ kind: "obstructed-target", severity: "major", detail: `reviewing ${pick.name} needs the card, covered by a skill pop-up; the way out is a ${b.w}x${b.h} px close control` });
+    out.obstructedBy = `${b.what.slice(0, 40)} (close control ${b.w}x${b.h} px, shot ${shot.n})`;
+    await page.pointer("down", b.x, b.y);
+    await sleep(60);
+    await page.pointer("up", b.x, b.y);
+    await sleep(350);
+    r = await tapFind(page, F.card(pick.id), false);
+  }
   if (!r.ok) return { ...out, target: `${pick.name} (${r.why})` };
   out.openMs = await waitDialog(page, true);
   out.opened = out.openMs !== null;
@@ -692,7 +752,7 @@ async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Sn
 interface CaseResult {
   id: string; decks: string; seat: string; ok: boolean; error: string | null;
   coldLaunchToShellMs: number | null; landedOn: string | null; startTapToBoardMs: number | null;
-  decisions: number; tapped: number; tappedOther: number; unreachable: number; neededScroll: number; notices: Notice[]; tapToActMs: { p50: number; p95: number; max: number } | null;
+  decisions: number; tapped: number; tappedOther: number; unreachable: number; obstructed: number; recoveryMs: { p50: number; max: number } | null; neededScroll: number; notices: Notice[]; tapToActMs: { p50: number; p95: number; max: number } | null;
   playbackShots: number; reviews: Review[]; stalls: string[]; revision: number | null; winner: string | null; reason: string | null;
   imagesOnFinalBoard: number; brokenImages: number; remoteImages: number;
   longTasks: number; longTaskMaxMs: number; framesOver50: number; frames: number; mainHeapAfterGc: number | null; workerHeapAfterGc: number | null;
@@ -766,7 +826,9 @@ function summarise(id: string, c: { mine: string; theirs: string; seat: string }
   return {
     id, decks: `${c.mine} v ${c.theirs}`, seat: c.seat, ok: false, error: null, coldLaunchToShellMs: null, landedOn: null, startTapToBoardMs: null,
     decisions: play.decisions, tapped: play.attempts.filter((a) => a.result === "tapped").length, tappedOther: play.attempts.filter((a) => a.result === "tapped-other").length,
-    unreachable: play.attempts.filter((a) => a.result === "unreachable").length, neededScroll: play.attempts.filter((a) => a.scrolled).length, notices: play.notices, tapToActMs: ms.length ? { p50: pct(ms, 0.5), p95: pct(ms, 0.95), max: Math.max(...ms) } : null,
+    unreachable: play.attempts.filter((a) => a.result === "unreachable").length, neededScroll: play.attempts.filter((a) => a.scrolled).length,
+    obstructed: play.attempts.filter((a) => a.obstructions.length > 0).length,
+    recoveryMs: ((r) => (r.length ? { p50: pct(r, 0.5), max: Math.max(...r) } : null))(play.attempts.filter((a) => a.obstructions.length).map((a) => a.recoveryMs)), notices: play.notices, tapToActMs: ms.length ? { p50: pct(ms, 0.5), p95: pct(ms, 0.95), max: Math.max(...ms) } : null,
     playbackShots: play.playbackShots, reviews: play.reviews, stalls: play.stalls, revision: null, winner: null, reason: null,
     imagesOnFinalBoard: 0, brokenImages: 0, remoteImages: 0, longTasks: 0, longTaskMaxMs: 0, framesOver50: 0, frames: 0, mainHeapAfterGc: null, workerHeapAfterGc: null,
     browserPssBytes: null, failedRequests: 0, seconds: 0, ...extra,
@@ -807,8 +869,9 @@ async function runCase(c: (typeof ALL_CASES)[number], deadline: number): Promise
     res = summarise(c.id, c, play, { coldLaunchToShellMs: shell.shellMs, landedOn: shell.landedOn, startTapToBoardMs: startMs });
     await finish(page, res, end);
     // Played to the end is not enough: a move no tap reached means a player could not have played it (owner, #785 review).
-    res.ok = end.snapshot?.game.status === "over" && res.unreachable === 0 && res.notices.every((n) => n.acknowledged);
-    if (!res.ok && !res.error) res.error = res.unreachable ? `${res.unreachable} move(s) unreachable by touch` : "a no-target notice could not be acknowledged";
+    // An obstructed move fails the case too: the harness got past the pop-up, a player was blocked by it (#787 review).
+    res.ok = end.snapshot?.game.status === "over" && res.unreachable === 0 && res.obstructed === 0 && res.notices.every((n) => n.acknowledged);
+    if (!res.ok && !res.error) res.error = [res.unreachable ? `${res.unreachable} move(s) unreachable by touch` : "", res.obstructed ? `${res.obstructed} move(s) obstructed by a skill pop-up (the harness closed it and played on)` : "", res.notices.every((n) => n.acknowledged) ? "" : "a no-target notice could not be acknowledged"].filter(Boolean).join("; ");
   } catch (e) {
     res = summarise(c.id, c, play, { ...res, error: (e as Error).message });
     if (page) await shoot(page, c.id, "error", null, { note: (e as Error).message, force: true, device: true }).catch(() => {});
@@ -816,7 +879,7 @@ async function runCase(c: (typeof ALL_CASES)[number], deadline: number): Promise
     res.seconds = Math.round((Date.now() - t0) / 1000);
     await T.endCase().catch(() => {});
   }
-  log(`${c.id}: ${res.ok ? "PASS, played to the end by touch" : `FAIL: ${res.error}`} — ${res.decisions} decisions (${res.tapped} by tap, ${res.tappedOther} tap sent another move, ${res.unreachable} unreachable), ${res.playbackShots} beats shot, ${res.seconds} s`);
+  log(`${c.id}: ${res.ok ? "PASS, played to the end by touch" : `FAIL: ${res.error}`} — ${res.decisions} decisions (${res.tapped} directly by tap, ${res.obstructed} obstructed by a pop-up, ${res.tappedOther} tap sent another move, ${res.unreachable} unreachable), ${res.playbackShots} beats shot, ${res.seconds} s`);
   return res;
 }
 
@@ -896,7 +959,8 @@ async function recoveryCase(deadline: number): Promise<{ steps: Step[]; result: 
   const end = await playOn(page, id, play, { deadline });
   const res = summarise(id, c, play, {});
   await finish(page, res, end);
-  res.ok = end.snapshot?.game.status === "over" && steps.every((s) => s.ok) && res.unreachable === 0 && res.notices.every((n) => n.acknowledged);
+  res.ok = end.snapshot?.game.status === "over" && steps.every((s) => s.ok) && res.unreachable === 0 && res.obstructed === 0 && res.notices.every((n) => n.acknowledged);
+  if (res.obstructed) step("every move directly reachable", false, `${res.obstructed} move(s) obstructed by a skill pop-up (the harness closed it and played on)`);
   if (res.unreachable) step("every move made by touch", false, `${res.unreachable} move(s) unreachable by touch (made through the board only to keep collecting evidence)`);
   step("played to the end after every interruption", end.snapshot?.game.status === "over", `revision ${end.snapshot?.game.revision}`);
   await T.endCase();
@@ -1040,8 +1104,14 @@ function findingsMd(all: Array<Finding & { shot: Shot }>): string {
     L.push(budgetRow("matchStartMs.p95", pct(starts, 0.95)), budgetRow("longTaskCount", Math.max(...results.map((r) => r.longTasks))), budgetRow("longTaskMaxMs", Math.max(...results.map((r) => r.longTaskMaxMs))));
     L.push(budgetRow("framesOver50Ms", Math.max(...results.map((r) => r.framesOver50))), budgetRow("mainHeapBytes", Math.max(...results.map((r) => r.mainHeapAfterGc ?? NaN))), budgetRow("workerHeapRetainedBytes", Math.max(...results.map((r) => r.workerHeapAfterGc ?? NaN))));
   }
-  L.push("", "## Playing by touch", "", "| Case | Decisions | By tap | Tap sent another move | Unreachable | Had to scroll to the control | Tap → move p50 / p95 / max | Beats shot | Stalls |", "|---|---|---|---|---|---|---|---|---|");
-  for (const r of [...results, ...(recovery ? [recovery.result] : [])]) L.push(`| ${r.id} | ${r.decisions} | ${r.tapped} | ${r.tappedOther} | ${r.unreachable} | ${r.neededScroll} | ${r.tapToActMs ? `${r.tapToActMs.p50} / ${r.tapToActMs.p95} / ${r.tapToActMs.max} ms` : "—"} | ${r.playbackShots} | ${r.stalls.length} |`);
+  L.push("", "## Playing by touch", "", "| Case | Decisions | Directly by tap | Obstructed (harness closed a pop-up) | Tap sent another move | Unreachable | Had to scroll to the control | First interaction → move p50 / p95 / max | Pop-up recovery p50 / max | Beats shot | Stalls |", "|---|---|---|---|---|---|---|---|---|---|---|");
+  for (const r of [...results, ...(recovery ? [recovery.result] : [])]) L.push(`| ${r.id} | ${r.decisions} | ${r.tapped} | ${r.obstructed} | ${r.tappedOther} | ${r.unreachable} | ${r.neededScroll} | ${r.tapToActMs ? `${r.tapToActMs.p50} / ${r.tapToActMs.p95} / ${r.tapToActMs.max} ms` : "—"} | ${r.recoveryMs ? `${r.recoveryMs.p50} / ${r.recoveryMs.max} ms` : "—"} | ${r.playbackShots} | ${r.stalls.length} |`);
+  const obstructedShots = shots.filter((s) => s.kind === "obstructed");
+  if (obstructedShots.length) {
+    L.push("", "### Moves obstructed by a skill pop-up (a failure: the control the move needed was covered)", "", "The harness closed the pop-up only to keep the match going; a player meets the cover first, and its way out is the close control named below.", "");
+    for (const s of obstructedShots.slice(0, 40)) L.push(`- ${s.case} r${s.revision}: ${s.note} (shot ${s.n})`);
+    if (obstructedShots.length > 40) L.push(`- … ${obstructedShots.length - 40} more in run.json`);
+  }
   const unreachable = shots.filter((s) => s.kind === "unreachable");
   if (unreachable.length) {
     L.push("", "### Moves no tap reached (each is a finding: a player could not have made it)", "");
@@ -1049,8 +1119,8 @@ function findingsMd(all: Array<Finding & { shot: Shot }>): string {
     for (const s of unreachable) { const k = (s.note ?? "").split(" — ")[0]; byLabel.set(k, [...(byLabel.get(k) ?? []), s]); }
     for (const [k, list] of byLabel) L.push(`- **${k}** ×${list.length} — ${list[0].note?.split(" — ")[1] ?? ""} (shots ${list.slice(0, 5).map((s) => s.n).join(", ")})`);
   }
-  L.push("", "## Card navigation", "", "| Case | At revision | Card | Opened (ms) | Name shown | Pager / Next / swipe | Closed | Hand review | Zones |", "|---|---|---|---|---|---|---|---|---|");
-  for (const r of [...results, ...(recovery ? [recovery.result] : [])]) for (const v of r.reviews) L.push(`| ${r.id} | ${v.revision} | ${v.target} | ${v.opened ? `yes (${v.openMs})` : "**no**"} | ${v.nameShown ? "yes" : "**no**"} | ${v.pager ? `yes / ${v.nextChanges ? "changes" : "**no change**"} / ${v.swipeChanges === null ? "—" : v.swipeChanges ? "changes" : "no change"}` : "no pager"} | ${v.closed ? "yes" : "**no**"} | ${v.hand ? (v.hand.opened ? `yes (${v.hand.cards ?? "?"})` : `**no** (${v.hand.cards ?? ""})`) : "—"} | ${v.zones === null ? "—" : v.zones ? "yes" : "**no**"} |`);
+  L.push("", "## Card navigation", "", "| Case | At revision | Card | Covered by a pop-up | Opened (ms) | Name shown | Pager / Next / swipe | Closed | Hand review | Zones |", "|---|---|---|---|---|---|---|---|---|---|");
+  for (const r of [...results, ...(recovery ? [recovery.result] : [])]) for (const v of r.reviews) L.push(`| ${r.id} | ${v.revision} | ${v.target} | ${v.obstructedBy ? `**yes**: ${v.obstructedBy}` : "no"} | ${v.opened ? `yes (${v.openMs})` : "**no**"} | ${v.nameShown ? "yes" : "**no**"} | ${v.pager ? `yes / ${v.nextChanges ? "changes" : "**no change**"} / ${v.swipeChanges === null ? "—" : v.swipeChanges ? "changes" : "no change"}` : "no pager"} | ${v.closed ? "yes" : "**no**"} | ${v.hand ? (v.hand.opened ? `yes (${v.hand.cards ?? "?"})` : `**no** (${v.hand.cards ?? ""})`) : "—"} | ${v.zones === null ? "—" : v.zones ? "yes" : "**no**"} |`);
   const allRuns = [...results, ...(recovery ? [recovery.result] : [])];
   const notices = allRuns.flatMap((r) => r.notices.map((n) => ({ ...n, case: r.id })));
   L.push("", "## No-target notices (#783)", "");
