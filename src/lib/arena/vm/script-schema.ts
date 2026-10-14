@@ -1824,6 +1824,7 @@ const SELECTOR_KEYS = {
   underHost: 1,
   count: 1,
   upTo: 1,
+  minCount: 1,
   take: 1,
   fromEnd: 1,
   ignoreBarrier: 1,
@@ -1870,6 +1871,10 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
     if (!isRecord(v[k]) || amountProblem(v[k], true, `${at}.${k}`)) return wrong(k, "a whole number or an amount");
   }
   for (const k of ["upTo", "fromEnd", "ignoreBarrier", "hidden"]) if (v[k] !== undefined && typeof v[k] !== "boolean") return wrong(k, "true or false");
+  if (v.minCount !== undefined) {
+    if (!isCount(v.minCount)) return wrong("minCount", "a non-negative whole number");
+    if (!isCount(v.count) || (v.minCount as number) > (v.count as number) || v.upTo || v.take !== undefined || v.special !== undefined) return `${at}.minCount requires count >= minCount and no upTo, take or special`;
+  }
   for (const k of ["differentNames", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
   // `TOTAL energyCost <= 5` (BT3-036): a measure and an amount, and a bound
   // on a set — so never on a special, which names one card. Where it may
@@ -2027,9 +2032,11 @@ function strayBound(v: unknown, at: string, top = true): string | null {
   }
   if (!isRecord(v)) return null;
   if (!top && v.sumAtMost !== undefined) return `${at}: "sumAtMost" (TOTAL … <=) bounds a choice, so only a choose's own selector may carry it — anywhere else it is read as every card`;
+  if (!top && v.minCount !== undefined) return `${at}: "minCount" bounds a choice, so only a choose's own selector may carry it`;
   const rest = (o: Record<string, unknown>, skip: string) => Object.entries(o).filter(([k]) => k !== skip).map(([, x]) => x);
   if (v.op === "choose" && isRecord(v.sel)) {
     if (v.sel.sumAtMost !== undefined && v.sumTo !== undefined) return `${at}: a choice adds up to exactly "sumTo" or stays under "sumAtMost", not both`;
+    if (v.sel.minCount !== undefined && (v.atMost !== undefined || v.sumTo !== undefined || v.namedSet || v.sel.sumAtMost !== undefined)) return `${at}: minCount cannot combine with another choice bound`;
     return strayBound(rest(v.sel, "sumAtMost"), at, false) ?? strayBound(rest(v, "sel"), at, false);
   }
   return strayBound(Object.values(v), at, false);
@@ -2403,7 +2410,9 @@ export function describeSelector(sel: Selector, all = "all"): string {
             sel.upTo && sel.sumAtMost
             ? "any number of"
             : "all"
-          : sel.upTo
+          : sel.minCount !== undefined
+            ? `${sel.minCount} to ${sel.count}`
+            : sel.upTo
             ? `up to ${sel.count}`
             : `${sel.count}`;
   // One card is "card", any other number — and every card — is "cards".

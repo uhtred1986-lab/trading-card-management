@@ -70,6 +70,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   underHost: "places",
   count: "count",
   upTo: "count",
+  minCount: "count",
   take: "take",
   fromEnd: "take",
   filter: "filter",

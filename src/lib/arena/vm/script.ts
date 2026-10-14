@@ -120,6 +120,8 @@ export interface Selector {
   /** How many to take. `upTo` allows zero (5-2-4). */
   count?: number;
   upTo?: boolean;
+  /** Printed bounded choice: at least this many, at most `count` (5-2-5/6). */
+  minCount?: number;
   /**
    * "The top card of your deck": the first `take` cards of the area in its own
    * order, not a choice among them. `count` never means this — a count is
@@ -1812,6 +1814,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // #720: inside a voluntary replacement's substitute the offer's "you
         // may" is already spent, so a choice it also made "up to" is exact.
         const upTo = bounded || (!!op.sel.upTo && !owedInFull(frame, op));
+        const minimum = op.sel.minCount ?? (upTo ? 0 : want);
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
           frame.vars[op.as] = picked;
@@ -1908,6 +1911,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
         const answer = h.lastChoice();
         if (answer && frame.awaiting === op.as) {
+          // A persisted bounded choice obeys the same one-card answer and
+          // floor as its prompt, even when a host restores an old answer.
+          if (op.sel.minCount !== undefined && (answer.length > 1 || sofar.length + answer.length > want || answer.some((id) => !cands.includes(id)) || (!answer.length && sofar.length < minimum && cands.length > 0))) throw new IllegalAction("answer is outside the bounded choice");
           // #677: an exact choice answered with a card that is no longer a
           // candidate — a stale saved answer, the card having left since the
           // question was put — is refused rather than read as picking
@@ -1954,7 +1960,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // Under a summed bound, taking every candidate is forced only when
         // all of them fit under it together.
         const allFit = !bound || cands.reduce((n, id) => n + measure(id), 0) <= room;
-        if (!upTo && !namesakes && allFit && cands.length <= left) {
+        if (!upTo && !namesakes && allFit && cands.length <= minimum - sofar.length) {
           frame.awaiting = undefined;
           take([...sofar, ...cands]);
           break;
@@ -1962,16 +1968,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.awaiting = op.as;
         frame.vars[op.as] = sofar;
         h.resume(frame);
-        const asked = (left === 1 ? "" : ` (${left} more)`) + (bound ? ` (${bound.attr === "energyCost" ? "energy cost" : bound.attr} ${room} or less left)` : "");
+        const asked = (op.sel.minCount !== undefined ? ` (${minimum > sofar.length ? `${minimum - sofar.length} required, ` : ""}up to ${left} more)` : left === 1 ? "" : ` (${left} more)`) + (bound ? ` (${bound.attr === "energyCost" ? "energy cost" : bound.attr} ${room} or less left)` : "");
+        const howMany = op.sel.minCount !== undefined ? `${minimum} to ${want}` : upTo ? `up to ${want}` : want;
         h.ask({
           kind: "chooseCards",
           // 20-7: whoever the card says chooses, chooses.
           player: op.chooser ? sideOf(master, op.chooser)[0] : master,
           choice: {
-            reason: (op.reason ?? `${h.nameOf(frame.card)}: choose ${upTo ? `up to ${want}` : want}`) + asked,
+            reason: (op.reason ?? `${h.nameOf(frame.card)}: choose ${howMany}`) + asked,
             candidates: cands,
             // One card per answer, so the menu is one action per card.
-            min: upTo ? 0 : 1,
+            min: sofar.length >= minimum ? 0 : 1,
             max: 1,
             continuation: op.as,
             ...(op.blind ? { blind: true as const } : {}),
