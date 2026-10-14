@@ -121,6 +121,13 @@ const report = {
   records,
 };
 const out = flag("--out", "");
-if (out) fs.writeFileSync(out, JSON.stringify(report, null, 2) + "\n");
+if (out) {
+  const { records: gameRecords, ...summary } = report;
+  // Keep summary reviewable and one complete game per line. All timing samples
+  // and failures remain present; pretty-printing them adds ~110k empty structure
+  // lines to the 80-game evidence without adding information.
+  const head = JSON.stringify(summary, null, 2).slice(0, -2);
+  fs.writeFileSync(out, `${head},\n  "records": [\n${gameRecords.map((r) => `    ${JSON.stringify(r)}`).join(",\n")}\n  ]\n}\n`);
+}
 console.log(JSON.stringify({ rows, privacyChecks, nontrivialTwins, strengthEligible, difficultyEnabled: false }, null, 2));
 process.exit(records.some((r) => r.result.stopKind === "illegal") ? 1 : 0);
