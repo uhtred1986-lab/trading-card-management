@@ -440,7 +440,7 @@ function BoardView({ board, stage, onSwitch, onLeave }: { board: LocalBoard; sta
       {notice && <Notice notice={notice} onAction={(a) => void act(a)} />}
       {snapshot ? (
         <div id="board" className="scroll-mt-2">
-          <ArenaStage key={board.matchId} session={board} snapshot={snapshot} skin={stage.skin} staging={stage.staging} lighting={stage.lighting} menu={menu} />
+          <ArenaStage key={board.matchId} session={board} snapshot={snapshot} decklists={board.decklists} skin={stage.skin} staging={stage.staging} lighting={stage.lighting} menu={menu} />
         </div>
       ) : (
         !notice && <p className="text-sm text-space-300">Opening the match…</p>

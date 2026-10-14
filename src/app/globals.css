@@ -3456,6 +3456,8 @@ html[data-skin="anime"] body::before {
   }
 
   [data-skin="anime"].arena .arena-phase-on {
+    background: var(--turn-tint);
+    color: var(--ink);
     box-shadow: 0 2px 10px color-mix(in srgb, var(--turn-tint) 50%, transparent);
   }
 
