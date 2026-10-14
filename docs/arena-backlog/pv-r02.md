@@ -6,6 +6,7 @@ stage: ui
 issue: 549
 priority: P0
 touches: src/lib/arena/vm/flow.ts, src/lib/arena/vm/costs.ts, src/lib/arena/vm/script.ts
+status: closed
 ---
 **Source:** `docs/arena-playability-review.md`; `docs/arena-client-contract.md`; `docs/agent-brief.md`.
 

@@ -6,6 +6,7 @@ stage: ui
 issue: 609
 priority: P1
 touches: src/lib/arena/vm/battle.ts, src/lib/arena/vm/flow.ts
+status: closed
 ---
 **Source:** `docs/rules/rulemanual.txt` 8-5-5..8-5-10; `src/lib/arena/vm/battle.ts`; `src/lib/arena/vm/flow.ts`; `src/lib/arena/rulesets/dbs/triggers.rules`.
 

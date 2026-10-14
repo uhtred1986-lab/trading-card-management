@@ -5,6 +5,7 @@ labels: model:sonnet-5, performance, ready-for-agent
 stage: ui
 issue: 381
 priority: P2
+status: closed
 ---
 **Source:**
 - `src/lib/ai/client.ts` (`MODEL`, `FAST_MODEL`);
