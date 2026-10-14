@@ -1198,6 +1198,14 @@ export interface LegalAction {
    * price is its printed cost and a client reads that off the card.
    */
   cost?: ActionCost;
+  /** The engine's exact current resource projection for this legal choice.
+   * `energyRest` names the cards the payment plan will rest (including legal
+   * 20-19 payers); `markers` are Energy markers spent and `costMarkers` are
+   * markers added to or removed from the card named by the action. */
+  paymentPreview?: {
+    state: "known" | "choice";
+    options: { energyRest: string[]; markers: number; costMarkers: number }[];
+  };
 }
 
 export interface ActionCost {
