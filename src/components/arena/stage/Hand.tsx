@@ -64,21 +64,24 @@ export function Hand({
   return (
     <section className="arena-field arena-hand relative" aria-label="Your hand" data-hand-expanded={expanded}>
       <ZoneAnchor zone="p1:hand" />
+      {/* Below lg the toolbar is only the decision's hint (#783): a hand card that cannot act opens its
+          review on a tap, and the public zones are in the board's menu, so a phone keeps the row for
+          the cards themselves. */}
       {(firstProps?.onInspect || onZones) && (
-        <div data-hand-toolbar className="flex flex-wrap items-center justify-end gap-2 px-3">
-          <span className="mr-auto text-xs font-semibold text-space-100">Hand · {n}<span className="ml-2 hidden font-normal sm:inline">Swipe to browse</span></span>
+        <div data-hand-toolbar className={`flex-wrap items-center justify-end gap-2 px-3 ${decisionHint ? "flex" : "hidden lg:flex"}`}>
+          <span className="mr-auto hidden text-xs font-semibold text-space-100 lg:inline">Hand · {n}<span className="ml-2 font-normal">Swipe to browse</span></span>
           {decisionHint && <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-space-100">{decisionHint}</span>}
           {firstProps?.onInspect && <button
             type="button"
             onClick={firstProps.onInspect}
             aria-label={`Inspect your hand, starting with ${first?.hidden ? "face-down card" : first?.name ?? "first card"}`}
-            className="tap inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-100 hover:border-ki-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400"
+            className="tap hidden min-h-[44px] items-center gap-2 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-100 lg:inline-flex hover:border-ki-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400"
           >
             <span aria-hidden="true">⌕</span>
             <span>Inspect hand</span>
           </button>}
-          {n > 0 && <button type="button" className={`${styles.handControl} tap rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "Compact" : "Expand"}</button>}
-          {onZones && <button type="button" className={`${styles.handControl} tap rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
+          {n > 0 && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 lg:block`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "Compact" : "Expand"}</button>}
+          {onZones && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 lg:block`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
         </div>
       )}
       <div ref={fan} className={styles.handViewport} tabIndex={0} aria-label="Scrollable hand cards">

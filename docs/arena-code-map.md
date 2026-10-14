@@ -570,6 +570,19 @@ records how the rules engine was built and what it was held to at the time; the 
   sky: no panel round it. The game page's own links (back, give up, the debug view) are passed
   in as `menu` and drawn in the menu sheet. The field's cards are drawn at the redesign's sizes
   (leader 80, Battle Card 68, hand 84) with a gentler `--arena` step (`.arena-field`).
+  **Phone match layout** (#783, the owner's S21 test): below lg the board is one screen — no page
+  scroll during a turn at 360 × 650 and up (`stage/phone-board.module.css`: the lane takes the
+  spare height, the turn wash is clipped, the cards step down on short screens), no app chrome
+  (`/arena/offline` claims the screen from its board with `useMatchScreen`, `src/lib/match-screen.ts`,
+  since its path is the same for setup and board). One tap away instead of stacked: the energy
+  detail (the strip's energy chips), the decision's detail (the prompt bar's ⓘ), the public zones
+  (the menu). Both leaders wear a **Leader** tag (`.arena-leader-tag`, `data-leader-label`).
+  **No-target notice**: a skill that resolved and did nothing is told as a dialog the player
+  acknowledges (`stage/QuietNotice.tsx`); `stage/quiet-skills.ts` reads it from the beats only
+  (the engine's `noEffect`, or a targeting skill followed straight by another skill, an attack, a
+  clash, a phase or the end). While it stands the story pauses, no move is sent and the computer's
+  next advance is held; OK releases it. Proofs: `scripts/verify/quiet-skills-783.ts` (npm test),
+  `scripts/arena-no-target-783.mts` and `scripts/arena-phone-board-783.mts` (Chrome).
   **Whose move** (`docs/arena-hud-spec.md`, §1/§1.1/§2.1 built): the turn pill (`stage/TurnPresence.tsx`, #344 — it replaced
   `TurnStrip`) says *whose turn* in words and the acting side's colour, beside a turn-change banner, a board
   edge and a lit battle row; the prompt bar says *what is open* ("3 moves available — …"). One rule holds it together — **everything

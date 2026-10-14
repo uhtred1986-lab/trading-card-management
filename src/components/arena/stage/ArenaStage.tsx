@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import type { ArenaSession } from "../session/contract";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/types";
@@ -68,6 +68,8 @@ import { PromptPanel } from "./PromptPanel";
 import { StoryList } from "../shared-display";
 import { BattleRow, cardIdOf, Lane, MenuSection, PlayerStrip, ReferenceCounts } from "./StageZones";
 import { SpeedButton } from "./SpeedButton";
+import { QuietNotice } from "./QuietNotice";
+import { quietSkills } from "./quiet-skills";
 
 /**
  * The motion board.
@@ -203,6 +205,17 @@ export function ArenaStage({
   const [endDismissed, setEndDismissed] = useState(false);
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * The no-target notices the player has acknowledged (#783), by beat number, and the last beat the
+   * board had already seen when it mounted: a reload tells nothing again.
+   */
+  const [acknowledged, setAcknowledged] = useState<ReadonlySet<number>>(() => new Set());
+  const [noticeMark] = useState(() => snapshot.beats?.list.at(-1)?.n ?? 0);
+  /** An advance asked for while a notice stood: it goes when the notice is acknowledged. */
+  const advanceHeld = useRef(false);
+  const noticeUp = useRef(false);
+  /** Bumped to ask for the computer's advance on the next commit (after your move, or an OK). */
+  const [advanceAsk, setAdvanceAsk] = useState(0);
 
   /**
    * Whether to start polling — and the **only** thing still derived from the
@@ -293,6 +306,11 @@ export function ArenaStage({
   const playable = live.game.status === "playing";
 
   const launchAdvance = useCallback(() => {
+    // A notice is a stop (#783): the computer's next move waits for the player's OK.
+    if (noticeUp.current) {
+      advanceHeld.current = true;
+      return;
+    }
     if (asked.current) return;
     asked.current = true;
     setAdvanceFailed(false);
@@ -398,6 +416,27 @@ export function ArenaStage({
     if (text) setHeld({ text, n: beatNow.n, mine: actorOf(beatNow) === view.you.player });
   }
 
+  /**
+   * A skill that found no target (#783), as a notice the player acknowledges. `pendingQuiet` is
+   * any not yet acknowledged — it holds the computer's next advance at once; `notice` is the one
+   * the story has reached, which is what is on screen (and what pauses the story).
+   */
+  const quiet = quietSkills(beats?.list ?? [], beats?.art ?? {}, view.prompt.kind);
+  const pendingQuiet = quiet.find((q) => q.n > noticeMark && !acknowledged.has(q.n)) ?? null;
+  const notice = pendingQuiet && (!playback.playing || (beatNow != null && beatNow.n >= pendingQuiet.n)) ? pendingQuiet : null;
+  useLayoutEffect(() => {
+    noticeUp.current = !!pendingQuiet;
+  }, [pendingQuiet]);
+  const acknowledge = (n: number) => {
+    setAcknowledged((prev) => new Set(prev).add(n));
+    noticeUp.current = quiet.some((q) => q.n > noticeMark && q.n !== n && !acknowledged.has(q.n));
+    if (advanceHeld.current && !noticeUp.current) {
+      advanceHeld.current = false;
+      asked.current = false;
+      setAdvanceAsk((k) => k + 1);
+    }
+  };
+
   // The narration log takes each beat as it is told, not as it arrives, so
   // reading it back never spoils a move the board has yet to play.
   const told = beats && playback.playing && beatNow ? { ...beats, list: beats.list.filter((b) => b.n <= beatNow.n) } : beats;
@@ -407,9 +446,15 @@ export function ArenaStage({
   // Only for arriving at a game that is already mid-turn — a normal move runs
   // the opponent's reply inside `act` itself.
   useEffect(() => {
-    if (!serverDecides || asked.current) return;
+    if (!serverDecides || asked.current || pendingQuiet) return;
     launchAdvance();
-  }, [serverDecides, launchAdvance]);
+  }, [serverDecides, launchAdvance, pendingQuiet]);
+  // The advance after your own move, asked for on the commit that drew the move's result — so a
+  // no-target notice in that result holds it (#783) instead of racing it.
+  useEffect(() => {
+    if (!advanceAsk || asked.current) return;
+    launchAdvance();
+  }, [advanceAsk, launchAdvance]);
 
   /**
    * Reading a card stops the fight (`docs/arena-battle-staging-spec.md`
@@ -419,9 +464,9 @@ export function ArenaStage({
    */
   const { pause, resume } = playback;
   useEffect(() => {
-    if (sheet) pause();
+    if (sheet || notice) pause();
     else resume();
-  }, [sheet, playback.playing, pause, resume]);
+  }, [sheet, notice, playback.playing, pause, resume]);
 
   // Escape lets go of a pinned card; hover takes the inspector back.
   useEffect(() => {
@@ -452,6 +497,7 @@ export function ArenaStage({
   };
 
   const send = (action: Action) => {
+    if (notice) return;
     setSheet(null);
     setPinned(null);
     setSelected(null);
@@ -475,9 +521,10 @@ export function ArenaStage({
       } else {
         // `act` has committed the human action. Start the separate AI request
         // without holding the action transition open, so the board acknowledges
-        // the move before the opponent finishes thinking.
+        // the move before the opponent finishes thinking. It goes on the next
+        // commit, which has drawn the move's result (and any notice in it).
         asked.current = false;
-        launchAdvance();
+        setAdvanceAsk((n) => n + 1);
       }
     });
   };
@@ -1169,6 +1216,7 @@ export function ArenaStage({
                   cards={view.them.battle.filter((c) => !lifted.has(c.id))}
                   cardProps={cardProps}
                   zone="p2:battle"
+                  them
                   label={`${view.them.name}'s Battle Area`}
                   active={!acting}
                   lifted={lifted}
@@ -1428,6 +1476,18 @@ export function ArenaStage({
             </MenuSection>
             <MenuSection title="Reference">
               <div className="space-y-2">
+                {/* Below lg the hand's toolbar is gone (#783): the public zones open from here. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setZonesOpen(true);
+                  }}
+                  className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden"
+                  aria-label="Inspect public zones"
+                >
+                  Zones: Drop, Warp, Z-Deck, Z-Energy
+                </button>
                 <ReferenceCounts side={view.you} />
                 <ReferenceCounts side={view.them} />
               </div>
@@ -1461,6 +1521,8 @@ export function ArenaStage({
             onDismiss={() => setEndDismissed(true)}
           />
         )}
+
+        {notice && <QuietNotice key={notice.n} quiet={notice} viewer={view.you.player} them={view.them.name} onOk={() => acknowledge(notice.n)} />}
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />
 
