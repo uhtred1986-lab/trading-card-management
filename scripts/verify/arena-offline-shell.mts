@@ -162,6 +162,12 @@ await check("1. sw.js and shell.ts agree on names, paths and isShellAsset", () =
     assert.equal(v(`isShellAsset(${JSON.stringify(p)})`), isShellAsset(p), p);
   }
   assert.equal(isShellAsset("/collection") || isShellAsset("/api/cards") || isShellAsset("/arena/offline") || isShellAsset("/_next/image"), false);
+  // #810: a production build includes an optional map that Vercel answers 403.
+  // The manifest uses this filter; both validators must keep the runtime files and omit maps.
+  const outputs = ["/_next/static/immutable/chunks/worker.js", "/_next/static/immutable/chunks/worker.js.map", "/_next/static/chunks/app.css", "/_next/static/chunks/app.css.map", "/_next/static/media/font.woff2"];
+  const runtime = [outputs[0], outputs[2], outputs[4]];
+  assert.deepEqual(outputs.filter(isShellAsset), runtime);
+  assert.deepEqual(outputs.filter(p => v(`isShellAsset(${JSON.stringify(p)})`)), runtime);
 });
 
 // 2. a good install

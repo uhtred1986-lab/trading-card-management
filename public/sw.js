@@ -58,6 +58,8 @@ const ART_HOSTS = new Set(["storage.googleapis.com", "www.dbs-cardgame.com", "tc
 /** `isShellAsset` of `shell.ts`: the build's public static files, the manifest and its icons. Never a page, an API or a query. */
 function isShellAsset(path) {
   if (typeof path !== "string" || !path.startsWith("/") || path.includes("?") || path.includes("#") || path.includes("..") || path.includes("//")) return false;
+  // Keep in sync with shell.ts: source maps are debugging metadata, not required game assets (#810).
+  if (path.endsWith(".map")) return false;
   return path.startsWith("/_next/static/") || /^\/icons\/[\w.-]+$/.test(path) || path === "/manifest.webmanifest";
 }
 
