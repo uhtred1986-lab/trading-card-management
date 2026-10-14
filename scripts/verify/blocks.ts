@@ -42,6 +42,9 @@ import {
   filterFieldsSet,
   flagOn,
   howMany,
+  howManyOptions,
+  howManyValue,
+  writeHowMany,
   ifChoices,
   insertAt,
   moveAt,
@@ -290,6 +293,21 @@ THEN
   }
   const sel: Selector = { side: "you", area: "deck" };
   for (const how of ["count", "upTo", "take", "all", "any"] as const) assert.equal(howMany(setHowMany(sel, how)), how, `how many: ${how}`);
+  // #820: the selector's count chip must expose both printed bounds, and
+  // the editor must remove the old floor when the user changes count mode.
+  const range: Selector = { side: "you", area: "life", count: 2, minCount: 1 };
+  assert.equal(howMany(range), "range");
+  assert.equal(howManyValue(range), "range:1:2");
+  assert.deepEqual(howManyOptions(range).find((o) => o.value === howManyValue(range)), { value: "range:1:2", label: "1 to 2" });
+  assert.deepEqual(writeHowMany(range, howManyValue(range)), range, "selecting the current range retains both bounds");
+  trip(ruleOf({ ops: [{ op: "choose", sel: range, as: "life" }] }), "bounded Life selector through blocks");
+  for (const value of ["count:1", "upTo:2", "take:2:end", "all", "any"]) {
+    const edited = writeHowMany(range, value);
+    assert.equal(edited.minCount, undefined, `${value}: changing the count chip clears its old floor`);
+    assert.equal(howManyValue(edited), value);
+    trip(ruleOf({ ops: [{ op: "choose", sel: edited, as: "life" }] }), `range changed to ${value}`);
+  }
+  assert.equal(range.minCount, 1, "editing a copy leaves the original bounded rule intact");
   const f = setFilterField(undefined, "colors", ["Red"]);
   assert.deepEqual(filterFieldsSet(f), ["colors"]);
   assert.deepEqual(filterFieldsSet(setFilterField(f, "colors", undefined)), [], "a dropped field is back at rest");

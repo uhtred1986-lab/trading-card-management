@@ -39,6 +39,8 @@ import {
   filterOptions,
   flagOn,
   howMany,
+  howManyValue,
+  howManyOptions,
   insertAt,
   layoutOf,
   moveAt,
@@ -55,14 +57,13 @@ import {
   setAt,
   setFilterField,
   setFlag,
-  setHowMany,
+  writeHowMany,
   triggerReading,
   whenChoices,
   type BoundCmp,
   type Choice,
   type CostItem,
   type CostSyntax,
-  type HowMany,
   type Layout,
   type Problem,
 } from "@/lib/arena/lang/blocks";
@@ -798,38 +799,6 @@ function RefChip({ value, path, optional, bad, onChange, rule }: { value: Loose 
   );
 }
 
-/** How many, as one chip: a choice of N, up to N, the top N, all, or nothing said. */
-function howManyValue(sel: Selector): string {
-  const how = howMany(sel);
-  if (how === "count") return `count:${sel.count}`;
-  if (how === "upTo") return `upTo:${sel.count}`;
-  if (how === "take") return `take:${sel.take}${sel.fromEnd ? ":end" : ""}`;
-  return how;
-}
-const HOW_OPTIONS = (sel: Selector): { value: string; label: string }[] => {
-  const out = [
-    { value: "any", label: "any number of" },
-    ...NUMBERS.slice(1, 7).map((n) => ({ value: `count:${n}`, label: String(n) })),
-    ...NUMBERS.slice(1, 5).map((n) => ({ value: `upTo:${n}`, label: `up to ${n}` })),
-    ...NUMBERS.slice(1, 4).map((n) => ({ value: `take:${n}`, label: `the top ${n}` })),
-    ...NUMBERS.slice(1, 3).map((n) => ({ value: `take:${n}:end`, label: `the bottom ${n}` })),
-    { value: "all", label: "all" },
-  ];
-  const cur = howManyValue(sel);
-  if (!out.some((o) => o.value === cur)) out.push({ value: cur, label: cur.replace(/^count:/, "").replace(/^upTo:/, "up to ").replace(/^take:(\d+):end/, "the bottom $1").replace(/^take:/, "the top ") });
-  return out;
-};
-function writeHowMany(sel: Selector, v: string): Selector {
-  const [how, n, end] = v.split(":");
-  const next = setHowMany(sel, how as HowMany);
-  if (how === "count" || how === "upTo") next.count = Number(n);
-  if (how === "take") {
-    next.take = Number(n);
-    if (end) next.fromEnd = true;
-  }
-  return next;
-}
-
 /**
  * A selector as a phrase: `[how many] [blue ▾] [Battle Cards ▾] in [your ▾]
  * [Drop Area ▾]`, its flags as chips once set, and the rest behind "…".
@@ -867,7 +836,7 @@ function SelectorPhrase({ value, path, bad, onChange, rule, inCond }: { value: S
     <>
       {how !== "any" && (
         <Sel aria-label="how many" value={howManyValue(sel)} onChange={(e) => onChange(writeHowMany(sel, e.target.value))}>
-          {HOW_OPTIONS(sel).map((o) => (
+          {howManyOptions(sel).map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
@@ -894,7 +863,7 @@ function SelectorPhrase({ value, path, bad, onChange, rule, inCond }: { value: S
           <label className="flex flex-wrap items-center gap-2">
             how many
             <Sel aria-label="how many (all choices)" value={howManyValue(sel)} onChange={(e) => onChange(writeHowMany(sel, e.target.value))}>
-              {HOW_OPTIONS(sel).map((o) => (
+              {howManyOptions(sel).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>

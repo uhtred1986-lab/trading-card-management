@@ -380,12 +380,13 @@ export function setFlag(sel: Selector, word: string, on: boolean): Selector {
   return next as Selector;
 }
 
-/** How many a selector takes, as one choice: a choice of N, up to N, the top N, all of them, or nothing said. */
-export type HowMany = "any" | "count" | "upTo" | "take" | "all";
+/** How many a selector takes: exact, bounded, up to, positional, all, or unspecified. */
+export type HowMany = "any" | "count" | "range" | "upTo" | "take" | "all";
 /** "All" is the language's own `99` (`describeSelector` reads it as "all"). */
 export const ALL = 99;
 
 export function howMany(sel: Selector): HowMany {
+  if (sel.minCount !== undefined) return "range";
   if (sel.take !== undefined) return "take";
   if (sel.count === undefined) return "any";
   if (sel.count === ALL && !sel.upTo) return "all";
@@ -397,12 +398,51 @@ export function setHowMany(sel: Selector, how: HowMany): Selector {
   const next: Selector = { ...sel };
   delete next.count;
   delete next.upTo;
+  delete next.minCount;
   delete next.take;
   delete next.fromEnd;
   if (how === "count") next.count = n;
+  if (how === "range") Object.assign(next, { minCount: sel.minCount ?? 1, count: Math.max(n, sel.minCount ?? 1) });
   if (how === "upTo") Object.assign(next, { count: n, upTo: true });
   if (how === "take") next.take = n;
   if (how === "all") next.count = ALL;
+  return next;
+}
+
+/** The count chip uses these same values for its inline and expanded menus. */
+export function howManyValue(sel: Selector): string {
+  const how = howMany(sel);
+  if (how === "range") return `range:${sel.minCount}:${sel.count}`;
+  if (how === "count") return `count:${sel.count}`;
+  if (how === "upTo") return `upTo:${sel.count}`;
+  if (how === "take") return `take:${sel.take}${sel.fromEnd ? ":end" : ""}`;
+  return how;
+}
+
+export function howManyOptions(sel: Selector): { value: string; label: string }[] {
+  const numbers = Array.from({ length: 7 }, (_, i) => i);
+  const out = [
+    { value: "any", label: "any number of" },
+    ...numbers.slice(1, 7).map((n) => ({ value: `count:${n}`, label: String(n) })),
+    ...numbers.slice(1, 5).map((n) => ({ value: `upTo:${n}`, label: `up to ${n}` })),
+    ...numbers.slice(1, 4).map((n) => ({ value: `take:${n}`, label: `the top ${n}` })),
+    ...numbers.slice(1, 3).map((n) => ({ value: `take:${n}:end`, label: `the bottom ${n}` })),
+    { value: "all", label: "all" },
+  ];
+  const cur = howManyValue(sel);
+  if (!out.some((o) => o.value === cur)) out.push({ value: cur, label: cur.replace(/^range:(\d+):(\d+)$/, "$1 to $2").replace(/^count:/, "").replace(/^upTo:/, "up to ").replace(/^take:(\d+):end/, "the bottom $1").replace(/^take:/, "the top ") });
+  return out;
+}
+
+export function writeHowMany(sel: Selector, value: string): Selector {
+  const [how, n, end] = value.split(":");
+  const next = setHowMany(sel, how as HowMany);
+  if (how === "range") Object.assign(next, { minCount: Number(n), count: Number(end) });
+  if (how === "count" || how === "upTo") next.count = Number(n);
+  if (how === "take") {
+    next.take = Number(n);
+    if (end) next.fromEnd = true;
+  }
   return next;
 }
 
