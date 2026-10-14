@@ -65,12 +65,20 @@ whole-step p95 must be at most 30 ms, max at most 300 ms, retained heap at most
 These use the O1/O4 worker budgets in `docs/arena-worker-budgets.md` and the existing
 5 ms policy allowance. A useful tactical result alone cannot promote a difficulty.
 
+The gate is also present in the committed first dev report, generated before
+holdouts. Immediately before the first holdout invocation, the session recorded
+the original evaluator SHA-256
+`d6eac7cefdd66eefb9ba4c748080a9ef924605926967ab26e001156bbc5415a4`
+and frozen candidate hash. Later evaluator edits only compact the evidence and
+add explicit seeds/source hashes; the gate and candidate remain unchanged.
+
 Every deal is played from both seats. Engine seeds use the committed #651 ranges;
 policy seeds are independent of them. Development uses indices 0–1. The final
 holdout uses **indices 0–9 at the reserved +10,000,000 offset**, across all four
 ordered SD15/SD5 matchups, once after freezing the candidate. There is no tuning
 against these holdout results. All failures, unfinished games, stop details,
-decision timings and traces are retained in the committed JSON, never scored as
+per-game/per-window timing distributions and decision/event trace hashes are
+retained in the committed JSON, never scored as
 draws or removed. Per-seat win/completion/illegal Wilson intervals are in that
 report. Memory readings from Node include the engine, bundles and accumulated
 report and are labelled accordingly; they are not compared to a browser heap cap.

@@ -5,6 +5,7 @@
  * report; a negative experiment exits 0, a legality/privacy failure exits 1.
  */
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { loadAuditFixtures, loadFixtures } from "./verify/arena-policy-fixtures.mts";
 import { playDuel, quantile, wilson, type DuelResult } from "./verify/arena-policy-duel.ts";
@@ -112,20 +113,28 @@ const strengthEligible = !args.includes("--synthetic") && selected.length === 4 
   && records.every((r) => r.result.over && r.result.stopKind !== "illegal");
 const report = {
   experiment: "O5 attack sequences", candidateVersion: SEARCH_VERSION, limits: SEARCH_LIMITS,
+  candidateSourceSha256: createHash("sha256").update(fs.readFileSync("src/lib/arena/policy/search.ts")).digest("hex"),
   frozenBaseline: { main: MAIN_POLICY_VERSION, combat: COMBAT_POLICY_VERSION, choices: CHOICE_POLICY_VERSION },
   seedSet: setName, seedsPerFixture: seeds, synthetic: args.includes("--synthetic"), gate: STRENGTH_GATE,
   privacyChecks, nontrivialTwins, rows, strengthEligible,
   difficultyEnabled: false, promotion: "Browser budget evidence and the full strength gate must both pass before any UI/save configuration is shipped.",
   memoryMethod: "Node heapUsed immediately after each game includes the engine, bundle and accumulated report; not peak search memory or browser retained heap. Search reservation is a structural estimate.",
   // Complete records preserve failed runs and their exact stop detail.
-  records,
+  records: records.map(({ result, policyMs, ...record }) => ({
+    ...record,
+    gameSeed: gameSeed(set, selected.find((f) => f.name === record.fixture)!.seed, record.k),
+    policySeed: 7919 + record.k * 2 + (record.seat === "p2" ? 1 : 0),
+    result: { ...result, stepMs: dist(result.stepMs), steps: Object.fromEntries([...new Set(result.steps.map((s) => `${s.role}/${s.window}`))].sort().map((key) =>
+      [key, dist(result.steps.filter((s) => `${s.role}/${s.window}` === key).map((s) => s.ms))])) },
+    policyMs: dist(policyMs),
+  })),
 };
 const out = flag("--out", "");
 if (out) {
   const { records: gameRecords, ...summary } = report;
-  // Keep summary reviewable and one complete game per line. All timing samples
-  // and failures remain present; pretty-printing them adds ~110k empty structure
-  // lines to the 80-game evidence without adding information.
+  // Keep summary reviewable and one game outcome/trace/timing summary per line.
+  // Every failed game remains present; raw individual timing samples are not
+  // needed to review strength, legality or a per-window distribution.
   const head = JSON.stringify(summary, null, 2).slice(0, -2);
   fs.writeFileSync(out, `${head},\n  "records": [\n${gameRecords.map((r) => `    ${JSON.stringify(r)}`).join(",\n")}\n  ]\n}\n`);
 }
