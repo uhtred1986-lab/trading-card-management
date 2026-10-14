@@ -18,7 +18,7 @@ import { useMatchOnScreen } from "@/lib/match-screen";
  * the first paint and never flashes in and out.
  */
 /** The whole-screen board's frame: no chrome, the insets handled here. */
-const BLEED = "flex min-h-dvh w-full flex-col px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]";
+const BLEED = "flex min-h-dvh w-full flex-col pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]";
 
 /** `isSl`: an SL (or local dev) gets Settings in the navigation; a player gets their own page instead. */
 export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: boolean }) {
@@ -27,7 +27,7 @@ export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: 
   const matchOnScreen = useMatchOnScreen();
 
   // The sign-in and join pages have nowhere to go yet: no header, no tabs.
-  if (pathname === "/login" || pathname === "/join") return <main className="flex min-h-dvh w-full flex-col px-4">{children}</main>;
+  if (pathname === "/login" || pathname === "/join") return <main className="flex min-h-dvh w-full flex-col app-safe-x pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">{children}</main>;
 
   if (isFullBleed(pathname)) {
     return (
@@ -50,8 +50,8 @@ export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: 
   // remounted.
   return (
     <>
-      {matchOnScreen ? null : <header className={`sticky top-0 z-20 border-b border-space-700/70 bg-space-950/85 backdrop-blur${shell ? " max-sm:hidden" : ""}`}>
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+      {matchOnScreen ? null : <header className={`sticky top-0 z-20 pt-[env(safe-area-inset-top)] border-b border-space-700/70 bg-space-950/85 backdrop-blur${shell ? " max-sm:hidden" : ""}`}>
+        <div className="mx-auto flex max-w-7xl items-center gap-4 app-safe-x py-3">
           <Link href="/" className="tap flex items-center gap-2">
             <span className="text-lg font-semibold tracking-tight text-ki-400">DBS</span>
             <span className="hidden text-xs uppercase tracking-widest text-space-300 min-[420px]:inline">Card Companion</span>
@@ -70,8 +70,8 @@ export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: 
 
       {/* Extra bottom padding clears the phone tab bar; it collapses at `sm`. */}
       <main
-        className={matchOnScreen ? BLEED : `mx-auto w-full max-w-7xl flex-1 px-4 sm:pb-8 sm:pt-5 ${
-          shell ? "pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]" : "pb-24 pt-5"
+        className={matchOnScreen ? BLEED : `mx-auto w-full max-w-7xl flex-1 app-safe-x sm:pb-8 sm:pt-5 ${
+          shell ? "pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]" : "pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5"
         }`}
         style={matchOnScreen ? { overscrollBehavior: "none" } : undefined}
       >

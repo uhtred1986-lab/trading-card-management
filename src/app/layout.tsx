@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   title: "DBS Card Companion",
   description: "Collection, decks, prices and AI analysis for the Dragon Ball Super Card Game.",
   manifest: "/manifest.webmanifest",
+  icons: { apple: { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" } },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "DBS Arena" },
 };
 
