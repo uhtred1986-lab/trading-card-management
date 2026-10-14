@@ -21,6 +21,9 @@ const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const dbs = loaded.definition;
 const defs = { ...DEFS,
+  // Full printed BT8-025 line, read from the production catalog on 15 Oct 2026.
+  "BT8-025": card("BT8-025", { name: "Kaio-Ken Son Goku, Strenuous Onslaught", colors: ["Blue"], energyCost: 3, power: 15000, characters: ["Son Goku"], traits: ["Saiyan"], skill: "[Auto] Choose 1 or 2 cards in your life and add them to your hand: When you play this card, it gets +5000 power for the duration of the turn, and at the start of your opponent's next Main Phase, choose up to 1 of your energy and switch it to Active Mode." }),
+  RANGE549: card("RANGE549", { energyCost: 0, skill: "[Auto] Choose 1 or 2 cards in your life and add them to your hand: When you play this card, draw 1 card." }),
   A549: card("A549", { energyCost: 0, skill: "[Auto] {r}: When you play this card, draw 1 card." }),
   B549: card("B549", { energyCost: 0, skill: "[Auto] {r}: When you play this card, draw 2 cards." }),
   ACTION549: card("ACTION549", { energyCost: 0, skill: "[Auto] Choose 1 card in your hand and place it in its owner's Drop Area: When you play this card, draw 1 card." }),
@@ -1358,4 +1361,52 @@ console.log("auto-costs-549: fixed payment, decline, unaffordable, reload, sourc
     assert.equal(canFinishAutomaticPrice(ctx, dbs, a.state, frame), true,
       "hint-only ordering preserves the all-area source and replays a complete legal payment");
   } finally { scripts.PERM549.bySkill[0] = old; }
+}
+
+// #820's bounded selector also occurs before the colon: a one-or-two
+// Life payment is affordable with one Life and may stop at one with more.
+// Unlike an effect, a cost cannot take fewer than its printed minimum.
+for (const [available, paid] of [[3, 1], [3, 2], [1, 1], [0, 0]] as const) {
+  let s = main();
+  while (s.sides.p1.zones.life.length > available) assert.ok(moveCard(s, dbs, s.sides.p1.zones.life.at(-1)!, "deck").ok);
+  const source = stage(s, "RANGE549");
+  const life = [...s.sides.p1.zones.life];
+  const ev = pend(s, source);
+  if (!available) {
+    assert.notEqual(s.prompt.kind, "chooseMode", "a bounded price cannot be offered with zero Life");
+    assert.equal(draws(ev), 0);
+    continue;
+  }
+  assert.equal(s.prompt.kind, "chooseMode", "one Life suffices to offer the bounded price");
+  const declined = answer(s, declines(s));
+  assert.equal(declined.state.sides.p1.zones.life.length, available);
+  assert.equal(draws(declined.events), 0);
+  const beforeHand = s.sides.p1.zones.hand.length;
+  let result = answer(s, 0);
+  const events = [...result.events]; s = result.state;
+  if (available > 1) {
+    assert.equal(s.prompt.kind, "chooseCards");
+    assert.throws(() => choose(s, []), "paying zero cannot satisfy the floor");
+    result = choose(s, [life[0]]); events.push(...result.events); s = result.state;
+    result = choose(s, paid === 1 ? [] : [life[1]]); events.push(...result.events); s = result.state;
+  }
+  assert.equal(s.sides.p1.zones.life.length, available - paid, "the paid count is the chosen one, not always the ceiling");
+  assert.equal(draws(events), 1, "the effect runs only after a complete bounded payment");
+  assert.equal(s.sides.p1.zones.hand.length, beforeHand + paid + 1);
+}
+console.log("  #820 bounded Auto Life payment: one/two, decline, one available and zero unavailable passed");
+
+// The full printed BT8-025 Auto retains its power and delayed-energy effect;
+// the same payment flow is exercised through reloaded engine states above.
+for (const paid of [1, 2]) {
+  let s = main(); const source = stage(s, "BT8-025");
+  const life = [...s.sides.p1.zones.life]; const before = life.length;
+  pend(s, source);
+  assert.equal(s.prompt.kind, "chooseMode");
+  s = answer(s, 0).state;
+  s = choose(s, [life[0]]).state;
+  assert.ok(!s.effects.some((e) => e.target === source && e.kind === "power"), "power waits for the complete price");
+  s = choose(s, paid === 1 ? [] : [life[1]]).state;
+  assert.equal(s.sides.p1.zones.life.length, before - paid);
+  assert.ok(s.effects.some((e) => e.target === source && e.kind === "power" && e.value === 5000), "either printed count pays the power effect");
 }

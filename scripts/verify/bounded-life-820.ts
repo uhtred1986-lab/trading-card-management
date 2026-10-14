@@ -16,7 +16,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { vmHost } from "../../src/lib/arena/vm/host";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
-import { describeScript, stepScript, validateProgram, type Op, type ScriptFrame } from "../../src/lib/arena/vm/script";
+import { canMakeOffer, describeScript, stepScript, validateProgram, type Op, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, EngineContext, PlayerId } from "../../src/lib/arena/types";
 
@@ -174,3 +174,13 @@ for (const leader of ["LEADER820-WRONG", "LEADER820-NOTARMY"] as const) {
   assert.ok(b.s.sides.p1.zones.hand.includes(b.broly));
 }
 console.log("  ok  #820 BT6-063: complete printed skill, one/two Life, floor, order, correct hand target, reload/privacy");
+
+// Authored voluntary replacement programs use the same bounded selector:
+// offering one-or-two needs one available card, while exact-two still needs two.
+for (const available of [0, 1, 2]) {
+  const choice = { source: "replacement820", optional: true, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 2, minCount: 1 }, as: "paid" }] as Op[] };
+  const resolve = () => Array.from({ length: available }, (_, i) => `candidate-${i}`);
+  assert.equal(canMakeOffer(choice, "target820", "p1", resolve), available >= 1);
+  const exact = { ...choice, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 2 }, as: "paid" }] as Op[] };
+  assert.equal(canMakeOffer(exact, "target820", "p1", resolve), available >= 2);
+}

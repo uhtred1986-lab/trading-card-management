@@ -92,7 +92,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
           found = found.filter((id) => host.areaOf(id) === "life" && host.isFaceUp(id) !== (next.faceUp ?? true));
         const picked = f.awaiting === op.as ? f.vars[op.as] ?? [] : [];
         const all = [...new Set([...found, ...picked])];
-        if (!sel.upTo && op.atMost === undefined && selectedCount(sel, all, host.nameOf) < (sel.count ?? 1)) unpaid();
+        if (!sel.upTo && op.atMost === undefined && selectedCount(sel, all, host.nameOf) < (sel.minCount ?? sel.count ?? 1)) unpaid();
       }
       if (op?.op === "reveal" && op.sel === sel && selectedCount(sel, found, host.nameOf) < (sel.count ?? 1)) unpaid();
       return found;
@@ -128,7 +128,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         && (found.length !== 1 || found.some((id) => !state.cards[id] || !inPlayZones(game).includes(host.areaOf(id) ?? "")))) unpaid();
       if ("var" in ref) {
         const chosen = f.ops.slice(0, f.ip).findLast((o) => o.op === "choose" && o.as === ref.var);
-        if (chosen?.op === "choose" && !chosen.sel.upTo && chosen.atMost === undefined && selectedCount(chosen.sel, f.vars[ref.var] ?? [], host.nameOf) < (chosen.sel.count ?? 1)) unpaid();
+        if (chosen?.op === "choose" && !chosen.sel.upTo && chosen.atMost === undefined && selectedCount(chosen.sel, f.vars[ref.var] ?? [], host.nameOf) < (chosen.sel.minCount ?? chosen.sel.count ?? 1)) unpaid();
       }
       if (["moveTo", "switchMode", "hidden", "removeMarker"].includes(op?.op) && !found.length && !("var" in ref && f.vars[ref.var]?.length === 0)) unpaid();
       return found;
@@ -536,7 +536,7 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
    * because a `moveTo` instruction follows it. */
   const surelyPaid = (op: Op, prior: Op | undefined): boolean => {
     const mandatoryPick = (target: Ref): boolean => prior?.op === "choose" && "var" in target && target.minus === undefined
-      && target.var === prior.as && Number.isInteger(prior.sel.count ?? 1) && (prior.sel.count ?? 1) > 0
+      && target.var === prior.as && Number.isInteger(prior.sel.count ?? 1) && (prior.sel.minCount ?? prior.sel.count ?? 1) > 0
       && !prior.sel.upTo && prior.atMost === undefined;
     if (op.op === "moveTo" && op.to !== "play") {
       if ("sel" in op.target) return true; // The strict host refuses no target or a failed departure.
@@ -560,7 +560,7 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
     if (prior?.op !== "choose" || !("var" in op.target) || op.target.var !== prior.as || Object.keys(op.target).some((key) => key !== "var")) return false;
     const sel = prior.sel;
     return sel.side === "you" && (sel.area === "battle" || sel.area === "play") && !sel.areas?.length && !sel.special && !sel.fromVar
-      && Number.isInteger(sel.count ?? 1) && (sel.count ?? 1) > 0 && !sel.upTo && prior.atMost === undefined
+      && Number.isInteger(sel.count ?? 1) && (sel.minCount ?? sel.count ?? 1) > 0 && !sel.upTo && prior.atMost === undefined
       && (!prior.chooser || prior.chooser === "you");
   };
   /** "Add N markers to this card" with a printed positive N (BT31). */

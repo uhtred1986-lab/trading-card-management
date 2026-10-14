@@ -1436,7 +1436,7 @@ export function canMakeOffer(c: ReplacementChoice, id: string, master: PlayerId,
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: c.source, master: c.master ?? master, subject: id, replacing: id, offered: true };
   for (const op of c.ops) {
     if (op.op !== "choose" || op.sel.fromVar || op.atMost !== undefined || op.sumTo !== undefined) continue;
-    const want = op.sel.count ?? 1;
+    const want = op.sel.minCount ?? op.sel.count ?? 1;
     if (op.sel.upTo && !owedInFull(frame, op)) continue;
     // "All" is spelled as a large count; it takes what there is (5-2-5).
     if (want >= 99) continue;
