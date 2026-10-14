@@ -3419,3 +3419,195 @@ html[data-skin="anime"] body::before {
   margin-top: 4px;
   color: #d7ddf2;
 }
+
+/* Issue #796: let the sky breathe on phones. Keep this treatment on the sky
+   Arena only; the desktop board and a pinned night board retain their current
+   chrome. */
+@media (max-width: 639px) {
+  [data-skin="anime"].arena {
+    --arena-glass: rgba(255, 255, 255, 0.62);
+    --arena-glass-strong: rgba(255, 255, 255, 0.9);
+    --arena-soft-shadow: 0 4px 16px rgba(18, 22, 31, 0.12);
+    --arena-hairline: rgba(18, 22, 31, 0.14);
+  }
+
+  [data-skin="anime"].arena .arena-topbar,
+  [data-skin="anime"].arena .arena-phases {
+    background: transparent;
+    border-bottom: 0;
+  }
+
+  [data-skin="anime"].arena .arena-speed {
+    background: var(--arena-glass);
+    border: 0;
+    box-shadow: none;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  [data-skin="anime"].arena .arena-turnpill {
+    box-shadow:
+      0 0 0 2px var(--ink),
+      0 4px 14px color-mix(in srgb, var(--turn-tint) 45%, transparent);
+  }
+
+  [data-skin="anime"].arena .arena-phase {
+    color: rgba(18, 22, 31, 0.55);
+  }
+
+  [data-skin="anime"].arena .arena-phase-on {
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--turn-tint) 50%, transparent);
+  }
+
+  [data-skin="anime"].arena .arena-edge {
+    box-shadow: inset 0 3px 0 var(--turn-tint), inset 0 -3px 0 var(--turn-tint);
+  }
+
+  [data-skin="anime"].arena .arena-pstrip {
+    background: var(--arena-glass);
+    border: 0;
+    border-radius: 14px;
+    box-shadow: var(--arena-soft-shadow);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  [data-skin="anime"].arena .arena-row-on::before {
+    background: radial-gradient(60% 90% at 30% 50%, rgba(255, 255, 255, 0.55), transparent 75%);
+    box-shadow: none;
+  }
+
+  [data-skin="anime"].arena .arena-lanepill {
+    background: var(--arena-glass-strong);
+    box-shadow: var(--arena-soft-shadow);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  [data-skin="anime"].arena .arena-lanepill-dot {
+    box-shadow: none;
+  }
+
+  [data-skin="anime"].arena .arena-fight,
+  [data-skin="anime"].arena .arena-notice,
+  [data-skin="anime"].arena .arena-logpop {
+    background: var(--arena-glass-strong);
+    box-shadow: var(--arena-soft-shadow);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  [data-skin="anime"].arena .arena-bar {
+    background: var(--arena-glass-strong);
+    border-top: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -6px 20px rgba(18, 22, 31, 0.1);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  [data-skin="anime"].arena :is(button, a).tap:is(.rounded-md, .rounded-lg, .rounded-xl) {
+    border: 1px solid var(--arena-hairline);
+    box-shadow: none;
+  }
+
+  [data-skin="anime"].arena :is(button, a).tap:is(.rounded-md, .rounded-lg, .rounded-xl):active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  [data-skin="anime"].arena .arena-bar button.arena-btn.bg-ki-500,
+  [data-skin="anime"].arena .arena-notice button.arena-btn.bg-ki-500 {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px var(--ink), 0 4px 12px rgba(242, 113, 28, 0.35);
+  }
+
+  [data-skin="anime"].arena .arena-bar button.arena-btn.bg-ki-500:active,
+  [data-skin="anime"].arena .arena-notice button.arena-btn.bg-ki-500:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 0 2px var(--ink), 0 2px 8px rgba(242, 113, 28, 0.3);
+  }
+
+  [data-skin="anime"].arena .arena-acting,
+  [data-skin="anime"].arena .arena-clash-combo {
+    box-shadow: inset 0 0 0 1px var(--arena-hairline);
+  }
+
+  [data-skin="anime"].arena .arena-clash-combo {
+    background: rgba(47, 111, 224, 0.12);
+  }
+
+  [data-skin="anime"].arena .arena-clash-combo-pending {
+    outline: 1px dashed var(--arena-hairline);
+  }
+
+  [data-skin="anime"].arena .arena-cost {
+    border: 1px solid var(--arena-hairline);
+  }
+
+  [data-skin="anime"].arena .arena-slot {
+    border-color: var(--arena-hairline);
+  }
+
+  [data-skin="anime"].arena .arena-tip {
+    background: var(--arena-glass-strong);
+    box-shadow: var(--arena-soft-shadow);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  [data-skin="anime"].arena .arena-card {
+    box-shadow: 0 2px 5px rgba(18, 22, 31, 0.28);
+  }
+
+  @keyframes arena-ki-soft {
+    0%,
+    100% {
+      box-shadow:
+        0 2px 5px rgba(18, 22, 31, 0.28),
+        0 0 0 3px var(--ki-gold),
+        0 0 14px 3px rgba(255, 193, 40, 0.7);
+    }
+    50% {
+      box-shadow:
+        0 2px 5px rgba(18, 22, 31, 0.28),
+        0 0 0 3px #fff0b8,
+        0 0 26px 9px rgba(255, 193, 40, 0.95);
+    }
+  }
+
+  [data-skin="anime"].arena .arena-ring-legal {
+    box-shadow:
+      0 2px 5px rgba(18, 22, 31, 0.28),
+      0 0 0 3px var(--ki-gold),
+      0 0 18px 5px rgba(255, 193, 40, 0.85);
+    animation: arena-ki-soft 1.5s ease-in-out infinite;
+  }
+
+  [data-skin="anime"].arena [aria-label="Your hand"] .arena-ring-legal {
+    animation: none;
+    box-shadow:
+      0 2px 5px rgba(18, 22, 31, 0.28),
+      0 0 0 2px var(--ki-gold),
+      0 0 9px 2px rgba(255, 193, 40, 0.5);
+  }
+
+  [data-skin="anime"].arena .arena-ring-selected,
+  [data-skin="anime"].arena .arena-ring-attacker {
+    box-shadow:
+      0 2px 5px rgba(18, 22, 31, 0.28),
+      0 0 0 4px #fff0b8,
+      0 0 34px 12px rgba(255, 193, 40, 1);
+  }
+
+  [data-skin="anime"].arena .arena-ring-guard {
+    box-shadow:
+      0 2px 5px rgba(18, 22, 31, 0.28),
+      0 0 0 3px #ff3b30,
+      0 0 20px 6px rgba(255, 59, 48, 0.8);
+  }
+
+  [data-skin="anime"].arena .arena-ghost {
+    box-shadow: 0 2px 5px rgba(18, 22, 31, 0.28);
+  }
+}
