@@ -145,9 +145,13 @@ try {
     assert.equal(journal.header.decks[human], test.mine);
     assert.equal(journal.header.decks[human === "p1" ? "p2" : "p1"], test.theirs);
     assert.equal(journal.header.revision, final.snapshot.game.revision);
+    await clickText(page, "Skip");
+    await until(page, `!!document.querySelector('.arena-end[role="dialog"]')`, 30_000);
+    const endTitle = await page.eval<string>(`document.querySelector('.arena-end-title')?.textContent`);
+    assert.equal(endTitle, final.snapshot.over.winner === human ? "VICTORY" : "DEFEAT");
     const filename = `match-${index + 1}-${test.mine}-${test.theirs}-${test.seat.toLowerCase()}.png`;
     await screenshot(page, filename);
-    (report.matches as unknown[]).push({ ...test, matchId: final.matchId, header: journal.header, outcome: final.snapshot.over, packFacts: final.packFacts, screenshot: filename });
+    (report.matches as unknown[]).push({ ...test, matchId: final.matchId, header: journal.header, outcome: final.snapshot.over, endTitle, packFacts: final.packFacts, screenshot: filename });
     fs.writeFileSync(path.join(output, "report.json"), JSON.stringify(report, null, 2));
     console.log(`${index + 1}/8 ${test.mine} vs ${test.theirs}, ${test.seat}: over at revision ${final.snapshot.game.revision}`);
   }
