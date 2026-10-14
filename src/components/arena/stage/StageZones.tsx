@@ -14,6 +14,7 @@ import { energySummary } from "./stakes-model";
 import type { FeedbackLifeCue } from "./useFeedbackCues";
 
 export type CardProps = (c: CardView) => {
+  layoutMotion?: boolean;
   card: CardView;
   state: CardState;
   suppressed: boolean;

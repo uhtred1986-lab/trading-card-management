@@ -58,6 +58,7 @@ export function StageCard({
   pulse = false,
   unaffordable = false,
   feedback = null,
+  layoutMotion = true,
 }: {
   card: CardView;
   state?: CardState;
@@ -89,11 +90,13 @@ export function StageCard({
   unaffordable?: boolean;
   /** A short public beat cue attached to this card's instance id. */
   feedback?: FeedbackCardCue | null;
+  /** Phone feedback uses explicit beat flights/cues; avoid full-board FLIP measurements. */
+  layoutMotion?: boolean;
 }) {
   return (
     <motion.div
-      layoutId={card.id}
-      layout
+      layoutId={layoutMotion ? card.id : undefined}
+      layout={layoutMotion}
       transition={SPRING}
       // Hidden rather than unmounted: the layout animation needs both ends to
       // exist, and the row must not reflow when the card appears.

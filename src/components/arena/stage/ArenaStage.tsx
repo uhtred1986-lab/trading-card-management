@@ -1080,6 +1080,7 @@ export function ArenaStage({
   );
 
   const cardProps = (c: CardView) => ({
+    layoutMotion: wide && !still,
     feedback: feedback.cards[c.id] ?? null,
     card: c,
     state: stateOf(c.id),
