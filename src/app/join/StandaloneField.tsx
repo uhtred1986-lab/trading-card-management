@@ -8,7 +8,8 @@ const noSubscription = () => () => {};
 export function StandaloneField() {
   const standalone = useSyncExternalStore(
     noSubscription,
-    () => window.matchMedia("(display-mode: standalone)").matches,
+    () => window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true,
     () => false,
   );
   return <input type="hidden" name="standalone" value={standalone ? "1" : "0"} />;

@@ -9,7 +9,7 @@ export function BottomTabs() {
   const pathname = usePathname();
   return (
     <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t border-space-700 bg-space-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-5 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         {PHONE_NAV_ITEMS.map((item) => {
           const active = isActive(pathname, item.href);
           return (
