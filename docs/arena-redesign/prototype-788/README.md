@@ -89,6 +89,16 @@ Playable · Counters**. Scenes `bighand` and `bighandView`.
 | Reduced motion | The device setting, or ☰ → **Motion: reduced**: no movement. The defender is outlined red (blue when it holds), the KO'd card dims with a dashed outline, and "−1 LIFE" stays put. | `fx-reduced-*` |
 | Kept | Mulligan grid, the hand chips at six cards, the Leader badge, phase highlighting, the no-target reason with **Play anyway**. | |
 
+## A calmer sky (owner, 14 Oct)
+
+The sky skin outlines nearly everything in 2 px ink with a hard offset shadow: the top bar, the phase row,
+both strips, your row, the lane pill, the dock and every button. Together they read as a grid of boxes.
+The prototype keeps the bright sky, the clouds, the screentone and the Dragon Ball type, and keeps the
+ink edge only on things that are objects: cards, the turn pill and the primary button. The top bar and
+phase row sit on the sky; the strips, lane pill, clash card and dock are borderless frosted glass with a
+soft shadow; the turn frame is a line at the top and bottom only; tags and chips are carried by colour.
+The night skin is unchanged.
+
 ## Scenes (☰ → *Prototype · jump to a state*, or `index.html#<name>`)
 
 `setup` · `mulligan` · `charge` · `main` · `inspect` · `play` · `notarget` · `target` · `attack` ·

@@ -498,3 +498,64 @@ button.proto-opt:disabled .proto-opt-go { color: var(--color-space-300); }
   /* While choosing, the complete reasons stay readable even on a short screen. */
   .proto-board[data-mode="target"] .proto-q-sub, .proto-board[data-mode="attack"] .proto-q-sub { display: block; }
 }
+
+/* ── Calm sky (owner, 14 Oct): keep the brightness, the sky and the Dragon Ball type, lose the boxes ──
+   The sky skin draws a 2 px ink outline and a hard offset shadow around nearly everything — top bar, phase
+   row, both strips, the row, the lane pill, the dock, every button. Together they read as a grid of boxes.
+   Here only the things that ARE objects keep an ink edge (cards, the turn pill, the primary button); the
+   chrome becomes frosted, borderless glass over the sky, and the sky shows through between it. */
+.proto-board[data-skin="anime"] { --glass: rgba(255, 255, 255, 0.62); --glass-strong: rgba(255, 255, 255, 0.9); --soft-shadow: 0 4px 16px rgba(18, 22, 31, 0.12); --hair: rgba(18, 22, 31, 0.14); }
+.proto-board[data-skin="anime"] .arena-topbar { background: transparent; border-bottom: 0; }
+.proto-board[data-skin="anime"] .arena-turnpill { box-shadow: 0 0 0 2px var(--ink), 0 4px 14px color-mix(in srgb, var(--turn-tint) 45%, transparent) !important; }
+.proto-board[data-skin="anime"] .arena-speed { border: 0; box-shadow: none; background: var(--glass); backdrop-filter: blur(8px); }
+.proto-board[data-skin="anime"] .arena-phases { background: transparent; border-bottom: 0; }
+.proto-board[data-skin="anime"] .arena-phase { color: rgba(18, 22, 31, 0.55); }
+.proto-board[data-skin="anime"] .proto-phases .arena-phase-on { box-shadow: 0 2px 10px color-mix(in srgb, var(--turn-tint) 50%, transparent); }
+.proto-board[data-skin="anime"] .arena-edge { box-shadow: inset 0 3px 0 var(--turn-tint), inset 0 -3px 0 var(--turn-tint) !important; }
+
+.proto-board[data-skin="anime"] .arena-pstrip { background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: none; border: 0; border-radius: 14px; }
+.proto-board[data-skin="anime"] .proto-meter { background: transparent; padding: 2px 2px; }
+.proto-board[data-skin="anime"] .proto-counts { text-decoration: none; }
+.proto-board[data-skin="anime"] .arena-row-on::before { box-shadow: none; background: radial-gradient(60% 90% at 30% 50%, rgba(255, 255, 255, 0.55), transparent 75%); }
+.proto-board[data-skin="anime"] .proto-bayline { border-left: 2px dotted rgba(18, 22, 31, 0.18); }
+.proto-board[data-skin="anime"] .arena-lanepill { background: var(--glass-strong); box-shadow: var(--soft-shadow) !important; }
+.proto-board[data-skin="anime"] .arena-lanepill-dot { box-shadow: none; }
+
+/* Cards keep their ink bezel (they are the objects), without the hard offset shadow under each one. */
+.proto-board[data-skin="anime"] .arena-card { box-shadow: 0 2px 5px rgba(18, 22, 31, 0.28); }
+.proto-board[data-skin="anime"] .arena-card.arena-ring-legal, .proto-board[data-skin="anime"] .arena-card.arena-ring-attacker, .proto-board[data-skin="anime"] .arena-card.arena-ring-selected, .proto-board[data-skin="anime"] .arena-card.arena-ring-guard { box-shadow: 0 0 0 2px var(--color-ki-400), 0 0 16px var(--color-ki-500); }
+.proto-board[data-skin="anime"] .arena-card.arena-ring-guard, .proto-board[data-skin="anime"] .arena-card.proto-target-on { box-shadow: 0 0 0 3px var(--proto-target), 0 0 20px var(--proto-target) !important; }
+.proto-board[data-skin="anime"] .proto-hand-on .arena-card { box-shadow: 0 0 0 2px var(--proto-go), 0 0 12px rgba(11, 122, 67, 0.45); }
+
+/* Tags and chips: colour carries them; no ink rings. */
+.proto-board[data-skin="anime"] .proto-tag { box-shadow: 0 2px 6px rgba(18, 22, 31, 0.25); }
+.proto-board[data-skin="anime"] .proto-tag-no { box-shadow: 0 1px 4px rgba(18, 22, 31, 0.2); background: var(--glass-strong); }
+.proto-board[data-skin="anime"] .proto-canatk { box-shadow: 0 2px 6px rgba(18, 22, 31, 0.3); }
+.proto-board[data-skin="anime"] .proto-hchip-warn { box-shadow: none; }
+.proto-board[data-skin="anime"] .proto-hchip-counter { box-shadow: none; background: var(--glass-strong); }
+.proto-board[data-skin="anime"] .proto-hchip-charge { outline-color: rgba(18, 22, 31, 0.35); }
+
+/* The clash and the instruction float as glass cards over the lane. */
+.proto-board[data-skin="anime"] .proto-clash, .proto-board[data-skin="anime"] .proto-instruct { box-shadow: var(--soft-shadow); background: var(--glass-strong); backdrop-filter: blur(10px); }
+.proto-board[data-skin="anime"] .proto-clash-foot { border-top-color: var(--hair); }
+.proto-board[data-skin="anime"] .arena-clash-combo { box-shadow: none; background: rgba(47, 111, 224, 0.12); }
+
+/* The dock: one white sheet, rounded, lifted by shadow rather than an ink rule. */
+.proto-board[data-skin="anime"] .arena-bar { border-top: 0; background: var(--glass-strong); backdrop-filter: blur(12px); border-radius: 18px 18px 0 0; box-shadow: 0 -6px 20px rgba(18, 22, 31, 0.1); }
+.proto-board[data-skin="anime"] .proto-pass { border: 1.5px solid var(--hair); background: rgba(255, 255, 255, 0.7); box-shadow: none; }
+.proto-board[data-skin="anime"] .proto-btn { border-width: 0; }
+.proto-board[data-skin="anime"] .proto-btn-primary { box-shadow: 0 0 0 2px var(--ink), 0 4px 12px rgba(242, 113, 28, 0.35); }
+.proto-board[data-skin="anime"] .proto-btn-ghost { box-shadow: inset 0 0 0 1.5px var(--hair); }
+.proto-board[data-skin="anime"] .proto-btn-warn { box-shadow: inset 0 0 0 1.5px var(--proto-warn); }
+.proto-board[data-skin="anime"] .proto-steps li { background: transparent; }
+.proto-board[data-skin="anime"] .proto-steps li[data-st="on"] { background: var(--turn-tint); }
+.proto-board[data-skin="anime"] button.proto-opt { box-shadow: 0 0 0 1.5px rgba(11, 122, 67, 0.55), var(--soft-shadow); }
+.proto-board[data-skin="anime"] .proto-opt { box-shadow: inset 0 0 0 1px var(--hair); }
+
+/* Sheets: white paper, soft edge. */
+.proto-board[data-skin="anime"] .proto-sheet { box-shadow: 0 -10px 30px rgba(18, 22, 31, 0.18); }
+.proto-board[data-skin="anime"] .proto-x, .proto-board[data-skin="anime"] .proto-navbtn, .proto-board[data-skin="anime"] .proto-cv-nav, .proto-board[data-skin="anime"] .proto-smaller { border: 1.5px solid var(--hair); }
+.proto-board[data-skin="anime"] .proto-act { box-shadow: inset 0 0 0 1px var(--hair); background: rgba(234, 247, 255, 0.6); }
+.proto-board[data-skin="anime"] .proto-tiles div, .proto-board[data-skin="anime"] .proto-chip { box-shadow: inset 0 0 0 1px var(--hair); }
+.proto-board[data-skin="anime"] .proto-deckcard { box-shadow: var(--soft-shadow); background: var(--glass-strong); }
+.proto-board[data-skin="anime"] .proto-mull img, .proto-board[data-skin="anime"] .proto-cv-card img, .proto-board[data-skin="anime"] .proto-peek-art img { box-shadow: 0 0 0 2px var(--ink), 0 8px 20px rgba(18, 22, 31, 0.22); }
