@@ -6,6 +6,7 @@ issue: 540
 stage: ui
 touches: src/lib/arena/compile/effects.ts, src/lib/arena/compile/shared.ts, src/lib/arena/effects.ts, src/lib/arena/engine/state.ts, src/lib/arena/types.ts, src/lib/arena/vm/common.ts, src/lib/arena/vm/effects.ts, src/lib/arena/vm/flow.ts, src/lib/arena/vm/host.ts, src/lib/arena/vm/replace.ts, src/lib/arena/vm/script-host.ts, src/lib/arena/vm/script-schema.ts, src/lib/arena/vm/script.ts, src/lib/arena/glossary.ts, scripts/verify/readings.ts, contract/fixtures/effect-language.txt, contract/fixtures/language-reference.txt
 priority: P1
+status: closed
 ---
 **Source:** owner's ruling of 4 Oct 2026 on BT29-040 #0 ("Yes, Time to Die!", Cooler Armored Squadron deck), stored on the row's `explanation`. Related: `docs/arena-move-replacement-scope.md`, `docs/arena-backlog/ui-107-move-replacement.md`.
 
