@@ -55,6 +55,7 @@ async function main(): Promise<void> {
 
     // ── the rules engine: the [Awaken] marker pick (one Unison in play at a time) ──
     const { moveCard } = await import("../../src/lib/arena/vm/zones");
+    const STAGED = 1;
     const run = (unisonCard: string): { offered: Set<string>; markers: number; flipped: boolean; unison: string } => {
       let state = RULES.createGame(CTX, deck).state as VmState;
       const apply = (a: Parameters<typeof RULES.apply>[2]): void => {
@@ -71,6 +72,8 @@ async function main(): Promise<void> {
       state.cards[unison].cardId = unisonCard;
       const mv = moveCard(state, DBS, unison, "unison", { owner: "p1" });
       assert.ok(mv.ok, mv.ok ? "" : mv.refused);
+      // A Unison in play carries markers; one with none is placed in the Drop Area (21-9-2, #759).
+      state.cards[unison].markers = STAGED;
       state.pending = [];
       const act = RULES.legalActions(CTX, state).find(({ action }) => action.type === "activate" && action.card === leader);
       assert.ok(act, "[Awaken] is offered at 4 life");
@@ -91,14 +94,14 @@ async function main(): Promise<void> {
     };
     const yes = run("R758-CABBA");
     assert.ok(yes.offered.has(yes.unison), "the marker pick offers SD15-02");
-    assert.equal(yes.markers, 1, "SD15-02 got the marker");
+    assert.equal(yes.markers, STAGED + 1, "SD15-02 got the marker");
     assert.equal(yes.flipped, true);
     const noName = run("R758-RED-OTHER");
     assert.ok(!noName.offered.has(noName.unison), "not a red Unison without Cabba in its name");
-    assert.equal(noName.markers, 0);
+    assert.equal(noName.markers, STAGED, "no marker added");
     const noColor = run("R758-BLUE-CABBA");
     assert.ok(!noColor.offered.has(noColor.unison), "not a blue Unison with Cabba in its name");
-    assert.equal(noColor.markers, 0);
+    assert.equal(noColor.markers, STAGED, "no marker added");
     console.log("  #758: '{X} in its name' reads as includes; SD15-01 [Awaken] marks SD15-02");
   } finally {
     for (const id of Object.keys(DEFS).filter((c) => c.startsWith("R758-"))) delete DEFS[id];

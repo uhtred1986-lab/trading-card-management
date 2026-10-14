@@ -77,6 +77,7 @@ import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
 import { uniqueFrame } from "./unique";
+import { emptyUnisons } from "./unison-zero";
 import type { VmState } from "./state";
 
 /**
@@ -467,7 +468,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // on the strict action-price host (which spreads this host) is proven and
     // paid as one unit, so it is not cut; the runner's own look takes the
     // violation the moment the price frame hands back control.
-    ruleInterrupt: (frame) => (frame.autoCost || frame.swapCost || frame.aegisCost || frame.counterCost || frame.reviveCost ? null : uniqueFrame(ctx, game, state)),
+    ruleInterrupt: (frame) => {
+      if (frame.autoCost || frame.swapCost || frame.aegisCost || frame.counterCost || frame.reviveCost) return null;
+      // 21-9-2 (#759): a Unison the instruction just left without markers
+      // goes to the Drop Area before the next instruction.
+      for (const [id, owner] of emptyUnisons(state)) {
+        log(ev, { type: "note", text: `${state.cards[id].cardId} has no markers left (21-9): it is placed in its owner's Drop Area` });
+        moveTo(ctx, game, state, ev, id, "drop", owner, { reason: "rule" });
+      }
+      return uniqueFrame(ctx, game, state);
+    },
     // 5-5-3: the `play` op, and therefore **every** play on this engine — an
     // `ACTION play` says `DO { play(target: $card) }` and arrives here too, so a
     // play a player declares and a play a skill makes are one act (#146).

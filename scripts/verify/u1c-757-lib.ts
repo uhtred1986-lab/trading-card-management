@@ -85,6 +85,8 @@ export function stage(s: VmState, p: PlayerId, cardId: string, area: Area, mode:
   s.cards[id].cardId = cardId;
   assert.ok(moveCard(s, game, id, area, { owner: p }).ok, `could not stage ${cardId} into ${area}`);
   s.cards[id].mode = mode;
+  // 21-9-2: a Unison with no markers goes to the Drop Area, so a staged Unison starts as a played one does: with a marker.
+  if (area === "unison") s.cards[id].markers = 1;
   s.pending = [];
   return id;
 }
