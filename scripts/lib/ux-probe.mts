@@ -79,7 +79,7 @@ export const SCREEN_FACTS = `(() => {
     decision: ov(document.querySelector("[data-decision-summary]")),
     stakes: ov(document.querySelector("[data-battle-stakes]")),
   };
-  const dlg = [...document.querySelectorAll("dialog[open], [role=dialog]")].find((d) => shown(d));
+  const dlg = [...document.querySelectorAll("dialog[open], [role=dialog], [role=alertdialog]")].find((d) => shown(d));
   const dialog = dlg ? { open: true, title: (dlg.querySelector("h2, h3")?.textContent ?? "").trim().slice(0, 120), text: (dlg.innerText ?? "").replace(/\\s+/g, " ").trim().slice(0, 600) } : { open: false, title: "", text: "" };
   const label = (el) => ((el.getAttribute("aria-label") || el.innerText || el.getAttribute("title") || el.tagName.toLowerCase()) + "").replace(/\\s+/g, " ").trim().slice(0, 60);
   const smallTargets = [];

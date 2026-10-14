@@ -128,15 +128,21 @@ const UI = `(() => {
   const bar = document.querySelector(".arena-bar");
   const buttons = bar ? [...bar.querySelectorAll("button")].filter((b) => !b.disabled && b.getBoundingClientRect().width > 0) : [];
   const text = (b) => b.innerText.trim();
-  const dlg = [...document.querySelectorAll("dialog[open], [role=dialog]")].some((d) => d.getBoundingClientRect().height > 0);
+  const dlg = [...document.querySelectorAll("dialog[open], [role=dialog], [role=alertdialog]")].some((d) => d.getBoundingClientRect().height > 0);
+  const notice = [...document.querySelectorAll("[role=alertdialog]")].find((d) => d.getBoundingClientRect().height > 0);
   return {
     next: buttons.some((b) => text(b).startsWith("Next")), skip: buttons.some((b) => text(b) === "Skip"), retry: buttons.some((b) => text(b) === "Retry"),
     line: (bar?.querySelector("p")?.innerText ?? "").trim().slice(0, 200), dialog: dlg,
     storage: document.body.innerText.includes("Could not save on this device"),
     targeting: (bar?.innerText ?? "").includes("Choose what to attack"),
+    notice: notice ? notice.innerText.replace(/\s+/g, " ").trim().slice(0, 300) : null,
   };
 })()`;
-const DIALOG = `[...document.querySelectorAll("dialog[open], [role=dialog]")].find((d) => d.getBoundingClientRect().height > 0)`;
+/** A blocking dialog or sheet: a card sheet, a search, or a no-target notice (`QuietNotice`, #783, `role=alertdialog`). */
+const DIALOG_SEL = "dialog[open], [role=dialog], [role=alertdialog]";
+const DIALOG = `[...document.querySelectorAll(${JSON.stringify(DIALOG_SEL)})].find((d) => d.getBoundingClientRect().height > 0)`;
+/** The no-target notice of #783: it holds the board until its OK is tapped. */
+const NOTICE = `[...document.querySelectorAll("[role=alertdialog]")].find((d) => d.getBoundingClientRect().height > 0)`;
 const SKIP_IN_SHEET = String.raw`/^(close|expand|previous card|next card|details|abilities now|×|see the board|inspect energy)/i`;
 
 /** Finders: a function body (as text) returning candidate elements, best first. */
@@ -458,7 +464,8 @@ function cardName(s: Snapshot, id: string): string {
   return all.find((c) => c?.id === id)?.name ?? id;
 }
 async function tidy(page: Page) {
-  const ui = await page.eval<{ targeting: boolean; dialog: boolean }>(UI);
+  const ui = await page.eval<{ targeting: boolean; dialog: boolean; notice: string | null }>(UI);
+  if (ui.notice) return; // a notice is acknowledged by its OK in playOn, never dismissed as clutter
   if (ui.targeting) await tapButton(page, "Cancel");
   if (ui.dialog) {
     const r = await tapFind(page, `() => { const d = ${DIALOG}; return d ? [...d.querySelectorAll("button")].filter((b) => /^(close|×|see the board)/i.test((b.getAttribute("aria-label") || b.innerText || "").trim())) : []; }`);
@@ -559,7 +566,7 @@ async function cardReview(page: Page, caseId: string, s: Snapshot): Promise<Revi
     out.nextChanges = name1 !== "" && name1 !== name0;
     out.shots.push((await shoot(page, caseId, "card-review-next", s, { note: `Next card: "${name0}" → "${name1}"` })).n);
     const before = name1;
-    await page.swipe("dialog[open], [role=dialog]", 140, 0).catch(() => {});
+    await page.swipe(DIALOG_SEL, 140, 0).catch(() => {});
     await sleep(500);
     out.swipeChanges = (await dialogOpen(page)) && (await dialogName(page)) !== before;
   }
@@ -587,8 +594,23 @@ async function cardReview(page: Page, caseId: string, s: Snapshot): Promise<Revi
 }
 
 // ── playing a match ─────────────────────────────────────────────────────────────────────────────
-interface Play { decisions: number; attempts: Attempt[]; reviews: Review[]; playbackShots: number; stalls: string[]; end: View | null }
-const newPlay = (): Play => ({ decisions: 0, attempts: [], reviews: [], playbackShots: 0, stalls: [], end: null });
+interface Notice { revision: number; text: string; acknowledged: boolean; how: string; shot: number }
+interface Play { decisions: number; attempts: Attempt[]; reviews: Review[]; notices: Notice[]; playbackShots: number; stalls: string[]; end: View | null }
+const newPlay = (): Play => ({ decisions: 0, attempts: [], reviews: [], notices: [], playbackShots: 0, stalls: [], end: null });
+
+/**
+ * The no-target notice (#783) stands over the board, holding the story, the player's moves and the
+ * computer's next advance until OK is tapped. Shot, then acknowledged through its own OK button.
+ */
+async function acknowledgeNotice(page: Page, caseId: string, s: Snapshot | null, text: string): Promise<Notice> {
+  const shot = await shoot(page, caseId, "no-target-notice", s, { force: true, note: text });
+  const r = await tapFind(page, `() => { const d = ${NOTICE}; return d ? [...d.querySelectorAll("button")].filter((b) => b.innerText.trim() === "OK") : []; }`);
+  let gone = false;
+  for (let i = 0; i < 20 && r.ok; i++) { if (!(await page.eval<boolean>(`!!${NOTICE}`))) { gone = true; break; } await sleep(100); }
+  const n: Notice = { revision: s?.game.revision ?? -1, text, acknowledged: gone, how: r.ok ? (gone ? "OK tapped" : "OK tapped, the notice stayed") : `OK not tappable (${r.why})`, shot: shot.n };
+  log(`  ${caseId}: no-target notice "${text.slice(0, 90)}" — ${n.how}`);
+  return n;
+}
 async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Snapshot, decisions: number) => boolean; deadline: number }): Promise<View> {
   let lastLine = "";
   let logFrom = 0;
@@ -596,11 +618,18 @@ async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Sn
   let lastRevision = -1;
   for (;;) {
     if (Date.now() > o.deadline) throw new Error(`${caseId}: the case ran past its time limit`);
-    const ui = await page.eval<{ next: boolean; skip: boolean; retry: boolean; line: string; dialog: boolean; storage: boolean; targeting: boolean }>(UI).catch(() => null);
+    const ui = await page.eval<{ next: boolean; skip: boolean; retry: boolean; line: string; dialog: boolean; storage: boolean; targeting: boolean; notice: string | null }>(UI).catch(() => null);
     const v = await view(page);
     if (!ui || !v?.snapshot) { await sleep(250); continue; }
     const s = v.snapshot;
     if (s.game.revision !== lastRevision) { lastRevision = s.game.revision; waitingSince = Date.now(); }
+    if (ui.notice) {
+      const n = await acknowledgeNotice(page, caseId, s, ui.notice);
+      play.notices.push(n);
+      if (!n.acknowledged) throw new Error(`${caseId}: a no-target notice could not be acknowledged by touch (${n.how})`);
+      waitingSince = Date.now();
+      continue;
+    }
     if (ui.next || ui.skip) {
       // The story of a turn: one shot per beat ("Next" at the step pace, a change of line otherwise).
       if (ui.line !== lastLine) { await shoot(page, caseId, "playback", s, { note: ui.line, logFrom }); play.playbackShots++; lastLine = ui.line; logFrom = s.log.length; }
@@ -651,9 +680,9 @@ async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Sn
     if (a.result !== "tapped") log(`  ${caseId} r${a.revision}: ${a.result} "${a.label}" (${a.taps.join(" → ")})${a.problem ? ` — ${a.problem}` : ""}`);
     const t = Date.now();
     while (Date.now() - t < 30000) {
-      const u = await page.eval<{ next: boolean; skip: boolean; storage: boolean }>(UI).catch(() => null);
+      const u = await page.eval<{ next: boolean; skip: boolean; storage: boolean; notice: string | null }>(UI).catch(() => null);
       const w = await view(page);
-      if (u?.next || u?.skip || u?.storage || (w?.snapshot && w.snapshot.game.revision !== s.game.revision)) break;
+      if (u?.next || u?.skip || u?.storage || u?.notice || (w?.snapshot && w.snapshot.game.revision !== s.game.revision)) break;
       await sleep(100);
     }
   }
@@ -663,7 +692,7 @@ async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Sn
 interface CaseResult {
   id: string; decks: string; seat: string; ok: boolean; error: string | null;
   coldLaunchToShellMs: number | null; landedOn: string | null; startTapToBoardMs: number | null;
-  decisions: number; tapped: number; tappedOther: number; unreachable: number; neededScroll: number; tapToActMs: { p50: number; p95: number; max: number } | null;
+  decisions: number; tapped: number; tappedOther: number; unreachable: number; neededScroll: number; notices: Notice[]; tapToActMs: { p50: number; p95: number; max: number } | null;
   playbackShots: number; reviews: Review[]; stalls: string[]; revision: number | null; winner: string | null; reason: string | null;
   imagesOnFinalBoard: number; brokenImages: number; remoteImages: number;
   longTasks: number; longTaskMaxMs: number; framesOver50: number; frames: number; mainHeapAfterGc: number | null; workerHeapAfterGc: number | null;
@@ -737,7 +766,7 @@ function summarise(id: string, c: { mine: string; theirs: string; seat: string }
   return {
     id, decks: `${c.mine} v ${c.theirs}`, seat: c.seat, ok: false, error: null, coldLaunchToShellMs: null, landedOn: null, startTapToBoardMs: null,
     decisions: play.decisions, tapped: play.attempts.filter((a) => a.result === "tapped").length, tappedOther: play.attempts.filter((a) => a.result === "tapped-other").length,
-    unreachable: play.attempts.filter((a) => a.result === "unreachable").length, neededScroll: play.attempts.filter((a) => a.scrolled).length, tapToActMs: ms.length ? { p50: pct(ms, 0.5), p95: pct(ms, 0.95), max: Math.max(...ms) } : null,
+    unreachable: play.attempts.filter((a) => a.result === "unreachable").length, neededScroll: play.attempts.filter((a) => a.scrolled).length, notices: play.notices, tapToActMs: ms.length ? { p50: pct(ms, 0.5), p95: pct(ms, 0.95), max: Math.max(...ms) } : null,
     playbackShots: play.playbackShots, reviews: play.reviews, stalls: play.stalls, revision: null, winner: null, reason: null,
     imagesOnFinalBoard: 0, brokenImages: 0, remoteImages: 0, longTasks: 0, longTaskMaxMs: 0, framesOver50: 0, frames: 0, mainHeapAfterGc: null, workerHeapAfterGc: null,
     browserPssBytes: null, failedRequests: 0, seconds: 0, ...extra,
@@ -777,7 +806,9 @@ async function runCase(c: (typeof ALL_CASES)[number], deadline: number): Promise
     const end = await playOn(page, c.id, play, { deadline });
     res = summarise(c.id, c, play, { coldLaunchToShellMs: shell.shellMs, landedOn: shell.landedOn, startTapToBoardMs: startMs });
     await finish(page, res, end);
-    res.ok = end.snapshot?.game.status === "over";
+    // Played to the end is not enough: a move no tap reached means a player could not have played it (owner, #785 review).
+    res.ok = end.snapshot?.game.status === "over" && res.unreachable === 0 && res.notices.every((n) => n.acknowledged);
+    if (!res.ok && !res.error) res.error = res.unreachable ? `${res.unreachable} move(s) unreachable by touch` : "a no-target notice could not be acknowledged";
   } catch (e) {
     res = summarise(c.id, c, play, { ...res, error: (e as Error).message });
     if (page) await shoot(page, c.id, "error", null, { note: (e as Error).message, force: true, device: true }).catch(() => {});
@@ -785,7 +816,7 @@ async function runCase(c: (typeof ALL_CASES)[number], deadline: number): Promise
     res.seconds = Math.round((Date.now() - t0) / 1000);
     await T.endCase().catch(() => {});
   }
-  log(`${c.id}: ${res.ok ? "played to the end" : `STOPPED: ${res.error}`} — ${res.decisions} decisions (${res.tapped} by tap, ${res.tappedOther} tap sent another move, ${res.unreachable} unreachable), ${res.playbackShots} beats shot, ${res.seconds} s`);
+  log(`${c.id}: ${res.ok ? "PASS, played to the end by touch" : `FAIL: ${res.error}`} — ${res.decisions} decisions (${res.tapped} by tap, ${res.tappedOther} tap sent another move, ${res.unreachable} unreachable), ${res.playbackShots} beats shot, ${res.seconds} s`);
   return res;
 }
 
@@ -865,7 +896,8 @@ async function recoveryCase(deadline: number): Promise<{ steps: Step[]; result: 
   const end = await playOn(page, id, play, { deadline });
   const res = summarise(id, c, play, {});
   await finish(page, res, end);
-  res.ok = end.snapshot?.game.status === "over" && steps.every((s) => s.ok);
+  res.ok = end.snapshot?.game.status === "over" && steps.every((s) => s.ok) && res.unreachable === 0 && res.notices.every((n) => n.acknowledged);
+  if (res.unreachable) step("every move made by touch", false, `${res.unreachable} move(s) unreachable by touch (made through the board only to keep collecting evidence)`);
   step("played to the end after every interruption", end.snapshot?.game.status === "over", `revision ${end.snapshot?.game.revision}`);
   await T.endCase();
   return { steps, result: res };
@@ -980,7 +1012,7 @@ function findingsMd(all: Array<Finding & { shot: Shot }>): string {
   if (fatal) L.push(`> **The run stopped early:** ${fatal.split("\n")[0]}`, "");
   L.push("## The §8 table (`docs/arena-offline-release.md`)", "", "| Row | Result | Notes |", "|---|---|---|");
   const all8 = results;
-  const caseRow = (id: string, label: string) => { const r = all8.find((x) => x.id === id); return `| ${label} | ${r ? (r.ok ? "played to the end" : `**stopped**: ${r.error ?? "see the log"}`) : "not run"} | ${r ? `${r.decisions} decisions, ${r.unreachable} unreachable by tap, winner ${r.winner ?? "?"} (${r.reason ?? "?"}), ${Math.round(r.seconds / 60)} min` : ""} |`; };
+  const caseRow = (id: string, label: string) => { const r = all8.find((x) => x.id === id); return `| ${label} | ${r ? (r.ok ? "pass: played to the end by touch" : `**FAIL**: ${r.error ?? "see the log"}`) : "not run"} | ${r ? `${r.decisions} decisions, ${r.unreachable} unreachable by tap, winner ${r.winner ?? "?"} (${r.reason ?? "?"}), ${Math.round(r.seconds / 60)} min` : ""} |`; };
   L.push(`| Phone model, OS, browser and version | ${dev.what ?? `${dev.manufacturer ?? ""} ${dev.model ?? ""}, Android ${dev.android ?? "?"}, ${dev.browserPackage ?? ""} ${dev.browserVersion ?? ""}`} | ${String(run.browser ?? "").slice(0, 140)}; screen ${JSON.stringify(run.screen ?? {})}; battery ${dev.batteryLevel ?? "?"}%${dev.charging ? " (charging)" : ""}; power saving ${dev.powerSave ?? "?"}; free ${dev.freeDataBytes ? `${(dev.freeDataBytes / 2 ** 30).toFixed(1)} GB` : "?"} |`);
   L.push(`| Commit built, tunnel URL | ${(run.shell as { revision?: string } | undefined)?.revision ?? "?"} | no tunnel: \`adb reverse\` to ${BASE} |`);
   const prep = run.prepare as { ms: number; alreadyReady: boolean; page: string } | undefined;
@@ -1019,6 +1051,11 @@ function findingsMd(all: Array<Finding & { shot: Shot }>): string {
   }
   L.push("", "## Card navigation", "", "| Case | At revision | Card | Opened (ms) | Name shown | Pager / Next / swipe | Closed | Hand review | Zones |", "|---|---|---|---|---|---|---|---|---|");
   for (const r of [...results, ...(recovery ? [recovery.result] : [])]) for (const v of r.reviews) L.push(`| ${r.id} | ${v.revision} | ${v.target} | ${v.opened ? `yes (${v.openMs})` : "**no**"} | ${v.nameShown ? "yes" : "**no**"} | ${v.pager ? `yes / ${v.nextChanges ? "changes" : "**no change**"} / ${v.swipeChanges === null ? "—" : v.swipeChanges ? "changes" : "no change"}` : "no pager"} | ${v.closed ? "yes" : "**no**"} | ${v.hand ? (v.hand.opened ? `yes (${v.hand.cards ?? "?"})` : `**no** (${v.hand.cards ?? ""})`) : "—"} | ${v.zones === null ? "—" : v.zones ? "yes" : "**no**"} |`);
+  const allRuns = [...results, ...(recovery ? [recovery.result] : [])];
+  const notices = allRuns.flatMap((r) => r.notices.map((n) => ({ ...n, case: r.id })));
+  L.push("", "## No-target notices (#783)", "");
+  if (!notices.length) L.push("**Not exercised:** no case met a no-target notice in this run, so acknowledging one by touch is unproven here.");
+  else { L.push("| Case | At revision | Notice | Acknowledged by touch | Shot |", "|---|---|---|---|---|"); for (const n of notices) L.push(`| ${n.case} | ${n.revision} | ${n.text.replace(/\|/g, "/").slice(0, 140)} | ${n.acknowledged ? "yes" : `**no** (${n.how})`} | ${n.shot} |`); }
   if (recovery) { L.push("", "## Recovery", ""); for (const s of recovery.steps) L.push(`- ${s.ok ? "ok" : "**FAIL**"} ${s.what}: ${s.detail}${s.shot ? ` (shot ${s.shot})` : ""}`); }
   L.push("", "## Objective screen findings", "", "Counted over every shot; `decision` checks (the overview) only at human decisions with no sheet open.", "", "| Finding | Severity | Shots | Examples |", "|---|---|---|---|");
   const byKind = new Map<string, Array<Finding & { shot: Shot }>>();
