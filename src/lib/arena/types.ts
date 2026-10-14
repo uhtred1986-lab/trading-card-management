@@ -340,6 +340,13 @@ export interface Prohibition {
   counterKind?: CounterKind;
   /** "…of **other** cards" (BT10-008): the card that made the rule is not bound by it. */
   otherCards?: boolean;
+  /**
+   * 12-1-3 (#677): "activating an Extra Card" — only an [Activate] or [Counter]
+   * skill of an Extra Card used from a player's hand, not an Extra's [Auto]
+   * (BT10-097's "can't activate Extra Cards unless …"). Matched against the
+   * line's kind and the area the card was used from (`skillKind`, `from`).
+   */
+  extraCardActivation?: boolean;
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */

@@ -966,6 +966,7 @@ export type Op =
       turnPlayer?: true;
       counterKind?: CounterKind;
       otherCards?: true;
+      extraCardActivation?: true;
     }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
@@ -1225,6 +1226,8 @@ export interface ScriptFrame {
   aegisCost?: import("./aegis-costs").AegisCost;
   /** #549: captured, reloadable Auto cost/effect continuation. */
   autoCost?: import("./auto-costs").AutomaticCost;
+  /** #677: the 20-14 prices on an activation, charged one at a time and re-read live in front of what it guards. Additive: older states never carry one. */
+  taxGate?: import("./activate").TaxGate;
   /** #716: a [Counter]'s printed action price, paid on the strict host before the skill activates. Additive: older states never carry one. */
   counterCost?: import("./battle").CounterCost;
   /** #552: this frame is an activated [Counter]'s counter motion (9-7-2), answered by a [Counter: Counter] window before it resolves. Additive: older states never carry one. */
@@ -2518,6 +2521,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
             ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
             ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}),
+            ...(op.extraCardActivation ? { extraCardActivation: true } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,

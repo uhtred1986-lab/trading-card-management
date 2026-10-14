@@ -10,7 +10,6 @@ import { compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { validateProgram } from "../../src/lib/arena/vm/script";
-import { NotYet } from "../../src/lib/arena/vm/errors";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { EngineState } from "../../src/lib/arena/engines";
@@ -21,7 +20,7 @@ const WISH = "[Activate: Main] Choose one- ・Draw 1 card. ・Choose 1 ≪Desire
 const WISH_CHAIN = `${WISH.slice(0, -1)}. Then draw 2 cards.`;
 const DRAW = "[Activate: Main] Draw 1 card.";
 
-const injected = ["C677-TAXER", "C677-TAXER2", "C677-WISH", "C677-CHAIN", "C677-DESIRE", "C677-EXTRA", "C677-FODDER", "C677-AUTO", "C677-COUNTER"] as const;
+const injected = ["C677-TAXER", "C677-TAXER2", "C677-WISH", "C677-CHAIN", "C677-DESIRE", "C677-EXTRA", "C677-FODDER"] as const;
 try {
   DEFS["C677-TAXER"] = card("C677-TAXER", { skill: TAX });
   DEFS["C677-TAXER2"] = card("C677-TAXER2", { skill: TAX });
@@ -30,8 +29,6 @@ try {
   DEFS["C677-DESIRE"] = card("C677-DESIRE", { type: "EXTRA", energyCost: 2, power: null, comboCost: null, comboPower: null, traits: ["Desire"], skill: DRAW });
   DEFS["C677-EXTRA"] = card("C677-EXTRA", { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill: DRAW });
   DEFS["C677-FODDER"] = card("C677-FODDER", { energyCost: 9 });
-  DEFS["C677-AUTO"] = card("C677-AUTO", { energyCost: 0, skill: "[Auto] When you play this card, draw 1 card." });
-  DEFS["C677-COUNTER"] = card("C677-COUNTER", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Counter: Attack] Negate the attack." });
 
   // ── the wording, compiled and validated ─────────────────────────────────
   const one = (text: string) => compileSkill(parseSkills(text)[0]!);
@@ -47,11 +44,11 @@ try {
   assert.deepEqual([pick.sel.area, pick.sel.count, pick.sel.notSelf], ["hand", 1, "card"]);
   assert.equal((forbid.unlessPay![1] as Extract<Op, { op: "moveTo" }>).to, "warp");
   const PRICE = forbid.unlessPay!;
-  // Controls: nothing else widens. Without "each time" the price is not read
-  // as an activation's; a narrower description, a card subject and a price
-  // the other player pays stay unread rather than taxing what they don't name.
+  // Controls: nothing else widens. A description not printed on a catalog
+  // card, a card subject and a price the other player pays stay unread
+  // rather than taxing what they don't name. (The price without "each time"
+  // is read since EX06-35 prints it so: `activation-taxes-677.ts`.)
   for (const text of [
-    "[Permanent] Your opponent can't activate skills unless they send 1 card from their hand to their Warp.",
     "[Permanent] Your opponent can't activate [Auto] skills unless they send 1 card from their hand to their Warp each time.",
     "[Permanent] Your opponent can't activate skills of Extra Cards unless they send 1 card from their hand to their Warp each time.",
     "[Permanent] This card can't activate its skills unless you send 1 card from your hand to your Warp each time.",
@@ -97,18 +94,6 @@ try {
     }
     return { state, events };
   };
-  /** A typed #677 stop: thrown to the caller (legacy) or ending the game with the issue recorded (rules). */
-  const stops = (run: () => { state: EngineState }) => {
-    try {
-      const result = run();
-      assert.equal(result.state.prompt.kind, "gameOver", `rules: an untaxed activation must not continue`);
-      assert.ok(JSON.stringify(result.state).includes("#677"), `rules: the interruption names #677`);
-    } catch (err) {
-      if (!(err instanceof NotYet)) throw err;
-      assert.equal(err.issue, "#677");
-    }
-  };
-
   // ── a declared activation, payable ──────────────────────────────────────
   // The Extra's own energy cost is paid, the Extra goes to the Drop, the tax
   // takes the one other hand card, and only then does the skill draw.
@@ -301,24 +286,8 @@ try {
     assertConsistentG(taxedAgain.state);
   }
 
-  // ── the [Auto] and [Counter] boundary: a typed stop, never a free use ───
-  {
-    const state = board({ taxers: 0, hand: ["C677-AUTO"] });
-    injectTax(state, 6774, { player: "p1" });
-    const auto = ids(state, "p1", "hand", "C677-AUTO")[0];
-    stops(() => IMPL.apply(CTX, state, { type: "play", player: "p1", card: auto }));
-  }
-  {
-    const state = stagedG({ oppHand: ["C677-COUNTER"] });
-    injectTax(state, 6775, { player: "p2" });
-    const counter = ids(state, "p2", "hand", "C677-COUNTER")[0];
-    const attack = IMPL.legalActions(CTX, state).find((row) => row.action.type === "attack" && row.action.attacker === leaderOf(state, "p1") && row.action.target === leaderOf(state, "p2"));
-    assert.ok(attack);
-    let at = take(state, attack.action).state;
-    if (at.prompt.kind === "blocker") at = take(at, { type: "block", player: "p2", card: null }).state;
-    assert.equal(at.prompt.kind, "counter");
-    stops(() => IMPL.apply(CTX, at, { type: "counter", player: "p2", card: counter }));
-  }
+  // The [Auto] and [Counter] activations this suite used to stop on are
+  // charged now: `activation-taxes-677.ts` plays them on the catalog cards.
 }
 finally {
   for (const id of injected) delete DEFS[id];
