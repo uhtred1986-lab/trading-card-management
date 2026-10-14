@@ -1,0 +1,544 @@
+{
+  "contract": 2,
+  "game": {
+    "id": 798,
+    "revision": 0,
+    "mode": "hotseat",
+    "engine": "rules",
+    "game": "dbs",
+    "status": "playing",
+    "turn": 1,
+    "p1Name": "You",
+    "p2Name": "Other",
+    "you": "p1"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "keyword",
+            "category": "manual",
+            "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+            "tags": [
+              "Awaken"
+            ],
+            "zone": "leader",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "refused",
+            "why": [
+              {
+                "kind": "condition",
+                "text": "When your life is at 4 or less"
+              }
+            ],
+            "costPreview": {
+              "state": "incomplete"
+            }
+          }
+        ]
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#7",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "energyColors": [
+        {
+          "card": "p1#7",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
+      "hand": [
+        {
+          "id": "p1#18",
+          "cardId": "BT6-025",
+          "name": "Transcendent Strike",
+          "power": null,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-025.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": null,
+          "comboPower": null,
+          "keywords": [],
+          "text": "[Activate: Main] If your Leader Card is red: Choose up to 1 of your opponent's Battle Cards with 20000 power or less and KO it.",
+          "reading": "if your leader is Red: choose up to 1 Battle Card with 20000 power or less in your opponent's Battle Area, KO the chosen cards",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "activate:main",
+              "category": "manual",
+              "text": "[Activate: Main] If your Leader Card is red: Choose up to 1 of your opponent's Battle Cards with 20000 power or less and KO it.",
+              "tags": [
+                "Activate: Main"
+              ],
+              "zone": "hand",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "timing": "main",
+              "availability": "offered",
+              "costPreview": {
+                "state": "known",
+                "offers": [
+                  {
+                    "label": "Activate Transcendent Strike: Choose up to 1 of your opponent's Battle",
+                    "cost": {
+                      "energy": 1,
+                      "orbs": {
+                        "Red": 1
+                      },
+                      "describe": "1 energy (1 red)"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "handCount": 1,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 40,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 1,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "them": {
+      "player": "p2",
+      "name": "Other",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p2#8",
+          "cardId": "SMALL798",
+          "name": "SMALL798",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p2#1",
+          "cardId": "EXACT798",
+          "name": "EXACT798",
+          "power": 20000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p2#42",
+          "cardId": "BIG798",
+          "name": "BIG798",
+          "power": 25000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p2#24",
+          "cardId": "BARRIER798",
+          "name": "BARRIER798",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Barrier"
+          ],
+          "text": "[Barrier]",
+          "reading": "",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "keyword",
+              "text": "[Barrier]",
+              "tags": [
+                "Barrier"
+              ],
+              "zone": "battle",
+              "owner": "p2",
+              "controller": "p2",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              }
+            }
+          ]
+        },
+        {
+          "id": "?p2:battle:4",
+          "cardId": "",
+          "name": "Face-down card",
+          "power": null,
+          "colors": [],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": true,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": null,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [],
+      "energyColors": [],
+      "hand": null,
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 37,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "turn": 1,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "main",
+      "player": "p1",
+      "question": "Your Main Phase.",
+      "hint": "Play cards, attack, or end the turn.",
+      "passConsequence": "End turn ends Main Phase; end-of-turn skills resolve before the next turn."
+    },
+    "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "main",
+    "phase": "main",
+    "battleStep": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#18",
+        "skill": 0
+      },
+      "label": "Activate Transcendent Strike: Choose up to 1 of your opponent's Battle",
+      "cost": {
+        "energy": 1,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "1 energy (1 red)"
+      }
+    }
+  ],
+  "choicePreviews": [
+    {
+      "action": 1,
+      "skillIndex": 0,
+      "state": "available",
+      "candidates": [
+        "p2#8",
+        "p2#1"
+      ],
+      "rejected": [
+        {
+          "card": "p2#0",
+          "reason": "Requires a Battle Card."
+        },
+        {
+          "card": "p2#42",
+          "reason": "Power exceeds 20000."
+        },
+        {
+          "card": "p2#24",
+          "reason": "Barrier prevents this card being chosen."
+        }
+      ]
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#18": [
+        1
+      ]
+    },
+    "bare": [
+      0
+    ],
+    "attackTargets": {},
+    "whyByCard": {
+      "p1#18": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ],
+      "p1#0": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        },
+        {
+          "kind": "timing",
+          "window": "nextTurn"
+        }
+      ]
+    }
+  },
+  "rejected": [
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Charge Transcendent Strike",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Grow Unison Transcendent Strike",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#0",
+        "skill": 0
+      },
+      "label": "Activate L-RED: [Awaken]",
+      "why": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p1#0"
+      },
+      "label": "Attack with L-RED",
+      "why": [
+        {
+          "kind": "timing",
+          "window": "nextTurn"
+        }
+      ]
+    }
+  ],
+  "beats": null,
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}

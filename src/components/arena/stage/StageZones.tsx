@@ -319,7 +319,7 @@ export function Lane({
   return (
     <div className="arena-field arena-lane relative flex min-h-[56px] flex-1 items-center justify-center px-3 py-1.5">
       {summary != null ? (
-        <div className="relative z-[1] flex max-h-32 min-w-0 w-full max-w-[28rem] flex-col items-center justify-center overflow-y-auto text-center max-[390px]:max-h-24" data-arena-outcome-summary>
+        <div className="relative z-[1] max-h-32 min-w-0 w-full max-w-[28rem] overflow-y-auto text-center" data-arena-outcome-summary>
           {summary}
         </div>
       ) : narration && (
