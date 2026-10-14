@@ -1,0 +1,418 @@
+{
+  "contract": 2,
+  "game": {
+    "id": 798,
+    "revision": 0,
+    "mode": "hotseat",
+    "engine": "rules",
+    "game": "dbs",
+    "status": "playing",
+    "turn": 1,
+    "p1Name": "You",
+    "p2Name": "Other",
+    "you": "p1"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "keyword",
+            "category": "manual",
+            "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+            "tags": [
+              "Awaken"
+            ],
+            "zone": "leader",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "refused",
+            "why": [
+              {
+                "kind": "condition",
+                "text": "When your life is at 4 or less"
+              }
+            ],
+            "costPreview": {
+              "state": "incomplete"
+            }
+          }
+        ]
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#7",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#10",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "energyColors": [
+        {
+          "card": "p1#7",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        },
+        {
+          "card": "p1#10",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
+      "hand": [
+        {
+          "id": "p1#18",
+          "cardId": "BT11-011",
+          "name": "Vegeta, Saiyan Youth",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT11-011.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards and add a marker to it.",
+          "reading": "if your leader is Red: choose up to 1 red Unison Card in your Unison Area, add 1 marker",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "auto",
+              "category": "automatic",
+              "text": "[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards and add a marker to it.",
+              "tags": [
+                "Auto"
+              ],
+              "zone": "hand",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              },
+              "pending": false
+            }
+          ]
+        }
+      ],
+      "handCount": 1,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 39,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 2,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "them": {
+      "player": "p2",
+      "name": "Other",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [],
+      "energyColors": [],
+      "hand": null,
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 42,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "turn": 1,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "main",
+      "player": "p1",
+      "question": "Your Main Phase.",
+      "hint": "Play cards, attack, or end the turn.",
+      "passConsequence": "End turn ends Main Phase; end-of-turn skills resolve before the next turn."
+    },
+    "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "main",
+    "phase": "main",
+    "battleStep": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Play Vegeta, Saiyan Youth",
+      "cost": {
+        "energy": 2,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "2 energy (1 red)"
+      }
+    }
+  ],
+  "choicePreviews": [
+    {
+      "action": 1,
+      "skillIndex": 0,
+      "state": "empty",
+      "candidates": [],
+      "rejected": [
+        {
+          "card": "p1#0",
+          "reason": "Requires a Unison Card."
+        }
+      ],
+      "reason": "No eligible target for up to 1 red Unison Card in your Unison Area."
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#18": [
+        1
+      ]
+    },
+    "bare": [
+      0
+    ],
+    "attackTargets": {},
+    "whyByCard": {
+      "p1#18": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        },
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ],
+      "p1#0": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        },
+        {
+          "kind": "timing",
+          "window": "nextTurn"
+        }
+      ]
+    }
+  },
+  "rejected": [
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Charge Vegeta, Saiyan Youth",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "growUnison",
+        "player": "p1",
+        "card": "p1#18"
+      },
+      "label": "Grow Unison Vegeta, Saiyan Youth",
+      "why": [
+        {
+          "kind": "target",
+          "reason": "no Unison Card in play to grow"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "activate",
+        "player": "p1",
+        "card": "p1#0",
+        "skill": 0
+      },
+      "label": "Activate L-RED: [Awaken]",
+      "why": [
+        {
+          "kind": "condition",
+          "text": "When your life is at 4 or less"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p1#0"
+      },
+      "label": "Attack with L-RED",
+      "why": [
+        {
+          "kind": "timing",
+          "window": "nextTurn"
+        }
+      ]
+    }
+  ],
+  "beats": null,
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}
