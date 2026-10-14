@@ -1,0 +1,222 @@
+{
+  "applied": "2026-10-15 (owner local date)",
+  "authorization": "Owner explicitly approved reviewed production refresh in chat",
+  "rulesWritten": 26,
+  "catalogErratum": "BT5-119",
+  "untargetedRulesVerifiedUnchanged": 46,
+  "held": [
+    "BT3-109/front/20",
+    "BT6-062/front/10",
+    "SD8-03/front/10"
+  ],
+  "rows": [
+    {
+      "card": "SD13-01",
+      "side": "front",
+      "skill": 10,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "reading": "if any of the cards in your opponent's Leader Area is being attacked: opponent discards 1, choose up to 1 card in your Life Area, move the chosen cards to hand"
+    },
+    {
+      "card": "SD5-01",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "reading": "if any of the cards in your opponent's Leader Area is being attacked: draw 1"
+    },
+    {
+      "card": "BT29-029",
+      "side": "back",
+      "skill": 10,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "choose up to 1 blue \u226aCooler's Armored Squadron\u226b card or blue Extra Card in your Battle Area that is not in a battle, move the chosen cards to hand"
+    },
+    {
+      "card": "BT29-032",
+      "side": "front",
+      "skill": 10,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "you may: choose 1 blue \u226acooler's armored squadron\u226b card with an energy cost of 1 or blue \u226acooler's armored squadron\u226b card with an energy cost of 5 in your Drop Area, move the chosen cards to energy, if the offer was taken: choose 1 card in your Energy Area, move the chosen cards to zEnergy"
+    },
+    {
+      "card": "BT6-009",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "look at the top 3, choose up to 1 <Veku: Br> card or red <Son Goku: Br> card of the cards looked at, move the chosen cards to hand, move the chosen cards to deck, at the end of the turn: move this card to hand"
+    },
+    {
+      "card": "BT30-084",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "reading": "if there are 2 or more cards in your opponent's Energy Area: choose up to 1 Battle Card whose card name is in the text of a skill on the chosen card in your Warp, play the chosen cards"
+    },
+    {
+      "card": "SD13-04",
+      "side": "front",
+      "skill": 10,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "if your leader is Green <frieza> and there are 1 or more green Unison Cards in your Unison Area: choose one \u2014 choose 1 card in your Leader Area / choose 1 card in your Unison Area, the chosen cards +10000 power for the battle"
+    },
+    {
+      "card": "BT6-004",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "look at the top 5, choose up to 1 <Gogeta: Br> card or red <Vegeta: Br> card of the cards looked at, move the chosen cards to hand, shuffle, if you added a card to your hand: choose 1 card in your hand, move the chosen cards to drop"
+    },
+    {
+      "card": "BT6-005",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "look at the top 3, choose up to 1 <Veku: Br> card or red <Vegeta: Br> card of the cards looked at, move the chosen cards to hand, move the chosen cards to deck, at the end of the turn: move this card to hand"
+    },
+    {
+      "card": "BT6-008",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "look at the top 5, choose up to 1 <Gogeta: Br> card or red <Son Goku: Br> card of the cards looked at, move the chosen cards to hand, shuffle, if you added a card to your hand: choose 1 card in your hand, move the chosen cards to drop"
+    },
+    {
+      "card": "BT4-095",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "choose up to 1 \u226aGoku's Lineage\u226b card with [Swap] with an energy cost of 5 or less in your deck, move the chosen cards to hand, shuffle"
+    },
+    {
+      "card": "BT6-014",
+      "side": "front",
+      "skill": 40,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "reading": "if any of the cards in your opponent's Battle Area is being attacked: switch this card to active mode"
+    },
+    {
+      "card": "EX03-19",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "if any of the cards in your opponent's Leader Area is being attacked: choose up to 1 \u226aUniverse 11\u226b card in your hand, move the chosen cards to drop, if you took that choice: draw 2"
+    },
+    {
+      "card": "BT29-036",
+      "side": "front",
+      "skill": 10,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "draw 1, choose up to 1 Battle Card in your opponent's Battle Area that is not in a battle, move the chosen cards to hand"
+    },
+    {
+      "card": "BT6-015",
+      "side": "front",
+      "skill": 30,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "reading": "if any of the cards in your opponent's Battle Area is being attacked: switch this card to active mode"
+    },
+    {
+      "card": "BT3-030",
+      "side": "front",
+      "skill": 20,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "reading": "if it is your turn: choose one \u2014 choose up to 1 card in your opponent's Leader Area / choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards -5000 power for the battle"
+    },
+    {
+      "card": "BT29-035",
+      "side": "front",
+      "skill": 10,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "if it is your turn: look at the top 5, choose up to 1 blue <cooler> card or blue \u226acooler's armored squadron\u226b card or blue Extra Card with an energy cost of 0 of the cards looked at, move the chosen cards to hand, shuffle"
+    },
+    {
+      "card": "BT29-039",
+      "side": "front",
+      "skill": 10,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "look at the top 5, choose up to 1 blue <cooler> card or blue \u226acooler's armored squadron\u226b card or blue Extra Card with an energy cost of 0 of the cards looked at, move the chosen cards to hand, shuffle"
+    },
+    {
+      "card": "SD13-04",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "look at the top 5, choose up to 1 green Unison Card with a specified cost of 2 or green \u226afrieza's army\u226b card with an energy cost of 4 or less of the cards looked at, move the chosen cards to hand, shuffle"
+    },
+    {
+      "card": "DB1-019",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "if your leader is Red \u226asaiyan\u226b: choose one \u2014 choose 1 card in your Leader Area / choose 1 Battle Card in your Battle Area, the chosen cards +5000 power for the turn, if your life is 3 or less: if it is your opponent's turn: choose up to 1 red card in your Energy Area, switch the chosen cards to active mode, draw 1"
+    },
+    {
+      "card": "BT31-119",
+      "side": "front",
+      "skill": 20,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "choose up to 2 white <cell> cards or white Extra Cards in your deck, move the chosen cards to drop, shuffle, choose up to 1 white \u226aandroid\u226b card in your Drop Area, move the chosen cards to under"
+    },
+    {
+      "card": "BT3-031",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "reading": "if any of the cards in your opponent's Leader Area is being attacked: move the top 1 card in your deck to under, if there are 2 or more cards under your cards: draw 1"
+    },
+    {
+      "card": "BT3-010",
+      "side": "front",
+      "skill": 20,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "draw 1, choose one \u2014 choose up to 1 red card in your Leader Area / choose up to 1 red Battle Card in your Battle Area, the chosen cards +5000 power for the turn"
+    },
+    {
+      "card": "SD13-03",
+      "side": "front",
+      "skill": 0,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "choose one \u2014 choose up to 1 card in your Leader Area / choose up to 1 green Unison Card in your Unison Area, the chosen cards +10000 power for the turn"
+    },
+    {
+      "card": "BT5-119",
+      "side": "front",
+      "skill": 10,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "if your leader is \u226ashenron\u226b: choose 1 Battle Card with an energy cost of 3 or less in your Drop Area, play the chosen cards"
+    },
+    {
+      "card": "BT6-063",
+      "side": "front",
+      "skill": 10,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "reading": "if your leader is Green \u226afrieza's army\u226b: choose 1 to 2 cards in your Life Area, move the chosen cards to hand, choose up to 1 green <Broly: Br> card with an energy cost of 4 in your hand, play the chosen cards"
+    }
+  ]
+}
