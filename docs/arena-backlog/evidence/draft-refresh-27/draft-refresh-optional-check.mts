@@ -27,14 +27,14 @@ for (const [id, printed, exactCount] of cases) {
   const nodes = allOps(ops);
   const choose = nodes.find((op) => op.op === "choose" && op.sel?.count === exactCount && op.reason?.includes(`choose ${exactCount} cards`));
   assert.ok(choose, `${id}: no count-${exactCount} choice`);
-  assert.equal(choose.sel.upTo, true, `${id}: fresh selector still permits fewer than N`);
+  assert.equal(choose.sel?.upTo, true, `${id}: fresh selector still permits fewer than N`);
   const list = [ops, ...nodes.map((op) => op.then ?? [])].find((siblings) => {
     const index = siblings.indexOf(choose!);
     return index >= 0 && siblings[index + 1]?.op === "moveTo" && siblings[index + 1]?.to === "drop";
   });
   assert.ok(list, `${id}: choice does not immediately move selected cards to Drop`);
   const gated = nodes.find((op) => op.op === "if" && op.cond?.kind === "chose" && op.cond?.var === choose.as);
-  assert.ok(gated && gated.cond.atLeast === exactCount, `${id}: no later full-count follow-up gate`);
+  assert.ok(gated && gated.cond?.atLeast === exactCount, `${id}: no later full-count follow-up gate`);
   console.log(`${id}: choose up to ${exactCount}; selected cards move to Drop before the later atLeast ${exactCount} check. Control-flow inference for a 1-card selection: the move precedes and is independent of the full-count follow-up gate.`);
 }
 console.log("PASS: current compiled op order retains the documented partial-choice approximation in all three candidate readings.");
