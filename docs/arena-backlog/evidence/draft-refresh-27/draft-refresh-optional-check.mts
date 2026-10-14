@@ -8,7 +8,16 @@ const cases = [
   ["SD8-03#10", "[Auto] When this card is removed from a Battle Area by a skill or KO'd, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green <Broly: Br> card with an energy cost of 7 from your hand and play it.", 2],
 ] as const;
 
-type Op = Record<string, any>;
+type Op = {
+  op: string;
+  sel?: { count?: number; upTo?: boolean };
+  reason?: string;
+  then?: Op[];
+  else?: Op[];
+  to?: string;
+  cond?: { kind?: string; var?: string; atLeast?: number };
+  as?: string;
+};
 function allOps(ops: Op[]): Op[] {
   return ops.flatMap((op) => [op, ...((op.then ? allOps(op.then) : [])), ...((op.else ? allOps(op.else) : []))]);
 }
