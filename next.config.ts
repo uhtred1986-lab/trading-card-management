@@ -52,6 +52,7 @@ const nextConfig: NextConfig = {
   ...(AGENT_SDK_BUILD ? { serverExternalPackages: ["@anthropic-ai/claude-agent-sdk"] } : {}),
   // Scan uploads are multi-megabyte phone photos; the default 1 MB body limit
   // would reject them before the server action ever sees the file.
+  productionBrowserSourceMaps: process.env.PROFILE_SOURCEMAPS === "1",
   experimental: {
     serverActions: { bodySizeLimit: "20mb" },
   },

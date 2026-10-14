@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { BUDGETS, distribution, evaluateBudgets, flatten, quantile, type Budget, type ConfigReport } from "../lib/worker-budgets";
+import { BOARD_BUDGETS, BOARD_UNMEASURABLE, BUDGETS, distribution, evaluateBudgets, flatten, quantile, type Budget, type ConfigReport } from "../lib/worker-budgets";
 
 // Nearest-rank quantiles, as `arena-perf-baseline.mts` reports them.
 const ten = [5, 1, 9, 3, 7, 2, 8, 4, 10, 6];
@@ -76,4 +76,44 @@ for (const b of BUDGETS) {
 const doc = fs.readFileSync("docs/arena-worker-budgets.md", "utf8");
 for (const b of BUDGETS) assert.ok(doc.includes(`\`${b.metric}\``), `docs/arena-worker-budgets.md lists budget \`${b.metric}\``);
 
-console.log(`arena-worker-budgets: ${BUDGETS.length} budgets, evaluation logic and document agree`);
+// #782: the board budgets (arena:offline-release, the real app on a desktop).
+const boardSeen = new Set<string>();
+for (const b of BOARD_BUDGETS) {
+  assert.ok(!b.config, `${b.metric}: a board budget is not scoped to a configuration`);
+  assert.ok(!boardSeen.has(b.metric), `no duplicate board budget ${b.metric}`);
+  boardSeen.add(b.metric);
+  assert.ok(Number.isFinite(b.limit) && b.limit > 0 && b.why.length > 5, `${b.metric}: a finite limit and where it came from`);
+  const o1 = BUDGETS.find((x) => x.metric === b.metric && !x.config);
+  assert.ok(o1, `${b.metric}: a board budget re-derives an O1 metric of the same name`);
+  assert.equal(b.unit, o1!.unit, `${b.metric}: same unit as O1`);
+  // The re-derivation only loosens a budget the board misses; the two long-task ceilings are the owner's, not derived.
+  if (b.metric !== "longTaskMaxMs" && b.metric !== "longTaskAtMatchStartMaxMs") {
+    assert.ok(b.limit >= o1!.limit, `${b.metric}: the board budget ${b.limit} is not tighter than the O1 ${o1!.limit}`);
+  }
+}
+const ceiling = (m: string) => BOARD_BUDGETS.find((b) => b.metric === m)?.limit;
+assert.equal(ceiling("longTaskMaxMs"), 500, "owner, 14 Oct 2026: a long task under 500 ms on the board is accepted until the owner reports slowness");
+assert.equal(ceiling("longTaskAtMatchStartMaxMs"), 500, "a long task at the match start is held to the same 500 ms");
+assert.ok(!BOARD_BUDGETS.some((b) => b.metric === "userAgentMemoryBytes"), "userAgentMemoryBytes is not a board budget: it cannot be measured on the app");
+assert.deepEqual(BOARD_UNMEASURABLE.map((u) => u.metric), ["userAgentMemoryBytes"], "the one metric recorded as not measurable");
+assert.ok(BOARD_UNMEASURABLE.every((u) => u.why.includes("cross-origin-isolated")), "with its reason");
+for (const m of ["roundTripMs.p95", "matchStartMs.p95", "frameIntervalMs.p95", "framesOver50Ms", "longTaskCount", "mainHeapBytes", "workerHeapRetainedBytes", "decisionMs.max"]) {
+  assert.ok(boardSeen.has(m), `a board budget covers ${m}`);
+}
+const boardOn: Record<string, number | null> = Object.fromEntries(BOARD_BUDGETS.map((b) => [b.metric, b.limit]));
+assert.deepEqual(evaluateBudgets({ board: cfg(boardOn) }, BOARD_BUDGETS), [], "a board run exactly on every board budget passes");
+for (const b of BOARD_BUDGETS) {
+  const over1 = evaluateBudgets({ board: cfg({ ...boardOn, [b.metric]: b.limit + 1 }) }, BOARD_BUDGETS);
+  assert.deepEqual(over1.map((x) => x.metric), [b.metric], `${b.metric}: a board run over it fails exactly it`);
+  const unmeasured = evaluateBudgets({ board: cfg({ ...boardOn, [b.metric]: null }) }, BOARD_BUDGETS);
+  assert.deepEqual(unmeasured.map((x) => [x.metric, x.kind]), [[b.metric, "missing"]], `${b.metric}: unmeasured is a failure`);
+}
+// The page records each board budget with its limit, in its "Board budgets" section.
+assert.ok(doc.includes("## Board budgets"), "docs/arena-worker-budgets.md has a Board budgets section");
+const boardDoc = doc.slice(doc.indexOf("## Board budgets"));
+const shown = (b: Budget) => (b.unit === "bytes" ? `${b.limit / 1_000_000} MB` : b.unit === "ms" ? `${b.limit} ms` : `${b.limit}`);
+for (const b of BOARD_BUDGETS) {
+  assert.ok(boardDoc.includes(`| \`${b.metric}\` | at most ${shown(b)} |`), `the Board budgets table lists \`${b.metric}\` at most ${shown(b)}`);
+}
+
+console.log(`arena-worker-budgets: ${BUDGETS.length} O1 budgets and ${BOARD_BUDGETS.length} board budgets; evaluation logic and document agree`);
