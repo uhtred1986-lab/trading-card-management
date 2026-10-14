@@ -198,12 +198,14 @@ try {
   await clickText(page, "Prepare for offline play");
   await until(page, `document.querySelector('[data-offline-status]')?.dataset.offlineStatus === "ready"`, "ready with the starters", 240000);
   check(await page.eval<boolean>(`[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Remove everything")`), "a prepared device offers Remove everything on /arena/offline, to a browser that never signed in");
+  await until(page, `document.querySelectorAll("[data-device-deck]").length >= 2`, "the device's deck list").catch(() => {});
   check(JSON.stringify((await deckRows(page)).map((r) => r.key)) === JSON.stringify(["A", "B"]), "prepared: the starters are on the device");
 
   await page.eval(`document.querySelector('section[aria-label="Deck pack"] details').open = true; 0`);
   await setFile(page, 'section[aria-label="Deck pack"] input[type=file]', firstFile);
   await until(page, `document.querySelectorAll("[data-device-deck]").length === 4`, "the device pack with the player's decks", 180000);
   const k1 = offlineDeckKey(red), k2 = offlineDeckKey(red2);
+  await until(page, `[...document.querySelectorAll("[data-device-deck]")].every((li) => /about \\d/.test(li.innerText))`, "each deck's storage").catch(() => {});
   let list = await deckRows(page);
   check(JSON.stringify(list.map((r) => r.key)) === JSON.stringify(["A", "B", k1, k2]), `the device holds ONE pack: the starters and both of the player's decks (${list.map((r) => r.key).join(", ")})`);
   check(list.slice(2).every((r) => /your deck/.test(r.text) && /card pictures, about \d/.test(r.text)), `each of the player's decks shows what it takes on the device (${list[2].text.slice(0, 120)})`);

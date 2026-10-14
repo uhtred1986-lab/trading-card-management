@@ -313,7 +313,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
         )}
 
         <section aria-label="Deck pack" className={`${panel} space-y-2`}>
-          <h2 className="text-xs uppercase tracking-widest text-space-400">{installed ? "Decks on this device" : "Deck pack"}</h2>
+          <h2 className="text-xs uppercase tracking-widest text-space-400">{installed ? "Deck pack files" : "Deck pack"}</h2>
           {installed ? (
             <details>
               <summary className="tap inline-flex cursor-pointer items-center text-sm text-space-200">Choose a deck pack or add one from a file</summary>
