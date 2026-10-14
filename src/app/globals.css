@@ -3715,3 +3715,18 @@ html[data-skin="anime"] body::before {
     box-shadow: 0 2px 5px rgba(18, 22, 31, 0.28);
   }
 }
+
+/* The regular app shares the same notch protection as the full-screen arena. */
+.app-safe-x {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Safari zooms focused fields below 16px. Keep pinch zoom available. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+  select,
+  textarea {
+    font-size: max(1em, 16px);
+  }
+}

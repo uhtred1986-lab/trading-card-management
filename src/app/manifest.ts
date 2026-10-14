@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 /**
- * What makes the arena installable to an Android home screen — no store, no
+ * What makes the arena installable to an Android or iPhone home screen — no store, no
  * listing, just "Add to home screen" from the browser (design proposal §13).
  *
  * `start_url` is the arena rather than the dashboard: this is installed to
